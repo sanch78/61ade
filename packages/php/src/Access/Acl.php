@@ -4,13 +4,17 @@ namespace Vapa\Access;
 
 final class Acl
 {
+    private array $cache=[];
     public function __construct(private \PDO $db) {}
+    public function invalidate():void{$this->cache=[];}
 
     public function rules(string $actor, string $resource, string $action, string $channel): array
     {
+        $key=json_encode([$actor,$resource,$action,$channel],JSON_THROW_ON_ERROR);
+        if(isset($this->cache[$key]))return $this->cache[$key];
         $q = $this->db->prepare("SELECT * FROM vapa_rules WHERE resource = ? AND action = ? AND channel = ? AND ((subject_type = 'user' AND subject_id = ?) OR (subject_type = 'role' AND subject_id IN (SELECT CAST(role_id AS CHAR) FROM vapa_memberships WHERE actor_id = ?)))");
         $q->execute([$resource, $action, $channel, $actor, $actor]);
-        return $q->fetchAll(\PDO::FETCH_ASSOC);
+        return $this->cache[$key]=$q->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     public function allows(string $actor, string $resource, string $action, string $channel, ?string $id = null, ?string $owner = null, string $field = ''): bool

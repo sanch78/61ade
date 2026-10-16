@@ -9,6 +9,7 @@ final class Executor
     public function execute(Context $ctx, string $resource, string $name, ?string $id, array $input): mixed
     {
         $fields=[];
+        $ctx->acl->invalidate();
         try {
             $action=$this->registry->get($resource,$name);
             if (!in_array($ctx->channel,$action->channels,true) || ($ctx->channel==='api' && !in_array($resource.'.'.$name,$ctx->scopes,true))) throw new Failure('Nincs hozzáférés.',403);
@@ -40,6 +41,7 @@ final class Executor
             return $result;
         } catch (\Throwable $error) {
             if ($this->db->inTransaction()) $this->db->rollBack();
+            $ctx->acl->invalidate();
             $this->journal->record($ctx->actor->id,$ctx->channel,substr($resource,0,100),substr($name,0,100),substr($id ?? '',0,100),$error instanceof Failure ? 'rejected' : 'error',$fields);
             if ($error instanceof Failure) throw $error;
             if ($error instanceof \PDOException && str_starts_with((string)$error->getCode(),'23')) throw new Failure('Az adat már létezik, vagy hivatkozási feltételt sért.',409);

@@ -1,5 +1,5 @@
 import { Workspace, type ViewDefinition } from "./Workspace";
-import { Form, Layout, Menu, Toolbar, Window, alert, setTheme } from "@dhtmlx/suite";
+import { Form, Layout, Menu, Toolbar, Window, alert, setTheme, awaitRedraw } from "@dhtmlx/suite";
 
 export type MenuDefinition = {
   id: string;
@@ -32,6 +32,7 @@ export class AdminShell {
   private layout: Layout;
   private menu?: Menu;
   private workspace?: Workspace;
+  private navigation=0;
   private menuItems: object[] = [];
   private compactMenu?: boolean;
   private loginWindow?: Window;
@@ -142,11 +143,7 @@ export class AdminShell {
       menu.events.on("click", (id: string | number) => {
         if (id === "vapa-logout") this.post("logout");
         const view=definition.views?.find(v=>"feature:"+v.resource===id);
-        if(view){
-          this.workspace?.destroy();
-          this.workspace=new Workspace(document.createElement("div"),view,definition.csrf || "");
-          this.layout.getCell("workspace").attach(this.workspace.layout);
-        }
+        if(view)void this.openView(view);
       });
       this.layout.getCell("main-menu").attach(menu);
 
@@ -158,6 +155,16 @@ export class AdminShell {
       void alert({ header: "Hiba", text: definition.error, htmlEnable: false, buttons: ["Rendben"] })
         .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus("password"); });
     });
+  }
+
+  private async openView(view:ViewDefinition):Promise<void>{
+    const navigation=++this.navigation;
+    this.layout.getCell("workspace").detach();
+    this.workspace?.destroy();this.workspace=undefined;
+    await awaitRedraw();
+    if(navigation!==this.navigation || this.listeners.signal.aborted)return;
+    this.workspace=new Workspace(document.createElement("div"),view,this.definition.csrf || "");
+    this.layout.getCell("workspace").attach(this.workspace.layout);
   }
 
   private mountLogin(): void {
