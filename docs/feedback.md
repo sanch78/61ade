@@ -7,3 +7,5 @@
 ## FB-0004 — Framework-first rule, manageable ACL and audit
 
 ## FB-0005 — Native DHTMLX theme switching
+
+## FB-0006 — Configurable workspace, dynamic/live lists
