@@ -89,3 +89,11 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Megfigyelés:** az ellenőrzött runtime-forrásban nem találtunk fogyasztói osztály-, üzleti tábla- vagy legacyflag-hivatkozást. Egy szintetikus pollingteszt alapértelmezett PHP-binárisa fogyasztói útvonalra mutatott; ez tesztkörnyezeti visszafüggés volt.
 - **Módosítás:** a teszt most a demóindítóval egyezően `VAPA_PHP` vagy `php8.4` binárist használ. A konfiguráció és üzleti callback szerepe a [használati útmutatóban](usage.md#üzleti-konfiguráció-és-kód-határa), a tesztfuttatás a [fejlesztői útmutatóban](development.md#ellenőrzési-stratégia) szerepel.
 - **Állapot és ellenőrzés:** útvonal javítva; a `tests/shell/workspace.spec.cjs` mindkét Chromium-tesztje sikeres, kívülről megadott `VAPA_PHP` binárissal (önálló CRUD/form és külső írás pollingkövetése). A célzott forráskeresésben nem maradt fogyasztói név/séma/legacyflag vagy a korábbi beégetett útvonal. `git diff --check` sikeres. Felhasználói elfogadást nem állítunk.
+
+## FB-0008 — Olvasható JSON-definíció, env és rendezett PHP
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Elvárás:** a konfiguráció érthetően szekcionált JSON, a hostspecifikus beállítás env legyen; az üzleti PHP jól formázott, felelősségenként rendezett maradjon.
+- **Döntés és megoldás:** új általános `Configuration` compiler a VAPA-ban; névvel regisztrált üzleti callbackekkel a meglévő Field/Action/SqlResource/Workspace végrehajtást használja. Az FB-0007 PHP-definíciós lehetőségét JSON-alapú alapmódszertannal egészíti ki.
+- **Átvezetés:** [JSON/env használat](configuration.md), [üzleti határ](usage.md#üzleti-konfiguráció-és-kód-határa).
+- **Ellenőrzés:** a szintetikus `tests/shell/configuration.php`, a shell- és ACL-szerződéstesztek sikeresek. A fogyasztó saját account/profil/ACL/API/jelszó PHP-tesztje sikeres. A publikus login JSON/env konfigurációval 200 választ ad. Felhasználói elfogadást nem állítunk.
