@@ -4,7 +4,7 @@ Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését teszte
 
 ## Jelenlegi állapot
 
-2026-10-16: futtatható PHP bejelentkezési és navigációs shell, TypeScript/DHTMLX frontend build készült. Integráció, konfiguráció, példa, ellenőrzés és korlátok: [első shell használata](shell.md). Nincs publikált release, feature API, CRUD vagy teljes ACL. A shell nem jelenti M1/M2/M4 lezárását.
+2026-10-16: a VAPA saját ApplicationDefinition, IdentityProvider/SqlIdentityProvider, Menu/MenuItem és HTTP indítási szerződéseire épülő DHTMLX Window/Form/Menu/Layout alkalmazásalap készült. Önálló, szintetikus keretdemó és kerettesztek tartoznak hozzá. Integráció, konfiguráció, példa, ellenőrzés és korlátok: [első shell használata](shell.md). Nincs publikált release, feature API, CRUD vagy teljes ACL. A shell nem jelenti M1/M2/M4 lezárását.
 
 ## Kötelező fejlesztési irány
 

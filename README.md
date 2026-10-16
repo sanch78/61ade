@@ -2,7 +2,7 @@
 
 Újrahasznosítható, konfigurációvezérelt admin alkalmazáskeret modern PHP backenddel és DHTMLX frontenddel.
 
-**Állapot: első futtatható bejelentkezési és navigációs shell PHP 8.4+ és TypeScript/DHTMLX alapon. Nincs kiadott csomag, feature API vagy CRUD.**
+**Állapot: első önálló VAPA alkalmazásalap PHP 8.4+ és DHTMLX Window/Form/Menu/Layout vezérlőkkel. Nincs kiadott csomag, feature API vagy CRUD.**
 
 ## Cél
 
@@ -24,6 +24,7 @@ A használati módszertant minden képességváltozással együtt vezetjük; a f
 - [DHTMLX-képességek és licencek](docs/component-matrix.md)
 - [Fejlesztés, futtatás és kiadás](docs/development.md)
 - [Döntési napló](docs/decisions/0001-foundation.md)
+- [Kötelező irány: VAPA = ADE v2](docs/decisions/0002-framework-first.md)
 
 ## Csomagok
 

@@ -6,9 +6,12 @@
   ],
   "scripts": {
     "build": "node tools/build.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:browser": "playwright test",
+    "demo:assets": "node packages/frontend/bin/publish.mjs examples/demo-app/public/assets"
   },
   "devDependencies": {
+    "@playwright/test": "1.58.2",
     "esbuild": "0.25.12",
     "typescript": "5.9.3"
   }

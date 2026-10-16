@@ -49,6 +49,6 @@ Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a f
 - **Megfigyelés:** az egyedi loginoldal/kártyás dashboard a kívánt keretfejlesztési irányt nem teljesítette.
 - **Elvárás:** VAPA keretrendszert fejlesztünk, majd erre kerülnek az üzleti modulok egyenként. Minden általános admin-képességet a VAPA ad DHTMLX komponensekkel; nincs azt megkerülő alkalmazási admin-megoldás.
 - **Döntés:** kötelező architektúraszabály, nem vizuális preferencia. Az FB-0002 megvalósítási értelmezését felülírja.
-- **Állapot:** elfogadott / javítás folyamatban.
+- **Állapot:** keretjavítás megvalósítva; fogyasztói integráció ellenőrzés alatt, felhasználói elfogadás még nincs.
 - **Átvezetés:** [AGENTS.md](../AGENTS.md), [ADR-0002](decisions/0002-framework-first.md), [használati módszertan](usage.md).
-- **Ellenőrzés:** a szabály tartós rögzítése megtörtént; a javított keret és fogyasztó ellenőrzése még hátravan.
+- **Ellenőrzés:** [önálló keretdemó és szerződéstesztek](shell.md#önálló-keretdemó-és-ellenőrzés), PHP lint, frontend typecheck/build. A fogyasztói integráció külön következik.

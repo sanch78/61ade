@@ -1,0 +1,45 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "62887876e30abde2f3ddc5dcee025983",
+    "packages": [
+        {
+            "name": "sanch78/vapa",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/php",
+                "reference": "e93ca63df577a989fc4dfe7ee362287ff9faae49"
+            },
+            "require": {
+                "php": "^8.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Vapa\\": "src/"
+                }
+            },
+            "description": "Very Advanced PHP Admin — reusable login and navigation shell",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {
+        "php": "^8.4",
+        "ext-pdo_sqlite": "*"
+    },
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}
