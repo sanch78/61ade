@@ -80,6 +80,7 @@ final class WorkspaceConfiguration
                 'type' => 'string', 'required' => 'boolean', 'max' => 'integer',
                 'options' => 'array', 'secret' => 'boolean',
                 'options_lookup' => 'string', 'options_binding' => 'string',
+                'validation' => 'array',
             ], '$.fields');
             if (isset($names[$definition['name']])) {
                 throw new InvalidArgumentException('Duplicate field: '.$definition['name']);
@@ -104,6 +105,7 @@ final class WorkspaceConfiguration
                 max: $definition['max'] ?? 255,
                 options: $options,
                 secret: $definition['secret'] ?? false,
+                validation: $definition['validation'] ?? [],
             );
         }
         return $fields;

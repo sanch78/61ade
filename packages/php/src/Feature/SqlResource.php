@@ -76,6 +76,15 @@ final class SqlResource
         unset($values['revision']);
         if($this->guard)($this->guard)($ctx,$target,$values);
         if($this->normalize)$values=($this->normalize)($ctx,$target,$values);
+        foreach ($this->fields as $field) {
+            if (!($field->validation['unique'] ?? false) || !isset($values[$field->name]) || $values[$field->name] === '') continue;
+            $sql = "SELECT {$this->key} FROM {$this->table} WHERE {$field->name} = ?";
+            $params = [$values[$field->name]];
+            if ($target) { $sql .= " AND {$this->key} <> ?"; $params[] = $target['id']; }
+            $query = $ctx->db->prepare($sql.' LIMIT 1');
+            $query->execute($params);
+            if ($query->fetchColumn() !== false) $field->reject('Ez az érték már használatban van.');
+        }
         if($target){
             if(!$values)throw new Failure('Nincs módosítás.');
             $q=$ctx->db->prepare("UPDATE {$this->table} SET ".implode(',',array_map(static fn($k)=>"$k = ?",array_keys($values)))." WHERE {$this->key} = ?");

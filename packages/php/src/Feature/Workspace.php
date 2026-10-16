@@ -115,7 +115,7 @@ final class Workspace
             $handled=true;
             $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes),$data['resource'],$data['action'],$id,$data['values']??[]);
             echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);
-        }catch(Failure $e){if(!$handled)$this->journal->record($actor?->id??'',$channel,'transport','request','','rejected');http_response_code($e->status);echo json_encode(['ok'=>false,'error'=>$e->getMessage()],JSON_THROW_ON_ERROR);}
+        }catch(Failure $e){if(!$handled)$this->journal->record($actor?->id??'',$channel,'transport','request','','rejected');http_response_code($e->status);echo json_encode(['ok'=>false,'error'=>$e->getMessage(),'fieldErrors'=>(object)$e->fieldErrors],JSON_THROW_ON_ERROR);}
         exit;
     }
 }

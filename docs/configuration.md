@@ -51,7 +51,7 @@ A teljes szintetikus példa: [notes.json](../tests/fixtures/configuration/notes.
 | `section_descriptions` | Szabad szöveges szekciómagyarázatok; nem végrehajtható metaadat. |
 | `lookups` | Névvel ellátott, jogosultságszűrt választók: `resource`, `table`, `key`, `label`, opcionális `owner`, `where`, `extra`. |
 | `resources.<név>.storage` | `table`, `key`, opcionális `owner_column`, `defaults`, `where`, `self_only`. A `where` megbízható, fejlesztő által írt SQL-feltétel. |
-| `fields` | `name`, `label`, opcionális `type`, `required`, `max`, `secret`, valamint egyetlen választóforrás: `options`, `options_lookup` vagy `options_binding`. |
+| `fields` | `name`, `label`, opcionális `type`, `required`, `max`, `secret`, valamint egyetlen választóforrás: `options`, `options_lookup` vagy `options_binding`. A `validation` a [formvalidációs szerződést](validation.md) használja. |
 | `operations` | `create`/`update` alapból igaz, `delete` alapból hamis. |
 | `hooks` | `guard`, `normalize`, `after_save`, `delete_guard`: explicit PHP-binding neve. |
 | `view` | `title`, opcionális `group`, `singleton`, `columns`, `actions`, `layout`. Oszlopok/műveletek nélkül a regisztrált erőforrás alapnézete érvényes. |

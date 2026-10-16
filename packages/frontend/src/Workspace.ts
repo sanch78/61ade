@@ -1,7 +1,8 @@
 import { Form, Grid, Layout, Toolbar, Window, alert, awaitRedraw } from "@dhtmlx/suite";
 import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
+import { FormValidation, type FieldDefinition } from "./FormValidation";
 
-export type FieldDefinition={name:string;label:string;type:string;required:boolean;max:number;options:Record<string,string>};
+export type { FieldDefinition } from "./FormValidation";
 export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;fields:FieldDefinition[]};
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
 export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string}[];actions:ActionDefinition[];singleton:boolean;group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
@@ -12,7 +13,7 @@ const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>({
   name:f.name,label:f.label,labelPosition:"top",required:!readOnly&&f.required,maxlength:f.max,
   inputType:f.type==="password"?"password":"text",readOnly,
   ...(!readOnly&&f.type==="select"?{options:Object.entries(f.options).map(([value,content])=>({value,content}))}:{}),
-  value:f.type==="password"?"":String(value??""),
+  value:f.type==="password"?"":String(value??(f.type==="select"&&!readOnly?Object.keys(f.options)[0]??"":"")),
 });
 
 /** Configured filter/form/grid regions, bounded dynamic data and live observation. */
@@ -91,7 +92,7 @@ export class Workspace {
   private async call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{
     const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?vapa=1";
     const r=await fetch(endpoint,{method:"POST",credentials:"same-origin",signal,headers:{"Content-Type":"application/json","X-VAPA-CSRF":this.csrf},body:JSON.stringify({resource:this.view.resource,action,id,values})});
-    const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||"Sikertelen művelet."),{status:r.status});return result.data;
+    const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||"Sikertelen művelet."),{status:r.status,fieldErrors:result.fieldErrors});return result.data;
   }
   private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:"Hiba",text:e instanceof Error?e.message:"Sikertelen művelet.",htmlEnable:false});}
   private watch():void{this.live.subscribe({limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,filters:this.filters});}
@@ -185,8 +186,9 @@ export class Workspace {
   }
   private bindSave(form:Form,action:ActionDefinition,id:string|null,current:Row,allowed:FieldDefinition[],complete:()=>void):void{
     let saving=false;
+    const validation=new FormValidation(form,allowed.filter(f=>f.name!=="revision"));
     form.events.on("click",(name:string)=>{
-      if(name!=="submit"||saving||!form.validate())return;saving=true;form.disable();
+      if(name!=="submit"||saving||!validation.validate())return;saving=true;form.disable();
       const raw=form.getValue() as Record<string,unknown>;const values:Record<string,unknown>={};
       for(const f of allowed)if(f.name!=="revision"&&raw[f.name]!==undefined)values[f.name]=raw[f.name];
       if(allowed.some(f=>f.name==="revision"))values.revision=current.revision;
@@ -195,7 +197,7 @@ export class Workspace {
         if(result?.secret)await alert({header:"Egyszer megjelenő API-token",text:result.secret,htmlEnable:false});
         else await alert({header:"Mentés",text:"A művelet sikerült.",htmlEnable:false});
         if(result?.reauthenticate)location.reload();
-      }).catch(e=>this.error(e)).finally(()=>{saving=false;if(!this.disposed&&(this.editor===form||this.detail===form))form.enable();});
+      }).catch(e=>{if(!this.disposed&&!validation.showServerErrors(e.fieldErrors??{}))return this.error(e);}).finally(()=>{saving=false;if(!this.disposed&&(this.editor===form||this.detail===form))form.enable();});
     });
   }
   private revoke():void{this.rows=[];this.grid?.data.removeAll();this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}

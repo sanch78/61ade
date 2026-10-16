@@ -13,3 +13,5 @@
 ## FB-0007 — Business code and framework boundary
 
 ## FB-0008 — Readable JSON, env and organized PHP
+
+## FB-0009 — Full reference validation belongs to migration
