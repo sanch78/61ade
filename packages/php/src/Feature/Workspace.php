@@ -49,6 +49,7 @@ final class Workspace
             $view['layout']=$view['layout']->metadata();
             $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
             $view['filters']=$list->listSource?->filterDefinitions($ctx)??[];
+            $view['sortable']=$list->listSource?->sortableFields($ctx)??[];
             $out[]=$view;
         }
         return $out;

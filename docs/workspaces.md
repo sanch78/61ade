@@ -37,12 +37,24 @@ A singleton view közvetlen űrlap: a `get` által engedett adatot mutatja; a ko
 Ugyanaz a regisztrált `list` művelet fogadja az új `values` objektumot:
 
 ```json
-{"mode":"dynamic","limit":100,"filters":{"title":"minta"},"cursor":null}
+{"mode":"dynamic","limit":100,"filters":{"title":"minta"},"sort":{"field":"title","direction":"asc"},"cursor":null}
 ```
 
 Válasz: `items`, `previous`, `next`. A kurzor a következő/előző adatsáv kulcshatárát és irányát adja; nem jogosultság és nem SQL. Az adatforrás mindig újra alkalmazza az actor/csatorna ACL-jét. Egyszerre legfeljebb 200 rekord kérhető; a böngésző 100-as sávokat kér, és legfeljebb 600 rekordot tart. A megjelenítést a Standard Grid virtualizálja. A teljes adatállományhoz nincs böngészőbeli placeholder tömb és nincs kötelező COUNT lekérdezés. Ez gördülő adatsáv, nem a teljes táblát pozicionáló, rekordösszeggel arányos scrollbar.
 
-A szűrőmezők a regisztrált, nem titkos skalármezőkből jönnek; szövegnél contains, számnál/selectnél egyenlőség. A `%` és `_` literális karakter, nem kliens által megadott wildcard. Részlegesen tiltott olvashatóságú mezőt konzervatívan nem lehet szűrésre használni. A `textarea` nem alapszűrő. Összetett/ágazati filterhez előbb a keret típusos query-szerződését kell bővíteni. Kliensoldali részlistasort nincs; a sorrend a szerver kulcs szerinti sorrendje.
+A szűrőmezők a regisztrált, nem titkos skalármezőkből jönnek; szövegnél contains, számnál/selectnél egyenlőség. A `%` és `_` literális karakter, nem kliens által megadott wildcard. Részlegesen tiltott olvashatóságú mezőt konzervatívan nem lehet szűrésre használni. A `textarea` nem alapszűrő. Összetett/ágazati filterhez előbb a keret típusos query-szerződését kell bővíteni. A fejléc kattintása szerveroldali növekvő/csökkenő rendezést kér. Nincs kliensoldali részlistasort.
+
+### Rendezés és smart rendering
+
+A `sort` opcionális, alakja `{"field":"title","direction":"asc"}`; a másik irány `desc`. Az alap a publikus `id` csökkenő sorrendje. A teljes jogosult és szűrt találati halmazt az SQL rendezi. Egy mező rendezhető egyszerre; az azonos értékek közt az egyedi kulcs ugyanabban az irányban dönt, a NULL mindkét irányban a végére kerül. Számok numerikusan, szövegek az adatbázis kollációja szerint, select/checkbox mezők a tárolt érték szerint rendeződnek. Titkos, textarea, ismeretlen és részlegesen tiltott mezőre rendezni sem lehet; a `sortable` nézetmetaadat az engedélyezett publikus mezőneveket adja. Külön fogyasztói frontend vagy sort-endpoint nem kell. Gyakran rendezett nagy táblán a fogyasztó adatbázisindexet ad a rendezési mezőre és kulcsra; a keret nem módosít adatbázissémát.
+
+A fejléc `↑` / `↓` jelzi az irányt, és `aria-sort` teszi elérhetővé. A `column.editable: true` oszlop fejlécén `✎` látható, tooltipje leírja a szerkesztés módját; az editor és checkbox akadálymentes neve változatlan. A jelzés az oszlop képessége, a konkrét sor/mező ACL-je továbbra is korlátozhatja a szerkesztést.
+
+A kurzor a rendezési mezőt, irányt, határértéket és egyedi kulcsot is hordozza. Más rendezéshez tartozó kurzor elutasításra kerül. A sor `_position` technikai metaadata teszi lehetővé, hogy a kliens a 600-as gördülő ablak levágásakor is helyes visszafelé kurzort és élő ablakhatárt készítsen, Unicode értékekkel is. A `watch` a `sort` mellett középső ablaknál az első sor `first` azonosítóját és az abból képzett `anchor` kurzort kapja. Az első ablak követi az új élre kerülő sorokat; középső ablak a rendezett határhoz kötött marad. Új rendezés az elejéről tölt. A rendezési mező helyben módosítása után a szerver újrarendezi a listát.
+
+A smart rendering két rétege már működik: a Standard DHTMLX Grid virtualizálja a megjelenítést, a VAPA 100-as adatcsomagokkal, maximum 600 betöltött sorral korlátozza a memóriát. Ez nem a régi ADE teljes rekordszám szerinti görgetősávja: tetszőleges sorszámra ugrás és teljes táblaméretű scrollbar nincs. A rendezés és szűrés ettől függetlenül a teljes SQL-találathalmazra érvényes.
+
+Ellenőrzés: `tests/shell/sorting.php` (1501 rekord, szöveg/szám/ID mindkét irányban, ismétlődő és NULL értékek, teljes bejárás, visszagörgetés, rendezett live ablak, ACL/injection); `playwright.sorting.config.cjs` és `tests/fixtures/grid-sort` (1801 rekord, fejlécjel, teljes rendezés, szűrés, kétirányú görgetés, maximum 600 adat és 100-nál kevesebb renderelt sor).
 
 A korábbi üres `values` + offset API átmeneti kompatibilitásként megmarad, de az új frontend nem használja. A régi lapozó- és frissítőgombok megszűntek.
 

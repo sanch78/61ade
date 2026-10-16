@@ -4,7 +4,7 @@ A VAPA `checkbox` mezőt natív DHTMLX checkboxként jeleníti meg a főűrlapon
 
 ## Mezőnkénti gridszerkesztés
 
-A mező `column` konfigurációjában az `editable: true` kapcsolja be a natív DHTMLX szöveg-, textarea-, select- vagy checkbox-szerkesztőt. Alapértelmezésben minden oszlop csak olvasható; titkos/jelszómező nem szerkeszthető így. Szöveg és select dupla kattintással nyílik meg, Enter vagy fókuszváltás ment, Escape elvet. A checkbox közvetlenül kapcsolható.
+A szerkeszthető oszlop fejlécét a keret `✎` jellel és magyarázó tooltippel jelöli; az űrlap- és editorfelirat változatlan. A mező `column` konfigurációjában az `editable: true` kapcsolja be a natív DHTMLX szöveg-, textarea-, select- vagy checkbox-szerkesztőt. Alapértelmezésben minden oszlop csak olvasható; titkos/jelszómező nem szerkeszthető így. Szöveg és select dupla kattintással nyílik meg, Enter vagy fókuszváltás ment, Escape elvet. A checkbox közvetlenül kapcsolható.
 
 A `__edit` transzport az objektumazonosítót, mezőnevet, értéket és revíziót fogadja. A közös Executor `update` jogosultsága, mező-ACL-je, API-scope-ja, tranzakciója és auditja érvényes. Csak az engedélyezett mező változik; a kiválasztott mező teljes deklarált validációja fut. A többi mező változatlan régi értéke nem akadályozza az önálló javítást, a teljes űrlapmentés validációja változatlan. A cross-field validáció és a fogyasztói guard/normalize a tárolt rekord és az új mezőérték egyesítését kapja; az after-save a változó mezőt kapja, így például a session-visszavonás megmarad.
 

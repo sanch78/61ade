@@ -31,3 +31,5 @@
 ## FB-0016 — Protect the shared host during tests
 
 ## FB-0017 — Declared per-field grid editing
+
+## FB-0018 — Editable headers, sorting and smart rendering
