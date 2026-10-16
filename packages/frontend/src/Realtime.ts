@@ -37,20 +37,23 @@ export class Realtime {
       if(endpoint.protocol==="https:")endpoint.protocol="wss:";
       if(endpoint.protocol==="http:")endpoint.protocol="ws:";
       const socket=new WebSocket(endpoint);this.socket=socket;
-      socket.onopen=()=>{this.failures=0;this.state("Élő kapcsolat");this.send();};
+      socket.onopen=()=>{if(this.socket!==socket){socket.close();return;}this.failures=0;this.state("Élő kapcsolat");this.send();};
       socket.onmessage=event=>{
         try{
+          if(this.socket!==socket)return;
           const message=JSON.parse(event.data);
           if(message.type==="error"){this.state(message.error);return;}
           if(message.type!=="update"||message.subscriptionId!==this.generation)return;
           for(const id of message.removed)this.rows.delete(id);
           for(const row of message.upserts)this.rows.set(String(row.id),row);
+          const visible=new Set(message.order);for(const id of this.rows.keys())if(!visible.has(id))this.rows.delete(id);
           this.version=message.version;
           this.update({items:message.order.map((id:string)=>this.rows.get(id)).filter(Boolean),previous:message.previous,next:message.next,version:message.version});
         }catch{socket.close();}
       };
       socket.onclose=event=>{
-        if(this.socket===socket)this.socket=undefined;
+        if(this.socket!==socket)return;
+        this.socket=undefined;
         if(this.disposed||document.hidden||this.blocked)return;
         if(event.code===4403){this.blocked=true;this.state("A hozzáférés megszűnt");this.denied();return;}
         this.state("Kapcsolódás…");this.timer=setTimeout(()=>{this.timer=undefined;this.start();},Math.min(15000,500*2**this.failures++));

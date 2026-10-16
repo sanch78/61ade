@@ -65,3 +65,5 @@ A hitelesítés, lejárat, fiókállapot, session-visszavonás és ACL minden me
 ## Ellenőrzés
 
 `tests/shell/lists.php`: 5000 rekord, scope, kétirányú kurzor, teljes bejárás duplikáció nélkül, filter-injection/mezőtiltás, külső írás és törlés. `tests/shell/workspace.spec.cjs`: valódi overlay form, polling, ismételt nézetváltás. A fogyasztó szintetikus integrációja külön ellenőrzi a WebSocketes módosítást és jogvisszavonást, a filtert, a beágyazott form megőrzését, a profilformot és a 600 soros memóriakorlátot.
+
+A WebSocket kliens a sorrendlistán kívüli cache-bejegyzéseket is elengedi, így az újracsatlakozás sem növeli korlátlanul a memóriát. A leállított/régi socket késői eseményeit figyelmen kívül hagyja.
