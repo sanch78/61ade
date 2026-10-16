@@ -28,6 +28,12 @@ test('checkbox grid, descriptive filters and a single main form save related val
  await row.click();await page.getByRole('button',{name:'Módosítás',exact:true}).click();
  await expect(dialog.getByRole('checkbox',{name:'Archived',exact:true})).toBeChecked();
  await expect(dialog.getByRole('checkbox',{name:'Notifications',exact:true})).not.toBeChecked();
+ await dialog.getByLabel('Title',{exact:true}).fill('Reject flags');
+ await dialog.getByRole('button',{name:'Mentés',exact:true}).click();
+ await expect(page.getByText('Notifications: Choose a different setting.',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'confirm',exact:true}).click();
+ await expect(dialog.getByRole('checkbox',{name:'Notifications',exact:true})).not.toBeChecked();
+ await expect(dialog.getByLabel('Title',{exact:true})).toHaveValue('Reject flags');
  expect(errors).toEqual([]);
  await page.screenshot({path:'codex/tmp/related-fields.png',fullPage:true});
 });

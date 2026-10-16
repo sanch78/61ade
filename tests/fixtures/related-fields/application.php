@@ -22,7 +22,10 @@ if ($new) {
     $grant = $db->prepare("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items',?,'ui','allow','all','','')");
     foreach (['list','get','create','update','delete'] as $action) $grant->execute([$action]);
 }
-$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/items.json'], static fn() => ['items.after_save' => static fn() => []]);
+$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/items.json'], static fn() => ['items.after_save' => static function($context,$id,$target,$values): array {
+    if(($values['title']??'') === 'Reject flags')throw new \Vapa\Feature\Failure('Synthetic rule.',400,['notify'=>'Choose a different setting.']);
+    return [];
+}]);
 return new ApplicationDefinition(
     title: 'Related fields fixture', runtime: $runtime, sessionName: 'related_fields_fixture',
     menu: new Menu([]), workspace: $workspace,
