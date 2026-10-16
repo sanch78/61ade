@@ -20,7 +20,7 @@ final class Tickets
         if(!$data||($data['expires']??0)<time())throw new Failure('Az élő kapcsolat lejárt.',401);
         $session=$data['session']??'';
         if(!is_string($session)||!preg_match('/^[a-zA-Z0-9,-]{1,128}$/D',$session)||!is_file($runtime.'/sessions/sess_'.$session))throw new Failure('A munkamenet lejárt.',401);
-        session_save_path($runtime.'/sessions');session_id($session);session_start(['read_and_close'=>true,'use_cookies'=>false,'cache_limiter'=>'']);
+        session_id($session);session_start(['read_and_close'=>true]);
         $state=$_SESSION;$_SESSION=[];
         if(!isset($state['identity'],$state['lastSeen'])||time()-$state['lastSeen']>1800)throw new Failure('A munkamenet lejárt.',401);
         return $state;

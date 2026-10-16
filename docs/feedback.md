@@ -77,5 +77,6 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Élő adatok:** minden látható lista változását figyeljük. Projektszinten polling vagy WebSocket választható; az első fogyasztó WebSocketet kap. A kiválasztást, szűrést, görgetést és nyitott űrlapot az automatikus frissítés megőrzi.
 - **Műveletfeliratok:** lista: Hozzáadás / Módosítás, ACL-engedéllyel. Mentés kizárólag a tényleges beküldő gombon szerepel.
 - **Profilom:** közvetlen adatlap/form, nem adatgrid. Csak a szerkeszthető mezők módosíthatók, a többi readonly. Saját ACL readonly nézete opcionális, nem helyettesíti a profilformot.
-- **Állapot:** implementáció alatt.
+- **Állapot:** implementálva és agent által ellenőrizve; felhasználói elfogadás még nincs.
 - **Döntés:** újrahasználható VAPA layout/lista/élőadat-képesség, alkalmazási frontend nélkül.
+- **Átvezetés és ellenőrzés:** [munkaterületek](workspaces.md); `ViewLayout`, `ListSource`, `LiveConfig`, `Realtime`, WebSocket worker. 5000 rekordos PHP-teszt, overlay/polling keretdemo és WebSocketes fogyasztói böngészőtesztek sikeresek.

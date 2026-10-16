@@ -22,7 +22,7 @@ Az első alkalmazás egyetlen realm. Többszervezetes üzemhez explicit realm-ta
 
 ## Használati felület (első implementáció)
 
-`Registry::add(Action)` regisztrál egy műveletet; a szerveroldali resolver adja az objektumot és tulajdonost, a handler az üzleti műveletet. `SqlResource` deklarált SQL-adapter list/get/create/update műveletekkel, paraméterkötéssel, 200-as lapozással és optimista revízióval. A `Registry::view` csak a frontendnek szükséges oszlopokat, műveleteket, csoportot és singleton-viselkedést írja le. A DHTMLX Workspace ebből készít gridet, toolbart és szerkesztőablakot. A `__form` kernel-végpont a konkrét célra engedélyezett mezőket adja; a mentés újraellenőrzi őket.
+`Registry::add(Action)` regisztrál egy műveletet; a szerveroldali resolver adja az objektumot és tulajdonost, a handler az üzleti műveletet. `SqlResource` deklarált SQL-adapter list/get/create/update műveletekkel, paraméterkötéssel, dinamikus kurzoros betöltéssel és optimista revízióval. A `Registry::view` csak a frontendnek szükséges oszlopokat, műveleteket, csoportot és singleton-viselkedést írja le. A DHTMLX Workspace ebből készít gridet, toolbart és szerkesztőablakot. A `__form` kernel-végpont a konkrét célra engedélyezett mezőket adja; a mentés újraellenőrzi őket.
 
 Az alkalmazás `ApplicationDefinition.workspace` argumentuma egy `Workspace(registry, PDO)` objektum. A PDO ugyanaz a kapcsolat, mint amelyen az üzleti handler és az audit fut. Minden írás tranzakcióban fut; a handler nem commitolhat önállóan. Külső mellékhatás (levél, eszközvezérlés) még nem támogatott: ahhoz előbb VAPA outbox/job képességet kell építeni.
 
@@ -36,7 +36,7 @@ API: `POST ./?vapa=1`, `Content-Type: application/json`, `Authorization: Bearer 
 
 ## Kapcsolt mezők és határok
 
-A `Lookup` a kapcsolt objektum saját listajogával, SQL scope-jával és címkemező-jogával állít elő választékot. A `Field.options` lehet Contextet fogadó backend closure; ugyanazt a választékot validálja a mentés, mint amelyet a form megkap. A választék jelenleg legfeljebb 2000 elem; nagyobb katalógushoz kereshető/lapozott lookup adapter szükséges. A listák 200-as lapokkal járhatók be. A kernel nem enged kliens által megadott SQL-t, sortot vagy filtert.
+A `Lookup` a kapcsolt objektum saját listajogával, SQL scope-jával és címkemező-jogával állít elő választékot. A `Field.options` lehet Contextet fogadó backend closure; ugyanazt a választékot validálja a mentés, mint amelyet a form megkap. A választék jelenleg legfeljebb 2000 elem; nagyobb katalógushoz kereshető/lapozott lookup adapter szükséges. A listák [kurzoros, görgetéses adatkezelést és automatikus élő követést](workspaces.md) használnak; nincs kézi lapozó-/frissítőgomb. A kernel nem enged kliens által megadott SQL-t, sortot vagy filtert.
 
 A mezőszabályok hiányában az objektumjog öröklődik. Ha az actorra az adott mezőhöz van külön szabály, a mezőhöz külön egyező allow kell, és az egyező deny elsőbbségű. Ezért egy csak tiltást tartalmazó mezőszabály alapból lezárja az érintett mezőt; részleges kivételhez adj explicit allow szabályt is. Titkos mező sosem kerül a listaprojekcióba vagy auditba.
 

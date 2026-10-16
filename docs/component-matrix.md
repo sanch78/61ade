@@ -1,10 +1,11 @@
 # DHTMLX komponens- és képességmátrix
 
-Ellenőrzés: 2026-10-16, upstream dokumentáció alapján. Ebben a scaffoldban egyetlen vendorcsomag sincs telepítve, adapter sincs megvalósítva. A kiválasztott pontos verziót és a csomagban lévő LICENSE fájlt M1-ben kell rögzíteni.
+Ellenőrzés: 2026-10-16, upstream dokumentáció alapján. A Suite Standard 9.3.12 telepítve, a shell és workspace adapter használatban. A PRO-képességek továbbra sem részei a telepített csomagnak.
 
 | Képesség | Tervezett forrás | Kiadási határ | VAPA feladat |
 | --- | --- | --- | --- |
 | Grid és inline szerkesztés | Suite Standard | Egyes fejlett funkciók PRO | Query, mezőtípus, action és policy integráció |
+| Grid dinamikus forrás | VAPA Standard Grid adapter | A natív LazyDataProxy integráció PRO-only | Kurzoros lekérdezés, korlátozott adatsáv, scroll események; [használat](workspaces.md) |
 | Form és validáció | Suite Standard | Konkrét controlok verzió szerint | Metaadatból építés, szerverhibák, relációk |
 | Tree | Suite Standard | Fejlett opciók ellenőrizendők | Lazy betöltés, scope, biztonságos áthelyezés |
 | TreeGrid | Suite PRO | PRO-only | Külön capability és licencelt adapter |

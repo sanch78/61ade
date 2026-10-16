@@ -67,7 +67,7 @@ final class Workspace
             }
             $hash=hash('sha256',json_encode($result,JSON_THROW_ON_ERROR));
             if($version==='')$this->journal->record($ctx->actor->id,'ui',$resource,'subscribe','','success');
-            $this->db->commit();return [...$result,'version'=>$hash];
+            $this->db->commit();return hash_equals($hash,$version)?['version'=>$hash,'unchanged'=>true]:[...$result,'version'=>$hash];
         }catch(\Throwable $e){if($this->db->inTransaction())$this->db->rollBack();throw $e;}
     }
     public function http(?Identity $sessionActor,IdentityProvider $identities,string $csrf,string $runtime): never

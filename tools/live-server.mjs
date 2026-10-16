@@ -9,7 +9,7 @@ const interval=Math.max(500,Number(process.env.VAPA_LIVE_INTERVAL || 2000));
 const bridge=spawn(process.env.VAPA_PHP || 'php8.4',[fileURLToPath(new URL('../packages/php/bin/live-bridge.php',import.meta.url))],{stdio:['pipe','pipe','inherit']});
 const pending=new Map();let requestId=0;
 createInterface({input:bridge.stdout}).on('line',line=>{try{const r=JSON.parse(line),p=pending.get(r.id);if(p){pending.delete(r.id);clearTimeout(p.timeout);p.resolve(r);}}catch{console.error('Invalid live worker response');}});
-bridge.on('exit',()=>process.exit(1));
+bridge.on('exit',(code,signal)=>{console.error('Live worker exited',code,signal);process.exit(1);});
 function read(request){
  if(pending.size>100)return Promise.reject(new Error('Live worker busy'));
  return new Promise((resolve,reject)=>{const id=++requestId;const timeout=setTimeout(()=>{pending.delete(id);reject(new Error('Live worker timeout'));},10000);pending.set(id,{resolve,reject,timeout});bridge.stdin.write(JSON.stringify({...request,id})+'\n');});
@@ -33,13 +33,13 @@ wss.on('connection',ws=>{
    if(data.version!==previous?.version){
     const old=new Map((previous?.items || []).map(row=>[String(row.id),JSON.stringify(row)]));
     const order=data.items.map(row=>String(row.id));
-    ws.send(JSON.stringify({type:'update',version:data.version,order,upserts:data.items.filter(row=>old.get(String(row.id))!==JSON.stringify(row)),removed:[...old.keys()].filter(id=>!order.includes(id)),previous:data.previous,next:data.next}));previous=data;
+    ws.send(JSON.stringify({type:'update',subscriptionId:subscription.subscriptionId,version:data.version,order,upserts:data.items.filter(row=>old.get(String(row.id))!==JSON.stringify(row)),removed:[...old.keys()].filter(id=>!order.includes(id)),previous:data.previous,next:data.next}));previous=data;
    }
   }catch{if(ws.readyState===WebSocket.OPEN)ws.close(1011,'Live service unavailable');}
   finally{busy=false;}
  };
  ws.on('message',raw=>{
-  try{const msg=JSON.parse(raw.toString());if(msg.type!=='subscribe'||typeof msg.ticket!=='string'||typeof msg.resource!=='string'||!msg.query||typeof msg.query!=='object')throw Error();subscription={ticket:msg.ticket,resource:msg.resource,query:msg.query};previous=null;epoch++;void tick();}catch{ws.close(1008,'Invalid subscription');}
+  try{const msg=JSON.parse(raw.toString());if(msg.type!=='subscribe'||typeof msg.ticket!=='string'||typeof msg.resource!=='string'||!msg.query||typeof msg.query!=='object')throw Error();subscription={ticket:msg.ticket,resource:msg.resource,query:msg.query,subscriptionId:msg.subscriptionId};previous=null;epoch++;void tick();}catch{ws.close(1008,'Invalid subscription');}
  });
  const timer=setInterval(()=>void tick(),interval);
  const authTimeout=setTimeout(()=>{if(!subscription)ws.close(4401,'Authentication required');},10000);
