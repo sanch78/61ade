@@ -1,3 +1,4 @@
+import { Workspace, type ViewDefinition } from "./Workspace";
 import { Form, Layout, Menu, Toolbar, Window, alert } from "@dhtmlx/suite";
 
 export type MenuDefinition = {
@@ -14,6 +15,8 @@ export type ShellDefinition = {
   error: string;
   displayName?: string;
   menu?: MenuDefinition[];
+  views?: ViewDefinition[];
+  csrf?: string;
 };
 const escape = (text: string) =>
   text.replace(
@@ -28,6 +31,7 @@ const escape = (text: string) =>
 export class AdminShell {
   private layout: Layout;
   private menu?: Menu;
+  private workspace?: Workspace;
   private menuItems: object[] = [];
   private compactMenu?: boolean;
   private loginWindow?: Window;
@@ -109,12 +113,19 @@ export class AdminShell {
             ? { items: map(item.items) }
             : { disabled: true }),
         }));
-      this.menuItems = map(definition.menu || []);
+      this.menuItems = [...map(definition.menu || []), ...(definition.views || []).map(view => ({id:"feature:"+view.resource,value:escape(view.title)}))];
       const menu = new Menu(undefined, { navigationType: "click" });
       this.menu = menu;
       this.resize();
       menu.events.on("click", (id: string | number) => {
         if (id === "vapa-logout") this.post("logout");
+        const view=definition.views?.find(v=>"feature:"+v.resource===id);
+        if(view){
+          this.workspace?.destroy();
+          const host=document.createElement("div");host.style.height="100%";
+          this.layout.getCell("workspace").attachHTML(host);
+          this.workspace=new Workspace(host,view,definition.csrf || "");
+        }
       });
       this.layout.getCell("main-menu").attach(menu);
 
@@ -251,6 +262,7 @@ export class AdminShell {
   destroy(): void {
     this.listeners.abort();
     window.removeEventListener("resize", this.resize);
+    this.workspace?.destroy();
     this.loginWindow?.destructor();
     this.layout.destructor();
     this.root.replaceChildren();

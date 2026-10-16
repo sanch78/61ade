@@ -1,0 +1,21 @@
+<?php
+declare(strict_types=1);
+namespace Vapa\Access;
+
+/** Explicit installer; never run migrations as a request side effect. */
+final class Schema
+{
+    public static function install(\PDO $db): void
+    {
+        $auto = $db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? 'BIGINT PRIMARY KEY AUTO_INCREMENT' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+        foreach ([
+            "CREATE TABLE IF NOT EXISTS vapa_roles (id $auto, name VARCHAR(100) NOT NULL UNIQUE)",
+            "CREATE TABLE IF NOT EXISTS vapa_memberships (id $auto, actor_id VARCHAR(100) NOT NULL, role_id BIGINT NOT NULL, UNIQUE(actor_id, role_id))",
+            "CREATE TABLE IF NOT EXISTS vapa_rules (id $auto, subject_type VARCHAR(10) NOT NULL, subject_id VARCHAR(100) NOT NULL, resource VARCHAR(100) NOT NULL, action VARCHAR(100) NOT NULL, channel VARCHAR(10) NOT NULL, effect VARCHAR(10) NOT NULL, scope VARCHAR(10) NOT NULL, object_id VARCHAR(100) NOT NULL DEFAULT '', field_name VARCHAR(100) NOT NULL DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS vapa_audit (id $auto, occurred_at VARCHAR(30) NOT NULL, request_id VARCHAR(40) NOT NULL, actor_id VARCHAR(100) NOT NULL, channel VARCHAR(10) NOT NULL, resource VARCHAR(100) NOT NULL, action VARCHAR(100) NOT NULL, object_id VARCHAR(100) NOT NULL, outcome VARCHAR(30) NOT NULL, field_names TEXT NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS vapa_tokens (id $auto, actor_id VARCHAR(100) NOT NULL, label VARCHAR(100) NOT NULL, token_hash VARCHAR(64) NOT NULL UNIQUE, scopes TEXT NOT NULL, expires_at VARCHAR(30) NOT NULL, revoked INTEGER NOT NULL DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS vapa_versions (actor_id VARCHAR(100) PRIMARY KEY, version INTEGER NOT NULL DEFAULT 1)",
+            "CREATE TABLE IF NOT EXISTS vapa_migrations (name VARCHAR(100) PRIMARY KEY)",
+        ] as $sql) $db->exec($sql);
+    }
+}
