@@ -6,6 +6,10 @@ Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését teszte
 
 2026-10-16: futtatható PHP bejelentkezési és navigációs shell, TypeScript/DHTMLX frontend build készült. Integráció, konfiguráció, példa, ellenőrzés és korlátok: [első shell használata](shell.md). Nincs publikált release, feature API, CRUD vagy teljes ACL. A shell nem jelenti M1/M2/M4 lezárását.
 
+## Kötelező fejlesztési irány
+
+**VAPA = ADE v2.** Először minden általános képesség a VAPA-ban készül el, majd a fogyasztó deklarációval és üzleti logikával alkalmazza. Hiányzó keretfunkciót nem pótolunk külön alkalmazási admin-kóddal. A UI-t VAPA által adott DHTMLX vezérlők alkotják. Részletes döntés: [ADR-0002](decisions/0002-framework-first.md).
+
 ## Már alkalmazható módszertan
 
 - A keret a saját VAPA-repóban fejlődik; a fogyasztó üzleti kódja külön repóban marad. A függés kizárólag alkalmazás → VAPA.

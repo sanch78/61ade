@@ -38,6 +38,17 @@ Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a f
 - **Forrás:** első fogyasztó fejlesztési útmutatása.
 - **Elvárás:** először bejelentkezés, majd alkalmazásnak megfelelő, üzleti funkció nélküli menü.
 - **Döntés:** a keret adja a login/session/navigáció felületet; az identitásforrás és a menü az alkalmazásé. Nem tekintjük a shellt kész CRUD- vagy ACL-rendszernek.
-- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadás még nincs.
+- **Állapot:** felülírt — a felhasználó elutasította a megvalósítás irányát; utód: FB-0003. A technikai tesztek nem igazolták a keretrendszerrel szembeni elvárás teljesülését.
 - **Átvezetés:** [shell használata és korlátai](shell.md), [PHP alkalmazás](../packages/php/src/Shell/Application.php), [frontend](../packages/frontend/src/admin.ts).
 - **Ellenőrzés:** PHP 8.4 lint, TypeScript typecheck és build; a fogyasztó négy Chromium E2E tesztje szintetikus fiókokkal, mobilképek vizuális ellenőrzésével.
+
+## FB-0003 — Minden általános képességet a VAPA ad; VAPA az ADE v2
+
+- **Dátum:** 2026-10-16.
+- **Forrás:** a felhasználó az első publikus felületet elutasította és kötelező szabályként pontosította az architektúrát.
+- **Megfigyelés:** az egyedi loginoldal/kártyás dashboard a kívánt keretfejlesztési irányt nem teljesítette.
+- **Elvárás:** VAPA keretrendszert fejlesztünk, majd erre kerülnek az üzleti modulok egyenként. Minden általános admin-képességet a VAPA ad DHTMLX komponensekkel; nincs azt megkerülő alkalmazási admin-megoldás.
+- **Döntés:** kötelező architektúraszabály, nem vizuális preferencia. Az FB-0002 megvalósítási értelmezését felülírja.
+- **Állapot:** elfogadott / javítás folyamatban.
+- **Átvezetés:** [AGENTS.md](../AGENTS.md), [ADR-0002](decisions/0002-framework-first.md), [használati módszertan](usage.md).
+- **Ellenőrzés:** a szabály tartós rögzítése megtörtént; a javított keret és fogyasztó ellenőrzése még hátravan.
