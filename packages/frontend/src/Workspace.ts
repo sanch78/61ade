@@ -9,7 +9,7 @@ export type ViewDefinition={resource:string;title:string;columns:{id:string;head
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 const cursor=(edge:string,direction:string)=>btoa(JSON.stringify({edge,direction})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="checkbox"?{
-  type:"checkbox",name:f.name,label:f.label,checked:String(value??f.defaultValue??"0")==="1"||value===true,disabled:readOnly,
+  type:"checkbox",name:f.name,label:f.label,labelPosition:"left",labelWidth:260,checked:String(value??f.defaultValue??"0")==="1"||value===true,disabled:readOnly,
 }:({
   type:readOnly?"input":f.type==="select"?"select":f.type==="textarea"?"textarea":"input",
   name:f.name,label:f.label,labelPosition:"top",required:!readOnly&&f.required,maxlength:f.max,

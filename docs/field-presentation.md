@@ -13,7 +13,7 @@ A VAPA `checkbox` mezőt natív DHTMLX checkboxként jeleníti meg a főűrlapon
 }
 ```
 
-A tárolt kanonikus érték `"0"` vagy `"1"`; bool és integer 0/1 is beküldhető, a backend ugyanarra normalizálja őket. Más érték mezőhibát ad. A required checkboxnál a kikapcsolt állapot is érvényes: a required nem „kötelező bepipálni”. Elhagyott opcionális mező megőrzi a korábbi értéket. A `default` a létrehozási form kezdőértéke; nem ír felül tárolt értéket, és nem helyettesít szerveroldali storage-defaultot.
+A tárolt kanonikus érték `"0"` vagy `"1"`; bool és integer 0/1 is beküldhető, a backend ugyanarra normalizálja őket. Más érték mezőhibát ad. A required checkboxnál a kikapcsolt állapot is érvényes: a required nem „kötelező bepipálni”. Elhagyott opcionális mező megőrzi a korábbi értéket. A checkbox címkéje a jelölő mellett jelenik meg. A checkboxra érkező üzleti mezőhibát a kliens mezőnévvel ellátott DHTMLX Alertben mutatja (a Suite checkbox-captions kizárólag kötelező bepipálás mellett jelennek meg); a form kitöltése hiba esetén megmarad. A `default` a létrehozási form kezdőértéke; nem ír felül tárolt értéket, és nem helyettesít szerveroldali storage-defaultot.
 
 A `column` támogatott opciói: pozitív integer `width`, `minWidth`, `maxWidth` (legfeljebb 10000 px), valamint `align`: `left`, `center`, `right`. Fix `width` mellett a grid nem nyújtja automatikusan a mezőt. A checkbox szűrője háromállapotú select: Bármely + a két beszédes opció. Az `options` fogyasztói feliratokat ad; elhagyáskor Nem/Igen az alap. A példában Aktív/Archivált szerepel. E két állapot megnevezésénél ahol lehet, az alkalmazási jelentést kell használni.
 

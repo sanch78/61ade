@@ -1,4 +1,4 @@
-import type { Form } from "@dhtmlx/suite";
+import { alert, type Form } from "@dhtmlx/suite";
 
 export type ValidationRules = {
   min_length?: number;
@@ -20,7 +20,8 @@ export type FieldDefinition = {
 
 export function fieldError(field: FieldDefinition, raw: unknown, values: Record<string, unknown>): string | null {
   if(field.type === "checkbox") {
-    return raw === true || raw === false || raw === 0 || raw === 1 || raw === "0" || raw === "1" ? null : "Csak 0 vagy 1 érték adható meg.";
+    if(![true,false,0,1,"0","1"].includes(raw as any))return "Csak 0 vagy 1 érték adható meg.";
+    if(typeof raw === "boolean")raw=raw?"1":"0";
   }
   const value = field.secret || field.type === "password" ? String(raw ?? "") : String(raw ?? "").trim();
   if (value === "") return field.required ? "Kötelező mező." : null;
@@ -65,11 +66,20 @@ export class FormValidation {
 
   validate(): boolean {
     const values = this.form.getValue();
+    let valid=true;
     for (const field of this.fields) {
       const item = this.form.getItem(field.name);
-      if (item) item.setProperties({ errorMessage: this.error(field, values[field.name]) ?? "" });
+      const error=this.error(field,values[field.name]);
+      if(error)valid=false;
+      if (item) item.setProperties({errorMessage:error??""});
     }
-    return this.form.validate();
+    const nativeValid=this.form.validate();
+    // Suite 9 Checkbox only renders validation captions when it requires a checked value.
+    // Keep unchecked valid and show checkbox rule errors with the native Alert instead.
+    const checkboxErrors=this.fields.filter(field=>field.type === "checkbox")
+      .map(field=>{const error=this.error(field,values[field.name]);return error?`${field.label}: ${error}`:null;}).filter(Boolean);
+    if(checkboxErrors.length)void alert({header:"Ellenőrizd a mezőt",text:checkboxErrors.join("\n"),htmlEnable:false});
+    return nativeValid && valid;
   }
 
   showServerErrors(errors: Record<string, string>): boolean {
