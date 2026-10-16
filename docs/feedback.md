@@ -21,3 +21,5 @@
 ## FB-0011 — One lower information bar
 
 ## FB-0012 — Skyblue default
+
+## FB-0013 — Center panel resizer grips

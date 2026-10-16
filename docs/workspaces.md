@@ -69,3 +69,11 @@ A hitelesítés, lejárat, fiókállapot, session-visszavonás és ACL minden me
 `tests/shell/lists.php`: 5000 rekord, scope, kétirányú kurzor, teljes bejárás duplikáció nélkül, filter-injection/mezőtiltás, külső írás és törlés. `tests/shell/workspace.spec.cjs`: valódi overlay form, polling, ismételt nézetváltás. A fogyasztó szintetikus integrációja külön ellenőrzi a WebSocketes módosítást és jogvisszavonást, a filtert, a beágyazott form megőrzését, a profilformot és a 600 soros memóriakorlátot.
 
 A WebSocket kliens a sorrendlistán kívüli cache-bejegyzéseket is elengedi, így az újracsatlakozás sem növeli korlátlanul a memóriát. A leállított/régi socket késői eseményeit figyelmen kívül hagyja.
+
+## Panelméretező megjelenítése
+
+A Suite 9.3.12 `space` layoutja 12 px panelközt hagy, de a gyári CSS a hárompontos fogantyút az előző cella szegélyére teszi. A VAPA `admin.css` a `#vapa-application` alatti `dhx_layout-space` resizerikonjára célzott CSS-felülírást ad: vízszintes panelosztásnál `right: -6px`, függőleges panelosztásnál `bottom: -6px`. Így az ikon a panelköz közepére kerül; a natív DHTMLX méretezési eseménykezelés működik tovább.
+
+A fogyasztónak nincs külön teendője: a VAPA assetet kell publikálnia. A gyári Suite CSS-fájl változatlan marad; a VAPA szabályai utána töltődnek be. A `line` és `wide` layoutot, valamint a gridoszlop- és ablakméretezőt ez nem érinti. A javítás a Suite 9.3.12 gyári 12 px panelközére épül; vendorfrissítéskor a célzott tesztet futtatni kell.
+
+Ellenőrzés: `tests/shell/layout-resizer.spec.cjs` önálló szintetikus DHTMLX layouton méri mindkét tengely fogantyújának középpontját Light/Skyblue/Dark témában, és tényleges egérhúzással ellenőrzi a panel átméretezését. Kapcsolódó visszajelzés: FB-0013.
