@@ -15,7 +15,7 @@ final class SqlResource
         $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$this->project($c,$t['row'],'get'),resolve:fn($c,$id)=>$this->target($c,$id)));
         $actions=['get'];
         if($create) {
-            $registry->add(new Action($this->resource,'create','Új', $this->fields, fn($c,$t,$v)=>$this->save($c,null,$v),write:true));
+            $registry->add(new Action($this->resource,'create','Új', $this->fields, fn($c,$t,$v)=>$this->save($c,null,$v),resolve:fn($c)=>['id'=>null,'owner'=>$this->ownerColumn?$c->actor->id:null],write:true));
             $actions[]='create';
         }
         if($update) {
@@ -60,7 +60,11 @@ final class SqlResource
         foreach($this->fields as $field) if(!$field->secret && $ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,$action,$ctx->channel,$id,$owner,$field->name))$out[$field->name]=$row[$field->name];
         return $out;
     }
-    private function revision(array $row): string { return hash('sha256',json_encode($row,JSON_THROW_ON_ERROR)); }
+    private function revision(array $row): string
+    {
+        $columns=[$this->key,...array_map(static fn($f)=>$f->name,$this->fields),...($this->ownerColumn?[$this->ownerColumn]:[])];
+        return hash('sha256',json_encode(array_intersect_key($row,array_flip($columns)),JSON_THROW_ON_ERROR));
+    }
     public function save(Context $ctx, ?array $target, array $values): array
     {
         if($target && !hash_equals($this->revision($target['row']),$values['revision'] ?? ''))throw new Failure('Az adat közben módosult. Nyisd meg újra.',409);
@@ -73,6 +77,7 @@ final class SqlResource
             $q->execute([...array_values($values),$target['id']]);$id=$target['id'];
         }else{
             $values=array_merge($this->defaults,$values);
+            if($this->ownerColumn)$values[$this->ownerColumn]=$ctx->actor->id;
             $q=$ctx->db->prepare("INSERT INTO {$this->table} (".implode(',',array_keys($values)).') VALUES ('.implode(',',array_fill(0,count($values),'?')).')');$q->execute(array_values($values));$id=$ctx->db->lastInsertId();
         }
         $ctx->acl->invalidate();
