@@ -27,3 +27,5 @@
 ## FB-0014 — Flags in the object's main form
 
 ## FB-0015 — Remove redundant framed layout wrapper
+
+## FB-0016 — Protect the shared host during tests
