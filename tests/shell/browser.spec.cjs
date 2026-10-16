@@ -15,7 +15,7 @@ test('framework creates DHTMLX login and menu, with an empty workspace', async (
     expect(await page.locator('#vapa-config').evaluate(e => JSON.parse(e.textContent).menu)).toBeUndefined();
     await login(page, 'demo', true);
     await expect(page.locator('.vapa-workspace')).toHaveText('');
-    await page.getByRole('menuitem', { name: 'Nyilvántartás', exact: true }).click();
+    await page.getByRole('menuitem', { name: /^Nyilvántartás/ }).click();
     await expect(page.getByRole('menuitem', { name: 'Dokumentumok', exact: true })).toHaveAttribute('aria-disabled', 'true');
     await page.getByRole('menuitem', { name: 'Kijelentkezés', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Bejelentkezés' })).toBeVisible();
@@ -36,6 +36,11 @@ test('login remains a usable DHTMLX window at phone width', async ({ page }) => 
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(390);
     await login(page);
+    await page.getByRole('menuitem', { name: 'Menü', exact: true }).click();
+    await expect(page.getByRole('menuitem', { name: /^Nyilvántartás/ })).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(page.getByRole('menuitem', { name: 'Menü', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: /^Nyilvántartás/ })).toBeVisible();
     await expect(page.locator('.vapa-workspace')).toHaveText('');
 });
 test('invalid login returns to the DHTMLX form with safe feedback', async ({ page }) => {

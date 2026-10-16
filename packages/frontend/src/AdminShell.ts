@@ -27,11 +27,29 @@ const escape = (text: string) =>
 /** VAPA owns the DHTMLX lifecycle; consumers supply definitions, never shell markup. */
 export class AdminShell {
   private layout: Layout;
+  private menu?: Menu;
+  private menuItems: object[] = [];
+  private compactMenu?: boolean;
   private loginWindow?: Window;
   private loginForm?: Form;
   private submitting = false;
   private listeners = new AbortController();
   private resize = () => {
+    if (this.menu) {
+      const compact = this.root.clientWidth < 768;
+      if (compact !== this.compactMenu) {
+        this.compactMenu = compact;
+        this.menu.data.removeAll();
+        const items = structuredClone(this.menuItems);
+        this.menu.data.parse([
+          ...(compact && this.menuItems.length
+            ? [{ id: "vapa-main-menu", value: "Menü", items }]
+            : items),
+          { id: "vapa-session-separator", type: "separator" },
+          { id: "vapa-logout", value: "Kijelentkezés" },
+        ]);
+      }
+    }
     if (!this.loginWindow) return;
     this.loginWindow.setSize(
       Math.min(420, innerWidth - 24),
@@ -91,14 +109,10 @@ export class AdminShell {
             ? { items: map(item.items) }
             : { disabled: true }),
         }));
-      const menu = new Menu(undefined, {
-        navigationType: "click",
-        data: [
-          ...map(definition.menu || []),
-          { id: "vapa-session-separator", type: "separator" },
-          { id: "vapa-logout", value: "Kijelentkezés" },
-        ],
-      });
+      this.menuItems = map(definition.menu || []);
+      const menu = new Menu(undefined, { navigationType: "click" });
+      this.menu = menu;
+      this.resize();
       menu.events.on("click", (id: string | number) => {
         if (id === "vapa-logout") this.post("logout");
       });
