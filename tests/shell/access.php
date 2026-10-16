@@ -34,6 +34,9 @@ check(!str_contains(json_encode($db->query('SELECT * FROM vapa_audit')->fetchAll
 $lookup=new \Vapa\Feature\Lookup('records','records','record_id','title','owner_id');
 check($lookup->options($ctx)===[],'Relation choices obey object deny');
 try{(new Field('reference','Reference','select',options:$lookup->options(...)))->validate('1',$ctx);throw new RuntimeException('Forbidden relation accepted');}catch(Failure){}
+$rule->execute(['create','allow','own','','']);
+$created=$call('create',null,['title'=>'New owned']);
+check($db->query('SELECT owner_id FROM records WHERE record_id='.(int)$created['id'])->fetchColumn()==='1','Creation owner is assigned by the trusted adapter');
 $db->exec("CREATE TRIGGER fail_audit BEFORE INSERT ON vapa_audit BEGIN SELECT RAISE(FAIL,'audit offline'); END");
 try{$call('update','1',['title'=>'Not committed','revision'=>$row['revision']]);}catch(Throwable){}
 check($db->query('SELECT title FROM records WHERE record_id=1')->fetchColumn()==='Updated','Audit failure rolls back write');

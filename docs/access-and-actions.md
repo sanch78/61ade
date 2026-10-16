@@ -43,3 +43,5 @@ A mezőszabályok hiányában az objektumjog öröklődik. Ha az actorra az adot
 A `registerDelete` külön opt-in keretképesség: cél/revízió/jog ellenőrzés, üzleti deleteGuard és tranzakciós audit. A fogyasztó csak azoknál az erőforrásoknál kapcsolja be, ahol törlés ténylegesen támogatott.
 
 A szabálycache kizárólag az aktuális Workspace példányon belül él. Műveletkezdéskor, SQL-módosítás után és rollbackkor érvénytelenítjük; nincs kérések között megmaradó jogosultságcache. Ez a listák mezőprojekciójánál elkerüli a soronként ismétlődő ACL-lekérdezéseket.
+
+Tulajdonosos SQL erőforrás létrehozásakor a backend a hitelesített actort rendeli tulajdonosnak; a kliens nem állíthatja be ezt a mezőt. A `create` saját-objektum szabálya ezt a leendő tulajdonost ellenőrzi. A revízió a deklarált adatmezőkből, kulcsból és tulajdonosból képződik; nem tartalmaz kívül eső fiók-/jelszó-/aktivitási adatot. MySQL alatt az audit és a módosított adattáblák tranzakcióképes InnoDB motorja előfeltétel; a telepítő a saját tábláit így hozza létre.
