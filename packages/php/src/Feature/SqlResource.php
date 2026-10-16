@@ -39,7 +39,7 @@ final class SqlResource
             $actions[]='create';
         }
         if($update) {
-            $registry->add(new Action($this->resource,'update','Mentés',[...$this->fields,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true));
+            $registry->add(new Action($this->resource,'update','Mentés',[...$this->fields,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,editHandler:fn($c,$t,$v)=>$this->save($c,$t,$v,true)));
             $actions[]='update';
         }
         $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout);
@@ -82,7 +82,11 @@ final class SqlResource
         $out=['id'=>$id,'revision'=>$this->revision($row)];
         foreach($this->fields as $field) if(!$field->secret && $ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,$action,$ctx->channel,$id,$owner,$field->name))$out[$field->name]=$row[$field->name];
         $out['_actions']=[];
+        $out['_editable']=[];
         foreach($this->registry?->all()??[] as $action)if($action->resource===$this->resource && in_array($ctx->channel,$action->channels,true) && $ctx->acl->allows($ctx->actor->id,$this->resource,$action->name,$ctx->channel,$id,$owner))$out['_actions'][]=$action->name;
+        if(in_array('update',$out['_actions'],true))foreach($this->fields as $field){
+            if(($field->column['editable']??false)&&!$field->secret&&array_key_exists($field->name,$out)&&$ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,'update',$ctx->channel,$id,$owner,$field->name))$out['_editable'][]=$field->name;
+        }
         return $out;
     }
     private function revision(array $row): string
@@ -90,12 +94,13 @@ final class SqlResource
         $columns=[$this->key,...array_map(static fn($f)=>$f->name,$this->fields),...($this->ownerColumn?[$this->ownerColumn]:[])];
         return hash('sha256',json_encode(array_map(static fn($value)=>$value===null?null:(string)$value,array_intersect_key($row,array_flip($columns))),JSON_THROW_ON_ERROR));
     }
-    public function save(Context $ctx, ?array $target, array $values): array
+    public function save(Context $ctx, ?array $target, array $values, bool $fieldEdit = false): array
     {
         if($target && !hash_equals($this->revision($target['row']),$values['revision'] ?? ''))throw new Failure('Az adat közben módosult. Nyisd meg újra.',409);
         unset($values['revision']);
-        if($this->guard)($this->guard)($ctx,$target,$values);
-        if($this->normalize)$values=($this->normalize)($ctx,$target,$values);
+        $ruleValues=$fieldEdit?array_replace(array_intersect_key($target['row'],array_column($this->fields,null,'name')),$values):$values;
+        if($this->guard)($this->guard)($ctx,$target,$ruleValues);
+        if($this->normalize){$normalized=($this->normalize)($ctx,$target,$ruleValues);$values=$fieldEdit?array_intersect_key($normalized,$values):$normalized;}
         foreach ($this->fields as $field) {
             if (!($field->validation['unique'] ?? false) || !isset($values[$field->name]) || $values[$field->name] === '') continue;
             $sql = "SELECT {$this->key} FROM {$this->table} WHERE {$field->name} = ?";
@@ -119,6 +124,12 @@ final class SqlResource
         foreach ($this->related as $storage) $storage->save($ctx->db,(string)$id,$allValues);
         $ctx->acl->invalidate();
         $result=$this->afterSave?($this->afterSave)($ctx,(string)$id,$target,$allValues):null;
-        return [...(is_array($result)?$result:[]),'id'=>(string)$id];
+        $response=[...(is_array($result)?$result:[]),'id'=>(string)$id];
+        if($fieldEdit){
+            $fresh=$this->target($ctx,(string)$id)['row'];
+            $response['revision']=$this->revision($fresh);
+            $response['values']=array_intersect_key($fresh,$allValues);
+        }
+        return $response;
     }
 }

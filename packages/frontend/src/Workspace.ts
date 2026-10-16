@@ -1,11 +1,12 @@
 import { Form, Grid, Layout, Toolbar, Window, alert, message, awaitRedraw } from "@dhtmlx/suite";
+import { GridEditing,gridEditor } from "./GridEditing";
 import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 
 export type { FieldDefinition } from "./FormValidation";
 export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;fields:FieldDefinition[]};
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
+export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;align?:"left"|"center"|"right";editable?:boolean}[];actions:ActionDefinition[];singleton:boolean;group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 const cursor=(edge:string,direction:string)=>btoa(JSON.stringify({edge,direction})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="checkbox"?{
@@ -22,6 +23,8 @@ const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="chec
 export class Workspace {
   readonly layout:Layout;
   private grid?:Grid;
+  private gridEditing?:GridEditing;
+  private cellEditing=false;
   private commands:Toolbar;
   private content?:Layout;
   private rows:Row[]=[];
@@ -56,12 +59,18 @@ export class Workspace {
       this.content.getCell("commands").attach(this.commands);
       this.grid=new Grid(null,{columns:[{id:"id",header:[{text:"ID"}],width:80,sortable:false},...view.columns.map(c=>({id:c.id,header:[{text:escape(c.header)}],
         width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
-        ...(c.type==="checkbox"?{type:"boolean" as const,editable:true}:c.options&&Object.keys(c.options).length?{template:(value:unknown)=>escape(c.options?.[String(value)]??String(value??""))}:{}),
+        ...gridEditor(c),
+        ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(value:unknown)=>escape(c.options?.[String(value)]??String(value??""))}:{}:{}),
       }))],rowHeight:40,autoWidth:true,selection:"row",htmlEnable:false});
-      // Native boolean cells render checkboxes; editing stays in the object form.
-      this.grid.events.on("beforeEditStart",()=>false);
+      this.gridEditing=new GridEditing(this.grid,view.actions.find(a=>a.name==="update")?.fields??[],()=>this.rows,
+        async(row,field,value)=>{
+          const result=await this.call("__edit",String(row.id),{field,value,revision:row.revision});
+          if(this.disposed)return;
+          await this.render(this.rows.map(item=>String(item.id)===String(row.id)?{...item,...result.values,revision:result.revision}:item),true);
+          if(result.reauthenticate)location.reload();
+        },error=>this.error(error),active=>{this.cellEditing=active;if(!active&&!this.disposed)this.watch();});
       this.grid.events.on("cellClick",(row:any)=>{this.selected=String(row.id);this.capabilities();});
-      this.grid.events.on("cellDblClick",()=>{const action=view.actions.find(a=>a.name==="update");if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);});
+      this.grid.events.on("cellDblClick",(row:any,column:any)=>{if(column.editable&&row._editable?.includes(String(column.id)))return;const action=view.actions.find(a=>a.name==="update");if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);});
       this.grid.events.on("scroll",(position:{x:number;y:number})=>{
         if(this.rendering||this.busy||this.disposed)return;
         const buffer=Math.max(400,innerHeight*1.4);
@@ -99,7 +108,7 @@ export class Workspace {
     const r=await fetch(endpoint,{method:"POST",credentials:"same-origin",signal,headers:{"Content-Type":"application/json","X-VAPA-CSRF":this.csrf},body:JSON.stringify({resource:this.view.resource,action,id,values})});
     const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||"Sikertelen művelet."),{status:r.status,fieldErrors:result.fieldErrors});return result.data;
   }
-  private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:"Hiba",text:e instanceof Error?e.message:"Sikertelen művelet.",htmlEnable:false});}
+  private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:"Hiba",text:e && typeof e==="object" && "fieldErrors" in e && Object.values((e as any).fieldErrors??{}).length?Object.entries((e as any).fieldErrors).map(([name,error])=>`${this.view.actions.flatMap(a=>a.fields).find(f=>f.name===name)?.label??name}: ${error}`).join("\n"):e instanceof Error?e.message:"Sikertelen művelet.",htmlEnable:false});}
   private watch():void{this.live.subscribe({limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,filters:this.filters});}
   private async load():Promise<void>{
     const epoch=++this.epoch;this.abort?.abort();this.abort=new AbortController();this.busy=true;
@@ -132,7 +141,7 @@ export class Workspace {
   }
   private gridRow(row:Row):Row {
     const result=structuredClone(row);
-    for(const column of this.view.columns)if(column.type==="checkbox"&&Object.hasOwn(result,column.id))result[column.id]=String(result[column.id])==="1"||result[column.id]===true;
+    for(const column of this.view.columns)if(column.type==="checkbox"&&column.editable&&Object.hasOwn(result,column.id))result[column.id]=String(result[column.id])==="1"||result[column.id]===true;
     return result;
   }
   private async render(rows:Row[],preserve:boolean):Promise<void>{
@@ -152,7 +161,7 @@ export class Workspace {
     this.rendering=false;
   }
   private async changed(data:Snapshot):Promise<void>{
-    if(this.disposed||this.busy)return;
+    if(this.disposed||this.busy||this.cellEditing)return;
     if(this.view.singleton){
       const row=data.items[0];if(!row){this.revoke();return;}
       if(this.rows[0]?.revision!==row.revision){
@@ -214,5 +223,5 @@ export class Workspace {
     });
   }
   private revoke():void{this.rows=[];this.grid?.data.removeAll();this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
-  destroy():void{this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.layout.destructor();}
+  destroy():void{this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.gridEditing?.destroy();this.dialog?.destructor();this.layout.destructor();}
 }

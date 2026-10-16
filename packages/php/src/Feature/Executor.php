@@ -6,7 +6,12 @@ use Vapa\Audit\Journal;
 final class Executor
 {
     public function __construct(public Registry $registry, private \PDO $db, public Journal $journal) {}
-    public function execute(Context $ctx, string $resource, string $name, ?string $id, array $input): mixed
+    public function edit(Context $ctx, string $resource, string $id, string $field, mixed $value, string $revision): mixed
+    {
+        if ($field === 'revision') throw new Failure('Nem szerkeszthető mező.', 403);
+        return $this->execute($ctx,$resource,'update',$id,[$field=>$value,'revision'=>$revision],true);
+    }
+    public function execute(Context $ctx, string $resource, string $name, ?string $id, array $input, bool $fieldEdit = false): mixed
     {
         $fields=[];
         $ctx->acl->invalidate();
@@ -25,15 +30,20 @@ final class Executor
             // Collection handlers must use the kernel SQL scope; no raw collection result is allowed.
             if (!$action->collection && !$ctx->acl->allows($ctx->actor->id,$resource,$name,$ctx->channel,$object,$owner)) throw new Failure($ctx->channel==='api' && $object!==null ? 'Nem található objektum.' : 'Nincs hozzáférés.',$ctx->channel==='api' && $object!==null ? 404 : 403);
             $known=array_column($action->fields,null,'name');
+            if($fieldEdit){
+                $edited=array_keys(array_diff_key($input,['revision'=>true]));
+                if($name!=='update'||!$action->editHandler||count($edited)!==1||!(($known[$edited[0]]??null)?->column['editable']??false))throw new Failure('Nem szerkeszthető mező.',403);
+            }
             foreach ($input as $key=>$value) if (!$action->listSource && !isset($known[$key])) throw new Failure('Ismeretlen vagy nem írható mező.');
             $values=$action->listSource ? $input : [];
             $fieldErrors = [];
             foreach ($action->fields as $field) {
+                if($fieldEdit&&$field->name!=='revision'&&!array_key_exists($field->name,$input))continue;
                 $allowed=$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$object ?? '',$owner,$field->name);
                 if(!$allowed){if(array_key_exists($field->name,$input) || ($name==='create' && $field->required))throw new Failure('A mező nem módosítható.',403);continue;}
                 if (!array_key_exists($field->name,$input) && !$field->required) continue;
                 try {
-                    $values[$field->name]=$field->validate($input[$field->name] ?? '',$ctx,$input);
+                    $values[$field->name]=$field->validate($input[$field->name] ?? '',$ctx,$fieldEdit?array_replace($target['row']??[],$input):$input);
                 } catch (Failure $error) {
                     if (!$error->fieldErrors) throw $error;
                     $fieldErrors = array_replace($fieldErrors, $error->fieldErrors);
@@ -41,7 +51,8 @@ final class Executor
                 if (!$field->secret) $fields[]=$field->name;
             }
             if ($fieldErrors) throw new Failure('Javítsd a megjelölt mezőket.', 400, $fieldErrors);
-            $result=($action->handler)($ctx,$target,$values);
+            $handler=$fieldEdit?$action->editHandler:$action->handler;
+            $result=$handler($ctx,$target,$values);
             $auditObject=$object ?? (is_array($result) && isset($result['id']) ? (string)$result['id'] : '');
             $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$name,$auditObject, 'success',$fields);
             $this->db->commit();

@@ -1,6 +1,16 @@
 # Jelzők, beszédes értékek és kapcsolt objektummezők
 
-A VAPA `checkbox` mezőt natív DHTMLX checkboxként jeleníti meg a főűrlapon és a listában. A grid checkboxa állapotjelző: kattintás vagy billentyűzet nem ment és nem módosít helyileg. A módosítás a főűrlapon, a szokásos Mentés művelettel történik. Nem készül külön gomb vagy form pusztán egy kapcsolóhoz. A `select` oszlopok az opciófeliratot mutatják a nyers kulcs helyett.
+A VAPA `checkbox` mezőt natív DHTMLX checkboxként jeleníti meg a főűrlapon. A listában akkor checkbox, ha a mező `column.editable: true` beállítással helyben szerkeszthető; egyébként a két beszédes opciófeliratot mutatja. A `select` oszlopok is az opciófeliratot mutatják a nyers kulcs helyett. A főűrlap továbbra is együtt kezeli az objektum mezőit.
+
+## Mezőnkénti gridszerkesztés
+
+A mező `column` konfigurációjában az `editable: true` kapcsolja be a natív DHTMLX szöveg-, textarea-, select- vagy checkbox-szerkesztőt. Alapértelmezésben minden oszlop csak olvasható; titkos/jelszómező nem szerkeszthető így. Szöveg és select dupla kattintással nyílik meg, Enter vagy fókuszváltás ment, Escape elvet. A checkbox közvetlenül kapcsolható.
+
+A `__edit` transzport az objektumazonosítót, mezőnevet, értéket és revíziót fogadja. A közös Executor `update` jogosultsága, mező-ACL-je, API-scope-ja, tranzakciója és auditja érvényes. Csak az engedélyezett mező változik; a kiválasztott mező teljes deklarált validációja fut. A többi mező változatlan régi értéke nem akadályozza az önálló javítást, a teljes űrlapmentés validációja változatlan. A cross-field validáció és a fogyasztói guard/normalize a tárolt rekord és az új mezőérték egyesítését kapja; az after-save a változó mezőt kapja, így például a session-visszavonás megmarad.
+
+A sor `_editable` listája csak a jelenleg olvasható és módosítható mezőket tartalmazza; a szerver minden kérésnél újra ellenőriz. A kapcsolt táblamező ugyanígy szerkeszthető. Sikertelen szervermentéskor a cella visszaáll és a mezőhiba DHTMLX Alertben jelenik meg. Szerkesztés közben az élő frissítés nem írja felül a piszkozatot. A `SqlResource` adja az alap mentést; saját `Action` esetén a keret `editHandler` szerződésével adható megfelelő mentő, kerülő mentési endpoint nélkül.
+
+Szintetikus referencia: `tests/fixtures/grid-edit`, `tests/shell/grid-edit.php`, `tests/shell/grid-edit.spec.cjs`.
 
 ## Mező és oszlop deklarálása
 
@@ -15,7 +25,7 @@ A VAPA `checkbox` mezőt natív DHTMLX checkboxként jeleníti meg a főűrlapon
 
 A tárolt kanonikus érték `"0"` vagy `"1"`; bool és integer 0/1 is beküldhető, a backend ugyanarra normalizálja őket. Más érték mezőhibát ad. A required checkboxnál a kikapcsolt állapot is érvényes: a required nem „kötelező bepipálni”. Elhagyott opcionális mező megőrzi a korábbi értéket. A checkbox címkéje a jelölő mellett jelenik meg. A checkboxra érkező üzleti mezőhibát a kliens mezőnévvel ellátott DHTMLX Alertben mutatja (a Suite checkbox-captions kizárólag kötelező bepipálás mellett jelennek meg); a form kitöltése hiba esetén megmarad. A `default` a létrehozási form kezdőértéke; nem ír felül tárolt értéket, és nem helyettesít szerveroldali storage-defaultot.
 
-A `column` támogatott opciói: pozitív integer `width`, `minWidth`, `maxWidth` (legfeljebb 10000 px), valamint `align`: `left`, `center`, `right`. Fix `width` mellett a grid nem nyújtja automatikusan a mezőt. A checkbox szűrője háromállapotú select: Bármely + a két beszédes opció. Az `options` fogyasztói feliratokat ad; elhagyáskor Nem/Igen az alap. A példában Aktív/Archivált szerepel. E két állapot megnevezésénél ahol lehet, az alkalmazási jelentést kell használni.
+A `column` támogatott opciói: pozitív integer `width`, `minWidth`, `maxWidth` (legfeljebb 10000 px), `editable` boolean, valamint `align`: `left`, `center`, `right`. Fix `width` mellett a grid nem nyújtja automatikusan a mezőt. A checkbox szűrője háromállapotú select: Bármely + a két beszédes opció. Az `options` fogyasztói feliratokat ad; elhagyáskor Nem/Igen az alap. A példában Aktív/Archivált szerepel. E két állapot megnevezésénél ahol lehet, az alkalmazási jelentést kell használni.
 
 PHP API: a `Field` `type: 'checkbox'`, `column: ['width'=>100,'align'=>'center']`, `defaultValue: '0'` paramétereket fogadja. A deklarációt a JSON compiler ugyanarra a mezőre fordítja.
 

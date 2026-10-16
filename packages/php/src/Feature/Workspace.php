@@ -106,6 +106,13 @@ final class Workspace
                 $result=$this->observe($ctx,$data['resource'],$data['values']['query']??[],$data['values']['version']??'');
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
+            if($data['action']==='__edit'){
+                $values=$data['values'];
+                if(!is_string($id)||!is_string($values['field']??null)||!array_key_exists('value',$values)||!is_string($values['revision']??null)||array_diff(array_keys($values),['field','value','revision']))throw new Failure('Hibás mezőmentés.');
+                $handled=true;
+                $result=$this->executor->edit(new Context($actor,$channel,$this->acl,$this->db,$scopes),$data['resource'],$id,$values['field'],$values['value'],$values['revision']);
+                echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
+            }
             if($data['action']==='__form'){
                 if($channel!=='ui' || !is_string($data['values']['operation']??null))throw new Failure('Érvénytelen űrlapkérés.',403);
                 $a=$this->registry->get($data['resource'],$data['values']['operation']);

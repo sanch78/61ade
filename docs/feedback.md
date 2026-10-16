@@ -172,3 +172,13 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Ellenőrzés:** tényleges cgroup limitek kiolvasása és konkurens lock elutasítása sikeres; mindkét projekt wrapperes tesztfelderítése és egy szintetikus login/menu Chromium-próba sikeres. Host-OOM stresszteszt nincs.
 - **Állapot:** fejlesztői tesztvédelmek megvalósítva; a teljes editor-session izolációját és a rootjogot igénylő hostvédelmet nem állítjuk késznek.
 - **Átvezetés:** [fejlesztői futtató és korlátai](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston).
+
+## FB-0017 — Deklarált mezőnkénti gridszerkesztés
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Elvárás:** checkbox csak kezelhető listaoszlophoz; szöveg, select és checkbox oszloponként szerkeszthető legyen, az ADE működésének megfelelően. A fogyasztó felhasználólistájában beosztás, telefon, e-mail és a kapcsolók legyenek kezelhetők. A Skyblue megjelenés külön feladat.
+- **Döntés:** `Field.column.editable` és natív DHTMLX szerkesztők a VAPA-ban; közös update ACL, API-scope, revízió, audit és mentési hookok. A többi oszlop beszédes érték. Teljes űrlap helyett egyetlen deklarált mező validációja fut; a fogyasztói üzleti guard a teljes egyesített rekordot ellenőrzi.
+- **Megvalósítás:** `GridEditing`, `Workspace`, `Executor::edit`, `SqlResource`; kapcsolt mezőre is ugyanaz a mentési út. A Suite kijelölési fókuszának befejezése után nyílik meg a cella; gyári fájl nem változik.
+- **Ellenőrzés:** önálló PHP szerződésteszt (mezővalidáció, legacy érintetlen mező, select, related checkbox, ACL, API-scope, revízió, audit) és szintetikus Chromium text/select/checkbox, hibavisszajelzés, elvetés és újratöltés. Fogyasztói ellenőrzés külön kerül rögzítésre.
+- **Állapot:** megvalósítva, agent által ellenőrizve; felhasználói elfogadást nem állítunk.
+- **Átvezetés:** [mezőnkénti gridszerkesztés](field-presentation.md#mezőnkénti-gridszerkesztés).

@@ -1,0 +1,21 @@
+const {test,expect}=require('@playwright/test');
+test('native text/select/checkbox grid editors save without opening an object form',async({page})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message)); await page.goto('/');await page.getByLabel('Felhasználónév',{exact:true}).fill('synthetic');await page.getByLabel('Jelszó',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Items',exact:true}).click();await page.getByRole('button',{name:'Hozzáadás',exact:true}).click();
+ const title='Grid '+Date.now();const dialog=page.getByRole('dialog');await dialog.getByLabel('Title',{exact:true}).fill(title);await dialog.getByRole('button',{name:'Mentés',exact:true}).click();await page.getByRole('button',{name:'confirm',exact:true}).click();
+ const grid=page.getByRole('grid');const row=page.getByRole('row').filter({hasText:title});await expect(row).toBeVisible({timeout:10000});
+ await expect(row.getByRole('checkbox',{name:'Archived',exact:true})).toHaveCount(0);
+ const cell=(field)=>row.locator(`[data-dhx-col-id="${field}"]`);
+ await cell('contact').dblclick();
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ const editor=page.locator('input.dhx_cell-editor');await editor.fill('+36201234567');await editor.press('Enter');
+ await expect(row.getByText('+36201234567',{exact:true})).toBeVisible();
+ await cell('status').dblclick();const select=grid.locator('select.dhx_cell-editor');await select.selectOption({label:'Done'});await cell('title').click();await expect(row.getByText('Done',{exact:true})).toBeVisible();
+ const checkbox=row.getByRole('checkbox',{name:'Notifications',exact:true});await expect(checkbox).toBeChecked();await checkbox.locator('xpath=..').locator('.dhx_checkbox__visual-input').click();await expect(checkbox).not.toBeChecked();
+ await expect.poll(async()=>page.evaluate(async()=>{const csrf=JSON.parse(document.querySelector('#vapa-config').textContent).csrf;const r=await fetch('?vapa=1',{method:'POST',headers:{'Content-Type':'application/json','X-VAPA-CSRF':csrf},body:JSON.stringify({resource:'items',action:'list',values:{mode:'dynamic'}})});return (await r.json()).data.items[0].notify;})).toMatch(/0/);
+ await cell('contact').dblclick();await editor.fill('invalid');await editor.press('Enter');await expect(page.getByText('Contact: Invalid phone.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'confirm',exact:true}).click();await editor.press('Escape');
+ await expect(row.getByText('+36201234567',{exact:true})).toBeVisible();
+ await cell('title').dblclick();await editor.fill('Reject flags');await editor.press('Enter');
+ await expect(page.getByText('Notifications: Choose a different setting.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'confirm',exact:true}).click();await expect(row.getByText(title,{exact:true})).toBeVisible();
+ await page.reload();await page.getByRole('menuitem',{name:'Items',exact:true}).click();await expect(row.getByText('Done',{exact:true})).toBeVisible();await expect(checkbox).not.toBeChecked();expect(errors).toEqual([]);
+});

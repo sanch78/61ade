@@ -27,11 +27,12 @@ final readonly class Field
             throw new InvalidArgumentException('Invalid field definition.');
         }
         foreach ($column as $property => $value) {
-            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align'], true)
-                || ($property === 'align' ? !in_array($value, ['left', 'center', 'right'], true) : !is_int($value) || $value < 1 || $value > 10000)) {
+            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable'], true)
+                || ($property === 'editable' ? !is_bool($value) : ($property === 'align' ? !in_array($value, ['left', 'center', 'right'], true) : !is_int($value) || $value < 1 || $value > 10000))) {
                 throw new InvalidArgumentException('Invalid field column presentation.');
             }
         }
+        if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if ($type === 'checkbox' && $defaultValue !== null && !in_array($defaultValue, ['0', '1'], true)) {
             throw new InvalidArgumentException('Invalid checkbox default.');
         }

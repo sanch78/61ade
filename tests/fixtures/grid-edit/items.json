@@ -1,0 +1,100 @@
+{
+    "resources": {
+        "items": {
+            "storage": {
+                "table": "items",
+                "key": "id",
+                "defaults": {
+                    "archived": 0,
+                    "status": "new",
+                    "contact": ""
+                },
+                "related": [
+                    {
+                        "table": "item_preferences",
+                        "key": "item_id",
+                        "fields": {
+                            "notify": "notifications"
+                        },
+                        "defaults": {
+                            "notify": 1
+                        }
+                    }
+                ]
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Title",
+                    "required": true,
+                    "column": {
+                        "editable": true
+                    }
+                },
+                {
+                    "name": "archived",
+                    "label": "Archived",
+                    "type": "checkbox",
+                    "options": {
+                        "0": "Active",
+                        "1": "Archived"
+                    },
+                    "column": {
+                        "width": 100,
+                        "align": "center"
+                    }
+                },
+                {
+                    "name": "notify",
+                    "label": "Notifications",
+                    "type": "checkbox",
+                    "default": "1",
+                    "options": {
+                        "0": "Off",
+                        "1": "On"
+                    },
+                    "column": {
+                        "width": 120,
+                        "align": "center",
+                        "editable": true
+                    }
+                },
+                {
+                    "name": "contact",
+                    "label": "Contact",
+                    "validation": {
+                        "pattern": {
+                            "expression": "^\\+36[0-9]{8,9}$",
+                            "message": "Invalid phone."
+                        }
+                    },
+                    "column": {
+                        "editable": true
+                    }
+                },
+                {
+                    "name": "status",
+                    "label": "Status",
+                    "type": "select",
+                    "default": "new",
+                    "options": {
+                        "new": "New",
+                        "done": "Done"
+                    },
+                    "column": {
+                        "editable": true
+                    }
+                }
+            ],
+            "operations": {
+                "delete": true
+            },
+            "hooks": {
+                "after_save": "items.after_save"
+            },
+            "view": {
+                "title": "Items"
+            }
+        }
+    }
+}
