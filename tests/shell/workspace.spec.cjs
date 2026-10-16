@@ -3,6 +3,16 @@ test('standalone registry creates a DHTMLX grid and reusable form',async({page})
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/');await page.getByLabel('Felhasználónév',{exact:true}).fill('demo');await page.getByLabel('Jelszó',{exact:true}).fill('vapa-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
+ const workspace=page.locator('.vapa-workspace');
+ await expect(workspace.locator('.dhx_layout-space')).toHaveCount(1);
+ await expect(workspace.locator('[data-cell-id="filter"]')).toBeVisible();
+ await expect(workspace.locator('[data-cell-id="grid"]')).toBeVisible();
+ const insets=await workspace.evaluate(host=>{
+   const outer=host.getBoundingClientRect();
+   const first=host.querySelector('[data-cell-id="filter"]').getBoundingClientRect();
+   return {left:first.left-outer.left,top:first.top-outer.top};
+ });
+ expect(insets).toEqual({left:12,top:12});
  await expect(page.locator('.vapa-session-bar')).toHaveCount(1);
  await expect(page.locator('.vapa-workspace .dhx_toolbar')).toHaveCount(1);
  await expect(page.getByText('Élő kapcsolat',{exact:true})).toHaveCount(0);

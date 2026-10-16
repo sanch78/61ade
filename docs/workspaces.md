@@ -70,6 +70,12 @@ A hitelesítés, lejárat, fiókállapot, session-visszavonás és ACL minden me
 
 A WebSocket kliens a sorrendlistán kívüli cache-bejegyzéseket is elengedi, így az újracsatlakozás sem növeli korlátlanul a memóriát. A leállított/régi socket késői eseményeit figyelmen kívül hagyja.
 
+## Layoutszintek és keretek
+
+A többpaneles nézet deklarált layoutfája közvetlenül a munkaterület DHTMLX `space` layoutjának gyökere. Nincs körülötte újabb egycellás, keretezett `space` burkoló: a panelek saját keretet és egyetlen 12 px külső térközt kapnak. Az alkalmazás shellje és a grid toolbar/adatterületének belső layoutja külön feladatot lát el; ezek nem adnak újabb keretezett panelburkolót. A singleton adatlap saját, címzett panelje megmarad. A fogyasztó által szándékosan deklarált további sor/oszlopágakat a keret megtartja.
+
+Ellenőrzés: `workspace.spec.cjs` az alapnézet egyetlen `space` gyökerét, a filter/grid panelek 12 px eltolását, a CRUD-ot és az ismételt nézetváltást vizsgálja. Kapcsolódó döntés: FB-0015.
+
 ## Panelméretező megjelenítése
 
 A Suite 9.3.12 `space` layoutja 12 px panelközt hagy, de a gyári CSS a hárompontos fogantyút az előző cella szegélyére teszi. A VAPA `admin.css` a `#vapa-application` alatti `dhx_layout-space` resizerikonjára célzott CSS-felülírást ad: vízszintes panelosztásnál `right: -6px`, függőleges panelosztásnál `bottom: -6px`. Így az ikon a panelköz közepére kerül; a natív DHTMLX méretezési eseménykezelés működik tovább.

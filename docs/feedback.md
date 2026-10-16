@@ -154,3 +154,12 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
 - **Ellenőrzés:** PHP related-field, ACL/API, lista és validációtesztek sikeresek; külön szintetikus Chromium-tesztben a natív checkboxok, fix szélesség, közös mentés, újranyitás és beszédes filter sikeres; a checkbox üzleti mezőhibája mezőnévvel ellátott DHTMLX Alertben jelenik meg, a form értékei megmaradnak. A fogyasztó account-checkbox integrációja, hat korábbi feature/validáció Chromium-próbája és PHP user/validáció-paritástesztje sikeres.
 - **Átvezetés:** [mezőmegjelenítés és kapcsolt tárolás](field-presentation.md), [konfiguráció](configuration.md), [belépési kapcsoló](authentication.md#felhasználónkénti-kapcsoló).
+
+## FB-0015 — Fölösleges keretezett layoutburkoló
+
+- **Dátum:** 2026-10-16. Felhasználói tesztelési észrevétel.
+- **Megfigyelés:** a Szűrés/Találatok panelek keretén kívül még egy keret és újabb térköz jelent meg. Az FB-0011-ben eltávolított állapotsáv egycellás `space` burkolója bent maradt.
+- **Döntés és megvalósítás:** többpaneles nézetben a deklarált layoutfa közvetlenül a Workspace layout gyökere; az egycellás burkoló megszűnik. A singleton címzett panel és a deklarált belső ágak megmaradnak.
+- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
+- **Ellenőrzés:** typecheck/build és négy célzott Chromium-próba sikeres. A workspace egyetlen space gyökere és 12 px térköze, CRUD/nézetváltás/polling és a kétirányú méretező ellenőrizve.
+- **Átvezetés:** [layoutszintek és keretek](workspaces.md#layoutszintek-és-keretek), `Workspace.ts`, `workspace.spec.cjs`.
