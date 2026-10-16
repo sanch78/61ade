@@ -1,0 +1,14 @@
+{
+    "description": "Synthetic consumer: JSON declares storage, UI and registered business hooks.",
+    "resources": {
+        "notes": {
+            "storage": {"table": "notes", "key": "id", "owner_column": "owner_id"},
+            "fields": [{"name": "title", "label": "Title", "required": true}],
+            "hooks": {"normalize": "notes.normalize"},
+            "view": {"title": "Notes", "layout": {"form_mode": "panel"}, "actions": ["get", "create", "update", "mark"]}
+        }
+    },
+    "actions": [
+        {"resource": "notes", "name": "mark", "label": "Mark", "handler": "notes.mark", "target_resource": "notes", "write": true, "channels": ["ui"]}
+    ]
+}

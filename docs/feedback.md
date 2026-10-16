@@ -11,3 +11,5 @@
 ## FB-0006 — Configurable workspace, dynamic/live lists
 
 ## FB-0007 — Business code and framework boundary
+
+## FB-0008 — Readable JSON, env and organized PHP
