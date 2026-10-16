@@ -55,6 +55,10 @@ A visszajelzést ugyanabban a munkamenetben rögzítjük a [visszajelzési napl�
 
 A felhasználó egyértelmű útmutatását nem kell ismételten jóváhagyatni pusztán a rögzítéshez. Ha nem egyértelmű, hogy egy észrevétel általános keretszabály vagy alkalmazásspecifikus igény, ezt nyitott kérdésként jelöljük, és az értelmezést tisztázzuk.
 
+## Formvalidáció és migráció
+
+A [validációs útmutató](validation.md) a közös JSON/PHP mezőszabályokat, natív DHTMLX visszajelzést és backend/UI/API ellenőrzést rögzíti. Feature-migrációhoz a referencia teljes validációs leltára és az eltérések dokumentálása kötelező.
+
 ## ACL és műveletvégrehajtó fejlesztés
 
 A [tartós ACL-/audit-szerződés](access-and-actions.md) első implementációja használható. A backend szerződésteszt `tests/shell/access.php`: default deny, objektumscope, mezőtiltás, API-csatorna és token-scope, optimista zárolás, audit és rollback ellenőrizve. A `Feature` registry/SqlResource és DHTMLX Workspace adapter önálló demo integrációja ellenőrzött; a fogyasztói telepítés és integráció ellenőrzött.

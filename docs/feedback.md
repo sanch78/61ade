@@ -97,3 +97,12 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Döntés és megoldás:** új általános `Configuration` compiler a VAPA-ban; névvel regisztrált üzleti callbackekkel a meglévő Field/Action/SqlResource/Workspace végrehajtást használja. Az FB-0007 PHP-definíciós lehetőségét JSON-alapú alapmódszertannal egészíti ki.
 - **Átvezetés:** [JSON/env használat](configuration.md), [üzleti határ](usage.md#üzleti-konfiguráció-és-kód-határa).
 - **Ellenőrzés:** a szintetikus `tests/shell/configuration.php`, a shell- és ACL-szerződéstesztek sikeresek. A fogyasztó saját account/profil/ACL/API/jelszó PHP-tesztje sikeres. A publikus login JSON/env konfigurációval 200 választ ad. Felhasználói elfogadást nem állítunk.
+
+## FB-0009 — A referencia teljes validációja a migráció része
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Megfigyelés:** a fogyasztó felhasználókezelésében a required ellenőrzés mellett referencia szerinti formátum- és egyediségi szabályok hiányoztak.
+- **Döntés:** feature-migráció előtt teljes validációs leltár kell. Az általános mechanizmus a VAPA-é, a konkrét minta, hossz, üzenet és üzleti kivétel a fogyasztóé. A felhasználó kifejezetten megtartotta a jelenlegi 12–128 karakteres jelszószabályt.
+- **Megoldás:** közös deklaratív min-hossz/minta/mezőegyezés/SQL-egyediség, natív DHTMLX mezőhiba, név szerinti backend mezőhibák. Hibánál a form tartalma megmarad.
+- **Átvezetés:** [validáció és migráció](validation.md), [JSON-konfiguráció](configuration.md), AGENTS.md és CLAUDE.md kötelező paritásszabálya.
+- **Ellenőrzés:** `tests/shell/validation.php`, ACL- és 5000 rekordos listateszt sikeres. A fogyasztó külön PHP-paritástesztje és natív formhibát/egyediséget/javítás utáni mentést ellenőrző Chromium-tesztje sikeres. Felhasználói elfogadást nem állítunk.

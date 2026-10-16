@@ -27,13 +27,20 @@ final class Executor
             $known=array_column($action->fields,null,'name');
             foreach ($input as $key=>$value) if (!$action->listSource && !isset($known[$key])) throw new Failure('Ismeretlen vagy nem írható mező.');
             $values=$action->listSource ? $input : [];
+            $fieldErrors = [];
             foreach ($action->fields as $field) {
                 $allowed=$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$object ?? '',$owner,$field->name);
                 if(!$allowed){if(array_key_exists($field->name,$input) || ($name==='create' && $field->required))throw new Failure('A mező nem módosítható.',403);continue;}
                 if (!array_key_exists($field->name,$input) && !$field->required) continue;
-                $values[$field->name]=$field->validate($input[$field->name] ?? '',$ctx);
+                try {
+                    $values[$field->name]=$field->validate($input[$field->name] ?? '',$ctx,$input);
+                } catch (Failure $error) {
+                    if (!$error->fieldErrors) throw $error;
+                    $fieldErrors = array_replace($fieldErrors, $error->fieldErrors);
+                }
                 if (!$field->secret) $fields[]=$field->name;
             }
+            if ($fieldErrors) throw new Failure('Javítsd a megjelölt mezőket.', 400, $fieldErrors);
             $result=($action->handler)($ctx,$target,$values);
             $auditObject=$object ?? (is_array($result) && isset($result['id']) ? (string)$result['id'] : '');
             $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$name,$auditObject, 'success',$fields);

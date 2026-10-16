@@ -39,3 +39,8 @@ Az alkalmazásspecifikus felhasználóadmin is VAPA-definíciókból és eszköz
 - A fogyasztóban alkalmazáskonfiguráció, üzleti definíció, üzleti szabály és konkrét adat-/integrációs illesztés lehet. Általános admin-infrastruktúra nem.
 - A sikeres alkalmazásdemo önmagában nem kész eredmény: az érintett VAPA-képességnek külön, szintetikus fogyasztóval is használhatónak és ellenőrizhetőnek kell lennie.
 - A kért első lépés: VAPA által biztosított DHTMLX loginablak, majd konfigurált DHTMLX menü és üres munkaterület. Az üzleti modulok ezután, egyenként készülnek.
+
+## Kötelező validációs paritás feature-migrációnál
+
+- Minden feature átvezetésekor fel kell mérni és dokumentáltan át kell venni a referencia összes érintett validációját (modul, lokális felülírás, közös konfig, mentés). A `required`/must-set önmagában nem teljes migráció.
+- Az általános validátort a VAPA adja, a konkrét formátum, határérték és üzleti kivétel a fogyasztóé. Kliens és szerver/UI/API útvonal egyaránt ellenőrzendő. Eltérés csak dokumentált döntéssel maradhat.
