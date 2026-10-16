@@ -46,3 +46,7 @@ Növekedéskor témánként külön útmutató készülhet, innen hivatkozva; az
 A visszajelzést ugyanabban a munkamenetben rögzítjük a [visszajelzési naplóban](feedback.md). Az elfogadott használati szabály bekerül ide vagy az érintett témadoksiba; meg nem valósult működés jól láthatóan tervezett marad. A tesztelési útmutatás, ismert korlát és bevált megoldás így a következő alkalmazás fejlesztőjének is elérhető.
 
 A felhasználó egyértelmű útmutatását nem kell ismételten jóváhagyatni pusztán a rögzítéshez. Ha nem egyértelmű, hogy egy észrevétel általános keretszabály vagy alkalmazásspecifikus igény, ezt nyitott kérdésként jelöljük, és az értelmezést tisztázzuk.
+
+## ACL és műveletvégrehajtó fejlesztés
+
+A [tartós ACL-/audit-szerződés](access-and-actions.md) implementációja folyamatban. Az első backend szerződésteszt `tests/shell/access.php`: default deny, objektumscope, mezőtiltás, API-csatorna és token-scope, optimista zárolás, audit és rollback ellenőrizve. A `Feature` registry/SqlResource és DHTMLX Workspace adapter még integrációs ellenőrzés alatt; ez nem telepített kész modul.

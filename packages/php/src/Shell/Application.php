@@ -39,13 +39,20 @@ final class Application
         $error = '';
         $username = '';
         $identity = isset($_SESSION['identity']) ? $this->definition->identities->find($_SESSION['identity']) : null;
+        $workspace=$this->definition->workspace;
+        if($identity && $workspace && ($_SESSION['credentialVersion'] ?? 0)!==$workspace->version($identity->id)) $identity=null;
         if (!$identity) unset($_SESSION['identity']);
+        if(isset($_GET['vapa'])) {
+            if(!$workspace){http_response_code(404);exit;}
+            $workspace->http($identity,$this->definition->identities,$_SESSION['csrf']);
+        }
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $token = $_POST['csrf'] ?? null;
             if (!is_string($token) || !hash_equals($_SESSION['csrf'], $token)) {
                 http_response_code(403);
                 $error = 'A munkamenet lejárt. Kérjük, próbáld újra.';
             } elseif (($_POST['action'] ?? '') === 'logout') {
+                $workspace?->journal->record($identity?->id ?? '', 'ui', 'session', 'logout', '', 'success');
                 $_SESSION = [];
                 session_regenerate_id(true);
                 $this->redirect();
@@ -75,8 +82,10 @@ final class Application
                 fwrite($lock, json_encode($identity ? [] : $attempts));
                 flock($lock, LOCK_UN);
                 fclose($lock);
+                $workspace?->journal->record($identity?->id ?? '', 'ui', 'session', 'login', '', $identity ? 'success' : 'rejected');
                 if ($identity) {
                     $_SESSION = ['identity' => $identity->id, 'csrf' => bin2hex(random_bytes(32)), 'lastSeen' => time()];
+                    $_SESSION['credentialVersion']=$workspace?->version($identity->id) ?? 0;
                     session_regenerate_id(true);
                     $this->redirect();
                 }
@@ -94,6 +103,7 @@ final class Application
         if ($identity) {
             $bootstrap['displayName'] = $identity->displayName;
             $bootstrap['menu'] = $menu;
+            if($workspace) { $bootstrap['views']=$workspace->views($identity); $bootstrap['csrf']=$csrf; }
         }
         session_write_close();
         require dirname(__DIR__, 2).'/templates/shell.php';

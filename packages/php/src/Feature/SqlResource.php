@@ -1,0 +1,65 @@
+<?php
+declare(strict_types=1);
+namespace Vapa\Feature;
+
+/** Generic declared SQL data adapter. Business schemas and rules belong to consumers. */
+final class SqlResource
+{
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1')
+    {
+        foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
+    }
+    public function register(Registry $registry, string $title, bool $create = true, bool $update = true): void
+    {
+        $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c)=>$this->listing($c),collection:true));
+        $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$this->project($c,$t['row'],'get'),resolve:fn($c,$id)=>$this->target($c,$id)));
+        $actions=['get'];
+        if($create) {
+            $registry->add(new Action($this->resource,'create','Új', $this->fields, fn($c,$t,$v)=>$this->save($c,null,$v),write:true));
+            $actions[]='create';
+        }
+        if($update) {
+            $registry->add(new Action($this->resource,'update','Mentés',[...$this->fields,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true));
+            $actions[]='update';
+        }
+        $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions);
+    }
+    public function target(Context $ctx, ?string $id): array
+    {
+        if($id===null || !preg_match('/^\d+$/D',$id)) throw new Failure('Hiányzó objektum.',404);
+        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
+        $q->execute([$id]); $row=$q->fetch(\PDO::FETCH_ASSOC);
+        if(!$row)throw new Failure('Nem található objektum.',404);
+        return ['id'=>(string)$row[$this->key],'owner'=>$this->ownerColumn?(string)$row[$this->ownerColumn]:null,'row'=>$row];
+    }
+    private function listing(Context $ctx): array
+    {
+        [$where,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->ownerColumn);
+        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE ($where) AND ({$this->where}) ORDER BY {$this->key} DESC LIMIT 200");$q->execute($params);
+        return array_map(fn($row)=>$this->project($ctx,$row,'list'),$q->fetchAll(\PDO::FETCH_ASSOC));
+    }
+    public function project(Context $ctx,array $row,string $action): array
+    {
+        $id=(string)$row[$this->key];$owner=$this->ownerColumn?(string)$row[$this->ownerColumn]:null;
+        $out=['id'=>$id,'revision'=>$this->revision($row)];
+        foreach($this->fields as $field) if(!$field->secret && $ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,$action,$ctx->channel,$id,$owner,$field->name))$out[$field->name]=$row[$field->name];
+        return $out;
+    }
+    private function revision(array $row): string { return hash('sha256',json_encode($row,JSON_THROW_ON_ERROR)); }
+    private function save(Context $ctx, ?array $target, array $values): array
+    {
+        if($target && !hash_equals($this->revision($target['row']),$values['revision'] ?? ''))throw new Failure('Az adat közben módosult. Nyisd meg újra.',409);
+        unset($values['revision']);
+        if($this->guard)($this->guard)($ctx,$target,$values);
+        if($this->normalize)$values=($this->normalize)($ctx,$target,$values);
+        if($target){
+            if(!$values)throw new Failure('Nincs módosítás.');
+            $q=$ctx->db->prepare("UPDATE {$this->table} SET ".implode(',',array_map(static fn($k)=>"$k = ?",array_keys($values)))." WHERE {$this->key} = ?");
+            $q->execute([...array_values($values),$target['id']]);$id=$target['id'];
+        }else{
+            $values=array_merge($this->defaults,$values);
+            $q=$ctx->db->prepare("INSERT INTO {$this->table} (".implode(',',array_keys($values)).') VALUES ('.implode(',',array_fill(0,count($values),'?')).')');$q->execute(array_values($values));$id=$ctx->db->lastInsertId();
+        }
+        return ['id'=>(string)$id];
+    }
+}

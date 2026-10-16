@@ -13,6 +13,7 @@ final readonly class ApplicationDefinition
         public string $runtime,
         public string $sessionName = 'vapa_session',
         public string $cookiePath = '/',
+        public ?\Vapa\Feature\Workspace $workspace = null,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)) {

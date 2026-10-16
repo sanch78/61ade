@@ -21,4 +21,3 @@ A teljes keret és a teljes alkalmazásmigráció továbbra is több mérföldk�
 Kivétel **akkor és csak akkor** lehetséges, ha a keretrendszer logikusan nem bővíthető az adott igényre. Ennek konkrét okát, a megvizsgált keretbővítést és a kivétel határát az implementáció mellett dokumentálni kell. Ebben a szűk esetben az üzleti megoldás akár DHTMLX nélküli eljárást is alkalmazhat. Kényelmi, gyorsasági vagy AI-preferencia nem indok.
 
 Az alkalmazásspecifikus felhasználóadmin is VAPA-definíciókból és eszközökből áll; nem készül kötelező, univerzális felhasználóadmin a keretbe. A keret az újrahasználható ACL-, form-, adatkezelési, API- és auditképességeket adja.
-
