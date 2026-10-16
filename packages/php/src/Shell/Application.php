@@ -61,6 +61,7 @@ final class Application
         $bootstrap = [
             'protocol' => 1,
             'title' => $definition->title,
+            'version' => $definition->version,
             'authenticated' => $identity !== null,
             'username' => $username,
             'error' => $error,

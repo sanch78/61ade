@@ -3,6 +3,9 @@ test('standalone registry creates a DHTMLX grid and reusable form',async({page})
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/');await page.getByLabel('Felhasználónév',{exact:true}).fill('demo');await page.getByLabel('Jelszó',{exact:true}).fill('vapa-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
+ await expect(page.locator('.vapa-session-bar')).toHaveCount(1);
+ await expect(page.locator('.vapa-workspace .dhx_toolbar')).toHaveCount(1);
+ await expect(page.getByText('Élő kapcsolat',{exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Hozzáadás',exact:true}).click();
  await page.getByRole('dialog').getByLabel('Cím',{exact:true}).fill('Standalone '+Date.now());
  await page.getByRole('dialog').getByRole('button',{name:'Mentés',exact:true}).click();

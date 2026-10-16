@@ -68,3 +68,5 @@ A `workspaceBindings` egy `(Workspace, Registry): array` closure; a visszatérő
 `tests/shell/configuration.php`: env-fájl/process/default precedencia, típus és kötelező érték hibája, hibás JSON, önálló szintetikus teljes alkalmazás, binding, CRUD, layout, ACL és audit. `JsonApplication::load` opcionális negyedik PDO paramétere meglévő kapcsolat/izolált fixture befecskendezésére használható; alapból a deklarált MySQL-kapcsolatot nyitja.
 
 A modul-JSON nem dolgoz fel env-hivatkozásokat: ide hostfüggetlen feature-definíciók kerülnek. A konfiguráció deployolt, megbízható fejlesztői anyag, nincs hozzá HTTP-s szerkesztő vagy hot-reload protokoll. Hosszú életű worker konfigurációváltás után újraindítandó. Nincs teljes JSON Schema/editor-autocomplete vagy PHP-callbackek statikus típusellenőrzése; a támogatott struktúrákat a runtime compiler ellenőrzi.
+
+Az `application.version` opcionális string az alkalmazás kiadásazonosítójával. Az alsó shell-sáv az `application.title` mellett jeleníti meg; nincs automatikus keretverzió-helyettesítés.

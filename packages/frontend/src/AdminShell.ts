@@ -10,6 +10,7 @@ export type MenuDefinition = {
 export type ShellDefinition = {
   protocol: 1;
   title: string;
+  version?: string;
   authenticated: boolean;
   username: string;
   error: string;
@@ -83,24 +84,11 @@ export class AdminShell {
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "application-title", height: 40 },
         { id: "menu-row", height: 40, cols: [{id:"main-menu"},{id:"theme",width:145}] },
         { id: "workspace", css: "vapa-workspace" },
-        { id: "status", height: 32 },
+        { id: "status", height: 32, css: "vapa-session-bar" },
       ],
     });
-    const title = new Toolbar(undefined, {
-      data: [
-        {
-          id: "application-name",
-          type: "title",
-          value: escape(definition.title),
-        },
-        { type: "spacer" },
-        { id: "framework-name", type: "title", value: "VAPA" },
-      ],
-    });
-    this.layout.getCell("application-title").attach(title);
     const status = new Toolbar(undefined, {
       data: [
         {
@@ -111,6 +99,12 @@ export class AdminShell {
               ? definition.displayName || ""
               : "Nincs bejelentkezve",
           ),
+        },
+        { type: "spacer" },
+        {
+          id: "application-version",
+          type: "title",
+          value: escape([definition.title, definition.version].filter(Boolean).join(" ")),
         },
       ],
     });

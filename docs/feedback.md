@@ -114,3 +114,13 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Döntés és megvalósítás:** a teljes shell/auth/session/SMTP/MIME/remember folyamat VAPA-képesség, JSON/env konfigurációval. A fogyasztó csak a fiókillesztést, levélszöveget és ACL-védett adminaction definícióját adja. A megerősítés előtti session nem hitelesített, és nem kap API/UI/WebSocket hozzáférést.
 - **Átvezetés:** [belépési védelem](authentication.md), [JSON-konfiguráció](configuration.md), `Authentication`, `Mail`, `Application`, DHTMLX `AdminShell`.
 - **Ellenőrzés:** `tests/shell/authentication.php` sikeres. A három önálló SMTP/MIME/DHTMLX Chromium-teszt sikeres, beleértve az Enterrel beküldést, új böngészősessiont, abszolút lejáratot, logoutot, default-on állapotot és per-user kapcsolót. A tesztadatok és levelek szintetikusak. A fogyasztó SMTP-relayén csak TLS-kapcsolatot ellenőriztünk, valódi levél vagy felhasználói belépés nélkül. Felhasználói elfogadást nem állítunk.
+
+## FB-0011 — Egyetlen alsó információs sáv
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Megfigyelés:** a felső alkalmazásnév-sáv, workspace-kapcsolatsáv és külön felhasználósáv fölöslegesen foglal helyet.
+- **Elvárás és döntés:** nincs felső alkalmazásnév-fejléc és külön workspace-állapotsáv. Egyetlen alsó DHTMLX Toolbar bal oldalán a bejelentkezett felhasználó, jobb szélén az alkalmazás neve és verziószáma jelenik meg. Az élő adatkövetés megmarad.
+- **Megvalósítás:** az alkalmazás opcionális `version` mezőt ad PHP/JSON-definícióban; az AdminShell jeleníti meg. A Workspace nem renderel állandó kapcsolati állapotot; műveleti hibák továbbra is Alertben, szerkesztési konfliktus Message-ben láthatók.
+- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
+- **Ellenőrzés:** TypeScript typecheck/build és PHP lint/shell/JSON-szerződésteszt sikeres. A négy shell-böngészőteszt, az önálló CRUD/nézetváltás és a pollingteszt sikeres (a környezeti időtúllépéseket követő célzott újrafuttatásokkal).
+- **Átvezetés:** [shell](shell.md#egységes-alsó-információs-sáv), [munkaterületek](workspaces.md), `ApplicationDefinition`, `JsonApplication`, `AdminShell`, `Workspace`.

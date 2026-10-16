@@ -81,7 +81,7 @@ try {
         },
     ];
     $settings = [
-        'application' => ['title' => 'Synthetic JSON app', 'runtime' => 'runtime'],
+        'application' => ['title' => 'Synthetic JSON app', 'runtime' => 'runtime', 'version' => '2.3.4'],
         'database' => ['host' => 'unused', 'port' => 3306, 'name' => 'unused', 'charset' => 'utf8mb4', 'user' => 'unused', 'password' => ''],
         'session' => ['name' => 'json_test', 'cookie_path' => '/'],
         'identity' => ['table' => 'accounts', 'id_column' => 'id', 'username_column' => 'login', 'password_column' => 'password_hash', 'name_column' => 'name', 'attribute_columns' => ['active'], 'allowed' => 'accounts.active'],
@@ -92,6 +92,7 @@ try {
     $app = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
     $actor = $app->identities->authenticate('synthetic', 'synthetic-password');
     verify($actor !== null, 'JSON identity adapter');
+    verify($app->version === '2.3.4', 'Application release version from JSON');
     $workspace = $app->workspace;
     $context = new Context($actor, 'ui', $workspace->acl, $db);
     $created = $workspace->executor->execute($context, 'notes', 'create', null, ['title' => 'hello']);

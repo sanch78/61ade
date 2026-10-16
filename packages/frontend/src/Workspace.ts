@@ -1,4 +1,4 @@
-import { Form, Grid, Layout, Toolbar, Window, alert, awaitRedraw } from "@dhtmlx/suite";
+import { Form, Grid, Layout, Toolbar, Window, alert, message, awaitRedraw } from "@dhtmlx/suite";
 import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 
@@ -21,7 +21,6 @@ export class Workspace {
   readonly layout:Layout;
   private grid?:Grid;
   private commands:Toolbar;
-  private status:Toolbar;
   private content?:Layout;
   private rows:Row[]=[];
   private selected?:string;
@@ -38,15 +37,14 @@ export class Workspace {
   private editor?:Form;
   private detail?:Form;
   private detailDirty=false;
+  private detailConflictShown=false;
   private live:Realtime;
 
   constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,live:LiveConfig){
     const region=(node:Region):any=>({...node,header:node.header?escape(node.header):undefined,
       ...(node.rows?{rows:node.rows.map(region)}:{}),...(node.cols?{cols:node.cols.map(region)}:{})});
     const body=view.singleton?{id:"body",header:escape(view.title),rows:[{id:"commands",height:48},{id:"detail"}]}:{...region(view.layout.tree),id:"body"};
-    this.layout=new Layout(host,{type:"space",rows:[body,{id:"status",height:32}]});
-    this.status=new Toolbar(undefined,{data:[{id:"status-text",type:"title",value:"Betöltés…"}]});
-    this.layout.getCell("status").attach(this.status);
+    this.layout=new Layout(host,{type:"space",rows:[body]});
     this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"title",type:"title",value:escape(view.title)}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).map(a=>({id:a.name,value:escape(a.label)}))]});
     this.commands.events.on("click",(id:string|number)=>{const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
@@ -65,13 +63,12 @@ export class Workspace {
       this.content.getCell("data").attach(this.grid);this.layout.getCell("grid").attach(this.content);
       if(this.hasRegion("filter"))this.mountFilters();
     }
-    this.live=new Realtime(view.resource,live,this.call.bind(this),data=>void this.changed(data),text=>this.setStatus(text),()=>this.revoke());
+    this.live=new Realtime(view.resource,live,this.call.bind(this),data=>void this.changed(data),()=>{},()=>this.revoke());
     this.capabilities();void this.load();
   }
   private hasRegion(id:string):boolean{
     const find=(node:Region):boolean=>node.id===id||[...(node.rows??[]),...(node.cols??[])].some(find);return find(this.view.layout.tree);
   }
-  private setStatus(text:string):void{if(!this.disposed)this.status.data.update("status-text",{value:escape(text)});}
   private selectedRow():Row|undefined{return this.rows.find(r=>String(r.id)===this.selected);}
   private capabilities():void{
     for(const a of this.view.actions){if(a.name==="get"||(this.view.singleton&&a.name==="update"))continue;
@@ -146,7 +143,10 @@ export class Workspace {
     if(this.view.singleton){
       const row=data.items[0];if(!row){this.revoke();return;}
       if(this.rows[0]?.revision!==row.revision){
-        if(this.detailDirty){this.setStatus("Az adat időközben módosult; a megkezdett szerkesztés megmaradt.");return;}
+        if(this.detailDirty){
+          if(!this.detailConflictShown){this.detailConflictShown=true;message({text:"Az adat időközben módosult; a megkezdett szerkesztés megmaradt.",expire:5000});}
+          return;
+        }
         this.rows=[row];await this.mountDetail(row);
       }else{this.rows=[row];this.capabilities();}
     }else{this.previous=data.previous;this.next=data.next;await this.render(data.items,true);}
@@ -159,7 +159,7 @@ export class Workspace {
     this.layout.getCell("detail").detach();this.detail?.destructor();await awaitRedraw();if(this.disposed)return;
     const fields=this.view.columns.map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:"text",required:false,max:255,options:{}});
     const form=new Form(document.createElement("div"),{padding:24,rows:[...fields.map(f=>input(f,row[f.name],!allowed.some(a=>a.name===f.name))),...(action?[{type:"button",name:"submit",text:"Mentés",color:"primary"}]:[])]} as any);
-    this.detail=form;this.detailDirty=false;
+    this.detail=form;this.detailDirty=false;this.detailConflictShown=false;
     form.events.on("change",()=>{this.detailDirty=true;});
     if(action)this.bindSave(form,action,String(row.id),row,allowed,()=>{this.detailDirty=false;});
     this.layout.getCell("detail").attach(form);this.capabilities();

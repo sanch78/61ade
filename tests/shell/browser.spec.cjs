@@ -15,6 +15,17 @@ test('framework creates DHTMLX login and menu, with an empty workspace', async (
     expect(await page.locator('#vapa-config').evaluate(e => JSON.parse(e.textContent).menu)).toBeUndefined();
     await login(page, 'demo', true);
     await expect(page.locator('.vapa-workspace')).toHaveText('');
+    const footer = page.locator('.vapa-session-bar');
+    await expect(footer).toHaveCount(1);
+    await expect(footer).toContainText('Demo User');
+    await expect(footer).toContainText('VAPA keretdemó 0.1.0');
+    const menuBox = await page.getByRole('menuitem', { name: 'Kijelentkezés', exact: true }).boundingBox();
+    expect(menuBox.y).toBeLessThan(40);
+    const userBox = await footer.getByText('Demo User', { exact: true }).boundingBox();
+    const applicationBox = await footer.getByText('VAPA keretdemó 0.1.0', { exact: true }).boundingBox();
+    expect(userBox.x).toBeLessThan(applicationBox.x);
+    const footerBox = await footer.boundingBox();
+    expect(footerBox.y + footerBox.height).toBe(page.viewportSize().height);
     await page.getByRole('menuitem', { name: /^Nyilvántartás/ }).click();
     await expect(page.getByRole('menuitem', { name: 'Dokumentumok', exact: true })).toHaveAttribute('aria-disabled', 'true');
     await page.getByRole('menuitem', { name: 'Kijelentkezés', exact: true }).click();
