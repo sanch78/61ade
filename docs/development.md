@@ -2,9 +2,7 @@
 
 ## Jelenlegi állapot
 
-Ez a repo dokumentációs és könyvtárszerkezeti scaffold. Nincs futtató parancs, build script, PHPUnit/Playwright konfiguráció, implementált osztály vagy HTTP endpoint. A .gitkeep fájlok biztosítják az üres könyvtárak verziókezelését.
-
-A létrehozáskor a host alapértelmezett CLI-je PHP 7.1.33; Composer nem található a PATH-on. Ez nem alkalmas a tervezett PHP 8.4+ runtime tesztelésére. A host régi adminját nem módosítottuk. M1 feladata izolált modern PHP és Composer biztosítása; meglévő éles alapértelmezést ne kapcsoljunk át.
+Az első PHP 8.4+ login/navigációs shell és frontend build elkészült. Futtatási integráció, előfeltételek és korlátok: [shell](shell.md). A host PHP 7.1 alapértelmezése megmarad; a fogyasztó izolált PHP 8.4 CLI-t használhat. Nincs még Symfony hosting, teljes CI vagy PHP 8.5 ellenőrzés.
 
 ## Szerkesztés két repóban
 

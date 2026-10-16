@@ -31,3 +31,13 @@ Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a f
 - **Állapot:** lezárt / dokumentációsan ellenőrzött. A szabály folyamatosan érvényes; a lezárás a bevezetésre vonatkozik.
 - **Átvezetés:** [fejlesztési szabályok](../AGENTS.md), [használati módszertan](usage.md), [fejlesztési terv](development-plan.md).
 - **Ellenőrzés:** az agent ellenőrizte a szabály, útmutató, napló és készállapot-feltétel összhangját, a belső hivatkozásokat és a diff formátumát. Runtime-teszt nem alkalmazható; későbbi felhasználói teszt még nem történt.
+
+## FB-0002 — Fokozatos indulás login és navigációs shell segítségével
+
+- **Dátum:** 2026-10-16.
+- **Forrás:** első fogyasztó fejlesztési útmutatása.
+- **Elvárás:** először bejelentkezés, majd alkalmazásnak megfelelő, üzleti funkció nélküli menü.
+- **Döntés:** a keret adja a login/session/navigáció felületet; az identitásforrás és a menü az alkalmazásé. Nem tekintjük a shellt kész CRUD- vagy ACL-rendszernek.
+- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadás még nincs.
+- **Átvezetés:** [shell használata és korlátai](shell.md), [PHP alkalmazás](../packages/php/src/Shell/Application.php), [frontend](../packages/frontend/src/admin.ts).
+- **Ellenőrzés:** PHP 8.4 lint, TypeScript typecheck és build; a fogyasztó négy Chromium E2E tesztje szintetikus fiókokkal, mobilképek vizuális ellenőrzésével.

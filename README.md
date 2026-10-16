@@ -2,7 +2,7 @@
 
 Újrahasznosítható, konfigurációvezérelt admin alkalmazáskeret modern PHP backenddel és DHTMLX frontenddel.
 
-**Állapot: kezdeti könyvtárváz és részletes tervek. Még nincs futtatható keretrendszer, kiadott csomag vagy működő demo.**
+**Állapot: első futtatható bejelentkezési és navigációs shell PHP 8.4+ és TypeScript/DHTMLX alapon. Nincs kiadott csomag, feature API vagy CRUD.**
 
 ## Cél
 
@@ -15,6 +15,7 @@ Első fogyasztó: a teljesen újraírandó CityScreen admin. A CityScreen üzlet
 A használati módszertant minden képességváltozással együtt vezetjük; a felhasználói tesztelés tanulságai tartósan bekerülnek a dokumentációba. Ez kötelező fejlesztési szabály.
 
 - [Felhasználási módszertan](docs/usage.md)
+- [Bejelentkezési és navigációs shell](docs/shell.md)
 - [Tesztelési visszajelzések és tanulságok](docs/feedback.md)
 - [Részletes koncepció](docs/concept.md)
 - [Fejlesztési terv és mérföldkövek](docs/development-plan.md)
@@ -39,7 +40,7 @@ A csomagnevek helyi tervezési azonosítók; npm/Packagist névfoglalás vagy pu
 
 Elfogadott: modern PHP, PHP-FPM + OPcache, DHTMLX, kódban definiált feature-ök, külön alkalmazásrepók. Javasolt első megvalósítás: PHP 8.4 minimum, PHP 8.5 CI-lefedés, Symfony 7.4 LTS integráció, TypeScript frontend. A Symfony-választás javaslat, nem korábbi felhasználói döntés; az első runtime-mérföldkőben rögzítendő.
 
-A manifestek scaffoldingot írnak le. Nem tartalmaznak még telepített keretrendszer- vagy DHTMLX-függőséget, és nincs hozzájuk generált lockfile. A runtime elkészítése előtt ne kezeld őket kész alkalmazásként.
+A frontend lockfile rögzíti a DHTMLX, TypeScript és esbuild függőségeket. A PHP shell Composer-autoloadot használ, hosting framework nélkül; Symfony integráció és a teljes runtime-szerződés még nincs. Részletek: [shell](docs/shell.md).
 
 ## Licencek
 

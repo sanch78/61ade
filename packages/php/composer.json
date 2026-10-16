@@ -1,6 +1,6 @@
 {
   "name": "sanch78/vapa",
-  "description": "Very Advanced PHP Admin \u2014 reusable metadata-driven admin framework (scaffold)",
+  "description": "Very Advanced PHP Admin — reusable login and navigation shell",
   "type": "library",
   "require": {
     "php": "^8.4"
@@ -11,5 +11,6 @@
     }
   },
   "minimum-stability": "stable",
-  "prefer-stable": true
+  "prefer-stable": true,
+  "version": "0.1.0"
 }

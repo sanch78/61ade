@@ -1,7 +1,17 @@
 {
   "name": "@vapa/admin",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "VAPA DHTMLX frontend integration (scaffold)",
-  "type": "module"
+  "description": "VAPA admin shell and DHTMLX navigation",
+  "type": "module",
+  "exports": {
+    "./admin.js": "./dist/admin.js",
+    "./admin.css": "./dist/admin.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@dhtmlx/suite": "9.3.12"
+  }
 }

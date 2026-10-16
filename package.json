@@ -3,5 +3,13 @@
   "private": true,
   "workspaces": [
     "packages/frontend"
-  ]
+  ],
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3"
+  }
 }
