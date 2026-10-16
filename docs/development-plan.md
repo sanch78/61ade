@@ -1,6 +1,6 @@
 # VAPA fejlesztési terv
 
-Állapot: 2026-10-16, M0 könyvtárváz és tervek. A sorrend függőségeket jelöl, nem időbecslést. Minden további mérföldkő még nyitott.
+Állapot: 2026-10-16, M0 után első login/navigációs shell és frontend build készült ([használat](shell.md)). M1/M2/M4 részfeladatok implementálva, a teljes mérföldkövek továbbra is nyitottak. A sorrend függőségeket jelöl, nem időbecslést.
 
 ## M0 — Külön repó, szerkezet és koncepció
 

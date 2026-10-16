@@ -4,7 +4,7 @@ Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését teszte
 
 ## Jelenlegi állapot
 
-2026-10-16: könyvtárváz és tervek állnak rendelkezésre. Nincs még futtatható VAPA, telepíthető release, implementált feature API vagy admin demo. Az alábbi szerkezeti útmutatás alkalmazható; későbbi futtatási és kódpéldákat csak az implementáció után adunk hozzá. Tervezett API-t nem mutatunk működő példaként.
+2026-10-16: futtatható PHP bejelentkezési és navigációs shell, TypeScript/DHTMLX frontend build készült. Integráció, konfiguráció, példa, ellenőrzés és korlátok: [első shell használata](shell.md). Nincs publikált release, feature API, CRUD vagy teljes ACL. A shell nem jelenti M1/M2/M4 lezárását.
 
 ## Már alkalmazható módszertan
 
