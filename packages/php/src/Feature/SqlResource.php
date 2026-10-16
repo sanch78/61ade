@@ -30,6 +30,7 @@ final class SqlResource
             if(!hash_equals($this->revision($target['row']),$values['revision']))throw new Failure('Az adat közben módosult.',409);
             if($this->deleteGuard)($this->deleteGuard)($ctx,$target);
             $q=$ctx->db->prepare("DELETE FROM {$this->table} WHERE {$this->key}=?");$q->execute([$target['id']]);
+            $ctx->acl->invalidate();
             if($this->afterSave)($this->afterSave)($ctx,$target['id'],$target,[]);
             return [];
         },resolve:fn($c,$id)=>$this->target($c,$id),write:true,channels:['ui']));
@@ -74,6 +75,7 @@ final class SqlResource
             $values=array_merge($this->defaults,$values);
             $q=$ctx->db->prepare("INSERT INTO {$this->table} (".implode(',',array_keys($values)).') VALUES ('.implode(',',array_fill(0,count($values),'?')).')');$q->execute(array_values($values));$id=$ctx->db->lastInsertId();
         }
+        $ctx->acl->invalidate();
         if($this->afterSave)($this->afterSave)($ctx,(string)$id,$target,$values);
         return ['id'=>(string)$id];
     }

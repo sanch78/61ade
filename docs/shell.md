@@ -80,3 +80,5 @@ A shellhez azóta elkészült az első Feature Registry, SQL CRUD, objektum-/mez
 ## Megjelenési mód
 
 A menüsor jobb oldalán DHTMLX Toolbar választó adja a Default (`light`) és Éjjeli (`dark`) témát. A VAPA a Suite `setTheme` API-ját hívja a dokumentum gyökerén, saját színfelülírás nélkül. A `vapa-theme` localStorage kulcs a böngésző helyi preferenciája, nem jogosultsági vagy profiladat.
+
+Munkaterület-váltáskor a VAPA leválasztja és felszabadítja az előző DHTMLX layoutot, kivárja az újrarajzolást, majd csatolja az új nézetet. A gyors egymás utáni váltások közül csak a legutolsó kerül fel. A `workspace.spec.cjs` ismételt nézetváltást is ellenőriz.

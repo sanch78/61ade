@@ -41,3 +41,5 @@ A `Lookup` a kapcsolt objektum saját listajogával, SQL scope-jával és címke
 A mezőszabályok hiányában az objektumjog öröklődik. Ha az actorra az adott mezőhöz van külön szabály, a mezőhöz külön egyező allow kell, és az egyező deny elsőbbségű. Ezért egy csak tiltást tartalmazó mezőszabály alapból lezárja az érintett mezőt; részleges kivételhez adj explicit allow szabályt is. Titkos mező sosem kerül a listaprojekcióba vagy auditba.
 
 A `registerDelete` külön opt-in keretképesség: cél/revízió/jog ellenőrzés, üzleti deleteGuard és tranzakciós audit. A fogyasztó csak azoknál az erőforrásoknál kapcsolja be, ahol törlés ténylegesen támogatott.
+
+A szabálycache kizárólag az aktuális Workspace példányon belül él. Műveletkezdéskor, SQL-módosítás után és rollbackkor érvénytelenítjük; nincs kérések között megmaradó jogosultságcache. Ez a listák mezőprojekciójánál elkerüli a soronként ismétlődő ACL-lekérdezéseket.
