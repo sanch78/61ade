@@ -55,3 +55,8 @@ body,
 .vapa-grid-editable .dhx_grid-header-cell-text::after { content: "✎"; margin-left: .35em; }
 .vapa-grid-sort-asc .dhx_grid-header-cell-text::before { content: "↑"; margin-right: .35em; }
 .vapa-grid-sort-desc .dhx_grid-header-cell-text::before { content: "↓"; margin-right: .35em; }
+:is(.vapa-grid-editable, .vapa-grid-sort-asc, .vapa-grid-sort-desc) .dhx_grid-header-cell-text { display: flex; align-items: center; min-width: 0; }
+:is(.vapa-grid-editable, .vapa-grid-sort-asc, .vapa-grid-sort-desc) .dhx_grid-header-cell-text_content { display: block; height: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.vapa-grid-editable .dhx_grid-header-cell-text::after,
+.vapa-grid-sort-asc .dhx_grid-header-cell-text::before,
+.vapa-grid-sort-desc .dhx_grid-header-cell-text::before { flex-shrink: 0; }
