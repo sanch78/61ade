@@ -10,6 +10,10 @@ Egy típusos feature-definíció összefogja az objektumok mezőit, nézeteit, m
 
 ## Dokumentáció
 
+A használati módszertant minden képességváltozással együtt vezetjük; a felhasználói tesztelés tanulságai tartósan bekerülnek a dokumentációba. Ez kötelező fejlesztési szabály.
+
+- [Felhasználási módszertan](docs/usage.md)
+- [Tesztelési visszajelzések és tanulságok](docs/feedback.md)
 - [Részletes koncepció](docs/concept.md)
 - [Fejlesztési terv és mérföldkövek](docs/development-plan.md)
 - [Könyvtárak és csomaghatárok](docs/repository-layout.md)
