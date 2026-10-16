@@ -25,8 +25,8 @@ final class Executor
             // Collection handlers must use the kernel SQL scope; no raw collection result is allowed.
             if (!$action->collection && !$ctx->acl->allows($ctx->actor->id,$resource,$name,$ctx->channel,$object,$owner)) throw new Failure($ctx->channel==='api' && $object!==null ? 'Nem található objektum.' : 'Nincs hozzáférés.',$ctx->channel==='api' && $object!==null ? 404 : 403);
             $known=array_column($action->fields,null,'name');
-            foreach ($input as $key=>$value) if (!isset($known[$key])) throw new Failure('Ismeretlen vagy nem írható mező.');
-            $values=[];
+            foreach ($input as $key=>$value) if (!$action->listSource && !isset($known[$key])) throw new Failure('Ismeretlen vagy nem írható mező.');
+            $values=$action->listSource ? $input : [];
             foreach ($action->fields as $field) {
                 $allowed=$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$object ?? '',$owner,$field->name);
                 if(!$allowed){if(array_key_exists($field->name,$input) || ($name==='create' && $field->required))throw new Failure('A mező nem módosítható.',403);continue;}

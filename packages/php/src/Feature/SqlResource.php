@@ -5,13 +5,16 @@ namespace Vapa\Feature;
 /** Generic declared SQL data adapter. Business schemas and rules belong to consumers. */
 final class SqlResource
 {
+    private ?Registry $registry=null;
     public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null)
     {
         foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
     }
-    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null): void
+    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null): void
     {
-        $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t)=>$this->listing($c,$t['id']),collection:true));
+        $this->registry=$registry;
+        $source=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'));
+        $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t,$values)=>$values ? $source->read($c,$values) : $this->listing($c,$t['id']),collection:true,listSource:$source));
         $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$this->project($c,$t['row'],'get'),resolve:fn($c,$id)=>$this->target($c,$id)));
         $actions=['get'];
         if($create) {
@@ -22,7 +25,7 @@ final class SqlResource
             $registry->add(new Action($this->resource,'update','Mentés',[...$this->fields,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true));
             $actions[]='update';
         }
-        $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group);
+        $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout);
     }
     public function registerDelete(Registry $registry):void
     {
@@ -34,7 +37,7 @@ final class SqlResource
             if($this->afterSave)($this->afterSave)($ctx,$target['id'],$target,[]);
             return [];
         },resolve:fn($c,$id)=>$this->target($c,$id),write:true,channels:['ui']));
-        foreach($registry->views() as $view)if($view['resource']===$this->resource)$registry->view($view['resource'],$view['title'],$view['columns'],[...$view['actions'],'delete'],$view['singleton'],$view['group']);
+        foreach($registry->views() as $view)if($view['resource']===$this->resource)$registry->view($view['resource'],$view['title'],$view['columns'],[...$view['actions'],'delete'],$view['singleton'],$view['group'],$view['layout']);
     }
     public function target(Context $ctx, ?string $id): array
     {
@@ -58,6 +61,8 @@ final class SqlResource
         $id=(string)$row[$this->key];$owner=$this->ownerColumn?(string)$row[$this->ownerColumn]:null;
         $out=['id'=>$id,'revision'=>$this->revision($row)];
         foreach($this->fields as $field) if(!$field->secret && $ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,$action,$ctx->channel,$id,$owner,$field->name))$out[$field->name]=$row[$field->name];
+        $out['_actions']=[];
+        foreach($this->registry?->all()??[] as $action)if($action->resource===$this->resource && in_array($ctx->channel,$action->channels,true) && $ctx->acl->allows($ctx->actor->id,$this->resource,$action->name,$ctx->channel,$id,$owner))$out['_actions'][]=$action->name;
         return $out;
     }
     private function revision(array $row): string

@@ -13,7 +13,8 @@ final class Application
         header('Cache-Control: no-store');
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: same-origin');
-        header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+        $liveSource=$this->definition->live->connectSource();
+        header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' $liveSource; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
         $runtime = $this->definition->runtime;
         foreach ([$runtime, "$runtime/sessions", "$runtime/login"] as $directory) {
             if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
@@ -44,7 +45,7 @@ final class Application
         if (!$identity) unset($_SESSION['identity']);
         if(isset($_GET['vapa'])) {
             if(!$workspace){http_response_code(404);exit;}
-            $workspace->http($identity,$this->definition->identities,$_SESSION['csrf']);
+            $workspace->http($identity,$this->definition->identities,$_SESSION['csrf'],$this->definition->runtime);
         }
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $token = $_POST['csrf'] ?? null;
@@ -104,7 +105,7 @@ final class Application
         if ($identity) {
             $bootstrap['displayName'] = $identity->displayName;
             $bootstrap['menu'] = $menu;
-            if($workspace) { $bootstrap['views']=$workspace->views($identity); $bootstrap['csrf']=$csrf; }
+            if($workspace) { $bootstrap['views']=$workspace->views($identity); $bootstrap['csrf']=$csrf; $bootstrap['live']=$definition->live->metadata(); }
         }
         session_write_close();
         require dirname(__DIR__, 2).'/templates/shell.php';
