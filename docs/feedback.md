@@ -23,3 +23,5 @@
 ## FB-0012 — Skyblue default
 
 ## FB-0013 — Center panel resizer grips
+
+## FB-0014 — Flags in the object's main form

@@ -52,7 +52,7 @@ A teljes szintetikus példa: [notes.json](../tests/fixtures/configuration/notes.
 | `section_descriptions` | Szabad szöveges szekciómagyarázatok; nem végrehajtható metaadat. |
 | `lookups` | Névvel ellátott, jogosultságszűrt választók: `resource`, `table`, `key`, `label`, opcionális `owner`, `where`, `extra`. |
 | `resources.<név>.storage` | `table`, `key`, opcionális `owner_column`, `defaults`, `where`, `self_only`. A `where` megbízható, fejlesztő által írt SQL-feltétel. |
-| `fields` | `name`, `label`, opcionális `type`, `required`, `max`, `secret`, valamint egyetlen választóforrás: `options`, `options_lookup` vagy `options_binding`. A `validation` a [formvalidációs szerződést](validation.md) használja. |
+| `fields` | `name`, `label`, opcionális `type`, `required`, `max`, `secret`, valamint egyetlen választóforrás: `options`, `options_lookup` vagy `options_binding`. A `validation` a [formvalidációs szerződést](validation.md) használja. A `checkbox`, `default` és `column` a [mezőmegjelenítés](field-presentation.md) része. |
 | `operations` | `create`/`update` alapból igaz, `delete` alapból hamis. |
 | `hooks` | `guard`, `normalize`, `after_save`, `delete_guard`: explicit PHP-binding neve. |
 | `view` | `title`, opcionális `group`, `singleton`, `columns`, `actions`, `layout`. Oszlopok/műveletek nélkül a regisztrált erőforrás alapnézete érvényes. |
@@ -70,3 +70,5 @@ A `workspaceBindings` egy `(Workspace, Registry): array` closure; a visszatérő
 A modul-JSON nem dolgoz fel env-hivatkozásokat: ide hostfüggetlen feature-definíciók kerülnek. A konfiguráció deployolt, megbízható fejlesztői anyag, nincs hozzá HTTP-s szerkesztő vagy hot-reload protokoll. Hosszú életű worker konfigurációváltás után újraindítandó. Nincs teljes JSON Schema/editor-autocomplete vagy PHP-callbackek statikus típusellenőrzése; a támogatott struktúrákat a runtime compiler ellenőrzi.
 
 Az `application.version` opcionális string az alkalmazás kiadásazonosítójával. Az alsó shell-sáv az `application.title` mellett jeleníti meg; nincs automatikus keretverzió-helyettesítés.
+
+Az objektum `storage.related` mezője validált, egy-az-egyhez táblamappingot ad: `table`, `key`, `fields`, opcionális `defaults`. A főűrlappal közös tranzakció, revízió, ACL és audit végzi a mentést; használat és korlátok: [kapcsolt tárolás](field-presentation.md#egy-az-egyhez-kapcsolt-tárolás-a-főűrlapon).

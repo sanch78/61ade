@@ -5,7 +5,7 @@ namespace Vapa\Feature;
 /** ACL-scoped keyset data source, shared by scrolling, filtering and live observation. */
 final readonly class ListSource
 {
-    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project){}
+    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null){}
 
     public function filterDefinitions(Context $ctx):array
     {
@@ -43,8 +43,8 @@ final readonly class ListSource
             if(!$field||$field->secret||$field->type==='textarea'||!$this->queryable($ctx,$key))throw new Failure('A mező nem szűrhető.',403);
             if(!is_string($value)||strlen($value)>255||str_contains($value,"\0"))throw new Failure('Hibás szűrőérték.');
             $param='f'.count($params);
-            if($field->type==='select'){
-                if(!array_key_exists($value,$field->metadata($ctx)['options']))throw new Failure('Hibás szűrőérték.');
+            if(in_array($field->type,['select','checkbox'],true)){
+                if($field->type==='checkbox'?!in_array($value,['0','1'],true):!array_key_exists($value,$field->metadata($ctx)['options']))throw new Failure('Hibás szűrőérték.');
                 $terms[]="$key = :$param";$params[$param]=$value;
             }elseif($field->type==='number'){
                 if(!ctype_digit($value))throw new Failure('Egész szám szükséges a szűréshez.');
@@ -64,7 +64,8 @@ final readonly class ListSource
             if(!is_string($cursor['edge']??null)||!preg_match('/^[a-zA-Z0-9_.:-]{1,100}$/D',$cursor['edge'])||!in_array($cursor['direction']??null,['next','previous'],true))throw new Failure('Hibás kurzor.');
             $direction=$cursor['direction'];$terms[]=$this->key.($direction==='next'?' < ':' > ').':edge';$params['edge']=$cursor['edge'];$hasCursor=true;
         }
-        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE ".implode(' AND ',$terms)." ORDER BY {$this->key} ".($direction==='previous'?'ASC':'DESC').' LIMIT '.($limit+1));$q->execute($params);
+        $from=$this->source?($this->source)($ctx):$this->table;
+        $q=$ctx->db->prepare("SELECT * FROM $from WHERE ".implode(' AND ',$terms)." ORDER BY {$this->key} ".($direction==='previous'?'ASC':'DESC').' LIMIT '.($limit+1));$q->execute($params);
         $rows=$q->fetchAll(\PDO::FETCH_ASSOC);$more=count($rows)>$limit;if($more)array_pop($rows);if($direction==='previous')$rows=array_reverse($rows);
         $first=$rows?(string)$rows[0][$this->key]:null;$last=$rows?(string)$rows[count($rows)-1][$this->key]:null;
         return ['items'=>array_map(fn($row)=>($this->project)($ctx,$row),$rows),

@@ -6,14 +6,31 @@ namespace Vapa\Feature;
 final class SqlResource
 {
     private ?Registry $registry=null;
-    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null)
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [])
     {
         foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
+    }
+    private function source(Context $ctx): string
+    {
+        if (!$this->related) return $this->table;
+        $expressions = [];
+        foreach ($this->related as $storage) $expressions = [...$expressions, ...$storage->expressions($ctx->db, $this->key)];
+        return '(SELECT vapa_base.*, '.implode(', ', $expressions)." FROM {$this->table} vapa_base) vapa_source";
     }
     public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null): void
     {
         $this->registry=$registry;
-        $source=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'));
+        $registry->registerFields($this->resource,$this->fields);
+        $mapped = [];
+        $known = array_column($this->fields, null, 'name');
+        foreach ($this->related as $storage) {
+            if (!$storage instanceof RelatedStorage) throw new \InvalidArgumentException('Invalid related storage.');
+            foreach ($storage->fields as $field => $column) {
+                if (!isset($known[$field]) || isset($mapped[$field]) || $field === $this->key || $field === $this->ownerColumn || isset($this->defaults[$field]) || ($known[$field]->validation['unique'] ?? false)) throw new \InvalidArgumentException('Invalid related field mapping.');
+                $mapped[$field] = true;
+            }
+        }
+        $source=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'),fn($c)=>$this->source($c));
         $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t,$values)=>$values ? $source->read($c,$values) : $this->listing($c,$t['id']),collection:true,listSource:$source));
         $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$this->project($c,$t['row'],'get'),resolve:fn($c,$id)=>$this->target($c,$id)));
         $actions=['get'];
@@ -32,6 +49,7 @@ final class SqlResource
         $registry->add(new Action($this->resource,'delete','Törlés',[new Field('revision','Verzió',required:true,max:64)],function(Context $ctx,array $target,array $values):array{
             if(!hash_equals($this->revision($target['row']),$values['revision']))throw new Failure('Az adat közben módosult.',409);
             if($this->deleteGuard)($this->deleteGuard)($ctx,$target);
+            foreach ($this->related as $storage) $storage->delete($ctx->db,$target['id']);
             $q=$ctx->db->prepare("DELETE FROM {$this->table} WHERE {$this->key}=?");$q->execute([$target['id']]);
             $ctx->acl->invalidate();
             if($this->afterSave)($this->afterSave)($ctx,$target['id'],$target,[]);
@@ -46,6 +64,7 @@ final class SqlResource
         $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
         $q->execute([$id]); $row=$q->fetch(\PDO::FETCH_ASSOC);
         if(!$row)throw new Failure('Nem található objektum.',404);
+        foreach ($this->related as $storage) $row = array_replace($row, $storage->read($ctx->db, (string)$row[$this->key]));
         return ['id'=>(string)$row[$this->key],'owner'=>$this->ownerColumn?(string)$row[$this->ownerColumn]:null,'row'=>$row];
     }
     private function listing(Context $ctx,?string $offset): array
@@ -53,7 +72,8 @@ final class SqlResource
         if($offset!==null && (!ctype_digit($offset) || (int)$offset>10000000))throw new Failure('Hibás lapozás.');
         $offset=(int)($offset ?? 0);
         [$where,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->ownerColumn);
-        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE ($where) AND ({$this->where}) ORDER BY {$this->key} DESC LIMIT 200 OFFSET $offset");$q->execute($params);
+        $from=$this->source($ctx);
+        $q=$ctx->db->prepare("SELECT * FROM $from WHERE ($where) AND ({$this->where}) ORDER BY {$this->key} DESC LIMIT 200 OFFSET $offset");$q->execute($params);
         return array_map(fn($row)=>$this->project($ctx,$row,'list'),$q->fetchAll(\PDO::FETCH_ASSOC));
     }
     public function project(Context $ctx,array $row,string $action): array
@@ -68,7 +88,7 @@ final class SqlResource
     private function revision(array $row): string
     {
         $columns=[$this->key,...array_map(static fn($f)=>$f->name,$this->fields),...($this->ownerColumn?[$this->ownerColumn]:[])];
-        return hash('sha256',json_encode(array_intersect_key($row,array_flip($columns)),JSON_THROW_ON_ERROR));
+        return hash('sha256',json_encode(array_map(static fn($value)=>$value===null?null:(string)$value,array_intersect_key($row,array_flip($columns))),JSON_THROW_ON_ERROR));
     }
     public function save(Context $ctx, ?array $target, array $values): array
     {
@@ -85,17 +105,20 @@ final class SqlResource
             $query->execute($params);
             if ($query->fetchColumn() !== false) $field->reject('Ez az érték már használatban van.');
         }
+        $allValues=$values;
+        foreach ($this->related as $storage) $values = array_diff_key($values, $storage->fields);
         if($target){
-            if(!$values)throw new Failure('Nincs módosítás.');
-            $q=$ctx->db->prepare("UPDATE {$this->table} SET ".implode(',',array_map(static fn($k)=>"$k = ?",array_keys($values)))." WHERE {$this->key} = ?");
-            $q->execute([...array_values($values),$target['id']]);$id=$target['id'];
+            if(!$allValues)throw new Failure('Nincs módosítás.');
+            if($values){$q=$ctx->db->prepare("UPDATE {$this->table} SET ".implode(',',array_map(static fn($k)=>"$k = ?",array_keys($values)))." WHERE {$this->key} = ?");
+            $q->execute([...array_values($values),$target['id']]);}$id=$target['id'];
         }else{
             $values=array_merge($this->defaults,$values);
             if($this->ownerColumn)$values[$this->ownerColumn]=$ctx->actor->id;
             $q=$ctx->db->prepare("INSERT INTO {$this->table} (".implode(',',array_keys($values)).') VALUES ('.implode(',',array_fill(0,count($values),'?')).')');$q->execute(array_values($values));$id=$ctx->db->lastInsertId();
         }
+        foreach ($this->related as $storage) $storage->save($ctx->db,(string)$id,$allValues);
         $ctx->acl->invalidate();
-        if($this->afterSave)($this->afterSave)($ctx,(string)$id,$target,$values);
-        return ['id'=>(string)$id];
+        $result=$this->afterSave?($this->afterSave)($ctx,(string)$id,$target,$allValues):null;
+        return [...(is_array($result)?$result:[]),'id'=>(string)$id];
     }
 }
