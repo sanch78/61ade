@@ -29,3 +29,5 @@
 ## FB-0015 — Remove redundant framed layout wrapper
 
 ## FB-0016 — Protect the shared host during tests
+
+## FB-0017 — Declared per-field grid editing
