@@ -31,6 +31,8 @@ Az alkalmazás publikus fájljai a fogyasztó public könyvtárában legyenek. �
 
 ## Ellenőrzési stratégia
 
+Az önálló demó és a böngészőtesztek alapértelmezett PHP-binárisa `php8.4`. Más, PHP 8.4+ és PDO SQLite támogatású bináris vagy wrapper a `VAPA_PHP` környezeti változóval választható; a tesztben végzett külső adatbázisírás is ezt használja. Példa: `VAPA_PHP=/opt/php84/bin/php npm run test:browser -- tests/shell/workspace.spec.cjs`. A keret nem feltételezi egy fogyasztó checkoutját vagy saját runtime-wrapperét.
+
 M0: JSON manifest parse, belső markdownhivatkozások, könyvtárak és symlink, whitespace, staged secret/vendor kizárás, remote commit egyezés.
 
 M1-től: PHP lint, statikus analízis, frontend typecheck/build, egységtesztek. M2-től: izolált DB integráció és policy-mátrix. M3-tól: UI/API contract és E2E. M7-től: reprodukálható terhelésmérés. Nem létező tesztparancsra nem hivatkozunk sikeres ellenőrzésként.

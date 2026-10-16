@@ -17,6 +17,14 @@ Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését teszte
 - A helyi CityScreen `vapa` symlink szerkesztési segítség. A canonical checkout `/space/frameworks/vapa`; commit előtt ebben ellenőrizzük a Git-állapotot. A symlink nem későbbi telepítési függőség.
 - A könyvtárstruktúra részletei a [csomaghatárok leírásában](repository-layout.md), a környezeti előfeltételek a [fejlesztői útmutatóban](development.md) vannak.
 
+### Üzleti konfiguráció és kód határa
+
+A fogyasztóban marad az `ApplicationDefinition` összeállítása, a konkrét adatbázisséma illesztése, a `Field`/`SqlResource`/`Action` és nézetdefiníció, a kezdeti szerepkör- és jogkiosztás, valamint minden üzleti feltétel. Ezek PHP-definíciók: egyszerű beállítás mellett valódi üzleti kódot is tartalmazhatnak. A `guard`, `normalize`, `afterSave` és regisztrált műveletkezelő a VAPA támogatott bővítési pontja. Növekedéskor a fogyasztó saját moduljaiba, policy-jaiba és szolgáltatásaiba emeli ki ezeket; a keret nem importál konkrét alkalmazási osztályt.
+
+Például a szintetikus jegyzetmodul mezői és „lezárt jegyzet nem módosítható” szabálya a fogyasztóé; a formépítés, mezőellenőrzés, ACL, tranzakció, audit, lista és élő frissítés végrehajtása a VAPA-é. Az üzleti callback a közös műveletvégrehajtón belül fut; nem külön HTTP-végpontot vagy alternatív mentési folyamatot épít. A UI/API műveleteket a registryben kell regisztrálni, a kollekcióolvasás a keret jogosultságszűrt listaforrását használja. Külső mellékhatások tranzakciós outboxa még nem implementált.
+
+A keret forrása, eszközei és szintetikus tesztjei sem tartalmazhatnak beégetett fogyasztói elérési utat. A futtató kívülről adhat át alkalmazásdefiníciót, autoloadert vagy PHP-binárist; ez konfigurált illesztés, nem fordított csomagfüggőség. Új képességnél az önálló szintetikus demó igazolja az alkalmazásfüggetlen használatot. Kapcsolódó visszajelzés: [FB-0007](feedback.md#fb-0007--az-üzleti-kód-és-a-keret-határa).
+
 ## Minden elkészülő képesség dokumentációs szerkezete
 
 1. **Cél és hatókör:** milyen feladatot old meg, kinek szól, mi tartozik a kerethez és az alkalmazáshoz.

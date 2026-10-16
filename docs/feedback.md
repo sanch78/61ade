@@ -80,3 +80,12 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Állapot:** implementálva és agent által ellenőrizve; felhasználói elfogadás még nincs.
 - **Döntés:** újrahasználható VAPA layout/lista/élőadat-képesség, alkalmazási frontend nélkül.
 - **Átvezetés és ellenőrzés:** [munkaterületek](workspaces.md); `ViewLayout`, `ListSource`, `LiveConfig`, `Realtime`, WebSocket worker. 5000 rekordos PHP-teszt, overlay/polling keretdemo és WebSocketes fogyasztói böngészőtesztek sikeresek.
+
+## FB-0007 — Az üzleti kód és a keret határa
+
+- **Dátum:** 2026-10-16.
+- **Forrás:** felhasználói kérdés arról, hol van az üzleti kód/konfiguráció, és szivárog-e alkalmazási logika a keretbe.
+- **Elvárás és döntés:** a függés alkalmazás → VAPA. A konkrét séma, üzleti szabály és kezdeti jogkiosztás a fogyasztóé; a keret az általános végrehajtást és dokumentált bővítési pontokat biztosítja. Ez az FB-0003/0004 megerősítése.
+- **Megfigyelés:** az ellenőrzött runtime-forrásban nem találtunk fogyasztói osztály-, üzleti tábla- vagy legacyflag-hivatkozást. Egy szintetikus pollingteszt alapértelmezett PHP-binárisa fogyasztói útvonalra mutatott; ez tesztkörnyezeti visszafüggés volt.
+- **Módosítás:** a teszt most a demóindítóval egyezően `VAPA_PHP` vagy `php8.4` binárist használ. A konfiguráció és üzleti callback szerepe a [használati útmutatóban](usage.md#üzleti-konfiguráció-és-kód-határa), a tesztfuttatás a [fejlesztői útmutatóban](development.md#ellenőrzési-stratégia) szerepel.
+- **Állapot és ellenőrzés:** útvonal javítva; a `tests/shell/workspace.spec.cjs` mindkét Chromium-tesztje sikeres, kívülről megadott `VAPA_PHP` binárissal (önálló CRUD/form és külső írás pollingkövetése). A célzott forráskeresésben nem maradt fogyasztói név/séma/legacyflag vagy a korábbi beégetett útvonal. `git diff --check` sikeres. Felhasználói elfogadást nem állítunk.
