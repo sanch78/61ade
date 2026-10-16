@@ -15,3 +15,5 @@
 ## FB-0008 — Readable JSON, env and organized PHP
 
 ## FB-0009 — Full reference validation belongs to migration
+
+## FB-0010 — Remembered login and e-mail verification

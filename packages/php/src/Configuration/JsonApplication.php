@@ -18,7 +18,7 @@ final class JsonApplication
         $config = JsonConfiguration::load($file);
         $config->validate(array_fill_keys([
             'application', 'database', 'session', 'identity', 'live', 'workspace',
-        ], 'array'), ['environment' => 'array']);
+        ], 'array'), ['environment' => 'array', 'authentication' => 'array']);
         $database = $config->section('database');
         $application = $config->section('application');
         $session = $config->section('session');
@@ -41,20 +41,29 @@ final class JsonApplication
             'password' => 'string',
         ], [], '$.database');
         $db ??= Database::connect($database);
+        $identities = IdentityConfiguration::build($db, $config->section('identity'), $identityBindings);
+        $builtWorkspace = WorkspaceConfiguration::build(
+            $db,
+            array_map($config->path(...), $workspace['modules']),
+            $workspaceBindings,
+        );
+        $authentication = null;
+        if ($config->has('authentication')) {
+            $authentication = AuthenticationConfiguration::build(
+                $config->section('authentication'), $identityBindings, $application['title'], $config->path($application['runtime']), $builtWorkspace, $identities,
+            );
+        }
 
         return new ApplicationDefinition(
             title: $application['title'],
-            identities: IdentityConfiguration::build($db, $config->section('identity'), $identityBindings),
+            identities: $identities,
             menu: new Menu([]),
             runtime: $config->path($application['runtime']),
             sessionName: $session['name'],
             cookiePath: $session['cookie_path'],
-            workspace: WorkspaceConfiguration::build(
-                $db,
-                array_map($config->path(...), $workspace['modules']),
-                $workspaceBindings,
-            ),
+            workspace: $builtWorkspace,
             live: new LiveConfig($live['transport'], $live['endpoint'], $live['interval_ms']),
+            authentication: $authentication,
         );
     }
 }

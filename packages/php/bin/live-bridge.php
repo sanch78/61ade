@@ -18,7 +18,7 @@ while(!feof(STDIN)){
         $request=json_decode($line,true,flags:JSON_THROW_ON_ERROR);$id=$request['id']??null;
         $state=Vapa\Live\Tickets::session($app->runtime,(string)($request['ticket']??''));
         $actor=$app->identities->find((string)$state['identity']);
-        if(!$actor||($state['credentialVersion']??0)!==$app->workspace->version($actor->id))throw new Vapa\Feature\Failure('A munkamenet lejárt.',401);
+        if(!$actor||($state['credentialVersion']??0)!==$app->workspace->version($actor->id)||($app->authentication&&!($state['loginSecurityEnabled']??false)))throw new Vapa\Feature\Failure('A munkamenet lejárt.',401);
         $ctx=new Vapa\Feature\Context($actor,'ui',$app->workspace->acl,$app->workspace->db);
         $result=$app->workspace->observe($ctx,$request['resource']??'', $request['query']??[], $request['version']??'');
         echo json_encode(['id'=>$id,'ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE)."\n";

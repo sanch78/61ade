@@ -1,0 +1,18 @@
+{
+    "description": "Synthetic ACL-protected per-member login security action.",
+    "resources": {
+        "members": {
+            "storage": {"table": "accounts", "key": "id"},
+            "fields": [{"name": "display_name", "label": "Name", "required": true}],
+            "operations": {"create": false, "update": false},
+            "view": {"title": "Members", "actions": ["get", "security"]}
+        }
+    },
+    "actions": [
+        {
+            "resource": "members", "name": "security", "label": "Login security", "handler": "security.update", "form_values": "security.values",
+            "target_resource": "members", "write": true, "channels": ["ui"],
+            "fields": [{"name": "email_confirmation", "label": "Email confirmation", "type": "select", "required": true, "options": {"1": "Enabled", "0": "Disabled"}}]
+        }
+    ]
+}

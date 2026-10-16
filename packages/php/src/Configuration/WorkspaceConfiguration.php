@@ -169,7 +169,7 @@ final class WorkspaceConfiguration
         Shape::check($definition, [
             'resource' => 'string', 'name' => 'string', 'label' => 'string', 'handler' => 'string',
         ], [
-            'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array',
+            'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array', 'form_values' => 'string',
         ], '$.actions');
         if (!isset($this->resources[$definition['resource']])) {
             throw new InvalidArgumentException('Unknown action resource: '.$definition['resource']);
@@ -199,6 +199,7 @@ final class WorkspaceConfiguration
             resolve: $resolve,
             write: $definition['write'] ?? false,
             channels: $definition['channels'] ?? ['ui', 'api'],
+            formValues: $this->bindings->get($definition['form_values'] ?? null),
         ));
     }
 

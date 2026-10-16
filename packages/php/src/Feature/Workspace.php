@@ -108,7 +108,7 @@ final class Workspace
                 $t=$a->resolve?($a->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
                 if(!$this->acl->allows($actor->id,$a->resource,$a->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
                 $fields=array_values(array_filter($a->fields,fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
-                $values=$id!==null?$this->executor->execute($ctx,$a->resource,'get',$id,[]):[];
+                $values=$a->formValues?($a->formValues)($ctx,$t):($id!==null?$this->executor->execute($ctx,$a->resource,'get',$id,[]):[]);
                 $this->journal->record($actor->id,'ui',$a->resource,'describe',$id??'','success');
                 echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$f->metadata($ctx),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }

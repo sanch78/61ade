@@ -20,6 +20,7 @@ return JsonApplication::load(
 | `database` | MySQL `host`, integer `port`, `name`, `charset`, `user`, `password`; jelszó csak env-hivatkozásból. |
 | `session` | `name`, `cookie_path`. A session életciklusát a keret kezeli. |
 | `identity` | SQL fiókséma és névvel regisztrált `allowed`/`password_verifier` illesztés. |
+| `authentication` | Opcionális [e-mailes megerősítés és megjegyzett belépés](authentication.md), levélküldés és szövegfelülbírálás. |
 | `live` | `transport` (`poll`/`websocket`), `endpoint`, integer `interval_ms`. |
 | `workspace.modules` | Modul-JSON fájlok a konfiguráció könyvtárához képest; a nézetek adják a menüt. |
 
@@ -56,7 +57,7 @@ A teljes szintetikus példa: [notes.json](../tests/fixtures/configuration/notes.
 | `hooks` | `guard`, `normalize`, `after_save`, `delete_guard`: explicit PHP-binding neve. |
 | `view` | `title`, opcionális `group`, `singleton`, `columns`, `actions`, `layout`. Oszlopok/műveletek nélkül a regisztrált erőforrás alapnézete érvényes. |
 | `view.layout` | `form_mode` (`overlay`/`panel`) és opcionális, validált `tree`. Lásd [munkaterületek](workspaces.md). |
-| `actions` | További regisztrált műveletek: `resource`, `name`, `label`, `handler`, opcionális `fields`, `target_resource`, `write`, `channels`. |
+| `actions` | További regisztrált műveletek: `resource`, `name`, `label`, `handler`, opcionális `fields`, `target_resource`, `write`, `channels`, `form_values` (névvel regisztrált saját form-kezdőérték). |
 
 A compiler előbb a lookupokat és SQL-erőforrásokat, majd az egyedi műveleteket, végül a nézeteket állítja össze. Így a nézet hivatkozhat ugyanazon vagy más modulban később deklarált műveletre. Ismeretlen kulcs, binding, lookup, művelet-erőforrás vagy ismételt definíció hibát ad. A meglévő PHP-alapú definíciós API továbbra is használható; a JSON ugyanazokat a VAPA-osztályokat építi fel.
 

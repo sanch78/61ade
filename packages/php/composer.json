@@ -1,16 +1,17 @@
 {
-  "name": "sanch78/vapa",
-  "description": "Very Advanced PHP Admin — reusable login and navigation shell",
-  "type": "library",
-  "require": {
-    "php": "^8.4"
-  },
-  "autoload": {
-    "psr-4": {
-      "Vapa\\": "src/"
-    }
-  },
-  "minimum-stability": "stable",
-  "prefer-stable": true,
-  "version": "0.1.0"
+    "name": "sanch78/vapa",
+    "description": "Very Advanced PHP Admin — reusable login and navigation shell",
+    "type": "library",
+    "require": {
+        "php": "^8.4",
+        "symfony/mailer": "^7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Vapa\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "version": "0.1.0"
 }

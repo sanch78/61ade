@@ -71,6 +71,11 @@ final readonly class JsonConfiguration
         Shape::check($this->values, $required, $optional, '$');
     }
 
+    public function has(string $name): bool
+    {
+        return array_key_exists($name, $this->values);
+    }
+
     public function path(string $value): string
     {
         return self::absolute($this->directory, $value);

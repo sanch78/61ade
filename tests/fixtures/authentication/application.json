@@ -1,0 +1,20 @@
+{
+    "description": "Synthetic authentication consumer; no real users or mail recipients.",
+    "application": {"title": "VAPA authentication demo", "runtime": {"$env": "VAPA_TEST_AUTH_RUNTIME", "default": "../../../codex/tmp/auth-fixture"}},
+    "database": {"host": "unused", "port": 3306, "name": "unused", "charset": "utf8mb4", "user": "unused", "password": ""},
+    "session": {"name": "vapa_auth_test", "cookie_path": "/"},
+    "identity": {
+        "table": "accounts", "id_column": "id", "username_column": "login", "password_column": "password_hash", "name_column": "display_name",
+        "attribute_columns": ["active", "email"], "allowed": "accounts.active"
+    },
+    "authentication": {
+        "email_attribute": "email", "remember_days": 90, "default_email_confirmation": true,
+        "mail": {
+            "dsn": "smtp://127.0.0.1:8091?auto_tls=false",
+            "from_address": "demo@example.test", "from_name": "Synthetic VAPA",
+            "texts": {"subject": "Synthetic sign-in", "heading": "Synthetic custom heading"}
+        }
+    },
+    "live": {"transport": "poll", "endpoint": "live", "interval_ms": 2000},
+    "workspace": {"modules": ["../configuration/notes.json", "members.json"]}
+}
