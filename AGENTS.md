@@ -11,3 +11,13 @@
 - Ne módosítsd a CityScreen runtime-ját, adatbázisát vagy régi adminját a VAPA fejlesztés mellékhatásaként.
 - Nagyobb tervezési vagy implementációs munkánál minden érdemi módosítási batch után kötelező: `/usr/local/bin/gitpush --all -t` a VAPA repó gyökeréből. Előtte ellenőrizd a staged tartalmat.
 - A CityScreen symlink nem másolat: `git -C /space/frameworks/vapa status` a keret állapota; a fogyasztó repó állapotát külön ellenőrizd.
+
+## Kötelező, folyamatos használati dokumentáció
+
+- A VAPA felhasználási módszertanának canonical belépési pontja `docs/usage.md`. Minden új vagy módosított publikus képességhez ugyanabban a munkamenetben frissítsd a használat módját, előfeltételeit, példáját, korlátait és ellenőrzését. Ez a kész állapot feltétele, nem utólagos feladat.
+- A felhasználó tesztelés közbeni észrevételeit, javításait és „mit hogyan kell használni” útmutatásait tartósan rögzítsd a `docs/feedback.md` naplóban. Ne hagyd csak a chatben vagy commitüzenetben.
+- Különítsd el a kért/elvárt működést a ténylegesen megvalósítottól. Egyértelmű utasítást rögzíts elfogadott elvárásként, bizonytalan értelmezést nyitott kérdésként; ne állítsd késznek, amit még nem implementáltunk vagy ellenőriztünk.
+- Az elfogadott, általánosan használható tanulságot vezesd át a canonical használati útmutatóba vagy az onnan hivatkozott témadoksiba. A naplóbejegyzés önmagában nem helyettesíti ezt. Ha a megoldás még várat magára, az útmutatóban tervezettként jelöld, a napló maradjon nyitott.
+- Módosítás előtt olvasd el az érintett használati leírást és korábbi visszajelzéseket. Felülírt elvárásnál jelöld az új döntést és hivatkozd a régi bejegyzést; ne hagyj egymásnak ellentmondó aktív útmutatásokat.
+- A visszajelzés lezárásához linkeld a frissített útmutatót, az implementációt, ha van, és az ellenőrzés eredményét. Viselkedési hibánál szükség szerint regressziós teszt kell; puszta dokumentációs változáshoz ne írj mesterséges runtime-tesztet.
+- Csak általánosítható kerethasználati tapasztalat kerüljön a VAPA-ba, szintetikus példával. CityScreen-specifikus üzleti döntést a CityScreen doksijában rögzíts, személyes adatot, secretet vagy teljes chatmásolatot ne publikálj.

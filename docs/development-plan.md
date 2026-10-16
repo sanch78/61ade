@@ -96,6 +96,7 @@ Minden egyeztetett képesség megvalósított vagy kifejezetten elhagyott. Össz
 
 - Implementáció és releváns teszt ugyanabban a batchben.
 - Doksik, capability-mátrix és API-szerződés frissítve.
+- A [használati módszertan](usage.md) tartalmazza az érintett képesség alkalmazását és ellenőrzését; a felhasználói tesztelés [visszajelzései](feedback.md) rögzítve és az elfogadott tanulságok átvezetve. Nyitott elvárás nem szerepel megvalósított funkcióként.
 - Nincs keretbe került alkalmazási tudás vagy tiltott függési irány.
 - Valós teszteredmény és fennmaradó korlát rögzítve; scaffold nem feature.
 - Érdemi batch után `/usr/local/bin/gitpush --all -t`, az érintett repóban külön.
