@@ -2,22 +2,24 @@ import { Form, Grid, Layout, Toolbar, Window, alert } from "@dhtmlx/suite";
 
 export type FieldDefinition = {name:string; label:string; type:string; required:boolean; max:number; options:Record<string,string>};
 export type ActionDefinition = {name:string; label:string; write:boolean; fields:FieldDefinition[]};
-export type ViewDefinition = {resource:string; title:string; columns:{id:string;header:string}[]; actions:ActionDefinition[]; singleton:boolean};
+export type ViewDefinition = {resource:string; title:string; columns:{id:string;header:string}[]; actions:ActionDefinition[]; singleton:boolean; group?:string};
 const escape = (s:unknown) => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 
 /** A reusable registry-driven workspace. No application resources or account fields. */
 export class Workspace {
-  private layout:Layout;
+  readonly layout:Layout;
   private grid:Grid;
   private selected?:string;
+  private offset=0;
   private rows:Record<string,unknown>[]=[];
   private dialog?:Window;
   private disposed=false;
   constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string) {
     this.layout=new Layout(host,{rows:[{id:"commands",height:48},{id:"data"}]});
     const toolbar=new Toolbar(undefined,{data:[{id:"title",type:"title",value:escape(view.title)},
-      ...view.actions.filter(a=>a.name!=="get").map(a=>({id:a.name,value:escape(a.label)})),{id:"reload",value:"Frissítés"}]});
+      ...view.actions.filter(a=>a.name!=="get").map(a=>({id:a.name,value:escape(a.label)})),{id:"reload",value:"Frissítés"},...(!view.singleton?[{id:"previous",value:"Előző 200"},{id:"next",value:"Következő 200"}]:[])]});
     toolbar.events.on("click",(id:string|number)=>{
+      if(id==="previous"||id==="next"){if(id==="next"&&this.rows.length<200)return;this.offset=Math.max(0,this.offset+(id==="next"?200:-200));void this.load();return;}
       if(id==="reload"){void this.load();return;}
       const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);
     });
@@ -34,7 +36,7 @@ export class Workspace {
   private async error(e:unknown):Promise<void>{await alert({header:"Hiba",text:e instanceof Error?e.message:"Sikertelen művelet.",htmlEnable:false});}
   private async load():Promise<void>{
     try{
-      const data=await this.call(this.view.singleton?"get":"list",this.view.singleton?"self":null);
+      const data=await this.call(this.view.singleton?"get":"list",this.view.singleton?"self":String(this.offset));
       if(this.disposed)return;
       this.rows=Array.isArray(data)?data:[data];this.selected=this.view.singleton?String(this.rows[0]?.id):undefined;
       this.grid.data.removeAll();this.grid.data.parse(this.rows);
@@ -43,11 +45,12 @@ export class Workspace {
   private async open(action:ActionDefinition):Promise<void>{
     if(action.name!=="create" && !this.selected){await this.error(new Error("Válassz egy sort."));return;}
     try{
-      let current:Record<string,unknown>={};
-      if(action.name!=="create")current=await this.call("get",this.selected!);
+      const schema=await this.call("__form",action.name==="create"?null:this.selected!,{operation:action.name});
+      const current:Record<string,unknown>=schema.values;
       if(this.disposed)return;
       this.dialog?.destructor();
-      const fields=action.fields.filter(f=>f.name!=="revision");
+      const allowedFields=schema.fields as FieldDefinition[];
+      const fields=allowedFields.filter(f=>f.name!=="revision");
       const form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(f=>({
         type:f.type==="select"?"select":f.type==="textarea"?"textarea":"input",name:f.name,label:f.label,
         labelPosition:"top",required:f.required,maxlength:f.max,inputType:f.type==="password"?"password":"text",
@@ -60,7 +63,7 @@ export class Workspace {
       form.events.on("click",(name:string)=>{if(name!=="submit"||saving||!form.validate())return;
         saving=true;form.disable();
         const values=form.getValue() as Record<string,unknown>;
-        if(action.fields.some(f=>f.name==="revision"))values.revision=current.revision;
+        if(allowedFields.some(f=>f.name==="revision"))values.revision=current.revision;
         void this.call(action.name,action.name==="create"?null:this.selected!,values).then(async(result)=>{
           dialog.destructor();if(this.dialog===dialog)this.dialog=undefined;
           if(result?.secret)await alert({header:"Egyszer megjelenő API-token",text:result.secret,htmlEnable:false});

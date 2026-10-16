@@ -14,6 +14,11 @@ final class Executor
             if (!in_array($ctx->channel,$action->channels,true) || ($ctx->channel==='api' && !in_array($resource.'.'.$name,$ctx->scopes,true))) throw new Failure('Nincs hozzáférés.',403);
             $this->db->beginTransaction();
             $target=$action->resolve ? ($action->resolve)($ctx,$id) : ['id'=>$id,'owner'=>null];
+            if(array_filter($action->fields,static fn($f)=>$f->secret)){
+                $q=$this->db->prepare('SELECT COUNT(*) FROM vapa_audit WHERE actor_id=? AND resource=? AND action=? AND occurred_at>?');
+                $q->execute([$ctx->actor->id,$resource,$name,gmdate('Y-m-d\TH:i:s\Z',time()-60)]);
+                if((int)$q->fetchColumn()>=5)throw new Failure('Túl sok próbálkozás. Egy perc múlva próbáld újra.',429);
+            }
             $object=isset($target['id']) ? (string)$target['id'] : null;
             $owner=isset($target['owner']) ? (string)$target['owner'] : null;
             // Collection handlers must use the kernel SQL scope; no raw collection result is allowed.
@@ -22,8 +27,9 @@ final class Executor
             foreach ($input as $key=>$value) if (!isset($known[$key])) throw new Failure('Ismeretlen vagy nem írható mező.');
             $values=[];
             foreach ($action->fields as $field) {
+                $allowed=$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$object ?? '',$owner,$field->name);
+                if(!$allowed){if(array_key_exists($field->name,$input) || ($name==='create' && $field->required))throw new Failure('A mező nem módosítható.',403);continue;}
                 if (!array_key_exists($field->name,$input) && !$field->required) continue;
-                if (!$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$object ?? '',$owner,$field->name)) throw new Failure('A mező nem módosítható.',403);
                 $values[$field->name]=$field->validate($input[$field->name] ?? '');
                 if (!$field->secret) $fields[]=$field->name;
             }

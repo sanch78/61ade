@@ -1,5 +1,5 @@
 import { Workspace, type ViewDefinition } from "./Workspace";
-import { Form, Layout, Menu, Toolbar, Window, alert } from "@dhtmlx/suite";
+import { Form, Layout, Menu, Toolbar, Window, alert, setTheme } from "@dhtmlx/suite";
 
 export type MenuDefinition = {
   id: string;
@@ -67,13 +67,16 @@ export class AdminShell {
     private command: HTMLFormElement,
     private definition: ShellDefinition,
   ) {
+    let theme="light";
+    try { theme=localStorage.getItem("vapa-theme")==="dark"?"dark":"light"; } catch {}
+    setTheme(theme,document.documentElement);
     if (definition.protocol !== 1)
       throw new Error("Nem kompatibilis VAPA felületverzió.");
     this.layout = new Layout(root, {
       type: "line",
       rows: [
         { id: "application-title", height: 40 },
-        ...(definition.authenticated ? [{ id: "main-menu", height: 40 }] : []),
+        { id: "menu-row", height: 40, cols: [{id:"main-menu"},{id:"theme",width:145}] },
         { id: "workspace", css: "vapa-workspace" },
         { id: "status", height: 32 },
       ],
@@ -104,6 +107,15 @@ export class AdminShell {
       ],
     });
     this.layout.getCell("status").attach(status);
+    const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:theme==="dark"?"Éjjeli":"Default",items:[{id:"theme-light",value:"Default"},{id:"theme-dark",value:"Éjjeli"}]}]});
+    themeControl.events.on("click",(id:string|number)=>{
+      if(id!=="theme-light" && id!=="theme-dark")return;
+      const next=id==="theme-dark"?"dark":"light";
+      setTheme(next,document.documentElement);
+      themeControl.data.update("theme-choice",{value:next==="dark"?"Éjjeli":"Default"});
+      try{localStorage.setItem("vapa-theme",next);}catch{}
+    });
+    this.layout.getCell("theme").attach(themeControl);
     if (definition.authenticated) {
       const map = (items: MenuDefinition[]): object[] =>
         items.map((item) => ({
@@ -113,7 +125,16 @@ export class AdminShell {
             ? { items: map(item.items) }
             : { disabled: true }),
         }));
-      this.menuItems = [...map(definition.menu || []), ...(definition.views || []).map(view => ({id:"feature:"+view.resource,value:escape(view.title)}))];
+      const features: any[]=[];
+      for(const view of definition.views || []) {
+        const item={id:"feature:"+view.resource,value:escape(view.title)};
+        if(view.group){
+          let group=features.find(v=>v.id==="group:"+view.group);
+          if(!group){group={id:"group:"+view.group,value:escape(view.group),items:[]};features.push(group);}
+          group.items.push(item);
+        }else features.push(item);
+      }
+      this.menuItems = [...map(definition.menu || []), ...features];
       const menu = new Menu(undefined, { navigationType: "click" });
       this.menu = menu;
       this.resize();
@@ -122,9 +143,8 @@ export class AdminShell {
         const view=definition.views?.find(v=>"feature:"+v.resource===id);
         if(view){
           this.workspace?.destroy();
-          const host=document.createElement("div");host.style.height="100%";
-          this.layout.getCell("workspace").attachHTML(host);
-          this.workspace=new Workspace(host,view,definition.csrf || "");
+          this.workspace=new Workspace(document.createElement("div"),view,definition.csrf || "");
+          this.layout.getCell("workspace").attach(this.workspace.layout);
         }
       });
       this.layout.getCell("main-menu").attach(menu);
