@@ -8,7 +8,7 @@ Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését teszte
 
 ## Kötelező fejlesztési irány
 
-**VAPA = ADE v2.** Először minden általános képesség a VAPA-ban készül el, majd a fogyasztó deklarációval és üzleti logikával alkalmazza. Hiányzó keretfunkciót nem pótolunk külön alkalmazási admin-kóddal. A UI-t VAPA által adott DHTMLX vezérlők alkotják. Részletes döntés: [ADR-0002](decisions/0002-framework-first.md).
+**VAPA = ADE v2.** Először minden általános képesség a VAPA-ban készül el, majd a fogyasztó deklarációval és üzleti logikával alkalmazza. Hiányzó keretfunkciót nem pótolunk külön alkalmazási admin-kóddal. Az első és legfontosabb AI-fejlesztési szabály az AGENTS.md 1. pontja. A UI-t alapértelmezetten VAPA által adott DHTMLX vezérlők alkotják. Egyedi folyamat csak dokumentáltan, logikusan nem bővíthető keret esetén készülhet; ekkor DHTMLX nélküli eljárás is megengedett. Részletes döntés: [ADR-0002](decisions/0002-framework-first.md).
 
 ## Már alkalmazható módszertan
 

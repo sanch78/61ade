@@ -11,3 +11,14 @@ A kezdeti egyedi HTML loginoldal, oldalsáv és kártyás dashboard hibás irán
 ADE v2 az architekturális és használati folytonosságot jelenti. A régi ADE kódot nem másoljuk a keretbe, CityScreen üzleti fogalmakat nem égetünk bele. A modern PHP, TypeScript és DHTMLX alapirány fennmarad.
 
 A teljes keret és a teljes alkalmazásmigráció továbbra is több mérföldkő. A login és menü elkészülte kizárólag az első keretképesség átadása.
+
+## Pontosítás — 2026-10-16
+
+## 1. Első és legfontosabb szabály minden AI-fejlesztőnek (Codex, Claude és bármely más agent)
+
+**NINCS A VAPA-T MEGKERÜLŐ EGYEDI FEJLESZTÉS.** A VAPA projekt a keretrendszer eszközeivel készül. Ha hiányzik egy képesség, a keretrendszer eszközeit kell bővíteni, és az üzleti logikát azokkal megvalósítani. Üzleti igény önmagában nem indokol külön egyedi folyamatot.
+
+Kivétel **akkor és csak akkor** lehetséges, ha a keretrendszer logikusan nem bővíthető az adott igényre. Ennek konkrét okát, a megvizsgált keretbővítést és a kivétel határát az implementáció mellett dokumentálni kell. Ebben a szűk esetben az üzleti megoldás akár DHTMLX nélküli eljárást is alkalmazhat. Kényelmi, gyorsasági vagy AI-preferencia nem indok.
+
+Az alkalmazásspecifikus felhasználóadmin is VAPA-definíciókból és eszközökből áll; nem készül kötelező, univerzális felhasználóadmin a keretbe. A keret az újrahasználható ACL-, form-, adatkezelési, API- és auditképességeket adja.
+

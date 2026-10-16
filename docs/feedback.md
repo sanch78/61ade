@@ -52,3 +52,11 @@ Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a f
 - **Állapot:** első keretképesség és fogyasztói integráció megvalósítva, agent által ellenőrizve; felhasználói elfogadás még nincs. A szabály minden további képességre folyamatosan kötelező.
 - **Átvezetés:** [AGENTS.md](../AGENTS.md), [ADR-0002](decisions/0002-framework-first.md), [használati módszertan](usage.md).
 - **Ellenőrzés:** [önálló keretdemó és szerződéstesztek](shell.md#önálló-keretdemó-és-ellenőrzés), PHP lint, frontend typecheck/build. A 4 önálló Chromium keretteszt és a fogyasztó 4 integrációs tesztesete sikeres; publikus HTTPS login betöltése ellenőrizve. Mobilon a keret DHTMLX almenübe gyűjti az ágakat, átméretezéskor visszaállítja a menüsort.
+
+## FB-0004 — Elsőbbségi keretszabály, kezelhető ACL és audit
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Döntés:** az AGENTS.md 1. szabálya minden AI-fejlesztőre kötelező; kivétel csak logikusan nem bővíthető keret dokumentált esetére. Az FB-0003 abszolút DHTMLX-megkötését ez pontosítja.
+- **Elvárás:** UX-en kezelhető objektum-/művelet-/mező-/csatornajogok, azonos API-védelem; rendszeres audit minden admin- és üzleti folyamatra. Az alkalmazás adja saját user adminját, a keret az eszközöket. Admin szerepkör nem jelent üzleti szuperjogot. Csak implementált modul lehet a menüben.
+- **Állapot:** implementáció folyamatban; nem kész képesség.
+- **Átvezetés:** [elsőbbségi szabály](../AGENTS.md), [ADR](decisions/0002-framework-first.md).
