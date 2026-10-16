@@ -1,13 +1,14 @@
-import { Form, Grid, Layout, Toolbar, Window, alert, message, awaitRedraw } from "@dhtmlx/suite";
-import { GridHeaders, gridHeader, type Sort } from "./GridHeaders";
-import { GridEditing,gridEditor } from "./GridEditing";
+import { Form, Layout, Toolbar, Window, alert, message, awaitRedraw } from "@dhtmlx/suite";
 import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
+import { GridHeaders, type Sort } from "./GridHeaders";
+import { GridEditing } from "./GridEditing";
+import { ResponsiveGrid } from "./ResponsiveGrid";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 
 export type { FieldDefinition } from "./FormValidation";
 export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;fields:FieldDefinition[]};
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;align?:"left"|"center"|"right";editable?:boolean}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
+export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 const cursor=(row:Row,direction:string)=>btoa(Array.from(new TextEncoder().encode(JSON.stringify({...row._position,edge:String(row.id),direction})),byte=>String.fromCharCode(byte)).join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="checkbox"?{
@@ -23,7 +24,7 @@ const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="chec
 /** Configured filter/form/grid regions, bounded dynamic data and live observation. */
 export class Workspace {
   readonly layout:Layout;
-  private grid?:Grid;
+  private grid?:ResponsiveGrid;
   private gridEditing?:GridEditing;
   private gridHeaders?:GridHeaders;
   private sort:Sort={field:"id",direction:"desc"};
@@ -47,6 +48,11 @@ export class Workspace {
   private detailDirty=false;
   private detailConflictShown=false;
   private live:Realtime;
+  private filterForm?:Form;
+  private filterDialog?:Window;
+  private mobile=false;
+  private filterWasVisible=true;
+  private resize=()=>this.resizeFilters();
 
   constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,live:LiveConfig){
     const region=(node:Region):any=>({...node,header:node.header?escape(node.header):undefined,
@@ -54,19 +60,24 @@ export class Workspace {
     this.layout=new Layout(host,{type:"space",...(view.singleton
       ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48},{id:"detail"}]}]}
       :region(view.layout.tree))});
-    this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"title",type:"title",value:escape(view.title)}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).map(a=>({id:a.name,value:escape(a.label)}))]});
-    this.commands.events.on("click",(id:string|number)=>{const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
+    this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-table",value:"Táblázat"},{id:"vapa-cards",value:"Kártyák"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:"Szűrés"}]:[]),...(!view.singleton?[{id:"title",type:"title",value:escape(view.title)}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).map(a=>({id:a.name,value:escape(a.label)}))]});
+    this.commands.events.on("click",(id:string|number)=>{if(id==="vapa-table"||id==="vapa-cards"){this.grid?.setMode(id==="vapa-table"?"table":"cards");return;}if(id==="vapa-filter"){this.openFilters();return;}const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
       this.content=new Layout(document.createElement("div"),{rows:[{id:"commands",height:48},{id:"data"}]});
       this.content.getCell("commands").attach(this.commands);
-      this.grid=new Grid(null,{columns:[{id:"id",header:[gridHeader({id:"id",header:"ID"})],width:80,sortable:view.sortable?.includes("id")??false},...view.columns.map(c=>({id:c.id,header:[gridHeader(c)],
-        width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:view.sortable?.includes(c.id)??false,
-        ...gridEditor(c),
-        ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(value:unknown)=>escape(c.options?.[String(value)]??String(value??""))}:{}:{}),
-      }))],rowHeight:40,autoWidth:true,selection:"row",htmlEnable:false});
-      this.gridHeaders=new GridHeaders(this.grid,view.columns,view.sortable??[],sort=>void this.changeSort(sort));
-      this.gridEditing=new GridEditing(this.grid,view.actions.find(a=>a.name==="update")?.fields??[],()=>this.rows,
+      const dataHost=document.createElement("div");
+      this.grid=new ResponsiveGrid(dataHost,view.columns,()=>this.rows,(id)=>{
+        this.selected=id;this.capabilities();
+      },()=>{
+        const action=view.actions.find(a=>a.name==="update");
+        if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);
+      },direction=>{if(!this.rendering&&!this.busy&&!this.disposed)void this.more(direction);},(cards,mobile)=>{
+        if(cards||mobile)this.commands.disable("vapa-cards");else this.commands.enable("vapa-cards");
+        if(!cards||mobile)this.commands.disable("vapa-table");else this.commands.enable("vapa-table");
+      });
+      this.gridHeaders=new GridHeaders(this.grid.table,view.columns,view.sortable??[],sort=>void this.changeSort(sort));
+      this.gridEditing=new GridEditing(this.grid.table,view.actions.find(a=>a.name==="update")?.fields??[],()=>this.rows,
         async(row,field,value)=>{
           const result=await this.call("__edit",String(row.id),{field,value,revision:row.revision});
           if(this.disposed)return;
@@ -74,17 +85,11 @@ export class Workspace {
           if(this.sort.field===field){await this.load();return;}
           await this.render(this.rows.map(item=>String(item.id)===String(row.id)?{...item,...result.values,revision:result.revision}:item),true);
         },error=>this.error(error),active=>{this.cellEditing=active;if(!active&&!this.disposed)this.watch();});
-      this.grid.events.on("cellClick",(row:any)=>{this.selected=String(row.id);this.capabilities();});
-      this.grid.events.on("cellDblClick",(row:any,column:any)=>{if(column.editable&&row._editable?.includes(String(column.id)))return;const action=view.actions.find(a=>a.name==="update");if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);});
-      this.grid.events.on("scroll",(position:{x:number;y:number})=>{
-        if(this.rendering||this.busy||this.disposed)return;
-        const buffer=Math.max(400,innerHeight*1.4);
-        if(this.next&&position.y>this.rows.length*40-buffer)void this.more("next");
-        else if(this.previous&&position.y<120)void this.more("previous");
-      });
-      this.content.getCell("data").attach(this.grid);this.layout.getCell("grid").attach(this.content);
+      this.content.getCell("data").attach(this.grid.layout);
+      this.layout.getCell("grid").attach(this.content);
       if(this.hasRegion("filter"))this.mountFilters();
     }
+    window.addEventListener("resize",this.resize);this.resizeFilters();
     this.live=new Realtime(view.resource,live,this.call.bind(this),data=>void this.changed(data),()=>{},()=>this.revoke());
     this.capabilities();void this.load();
   }
@@ -104,9 +109,32 @@ export class Workspace {
       if(name==="clear")form.clear();
       const values=form.getValue() as Record<string,string>;this.filters={};
       for(const f of this.view.filters){const v=String(values[f.name]??"");if(v!=="")this.filters[f.name]=["select","checkbox"].includes(f.type)?v.slice(3):v;}
-      void this.load();
+      this.closeFilters();void this.load();
     });
-    this.layout.getCell("filter").attach(form);
+    this.filterForm=form;this.layout.getCell("filter").attach(form);
+  }
+  private resizeFilters():void{
+    if(!this.filterForm)return;
+    const mobile=innerWidth<768;
+    if(mobile)this.commands.show("vapa-filter");else this.commands.hide("vapa-filter");
+    if(mobile===this.mobile)return;
+    this.mobile=mobile;
+    const cell=this.layout.getCell("filter");
+    if(mobile){this.filterWasVisible=cell.isVisible();cell.hide();}
+    else{this.closeFilters();if(this.filterWasVisible)cell.show();}
+  }
+  private openFilters():void{
+    if(!this.filterForm||!this.mobile)return;
+    if(this.filterDialog){this.filterDialog.show();return;}
+    this.layout.getCell("filter").detach();
+    const dialog=new Window({title:"Szűrés",width:Math.min(420,innerWidth-24),height:Math.min(600,innerHeight-24),modal:true,closable:true});
+    this.filterDialog=dialog;dialog.attach(this.filterForm);dialog.show();
+    dialog.events.on("beforeHide",()=>{this.closeFilters();return false;});
+  }
+  private closeFilters():void{
+    const dialog=this.filterDialog;if(!dialog)return;
+    this.filterDialog=undefined;dialog.attachHTML("");dialog.destructor();
+    if(this.filterForm)this.layout.getCell("filter").attach(this.filterForm);
   }
   private async call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{
     const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?vapa=1";
@@ -150,25 +178,16 @@ export class Workspace {
       await this.render(rows,true);this.watch();
     }catch(e){await this.error(e);}finally{if(epoch===this.epoch)this.busy=false;}
   }
-  private gridRow(row:Row):Row {
-    const result=structuredClone(row);
-    for(const column of this.view.columns)if(column.type==="checkbox"&&column.editable&&Object.hasOwn(result,column.id))result[column.id]=String(result[column.id])==="1"||result[column.id]===true;
-    return result;
-  }
   private async render(rows:Row[],preserve:boolean):Promise<void>{
     if(!this.grid)return;
     this.rendering=true;
-    const position=this.grid.getScrollState();const anchor=this.rows[Math.floor(position.y/40)]?.id;const offset=position.y%40;
-    const same=this.rows.length===rows.length&&this.rows.every((r,i)=>String(r.id)===String(rows[i].id));
-    if(same){for(let i=0;i<rows.length;i++)if(JSON.stringify(this.rows[i])!==JSON.stringify(rows[i]))this.grid.data.update(String(rows[i].id),this.gridRow(rows[i]));}
-    else{this.grid.data.removeAll();this.grid.data.parse(rows.map(row=>this.gridRow(row)));}
+    const position=this.grid.capture();
+    this.grid.setRows(rows);
     this.rows=rows;
     if(this.selected&&!this.selectedRow())this.selected=undefined;
     this.capabilities();await awaitRedraw();
     if(this.disposed)return;
-    const index=anchor?rows.findIndex(r=>String(r.id)===String(anchor)):-1;
-    this.grid.scroll(position.x,preserve?(index>=0?index*40+offset:position.y):0);
-    if(this.selected)(this.grid.selection as any).setCell(this.selected);
+    this.grid.restore(position,preserve,this.selected);
     this.rendering=false;
   }
   private async changed(data:Snapshot):Promise<void>{
@@ -233,6 +252,6 @@ export class Workspace {
       }).catch(e=>{if(!this.disposed&&!validation.showServerErrors(e.fieldErrors??{}))return this.error(e);}).finally(()=>{saving=false;if(!this.disposed&&(this.editor===form||this.detail===form))form.enable();});
     });
   }
-  private revoke():void{this.rows=[];this.grid?.data.removeAll();this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
-  destroy():void{this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.dialog?.destructor();this.layout.destructor();}
+  private revoke():void{this.rows=[];this.grid?.setRows([]);this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
+  destroy():void{window.removeEventListener("resize",this.resize);this.closeFilters();this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.layout.destructor();}
 }

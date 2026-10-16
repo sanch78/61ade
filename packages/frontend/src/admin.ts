@@ -1,5 +1,6 @@
 import { AdminShell, type ShellDefinition } from "./AdminShell";
 import "@dhtmlx/suite/codebase/suite.min.css";
+import "./themes/skyblue.css";
 import "./admin.css";
 
 const root = document.querySelector<HTMLElement>("#vapa-application");
