@@ -30,4 +30,25 @@ rejected(fn()=>$read(['mode'=>'dynamic','sort'=>['field'=>'title; DROP TABLE rec
 rejected(fn()=>$read(['mode'=>'dynamic','sort'=>['field'=>'id','direction'=>'ASC;--']]),400);
 $db->exec("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES('user','1','records','list','ui','deny','id','1','title')");rejected(fn()=>$read(['mode'=>'dynamic','sort'=>['field'=>'title','direction'=>'asc']]),403);
 verify(!in_array('title',$w->views($context->actor)[0]['sortable'],true),'Denied field cannot be used to infer order');
+$db->exec("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES('user','1','records','list','api','allow','own','','')");
+$api=new Context($context->actor,'api',$w->acl,$db,['records.list']);
+$apiRows=$w->executor->execute($api,'records','list',null,['mode'=>'dynamic','sort'=>['field'=>'amount','direction'=>'asc']]);
+verify(count($apiRows['items'])===100&&$apiRows['items'][0]['amount']===0,'API shares numeric ordering and own scope');
+rejected(fn()=>$w->executor->execute(new Context($context->actor,'api',$w->acl,$db,[]),'records','list',null,['mode'=>'dynamic','sort'=>['field'=>'amount','direction'=>'asc']]),403);
+$db->exec('CREATE TABLE items(id INTEGER PRIMARY KEY,title TEXT,archived INTEGER DEFAULT 0)');
+$db->exec('CREATE TABLE item_preferences(item_id INTEGER PRIMARY KEY,notifications INTEGER)');
+$db->exec("INSERT INTO items(id,title) VALUES(1,'Default'),(2,'On'),(3,'Off')");$db->exec('INSERT INTO item_preferences VALUES(2,1),(3,0)');
+$related=Vapa\Configuration\WorkspaceConfiguration::build($db,[dirname(__DIR__).'/fixtures/related-fields/items.json'],static fn()=>['items.after_save'=>static fn()=>[]]);
+$db->exec("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES('user','1','items','list','ui','allow','all','','')");
+$relatedContext=new Context($context->actor,'ui',$related->acl,$db);
+foreach(['asc'=>['3','1','2'],'desc'=>['2','1','3']]as$direction=>$expectedIds){
+ $token=null;$seen=[];do{$page=$related->executor->execute($relatedContext,'items','list',null,['mode'=>'dynamic','limit'=>1,'sort'=>['field'=>'notify','direction'=>$direction],'cursor'=>$token]);$seen=[...$seen,...array_column($page['items'],'id')];$token=$page['next'];}while($token);
+ verify($seen===$expectedIds,'Related checkbox numeric ordering includes a missing default row');
+}
+$db->exec('ALTER TABLE item_preferences ADD amount INTEGER');$db->exec('UPDATE item_preferences SET amount=CASE item_id WHEN 2 THEN 10 ELSE 2 END');
+$numericRegistry=new Registry();(new SqlResource('metrics','items','id',[new Field('title','Title'),new Field('score','Score','number')],related:[new Vapa\Feature\RelatedStorage('item_preferences','item_id',['score'=>'amount'],['score'=>9])]))->register($numericRegistry,'Metrics');
+$numeric=new Workspace($numericRegistry,$db);$db->exec("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES('user','1','metrics','list','ui','allow','all','','')");
+$numericContext=new Context($context->actor,'ui',$numeric->acl,$db);$token=null;$seen=[];
+do{$page=$numeric->executor->execute($numericContext,'metrics','list',null,['mode'=>'dynamic','limit'=>1,'sort'=>['field'=>'score','direction'=>'asc'],'cursor'=>$token]);$seen=[...$seen,...array_column($page['items'],'id')];$token=$page['next'];}while($token);
+verify($seen===['3','1','2'],'Related number fields sort numerically (2, 9, 10), including cursors');
 echo "VAPA full-result SQL sorting, reverse cursors, nulls, live windows and ACL contracts passed.\n";

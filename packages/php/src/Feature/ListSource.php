@@ -82,7 +82,8 @@ final readonly class ListSource
         if(!is_array($sort)||array_diff(array_keys($sort),['field','direction'])||!is_string($sort['field']??null)||!in_array($sort['direction']??null,['asc','desc'],true))throw new Failure('Hibás rendezés.');
         $sort=['field'=>$sort['field'],'direction'=>$sort['direction']];
         if(!in_array($sort['field'],$this->sortableFields($ctx),true))throw new Failure('A mező nem rendezhető.',403);
-        $column=$sort['field']==='id'?$this->key:$sort['field'];
+        $storageColumn=$sort['field']==='id'?$this->key:$sort['field'];
+        $column=($known[$sort['field']]->type??'')==='number'?"CAST($storageColumn AS DECIMAL(65,0))":$storageColumn;
         $direction='next';$hasCursor=false;
         if($mode==='watch'){
             $front=$input['front']??true;$first=$input['first']??null;
@@ -102,7 +103,7 @@ final readonly class ListSource
         $ordering=$sort['field']==='id'?"{$this->key} $order":"($column IS NULL) ".($direction==='previous'?'DESC':'ASC').", $column $order, {$this->key} $order";
         $q=$ctx->db->prepare("SELECT * FROM $from WHERE ".implode(' AND ',$terms)." ORDER BY $ordering LIMIT ".($limit+1));$q->execute($params);
         $rows=$q->fetchAll(\PDO::FETCH_ASSOC);$more=count($rows)>$limit;if($more)array_pop($rows);if($direction==='previous')$rows=array_reverse($rows);
-        $position=fn($row)=>['edge'=>(string)$row[$this->key],'sort'=>$sort,'value'=>$row[$column]??null];
+        $position=fn($row)=>['edge'=>(string)$row[$this->key],'sort'=>$sort,'value'=>$row[$storageColumn]??null];
         $first=$rows?$position($rows[0]):null;$last=$rows?$position($rows[count($rows)-1]):null;
         return ['items'=>array_map(fn($row)=>[...($this->project)($ctx,$row),'_position'=>$position($row)],$rows),
             'previous'=>$first!==null&&($direction==='previous'?$more:$hasCursor)?$this->cursor($first,'previous'):null,
