@@ -5,13 +5,13 @@ namespace Vapa\Feature;
 /** Generic declared SQL data adapter. Business schemas and rules belong to consumers. */
 final class SqlResource
 {
-    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1')
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null)
     {
         foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
     }
-    public function register(Registry $registry, string $title, bool $create = true, bool $update = true): void
+    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null): void
     {
-        $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c)=>$this->listing($c),collection:true));
+        $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t)=>$this->listing($c,$t['id']),collection:true));
         $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$this->project($c,$t['row'],'get'),resolve:fn($c,$id)=>$this->target($c,$id)));
         $actions=['get'];
         if($create) {
@@ -22,20 +22,23 @@ final class SqlResource
             $registry->add(new Action($this->resource,'update','Mentés',[...$this->fields,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true));
             $actions[]='update';
         }
-        $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions);
+        $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group);
     }
     public function target(Context $ctx, ?string $id): array
     {
+        if($this->selfOnly) { if($id!==$ctx->actor->id && $id!=='self')throw new Failure('Csak a saját profil érhető el.',403); $id=$ctx->actor->id; }
         if($id===null || !preg_match('/^\d+$/D',$id)) throw new Failure('Hiányzó objektum.',404);
         $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
         $q->execute([$id]); $row=$q->fetch(\PDO::FETCH_ASSOC);
         if(!$row)throw new Failure('Nem található objektum.',404);
         return ['id'=>(string)$row[$this->key],'owner'=>$this->ownerColumn?(string)$row[$this->ownerColumn]:null,'row'=>$row];
     }
-    private function listing(Context $ctx): array
+    private function listing(Context $ctx,?string $offset): array
     {
+        if($offset!==null && (!ctype_digit($offset) || (int)$offset>10000000))throw new Failure('Hibás lapozás.');
+        $offset=(int)($offset ?? 0);
         [$where,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->ownerColumn);
-        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE ($where) AND ({$this->where}) ORDER BY {$this->key} DESC LIMIT 200");$q->execute($params);
+        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE ($where) AND ({$this->where}) ORDER BY {$this->key} DESC LIMIT 200 OFFSET $offset");$q->execute($params);
         return array_map(fn($row)=>$this->project($ctx,$row,'list'),$q->fetchAll(\PDO::FETCH_ASSOC));
     }
     public function project(Context $ctx,array $row,string $action): array
@@ -46,7 +49,7 @@ final class SqlResource
         return $out;
     }
     private function revision(array $row): string { return hash('sha256',json_encode($row,JSON_THROW_ON_ERROR)); }
-    private function save(Context $ctx, ?array $target, array $values): array
+    public function save(Context $ctx, ?array $target, array $values): array
     {
         if($target && !hash_equals($this->revision($target['row']),$values['revision'] ?? ''))throw new Failure('Az adat közben módosult. Nyisd meg újra.',409);
         unset($values['revision']);
@@ -60,6 +63,7 @@ final class SqlResource
             $values=array_merge($this->defaults,$values);
             $q=$ctx->db->prepare("INSERT INTO {$this->table} (".implode(',',array_keys($values)).') VALUES ('.implode(',',array_fill(0,count($values),'?')).')');$q->execute(array_values($values));$id=$ctx->db->lastInsertId();
         }
+        if($this->afterSave)($this->afterSave)($ctx,(string)$id,$target,$values);
         return ['id'=>(string)$id];
     }
 }

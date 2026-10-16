@@ -9,7 +9,7 @@ final class Schema
     {
         $auto = $db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? 'BIGINT PRIMARY KEY AUTO_INCREMENT' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
         foreach ([
-            "CREATE TABLE IF NOT EXISTS vapa_roles (id $auto, name VARCHAR(100) NOT NULL UNIQUE)",
+            "CREATE TABLE IF NOT EXISTS vapa_roles (id $auto, name VARCHAR(100) NOT NULL UNIQUE, role_key VARCHAR(100) UNIQUE)",
             "CREATE TABLE IF NOT EXISTS vapa_memberships (id $auto, actor_id VARCHAR(100) NOT NULL, role_id BIGINT NOT NULL, UNIQUE(actor_id, role_id))",
             "CREATE TABLE IF NOT EXISTS vapa_rules (id $auto, subject_type VARCHAR(10) NOT NULL, subject_id VARCHAR(100) NOT NULL, resource VARCHAR(100) NOT NULL, action VARCHAR(100) NOT NULL, channel VARCHAR(10) NOT NULL, effect VARCHAR(10) NOT NULL, scope VARCHAR(10) NOT NULL, object_id VARCHAR(100) NOT NULL DEFAULT '', field_name VARCHAR(100) NOT NULL DEFAULT '')",
             "CREATE TABLE IF NOT EXISTS vapa_audit (id $auto, occurred_at VARCHAR(30) NOT NULL, request_id VARCHAR(40) NOT NULL, actor_id VARCHAR(100) NOT NULL, channel VARCHAR(10) NOT NULL, resource VARCHAR(100) NOT NULL, action VARCHAR(100) NOT NULL, object_id VARCHAR(100) NOT NULL, outcome VARCHAR(30) NOT NULL, field_names TEXT NOT NULL)",

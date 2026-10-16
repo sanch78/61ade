@@ -22,4 +22,5 @@ return new ApplicationDefinition(
     ]),
     runtime: dirname(__DIR__, 2).'/codex/tmp/shell-demo',
     sessionName: 'vapa_demo',
+    workspace: require __DIR__.'/workspace.php',
 );

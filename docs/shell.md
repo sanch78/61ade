@@ -76,3 +76,7 @@ Session: strict ID, HttpOnly/SameSite=Lax, HTTPS-en Secure; sikeres belépéskor
 Proxy esetén a `HttpEntrypoint` explicit `trustLocalProxy: true` mellett kizárólag loopback kérésből fogadja el az `X-VAPA-HTTPS` és `X-VAPA-Client-IP` fejléceket. A proxy köteles ezeket a saját kapcsolati adataival felülírni. A runtime és cookie path az alkalmazás telepítési konfigurációja.
 
 Ez az első keretképesség. A teljes M1/M2/M4, Symfony hosting, feature/action registry, több szervezet, objektum-/mezőszintű policy, CRUD, PHP 8.5 és production FPM továbbra is hátravan. A mostani menüjogosultság nem helyettesíti a későbbi üzleti endpointok backend policy-ját.
+
+## Megjelenési mód
+
+A menüsor jobb oldalán DHTMLX Toolbar választó adja a Default (`light`) és Éjjeli (`dark`) témát. A VAPA a Suite `setTheme` API-ját hívja a dokumentum gyökerén, saját színfelülírás nélkül. A `vapa-theme` localStorage kulcs a böngésző helyi preferenciája, nem jogosultsági vagy profiladat.

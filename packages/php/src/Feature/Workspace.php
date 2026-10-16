@@ -45,6 +45,7 @@ final class Workspace
     public function http(?Identity $sessionActor,IdentityProvider $identities,string $csrf): never
     {
         header('Content-Type: application/json; charset=utf-8');
+        $handled=false;$actor=$sessionActor;$channel='ui';
         try {
             $channel=isset($_SERVER['HTTP_AUTHORIZATION'])?'api':'ui';$actor=$sessionActor;$scopes=[];
             if($channel==='api'){
@@ -61,9 +62,22 @@ final class Workspace
             if(!is_array($data) || !is_string($data['resource']??null)||!is_string($data['action']??null)||!is_array($data['values']??[]))throw new Failure('Hibás műveletkérés.');
             $id=$data['id']??null;if($id!==null&&!is_string($id))throw new Failure('Hibás azonosító.');
             session_write_close();
+            if($data['action']==='__form'){
+                if($channel!=='ui' || !is_string($data['values']['operation']??null))throw new Failure('Érvénytelen űrlapkérés.',403);
+                $a=$this->registry->get($data['resource'],$data['values']['operation']);
+                if(!in_array('ui',$a->channels,true))throw new Failure('Nem érhető el.',403);
+                $ctx=new Context($actor,$channel,$this->acl,$this->db);
+                $t=$a->resolve?($a->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
+                if(!$this->acl->allows($actor->id,$a->resource,$a->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
+                $fields=array_values(array_filter($a->fields,fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
+                $values=$id!==null?$this->executor->execute($ctx,$a->resource,'get',$id,[]):[];
+                $this->journal->record($actor->id,'ui',$a->resource,'describe',$id??'','success');
+                echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$f->metadata(),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
+            }
+            $handled=true;
             $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes),$data['resource'],$data['action'],$id,$data['values']??[]);
             echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);
-        }catch(Failure $e){http_response_code($e->status);echo json_encode(['ok'=>false,'error'=>$e->getMessage()],JSON_THROW_ON_ERROR);}
+        }catch(Failure $e){if(!$handled)$this->journal->record($actor?->id??'',$channel,'transport','request','','rejected');http_response_code($e->status);echo json_encode(['ok'=>false,'error'=>$e->getMessage()],JSON_THROW_ON_ERROR);}
         exit;
     }
 }

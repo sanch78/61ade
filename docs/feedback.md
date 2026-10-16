@@ -60,3 +60,10 @@ Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a f
 - **Elvárás:** UX-en kezelhető objektum-/művelet-/mező-/csatornajogok, azonos API-védelem; rendszeres audit minden admin- és üzleti folyamatra. Az alkalmazás adja saját user adminját, a keret az eszközöket. Admin szerepkör nem jelent üzleti szuperjogot. Csak implementált modul lehet a menüben.
 - **Állapot:** implementáció folyamatban; nem kész képesség.
 - **Átvezetés:** [elsőbbségi szabály](../AGENTS.md), [ADR](decisions/0002-framework-first.md).
+
+## FB-0005 — Natív DHTMLX témaváltás
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Döntés:** Default és Éjjeli stílus, a főmenüsor jobb oldalán; DHTMLX `setTheme` API, nem az ADE saját skin-rétegének átvétele. A választás böngészőnként megmarad.
+- **Állapot:** implementálva, böngészős ellenőrzés folyamatban.
+- **Átvezetés:** `AdminShell` adapter, [shell](shell.md).

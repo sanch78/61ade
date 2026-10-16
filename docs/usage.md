@@ -49,4 +49,4 @@ A felhasználó egyértelmű útmutatását nem kell ismételten jóváhagyatni 
 
 ## ACL és műveletvégrehajtó fejlesztés
 
-A [tartós ACL-/audit-szerződés](access-and-actions.md) implementációja folyamatban. Az első backend szerződésteszt `tests/shell/access.php`: default deny, objektumscope, mezőtiltás, API-csatorna és token-scope, optimista zárolás, audit és rollback ellenőrizve. A `Feature` registry/SqlResource és DHTMLX Workspace adapter még integrációs ellenőrzés alatt; ez nem telepített kész modul.
+A [tartós ACL-/audit-szerződés](access-and-actions.md) implementációja folyamatban. A backend szerződésteszt `tests/shell/access.php`: default deny, objektumscope, mezőtiltás, API-csatorna és token-scope, optimista zárolás, audit és rollback ellenőrizve. A `Feature` registry/SqlResource és DHTMLX Workspace adapter önálló demo integrációja ellenőrzött; a fogyasztói telepítés még folyamatban.
