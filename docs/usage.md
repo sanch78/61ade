@@ -4,7 +4,7 @@ Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését teszte
 
 ## Jelenlegi állapot
 
-2026-10-16: a VAPA saját ApplicationDefinition, IdentityProvider/SqlIdentityProvider, Menu/MenuItem és HTTP indítási szerződéseire épülő DHTMLX Window/Form/Menu/Layout alkalmazásalap készült. Önálló, szintetikus keretdemó és kerettesztek tartoznak hozzá. Integráció, konfiguráció, példa, ellenőrzés és korlátok: [első shell használata](shell.md). Nincs publikált release, feature API, CRUD vagy teljes ACL. A shell nem jelenti M1/M2/M4 lezárását.
+2026-10-16: a shell mellett működik a regisztrált műveletvégrehajtó, deklarált form/grid adapter, SQL objektumscope, mezőjog, ui/api csatornaszétválasztás, scope-olt token és tranzakciós audit. A fogyasztó saját user adminját és üzleti moduljait ezekből deklarálja. Részletek: [ACL és műveletek](access-and-actions.md), [shell](shell.md). A Default / Éjjeli mód DHTMLX `setTheme` alapú. Önálló szintetikus demó és fogyasztói integrációs tesztek tartoznak hozzá. Többszervezetes izoláció, külső mellékhatások outboxa, összetett ABAC, bulk/export és teljes release-folyamat még nincs; ez nem a teljes M1–M7 lezárása.
 
 ## Kötelező fejlesztési irány
 
@@ -49,4 +49,4 @@ A felhasználó egyértelmű útmutatását nem kell ismételten jóváhagyatni 
 
 ## ACL és műveletvégrehajtó fejlesztés
 
-A [tartós ACL-/audit-szerződés](access-and-actions.md) implementációja folyamatban. A backend szerződésteszt `tests/shell/access.php`: default deny, objektumscope, mezőtiltás, API-csatorna és token-scope, optimista zárolás, audit és rollback ellenőrizve. A `Feature` registry/SqlResource és DHTMLX Workspace adapter önálló demo integrációja ellenőrzött; a fogyasztói telepítés még folyamatban.
+A [tartós ACL-/audit-szerződés](access-and-actions.md) első implementációja használható. A backend szerződésteszt `tests/shell/access.php`: default deny, objektumscope, mezőtiltás, API-csatorna és token-scope, optimista zárolás, audit és rollback ellenőrizve. A `Feature` registry/SqlResource és DHTMLX Workspace adapter önálló demo integrációja ellenőrzött; a fogyasztói telepítés és integráció ellenőrzött.

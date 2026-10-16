@@ -1,6 +1,6 @@
 # ACL, műveletek és audit
 
-Állapot: implementáció alatt, még nem telepített képesség.
+Állapot: az alábbi első képesség implementálva és integrációban ellenőrizve, 2026-10-16.
 
 ## Tartós szerződés
 
@@ -32,4 +32,12 @@ API: `POST ./?vapa=1`, `Content-Type: application/json`, `Authorization: Bearer 
 
 `Passwords` a fogyasztó fióksémáját és hash-kodekjét kapja. Saját jelszóváltásnál jelenlegi jelszó és ismétlés szükséges, minimum 12, maximum 128 karakter. Sikeres csere visszavonja a munkameneteket és API-tokeneket. Titkos mezős műveletek 5 próbálkozás/perc/actor/művelet korláttal futnak. A keret nem dönt a fogyasztó meglévő jelszóformátumáról; annak korszerűsítése külön kompatibilitási döntés.
 
-Önálló demo: `php examples/demo-app/setup-workspace.php`, majd a shell demo. A Jegyzetek funkció kizárólag szintetikus, saját SQLite adatokkal használja ugyanazt a registryt és DHTMLX adaptert. `tests/shell/access.php` és `tests/shell/workspace.spec.cjs` ellenőrizte az ACL-t, API-scope-ot, rollbacket és a tényleges form/grid mentést. A fogyasztó integrációja még telepítés előtt áll.
+Önálló demo: `php examples/demo-app/setup-workspace.php`, majd a shell demo. A Jegyzetek funkció kizárólag szintetikus, saját SQLite adatokkal használja ugyanazt a registryt és DHTMLX adaptert. `tests/shell/access.php` és `tests/shell/workspace.spec.cjs` ellenőrizte az ACL-t, API-scope-ot, rollbacket és a tényleges form/grid mentést. A fogyasztó integrációja és publikus telepítése ellenőrzött; a valódi fiókkal történő üzleti próba a felhasználóé.
+
+## Kapcsolt mezők és határok
+
+A `Lookup` a kapcsolt objektum saját listajogával, SQL scope-jával és címkemező-jogával állít elő választékot. A `Field.options` lehet Contextet fogadó backend closure; ugyanazt a választékot validálja a mentés, mint amelyet a form megkap. A választék jelenleg legfeljebb 2000 elem; nagyobb katalógushoz kereshető/lapozott lookup adapter szükséges. A listák 200-as lapokkal járhatók be. A kernel nem enged kliens által megadott SQL-t, sortot vagy filtert.
+
+A mezőszabályok hiányában az objektumjog öröklődik. Ha az actorra az adott mezőhöz van külön szabály, a mezőhöz külön egyező allow kell, és az egyező deny elsőbbségű. Ezért egy csak tiltást tartalmazó mezőszabály alapból lezárja az érintett mezőt; részleges kivételhez adj explicit allow szabályt is. Titkos mező sosem kerül a listaprojekcióba vagy auditba.
+
+A `registerDelete` külön opt-in keretképesség: cél/revízió/jog ellenőrzés, üzleti deleteGuard és tranzakciós audit. A fogyasztó csak azoknál az erőforrásoknál kapcsolja be, ahol törlés ténylegesen támogatott.

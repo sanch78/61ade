@@ -28,14 +28,15 @@ final class Workspace
     }
     public function views(Identity $actor): array
     {
-        $out=[];
+        $out=[];$ctx=new Context($actor,'ui',$this->acl,$this->db);
         foreach($this->registry->views() as $view){
             $actions=[];
             foreach($view['actions'] as $name){
                 $a=$this->registry->get($view['resource'],$name);
+                if($view['singleton'] && !$this->acl->allows($actor->id,$a->resource,$name,'ui',$actor->id,$actor->id))continue;
                 $rules=$this->acl->rules($actor->id,$a->resource,$name,'ui');
                 if(!array_filter($rules,static fn($r)=>$r['effect']==='allow' && $r['field_name']===''))continue;
-                $actions[]=['name'=>$name,'label'=>$a->label,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata(),$a->fields)];
+                $actions[]=['name'=>$name,'label'=>$a->label,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
             }
             if(!$actions)continue;
             $view['actions']=$actions;$out[]=$view;
@@ -72,7 +73,7 @@ final class Workspace
                 $fields=array_values(array_filter($a->fields,fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
                 $values=$id!==null?$this->executor->execute($ctx,$a->resource,'get',$id,[]):[];
                 $this->journal->record($actor->id,'ui',$a->resource,'describe',$id??'','success');
-                echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$f->metadata(),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
+                echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$f->metadata($ctx),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             $handled=true;
             $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes),$data['resource'],$data['action'],$id,$data['values']??[]);

@@ -49,6 +49,7 @@ final class Application
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $token = $_POST['csrf'] ?? null;
             if (!is_string($token) || !hash_equals($_SESSION['csrf'], $token)) {
+                $workspace?->journal->record($identity?->id ?? '', 'ui', 'session', 'csrf', '', 'rejected');
                 http_response_code(403);
                 $error = 'A munkamenet lejárt. Kérjük, próbáld újra.';
             } elseif (($_POST['action'] ?? '') === 'logout') {

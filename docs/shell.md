@@ -1,6 +1,6 @@
 # VAPA alkalmazásalap — login, menü, munkaterület
 
-A kötelező alapirány: [VAPA = ADE v2](decisions/0002-framework-first.md). A keret biztosítja az általános működést és a DHTMLX vezérlőket; a fogyasztó alkalmazásdefiníciót és üzleti illesztést ad. Az első képesség DHTMLX Window/Form bejelentkezés, Menu, Toolbar és Layout, üres munkaterülettel. Nincs külön alkalmazási frontend, dashboard vagy helyőrző oldal.
+A kötelező alapirány: [VAPA = ADE v2](decisions/0002-framework-first.md). A keret biztosítja az általános működést és a DHTMLX vezérlőket; a fogyasztó alkalmazásdefiníciót és üzleti illesztést ad. Az első képesség DHTMLX Window/Form bejelentkezés, Menu, Toolbar és Layout, üres munkaterülettel. Nincs külön alkalmazási frontend, dashboard vagy helyőrző oldal. A későbbi, már működő feature/workspace és ACL réteg használata: [ACL és műveletek](access-and-actions.md).
 
 ## Keretszerződés és használat
 
@@ -33,7 +33,7 @@ $menu = new Menu([
 
 A VAPA validálja az egész fa egyedi, stabil azonosítóit; a `visible` üzleti szabályt szerveroldalon futtatja, és az üres ágakat elhagyja. A böngésző kizárólag `id`, `label`, `items`, `disabled` adatokat kap. Callback, SQL és fiókattribútum nem mehet ki. A fogyasztó menüszerkezetét változatlanul rendereli rekurzív DHTMLX Menu formában.
 
-Ebben a mérföldkőben a levélelemek tiltott, még meg nem valósított modulok. Üzleti művelet, hash-route és művi tartalomoldal nincs. A kijelentkezést a VAPA adja működő menüműveletként. Új modulnál előbb a szükséges VAPA feature-/action-/policy-képességet kell megvalósítani, utána az üzleti modult bekötni.
+A történeti shell MenuItem levélelemek tiltottak. Az implementált modulok a Feature Registry view-definícióiból kerülnek a navigációba. Üzleti művelet, hash-route és művi tartalomoldal nincs. A kijelentkezést a VAPA adja működő menüműveletként. Új modulnál előbb a szükséges VAPA feature-/action-/policy-képességet kell megvalósítani, utána az üzleti modult bekötni.
 
 ## DHTMLX megjelenítés és csomagolás
 
@@ -75,7 +75,7 @@ Session: strict ID, HttpOnly/SameSite=Lax, HTTPS-en Secure; sikeres belépéskor
 
 Proxy esetén a `HttpEntrypoint` explicit `trustLocalProxy: true` mellett kizárólag loopback kérésből fogadja el az `X-VAPA-HTTPS` és `X-VAPA-Client-IP` fejléceket. A proxy köteles ezeket a saját kapcsolati adataival felülírni. A runtime és cookie path az alkalmazás telepítési konfigurációja.
 
-Ez az első keretképesség. A teljes M1/M2/M4, Symfony hosting, feature/action registry, több szervezet, objektum-/mezőszintű policy, CRUD, PHP 8.5 és production FPM továbbra is hátravan. A mostani menüjogosultság nem helyettesíti a későbbi üzleti endpointok backend policy-ját.
+A shellhez azóta elkészült az első Feature Registry, SQL CRUD, objektum-/mező-ACL és auditképesség, lásd a fenti kapcsolódó leírást. A teljes M1/M2/M4, Symfony hosting, több szervezet, PHP 8.5 és production FPM továbbra is hátravan. A mostani menüjogosultság nem helyettesíti a későbbi üzleti endpointok backend policy-ját.
 
 ## Megjelenési mód
 

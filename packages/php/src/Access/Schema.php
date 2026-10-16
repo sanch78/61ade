@@ -17,5 +17,11 @@ final class Schema
             "CREATE TABLE IF NOT EXISTS vapa_versions (actor_id VARCHAR(100) PRIMARY KEY, version INTEGER NOT NULL DEFAULT 1)",
             "CREATE TABLE IF NOT EXISTS vapa_migrations (name VARCHAR(100) PRIMARY KEY)",
         ] as $sql) $db->exec($sql);
+        foreach(['vapa_rules_lookup'=>['vapa_rules','resource,action,channel,subject_type,subject_id'], 'vapa_audit_actor_action'=>['vapa_audit','actor_id,resource,action,occurred_at']] as $name=>[$table,$columns]){
+            if($db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'){
+                $q=$db->prepare('SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=?');$q->execute([$table,$name]);
+                if(!$q->fetchColumn())$db->exec("CREATE INDEX $name ON $table ($columns)");
+            }else $db->exec("CREATE INDEX IF NOT EXISTS $name ON $table ($columns)");
+        }
     }
 }

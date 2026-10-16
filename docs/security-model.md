@@ -1,6 +1,6 @@
 # Jogosultsági és szervezeti modell
 
-Állapot: tervezett szerződés. Kötelező alapelv: default deny, központi szerveroldali végrehajtás.
+Állapot: célarchitektúra. A jelenleg implementált rész és korlátai az [ACL-/műveletleírásban](access-and-actions.md) találhatók; a teljes szervezeti/bulk/export modell még tervezett. Kötelező alapelv: default deny, központi szerveroldali végrehajtás.
 
 ## Kontextus és döntés
 

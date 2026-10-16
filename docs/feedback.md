@@ -58,12 +58,14 @@ Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a f
 - **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
 - **Döntés:** az AGENTS.md 1. szabálya minden AI-fejlesztőre kötelező; kivétel csak logikusan nem bővíthető keret dokumentált esetére. Az FB-0003 abszolút DHTMLX-megkötését ez pontosítja.
 - **Elvárás:** UX-en kezelhető objektum-/művelet-/mező-/csatornajogok, azonos API-védelem; rendszeres audit minden admin- és üzleti folyamatra. Az alkalmazás adja saját user adminját, a keret az eszközöket. Admin szerepkör nem jelent üzleti szuperjogot. Csak implementált modul lehet a menüben.
-- **Állapot:** implementáció folyamatban; nem kész képesség.
+- **Állapot:** első implementáció ellenőrizve és fogyasztóba telepítve; felhasználói elfogadás még nincs. A további keretképességek határa az ACL-leírásban szerepel.
 - **Átvezetés:** [elsőbbségi szabály](../AGENTS.md), [ADR](decisions/0002-framework-first.md).
 
 ## FB-0005 — Natív DHTMLX témaváltás
 
 - **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
 - **Döntés:** Default és Éjjeli stílus, a főmenüsor jobb oldalán; DHTMLX `setTheme` API, nem az ADE saját skin-rétegének átvétele. A választás böngészőnként megmarad.
-- **Állapot:** implementálva, böngészős ellenőrzés folyamatban.
+- **Állapot:** implementálva, böngészőből ellenőrizve; a választás újratöltés után is megmarad.
 - **Átvezetés:** `AdminShell` adapter, [shell](shell.md).
+
+FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.cjs`, valamint a fogyasztó profil/account/ACL/API PHP- és Chromium-tesztjei. Kapcsolódó implementáció: `packages/php/src/Feature`, `Access`, `Audit`, `packages/frontend/src/Workspace.ts`. Canonical használat: [ACL és műveletek](access-and-actions.md). Az admin saját profilján csak jelszóváltoztatás szerepel; ez a fogyasztó üzleti szabálya, nem kernelbe égetett user admin.
