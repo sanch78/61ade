@@ -10,7 +10,7 @@ A PHP fogyasztó belépési pontja Composer-autoload után kizárólag a VAPA HT
 Vapa\Infrastructure\HttpEntrypoint::run(static fn() => require '../application.php');
 ```
 
-Az `application.php` egy `Vapa\Shell\ApplicationDefinition` objektumot ad vissza. Kötelező argumentumok: `title`, `identities` (IdentityProvider), `menu` (Menu), `runtime` (privát írható könyvtár). Opcionális: egyedi `sessionName`, `cookiePath`. Az alapindítás, hibaválasz, session, CSRF, belépés/kilépés, metadata és UI előállítása a keret feladata.
+Az `application.php` egy `Vapa\Shell\ApplicationDefinition` objektumot ad vissza. Kötelező argumentumok: `title`, `identities` (IdentityProvider), `menu` (Menu), `runtime` (privát írható könyvtár). Opcionális: egyedi `sessionName`, `cookiePath`, valamint `version` (string, alapból üres). A JSON megfelelője `application.version`; például `"title": "Minta admin", "version": "0.1.0"`. Az alapindítás, hibaválasz, session, CSRF, belépés/kilépés, metadata és UI előállítása a keret feladata.
 
 Az `IdentityProvider` `authenticate(username, password)` és `find(id)` metódusokat ad; siker esetén `Identity(id, displayName, attributes)` az eredmény. A backend attribútumokat nem serializáljuk. A `find` minden hitelesített HTTP-kéréskor újraellenőrzi a fiókot és a jogokat.
 
@@ -82,3 +82,9 @@ A shellhez azóta elkészült az első Feature Registry, SQL CRUD, objektum-/mez
 A menüsor jobb oldalán DHTMLX Toolbar választó adja a Default (`light`) és Éjjeli (`dark`) témát. A VAPA a Suite `setTheme` API-ját hívja a dokumentum gyökerén, saját színfelülírás nélkül. A `vapa-theme` localStorage kulcs a böngésző helyi preferenciája, nem jogosultsági vagy profiladat.
 
 Munkaterület-váltáskor a VAPA leválasztja és felszabadítja az előző DHTMLX layoutot, kivárja az újrarajzolást, majd csatolja az új nézetet. A gyors egymás utáni váltások közül csak a legutolsó kerül fel. A `workspace.spec.cjs` ismételt nézetváltást is ellenőriz.
+
+## Egységes alsó információs sáv
+
+A felső sor közvetlenül a menü és a témaválasztó; nincs külön alkalmazásnév-fejléc. Egyetlen, 32 px magas DHTMLX Toolbar zárja az oldalt: balra a hitelesített identitás `displayName` értéke, jobbra a konfigurált alkalmazásnév és `version`. Bejelentkezés előtt balra „Nincs bejelentkezve” látható. A verzió az alkalmazás kiadásazonosítója; a keret nem következtet rá a saját csomagverziójából. Elhagyott verziónál csak az alkalmazásnév jelenik meg. Nincs workspace-enként külön kapcsolati/állapotsáv; az élő adatkövetés tovább működik. A műveleti hibák DHTMLX Alertben, a szerkesztés közben észlelt külső módosítás egyszeri DHTMLX Message-ben jelenik meg.
+
+Ellenőrzés: `browser.spec.cjs` a felső menü és alsó felhasználó/alkalmazás/verzió elhelyezését; `workspace.spec.cjs` a külön állapotsáv hiányát és a háttérben tovább működő pollingot ellenőrzi. Kapcsolódó döntés: FB-0011.

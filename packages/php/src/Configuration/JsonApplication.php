@@ -24,7 +24,7 @@ final class JsonApplication
         $session = $config->section('session');
         $live = $config->section('live');
         $workspace = $config->section('workspace');
-        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], [], '$.application');
+        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string'], '$.application');
         Shape::check($session, ['name' => 'string', 'cookie_path' => 'string'], [], '$.session');
         Shape::check($live, [
             'transport' => 'string',
@@ -64,6 +64,7 @@ final class JsonApplication
             workspace: $builtWorkspace,
             live: new LiveConfig($live['transport'], $live['endpoint'], $live['interval_ms']),
             authentication: $authentication,
+            version: $application['version'] ?? '',
         );
     }
 }

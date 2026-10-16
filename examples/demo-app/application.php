@@ -15,7 +15,7 @@ $insert->execute([2, 'viewer', password_hash('vapa-demo', PASSWORD_DEFAULT), 'De
 $insert->execute([3, 'blocked', password_hash('vapa-demo', PASSWORD_DEFAULT), 'Blocked User', 0, 1]);
 $provider = new SqlIdentityProvider($db, 'accounts', 'id', 'username', 'password_hash', 'display_name', ['active', 'can_manage'], allowed: static fn(array $row) => (bool) $row['active']);
 return new ApplicationDefinition(
-    title: 'VAPA keretdemó', identities: $provider,
+    title: 'VAPA keretdemó', version: '0.1.0', identities: $provider,
     menu: new Menu([
         new MenuItem('library', 'Nyilvántartás', [new MenuItem('documents', 'Dokumentumok')]),
         new MenuItem('settings', 'Beállítások', [new MenuItem('members', 'Tagok')], visible: static fn(Identity $actor) => (bool) $actor->attributes['can_manage']),

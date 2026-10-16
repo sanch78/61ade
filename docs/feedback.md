@@ -17,3 +17,5 @@
 ## FB-0009 — Full reference validation belongs to migration
 
 ## FB-0010 — Remembered login and e-mail verification
+
+## FB-0011 — One lower information bar

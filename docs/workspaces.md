@@ -10,6 +10,8 @@ A Suite Standard 9.3.12 csomag nem tartalmazza a dokumentált PRO LazyDataProxy 
 
 A listák automatikus frissítése projektszintű LiveConfig alapján polling vagy WebSocket. Mindkét csatorna ugyanazt a jogosultságellenőrzött, korlátozott ablakot figyeli. Csak a megváltozott sorok kerülnek át a megjelenítésbe; a nyitott form nem írható felül háttérfrissítéssel. A megfigyelő a kereten kívüli adatbázisírásokat is érzékeli. A WebSocket szerver saját, loopback szolgáltatás; rövid, sessionhöz kötött jegy kell a feliratkozáshoz, és a jogokat minden ellenőrzés újraértékeli. A böngésző hálózata megszakadáskor újracsatlakozik, háttérben lévő lap nem tart fenn aktív figyelőt.
 
+A nézet nem hoz létre külön állapotsávot vagy állandó „Élő kapcsolat” feliratot. A felhasználó és az alkalmazás/verzió adatai az [egyetlen shell-sávban](shell.md#egységes-alsó-információs-sáv) szerepelnek; ez nem kapcsolja ki a háttérfrissítést.
+
 ## Konfiguráció
 
 ```php
