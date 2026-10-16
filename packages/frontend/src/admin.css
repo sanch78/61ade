@@ -1,4 +1,4 @@
-/* The visual system belongs to DHTMLX. These rules only size VAPA's host. */
+/* DHTMLX owns widget rendering; VAPA supplies host sizing and theme tokens. */
 html,
 body,
 #vapa-application {
@@ -9,4 +9,35 @@ body,
 }
 .vapa-workspace {
   min-height: 0;
+}
+
+/* Skyblue palette through the Suite 9 custom-theme API, not legacy skin CSS. */
+[data-dhx-theme="skyblue"] {
+  --dhx-font-color-primary: #24445e;
+  --dhx-font-color-secondary: #466b8a;
+  --dhx-font-color-additional: #627f97;
+  --dhx-border-color: #a4bed4;
+  --dhx-border-color-focused: #5b9bd5;
+  --dhx-h-primary: 207;
+  --dhx-s-primary: 65%;
+  --dhx-l-primary: 40%;
+  --dhx-h-secondary: 207;
+  --dhx-s-secondary: 30%;
+  --dhx-l-secondary: 40%;
+  --dhx-background-primary: #ffffff;
+  --dhx-background-secondary: #e3eff9;
+  --dhx-background-additional: #d1e5f6;
+  --dhx-s-toolbar-background: #e3eff9;
+  --dhx-s-toolbar-button-background-hover: #d1e5f6;
+  --dhx-s-toolbar-button-background-active: #bdd8f0;
+  --dhx-s-grid-header-background: #d1e5f6;
+}
+
+/* Fit the Toolbar's intrinsic inline height to the shell's 32px status cell. */
+.vapa-session-bar .dhx_toolbar {
+  height: 100% !important;
+  min-height: 0;
+}
+.vapa-session-bar .dhx_navbar {
+  padding: 0;
 }

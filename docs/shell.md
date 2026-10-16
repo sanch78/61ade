@@ -37,7 +37,7 @@ A történeti shell MenuItem levélelemek tiltottak. Az implementált modulok a 
 
 ## DHTMLX megjelenítés és csomagolás
 
-A VAPA `AdminShell` adapter kezeli a Layout, Toolbar, Menu, Window és Form teljes életciklusát, a bejelentkezési mezők validálását és billentyűzetes beküldését. A hibajelzést DHTMLX Alert jeleníti meg. A megjelenés a DHTMLX saját stílusa; a keret CSS-e csak a teljes ablak méretezését tartalmazza. 768 px alatti munkaterületen a keret a menüágakat egy DHTMLX „Menü” alá rendezi; a kijelentkezés külön látható marad. Átméretezéskor visszaáll a felső menüsor. A fogyasztónak nincs saját shell HTML/CSS/JS rétege.
+A VAPA `AdminShell` adapter kezeli a Layout, Toolbar, Menu, Window és Form teljes életciklusát, a bejelentkezési mezők validálását és billentyűzetes beküldését. A hibajelzést DHTMLX Alert jeleníti meg. A megjelenítést a DHTMLX vezérlői adják; a keret CSS-e a teljes ablak méretezését és a dokumentált Suite-témaváltozókat tartalmazza. 768 px alatti munkaterületen a keret a menüágakat egy DHTMLX „Menü” alá rendezi; a kijelentkezés külön látható marad. Átméretezéskor visszaáll a felső menüsor. A fogyasztónak nincs saját shell HTML/CSS/JS rétege.
 
 PHP 8.4+; ellenőrzött helyi runtime: PHP 8.4.26. Node 18.19.1, npm 9.2.0, TypeScript 5.9.3, esbuild 0.25.12, DHTMLX Suite Standard 9.3.12, Playwright 1.58.2. A dependencyket lockfile rögzíti. A Suite ikonfontjai a `tools/vendor-assets.json` SHA-256 értékeivel ellenőrizve, `codex/tmp/dhx-icons` cache-ből kerülnek a buildbe. Az első build internetet igényel; eltérő asset-hash leállítja a buildet. A fontok beágyazottak, a böngésző nem kér CDN-erőforrást.
 
@@ -79,12 +79,14 @@ A shellhez azóta elkészült az első Feature Registry, SQL CRUD, objektum-/mez
 
 ## Megjelenési mód
 
-A menüsor jobb oldalán DHTMLX Toolbar választó adja a Default (`light`) és Éjjeli (`dark`) témát. A VAPA a Suite `setTheme` API-ját hívja a dokumentum gyökerén, saját színfelülírás nélkül. A `vapa-theme` localStorage kulcs a böngésző helyi preferenciája, nem jogosultsági vagy profiladat.
+A menüsor jobb oldalán DHTMLX Toolbar választó adja a Skyblue (`skyblue`), Default (`light`) és Éjjeli (`dark`) témát. Mentett választás nélkül Skyblue az alapértelmezett. Érvényes korábbi választás megmarad; ismeretlen érték Skyblue-ra esik vissza. A `vapa-theme` localStorage kulcs a böngésző helyi preferenciája, nem jogosultsági vagy profiladat.
+
+A Suite 9.3.12 nem szállítja a régi Suite Skyblue skinjét. A VAPA Skyblue ezért a [dokumentált custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/) alapján, a DHTMLX CSS-változóival definiált világoskék paletta. A komponensek Suite 9 komponensek maradnak: ez nem a régi képes/gradient skin teljes másolata. A `setTheme` a dokumentum gyökerére állítja a témát, így a menü, toolbar, ablak, form és grid azonos témát kap. Nincs legacy CSS-betöltés vagy alkalmazási skinréteg. Ellenőrzés: `browser.spec.cjs` Skyblue alapérték, tényleges toolbar-szín, Éjjeli/Skyblue váltás és újratöltés utáni megőrzés.
 
 Munkaterület-váltáskor a VAPA leválasztja és felszabadítja az előző DHTMLX layoutot, kivárja az újrarajzolást, majd csatolja az új nézetet. A gyors egymás utáni váltások közül csak a legutolsó kerül fel. A `workspace.spec.cjs` ismételt nézetváltást is ellenőriz.
 
 ## Egységes alsó információs sáv
 
-A felső sor közvetlenül a menü és a témaválasztó; nincs külön alkalmazásnév-fejléc. Egyetlen, 32 px magas DHTMLX Toolbar zárja az oldalt: balra a hitelesített identitás `displayName` értéke, jobbra a konfigurált alkalmazásnév és `version`. Bejelentkezés előtt balra „Nincs bejelentkezve” látható. A verzió az alkalmazás kiadásazonosítója; a keret nem következtet rá a saját csomagverziójából. Elhagyott verziónál csak az alkalmazásnév jelenik meg. Nincs workspace-enként külön kapcsolati/állapotsáv; az élő adatkövetés tovább működik. A műveleti hibák DHTMLX Alertben, a szerkesztés közben észlelt külső módosítás egyszeri DHTMLX Message-ben jelenik meg.
+A felső sor közvetlenül a menü és a témaválasztó; nincs külön alkalmazásnév-fejléc. Egyetlen, 32 px magas DHTMLX Toolbar zárja az oldalt (a shell a Toolbar intrinsic magasságát a befogadó cellához méretezi, így a felirat nem vágódik le): balra a hitelesített identitás `displayName` értéke, jobbra a konfigurált alkalmazásnév és `version`. Bejelentkezés előtt balra „Nincs bejelentkezve” látható. A verzió az alkalmazás kiadásazonosítója; a keret nem következtet rá a saját csomagverziójából. Elhagyott verziónál csak az alkalmazásnév jelenik meg. Nincs workspace-enként külön kapcsolati/állapotsáv; az élő adatkövetés tovább működik. A műveleti hibák DHTMLX Alertben, a szerkesztés közben észlelt külső módosítás egyszeri DHTMLX Message-ben jelenik meg.
 
 Ellenőrzés: `browser.spec.cjs` a felső menü és alsó felhasználó/alkalmazás/verzió elhelyezését; `workspace.spec.cjs` a külön állapotsáv hiányát és a háttérben tovább működő pollingot ellenőrzi. Kapcsolódó döntés: FB-0011.

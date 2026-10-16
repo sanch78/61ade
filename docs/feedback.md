@@ -19,3 +19,5 @@
 ## FB-0010 — Remembered login and e-mail verification
 
 ## FB-0011 — One lower information bar
+
+## FB-0012 — Skyblue default
