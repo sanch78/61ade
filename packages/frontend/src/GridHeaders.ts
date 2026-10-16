@@ -22,7 +22,7 @@ export class GridHeaders {
   }
   setSort(sort:Sort):void{
     this.sort=sort;
-    for(const column of this.columns){const config=this.grid.getColumn(column.id);if(config)config.header=[gridHeader(column,sort)];}
+    for(const column of this.columns){const config=this.grid.getColumn(column.id);if(config){config.sortable=this.sortable.includes(column.id);config.header=[gridHeader(column,sort)];}}
     this.grid.paint();
     void awaitRedraw().then(()=>{
       if(this.disposed)return;
