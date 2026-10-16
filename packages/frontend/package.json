@@ -9,9 +9,13 @@
     "./admin.css": "./dist/admin.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "dependencies": {
     "@dhtmlx/suite": "9.3.12"
+  },
+  "bin": {
+    "vapa-assets": "bin/publish.mjs"
   }
 }

@@ -1,0 +1,244 @@
+import { Form, Layout, Menu, Toolbar, Window, alert } from "@dhtmlx/suite";
+
+export type MenuDefinition = {
+  id: string;
+  label: string;
+  disabled?: boolean;
+  items?: MenuDefinition[];
+};
+export type ShellDefinition = {
+  protocol: 1;
+  title: string;
+  authenticated: boolean;
+  username: string;
+  error: string;
+  displayName?: string;
+  menu?: MenuDefinition[];
+};
+const escape = (text: string) =>
+  text.replace(
+    /[&<>"']/g,
+    (char) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        char
+      ]!,
+  );
+
+/** VAPA owns the DHTMLX lifecycle; consumers supply definitions, never shell markup. */
+export class AdminShell {
+  private layout: Layout;
+  private loginWindow?: Window;
+  private loginForm?: Form;
+  private submitting = false;
+  private listeners = new AbortController();
+  private resize = () => {
+    if (!this.loginWindow) return;
+    this.loginWindow.setSize(
+      Math.min(420, innerWidth - 24),
+      Math.min(290, innerHeight - 24),
+    );
+    this.loginWindow.show();
+  };
+
+  constructor(
+    private root: HTMLElement,
+    private command: HTMLFormElement,
+    private definition: ShellDefinition,
+  ) {
+    if (definition.protocol !== 1)
+      throw new Error("Nem kompatibilis VAPA felületverzió.");
+    this.layout = new Layout(root, {
+      type: "line",
+      rows: [
+        { id: "application-title", height: 40 },
+        ...(definition.authenticated ? [{ id: "main-menu", height: 40 }] : []),
+        { id: "workspace", css: "vapa-workspace" },
+        { id: "status", height: 32 },
+      ],
+    });
+    const title = new Toolbar(undefined, {
+      data: [
+        {
+          id: "application-name",
+          type: "title",
+          value: escape(definition.title),
+        },
+        { type: "spacer" },
+        { id: "framework-name", type: "title", value: "VAPA" },
+      ],
+    });
+    this.layout.getCell("application-title").attach(title);
+    const status = new Toolbar(undefined, {
+      data: [
+        {
+          id: "session-status",
+          type: "title",
+          value: escape(
+            definition.authenticated
+              ? definition.displayName || ""
+              : "Nincs bejelentkezve",
+          ),
+        },
+      ],
+    });
+    this.layout.getCell("status").attach(status);
+    if (definition.authenticated) {
+      const map = (items: MenuDefinition[]): object[] =>
+        items.map((item) => ({
+          id: item.id,
+          value: escape(item.label),
+          ...(item.items?.length
+            ? { items: map(item.items) }
+            : { disabled: true }),
+        }));
+      const menu = new Menu(undefined, {
+        navigationType: "click",
+        data: [
+          ...map(definition.menu || []),
+          { id: "vapa-session-separator", type: "separator" },
+          { id: "vapa-logout", value: "Kijelentkezés" },
+        ],
+      });
+      menu.events.on("click", (id: string | number) => {
+        if (id === "vapa-logout") this.post("logout");
+      });
+      this.layout.getCell("main-menu").attach(menu);
+
+    } else {
+      this.mountLogin();
+    }
+    window.addEventListener("resize", this.resize);
+    if (definition.error) requestAnimationFrame(() => {
+      void alert({ header: "Hiba", text: definition.error, htmlEnable: false, buttons: ["Rendben"] })
+        .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus("password"); });
+    });
+  }
+
+  private mountLogin(): void {
+    const definition = this.definition;
+    this.loginWindow = new Window({
+      title: "Bejelentkezés",
+      ariaLabel: "Bejelentkezés",
+      width: 420,
+      height: 290,
+      modal: true,
+      closable: false,
+      movable: true,
+      resizable: false,
+    });
+    const form = new Form(document.createElement("div"), {
+      padding: 16,
+      rows: [
+        {
+          type: "input",
+          name: "username",
+          label: "Felhasználónév",
+          labelPosition: "left",
+          labelWidth: 120,
+          required: true,
+          maxlength: 64,
+          value: definition.username,
+          autocomplete: true,
+        },
+        {
+          type: "input",
+          name: "password",
+          label: "Jelszó",
+          labelPosition: "left",
+          labelWidth: 120,
+          required: true,
+          inputType: "password",
+          maxlength: 1024,
+          autocomplete: true,
+        },
+        {
+          align: "end",
+          cols: [
+            {
+              type: "button",
+              name: "login",
+              text: "Bejelentkezés",
+              view: "flat",
+              color: "primary",
+            },
+          ],
+        },
+      ],
+    });
+    this.loginForm = form;
+    const submit = () => {
+      if (this.submitting || !form.validate()) return;
+      const value = form.getValue() as Record<string, string>;
+      this.post("login", {
+        username: value.username,
+        password: value.password,
+      });
+    };
+    form.events.on("click", (name: string) => {
+      if (name === "login") submit();
+    });
+
+    this.loginWindow.attach(form);
+    this.resize();
+    // DHTMLX can consume Enter before it bubbles; handle it at the adapter boundary.
+    document.addEventListener(
+      "keydown",
+      (event: KeyboardEvent) => {
+        if (
+          event.key !== "Enter" ||
+          event.repeat ||
+          !(event.target instanceof HTMLInputElement) ||
+          !["username", "password"].includes(event.target.name)
+        )
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+        form.setValue({
+          username:
+            document.querySelector<HTMLInputElement>('input[name="username"]')
+              ?.value || "",
+          password:
+            document.querySelector<HTMLInputElement>('input[name="password"]')
+              ?.value || "",
+        });
+        submit();
+      },
+      { capture: true, signal: this.listeners.signal },
+    );
+    requestAnimationFrame(() => {
+      form.setFocus(definition.error ? "password" : "username");
+      const inputs = this.loginWindow?.getContainer().querySelectorAll("input");
+      inputs?.forEach((input) =>
+        input.setAttribute(
+          "autocomplete",
+          input.type === "password" ? "current-password" : "username",
+        ),
+      );
+    });
+  }
+
+  private post(
+    action: "login" | "logout",
+    fields: Record<string, string> = {},
+  ): void {
+    if (this.submitting) return;
+    this.submitting = true;
+    for (const [name, value] of Object.entries({ action, ...fields })) {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value;
+      this.command.append(input);
+    }
+    this.loginForm?.disable();
+    this.command.submit();
+  }
+
+  destroy(): void {
+    this.listeners.abort();
+    window.removeEventListener("resize", this.resize);
+    this.loginWindow?.destructor();
+    this.layout.destructor();
+    this.root.replaceChildren();
+  }
+}

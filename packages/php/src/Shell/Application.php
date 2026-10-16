@@ -5,11 +5,7 @@ namespace Vapa\Shell;
 /** Initial server-rendered shell, independent of a hosting framework or database. */
 final class Application
 {
-    public function __construct(
-        private IdentityProvider $identities,
-        private \Closure $navigation,
-        private array $config,
-    ) {}
+    public function __construct(private ApplicationDefinition $definition) {}
 
     public function run(): void
     {
@@ -18,18 +14,18 @@ final class Application
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: same-origin');
         header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
-        $runtime = $this->config['runtime'];
+        $runtime = $this->definition->runtime;
         foreach ([$runtime, "$runtime/sessions", "$runtime/login"] as $directory) {
             if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
                 throw new \RuntimeException('Cannot create private runtime storage');
             }
         }
-        session_name($this->config['sessionName'] ?? 'vapa_session');
+        session_name($this->definition->sessionName);
         session_save_path("$runtime/sessions");
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         session_set_cookie_params([
-            'lifetime' => 0, 'path' => $this->config['cookiePath'] ?? '/',
+            'lifetime' => 0, 'path' => $this->definition->cookiePath,
             'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
             'httponly' => true, 'samesite' => 'Lax',
         ]);
@@ -42,7 +38,7 @@ final class Application
         $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
         $error = '';
         $username = '';
-        $identity = isset($_SESSION['identity']) ? $this->identities->find($_SESSION['identity']) : null;
+        $identity = isset($_SESSION['identity']) ? $this->definition->identities->find($_SESSION['identity']) : null;
         if (!$identity) unset($_SESSION['identity']);
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $token = $_POST['csrf'] ?? null;
@@ -67,7 +63,7 @@ final class Application
                     $error = 'Túl sok sikertelen próbálkozás. Egy perc múlva próbáld újra.';
                 } else {
                     $identity = $username !== '' && strlen($username) <= 64 && $password !== '' && strlen($password) <= 1024
-                        ? $this->identities->authenticate($username, $password) : null;
+                        ? $this->definition->identities->authenticate($username, $password) : null;
                     if (!$identity) {
                         $attempts[] = time();
                         http_response_code(401);
@@ -89,10 +85,16 @@ final class Application
                 $error = 'Ismeretlen művelet.';
             }
         }
-        $config = $this->config;
+        $definition = $this->definition;
         $csrf = $_SESSION['csrf'];
-        $menu = $identity ? ($this->navigation)($identity) : [];
+        $menu = $identity ? $definition->menu->project($identity) : [];
         $escape = static fn(string $text): string => htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $bootstrap = ['protocol' => 1, 'title' => $definition->title, 'authenticated' => $identity !== null,
+            'username' => $username, 'error' => $error];
+        if ($identity) {
+            $bootstrap['displayName'] = $identity->displayName;
+            $bootstrap['menu'] = $menu;
+        }
         session_write_close();
         require dirname(__DIR__, 2).'/templates/shell.php';
     }
