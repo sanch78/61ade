@@ -70,3 +70,7 @@ A [validációs útmutató](validation.md) a közös JSON/PHP mezőszabályokat,
 ## ACL és műveletvégrehajtó fejlesztés
 
 A [tartós ACL-/audit-szerződés](access-and-actions.md) első implementációja használható. A backend szerződésteszt `tests/shell/access.php`: default deny, objektumscope, mezőtiltás, API-csatorna és token-scope, optimista zárolás, audit és rollback ellenőrizve. A `Feature` registry/SqlResource és DHTMLX Workspace adapter önálló demo integrációja ellenőrzött; a fogyasztói telepítés és integráció ellenőrzött.
+
+## Fejlesztői memória védelme
+
+Böngészőteszt a [védett fejlesztői futtatóval](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston) indul: `npm run test:browser -- ...`. A közös lock, egy worker, indulási memóriaküszöb és cgroup-limit a fogyasztó saját tesztjeire is alkalmazható. Kapcsolódó visszajelzés: FB-0016.

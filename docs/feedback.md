@@ -163,3 +163,12 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
 - **Ellenőrzés:** typecheck/build és négy célzott Chromium-próba sikeres. A workspace egyetlen space gyökere és 12 px térköze, CRUD/nézetváltás/polling és a kétirányú méretező ellenőrizve.
 - **Átvezetés:** [layoutszintek és keretek](workspaces.md#layoutszintek-és-keretek), `Workspace.ts`, `workspace.spec.cjs`.
+
+## FB-0016 — Fejlesztői tesztfuttatás ne merítse ki a közös hostot
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás: VS Code fejlesztés közben előzzük meg a host memóriaelfogyását.
+- **Döntés:** közös fejlesztői guard, soros böngészőtesztek, indulási memóriaküszöb és systemd cgroup-korlát; nincs alkalmazási admin-infrastruktúra változás.
+- **Megvalósítás:** `tools/run-dev-check.sh`, `tools/playwright.sh`, npm belépési pont; a fogyasztó ugyanazt az eszközt hívja.
+- **Ellenőrzés:** tényleges cgroup limitek kiolvasása és konkurens lock elutasítása sikeres; mindkét projekt wrapperes tesztfelderítése és egy szintetikus login/menu Chromium-próba sikeres. Host-OOM stresszteszt nincs.
+- **Állapot:** fejlesztői tesztvédelmek megvalósítva; a teljes editor-session izolációját és a rootjogot igénylő hostvédelmet nem állítjuk késznek.
+- **Átvezetés:** [fejlesztői futtató és korlátai](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston).

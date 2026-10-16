@@ -53,3 +53,13 @@ A host jelenlegi helperében a `-t` commitüzenetként értelmeződik, nem kapcs
 - [OPcache](https://www.php.net/manual/en/book.opcache.php)
 - [Symfony 7.4 LTS](https://symfony.com/releases/7.4)
 - [FrankenPHP worker mód, későbbi opció](https://frankenphp.dev/docs/worker/)
+
+## Böngészőteszt korlátozott memóriájú fejlesztői hoston
+
+Linux, systemd user manager, delegált cgroup v2 memory/pids kontrollerek, Bash és util-linux `flock` szükséges. A `npm run test:browser -- tests/shell/workspace.spec.cjs` a `tools/playwright.sh` útján indít: egy worker, egy közös nem blokkoló lock (`codex/tmp/dev-check.lock`), legalább 1280 MiB induláskori MemAvailable, 700 MiB MemoryHigh, 900 MiB MemoryMax, swap nélküli scope, legfeljebb 128 task (szálakkal együtt). Memória- vagy tasklimit esetén a teszt hibával leállhat; ilyenkor ne indíts párhuzamos újrapróbálást.
+
+A fogyasztó ugyanazt a `tools/run-dev-check.sh command [args...]` eszközt hívja saját tesztbinárisával és munkakönyvtárából. Minden ilyen futás ugyanazt a framework-checkouthoz tartozó lockot használja. Több külön framework-checkout vagy más felhasználó nem osztozik ezen a záron. A futtató nem indít korlátlan fallbacket, ha a systemd nem érhető el. A teszt exitkódját továbbadja, foglalt lock vagy kevés memória esetén 75 az exitkód. A nyers Playwright CLI megkerüli a védelmet, ezért ezen a hoston nem támogatott fejlesztői belépési pont. A guard más nagy ellenőrzésekhez is használható, a korlátok ugyanazok.
+
+Ellenőrzés: a futó scope `memory.max=943718400`, `memory.high=734003200`, `memory.swap.max=0`, `pids.max=128`; egymásba ágyazott guardhívás 75-tel elutasítva; mindkét projekt tesztfelderítése a wrapperen keresztül; egy szintetikus login/menu Chromium-próba sikeres a védett futtatóban (a rendelkezésre álló PHP 8.4 wrapper `VAPA_PHP` illesztésével). A limit érvényesítése kis terheléssel ellenőrzött, szándékos host-OOM teszt nincs. Ez a tesztek védelme, a teljes VS Code-session és más szolgáltatások összesített fogyasztását nem korlátozza. Hostszintű swap vagy további szolgáltatáskorlát rendszergazdai feladat.
+
+Referencia: [systemd erőforráskorlátok](https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html).

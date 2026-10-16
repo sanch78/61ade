@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node tools/build.mjs",
     "typecheck": "tsc --noEmit",
-    "test:browser": "playwright test",
+    "test:browser": "tools/playwright.sh",
     "demo:assets": "node packages/frontend/bin/publish.mjs examples/demo-app/public/assets"
   },
   "devDependencies": {

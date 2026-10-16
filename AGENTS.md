@@ -44,3 +44,8 @@ Az alkalmazásspecifikus felhasználóadmin is VAPA-definíciókból és eszköz
 
 - Minden feature átvezetésekor fel kell mérni és dokumentáltan át kell venni a referencia összes érintett validációját (modul, lokális felülírás, közös konfig, mentés). A `required`/must-set önmagában nem teljes migráció.
 - Az általános validátort a VAPA adja, a konkrét formátum, határérték és üzleti kivétel a fogyasztóé. Kliens és szerver/UI/API útvonal egyaránt ellenőrzendő. Eltérés csak dokumentált döntéssel maradhat.
+
+## Fejlesztői host védelme
+
+- Böngészőteszt csak a védett npm scripttel vagy Playwright wrapperrel indulhat: VAPA `npm run test:browser -- ...`, fogyasztó `cd codex && npm run test:e2e -- ...`. Közvetlen `npx playwright test` / Node Playwright-futtatás tilos ezen a közös hoston.
+- A wrapper közös zárral kizárja a párhuzamos futásokat, egy workert és cgroup memóriakorlátot alkalmaz. Elutasításkor várj a másik futás végére vagy szabadíts fel memóriát; a védelmet ne kerüld meg.
