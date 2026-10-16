@@ -17,6 +17,7 @@ export type ShellDefinition = {
   menu?: MenuDefinition[];
   views?: ViewDefinition[];
   csrf?: string;
+  live?: import("./Realtime").LiveConfig;
 };
 const escape = (text: string) =>
   text.replace(
@@ -163,7 +164,7 @@ export class AdminShell {
     this.workspace?.destroy();this.workspace=undefined;
     await awaitRedraw();
     if(navigation!==this.navigation || this.listeners.signal.aborted)return;
-    this.workspace=new Workspace(document.createElement("div"),view,this.definition.csrf || "");
+    this.workspace=new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.definition.live || {transport:"poll",endpoint:"live",interval:2000});
     this.layout.getCell("workspace").attach(this.workspace.layout);
   }
 
