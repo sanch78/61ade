@@ -5,15 +5,17 @@ import { FormValidation, type FieldDefinition } from "./FormValidation";
 export type { FieldDefinition } from "./FormValidation";
 export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;fields:FieldDefinition[]};
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string}[];actions:ActionDefinition[];singleton:boolean;group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
+export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 const cursor=(edge:string,direction:string)=>btoa(JSON.stringify({edge,direction})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>({
+const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="checkbox"?{
+  type:"checkbox",name:f.name,label:f.label,checked:String(value??f.defaultValue??"0")==="1"||value===true,disabled:readOnly,
+}:({
   type:readOnly?"input":f.type==="select"?"select":f.type==="textarea"?"textarea":"input",
   name:f.name,label:f.label,labelPosition:"top",required:!readOnly&&f.required,maxlength:f.max,
   inputType:f.type==="password"?"password":"text",readOnly,
   ...(!readOnly&&f.type==="select"?{options:Object.entries(f.options).map(([value,content])=>({value,content}))}:{}),
-  value:f.type==="password"?"":String(value??(f.type==="select"&&!readOnly?Object.keys(f.options)[0]??"":"")),
+  value:f.type==="password"?"":String(value??f.defaultValue??(f.type==="select"&&!readOnly?Object.keys(f.options)[0]??"":"")),
 });
 
 /** Configured filter/form/grid regions, bounded dynamic data and live observation. */
@@ -51,7 +53,12 @@ export class Workspace {
     else{
       this.content=new Layout(document.createElement("div"),{rows:[{id:"commands",height:48},{id:"data"}]});
       this.content.getCell("commands").attach(this.commands);
-      this.grid=new Grid(null,{columns:[{id:"id",header:[{text:"ID"}],width:80,sortable:false},...view.columns.map(c=>({id:c.id,header:[{text:escape(c.header)}],minWidth:160,sortable:false}))],rowHeight:40,autoWidth:true,selection:"row",htmlEnable:false});
+      this.grid=new Grid(null,{columns:[{id:"id",header:[{text:"ID"}],width:80,sortable:false},...view.columns.map(c=>({id:c.id,header:[{text:escape(c.header)}],
+        width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
+        ...(c.type==="checkbox"?{type:"boolean" as const,editable:true}:c.options&&Object.keys(c.options).length?{template:(value:unknown)=>escape(c.options?.[String(value)]??String(value??""))}:{}),
+      }))],rowHeight:40,autoWidth:true,selection:"row",htmlEnable:false});
+      // Native boolean cells render checkboxes; editing stays in the object form.
+      this.grid.events.on("beforeEditStart",()=>false);
       this.grid.events.on("cellClick",(row:any)=>{this.selected=String(row.id);this.capabilities();});
       this.grid.events.on("cellDblClick",()=>{const action=view.actions.find(a=>a.name==="update");if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);});
       this.grid.events.on("scroll",(position:{x:number;y:number})=>{
@@ -76,12 +83,12 @@ export class Workspace {
     }
   }
   private mountFilters():void{
-    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,required:false},""),...(f.type==="select"?{options:[{value:"",content:"Bármely"},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{type:"button",name:"apply",text:"Szűrés",color:"primary"},{type:"button",name:"clear",text:"Alaphelyzet",view:"link"}]} as any);
+    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,type:f.type==="checkbox"?"select":f.type,required:false},""),...(["select","checkbox"].includes(f.type)?{options:[{value:"",content:"Bármely"},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{type:"button",name:"apply",text:"Szűrés",color:"primary"},{type:"button",name:"clear",text:"Alaphelyzet",view:"link"}]} as any);
     form.events.on("click",(name:string)=>{
       if(name!=="apply"&&name!=="clear")return;
       if(name==="clear")form.clear();
       const values=form.getValue() as Record<string,string>;this.filters={};
-      for(const f of this.view.filters){const v=String(values[f.name]??"");if(v!=="")this.filters[f.name]=f.type==="select"?v.slice(3):v;}
+      for(const f of this.view.filters){const v=String(values[f.name]??"");if(v!=="")this.filters[f.name]=["select","checkbox"].includes(f.type)?v.slice(3):v;}
       void this.load();
     });
     this.layout.getCell("filter").attach(form);
@@ -122,13 +129,18 @@ export class Workspace {
       await this.render(rows,true);this.watch();
     }catch(e){await this.error(e);}finally{if(epoch===this.epoch)this.busy=false;}
   }
+  private gridRow(row:Row):Row {
+    const result=structuredClone(row);
+    for(const column of this.view.columns)if(column.type==="checkbox"&&Object.hasOwn(result,column.id))result[column.id]=String(result[column.id])==="1"||result[column.id]===true;
+    return result;
+  }
   private async render(rows:Row[],preserve:boolean):Promise<void>{
     if(!this.grid)return;
     this.rendering=true;
     const position=this.grid.getScrollState();const anchor=this.rows[Math.floor(position.y/40)]?.id;const offset=position.y%40;
     const same=this.rows.length===rows.length&&this.rows.every((r,i)=>String(r.id)===String(rows[i].id));
-    if(same){for(let i=0;i<rows.length;i++)if(JSON.stringify(this.rows[i])!==JSON.stringify(rows[i]))this.grid.data.update(String(rows[i].id),structuredClone(rows[i]));}
-    else{this.grid.data.removeAll();this.grid.data.parse(structuredClone(rows));}
+    if(same){for(let i=0;i<rows.length;i++)if(JSON.stringify(this.rows[i])!==JSON.stringify(rows[i]))this.grid.data.update(String(rows[i].id),this.gridRow(rows[i]));}
+    else{this.grid.data.removeAll();this.grid.data.parse(rows.map(row=>this.gridRow(row)));}
     this.rows=rows;
     if(this.selected&&!this.selectedRow())this.selected=undefined;
     this.capabilities();await awaitRedraw();

@@ -1,0 +1,18 @@
+{
+    "resources": {
+        "items": {
+            "storage": {
+                "table": "items", "key": "id", "defaults": {"archived": 0},
+                "related": [{"table": "item_preferences", "key": "item_id", "fields": {"notify": "notifications"}, "defaults": {"notify": 1}}]
+            },
+            "fields": [
+                {"name": "title", "label": "Title", "required": true},
+                {"name": "archived", "label": "Archived", "type": "checkbox", "options": {"0": "Active", "1": "Archived"}, "column": {"width": 100, "align": "center"}},
+                {"name": "notify", "label": "Notifications", "type": "checkbox", "default": "1", "options": {"0": "Off", "1": "On"}, "column": {"width": 120, "align": "center"}}
+            ],
+            "operations": {"delete": true},
+            "hooks": {"after_save": "items.after_save"},
+            "view": {"title": "Items"}
+        }
+    }
+}

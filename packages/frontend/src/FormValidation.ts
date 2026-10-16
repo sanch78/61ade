@@ -14,10 +14,14 @@ export type FieldDefinition = {
   max: number;
   options: Record<string, string>;
   secret?: boolean;
+  defaultValue?: string | null;
   validation?: ValidationRules;
 };
 
 export function fieldError(field: FieldDefinition, raw: unknown, values: Record<string, unknown>): string | null {
+  if(field.type === "checkbox") {
+    return raw === true || raw === false || raw === 0 || raw === 1 || raw === "0" || raw === "1" ? null : "Csak 0 vagy 1 érték adható meg.";
+  }
   const value = field.secret || field.type === "password" ? String(raw ?? "") : String(raw ?? "").trim();
   if (value === "") return field.required ? "Kötelező mező." : null;
   const length = Array.from(value).length;

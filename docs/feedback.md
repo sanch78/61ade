@@ -144,3 +144,13 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
 - **Ellenőrzés:** frontend build és a két szintetikus Chromium-teszt sikeres; mindkét tengely középre igazítása három témával és tényleges egérhúzás ellenőrizve.
 - **Átvezetés:** [panelméretező](workspaces.md#panelméretező-megjelenítése), `packages/frontend/src/admin.css`, `tests/shell/layout-resizer.spec.cjs`.
+
+## FB-0014 — Checkboxok és kapcsolók az objektum főűrlapján
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Elvárás:** a bináris jelző a listában és a formon is checkbox; az oszlop szélessége korlátozható. A szűrők értékei ahol lehet, alkalmazási jelentésű feliratok legyenek általános Igen/Nem helyett. Egy kapcsoló ne igényeljen külön gombot és formot; a belépési megerősítés is főűrlapmező és listaoszlop.
+- **Döntés:** általános VAPA checkbox/column és egy-az-egyhez kapcsolt tárolás a közös tranzakció/revízió/ACL/audit alatt. A konkrét állapotfeliratok és táblaillesztés a fogyasztóé. Listában a checkbox állapotjelző, mentés a főűrlapon.
+- **Megvalósítás:** `Field`, `RelatedStorage`, `SqlResource`, `ListSource`, `WorkspaceConfiguration`, DHTMLX `Workspace`. A külön security action korábbi példája API-lehetőségként marad, UI-alapmintaként az egységes főűrlap váltja fel az FB-0010 megfelelő részét.
+- **Állapot:** önálló keretpróbával ellenőrizve; a fogyasztói integráció ellenőrzése folyamatban.
+- **Ellenőrzés:** PHP related-field, ACL/API, lista és validációtesztek sikeresek; külön szintetikus Chromium-tesztben a natív checkboxok, fix szélesség, közös mentés, újranyitás és beszédes filter sikeres.
+- **Átvezetés:** [mezőmegjelenítés és kapcsolt tárolás](field-presentation.md), [konfiguráció](configuration.md), [belépési kapcsoló](authentication.md#felhasználónkénti-kapcsoló).

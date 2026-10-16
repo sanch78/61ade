@@ -42,7 +42,7 @@ Hibás vagy hiányzó e-mail-címnél, lejáratnál, tiltott fióknál vagy kül
 
 A `Settings.get(actorId)` hiányzó rekord esetén is `email_confirmation: 1` értéket ad az alapbeállítással. A `Settings.update(Context, Workspace, actorId, enabled)` a közös végrehajtón belül regisztrált, ACL-ellenőrzött műveletből hívandó; változtatáskor a fiók korábbi VAPA sessionjei és megjegyzett belépései érvénytelenednek.
 
-Az adminfelület továbbra is a fogyasztóé. A szintetikus [members.json](../tests/fixtures/authentication/members.json) mutatja a külön `security` actiont. A `form_values` binding kezdőértéket ad egy regisztrált action saját formjához; a `handler` a keretszolgáltatást hívja. A VAPA nem tartalmaz kötelező univerzális user admint.
+Az adminfelület továbbra is a fogyasztóé. A kapcsolót az objektum főűrlapján célszerű deklarálni: [kapcsolt tárolás és checkbox](field-presentation.md). A mapping a settings táblájára mutat; az alkalmazás after_save hookja tényleges változáskor a VAPA `Workspace::revokeSessions` szolgáltatását hívja. Saját beállítás módosításakor `reauthenticate: true` válasz kér új belépést. A szintetikus [members.json](../tests/fixtures/authentication/members.json) a továbbra is támogatott külön `security` action API-ját példázza; ez nem kötelező UI-minta. A `form_values` binding kezdőértéket ad egy regisztrált action saját formjához; a `handler` a keretszolgáltatást hívja. A VAPA nem tartalmaz kötelező univerzális user admint.
 
 ## Bejelentkezve maradok
 

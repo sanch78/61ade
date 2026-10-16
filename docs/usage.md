@@ -59,6 +59,10 @@ A felhasználó egyértelmű útmutatását nem kell ismételten jóváhagyatni 
 
 A [belépési védelem](authentication.md) JSON-ból konfigurálható VAPA-képesség: alapból minden felhasználónál bekapcsolt e-mailes kód, ACL-védett felhasználónkénti kapcsoló, formázott és üzleti szöveggel felülírható levél, opcionális 90 napos megjegyzés és visszavonás. SMTP/env és explicit sématelepítés szükséges.
 
+## Jelzők és kapcsolt objektummezők
+
+A [mezőmegjelenítési útmutató](field-presentation.md) a natív lista-/form-checkboxot, beszédes állapotneveket, korlátozott oszlopszélességet és a főűrlapba integrált, egy-az-egyhez kapcsolt tárolás közös mentését írja le.
+
 ## Formvalidáció és migráció
 
 A [validációs útmutató](validation.md) a közös JSON/PHP mezőszabályokat, natív DHTMLX visszajelzést és backend/UI/API ellenőrzést rögzíti. Feature-migrációhoz a referencia teljes validációs leltára és az eltérések dokumentálása kötelező.

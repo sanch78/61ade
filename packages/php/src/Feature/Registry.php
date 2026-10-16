@@ -5,6 +5,9 @@ final class Registry
 {
     private array $actions = [];
     private array $views = [];
+    private array $fields = [];
+    public function registerFields(string $resource, array $fields): void { $this->fields[$resource] = array_column($fields, null, 'name'); }
+    public function fields(string $resource): array { return $this->fields[$resource] ?? []; }
     public function add(Action $action): void
     {
         $key=$action->resource.'.'.$action->name;

@@ -39,6 +39,12 @@ final class Workspace
                 $actions[]=['name'=>$name,'label'=>match($name){'create'=>'Hozzáadás','update'=>'Módosítás',default=>$a->label},'submitLabel'=>in_array($name,['create','update'],true)?'Mentés':$a->label,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
             }
             if(!$actions)continue;
+            $fields=$this->registry->fields($view['resource']);
+            $view['columns']=array_map(static function($column) use ($fields,$ctx){
+                $field=$fields[$column['id']]??null;
+                if(!$field)return $column;
+                return [...$field->column,...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
+            },$view['columns']);
             $view['actions']=$actions;
             $view['layout']=$view['layout']->metadata();
             $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
