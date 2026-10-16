@@ -9,3 +9,5 @@
 ## FB-0005 — Native DHTMLX theme switching
 
 ## FB-0006 — Configurable workspace, dynamic/live lists
+
+## FB-0007 — Business code and framework boundary
