@@ -45,8 +45,9 @@ export class Workspace {
   constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,live:LiveConfig){
     const region=(node:Region):any=>({...node,header:node.header?escape(node.header):undefined,
       ...(node.rows?{rows:node.rows.map(region)}:{}),...(node.cols?{cols:node.cols.map(region)}:{})});
-    const body=view.singleton?{id:"body",header:escape(view.title),rows:[{id:"commands",height:48},{id:"detail"}]}:{...region(view.layout.tree),id:"body"};
-    this.layout=new Layout(host,{type:"space",rows:[body]});
+    this.layout=new Layout(host,{type:"space",...(view.singleton
+      ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48},{id:"detail"}]}]}
+      :region(view.layout.tree))});
     this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"title",type:"title",value:escape(view.title)}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).map(a=>({id:a.name,value:escape(a.label)}))]});
     this.commands.events.on("click",(id:string|number)=>{const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);

@@ -25,3 +25,5 @@
 ## FB-0013 — Center panel resizer grips
 
 ## FB-0014 — Flags in the object's main form
+
+## FB-0015 — Remove redundant framed layout wrapper
