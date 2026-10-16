@@ -24,13 +24,16 @@ try{$call('update','1',['title'=>'Bad','owner_id'=>'2','revision'=>$row['revisio
 $rule->execute(['list','deny','id','1','']);check($call('list')===[],'Explicit object deny SQL');
 $rule->execute(['get','deny','all','','title']);check(!isset($call('get','1')['title']),'Field redaction');
 $api=new Context($ctx->actor,'api',$workspace->acl,$db,['records.get']);
-try{$workspace->executor->execute($api,'records','get','1',[]);throw new RuntimeException('UI grant reached API');}catch(Failure $e){check($e->status===403,'API channel isolation');}
+try{$workspace->executor->execute($api,'records','get','1',[]);throw new RuntimeException('UI grant reached API');}catch(Failure $e){check($e->status===404,'API channel isolation without object disclosure');}
 $db->exec("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','records','get','api','allow','own','','')");
 check($workspace->executor->execute($api,'records','get','1',[])['title']==='Updated','Scoped API action');
 try{$workspace->executor->execute(new Context($ctx->actor,'api',$workspace->acl,$db,[]),'records','get','1',[]);throw new RuntimeException('Token scope bypass');}catch(Failure){}
 $tokens=new Tokens($db);$issued=$tokens->issue('1','test',['records.get']);check($tokens->authenticate($issued['secret'])['actor_id']==='1','Token authenticates');$tokens->revoke($issued['id'],'1');check($tokens->authenticate($issued['secret'])===null,'Token revoked');
 check((int)$db->query("SELECT COUNT(*) FROM vapa_audit WHERE outcome='rejected'")->fetchColumn()>=5,'Rejected operations audited');
 check(!str_contains(json_encode($db->query('SELECT * FROM vapa_audit')->fetchAll()),'Updated'),'No field values in audit');
+$lookup=new \Vapa\Feature\Lookup('records','records','record_id','title','owner_id');
+check($lookup->options($ctx)===[],'Relation choices obey object deny');
+try{(new Field('reference','Reference','select',options:$lookup->options(...)))->validate('1',$ctx);throw new RuntimeException('Forbidden relation accepted');}catch(Failure){}
 $db->exec("CREATE TRIGGER fail_audit BEFORE INSERT ON vapa_audit BEGIN SELECT RAISE(FAIL,'audit offline'); END");
 try{$call('update','1',['title'=>'Not committed','revision'=>$row['revision']]);}catch(Throwable){}
 check($db->query('SELECT title FROM records WHERE record_id=1')->fetchColumn()==='Updated','Audit failure rolls back write');

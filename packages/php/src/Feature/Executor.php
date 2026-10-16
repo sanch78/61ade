@@ -22,7 +22,7 @@ final class Executor
             $object=isset($target['id']) ? (string)$target['id'] : null;
             $owner=isset($target['owner']) ? (string)$target['owner'] : null;
             // Collection handlers must use the kernel SQL scope; no raw collection result is allowed.
-            if (!$action->collection && !$ctx->acl->allows($ctx->actor->id,$resource,$name,$ctx->channel,$object,$owner)) throw new Failure('Nincs hozzáférés.',403);
+            if (!$action->collection && !$ctx->acl->allows($ctx->actor->id,$resource,$name,$ctx->channel,$object,$owner)) throw new Failure($ctx->channel==='api' && $object!==null ? 'Nem található objektum.' : 'Nincs hozzáférés.',$ctx->channel==='api' && $object!==null ? 404 : 403);
             $known=array_column($action->fields,null,'name');
             foreach ($input as $key=>$value) if (!isset($known[$key])) throw new Failure('Ismeretlen vagy nem írható mező.');
             $values=[];
@@ -30,11 +30,12 @@ final class Executor
                 $allowed=$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$object ?? '',$owner,$field->name);
                 if(!$allowed){if(array_key_exists($field->name,$input) || ($name==='create' && $field->required))throw new Failure('A mező nem módosítható.',403);continue;}
                 if (!array_key_exists($field->name,$input) && !$field->required) continue;
-                $values[$field->name]=$field->validate($input[$field->name] ?? '');
+                $values[$field->name]=$field->validate($input[$field->name] ?? '',$ctx);
                 if (!$field->secret) $fields[]=$field->name;
             }
             $result=($action->handler)($ctx,$target,$values);
-            $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$name,$object ?? '', 'success',$fields);
+            $auditObject=$object ?? (is_array($result) && isset($result['id']) ? (string)$result['id'] : '');
+            $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$name,$auditObject, 'success',$fields);
             $this->db->commit();
             return $result;
         } catch (\Throwable $error) {

@@ -40,7 +40,8 @@ export class AdminShell {
   private listeners = new AbortController();
   private resize = () => {
     if (this.menu) {
-      const compact = this.root.clientWidth < 768;
+      const required=this.menuItems.reduce((sum:number,item:any)=>sum+40+String(item.value || "").length*9,305);
+      const compact = this.root.clientWidth < Math.max(768,required);
       if (compact !== this.compactMenu) {
         this.compactMenu = compact;
         this.menu.data.removeAll();
