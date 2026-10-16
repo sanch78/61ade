@@ -1,5 +1,5 @@
 export type LiveConfig={transport:"poll"|"websocket";endpoint:string;interval:number};
-export type Row={id:string;revision?:string;_actions?:string[];_editable?:string[];[key:string]:unknown};
+export type Row={id:string;revision?:string;_actions?:string[];_editable?:string[];_position?:Record<string,unknown>;[key:string]:unknown};
 export type Snapshot={items:Row[];previous:string|null;next:string|null;version?:string};
 type Call=(action:string,id?:string|null,values?:Record<string,unknown>)=>Promise<any>;
 

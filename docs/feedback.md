@@ -182,3 +182,14 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Ellenőrzés:** önálló PHP szerződésteszt (mezővalidáció, legacy érintetlen mező, select, related checkbox, ACL, API-scope, revízió, audit) és szintetikus Chromium text/select/checkbox, hibavisszajelzés, elvetés és újratöltés. CityScreen: PHP mezőmentés/validáció/session-visszavonás és két Chromium-próba (grid és főűrlap) sikeres; a korábbi account/validáció PHP regresszió is sikeres.
 - **Állapot:** megvalósítva, agent által ellenőrizve; felhasználói elfogadást nem állítunk.
 - **Átvezetés:** [mezőnkénti gridszerkesztés](field-presentation.md#mezőnkénti-gridszerkesztés).
+
+## FB-0018 — Szerkeszthető fejlécjelzés, rendezés és smart rendering
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Elvárás:** a fejléc jelezze, ha az oszlop szerkeszthető; a listák legyenek rendezhetők; az ADE smart rendering képességének tényleges meglétét ellenőrizni kell.
+- **Megfigyelés:** a Standard Grid megjelenítési virtualizációja és a VAPA 100-as/600-as gördülő adatablaka már működött; a rendezés a fejlécben tiltott, szerveren csak fix kulcssorrend volt. Teljes rekordszám szerinti scrollbar/ugrás nem volt megvalósítva, most sem állítjuk azt.
+- **Döntés:** általános fejlécjelzés a VAPA közös CSS-ében, DHTMLX header tooltip és esemény; a teljes jogosult/szűrt halmaz SQL-rendezése, stabil kurzorokkal és live ablakhatárral. Az oszlopok olvashatóságából következik a rendezhetőség; nincs fogyasztói sort-kód vagy gyári DHTMLX-módosítás.
+- **Megvalósítás:** `GridHeaders`, `Workspace`, `ListSource::sortableFields/read`, `Realtime` pozíciómetaadat. A readonly/titkos mezők védelme megmarad; rendezési kulcs módosításakor új szerverlista készül.
+- **Ellenőrzés:** PHP teljes bejárás és visszafelé kurzor szöveg/szám/ID, NULL/duplikáció és ACL esetén; szintetikus Chromium 1801 rekorddal, fejlécjellel, mindkét rendezési iránnyal, szűréssel és virtualizált, memóriakorlátos görgetéssel sikeres.
+- **Állapot:** megvalósítva és szintetikus fogyasztóval ellenőrizve; felhasználói elfogadást nem állítunk.
+- **Átvezetés:** [rendezés és smart rendering](workspaces.md#rendezés-és-smart-rendering), [mezőmegjelenítés](field-presentation.md).

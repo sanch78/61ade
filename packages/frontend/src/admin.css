@@ -50,3 +50,8 @@ body,
 #vapa-application .dhx_layout-space > .dhx_layout-resizer--y .dhx_layout-resizer__icon {
   bottom: -6px;
 }
+
+/* Common Grid affordances; vendor stylesheet remains unchanged. */
+.vapa-grid-editable .dhx_grid-header-cell-text::after { content: "✎"; margin-left: .35em; }
+.vapa-grid-sort-asc .dhx_grid-header-cell-text::before { content: "↑"; margin-right: .35em; }
+.vapa-grid-sort-desc .dhx_grid-header-cell-text::before { content: "↓"; margin-right: .35em; }

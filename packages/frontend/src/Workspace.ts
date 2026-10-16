@@ -1,4 +1,5 @@
 import { Form, Grid, Layout, Toolbar, Window, alert, message, awaitRedraw } from "@dhtmlx/suite";
+import { GridHeaders, gridHeader, type Sort } from "./GridHeaders";
 import { GridEditing,gridEditor } from "./GridEditing";
 import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
@@ -6,9 +7,9 @@ import { FormValidation, type FieldDefinition } from "./FormValidation";
 export type { FieldDefinition } from "./FormValidation";
 export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;fields:FieldDefinition[]};
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;align?:"left"|"center"|"right";editable?:boolean}[];actions:ActionDefinition[];singleton:boolean;group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
+export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;align?:"left"|"center"|"right";editable?:boolean}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
-const cursor=(edge:string,direction:string)=>btoa(JSON.stringify({edge,direction})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const cursor=(row:Row,direction:string)=>btoa(Array.from(new TextEncoder().encode(JSON.stringify({...row._position,edge:String(row.id),direction})),byte=>String.fromCharCode(byte)).join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="checkbox"?{
   type:"checkbox",name:f.name,label:f.label,labelPosition:"left",labelWidth:260,checked:String(value??f.defaultValue??"0")==="1"||value===true,disabled:readOnly,
 }:({
@@ -24,6 +25,8 @@ export class Workspace {
   readonly layout:Layout;
   private grid?:Grid;
   private gridEditing?:GridEditing;
+  private gridHeaders?:GridHeaders;
+  private sort:Sort={field:"id",direction:"desc"};
   private cellEditing=false;
   private commands:Toolbar;
   private content?:Layout;
@@ -57,17 +60,19 @@ export class Workspace {
     else{
       this.content=new Layout(document.createElement("div"),{rows:[{id:"commands",height:48},{id:"data"}]});
       this.content.getCell("commands").attach(this.commands);
-      this.grid=new Grid(null,{columns:[{id:"id",header:[{text:"ID"}],width:80,sortable:false},...view.columns.map(c=>({id:c.id,header:[{text:escape(c.header)}],
-        width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
+      this.grid=new Grid(null,{columns:[{id:"id",header:[gridHeader({id:"id",header:"ID"})],width:80,sortable:view.sortable?.includes("id")??false},...view.columns.map(c=>({id:c.id,header:[gridHeader(c)],
+        width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:view.sortable?.includes(c.id)??false,
         ...gridEditor(c),
         ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(value:unknown)=>escape(c.options?.[String(value)]??String(value??""))}:{}:{}),
       }))],rowHeight:40,autoWidth:true,selection:"row",htmlEnable:false});
+      this.gridHeaders=new GridHeaders(this.grid,view.columns,view.sortable??[],sort=>void this.changeSort(sort));
       this.gridEditing=new GridEditing(this.grid,view.actions.find(a=>a.name==="update")?.fields??[],()=>this.rows,
         async(row,field,value)=>{
           const result=await this.call("__edit",String(row.id),{field,value,revision:row.revision});
           if(this.disposed)return;
+          if(result.reauthenticate){location.reload();return;}
+          if(this.sort.field===field){await this.load();return;}
           await this.render(this.rows.map(item=>String(item.id)===String(row.id)?{...item,...result.values,revision:result.revision}:item),true);
-          if(result.reauthenticate)location.reload();
         },error=>this.error(error),active=>{this.cellEditing=active;if(!active&&!this.disposed)this.watch();});
       this.grid.events.on("cellClick",(row:any)=>{this.selected=String(row.id);this.capabilities();});
       this.grid.events.on("cellDblClick",(row:any,column:any)=>{if(column.editable&&row._editable?.includes(String(column.id)))return;const action=view.actions.find(a=>a.name==="update");if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);});
@@ -109,32 +114,38 @@ export class Workspace {
     const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||"Sikertelen művelet."),{status:r.status,fieldErrors:result.fieldErrors});return result.data;
   }
   private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:"Hiba",text:e && typeof e==="object" && "fieldErrors" in e && Object.values((e as any).fieldErrors??{}).length?Object.entries((e as any).fieldErrors).map(([name,error])=>`${this.view.actions.flatMap(a=>a.fields).find(f=>f.name===name)?.label??name}: ${error}`).join("\n"):e instanceof Error?e.message:"Sikertelen művelet.",htmlEnable:false});}
-  private watch():void{this.live.subscribe({limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,filters:this.filters});}
-  private async load():Promise<void>{
+  private watch():void{this.live.subscribe({sort:this.sort,anchor:this.rows[0]?cursor(this.rows[0],"next"):null,limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,filters:this.filters});}
+  private async changeSort(sort:Sort):Promise<void>{
+    if(this.busy||this.cellEditing||this.disposed)return;
+    const previous=this.sort;this.sort=sort;this.gridHeaders?.setSort(sort);
+    const operation=this.epoch+1;
+    if(!await this.load()&&operation===this.epoch&&!this.disposed){this.sort=previous;this.gridHeaders?.setSort(previous);this.watch();}
+  }
+  private async load():Promise<boolean>{
     const epoch=++this.epoch;this.abort?.abort();this.abort=new AbortController();this.busy=true;
     try{
-      if(this.view.singleton){const row=await this.call("get","self",{},this.abort.signal);if(this.disposed||epoch!==this.epoch)return;this.rows=[row];this.selected=String(row.id);await this.mountDetail(row);}
+      if(this.view.singleton){const row=await this.call("get","self",{},this.abort.signal);if(this.disposed||epoch!==this.epoch)return false;this.rows=[row];this.selected=String(row.id);await this.mountDetail(row);}
       else{
-        const data:Snapshot=await this.call("list",null,{mode:"dynamic",limit:100,filters:this.filters},this.abort.signal);
-        if(this.disposed||epoch!==this.epoch)return;this.previous=data.previous;this.next=data.next;await this.render(data.items,false);
+        const data:Snapshot=await this.call("list",null,{mode:"dynamic",limit:100,sort:this.sort,filters:this.filters},this.abort.signal);
+        if(this.disposed||epoch!==this.epoch)return false;this.previous=data.previous;this.next=data.next;await this.render(data.items,false);
       }
-      this.watch();
-    }catch(e){if(!this.disposed&&epoch===this.epoch&&!(e instanceof DOMException&&e.name==="AbortError"))await this.error(e);}
+      this.watch();return true;
+    }catch(e){if(!this.disposed&&epoch===this.epoch&&!(e instanceof DOMException&&e.name==="AbortError"))await this.error(e);return false;}
     finally{if(epoch===this.epoch)this.busy=false;}
   }
   private async more(direction:"next"|"previous"):Promise<void>{
     const token=direction==="next"?this.next:this.previous;if(!token||this.busy)return;
     const epoch=this.epoch;this.busy=true;
     try{
-      const data:Snapshot=await this.call("list",null,{mode:"dynamic",limit:100,cursor:token,filters:this.filters});
+      const data:Snapshot=await this.call("list",null,{mode:"dynamic",limit:100,cursor:token,sort:this.sort,filters:this.filters});
       if(this.disposed||epoch!==this.epoch)return;
       if(!data.items.length){if(direction==="next")this.next=null;else this.previous=null;return;}
       const joined=direction==="next"?[...this.rows,...data.items]:[...data.items,...this.rows];
       let rows=[...new Map(joined.map(row=>[String(row.id),row])).values()];
       if(direction==="next"){
-        this.next=data.next;if(rows.length>600){rows=rows.slice(-600);this.previous=cursor(String(rows[0].id),"previous");}
+        this.next=data.next;if(rows.length>600){rows=rows.slice(-600);this.previous=cursor(rows[0],"previous");}
       }else{
-        this.previous=data.previous;if(rows.length>600){rows=rows.slice(0,600);this.next=cursor(String(rows[rows.length-1].id),"next");}
+        this.previous=data.previous;if(rows.length>600){rows=rows.slice(0,600);this.next=cursor(rows[rows.length-1],"next");}
       }
       await this.render(rows,true);this.watch();
     }catch(e){await this.error(e);}finally{if(epoch===this.epoch)this.busy=false;}
@@ -223,5 +234,5 @@ export class Workspace {
     });
   }
   private revoke():void{this.rows=[];this.grid?.data.removeAll();this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
-  destroy():void{this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.gridEditing?.destroy();this.dialog?.destructor();this.layout.destructor();}
+  destroy():void{this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.dialog?.destructor();this.layout.destructor();}
 }
