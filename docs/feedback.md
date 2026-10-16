@@ -106,3 +106,11 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Megoldás:** közös deklaratív min-hossz/minta/mezőegyezés/SQL-egyediség, natív DHTMLX mezőhiba, név szerinti backend mezőhibák. Hibánál a form tartalma megmarad.
 - **Átvezetés:** [validáció és migráció](validation.md), [JSON-konfiguráció](configuration.md), AGENTS.md és CLAUDE.md kötelező paritásszabálya.
 - **Ellenőrzés:** `tests/shell/validation.php`, ACL- és 5000 rekordos listateszt sikeres. A fogyasztó külön PHP-paritástesztje és natív formhibát/egyediséget/javítás utáni mentést ellenőrző Chromium-tesztje sikeres. Felhasználói elfogadást nem állítunk.
+
+## FB-0010 — Megjegyzett belépés és e-mailes megerősítés
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Elvárás:** működő Bejelentkezve maradok, kiadástól 90 napos határral; felhasználónként kapcsolható, mindenkinél default-on e-mailes belépési megerősítés; keret által formázott levél üzletileg felülírható szöveggel.
+- **Döntés és megvalósítás:** a teljes shell/auth/session/SMTP/MIME/remember folyamat VAPA-képesség, JSON/env konfigurációval. A fogyasztó csak a fiókillesztést, levélszöveget és ACL-védett adminaction definícióját adja. A megerősítés előtti session nem hitelesített, és nem kap API/UI/WebSocket hozzáférést.
+- **Átvezetés:** [belépési védelem](authentication.md), [JSON-konfiguráció](configuration.md), `Authentication`, `Mail`, `Application`, DHTMLX `AdminShell`.
+- **Ellenőrzés:** `tests/shell/authentication.php` sikeres. A három önálló SMTP/MIME/DHTMLX Chromium-teszt sikeres, beleértve az Enterrel beküldést, új böngészősessiont, abszolút lejáratot, logoutot, default-on állapotot és per-user kapcsolót. A tesztadatok és levelek szintetikusak. A fogyasztó SMTP-relayén csak TLS-kapcsolatot ellenőriztünk, valódi levél vagy felhasználói belépés nélkül. Felhasználói elfogadást nem állítunk.

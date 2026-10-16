@@ -13,6 +13,9 @@ export type ShellDefinition = {
   authenticated: boolean;
   username: string;
   error: string;
+  rememberAvailable?: boolean;
+  rememberDays?: number;
+  confirmation?: { email: string; expires: number };
   displayName?: string;
   menu?: MenuDefinition[];
   views?: ViewDefinition[];
@@ -58,9 +61,11 @@ export class AdminShell {
       }
     }
     if (!this.loginWindow) return;
+    const width = this.definition.confirmation ? 460 : 420;
+    const height = this.definition.confirmation ? 370 : this.definition.rememberAvailable ? 340 : 290;
     this.loginWindow.setSize(
-      Math.min(420, innerWidth - 24),
-      Math.min(290, innerHeight - 24),
+      Math.min(width, innerWidth - 24),
+      Math.min(height, innerHeight - 24),
     );
     this.loginWindow.show();
   };
@@ -149,12 +154,13 @@ export class AdminShell {
       this.layout.getCell("main-menu").attach(menu);
 
     } else {
-      this.mountLogin();
+      if (definition.confirmation) this.mountConfirmation();
+      else this.mountLogin();
     }
     window.addEventListener("resize", this.resize);
     if (definition.error) requestAnimationFrame(() => {
       void alert({ header: "Hiba", text: definition.error, htmlEnable: false, buttons: ["Rendben"] })
-        .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus("password"); });
+        .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus(definition.confirmation ? "code" : "password"); });
     });
   }
 
@@ -174,7 +180,7 @@ export class AdminShell {
       title: "Bejelentkezés",
       ariaLabel: "Bejelentkezés",
       width: 420,
-      height: 290,
+      height: definition.rememberAvailable ? 340 : 290,
       modal: true,
       closable: false,
       movable: true,
@@ -205,6 +211,12 @@ export class AdminShell {
           maxlength: 1024,
           autocomplete: true,
         },
+        ...(definition.rememberAvailable ? [{
+          type: "checkbox" as const,
+          name: "remember",
+          text: `Bejelentkezve maradok (${definition.rememberDays ?? 90} nap)`,
+          checked: false,
+        }] : []),
         {
           align: "end",
           cols: [
@@ -226,6 +238,7 @@ export class AdminShell {
       this.post("login", {
         username: value.username,
         password: value.password,
+        remember: value.remember ? "1" : "0",
       });
     };
     form.events.on("click", (name: string) => {
@@ -262,17 +275,67 @@ export class AdminShell {
     requestAnimationFrame(() => {
       form.setFocus(definition.error ? "password" : "username");
       const inputs = this.loginWindow?.getContainer().querySelectorAll("input");
-      inputs?.forEach((input) =>
+      inputs?.forEach((input) => {
+        if (!["username", "password"].includes(input.name)) return;
         input.setAttribute(
           "autocomplete",
           input.type === "password" ? "current-password" : "username",
-        ),
-      );
+        );
+      });
+    });
+  }
+
+  private mountConfirmation(): void {
+    const confirmation = this.definition.confirmation!;
+    this.loginWindow = new Window({
+      title: "E-mailes megerősítés",
+      ariaLabel: "E-mailes megerősítés",
+      width: 460,
+      height: 370,
+      modal: true,
+      closable: false,
+      resizable: false,
+    });
+    const form = new Form(document.createElement("div"), {
+      padding: 20,
+      rows: [
+        { type: "text", name: "recipient", label: "Megerősítő levelet küldtünk", value: escape(confirmation.email) },
+        { type: "input", name: "code", label: "Megerősítő kód", labelPosition: "top", required: true, maxlength: 6,
+          validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: "A levélben kapott 6 számjegyű kód szükséges." },
+        { type: "button", name: "verify", text: "Belépés megerősítése", color: "primary" },
+        { cols: [
+          { type: "button", name: "resend", text: "Új kód küldése", view: "link" },
+          { type: "button", name: "cancel", text: "Vissza a belépéshez", view: "link" },
+        ] },
+      ],
+    });
+    this.loginForm = form;
+    const submit = () => {
+      if (!this.submitting && form.validate()) this.post("confirm_login", { code: String(form.getValue().code ?? "") });
+    };
+    form.events.on("click", (name: string) => {
+      if (name === "verify") submit();
+      if (name === "resend") this.post("resend_login");
+      if (name === "cancel") this.post("cancel_login");
+    });
+    document.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.repeat || !(event.target instanceof HTMLInputElement) || event.target.name !== "code") return;
+      event.preventDefault();
+      form.setValue({ code: event.target.value });
+      submit();
+    }, { capture: true, signal: this.listeners.signal });
+    this.loginWindow.attach(form);
+    this.resize();
+    requestAnimationFrame(() => {
+      form.setFocus("code");
+      const input = this.loginWindow?.getContainer().querySelector('input[name="code"]');
+      input?.setAttribute("autocomplete", "one-time-code");
+      input?.setAttribute("inputmode", "numeric");
     });
   }
 
   private post(
-    action: "login" | "logout",
+    action: "login" | "logout" | "confirm_login" | "resend_login" | "cancel_login",
     fields: Record<string, string> = {},
   ): void {
     if (this.submitting) return;

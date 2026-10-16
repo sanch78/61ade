@@ -15,6 +15,7 @@ final readonly class ApplicationDefinition
         public string $cookiePath = '/',
         public ?\Vapa\Feature\Workspace $workspace = null,
         public \Vapa\Live\LiveConfig $live = new \Vapa\Live\LiveConfig(),
+        public ?\Vapa\Authentication\LoginSecurity $authentication = null,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)) {
