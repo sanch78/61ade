@@ -46,7 +46,7 @@ export class Workspace {
     this.layout=new Layout(host,{type:"space",rows:[body,{id:"status",height:32}]});
     this.status=new Toolbar(undefined,{data:[{id:"status-text",type:"title",value:"Betöltés…"}]});
     this.layout.getCell("status").attach(this.status);
-    this.commands=new Toolbar(undefined,{data:[{id:"title",type:"title",value:escape(view.title)},...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).map(a=>({id:a.name,value:escape(a.label)}))]});
+    this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"title",type:"title",value:escape(view.title)}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).map(a=>({id:a.name,value:escape(a.label)}))]});
     this.commands.events.on("click",(id:string|number)=>{const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
@@ -91,7 +91,7 @@ export class Workspace {
   private async call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{
     const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?vapa=1";
     const r=await fetch(endpoint,{method:"POST",credentials:"same-origin",signal,headers:{"Content-Type":"application/json","X-VAPA-CSRF":this.csrf},body:JSON.stringify({resource:this.view.resource,action,id,values})});
-    const result=await r.json();if(!r.ok||!result.ok)throw new Error(result.error||"Sikertelen művelet.");return result.data;
+    const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||"Sikertelen művelet."),{status:r.status});return result.data;
   }
   private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:"Hiba",text:e instanceof Error?e.message:"Sikertelen művelet.",htmlEnable:false});}
   private watch():void{this.live.subscribe({limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,filters:this.filters});}
@@ -198,6 +198,6 @@ export class Workspace {
       }).catch(e=>this.error(e)).finally(()=>{saving=false;if(!this.disposed&&(this.editor===form||this.detail===form))form.enable();});
     });
   }
-  private revoke():void{this.rows=[];this.grid?.data.removeAll();this.detail?.clear();this.detail?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
+  private revoke():void{this.rows=[];this.grid?.data.removeAll();this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
   destroy():void{this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.layout.destructor();}
 }

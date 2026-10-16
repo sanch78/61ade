@@ -2,12 +2,19 @@
 declare(strict_types=1);
 // JSON-lines worker for the VAPA WebSocket transport, never a public HTTP endpoint.
 require getenv('VAPA_AUTOLOAD_FILE') ?: throw new RuntimeException('VAPA_AUTOLOAD_FILE is required');
-$app=require getenv('VAPA_APPLICATION_FILE') ?: throw new RuntimeException('VAPA_APPLICATION_FILE is required');
+$applicationFile=getenv('VAPA_APPLICATION_FILE') ?: throw new RuntimeException('VAPA_APPLICATION_FILE is required');
+$app=require $applicationFile;
 if(!$app instanceof Vapa\Shell\ApplicationDefinition || !$app->workspace)throw new RuntimeException('A VAPA workspace is required');
-session_name($app->sessionName);
-while(($line=fgets(STDIN,131073))!==false){
+session_name($app->sessionName);session_save_path($app->runtime.'/sessions');
+ini_set('session.use_cookies','0');ini_set('session.cache_limiter','');ini_set('session.use_strict_mode','1');
+ini_set('display_errors','stderr');
+while(!feof(STDIN)){
+    $read=[STDIN];$write=[];$except=[];
+    if(stream_select($read,$write,$except,30)===0)continue;
+    $line=fgets(STDIN,131073);if($line===false)continue;
     $id=null;
     try{
+        $app=require $applicationFile;
         $request=json_decode($line,true,flags:JSON_THROW_ON_ERROR);$id=$request['id']??null;
         $state=Vapa\Live\Tickets::session($app->runtime,(string)($request['ticket']??''));
         $actor=$app->identities->find((string)$state['identity']);
