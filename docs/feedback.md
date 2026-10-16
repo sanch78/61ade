@@ -69,3 +69,13 @@ Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a f
 - **Átvezetés:** `AdminShell` adapter, [shell](shell.md).
 
 FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.cjs`, valamint a fogyasztó profil/account/ACL/API PHP- és Chromium-tesztjei. Kapcsolódó implementáció: `packages/php/src/Feature`, `Access`, `Audit`, `packages/frontend/src/Workspace.ts`. Canonical használat: [ACL és műveletek](access-and-actions.md). Az admin saját profilján csak jelszóváltoztatás szerepel; ez a fogyasztó üzleti szabálya, nem kernelbe égetett user admin.
+
+## FB-0006 — Konfigurálható munkaterület, dinamikus és élő listák
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói pontosítás.
+- **Elvárás:** a filter/form/grid külön, címzett és konfigurálható layoutterület legyen. Az overlay form választható és lehet alapértelmezett. A lapozógombos grid és a kézi Frissítés nem alapműködés. Nagy listák dinamikusan, korlátozott memóriával töltődnek.
+- **Élő adatok:** minden látható lista változását figyeljük. Projektszinten polling vagy WebSocket választható; az első fogyasztó WebSocketet kap. A kiválasztást, szűrést, görgetést és nyitott űrlapot az automatikus frissítés megőrzi.
+- **Műveletfeliratok:** lista: Hozzáadás / Módosítás, ACL-engedéllyel. Mentés kizárólag a tényleges beküldő gombon szerepel.
+- **Profilom:** közvetlen adatlap/form, nem adatgrid. Csak a szerkeszthető mezők módosíthatók, a többi readonly. Saját ACL readonly nézete opcionális, nem helyettesíti a profilformot.
+- **Állapot:** implementáció alatt.
+- **Döntés:** újrahasználható VAPA layout/lista/élőadat-képesség, alkalmazási frontend nélkül.
