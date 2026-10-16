@@ -26,6 +26,10 @@ test('framework creates DHTMLX login and menu, with an empty workspace', async (
     expect(userBox.x).toBeLessThan(applicationBox.x);
     const footerBox = await footer.boundingBox();
     expect(footerBox.y + footerBox.height).toBe(page.viewportSize().height);
+    for (const box of [userBox, applicationBox]) {
+        expect(box.y).toBeGreaterThanOrEqual(footerBox.y);
+        expect(box.y + box.height).toBeLessThanOrEqual(footerBox.y + footerBox.height);
+    }
     await page.getByRole('menuitem', { name: /^Nyilvántartás/ }).click();
     await expect(page.getByRole('menuitem', { name: 'Dokumentumok', exact: true })).toHaveAttribute('aria-disabled', 'true');
     await page.getByRole('menuitem', { name: 'Kijelentkezés', exact: true }).click();
@@ -63,4 +67,21 @@ test('invalid login returns to the DHTMLX form with safe feedback', async ({ pag
     await expect(page.getByText('Hibás felhasználónév vagy jelszó, illetve nem elérhető fiók.', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'confirm', exact: true }).click();
     await expect(page.getByLabel(/Jelszó/)).toHaveValue('');
+});
+
+test('Skyblue is the default and explicit theme choices survive reload', async ({ page }) => {
+    await login(page);
+    await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'skyblue');
+    await expect(page.getByRole('button', { name: 'Skyblue', exact: true })).toBeVisible();
+    const color = await page.locator('.vapa-session-bar .dhx_toolbar').evaluate(e => getComputedStyle(e).backgroundColor);
+    expect(color).toBe('rgb(227, 239, 249)');
+    await page.getByRole('button', { name: 'Skyblue', exact: true }).click();
+    await page.getByText('Éjjeli', { exact: true }).click();
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'dark');
+    await page.getByRole('button', { name: 'Éjjeli', exact: true }).click();
+    await page.getByText('Skyblue', { exact: true }).click();
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'skyblue');
+    await page.screenshot({path: 'codex/tmp/skyblue-shell.png'});
 });

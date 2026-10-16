@@ -64,7 +64,7 @@ Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a f
 ## FB-0005 — Natív DHTMLX témaváltás
 
 - **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Döntés:** Default és Éjjeli stílus, a főmenüsor jobb oldalán; DHTMLX `setTheme` API, nem az ADE saját skin-rétegének átvétele. A választás böngészőnként megmarad.
+- **Döntés:** Default és Éjjeli stílus (a témakínálatot és alapértéket az FB-0012 bővíti Skyblue-val), a főmenüsor jobb oldalán; DHTMLX `setTheme` API, nem az ADE saját skin-rétegének átvétele. A választás böngészőnként megmarad.
 - **Állapot:** implementálva, böngészőből ellenőrizve; a választás újratöltés után is megmarad.
 - **Átvezetés:** `AdminShell` adapter, [shell](shell.md).
 
@@ -124,3 +124,13 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
 - **Ellenőrzés:** TypeScript typecheck/build és PHP lint/shell/JSON-szerződésteszt sikeres. A négy shell-böngészőteszt, az önálló CRUD/nézetváltás és a pollingteszt sikeres (a környezeti időtúllépéseket követő célzott újrafuttatásokkal).
 - **Átvezetés:** [shell](shell.md#egységes-alsó-információs-sáv), [munkaterületek](workspaces.md), `ApplicationDefinition`, `JsonApplication`, `AdminShell`, `Workspace`.
+
+## FB-0012 — Skyblue alapértelmezett megjelenés
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás; az FB-0005 témakínálatát bővíti.
+- **Elvárás:** Skyblue legyen az alapértelmezett skin.
+- **Döntés és korlát:** a Suite 9-ben nincs gyári legacy Skyblue. A VAPA a dokumentált custom-theme CSS-változókkal világoskék Skyblue-palettát biztosít; ez nem a régi skin teljes, képes másolata. A vezérlők és a témaváltás DHTMLX maradnak.
+- **Használat:** mentett választás nélkül `skyblue`; a meglévő érvényes böngészőpreferencia megmarad. Skyblue, Default és Éjjeli választható.
+- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
+- **Ellenőrzés:** TypeScript typecheck/build; Chromiumban Skyblue alapérték, toolbar háttérszíne, Éjjeli/Skyblue váltás és reload utáni megőrzés sikeres. A képi ellenőrzés során az alsó Toolbar intrinsic magasságából eredő szövegvágást javítottuk; a teljes szöveg befoglaló méretét is ellenőrzi a shellteszt.
+- **Átvezetés:** [shell megjelenési mód](shell.md#megjelenési-mód), `AdminShell.ts`, `admin.css`, `browser.spec.cjs`.

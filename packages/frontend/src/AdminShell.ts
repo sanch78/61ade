@@ -76,8 +76,8 @@ export class AdminShell {
     private command: HTMLFormElement,
     private definition: ShellDefinition,
   ) {
-    let theme="light";
-    try { theme=localStorage.getItem("vapa-theme")==="dark"?"dark":"light"; } catch {}
+    let theme="skyblue";
+    try { const saved=localStorage.getItem("vapa-theme"); if(saved==="dark"||saved==="skyblue"||saved==="light")theme=saved; } catch {}
     setTheme(theme,document.documentElement);
     if (definition.protocol !== 1)
       throw new Error("Nem kompatibilis VAPA felületverzió.");
@@ -109,12 +109,12 @@ export class AdminShell {
       ],
     });
     this.layout.getCell("status").attach(status);
-    const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:theme==="dark"?"Éjjeli":"Default",items:[{id:"theme-light",value:"Default"},{id:"theme-dark",value:"Éjjeli"}]}]});
+    const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:theme==="dark"?"Éjjeli":theme==="skyblue"?"Skyblue":"Default",items:[{id:"theme-skyblue",value:"Skyblue"},{id:"theme-light",value:"Default"},{id:"theme-dark",value:"Éjjeli"}]}]});
     themeControl.events.on("click",(id:string|number)=>{
-      if(id!=="theme-light" && id!=="theme-dark")return;
-      const next=id==="theme-dark"?"dark":"light";
+      if(id!=="theme-light" && id!=="theme-dark" && id!=="theme-skyblue")return;
+      const next=id==="theme-dark"?"dark":id==="theme-skyblue"?"skyblue":"light";
       setTheme(next,document.documentElement);
-      themeControl.data.update("theme-choice",{value:next==="dark"?"Éjjeli":"Default"});
+      themeControl.data.update("theme-choice",{value:next==="dark"?"Éjjeli":next==="skyblue"?"Skyblue":"Default"});
       try{localStorage.setItem("vapa-theme",next);}catch{}
     });
     this.layout.getCell("theme").attach(themeControl);
