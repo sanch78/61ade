@@ -134,3 +134,13 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
 - **Ellenőrzés:** TypeScript typecheck/build; Chromiumban Skyblue alapérték, toolbar háttérszíne, Éjjeli/Skyblue váltás és reload utáni megőrzés sikeres. A képi ellenőrzés során az alsó Toolbar intrinsic magasságából eredő szövegvágást javítottuk; a teljes szöveg befoglaló méretét is ellenőrzi a shellteszt.
 - **Átvezetés:** [shell megjelenési mód](shell.md#megjelenési-mód), `AdminShell.ts`, `admin.css`, `browser.spec.cjs`.
+
+## FB-0013 — A panelméretező középre igazítása
+
+- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
+- **Megfigyelés:** a Suite `space` layoutban a hárompontos fogantyú a panel szegélyén jelenik meg; önálló gyári DHTMLX layouttal is reprodukálható.
+- **Elvárás és döntés:** javítsuk a VAPA saját, célzott CSS-szabályával; a gyári DHTMLX CSS-fájlt ne módosítsuk. A fogantyú a 12 px panelköz közepére kerül mindkét tengelyen.
+- **Megvalósítás:** `#vapa-application` alá szűkített `dhx_layout-space` resizerikon-felülírás; a többi layout és resizer változatlan.
+- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
+- **Ellenőrzés:** frontend build és a két szintetikus Chromium-teszt sikeres; mindkét tengely középre igazítása három témával és tényleges egérhúzás ellenőrizve.
+- **Átvezetés:** [panelméretező](workspaces.md#panelméretező-megjelenítése), `packages/frontend/src/admin.css`, `tests/shell/layout-resizer.spec.cjs`.
