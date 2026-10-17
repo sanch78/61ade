@@ -80,8 +80,10 @@ test('view dropdown is last; editable headings reserve space for the hover sort 
  await header.hover();
  const spacing=await header.locator('.dhx_grid-header-cell-text').evaluate(element=>({padding:parseFloat(getComputedStyle(element).paddingRight),labelWidth:getComputedStyle(element.querySelector('.dhx_grid-header-cell-text_content')).width,width:element.clientWidth}));
  expect(spacing.padding).toBe(24);expect(parseFloat(spacing.labelWidth)).toBeLessThan(spacing.width-24);
+ await header.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'header-editable-hover.png')});
  await header.click();await expect(header).toHaveAttribute('aria-sort','ascending');
  await expect(header.locator('.dhx_grid-sort-icon')).toBeHidden();
+ await header.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'header-editable-sorted.png')});
  await toolbar.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
  await expect(toolbar.getByRole('button').last()).toHaveText('Nézet: Kártyák');
  await page.evaluate(()=>workspace.destroy());

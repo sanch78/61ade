@@ -19,7 +19,7 @@ Használat: [munkaterületek](workspaces.md#kártyák-rekordadatok-sorszám-és-
 | A gomb elfér a konténerben, hover alatt is | Toolbar és menüsor méretezése keret-CSS-ben; `list-presentation.spec.cjs` és `browser.spec.cjs` Skyblue/Default/Éjjeli témán mér. A témagomb tényleges hover-képe is ellenőrzött. |
 | Fehér csík a gombsor alatt | A Toolbar teljes cellamagasságot tölt ki, a navbar belső paddingje méretezett. A menüsor alján a teszt csak a natív 1 px panelhatárt engedi; nagy üres sáv nincs. |
 | Nézet-dropdown utolsóként | A műveletek után, spacerrel jobbra igazított natív dropdown; az aktív nézet a feliratban látszik. `list-presentation.spec.cjs` ellenőrzi, hogy utolsó gomb; a váltás és mobil állapot is ellenőrzött. |
-| Rendezés és ceruza nem ütközik | A mezőcím saját szélességű, a hover-ikon külön 24 px helyet kap; aktív rendezéskor nincs második Suite-nyíl. A fejléc CSS-geometriája és az `aria-sort` böngészőben ellenőrzött. A rendezés továbbra is a teljes SQL-halmazé. |
+| Rendezés és ceruza nem ütközik | A mezőcím saját szélességű, a hover-ikon külön 24 px helyet kap; aktív rendezéskor nincs második Suite-nyíl. A fejléc CSS-geometriája és az `aria-sort` böngészőben ellenőrzött; a `header-editable-hover.png` és `header-editable-sorted.png` célzott képek vizuális ellenőrzése is sikeres. A rendezés továbbra is a teljes SQL-halmazé. |
 
 ## Lefutott próbák
 
