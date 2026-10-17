@@ -3,7 +3,7 @@ import type { ViewDefinition } from "./Workspace";
 import { gridEditor } from "./GridEditing";
 import type { Row } from "./Realtime";
 
-import { escape, recordFields } from "./RecordPresentation";
+import { escape, recordFields, recordCheckbox } from "./RecordPresentation";
 type Position={id?:string;offset:number;x:number;y:number};
 
 /** Native Suite widgets share one bounded data window and action selection. */
@@ -29,6 +29,7 @@ export class ResponsiveGrid {
     this.layout=new Layout(host,{type:"none",css:"vapa-grid-views",views:[{id:"table"},{id:"cards"}],activeView:"table"});
     this.grid=new Grid(null,{columns:[...(options.selection?[{id:"_mark",header:[{text:"Jelölés"}],width:66,sortable:false,htmlEnable:true,template:(_:unknown,row:any)=>`<input type="checkbox" aria-label="Sor jelölése: ${escape(row.id)}" ${this.marked.has(String(row.id))?"checked":""}>`}]:[]),...(options.rowNumbers!==false?[{id:"_number",header:[{text:"#"}],width:56,sortable:false}]:[]),{id:"id",header:[{text:"ID"}],width:80,sortable:false},...columns.map(c=>({id:c.id,header:[{text:escape(c.header)}],width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
       ...gridEditor(c),
+      ...(c.type==="checkbox"?{type:"string" as const,editable:false,htmlEnable:true,template:(_:unknown,row:any)=>recordCheckbox(row,c)}:{}),
       ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(value:unknown)=>escape(c.options?.[String(value)]??String(value??""))}:{}:{}),
     }))],rowHeight:40,autoWidth:true,resizable:true,selection:"row",htmlEnable:false});
     this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:true,keyNavigation:true,css:"vapa-grid-cards",template:(row:Row)=>
@@ -36,7 +37,7 @@ export class ResponsiveGrid {
       eventHandlers:{onclick:{"vapa-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
     const selected=(id:string|number)=>{this.selected=String(id);select(this.selected);};
     this.grid.events.on("cellClick",(row:any,column:any)=>{selected(row.id);if(column.id==="_mark")this.toggleMark(String(row.id));});
-    this.grid.events.on("cellDblClick",(row:any,column:any)=>{selected(row.id);if(column.id==="_number"){options.details?.(String(row.id));return;}if(column.id==="_mark")return;if(column.editable&&row._editable?.includes(String(column.id)))return;open();});
+    this.grid.events.on("cellDblClick",(row:any,column:any)=>{selected(row.id);if(column.id==="_number"){options.details?.(String(row.id));return;}if(column.id==="_mark"||columns.some(c=>c.id===column.id&&c.type==="checkbox"&&c.editable&&row._editable?.includes(c.id)))return;if(column.editable&&row._editable?.includes(String(column.id)))return;open();});
     this.cards.selection.events.on("afterSelect",(id:string|number)=>selected(id));
     this.cards.events.on("doubleclick",(id:string|number,event:Event)=>{if((event?.target as HTMLElement)?.closest(".vapa-card-edit"))return;selected(id);if(options.details)options.details(String(id));else open();});
     this.layout.getCell("table").attach(this.grid);this.layout.getCell("cards").attach(this.cards);

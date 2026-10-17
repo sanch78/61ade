@@ -49,3 +49,5 @@
 ## FB-0026 — Grid shadow below column headings
 
 ## FB-0027 — Toolbar/header divider and card top spacing
+
+## FB-0029 — Right-edge card pencil and shared editable checkbox
