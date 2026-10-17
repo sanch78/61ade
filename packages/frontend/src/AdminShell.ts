@@ -35,11 +35,19 @@ const escape = (text: string) =>
       ]!,
   );
 
+/** Finish native popup/focus state before replacing a responsive menu tree. */
+class NavigationMenu extends Menu {
+  replaceItems(items:object[]):void{
+    this._close(new MouseEvent("click"));
+    this.data.removeAll();this.data.parse(items);
+  }
+}
+
 /** VAPA owns the DHTMLX lifecycle; consumers supply definitions, never shell markup. */
 export class AdminShell {
   private releaseIcons=widgetIcons();
   private layout: Layout;
-  private menu?: Menu;
+  private menu?: NavigationMenu;
   private workspace?: Workspace;
   private navigation=0;
   private route = () => {
@@ -64,15 +72,12 @@ export class AdminShell {
       const compact = this.root.clientWidth < Math.max(768,required);
       if (compact !== this.compactMenu) {
         this.compactMenu = compact;
-        this.menu.data.removeAll();
         const items = structuredClone(this.menuItems);
-        this.menu.data.parse([
-          ...(compact && this.menuItems.length
-            ? [{ id: "vapa-main-menu", value: "Menü", icon:"dxi dxi-view-grid", items }]
-            : items),
+        const entries=[...items,
           { id: "vapa-session-separator", type: "separator" },
           { id: "vapa-logout", value: "Kijelentkezés", icon:"dxi dxi-arrow-left" },
-        ]);
+        ];
+        this.menu.replaceItems(compact?[{id:"vapa-main-menu",value:"Menü",icon:"dxi dxi-view-grid",items:entries}]:entries);
       }
     }
     if (!this.loginWindow) return;
@@ -168,7 +173,7 @@ export class AdminShell {
         }else features.push(item);
       }
       this.menuItems = [...map(definition.menu || []), ...features];
-      const menu = new Menu(undefined, { navigationType: "click" });
+      const menu = new NavigationMenu(undefined, { navigationType: "click" });
       this.menu = menu;
       this.resize();
       menu.events.on("click", (id: string | number) => {

@@ -276,3 +276,11 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [mezőprezentáció](field-presentation.md#egységes-checkbox-és-kártya-szerkesztésjelzés), [módszertan](usage.md).
 - **Ellenőrzés:** typecheck/build és `git diff --check` PASS; védett szintetikus Chromium 2/2 és fogyasztói inline/kártya integráció 1/1 PASS. Checkboxméret-egyezés, ceruzamentes kapcsoló/fejléc, jobb széli ikonról nyitás, Enter/Space, mentés/validáció/újratöltés és readonly sorjog ellenőrzött. Skyblue képi ellenőrzés PASS; dev assetek publikálva, cacheverzió `v=15`.
 - **Állapot:** megvalósítva / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
+
+## FB-0028 — Kompakt popup és teljes mobil navigáció/műveletsor
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói hibajelzés és elvárás.
+- **Elvárás:** kisebb popupfejléc; a grid toolbar a főmenühöz hasonlóan alkalmazkodjon; mobilon minden főmenüpont, a Kijelentkezés is a Menü alatt legyen; a mobilkártyák szélessége legyen egységes.
+- **Megvalósítás:** 40 px natív Window-fejléc a gyári felső/alsó többlettérköz nélkül; natív `ResponsiveToolbar` a meglévő elem-ID-k, ACL-állapot és események megőrzésével, mobilon vagy szűk panelen Műveletek dropdownnal. Kompakt főmenüben a kijelentkezés és elválasztó is a gyűjtőmenü része. Átméretezéskor a natív popupállapot lezárul, a gyári menüelem-típusok nem kerülnek át a visszaállított vízszintes toolbarba. A kártyák `border-box`, zsugorodás nélküli natív szélességet használnak. Assetverzió `v=14`.
+- **Használat:** [ablakfejléc és mobilmenü](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü), [műveletsor és kártyaszélesség](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség), [módszertan](usage.md).
+- **Ellenőrzés:** célzott Chromium: tényleges mobil kijelentkezés és mobil szűrés/szerkesztés/desktop-visszaállás PASS; önálló fogyasztón a tiltott/engedélyezett műveletállapot, beágyazott rendezés és desktop-visszaállás, valamint a 40 px fejléc és azon belüli bezárógomb három témában PASS. Hosszú, szóköz nélküli tartalommal az egységes kártyaszélesség PASS. Teljes regresszió még folyamatban; felhasználói elfogadást nem állítunk.

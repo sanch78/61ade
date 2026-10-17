@@ -6,14 +6,17 @@ test('native cards preserve selection, editing and live data across responsive c
  await expect(page.locator('.dhx_grid')).toBeVisible();
  await page.setViewportSize({width:390,height:844});
  const cards=page.locator('.vapa-grid-card');await expect(cards.first()).toBeVisible();
- await expect(page.getByRole('button',{name:'Nézet: Kártyák',exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Műveletek',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Műveletek',exact:true}).click();
+ await expect(page.getByText('Nézet: Kártyák',{exact:true})).toBeVisible();
  expect((await page.locator('.vapa-grid-cards').boundingBox()).width).toBeGreaterThan(340);
- await page.getByRole('button',{name:'Szűrés',exact:true}).click();
+ await page.getByText('Szűrés',{exact:true}).click();
  await expect(page.getByRole('dialog').getByLabel('Cím',{exact:true})).toBeVisible();
+ expect((await page.locator('.dhx_window-header').boundingBox()).height).toBe(40);
  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:false}).click();
 
- await cards.first().click();await expect(page.getByRole('button',{name:'Módosítás',exact:true})).toBeEnabled();
- await page.getByRole('button',{name:'Módosítás',exact:true}).click();await expect(page.getByRole('dialog').getByLabel('Cím',{exact:true})).toBeVisible();
+ await cards.first().click();await page.getByRole('button',{name:'Műveletek',exact:true}).click();
+ await page.getByText('Módosítás',{exact:true}).click();await expect(page.getByRole('dialog').getByLabel('Cím',{exact:true})).toBeVisible();
  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:false}).click();
  await page.setViewportSize({width:1280,height:900});await expect(page.locator('.dhx_grid')).toBeVisible();
  await expect(page.getByRole('button',{name:'Módosítás',exact:true})).toBeEnabled();
@@ -32,7 +35,7 @@ test('synthetic cards escape content, retain fields, selection and scroll during
  await page.setViewportSize({width:390,height:844});await page.setContent('<div id="vapa-application"></div>');
  await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
  await page.evaluate(()=>{
-  window.rows=Array.from({length:100},(_,i)=>({id:String(i+1),title:i===0?'<img src=x onerror=alert(1)>':'Synthetic record '+i,active:i%2===0,status:'open',hidden:'secret'}));
+  window.rows=Array.from({length:100},(_,i)=>({id:String(i+1),title:i===0?'<img src=x onerror=alert(1)>':i===1?'Unbroken'.repeat(100):'Synthetic record '+i,active:i%2===0,status:'open',hidden:'secret'}));
   window.more=[];window.selected=null;
   window.adapter=new fixture.ResponsiveGrid(document.getElementById('vapa-application'),[{id:'title',header:'Megnevezés'},{id:'active',header:'Aktív',type:'checkbox'},{id:'status',header:'Állapot',options:{open:'Nyitott'}}],()=>window.rows,id=>window.selected=id,()=>{},direction=>window.more.push(direction),()=>{});
   adapter.setRows(rows);
@@ -41,6 +44,15 @@ test('synthetic cards escape content, retain fields, selection and scroll during
  await expect(cards.first()).toContainText('<img src=x onerror=alert(1)>');await expect(cards.first().locator('img')).toHaveCount(0);
  await expect(cards.first()).toContainText('Nyitott');await expect(cards.first()).not.toContainText('secret');
  await expect(cards.first().getByRole('checkbox',{name:'Aktív'})).toHaveAttribute('aria-checked','true');
+ await expect.poll(async()=>{const first=await cards.nth(0).boundingBox(),second=await cards.nth(1).boundingBox();return Math.abs(first.width-second.width);}).toBeLessThan(1);
+ expect(await page.locator('.vapa-grid-cards').evaluate(root=>root.scrollWidth-root.clientWidth)).toBe(0);
+ await page.evaluate(()=>adapter.setMode('cards'));
+ for(const width of [1280,460,390]){
+  await page.setViewportSize({width,height:844});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await expect.poll(async()=>Math.abs((await cards.nth(0).boundingBox()).width-(await cards.nth(1).boundingBox()).width)).toBeLessThan(1);
+  expect(await page.locator('.vapa-grid-cards').evaluate(root=>root.scrollWidth-root.clientWidth)).toBe(0);
+ }
+
  await cards.nth(4).click();expect(await page.evaluate(()=>selected)).toBe('5');
  await page.locator('.vapa-grid-cards').evaluate(e=>{e.scrollTop=1000;});
  await expect.poll(()=>page.evaluate(()=>adapter.capture().id)).not.toBe('1');

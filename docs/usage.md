@@ -121,3 +121,9 @@ Táblázat/kártya váltáskor a felső térköz megmarad, és a táblázatsor p
 mért belső eltolása nem görgeti be a kártyát ([munkaterületek](workspaces.md)).
 
 A [checkbox és kártya-szerkesztésjelzés](field-presentation.md#egységes-checkbox-és-kártya-szerkesztésjelzés) közös Grid/DataView megjelenítést használ; checkbox csak módosítható mezőhöz és sorhoz látható.
+
+A [kompakt ablakfejléc és teljes mobilmenü](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)
+40 px magas popupfejlécet és a Menü alá vont kijelentkezést ad. A
+[reszponzív műveletsor](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség)
+a grid teljes toolbarját szűk panelen egy Műveletek gomb alá rendezi,
+a kártyák pedig tartalomtól függetlenül egyforma szélességűek.

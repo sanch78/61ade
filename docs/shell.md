@@ -37,7 +37,7 @@ A történeti shell MenuItem levélelemek tiltottak. Az implementált modulok a 
 
 ## DHTMLX megjelenítés és csomagolás
 
-A VAPA `AdminShell` adapter kezeli a Layout, Toolbar, Menu, Window és Form teljes életciklusát, a bejelentkezési mezők validálását és billentyűzetes beküldését. A hibajelzést DHTMLX Alert jeleníti meg. A megjelenítést a DHTMLX vezérlői adják; a keret CSS-e a teljes ablak méretezését és a dokumentált Suite-témaváltozókat tartalmazza. 768 px alatti munkaterületen a keret a menüágakat egy DHTMLX „Menü” alá rendezi; a kijelentkezés külön látható marad. Átméretezéskor visszaáll a felső menüsor. A fogyasztónak nincs saját shell HTML/CSS/JS rétege.
+A VAPA `AdminShell` adapter kezeli a Layout, Toolbar, Menu, Window és Form teljes életciklusát, a bejelentkezési mezők validálását és billentyűzetes beküldését. A hibajelzést DHTMLX Alert jeleníti meg. A megjelenítést a DHTMLX vezérlői adják; a keret CSS-e a teljes ablak méretezését és a dokumentált Suite-témaváltozókat tartalmazza. 768 px alatti munkaterületen a keret a menüágakat egy DHTMLX „Menü” alá rendezi; a kijelentkezés is ugyanebbe a lenyíló menübe kerül. Átméretezéskor visszaáll a felső menüsor. A fogyasztónak nincs saját shell HTML/CSS/JS rétege.
 
 PHP 8.4+; ellenőrzött helyi runtime: PHP 8.4.26. Node 18.19.1, npm 9.2.0, TypeScript 5.9.3, esbuild 0.25.12, DHTMLX Suite Standard 9.3.12, Playwright 1.58.2. A dependencyket lockfile rögzíti. A Suite ikonfontjai a `tools/vendor-assets.json` SHA-256 értékeivel ellenőrizve, `codex/tmp/dhx-icons` cache-ből kerülnek a buildbe. Az első build internetet igényel; eltérő asset-hash leállítja a buildet. A fontok beágyazottak, a böngésző nem kér CDN-erőforrást.
 
@@ -151,3 +151,16 @@ Fogyasztói konfiguráció nem szükséges; újra kell buildelni és publikálni
 asseteket. A shell assetverziója `v=11`. A kompakt menü töréspontja a keret
 és térköz többlethelyével is számol. Ellenőrzés: `browser.spec.cjs`, három téma,
 nyitott almenü és telefonméret.
+
+
+## Kompakt ablakfejléc és teljes mobilmenü
+
+A natív DHTMLX Window fejléce témától függetlenül 40 px magas, 16 px címfelirattal
+és 32 px bezárógombbal. A gyári 28 px felső és 20 px alsó fejléctérköz helyett
+4 px függőleges, 12 px vízszintes toolbar-padding érvényes. A tartalomhoz
+illeszkedő ablakmérés továbbra is a tényleges fejlécet veszi figyelembe.
+
+Kompakt főmenüben minden navigációs ág és a Kijelentkezés is a „Menü” gomb alá
+kerül, köztük a natív elválasztóval. Asztali szélességre visszatérve az eredeti
+felső menüsor áll vissza; az ACL és a kijelentkezés POST-folyamata változatlan.
+A fogyasztóban nincs külön konfiguráció. FB-0028.
