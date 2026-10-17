@@ -47,3 +47,5 @@
 ## FB-0025 — Distinct main-menu buttons
 
 ## FB-0026 — Grid shadow below column headings
+
+## FB-0027 — Toolbar/header divider and card top spacing

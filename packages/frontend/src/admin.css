@@ -95,7 +95,7 @@ body,
 /* Cards use the command shadow; tables separate scrolling rows below the header. */
 .vapa-command-row { z-index: 2; box-shadow: 0 3px 7px rgb(0 0 0 / 22%); }
 [data-dhx-theme="dark"] .vapa-command-row { box-shadow: 0 3px 8px rgb(0 0 0 / 55%); }
-.vapa-grid-content:has(.dhx_grid) .vapa-command-row { box-shadow: none; }
+.vapa-grid-content:has(.dhx_grid) .vapa-command-row { box-shadow: none; border-bottom: 1px solid var(--dhx-border-color); box-sizing: border-box; }
 .vapa-grid-views .dhx_grid-header { box-shadow: 0 3px 7px rgb(0 0 0 / 22%); }
 [data-dhx-theme="dark"] .vapa-grid-views .dhx_grid-header { box-shadow: 0 3px 8px rgb(0 0 0 / 55%); }
 /* Native Form columns remain a horizontal action group at every theme size. */

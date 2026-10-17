@@ -119,7 +119,8 @@ A jelölés elkülönül az aktív/szerkesztett sortól, megmarad tábla/kártya
 
 A toolbar és a nézetváltó belső layoutja `type: none`; a külső Találatok panel
 adja az egyetlen keretet. A toolbar a saját sorának magasságát tölti ki,
-a görgethető tartalom nem rajzolhat bele. A szűrő alaphelyzetbe állítása és a
+a görgethető tartalom nem rajzolhat bele. Táblázatnézetben 1 px, a témához
+igazodó elválasztóvonal határolja a toolbart az oszlopfejléctől. A szűrő alaphelyzetbe állítása és a
 belépési megerősítés másodlagos műveletei natív másodlagos flat gombok.
 
 ## Tömeges műveletek és ikonok
@@ -236,3 +237,11 @@ Ellenőrzés: `tests/shell/grid-edit.spec.cjs`,
 Szintetikus adatbázison ellenőrzi a mentés közbeni és utáni nézetváltást,
 a kártya checkbox/text/select mentést, validációt, SQL-rendezést, méretresetet,
 reloadot, dupla kattintást és a popupok alsó térközét. FB-0024.
+
+
+Nézetváltáskor a soron belüli pixelpozíció nem vihető át közvetlenül a más
+magasságú kártyákra. A VAPA ugyanazt a rekordot tartja láthatóan, a cél nézet
+természetes felső térközével; a lista tetejéről váltáskor a görgetés 0 marad.
+Az azonos nézet élő frissítése továbbra is a pontos belső offsetet őrzi.
+Ellenőrzés: `list-presentation.spec.cjs` nézetváltási regressziója és
+`mobile-grid.spec.cjs` élő görgetési próbája. FB-0027.
