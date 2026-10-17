@@ -12,4 +12,5 @@ export async function fitWindow(win:Window,selector=".dhx_form button, .vapa-rec
   const height=Math.min(innerHeight-24,Math.ceil(bottom-outer.top+24));
   win.setSize(Math.min(outer.width,innerWidth-24),height);
   win.setPosition(Math.max(12,(innerWidth-outer.width)/2),Math.max(12,(innerHeight-height)/2));
+  await awaitRedraw();
 }
