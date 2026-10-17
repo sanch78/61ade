@@ -86,3 +86,20 @@ body,
 .vapa-grid-views .dhx_grid-header-cell--align_right .dhx_grid-header-cell-text { justify-content: flex-end; }
 /* VAPA's SQL sort direction is authoritative; avoid a second native arrow. */
 .vapa-grid-views :is(.vapa-grid-sort-asc, .vapa-grid-sort-desc) .dhx_grid-sort-icon { display: none; }
+
+/* Native Layout heading: title left, server count in its accessory slot right. */
+.vapa-list-panel > .dhx_layout-cell-header .dhx_layout-cell-header__title { order: 0; flex: 1; min-width: 0; }
+.vapa-list-panel > .dhx_layout-cell-header .vapa-list-count { order: 1; width: auto; flex-shrink: 0; margin: 0 0 0 16px; font-size: 12px; font-weight: normal; }
+.vapa-list-count::before { content: var(--vapa-list-count, ""); }
+.vapa-list-panel > .dhx_layout-cell-header .dhx_layout-cell-header__collapse-icon { order: 2; }
+/* Shadow belongs to the fixed command cell and paints above the scrolling data. */
+.vapa-command-row { z-index: 2; box-shadow: 0 3px 7px rgb(0 0 0 / 22%); }
+[data-dhx-theme="dark"] .vapa-command-row { box-shadow: 0 3px 8px rgb(0 0 0 / 55%); }
+/* Native Form columns remain a horizontal action group at every theme size. */
+.vapa-filter-actions { flex-wrap: nowrap; }
+.vapa-filter-actions .dhx_button { white-space: nowrap; }
+
+.vapa-navigation-row .dhx_menu-item__icon { margin-right: 6px; }
+
+/* The Form owns auth spacing; Suite's extra 28px bottom pad would clip a fitted form. */
+.vapa-auth-window .dhx_window-content { padding-bottom: 0; }

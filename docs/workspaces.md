@@ -176,3 +176,28 @@ mindkét irányú lapozásnál és középső élő ablaknál ellenőrzi a telje
 A mobil szűrőablak külön natív Form-példányt használ; alkalmazáskor az értékek
 a panel szűrőjébe is átkerülnek. Bezáráskor nincs widgetmozgatás a layoutok
 között. A Szűrés/Alaphelyzet gombpár egy sorban, 8 px távolsággal jelenik meg.
+
+## Listafejléc és rekordszám
+
+A `grid` régió natív Layout-fejlécében mindig a nézet `title` értéke jelenik
+meg; a toolbar kizárólag műveleteket és az utolsó nézetválasztót tartalmazza.
+Jobb oldalon szűrés nélkül `Összes: 123`, alkalmazott szűrővel
+`Összes: 123 / Találat: 8` látszik. Az összes a `list` jogosultsággal és
+az adatforrás alapfeltételével elérhető rekordok száma; a találat ezen belül
+az alkalmazott szűrőnek megfelelő darabszám. Egyik sem a betöltött adatablak
+mérete. Üres találatnál is megmaradnak; a kurzor és a rendezés nem módosítja
+őket. A szerver `total` és `matched` számokat ad minden lista- és megváltozott
+watch-válaszban; polling és WebSocket is továbbítja őket. Az ablakon kívüli
+változás is módosítja a snapshot verzióját, ha a darabszám változik.
+
+A natív fejléc `headerIcon` kiegészítőhelyén a VAPA számlálóosztálya jelenik
+meg, a keret stílusa jobbra rendezi; nincs külön fogyasztói fejléc vagy
+HTML-adminfelület. A fix toolbar alatti árnyék a görgetett táblán és
+kártyákon is látható. A filter két natív gombja egy sorban, legalább 8 px
+közzel jelenik meg.
+
+A nézet `icon` attribútuma a főmenü ikonját adja, például JSON-ban
+`"icon": "dxi dxi-file-outline"`; PHP-ban a `Registry::view` utolsó opcionális
+`icon` argumentuma ugyanez. Csak CSS-osztálynevek adhatók meg. Az ikonfontban
+létező glyph szükséges. Alapértelmezés: `dxi dxi-table-check`; a csoportok
+mappaikont kapnak. A statikus `MenuItem` is fogad opcionális `icon` argumentumot.

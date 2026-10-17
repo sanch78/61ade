@@ -39,3 +39,5 @@
 ## FB-0020 — Final view dropdown and nonoverlapping indicators
 
 ## FB-0021 — Feature URLs and persistent UI state
+
+## FB-0023 — List headings/counts, menu icons and compact login

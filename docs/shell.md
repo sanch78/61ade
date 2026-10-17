@@ -123,3 +123,17 @@ méretkorlát, sérült/tiltott tár); védett szintetikus böngészőteszt:
 `npm run test:browser -- --config playwright.preferences.config.cjs`, a
 `VAPA_TMP_DIR` és `VAPA_PLAYWRIGHT_MODULE` környezeti szerződésével.
 Kapcsolódó visszajelzés: FB-0021.
+
+## Kompakt hitelesítési ablakok és menüikonok
+
+A login és az e-mailes megerősítés natív Window/Form párost használ. Az ablak
+magasságát a kirajzolt gombok alja határozza meg, 24 px alsó hellyel; a
+viewport mérete felső korlát. Újramérés történik méretváltás és validáció
+után is. Az újraméretezés nem aktiválja újra az ablakot: a hibaüzenet
+modalrétege fölül marad. A megerősítés három azonos szélességű natív gombja
+között 8 px hely van. A másodlagos műveletek is valódi gombok.
+
+A menü minden szintje kap ikont: a statikus elemek alapértelmezett mappát,
+a feature-ök konfigurálható nézetikont, a csoportok nyitott mappát, a kompakt
+Menü és a kijelentkezés saját ikont. A kompakt töréspont az ikonok helyével
+is számol. Fogyasztói megadás: [listafejléc és rekordszám](workspaces.md#listafejléc-és-rekordszám).

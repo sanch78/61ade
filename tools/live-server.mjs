@@ -33,7 +33,7 @@ wss.on('connection',ws=>{
    if(data.version!==previous?.version){
     const old=new Map((previous?.items || []).map(row=>[String(row.id),JSON.stringify(row)]));
     const order=data.items.map(row=>String(row.id));
-    ws.send(JSON.stringify({type:'update',subscriptionId:subscription.subscriptionId,version:data.version,order,upserts:data.items.filter(row=>old.get(String(row.id))!==JSON.stringify(row)),removed:[...old.keys()].filter(id=>!order.includes(id)),previous:data.previous,next:data.next}));previous=data;
+    ws.send(JSON.stringify({type:'update',subscriptionId:subscription.subscriptionId,version:data.version,order,upserts:data.items.filter(row=>old.get(String(row.id))!==JSON.stringify(row)),removed:[...old.keys()].filter(id=>!order.includes(id)),previous:data.previous,next:data.next,total:data.total,matched:data.matched}));previous=data;
    }
   }catch{if(ws.readyState===WebSocket.OPEN)ws.close(1011,'Live service unavailable');}
   finally{busy=false;}

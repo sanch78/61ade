@@ -11,7 +11,7 @@ import { FormValidation, type FieldDefinition } from "./FormValidation";
 export type { FieldDefinition } from "./FormValidation";
 export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;icon?:string;bulk?:boolean;fields:FieldDefinition[]};
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;rowNumbers?:boolean;selection?:boolean;detailFields?:ViewDefinition["columns"];columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
+export type ViewDefinition={resource:string;title:string;icon?:string;rowNumbers?:boolean;selection?:boolean;detailFields?:ViewDefinition["columns"];columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 const cursor=(row:Row,direction:string)=>btoa(Array.from(new TextEncoder().encode(JSON.stringify({...row._position,edge:String(row.id),direction})),byte=>String.fromCharCode(byte)).join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="checkbox"?{
@@ -64,13 +64,14 @@ export class Workspace {
   constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,live:LiveConfig,user=""){
     this.preferences=new UiPreferences(user,view.resource);
     this.sort=this.preferences.sort(view.sortable??[])??this.sort;
-    const region=(node:Region):any=>({...node,header:node.header?escape(node.header):undefined,
+    const region=(node:Region):any=>({...node,header:node.id==="grid"?escape(view.title):node.header?escape(node.header):undefined,
+      ...(node.id==="grid"?{headerIcon:"vapa-list-count",css:"vapa-list-panel"}:{}),
       ...(node.rows?{rows:node.rows.map(region)}:{}),...(node.cols?{cols:node.cols.map(region)}:{})});
     this.layout=new Layout(host,{type:"space",...(view.singleton
       ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48,css:"vapa-command-row"},{id:"detail"}]}]}
       :region(this.preferences.layoutTree(view.layout.tree)))});
     if(!view.singleton)this.preferences.bindLayout(this.layout,view.layout.tree);
-    this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-results",value:"Adatok",icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:"Szűrés",icon:"dxi dxi-filter-variant"}]:[]),...(!view.singleton?[{id:"title",type:"title",value:escape(view.title)}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).flatMap(a=>[{id:a.name,value:escape(a.label),icon:a.icon??({create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key"}[a.name]??"dxi dxi-pencil")},...(view.selection&&a.bulk?[{id:"bulk:"+a.name,value:escape(a.label+" — jelöltek"),icon:a.icon??"dxi dxi-check"}]:[])]),...(!view.singleton?[{type:"spacer"},{id:"vapa-view",value:"Nézet: Táblázat",icon:"dxi dxi-table-check",items:[{id:"vapa-table",value:"Táblázat",icon:"dxi dxi-table-check"},{id:"vapa-cards",value:"Kártyák",icon:"dxi dxi-view-grid"}]}]:[])]});
+    this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-results",value:"Adatok",icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:"Szűrés",icon:"dxi dxi-filter-variant"}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).flatMap(a=>[{id:a.name,value:escape(a.label),icon:a.icon??({create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key"}[a.name]??"dxi dxi-pencil")},...(view.selection&&a.bulk?[{id:"bulk:"+a.name,value:escape(a.label+" — jelöltek"),icon:a.icon??"dxi dxi-check"}]:[])]),...(!view.singleton?[{type:"spacer"},{id:"vapa-view",value:"Nézet: Táblázat",icon:"dxi dxi-table-check",items:[{id:"vapa-table",value:"Táblázat",icon:"dxi dxi-table-check"},{id:"vapa-cards",value:"Kártyák",icon:"dxi dxi-view-grid"}]}]:[])]});
     this.commands.events.on("click",(id:string|number)=>{if(id==="vapa-table"||id==="vapa-cards"){const mode=id==="vapa-table"?"table":"cards";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="vapa-filter"){this.openFilters();return;}if(id==="vapa-results"){if(this.selected)void this.showResults(this.selected);return;}if(String(id).startsWith("bulk:")){const action=view.actions.find(a=>"bulk:"+a.name===id);if(action)void this.openBulk(action);return;}const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
@@ -123,7 +124,7 @@ export class Workspace {
     }
   }
   private createFilters():Form{
-    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,type:f.type==="checkbox"?"select":f.type,required:false},""),...(["select","checkbox"].includes(f.type)?{options:[{value:"",content:"Bármely"},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{cols:[{type:"button",name:"apply",text:"Szűrés",icon:"dxi dxi-filter-variant",color:"primary",width:"content",padding:"0 8px 0 0"},{type:"button",name:"clear",text:"Alaphelyzet",icon:"dxi dxi-undo",view:"flat",color:"secondary",width:"content"}]}]} as any);
+    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,type:f.type==="checkbox"?"select":f.type,required:false},""),...(["select","checkbox"].includes(f.type)?{options:[{value:"",content:"Bármely"},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{css:"vapa-filter-actions",cols:[{type:"button",name:"apply",text:"Szűrés",icon:"dxi dxi-filter-variant",color:"primary",width:"content",padding:"0 8px 0 0"},{type:"button",name:"clear",text:"Alaphelyzet",icon:"dxi dxi-undo",view:"flat",color:"secondary",width:"content"}]}]} as any);
     form.events.on("click",(name:string)=>{
       if(name!=="apply"&&name!=="clear")return;
       if(name==="clear")form.clear();
@@ -172,13 +173,17 @@ export class Workspace {
     const operation=this.epoch+1;
     if(await this.load()){this.preferences.setSort(this.sort);}else if(operation===this.epoch&&!this.disposed){this.sort=previous;this.gridHeaders?.setSort(previous);this.watch();}
   }
+  private counts(data:Snapshot):void{
+    const text=typeof data.total==="number"?`Összes: ${data.total.toLocaleString("hu-HU")}${Object.keys(this.filters).length?` / Találat: ${(data.matched??0).toLocaleString("hu-HU")}`:""}`:"";
+    this.layout.getRootNode()?.style.setProperty("--vapa-list-count",JSON.stringify(text));
+  }
   private async load():Promise<boolean>{
     const epoch=++this.epoch;this.abort?.abort();this.abort=new AbortController();this.busy=true;
     try{
       if(this.view.singleton){const row=await this.call("get","self",{},this.abort.signal);if(this.disposed||epoch!==this.epoch)return false;this.rows=[row];this.selected=String(row.id);await this.mountDetail(row);}
       else{
         const data:Snapshot=await this.call("list",null,{mode:"dynamic",numbered:this.view.rowNumbers!==false,limit:100,sort:this.sort,filters:this.filters},this.abort.signal);
-        if(this.disposed||epoch!==this.epoch)return false;this.previous=data.previous;this.next=data.next;await this.render(data.items,false);
+        if(this.disposed||epoch!==this.epoch)return false;this.counts(data);this.previous=data.previous;this.next=data.next;await this.render(data.items,false);
       }
       this.watch();return true;
     }catch(e){if(!this.disposed&&epoch===this.epoch&&!(e instanceof DOMException&&e.name==="AbortError"))await this.error(e);return false;}
@@ -190,6 +195,7 @@ export class Workspace {
     try{
       const data:Snapshot=await this.call("list",null,{mode:"dynamic",numbered:this.view.rowNumbers!==false,limit:100,cursor:token,sort:this.sort,filters:this.filters});
       if(this.disposed||epoch!==this.epoch)return;
+      this.counts(data);
       if(!data.items.length){if(direction==="next")this.next=null;else this.previous=null;return;}
       const joined=direction==="next"?[...this.rows,...data.items]:[...data.items,...this.rows];
       let rows=[...new Map(joined.map(row=>[String(row.id),row])).values()];
@@ -224,7 +230,7 @@ export class Workspace {
         }
         this.rows=[row];await this.mountDetail(row);
       }else{this.rows=[row];this.capabilities();}
-    }else{this.previous=data.previous;this.next=data.next;await this.render(data.items,true);}
+    }else{this.counts(data);this.previous=data.previous;this.next=data.next;await this.render(data.items,true);}
   }
   private async mountDetail(row:Row):Promise<void>{
     const action=this.view.actions.find(a=>a.name==="update"&&row._actions?.includes("update"));
