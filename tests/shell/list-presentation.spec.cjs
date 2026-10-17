@@ -59,10 +59,12 @@ test('toolbar stays inside its cell and above scrolling grid/cards in all themes
    return {outer:{top:outer.top,bottom:outer.bottom},toolbar:{top:toolbar.top,bottom:toolbar.bottom},buttons:[...cell.querySelectorAll('button')].map(button=>{const r=button.getBoundingClientRect();return {top:r.top,bottom:r.bottom};})};
   });
   expect(bounds.toolbar.bottom).toBeLessThanOrEqual(bounds.outer.bottom);for(const button of bounds.buttons){expect(button.top).toBeGreaterThanOrEqual(bounds.outer.top);expect(button.bottom).toBeLessThanOrEqual(bounds.outer.bottom);}
-  await page.locator('.dhx_grid').evaluate(grid=>{const scroll=grid.querySelector('.dhx_grid-body')||grid;scroll.scrollTop=500;});
+  await page.locator('.dhx_grid').hover();await page.mouse.wheel(0,500);
+  await expect.poll(()=>page.evaluate(()=>workspace.grid.table.getScrollState().y)).toBeGreaterThan(0);
   const button=page.getByRole('button',{name:'Adatok',exact:true});await expect(button).toBeVisible();
   await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
   await page.locator('.vapa-grid-cards').evaluate(element=>element.scrollTop=500);
+  await expect.poll(()=>page.locator('.vapa-grid-cards').evaluate(element=>element.scrollTop)).toBeGreaterThan(0);
   const hit=await button.evaluate(element=>{const box=element.getBoundingClientRect();return element.contains(document.elementFromPoint(box.x+box.width/2,box.y+box.height/2));});expect(hit).toBe(true);
   await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Táblázat',{exact:true}).click();
  }

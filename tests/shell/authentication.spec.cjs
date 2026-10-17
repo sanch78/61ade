@@ -102,9 +102,10 @@ test('confirmation secondary actions are buttons contained in the login window i
  const dialog=page.getByRole('dialog',{name:'E-mailes megerősítés',exact:true});await expect(dialog).toBeVisible();
  for(const theme of ['skyblue','light','dark']){
   await page.evaluate(theme=>document.documentElement.setAttribute('data-dhx-theme',theme),theme);
-  const outer=await dialog.boundingBox();
+  const outer=await dialog.boundingBox();let previousBottom=0;
   for(const name of ['Belépés megerősítése','Új kód küldése','Vissza a belépéshez']){
    const button=dialog.getByRole('button',{name,exact:true});await expect(button).toHaveClass(/dhx_button--view_flat/);await button.hover();const bounds=await button.boundingBox();
+   if(previousBottom)expect(bounds.y-previousBottom).toBeGreaterThanOrEqual(8);previousBottom=bounds.y+bounds.height;
    expect(bounds.x).toBeGreaterThanOrEqual(outer.x);expect(bounds.x+bounds.width).toBeLessThanOrEqual(outer.x+outer.width);expect(bounds.y+bounds.height).toBeLessThanOrEqual(outer.y+outer.height);
   }
   await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'confirmation-'+theme+'.png')});
