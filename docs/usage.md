@@ -84,3 +84,7 @@ A [kártyák és rekordadatok](workspaces.md#kártyák-rekordadatok-sorszám-és
 nyíló jogosultságszűrt adatablakot és opcionális sorjelölést írja le. A
 [tömeges műveletek](workspaces.md#tömeges-műveletek-és-ikonok) kifejezett opt-int
 és soronkénti tranzakciót/ACL-t használnak; a teljes export továbbra sincs kész.
+
+A [nézetválasztó](workspaces.md#nézetválasztás-és-fejlécjelzések) a lista-toolbar
+utolsó, jobbra igazított dropdownja. A szerkeszthető fejléc és rendezésjel
+külön helyet kap; az aktuális rendezésnek egyetlen irányjelzése van.
