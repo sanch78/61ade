@@ -26,7 +26,7 @@ export class GridHeaders {
     this.grid.paint();
     void awaitRedraw().then(()=>{
       if(this.disposed)return;
-      for(const node of Array.from(this.grid.getRootNode().querySelectorAll<HTMLElement>('[role="columnheader"][data-dhx-id]'))){
+      for(const node of Array.from(this.grid.getRootNode()?.querySelectorAll<HTMLElement>('[role="columnheader"][data-dhx-id]')??[])){
         const id=node.getAttribute("data-dhx-id");
         if(this.columns.find(c=>c.id===id)?.editable)node.setAttribute("aria-description","Szerkeszthető mező");
         if(id&&this.sortable.includes(id))node.setAttribute("aria-sort",id===this.sort.field?(this.sort.direction==="asc"?"ascending":"descending"):"none");

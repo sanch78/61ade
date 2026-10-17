@@ -41,7 +41,7 @@ export class UiPreferences {
   }
   bindLayout(layout:Layout,tree:Region):void{
     const nodes:Region[]=[];
-    const visit=(node:Region)=>{if(node.id)nodes.push(node);node.rows?.forEach(visit);node.cols?.forEach(visit);};visit(tree);
+    const visit=(node:Region)=>{if(node.id)nodes.push({...node});node.rows?.forEach(visit);node.cols?.forEach(visit);};visit(tree);
     const save=(id:string,collapse=false)=>{
       const node=nodes.find(node=>node.id===id);if(!node)return;
       const config=layout.getCell(id).config;
@@ -53,6 +53,22 @@ export class UiPreferences {
         ...(collapse&&id!=="form"?{collapsed:config.collapsed===true}:{})};
       this.state.regions={...this.state.regions,[id]:region};this.save();
     };
+    layout.getRootNode().addEventListener("dblclick",event=>{
+      const grip=(event.target as HTMLElement).closest<HTMLElement>(".dhx_layout-resizer");
+      if(!grip)return;
+      const before=grip.previousElementSibling as HTMLElement|null;
+      const after=grip.nextElementSibling as HTMLElement|null;
+      const dimension=grip.classList.contains("dhx_layout-resizer--x")?"width":"height";
+      for(const element of [before,after]){
+        const id=element?.dataset.cellId;
+        const original=nodes.find(node=>node.id===id);
+        if(!id||!original)continue;
+        const config=layout.getCell(id).config;
+        if(original[dimension]!==undefined)config[dimension]=original[dimension];else delete config[dimension];
+        if(this.state.regions?.[id])delete this.state.regions[id][dimension];
+      }
+      event.preventDefault();this.save();layout.paint();
+    });
     layout.events.on("resize",id=>save(id));
     layout.events.on("afterCollapse",id=>save(id,true));
     layout.events.on("afterExpand",id=>save(id,true));

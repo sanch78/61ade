@@ -1,3 +1,4 @@
+import { fitWindow } from "./WindowSizing";
 import { widgetIcons } from "./WidgetIcons";
 import { UiPreferences } from "./UiPreferences";
 import { Form, Layout, Toolbar, Window, alert, message, awaitRedraw } from "@dhtmlx/suite";
@@ -33,6 +34,8 @@ export class Workspace {
   private gridHeaders?:GridHeaders;
   private sort:Sort={field:"id",direction:"desc"};
   private cellEditing=false;
+  private cardEditor?:Window;
+  private cardSave?:Promise<void>;
   private commands:Toolbar;
   private content?:Layout;
   private rows:Row[]=[];
@@ -71,8 +74,8 @@ export class Workspace {
       ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48,css:"vapa-command-row"},{id:"detail"}]}]}
       :region(this.preferences.layoutTree(view.layout.tree)))});
     if(!view.singleton)this.preferences.bindLayout(this.layout,view.layout.tree);
-    this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-results",value:"Adatok",icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:"Szűrés",icon:"dxi dxi-filter-variant"}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).flatMap(a=>[{id:a.name,value:escape(a.label),icon:a.icon??({create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key"}[a.name]??"dxi dxi-pencil")},...(view.selection&&a.bulk?[{id:"bulk:"+a.name,value:escape(a.label+" — jelöltek"),icon:a.icon??"dxi dxi-check"}]:[])]),...(!view.singleton?[{type:"spacer"},{id:"vapa-view",value:"Nézet: Táblázat",icon:"dxi dxi-table-check",items:[{id:"vapa-table",value:"Táblázat",icon:"dxi dxi-table-check"},{id:"vapa-cards",value:"Kártyák",icon:"dxi dxi-view-grid"}]}]:[])]});
-    this.commands.events.on("click",(id:string|number)=>{if(id==="vapa-table"||id==="vapa-cards"){const mode=id==="vapa-table"?"table":"cards";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="vapa-filter"){this.openFilters();return;}if(id==="vapa-results"){if(this.selected)void this.showResults(this.selected);return;}if(String(id).startsWith("bulk:")){const action=view.actions.find(a=>"bulk:"+a.name===id);if(action)void this.openBulk(action);return;}const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
+    this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-results",value:"Adatok",icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:"Szűrés",icon:"dxi dxi-filter-variant"}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).flatMap(a=>[{id:a.name,value:escape(a.label),icon:a.icon??({create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key"}[a.name]??"dxi dxi-pencil")},...(view.selection&&a.bulk?[{id:"bulk:"+a.name,value:escape(a.label+" — jelöltek"),icon:a.icon??"dxi dxi-check"}]:[])]),...(!view.singleton?[{type:"spacer"},{id:"vapa-sort",value:"Rendezés",hidden:true,items:(view.sortable??[]).flatMap(field=>["asc","desc"].map(direction=>({id:"vapa-sort:"+field+":"+direction,value:escape((view.columns.find(column=>column.id===field)?.header??(field==="id"?"ID":field))+ (direction==="asc"?" ↑":" ↓"))})))},{id:"vapa-view",value:"Nézet: Táblázat",icon:"dxi dxi-table-check",items:[{id:"vapa-table",value:"Táblázat",icon:"dxi dxi-table-check"},{id:"vapa-cards",value:"Kártyák",icon:"dxi dxi-view-grid"}]}]:[])]});
+    this.commands.events.on("click",(id:string|number)=>{if(String(id).startsWith("vapa-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="vapa-table"||id==="vapa-cards"){const mode=id==="vapa-table"?"table":"cards";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="vapa-filter"){this.openFilters();return;}if(id==="vapa-results"){if(this.selected)void this.showResults(this.selected);return;}if(String(id).startsWith("bulk:")){const action=view.actions.find(a=>"bulk:"+a.name===id);if(action)void this.openBulk(action);return;}const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
       this.content=new Layout(document.createElement("div"),{type:"none",css:"vapa-grid-content",rows:[{id:"commands",height:48,css:"vapa-command-row"},{id:"data"}]});
@@ -84,23 +87,19 @@ export class Workspace {
         const action=view.actions.find(a=>a.name==="update");
         if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);
       },direction=>{if(!this.rendering&&!this.busy&&!this.disposed)void this.more(direction);},(cards,mobile)=>{
+        if(cards&&(view.sortable??[]).length)this.commands.show("vapa-sort");else this.commands.hide("vapa-sort");
         this.commands.data.update("vapa-view",{value:cards?"Nézet: Kártyák":"Nézet: Táblázat",icon:cards?"dxi dxi-view-grid":"dxi dxi-table-check"});
         if(mobile)this.commands.disable("vapa-view");else this.commands.enable("vapa-view");
         if(cards||mobile)this.commands.disable("vapa-cards");else this.commands.enable("vapa-cards");
         if(!cards||mobile)this.commands.disable("vapa-table");else this.commands.enable("vapa-table");
-      },{rowNumbers:view.rowNumbers,selection:view.selection,fields:view.detailFields??view.columns,details:id=>void this.showResults(id),marked:()=>this.capabilities()});
+      },{rowNumbers:view.rowNumbers,selection:view.selection,fields:view.detailFields??view.columns,details:id=>void this.showResults(id),marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field)});
+      this.sortLabel();
       this.gridHeaders=new GridHeaders(this.grid.table,view.columns,view.sortable??[],sort=>void this.changeSort(sort));
       this.gridHeaders.setSort(this.sort);
       this.preferences.bindGrid(this.grid.table);
       this.grid.setMode(this.preferences.mode);
       this.gridEditing=new GridEditing(this.grid.table,view.actions.find(a=>a.name==="update")?.fields??[],()=>this.rows,
-        async(row,field,value)=>{
-          const result=await this.call("__edit",String(row.id),{field,value,revision:row.revision});
-          if(this.disposed)return;
-          if(result.reauthenticate){location.reload();return;}
-          if(this.sort.field===field){await this.load();return;}
-          await this.render(this.rows.map(item=>String(item.id)===String(row.id)?{...item,...result.values,revision:result.revision}:item),true);
-        },error=>this.error(error),active=>{this.cellEditing=active;if(!active&&!this.disposed)this.watch();});
+        (row,field,value)=>this.saveCell(row,field,value),error=>this.error(error),active=>{this.cellEditing=active;if(!active&&!this.disposed)this.watch();});
       this.content.getCell("data").attach(this.grid.layout);
       this.layout.getCell("grid").attach(this.content);
       if(this.hasRegion("filter"))this.mountFilters();
@@ -108,6 +107,38 @@ export class Workspace {
     window.addEventListener("resize",this.resize);this.resizeFilters();
     this.live=new Realtime(view.resource,live,this.call.bind(this),data=>void this.changed(data),()=>{},()=>this.revoke());
     this.capabilities();void this.load();
+  }
+  private async saveCell(row:Row,field:string,value:unknown):Promise<void>{
+    const result=await this.call("__edit",String(row.id),{field,value,revision:row.revision});
+    if(this.disposed)return;
+    if(result.reauthenticate){location.reload();return;}
+    if(this.sort.field===field){await this.load();return;}
+    await this.render(this.rows.map(item=>String(item.id)===String(row.id)?{...item,...result.values,revision:result.revision}:item),true);
+  }
+  private async editCard(id:string,name:string):Promise<void>{
+    if(this.cardSave)await this.cardSave;
+    if(this.cellEditing||this.busy||this.disposed)return;
+    const row=this.rows.find(row=>String(row.id)===id);
+    const field=this.view.actions.find(action=>action.name==="update")?.fields.find(field=>field.name===name);
+    if(!row||!field||!row._editable?.includes(name))return;
+    this.cellEditing=true;
+    if(field.type==="checkbox"){
+      this.cardSave=this.saveCell(row,name,!(row[name]===true||String(row[name])==="1")).catch(error=>this.error(error)).finally(()=>{this.cellEditing=false;this.cardSave=undefined;if(!this.disposed)this.watch();});
+      await this.cardSave;
+      return;
+    }
+    const popup=new Window({css:"vapa-content-window",title:escape(field.label),width:Math.min(360,innerWidth-24),height:Math.min(260,innerHeight-24),modal:true,closable:true});this.cardEditor=popup;
+    const form=new Form(document.createElement("div"),{padding:16,rows:[input(field,row[name]),{type:"button",name:"submit",text:"Mentés",icon:"dxi dxi-content-save"}]} as any);
+    popup.attach(form);popup.show();void fitWindow(popup);
+    form.events.on("afterValidate",()=>{void fitWindow(popup);});
+    const validation=new FormValidation(form,[field],()=>row);let saving=false;
+    popup.events.on("beforeHide",()=>!saving);
+    popup.events.on("afterHide",()=>{this.cellEditing=false;this.cardEditor=undefined;void awaitRedraw().then(()=>popup.destructor());if(!this.disposed)this.watch();});
+    form.events.on("click",(name:string)=>{
+      if(name!=="submit"||saving||!validation.validate())return;
+      saving=true;form.disable();
+      void this.saveCell(row,field.name,(form.getValue() as Record<string,unknown>)[field.name]).then(()=>{saving=false;if(!this.disposed)popup.hide();}).catch(error=>{if(!validation.showServerErrors(error.fieldErrors??{}))return this.error(error);}).finally(()=>{saving=false;if(!this.disposed&&this.cardEditor===popup)form.enable();});
+    });
   }
   private hasRegion(id:string):boolean{
     const find=(node:Region):boolean=>node.id===id||[...(node.rows??[]),...(node.cols??[])].some(find);return find(this.view.layout.tree);
@@ -151,8 +182,8 @@ export class Workspace {
     if(!this.filterForm||!this.mobile)return;
     if(this.filterDialog){this.filterDialog.show();return;}
     const form=this.createFilters();form.setValue(this.filterForm.getValue());
-    const dialog=new Window({title:"Szűrés",width:Math.min(420,innerWidth-24),height:Math.min(600,innerHeight-24),modal:true,closable:true});
-    this.filterDialog=dialog;dialog.attach(form);dialog.show();
+    const dialog=new Window({css:"vapa-content-window",title:"Szűrés",width:Math.min(420,innerWidth-24),height:Math.min(600,innerHeight-24),modal:true,closable:true});
+    this.filterDialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
     dialog.events.on("afterHide",()=>this.closeFilters());
   }
   private closeFilters():void{
@@ -169,9 +200,12 @@ export class Workspace {
   private watch():void{this.live.subscribe({numbered:this.view.rowNumbers!==false,sort:this.sort,anchor:this.rows[0]?cursor(this.rows[0],"next"):null,limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,filters:this.filters});}
   private async changeSort(sort:Sort):Promise<void>{
     if(this.busy||this.cellEditing||this.disposed)return;
-    const previous=this.sort;this.sort=sort;this.gridHeaders?.setSort(sort);
+    const previous=this.sort;this.sort=sort;this.sortLabel();this.gridHeaders?.setSort(sort);
     const operation=this.epoch+1;
-    if(await this.load()){this.preferences.setSort(this.sort);}else if(operation===this.epoch&&!this.disposed){this.sort=previous;this.gridHeaders?.setSort(previous);this.watch();}
+    if(await this.load()){this.preferences.setSort(this.sort);}else if(operation===this.epoch&&!this.disposed){this.sort=previous;this.sortLabel();this.gridHeaders?.setSort(previous);this.watch();}
+  }
+  private sortLabel():void{
+    this.commands.data.update("vapa-sort",{value:"Rendezés: "+escape(this.view.columns.find(column=>column.id===this.sort.field)?.header??(this.sort.field==="id"?"ID":this.sort.field))+(this.sort.direction==="asc"?" ↑":" ↓")});
   }
   private counts(data:Snapshot):void{
     const text=typeof data.total==="number"?`Összes: ${data.total.toLocaleString("hu-HU")}${Object.keys(this.filters).length?` / Találat: ${(data.matched??0).toLocaleString("hu-HU")}`:""}`:"";
@@ -251,10 +285,10 @@ export class Workspace {
     try{
       const row:Row=await this.call("get",id);
       if(this.disposed||epoch!==this.resultsEpoch)return;
-      const dialog=new Window({title:escape(this.view.title+" — Adatok · "+id),ariaLabel:"Rekordadatok",width:Math.min(680,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
+      const dialog=new Window({css:"vapa-content-window",title:escape(this.view.title+" — Adatok · "+id),ariaLabel:"Rekordadatok",width:Math.min(680,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
       this.results=dialog;
       dialog.attachHTML(`<article class="vapa-record-details"><div class="vapa-grid-card__id">ID · ${escapeRecord(row.id)}</div>${recordFields(row,this.view.detailFields??this.view.columns)}</article>`);
-      dialog.show();
+      dialog.show();void fitWindow(dialog);
     }catch(error){await this.error(error);}
   }
   private async openBulk(action:ActionDefinition):Promise<void>{
@@ -268,7 +302,7 @@ export class Workspace {
       if(schemas.some(schema=>schema.fields.some((field:FieldDefinition)=>field.name!=="revision"&&!fields.some(common=>common.name===field.name))))throw new Error("A jelölt sorok eltérő mezőjogosultságúak. Válassz azonos jogosultságú sorokat.");
       const form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(field=>input(field,undefined)),{type:"button",name:"submit",text:`Végrehajtás (${ids.length} sor)`,icon:action.icon??"dxi dxi-check",color:"primary"}]} as any);
       this.dialog?.destructor();this.editor?.destructor();this.editor=form;
-      const dialog=new Window({title:escape(action.label+" — "+ids.length+" jelölt sor"),width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true});this.dialog=dialog;dialog.attach(form);dialog.show();
+      const dialog=new Window({css:"vapa-content-window",title:escape(action.label+" — "+ids.length+" jelölt sor"),width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
       const validation=new FormValidation(form,fields);let saving=false;
       form.events.on("click",(name:string)=>{
         if(name!=="submit"||saving||!validation.validate())return;saving=true;form.disable();
@@ -296,7 +330,7 @@ export class Workspace {
       };
       if(this.view.layout.formMode==="panel"&&!this.view.singleton){this.layout.getCell("form").expand();this.layout.getCell("form").attach(form);}
       else{
-        const dialog=new Window({title:escape(this.view.title+" — "+action.label),ariaLabel:this.view.title+" — "+action.label,width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});this.dialog=dialog;dialog.attach(form);dialog.show();
+        const dialog=new Window({css:"vapa-content-window",title:escape(this.view.title+" — "+action.label),ariaLabel:this.view.title+" — "+action.label,width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
       }
       this.bindSave(form,action,id??null,schema.values,allowed,close);
     }catch(e){await this.error(e);}
@@ -317,6 +351,6 @@ export class Workspace {
       }).catch(e=>{if(!this.disposed&&!validation.showServerErrors(e.fieldErrors??{}))return this.error(e);}).finally(()=>{saving=false;if(!this.disposed&&(this.editor===form||this.detail===form))form.enable();});
     });
   }
-  private revoke():void{this.resultsEpoch++;this.results?.destructor();this.results=undefined;this.rows=[];this.grid?.setRows([]);this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
-  destroy():void{this.releaseIcons();this.resultsEpoch++;this.results?.destructor();window.removeEventListener("resize",this.resize);this.closeFilters();this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.layout.destructor();}
+  private revoke():void{this.cardEditor?.destructor();this.cardEditor=undefined;this.cellEditing=false;this.resultsEpoch++;this.results?.destructor();this.results=undefined;this.rows=[];this.grid?.setRows([]);this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
+  destroy():void{this.disposed=true;this.cardEditor?.destructor();this.cardEditor=undefined;this.releaseIcons();this.resultsEpoch++;this.results?.destructor();window.removeEventListener("resize",this.resize);this.closeFilters();this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.layout.destructor();}
 }

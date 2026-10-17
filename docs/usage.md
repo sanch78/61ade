@@ -104,3 +104,9 @@ a nézet címét a panelben, a teljes jogosult és szűrt darabszámot jobb olda
 jeleníti meg. Ugyanitt található a konfigurálható főmenüikon használata.
 A [kompakt hitelesítési ablakok](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok)
 a kirajzolt űrlaphoz méreteződnek, egységes alsó térközzel.
+
+A [kártyaszerkesztés, rendezés és kompakt ablakok](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok)
+a deklarált írható mezőket kártyán is elérhetővé teszik, közös `__edit`
+mentéssel. A kártyák rendezése toolbar-dropdownból választható, a layout
+méretezője dupla kattintásra a deklarált méretre áll vissza. A munkaterület
+popupjai a tényleges tartalomhoz méreteződnek a viewport határáig.

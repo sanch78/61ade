@@ -201,3 +201,37 @@ A nézet `icon` attribútuma a főmenü ikonját adja, például JSON-ban
 `icon` argumentuma ugyanez. Csak CSS-osztálynevek adhatók meg. Az ikonfontban
 létező glyph szükséges. Alapértelmezés: `dxi dxi-table-check`; a csoportok
 mappaikont kapnak. A statikus `MenuItem` is fogad opcionális `icon` argumentumot.
+
+## Kártyaszerkesztés, rendezés és kompakt ablakok
+
+A `column.editable: true` kártyanézetben is érvényes, a sor szerveroldali
+`_editable` mezőjogával együtt. A ceruzával jelölt értékre kattintva natív
+DHTMLX Window/Form nyílik (szöveg, select, textarea); Mentés ugyanazt a
+`__edit` műveletet, revíziót, validációt, ACL-t és auditot használja, mint a
+Grid. A mezők közötti kliensvalidáció a teljes sor értékeit is megkapja. A checkbox egy kattintással kapcsolható; Enter/Space is működik.
+Nem írható mezőn továbbra is a rekordadatok olvashatók. A szerkesztő bezárása
+elveti a meg nem mentett értéket. Mentés alatt nincs új szerkesztés.
+
+Kártyanézetben a toolbar jobb oldalán, a nézetválasztó előtt a **Rendezés**
+dropdown minden `sortable` mezőhöz növekvő/csökkenő opciót ad. Például a
+szintetikus `title` mező „Title ↑” választása a teljes jogosult SQL-halmazt
+rendezi, ugyanazzal a kurzorral és helyi preferenciával, mint a táblafejléc.
+Mobilon is használható. Nem kell külön fogyasztói konfiguráció vagy végpont.
+
+A layout méretezőjének dupla kattintása a szomszédos panelek deklarált
+induló méretét állítja vissza, és törli e tengely mentett méretpreferenciáját.
+A normál húzás és az összecsukott állapot ettől függetlenül megmarad.
+A funkciót indító grid-/kártya-dupla kattintás nem jelöli ki a megjelenített
+szöveget; az inputokban továbbra is használható a szövegkijelölés.
+
+A filter-, CRUD-, bulk- és rekordablak megnyitáskor a kirajzolt tartalomhoz
+igazodik, legfeljebb a viewport magassága mínusz 24 px. A form utolsó gombja
+alatt 24 px hely marad; a rekordcikk saját paddingján túl 24 px marad.
+Hosszú tartalomnál a natív Window görgetése működik; a formvalidáció után
+újramérés történik. Az ablak kézi átméretezése továbbra is használható.
+
+Ellenőrzés: `tests/shell/grid-edit.spec.cjs`,
+`npm run test:browser -- --config playwright.grid-edit.config.cjs`.
+Szintetikus adatbázison ellenőrzi a mentés közbeni és utáni nézetváltást,
+a kártya checkbox/text/select mentést, validációt, SQL-rendezést, méretresetet,
+reloadot, dupla kattintást és a popupok alsó térközét. FB-0024.

@@ -1,17 +1,21 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
+const preferencesBundle=require('esbuild').buildSync({stdin:{contents:'export {UiPreferences} from "./packages/frontend/src/UiPreferences";',resolveDir:root},bundle:true,format:'iife',globalName:'preferencesFixture',write:false}).outputFiles[0].text;
 
 for(const axis of ['x','y']){
  test(`space layout ${axis} grip is centered and remains draggable`,async({page})=>{
   await page.setContent('<div id="vapa-application"></div>');
   await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});
   await page.addScriptTag({path:path.join(root,'node_modules/@dhtmlx/suite/codebase/suite.min.js')});
+  await page.addScriptTag({content:preferencesBundle});
   await page.evaluate(axis=>{
-   window.syntheticLayout=new dhx.Layout('vapa-application',{
+   const tree={
     type:'space',
     [axis==='x'?'cols':'rows']:[{id:'first',resizable:true,[axis==='x'?'width':'height']:260},{id:'second'}],
-   });
+   };
+   window.syntheticLayout=new dhx.Layout('vapa-application',tree);
+   new preferencesFixture.UiPreferences('synthetic',axis).bindLayout(syntheticLayout,tree);
   },axis);
   const grip=page.locator('.dhx_layout-resizer__icon');
   async function geometry(){
@@ -35,5 +39,7 @@ for(const axis of ['x','y']){
   await page.mouse.move(x+(axis==='x'?60:0),y+(axis==='y'?60:0),{steps:6});await page.mouse.up();
   await expect.poll(async()=>{const after=await geometry();return axis==='x'?after.first.width:after.first.height;}).toBeGreaterThan(300);
   await expect(grip).toHaveCount(1);
+  const reset=await geometry();await page.mouse.dblclick(reset.grip.x+reset.grip.width/2,reset.grip.y+reset.grip.height/2);
+  await expect.poll(async()=>{const after=await geometry();return axis==='x'?after.first.width:after.first.height;}).toBe(260);
  });
 }

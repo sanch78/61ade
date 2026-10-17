@@ -103,3 +103,8 @@ body,
 
 /* The Form owns auth spacing; Suite's extra 28px bottom pad would clip a fitted form. */
 .vapa-auth-window .dhx_window-content { padding-bottom: 0; }
+
+.vapa-content-window .dhx_window-content { padding-bottom: 0; }
+.vapa-card-edit { cursor: pointer; }
+.vapa-card-edit::after { content: " ✎"; color: var(--dhx-font-color-secondary); }
+.vapa-card-edit:focus-visible { outline: 2px solid var(--dhx-border-color-focused); }
