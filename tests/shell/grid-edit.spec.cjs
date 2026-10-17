@@ -58,9 +58,9 @@ test('cards edit and sort, fitted windows and resize reset survive mode changes'
  const initial=(await filter.boundingBox()).width,box=await grip.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+80,box.y+box.height/2,{steps:5});await page.mouse.up();await expect.poll(async()=>(await filter.boundingBox()).width).toBeGreaterThan(initial+40);const resetBox=await grip.boundingBox();await page.mouse.dblclick(resetBox.x,resetBox.y+resetBox.height/2);await expect.poll(async()=>(await filter.boundingBox()).width).toBe(initial);
  await page.reload();await expect(card).toBeVisible();await expect(card).toContainText('+36301112222');
  await page.setViewportSize({width:390,height:420});await expect(page.getByRole('button',{name:/^Rendezés/})).toBeVisible();
- await card.locator('.vapa-grid-card__id').dblclick();await expect(dialog).toBeVisible();
+ await card.locator('.vapa-grid-card__id').click();await page.getByRole('button',{name:'Adatok',exact:true}).click();await expect(dialog).toBeVisible();
  await expect.poll(async()=>(await dialog.boundingBox()).height).toBeLessThanOrEqual(396);
  const bounds=await dialog.boundingBox();expect(bounds.y).toBeGreaterThanOrEqual(12);expect(bounds.y+bounds.height).toBeLessThanOrEqual(408);
- await dialog.getByRole('button',{name:/Close/}).click();
+ await dialog.getByRole('button',{name:/close/i}).click();
  expect(errors).toEqual([]);
 });

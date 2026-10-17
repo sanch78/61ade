@@ -87,3 +87,22 @@ Vizuálisan ellenőrzött szintetikus képek: `presentation-real-cards.png`,
 valódi dev login: `dev-login-compact.png`. Artifactgyökér:
 `/space/share/tmp/dev.cityscreen.hu/runtime/vapa-ui/`.
 A Playwright kizárólag a meglévő rendszerszintű runnerrel, a guardon belül futott.
+
+## FB-0024 — Kártyaszerkesztés és ablakok, 2026-10-17
+
+| Elvárás | Ellenőrzés | Eredmény |
+| --- | --- | --- |
+| Kártyán is írható mezők | Natív mezőszerkesztő text/select; közvetlen checkbox; hibás telefon elutasítása és javított mentés/reload | PASS |
+| Gridmentés után nézetváltás | 600 ms késleltetett `__edit` válasz alatti váltás, mentés utáni ismételt kártya/tábla váltás | PASS |
+| Dupla kattintás szövegkijelölés nélkül | Sorszám dupla kattintás: rekordablak megnyílik, `getSelection().toString()` üres | PASS |
+| Kártyarendezés | Toolbar-dropdown SQL-rendezési kérése, aktív sorrend és visszaváltás/reload | PASS |
+| Layout dupla kattintásra reset | Tényleges egérhúzás és dupla kattintás mindkét tengelyen, 260 px induló méret visszaáll | PASS |
+| Tartalomhoz illeszkedő ablakok | Formgomb/adatcikk alatti térköz <40 px; 390×420 viewporton ablak ≤396 px és mindkét szélen ≥12 px | PASS |
+
+Védett szintetikus Chromium: `playwright.grid-edit.config.cjs` **2/2 PASS**;
+`layout-resizer.spec.cjs`, `list-presentation.spec.cjs`, `mobile-grid.spec.cjs`,
+`workspace.spec.cjs` **9/9 PASS**, három téma és élő frissítés mellett.
+A gridfixture futásonként külön, kijelölt scratch-almappát használ; a régi
+futások adatállománya nem befolyásolja a következő próbát.
+TypeScript typecheck/build, PHP `grid-edit.php` és `validation.php` PASS.
+Használat: [kártyaszerkesztés és méretezés](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok).
