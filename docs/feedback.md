@@ -312,3 +312,13 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [módszertan](usage.md); nincs külön fogyasztói beállítás.
 - **Ellenőrzés:** build, `git diff --check` és publikált CSS-egyezés PASS. Demo- és CityScreen dev-assetek frissítve; kizárólag a sorsáv színe változott.
 - **Állapot:** megvalósítva.
+
+## FB-0033 — Egyértelmű témanevek és többnyelvűségi helyzetkép
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás és képességkérdés.
+- **Elvárás:** a Default téma kapjon más nevet; Skyblue legyen a tényleges alapérték. Tisztázandó, hogy a keret és a fogyasztó többnyelvű-e.
+- **Megvalósítás:** a `light` téma megjelenített neve Világos; a meglévő Skyblue alapérték és mentett preferencia megőrzése változatlan. Cacheverzió `v=20`.
+- **Helyzetkép:** a keretben nincs kész i18n-katalógus/locale/nyelvválasztás; frontend- és backend-szövegek részben közvetlen magyar feliratok. A korábbi architekturális i18n-terv nem kész képesség. Többnyelvűség implementációját ez a módosítás nem tartalmazza.
+- **Használat:** [módszertan és többnyelvűség](usage.md#többnyelvűség-jelenlegi-állapota), [témák](shell.md).
+- **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban Skyblue alapérték, mentett téma újratöltése és háromtémás választó/megjelenítés 2/2 PASS. Frontend-, backend-, konfigurációs és tervdokumentáció-áttekintés alapján rögzített i18n-helyzetkép. Demo- és fogyasztói assetek publikálva.
+- **Állapot:** témamódosítás megvalósítva / agent által ellenőrzött; a többnyelvűség továbbra is megvalósítandó képesség.

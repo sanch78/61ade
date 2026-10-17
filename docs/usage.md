@@ -4,7 +4,7 @@ Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését teszte
 
 ## Jelenlegi állapot
 
-2026-10-16: a shell mellett működik a regisztrált műveletvégrehajtó, deklarált form/grid adapter, SQL objektumscope, mezőjog, ui/api csatornaszétválasztás, scope-olt token és tranzakciós audit. A fogyasztó saját user adminját és üzleti moduljait ezekből deklarálja. Részletek: [ACL és műveletek](access-and-actions.md), [shell](shell.md). A munkaterület [konfigurálható filter/form/grid layoutot, dinamikus listát, szerveroldali rendezést és polling/WebSocket követést](workspaces.md) ad; a singleton adatlap közvetlen form. A shell felső alkalmazásnév-fejléc nélkül indul; egyetlen alsó sávban balra a felhasználó, jobbra az alkalmazásnév és konfigurált verzió szerepel ([shell](shell.md#egységes-alsó-információs-sáv)). A Skyblue (alapértelmezett) / Default / Éjjeli mód DHTMLX `setTheme` alapú; a Skyblue a Suite 9 dokumentált témaváltozóival definiált VAPA-paletta. Önálló szintetikus demó és fogyasztói integrációs tesztek tartoznak hozzá. Többszervezetes izoláció, külső mellékhatások outboxa, összetett ABAC, export és teljes release-folyamat még nincs; ez nem a teljes M1–M7 lezárása.
+2026-10-16: a shell mellett működik a regisztrált műveletvégrehajtó, deklarált form/grid adapter, SQL objektumscope, mezőjog, ui/api csatornaszétválasztás, scope-olt token és tranzakciós audit. A fogyasztó saját user adminját és üzleti moduljait ezekből deklarálja. Részletek: [ACL és műveletek](access-and-actions.md), [shell](shell.md). A munkaterület [konfigurálható filter/form/grid layoutot, dinamikus listát, szerveroldali rendezést és polling/WebSocket követést](workspaces.md) ad; a singleton adatlap közvetlen form. A shell felső alkalmazásnév-fejléc nélkül indul; egyetlen alsó sávban balra a felhasználó, jobbra az alkalmazásnév és konfigurált verzió szerepel ([shell](shell.md#egységes-alsó-információs-sáv)). A Skyblue (alapértelmezett) / Világos / Éjjeli mód DHTMLX `setTheme` alapú; a Skyblue a Suite 9 dokumentált témaváltozóival definiált VAPA-paletta. Önálló szintetikus demó és fogyasztói integrációs tesztek tartoznak hozzá. Többszervezetes izoláció, külső mellékhatások outboxa, összetett ABAC, export és teljes release-folyamat még nincs; ez nem a teljes M1–M7 lezárása.
 
 ## Kötelező fejlesztési irány
 
@@ -136,3 +136,19 @@ Külön fogyasztói konfiguráció nincs; build és assetpublikálás szüksége
 A popupok fejléce témához illő, a tartalomtól elkülönülő hátteret és minden
 témában 1 px témaszínű alsó elválasztóvonalat kap,
 a kompakt 40 px fejlécmagasságon belül ([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)).
+
+A témaválasztóban a gyári világos téma neve **Világos** (`light`); az
+alapértelmezett téma **Skyblue**. A korábbi mentett választások megmaradnak.
+
+## Többnyelvűség jelenlegi állapota
+
+A VAPA jelenleg nem teljesen többnyelvű. Nincs központi fordítási katalógus,
+locale-beállítás vagy bekötött nyelvválasztás; a frontend keretfeliratai és
+a backend több validációs/hibaüzenete közvetlen magyar szöveg. A shell
+HTML-je `lang="hu"`. A definíciók feliratai megadhatók más nyelven is, de
+ez önmagában nem teszi többnyelvűvé a felületet. Az `i18n` architekturális
+terv, nem kész runtime-képesség.
+
+Többnyelvű fogyasztóhoz előbb közös VAPA fordításkezelés és locale-szerződés
+kell a kliensre, szerverre, validációra és levelekre; az üzleti fordítások
+a fogyasztó feladatai. Ennek megvalósítása még hátravan (FB-0033).

@@ -79,7 +79,7 @@ A shellhez azóta elkészült az első Feature Registry, SQL CRUD, objektum-/mez
 
 ## Megjelenési mód
 
-A menüsor jobb oldalán DHTMLX Toolbar választó adja a Skyblue (`skyblue`), Default (`light`) és Éjjeli (`dark`) témát. Mentett választás nélkül Skyblue az alapértelmezett. Érvényes korábbi választás megmarad; ismeretlen érték Skyblue-ra esik vissza. A `vapa-theme` localStorage kulcs a böngésző helyi preferenciája, nem jogosultsági vagy profiladat.
+A menüsor jobb oldalán DHTMLX Toolbar választó adja a Skyblue (`skyblue`), Világos (`light`) és Éjjeli (`dark`) témát. Mentett választás nélkül Skyblue az alapértelmezett. Érvényes korábbi választás megmarad; ismeretlen érték Skyblue-ra esik vissza. A `vapa-theme` localStorage kulcs a böngésző helyi preferenciája, nem jogosultsági vagy profiladat.
 
 A Suite 9.3.12 nem szállítja a régi Suite Skyblue skinjét. A VAPA Skyblue ezért a [dokumentált custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/) alapján, a DHTMLX CSS-változóival definiált világoskék paletta. A komponensek Suite 9 komponensek maradnak: ez nem a régi képes/gradient skin teljes másolata. A `setTheme` a dokumentum gyökerére állítja a témát, így a menü, toolbar, ablak, form és grid azonos témát kap. Nincs legacy CSS-betöltés vagy alkalmazási skinréteg. Ellenőrzés: `browser.spec.cjs` Skyblue alapérték, tényleges toolbar-szín, Éjjeli/Skyblue váltás és újratöltés utáni megőrzés.
 
@@ -161,7 +161,7 @@ A natív DHTMLX Window fejléce témától függetlenül 40 px magas, 16 px cím
 illeszkedő ablakmérés továbbra is a tényleges fejlécet veszi figyelembe.
 A fejléc alján 1 px, a téma `--dhx-border-color` színét követő vonal választja
 el a tartalmat; a vonal a 40 px magasságon belül marad (FB-0031).
-A fejléc háttérszíne a téma másodlagos háttere: Defaultban világosszürke,
+A fejléc háttérszíne a téma másodlagos háttere: Világos témában világosszürke,
 Éjjeli módban világosabb sötét árnyalat. Skyblue megtartja kék színátmenetét.
 
 Kompakt főmenüben minden navigációs ág és a Kijelentkezés is a „Menü” gomb alá

@@ -143,12 +143,12 @@ export class AdminShell {
       ],
     });
     this.layout.getCell("status").attach(status);
-    const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:theme==="dark"?"Éjjeli":theme==="skyblue"?"Skyblue":"Default",items:[{id:"theme-skyblue",value:"Skyblue"},{id:"theme-light",value:"Default"},{id:"theme-dark",value:"Éjjeli"}]}]});
+    const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:theme==="dark"?"Éjjeli":theme==="skyblue"?"Skyblue":"Világos",items:[{id:"theme-skyblue",value:"Skyblue"},{id:"theme-light",value:"Világos"},{id:"theme-dark",value:"Éjjeli"}]}]});
     themeControl.events.on("click",(id:string|number)=>{
       if(id!=="theme-light" && id!=="theme-dark" && id!=="theme-skyblue")return;
       const next=id==="theme-dark"?"dark":id==="theme-skyblue"?"skyblue":"light";
       setTheme(next,document.documentElement);
-      themeControl.data.update("theme-choice",{value:next==="dark"?"Éjjeli":next==="skyblue"?"Skyblue":"Default"});
+      themeControl.data.update("theme-choice",{value:next==="dark"?"Éjjeli":next==="skyblue"?"Skyblue":"Világos"});
       try{localStorage.setItem("vapa-theme",next);}catch{}
       void this.fitLogin();
     });
