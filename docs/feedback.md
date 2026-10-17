@@ -45,3 +45,5 @@
 ## FB-0024 — Card editing, save switching, sizing and sorting
 
 ## FB-0025 — Distinct main-menu buttons
+
+## FB-0026 — Grid shadow below column headings

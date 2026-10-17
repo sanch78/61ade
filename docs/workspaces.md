@@ -192,8 +192,9 @@ változás is módosítja a snapshot verzióját, ha a darabszám változik.
 
 A natív fejléc `headerIcon` kiegészítőhelyén a VAPA számlálóosztálya jelenik
 meg, a keret stílusa jobbra rendezi; nincs külön fogyasztói fejléc vagy
-HTML-adminfelület. A fix toolbar alatti árnyék a görgetett táblán és
-kártyákon is látható. A filter két natív gombja egy sorban, legalább 8 px
+HTML-adminfelület. Táblázatnézetben az árnyék az oszlopfejléc alatt választja el a gördülő
+sorokat; kártyanézetben a toolbar alatt jelenik meg. Nézetváltáskor a
+megjelenített natív Grid alapján automatikusan vált, minden témában. A filter két natív gombja egy sorban, legalább 8 px
 közzel jelenik meg.
 
 A nézet `icon` attribútuma a főmenü ikonját adja, például JSON-ban

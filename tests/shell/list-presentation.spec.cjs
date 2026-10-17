@@ -60,10 +60,14 @@ test('toolbar stays inside its cell and above scrolling grid/cards in all themes
    return {outer:{top:outer.top,bottom:outer.bottom},toolbar:{top:toolbar.top,bottom:toolbar.bottom},buttons:[...cell.querySelectorAll('button')].map(button=>{const r=button.getBoundingClientRect();return {top:r.top,bottom:r.bottom};})};
   });
   expect(bounds.toolbar.bottom).toBeLessThanOrEqual(bounds.outer.bottom);for(const button of bounds.buttons){expect(button.top).toBeGreaterThanOrEqual(bounds.outer.top);expect(button.bottom).toBeLessThanOrEqual(bounds.outer.bottom);}
+  expect(await page.locator('.vapa-command-row').evaluate(element=>getComputedStyle(element).boxShadow)).toBe('none');
+  expect(await page.locator('.dhx_grid-header').first().evaluate(element=>getComputedStyle(element).boxShadow)).not.toBe('none');
   await page.locator('.dhx_grid').hover();await page.mouse.wheel(0,500);
   await expect.poll(()=>page.evaluate(()=>workspace.grid.table.getScrollState().y)).toBeGreaterThan(0);
   const button=page.getByRole('button',{name:'Adatok',exact:true});await expect(button).toBeVisible();
+  await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'table-header-shadow-'+theme+'.png')});
   await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
+  expect(await page.locator('.vapa-command-row').evaluate(element=>getComputedStyle(element).boxShadow)).not.toBe('none');
   await page.locator('.vapa-grid-cards').evaluate(element=>element.scrollTop=500);
   await expect.poll(()=>page.locator('.vapa-grid-cards').evaluate(element=>element.scrollTop)).toBeGreaterThan(0);
   const hit=await button.evaluate(element=>{const box=element.getBoundingClientRect();return element.contains(document.elementFromPoint(box.x+box.width/2,box.y+box.height/2));});expect(hit).toBe(true);
