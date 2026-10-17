@@ -6,6 +6,24 @@ use Vapa\Audit\Journal;
 final class Executor
 {
     public function __construct(public Registry $registry, private \PDO $db, public Journal $journal) {}
+    /** Bounded, explicitly opted-in batch; each object has its own ACL, transaction and audit. */
+    public function bulk(Context $ctx, string $resource, string $name, array $items): array
+    {
+        $action=$this->registry->get($resource,$name);
+        if(!$action->bulk || $ctx->channel!=='ui')throw new Failure('A tömeges művelet nem érhető el.',403);
+        if(!array_is_list($items)||!$items||count($items)>100)throw new Failure('1–100 jelölt sor szükséges.');
+        $seen=[];
+        foreach($items as $item){
+            if(!is_array($item)||array_diff(array_keys($item),['id','values'])||!is_string($item['id']??null)||!is_array($item['values']??null)||isset($seen[$item['id']]))throw new Failure('Hibás vagy ismétlődő jelölt sor.');
+            $seen[$item['id']]=true;
+        }
+        $results=[];
+        foreach($items as $item){
+            try{$this->execute($ctx,$resource,$name,$item['id'],$item['values']);$results[]=['id'=>$item['id'],'ok'=>true];}
+            catch(Failure $error){$results[]=['id'=>$item['id'],'ok'=>false,'error'=>$error->getMessage()];}
+        }
+        return $results;
+    }
     public function edit(Context $ctx, string $resource, string $id, string $field, mixed $value, string $revision): mixed
     {
         if ($field === 'revision') throw new Failure('Nem szerkeszthető mező.', 403);

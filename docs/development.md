@@ -63,3 +63,19 @@ A fogyasztó ugyanazt a `tools/run-dev-check.sh command [args...]` eszközt hív
 Ellenőrzés: a futó scope `memory.max=943718400`, `memory.high=734003200`, `memory.swap.max=0`, `pids.max=128`; egymásba ágyazott guardhívás 75-tel elutasítva; mindkét projekt tesztfelderítése a wrapperen keresztül; egy szintetikus login/menu Chromium-próba sikeres a védett futtatóban (a rendelkezésre álló PHP 8.4 wrapper `VAPA_PHP` illesztésével). A limit érvényesítése kis terheléssel ellenőrzött, szándékos host-OOM teszt nincs. Ez a tesztek védelme, a teljes VS Code-session és más szolgáltatások összesített fogyasztását nem korlátozza. Hostszintű swap vagy további szolgáltatáskorlát rendszergazdai feladat.
 
 Referencia: [systemd erőforráskorlátok](https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html).
+
+
+### Kijelölt scratch és rendszerszintű böngésző
+
+A build vendorfont-cache-e és a védett tesztfolyamat `TMPDIR`-je a
+`VAPA_TMP_DIR` környezeti változóval kijelölhető. Az önálló demo setup,
+adatbázis és session runtime, illetve az alap Playwright-konfiguráció
+artifactkönyvtára is ezt követi. A közös `dev-check.lock` továbbra is a
+keret meglévő zára: a scratch választása nem enged párhuzamos tesztfutást.
+A régi alapútvonal kompatibilitásból marad meg; a host projektterületi
+szerződése szerint mindig a kijelölt scratch értéket kell átadni.
+
+A Playwright runner/böngésző Catalyston rendszerszinten, Infra által kezelt.
+Hiányzó vagy eltérő browser revision esetén Infra-kérés szükséges;
+projektterületre böngészőt letölteni, vagy a hostvédelmet megkerülni tilos.
+A tesztartifact scratch és a közös böngészőtelepítés két külön felelősség.

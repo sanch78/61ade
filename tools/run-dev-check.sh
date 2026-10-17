@@ -6,7 +6,8 @@ if (( $# == 0 )); then
     echo "Usage: tools/run-dev-check.sh command [args...]" >&2
     exit 64
 fi
-mkdir -p "$root/codex/tmp"
+runtime_dir="${VAPA_TMP_DIR:-$root/codex/tmp}"
+mkdir -p "$runtime_dir"
 exec 9>"$root/codex/tmp/dev-check.lock"
 if ! flock -n 9; then
     echo "Another guarded development check is running; retry after it finishes." >&2
@@ -17,7 +18,7 @@ if [[ -z "$available_kib" ]] || (( available_kib < 1310720 )); then
     echo "Development check refused: at least 1280 MiB MemAvailable is required." >&2
     exit 75
 fi
-export TMPDIR="$root/codex/tmp"
+export TMPDIR="$runtime_dir"
 # Fail closed if the user manager cannot enforce cgroup limits; no unbounded fallback.
 systemd-run --user --scope --quiet --collect \
     -p MemoryAccounting=yes -p MemoryHigh=700M -p MemoryMax=900M \

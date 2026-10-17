@@ -1,3 +1,4 @@
+import { widgetIcons } from "./WidgetIcons";
 import { Workspace, type ViewDefinition } from "./Workspace";
 import { Form, Layout, Menu, Toolbar, Window, alert, setTheme, awaitRedraw } from "@dhtmlx/suite";
 
@@ -34,6 +35,7 @@ const escape = (text: string) =>
 
 /** VAPA owns the DHTMLX lifecycle; consumers supply definitions, never shell markup. */
 export class AdminShell {
+  private releaseIcons=widgetIcons();
   private layout: Layout;
   private menu?: Menu;
   private workspace?: Workspace;
@@ -63,7 +65,7 @@ export class AdminShell {
     }
     if (!this.loginWindow) return;
     const width = this.definition.confirmation ? 460 : 420;
-    const height = this.definition.confirmation ? 370 : this.definition.rememberAvailable ? 340 : 290;
+    const height = this.definition.confirmation ? 420 : this.definition.rememberAvailable ? 340 : 290;
     this.loginWindow.setSize(
       Math.min(width, innerWidth - 24),
       Math.min(height, innerHeight - 24),
@@ -84,7 +86,7 @@ export class AdminShell {
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, cols: [{id:"main-menu"},{id:"theme",width:145}] },
+        { id: "menu-row", height: 40, css:"vapa-navigation-row", cols: [{id:"main-menu"},{id:"theme",width:145}] },
         { id: "workspace", css: "vapa-workspace" },
         { id: "status", height: 32, css: "vapa-session-bar" },
       ],
@@ -218,6 +220,7 @@ export class AdminShell {
               type: "button",
               name: "login",
               text: "Bejelentkezés",
+              icon: "dxi dxi-key",
               view: "flat",
               color: "primary",
             },
@@ -285,7 +288,7 @@ export class AdminShell {
       title: "E-mailes megerősítés",
       ariaLabel: "E-mailes megerősítés",
       width: 460,
-      height: 370,
+      height: 420,
       modal: true,
       closable: false,
       resizable: false,
@@ -296,10 +299,10 @@ export class AdminShell {
         { type: "text", name: "recipient", label: "Megerősítő levelet küldtünk", value: escape(confirmation.email) },
         { type: "input", name: "code", label: "Megerősítő kód", labelPosition: "top", required: true, maxlength: 6,
           validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: "A levélben kapott 6 számjegyű kód szükséges." },
-        { type: "button", name: "verify", text: "Belépés megerősítése", color: "primary" },
-        { cols: [
-          { type: "button", name: "resend", text: "Új kód küldése", view: "link" },
-          { type: "button", name: "cancel", text: "Vissza a belépéshez", view: "link" },
+        { type: "button", name: "verify", text: "Belépés megerősítése", icon:"dxi dxi-check", color: "primary" },
+        { rows: [
+          { type: "button", name: "resend", text: "Új kód küldése", icon:"dxi dxi-email", view: "flat", color:"secondary" },
+          { type: "button", name: "cancel", text: "Vissza a belépéshez", icon:"dxi dxi-arrow-left", view: "flat", color:"secondary" },
         ] },
       ],
     });
@@ -346,6 +349,7 @@ export class AdminShell {
   }
 
   destroy(): void {
+    this.releaseIcons();
     this.listeners.abort();
     window.removeEventListener("resize", this.resize);
     this.workspace?.destroy();

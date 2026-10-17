@@ -1,14 +1,16 @@
+import { widgetIcons } from "./WidgetIcons";
 import { Form, Layout, Toolbar, Window, alert, message, awaitRedraw } from "@dhtmlx/suite";
 import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
 import { GridHeaders, type Sort } from "./GridHeaders";
 import { GridEditing } from "./GridEditing";
+import { escape as escapeRecord, recordFields } from "./RecordPresentation";
 import { ResponsiveGrid } from "./ResponsiveGrid";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 
 export type { FieldDefinition } from "./FormValidation";
-export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;fields:FieldDefinition[]};
+export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;icon?:string;bulk?:boolean;fields:FieldDefinition[]};
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
+export type ViewDefinition={resource:string;title:string;rowNumbers?:boolean;selection?:boolean;detailFields?:ViewDefinition["columns"];columns:{id:string;header:string;type?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 const cursor=(row:Row,direction:string)=>btoa(Array.from(new TextEncoder().encode(JSON.stringify({...row._position,edge:String(row.id),direction})),byte=>String.fromCharCode(byte)).join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="checkbox"?{
@@ -23,6 +25,7 @@ const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="chec
 
 /** Configured filter/form/grid regions, bounded dynamic data and live observation. */
 export class Workspace {
+  private releaseIcons=widgetIcons();
   readonly layout:Layout;
   private grid?:ResponsiveGrid;
   private gridEditing?:GridEditing;
@@ -45,6 +48,8 @@ export class Workspace {
   private dialog?:Window;
   private editor?:Form;
   private detail?:Form;
+  private results?:Window;
+  private resultsEpoch=0;
   private detailDirty=false;
   private detailConflictShown=false;
   private live:Realtime;
@@ -58,13 +63,13 @@ export class Workspace {
     const region=(node:Region):any=>({...node,header:node.header?escape(node.header):undefined,
       ...(node.rows?{rows:node.rows.map(region)}:{}),...(node.cols?{cols:node.cols.map(region)}:{})});
     this.layout=new Layout(host,{type:"space",...(view.singleton
-      ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48},{id:"detail"}]}]}
+      ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48,css:"vapa-command-row"},{id:"detail"}]}]}
       :region(view.layout.tree))});
-    this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-table",value:"Táblázat"},{id:"vapa-cards",value:"Kártyák"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:"Szűrés"}]:[]),...(!view.singleton?[{id:"title",type:"title",value:escape(view.title)}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).map(a=>({id:a.name,value:escape(a.label)}))]});
-    this.commands.events.on("click",(id:string|number)=>{if(id==="vapa-table"||id==="vapa-cards"){this.grid?.setMode(id==="vapa-table"?"table":"cards");return;}if(id==="vapa-filter"){this.openFilters();return;}const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
+    this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-table",value:"Táblázat",icon:"dxi dxi-table-check"},{id:"vapa-cards",value:"Kártyák",icon:"dxi dxi-view-grid"},{id:"vapa-results",value:"Adatok",icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:"Szűrés",icon:"dxi dxi-filter-variant"}]:[]),...(!view.singleton?[{id:"title",type:"title",value:escape(view.title)}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).flatMap(a=>[{id:a.name,value:escape(a.label),icon:a.icon??({create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key"}[a.name]??"dxi dxi-pencil")},...(view.selection&&a.bulk?[{id:"bulk:"+a.name,value:escape(a.label+" — jelöltek"),icon:a.icon??"dxi dxi-check"}]:[])])]});
+    this.commands.events.on("click",(id:string|number)=>{if(id==="vapa-table"||id==="vapa-cards"){this.grid?.setMode(id==="vapa-table"?"table":"cards");return;}if(id==="vapa-filter"){this.openFilters();return;}if(id==="vapa-results"){if(this.selected)void this.showResults(this.selected);return;}if(String(id).startsWith("bulk:")){const action=view.actions.find(a=>"bulk:"+a.name===id);if(action)void this.openBulk(action);return;}const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
-      this.content=new Layout(document.createElement("div"),{rows:[{id:"commands",height:48},{id:"data"}]});
+      this.content=new Layout(document.createElement("div"),{type:"none",css:"vapa-grid-content",rows:[{id:"commands",height:48,css:"vapa-command-row"},{id:"data"}]});
       this.content.getCell("commands").attach(this.commands);
       const dataHost=document.createElement("div");
       this.grid=new ResponsiveGrid(dataHost,view.columns,()=>this.rows,(id)=>{
@@ -75,7 +80,7 @@ export class Workspace {
       },direction=>{if(!this.rendering&&!this.busy&&!this.disposed)void this.more(direction);},(cards,mobile)=>{
         if(cards||mobile)this.commands.disable("vapa-cards");else this.commands.enable("vapa-cards");
         if(!cards||mobile)this.commands.disable("vapa-table");else this.commands.enable("vapa-table");
-      });
+      },{rowNumbers:view.rowNumbers,selection:view.selection,fields:view.detailFields??view.columns,details:id=>void this.showResults(id),marked:()=>this.capabilities()});
       this.gridHeaders=new GridHeaders(this.grid.table,view.columns,view.sortable??[],sort=>void this.changeSort(sort));
       this.gridEditing=new GridEditing(this.grid.table,view.actions.find(a=>a.name==="update")?.fields??[],()=>this.rows,
         async(row,field,value)=>{
@@ -98,12 +103,17 @@ export class Workspace {
   }
   private selectedRow():Row|undefined{return this.rows.find(r=>String(r.id)===this.selected);}
   private capabilities():void{
+    if(!this.view.singleton){if(this.selectedRow())this.commands.enable("vapa-results");else this.commands.disable("vapa-results");}
+    for(const action of this.view.actions.filter(a=>a.bulk&&this.view.selection)){
+      const ids=this.grid?.markedIds??[];
+      if(ids.length&&ids.length<=100&&ids.every(id=>this.rows.find(row=>String(row.id)===id)?._actions?.includes(action.name)))this.commands.enable("bulk:"+action.name);else this.commands.disable("bulk:"+action.name);
+    }
     for(const a of this.view.actions){if(a.name==="get"||(this.view.singleton&&a.name==="update"))continue;
       if(a.name==="create"||this.selectedRow()?._actions?.includes(a.name))this.commands.enable(a.name);else this.commands.disable(a.name);
     }
   }
   private mountFilters():void{
-    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,type:f.type==="checkbox"?"select":f.type,required:false},""),...(["select","checkbox"].includes(f.type)?{options:[{value:"",content:"Bármely"},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{type:"button",name:"apply",text:"Szűrés",color:"primary"},{type:"button",name:"clear",text:"Alaphelyzet",view:"link"}]} as any);
+    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,type:f.type==="checkbox"?"select":f.type,required:false},""),...(["select","checkbox"].includes(f.type)?{options:[{value:"",content:"Bármely"},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{type:"button",name:"apply",text:"Szűrés",icon:"dxi dxi-filter-variant",color:"primary"},{type:"button",name:"clear",text:"Alaphelyzet",icon:"dxi dxi-undo",view:"flat",color:"secondary"}]} as any);
     form.events.on("click",(name:string)=>{
       if(name!=="apply"&&name!=="clear")return;
       if(name==="clear")form.clear();
@@ -210,11 +220,47 @@ export class Workspace {
     if(this.disposed)return;
     this.layout.getCell("detail").detach();this.detail?.destructor();await awaitRedraw();if(this.disposed)return;
     const fields=this.view.columns.map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:"text",required:false,max:255,options:{}});
-    const form=new Form(document.createElement("div"),{padding:24,rows:[...fields.map(f=>input(f,row[f.name],!allowed.some(a=>a.name===f.name))),...(action?[{type:"button",name:"submit",text:"Mentés",color:"primary"}]:[])]} as any);
+    const form=new Form(document.createElement("div"),{padding:24,rows:[...fields.map(f=>input(f,row[f.name],!allowed.some(a=>a.name===f.name))),...(action?[{type:"button",name:"submit",text:"Mentés",icon:"dxi dxi-content-save",color:"primary"}]:[])]} as any);
     this.detail=form;this.detailDirty=false;this.detailConflictShown=false;
     form.events.on("change",()=>{this.detailDirty=true;});
     if(action)this.bindSave(form,action,String(row.id),row,allowed,()=>{this.detailDirty=false;});
     this.layout.getCell("detail").attach(form);this.capabilities();
+  }
+  private async showResults(id:string):Promise<void>{
+    const epoch=++this.resultsEpoch;
+    this.results?.destructor();this.results=undefined;
+    try{
+      const row:Row=await this.call("get",id);
+      if(this.disposed||epoch!==this.resultsEpoch)return;
+      const dialog=new Window({title:escape(this.view.title+" — Adatok · "+id),ariaLabel:"Rekordadatok",width:Math.min(680,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
+      this.results=dialog;
+      dialog.attachHTML(`<article class="vapa-record-details"><div class="vapa-grid-card__id">ID · ${escapeRecord(row.id)}</div>${recordFields(row,this.view.detailFields??this.view.columns)}</article>`);
+      dialog.show();
+    }catch(error){await this.error(error);}
+  }
+  private async openBulk(action:ActionDefinition):Promise<void>{
+    const ids=this.grid?.markedIds??[];if(!ids.length||ids.length>100)return;
+    const epoch=++this.formEpoch;
+    try{
+      const schemas:{fields:FieldDefinition[];values:Row}[]=[];
+      for(const id of ids)schemas.push(await this.call("__form",id,{operation:action.name}));
+      if(this.disposed||epoch!==this.formEpoch)return;
+      const fields=(schemas[0].fields as FieldDefinition[]).filter(field=>field.name!=="revision"&&schemas.every(schema=>schema.fields.some((other:FieldDefinition)=>other.name===field.name)));
+      if(schemas.some(schema=>schema.fields.some((field:FieldDefinition)=>field.name!=="revision"&&!fields.some(common=>common.name===field.name))))throw new Error("A jelölt sorok eltérő mezőjogosultságúak. Válassz azonos jogosultságú sorokat.");
+      const form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(field=>input(field,undefined)),{type:"button",name:"submit",text:`Végrehajtás (${ids.length} sor)`,icon:action.icon??"dxi dxi-check",color:"primary"}]} as any);
+      this.dialog?.destructor();this.editor?.destructor();this.editor=form;
+      const dialog=new Window({title:escape(action.label+" — "+ids.length+" jelölt sor"),width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true});this.dialog=dialog;dialog.attach(form);dialog.show();
+      const validation=new FormValidation(form,fields);let saving=false;
+      form.events.on("click",(name:string)=>{
+        if(name!=="submit"||saving||!validation.validate())return;saving=true;form.disable();
+        const raw=form.getValue() as Record<string,unknown>;
+        const values=Object.fromEntries(fields.map(field=>[field.name,raw[field.name]]));
+        void this.call("__bulk",null,{operation:action.name,items:ids.map((id,i)=>({id,values:{...values,...(schemas[i].fields.some((field:FieldDefinition)=>field.name==="revision")?{revision:schemas[i].values.revision}:{})}}))}).then(async(result:{id:string;ok:boolean;error?:string}[])=>{
+          if(this.disposed)return;dialog.destructor();this.dialog=undefined;this.editor=undefined;this.grid?.clearMarks();await this.load();
+          await alert({header:"Tömeges művelet",text:`Sikeres: ${result.filter(row=>row.ok).length}, sikertelen: ${result.filter(row=>!row.ok).length}.`+result.filter(row=>!row.ok).map(row=>`\n${row.id}: ${row.error}`).join(""),htmlEnable:false});
+        }).catch(error=>this.error(error)).finally(()=>{saving=false;if(!this.disposed&&this.editor===form)form.enable();});
+      });
+    }catch(error){await this.error(error);}
   }
   private async open(action:ActionDefinition):Promise<void>{
     const id=action.name==="create"?null:this.selected;if(action.name!=="create"&&!id)return;
@@ -222,7 +268,7 @@ export class Workspace {
     try{
       const schema=await this.call("__form",id??null,{operation:action.name});if(this.disposed||epoch!==this.formEpoch)return;
       const allowed=schema.fields as FieldDefinition[];
-      const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision").map(f=>input(f,f.type==="password"?"":schema.values[f.name])),{type:"button",name:"submit",text:action.submitLabel,color:"primary"}]} as any);
+      const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision").map(f=>input(f,f.type==="password"?"":schema.values[f.name])),{type:"button",name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"}]} as any);
       this.dialog?.destructor();this.editor?.destructor();this.editor=form;
       const close=()=>{
         if(this.view.layout.formMode==="panel"&&!this.view.singleton){this.layout.getCell("form").detach();this.layout.getCell("form").collapse();}
@@ -252,6 +298,6 @@ export class Workspace {
       }).catch(e=>{if(!this.disposed&&!validation.showServerErrors(e.fieldErrors??{}))return this.error(e);}).finally(()=>{saving=false;if(!this.disposed&&(this.editor===form||this.detail===form))form.enable();});
     });
   }
-  private revoke():void{this.rows=[];this.grid?.setRows([]);this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
-  destroy():void{window.removeEventListener("resize",this.resize);this.closeFilters();this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.layout.destructor();}
+  private revoke():void{this.resultsEpoch++;this.results?.destructor();this.results=undefined;this.rows=[];this.grid?.setRows([]);this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
+  destroy():void{this.releaseIcons();this.resultsEpoch++;this.results?.destructor();window.removeEventListener("resize",this.resize);this.closeFilters();this.disposed=true;this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.layout.destructor();}
 }

@@ -60,3 +60,20 @@ body,
 .vapa-grid-editable .dhx_grid-header-cell-text::after,
 .vapa-grid-sort-asc .dhx_grid-header-cell-text::before,
 .vapa-grid-sort-desc .dhx_grid-header-cell-text::before { flex-shrink: 0; }
+
+/* Cells, not the scrolling content, own toolbar dimensions and stacking. */
+.vapa-command-row { overflow: hidden; position: relative; z-index: 1; }
+.vapa-command-row .dhx_toolbar,
+.vapa-navigation-row .dhx_toolbar { height: 100% !important; min-height: 0; }
+.vapa-command-row .dhx_navbar,
+.vapa-navigation-row .dhx_navbar { height: 100%; box-sizing: border-box; padding: 4px 8px; align-items: center; }
+.vapa-navigation-row .dhx_menu-nav { height: 100%; box-sizing: border-box; padding-top: 0; padding-bottom: 0; align-items: center; }
+.vapa-grid-content, .vapa-grid-views { overflow: hidden; }
+.vapa-grid-views .dhx_grid { border: 0; }
+.vapa-grid-views .dhx_grid-content { isolation: isolate; }
+.vapa-record-details { padding: 16px 20px; overflow-wrap: anywhere; }
+.vapa-record-details dl { margin: 0; }
+.vapa-grid-card__field dt, .vapa-grid-card__field dd { min-width: 0; }
+.vapa-record-details .vapa-grid-card__field dd { white-space: pre-wrap; margin: 0; }
+.vapa-navigation-row .dhx_navbar { padding-top: 0; padding-bottom: 0; }
+.vapa-navigation-row .dhx_menu { height: 100%; }

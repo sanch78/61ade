@@ -4,7 +4,7 @@ Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését teszte
 
 ## Jelenlegi állapot
 
-2026-10-16: a shell mellett működik a regisztrált műveletvégrehajtó, deklarált form/grid adapter, SQL objektumscope, mezőjog, ui/api csatornaszétválasztás, scope-olt token és tranzakciós audit. A fogyasztó saját user adminját és üzleti moduljait ezekből deklarálja. Részletek: [ACL és műveletek](access-and-actions.md), [shell](shell.md). A munkaterület [konfigurálható filter/form/grid layoutot, dinamikus listát, szerveroldali rendezést és polling/WebSocket követést](workspaces.md) ad; a singleton adatlap közvetlen form. A shell felső alkalmazásnév-fejléc nélkül indul; egyetlen alsó sávban balra a felhasználó, jobbra az alkalmazásnév és konfigurált verzió szerepel ([shell](shell.md#egységes-alsó-információs-sáv)). A Skyblue (alapértelmezett) / Default / Éjjeli mód DHTMLX `setTheme` alapú; a Skyblue a Suite 9 dokumentált témaváltozóival definiált VAPA-paletta. Önálló szintetikus demó és fogyasztói integrációs tesztek tartoznak hozzá. Többszervezetes izoláció, külső mellékhatások outboxa, összetett ABAC, bulk/export és teljes release-folyamat még nincs; ez nem a teljes M1–M7 lezárása.
+2026-10-16: a shell mellett működik a regisztrált műveletvégrehajtó, deklarált form/grid adapter, SQL objektumscope, mezőjog, ui/api csatornaszétválasztás, scope-olt token és tranzakciós audit. A fogyasztó saját user adminját és üzleti moduljait ezekből deklarálja. Részletek: [ACL és műveletek](access-and-actions.md), [shell](shell.md). A munkaterület [konfigurálható filter/form/grid layoutot, dinamikus listát, szerveroldali rendezést és polling/WebSocket követést](workspaces.md) ad; a singleton adatlap közvetlen form. A shell felső alkalmazásnév-fejléc nélkül indul; egyetlen alsó sávban balra a felhasználó, jobbra az alkalmazásnév és konfigurált verzió szerepel ([shell](shell.md#egységes-alsó-információs-sáv)). A Skyblue (alapértelmezett) / Default / Éjjeli mód DHTMLX `setTheme` alapú; a Skyblue a Suite 9 dokumentált témaváltozóival definiált VAPA-paletta. Önálló szintetikus demó és fogyasztói integrációs tesztek tartoznak hozzá. Többszervezetes izoláció, külső mellékhatások outboxa, összetett ABAC, export és teljes release-folyamat még nincs; ez nem a teljes M1–M7 lezárása.
 
 ## Kötelező fejlesztési irány
 
@@ -76,3 +76,11 @@ A [tartós ACL-/audit-szerződés](access-and-actions.md) első implementációj
 Böngészőteszt a [védett fejlesztői futtatóval](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston) indul: `npm run test:browser -- ...`. A közös lock, egy worker, indulási memóriaküszöb és cgroup-limit a fogyasztó saját tesztjeire is alkalmazható. Kapcsolódó visszajelzés: FB-0016.
 
 A lista szerkeszthető oszlopait a fejléc `✎` jelzi; a fejléc kattintása a teljes SQL-találatot rendezi. A virtualizált megjelenítés és a legfeljebb 600 soros gördülő adatablak részletei: [rendezés és smart rendering](workspaces.md#rendezés-és-smart-rendering).
+
+## Listaadatok és tömeges műveletek
+
+A [kártyák és rekordadatok](workspaces.md#kártyák-rekordadatok-sorszám-és-jelölés)
+útmutatója a többoszlopos DataView-t, alapértelmezett sorszámot, dupla kattintásra
+nyíló jogosultságszűrt adatablakot és opcionális sorjelölést írja le. A
+[tömeges műveletek](workspaces.md#tömeges-műveletek-és-ikonok) kifejezett opt-int
+és soronkénti tranzakciót/ACL-t használnak; a teljes export továbbra sincs kész.
