@@ -116,3 +116,28 @@ test('view switching keeps the natural top inset and does not transfer row pixel
  expect(await card.evaluate(element=>element.getBoundingClientRect().top-element.closest('.vapa-grid-cards').getBoundingClientRect().top)).toBeGreaterThanOrEqual(0);
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });
+
+test('compact commands retain ACL state, nested sorting and desktop restoration',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.setViewportSize({width:1400,height:900});await mount(page,{sortable:['id','title']});
+ await page.setViewportSize({width:390,height:844});await expect(page.locator('.vapa-grid-card').first()).toBeVisible();
+ const menu=page.getByRole('button',{name:'Műveletek',exact:true});await expect(menu).toBeVisible();
+ const box=await menu.boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(390);
+ await menu.click();await expect(page.getByRole('menuitem',{name:'Adatok',exact:true})).toHaveAttribute('aria-disabled','true');
+ await menu.click();await expect(page.getByRole('menuitem',{name:'Adatok',exact:true})).toHaveCount(0);await page.locator('.vapa-grid-card').first().click();
+ for(const theme of ['skyblue','light','dark']){
+  await page.evaluate(theme=>fixture.setTheme(theme,document.documentElement),theme);
+  await menu.click();await expect(page.getByRole('menuitem',{name:'Adatok',exact:true})).not.toHaveAttribute('aria-disabled','true');await page.getByRole('menuitem',{name:'Adatok',exact:true}).click();
+  const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();
+  await expect.poll(()=>dialog.locator('.dhx_window-header').evaluate(element=>element.getBoundingClientRect().height)).toBe(40);
+  const close=dialog.getByRole('button',{name:/close/i});
+  expect(await close.evaluate(button=>{const outer=button.closest('.dhx_window-header').getBoundingClientRect(),box=button.getBoundingClientRect();return box.top>=outer.top&&box.bottom<=outer.bottom;})).toBe(true);
+  if(theme==='skyblue')await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'mobile-compact-popup.png')});
+  await close.click();
+ }
+ await menu.click();await page.getByRole('menuitem',{name:/^Rendezés:/}).click();await page.getByRole('menuitem',{name:'Cím ↑',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>requests.some(request=>request.action==='list'&&request.values.sort?.field==='title'&&request.values.sort.direction==='asc'))).toBe(true);
+ await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'mobile-compact-toolbar.png')});
+ await page.setViewportSize({width:1400,height:900});await expect(menu).toHaveCount(0);await expect(page.getByRole('button',{name:'Archiválás',exact:true})).toBeEnabled();await expect(page.locator('[role="columnheader"][data-dhx-id="title"]')).toHaveClass(/vapa-grid-sort-asc/);await page.getByRole('button',{name:'Nézet: Táblázat',exact:true}).click();await page.getByText('Kártyák',{exact:true}).click();await expect(page.getByRole('button',{name:'Rendezés: Cím ↑',exact:true})).toBeVisible();
+ await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
+});

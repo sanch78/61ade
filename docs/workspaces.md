@@ -245,3 +245,19 @@ természetes felső térközével; a lista tetejéről váltáskor a görgetés 
 Az azonos nézet élő frissítése továbbra is a pontos belső offsetet őrzi.
 Ellenőrzés: `list-presentation.spec.cjs` nézetváltási regressziója és
 `mobile-grid.spec.cjs` élő görgetési próbája. FB-0027.
+
+
+## Reszponzív műveletsor és azonos kártyaszélesség
+
+768 px alatti viewporton vagy a gombokhoz elégtelen panelszélességnél a VAPA
+natív Toolbar „Műveletek” dropdownba rendezi a teljes műveletsort. Innen érhető
+el az Adatok, Szűrés, az alkalmazás műveletei, a rendezés és a nézetválasztó.
+Az elemek eredeti azonosítója, rejtett/tiltott állapota és eseménye megmarad;
+a mező- és műveleti ACL-t továbbra is a szerver ellenőrzi. Elég széles panelen
+az eredeti vízszintes toolbar és a jobb oldali választók térnek vissza.
+A mobilon kötelező kártyanézet választója továbbra is tiltott.
+
+A DataView kártyái a natív `itemsInRow` szerinti szélességet használják,
+`border-box` méretezéssel, tartalom miatti flex-zsugorodás nélkül. Hosszú,
+szóköz nélküli szöveg is tördelődik, nem okoz eltérő kártyaszélességet.
+Egyoszlopos mobilnézetben az összes kártya azonos szélességű. FB-0028.

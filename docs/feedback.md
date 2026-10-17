@@ -51,3 +51,5 @@
 ## FB-0027 — Toolbar/header divider and card top spacing
 
 ## FB-0029 — Right-edge card pencil and shared editable checkbox
+
+## FB-0028 — Compact popup, complete mobile navigation/commands

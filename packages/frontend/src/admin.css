@@ -31,6 +31,9 @@ body,
 
 /* Native DataView templates keep mobile records readable at any text length. */
 .vapa-grid-cards .dhx_dataview-item {
+  flex-shrink: 0;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 0;
   border: 1px solid var(--dhx-border-color);
   border-radius: 10px;
@@ -158,3 +161,10 @@ body,
   margin: 8px 3px;
   background-color: var(--dhx-border-color);
 }
+
+/* Window chrome is a compact fixed row; content/form spacing is independent. */
+.dhx_window-header { padding-bottom: 0; }
+.dhx_window-header .dhx_toolbar { height: 40px !important; min-height: 0; }
+.dhx_window .dhx_window-header .dhx_toolbar .dhx_navbar { height: 100%; box-sizing: border-box; padding: 4px 12px; align-items: center; }
+.dhx_window-header .dhx_navbar-title { font-size: 16px; }
+.dhx_window-header .dhx_button { width: 32px; height: 32px; min-height: 0; }
