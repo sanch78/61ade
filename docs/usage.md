@@ -127,3 +127,8 @@ A [kompakt ablakfejléc és teljes mobilmenü](shell.md#kompakt-ablakfejléc-és
 [reszponzív műveletsor](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség)
 a grid teljes toolbarját szűk panelen egy Műveletek gomb alá rendezi,
 a kártyák pedig tartalomtól függetlenül egyforma szélességűek.
+
+Skyblue témában a táblázat fehér–halványkék (`#edf5fc`) váltott sorhátteret
+használ, az aktuális megjelenítési sorrend alapján, virtuális görgetésnél is.
+A natív kijelölés a háttér fölött látszik; más témákat ez nem érint.
+Külön fogyasztói konfiguráció nincs; build és assetpublikálás szükséges.

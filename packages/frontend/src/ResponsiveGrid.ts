@@ -31,7 +31,7 @@ export class ResponsiveGrid {
       ...gridEditor(c),
       ...(c.type==="checkbox"?{type:"string" as const,editable:false,htmlEnable:true,template:(_:unknown,row:any)=>recordCheckbox(row,c)}:{}),
       ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(value:unknown)=>escape(c.options?.[String(value)]??String(value??""))}:{}:{}),
-    }))],rowHeight:40,autoWidth:true,resizable:true,selection:"row",htmlEnable:false});
+    }))],rowCss:row=>((this.grid?.data.getIndex(row.id!)??0)%2===1?"vapa-grid-row-alternate":""),rowHeight:40,autoWidth:true,resizable:true,selection:"row",htmlEnable:false});
     this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:true,keyNavigation:true,css:"vapa-grid-cards",template:(row:Row)=>
       `<article class="vapa-grid-card" data-vapa-row="${escape(row.id)}"><div class="vapa-grid-card__id">${options.selection?`<input class="vapa-card-mark" type="checkbox" aria-label="Sor jelölése: ${escape(row.id)}" ${this.marked.has(String(row.id))?"checked":""}> `:""}ID · ${escape(row.id)}</div>${recordFields(row,(options.fields??columns).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable})),true)}</article>`,
       eventHandlers:{onclick:{"vapa-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});

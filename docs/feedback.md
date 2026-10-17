@@ -285,3 +285,12 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [ablakfejléc és mobilmenü](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü), [műveletsor és kártyaszélesség](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség), [módszertan](usage.md).
 - **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban 15 különálló keretpróba sikeres (a frissített elvárásokkal újrafuttatott esetekkel együtt): shell/belépés/kijelentkezés, háromtémás önálló műveletmenü, popup 40 px és azon belüli bezárás, tiltott/engedélyezett állapot, nested rendezés, desktop-visszaállás, jelölés/bulk, élő adatok és kártyaszélesség 390/460/1280 px-en, hosszú szóköz nélküli szöveggel. A három téma külön friss fogyasztót kap; a teszt kivárja a popup kirajzolását és bezárását. Külső alkalmazás integráció 3/3 és dev betöltés 2/2 PASS. Skyblue és a fogyasztó Éjjeli popupjának képi ellenőrzése sikeres.
 - **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
+
+## FB-0030 — Skyblue váltott táblázatsorok
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
+- **Elvárás:** Skyblue témában a grid sorai váltott háttérszínnel legyenek könnyebben követhetők.
+- **Megvalósítás:** natív Grid `rowCss`, aktuális adatindex alapján; fehér és `#edf5fc` halványkék sorok. A téma CSS-e csak Skyblue alatt színez, a natív kijelölési réteg megmarad. Cacheverzió `v=17`.
+- **Használat:** [módszertan](usage.md); fogyasztói konfiguráció nem szükséges.
+- **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban a meglévő háromtémás lista/görgetés/nézetváltás próba 1/1 PASS; Skyblue görgetett táblázat képi ellenőrzése PASS, a sorok szabályosan váltakoznak. Demo- és CityScreen dev-assetek publikálva.
+- **Állapot:** megvalósítva / agent által ellenőrzött.
