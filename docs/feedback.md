@@ -294,3 +294,12 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [módszertan](usage.md); fogyasztói konfiguráció nem szükséges.
 - **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban a meglévő háromtémás lista/görgetés/nézetváltás próba 1/1 PASS; Skyblue görgetett táblázat képi ellenőrzése PASS, a sorok szabályosan váltakoznak. Demo- és CityScreen dev-assetek publikálva.
 - **Állapot:** megvalósítva / agent által ellenőrzött.
+
+## FB-0031 — Elkülönülő popupfejléc és alsó elválasztóvonal
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
+- **Elvárás:** a popup fejléce alatt is legyen vonal, a grid fejlécéhez hasonlóan; Default és Éjjeli témában a fejléc háttérrel is különüljön el a tartalomtól.
+- **Megvalósítás:** a natív Window fejléc-toolbarja 1 px alsó keretet kap, a téma `--dhx-border-color` színével, a meglévő 40 px magasságon belül. A fejléc a téma másodlagos háttérszínét kapja, Skyblue kék színátmenete megmarad. Minden VAPA-popupra érvényes; külön fogyasztói konfiguráció nincs. Cacheverzió `v=18`.
+- **Használat:** [shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü), [módszertan](usage.md).
+- **Ellenőrzés:** build és `git diff --check` PASS; védett Chromiumban háromtémás kompakt popup/művelet/nézetváltás 3/3 PASS, 40 px fejléc és azon belüli bezárógomb ellenőrizve. Skyblue, Default és Éjjeli popupok képi ellenőrzése PASS: alsó vonal és elkülönülő háttér látható. Demo- és CityScreen dev-assetek publikálva.
+- **Állapot:** megvalósítva / agent által ellenőrzött.

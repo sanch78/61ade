@@ -132,3 +132,7 @@ Skyblue témában a táblázat fehér–halványkék (`#edf5fc`) váltott sorhá
 használ, az aktuális megjelenítési sorrend alapján, virtuális görgetésnél is.
 A natív kijelölés a háttér fölött látszik; más témákat ez nem érint.
 Külön fogyasztói konfiguráció nincs; build és assetpublikálás szükséges.
+
+A popupok fejléce témához illő, a tartalomtól elkülönülő hátteret és minden
+témában 1 px témaszínű alsó elválasztóvonalat kap,
+a kompakt 40 px fejlécmagasságon belül ([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)).
