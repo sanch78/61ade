@@ -73,6 +73,7 @@ final class Application
             $bootstrap['confirmation'] = ['email' => $pending['email'], 'expires' => $pending['expires']];
         }
         if ($identity) {
+            $bootstrap['userId'] = $identity->id;
             $bootstrap['displayName'] = $identity->displayName;
             $bootstrap['menu'] = $definition->menu->project($identity);
             if ($workspace) {

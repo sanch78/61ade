@@ -28,7 +28,7 @@ export class ResponsiveGrid {
     this.grid=new Grid(null,{columns:[...(options.selection?[{id:"_mark",header:[{text:"Jelölés"}],width:66,sortable:false,htmlEnable:true,template:(_:unknown,row:any)=>`<input type="checkbox" aria-label="Sor jelölése: ${escape(row.id)}" ${this.marked.has(String(row.id))?"checked":""}>`}]:[]),...(options.rowNumbers!==false?[{id:"_number",header:[{text:"#"}],width:56,sortable:false}]:[]),{id:"id",header:[{text:"ID"}],width:80,sortable:false},...columns.map(c=>({id:c.id,header:[{text:escape(c.header)}],width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
       ...gridEditor(c),
       ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(value:unknown)=>escape(c.options?.[String(value)]??String(value??""))}:{}:{}),
-    }))],rowHeight:40,autoWidth:true,selection:"row",htmlEnable:false});
+    }))],rowHeight:40,autoWidth:true,resizable:true,selection:"row",htmlEnable:false});
     this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:true,keyNavigation:true,css:"vapa-grid-cards",template:(row:Row)=>
       `<article class="vapa-grid-card" data-vapa-row="${escape(row.id)}"><div class="vapa-grid-card__id">${options.selection?`<input class="vapa-card-mark" type="checkbox" aria-label="Sor jelölése: ${escape(row.id)}" ${this.marked.has(String(row.id))?"checked":""}> `:""}ID · ${escape(row.id)}</div>${recordFields(row,options.fields??columns)}</article>`,
       eventHandlers:{onclick:{"vapa-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});

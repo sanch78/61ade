@@ -1,0 +1,61 @@
+const {test,expect}=require('../../tools/playwright-test.cjs');
+async function login(page,route='/'){
+ await page.goto(route);
+ await page.getByLabel('Felhasználónév',{exact:true}).fill('synthetic');
+ await page.getByLabel('Jelszó',{exact:true}).fill('synthetic-password');
+ await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
+}
+test('feature URL restores through login/reload and browser history',async({page})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await login(page,'/#feature=items');
+ await expect(page.getByRole('grid')).toBeVisible();
+ await page.reload();await expect(page.getByRole('grid')).toBeVisible();
+ await page.goto('/');await expect(page.getByRole('grid')).toHaveCount(0);
+ await page.getByRole('menuitem',{name:'Items',exact:true}).click();
+ await expect(page).toHaveURL(/#feature=items$/);
+ await expect(page.getByRole('grid')).toBeVisible();
+ await page.goBack();await expect(page.getByRole('grid')).toHaveCount(0);
+ await page.goForward();await expect(page.getByRole('grid')).toBeVisible();
+ await page.goto('/#feature=unavailable');await expect(page.getByRole('grid')).toHaveCount(0);
+ expect(errors).toEqual([]);
+});
+test('grid size, sorting, view and panel width survive reload',async({page})=>{
+ await login(page,'/#feature=items');
+ const header=page.locator('[role="columnheader"][data-dhx-id="title"]');
+ await expect(header).toBeVisible();await header.click();
+ await expect(header).toHaveAttribute('aria-sort','ascending');
+ const before=await header.boundingBox();
+ await page.mouse.move(before.x+before.width-2,before.y+before.height/2);
+ await page.mouse.down();await page.mouse.move(before.x+before.width+80,before.y+before.height/2,{steps:8});await page.mouse.up();
+ const width=(await header.boundingBox()).width;
+ expect(width).toBeGreaterThan(before.width+40);
+ const filter=page.locator('[data-cell-id="filter"]');
+ const panel=await filter.boundingBox();
+ await page.mouse.move(panel.x+panel.width+6,panel.y+panel.height/2);await page.mouse.down();
+ await page.mouse.move(panel.x+panel.width+66,panel.y+panel.height/2,{steps:8});await page.mouse.up();
+ const panelWidth=(await filter.boundingBox()).width;
+ expect(panelWidth).toBeGreaterThan(panel.width+30);
+ await page.reload();await expect(header).toHaveAttribute('aria-sort','ascending');
+ await expect.poll(async()=>Math.round((await header.boundingBox()).width)).toBe(Math.round(width));
+ await expect.poll(async()=>Math.round((await filter.boundingBox()).width)).toBe(Math.round(panelWidth));
+ await page.getByRole('button',{name:'click to collapse',exact:true}).click();
+ await page.reload();
+ await page.getByRole('button',{name:'click to expand',exact:true}).click();
+ await expect.poll(async()=>Math.round((await filter.boundingBox()).width)).toBe(Math.round(panelWidth));
+ await page.getByRole('button',{name:'Nézet: Táblázat',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Kártyák',exact:true}).click();
+ await page.reload();await expect(page.getByRole('button',{name:'Nézet: Kártyák',exact:true})).toBeVisible();
+ await page.setViewportSize({width:390,height:844});await page.reload();
+ await page.setViewportSize({width:1280,height:720});
+ await expect(page.getByRole('button',{name:'Nézet: Kártyák',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Nézet: Kártyák',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Táblázat',exact:true}).click();
+ await page.setViewportSize({width:390,height:844});await page.reload();
+ await page.setViewportSize({width:1280,height:720});
+ await expect(page.getByRole('button',{name:'Nézet: Táblázat',exact:true})).toBeVisible();
+});
+test('invalid or unavailable storage cannot break navigation',async({page})=>{
+ await page.addInitScript(()=>{Storage.prototype.getItem=()=>{throw new Error('Storage disabled');};Storage.prototype.setItem=()=>{throw new Error('Storage disabled');};});
+ await login(page,'/#feature=items');await expect(page.getByRole('grid')).toBeVisible();
+ await page.reload();await expect(page.getByRole('grid')).toBeVisible();
+});

@@ -211,7 +211,7 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Ellenőrzés:** typecheck/build és a tesztfájlok szintaktikai ellenőrzése; a frissített mobil-/listateszt és új dropdown-/fejléc-regresszió böngészős futtatása az INFRA-003/pool #36 rendszerszintű Playwright-javítására vár. Nincs projektoldali böngészőtelepítés; vizuális elfogadást nem állítunk.
 
 
-## FB-0021 — Az eredeti listajavítások teljes ellenőrzése
+## FB-0022 — Az eredeti listajavítások teljes ellenőrzése
 
 - **Dátum:** 2026-10-17. A felhasználó kéri az FB-0019 és FB-0020 teljes befejezését; a build önmagában nem kész eredmény.
 - **Pontosítás:** az FB-0019 adatablakon belüli sorszáma helyett a teljes jogosult, szűrt és rendezett halmazon belüli rang készül. A `numbered: false` a számítást is kikapcsolja. A PHP rendezésteszt előre/hátra lapozást, NULL/azonos értékeket, középső élő ablakot és ablak elé beszúrt rekord hatását ellenőrzi.
@@ -226,4 +226,4 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Elvárás:** a címsor kövesse az aktuális funkciót, frissítés ugyanarra a funkcióra térjen vissza; a grid és layout kézi beállításai maradjanak meg.
 - **Megvalósítás:** `AdminShell` fragmentes feature-navigáció, belépésen át megőrzött URL és böngészőelőzmény; `UiPreferences` verziózott, alkalmazásútvonal/user ID/resource szerinti localStorage. A `Workspace` és `ResponsiveGrid` oszlopszélességet, rendezést, kézi nézetválasztást és panelméretet állít vissza. Aktuális ACL/definíció és méretkorlát az elsődleges; űrlapértéket nem tárolunk.
 - **Használat és korlát:** [URL és helyi felületbeállítások](shell.md#url-és-helyi-felületbeállítások). Böngészőnkénti preferencia, szerveres szinkron nélkül; a megnyitott rekord/szerkesztő nem mélylink.
-- **Ellenőrzés:** TypeScript typecheck/build, PHP shell contracts/lint és `ui-preferences.mjs` PASS. Védett szintetikus böngészőellenőrzés folyamatban; felhasználói elfogadást nem állítunk.
+- **Ellenőrzés:** TypeScript typecheck/build, PHP shell contracts/lint és `ui-preferences.mjs` PASS. Védett szintetikus Chromium: 3/3 PASS; a bővített méret/panelösszecsukás/mobil–asztali preferenciateszt külön újrafuttatva 1/1 PASS. A belépés, reload, Vissza/Előre, ismeretlen feature és tiltott localStorage ellenőrzött. Megvalósítva és agent által ellenőrizve; felhasználói elfogadást nem állítunk.
