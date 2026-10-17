@@ -87,7 +87,7 @@ export class ResponsiveGrid {
     this.syncRows();
     if(compact&&this.cards.getRootNode())this.cards.paint();
     await awaitRedraw();
-    if(!this.disposed&&epoch===this.resizeEpoch)this.restore(position,true,this.selected);
+    if(!this.disposed&&epoch===this.resizeEpoch)this.restore(position,true,this.selected,true);
   }
   capture():Position{
     if(!this.compact){const p=this.grid.getRootNode()?this.grid.getScrollState():{x:0,y:0};return {id:String(this.rows()[Math.floor(p.y/40)]?.id??""),offset:p.y%40,...p};}
@@ -120,15 +120,18 @@ export class ResponsiveGrid {
     if(this.compact)this.cardData=structuredClone(rows);else this.tableData=structuredClone(rows);
   }
 
-  restore(position:Position,preserve:boolean,selected?:string):void{
+  restore(position:Position,preserve:boolean,selected?:string,switching=false):void{
     this.selected=selected;
     if(this.compact){if(this.cards.getRootNode()){if(selected)this.cards.selection.add(selected);else this.cards.selection.remove();}}
     else if(this.grid.getRootNode()){if(selected)(this.grid.selection as any).setCell(selected);else this.grid.selection.removeCell();}
     const index=this.rows().findIndex(r=>String(r.id)===position.id);
-    if(!this.compact&&this.grid.getRootNode())this.grid.scroll(position.x,preserve?(index>=0?index*40+position.offset:position.y):0);
+    if(!this.compact&&this.grid.getRootNode())this.grid.scroll(position.x,preserve?(index>=0?index*40+(switching?0:position.offset):position.y):0);
     else if(this.compact){
       const root=this.cardScroller();if(!root)return;const card=Array.from(root.querySelectorAll<HTMLElement>("[data-vapa-row]")).find(e=>e.dataset.vapaRow===position.id);
-      root.scrollTop=preserve?(card?root.scrollTop+card.getBoundingClientRect().top-root.getBoundingClientRect().top+position.offset:position.y):0;
+      // Grid pixels do not represent card pixels. Keep the same record at its
+      // natural top inset on a mode switch; retain exact offsets for live updates.
+      const offset=switching?-(Number.parseFloat(getComputedStyle(root).paddingTop)||0):position.offset;
+      root.scrollTop=preserve?switching&&position.y===0?0:(card?root.scrollTop+card.getBoundingClientRect().top-root.getBoundingClientRect().top+offset:position.y):0;
     }
   }
   get markedIds():string[]{return [...this.marked];}

@@ -115,3 +115,7 @@ A főmenü állandó, elkülönülő gombfelületeit és a Skyblue klasszikus Wi
 
 A lista elválasztó árnyéka táblázatnézetben az oszlopfejléc alá kerül,
 kártyanézetben a toolbar alatt marad ([munkaterületek](workspaces.md#listafejléc-és-rekordszám)).
+
+A toolbar és a táblázat fejléce között témaszínű elválasztóvonal van.
+Táblázat/kártya váltáskor a felső térköz megmarad, és a táblázatsor pixelben
+mért belső eltolása nem görgeti be a kártyát ([munkaterületek](workspaces.md)).

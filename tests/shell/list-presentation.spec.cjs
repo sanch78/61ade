@@ -61,6 +61,7 @@ test('toolbar stays inside its cell and above scrolling grid/cards in all themes
   });
   expect(bounds.toolbar.bottom).toBeLessThanOrEqual(bounds.outer.bottom);for(const button of bounds.buttons){expect(button.top).toBeGreaterThanOrEqual(bounds.outer.top);expect(button.bottom).toBeLessThanOrEqual(bounds.outer.bottom);}
   expect(await page.locator('.vapa-command-row').evaluate(element=>getComputedStyle(element).boxShadow)).toBe('none');
+  expect(await page.locator('.vapa-command-row').evaluate(element=>getComputedStyle(element).borderBottomWidth)).toBe('1px');
   expect(await page.locator('.dhx_grid-header').first().evaluate(element=>getComputedStyle(element).boxShadow)).not.toBe('none');
   await page.locator('.dhx_grid').hover();await page.mouse.wheel(0,500);
   await expect.poll(()=>page.evaluate(()=>workspace.grid.table.getScrollState().y)).toBeGreaterThan(0);
@@ -92,4 +93,26 @@ test('view dropdown is last; editable headings reserve space for the hover sort 
  await toolbar.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
  await expect(toolbar.getByRole('button').last()).toHaveText('Nézet: Kártyák');
  await page.evaluate(()=>workspace.destroy());
+});
+
+
+test('view switching keeps the natural top inset and does not transfer row pixels to cards',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.setViewportSize({width:1400,height:900});await mount(page);
+ const switchTo=async(cards)=>{await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText(cards?'Kártyák':'Táblázat',{exact:true}).click();await expect(page.locator(cards?'.vapa-grid-cards':'.dhx_grid')).toBeVisible();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));};
+ for(let i=0;i<2;i++){
+  await switchTo(true);
+  await expect.poll(()=>page.locator('.vapa-grid-cards').evaluate(element=>element.scrollTop)).toBe(0);
+  expect(await page.locator('.vapa-grid-cards').evaluate(root=>root.querySelector('.vapa-grid-card').getBoundingClientRect().top-root.getBoundingClientRect().top)).toBeGreaterThan(0);
+  await switchTo(false);
+  await expect.poll(()=>page.evaluate(()=>workspace.grid.table.getScrollState().y)).toBe(0);
+ }
+ await page.evaluate(()=>workspace.grid.table.scroll(0,85));
+ await expect.poll(()=>page.evaluate(()=>workspace.grid.capture().id)).toBe('3');
+ await switchTo(true);
+ await expect.poll(()=>page.evaluate(()=>workspace.grid.capture().id)).toBe('1');
+ // The first card row contains records 1–3, so record 3 remains fully visible.
+ const card=page.locator('[data-vapa-row="3"]');await expect(card).toBeInViewport();
+ expect(await card.evaluate(element=>element.getBoundingClientRect().top-element.closest('.vapa-grid-cards').getBoundingClientRect().top)).toBeGreaterThanOrEqual(0);
+ await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });

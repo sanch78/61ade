@@ -260,3 +260,11 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [listafejléc és rekordszám](workspaces.md#listafejléc-és-rekordszám), [módszertan](usage.md).
 - **Ellenőrzés:** build és `git diff --check` PASS. Védett Chromium célzott prezentációs próba 1/1 PASS: Skyblue/Default/Dark témában nincs toolbar-árnyék táblázaton, van fejlécárnyék; kártyára váltva visszatér a toolbar-árnyék. Görgetés és visszaváltás is ellenőrzött, Skyblue screenshot képi ellenőrzése sikeres.
 - **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
+
+## FB-0027 — Toolbar/fejléc elválasztás és kártyák felső térköze
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói pontosítás az FB-0026 után: az árnyék helye megfelelő, de a toolbar és az oszlopfejléc összefolyik; kártyára váltáskor a tartalom kissé begörgetve jelenik meg.
+- **Megvalósítás:** 1 px témaszínű elválasztóvonal a toolbar alsó szélén táblázatnézetben, az árnyék az oszlopfejléc alatt marad. A `ResponsiveGrid.restore` külön kezeli a nézetváltást: a forrásnézet soron belüli pixeloffsetje nem kerül a más magasságú célnézetre; a lista tetején a scroll 0, középen a megfelelő rekord a természetes kártyatérközzel látható. Az azonos nézet élő frissítésének pontos pozíciómegőrzése megmarad. Assetverzió `v=13`.
+- **Használat:** [munkaterületek](workspaces.md), [módszertan](usage.md).
+- **Ellenőrzés:** typecheck/build és `git diff --check` PASS; védett Chromium listaprezentáció/mobil 6/6 PASS. Három téma, elválasztóvonal, árnyékhely, ismételt top→kártya→tábla váltás, részben görgetett táblázatból váltás, élő kártyafrissítés és kiválasztás ellenőrzött. A stabil kirajzolás után is vizsgált nézetváltási regresszió külön újrafuttatva; Skyblue screenshot képi ellenőrzése sikeres.
+- **Állapot:** megvalósítva / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
