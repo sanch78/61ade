@@ -290,7 +290,7 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 
 - **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
 - **Elvárás:** Skyblue témában a grid sorai váltott háttérszínnel legyenek könnyebben követhetők.
-- **Megvalósítás:** natív Grid `rowCss`, aktuális adatindex alapján; fehér és `#edf5fc` halványkék sorok. A téma CSS-e csak Skyblue alatt színez, a natív kijelölési réteg megmarad. Cacheverzió `v=17`.
+- **Megvalósítás:** natív Grid `rowCss`, aktuális adatindex alapján; fehér és `#edf5fc` halványkék sorok. A téma CSS-e csak Skyblue alatt színez, a natív kijelölési réteg megmarad. Cacheverzió `v=17`. A színválasztást az FB-0032 felülírja.
 - **Használat:** [módszertan](usage.md); fogyasztói konfiguráció nem szükséges.
 - **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban a meglévő háromtémás lista/görgetés/nézetváltás próba 1/1 PASS; Skyblue görgetett táblázat képi ellenőrzése PASS, a sorok szabályosan váltakoznak. Demo- és CityScreen dev-assetek publikálva.
 - **Állapot:** megvalósítva / agent által ellenőrzött.
@@ -303,3 +303,12 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü), [módszertan](usage.md).
 - **Ellenőrzés:** build és `git diff --check` PASS; védett Chromiumban háromtémás kompakt popup/művelet/nézetváltás 3/3 PASS, 40 px fejléc és azon belüli bezárógomb ellenőrizve. Skyblue, Default és Éjjeli popupok képi ellenőrzése PASS: alsó vonal és elkülönülő háttér látható. Demo- és CityScreen dev-assetek publikálva.
 - **Állapot:** megvalósítva / agent által ellenőrzött.
+
+## FB-0032 — Finomabb, szürke Skyblue sorsávok
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói pontosítás az FB-0030-hoz.
+- **Elvárás:** a váltott sorháttér kevésbé legyen erős, kék helyett szürke legyen.
+- **Megvalósítás:** Skyblue váltott sorháttere `#f7f7f7` semleges halványszürke; a natív sorindexelés és kijelölés változatlan. Cacheverzió `v=19`.
+- **Használat:** [módszertan](usage.md); nincs külön fogyasztói beállítás.
+- **Ellenőrzés:** build, `git diff --check` és publikált CSS-egyezés PASS. Demo- és CityScreen dev-assetek frissítve; kizárólag a sorsáv színe változott.
+- **Állapot:** megvalósítva.

@@ -98,5 +98,5 @@
 
 /* Native rowCss tracks the displayed order, including virtual scrolling. */
 :where([data-dhx-theme="skyblue"]) .vapa-grid-row-alternate {
-  background-color: #edf5fc;
+  background-color: #f7f7f7;
 }

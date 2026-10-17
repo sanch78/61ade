@@ -128,7 +128,7 @@ A [kompakt ablakfejléc és teljes mobilmenü](shell.md#kompakt-ablakfejléc-és
 a grid teljes toolbarját szűk panelen egy Műveletek gomb alá rendezi,
 a kártyák pedig tartalomtól függetlenül egyforma szélességűek.
 
-Skyblue témában a táblázat fehér–halványkék (`#edf5fc`) váltott sorhátteret
+Skyblue témában a táblázat fehér–halványszürke (`#f7f7f7`) váltott sorhátteret
 használ, az aktuális megjelenítési sorrend alapján, virtuális görgetésnél is.
 A natív kijelölés a háttér fölött látszik; más témákat ez nem érint.
 Külön fogyasztói konfiguráció nincs; build és assetpublikálás szükséges.
