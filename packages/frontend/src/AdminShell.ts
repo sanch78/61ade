@@ -14,6 +14,7 @@ export type ShellDefinition = {
   version?: string;
   authenticated: boolean;
   username: string;
+  userId?: string;
   error: string;
   rememberAvailable?: boolean;
   rememberDays?: number;
@@ -40,6 +41,16 @@ export class AdminShell {
   private menu?: Menu;
   private workspace?: Workspace;
   private navigation=0;
+  private route = () => {
+    const resource = new URLSearchParams(location.hash.slice(1)).get("feature");
+    const view = this.definition.views?.find(view => view.resource === resource);
+    if (view) void this.openView(view, false);
+    else {
+      ++this.navigation;
+      this.layout.getCell("workspace").detach();
+      this.workspace?.destroy(); this.workspace=undefined;
+    }
+  };
   private menuItems: object[] = [];
   private compactMenu?: boolean;
   private loginWindow?: Window;
@@ -148,7 +159,8 @@ export class AdminShell {
         if(view)void this.openView(view);
       });
       this.layout.getCell("main-menu").attach(menu);
-
+      window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});
+      this.route();
     } else {
       if (definition.confirmation) this.mountConfirmation();
       else this.mountLogin();
@@ -160,13 +172,18 @@ export class AdminShell {
     });
   }
 
-  private async openView(view:ViewDefinition):Promise<void>{
+  private async openView(view:ViewDefinition,updateUrl=true):Promise<void>{
+    if(updateUrl){
+      const url=new URL(location.href);
+      url.hash=new URLSearchParams({feature:view.resource}).toString();
+      if(url.href!==location.href)history.pushState(null,"",url);
+    }
     const navigation=++this.navigation;
     this.layout.getCell("workspace").detach();
     this.workspace?.destroy();this.workspace=undefined;
     await awaitRedraw();
     if(navigation!==this.navigation || this.listeners.signal.aborted)return;
-    this.workspace=new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.definition.live || {transport:"poll",endpoint:"live",interval:2000});
+    this.workspace=new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.definition.live || {transport:"poll",endpoint:"live",interval:2000},this.definition.userId??"");
     this.layout.getCell("workspace").attach(this.workspace.layout);
   }
 
@@ -345,6 +362,9 @@ export class AdminShell {
       this.command.append(input);
     }
     this.loginForm?.disable();
+    const target=new URL(this.command.getAttribute("action")||location.href,location.href);
+    target.hash=location.hash;
+    this.command.setAttribute("action",target.href);
     this.command.submit();
   }
 

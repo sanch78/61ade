@@ -90,3 +90,36 @@ Munkaterület-váltáskor a VAPA leválasztja és felszabadítja az előző DHTM
 A felső sor közvetlenül a menü és a témaválasztó; nincs külön alkalmazásnév-fejléc. Egyetlen, 32 px magas DHTMLX Toolbar zárja az oldalt (a shell a Toolbar intrinsic magasságát a befogadó cellához méretezi, így a felirat nem vágódik le): balra a hitelesített identitás `displayName` értéke, jobbra a konfigurált alkalmazásnév és `version`. Bejelentkezés előtt balra „Nincs bejelentkezve” látható. A verzió az alkalmazás kiadásazonosítója; a keret nem következtet rá a saját csomagverziójából. Elhagyott verziónál csak az alkalmazásnév jelenik meg. Nincs workspace-enként külön kapcsolati/állapotsáv; az élő adatkövetés tovább működik. A műveleti hibák DHTMLX Alertben, a szerkesztés közben észlelt külső módosítás egyszeri DHTMLX Message-ben jelenik meg.
 
 Ellenőrzés: `browser.spec.cjs` a felső menü és alsó felhasználó/alkalmazás/verzió elhelyezését; `workspace.spec.cjs` a külön állapotsáv hiányát és a háttérben tovább működő pollingot ellenőrzi. Kapcsolódó döntés: FB-0011.
+
+## URL és helyi felületbeállítások
+
+A VAPA menüből megnyitott funkció címe például `/admin/#feature=items`.
+A fragmentben a registry `resource` azonosítója szerepel URL-kódolva; a shell
+frissítéskor, bejelentkezés után és Vissza/Előre navigációnál az aktuális,
+jogosultságszűrt `views` listából nyitja meg. Az üres vagy ismeretlen cím üres
+munkaterületet ad. A navigáció nem hajt végre adatíró műveletet; rekordhoz vagy
+nyitott szerkesztőhöz külön mélylink jelenleg nincs.
+
+Nincs fogyasztói JavaScript vagy külön konfiguráció. A szerver bootstrap
+`userId` mezője a hitelesített identitás azonosítója. A böngésző
+`vapa-ui:1:` kezdetű localStorage kulcsa az alkalmazás pathname-ját, a user ID-t
+és a resource-t különíti el. Tárolt értékek: oszlopszélesség, sikeresen
+betöltött rendezés, kézzel választott táblázat/kártya mód, deklarált
+panelméretek és szűrőpanel összecsukása. A szerkesztőpanel automatikus
+nyitása/zárása nem tartós állapot. A mobil kényszerített kártyanézete nem írja
+felül a kézi választást. Űrlapérték, rekordadat, szűrőérték és secret nem
+kerül ebbe a tárolóba.
+
+A visszaállítás mindig az aktuális definíciót követi: törölt oszlop vagy
+rendezési mező figyelmen kívül marad, méretkorlátok érvényesülnek. Sérült vagy
+letiltott localStorage mellett a felület alapértékekkel használható. Ez az
+adott böngésző preferenciája; nincs szerveroldali vagy gépek közötti szinkron.
+Visszaállítás alaphelyzetbe: az adott `vapa-ui:1:` kulcs törlése a böngésző
+webhelytárából. Kijelentkezés nem törli a preferenciát, másik felhasználó
+viszont külön kulcsot kap.
+
+Ellenőrzés: `node tests/shell/ui-preferences.mjs` (elkülönítés, definícióváltozás,
+méretkorlát, sérült/tiltott tár); védett szintetikus böngészőteszt:
+`npm run test:browser -- --config playwright.preferences.config.cjs`, a
+`VAPA_TMP_DIR` és `VAPA_PLAYWRIGHT_MODULE` környezeti szerződésével.
+Kapcsolódó visszajelzés: FB-0021.

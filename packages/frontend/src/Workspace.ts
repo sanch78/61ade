@@ -1,4 +1,5 @@
 import { widgetIcons } from "./WidgetIcons";
+import { UiPreferences } from "./UiPreferences";
 import { Form, Layout, Toolbar, Window, alert, message, awaitRedraw } from "@dhtmlx/suite";
 import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
 import { GridHeaders, type Sort } from "./GridHeaders";
@@ -58,15 +59,19 @@ export class Workspace {
   private mobile=false;
   private filterWasVisible=true;
   private resize=()=>this.resizeFilters();
+  private preferences:UiPreferences;
 
-  constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,live:LiveConfig){
+  constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,live:LiveConfig,user=""){
+    this.preferences=new UiPreferences(user,view.resource);
+    this.sort=this.preferences.sort(view.sortable??[])??this.sort;
     const region=(node:Region):any=>({...node,header:node.header?escape(node.header):undefined,
       ...(node.rows?{rows:node.rows.map(region)}:{}),...(node.cols?{cols:node.cols.map(region)}:{})});
     this.layout=new Layout(host,{type:"space",...(view.singleton
       ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48,css:"vapa-command-row"},{id:"detail"}]}]}
-      :region(view.layout.tree))});
+      :region(this.preferences.layoutTree(view.layout.tree)))});
+    if(!view.singleton)this.preferences.bindLayout(this.layout,view.layout.tree);
     this.commands=new Toolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-results",value:"Adatok",icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:"Szűrés",icon:"dxi dxi-filter-variant"}]:[]),...(!view.singleton?[{id:"title",type:"title",value:escape(view.title)}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).flatMap(a=>[{id:a.name,value:escape(a.label),icon:a.icon??({create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key"}[a.name]??"dxi dxi-pencil")},...(view.selection&&a.bulk?[{id:"bulk:"+a.name,value:escape(a.label+" — jelöltek"),icon:a.icon??"dxi dxi-check"}]:[])]),...(!view.singleton?[{type:"spacer"},{id:"vapa-view",value:"Nézet: Táblázat",icon:"dxi dxi-table-check",items:[{id:"vapa-table",value:"Táblázat",icon:"dxi dxi-table-check"},{id:"vapa-cards",value:"Kártyák",icon:"dxi dxi-view-grid"}]}]:[])]});
-    this.commands.events.on("click",(id:string|number)=>{if(id==="vapa-table"||id==="vapa-cards"){this.grid?.setMode(id==="vapa-table"?"table":"cards");return;}if(id==="vapa-filter"){this.openFilters();return;}if(id==="vapa-results"){if(this.selected)void this.showResults(this.selected);return;}if(String(id).startsWith("bulk:")){const action=view.actions.find(a=>"bulk:"+a.name===id);if(action)void this.openBulk(action);return;}const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
+    this.commands.events.on("click",(id:string|number)=>{if(id==="vapa-table"||id==="vapa-cards"){const mode=id==="vapa-table"?"table":"cards";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="vapa-filter"){this.openFilters();return;}if(id==="vapa-results"){if(this.selected)void this.showResults(this.selected);return;}if(String(id).startsWith("bulk:")){const action=view.actions.find(a=>"bulk:"+a.name===id);if(action)void this.openBulk(action);return;}const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
       this.content=new Layout(document.createElement("div"),{type:"none",css:"vapa-grid-content",rows:[{id:"commands",height:48,css:"vapa-command-row"},{id:"data"}]});
@@ -84,6 +89,9 @@ export class Workspace {
         if(!cards||mobile)this.commands.disable("vapa-table");else this.commands.enable("vapa-table");
       },{rowNumbers:view.rowNumbers,selection:view.selection,fields:view.detailFields??view.columns,details:id=>void this.showResults(id),marked:()=>this.capabilities()});
       this.gridHeaders=new GridHeaders(this.grid.table,view.columns,view.sortable??[],sort=>void this.changeSort(sort));
+      this.gridHeaders.setSort(this.sort);
+      this.preferences.bindGrid(this.grid.table);
+      this.grid.setMode(this.preferences.mode);
       this.gridEditing=new GridEditing(this.grid.table,view.actions.find(a=>a.name==="update")?.fields??[],()=>this.rows,
         async(row,field,value)=>{
           const result=await this.call("__edit",String(row.id),{field,value,revision:row.revision});
@@ -159,7 +167,7 @@ export class Workspace {
     if(this.busy||this.cellEditing||this.disposed)return;
     const previous=this.sort;this.sort=sort;this.gridHeaders?.setSort(sort);
     const operation=this.epoch+1;
-    if(!await this.load()&&operation===this.epoch&&!this.disposed){this.sort=previous;this.gridHeaders?.setSort(previous);this.watch();}
+    if(await this.load()){this.preferences.setSort(this.sort);}else if(operation===this.epoch&&!this.disposed){this.sort=previous;this.gridHeaders?.setSort(previous);this.watch();}
   }
   private async load():Promise<boolean>{
     const epoch=++this.epoch;this.abort?.abort();this.abort=new AbortController();this.busy=true;
