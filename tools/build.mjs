@@ -31,7 +31,7 @@ await build({
     outdir: "packages/frontend/dist",
     minify: true,
     legalComments: "eof",
-    loader: { ".woff": "dataurl", ".woff2": "dataurl" },
+    loader: { ".woff": "dataurl", ".woff2": "dataurl", ".png": "dataurl" },
     plugins: [
         {
             name: "local-vendor-css",

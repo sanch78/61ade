@@ -149,3 +149,7 @@ Az opcionális natív nyelvválasztó a skinválasztó elé kerül. A feliratok,
 kliens-/szervervalidációk és megerősítő levelek ugyanazt a nyelvet követik.
 Konfiguráció, fallback, cookie, API, fordítási határ és teszt:
 [többnyelvűség](i18n.md). Az FB-0033 korábbi hiányjelzését az FB-0034 váltja fel.
+
+A nyelvválasztó zászlói valódi, csomagolt PNG-k a natív DHTMLX Toolbar
+`icon` mezőjében, belépésnél is; konfigurációban országkód (`hu`, `gb`, `de`)
+választja őket. [Ikonforrás és csomagolás](flag-assets.md).

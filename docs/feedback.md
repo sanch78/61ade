@@ -331,3 +331,12 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [többnyelvűség](i18n.md), [módszertan](usage.md#többnyelvűség), [shell](shell.md#opcionális-nyelvválasztó).
 - **Ellenőrzés:** typecheck/build, 47 PHP-fájl lintje és `git diff --check` PASS. i18n-, konfiguráció-, shell-, validáció- és hitelesítési PHP-szerződések, katalógus-/placeholderparitás PASS. Végső zászlós szintetikus Chromium 3/3 PASS: belépés/váltás/megőrzés, menü/mező/statikus opció/státusz, kliens- és szervervalidáció, mobil, választó nélküli angol site, CSRF és nem támogatott locale elutasítása, Bearer API német hiba és Content-Language. Meglévő shell-regresszió hat külön esete sikeres (a lefordított natív confirm nevét követő újrafuttatással). Külső alkalmazás integráció 4/4, tényleges dev betöltés és háromnyelvű belépőoldal 3/3 PASS. Zászlós, német mobilválasztó és fogyasztói német szűrő képi ellenőrzése sikeres. Valódi e-mailküldést nem végzett a renderpróba.
 - **Állapot:** megvalósítva / keretben és fogyasztóban agent által ellenőrzött.
+
+## FB-0035 — Valódi PNG-zászlók emoji helyett
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói hibajelzés: Windows/böngésző alatt a zászlóemoji GB betűként jelent meg; a helyi ADE PNG-k használata kért.
+- **Elvárás:** a zászló valódi kép legyen, betűkészlettől függetlenül.
+- **Megvalósítás:** az ADE három eredeti ország-PNG-je változatlanul a VAPA saját assetjei közé kerül. Natív Toolbar `icon` CSS-osztály, buildkor adat-URL-ként csomagolva. A belépési ablak Layoutja ugyanilyen natív Toolbar-választót kap. A `flags` konfiguráció országkódot vár (`hu`, `gb`, `de`), nem emojit. Cacheverzió `v=26`. Az FB-0034 emoji-alapú megoldását ez felülírja.
+- **Használat:** [többnyelvűség](i18n.md), [PNG-forrás](flag-assets.md), [módszertan](usage.md).
+- **Ellenőrzés:** typecheck/build, PHP i18n-szerződések és `git diff --check` PASS; mindhárom PNG bájtazonos az ADE-forrással. Védett keret-Chromium 3/3, fogyasztói háromnyelvű/mobil integráció 1/1, tényleges dev smoke 3/3 PASS. A teszt PNG adat-URL-t, dekódolt 16×11 méretet és látható ikonfelületet is ellenőriz; a nyitott dropdown mindhárom zászlójának és a dev belépőoldalnak képi ellenőrzése sikeres.
+- **Állapot:** megvalósítva / agent által ellenőrzött.
