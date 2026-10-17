@@ -1,3 +1,4 @@
+import { configureLanguage, type LanguageConfig, t } from "./I18n";
 import { widgetIcons } from "./WidgetIcons";
 import { Workspace, type ViewDefinition } from "./Workspace";
 import { Form, Layout, Menu, Toolbar, Window, alert, setTheme, awaitRedraw } from "@dhtmlx/suite";
@@ -11,6 +12,7 @@ export type MenuDefinition = {
 };
 export type ShellDefinition = {
   protocol: 1;
+  i18n?: LanguageConfig;
   title: string;
   version?: string;
   authenticated: boolean;
@@ -68,16 +70,16 @@ export class AdminShell {
   private listeners = new AbortController();
   private resize = () => {
     if (this.menu) {
-      const required=this.menuItems.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305);
+      const required=this.menuItems.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0));
       const compact = this.root.clientWidth < Math.max(768,required);
       if (compact !== this.compactMenu) {
         this.compactMenu = compact;
         const items = structuredClone(this.menuItems);
         const entries=[...items,
           { id: "vapa-session-separator", type: "separator" },
-          { id: "vapa-logout", value: "Kijelentkezés", icon:"dxi dxi-arrow-left" },
+          { id: "vapa-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" },
         ];
-        this.menu.replaceItems(compact?[{id:"vapa-main-menu",value:"Menü",icon:"dxi dxi-view-grid",items:entries}]:entries);
+        this.menu.replaceItems(compact?[{id:"vapa-main-menu",value:t("Menü"),icon:"dxi dxi-view-grid",items:entries}]:entries);
       }
     }
     if (!this.loginWindow) return;
@@ -110,15 +112,16 @@ export class AdminShell {
     private command: HTMLFormElement,
     private definition: ShellDefinition,
   ) {
+    configureLanguage(definition.i18n);
     let theme="skyblue";
     try { const saved=localStorage.getItem("vapa-theme"); if(saved==="dark"||saved==="skyblue"||saved==="light")theme=saved; } catch {}
     setTheme(theme,document.documentElement);
     if (definition.protocol !== 1)
-      throw new Error("Nem kompatibilis VAPA felületverzió.");
+      throw new Error(t("Nem kompatibilis VAPA felületverzió."));
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"vapa-navigation-row", cols: [{id:"main-menu"},{id:"theme",width:145}] },
+        { id: "menu-row", height: 40, css:"vapa-navigation-row", cols: [{id:"main-menu"},...(definition.i18n?.selector?[{id:"language",width:130}]:[]),{id:"theme",width:145}] },
         { id: "workspace", css: "vapa-workspace" },
         { id: "status", height: 32, css: "vapa-session-bar" },
       ],
@@ -143,16 +146,21 @@ export class AdminShell {
       ],
     });
     this.layout.getCell("status").attach(status);
-    const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:theme==="dark"?"Éjjeli":theme==="skyblue"?"Skyblue":"Világos",items:[{id:"theme-skyblue",value:"Skyblue"},{id:"theme-light",value:"Világos"},{id:"theme-dark",value:"Éjjeli"}]}]});
+    const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:theme==="dark"?t("Éjjeli"):theme==="skyblue"?"Skyblue":t("Világos"),items:[{id:"theme-skyblue",value:"Skyblue"},{id:"theme-light",value:t("Világos")},{id:"theme-dark",value:t("Éjjeli")}]}]});
     themeControl.events.on("click",(id:string|number)=>{
       if(id!=="theme-light" && id!=="theme-dark" && id!=="theme-skyblue")return;
       const next=id==="theme-dark"?"dark":id==="theme-skyblue"?"skyblue":"light";
       setTheme(next,document.documentElement);
-      themeControl.data.update("theme-choice",{value:next==="dark"?"Éjjeli":next==="skyblue"?"Skyblue":"Világos"});
+      themeControl.data.update("theme-choice",{value:next==="dark"?t("Éjjeli"):next==="skyblue"?"Skyblue":t("Világos")});
       try{localStorage.setItem("vapa-theme",next);}catch{}
       void this.fitLogin();
     });
     this.layout.getCell("theme").attach(themeControl);
+    if(definition.i18n?.selector){
+      const language=new Toolbar(undefined,{data:[{id:"vapa-language",value:definition.i18n.languages[definition.i18n.locale],tooltip:t("Nyelv"),items:Object.entries(definition.i18n.languages).map(([id,value])=>({id:"language:"+id,value}))}]});
+      language.events.on("click",(id:string|number)=>{if(String(id).startsWith("language:"))this.post("language",{locale:String(id).slice(9)});});
+      this.layout.getCell("language").attach(language);
+    }
     if (definition.authenticated) {
       const map = (items: MenuDefinition[]): object[] =>
         items.map((item) => ({
@@ -190,7 +198,7 @@ export class AdminShell {
     }
     window.addEventListener("resize", this.resize);
     if (definition.error) requestAnimationFrame(() => {
-      void alert({ header: "Hiba", text: definition.error, htmlEnable: false, buttons: ["Rendben"] })
+      void alert({ header: t("Hiba"), text: definition.error, htmlEnable: false, buttons: [t("Rendben")] })
         .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus(definition.confirmation ? "code" : "password"); });
     });
   }
@@ -210,11 +218,18 @@ export class AdminShell {
     this.layout.getCell("workspace").attach(this.workspace.layout);
   }
 
+  private languageField():any[]{
+    const config=this.definition.i18n;
+    return config?.selector?[{type:"select",name:"vapa-locale",label:t("Nyelv"),labelPosition:"top",value:config.locale,options:Object.entries(config.languages).map(([value,content])=>({value,content}))}]:[];
+  }
+  private bindLanguage(form:Form):void{
+    form.events.on("change",(name:string)=>{if(name==="vapa-locale")this.post("language",{locale:String(form.getValue()[name])});});
+  }
   private mountLogin(): void {
     const definition = this.definition;
     this.loginWindow = new Window({
-      title: "Bejelentkezés",
-      ariaLabel: "Bejelentkezés",
+      title: t("Bejelentkezés"),
+      ariaLabel: t("Bejelentkezés"),
       css:"vapa-auth-window",
       width: 420,
       height: definition.rememberAvailable ? 340 : 290,
@@ -226,10 +241,11 @@ export class AdminShell {
     const form = new Form(document.createElement("div"), {
       padding: 16,
       rows: [
+        ...this.languageField(),
         {
           type: "input",
           name: "username",
-          label: "Felhasználónév",
+          label: t("Felhasználónév"),
           labelPosition: "left",
           labelWidth: 120,
           required: true,
@@ -240,7 +256,7 @@ export class AdminShell {
         {
           type: "input",
           name: "password",
-          label: "Jelszó",
+          label: t("Jelszó"),
           labelPosition: "left",
           labelWidth: 120,
           required: true,
@@ -251,7 +267,7 @@ export class AdminShell {
         ...(definition.rememberAvailable ? [{
           type: "checkbox" as const,
           name: "remember",
-          text: `Bejelentkezve maradok (${definition.rememberDays ?? 90} nap)`,
+          text: t("Bejelentkezve maradok ({days} nap)",{days:definition.rememberDays??90}),
           checked: false,
         }] : []),
         {
@@ -260,7 +276,7 @@ export class AdminShell {
             {
               type: "button",
               name: "login",
-              text: "Bejelentkezés",
+              text: t("Bejelentkezés"),
               icon: "dxi dxi-key",
               view: "flat",
               color: "primary",
@@ -270,6 +286,7 @@ export class AdminShell {
       ],
     });
     this.loginForm = form;
+    this.bindLanguage(form);
     form.events.on("afterValidate",()=>{void this.fitLogin();});
     const submit = () => {
       if (this.submitting || !form.validate()) return;
@@ -327,8 +344,8 @@ export class AdminShell {
   private mountConfirmation(): void {
     const confirmation = this.definition.confirmation!;
     this.loginWindow = new Window({
-      title: "E-mailes megerősítés",
-      ariaLabel: "E-mailes megerősítés",
+      title: t("E-mailes megerősítés"),
+      ariaLabel: t("E-mailes megerősítés"),
       css:"vapa-auth-window",
       width: 460,
       height: 420,
@@ -339,17 +356,19 @@ export class AdminShell {
     const form = new Form(document.createElement("div"), {
       padding: 20,
       rows: [
-        { type: "text", name: "recipient", label: "Megerősítő levelet küldtünk", value: escape(confirmation.email) },
-        { type: "input", name: "code", label: "Megerősítő kód", labelPosition: "top", required: true, maxlength: 6,
-          validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: "A levélben kapott 6 számjegyű kód szükséges." },
-        { type: "button", name: "verify", text: "Belépés megerősítése", full:true, padding:"8px 0 0 0", icon:"dxi dxi-check", color: "primary" },
+        ...this.languageField(),
+        { type: "text", name: "recipient", label: t("Megerősítő levelet küldtünk"), value: escape(confirmation.email) },
+        { type: "input", name: "code", label: t("Megerősítő kód"), labelPosition: "top", required: true, maxlength: 6,
+          validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: t("A levélben kapott 6 számjegyű kód szükséges.") },
+        { type: "button", name: "verify", text: t("Belépés megerősítése"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-check", color: "primary" },
         { rows: [
-          { type: "button", name: "resend", text: "Új kód küldése", full:true, padding:"8px 0 0 0", icon:"dxi dxi-email", view: "flat", color:"secondary" },
-          { type: "button", name: "cancel", text: "Vissza a belépéshez", full:true, padding:"8px 0 0 0", icon:"dxi dxi-arrow-left", view: "flat", color:"secondary" },
+          { type: "button", name: "resend", text: t("Új kód küldése"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-email", view: "flat", color:"secondary" },
+          { type: "button", name: "cancel", text: t("Vissza a belépéshez"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-arrow-left", view: "flat", color:"secondary" },
         ] },
       ],
     });
     this.loginForm = form;
+    this.bindLanguage(form);
     form.events.on("afterValidate",()=>{void this.fitLogin();});
     const submit = () => {
       if (!this.submitting && form.validate()) this.post("confirm_login", { code: String(form.getValue().code ?? "") });
@@ -376,7 +395,7 @@ export class AdminShell {
   }
 
   private post(
-    action: "login" | "logout" | "confirm_login" | "resend_login" | "cancel_login",
+    action: "language" | "login" | "logout" | "confirm_login" | "resend_login" | "cancel_login",
     fields: Record<string, string> = {},
   ): void {
     if (this.submitting) return;

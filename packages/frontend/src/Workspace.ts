@@ -1,3 +1,4 @@
+import { locale, t } from "./I18n";
 import { ResponsiveToolbar } from "./ResponsiveToolbar";
 import { fitWindow } from "./WindowSizing";
 import { widgetIcons } from "./WidgetIcons";
@@ -75,7 +76,7 @@ export class Workspace {
       ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48,css:"vapa-command-row"},{id:"detail"}]}]}
       :region(this.preferences.layoutTree(view.layout.tree)))});
     if(!view.singleton)this.preferences.bindLayout(this.layout,view.layout.tree);
-    this.commands=new ResponsiveToolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-results",value:"Adatok",icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:"Szűrés",icon:"dxi dxi-filter-variant"}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).flatMap(a=>[{id:a.name,value:escape(a.label),icon:a.icon??({create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key"}[a.name]??"dxi dxi-pencil")},...(view.selection&&a.bulk?[{id:"bulk:"+a.name,value:escape(a.label+" — jelöltek"),icon:a.icon??"dxi dxi-check"}]:[])]),...(!view.singleton?[{type:"spacer"},{id:"vapa-sort",value:"Rendezés",hidden:true,items:(view.sortable??[]).flatMap(field=>["asc","desc"].map(direction=>({id:"vapa-sort:"+field+":"+direction,value:escape((view.columns.find(column=>column.id===field)?.header??(field==="id"?"ID":field))+ (direction==="asc"?" ↑":" ↓"))})))},{id:"vapa-view",value:"Nézet: Táblázat",icon:"dxi dxi-table-check",items:[{id:"vapa-table",value:"Táblázat",icon:"dxi dxi-table-check"},{id:"vapa-cards",value:"Kártyák",icon:"dxi dxi-view-grid"}]}]:[])]});
+    this.commands=new ResponsiveToolbar(undefined,{data:[...(!view.singleton?[{id:"vapa-results",value:t("Adatok"),icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"vapa-filter",value:t("Szűrés"),icon:"dxi dxi-filter-variant"}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).flatMap(a=>[{id:a.name,value:escape(a.label),icon:a.icon??({create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key"}[a.name]??"dxi dxi-pencil")},...(view.selection&&a.bulk?[{id:"bulk:"+a.name,value:escape(a.label+t(" — jelöltek")),icon:a.icon??"dxi dxi-check"}]:[])]),...(!view.singleton?[{type:"spacer"},{id:"vapa-sort",value:t("Rendezés"),hidden:true,items:(view.sortable??[]).flatMap(field=>["asc","desc"].map(direction=>({id:"vapa-sort:"+field+":"+direction,value:escape((view.columns.find(column=>column.id===field)?.header??(field==="id"?"ID":field))+ (direction==="asc"?" ↑":" ↓"))})))},{id:"vapa-view",value:t("Nézet: Táblázat"),icon:"dxi dxi-table-check",items:[{id:"vapa-table",value:t("Táblázat"),icon:"dxi dxi-table-check"},{id:"vapa-cards",value:t("Kártyák"),icon:"dxi dxi-view-grid"}]}]:[])]});
     this.commands.events.on("click",(id:string|number)=>{if(String(id).startsWith("vapa-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="vapa-table"||id==="vapa-cards"){const mode=id==="vapa-table"?"table":"cards";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="vapa-filter"){this.openFilters();return;}if(id==="vapa-results"){if(this.selected)void this.showResults(this.selected);return;}if(String(id).startsWith("bulk:")){const action=view.actions.find(a=>"bulk:"+a.name===id);if(action)void this.openBulk(action);return;}const action=view.actions.find(a=>a.name===id);if(action)void this.open(action);});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
@@ -89,7 +90,7 @@ export class Workspace {
         if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);
       },direction=>{if(!this.rendering&&!this.busy&&!this.disposed)void this.more(direction);},(cards,mobile)=>{
         if(cards&&(view.sortable??[]).length)this.commands.show("vapa-sort");else this.commands.hide("vapa-sort");
-        this.commands.data.update("vapa-view",{value:cards?"Nézet: Kártyák":"Nézet: Táblázat",icon:cards?"dxi dxi-view-grid":"dxi dxi-table-check"});
+        this.commands.data.update("vapa-view",{value:cards?t("Nézet: Kártyák"):t("Nézet: Táblázat"),icon:cards?"dxi dxi-view-grid":"dxi dxi-table-check"});
         if(mobile)this.commands.disable("vapa-view");else this.commands.enable("vapa-view");
         if(cards||mobile)this.commands.disable("vapa-cards");else this.commands.enable("vapa-cards");
         if(!cards||mobile)this.commands.disable("vapa-table");else this.commands.enable("vapa-table");
@@ -129,7 +130,7 @@ export class Workspace {
       return;
     }
     const popup=new Window({css:"vapa-content-window",title:escape(field.label),width:Math.min(360,innerWidth-24),height:Math.min(260,innerHeight-24),modal:true,closable:true});this.cardEditor=popup;
-    const form=new Form(document.createElement("div"),{padding:16,rows:[input(field,row[name]),{type:"button",name:"submit",text:"Mentés",icon:"dxi dxi-content-save"}]} as any);
+    const form=new Form(document.createElement("div"),{padding:16,rows:[input(field,row[name]),{type:"button",name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save"}]} as any);
     popup.attach(form);popup.show();void fitWindow(popup);
     form.events.on("afterValidate",()=>{void fitWindow(popup);});
     const validation=new FormValidation(form,[field],()=>row);let saving=false;
@@ -156,7 +157,7 @@ export class Workspace {
     }
   }
   private createFilters():Form{
-    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,type:f.type==="checkbox"?"select":f.type,required:false},""),...(["select","checkbox"].includes(f.type)?{options:[{value:"",content:"Bármely"},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{css:"vapa-filter-actions",cols:[{type:"button",name:"apply",text:"Szűrés",icon:"dxi dxi-filter-variant",color:"primary",width:"content",padding:"0 8px 0 0"},{type:"button",name:"clear",text:"Alaphelyzet",icon:"dxi dxi-undo",view:"flat",color:"secondary",width:"content"}]}]} as any);
+    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,type:f.type==="checkbox"?"select":f.type,required:false},""),...(["select","checkbox"].includes(f.type)?{options:[{value:"",content:t("Bármely")},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{css:"vapa-filter-actions",cols:[{type:"button",name:"apply",text:t("Szűrés"),icon:"dxi dxi-filter-variant",color:"primary",width:"content",padding:"0 8px 0 0"},{type:"button",name:"clear",text:t("Alaphelyzet"),icon:"dxi dxi-undo",view:"flat",color:"secondary",width:"content"}]}]} as any);
     form.events.on("click",(name:string)=>{
       if(name!=="apply"&&name!=="clear")return;
       if(name==="clear")form.clear();
@@ -183,7 +184,7 @@ export class Workspace {
     if(!this.filterForm||!this.mobile)return;
     if(this.filterDialog){this.filterDialog.show();return;}
     const form=this.createFilters();form.setValue(this.filterForm.getValue());
-    const dialog=new Window({css:"vapa-content-window",title:"Szűrés",width:Math.min(420,innerWidth-24),height:Math.min(600,innerHeight-24),modal:true,closable:true});
+    const dialog=new Window({css:"vapa-content-window",title:t("Szűrés"),width:Math.min(420,innerWidth-24),height:Math.min(600,innerHeight-24),modal:true,closable:true});
     this.filterDialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
     dialog.events.on("afterHide",()=>this.closeFilters());
   }
@@ -195,9 +196,9 @@ export class Workspace {
   private async call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{
     const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?vapa=1";
     const r=await fetch(endpoint,{method:"POST",credentials:"same-origin",signal,headers:{"Content-Type":"application/json","X-VAPA-CSRF":this.csrf},body:JSON.stringify({resource:this.view.resource,action,id,values})});
-    const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||"Sikertelen művelet."),{status:r.status,fieldErrors:result.fieldErrors});return result.data;
+    const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||t("Sikertelen művelet.")),{status:r.status,fieldErrors:result.fieldErrors});return result.data;
   }
-  private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:"Hiba",text:e && typeof e==="object" && "fieldErrors" in e && Object.values((e as any).fieldErrors??{}).length?Object.entries((e as any).fieldErrors).map(([name,error])=>`${this.view.actions.flatMap(a=>a.fields).find(f=>f.name===name)?.label??name}: ${error}`).join("\n"):e instanceof Error?e.message:"Sikertelen művelet.",htmlEnable:false});}
+  private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:t("Hiba"),text:e && typeof e==="object" && "fieldErrors" in e && Object.values((e as any).fieldErrors??{}).length?Object.entries((e as any).fieldErrors).map(([name,error])=>`${this.view.actions.flatMap(a=>a.fields).find(f=>f.name===name)?.label??name}: ${error}`).join("\n"):e instanceof Error?e.message:t("Sikertelen művelet."),htmlEnable:false});}
   private watch():void{this.live.subscribe({numbered:this.view.rowNumbers!==false,sort:this.sort,anchor:this.rows[0]?cursor(this.rows[0],"next"):null,limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,filters:this.filters});}
   private async changeSort(sort:Sort):Promise<void>{
     if(this.busy||this.cellEditing||this.disposed)return;
@@ -206,10 +207,10 @@ export class Workspace {
     if(await this.load()){this.preferences.setSort(this.sort);}else if(operation===this.epoch&&!this.disposed){this.sort=previous;this.sortLabel();this.gridHeaders?.setSort(previous);this.watch();}
   }
   private sortLabel():void{
-    this.commands.data.update("vapa-sort",{value:"Rendezés: "+escape(this.view.columns.find(column=>column.id===this.sort.field)?.header??(this.sort.field==="id"?"ID":this.sort.field))+(this.sort.direction==="asc"?" ↑":" ↓")});
+    this.commands.data.update("vapa-sort",{value:t("Rendezés: ")+escape(this.view.columns.find(column=>column.id===this.sort.field)?.header??(this.sort.field==="id"?"ID":this.sort.field))+(this.sort.direction==="asc"?" ↑":" ↓")});
   }
   private counts(data:Snapshot):void{
-    const text=typeof data.total==="number"?`Összes: ${data.total.toLocaleString("hu-HU")}${Object.keys(this.filters).length?` / Találat: ${(data.matched??0).toLocaleString("hu-HU")}`:""}`:"";
+    const text=typeof data.total==="number"?t("Összes: {count}",{count:data.total.toLocaleString(locale())})+(Object.keys(this.filters).length?" / "+t("Találat: {count}",{count:(data.matched??0).toLocaleString(locale())}):""):"";
     this.layout.getRootNode()?.style.setProperty("--vapa-list-count",JSON.stringify(text));
   }
   private async load():Promise<boolean>{
@@ -260,7 +261,7 @@ export class Workspace {
       const row=data.items[0];if(!row){this.revoke();return;}
       if(this.rows[0]?.revision!==row.revision){
         if(this.detailDirty){
-          if(!this.detailConflictShown){this.detailConflictShown=true;message({text:"Az adat időközben módosult; a megkezdett szerkesztés megmaradt.",expire:5000});}
+          if(!this.detailConflictShown){this.detailConflictShown=true;message({text:t("Az adat időközben módosult; a megkezdett szerkesztés megmaradt."),expire:5000});}
           return;
         }
         this.rows=[row];await this.mountDetail(row);
@@ -274,7 +275,7 @@ export class Workspace {
     if(this.disposed)return;
     this.layout.getCell("detail").detach();this.detail?.destructor();await awaitRedraw();if(this.disposed)return;
     const fields=this.view.columns.map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:"text",required:false,max:255,options:{}});
-    const form=new Form(document.createElement("div"),{padding:24,rows:[...fields.map(f=>input(f,row[f.name],!allowed.some(a=>a.name===f.name))),...(action?[{type:"button",name:"submit",text:"Mentés",icon:"dxi dxi-content-save",color:"primary"}]:[])]} as any);
+    const form=new Form(document.createElement("div"),{padding:24,rows:[...fields.map(f=>input(f,row[f.name],!allowed.some(a=>a.name===f.name))),...(action?[{type:"button",name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save",color:"primary"}]:[])]} as any);
     this.detail=form;this.detailDirty=false;this.detailConflictShown=false;
     form.events.on("change",()=>{this.detailDirty=true;});
     if(action)this.bindSave(form,action,String(row.id),row,allowed,()=>{this.detailDirty=false;});
@@ -286,7 +287,7 @@ export class Workspace {
     try{
       const row:Row=await this.call("get",id);
       if(this.disposed||epoch!==this.resultsEpoch)return;
-      const dialog=new Window({css:"vapa-content-window",title:escape(this.view.title+" — Adatok · "+id),ariaLabel:"Rekordadatok",width:Math.min(680,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
+      const dialog=new Window({css:"vapa-content-window",title:escape(this.view.title+" — "+t("Adatok")+" · "+id),ariaLabel:t("Rekordadatok"),width:Math.min(680,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
       this.results=dialog;
       dialog.attachHTML(`<article class="vapa-record-details"><div class="vapa-grid-card__id">ID · ${escapeRecord(row.id)}</div>${recordFields(row,this.view.detailFields??this.view.columns)}</article>`);
       dialog.show();void fitWindow(dialog);
@@ -300,10 +301,10 @@ export class Workspace {
       for(const id of ids)schemas.push(await this.call("__form",id,{operation:action.name}));
       if(this.disposed||epoch!==this.formEpoch)return;
       const fields=(schemas[0].fields as FieldDefinition[]).filter(field=>field.name!=="revision"&&schemas.every(schema=>schema.fields.some((other:FieldDefinition)=>other.name===field.name)));
-      if(schemas.some(schema=>schema.fields.some((field:FieldDefinition)=>field.name!=="revision"&&!fields.some(common=>common.name===field.name))))throw new Error("A jelölt sorok eltérő mezőjogosultságúak. Válassz azonos jogosultságú sorokat.");
-      const form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(field=>input(field,undefined)),{type:"button",name:"submit",text:`Végrehajtás (${ids.length} sor)`,icon:action.icon??"dxi dxi-check",color:"primary"}]} as any);
+      if(schemas.some(schema=>schema.fields.some((field:FieldDefinition)=>field.name!=="revision"&&!fields.some(common=>common.name===field.name))))throw new Error(t("A jelölt sorok eltérő mezőjogosultságúak. Válassz azonos jogosultságú sorokat."));
+      const form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(field=>input(field,undefined)),{type:"button",name:"submit",text:t("Végrehajtás ({count} sor)",{count:ids.length}),icon:action.icon??"dxi dxi-check",color:"primary"}]} as any);
       this.dialog?.destructor();this.editor?.destructor();this.editor=form;
-      const dialog=new Window({css:"vapa-content-window",title:escape(action.label+" — "+ids.length+" jelölt sor"),width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
+      const dialog=new Window({css:"vapa-content-window",title:escape(action.label+" — "+ids.length+t(" jelölt sor")),width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
       const validation=new FormValidation(form,fields);let saving=false;
       form.events.on("click",(name:string)=>{
         if(name!=="submit"||saving||!validation.validate())return;saving=true;form.disable();
@@ -311,7 +312,7 @@ export class Workspace {
         const values=Object.fromEntries(fields.map(field=>[field.name,raw[field.name]]));
         void this.call("__bulk",null,{operation:action.name,items:ids.map((id,i)=>({id,values:{...values,...(schemas[i].fields.some((field:FieldDefinition)=>field.name==="revision")?{revision:schemas[i].values.revision}:{})}}))}).then(async(result:{id:string;ok:boolean;error?:string}[])=>{
           await awaitRedraw();if(this.disposed||this.editor!==form)return;dialog.destructor();this.dialog=undefined;this.editor=undefined;this.grid?.clearMarks();await this.load();
-          await alert({header:"Tömeges művelet",text:`Sikeres: ${result.filter(row=>row.ok).length}, sikertelen: ${result.filter(row=>!row.ok).length}.`+result.filter(row=>!row.ok).map(row=>`\n${row.id}: ${row.error}`).join(""),htmlEnable:false});
+          await alert({header:t("Tömeges művelet"),text:t("Sikeres: {success}, sikertelen: {failed}.",{success:result.filter(row=>row.ok).length,failed:result.filter(row=>!row.ok).length})+result.filter(row=>!row.ok).map(row=>`\n${row.id}: ${row.error}`).join(""),htmlEnable:false});
         }).catch(error=>this.error(error)).finally(()=>{saving=false;if(!this.disposed&&this.editor===form)form.enable();});
       });
     }catch(error){await this.error(error);}
@@ -346,8 +347,8 @@ export class Workspace {
       if(allowed.some(f=>f.name==="revision"))values.revision=current.revision;
       void this.call(action.name,id,values).then(async result=>{
         await awaitRedraw();if(this.disposed)return;complete();
-        if(result?.secret)await alert({header:"Egyszer megjelenő API-token",text:result.secret,htmlEnable:false});
-        else await alert({header:"Mentés",text:"A művelet sikerült.",htmlEnable:false});
+        if(result?.secret)await alert({header:t("Egyszer megjelenő API-token"),text:result.secret,htmlEnable:false});
+        else await alert({header:t("Mentés"),text:t("A művelet sikerült."),htmlEnable:false});
         if(result?.reauthenticate)location.reload();
       }).catch(e=>{if(!this.disposed&&!validation.showServerErrors(e.fieldErrors??{}))return this.error(e);}).finally(()=>{saving=false;if(!this.disposed&&(this.editor===form||this.detail===form))form.enable();});
     });

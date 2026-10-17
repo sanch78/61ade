@@ -168,3 +168,10 @@ Kompakt főmenüben minden navigációs ág és a Kijelentkezés is a „Menü�
 kerül, köztük a natív elválasztóval. Asztali szélességre visszatérve az eredeti
 felső menüsor áll vissza; az ACL és a kijelentkezés POST-folyamata változatlan.
 A fogyasztóban nincs külön konfiguráció. FB-0028.
+
+## Opcionális nyelvválasztó
+
+Az alkalmazás `i18n.selector` beállításával a VAPA natív DHTMLX nyelvválasztót
+tesz a skinválasztó elé, mobilon is. A modal belépésen/megerősítésen belül
+natív Form select biztosítja a nyelvváltást. A nyelvi infrastruktúra választó
+nélkül is aktív; a konfiguráció és megőrzés szerződése: [többnyelvűség](i18n.md).

@@ -1,10 +1,11 @@
+import { t } from "./I18n";
 import { type Grid, awaitRedraw } from "@dhtmlx/suite";
 export type Sort={field:string;direction:"asc"|"desc"};
 type Column={id:string;header:string;type?:string;editable?:boolean};
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 export function gridHeader(column:Column,sort?:Sort):any {
   const css=[column.editable&&column.type!=="checkbox"?"vapa-grid-editable":"",sort?.field===column.id?`vapa-grid-sort-${sort.direction}`:""].filter(Boolean).join(" ");
-  const hint=column.editable?(column.type==="checkbox"?" — Szerkeszthető kattintással":" — Szerkeszthető dupla kattintással"):"";
+  const hint=column.editable?(column.type==="checkbox"?t(" — Szerkeszthető kattintással"):t(" — Szerkeszthető dupla kattintással")):"";
   return {text:escape(column.header),css,tooltip:true,tooltipTemplate:()=>escape(column.header+hint)};
 }
 /** Native header events request SQL ordering; loaded windows are never sorted locally. */
@@ -28,7 +29,7 @@ export class GridHeaders {
       if(this.disposed)return;
       for(const node of Array.from(this.grid.getRootNode()?.querySelectorAll<HTMLElement>('[role="columnheader"][data-dhx-id]')??[])){
         const id=node.getAttribute("data-dhx-id");
-        if(this.columns.find(c=>c.id===id)?.editable)node.setAttribute("aria-description","Szerkeszthető mező");
+        if(this.columns.find(c=>c.id===id)?.editable)node.setAttribute("aria-description",t("Szerkeszthető mező"));
         if(id&&this.sortable.includes(id))node.setAttribute("aria-sort",id===this.sort.field?(this.sort.direction==="asc"?"ascending":"descending"):"none");
       }
     });

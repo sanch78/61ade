@@ -70,7 +70,7 @@ final readonly class Field
 
     public function reject(string $message): never
     {
-        throw new Failure($this->label.': '.$message, 400, [$this->name => $message]);
+        throw new Failure(\Vapa\I18n\Translator::text($this->label).': '.\Vapa\I18n\Translator::text($message), 400, [$this->name => $message]);
     }
 
     private function choices(?Context $context): array
@@ -85,13 +85,13 @@ final readonly class Field
     {
         return [
             'name' => $this->name,
-            'label' => $this->label,
+            'label' => \Vapa\I18n\Translator::text($this->label),
             'type' => $this->type,
             'required' => $this->required,
             'max' => $this->max,
-            'options' => $this->choices($context),
+            'options' => $this->options instanceof Closure ? $this->choices($context) : array_map(\Vapa\I18n\Translator::text(...), $this->choices($context)),
             'secret' => $this->secret,
-            'validation' => (object) $this->validation,
+            'validation' => (object) \Vapa\I18n\Translator::presentation($this->validation),
             'defaultValue' => $this->defaultValue,
         ];
     }

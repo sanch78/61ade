@@ -1,7 +1,12 @@
 <?php
 declare(strict_types=1);
 namespace Vapa\Feature;
+use Vapa\I18n\Translator;
 final class Failure extends \RuntimeException
 {
-    public function __construct(string $message, public readonly int $status = 400, public readonly array $fieldErrors = []) { parent::__construct($message); }
+    public readonly array $fieldErrors;
+    public function __construct(string $message, public readonly int $status = 400, array $fieldErrors = []) {
+        $this->fieldErrors = array_map(Translator::text(...), $fieldErrors);
+        parent::__construct(Translator::text($message));
+    }
 }

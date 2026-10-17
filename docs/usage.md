@@ -140,15 +140,12 @@ a kompakt 40 px fejlécmagasságon belül ([shell](shell.md#kompakt-ablakfejléc
 A témaválasztóban a gyári világos téma neve **Világos** (`light`); az
 alapértelmezett téma **Skyblue**. A korábbi mentett választások megmaradnak.
 
-## Többnyelvűség jelenlegi állapota
+## Többnyelvűség
 
-A VAPA jelenleg nem teljesen többnyelvű. Nincs központi fordítási katalógus,
-locale-beállítás vagy bekötött nyelvválasztás; a frontend keretfeliratai és
-a backend több validációs/hibaüzenete közvetlen magyar szöveg. A shell
-HTML-je `lang="hu"`. A definíciók feliratai megadhatók más nyelven is, de
-ez önmagában nem teszi többnyelvűvé a felületet. Az `i18n` architekturális
-terv, nem kész runtime-képesség.
-
-Többnyelvű fogyasztóhoz előbb közös VAPA fordításkezelés és locale-szerződés
-kell a kliensre, szerverre, validációra és levelekre; az üzleti fordítások
-a fogyasztó feladatai. Ennek megvalósítása még hátravan (FB-0033).
+A VAPA minden alkalmazásnál közös locale- és fordításkezelést használ,
+akkor is, ha a site egy nyelvű és nincs választó. Magyar, angol és német
+keretkatalógus tartozik hozzá; a fogyasztó az üzleti fordításokat adja meg.
+Az opcionális natív nyelvválasztó a skinválasztó elé kerül. A feliratok,
+kliens-/szervervalidációk és megerősítő levelek ugyanazt a nyelvet követik.
+Konfiguráció, fallback, cookie, API, fordítási határ és teszt:
+[többnyelvűség](i18n.md). Az FB-0033 korábbi hiányjelzését az FB-0034 váltja fel.

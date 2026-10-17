@@ -321,4 +321,13 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Helyzetkép:** a keretben nincs kész i18n-katalógus/locale/nyelvválasztás; frontend- és backend-szövegek részben közvetlen magyar feliratok. A korábbi architekturális i18n-terv nem kész képesség. Többnyelvűség implementációját ez a módosítás nem tartalmazza.
 - **Használat:** [módszertan és többnyelvűség](usage.md#többnyelvűség-jelenlegi-állapota), [témák](shell.md).
 - **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban Skyblue alapérték, mentett téma újratöltése és háromtémás választó/megjelenítés 2/2 PASS. Frontend-, backend-, konfigurációs és tervdokumentáció-áttekintés alapján rögzített i18n-helyzetkép. Demo- és fogyasztói assetek publikálva.
-- **Állapot:** témamódosítás megvalósítva / agent által ellenőrzött; a többnyelvűség továbbra is megvalósítandó képesség.
+- **Állapot:** témamódosítás megvalósítva / agent által ellenőrzött; a többnyelvűség ebben a batchben még megvalósítandó képesség volt; ezt az FB-0034 követi.
+
+## FB-0034 — Alapvető többnyelvűség, opcionális site-választó
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói követelmény; felülírja az FB-0033 hiányállapotát.
+- **Elvárás:** a VAPA eleve többnyelvű, egy nyelvű site is ezt használja, legfeljebb választó nélkül. A site kérésére a választó a skinválasztó elé kerül. A konkrét fogyasztó nyelvei és üzleti fordításai fogyasztói felelősség.
+- **Megvalósítás:** közös PHP/TS locale és üzenetkatalógus, magyar/angol/német keretszövegek, kliens-/szervervalidáció, célzott definícióprezentáció és mail-render. Natív Toolbar-választó; modal belépésen natív Form select. CSRF-védett váltás, site-hatókörű preferenciacookie, locale a HTML/HTTP/bootstrap/API útvonalon. Egynyelvű választó nélküli mód. Rekordadatok és dinamikus lookupadatok nem fordulnak át. Cacheverzió `v=21`.
+- **Használat:** [többnyelvűség](i18n.md), [módszertan](usage.md#többnyelvűség), [shell](shell.md#opcionális-nyelvválasztó).
+- **Ellenőrzés:** önálló i18n PHP-szerződések és katalógus-/placeholderparitás PASS. Védett szintetikus Chromium 3/3 PASS: három nyelv, belépés/váltás/megőrzés, lefordított feliratok és validáció, mobil, választó nélküli angol site és CSRF/unsupported-locale védelem. Fogyasztói integráció és szélesebb regresszió folyamatban; nem állítunk még lezárt teljes átvételt.
+- **Állapot:** keret-alapképesség megvalósítva / szintetikusan ellenőrzött; fogyasztói átvétel folyamatban.

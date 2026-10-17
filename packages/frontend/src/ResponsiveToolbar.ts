@@ -1,3 +1,4 @@
+import { t } from "./I18n";
 import {Toolbar} from "@dhtmlx/suite";
 
 /** Native Toolbar dropdowns share the same item IDs, state and click events. */
@@ -34,7 +35,7 @@ export class ResponsiveToolbar extends Toolbar {
     this.compact=compact;
     this._close(new MouseEvent("click"));
     this.data.removeAll();
-    this.data.parse(compact?[{id:"vapa-command-menu",value:"Műveletek",icon:"dxi dxi-view-grid",items:entries.filter(item=>item.type!=="spacer")}]:entries);
+    this.data.parse(compact?[{id:"vapa-command-menu",value:t("Műveletek"),icon:"dxi dxi-view-grid",items:entries.filter(item=>item.type!=="spacer")}]:entries);
   }
   disposeResponsive():void{this.observer.disconnect();this.listeners.abort();}
 }
