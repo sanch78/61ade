@@ -119,3 +119,5 @@ kártyanézetben a toolbar alatt marad ([munkaterületek](workspaces.md#listafej
 A toolbar és a táblázat fejléce között témaszínű elválasztóvonal van.
 Táblázat/kártya váltáskor a felső térköz megmarad, és a táblázatsor pixelben
 mért belső eltolása nem görgeti be a kártyát ([munkaterületek](workspaces.md)).
+
+A [checkbox és kártya-szerkesztésjelzés](field-presentation.md#egységes-checkbox-és-kártya-szerkesztésjelzés) közös Grid/DataView megjelenítést használ; checkbox csak módosítható mezőhöz és sorhoz látható.

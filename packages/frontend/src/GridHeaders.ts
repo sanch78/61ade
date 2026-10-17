@@ -3,7 +3,7 @@ export type Sort={field:string;direction:"asc"|"desc"};
 type Column={id:string;header:string;type?:string;editable?:boolean};
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 export function gridHeader(column:Column,sort?:Sort):any {
-  const css=[column.editable?"vapa-grid-editable":"",sort?.field===column.id?`vapa-grid-sort-${sort.direction}`:""].filter(Boolean).join(" ");
+  const css=[column.editable&&column.type!=="checkbox"?"vapa-grid-editable":"",sort?.field===column.id?`vapa-grid-sort-${sort.direction}`:""].filter(Boolean).join(" ");
   const hint=column.editable?(column.type==="checkbox"?" — Szerkeszthető kattintással":" — Szerkeszthető dupla kattintással"):"";
   return {text:escape(column.header),css,tooltip:true,tooltipTemplate:()=>escape(column.header+hint)};
 }

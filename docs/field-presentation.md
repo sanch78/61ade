@@ -4,7 +4,7 @@ A VAPA `checkbox` mezőt natív DHTMLX checkboxként jeleníti meg a főűrlapon
 
 ## Mezőnkénti gridszerkesztés
 
-A szerkeszthető oszlop fejlécét a keret `✎` jellel és magyarázó tooltippel jelöli; az űrlap- és editorfelirat változatlan. A mező `column` konfigurációjában az `editable: true` kapcsolja be a natív DHTMLX szöveg-, textarea-, select- vagy checkbox-szerkesztőt. Alapértelmezésben minden oszlop csak olvasható; titkos/jelszómező nem szerkeszthető így. Szöveg és select dupla kattintással nyílik meg, Enter vagy fókuszváltás ment, Escape elvet. A checkbox közvetlenül kapcsolható.
+A szerkeszthető, nem checkbox oszlop fejlécét a keret `✎` jellel és magyarázó tooltippel jelöli; az űrlap- és editorfelirat változatlan. A mező `column` konfigurációjában az `editable: true` kapcsolja be a natív DHTMLX szöveg-, textarea- és select-szerkesztőt, illetve a Grid/DataView közös checkbox-template-jét. Alapértelmezésben minden oszlop csak olvasható; titkos/jelszómező nem szerkeszthető így. Szöveg és select dupla kattintással nyílik meg, Enter vagy fókuszváltás ment, Escape elvet. A checkbox közvetlenül kapcsolható.
 
 A `__edit` transzport az objektumazonosítót, mezőnevet, értéket és revíziót fogadja. A közös Executor `update` jogosultsága, mező-ACL-je, API-scope-ja, tranzakciója és auditja érvényes. Csak az engedélyezett mező változik; a kiválasztott mező teljes deklarált validációja fut. A többi mező változatlan régi értéke nem akadályozza az önálló javítást, a teljes űrlapmentés validációja változatlan. A cross-field validáció és a fogyasztói guard/normalize a tárolt rekord és az új mezőérték egyesítését kapja; az after-save a változó mezőt kapja, így például a session-visszavonás megmarad.
 
@@ -65,3 +65,29 @@ Előfeltétel: PDO SQLite vagy MySQL, tranzakcióképes fő- és kapcsolt tábla
 - `VAPA_PHP=/path/to/php84 TMPDIR="$PWD/codex/tmp" npx playwright test --config=playwright.related.config.cjs`: külön szintetikus fogyasztó, natív lista-/form-checkbox, fix oszlopszélesség, közös mentés, újranyitás, beszédes filter.
 
 Kapcsolódó elvárás: FB-0014. A korábbi külön regisztrált security action technikai lehetőség marad; kapcsoló megjelenítésének alapmódszere az objektum főűrlapja.
+
+## Egységes checkbox és kártya-szerkesztésjelzés
+
+A Grid és DataView checkboxmezői közös VAPA template-et használnak a Suite
+`dhx_checkbox` megjelenítésével és témaváltozóival. Nincs Unicode-pipa,
+egyedi checkboxrajz vagy külön ceruza a kapcsoló mellett és oszlopfejlécében.
+A kezelhető mezőn csak a jelölő látszik, a beszédes állapot tooltipben olvasható;
+így a rövid állapotoszlopból sem lóg ki a vezérlő.
+A jelölő csak `column.editable: true` és az adott sor `_editable` mezőjoga
+együttes meglétekor jelenik meg; egyébként az `options` szerinti állapotfelirat
+látszik. A readonly rekordadatablakban sincs kezelhetetlen checkbox.
+A kattintás, Enter és Space a közös `saveCell`/`__edit` mentést használja,
+ugyanazzal a szerveres ACL-, revízió-, validáció- és auditérvényesítéssel.
+A fogyasztóban nincs külön checkbox-komponens vagy mentési végpont.
+
+A kártya nem checkbox szerkeszthető mezőinek ceruzája a mező jobb szélén,
+fenntartott 24 px helyen áll. Az érték és az ikon is indítja a mezőszerkesztőt;
+a billentyűs Enter/Space működés megmarad. Hosszú érték a jel mellett törik.
+Nincs új konfiguráció: például a `notify` checkbox `column: {editable: true}`
+és `options: {"0": "Off", "1": "On"}` deklarációja mindkét nézetre érvényes.
+Előfeltétel a támogatott Suite és a soronkénti `_editable` szervermetaadat.
+
+Ellenőrzés: `tests/shell/grid-edit.spec.cjs`, védett
+`npm run test:browser -- --config playwright.grid-edit.config.cjs`;
+kattintás/billentyű, mentés, nézetváltás, readonly mező és sorjog,
+azonos checkboxméret és jobbra igazított szerkesztésjel. FB-0029.

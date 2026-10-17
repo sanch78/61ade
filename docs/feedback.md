@@ -268,3 +268,11 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [munkaterületek](workspaces.md), [módszertan](usage.md).
 - **Ellenőrzés:** typecheck/build és `git diff --check` PASS; védett Chromium listaprezentáció/mobil 6/6 PASS. Három téma, elválasztóvonal, árnyékhely, ismételt top→kártya→tábla váltás, részben görgetett táblázatból váltás, élő kártyafrissítés és kiválasztás ellenőrzött. A stabil kirajzolás után is vizsgált nézetváltási regresszió külön újrafuttatva; Skyblue screenshot képi ellenőrzése sikeres.
 - **Állapot:** megvalósítva / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
+
+## FB-0029 — Jobb széli kártyaceruza és egységes, kezelhető checkbox
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás: a kártyaceruza a jobb szélen indítsa a szerkesztést; checkboxhoz egyik nézetben se legyen ceruza, és checkbox csak kezelhető mezőhöz jelenjen meg. A kártya és a tábla jelölője legyen egységes. Az FB-0018/FB-0024 checkboxra vonatkozó általános ceruzajelzését pontosítja.
+- **Megvalósítás:** közös `RecordPresentation.recordCheckbox` Suite-megjelenítés a Grid és DataView template-jében, deklarált szerkeszthetőség és sorjog metszetével; readonly mező/rekordadatablak szöveges. A mentés mindkét nézetben a meglévő mezőszerkesztési útvonal. A kártyaceruza jobb szélen, fenntartott helyen áll; checkbox fejlécében és értékénél nincs ceruza.
+- **Használat:** [mezőprezentáció](field-presentation.md#egységes-checkbox-és-kártya-szerkesztésjelzés), [módszertan](usage.md).
+- **Ellenőrzés:** typecheck/build és `git diff --check` PASS; védett szintetikus Chromium 2/2 és fogyasztói inline/kártya integráció 1/1 PASS. Checkboxméret-egyezés, ceruzamentes kapcsoló/fejléc, jobb széli ikonról nyitás, Enter/Space, mentés/validáció/újratöltés és readonly sorjog ellenőrzött. Skyblue képi ellenőrzés PASS; dev assetek publikálva, cacheverzió `v=15`.
+- **Állapot:** megvalósítva / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
