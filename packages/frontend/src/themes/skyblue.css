@@ -95,3 +95,8 @@
   border-radius: 4px;
   box-shadow: 0 2px 5px rgba(39,56,75,.3);
 }
+
+/* Native rowCss tracks the displayed order, including virtual scrolling. */
+:where([data-dhx-theme="skyblue"]) .vapa-grid-row-alternate {
+  background-color: #edf5fc;
+}

@@ -53,3 +53,5 @@
 ## FB-0029 — Right-edge card pencil and shared editable checkbox
 
 ## FB-0028 — Compact popup, complete mobile navigation/commands
+
+## FB-0030 — Alternating Skyblue rows
