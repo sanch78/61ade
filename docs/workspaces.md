@@ -95,3 +95,58 @@ A Suite 9.3.12 `space` layoutja 12 px panelközt hagy, de a gyári CSS a háromp
 A fogyasztónak nincs külön teendője: a VAPA assetet kell publikálnia. A gyári Suite CSS-fájl változatlan marad; a VAPA szabályai utána töltődnek be. A `line` és `wide` layoutot, valamint a gridoszlop- és ablakméretezőt ez nem érinti. A javítás a Suite 9.3.12 gyári 12 px panelközére épül; vendorfrissítéskor a célzott tesztet futtatni kell.
 
 Ellenőrzés: `tests/shell/layout-resizer.spec.cjs` önálló szintetikus DHTMLX layouton méri mindkét tengely fogantyújának középpontját Light/Skyblue/Dark témában, és tényleges egérhúzással ellenőrzi a panel átméretezését. Kapcsolódó visszajelzés: FB-0013.
+
+## Kártyák, rekordadatok, sorszám és jelölés
+
+A kártyanézet natív DHTMLX DataView: a rendelkezésre álló panelszélesség szerint
+340 px célméretű oszlopokat használ; mobilon egy oszlopra vált. A kártya minden
+regisztrált, a `list` válaszában olvasható mezőt megjelenít, a gridből kihagyott
+mezőket is. A technikai revízió/ACL-metaadat és a titkos mező nem adatlapmező.
+
+Minden listában alapértelmezett a `#` sorszámoszlop. Ez az aktuális, legfeljebb
+600 soros adatablakon belüli, 1-től induló megjelenítési sorszám; nem adatbázis-ID
+és nem a teljes találathalmaz állandó rangja. Dupla kattintása a friss `get`
+műveleten át DHTMLX rekordablakot nyit. Az „Adatok” toolbar-gomb ugyanazt adja,
+akkor is, ha a sorszámot kikapcsoljuk. Kártyán dupla kattintás is ezt nyitja.
+Ablakban minden regisztrált, `get` szerint olvasható mező látható; a szerver
+objektum- és mezőjogai érvényesek. A módosító űrlap külön művelet marad.
+
+JSON `view` beállítások: `row_numbers: false` kikapcsolja a sorszámot;
+`selection: true` bekapcsolja a sorjelölő checkboxokat (alapból false).
+PHP: `$registry->view(..., rowNumbers: false, selection: true)`.
+A jelölés elkülönül az aktív/szerkesztett sortól, megmarad tábla/kártya váltáskor
+és azonos sorok élő frissítésekor. Az adatablakból kikerülő sor jelölése megszűnik.
+
+A toolbar és a nézetváltó belső layoutja `type: none`; a külső Találatok panel
+adja az egyetlen keretet. A toolbar a saját sorának magasságát tölti ki,
+a görgethető tartalom nem rajzolhat bele. A szűrő alaphelyzetbe állítása és a
+belépési megerősítés másodlagos műveletei natív másodlagos flat gombok.
+
+## Tömeges műveletek és ikonok
+
+A regisztrált Action opcionális `icon` DHTMLX ikon-osztályt fogad, például
+`dxi dxi-check`; JSON action ugyanilyen `icon` kulcsot használ. Az alapműveletek,
+a nézetváltás, szűrés és mentés keretbeli alapikont kapnak.
+
+Tömeges művelet csak kifejezett `Action(..., bulk: true)` / JSON `bulk: true`
+esetén és bekapcsolt sorjelölés mellett jelenik meg. A jelenlegi fogyasztói
+üzleti modulok ezt még nem kapcsolják be. Példa egy fogyasztó által regisztrált,
+objektumonként végrehajtott „Lezárás” művelet: adj hozzá `bulk: true`-t és
+`icon: 'dxi dxi-check'`-et, majd a view-hoz `selection: true`-t. A handler,
+a resolver és a jogkiosztás ugyanaz, mint az egyedi műveletnél.
+
+A „… — jelöltek” gomb az engedélyezett sorokra közös űrlapot nyit;
+eltérő mezőjogoknál elutasítja az összevont űrlapot. 1–100 sor kezelhető.
+A `__bulk` UI-csatornán `operation` és `items: [{id, values}]` bemenetet fogad.
+Minden sor saját revízióval, validációval, objektum-/mező-ACL-lel, tranzakcióval
+és audittal fut a közös Executorban. Titkos/jelszómezős és collection action
+nem lehet bulk. API bulk nem támogatott. A soronkénti eredmény részleges sikert
+is jelenthet; a már sikeres sorok nem gördülnek vissza más sor hibája miatt.
+A kliens összesítést és a sikertelen azonosítókhoz hibaüzenetet mutat;
+automatikus újrapróbálás nincs. Ez nem atomikus tömeges tranzakció és nem export.
+
+Ellenőrzés: `tests/shell/list-presentation.php` a jogosultságot, titkos mezőt,
+nézetmetaadatot, bulk opt-int, limitet, duplikációt és részleges sikert vizsgálja;
+`tests/shell/list-presentation.spec.cjs` a kártyaoszlopokat, mobilváltást,
+rekordablakot, ikonokat, jelölést, tömeges beküldést és három téma geometriai
+határait ellenőrzi. Kapcsolódó visszajelzés: FB-0019.

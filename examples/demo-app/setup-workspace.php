@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/vendor/autoload.php';
-$file=dirname(__DIR__,2).'/codex/tmp/demo-workspace.sqlite';
+$file=(getenv('VAPA_TMP_DIR') ?: dirname(__DIR__,2).'/codex/tmp').'/demo-workspace.sqlite';
 $db=new PDO('sqlite:'.$file,null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
 Vapa\Access\Schema::install($db);
 $db->exec('CREATE TABLE IF NOT EXISTS notes(id INTEGER PRIMARY KEY AUTOINCREMENT,owner_id TEXT,title TEXT)');

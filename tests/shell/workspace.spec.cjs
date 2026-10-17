@@ -32,6 +32,6 @@ test('polling observes external writes without a refresh control',async({page})=
  await page.goto('/');await page.getByLabel('Felhasználónév',{exact:true}).fill('demo');await page.getByLabel('Jelszó',{exact:true}).fill('vapa-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
  await expect(page.getByRole('button',{name:'Frissítés',exact:true})).toHaveCount(0);
  const value='Polling '+Date.now();
- execFileSync(process.env.VAPA_PHP||'php8.4',['-r',`$db=new PDO('sqlite:codex/tmp/demo-workspace.sqlite');$q=$db->prepare('UPDATE notes SET title=? WHERE id=1');$q->execute([$argv[1]]);`,value]);
+ execFileSync(process.env.VAPA_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${process.env.VAPA_TMP_DIR || 'codex/tmp'}/demo-workspace.sqlite');$q=$db->prepare('UPDATE notes SET title=? WHERE id=1');$q->execute([$argv[1]]);`,value]);
  await expect(page.getByText(value,{exact:true})).toBeVisible({timeout:10000});
 });

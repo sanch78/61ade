@@ -136,7 +136,7 @@ final class WorkspaceConfiguration
         ], '$.resources.'.$name.'.operations');
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
-            'columns' => 'array', 'layout' => 'array',
+            'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean',
         ], '$.resources.'.$name.'.view');
         $related = [];
         foreach ($storage['related'] ?? [] as $relation) {
@@ -177,7 +177,7 @@ final class WorkspaceConfiguration
         Shape::check($definition, [
             'resource' => 'string', 'name' => 'string', 'label' => 'string', 'handler' => 'string',
         ], [
-            'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array', 'form_values' => 'string',
+            'icon' => 'string', 'bulk' => 'boolean', 'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array', 'form_values' => 'string',
         ], '$.actions');
         if (!isset($this->resources[$definition['resource']])) {
             throw new InvalidArgumentException('Unknown action resource: '.$definition['resource']);
@@ -208,6 +208,8 @@ final class WorkspaceConfiguration
             write: $definition['write'] ?? false,
             channels: $definition['channels'] ?? ['ui', 'api'],
             formValues: $this->bindings->get($definition['form_values'] ?? null),
+            icon: $definition['icon'] ?? null,
+            bulk: $definition['bulk'] ?? false,
         ));
     }
 
@@ -236,6 +238,8 @@ final class WorkspaceConfiguration
             singleton: $view['singleton'] ?? false,
             group: $view['group'] ?? null,
             layout: $this->layout($view),
+            rowNumbers: $view['row_numbers'] ?? true,
+            selection: $view['selection'] ?? false,
         );
     }
 }

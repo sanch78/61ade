@@ -33,3 +33,5 @@
 ## FB-0017 — Declared per-field grid editing
 
 ## FB-0018 — Editable headers, sorting and smart rendering
+
+## FB-0019 — Lists, record details and controls

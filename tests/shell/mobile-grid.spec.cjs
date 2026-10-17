@@ -49,6 +49,6 @@ test('synthetic cards escape content, retain fields, selection and scroll during
  expect(await page.evaluate(()=>adapter.capture().id)).toBe(position.id);
  expect(await page.evaluate(()=>selected)).toBe('5');
  await page.locator('.vapa-grid-cards').evaluate(e=>{e.scrollTop=e.scrollHeight;});await expect.poll(()=>page.evaluate(()=>more.includes('next'))).toBe(true);
- await page.screenshot({path:path.join(root,'codex/tmp/mobile-grid.png')});
+ await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR || path.join(root,'codex/tmp'),'mobile-grid.png')});
  await page.evaluate(()=>adapter.destroy());expect(errors).toEqual([]);
 });

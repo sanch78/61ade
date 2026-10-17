@@ -52,3 +52,19 @@ Linux, systemd user manager, delegált cgroup v2 memory/pids kontrollerek, Bash 
 A fogyasztó ugyanazt a `tools/run-dev-check.sh command [args...]` eszközt hívja saját tesztbinárisával és munkakönyvtárából. Minden ilyen futás ugyanazt a framework-checkouthoz tartozó lockot használja. Több külön framework-checkout vagy más felhasználó nem osztozik ezen a záron. A futtató nem indít korlátlan fallbacket, ha a systemd nem érhető el. A teszt exitkódját továbbadja, foglalt lock vagy kevés memória esetén 75 az exitkód. A nyers Playwright CLI megkerüli a védelmet, ezért ezen a hoston nem támogatott fejlesztői belépési pont. A guard más nagy ellenőrzésekhez is használható, a korlátok ugyanazok.
 
 Referencia: [systemd erőforráskorlátok](https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html).
+
+
+### Kijelölt scratch és rendszerszintű böngésző
+
+A build vendorfont-cache-e és a védett tesztfolyamat `TMPDIR`-je a
+`VAPA_TMP_DIR` környezeti változóval kijelölhető. Az önálló demo setup,
+adatbázis és session runtime, illetve az alap Playwright-konfiguráció
+artifactkönyvtára is ezt követi. A közös `dev-check.lock` továbbra is a
+keret meglévő zára: a scratch választása nem enged párhuzamos tesztfutást.
+A régi alapútvonal kompatibilitásból marad meg; a host projektterületi
+szerződése szerint mindig a kijelölt scratch értéket kell átadni.
+
+A Playwright runner/böngésző Catalyston rendszerszinten, Infra által kezelt.
+Hiányzó vagy eltérő browser revision esetén Infra-kérés szükséges;
+projektterületre böngészőt letölteni, vagy a hostvédelmet megkerülni tilos.
+A tesztartifact scratch és a közös böngészőtelepítés két külön felelősség.

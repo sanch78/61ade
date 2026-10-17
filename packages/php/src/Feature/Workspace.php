@@ -36,7 +36,7 @@ final class Workspace
                 if($view['singleton'] && !$this->acl->allows($actor->id,$a->resource,$name,'ui',$actor->id,$actor->id))continue;
                 $rules=$this->acl->rules($actor->id,$a->resource,$name,'ui');
                 if(!array_filter($rules,static fn($r)=>$r['effect']==='allow' && $r['field_name']==='') || array_filter($rules,static fn($r)=>$r['effect']==='deny' && $r['scope']==='all' && $r['field_name']===''))continue;
-                $actions[]=['name'=>$name,'label'=>match($name){'create'=>'Hozzáadás','update'=>'Módosítás',default=>$a->label},'submitLabel'=>in_array($name,['create','update'],true)?'Mentés':$a->label,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
+                $actions[]=['name'=>$name,'icon'=>$a->icon,'bulk'=>$a->bulk,'label'=>match($name){'create'=>'Hozzáadás','update'=>'Módosítás',default=>$a->label},'submitLabel'=>in_array($name,['create','update'],true)?'Mentés':$a->label,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
             }
             if(!$actions)continue;
             $fields=$this->registry->fields($view['resource']);
@@ -45,6 +45,7 @@ final class Workspace
                 if(!$field)return $column;
                 return [...$field->column,...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
             },$view['columns']);
+            $view['detailFields']=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
             $view['actions']=$actions;
             $view['layout']=$view['layout']->metadata();
             $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
@@ -105,6 +106,12 @@ final class Workspace
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
                 $ctx=new Context($actor,'ui',$this->acl,$this->db);
                 $result=$this->observe($ctx,$data['resource'],$data['values']['query']??[],$data['values']['version']??'');
+                echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
+            }
+            if($data['action']==='__bulk'){
+                $values=$data['values'];
+                if(!is_string($values['operation']??null)||!is_array($values['items']??null)||array_diff(array_keys($values),['operation','items']))throw new Failure('Hibás tömeges művelet.');
+                $result=$this->executor->bulk(new Context($actor,$channel,$this->acl,$this->db,$scopes),$data['resource'],$values['operation'],$values['items']);
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             if($data['action']==='__edit'){

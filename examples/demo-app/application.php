@@ -20,7 +20,7 @@ return new ApplicationDefinition(
         new MenuItem('library', 'Nyilvántartás', [new MenuItem('documents', 'Dokumentumok')]),
         new MenuItem('settings', 'Beállítások', [new MenuItem('members', 'Tagok')], visible: static fn(Identity $actor) => (bool) $actor->attributes['can_manage']),
     ]),
-    runtime: dirname(__DIR__, 2).'/codex/tmp/shell-demo',
+    runtime: (getenv('VAPA_TMP_DIR') ?: dirname(__DIR__, 2).'/codex/tmp').'/shell-demo',
     sessionName: 'vapa_demo',
     workspace: require __DIR__.'/workspace.php',
 );
