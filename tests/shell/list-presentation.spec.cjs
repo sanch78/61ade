@@ -36,11 +36,12 @@ test('cards use multiple columns; details include fields outside the grid; marks
  await expect(page.getByRole('button',{name:'Archiválás — jelöltek',exact:true})).toBeEnabled();
  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
  const cards=page.locator('.vapa-grid-card');await expect(cards.first()).toContainText('Long description');
+ await expect.poll(async()=>Math.abs((await cards.nth(0).boundingBox()).y-(await cards.nth(1).boundingBox()).y)).toBeLessThan(2);
  const first=await cards.nth(0).boundingBox(),second=await cards.nth(1).boundingBox();
  expect(Math.abs(first.y-second.y)).toBeLessThan(2);expect(second.x).toBeGreaterThan(first.x+300);
  await expect(page.getByLabel('Sor jelölése: 1',{exact:true}).filter({visible:true})).toBeChecked();
  await page.setViewportSize({width:390,height:844});
- const mobileFirst=await cards.nth(0).boundingBox(),mobileSecond=await cards.nth(1).boundingBox();expect(mobileSecond.y).toBeGreaterThan(mobileFirst.y);
+ await expect.poll(()=>cards.evaluateAll(elements=>elements.length>1?elements[1].getBoundingClientRect().y-elements[0].getBoundingClientRect().y:0)).toBeGreaterThan(0);
  await page.setViewportSize({width:1400,height:900});
  await page.getByRole('button',{name:'Archiválás — jelöltek',exact:true}).click();
  await page.getByRole('dialog').getByRole('button',{name:'Végrehajtás (2 sor)',exact:true}).click();
