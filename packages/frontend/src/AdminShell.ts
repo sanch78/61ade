@@ -5,6 +5,7 @@ import { Form, Layout, Menu, Toolbar, Window, alert, setTheme, awaitRedraw } fro
 export type MenuDefinition = {
   id: string;
   label: string;
+  icon?: string;
   disabled?: boolean;
   items?: MenuDefinition[];
 };
@@ -59,7 +60,7 @@ export class AdminShell {
   private listeners = new AbortController();
   private resize = () => {
     if (this.menu) {
-      const required=this.menuItems.reduce((sum:number,item:any)=>sum+40+String(item.value || "").length*9,305);
+      const required=this.menuItems.reduce((sum:number,item:any)=>sum+60+String(item.value || "").length*9,305);
       const compact = this.root.clientWidth < Math.max(768,required);
       if (compact !== this.compactMenu) {
         this.compactMenu = compact;
@@ -67,10 +68,10 @@ export class AdminShell {
         const items = structuredClone(this.menuItems);
         this.menu.data.parse([
           ...(compact && this.menuItems.length
-            ? [{ id: "vapa-main-menu", value: "Menü", items }]
+            ? [{ id: "vapa-main-menu", value: "Menü", icon:"dxi dxi-view-grid", items }]
             : items),
           { id: "vapa-session-separator", type: "separator" },
-          { id: "vapa-logout", value: "Kijelentkezés" },
+          { id: "vapa-logout", value: "Kijelentkezés", icon:"dxi dxi-arrow-left" },
         ]);
       }
     }
@@ -81,8 +82,23 @@ export class AdminShell {
       Math.min(width, innerWidth - 24),
       Math.min(height, innerHeight - 24),
     );
-    this.loginWindow.show();
+    if(!this.loginWindow.isVisible())this.loginWindow.show();
+    void this.fitLogin();
   };
+
+  private async fitLogin():Promise<void>{
+    await awaitRedraw();
+    const win=this.loginWindow;
+    if(!win||this.listeners.signal.aborted)return;
+    const container=win.getContainer();
+    const buttons=Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(button=>button.getBoundingClientRect().height>0);
+    if(!buttons.length)return;
+    const outer=(container.closest<HTMLElement>('[role="dialog"]')??container).getBoundingClientRect();
+    const bottom=Math.max(...buttons.map(button=>button.getBoundingClientRect().bottom));
+    const height=Math.min(innerHeight-24,Math.ceil(bottom-outer.top+24));
+    win.setSize(outer.width,height);
+    win.setPosition(Math.max(12,(innerWidth-outer.width)/2),Math.max(12,(innerHeight-height)/2));
+  }
 
   constructor(
     private root: HTMLElement,
@@ -129,6 +145,7 @@ export class AdminShell {
       setTheme(next,document.documentElement);
       themeControl.data.update("theme-choice",{value:next==="dark"?"Éjjeli":next==="skyblue"?"Skyblue":"Default"});
       try{localStorage.setItem("vapa-theme",next);}catch{}
+      void this.fitLogin();
     });
     this.layout.getCell("theme").attach(themeControl);
     if (definition.authenticated) {
@@ -136,16 +153,17 @@ export class AdminShell {
         items.map((item) => ({
           id: item.id,
           value: escape(item.label),
+          icon:item.icon??"dxi dxi-folder",
           ...(item.items?.length
             ? { items: map(item.items) }
             : { disabled: true }),
         }));
       const features: any[]=[];
       for(const view of definition.views || []) {
-        const item={id:"feature:"+view.resource,value:escape(view.title)};
+        const item={id:"feature:"+view.resource,value:escape(view.title),icon:view.icon??"dxi dxi-table-check"};
         if(view.group){
           let group=features.find(v=>v.id==="group:"+view.group);
-          if(!group){group={id:"group:"+view.group,value:escape(view.group),items:[]};features.push(group);}
+          if(!group){group={id:"group:"+view.group,value:escape(view.group),icon:"dxi dxi-folder-open",items:[]};features.push(group);}
           group.items.push(item);
         }else features.push(item);
       }
@@ -192,6 +210,7 @@ export class AdminShell {
     this.loginWindow = new Window({
       title: "Bejelentkezés",
       ariaLabel: "Bejelentkezés",
+      css:"vapa-auth-window",
       width: 420,
       height: definition.rememberAvailable ? 340 : 290,
       modal: true,
@@ -246,6 +265,7 @@ export class AdminShell {
       ],
     });
     this.loginForm = form;
+    form.events.on("afterValidate",()=>{void this.fitLogin();});
     const submit = () => {
       if (this.submitting || !form.validate()) return;
       const value = form.getValue() as Record<string, string>;
@@ -304,6 +324,7 @@ export class AdminShell {
     this.loginWindow = new Window({
       title: "E-mailes megerősítés",
       ariaLabel: "E-mailes megerősítés",
+      css:"vapa-auth-window",
       width: 460,
       height: 420,
       modal: true,
@@ -324,6 +345,7 @@ export class AdminShell {
       ],
     });
     this.loginForm = form;
+    form.events.on("afterValidate",()=>{void this.fitLogin();});
     const submit = () => {
       if (!this.submitting && form.validate()) this.post("confirm_login", { code: String(form.getValue().code ?? "") });
     };

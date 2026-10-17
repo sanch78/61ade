@@ -1,6 +1,6 @@
 export type LiveConfig={transport:"poll"|"websocket";endpoint:string;interval:number};
 export type Row={id:string;revision?:string;_actions?:string[];_editable?:string[];_position?:Record<string,unknown>;[key:string]:unknown};
-export type Snapshot={items:Row[];previous:string|null;next:string|null;version?:string};
+export type Snapshot={items:Row[];previous:string|null;next:string|null;version?:string;total?:number;matched?:number};
 type Call=(action:string,id?:string|null,values?:Record<string,unknown>)=>Promise<any>;
 
 /** Shared subscription lifecycle: no application transport code and no manual refresh. */
@@ -48,7 +48,7 @@ export class Realtime {
           for(const row of message.upserts)this.rows.set(String(row.id),row);
           const visible=new Set(message.order);for(const id of this.rows.keys())if(!visible.has(id))this.rows.delete(id);
           this.version=message.version;
-          this.update({items:message.order.map((id:string)=>this.rows.get(id)).filter(Boolean),previous:message.previous,next:message.next,version:message.version});
+          this.update({items:message.order.map((id:string)=>this.rows.get(id)).filter(Boolean),previous:message.previous,next:message.next,version:message.version,total:message.total,matched:message.matched});
         }catch{socket.close();}
       };
       socket.onclose=event=>{

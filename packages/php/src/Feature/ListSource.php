@@ -64,7 +64,7 @@ final readonly class ListSource
         $filters=$input['filters']??[];
         if(!is_array($filters)||count($filters)>count($this->fields))throw new Failure('Hibás szűrők.');
         [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
-        $terms=["($scope)","({$this->where})"];$known=array_column($this->fields,null,'name');
+        $terms=["($scope)","({$this->where})"];$totalTerms=$terms;$totalParams=$params;$known=array_column($this->fields,null,'name');
         foreach($filters as $key=>$value){
             $field=$known[$key]??null;
             if(!$field||$field->secret||$field->type==='textarea'||!$this->queryable($ctx,$key))throw new Failure('A mező nem szűrhető.',403);
@@ -87,6 +87,11 @@ final readonly class ListSource
         $storageColumn=$sort['field']==='id'?$this->key:$sort['field'];
         $column=($known[$sort['field']]->type??'')==='number'?"CAST($storageColumn AS DECIMAL(65,0))":$storageColumn;
         $baseTerms=$terms;$baseParams=$params;
+        $from=$this->source?($this->source)($ctx):$this->table;
+        $count=static function(array $terms,array $params)use($ctx,$from):int{
+            $query=$ctx->db->prepare("SELECT COUNT(*) FROM $from WHERE ".implode(' AND ',$terms));$query->execute($params);return (int)$query->fetchColumn();
+        };
+        $total=$count($totalTerms,$totalParams);$matched=$filters?$count($baseTerms,$baseParams):$total;
         $direction='next';$hasCursor=false;
         if($mode==='watch'){
             $front=$input['front']??true;$first=$input['first']??null;
@@ -101,7 +106,7 @@ final readonly class ListSource
             $position=$this->boundary($input['cursor'],$sort);$direction=$position['direction'];
             $terms[]=$this->after($position,$column,$sort,$direction==='previous',false,$params);$hasCursor=true;
         }
-        $from=$this->source?($this->source)($ctx):$this->table;
+
         $ascending=($sort['direction']==='asc')!==($direction==='previous');$order=$ascending?'ASC':'DESC';
         $ordering=$sort['field']==='id'?"{$this->key} $order":"($column IS NULL) ".($direction==='previous'?'DESC':'ASC').", $column $order, {$this->key} $order";
         $q=$ctx->db->prepare("SELECT * FROM $from WHERE ".implode(' AND ',$terms)." ORDER BY $ordering LIMIT ".($limit+1));$q->execute($params);
@@ -114,7 +119,7 @@ final readonly class ListSource
             $rank=$ctx->db->prepare("SELECT COUNT(*) FROM $from WHERE ".implode(' AND ',[...$baseTerms,$before]));$rank->execute($baseParams);
             $offset=(int)$rank->fetchColumn();
         }
-        return ['items'=>array_map(fn($row,$index)=>[...($this->project)($ctx,$row),'_position'=>$position($row),...($numbered?['_number'=>$offset+$index+1]:[])],$rows,array_keys($rows)),
+        return ['total'=>$total,'matched'=>$matched,'items'=>array_map(fn($row,$index)=>[...($this->project)($ctx,$row),'_position'=>$position($row),...($numbered?['_number'=>$offset+$index+1]:[])],$rows,array_keys($rows)),
             'previous'=>$first!==null&&($direction==='previous'?$more:$hasCursor)?$this->cursor($first,'previous'):null,
             'next'=>$last!==null&&($direction==='previous'?$hasCursor:$more)?$this->cursor($last,'next'):null];
     }

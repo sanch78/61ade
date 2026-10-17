@@ -2,6 +2,9 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 async function login(page,user='synthetic'){
  await page.goto('/');await page.getByLabel('Felhasználónév',{exact:true}).fill(user);await page.getByLabel('Jelszó',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();await page.getByRole('menuitem',{name:'Elemek',exact:true}).click();await expect(page.getByRole('grid')).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Elemek',exact:true})).toBeVisible();
+ await expect.poll(()=>page.locator('.vapa-list-count').evaluate(e=>getComputedStyle(e,'::before').content)).toBe('"Összes: 24"');
+ await expect(page.getByRole('menuitem',{name:'Elemek',exact:true}).locator('.dxi')).toHaveCount(1);
 }
 async function view(page,mode){await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText(mode,{exact:true}).click();}
 test('real consumer shows all readable data and commits marked rows through the bulk endpoint',async({page})=>{
@@ -35,6 +38,7 @@ test('read-only consumer never receives denied detail values or bulk permissions
  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Szűrés',exact:true}).click();
  const filter=page.getByRole('dialog',{name:'Szűrés',exact:true});await filter.getByLabel('Megnevezés',{exact:true}).fill('Elem 24');await filter.getByRole('button',{name:'Szűrés',exact:true}).click();
  await expect(filter).toHaveCount(0);await expect(page.locator('.vapa-grid-card')).toHaveCount(1);
+ await expect.poll(()=>page.locator('.vapa-list-count').evaluate(e=>getComputedStyle(e,'::before').content)).toBe('"Összes: 24 / Találat: 1"');
  await page.setViewportSize({width:1280,height:900});await expect(page.getByLabel('Megnevezés',{exact:true})).toHaveValue('Elem 24');
  await page.getByRole('button',{name:'Alaphelyzet',exact:true}).click();await expect(page.getByLabel('Megnevezés',{exact:true})).toHaveValue('');await expect(page.locator('.vapa-grid-card')).toHaveCount(24);
  expect(responses.join('')).not.toContain('NEVER_EXPOSE');expect(responses.join('')).not.toContain('A gridből kihagyott');

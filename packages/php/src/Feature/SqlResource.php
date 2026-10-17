@@ -55,7 +55,7 @@ final class SqlResource
             if($this->afterSave)($this->afterSave)($ctx,$target['id'],$target,[]);
             return [];
         },resolve:fn($c,$id)=>$this->target($c,$id),write:true,channels:['ui']));
-        foreach($registry->views() as $view)if($view['resource']===$this->resource)$registry->view($view['resource'],$view['title'],$view['columns'],[...$view['actions'],'delete'],$view['singleton'],$view['group'],$view['layout'],$view['rowNumbers'],$view['selection']);
+        foreach($registry->views() as $view)if($view['resource']===$this->resource)$registry->view($view['resource'],$view['title'],$view['columns'],[...$view['actions'],'delete'],$view['singleton'],$view['group'],$view['layout'],$view['rowNumbers'],$view['selection'],$view['icon']);
     }
     public function target(Context $ctx, ?string $id): array
     {

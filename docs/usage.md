@@ -98,3 +98,9 @@ a grid és a munkaterület megjelenítési preferenciáit automatikusan megőrzi
 A lista-, toolbar-, rekordablak- és logingomb-javítások [követelményenkénti
 minősítése](list-presentation-validation.md) a reprodukáló parancsokat és a
 szintetikus fogyasztó bizonyítékait is tartalmazza.
+
+A [listafejléc és rekordszám](workspaces.md#listafejléc-és-rekordszám)
+a nézet címét a panelben, a teljes jogosult és szűrt darabszámot jobb oldalon
+jeleníti meg. Ugyanitt található a konfigurálható főmenüikon használata.
+A [kompakt hitelesítési ablakok](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok)
+a kirajzolt űrlaphoz méreteződnek, egységes alsó térközzel.

@@ -14,10 +14,12 @@ final readonly class MenuItem
         public array $items = [],
         public ?\Closure $visible = null,
         public bool $enabled = false,
+        public ?string $icon = null,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_-]*$/D', $id) || $label === '') {
             throw new \InvalidArgumentException('A menu item requires a stable ID and label.');
         }
+        if($icon!==null&&!preg_match('/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/D',$icon))throw new \InvalidArgumentException('Invalid menu icon.');
         foreach ($items as $item) {
             if (!$item instanceof self) throw new \InvalidArgumentException('Invalid menu child.');
         }
@@ -34,7 +36,7 @@ final readonly class MenuItem
         }
         if ($this->items && !$children) return null;
         return $children
-            ? ['id' => $this->id, 'label' => $this->label, 'items' => $children]
-            : ['id' => $this->id, 'label' => $this->label, 'disabled' => true];
+            ? [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => $this->label, 'items' => $children]
+            : [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => $this->label, 'disabled' => true];
     }
 }

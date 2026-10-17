@@ -136,7 +136,7 @@ final class WorkspaceConfiguration
         ], '$.resources.'.$name.'.operations');
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
-            'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean',
+            'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'icon' => 'string',
         ], '$.resources.'.$name.'.view');
         $related = [];
         foreach ($storage['related'] ?? [] as $relation) {
@@ -240,6 +240,7 @@ final class WorkspaceConfiguration
             layout: $this->layout($view),
             rowNumbers: $view['row_numbers'] ?? true,
             selection: $view['selection'] ?? false,
+            icon: $view['icon'] ?? null,
         );
     }
 }
