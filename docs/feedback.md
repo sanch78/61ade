@@ -63,3 +63,5 @@
 ## FB-0033 — Clear theme names and localization inventory
 
 ## FB-0034 — Built-in localization and optional site selector
+
+## FB-0035 — Actual PNG flags instead of emoji

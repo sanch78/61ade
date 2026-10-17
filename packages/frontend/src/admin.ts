@@ -2,6 +2,7 @@ import { AdminShell, type ShellDefinition } from "./AdminShell";
 import "@dhtmlx/suite/codebase/suite.min.css";
 import "./themes/skyblue.css";
 import "./admin.css";
+import "./flags/flags.css";
 
 const root = document.querySelector<HTMLElement>("#vapa-application");
 const command = document.querySelector<HTMLFormElement>("#vapa-command");

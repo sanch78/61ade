@@ -1,4 +1,4 @@
-import { configureLanguage, languageLabel, type LanguageConfig, t } from "./I18n";
+import { configureLanguage, languageIcon, type LanguageConfig, t } from "./I18n";
 import { widgetIcons } from "./WidgetIcons";
 import { Workspace, type ViewDefinition } from "./Workspace";
 import { Form, Layout, Menu, Toolbar, Window, alert, setTheme, awaitRedraw } from "@dhtmlx/suite";
@@ -157,9 +157,7 @@ export class AdminShell {
     });
     this.layout.getCell("theme").attach(themeControl);
     if(definition.i18n?.selector){
-      const language=new Toolbar(undefined,{data:[{id:"vapa-language",value:languageLabel(definition.i18n,definition.i18n.locale),tooltip:t("Nyelv"),items:Object.entries(definition.i18n.languages).map(([id,value])=>({id:"language:"+id,value:languageLabel(definition.i18n!,id)}))}]});
-      language.events.on("click",(id:string|number)=>{if(String(id).startsWith("language:"))this.post("language",{locale:String(id).slice(9)});});
-      this.layout.getCell("language").attach(language);
+      this.layout.getCell("language").attach(this.languageControl());
     }
     if (definition.authenticated) {
       const map = (items: MenuDefinition[]): object[] =>
@@ -218,12 +216,18 @@ export class AdminShell {
     this.layout.getCell("workspace").attach(this.workspace.layout);
   }
 
-  private languageField():any[]{
-    const config=this.definition.i18n;
-    return config?.selector?[{type:"select",name:"vapa-locale",label:t("Nyelv"),labelPosition:"top",value:config.locale,options:Object.entries(config.languages).map(([value,content])=>({value,content:languageLabel(config,value)}))}]:[];
+  private languageControl(withLabel=false):Toolbar{
+    const config=this.definition.i18n!;
+    const language=new Toolbar(undefined,{data:[...(withLabel?[{type:"title",value:t("Nyelv")},{type:"spacer"}]:[]),{id:"vapa-language",value:escape(config.languages[config.locale]),icon:languageIcon(config,config.locale),tooltip:t("Nyelv"),items:Object.keys(config.languages).map(id=>({id:"language:"+id,value:escape(config.languages[id]),icon:languageIcon(config,id)}))}]});
+    language.events.on("click",(id:string|number)=>{if(String(id).startsWith("language:"))this.post("language",{locale:String(id).slice(9)});});
+    return language;
   }
-  private bindLanguage(form:Form):void{
-    form.events.on("change",(name:string)=>{if(name==="vapa-locale")this.post("language",{locale:String(form.getValue()[name])});});
+  private attachLoginForm(form:Form):void{
+    if(!this.definition.i18n?.selector){this.loginWindow!.attach(form);return;}
+    const content=new Layout(document.createElement("div"),{type:"none",rows:[{id:"language",height:48,padding:"0 16px",css:"vapa-auth-language"},{id:"form"}]});
+    content.getCell("language").attach(this.languageControl(true));
+    content.getCell("form").attach(form);
+    this.loginWindow!.attach(content);
   }
   private mountLogin(): void {
     const definition = this.definition;
@@ -241,7 +245,6 @@ export class AdminShell {
     const form = new Form(document.createElement("div"), {
       padding: 16,
       rows: [
-        ...this.languageField(),
         {
           type: "input",
           name: "username",
@@ -286,7 +289,6 @@ export class AdminShell {
       ],
     });
     this.loginForm = form;
-    this.bindLanguage(form);
     form.events.on("afterValidate",()=>{void this.fitLogin();});
     const submit = () => {
       if (this.submitting || !form.validate()) return;
@@ -301,7 +303,7 @@ export class AdminShell {
       if (name === "login") submit();
     });
 
-    this.loginWindow.attach(form);
+    this.attachLoginForm(form);
     this.resize();
     // DHTMLX can consume Enter before it bubbles; handle it at the adapter boundary.
     document.addEventListener(
@@ -356,7 +358,6 @@ export class AdminShell {
     const form = new Form(document.createElement("div"), {
       padding: 20,
       rows: [
-        ...this.languageField(),
         { type: "text", name: "recipient", label: t("Megerősítő levelet küldtünk"), value: escape(confirmation.email) },
         { type: "input", name: "code", label: t("Megerősítő kód"), labelPosition: "top", required: true, maxlength: 6,
           validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: t("A levélben kapott 6 számjegyű kód szükséges.") },
@@ -368,7 +369,6 @@ export class AdminShell {
       ],
     });
     this.loginForm = form;
-    this.bindLanguage(form);
     form.events.on("afterValidate",()=>{void this.fitLogin();});
     const submit = () => {
       if (!this.submitting && form.validate()) this.post("confirm_login", { code: String(form.getValue().code ?? "") });
@@ -384,7 +384,7 @@ export class AdminShell {
       form.setValue({ code: event.target.value });
       submit();
     }, { capture: true, signal: this.listeners.signal });
-    this.loginWindow.attach(form);
+    this.attachLoginForm(form);
     this.resize();
     requestAnimationFrame(() => {
       form.setFocus("code");

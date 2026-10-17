@@ -173,5 +173,5 @@ A fogyasztóban nincs külön konfiguráció. FB-0028.
 
 Az alkalmazás `i18n.selector` beállításával a VAPA natív DHTMLX nyelvválasztót
 tesz a skinválasztó elé, mobilon is. A modal belépésen/megerősítésen belül
-natív Form select biztosítja a nyelvváltást. A nyelvi infrastruktúra választó
+natív ablakon belüli Layoutba csatolt Toolbar biztosítja a nyelvváltást. A nyelvi infrastruktúra választó
 nélkül is aktív; a konfiguráció és megőrzés szerződése: [többnyelvűség](i18n.md).

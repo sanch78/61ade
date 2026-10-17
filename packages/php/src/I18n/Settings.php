@@ -18,7 +18,7 @@ final readonly class Settings
             if (!is_string($locale) || !preg_match('/^[a-z]{2}(?:-[A-Z]{2})?$/D', $locale) || !is_string($label) || $label === '') throw new \InvalidArgumentException('Invalid language definition.');
         }
         foreach ($flags as $locale => $flag) {
-            if (!isset($languages[$locale]) || !is_string($flag) || preg_match('/^[\x{1F1E6}-\x{1F1FF}]{2}$/uD', $flag) !== 1) throw new \InvalidArgumentException('Invalid language flag.');
+            if (!isset($languages[$locale]) || !is_string($flag) || !in_array($flag, ['hu','gb','de'], true)) throw new \InvalidArgumentException('Invalid language flag.');
         }
         foreach ($catalogues as $locale => $messages) {
             if (!isset($languages[$locale]) || !is_array($messages)) throw new \InvalidArgumentException('Invalid locale catalogue.');

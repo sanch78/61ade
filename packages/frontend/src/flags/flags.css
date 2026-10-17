@@ -1,0 +1,5 @@
+/* ADE PNG country flags, bundled into CSS to avoid runtime asset dependencies. */
+.vapa-language-flag { display: inline-block; width: 20px; height: 20px; flex-shrink: 0; background-repeat: no-repeat; background-position: center; background-size: 16px 11px; }
+.vapa-language-flag--hu { background-image: url("./hu.png"); }
+.vapa-language-flag--gb { background-image: url("./gb.png"); }
+.vapa-language-flag--de { background-image: url("./de.png"); }

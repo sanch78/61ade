@@ -168,3 +168,7 @@ body,
 .dhx_window .dhx_window-header .dhx_toolbar .dhx_navbar { height: 100%; box-sizing: border-box; padding: 4px 12px; align-items: center; }
 .dhx_window-header .dhx_navbar-title { font-size: 16px; }
 .dhx_window-header .dhx_button { width: 32px; height: 32px; min-height: 0; }
+
+/* Native language toolbar inside the authentication Form container. */
+.vapa-auth-language .dhx_toolbar { height: 40px !important; min-height: 0; }
+.vapa-auth-language .dhx_navbar { height: 100%; box-sizing: border-box; padding: 0; align-items: center; }

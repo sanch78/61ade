@@ -15,4 +15,8 @@ export function t(key:string,parameters:Record<string,unknown>={}):string{
   return (messages[key]??key).replace(/\{([\w]+)\}/g,(match,name)=>Object.hasOwn(parameters,name)?String(parameters[name]):match);
 }
 
-export const languageLabel=(config:LanguageConfig,id:string)=>[config.flags?.[id],config.languages[id]].filter(Boolean).join(" ");
+/** Native Toolbar icon class, backed by bundled PNGs; labels remain plain text. */
+export const languageIcon=(config:LanguageConfig,id:string)=>{
+ const country=config.flags?.[id];
+ return country&&["hu","gb","de"].includes(country)?`vapa-language-flag vapa-language-flag--${country}`:undefined;
+};
