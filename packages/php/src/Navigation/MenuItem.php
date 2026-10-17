@@ -36,7 +36,7 @@ final readonly class MenuItem
         }
         if ($this->items && !$children) return null;
         return $children
-            ? [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => $this->label, 'items' => $children]
-            : [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => $this->label, 'disabled' => true];
+            ? [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => \Vapa\I18n\Translator::text($this->label), 'items' => $children]
+            : [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => \Vapa\I18n\Translator::text($this->label), 'disabled' => true];
     }
 }

@@ -29,7 +29,7 @@ function rejected(Closure $work, string $message): void
 }
 
 $root = dirname(__DIR__, 2);
-$directory = $root.'/codex/tmp/configuration-'.bin2hex(random_bytes(6));
+$directory = (getenv('VAPA_TMP_DIR') ?: $root.'/codex/tmp').'/configuration-'.bin2hex(random_bytes(6));
 mkdir($directory, 0700, true);
 $file = $directory.'/application.json';
 $write = static function (array $values) use ($file): void {

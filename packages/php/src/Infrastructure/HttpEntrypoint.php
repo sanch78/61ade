@@ -26,7 +26,7 @@ final class HttpEntrypoint
             http_response_code(503);
             header('Content-Type: text/html; charset=utf-8');
             header('Cache-Control: no-store');
-            echo '<!doctype html><html lang="hu"><meta charset="utf-8"><title>VAPA</title><p role="alert">Az alkalmazás átmenetileg nem érhető el. Kérjük, próbáld újra később.</p></html>';
+            echo '<!doctype html><html lang="'.\Vapa\I18n\Translator::locale().'"><meta charset="utf-8"><title>VAPA</title><p role="alert">'.htmlspecialchars(\Vapa\I18n\Translator::text('Az alkalmazás átmenetileg nem érhető el. Kérjük, próbáld újra később.'), ENT_QUOTES, 'UTF-8').'</p></html>';
         }
     }
 }

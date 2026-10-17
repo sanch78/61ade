@@ -6,6 +6,7 @@ namespace Vapa\Shell;
 
 use Vapa\Authentication\PasswordAttempts;
 use Vapa\Feature\Failure;
+use Vapa\I18n\Translator;
 
 /** Framework-owned session, password, email confirmation and remembered-device flow. */
 final class Application
@@ -18,6 +19,11 @@ final class Application
     {
         $this->headers();
         $this->startSession();
+        $settings = $this->definition->languages;
+        $requested = $_COOKIE[$this->definition->sessionName.'_language'] ?? null;
+        if (isset($_SERVER['HTTP_AUTHORIZATION'])) $requested = $_SERVER['HTTP_X_VAPA_LOCALE'] ?? $requested;
+        Translator::configure($settings, is_string($requested) ? $requested : null);
+        header('Content-Language: '.Translator::locale());
         $workspace = $this->definition->workspace;
         $identity = $this->currentIdentity();
         $error = '';
@@ -38,7 +44,12 @@ final class Application
                     throw new Failure('A munkamenet lejárt. Kérjük, próbáld újra.', 403);
                 }
                 $action = $_POST['action'] ?? '';
-                if ($action === 'logout') {
+                if ($action === 'language') {
+                    $locale = $_POST['locale'] ?? null;
+                    if (!$settings->selector || !is_string($locale) || !isset($settings->languages[$locale])) throw new Failure('Ismeretlen nyelv.');
+                    setcookie($this->definition->sessionName.'_language', $locale, ['expires'=>time()+31536000,'path'=>$this->definition->cookiePath,'secure'=>$this->secure(),'httponly'=>true,'samesite'=>'Lax']);
+                    $this->redirect();
+                } elseif ($action === 'logout') {
                     $this->logout($identity);
                 } elseif ($action === 'login' && !$identity) {
                     $username = is_string($_POST['username'] ?? null) ? trim($_POST['username']) : '';
@@ -60,7 +71,8 @@ final class Application
         $escape = static fn(string $text): string => htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $bootstrap = [
             'protocol' => 1,
-            'title' => $definition->title,
+            'i18n' => ['locale'=>Translator::locale(),'languages'=>$settings->languages,'selector'=>$settings->selector && count($settings->languages)>1,'messages'=>Translator::messages()],
+            'title' => Translator::text($definition->title),
             'version' => $definition->version,
             'authenticated' => $identity !== null,
             'username' => $username,

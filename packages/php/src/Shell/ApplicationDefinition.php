@@ -17,6 +17,7 @@ final readonly class ApplicationDefinition
         public \Vapa\Live\LiveConfig $live = new \Vapa\Live\LiveConfig(),
         public ?\Vapa\Authentication\LoginSecurity $authentication = null,
         public string $version = '',
+        public \Vapa\I18n\Settings $languages = new \Vapa\I18n\Settings(),
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)) {

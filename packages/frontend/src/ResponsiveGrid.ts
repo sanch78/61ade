@@ -1,3 +1,4 @@
+import { t } from "./I18n";
 import { DataView, Grid, Layout, awaitRedraw } from "@dhtmlx/suite";
 import type { ViewDefinition } from "./Workspace";
 import { gridEditor } from "./GridEditing";
@@ -27,13 +28,13 @@ export class ResponsiveGrid {
 
   constructor(host:HTMLElement,columns:ViewDefinition["columns"],private rows:()=>Row[],select:(id:string)=>void,open:()=>void,private more:(direction:"next"|"previous")=>void,private modeChanged:(cards:boolean,mobile:boolean)=>void,private options:{rowNumbers?:boolean;selection?:boolean;fields?:ViewDefinition["columns"];details?:(id:string)=>void;marked?:(ids:string[])=>void;edit?:(id:string,field:string,anchor:HTMLElement)=>void}={}){
     this.layout=new Layout(host,{type:"none",css:"vapa-grid-views",views:[{id:"table"},{id:"cards"}],activeView:"table"});
-    this.grid=new Grid(null,{columns:[...(options.selection?[{id:"_mark",header:[{text:"Jelölés"}],width:66,sortable:false,htmlEnable:true,template:(_:unknown,row:any)=>`<input type="checkbox" aria-label="Sor jelölése: ${escape(row.id)}" ${this.marked.has(String(row.id))?"checked":""}>`}]:[]),...(options.rowNumbers!==false?[{id:"_number",header:[{text:"#"}],width:56,sortable:false}]:[]),{id:"id",header:[{text:"ID"}],width:80,sortable:false},...columns.map(c=>({id:c.id,header:[{text:escape(c.header)}],width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
+    this.grid=new Grid(null,{columns:[...(options.selection?[{id:"_mark",header:[{text:t("Jelölés")}],width:66,sortable:false,htmlEnable:true,template:(_:unknown,row:any)=>`<input type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`}]:[]),...(options.rowNumbers!==false?[{id:"_number",header:[{text:"#"}],width:56,sortable:false}]:[]),{id:"id",header:[{text:"ID"}],width:80,sortable:false},...columns.map(c=>({id:c.id,header:[{text:escape(c.header)}],width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
       ...gridEditor(c),
       ...(c.type==="checkbox"?{type:"string" as const,editable:false,htmlEnable:true,template:(_:unknown,row:any)=>recordCheckbox(row,c)}:{}),
       ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(value:unknown)=>escape(c.options?.[String(value)]??String(value??""))}:{}:{}),
     }))],rowCss:row=>((this.grid?.data.getIndex(row.id!)??0)%2===1?"vapa-grid-row-alternate":""),rowHeight:40,autoWidth:true,resizable:true,selection:"row",htmlEnable:false});
     this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:true,keyNavigation:true,css:"vapa-grid-cards",template:(row:Row)=>
-      `<article class="vapa-grid-card" data-vapa-row="${escape(row.id)}"><div class="vapa-grid-card__id">${options.selection?`<input class="vapa-card-mark" type="checkbox" aria-label="Sor jelölése: ${escape(row.id)}" ${this.marked.has(String(row.id))?"checked":""}> `:""}ID · ${escape(row.id)}</div>${recordFields(row,(options.fields??columns).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable})),true)}</article>`,
+      `<article class="vapa-grid-card" data-vapa-row="${escape(row.id)}"><div class="vapa-grid-card__id">${options.selection?`<input class="vapa-card-mark" type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}> `:""}ID · ${escape(row.id)}</div>${recordFields(row,(options.fields??columns).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable})),true)}</article>`,
       eventHandlers:{onclick:{"vapa-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
     const selected=(id:string|number)=>{this.selected=String(id);select(this.selected);};
     this.grid.events.on("cellClick",(row:any,column:any)=>{selected(row.id);if(column.id==="_mark")this.toggleMark(String(row.id));});

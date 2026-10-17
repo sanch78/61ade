@@ -18,7 +18,11 @@ final class JsonApplication
         $config = JsonConfiguration::load($file);
         $config->validate(array_fill_keys([
             'application', 'database', 'session', 'identity', 'live', 'workspace',
-        ], 'array'), ['environment' => 'array', 'authentication' => 'array']);
+        ], 'array'), ['environment' => 'array', 'authentication' => 'array', 'i18n' => 'array']);
+        $languages = new \Vapa\I18n\Settings();
+        if ($config->has('i18n')) {
+            $languages = LanguageConfiguration::build($config->section('i18n'), $config->path(...));
+        }
         $database = $config->section('database');
         $application = $config->section('application');
         $session = $config->section('session');
@@ -65,6 +69,7 @@ final class JsonApplication
             live: new LiveConfig($live['transport'], $live['endpoint'], $live['interval_ms']),
             authentication: $authentication,
             version: $application['version'] ?? '',
+            languages: $languages,
         );
     }
 }

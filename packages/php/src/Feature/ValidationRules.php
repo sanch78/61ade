@@ -49,21 +49,21 @@ final class ValidationRules
     public static function error(Field $field, string $value, array $values): ?string
     {
         if ($value === '') {
-            return $field->required ? 'Kötelező mező.' : null;
+            return $field->required ? \Vapa\I18n\Translator::text('Kötelező mező.') : null;
         }
         if (self::length($value) > $field->max) {
-            return 'Legfeljebb '.$field->max.' karakter adható meg.';
+            return \Vapa\I18n\Translator::text('Legfeljebb {count} karakter adható meg.', ['count'=>$field->max]);
         }
         $rules = $field->validation;
         if (self::length($value) < ($rules['min_length'] ?? 0)) {
-            return 'Legalább '.$rules['min_length'].' karakter szükséges.';
+            return \Vapa\I18n\Translator::text('Legalább {count} karakter szükséges.', ['count'=>$rules['min_length']]);
         }
         if (isset($rules['pattern']) && preg_match(self::pattern($rules['pattern']), $value) !== 1) {
-            return $rules['pattern']['message'] ?? 'Hibás formátum.';
+            return \Vapa\I18n\Translator::text($rules['pattern']['message'] ?? 'Hibás formátum.');
         }
         if (isset($rules['matches_field']) && (!is_scalar($values[$rules['matches_field']] ?? null)
             || !hash_equals((string) $values[$rules['matches_field']], $value))) {
-            return 'A két mező értéke nem egyezik.';
+            return \Vapa\I18n\Translator::text('A két mező értéke nem egyezik.');
         }
         return null;
     }

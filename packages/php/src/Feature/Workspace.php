@@ -51,7 +51,7 @@ final class Workspace
             $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
             $view['filters']=$list->listSource?->filterDefinitions($ctx)??[];
             $view['sortable']=$list->listSource?->sortableFields($ctx)??[];
-            $out[]=$view;
+            $out[]=\Vapa\I18n\Translator::presentation($view);
         }
         return $out;
     }

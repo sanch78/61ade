@@ -1,3 +1,4 @@
+import { t } from "./I18n";
 import { alert, type Form } from "@dhtmlx/suite";
 
 export type ValidationRules = {
@@ -20,22 +21,22 @@ export type FieldDefinition = {
 
 export function fieldError(field: FieldDefinition, raw: unknown, values: Record<string, unknown>): string | null {
   if(field.type === "checkbox") {
-    if(![true,false,0,1,"0","1"].includes(raw as any))return "Csak 0 vagy 1 érték adható meg.";
+    if(![true,false,0,1,"0","1"].includes(raw as any))return t("Csak 0 vagy 1 érték adható meg.");
     if(typeof raw === "boolean")raw=raw?"1":"0";
   }
   const value = field.secret || field.type === "password" ? String(raw ?? "") : String(raw ?? "").trim();
-  if (value === "") return field.required ? "Kötelező mező." : null;
+  if (value === "") return field.required ? t("Kötelező mező.") : null;
   const length = Array.from(value).length;
-  if (value.includes("\0")) return "Hibás szöveges érték.";
-  if (length > field.max) return `Legfeljebb ${field.max} karakter adható meg.`;
+  if (value.includes("\0")) return t("Hibás szöveges érték.");
+  if (length > field.max) return t("Legfeljebb {count} karakter adható meg.",{count:field.max});
   const rules = field.validation ?? {};
-  if (length < (rules.min_length ?? 0)) return `Legalább ${rules.min_length} karakter szükséges.`;
+  if (length < (rules.min_length ?? 0)) return t("Legalább {count} karakter szükséges.",{count:rules.min_length});
   if (rules.pattern && !new RegExp(rules.pattern.expression, rules.pattern.flags ?? "").test(value)) {
-    return rules.pattern.message ?? "Hibás formátum.";
+    return t(rules.pattern.message ?? "Hibás formátum.");
   }
-  if (rules.matches_field && value !== String(values[rules.matches_field] ?? "")) return "A két mező értéke nem egyezik.";
-  if (field.type === "number" && !/^[0-9]+$/.test(value)) return "Nemnegatív egész szám szükséges.";
-  if (field.type === "select" && !Object.hasOwn(field.options, value)) return "Válassz az engedélyezett értékekből.";
+  if (rules.matches_field && value !== String(values[rules.matches_field] ?? "")) return t("A két mező értéke nem egyezik.");
+  if (field.type === "number" && !/^[0-9]+$/.test(value)) return t("Nemnegatív egész szám szükséges.");
+  if (field.type === "select" && !Object.hasOwn(field.options, value)) return t("Válassz az engedélyezett értékekből.");
   return null;
 }
 
@@ -49,7 +50,7 @@ export class FormValidation {
       if (!item) continue;
       item.setProperties({
         validation: (value: unknown) => !this.error(field, value),
-        errorMessage: field.validation?.pattern?.message ?? "Ellenőrizd a mező értékét.",
+        errorMessage: t(field.validation?.pattern?.message ?? "Ellenőrizd a mező értékét."),
       });
       const clear = () => {
         this.serverErrors.delete(field.name);
@@ -78,7 +79,7 @@ export class FormValidation {
     // Keep unchecked valid and show checkbox rule errors with the native Alert instead.
     const checkboxErrors=this.fields.filter(field=>field.type === "checkbox")
       .map(field=>{const error=this.error(field,values[field.name]);return error?`${field.label}: ${error}`:null;}).filter(Boolean);
-    if(checkboxErrors.length)void alert({header:"Ellenőrizd a mezőt",text:checkboxErrors.join("\n"),htmlEnable:false});
+    if(checkboxErrors.length)void alert({header:t("Ellenőrizd a mezőt"),text:checkboxErrors.join("\n"),htmlEnable:false});
     return nativeValid && valid;
   }
 
