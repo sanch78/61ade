@@ -35,3 +35,5 @@
 ## FB-0018 — Editable headers, sorting and smart rendering
 
 ## FB-0019 — Lists, record details and controls
+
+## FB-0020 — Final view dropdown and nonoverlapping indicators

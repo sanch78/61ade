@@ -34,7 +34,7 @@ test('cards use multiple columns; details include fields outside the grid; marks
  await expect(dialog).toContainText('Aktív');await dialog.getByRole('button',{name:'Close',exact:false}).click();
  await page.getByLabel('Sor jelölése: 1',{exact:true}).filter({visible:true}).check();await page.getByLabel('Sor jelölése: 2',{exact:true}).filter({visible:true}).check();
  await expect(page.getByRole('button',{name:'Archiválás — jelöltek',exact:true})).toBeEnabled();
- await page.getByRole('button',{name:'Kártyák',exact:true}).click();
+ await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
  const cards=page.locator('.vapa-grid-card');await expect(cards.first()).toContainText('Long description');
  const first=await cards.nth(0).boundingBox(),second=await cards.nth(1).boundingBox();
  expect(Math.abs(first.y-second.y)).toBeLessThan(2);expect(second.x).toBeGreaterThan(first.x+300);
@@ -61,10 +61,26 @@ test('toolbar stays inside its cell and above scrolling grid/cards in all themes
   expect(bounds.toolbar.bottom).toBeLessThanOrEqual(bounds.outer.bottom);for(const button of bounds.buttons){expect(button.top).toBeGreaterThanOrEqual(bounds.outer.top);expect(button.bottom).toBeLessThanOrEqual(bounds.outer.bottom);}
   await page.locator('.dhx_grid').evaluate(grid=>{const scroll=grid.querySelector('.dhx_grid-body')||grid;scroll.scrollTop=500;});
   const button=page.getByRole('button',{name:'Adatok',exact:true});await expect(button).toBeVisible();
-  await page.getByRole('button',{name:'Kártyák',exact:true}).click();
+  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
   await page.locator('.vapa-grid-cards').evaluate(element=>element.scrollTop=500);
   const hit=await button.evaluate(element=>{const box=element.getBoundingClientRect();return element.contains(document.elementFromPoint(box.x+box.width/2,box.y+box.height/2));});expect(hit).toBe(true);
-  await page.getByRole('button',{name:'Táblázat',exact:true}).click();
+  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Táblázat',{exact:true}).click();
  }
  await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'list-presentation.png')});await page.evaluate(()=>workspace.destroy());
+});
+
+test('view dropdown is last; editable headings reserve space for the hover sort icon',async({page})=>{
+ await mount(page,{columns:[{id:'title',header:'Szerkeszthető mező',editable:true,width:260}],sortable:['title']});
+ const toolbar=page.locator('.vapa-command-row');
+ await expect(toolbar.getByRole('button').last()).toHaveText('Nézet: Táblázat');
+ await expect(page.getByText('Kártyák',{exact:true})).toHaveCount(0);
+ const header=page.locator('[role="columnheader"][data-dhx-id="title"]');
+ await header.hover();
+ const spacing=await header.locator('.dhx_grid-header-cell-text').evaluate(element=>({padding:parseFloat(getComputedStyle(element).paddingRight),labelWidth:getComputedStyle(element.querySelector('.dhx_grid-header-cell-text_content')).width,width:element.clientWidth}));
+ expect(spacing.padding).toBe(24);expect(parseFloat(spacing.labelWidth)).toBeLessThan(spacing.width-24);
+ await header.click();await expect(header).toHaveAttribute('aria-sort','ascending');
+ await expect(header.locator('.dhx_grid-sort-icon')).toBeHidden();
+ await toolbar.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
+ await expect(toolbar.getByRole('button').last()).toHaveText('Nézet: Kártyák');
+ await page.evaluate(()=>workspace.destroy());
 });

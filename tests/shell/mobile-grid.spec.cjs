@@ -6,7 +6,7 @@ test('native cards preserve selection, editing and live data across responsive c
  await expect(page.locator('.dhx_grid')).toBeVisible();
  await page.setViewportSize({width:390,height:844});
  const cards=page.locator('.vapa-grid-card');await expect(cards.first()).toBeVisible();
- await expect(page.getByRole('button',{name:'Táblázat',exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Nézet: Kártyák',exact:true})).toBeDisabled();
  expect((await page.locator('.vapa-grid-cards').boundingBox()).width).toBeGreaterThan(340);
  await page.getByRole('button',{name:'Szűrés',exact:true}).click();
  await expect(page.getByRole('dialog').getByLabel('Cím',{exact:true})).toBeVisible();
@@ -17,10 +17,10 @@ test('native cards preserve selection, editing and live data across responsive c
  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:false}).click();
  await page.setViewportSize({width:1280,height:900});await expect(page.locator('.dhx_grid')).toBeVisible();
  await expect(page.getByRole('button',{name:'Módosítás',exact:true})).toBeEnabled();
- await page.getByRole('button',{name:'Kártyák',exact:true}).click();await expect(cards.first()).toBeVisible();
+ await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();await expect(cards.first()).toBeVisible();
  await page.setViewportSize({width:390,height:844});await page.setViewportSize({width:1280,height:900});
  await expect(cards.first()).toBeVisible();
- await page.getByRole('button',{name:'Táblázat',exact:true}).click();await expect(page.locator('.dhx_grid')).toBeVisible();
+ await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Táblázat',{exact:true}).click();await expect(page.locator('.dhx_grid')).toBeVisible();
  expect(errors).toEqual([]);
 });
 

@@ -150,3 +150,20 @@ nézetmetaadatot, bulk opt-int, limitet, duplikációt és részleges sikert viz
 `tests/shell/list-presentation.spec.cjs` a kártyaoszlopokat, mobilváltást,
 rekordablakot, ikonokat, jelölést, tömeges beküldést és három téma geometriai
 határait ellenőrzi. Kapcsolódó visszajelzés: FB-0019.
+
+## Nézetválasztás és fejlécjelzések
+
+A lista-toolbar utolsó eleme a jobbra igazított DHTMLX nézet-dropdown.
+Felirata az aktuális megjelenítés: „Nézet: Táblázat” vagy „Nézet: Kártyák”.
+A menüben Táblázat és Kártyák választható; a váltás megőrzi a kijelölt sort.
+Mobilon a kártyamegjelenítés kötelező, ezt a tiltott dropdown felirata is mutatja;
+az asztali preferencia a szélesség visszaállításakor ismét érvényesül.
+Singleton adatlapon nincs nézet-dropdown. Ez az FB-0019 két külön nézetgombját
+az FB-0020 pontosítása szerint váltja fel; fogyasztói konfiguráció nem kell.
+
+A szerkeszthetőség ceruzája a mezőcím mellett marad, a hover-rendezés ikonja
+külön, 24 px széles helyet kap a fejléc jobb szélén. Aktív rendezéskor egyetlen
+irányjelzés jelenik meg a VAPA SQL-sorrendje alapján. A mezőcím szükség esetén
+ellipszissel rövidül, a tooltip és az `aria-sort` megmarad. A szabály minden
+VAPA-témára érvényes. Ellenőrzés: `list-presentation.spec.cjs` és
+`mobile-grid.spec.cjs`; a böngészős minősítés jelenleg platformjavításra vár.

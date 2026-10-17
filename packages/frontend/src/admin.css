@@ -56,7 +56,7 @@ body,
 .vapa-grid-sort-asc .dhx_grid-header-cell-text::before { content: "↑"; margin-right: .35em; }
 .vapa-grid-sort-desc .dhx_grid-header-cell-text::before { content: "↓"; margin-right: .35em; }
 :is(.vapa-grid-editable, .vapa-grid-sort-asc, .vapa-grid-sort-desc) .dhx_grid-header-cell-text { display: flex; align-items: center; min-width: 0; }
-:is(.vapa-grid-editable, .vapa-grid-sort-asc, .vapa-grid-sort-desc) .dhx_grid-header-cell-text_content { display: block; height: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+:is(.vapa-grid-editable, .vapa-grid-sort-asc, .vapa-grid-sort-desc) .dhx_grid-header-cell-text_content { display: block; flex: 0 1 auto; width: auto; height: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .vapa-grid-editable .dhx_grid-header-cell-text::after,
 .vapa-grid-sort-asc .dhx_grid-header-cell-text::before,
 .vapa-grid-sort-desc .dhx_grid-header-cell-text::before { flex-shrink: 0; }
@@ -77,3 +77,12 @@ body,
 .vapa-record-details .vapa-grid-card__field dd { white-space: pre-wrap; margin: 0; }
 .vapa-navigation-row .dhx_navbar { padding-top: 0; padding-bottom: 0; }
 .vapa-navigation-row .dhx_menu { height: 100%; }
+
+/* Reserve the Suite sort affordance slot independently of the edit indicator. */
+.vapa-grid-views .dhx_grid-header-cell--sortable .dhx_grid-header-cell-text { box-sizing: border-box; padding-right: 24px; }
+.vapa-grid-views .dhx_grid-header-cell--align_right .dhx_grid-sort-icon { left: auto; right: 4px; }
+.vapa-grid-views .dhx_grid-header-cell--align_right .dhx_grid-sort-counter { left: auto; right: 18px; }
+.vapa-grid-views .dhx_grid-header-cell--align_center .dhx_grid-header-cell-text { justify-content: center; }
+.vapa-grid-views .dhx_grid-header-cell--align_right .dhx_grid-header-cell-text { justify-content: flex-end; }
+/* VAPA's SQL sort direction is authoritative; avoid a second native arrow. */
+.vapa-grid-views :is(.vapa-grid-sort-asc, .vapa-grid-sort-desc) .dhx_grid-sort-icon { display: none; }
