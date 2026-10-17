@@ -59,3 +59,5 @@
 ## FB-0031 — Popup header background and divider
 
 ## FB-0032 — Subtler gray Skyblue stripes
+
+## FB-0033 — Clear theme names and localization inventory

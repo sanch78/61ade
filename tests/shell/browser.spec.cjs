@@ -91,8 +91,8 @@ test('Skyblue is the default and explicit theme choices survive reload', async (
 
 test('theme button fits its menu row on hover in all skins without a white gap below',async({page})=>{
  await login(page);
- for(const [theme,label] of [['skyblue','Skyblue'],['light','Default'],['dark','Éjjeli']]){
-  await page.getByRole('button',{name:/^(Skyblue|Default|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).last().click();
+ for(const [theme,label] of [['skyblue','Skyblue'],['light','Világos'],['dark','Éjjeli']]){
+  await page.getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).last().click();
   const button=page.getByRole('button',{name:label,exact:true});await button.hover();
   const surface=await page.getByRole('menuitem',{name:/^Nyilvántartás/}).evaluate(e=>{
    const style=getComputedStyle(e),box=e.getBoundingClientRect(),row=e.closest('.vapa-navigation-row').getBoundingClientRect();
