@@ -137,3 +137,17 @@ A menü minden szintje kap ikont: a statikus elemek alapértelmezett mappát,
 a feature-ök konfigurálható nézetikont, a csoportok nyitott mappát, a kompakt
 Menü és a kijelentkezés saját ikont. A kompakt töréspont az ikonok helyével
 is számol. Fogyasztói megadás: [listafejléc és rekordszám](workspaces.md#listafejléc-és-rekordszám).
+
+## Elkülönülő főmenügombok
+
+A natív DHTMLX főmenüpontok mindhárom témában állandó keretet, témához illő
+hátteret és 6 px térközt kapnak. Skyblue esetén a kék színátmenet, világos
+felső él és árnyék klasszikus Windows-gombhatást ad; rámutatáskor arany,
+nyitott/benyomott állapotban süllyesztett kék felület látszik. A billentyűzetes
+fókusz külön körvonalat kap. Az almenük megőrzik a natív listaelrendezést. A konfigurált elválasztók
+(például a kijelentkezés előtt) 1 px széles, halvány függőleges vonallal
+jelennek meg; a vonal a téma keretszínét követi.
+Fogyasztói konfiguráció nem szükséges; újra kell buildelni és publikálni az
+asseteket. A shell assetverziója `v=11`. A kompakt menü töréspontja a keret
+és térköz többlethelyével is számol. Ellenőrzés: `browser.spec.cjs`, három téma,
+nyitott almenü és telefonméret.

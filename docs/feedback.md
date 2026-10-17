@@ -244,3 +244,11 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [kártyaszerkesztés, rendezés és kompakt ablakok](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok), [módszertan](usage.md).
 - **Ellenőrzés:** TypeScript typecheck/build és PHP grid-edit/validáció szerződések PASS; a böngészős ellenőrzés folyamatban. A teszt közben feltárt natív Popup/Form méretezési problémára a támogatott Window/Form illesztést használjuk. Nem módosul gyári DHTMLX-kód.
 - **Állapot:** implementálva, böngészős végellenőrzés alatt; felhasználói elfogadást nem állítunk.
+
+## FB-0025 — Elkülönülő főmenügombok
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
+- **Elvárás:** a főmenüsor ne felsorolásnak hasson, a gombok különüljenek el; Skyblue esetén erősebb Windows-megjelenés. Felhasználói pontosítás: az elválasztó (például a kijelentkezés előtt) térköz mellett halvány vonallal is látszódjon.
+- **Megvalósítás:** közös VAPA CSS a natív DHTMLX menüre: állandó keret, háttér, 6 px térköz, fókusz és benyomott állapot; Skyblue domborított kék gombok és arany hover. Kompakt töréspont helyigénye frissítve, assetverzió `v=11`.
+- **Használat:** [shell](shell.md#elkülönülő-főmenügombok), [módszertan](usage.md). Az almenük listaelrendezése megmarad.
+- **Ellenőrzés:** TypeScript typecheck/build és a szintetikus shell Chromium 6/6 PASS; az elválasztó után a háromtémás célzott próba újra 1/1 PASS (látható 1 px széles, 12 px-nél magasabb vonal, gombkeret/háttér/árnyék és sorméretek). Skyblue és Éjjeli screenshot képi ellenőrzése sikeres. A gombmegjelenést a felhasználó pozitívan visszajelezte; a vonalra további elfogadást nem állítunk.

@@ -110,3 +110,5 @@ a deklarált írható mezőket kártyán is elérhetővé teszik, közös `__edi
 mentéssel. A kártyák rendezése toolbar-dropdownból választható, a layout
 méretezője dupla kattintásra a deklarált méretre áll vissza. A munkaterület
 popupjai a tényleges tartalomhoz méreteződnek a viewport határáig.
+
+A főmenü állandó, elkülönülő gombfelületeit és a Skyblue klasszikus Windows-hatását a [shell útmutató](shell.md#elkülönülő-főmenügombok) írja le; külön fogyasztói konfiguráció nincs.

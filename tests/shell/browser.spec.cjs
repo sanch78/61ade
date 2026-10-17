@@ -91,6 +91,16 @@ test('theme button fits its menu row on hover in all skins without a white gap b
  for(const [theme,label] of [['skyblue','Skyblue'],['light','Default'],['dark','Éjjeli']]){
   await page.getByRole('button',{name:/^(Skyblue|Default|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).last().click();
   const button=page.getByRole('button',{name:label,exact:true});await button.hover();
+  const surface=await page.getByRole('menuitem',{name:/^Nyilvántartás/}).evaluate(e=>{
+   const style=getComputedStyle(e),box=e.getBoundingClientRect(),row=e.closest('.vapa-navigation-row').getBoundingClientRect();
+   return {border:style.borderTopWidth,background:style.backgroundColor,image:style.backgroundImage,shadow:style.boxShadow,top:box.top,bottom:box.bottom,rowTop:row.top,rowBottom:row.bottom};
+  });
+  expect(surface.border).toBe('1px');expect(surface.background).not.toBe('rgba(0, 0, 0, 0)');expect(surface.shadow).not.toBe('none');
+  expect(surface.top).toBeGreaterThanOrEqual(surface.rowTop);expect(surface.bottom).toBeLessThanOrEqual(surface.rowBottom);
+  if(theme==='skyblue')expect(surface.image).toContain('linear-gradient');
+  const separator=page.locator('.vapa-navigation-row [role="separator"]');
+  const separatorBox=await separator.boundingBox();expect(separatorBox.width).toBe(1);expect(separatorBox.height).toBeGreaterThan(12);
+  expect(await separator.evaluate(e=>getComputedStyle(e).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
   const bounds=await button.evaluate(element=>{
    const row=element.closest('.vapa-navigation-row'),outer=row.getBoundingClientRect(),button=element.getBoundingClientRect(),menu=row.querySelector('.dhx_menu-nav').getBoundingClientRect();
    return {top:outer.top,bottom:outer.bottom,buttonTop:button.top,buttonBottom:button.bottom,menuBottom:menu.bottom,border:parseFloat(getComputedStyle(row).borderBottomWidth)};
