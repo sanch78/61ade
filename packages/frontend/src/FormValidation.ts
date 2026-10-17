@@ -43,7 +43,7 @@ export function fieldError(field: FieldDefinition, raw: unknown, values: Record<
 export class FormValidation {
   private serverErrors = new Map<string, string>();
 
-  constructor(private form: Form, private fields: FieldDefinition[]) {
+  constructor(private form: Form, private fields: FieldDefinition[], private context:()=>Record<string,unknown>=()=>({})) {
     for (const field of fields) {
       const item = form.getItem(field.name);
       if (!item) continue;
@@ -61,7 +61,7 @@ export class FormValidation {
   }
 
   private error(field: FieldDefinition, value: unknown): string | null {
-    return this.serverErrors.get(field.name) ?? fieldError(field, value, this.form.getValue());
+    return this.serverErrors.get(field.name) ?? fieldError(field, value, {...this.context(),...this.form.getValue()});
   }
 
   validate(): boolean {

@@ -41,3 +41,5 @@
 ## FB-0021 — Feature URLs and persistent UI state
 
 ## FB-0023 — List headings/counts, menu icons and compact login
+
+## FB-0024 — Card editing, save switching, sizing and sorting
