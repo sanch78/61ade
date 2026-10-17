@@ -112,3 +112,6 @@ méretezője dupla kattintásra a deklarált méretre áll vissza. A munkaterül
 popupjai a tényleges tartalomhoz méreteződnek a viewport határáig.
 
 A főmenü állandó, elkülönülő gombfelületeit és a Skyblue klasszikus Windows-hatását a [shell útmutató](shell.md#elkülönülő-főmenügombok) írja le; külön fogyasztói konfiguráció nincs.
+
+A lista elválasztó árnyéka táblázatnézetben az oszlopfejléc alá kerül,
+kártyanézetben a toolbar alatt marad ([munkaterületek](workspaces.md#listafejléc-és-rekordszám)).

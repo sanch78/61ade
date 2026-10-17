@@ -252,3 +252,11 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Megvalósítás:** közös VAPA CSS a natív DHTMLX menüre: állandó keret, háttér, 6 px térköz, fókusz és benyomott állapot; Skyblue domborított kék gombok és arany hover. Kompakt töréspont helyigénye frissítve, assetverzió `v=11`.
 - **Használat:** [shell](shell.md#elkülönülő-főmenügombok), [módszertan](usage.md). Az almenük listaelrendezése megmarad.
 - **Ellenőrzés:** TypeScript typecheck/build és a szintetikus shell Chromium 6/6 PASS; az elválasztó után a háromtémás célzott próba újra 1/1 PASS (látható 1 px széles, 12 px-nél magasabb vonal, gombkeret/háttér/árnyék és sorméretek). Skyblue és Éjjeli screenshot képi ellenőrzése sikeres. A gombmegjelenést a felhasználó pozitívan visszajelezte; a vonalra további elfogadást nem állítunk.
+
+## FB-0026 — Táblázatárnyék az oszlopfejléc alatt
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói pontosítás az FB-0023 árnyékelhelyezéséhez; táblázatnézetben az ottani toolbar-árnyék elvárását felülírja.
+- **Elvárás és megvalósítás:** táblázatnézetben a natív Grid oszlopfejléce veti az árnyékot a gördülő sorokra; a toolbar árnyéka ilyenkor kikapcsol. Kártyanézetben a toolbar alatt marad. Közös VAPA CSS, automatikus váltás a megjelenített Grid alapján, gyári kódmódosítás nélkül; assetverzió `v=12`.
+- **Használat:** [listafejléc és rekordszám](workspaces.md#listafejléc-és-rekordszám), [módszertan](usage.md).
+- **Ellenőrzés:** build és `git diff --check` PASS. Védett Chromium célzott prezentációs próba 1/1 PASS: Skyblue/Default/Dark témában nincs toolbar-árnyék táblázaton, van fejlécárnyék; kártyára váltva visszatér a toolbar-árnyék. Görgetés és visszaváltás is ellenőrzött, Skyblue screenshot képi ellenőrzése sikeres.
+- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
