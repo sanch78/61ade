@@ -34,7 +34,7 @@ check(Translator::text('untranslated-key')==='untranslated-key','missing message
 check(Translator::text('Legfeljebb {count} karakter adható meg.',['count'=>5])==='Enter at most 5 characters.','parameter translation');
 try{(new Field('name','Synthetic title',max:5))->validate('abcdef');throw new RuntimeException('validation accepted');}
 catch(Failure $error){check($error->fieldErrors['name']==='Enter at most 5 characters.','server parameter validation');}
-foreach([fn()=>new Settings('../en'),fn()=>new Settings('hu',['hu'=>'']),fn()=>new Settings('hu',catalogues:['en'=>[]])] as $invalid){try{$invalid();throw new RuntimeException('invalid settings accepted');}catch(InvalidArgumentException){}}
+foreach([fn()=>new Settings('../en'),fn()=>new Settings(flags:['hu'=>'not-a-flag']),fn()=>new Settings(flags:['en'=>'🇬🇧']),fn()=>new Settings('hu',['hu'=>'']),fn()=>new Settings('hu',catalogues:['en'=>[]])] as $invalid){try{$invalid();throw new RuntimeException('invalid settings accepted');}catch(InvalidArgumentException){}}
 $hu=json_decode(file_get_contents(dirname(__DIR__,2).'/packages/php/resources/locales/hu.json'),true);
 foreach(['en','de']as $locale){$other=json_decode(file_get_contents(dirname(__DIR__,2).'/packages/php/resources/locales/'.$locale.'.json'),true);check(array_keys($other)===array_keys($hu),'catalogue parity '.$locale);foreach($hu as $key=>$source){preg_match_all('/\{\w+\}/',$source,$a);preg_match_all('/\{\w+\}/',$other[$key],$b);sort($a[0]);sort($b[0]);check($a[0]===$b[0],'placeholder parity '.$locale.' '.$key);}}
 Translator::configure(new Settings());

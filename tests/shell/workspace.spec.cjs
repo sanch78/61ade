@@ -20,7 +20,7 @@ test('standalone registry creates a DHTMLX grid and reusable form',async({page})
  await page.getByRole('dialog').getByLabel('Cím',{exact:true}).fill('Standalone '+Date.now());
  await page.getByRole('dialog').getByRole('button',{name:'Mentés',exact:true}).click();
  await expect(page.getByText('A művelet sikerült.',{exact:true})).toBeVisible();
- await page.getByRole('button',{name:'confirm',exact:true}).click();
+ await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();
  for(let i=0;i<3;i++){
    await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
    await expect(page.getByRole('button',{name:'Hozzáadás',exact:true})).toBeVisible();

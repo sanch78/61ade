@@ -68,7 +68,7 @@ test('invalid login returns to the DHTMLX form with safe feedback', async ({ pag
     await page.getByRole('button', { name: 'Bejelentkezés', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Bejelentkezés' })).toBeVisible();
     await expect(page.getByText('Hibás felhasználónév vagy jelszó, illetve nem elérhető fiók.', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'confirm', exact: true }).click();
+    await page.getByRole('button', { name: /^(confirm|Megerősítés)$/, exact: true }).click();
     await expect(page.getByLabel(/Jelszó/)).toHaveValue('');
 });
 

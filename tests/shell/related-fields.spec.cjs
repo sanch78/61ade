@@ -9,7 +9,7 @@ test('checkbox grid, descriptive filters and a single main form save related val
  await expect(dialog.getByRole('checkbox',{name:'Notifications',exact:true})).toBeChecked();
  const title='Synthetic '+Date.now();await dialog.getByLabel('Title',{exact:true}).fill(title);
  await dialog.getByRole('button',{name:'Mentés',exact:true}).click();
- await page.getByRole('button',{name:'confirm',exact:true}).click();
+ await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();
  const row=page.getByRole('row').filter({hasText:title});await expect(row).toBeVisible({timeout:10000});
  await expect(row.getByRole('checkbox')).toHaveCount(0);
  await expect(row.getByText('Active',{exact:true})).toBeVisible();await expect(row.getByText('On',{exact:true})).toBeVisible();
@@ -17,7 +17,7 @@ test('checkbox grid, descriptive filters and a single main form save related val
  await row.click();await page.getByRole('button',{name:'Módosítás',exact:true}).click();
  await dialog.getByRole('checkbox',{name:'Archived',exact:true}).locator('xpath=ancestor::label').click();
  await dialog.getByRole('checkbox',{name:'Notifications',exact:true}).locator('xpath=ancestor::label').click();
- await dialog.getByRole('button',{name:'Mentés',exact:true}).click();await page.getByRole('button',{name:'confirm',exact:true}).click();
+ await dialog.getByRole('button',{name:'Mentés',exact:true}).click();await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();
  await expect(row.getByText('Archived',{exact:true})).toBeVisible({timeout:10000});await expect(row.getByText('Off',{exact:true})).toBeVisible();
  await page.getByRole('combobox',{name:'Notifications',exact:true}).selectOption({label:'On'});
  await page.getByRole('button',{name:'Szűrés',exact:true}).click();await expect(row).toHaveCount(0);
@@ -29,7 +29,7 @@ test('checkbox grid, descriptive filters and a single main form save related val
  await dialog.getByLabel('Title',{exact:true}).fill('Reject flags');
  await dialog.getByRole('button',{name:'Mentés',exact:true}).click();
  await expect(page.getByText('Notifications: Choose a different setting.',{exact:true})).toBeVisible();
- await page.getByRole('button',{name:'confirm',exact:true}).click();
+ await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();
  await expect(dialog.getByRole('checkbox',{name:'Notifications',exact:true})).not.toBeChecked();
  await expect(dialog.getByLabel('Title',{exact:true})).toHaveValue('Reject flags');
  expect(errors).toEqual([]);

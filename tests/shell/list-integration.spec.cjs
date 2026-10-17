@@ -24,7 +24,7 @@ test('real consumer shows all readable data and commits marked rows through the 
  const response=page.waitForResponse(response=>response.request().postData()?.includes('"action":"__bulk"'));
  await page.getByRole('dialog').getByRole('button',{name:'Végrehajtás (2 sor)',exact:true}).click();
  expect((await(await response).json()).data).toEqual([{id:'24',ok:true},{id:'23',ok:true}]);
- await expect(page.getByText('Sikeres: 2, sikertelen: 0.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'confirm',exact:true}).click();
+ await expect(page.getByText('Sikeres: 2, sikertelen: 0.',{exact:true})).toBeVisible();await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();
  await expect(page.locator('.dhx_grid-row').filter({has:page.locator('[data-dhx-col-id="id"]',{hasText:'24'})}).getByRole('checkbox',{name:'Aktív',exact:true})).not.toBeChecked();
  await page.getByRole('button',{name:'Nézet: Táblázat',exact:true}).click();await page.getByText('Kártyák',{exact:true}).click();
  await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'presentation-real-cards.png')});expect(errors).toEqual([]);

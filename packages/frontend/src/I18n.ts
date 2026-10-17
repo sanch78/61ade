@@ -1,5 +1,5 @@
 import { i18n } from "@dhtmlx/suite";
-export type LanguageConfig={locale:string;languages:Record<string,string>;selector:boolean;messages:Record<string,string>};
+export type LanguageConfig={locale:string;languages:Record<string,string>;selector:boolean;flags?:Record<string,string>;messages:Record<string,string>};
 let current="hu",messages:Record<string,string>={};
 const nativeDefaults:Record<string,Record<string,string>>=Object.fromEntries(["grid","form","window","toolbar","combobox"].map(group=>[group,{...i18n[group]}]));
 /** A locale always exists, even when the consumer hides language selection. */
@@ -14,3 +14,5 @@ export const locale=()=>current;
 export function t(key:string,parameters:Record<string,unknown>={}):string{
   return (messages[key]??key).replace(/\{([\w]+)\}/g,(match,name)=>Object.hasOwn(parameters,name)?String(parameters[name]):match);
 }
+
+export const languageLabel=(config:LanguageConfig,id:string)=>[config.flags?.[id],config.languages[id]].filter(Boolean).join(" ");

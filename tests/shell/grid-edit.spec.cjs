@@ -2,7 +2,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 test('native text/select/checkbox grid editors save without opening an object form',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message)); await page.goto('/');await page.getByLabel('Felhasználónév',{exact:true}).fill('synthetic');await page.getByLabel('Jelszó',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  await page.getByRole('menuitem',{name:'Items',exact:true}).click();await page.getByRole('button',{name:'Hozzáadás',exact:true}).click();
- const title='Grid '+Date.now();const dialog=page.getByRole('dialog');await dialog.getByLabel('Title',{exact:true}).fill(title);await dialog.getByRole('button',{name:'Mentés',exact:true}).click();await page.getByRole('button',{name:'confirm',exact:true}).click();
+ const title='Grid '+Date.now();const dialog=page.getByRole('dialog');await dialog.getByLabel('Title',{exact:true}).fill(title);await dialog.getByRole('button',{name:'Mentés',exact:true}).click();await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();
  await expect(page.locator('[role=columnheader][data-dhx-id=notify]')).not.toHaveClass(/vapa-grid-editable/);
  const grid=page.getByRole('grid');const row=page.getByRole('row').filter({hasText:title});await expect(row).toBeVisible({timeout:10000});
  await expect(row.getByRole('checkbox',{name:'Archived',exact:true})).toHaveCount(0);
@@ -16,10 +16,10 @@ test('native text/select/checkbox grid editors save without opening an object fo
  await expect.poll(async()=>page.evaluate(async()=>{const csrf=JSON.parse(document.querySelector('#vapa-config').textContent).csrf;const r=await fetch('?vapa=1',{method:'POST',headers:{'Content-Type':'application/json','X-VAPA-CSRF':csrf},body:JSON.stringify({resource:'items',action:'list',values:{mode:'dynamic'}})});return (await r.json()).data.items[0].notify;})).toMatch(/0/);
  await page.getByRole('button',{name:'Nézet: Táblázat',exact:true}).click();await page.getByText('Kártyák',{exact:true}).click();await expect(page.locator('.vapa-grid-card').filter({hasText:title})).toBeVisible();
  await page.getByRole('button',{name:'Nézet: Kártyák',exact:true}).click();await page.getByText('Táblázat',{exact:true}).click();await expect(row).toBeVisible();
- await cell('contact').dblclick();await editor.fill('invalid');await editor.press('Enter');await expect(page.getByText('Contact: Invalid phone.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'confirm',exact:true}).click();await editor.press('Escape');
+ await cell('contact').dblclick();await editor.fill('invalid');await editor.press('Enter');await expect(page.getByText('Contact: Invalid phone.',{exact:true})).toBeVisible();await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();await editor.press('Escape');
  await expect(row.getByText('+36201234567',{exact:true})).toBeVisible();
  await cell('title').dblclick();await editor.fill('Reject flags');await editor.press('Enter');
- await expect(page.getByText('Notifications: Choose a different setting.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'confirm',exact:true}).click();await expect(row.getByText(title,{exact:true})).toBeVisible();
+ await expect(page.getByText('Notifications: Choose a different setting.',{exact:true})).toBeVisible();await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();await expect(row.getByText(title,{exact:true})).toBeVisible();
  await page.reload();await page.getByRole('menuitem',{name:'Items',exact:true}).click();await expect(row.getByText('Done',{exact:true})).toBeVisible();await expect(checkbox).not.toBeChecked();expect(errors).toEqual([]);
  await page.route('**/?vapa=1',async route=>{const response=await route.fetch();const json=await response.json();if(Array.isArray(json.data?.items)){for(const item of json.data.items)item._editable=(item._editable??[]).filter(field=>field!=='notify');}await route.fulfill({response,json});});
  await page.reload();await page.getByRole('menuitem',{name:'Items',exact:true}).click();await expect(row).toBeVisible();await expect(row.getByRole('checkbox')).toHaveCount(0);
@@ -35,7 +35,7 @@ test('cards edit and sort, fitted windows and resize reset survive mode changes'
  await dialog.getByLabel('Title',{exact:true}).fill(title);
  async function gap(selector){return dialog.evaluate((el,selector)=>{const last=el.querySelector(selector);return el.getBoundingClientRect().bottom-last.getBoundingClientRect().bottom;},selector);}
  expect(await gap('button[name="submit"], .dhx_form button')).toBeLessThan(40);
- await dialog.getByRole('button',{name:'Mentés',exact:true}).click();await page.getByRole('button',{name:'confirm',exact:true}).click();
+ await dialog.getByRole('button',{name:'Mentés',exact:true}).click();await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();
  const row=page.getByRole('row').filter({hasText:title});await expect(row).toBeVisible();
  const number=row.locator('[data-dhx-col-id="_number"]');await number.dblclick();await expect(dialog).toBeVisible();expect(await page.evaluate(()=>getSelection().toString())).toBe('');expect(await gap('.vapa-record-details')).toBeLessThan(40);await dialog.getByRole('button',{name:'Close',exact:false}).click();
  const checkbox=row.getByRole('checkbox',{name:'Notifications',exact:true});

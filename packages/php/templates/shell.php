@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $escape(\Vapa\I18n\Translator::text($definition->title)) ?></title>
-    <link rel="stylesheet" href="assets/admin.css?v=21">
-    <script type="module" src="assets/admin.js?v=21"></script>
+    <link rel="stylesheet" href="assets/admin.css?v=23">
+    <script type="module" src="assets/admin.js?v=23"></script>
 </head>
 <body>
     <div id="vapa-application"></div>

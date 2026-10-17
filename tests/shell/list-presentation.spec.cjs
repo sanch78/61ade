@@ -47,7 +47,7 @@ test('cards use multiple columns; details include fields outside the grid; marks
  await page.getByRole('dialog').getByRole('button',{name:'Végrehajtás (2 sor)',exact:true}).click();
  await expect(page.getByText('Sikeres: 2, sikertelen: 0.',{exact:true})).toBeVisible();
  expect(await page.evaluate(()=>requests.find(request=>request.action==='__bulk').values.items.map(item=>item.id))).toEqual(['1','2']);
- await page.getByRole('button',{name:'confirm',exact:true}).click();
+ await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();
  await expect(page.getByText('Sikeres: 2, sikertelen: 0.',{exact:true})).toHaveCount(0);
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });
