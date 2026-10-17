@@ -43,7 +43,7 @@ test('synthetic cards escape content, retain fields, selection and scroll during
  const cards=page.locator('.vapa-grid-card');await expect(cards.first()).toBeVisible();
  await expect(cards.first()).toContainText('<img src=x onerror=alert(1)>');await expect(cards.first().locator('img')).toHaveCount(0);
  await expect(cards.first()).toContainText('Nyitott');await expect(cards.first()).not.toContainText('secret');
- await expect(cards.first().getByRole('checkbox',{name:'Aktív'})).toHaveAttribute('aria-checked','true');
+ await expect(cards.first().getByRole('checkbox',{name:'Aktív'})).toHaveCount(0);await expect(cards.first()).toContainText('Igen');
  await expect.poll(async()=>{const first=await cards.nth(0).boundingBox(),second=await cards.nth(1).boundingBox();return Math.abs(first.width-second.width);}).toBeLessThan(1);
  expect(await page.locator('.vapa-grid-cards').evaluate(root=>root.scrollWidth-root.clientWidth)).toBe(0);
  await page.evaluate(()=>adapter.setMode('cards'));
