@@ -53,3 +53,37 @@ kijelölt scratchben keletkeznek; a képernyőképek szintetikus adatot tartalma
 A sorjelölés/bulk a meglévő üzleti nézeteken egyelőre kikapcsolva marad,
 a keretben JSON/PHP opt-innel használható. A bulk soronkénti tranzakciójú,
 részleges siker lehetséges; nem teljes csomagra atomikus tranzakció.
+
+## FB-0023: fejlécek, darabszám és hitelesítési ablakok
+
+2026-10-17, implementációs checkpoint `3796fea`, a végső CSS-/tesztpontosítással.
+
+- `sorting.php`: PASS, az ACL szerinti teljes és szűrt szám nem a limit/kurzor
+  mérete; a középső élő ablakon kívüli beszúrás is frissíti a számot.
+- `lists.php`, `list-presentation.php`, `contracts.php`, typecheck/build: PASS.
+- `playwright.presentation.config.cjs`: 2/2 PASS, natív listacím, jobb oldali
+  összes, mobil filter után összes/találat, Alaphelyzet és menüikon.
+- `playwright.auth.config.cjs`: végső teljes futás 4/4 PASS; háromtéma-geometria,
+  8 px gombköz, körülbelül 24 px alsó hely (natív keret/kerekítés ±2 px), a gomb
+  alsó szélének tényleges hit-testje, hibás kód utáni modal- és loginfolyamat.
+- `browser.spec.cjs`: 6/6 PASS; `mobile-grid.spec.cjs`: 2/2 PASS.
+- `list-presentation.spec.cjs`: a toolbar/görgetés és dropdown/fejléc két próbája
+  PASS. A kártya/bulk próba a natív átrajzolást megváró geometria és egyetlen
+  DOM-pillanatban mintavételezett mobilkártyák javítása után 1/1 PASS. Az első
+  azonnali koordinátamérés átmeneti pozíciót olvasott; a két egymást követő
+  `boundingBox` hívás a viewportváltás közben lecserélt elemen várt. Nem fix
+  időzített várakozás vagy lazított többoszlopos követelmény került a tesztbe.
+- Fogyasztói háromtéma-, inline- és WebSocket-próbák: 3/3 PASS. A szűrt számláló
+  külső átnevezés hatására 1→0→1 találatot mutat, ugyanannyi összes mellett.
+  A fogyasztó PHP feature- és validációs szerződései is PASS.
+- Dev HTTPS `/v2/`: login PASS, az utolsó gomb alsó széle is kattintható; a
+  kiszolgált `v=8` JS/CSS tartalma a publikált builddel azonos.
+
+A Window/Form kétszeres alsó térközét a hitelesítési ablak keretstílusa
+szünteti meg; puszta magasságcsökkentés levágta volna a gomb alját.
+Az automatikus méretezés nem hív újabb `show`-t a hibaüzenet modalja fölé.
+Vizuálisan ellenőrzött szintetikus képek: `presentation-real-cards.png`,
+`cityscreen-cards-skyblue.png`, `confirmation-skyblue.png`;
+valódi dev login: `dev-login-compact.png`. Artifactgyökér:
+`/space/share/tmp/dev.cityscreen.hu/runtime/vapa-ui/`.
+A Playwright kizárólag a meglévő rendszerszintű runnerrel, a guardon belül futott.

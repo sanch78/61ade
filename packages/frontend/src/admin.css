@@ -99,7 +99,7 @@ body,
 .vapa-filter-actions { flex-wrap: nowrap; }
 .vapa-filter-actions .dhx_button { white-space: nowrap; }
 
-.vapa-navigation-row .dhx_menu-item__icon { margin-right: 6px; }
+.vapa-navigation-row .dhx_menu-button__icon { margin-right: 6px; }
 
 /* The Form owns auth spacing; Suite's extra 28px bottom pad would clip a fitted form. */
 .vapa-auth-window .dhx_window-content { padding-bottom: 0; }
