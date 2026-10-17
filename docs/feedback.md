@@ -209,3 +209,21 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Megvalósítás:** `Workspace` a műveletek után, spacerrel jobbra igazított „Nézet: Táblázat / Kártyák” DHTMLX dropdownot ad; mobilon a kötelező kártyamód látszik, a dropdown tiltott. A közös CSS külön 24 px helyet tart fenn a hover-rendezésjelnek, a mezőcím csak a saját szélességét foglalja. Aktív SQL-rendezéskor kizárólag a VAPA iránynyila látszik, a második Suite ikon rejtett.
 - **Használat:** [nézetválasztás és fejlécjelzések](workspaces.md#nézetválasztás-és-fejlécjelzések).
 - **Ellenőrzés:** typecheck/build és a tesztfájlok szintaktikai ellenőrzése; a frissített mobil-/listateszt és új dropdown-/fejléc-regresszió böngészős futtatása az INFRA-003/pool #36 rendszerszintű Playwright-javítására vár. Nincs projektoldali böngészőtelepítés; vizuális elfogadást nem állítunk.
+
+
+## FB-0021 — Az eredeti listajavítások teljes ellenőrzése
+
+- **Dátum:** 2026-10-17. A felhasználó kéri az FB-0019 és FB-0020 teljes befejezését; a build önmagában nem kész eredmény.
+- **Pontosítás:** az FB-0019 adatablakon belüli sorszáma helyett a teljes jogosult, szűrt és rendezett halmazon belüli rang készül. A `numbered: false` a számítást is kikapcsolja. A PHP rendezésteszt előre/hátra lapozást, NULL/azonos értékeket, középső élő ablakot és ablak elé beszúrt rekord hatását ellenőrzi.
+- **Feltárt hibák:** a filterablak `beforeHide` alatti destrukciója láthatatlan modalréteget hagyott; javítás `afterHide` életciklussal. A gyors műveletválasz és formleállítás közti rajzolási ütközés redraw-szinkronizálást kap. Nézetváltáskor inaktív widgetre rajzolást és elavult async restore-t tiltunk.
+- **Platform:** a meglévő rendszerszintű Playwright használható, a korábbi blokk projektoldali runner/modul-verzió-keveredés volt. A közös belépő és a tesztimport ugyanazt a rendszertelepítést használja, a guard megmarad; új telepítés nincs.
+- **Állapot:** PHP szerződések PASS; a kibővített UI-, login-/téma- és tényleges szerveres batch-próbák folyamatban. A végleges evidencia külön minősítési leírásba kerül. Az FB-0019/0020 korábbi „Infra-javításra vár” állapota ezzel felülírt.
+- **Használat:** [munkaterületek](workspaces.md), [közös futtató](development.md#meglévő-közös-playwright-bekötése).
+
+## FB-0021 — URL-követés és felületállapot megőrzése
+
+- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
+- **Elvárás:** a címsor kövesse az aktuális funkciót, frissítés ugyanarra a funkcióra térjen vissza; a grid és layout kézi beállításai maradjanak meg.
+- **Megvalósítás:** `AdminShell` fragmentes feature-navigáció, belépésen át megőrzött URL és böngészőelőzmény; `UiPreferences` verziózott, alkalmazásútvonal/user ID/resource szerinti localStorage. A `Workspace` és `ResponsiveGrid` oszlopszélességet, rendezést, kézi nézetválasztást és panelméretet állít vissza. Aktuális ACL/definíció és méretkorlát az elsődleges; űrlapértéket nem tárolunk.
+- **Használat és korlát:** [URL és helyi felületbeállítások](shell.md#url-és-helyi-felületbeállítások). Böngészőnkénti preferencia, szerveres szinkron nélkül; a megnyitott rekord/szerkesztő nem mélylink.
+- **Ellenőrzés:** TypeScript typecheck/build, PHP shell contracts/lint és `ui-preferences.mjs` PASS. Védett szintetikus böngészőellenőrzés folyamatban; felhasználói elfogadást nem állítunk.

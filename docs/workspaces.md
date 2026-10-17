@@ -40,7 +40,7 @@ Ugyanaz a regisztrált `list` művelet fogadja az új `values` objektumot:
 {"mode":"dynamic","limit":100,"filters":{"title":"minta"},"sort":{"field":"title","direction":"asc"},"cursor":null}
 ```
 
-Válasz: `items`, `previous`, `next`. A kurzor a következő/előző adatsáv kulcshatárát és irányát adja; nem jogosultság és nem SQL. Az adatforrás mindig újra alkalmazza az actor/csatorna ACL-jét. Egyszerre legfeljebb 200 rekord kérhető; a böngésző 100-as sávokat kér, és legfeljebb 600 rekordot tart. A megjelenítést a Standard Grid virtualizálja. A teljes adatállományhoz nincs böngészőbeli placeholder tömb és nincs kötelező COUNT lekérdezés. Ez gördülő adatsáv, nem a teljes táblát pozicionáló, rekordösszeggel arányos scrollbar.
+Válasz: `items`, `previous`, `next`. A kurzor a következő/előző adatsáv kulcshatárát és irányát adja; nem jogosultság és nem SQL. Az adatforrás mindig újra alkalmazza az actor/csatorna ACL-jét. Egyszerre legfeljebb 200 rekord kérhető; a böngésző 100-as sávokat kér, és legfeljebb 600 rekordot tart. A megjelenítést a Standard Grid virtualizálja. A teljes adatállományhoz nincs böngészőbeli placeholder tömb és sorszám nélkül nincs kötelező COUNT lekérdezés. Sorszámozott középső ablaknál a szerver az első sor előtti jogosult/szűrt rekordok számát számolja meg, majd a betöltött sorokhoz folyamatos `_number` értéket ad; az első ablakhoz nincs külön COUNT. Ez gördülő adatsáv, nem a teljes táblát pozicionáló, rekordösszeggel arányos scrollbar.
 
 A szűrőmezők a regisztrált, nem titkos skalármezőkből jönnek; szövegnél contains, számnál/selectnél egyenlőség. A `%` és `_` literális karakter, nem kliens által megadott wildcard. Részlegesen tiltott olvashatóságú mezőt konzervatívan nem lehet szűrésre használni. A `textarea` nem alapszűrő. Összetett/ágazati filterhez előbb a keret típusos query-szerződését kell bővíteni. A fejléc kattintása szerveroldali növekvő/csökkenő rendezést kér. Nincs kliensoldali részlistasort.
 
@@ -103,9 +103,9 @@ A kártyanézet natív DHTMLX DataView: a rendelkezésre álló panelszélesség
 regisztrált, a `list` válaszában olvasható mezőt megjelenít, a gridből kihagyott
 mezőket is. A technikai revízió/ACL-metaadat és a titkos mező nem adatlapmező.
 
-Minden listában alapértelmezett a `#` sorszámoszlop. Ez az aktuális, legfeljebb
-600 soros adatablakon belüli, 1-től induló megjelenítési sorszám; nem adatbázis-ID
-és nem a teljes találathalmaz állandó rangja. Dupla kattintása a friss `get`
+Minden listában alapértelmezett a `#` sorszámoszlop. A sorszám a teljes jogosult, szűrt és rendezett találathalmazon belüli
+pozíciót mutatja, az adatablak továbbgörgetésekor is folyamatos. Nem adatbázis-ID;
+rendezés, szűrés vagy közben beszúrt/törölt sor változtathatja a pozíciót. Dupla kattintása a friss `get`
 műveleten át DHTMLX rekordablakot nyit. Az „Adatok” toolbar-gomb ugyanazt adja,
 akkor is, ha a sorszámot kikapcsoljuk. Kártyán dupla kattintás is ezt nyitja.
 Ablakban minden regisztrált, `get` szerint olvasható mező látható; a szerver
@@ -167,3 +167,8 @@ irányjelzés jelenik meg a VAPA SQL-sorrendje alapján. A mezőcím szükség e
 ellipszissel rövidül, a tooltip és az `aria-sort` megmarad. A szabály minden
 VAPA-témára érvényes. Ellenőrzés: `list-presentation.spec.cjs` és
 `mobile-grid.spec.cjs`; a böngészős minősítés jelenleg platformjavításra vár.
+
+A listaprotokoll `numbered` logikai értéke alapértelmezetten true; false esetén
+a pozíciószámítás és az `_number` metaadat is kimarad. A frontend a
+`view.row_numbers` szerint kéri, az élő megfigyelésben is. A PHP rendezésteszt
+mindkét irányú lapozásnál és középső élő ablaknál ellenőrzi a teljes rangot.

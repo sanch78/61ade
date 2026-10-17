@@ -1,7 +1,7 @@
-const {test, expect} = require('@playwright/test');
+const {test, expect} = require('../../tools/playwright-test.cjs');
 const {readFileSync} = require('node:fs');
 const path = require('node:path');
-const messageFile = path.resolve(__dirname, '../../codex/tmp/auth-fixture/last-email.eml');
+const messageFile = path.join(process.env.VAPA_TEST_AUTH_RUNTIME || path.resolve(__dirname, '../../codex/tmp/auth-fixture'), 'last-email.eml');
 function code() {
   const message = readFileSync(messageFile, 'utf8').replace(/=\r?\n/g, '');
   const match = message.match(/>([0-9]{6})<\/p>/);
@@ -95,4 +95,18 @@ test('per-user security form defaults on and toggles only the selected account',
   await otherPage.getByRole('button', {name: 'Vissza a belépéshez', exact: true}).click();
   await expect(otherPage.getByLabel('Jelszó', {exact: true})).toBeVisible();
   await other.close();
+});
+
+test('confirmation secondary actions are buttons contained in the login window in all themes',async({page})=>{
+ await password(page);
+ const dialog=page.getByRole('dialog',{name:'E-mailes megerősítés',exact:true});await expect(dialog).toBeVisible();
+ for(const theme of ['skyblue','light','dark']){
+  await page.evaluate(theme=>document.documentElement.setAttribute('data-dhx-theme',theme),theme);
+  const outer=await dialog.boundingBox();
+  for(const name of ['Belépés megerősítése','Új kód küldése','Vissza a belépéshez']){
+   const button=dialog.getByRole('button',{name,exact:true});await expect(button).toHaveClass(/dhx_button--view_flat/);await button.hover();const bounds=await button.boundingBox();
+   expect(bounds.x).toBeGreaterThanOrEqual(outer.x);expect(bounds.x+bounds.width).toBeLessThanOrEqual(outer.x+outer.width);expect(bounds.y+bounds.height).toBeLessThanOrEqual(outer.y+outer.height);
+  }
+  await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'confirmation-'+theme+'.png')});
+ }
 });

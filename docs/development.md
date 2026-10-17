@@ -79,3 +79,28 @@ A Playwright runner/böngésző Catalyston rendszerszinten, Infra által kezelt.
 Hiányzó vagy eltérő browser revision esetén Infra-kérés szükséges;
 projektterületre böngészőt letölteni, vagy a hostvédelmet megkerülni tilos.
 A tesztartifact scratch és a közös böngészőtelepítés két külön felelősség.
+
+
+### Meglévő közös Playwright bekötése
+
+A védett wrapper `VAPA_PLAYWRIGHT_BIN` belépőt indít (alapérték
+`/usr/local/bin/playwright`), a teszt- és configimportok pedig ugyanazt a
+`VAPA_PLAYWRIGHT_MODULE` által kijelölt rendszerszintű `@playwright/test`
+csomagot használják. A helyi `node_modules/.bin` npm általi PATH-előtétjére
+nem hagyatkozunk. A projekt manifestje és lockfile-ja nem telepít Playwrightot.
+A korábbról megmaradt helyi csomagokat nem töröljük automatikusan.
+
+Catalyst meglévő felülete: `/usr/local/bin/playwright` és
+`/opt/infraadmin/playwright/npm/lib/node_modules/@playwright/test`, 1.60.0;
+a belépő a közös `/opt/infraadmin/playwright/browsers` könyvtárat használja.
+Ezeket a projekt csak olvassa/indítja, nem telepíti vagy módosítja.
+
+```sh
+VAPA_PLAYWRIGHT_MODULE=/opt/infraadmin/playwright/npm/lib/node_modules/@playwright/test \
+VAPA_TMP_DIR=/kijelolt/projekt-scratch \
+  npm run test:browser -- list-presentation.spec.cjs
+```
+
+A scratch tényleges értékét a futtató a projektterületi szerződés szerint adja.
+A kiválasztott rendszerfuttató és a tesztimport csomagjának egyezése kötelező;
+a két külön Playwright-példányból származó `test()` nem kompatibilis.

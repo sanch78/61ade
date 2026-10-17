@@ -1,4 +1,4 @@
-const {test,expect}=require('@playwright/test');
+const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
 const bundle=require('esbuild').buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;

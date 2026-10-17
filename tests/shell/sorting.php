@@ -18,11 +18,11 @@ foreach(['title','amount','id']as$field)foreach(['asc','desc']as$direction){
  $sort=['field'=>$field,'direction'=>$direction];$ordered=$expected;
  usort($ordered,static function($a,$b)use($field,$direction){$x=$a[$field];$y=$b[$field];if($x===null||$y===null){if($x!==$y)return $x===null?1:-1;$c=0;}else $c=$field==='title'?strcmp($x,$y):((int)$x<=>(int)$y);if(!$c)$c=(int)$a['id']<=>(int)$b['id'];return $direction==='asc'?$c:-$c;});
  $page=$read(['mode'=>'dynamic','limit'=>37,'sort'=>$sort]);$first=$page;$seen=[];$pages=[];
- do{$pages[]=$page;$seen=[...$seen,...array_column($page['items'],'id')];if(!$page['next'])break;$page=$read(['mode'=>'dynamic','limit'=>37,'sort'=>$sort,'cursor'=>$page['next']]);}while(true);
+ do{verify(array_column($page['items'],'_number')===range(count($seen)+1,count($seen)+count($page['items'])),'Continuous rank across sorted pages');$pages[]=$page;$seen=[...$seen,...array_column($page['items'],'id')];if(!$page['next'])break;$page=$read(['mode'=>'dynamic','limit'=>37,'sort'=>$sort,'cursor'=>$page['next']]);}while(true);
  verify($seen===array_column($ordered,'id'),"Complete $field $direction order, nulls and duplicate ties");
- for($i=count($pages)-1;$i>0;$i--){$back=$read(['mode'=>'dynamic','limit'=>37,'sort'=>$sort,'cursor'=>$pages[$i]['previous']]);verify(array_column($back['items'],'id')===array_column($pages[$i-1]['items'],'id'),'Reverse traversal');}
+ for($i=count($pages)-1;$i>0;$i--){$back=$read(['mode'=>'dynamic','limit'=>37,'sort'=>$sort,'cursor'=>$pages[$i]['previous']]);verify(array_column($back['items'],'id')===array_column($pages[$i-1]['items'],'id'),'Reverse traversal');verify(array_column($back['items'],'_number')===array_column($pages[$i-1]['items'],'_number'),'Reverse rank');}
  $anchor=$pages[3]['items'][0];$token=rtrim(strtr(base64_encode(json_encode([...$anchor['_position'],'direction'=>'next'],JSON_THROW_ON_ERROR)),'+/','-_'),'=');
- $live=$w->observe($context,'records',['sort'=>$sort,'limit'=>37,'front'=>false,'first'=>$anchor['id'],'anchor'=>$token]);verify(array_column($live['items'],'id')===array_column($pages[3]['items'],'id'),'Sorted watch preserves the bounded window');
+ $live=$w->observe($context,'records',['sort'=>$sort,'limit'=>37,'front'=>false,'first'=>$anchor['id'],'anchor'=>$token]);verify(array_column($live['items'],'id')===array_column($pages[3]['items'],'id'),'Sorted watch preserves the bounded window');verify(array_column($live['items'],'_number')===array_column($pages[3]['items'],'_number'),'Live window rank');
  $wrong=['field'=>$field,'direction'=>$direction==='asc'?'desc':'asc'];rejected(fn()=>$read(['mode'=>'dynamic','sort'=>$wrong,'cursor'=>$first['next']]),400);
 }
 rejected(fn()=>$read(['mode'=>'dynamic','sort'=>['field'=>'secret','direction'=>'asc']]),403);
@@ -51,4 +51,14 @@ $numeric=new Workspace($numericRegistry,$db);$db->exec("INSERT INTO vapa_rules(s
 $numericContext=new Context($context->actor,'ui',$numeric->acl,$db);$token=null;$seen=[];
 do{$page=$numeric->executor->execute($numericContext,'metrics','list',null,['mode'=>'dynamic','limit'=>1,'sort'=>['field'=>'score','direction'=>'asc'],'cursor'=>$token]);$seen=[...$seen,...array_column($page['items'],'id')];$token=$page['next'];}while($token);
 verify($seen===['3','1','2'],'Related number fields sort numerically (2, 9, 10), including cursors');
+verify(!array_key_exists('_number',$read(['mode'=>'dynamic','numbered'=>false])['items'][0]),'Numbering can be disabled');
+$filtered=$read(['mode'=>'dynamic','limit'=>10,'filters'=>['amount'=>'7']]);
+verify(array_column($filtered['items'],'_number')===range(1,count($filtered['items'])),'Filtered ranking starts at one');
+$sample=$read(['mode'=>'dynamic','limit'=>10]);
+$middle=$read(['mode'=>'dynamic','limit'=>10,'cursor'=>$sample['next']]);
+$anchor=$middle['items'][0];$token=rtrim(strtr(base64_encode(json_encode([...$anchor['_position'],'direction'=>'next'],JSON_THROW_ON_ERROR)),'+/','-_'),'=');
+$db->exec("INSERT INTO records(record_id,owner_id,title,amount,secret) VALUES(9999,'1','External',7,'hidden')");
+$live=$w->observe($context,'records',['limit'=>10,'front'=>false,'first'=>$anchor['id'],'anchor'=>$token]);
+verify($live['items'][0]['_number']===$middle['items'][0]['_number']+1,'External insertion before a live window shifts its global rank');
+$db->exec('DELETE FROM records WHERE record_id=9999');
 echo "VAPA full-result SQL sorting, reverse cursors, nulls, live windows and ACL contracts passed.\n";

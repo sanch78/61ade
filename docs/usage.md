@@ -88,3 +88,9 @@ nyíló jogosultságszűrt adatablakot és opcionális sorjelölést írja le. A
 A [nézetválasztó](workspaces.md#nézetválasztás-és-fejlécjelzések) a lista-toolbar
 utolsó, jobbra igazított dropdownja. A szerkeszthető fejléc és rendezésjel
 külön helyet kap; az aktuális rendezésnek egyetlen irányjelzése van.
+
+## URL és helyi felületbeállítások
+
+Az aktív funkciót a shell `#feature=items` URL-részlete követi: frissítés és
+Vissza/Előre navigáció visszaállítja a nézetet. A [helyi felületbeállítások](shell.md#url-és-helyi-felületbeállítások)
+a grid és a munkaterület megjelenítési preferenciáit automatikusan megőrzik.

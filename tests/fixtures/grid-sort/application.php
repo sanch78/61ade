@@ -8,7 +8,7 @@ use Vapa\Navigation\Menu;
 use Vapa\Shell\{ApplicationDefinition, SqlIdentityProvider};
 
 $root = dirname(__DIR__, 3);
-$runtime = $root.'/codex/tmp/grid-sort-fixture';
+$runtime = (getenv('VAPA_TMP_DIR') ?: $root.'/codex/tmp').'/grid-sort-fixture';
 if (!is_dir($runtime)) mkdir($runtime, 0700, true);
 $file = $runtime.'/fixture.sqlite';
 $new = !is_file($file);

@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../../tools/playwright-test.cjs');
 async function login(page, name = 'demo', enter = false) {
     await page.goto('/');
     await page.getByLabel(/Felhasználónév/).fill(name);
@@ -83,5 +83,19 @@ test('Skyblue is the default and explicit theme choices survive reload', async (
     await page.getByText('Skyblue', { exact: true }).click();
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'skyblue');
-    await page.screenshot({path: 'codex/tmp/skyblue-shell.png'});
+    await page.screenshot({path: require('node:path').join(process.env.VAPA_TMP_DIR || 'codex/tmp','skyblue-shell.png')});
+});
+
+test('theme button fits its menu row on hover in all skins without a white gap below',async({page})=>{
+ await login(page);
+ for(const [theme,label] of [['skyblue','Skyblue'],['light','Default'],['dark','Éjjeli']]){
+  await page.getByRole('button',{name:/^(Skyblue|Default|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).last().click();
+  const button=page.getByRole('button',{name:label,exact:true});await button.hover();
+  const bounds=await button.evaluate(element=>{
+   const row=element.closest('.vapa-navigation-row'),outer=row.getBoundingClientRect(),button=element.getBoundingClientRect(),menu=row.querySelector('.dhx_menu-nav').getBoundingClientRect();
+   return {top:outer.top,bottom:outer.bottom,buttonTop:button.top,buttonBottom:button.bottom,menuBottom:menu.bottom};
+  });
+  expect(bounds.buttonTop).toBeGreaterThanOrEqual(bounds.top);expect(bounds.buttonBottom).toBeLessThanOrEqual(bounds.bottom);expect(bounds.menuBottom).toBe(bounds.bottom);
+  await page.screenshot({path:require('node:path').join(process.env.VAPA_TMP_DIR,'shell-hover-'+theme+'.png')});
+ }
 });

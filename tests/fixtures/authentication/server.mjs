@@ -4,6 +4,7 @@ import {writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const php = process.env.VAPA_PHP || 'php8.4';
+const mailPath = (process.env.VAPA_TEST_AUTH_RUNTIME || root + 'codex/tmp/auth-fixture') + '/last-email.eml';
 const setup = spawnSync(php, ['tests/fixtures/authentication/setup.php'], {cwd: root, stdio: 'inherit'});
 if (setup.status !== 0) process.exit(1);
 const smtp = net.createServer(socket => {
@@ -17,7 +18,7 @@ const smtp = net.createServer(socket => {
       const line = buffer.slice(0, index); buffer = buffer.slice(index + 2);
       if (data) {
         if (line === '.') {
-          writeFileSync(root + 'codex/tmp/auth-fixture/last-email.eml', message.join('\r\n'), {mode: 0o600});
+          writeFileSync(mailPath, message.join('\r\n'), {mode: 0o600});
           data = false; message = []; socket.write('250 accepted\r\n');
         } else message.push(line.startsWith('..') ? line.slice(1) : line);
       } else if (/^EHLO|^HELO/.test(line)) socket.write('250 synthetic.local\r\n');

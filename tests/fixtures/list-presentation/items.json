@@ -1,0 +1,16 @@
+{
+  "resources": {
+    "items": {
+      "storage": {"table":"items","key":"id"},
+      "operations": {"create":false,"update":true},
+      "fields": [
+        {"name":"title","label":"Megnevezés","required":true,"column":{"editable":true}},
+        {"name":"description","label":"Részletes leírás","type":"textarea","max":4000},
+        {"name":"active","label":"Aktív","type":"checkbox","options":{"0":"Inaktív","1":"Aktív"},"column":{"editable":true,"width":120}},
+        {"name":"secret","label":"Titkos mező","secret":true}
+      ],
+      "view": {"title":"Elemek","selection":true,"columns":[{"id":"title","header":"Megnevezés"},{"id":"active","header":"Aktív"}],"actions":["get","update","archive"]}
+    }
+  },
+  "actions":[{"resource":"items","name":"archive","label":"Archiválás","target_resource":"items","handler":"items.archive","write":true,"bulk":true,"icon":"dxi dxi-check","channels":["ui"]}]
+}

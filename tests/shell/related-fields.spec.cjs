@@ -1,4 +1,4 @@
-const {test,expect}=require('@playwright/test');
+const {test,expect}=require('../../tools/playwright-test.cjs');
 test('checkbox grid, descriptive filters and a single main form save related values',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/');await page.getByLabel('Felhasználónév',{exact:true}).fill('synthetic');await page.getByLabel('Jelszó',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
