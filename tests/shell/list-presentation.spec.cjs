@@ -23,6 +23,7 @@ async function mount(page,options={}){
   window.workspace=new fixture.Workspace(document.getElementById('vapa-application'),{resource:'items',title:'Elemek',columns:[fields[0]],detailFields:fields,actions:[{name:'get',label:'Adatok',fields:[]},{name:'archive',label:'Archiválás',submitLabel:'Végrehajtás',write:true,bulk:true,fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}},selection:true,...options},'csrf',{transport:'poll',endpoint:'live',interval:60000});
  },options);
  await expect(page.locator('.dhx_grid')).toBeVisible();
+ expect(await page.locator('.dhx_grid-content').evaluate(element=>getComputedStyle(element).borderLeftWidth)).toBe('0px');
 }
 test('cards use multiple columns; details include fields outside the grid; marks survive mode changes and support bulk',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));

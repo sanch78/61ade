@@ -70,7 +70,7 @@ body,
 .vapa-navigation-row .dhx_menu-nav { height: 100%; box-sizing: border-box; padding-top: 0; padding-bottom: 0; align-items: center; }
 .vapa-grid-content, .vapa-grid-views { overflow: hidden; }
 .vapa-grid-views .dhx_grid { border: 0; }
-.vapa-grid-views .dhx_grid-content { isolation: isolate; }
+.vapa-grid-views .dhx_grid-content { border: 0; isolation: isolate; }
 .vapa-record-details { padding: 16px 20px; overflow-wrap: anywhere; }
 .vapa-record-details dl { margin: 0; }
 .vapa-grid-card__field dt, .vapa-grid-card__field dd { min-width: 0; }
