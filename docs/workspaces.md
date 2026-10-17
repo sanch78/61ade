@@ -166,9 +166,13 @@ külön, 24 px széles helyet kap a fejléc jobb szélén. Aktív rendezéskor e
 irányjelzés jelenik meg a VAPA SQL-sorrendje alapján. A mezőcím szükség esetén
 ellipszissel rövidül, a tooltip és az `aria-sort` megmarad. A szabály minden
 VAPA-témára érvényes. Ellenőrzés: `list-presentation.spec.cjs` és
-`mobile-grid.spec.cjs`; a böngészős minősítés jelenleg platformjavításra vár.
+`mobile-grid.spec.cjs`; a [befejezett minősítés](list-presentation-validation.md) a teljes követelménylistát ellenőrzi.
 
 A listaprotokoll `numbered` logikai értéke alapértelmezetten true; false esetén
 a pozíciószámítás és az `_number` metaadat is kimarad. A frontend a
 `view.row_numbers` szerint kéri, az élő megfigyelésben is. A PHP rendezésteszt
 mindkét irányú lapozásnál és középső élő ablaknál ellenőrzi a teljes rangot.
+
+A mobil szűrőablak külön natív Form-példányt használ; alkalmazáskor az értékek
+a panel szűrőjébe is átkerülnek. Bezáráskor nincs widgetmozgatás a layoutok
+között. A Szűrés/Alaphelyzet gombpár egy sorban, 8 px távolsággal jelenik meg.

@@ -122,16 +122,19 @@ export class Workspace {
       if(a.name==="create"||this.selectedRow()?._actions?.includes(a.name))this.commands.enable(a.name);else this.commands.disable(a.name);
     }
   }
-  private mountFilters():void{
-    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,type:f.type==="checkbox"?"select":f.type,required:false},""),...(["select","checkbox"].includes(f.type)?{options:[{value:"",content:"Bármely"},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{type:"button",name:"apply",text:"Szűrés",icon:"dxi dxi-filter-variant",color:"primary"},{type:"button",name:"clear",text:"Alaphelyzet",icon:"dxi dxi-undo",view:"flat",color:"secondary"}]} as any);
+  private createFilters():Form{
+    const form=new Form(document.createElement("div"),{padding:16,rows:[...this.view.filters.map(f=>({...input({...f,type:f.type==="checkbox"?"select":f.type,required:false},""),...(["select","checkbox"].includes(f.type)?{options:[{value:"",content:"Bármely"},...Object.entries(f.options).map(([value,content])=>({value:"eq:"+value,content}))]}:{})})),{cols:[{type:"button",name:"apply",text:"Szűrés",icon:"dxi dxi-filter-variant",color:"primary",width:"content",padding:"0 8px 0 0"},{type:"button",name:"clear",text:"Alaphelyzet",icon:"dxi dxi-undo",view:"flat",color:"secondary",width:"content"}]}]} as any);
     form.events.on("click",(name:string)=>{
       if(name!=="apply"&&name!=="clear")return;
       if(name==="clear")form.clear();
-      const values=form.getValue() as Record<string,string>;this.filters={};
+      const values=form.getValue() as Record<string,string>;this.filterForm?.setValue(values);this.filters={};
       for(const f of this.view.filters){const v=String(values[f.name]??"");if(v!=="")this.filters[f.name]=["select","checkbox"].includes(f.type)?v.slice(3):v;}
       this.closeFilters();void this.load();
     });
-    this.filterForm=form;this.layout.getCell("filter").attach(form);
+    return form;
+  }
+  private mountFilters():void{
+    this.filterForm=this.createFilters();this.layout.getCell("filter").attach(this.filterForm);
   }
   private resizeFilters():void{
     if(!this.filterForm)return;
@@ -146,15 +149,15 @@ export class Workspace {
   private openFilters():void{
     if(!this.filterForm||!this.mobile)return;
     if(this.filterDialog){this.filterDialog.show();return;}
-    this.layout.getCell("filter").detach();
+    const form=this.createFilters();form.setValue(this.filterForm.getValue());
     const dialog=new Window({title:"Szűrés",width:Math.min(420,innerWidth-24),height:Math.min(600,innerHeight-24),modal:true,closable:true});
-    this.filterDialog=dialog;dialog.attach(this.filterForm);dialog.show();
+    this.filterDialog=dialog;dialog.attach(form);dialog.show();
     dialog.events.on("afterHide",()=>this.closeFilters());
   }
   private closeFilters():void{
     const dialog=this.filterDialog;if(!dialog)return;
-    this.filterDialog=undefined;dialog.attachHTML("");dialog.destructor();
-    if(this.filterForm)this.layout.getCell("filter").attach(this.filterForm);
+    this.filterDialog=undefined;dialog.hide();
+    void awaitRedraw().then(()=>dialog.destructor());
   }
   private async call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{
     const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?vapa=1";

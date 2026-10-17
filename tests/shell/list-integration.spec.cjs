@@ -13,6 +13,8 @@ test('real consumer shows all readable data and commits marked rows through the 
  await detail.getByRole('button',{name:/close/i}).click();
  await view(page,'Kártyák');const cards=page.locator('.vapa-grid-card');await expect(cards.first()).toContainText('Részletes leírás');await expect(cards.first()).not.toContainText('NEVER_EXPOSE');
  expect((await cards.nth(1).boundingBox()).y).toBe((await cards.first().boundingBox()).y);
+ const apply=await page.getByRole('button',{name:'Szűrés',exact:true}).boundingBox(),clear=await page.getByRole('button',{name:'Alaphelyzet',exact:true}).boundingBox();
+ expect(clear.y).toBe(apply.y);expect(clear.x-apply.x-apply.width).toBeGreaterThanOrEqual(8);
  await page.getByLabel('Sor jelölése: 24',{exact:true}).filter({visible:true}).check();await page.getByLabel('Sor jelölése: 23',{exact:true}).filter({visible:true}).check();
  await view(page,'Táblázat');await expect(page.getByLabel('Sor jelölése: 24',{exact:true}).filter({visible:true})).toBeChecked();
  await page.getByRole('button',{name:'Archiválás — jelöltek',exact:true}).click();
@@ -29,5 +31,11 @@ test('read-only consumer never receives denied detail values or bulk permissions
  await login(page,'reader');await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
  const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});await expect(detail).toContainText('Elem 24');await expect(detail).not.toContainText('Részletes leírás');await detail.getByRole('button',{name:/close/i}).click();
  await expect(page.getByRole('button',{name:'Archiválás — jelöltek',exact:true})).toHaveCount(0);
- await view(page,'Kártyák');await expect(page.locator('.vapa-grid-card').first()).not.toContainText('Részletes leírás');expect(responses.join('')).not.toContain('NEVER_EXPOSE');expect(responses.join('')).not.toContain('A gridből kihagyott');
+ await view(page,'Kártyák');await expect(page.locator('.vapa-grid-card').first()).not.toContainText('Részletes leírás');
+ await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Szűrés',exact:true}).click();
+ const filter=page.getByRole('dialog',{name:'Szűrés',exact:true});await filter.getByLabel('Megnevezés',{exact:true}).fill('Elem 24');await filter.getByRole('button',{name:'Szűrés',exact:true}).click();
+ await expect(filter).toHaveCount(0);await expect(page.locator('.vapa-grid-card')).toHaveCount(1);
+ await page.setViewportSize({width:1280,height:900});await expect(page.getByLabel('Megnevezés',{exact:true})).toHaveValue('Elem 24');
+ await page.getByRole('button',{name:'Alaphelyzet',exact:true}).click();await expect(page.getByLabel('Megnevezés',{exact:true})).toHaveValue('');await expect(page.locator('.vapa-grid-card')).toHaveCount(24);
+ expect(responses.join('')).not.toContain('NEVER_EXPOSE');expect(responses.join('')).not.toContain('A gridből kihagyott');
 });

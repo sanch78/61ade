@@ -316,10 +316,10 @@ export class AdminShell {
         { type: "text", name: "recipient", label: "Megerősítő levelet küldtünk", value: escape(confirmation.email) },
         { type: "input", name: "code", label: "Megerősítő kód", labelPosition: "top", required: true, maxlength: 6,
           validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: "A levélben kapott 6 számjegyű kód szükséges." },
-        { type: "button", name: "verify", text: "Belépés megerősítése", icon:"dxi dxi-check", color: "primary" },
+        { type: "button", name: "verify", text: "Belépés megerősítése", full:true, padding:"8px 0 0 0", icon:"dxi dxi-check", color: "primary" },
         { rows: [
-          { type: "button", name: "resend", text: "Új kód küldése", icon:"dxi dxi-email", view: "flat", color:"secondary" },
-          { type: "button", name: "cancel", text: "Vissza a belépéshez", icon:"dxi dxi-arrow-left", view: "flat", color:"secondary" },
+          { type: "button", name: "resend", text: "Új kód küldése", full:true, padding:"8px 0 0 0", icon:"dxi dxi-email", view: "flat", color:"secondary" },
+          { type: "button", name: "cancel", text: "Vissza a belépéshez", full:true, padding:"8px 0 0 0", icon:"dxi dxi-arrow-left", view: "flat", color:"secondary" },
         ] },
       ],
     });

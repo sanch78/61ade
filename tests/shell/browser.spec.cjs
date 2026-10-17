@@ -93,9 +93,9 @@ test('theme button fits its menu row on hover in all skins without a white gap b
   const button=page.getByRole('button',{name:label,exact:true});await button.hover();
   const bounds=await button.evaluate(element=>{
    const row=element.closest('.vapa-navigation-row'),outer=row.getBoundingClientRect(),button=element.getBoundingClientRect(),menu=row.querySelector('.dhx_menu-nav').getBoundingClientRect();
-   return {top:outer.top,bottom:outer.bottom,buttonTop:button.top,buttonBottom:button.bottom,menuBottom:menu.bottom};
+   return {top:outer.top,bottom:outer.bottom,buttonTop:button.top,buttonBottom:button.bottom,menuBottom:menu.bottom,border:parseFloat(getComputedStyle(row).borderBottomWidth)};
   });
-  expect(bounds.buttonTop).toBeGreaterThanOrEqual(bounds.top);expect(bounds.buttonBottom).toBeLessThanOrEqual(bounds.bottom);expect(bounds.menuBottom).toBe(bounds.bottom);
+  expect(bounds.buttonTop).toBeGreaterThanOrEqual(bounds.top);expect(bounds.buttonBottom).toBeLessThanOrEqual(bounds.bottom);expect(bounds.menuBottom).toBe(bounds.bottom-bounds.border);
   await page.screenshot({path:require('node:path').join(process.env.VAPA_TMP_DIR,'shell-hover-'+theme+'.png')});
  }
 });

@@ -94,3 +94,7 @@ külön helyet kap; az aktuális rendezésnek egyetlen irányjelzése van.
 Az aktív funkciót a shell `#feature=items` URL-részlete követi: frissítés és
 Vissza/Előre navigáció visszaállítja a nézetet. A [helyi felületbeállítások](shell.md#url-és-helyi-felületbeállítások)
 a grid és a munkaterület megjelenítési preferenciáit automatikusan megőrzik.
+
+A lista-, toolbar-, rekordablak- és logingomb-javítások [követelményenkénti
+minősítése](list-presentation-validation.md) a reprodukáló parancsokat és a
+szintetikus fogyasztó bizonyítékait is tartalmazza.
