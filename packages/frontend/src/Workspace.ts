@@ -141,7 +141,7 @@ export class Workspace {
     this.layout.getCell("filter").detach();
     const dialog=new Window({title:"Szűrés",width:Math.min(420,innerWidth-24),height:Math.min(600,innerHeight-24),modal:true,closable:true});
     this.filterDialog=dialog;dialog.attach(this.filterForm);dialog.show();
-    dialog.events.on("beforeHide",()=>{this.closeFilters();return false;});
+    dialog.events.on("afterHide",()=>this.closeFilters());
   }
   private closeFilters():void{
     const dialog=this.filterDialog;if(!dialog)return;
@@ -154,7 +154,7 @@ export class Workspace {
     const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||"Sikertelen művelet."),{status:r.status,fieldErrors:result.fieldErrors});return result.data;
   }
   private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:"Hiba",text:e && typeof e==="object" && "fieldErrors" in e && Object.values((e as any).fieldErrors??{}).length?Object.entries((e as any).fieldErrors).map(([name,error])=>`${this.view.actions.flatMap(a=>a.fields).find(f=>f.name===name)?.label??name}: ${error}`).join("\n"):e instanceof Error?e.message:"Sikertelen művelet.",htmlEnable:false});}
-  private watch():void{this.live.subscribe({sort:this.sort,anchor:this.rows[0]?cursor(this.rows[0],"next"):null,limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,filters:this.filters});}
+  private watch():void{this.live.subscribe({numbered:this.view.rowNumbers!==false,sort:this.sort,anchor:this.rows[0]?cursor(this.rows[0],"next"):null,limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,filters:this.filters});}
   private async changeSort(sort:Sort):Promise<void>{
     if(this.busy||this.cellEditing||this.disposed)return;
     const previous=this.sort;this.sort=sort;this.gridHeaders?.setSort(sort);
@@ -166,7 +166,7 @@ export class Workspace {
     try{
       if(this.view.singleton){const row=await this.call("get","self",{},this.abort.signal);if(this.disposed||epoch!==this.epoch)return false;this.rows=[row];this.selected=String(row.id);await this.mountDetail(row);}
       else{
-        const data:Snapshot=await this.call("list",null,{mode:"dynamic",limit:100,sort:this.sort,filters:this.filters},this.abort.signal);
+        const data:Snapshot=await this.call("list",null,{mode:"dynamic",numbered:this.view.rowNumbers!==false,limit:100,sort:this.sort,filters:this.filters},this.abort.signal);
         if(this.disposed||epoch!==this.epoch)return false;this.previous=data.previous;this.next=data.next;await this.render(data.items,false);
       }
       this.watch();return true;
@@ -177,7 +177,7 @@ export class Workspace {
     const token=direction==="next"?this.next:this.previous;if(!token||this.busy)return;
     const epoch=this.epoch;this.busy=true;
     try{
-      const data:Snapshot=await this.call("list",null,{mode:"dynamic",limit:100,cursor:token,sort:this.sort,filters:this.filters});
+      const data:Snapshot=await this.call("list",null,{mode:"dynamic",numbered:this.view.rowNumbers!==false,limit:100,cursor:token,sort:this.sort,filters:this.filters});
       if(this.disposed||epoch!==this.epoch)return;
       if(!data.items.length){if(direction==="next")this.next=null;else this.previous=null;return;}
       const joined=direction==="next"?[...this.rows,...data.items]:[...data.items,...this.rows];
@@ -258,7 +258,7 @@ export class Workspace {
         const raw=form.getValue() as Record<string,unknown>;
         const values=Object.fromEntries(fields.map(field=>[field.name,raw[field.name]]));
         void this.call("__bulk",null,{operation:action.name,items:ids.map((id,i)=>({id,values:{...values,...(schemas[i].fields.some((field:FieldDefinition)=>field.name==="revision")?{revision:schemas[i].values.revision}:{})}}))}).then(async(result:{id:string;ok:boolean;error?:string}[])=>{
-          if(this.disposed)return;dialog.destructor();this.dialog=undefined;this.editor=undefined;this.grid?.clearMarks();await this.load();
+          await awaitRedraw();if(this.disposed||this.editor!==form)return;dialog.destructor();this.dialog=undefined;this.editor=undefined;this.grid?.clearMarks();await this.load();
           await alert({header:"Tömeges művelet",text:`Sikeres: ${result.filter(row=>row.ok).length}, sikertelen: ${result.filter(row=>!row.ok).length}.`+result.filter(row=>!row.ok).map(row=>`\n${row.id}: ${row.error}`).join(""),htmlEnable:false});
         }).catch(error=>this.error(error)).finally(()=>{saving=false;if(!this.disposed&&this.editor===form)form.enable();});
       });
@@ -293,7 +293,7 @@ export class Workspace {
       for(const f of allowed)if(f.name!=="revision"&&raw[f.name]!==undefined)values[f.name]=raw[f.name];
       if(allowed.some(f=>f.name==="revision"))values.revision=current.revision;
       void this.call(action.name,id,values).then(async result=>{
-        if(this.disposed)return;complete();
+        await awaitRedraw();if(this.disposed)return;complete();
         if(result?.secret)await alert({header:"Egyszer megjelenő API-token",text:result.secret,htmlEnable:false});
         else await alert({header:"Mentés",text:"A művelet sikerült.",htmlEnable:false});
         if(result?.reauthenticate)location.reload();

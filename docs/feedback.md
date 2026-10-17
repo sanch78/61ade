@@ -37,3 +37,5 @@
 ## FB-0019 — Lists, record details and controls
 
 ## FB-0020 — Final view dropdown and nonoverlapping indicators
+
+## FB-0021 — Feature URLs and persistent UI state

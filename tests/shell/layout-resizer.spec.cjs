@@ -1,4 +1,4 @@
-const {test,expect}=require('@playwright/test');
+const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
 

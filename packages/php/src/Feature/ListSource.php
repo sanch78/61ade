@@ -54,11 +54,13 @@ final readonly class ListSource
     }
     public function read(Context $ctx,array $input):array
     {
-        foreach($input as $key=>$v)if(!in_array($key,['mode','limit','cursor','filters','first','front','sort','anchor'],true))throw new Failure('Ismeretlen listaparaméter.');
+        foreach($input as $key=>$v)if(!in_array($key,['mode','limit','cursor','filters','first','front','sort','anchor','numbered'],true))throw new Failure('Ismeretlen listaparaméter.');
         $mode=$input['mode']??'dynamic';
         if(!in_array($mode,['dynamic','watch'],true))throw new Failure('Hibás listamód.');
         $limit=$input['limit']??100;
         if(!is_int($limit)||$limit<1||$limit>($mode==='watch'?600:200))throw new Failure('Hibás listaméret.');
+        $numbered=$input['numbered']??true;
+        if(!is_bool($numbered))throw new Failure('Hibás sorszámozás.');
         $filters=$input['filters']??[];
         if(!is_array($filters)||count($filters)>count($this->fields))throw new Failure('Hibás szűrők.');
         [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
@@ -84,6 +86,7 @@ final readonly class ListSource
         if(!in_array($sort['field'],$this->sortableFields($ctx),true))throw new Failure('A mező nem rendezhető.',403);
         $storageColumn=$sort['field']==='id'?$this->key:$sort['field'];
         $column=($known[$sort['field']]->type??'')==='number'?"CAST($storageColumn AS DECIMAL(65,0))":$storageColumn;
+        $baseTerms=$terms;$baseParams=$params;
         $direction='next';$hasCursor=false;
         if($mode==='watch'){
             $front=$input['front']??true;$first=$input['first']??null;
@@ -105,7 +108,13 @@ final readonly class ListSource
         $rows=$q->fetchAll(\PDO::FETCH_ASSOC);$more=count($rows)>$limit;if($more)array_pop($rows);if($direction==='previous')$rows=array_reverse($rows);
         $position=fn($row)=>['edge'=>(string)$row[$this->key],'sort'=>$sort,'value'=>$row[$storageColumn]??null];
         $first=$rows?$position($rows[0]):null;$last=$rows?$position($rows[count($rows)-1]):null;
-        return ['items'=>array_map(fn($row)=>[...($this->project)($ctx,$row),'_position'=>$position($row)],$rows),
+        $offset=0;
+        if($numbered&&$first!==null&&($hasCursor||$direction==='previous')){
+            $before=$this->after($first,$column,$sort,true,false,$baseParams);
+            $rank=$ctx->db->prepare("SELECT COUNT(*) FROM $from WHERE ".implode(' AND ',[...$baseTerms,$before]));$rank->execute($baseParams);
+            $offset=(int)$rank->fetchColumn();
+        }
+        return ['items'=>array_map(fn($row,$index)=>[...($this->project)($ctx,$row),'_position'=>$position($row),...($numbered?['_number'=>$offset+$index+1]:[])],$rows,array_keys($rows)),
             'previous'=>$first!==null&&($direction==='previous'?$more:$hasCursor)?$this->cursor($first,'previous'):null,
             'next'=>$last!==null&&($direction==='previous'?$hasCursor:$more)?$this->cursor($last,'next'):null];
     }
