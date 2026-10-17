@@ -159,6 +159,10 @@ A natív DHTMLX Window fejléce témától függetlenül 40 px magas, 16 px cím
 és 32 px bezárógombbal. A gyári 28 px felső és 20 px alsó fejléctérköz helyett
 4 px függőleges, 12 px vízszintes toolbar-padding érvényes. A tartalomhoz
 illeszkedő ablakmérés továbbra is a tényleges fejlécet veszi figyelembe.
+A fejléc alján 1 px, a téma `--dhx-border-color` színét követő vonal választja
+el a tartalmat; a vonal a 40 px magasságon belül marad (FB-0031).
+A fejléc háttérszíne a téma másodlagos háttere: Defaultban világosszürke,
+Éjjeli módban világosabb sötét árnyalat. Skyblue megtartja kék színátmenetét.
 
 Kompakt főmenüben minden navigációs ág és a Kijelentkezés is a „Menü” gomb alá
 kerül, köztük a natív elválasztóval. Asztali szélességre visszatérve az eredeti

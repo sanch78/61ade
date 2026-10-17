@@ -55,3 +55,5 @@
 ## FB-0028 — Compact popup, complete mobile navigation/commands
 
 ## FB-0030 — Alternating Skyblue rows
+
+## FB-0031 — Popup header background and divider

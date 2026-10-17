@@ -164,7 +164,7 @@ body,
 
 /* Window chrome is a compact fixed row; content/form spacing is independent. */
 .dhx_window-header { padding-bottom: 0; }
-.dhx_window-header .dhx_toolbar { height: 40px !important; min-height: 0; }
+.dhx_window-header .dhx_toolbar { height: 40px !important; min-height: 0; box-sizing: border-box; border-bottom: 1px solid var(--dhx-border-color); background-color: var(--dhx-background-secondary); }
 .dhx_window .dhx_window-header .dhx_toolbar .dhx_navbar { height: 100%; box-sizing: border-box; padding: 4px 12px; align-items: center; }
 .dhx_window-header .dhx_navbar-title { font-size: 16px; }
 .dhx_window-header .dhx_button { width: 32px; height: 32px; min-height: 0; }

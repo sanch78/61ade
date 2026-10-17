@@ -135,7 +135,7 @@ for(const theme of ['skyblue','light','dark'])test(`compact commands retain ACL 
   await expect.poll(()=>dialog.locator('.dhx_window-header').evaluate(element=>element.getBoundingClientRect().height)).toBe(40);
   const close=dialog.getByRole('button',{name:/close/i});
   expect(await close.evaluate(button=>{const outer=button.closest('.dhx_window-header').getBoundingClientRect(),box=button.getBoundingClientRect();return box.top>=outer.top&&box.bottom<=outer.bottom;})).toBe(true);
-  if(theme==='skyblue')await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR,'mobile-compact-popup.png'),animations:'disabled'});
+  await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR,`mobile-compact-popup-${theme}.png`),animations:'disabled'});
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await close.click();await expect(dialog).toHaveCount(0);
  }
