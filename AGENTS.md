@@ -47,5 +47,7 @@ Az alkalmazásspecifikus felhasználóadmin is VAPA-definíciókból és eszköz
 
 ## Fejlesztői host védelme
 
+- A Playwright runner és a böngészők Catalyston rendszerszinten, Infra által kezeltek. Hiányzó vagy eltérő verziónál az Infrát kell kérni; projektterületre böngészőt/Playwright runtime-ot telepíteni tilos. A projekt-tmp csak tesztartifactra és eldobható futási kimenetre szolgál.
+
 - Böngészőteszt csak a védett npm scripttel vagy Playwright wrapperrel indulhat: VAPA `npm run test:browser -- ...`, fogyasztó `cd codex && npm run test:e2e -- ...`. Közvetlen `npx playwright test` / Node Playwright-futtatás tilos ezen a közös hoston.
 - A wrapper közös zárral kizárja a párhuzamos futásokat, egy workert és cgroup memóriakorlátot alkalmaz. Elutasításkor várj a másik futás végére vagy szabadíts fel memóriát; a védelmet ne kerüld meg.
