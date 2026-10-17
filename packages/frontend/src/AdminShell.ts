@@ -1,4 +1,4 @@
-import { configureLanguage, type LanguageConfig, t } from "./I18n";
+import { configureLanguage, languageLabel, type LanguageConfig, t } from "./I18n";
 import { widgetIcons } from "./WidgetIcons";
 import { Workspace, type ViewDefinition } from "./Workspace";
 import { Form, Layout, Menu, Toolbar, Window, alert, setTheme, awaitRedraw } from "@dhtmlx/suite";
@@ -134,7 +134,7 @@ export class AdminShell {
           value: escape(
             definition.authenticated
               ? definition.displayName || ""
-              : "Nincs bejelentkezve",
+              : t("Nincs bejelentkezve"),
           ),
         },
         { type: "spacer" },
@@ -157,7 +157,7 @@ export class AdminShell {
     });
     this.layout.getCell("theme").attach(themeControl);
     if(definition.i18n?.selector){
-      const language=new Toolbar(undefined,{data:[{id:"vapa-language",value:definition.i18n.languages[definition.i18n.locale],tooltip:t("Nyelv"),items:Object.entries(definition.i18n.languages).map(([id,value])=>({id:"language:"+id,value}))}]});
+      const language=new Toolbar(undefined,{data:[{id:"vapa-language",value:languageLabel(definition.i18n,definition.i18n.locale),tooltip:t("Nyelv"),items:Object.entries(definition.i18n.languages).map(([id,value])=>({id:"language:"+id,value:languageLabel(definition.i18n!,id)}))}]});
       language.events.on("click",(id:string|number)=>{if(String(id).startsWith("language:"))this.post("language",{locale:String(id).slice(9)});});
       this.layout.getCell("language").attach(language);
     }
@@ -220,7 +220,7 @@ export class AdminShell {
 
   private languageField():any[]{
     const config=this.definition.i18n;
-    return config?.selector?[{type:"select",name:"vapa-locale",label:t("Nyelv"),labelPosition:"top",value:config.locale,options:Object.entries(config.languages).map(([value,content])=>({value,content}))}]:[];
+    return config?.selector?[{type:"select",name:"vapa-locale",label:t("Nyelv"),labelPosition:"top",value:config.locale,options:Object.entries(config.languages).map(([value,content])=>({value,content:languageLabel(config,value)}))}]:[];
   }
   private bindLanguage(form:Form):void{
     form.events.on("change",(name:string)=>{if(name==="vapa-locale")this.post("language",{locale:String(form.getValue()[name])});});

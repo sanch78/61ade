@@ -71,7 +71,7 @@ final class Application
         $escape = static fn(string $text): string => htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $bootstrap = [
             'protocol' => 1,
-            'i18n' => ['locale'=>Translator::locale(),'languages'=>$settings->languages,'selector'=>$settings->selector && count($settings->languages)>1,'messages'=>Translator::messages()],
+            'i18n' => ['locale'=>Translator::locale(),'languages'=>$settings->languages,'flags'=>$settings->flags,'selector'=>$settings->selector && count($settings->languages)>1,'messages'=>Translator::messages()],
             'title' => Translator::text($definition->title),
             'version' => $definition->version,
             'authenticated' => $identity !== null,

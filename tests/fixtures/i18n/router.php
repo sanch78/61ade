@@ -12,6 +12,6 @@ Vapa\Infrastructure\HttpEntrypoint::run(static function()use($path){
  $languages=new Vapa\I18n\Settings($single?'en':'hu',['hu'=>'Magyar','en'=>'English','de'=>'Deutsch'],!$single,[
  'en'=>['Elemek'=>'Items','Megnevezés'=>'Name','Részletes leírás'=>'Description','Aktív'=>'Active','Inaktív'=>'Inactive','Archiválás'=>'Archive'],
  'de'=>['Elemek'=>'Elemente','Megnevezés'=>'Bezeichnung','Részletes leírás'=>'Beschreibung','Aktív'=>'Aktiv','Inaktív'=>'Inaktiv','Archiválás'=>'Archivieren'],
- ]);
+ ],flags:['hu'=>'🇭🇺','en'=>'🇬🇧','de'=>'🇩🇪']);
  return new Vapa\Shell\ApplicationDefinition(title:'Synthetic multilingual app',identities:$base->identities,menu:$base->menu,runtime:$base->runtime,sessionName:'vapa_i18n_fixture',workspace:$base->workspace,languages:$languages);
 });

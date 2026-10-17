@@ -39,7 +39,7 @@ test('SMTP email confirmation gates login; a remembered login lasts 90 days and 
   await page.getByLabel('Megerősítő kód', {exact: true}).fill('000000');
   await page.getByRole('button', {name: 'Belépés megerősítése', exact: true}).click();
   await expect(page.getByText('Hibás vagy lejárt megerősítő kód.', {exact: true})).toBeVisible();
-  await page.getByRole('button', {name: 'confirm', exact: true}).click();
+  await page.getByRole('button', {name: /^(confirm|Megerősítés)$/, exact: true}).click();
   await confirm(page);
   const credential = (await page.context().cookies()).find(cookie => cookie.name === 'vapa_auth_test_remember');
   expect(credential).toBeTruthy(); expect(credential.httpOnly).toBe(true); expect(credential.sameSite).toBe('Lax');
@@ -81,7 +81,7 @@ test('per-user security form defaults on and toggles only the selected account',
   await setting.selectOption('0');
   await dialog.getByRole('button', {name: 'Login security', exact: true}).click();
   await expect(page.getByText('A művelet sikerült.', {exact: true})).toBeVisible();
-  await page.getByRole('button', {name: 'confirm', exact: true}).click();
+  await page.getByRole('button', {name: /^(confirm|Megerősítés)$/, exact: true}).click();
   const other = await browser.newContext(); const otherPage = await other.newPage();
   await password(otherPage, 'other');
   await expect(otherPage.getByRole('menuitem', {name: 'Notes', exact: true})).toBeVisible();
