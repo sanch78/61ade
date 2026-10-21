@@ -24,12 +24,12 @@ Használat: [munkaterületek](workspaces.md#kártyák-rekordadatok-sorszám-és-
 ## Lefutott próbák
 
 - `list-presentation.spec.cjs`: **3/3 PASS** a végső, valódi görgetést is mérő változattal.
-- `playwright.presentation.config.cjs` / `list-integration.spec.cjs`: **2/2 PASS** a végső, mobil szűrés/Alaphelyzet ellenőrzéssel is.
-- `playwright.auth.config.cjs`: **4/4 PASS**; a későbbi egységes szélesség/térköz változtatása után az érintett háromtéma-próba külön **1/1 PASS**.
+- `--project=presentation` / `list-integration.spec.cjs`: **2/2 PASS** a végső, mobil szűrés/Alaphelyzet ellenőrzéssel is.
+- `--project=auth`: **4/4 PASS**; a későbbi egységes szélesség/térköz változtatása után az érintett háromtéma-próba külön **1/1 PASS**.
 - `browser.spec.cjs`: az öt korábbi shell-/login-/témapróba PASS; az új hover-/menüsor-próba a natív 1 px keretet figyelembe vevő javítás után **1/1 PASS**.
 - `mobile-grid.spec.cjs`: a külön szintetikus görgetéspróba PASS; a teljes mobil filter/modal/nézetváltás regressziója a widgetmozgatás megszüntetése után **1/1 PASS**.
 - `workspace.spec.cjs`: **2/2 PASS**, CRUD és polling.
-- `playwright.sorting.config.cjs`: **1/1 PASS**, 1801 rekord, szerkeszthető fejléc, SQL-rendezés, kétirányú smart rendering és legfeljebb 600 betöltött sor.
+- `--project=sorting`: **1/1 PASS**, 1801 rekord, szerkeszthető fejléc, SQL-rendezés, kétirányú smart rendering és legfeljebb 600 betöltött sor.
 - PHP `list-presentation.php`, `sorting.php`, `lists.php`, `access.php`, `grid-edit.php`, `contracts.php`: PASS. TypeScript typecheck és frontend build: PASS.
 - A fogyasztó saját szintetikus felhasználólista-integrációja külön ellenőrizte a három témát, rekordablakot, kártyákat, fejlécet, inline mentést és WebSocketes rendezéskövetést; eredménye a fogyasztó dokumentációjában van.
 
@@ -43,9 +43,9 @@ A rendszerfuttató bekötése: [fejlesztői útmutató](development.md#meglévő
 
 ```sh
 npm run test:browser -- list-presentation.spec.cjs
-npm run test:browser -- --config playwright.presentation.config.cjs
-npm run test:browser -- --config playwright.auth.config.cjs
-npm run test:browser -- --config playwright.sorting.config.cjs
+npm run test:browser -- --project=presentation
+npm run test:browser -- --project=auth
+npm run test:browser -- --project=sorting
 ```
 
 A fenti parancsok a leírt környezeti változókkal futnak. Az artifactok a
@@ -61,9 +61,9 @@ részleges siker lehetséges; nem teljes csomagra atomikus tranzakció.
 - `sorting.php`: PASS, az ACL szerinti teljes és szűrt szám nem a limit/kurzor
   mérete; a középső élő ablakon kívüli beszúrás is frissíti a számot.
 - `lists.php`, `list-presentation.php`, `contracts.php`, typecheck/build: PASS.
-- `playwright.presentation.config.cjs`: 2/2 PASS, natív listacím, jobb oldali
+- `--project=presentation`: 2/2 PASS, natív listacím, jobb oldali
   összes, mobil filter után összes/találat, Alaphelyzet és menüikon.
-- `playwright.auth.config.cjs`: végső teljes futás 4/4 PASS; háromtéma-geometria,
+- `--project=auth`: végső teljes futás 4/4 PASS; háromtéma-geometria,
   8 px gombköz, körülbelül 24 px alsó hely (natív keret/kerekítés ±2 px), a gomb
   alsó szélének tényleges hit-testje, hibás kód utáni modal- és loginfolyamat.
 - `browser.spec.cjs`: 6/6 PASS; `mobile-grid.spec.cjs`: 2/2 PASS.
@@ -99,7 +99,7 @@ A Playwright kizárólag a meglévő rendszerszintű runnerrel, a guardon belül
 | Layout dupla kattintásra reset | Tényleges egérhúzás és dupla kattintás mindkét tengelyen, 260 px induló méret visszaáll | PASS |
 | Tartalomhoz illeszkedő ablakok | Formgomb/adatcikk alatti térköz <40 px; 390×420 viewporton ablak ≤396 px és mindkét szélen ≥12 px | PASS |
 
-Védett szintetikus Chromium: `playwright.grid-edit.config.cjs` **2/2 PASS**;
+Védett szintetikus Chromium: `--project=grid-edit` **2/2 PASS**;
 `layout-resizer.spec.cjs`, `list-presentation.spec.cjs`, `mobile-grid.spec.cjs`,
 `workspace.spec.cjs` **9/9 PASS**, három téma és élő frissítés mellett.
 A gridfixture futásonként külön, kijelölt scratch-almappát használ; a régi

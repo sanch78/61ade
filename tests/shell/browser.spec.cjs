@@ -1,7 +1,7 @@
 const { test, expect } = require('../../tools/playwright-test.cjs');
-async function login(page, name = 'demo', enter = false) {
+async function login(page, name = 'demo@example.test', enter = false) {
     await page.goto('/');
-    await page.getByLabel(/Felhasználónév/).fill(name);
+    await page.getByLabel('E-mail', { exact: true }).fill(name);
     await page.getByLabel(/Jelszó/).fill('vapa-demo');
     if (enter) await page.getByLabel(/Jelszó/).press('Enter');
     else await page.getByRole('button', { name: 'Bejelentkezés', exact: true }).click();
@@ -13,7 +13,7 @@ test('framework creates DHTMLX login and menu, with an empty workspace', async (
     await page.goto('/');
     await expect(page.getByRole('dialog', { name: 'Bejelentkezés' })).toBeVisible();
     expect(await page.locator('#vapa-config').evaluate(e => JSON.parse(e.textContent).menu)).toBeUndefined();
-    await login(page, 'demo', true);
+    await login(page, 'demo@example.test', true);
     await expect(page.locator('.vapa-workspace')).toHaveText('');
     const footer = page.locator('.vapa-session-bar');
     await expect(footer).toHaveCount(1);
@@ -37,7 +37,7 @@ test('framework creates DHTMLX login and menu, with an empty workspace', async (
     expect(errors).toEqual([]);
 });
 test('definitions control authorization; hashes cannot open a module', async ({ page }) => {
-    await login(page, 'viewer');
+    await login(page, 'viewer@example.test');
     await expect(page.getByRole('menuitem', { name: 'Beállítások', exact: true })).toHaveCount(0);
     await page.goto('/#members');
     await expect(page.locator('.vapa-workspace')).toHaveText('');
@@ -63,7 +63,7 @@ test('login remains a usable DHTMLX window at phone width', async ({ page }) => 
 });
 test('invalid login returns to the DHTMLX form with safe feedback', async ({ page }) => {
     await page.goto('/');
-    await page.getByLabel(/Felhasználónév/).fill('demo');
+    await page.getByLabel('E-mail', { exact: true }).fill('demo@example.test');
     await page.getByLabel(/Jelszó/).fill('incorrect');
     await page.getByRole('button', { name: 'Bejelentkezés', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Bejelentkezés' })).toBeVisible();
@@ -86,7 +86,7 @@ test('Skyblue is the default and explicit theme choices survive reload', async (
     await page.getByText('Skyblue', { exact: true }).click();
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'skyblue');
-    await page.screenshot({path: require('node:path').join(process.env.VAPA_TMP_DIR || 'codex/tmp','skyblue-shell.png')});
+    await page.screenshot({path: require('node:path').join(process.env.VAPA_TMP_DIR || 'tmp','skyblue-shell.png')});
 });
 
 test('theme button fits its menu row on hover in all skins without a white gap below',async({page})=>{

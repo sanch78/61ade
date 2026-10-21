@@ -56,6 +56,8 @@ final class Application
                     $this->login($username);
                 } elseif (!$identity && in_array($action, ['confirm_login', 'resend_login', 'cancel_login'], true)) {
                     $this->confirmation($action);
+                } elseif (!$identity && in_array($action, ['change_password', 'cancel_password_change'], true)) {
+                    $this->passwordChange($action);
                 } else {
                     throw new Failure('Ismeretlen művelet.');
                 }
@@ -79,7 +81,11 @@ final class Application
             'error' => $error,
             'rememberAvailable' => $definition->authentication !== null,
             'rememberDays' => $definition->authentication?->rememberDays,
+            'loginIdentifier' => $definition->accounts ? 'email' : 'username',
         ];
+        if (!$identity && isset($_SESSION['pendingPasswordChange'])) {
+            $bootstrap['passwordChange'] = ['expires' => $_SESSION['pendingPasswordChange']['expires']];
+        }
         if (!$identity && isset($_SESSION['pendingLogin'])) {
             $pending = $_SESSION['pendingLogin'];
             $bootstrap['confirmation'] = ['email' => $pending['email'], 'expires' => $pending['expires']];
@@ -224,8 +230,37 @@ final class Application
         $this->finishLogin($result['identity'], $result['remember'], $result['credentialVersion']);
     }
 
+    private function passwordChange(string $action): never
+    {
+        $pending = $_SESSION['pendingPasswordChange'] ?? null;
+        $accounts = $this->definition->accounts;
+        if (!$accounts || !is_array($pending)) throw new Failure('Nincs folyamatban lévő jelszócsere.', 401);
+        if ($action === 'cancel_password_change' || $pending['expires'] <= time()) {
+            unset($_SESSION['pendingPasswordChange']);
+            if ($action !== 'cancel_password_change') throw new Failure('A jelszócsere ideje lejárt. Jelentkezz be újra.', 401);
+            $this->redirect();
+        }
+        $actor = $this->definition->identities->find($pending['actor_id']);
+        if (!$actor) {
+            unset($_SESSION['pendingPasswordChange']);
+            throw new Failure('A fiók nem érhető el.', 401);
+        }
+        $accounts->completeForcedChange(
+            $actor->id,
+            is_string($_POST['new_password'] ?? null) ? $_POST['new_password'] : '',
+            is_string($_POST['confirm_password'] ?? null) ? $_POST['confirm_password'] : '',
+        );
+        $this->finishLogin($actor, $pending['remember']);
+    }
+
     private function finishLogin(Identity $actor, bool $remember, ?int $verifiedVersion = null): never
     {
+        if ($this->definition->accounts?->mustChangePassword($actor->id)) {
+            // No session, menu, API or remembered login until the temporary password is replaced.
+            $_SESSION = ['csrf' => bin2hex(random_bytes(32)), 'lastSeen' => time(), 'pendingPasswordChange' => ['actor_id' => $actor->id, 'remember' => $remember, 'expires' => time() + 600]];
+            session_regenerate_id(true);
+            $this->redirect();
+        }
         $this->establishSession($actor, $verifiedVersion);
         $workspace = $this->definition->workspace;
         $workspace?->journal->record($actor->id, 'ui', 'session', 'login', '', 'success');

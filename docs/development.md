@@ -25,13 +25,13 @@ A library manifest kompatibilis verziótartományt deklarál, a fogyasztó lockf
 
 ## Fájlrendszer és környezet
 
-Scratch, log, tesztartifact, cache, runtime home és ideiglenes lock: `codex/tmp/`. Backup: `$CODEX_HOME/backup/project/vapa`, a repón kívül. Secret environmentből vagy titokkezelőből érkezik, nem a csomag konfigurációjából.
+Scratch, log, tesztartifact, cache, runtime home és ideiglenes lock: `tmp/`. Backup: `$CODEX_HOME/backup/project/vapa`, a repón kívül. Secret environmentből vagy titokkezelőből érkezik, nem a csomag konfigurációjából.
 
 Az alkalmazás publikus fájljai a fogyasztó public könyvtárában legyenek. Üzleti média, audit és tartós jobadat konfigurált storage-ba kerül, nem a framework checkoutba. A demó kizárólag szintetikus adatot használhat.
 
 ## Ellenőrzési stratégia
 
-Az önálló demó és a böngészőtesztek alapértelmezett PHP-binárisa `php8.4`. Más, PHP 8.4+ és PDO SQLite támogatású bináris vagy wrapper a `VAPA_PHP` környezeti változóval választható; a tesztben végzett külső adatbázisírás is ezt használja. Példa: `VAPA_PHP=/opt/php84/bin/php npm run test:browser -- tests/shell/workspace.spec.cjs`. A keret nem feltételezi egy fogyasztó checkoutját vagy saját runtime-wrapperét.
+Az önálló demó és a böngészőtesztek alapértelmezett PHP-binárisa `php8.4`. Más, PHP 8.4+ és PDO SQLite támogatású bináris vagy wrapper a `VAPA_PHP` környezeti változóval választható; a tesztben végzett külső adatbázisírás is ezt használja. Példa: `VAPA_PHP=/opt/php84/bin/php npm run test:browser -- tests/shell/workspace.spec.cjs --project=shell`. A keret nem feltételezi egy fogyasztó checkoutját vagy saját runtime-wrapperét.
 
 M0: JSON manifest parse, belső markdownhivatkozások, könyvtárak és symlink, whitespace, staged secret/vendor kizárás, remote commit egyezés.
 
@@ -56,7 +56,7 @@ A host jelenlegi helperében a `-t` commitüzenetként értelmeződik, nem kapcs
 
 ## Böngészőteszt korlátozott memóriájú fejlesztői hoston
 
-Linux, systemd user manager, delegált cgroup v2 memory/pids kontrollerek, Bash és util-linux `flock` szükséges. A `npm run test:browser -- tests/shell/workspace.spec.cjs` a `tools/playwright.sh` útján indít: egy worker, egy közös nem blokkoló lock (`codex/tmp/dev-check.lock`), legalább 1280 MiB induláskori MemAvailable, 700 MiB MemoryHigh, 900 MiB MemoryMax, swap nélküli scope, legfeljebb 128 task (szálakkal együtt). Memória- vagy tasklimit esetén a teszt hibával leállhat; ilyenkor ne indíts párhuzamos újrapróbálást.
+Linux, systemd user manager, delegált cgroup v2 memory/pids kontrollerek, Bash és util-linux `flock` szükséges. A `npm run test:browser -- tests/shell/workspace.spec.cjs --project=shell` a `tools/playwright.sh` útján indít: egy worker, egy közös nem blokkoló lock (`tmp/dev-check.lock`), legalább 1280 MiB induláskori MemAvailable, 700 MiB MemoryHigh, 900 MiB MemoryMax, swap nélküli scope, legfeljebb 128 task (szálakkal együtt). Memória- vagy tasklimit esetén a teszt hibával leállhat; ilyenkor ne indíts párhuzamos újrapróbálást.
 
 A fogyasztó ugyanazt a `tools/run-dev-check.sh command [args...]` eszközt hívja saját tesztbinárisával és munkakönyvtárából. Minden ilyen futás ugyanazt a framework-checkouthoz tartozó lockot használja. Több külön framework-checkout vagy más felhasználó nem osztozik ezen a záron. A futtató nem indít korlátlan fallbacket, ha a systemd nem érhető el. A teszt exitkódját továbbadja, foglalt lock vagy kevés memória esetén 75 az exitkód. A nyers Playwright CLI megkerüli a védelmet, ezért ezen a hoston nem támogatott fejlesztői belépési pont. A guard más nagy ellenőrzésekhez is használható, a korlátok ugyanazok.
 
@@ -72,8 +72,8 @@ A build vendorfont-cache-e és a védett tesztfolyamat `TMPDIR`-je a
 adatbázis és session runtime, illetve az alap Playwright-konfiguráció
 artifactkönyvtára is ezt követi. A közös `dev-check.lock` továbbra is a
 keret meglévő zára: a scratch választása nem enged párhuzamos tesztfutást.
-A régi alapútvonal kompatibilitásból marad meg; a host projektterületi
-szerződése szerint mindig a kijelölt scratch értéket kell átadni.
+Az alapútvonal a repó gyökerében lévő `tmp/`; más scratch könyvtár
+abszolút `VAPA_TMP_DIR` értékkel jelölhető ki. A korábbi `codex/` könyvtár megszűnt.
 
 A Playwright runner/böngésző Catalyston rendszerszinten, Infra által kezelt.
 Hiányzó vagy eltérő browser revision esetén Infra-kérés szükséges;
@@ -98,9 +98,40 @@ Ezeket a projekt csak olvassa/indítja, nem telepíti vagy módosítja.
 ```sh
 VAPA_PLAYWRIGHT_MODULE=/opt/infraadmin/playwright/npm/lib/node_modules/@playwright/test \
 VAPA_TMP_DIR=/kijelolt/projekt-scratch \
-  npm run test:browser -- list-presentation.spec.cjs
+  npm run test:browser -- list-presentation.spec.cjs --project=shell
 ```
 
 A scratch tényleges értékét a futtató a projektterületi szerződés szerint adja.
 A kiválasztott rendszerfuttató és a tesztimport csomagjának egyezése kötelező;
 a két külön Playwright-példányból származó `test()` nem kompatibilis.
+
+
+### Egységes Playwright-konfiguráció
+
+A gyökérben egyetlen `playwright.config.cjs` belépő van; a tesztcsoportok és
+szintetikus szerverek definíciója a `tests/browser/config.cjs` fájlban található.
+A rendszerszintű runner és a `VAPA_PLAYWRIGHT_MODULE` beállítása továbbra is előfeltétel.
+
+```sh
+npm run test:browser -- --list
+npm run test:browser -- --project=shell
+npm run test:browser -- --project=auth
+npm run test:browser -- --project=grid-edit
+npm run test:browser -- --project=shell tests/shell/workspace.spec.cjs
+```
+
+Projektnevek: `shell`, `auth`, `related`, `grid-edit`, `sorting`, `preferences`,
+`presentation`, `i18n`. Projektválasztás nélkül a korábbi `shell` csomag fut.
+Böngészőindításhoz egyszerre egy projekt választható; az összes fixture-szerver
+és a Chromium együtt eléri a védett host 128-as taskkorlátját.
+Több csoportot egymás utáni parancsokkal kell ellenőrizni.
+Csak a választott projekt szervere indul; a `sorting` és `preferences`
+azonos, 8096-os fixture-szervert használ. Az artifactok a
+`tmp/playwright-results/` alá kerülnek, vagy a `VAPA_TMP_DIR` megfelelő
+alkönyvtárába. A konfiguráció a relatív scratch útvonalat a repó gyökeréhez
+képest oldja fel. A korábbi külön `--config` fájlok helyett `--project` kell.
+A `--list` böngészőindítás nélkül az összes projekt tesztjeit felsorolja;
+ilyenkor több projektnév és wildcard is használható.
+
+A `tmp/` Gitből kizárt, kizárólag futási állományokra szolgál. Takarítása előtt
+minden ezt használó demót és tesztet le kell állítani, a zárolás fájlját is beleértve.

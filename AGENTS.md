@@ -6,14 +6,16 @@
 
 Kivétel **akkor és csak akkor** lehetséges, ha a keretrendszer logikusan nem bővíthető az adott igényre. Ennek konkrét okát, a megvizsgált keretbővítést és a kivétel határát az implementáció mellett dokumentálni kell. Ebben a szűk esetben az üzleti megoldás akár DHTMLX nélküli eljárást is alkalmazhat. Kényelmi, gyorsasági vagy AI-preferencia nem indok.
 
-Az alkalmazásspecifikus felhasználóadmin is VAPA-definíciókból és eszközökből áll; nem készül kötelező, univerzális felhasználóadmin a keretbe. A keret az újrahasználható ACL-, form-, adatkezelési, API- és auditképességeket adja.
+A felhasználó-, ACL-, API-kulcs- és naplóadmin minden alkalmazásban kötelező VAPA-alapképesség, a keret saját definícióiból és eszközeiből felépítve. A fogyasztó csak konfigurációt, identitás-/adatillesztést és üzleti szabályokat ad. Ez a 2026-10-21-i döntés felülírja a korábbi, kizárólag alkalmazásspecifikus user adminra vonatkozó szabályt; cél és megvalósított állapot: docs/product-direction.md, FB-0036, ADR-0003.
+
+A termékirány canonical forrása a `docs/product-direction.md` (R1–R12): az elfogadott követelményt, a bizonyított állapotot és a nyitott kérdést külön kell tartani. A frontend alapja a DHTMLX; nincs külső keretrendszer-benchmark vagy teljes komponenslefedési követelmény (FB-0037). Új keretképesség lokalizált és témázható, kitchen-sink példát kap, naplóeseménye a lefedési katalógusba kerül. Konfigurációban nincs eval vagy végrehajtható string; generált ACL-katalógus nem ad jogot.
 
 
 - A VAPA külön Git-repó, újrahasznosítható keretrendszer. CityScreen/ADE üzleti kód, táblanév, production adat vagy integrációs függőség nem kerülhet bele.
 - A koncepció és fejlesztési terv a `docs/` alatt található. Megvalósításnál a dokumentációt ugyanabban a módosítási batchben frissítsd. A tervezett képességet ne jelöld késznek bizonyíték nélkül.
 - A gyökér README az egyetlen README; részletes dokumentáció célzott `docs/*.md` fájlokban legyen.
 - PHP forrás: `packages/php`; frontend: `packages/frontend`; tesztek: `tests`; segédeszközök: `tools`.
-- Futási scratch, log, cache, tesztartifact, lock és runtime home a `codex/tmp/` alatt legyen. Backup a repón kívül, `$CODEX_HOME/backup/project/vapa` alatt legyen; a CODEX_HOME értékét ne módosítsd.
+- Futási scratch, log, cache, tesztartifact, lock és runtime home a `tmp/` alatt legyen. Backup a repón kívül, `$CODEX_HOME/backup/project/vapa` alatt legyen; a CODEX_HOME értékét ne módosítsd.
 - Csak szintetikus fixture és demo adatot commitolj. Secretet, vendored PRO csomagot, node_modules-t vagy vendort soha.
 - A szerveroldali jogosultságvizsgálat kötelező minden olvasási és írási csatornán. A kliensoldali elrejtés nem védelem.
 - A feature-definíció backend-only tartalma nem kerülhet a böngészőnek átadott metaadatokba.
@@ -38,7 +40,7 @@ Az alkalmazásspecifikus felhasználóadmin is VAPA-definíciókból és eszköz
 - Ha egy képesség hiányzik, előbb a VAPA-ban kell megvalósítani és dokumentálni, majd a fogyasztóban konfigurálni. Tilos alkalmazásspecifikus frontenddel, kézzel rajzolt HTML/CSS adminfelülettel vagy a keretet megkerülő általános kóddal pótolni.
 - A fogyasztóban alkalmazáskonfiguráció, üzleti definíció, üzleti szabály és konkrét adat-/integrációs illesztés lehet. Általános admin-infrastruktúra nem.
 - A sikeres alkalmazásdemo önmagában nem kész eredmény: az érintett VAPA-képességnek külön, szintetikus fogyasztóval is használhatónak és ellenőrizhetőnek kell lennie.
-- A kért első lépés: VAPA által biztosított DHTMLX loginablak, majd konfigurált DHTMLX menü és üres munkaterület. Az üzleti modulok ezután, egyenként készülnek.
+- A kért első lépés (teljesítve): VAPA által biztosított DHTMLX loginablak, majd konfigurált DHTMLX menü és üres munkaterület. Az üzleti modulok ezután, egyenként, valós igény szerint készülnek: igény → keretbeli hiány → legkisebb újrahasznosítható bővítés → szintetikus demó és teszt → dokumentáció → fogyasztói integráció → kontrollált kiadás.
 
 ## Kötelező validációs paritás feature-migrációnál
 

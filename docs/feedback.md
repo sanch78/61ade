@@ -58,7 +58,7 @@ Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a f
 - **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
 - **Döntés:** az AGENTS.md 1. szabálya minden AI-fejlesztőre kötelező; kivétel csak logikusan nem bővíthető keret dokumentált esetére. Az FB-0003 abszolút DHTMLX-megkötését ez pontosítja.
 - **Elvárás:** UX-en kezelhető objektum-/művelet-/mező-/csatornajogok, azonos API-védelem; rendszeres audit minden admin- és üzleti folyamatra. Az alkalmazás adja saját user adminját, a keret az eszközöket. Admin szerepkör nem jelent üzleti szuperjogot. Csak implementált modul lehet a menüben.
-- **Állapot:** első implementáció ellenőrizve és fogyasztóba telepítve; felhasználói elfogadás még nincs. A további keretképességek határa az ACL-leírásban szerepel.
+- **Állapot:** a kizárólag alkalmazásspecifikus useradmin-döntést az FB-0036 felülírta; az ACL/audit és keretelső szabály továbbra is érvényes. Az első implementáció ellenőrizve és fogyasztóba telepítve; felhasználói elfogadás még nincs. A további keretképességek határa az ACL-leírásban szerepel.
 - **Átvezetés:** [elsőbbségi szabály](../AGENTS.md), [ADR](decisions/0002-framework-first.md).
 
 ## FB-0005 — Natív DHTMLX témaváltás
@@ -319,7 +319,7 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Elvárás:** a Default téma kapjon más nevet; Skyblue legyen a tényleges alapérték. Tisztázandó, hogy a keret és a fogyasztó többnyelvű-e.
 - **Megvalósítás:** a `light` téma megjelenített neve Világos; a meglévő Skyblue alapérték és mentett preferencia megőrzése változatlan. Cacheverzió `v=20`.
 - **Helyzetkép:** a keretben nincs kész i18n-katalógus/locale/nyelvválasztás; frontend- és backend-szövegek részben közvetlen magyar feliratok. A korábbi architekturális i18n-terv nem kész képesség. Többnyelvűség implementációját ez a módosítás nem tartalmazza.
-- **Használat:** [módszertan és többnyelvűség](usage.md#többnyelvűség-jelenlegi-állapota), [témák](shell.md).
+- **Használat:** [módszertan és többnyelvűség](usage.md#többnyelvűség), [témák](shell.md).
 - **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban Skyblue alapérték, mentett téma újratöltése és háromtémás választó/megjelenítés 2/2 PASS. Frontend-, backend-, konfigurációs és tervdokumentáció-áttekintés alapján rögzített i18n-helyzetkép. Demo- és fogyasztói assetek publikálva.
 - **Állapot:** témamódosítás megvalósítva / agent által ellenőrzött; a többnyelvűség ebben a batchben még megvalósítandó képesség volt; ezt az FB-0034 követi.
 
@@ -340,3 +340,76 @@ FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.
 - **Használat:** [többnyelvűség](i18n.md), [PNG-forrás](flag-assets.md), [módszertan](usage.md).
 - **Ellenőrzés:** typecheck/build, PHP i18n-szerződések és `git diff --check` PASS; mindhárom PNG bájtazonos az ADE-forrással. Védett keret-Chromium 3/3, fogyasztói háromnyelvű/mobil integráció 1/1, tényleges dev smoke 3/3 PASS. A teszt PNG adat-URL-t, dekódolt 16×11 méretet és látható ikonfelületet is ellenőriz; a nyitott dropdown mindhárom zászlójának és a dev belépőoldalnak képi ellenőrzése sikeres.
 - **Állapot:** megvalósítva / agent által ellenőrzött.
+
+## FB-0036 — Kötelező adminmodul és igényvezérelt keretfejlesztés
+
+- **Dátum:** 2026-10-21.
+- **Forrás:** a felhasználó termékcélokat pontosított; ebben a munkamenetben Codex elemez és angol promptokat ír, Claude fejleszt.
+- **Elfogadott elvárás:** minden projekt kötelező VAPA-adminmodult használ user-, ACL-, API-kulcs- és naplókezelésre, VAPA-definíciókból. PHP referenciaimplementáció, backendnyelvtől független JSON-szerződés; fullscreen DHTMLX, skin és i18n; ~~Ext JS alapú komponensreferencia~~ (felülírt, [FB-0037](#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)); szintetikus kitchen sink minden implementált képességhez; MySQL/PostgreSQL/SQLite/JSON tárolási cél, SQLite demó; JSON-vezérelt üzleti definíciók; konfigurációból épülő ACL-katalógus.
+- **Felülírás:** az FB-0004, az AGENTS.md és az ADR-0002 kizárólag alkalmazásspecifikus useradmin-döntését felváltja. Az adminmodul sem kerülheti meg a keretet vagy a szerveroldali ACL-t.
+- **Módszer:** az éles használat során felmerülő feladatból indul a legkisebb általánosítható keretbővítés; előbb szintetikus ellenőrzés és dokumentáció, majd fogyasztói integráció és kontrollált kiadás.
+- **Állapot:** elfogadott / tervezett, az Ext JS-részében **felülírt** (FB-0037); forrásalapú hiányelemzés és angol indítóprompt elkészült, runtime-implementáció nem történt. A pontos Ext JS referencia (FB-0037 óta tárgytalan), fiókéletciklus, auth-kombinációk, JSON-szabálynyelv, tárolási garanciák és eseménylefedés tervezési kérdések.
+- **Átvezetés:** [termékirány, hiányok és Claude-prompt](product-direction.md), [canonical használati belépési pont](usage.md#elfogadott-termékirány--2026-10-21), [ACL](access-and-actions.md), [koncepció](concept.md), [ADR-0002](decisions/0002-framework-first.md), [AGENTS.md](../AGENTS.md).
+- **Ellenőrzés:** dokumentáció és érintett PHP/frontend/demo források áttekintése. A korábbi teszteredmények dokumentált előzmények; ebben a batchben runtime-tesztet nem futtatunk. A `git diff --check` és nyolc érintett dokumentum lokális linkcéljainak ellenőrzése PASS; a követelmények nem lezártak. A kötelező `/usr/local/bin/gitpush --all -t` kísérlet nem futtatható: ezen a hoston a megadott eszköz hiányzik (exit 127). Commit/push nem történt.
+
+## FB-0037 — Ext JS referencia visszavonása; DHTMLX-alap, igényvezérelt képességkör
+
+- **Dátum:** 2026-10-21.
+- **Forrás:** felhasználói javítás az FB-0036 után; dokumentációs feladat, runtime nélkül.
+- **Megfigyelés:** az FB-0036 Ext JS-t nevezett meg komponens- és viselkedési referenciaként, verzióhoz kötött megfeleltetéssel és hosszú távú teljes lefedéssel. A felhasználó szerint ez téves hivatkozás volt.
+- **Elfogadott elvárás:** nincs Ext JS-paritás, komponensmegfeleltetés vagy teljes funkciólefedés mint termékkövetelmény, és nem lép helyébe más külső keretrendszer-benchmark. A frontend alapja a DHTMLX; a VAPA támogatott képességköre a valós alkalmazási igényekből nő. A többi FB-0036-cél tizenkét követelménybe (R1–R12) rendezve érvényes: PHP referencia és nyelvfüggetlen JSON-szerződés, kötelező kerethasználat, DHTMLX fullscreen frontend, i18n és téma, kötelező adminmodul, felhasználókezelés (OAuth tervezett), négy tárolócél garanciákkal, moduláris JSON eval nélkül, generált ACL-katalógus automatikus jogadás nélkül, eseménykatalógus, kitchen sink, igényvezérelt fejlesztés.
+- **Felülírás:** az FB-0036 Ext JS-részét felváltja; a korábbi szöveg történetként megmarad. A komponensmátrix „teljesség” célját is felváltja: a mátrix DHTMLX-elérhetőségi és VAPA-állapotleltár, nem lefedettségi cél.
+- **Átvezetés:** [termékirány](product-direction.md), [ADR-0003](decisions/0003-product-direction.md), [koncepció](concept.md#0-elfogadott-termékirány--2026-10-21), [fejlesztési terv](development-plan.md#igényvezérelt-fejlesztési-módszer), [komponensmátrix](component-matrix.md), [usage](usage.md#elfogadott-termékirány--2026-10-21), [README](../README.md), [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md), [hitelesítés](authentication.md); a beágyazott angol Claude-promptból is eltávolítva.
+- **Állapot:** elfogadott; a dokumentációs átvezetés kész. A felsorolt képességek többsége továbbra is tervezett (lásd a termékirány 2. fejezetét).
+- **Ellenőrzés:** csak dokumentációs (runtime-teszt nem futott, nem is szükséges). Ext JS-keresés a repó Markdown-fájljaiban: csak felülírási/történeti említés maradt (FB-0036, FB-0037, ADR-0003, usage, termékirány). Lokális link- és horgonyellenőrzés: 223 link, 0 hibás (közben javítva az FB-0033 korábban is hibás `usage.md` horgonya). `git diff --check` PASS; az új fájlokban nincs sorvégi szóköz. A megvalósítottnak jelölt állapotok forrásellenőrzéssel készültek (`Shell/Application.php`, `AdminShell.ts`, `Database.php`, `Access/Schema.php`, `Audit/Journal.php` és hívói, `examples/demo-app`). A `/usr/local/bin/gitpush` ezen a hoston nem létezik; commit/push nem történt.
+
+## FB-0038 — Fiókéletciklus-döntések az első adminszelethez
+
+- **Dátum:** 2026-10-21.
+- **Forrás:** felhasználói döntés a [termékirány](product-direction.md#5-nyitott-tervezési-kérdések-és-javasolt-munka) nyitott kérdéseire, a kötelező adminmodul (R5, R6) első szelete előtt. Runtime nincs.
+- **Elfogadott elvárás:** (1) új fiókot az admin hoz létre ideiglenes jelszóval, első belépéskor kötelező csere; (2) fiókmegszüntetés csak tiltás, azonnali session-/remember-/tokenvisszavonással, épen maradó auditnaplóval; (3) a teljes név kötelező, a meglévő `displayName` hordozza; (4) e-mailes jelszó-helyreállítás már az első szeletben, egyszer használható, lejáró linkkel, a fiók létezését fel nem fedő válasszal, rátakorláttal és audittal.
+- **Kiegészítés (2026-10-21):** (5) a bejelentkezési azonosító minden alkalmazásban az e-mail-cím; (6) API-kulcsot egyelőre csak admin kezel, minden kulcsot lát titok nélkül, felhasználói önkiszolgálás nincs; (7) ha a fogyasztói fióktábla nem enged beszúrást, a létrehozás letiltott, a meglévő fiókok kezelhetők.
+- **Jóváhagyva (2026-10-21):** a [terv alapértékei](admin-module-plan.md#4-alapértékek-jóváhagyva-2026-10-21): a VAPA generálja az ideiglenes jelszót (20 karakter, 72 óra); a reset link 30 perc, egyszer használható; a rátakorlát 3 / 15 perc / fiók és 10 / 15 perc / IP; reset után normál belépés; védett szerepkör `admin`; olvasáskor képzett naplókategória. Az utolsó admin és a saját fiók védelme az E8 szerint.
+- **Nyitott marad:** az ideiglenes jelszó és a reset link élettartama, reset utáni e-mailes megerősítés, végleges törlés/anonimizálás, OAuth-policy.
+- **Átvezetés:** [termékirány 5. fejezet](product-direction.md#eldöntve-az-első-adminszelethez--2026-10-21), [adminmodul első szelet terve](admin-module-plan.md) (javaslat).
+- **Állapot:** elfogadott / tervezett.
+- **Ellenőrzés:** dokumentációs; link- és diff-ellenőrzés.
+
+## FB-0039 — Beépített felhasználóadmin, A1 részszelet
+
+- **Dátum:** 2026-10-21.
+- **Forrás:** a jóváhagyott [adminmodul-terv](admin-module-plan.md) A1 részszelete (FB-0038 döntései).
+- **Megvalósítás:** `Vapa\Admin\Accounts` (felhasználók nézet a keret `SqlResource`/`RelatedStorage`/`Action` eszközeiből, tiltás, visszaengedés, ideiglenes jelszó, kötelező csere), `ManagedIdentities` (VAPA-fiókállapot a fogyasztói `allowed` mellett), `vapa_account_state` tábla, `SqlResource` csak olvasható mezők, `Application` jelszócsere-állapot, JSON `admin` szekció, DHTMLX jelszócsere-ablak, általános egyszer megjelenő titok (`reveal`) a műveleti válaszban, hu/en/de katalógus. A demó fiókjai a munkaterület SQLite-fájljába kerültek, e-mailes belépéssel; a `tools/serve-demo.sh` idempotens setupot futtat.
+- **Eltérés a tervtől:** külön `AccountStore` interfész helyett az `Accounts` szolgáltatás; az e-mailes megerősítés kapcsolója nem került az A1-be.
+- **Átvezetés:** [felhasználóadmin](admin.md), [usage](usage.md#beépített-felhasználóadmin), [JSON-konfiguráció](configuration.md), [hitelesítés](authentication.md), [shell](shell.md), [termékirány](product-direction.md), [terv](admin-module-plan.md).
+- **Ellenőrzés (agent):** mind a 12 PHP-teszt PASS, köztük az új `tests/shell/admin.php`; `npm run typecheck` és build PASS. Böngésző a védett runnerrel: `admin.spec.cjs` 2/2; a teljes alap csomag 19/21, a két hiba a `list-presentation` „compact commands” Világos/Éjjeli esetének `page.screenshot` időtúllépése volt, külön futtatva 3/3 PASS; az auth fixture 4/4, az i18n fixture 3/3 PASS. A böngészőteszteket `VAPA_TMP_DIR=tmp/a1-browser` mellett kellett futtatni, mert a `tmp/shell-demo/sessions` egy korábbi futásból `www-data` tulajdonú, és ez a felhasználó nem írhat bele.
+- **Állapot:** megvalósítva / ellenőrzésre vár (felhasználói elfogadás nincs).
+
+## FB-0040 — Beépített szerepkör- és jogosultságadmin, A2 részszelet
+
+- **Dátum:** 2026-10-21.
+- **Forrás:** a jóváhagyott [adminmodul-terv](admin-module-plan.md) A2 részszelete.
+- **Megvalósítás:** `Vapa\Admin\Catalogue` (a registryből képzett, jogot nem adó katalógus), `Vapa\Admin\Permissions` (Szerepkörök, Szerepkör-tagságok, Szerepkör-jogosultságok, Egyedi jogosultságok nézet a keret `SqlResource`/`Lookup` eszközeiből; katalógus-validáció; árva szabályok jelölése; védett szerepkör; utolsó aktív tag és saját tagság védelme; `grantAdministration` telepítőlépés), `Accounts::guardDisable` és `lookup`, JSON `admin.protected_role`, hu/en/de katalógus. A demó setup az 1-es fiókot a védett szerepkörrel teszi adminná.
+- **Döntés a terv keretein belül:** adminerőforrásra tiltó szabály a felületen nem hozható létre, mert kizárhatná az utolsó admint; az első admin csak UI-jogot kap.
+- **Átvezetés:** [admin](admin.md#szerepkörök-és-jogosultságok-a2), [usage](usage.md#beépített-felhasználóadmin), [JSON-konfiguráció](configuration.md), [ACL](access-and-actions.md), [termékirány](product-direction.md), [terv](admin-module-plan.md).
+- **Ellenőrzés (agent):** 13/13 PHP-teszt PASS, köztük az új `tests/shell/permissions.php`; `admin.spec.cjs` 3/3 PASS. A teljes alap böngészőcsomag 21/22; a hiba a mockolt `list-presentation` fixture-ben volt, külön futtatva más két esete bukott, miközben a teljes futásban zöldek voltak. Ez a terhelt gépen időzítési instabilitás; az A2 nem módosított frontend kódot, és ezek a fixture-ök PHP nélkül futnak.
+- **Állapot:** megvalósítva / ellenőrzésre vár.
+
+## FB-0041 — Saját létrehozás után az új sor nem kerül látótérbe görgethető listán
+
+- **Dátum:** 2026-10-21. Agent által megfigyelt, nyitott.
+- **Megfigyelés:** a demó Felhasználók listájában sok sor mellett a létrehozás után az élő frissítés az új sort a lista elejére tette („Összes” nőtt, a sorszámozás 2-ről indult), de a grid megtartotta a görgetési ablakot, így az új sor nem látszott, amíg a felhasználó fel nem görgetett vagy nem szűrt. Kevés, nem görgethető sornál nem jelentkezik.
+- **Elvárt működés (javaslat, nem elfogadott):** saját sikeres létrehozás után a lista mutassa és jelölje ki az új rekordot.
+- **Állapot:** nyitott; a keret élő listájának (`Workspace`/`ResponsiveGrid`) viselkedése, nem az adminmodulé. Az `admin.spec.cjs` szűréssel jelöli ki a sort.
+
+
+## FB-0042 — Egységes Playwright-konfiguráció és gyökérszintű tmp
+
+- **Dátum:** 2026-10-21.
+- **Elfogadott elvárás:** a gyökér Playwright-fájljainak rendezése; az ideiglenes állományok helye a gyökér `tmp/` könyvtára, a korábbi `codex/` megszüntetésével. Ez felülírja az AGENTS.md, CLAUDE.md és FB-0016 korábbi scratch-útvonalát; a hostvédelem megmarad.
+- **Megvalósítás:** egyetlen gyökérszintű [Playwright-belépő](../playwright.config.cjs), nyolc név szerint választható projekt a [tesztkonfigurációban](../tests/browser/config.cjs); futásonként egy projekt szervere indul, az alapértelmezés a korábbi `shell`. A [védett futtató](../tools/run-dev-check.sh), build, demó és tesztfixture-ök `tmp/` alapútvonalat használnak; a meglévő futási könyvtár átmozgatva, Gitből kizárva. A `VAPA_TMP_DIR` támogatott marad; a guard abszolút útvonalat ad tovább. A korábbi külön configfájlok megszűntek.
+- **Átvezetés:** [használat](usage.md#fejlesztői-memória-védelme), [fejlesztési útmutató és projektválasztás](development.md#egységes-playwright-konfiguráció), [könyvtárszerkezet](repository-layout.md), érintett témadokumentációk, AGENTS.md és CLAUDE.md.
+- **Ellenőrzés:** a védett `--list` 38 tesztet talál nyolc projektben; `--list --project auth preferences` 7 tesztet. PHP configuration/contracts/authentication, érintett PHP lint, Node/Bash szintaxis, build, lokális linkcélok és `git diff --check` PASS; a `tmp/` ignored és nincs követett tartalma. A közös lock párhuzamos guardhívást 75-tel visszautasít.
+- **Böngésző:** mind a nyolc projektből egy célzott szintetikus Chromium-próba PASS, külön védett futásokban (shell login/menu; auth megerősítés megjegyzés nélkül; related mezők; grid-edit; sorting; preferences URL; presentation bulk; i18n nyelvváltás). Az első, minden szervert egyszerre indító kísérlet időtúllépéseinél a scope `pids.current=128`, `pids.events: max 3` értékkel igazolta a taskkorlát elérését; ezt váltja fel az egyprojektes futtatás, változatlan hostvédelemmel. Az első egyprojektes sorting-próba a görgetési request-pollon egyszer elbukott; a korábbi konfigurációval és az újjal, friss runtime mellett is PASS lett. A görgetési próba időzítési instabilitása megmaradó korlát, a teljes 38 tesztes regressziót ez a batch nem állítja sikeresnek.
+- **Kiadás:** a kötelező `/usr/local/bin/gitpush --all -t` nem futtatható ezen a hoston (hiányzó eszköz, exit 127); commit/push nem történt. A munkakönyvtár korábbi, más feladathoz tartozó módosításai megőrizve.
+- **Állapot:** megvalósítva, célzottan ellenőrizve.

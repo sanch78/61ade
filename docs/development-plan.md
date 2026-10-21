@@ -1,6 +1,28 @@
 # VAPA fejlesztési terv
 
-Állapot: 2026-10-16, M0 után első login/navigációs shell és frontend build készült ([használat](shell.md)). M1/M2/M4 részfeladatok implementálva, a teljes mérföldkövek továbbra is nyitottak. A sorrend függőségeket jelöl, nem időbecslést.
+Állapot: 2026-10-16, M0 után első login/navigációs shell és frontend build készült ([használat](shell.md)). M1/M2/M4 részfeladatok implementálva, a teljes mérföldkövek továbbra is nyitottak. A sorrend függőségeket jelöl, nem időbecslést. 2026-10-21: a [termékirány](product-direction.md) (R1–R12, [ADR-0003](decisions/0003-product-direction.md)) szerint frissítve.
+
+## Igényvezérelt fejlesztési módszer
+
+Minden fejlesztési szelet ezt a láncot követi:
+
+konkrét igény → keretbeli hiány → legkisebb újrahasznosítható bővítés → szintetikus demó és releváns teszt → használati dokumentáció → fogyasztói integráció → kontrollált éles kiadás.
+
+A mérföldkövek függőségi csoportok, nem kiadási kapuk. Hasznos kiadásnak nem feltétele egy kimerítő komponens- vagy funkciókatalógus elkészülte; a támogatott képességkör a valós igényekből nő. Nincs külső keretrendszer-benchmark ([FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)).
+
+## Termékirány-munkafolyamatok (javasolt, nem ütemezett)
+
+Ezek javasolt munkák; a nyitott döntéseket a [termékirány 5. fejezete](product-direction.md#5-nyitott-tervezési-kérdések-és-javasolt-munka) sorolja.
+
+| Munka | Követelmény | Első javasolt lépés |
+| --- | --- | --- |
+| P1 Kötelező adminmodul | R5, R6, R9 | [Terv](admin-module-plan.md); A1 és A2 kész ([használat](admin.md)); A3–A5 következik: API-kulcsok, naplónézet, jelszó-helyreállítás az SQLite demóban. |
+| P2 Nyelvfüggetlen JSON-szerződés | R1 | Bootstrap, metaadat, query, action, hiba és capability séma rögzítése verzióval; conformance fixture-formátum javaslat. |
+| P3 Tárolási határ | R7 | Tárolóinterfészek és garanciamátrix-tesztek; SQLite és MySQL tételes igazolása; PostgreSQL és JSON-fájl csak igény és teljesíthető garanciák esetén. |
+| P4 Eseménykatalógus | R10 | Kategóriamező a naplóban; hiányzó biztonsági események (token, ACL-változás) és megőrzési szabály. |
+| P5 Kitchen sink | R11 | A demó navigálható katalógussá szervezése; minden implementált képességhez példa. |
+| P6 OAuth-belépés | R6 | Csak a hitelesítési policy-kérdések eldöntése után; provider adapter és biztonságos fiókösszekapcsolás. |
+| P7 JSON-konfiguráció érése | R8, R9 | JSON Schema és sémaverzió; generált ACL-katalógus lekérdezése és árva szabályok egyeztetése. |
 
 ## M0 — Külön repó, szerkezet és koncepció
 
@@ -40,11 +62,13 @@ Feladatok: inputvalidáció, engedélyezett filter/sort, QueryProvider és Actio
 
 Navigáció, panelek, tabok, ablakok, toolbarok, mentetlen módosítás, jogosultságfüggő műveletek, személyes nézetállapot, lokalizáció, fókusz és billentyűzet.
 
-Grid/form mellett tree, dataview, list, chart és kapcsolt objektumválasztók. TreeGrid csak ténylegesen rendelkezésre álló licencelt megoldással, explicit capability-ként. Layout és adapter életciklus tesztek szükségesek.
+Grid/form/DataView és kapcsolt objektumválasztók; további DHTMLX nézetek (tree, list, chart) konkrét igény esetén. TreeGrid csak ténylegesen rendelkezésre álló licencelt megoldással, explicit capability-ként. Minden nézet lokalizált és témázható. Layout és adapter életciklus tesztek szükségesek.
 
 Átadás: minden vállalt adapterhez dokumentált konfiguráció és E2E példa; mount/destroy ciklus nem halmoz eseménykezelőket. Hibás vagy nem támogatott képességre érthető hiba jön, nem üres vagy félig működő UI. Nincs automatikus jogvesztés a nézetváltások között.
 
 ## M5 — Időtervezés, Gantt és összetett műveletek
+
+Csak konkrét alkalmazási igény esetén indul.
 
 Scheduler időablakos adatokkal, ismétlődés, timezone és DST tesztek. Gantt hierarchia, függőségek és módosítások. Áthelyezés, átméretezés és függőségmódosítás szerveroldali parancs.
 
@@ -96,6 +120,9 @@ Minden egyeztetett képesség megvalósított vagy kifejezetten elhagyott. Össz
 
 - Implementáció és releváns teszt ugyanabban a batchben.
 - Doksik, capability-mátrix és API-szerződés frissítve.
+- Az új képesség lokalizált (keretkatalógus hu/en/de) és minden támogatott témában működik.
+- Reprodukálható kitchen-sink példa szintetikus adatokkal, ugyanazon a publikus interfészen, mint az alkalmazás.
+- Új naplóesemény a lefedési katalógusban kategorizálva; új tárolási igény a garanciamátrixban jelölve.
 - A [használati módszertan](usage.md) tartalmazza az érintett képesség alkalmazását és ellenőrzését; a felhasználói tesztelés [visszajelzései](feedback.md) rögzítve és az elfogadott tanulságok átvezetve. Nyitott elvárás nem szerepel megvalósított funkcióként.
 - Nincs keretbe került alkalmazási tudás vagy tiltott függési irány.
 - Valós teszteredmény és fennmaradó korlát rögzítve; scaffold nem feature.

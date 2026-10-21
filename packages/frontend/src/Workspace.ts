@@ -347,7 +347,8 @@ export class Workspace {
       if(allowed.some(f=>f.name==="revision"))values.revision=current.revision;
       void this.call(action.name,id,values).then(async result=>{
         await awaitRedraw();if(this.disposed)return;complete();
-        if(result?.secret)await alert({header:t("Egyszer megjelenő API-token"),text:result.secret,htmlEnable:false});
+        if(result?.reveal)await alert({header:result.reveal.label,text:result.reveal.value+(result.reveal.note?"\n\n"+result.reveal.note:""),htmlEnable:false});
+        else if(result?.secret)await alert({header:t("Egyszer megjelenő API-token"),text:result.secret,htmlEnable:false});
         else await alert({header:t("Mentés"),text:t("A művelet sikerült."),htmlEnable:false});
         if(result?.reauthenticate)location.reload();
       }).catch(e=>{if(!this.disposed&&!validation.showServerErrors(e.fieldErrors??{}))return this.error(e);}).finally(()=>{saving=false;if(!this.disposed&&(this.editor===form||this.detail===form))form.enable();});

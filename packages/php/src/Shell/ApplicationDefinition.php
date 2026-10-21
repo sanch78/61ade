@@ -18,6 +18,7 @@ final readonly class ApplicationDefinition
         public ?\Vapa\Authentication\LoginSecurity $authentication = null,
         public string $version = '',
         public \Vapa\I18n\Settings $languages = new \Vapa\I18n\Settings(),
+        public ?\Vapa\Admin\Accounts $accounts = null,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)) {

@@ -7,13 +7,17 @@ use Vapa\Shell\Identity;
 use Vapa\Shell\SqlIdentityProvider;
 
 function verify(bool $ok, string $message): void { if (!$ok) throw new RuntimeException($message); }
+$scratch = dirname(__DIR__, 2).'/tmp/contracts-demo';
+if (is_file($scratch.'/demo-workspace.sqlite')) unlink($scratch.'/demo-workspace.sqlite');
+putenv('VAPA_TMP_DIR='.$scratch);
+ob_start(); require dirname(__DIR__, 2).'/examples/demo-app/setup-workspace.php'; ob_end_clean();
 $app = require dirname(__DIR__, 2).'/examples/demo-app/application.php';
-$admin = $app->identities->authenticate('demo', 'vapa-demo');
-$viewer = $app->identities->authenticate('viewer', 'vapa-demo');
+$admin = $app->identities->authenticate('demo@example.test', 'vapa-demo');
+$viewer = $app->identities->authenticate('Viewer@Example.test', 'vapa-demo');
 verify($admin instanceof Identity && $viewer instanceof Identity, 'Configured SQL authentication');
-verify($app->identities->authenticate('demo', 'wrong') === null, 'Invalid password');
+verify($app->identities->authenticate('demo@example.test', 'wrong') === null, 'Invalid password');
 verify($app->identities->authenticate("' OR 1=1 --", 'vapa-demo') === null, 'Bound username');
-verify($app->identities->authenticate('blocked', 'vapa-demo') === null, 'Disabled account');
+verify($app->identities->authenticate('blocked@example.test', 'vapa-demo') === null, 'Disabled account');
 verify($app->identities->find('3') === null, 'Disabled session identity');
 verify(!array_key_exists('password_hash', $admin->attributes), 'Hash excluded from identity');
 verify(count($app->menu->project($admin)) === 2 && count($app->menu->project($viewer)) === 1, 'Policy projection');

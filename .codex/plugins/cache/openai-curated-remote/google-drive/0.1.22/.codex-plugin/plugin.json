@@ -1,0 +1,53 @@
+{
+  "apps": "./.app.json",
+  "author": {
+    "email": "support@openai.com",
+    "name": "OpenAI",
+    "url": "https://openai.com/"
+  },
+  "description": "Use Google Drive as the single entrypoint for Drive, Docs, Sheets, and Slides work.",
+  "homepage": "https://workspace.google.com/products/drive/",
+  "interface": {
+    "brandColor": "#0F9D58",
+    "brandColorDark": "#62F0AB",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "category": "Productivity",
+    "composerIcon": "./assets/composer-icon.png",
+    "defaultPrompt": [
+      "Search my Drive for the latest Q4 board deck and write a 10-bullet executive recap with the 3 biggest risks and 3 next actions",
+      "Rewrite this product one-pager using our brand guidelines doc: match the voice and format while keeping facts intact",
+      "From [folder], pull key deliverables, timeline, and open questions, then draft a client-ready status update"
+    ],
+    "developerName": "OpenAI",
+    "displayName": "Google Drive",
+    "logo": "./assets/logo.png",
+    "longDescription": "Use Google Drive as one unified Google file plugin for search, file organization, sharing, and Google Docs, Google Sheets, and Google Slides workflows.",
+    "privacyPolicyURL": "https://policies.google.com/privacy",
+    "screenshots": [],
+    "shortDescription": "Drive, Docs, Sheets or Slides",
+    "termsOfServiceURL": "https://policies.google.com/terms",
+    "websiteURL": "https://workspace.google.com/products/drive/"
+  },
+  "keywords": [
+    "google-drive",
+    "google",
+    "google workspace",
+    "drive",
+    "docs",
+    "sheets",
+    "slides",
+    "files",
+    "google-docs",
+    "google-sheets",
+    "google-slides",
+    "productivity"
+  ],
+  "license": "MIT",
+  "name": "google-drive",
+  "repository": "https://github.com/openai/plugins",
+  "skills": "./skills/",
+  "version": "0.1.22"
+}

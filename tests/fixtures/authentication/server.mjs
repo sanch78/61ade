@@ -4,7 +4,7 @@ import {writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const php = process.env.VAPA_PHP || 'php8.4';
-const mailPath = (process.env.VAPA_TEST_AUTH_RUNTIME || root + 'codex/tmp/auth-fixture') + '/last-email.eml';
+const mailPath = (process.env.VAPA_TEST_AUTH_RUNTIME || root + 'tmp/auth-fixture') + '/last-email.eml';
 const setup = spawnSync(php, ['tests/fixtures/authentication/setup.php'], {cwd: root, stdio: 'inherit'});
 if (setup.status !== 0) process.exit(1);
 const smtp = net.createServer(socket => {

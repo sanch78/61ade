@@ -4,11 +4,23 @@ Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését teszte
 
 ## Jelenlegi állapot
 
-2026-10-16: a shell mellett működik a regisztrált műveletvégrehajtó, deklarált form/grid adapter, SQL objektumscope, mezőjog, ui/api csatornaszétválasztás, scope-olt token és tranzakciós audit. A fogyasztó saját user adminját és üzleti moduljait ezekből deklarálja. Részletek: [ACL és műveletek](access-and-actions.md), [shell](shell.md). A munkaterület [konfigurálható filter/form/grid layoutot, dinamikus listát, szerveroldali rendezést és polling/WebSocket követést](workspaces.md) ad; a singleton adatlap közvetlen form. A shell felső alkalmazásnév-fejléc nélkül indul; egyetlen alsó sávban balra a felhasználó, jobbra az alkalmazásnév és konfigurált verzió szerepel ([shell](shell.md#egységes-alsó-információs-sáv)). A Skyblue (alapértelmezett) / Világos / Éjjeli mód DHTMLX `setTheme` alapú; a Skyblue a Suite 9 dokumentált témaváltozóival definiált VAPA-paletta. Önálló szintetikus demó és fogyasztói integrációs tesztek tartoznak hozzá. Többszervezetes izoláció, külső mellékhatások outboxa, összetett ABAC, export és teljes release-folyamat még nincs; ez nem a teljes M1–M7 lezárása.
+2026-10-16: a shell mellett működik a regisztrált műveletvégrehajtó, deklarált form/grid adapter, SQL objektumscope, mezőjog, ui/api csatornaszétválasztás, scope-olt token és tranzakciós audit. A jelenlegi fogyasztó saját user adminját és üzleti moduljait ezekből deklarálja; a kötelező beépített adminmodul új, még megvalósítandó cél (FB-0036). Részletek: [ACL és műveletek](access-and-actions.md), [shell](shell.md). A munkaterület [konfigurálható filter/form/grid layoutot, dinamikus listát, szerveroldali rendezést és polling/WebSocket követést](workspaces.md) ad; a singleton adatlap közvetlen form. A shell felső alkalmazásnév-fejléc nélkül indul; egyetlen alsó sávban balra a felhasználó, jobbra az alkalmazásnév és konfigurált verzió szerepel ([shell](shell.md#egységes-alsó-információs-sáv)). A Skyblue (alapértelmezett) / Világos / Éjjeli mód DHTMLX `setTheme` alapú; a Skyblue a Suite 9 dokumentált témaváltozóival definiált VAPA-paletta. Önálló szintetikus demó és fogyasztói integrációs tesztek tartoznak hozzá. Többszervezetes izoláció, külső mellékhatások outboxa, összetett ABAC, export és teljes release-folyamat még nincs; ez nem a teljes M1–M7 lezárása.
 
 ## Kötelező fejlesztési irány
 
 **VAPA = ADE v2.** Először minden általános képesség a VAPA-ban készül el, majd a fogyasztó deklarációval és üzleti logikával alkalmazza. Hiányzó keretfunkciót nem pótolunk külön alkalmazási admin-kóddal. Az első és legfontosabb AI-fejlesztési szabály az AGENTS.md 1. pontja. A UI-t alapértelmezetten VAPA által adott DHTMLX vezérlők alkotják. Egyedi folyamat csak dokumentáltan, logikusan nem bővíthető keret esetén készülhet; ekkor DHTMLX nélküli eljárás is megengedett. Részletes döntés: [ADR-0002](decisions/0002-framework-first.md).
+
+## Elfogadott termékirány — 2026-10-21
+
+A [termékirány](product-direction.md) a canonical lista: elfogadott követelmények (R1–R12), bizonyított jelenlegi állapot és nyitott kérdések külön; döntés: [ADR-0003](decisions/0003-product-direction.md). Fejlesztéskor alkalmazandó:
+
+- **Igényvezérelt lánc:** konkrét igény → keretbeli hiány → legkisebb újrahasznosítható bővítés → szintetikus demó és teszt → ez az útmutató → fogyasztói integráció → kontrollált kiadás. Kimerítő komponenskatalógus nem feltétele a kiadásnak.
+- **Frontend:** DHTMLX alapon, VAPA-adapterekkel és támogatott bővítési pontokkal. Nincs külső keretrendszer-benchmark (az FB-0036 Ext JS-referenciáját az [FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör) visszavonta).
+- **Minden új képesség** lokalizált és témázható, kitchen-sink példát kap, naplóeseményei a [lefedési katalógusba](product-direction.md#4-eseménynapló-lefedési-katalógus) kerülnek.
+- **Konfiguráció:** tagolt JSON és név szerint regisztrált kezelők; eval vagy végrehajtható string nem támogatott ([JSON-konfiguráció](configuration.md)).
+- **ACL:** a definíciókból képzett katalógus nem ad jogot; API-kitettség és token-scope csak szűkít.
+
+Még **nem kész** (tervezett): a kötelező adminmodul API-kulcs- és naplórésze; a felhasználó- és jogosultságkezelés [elkészült](admin.md) (felülírja az FB-0004 alkalmazásonkénti useradmin-döntését), Google/Facebook-belépés, nyelvfüggetlen szerződésséma, PostgreSQL- és JSON-fájltároló, kategorizált napló és navigálható kitchen sink. Jelenleg a MySQL-kapcsolat és az SQLite-alapú demó/tesztek használhatók; a tárolási garanciák tételes igazolása nyitott ([tárolási határ](product-direction.md#3-tárolási-határ-és-szükséges-garanciák)). A dokumentum az angol Claude-indítópromptot is tartalmazza.
 
 ## Már alkalmazható módszertan
 
@@ -55,6 +67,10 @@ A visszajelzést ugyanabban a munkamenetben rögzítjük a [visszajelzési napl�
 
 A felhasználó egyértelmű útmutatását nem kell ismételten jóváhagyatni pusztán a rögzítéshez. Ha nem egyértelmű, hogy egy észrevétel általános keretszabály vagy alkalmazásspecifikus igény, ezt nyitott kérdésként jelöljük, és az értelmezést tisztázzuk.
 
+## Beépített felhasználóadmin
+
+A [felhasználóadmin](admin.md) (A1) a VAPA saját nézete az alkalmazás fióktáblája fölött: létrehozás generált, 72 órás ideiglenes jelszóval, kötelező jelszócsere az első belépéskor, név/e-mail módosítás, tiltás és visszaengedés. A bejelentkezési azonosító az e-mail. Az A2 óta a szerepkörök, tagságok és szabályok is itt kezelhetők a definíciókból képzett katalógus alapján, amely önmagában nem ad jogot; a védett szerepkörnek mindig marad aktív tagja. JSON-ban az `admin` szekció, PHP-ban az `Accounts` és a `Permissions` kapcsolja be; az első admint a `Permissions::grantAdministration` telepítőlépés hozza létre. API-kulcs- és naplókezelés még nincs.
+
 ## E-mailes megerősítés és megjegyzett belépés
 
 A [belépési védelem](authentication.md) JSON-ból konfigurálható VAPA-képesség: alapból minden felhasználónál bekapcsolt e-mailes kód, ACL-védett felhasználónkénti kapcsoló, formázott és üzleti szöveggel felülírható levél, opcionális 90 napos megjegyzés és visszavonás. SMTP/env és explicit sématelepítés szükséges.
@@ -73,7 +89,7 @@ A [tartós ACL-/audit-szerződés](access-and-actions.md) első implementációj
 
 ## Fejlesztői memória védelme
 
-Böngészőteszt a [védett fejlesztői futtatóval](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston) indul: `npm run test:browser -- ...`. A közös lock, egy worker, indulási memóriaküszöb és cgroup-limit a fogyasztó saját tesztjeire is alkalmazható. Kapcsolódó visszajelzés: FB-0016.
+Böngészőteszt a [védett fejlesztői futtatóval](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston) indul: `npm run test:browser -- ...`. A közös lock, egy worker, indulási memóriaküszöb és cgroup-limit a fogyasztó saját tesztjeire is alkalmazható. Egyetlen gyökérszintű Playwright-konfigurációból név szerint választhatók a tesztcsoportok: `npm run test:browser -- --project=auth`; projektválasztás nélkül a korábbi `shell` csomag fut. A host taskkorlátja miatt egyszerre egy böngészős projekt indítható, a `--list` mindet felsorolja. Futási adatok és cache: Gitből kizárt `tmp/`, felülírás: `VAPA_TMP_DIR`. Előfeltételek, projektnevek és ellenőrzés: [egységes Playwright-konfiguráció](development.md#egységes-playwright-konfiguráció). Kapcsolódó visszajelzés: FB-0016, FB-0042.
 
 A lista szerkeszthető oszlopait a fejléc `✎` jelzi; a fejléc kattintása a teljes SQL-találatot rendezi. A virtualizált megjelenítés és a legfeljebb 600 soros gördülő adatablak részletei: [rendezés és smart rendering](workspaces.md#rendezés-és-smart-rendering).
 

@@ -27,7 +27,7 @@ Az üres adapterkönyvtár a tervezett lefedést jelöli, nem telepített vagy l
 
 `tests/php`, `tests/frontend`, `tests/contracts`, `tests/e2e`, `tests/performance`, `tests/fixtures`: külön tesztrétegek. A CityScreen saját üzleti tesztjei a CityScreen `codex/tests/v2` alatt maradnak.
 
-`tools`: fejlesztési segédeszközök; `codex/tmp`: ignored futási állományok. `docs/decisions`: elfogadott és javasolt döntések státusszal.
+`tools`: fejlesztési segédeszközök; `tmp`: ignored futási állományok. `docs/decisions`: elfogadott és javasolt döntések státusszal.
 
 ## Fogyasztó alkalmazás
 

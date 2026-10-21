@@ -6,7 +6,7 @@
 **/coverage/
 **/.phpunit.cache/
 **/.phpunit.result.cache
-/codex/tmp/
+/tmp/
 .env
 .env.*
 !.env.example

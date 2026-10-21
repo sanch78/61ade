@@ -1,6 +1,25 @@
 # VAPA részletes koncepció
 
-Állapot: tervezési alap, 2026-10-16. Ez a dokumentum a célrendszert írja le, nem már elkészült funkciókat.
+Állapot: tervezési alap, 2026-10-16; termékirány-frissítés 2026-10-21. Ez a dokumentum a célrendszert írja le, nem már elkészült funkciókat. A ténylegesen megvalósított, bizonyított képességeket a [termékirány 2. fejezete](product-direction.md#2-megvalósított-képességek-bizonyítékkal-és-hiányok) és a [használati útmutató](usage.md) vezeti.
+
+## 0. Elfogadott termékirány — 2026-10-21
+
+Az elfogadott követelmények canonical listája (R1–R12) a [termékirányban](product-direction.md#1-elfogadott-termékkövetelmények) található; döntés: [ADR-0003](decisions/0003-product-direction.md). Röviden:
+
+- A VAPA újrahasznosítható admin alkalmazáskeret. A PHP a referencia-backend; a frontend verziózott, nyelvfüggetlen JSON-szerződésen kommunikál. A JSON-átvitel önmagában nem bizonyít backendfüggetlenséget.
+- Az alkalmazás a VAPA eszközeit használja; hiány esetén előbb a keret bővül. A szűk kivétel az AGENTS.md 1. pontja szerint.
+- A frontend fullscreen HTML5 alkalmazás a csomagolt DHTMLX komponensekkel, VAPA-adapterekkel és támogatott bővítési pontokkal. A layoutkezelés alapképesség; a form, layout és grid a konkrét igényekkel együtt fejlődik összetett, ergonomikus munkafolyamatokra. Nincs külső keretrendszer-benchmark vagy teljes komponenslefedési cél ([FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)).
+- Lokalizáció és téma beépített; minden új képesség részt vesz bennük.
+- Minden alkalmazásban kötelező, VAPA-definíciókból épülő user-, ACL-, API-kulcs- és naplóadmin; az alkalmazás konfigurációt, identitás-/tárolási illesztést és domainszabályt ad.
+- Felhasználó: e-mail, jelszó, teljes név, felhasználónként engedélyezhető Google/Facebook-belépés (tervezett), konfigurálható e-mailes megerősítés (megvalósított).
+- Tárolási cél: MySQL, PostgreSQL, SQLite, JSON-fájl, a [dokumentált garanciákkal](product-direction.md#3-tárolási-határ-és-szükséges-garanciák); a demó SQLite.
+- Moduláris JSON-konfiguráció, explicit regisztrált kezelők; nincs eval, végrehajtható string vagy korlátlan szkriptnyelv.
+- A definíciókból generált ACL-katalógus nem ad jogot; minden csatornán szerveroldali ellenőrzés; API-kitettség és token-scope csak szűkít.
+- [Eseménylefedési katalógus](product-direction.md#4-eseménynapló-lefedési-katalógus) audit/biztonsági/üzemeltetési kategóriákkal; credential és érzékeny payload nem naplózható.
+- Navigálható, szintetikus kitchen sink minden implementált publikus képességhez.
+- Igényvezérelt fejlesztés: konkrét igény → keretbeli hiány → legkisebb bővítés → szintetikus demó és teszt → dokumentáció → fogyasztói integráció → kontrollált kiadás.
+
+Az alábbi fejezetek 2026-10-16-i technikai tervezési alapja ezzel összhangban érvényes; ahol eltér, ez a fejezet és az ADR-0003 az irányadó.
 
 ## 1. Cél és sikerkritérium
 
@@ -21,17 +40,19 @@ Sikerkritériumok:
 
 A VAPA része a feature registry, UI renderer és shell, komponensadapterek, query protokoll, API infrastruktúra, auth-integráció, policy motor, szervezeti kontextus, fájl- és háttérmunka-infrastruktúra, audit és megfigyelhetőség.
 
+Része továbbá a minden alkalmazásban kötelező user-, ACL-, API-kulcs- és naplóadmin modul (tervezett, R5).
+
 Nem része: CityScreen üzleti fogalmak, adatbázistáblák, DMS vezérlés, ajánlatkalkuláció, munkalap-ellenőrzési szabályok, kampánylogika, produkciós adatkonverzió. Nem építünk vizuális no-code alkalmazásszerkesztőt. A frontend komponenseket nem írjuk újra a DHTMLX helyett.
 
-A komponenskör teljes adminfelületet jelent: grid, tree, treegrid, form, dataview, list, dashboard/chart, calendar/scheduler, timeline, Gantt, navigáció, panelek, tabok, ablakok, fájlkezelés és szerkesztők. A kiadáshoz kötött képességeket a komponensmátrix rögzíti; egy könyvtár jelenléte nem jelent ingyenes vendorjogosultságot.
+A támogatott komponenskör a valós alkalmazási igényekből nő; a DHTMLX-ben elérhető további komponensek (például tree, chart, scheduler, Gantt) jelölt bővítések, nem előre vállalt lefedési cél. Az elérhetőséget, kiadási/licenchatárt és a VAPA-állapotot a [komponensmátrix](component-matrix.md) rögzíti; egy könyvtár jelenléte nem jelent ingyenes vendorjogosultságot.
 
 ## 3. Technológiai alap
 
-Elfogadott alap: modern PHP + PHP-FPM + OPcache. A PHP 8.4 minimum technikai kiindulás; PHP 8.5 kompatibilitást is ellenőrizni kell. A régi CityScreen PHP-runtime nem referencia és nem módosítható automatikusan.
+Elfogadott alap: modern PHP + PHP-FPM + OPcache a referencia-backendhez. A frontend protokollja nem köti PHP-hoz (R1). A PHP 8.4 minimum technikai kiindulás; PHP 8.5 kompatibilitást is ellenőrizni kell. A régi CityScreen PHP-runtime nem referencia és nem módosítható automatikusan.
 
 Javasolt hosting alap: Symfony 7.4 LTS, kész HTTP/router/DI/validation/security/messenger infrastruktúrával. Ezt az M1-ben döntési naplóban véglegesítjük; az üzleti domain ne függjön a HTTP-keretrendszertől. Nem írunk saját jelszóhashelést, HTTP-szervert vagy általános SQL-drivert.
 
-Frontend: TypeScript, DHTMLX Suite Standard, külön Scheduler és Gantt adapter. Nincs kötelező React/Vue réteg. Build közben fordítjuk a TypeScriptet, éles működéshez nem kell Node-szerver. A pontos Node-, buildtool- és vendorverziók M1-ben rögzítendők a telepített csomagok és licencek ellenőrzése után.
+Frontend: TypeScript, DHTMLX Suite Standard; Scheduler és Gantt adapter csak konkrét igény esetén. Nincs kötelező React/Vue réteg. Build közben fordítjuk a TypeScriptet, éles működéshez nem kell Node-szerver. A pontos Node-, buildtool- és vendorverziók M1-ben rögzítendők a telepített csomagok és licencek ellenőrzése után.
 
 FrankenPHP worker mód későbbi, méréshez kötött opció. Az induló architektúra nem függ tőle.
 
@@ -67,7 +88,7 @@ A registry fordításkor ellenőrzi a hivatkozásokat, duplikált ID-kat, művel
 
 A teljes definíció szerveroldali. A böngésző csak ellenőrzött UI-projekciót kap: mezőcímkék, megjelenítési típus, layout, használható műveletek és endpointazonosítók. SQL, policy implementáció, secret, belső osztálynév vagy tiltott meződefiníció nem kerülhet bele.
 
-A metaadat protokoll saját verziót kap. Eltérő frontend/backend protokoll esetén érthető inkompatibilitási hiba szükséges. A cache-kulcs része az alkalmazás/definíció verziója, locale és a jogosultsági kontextus; más felhasználónak vagy szervezetnek szánt metaadat nem osztható meg.
+A metaadat protokoll saját verziót kap. Eltérő frontend/backend protokoll esetén érthető inkompatibilitási hiba szükséges. A szerződés nyelvfüggetlen: dokumentált séma és megfelelőségi fixture alapján egy nem PHP backend is teljesíthetné; ez cél, jelenleg csak a bootstrap `protocol: 1` ellenőrzése létezik. A cache-kulcs része az alkalmazás/definíció verziója, locale és a jogosultsági kontextus; más felhasználónak vagy szervezetnek szánt metaadat nem osztható meg.
 
 Nem küldünk végrehajtható JS/PHP stringet. Eseménykezelőket a frontend buildben regisztrált azonosítókkal választunk ki. Egyedi HTML csak explicit, biztonságosan kezelt komponensben engedhető meg.
 
@@ -99,7 +120,7 @@ Shell: bejelentkezés utáni navigáció, szervezetváltás, workspace, panelek/
 
 Adapterenként egységes mount/update/destroy életciklus kell. El kell távolítani az eseménykezelőket, abortálni a lejárt kéréseket, és védeni a nézetet a később beérkező régi válaszoktól. A nem mentett változásokat jelezni kell navigációnál.
 
-Közös szabványok: lokalizáció, timezone, hibák, billentyűzetes használat, fókuszkezelés, jogosultságváltozás, API megszakítás és kapcsolatvesztés. A jogosultságvesztés után a korábbi adatok nem maradhatnak aktív szerkesztőben.
+Közös szabványok: lokalizáció, téma, timezone, hibák, billentyűzetes használat, fókuszkezelés, jogosultságváltozás, API megszakítás és kapcsolatvesztés. A jogosultságvesztés után a korábbi adatok nem maradhatnak aktív szerkesztőben.
 
 Mentett nézet személyes vagy explicit megosztott lehet; mentett szűrő sosem tárol nyers SQL-t. A mezőjog változása után újra kell validálni.
 
@@ -123,7 +144,7 @@ Hibák strukturáltak: validációs mezőhibák, nem hitelesített, tiltott/hozz
 
 Fájlok nem a publikus webrootba kerülnek alapértelmezetten. Letöltés és preview policy-n keresztül megy; a fájlazonosító nem fájlrendszerútvonal. MIME/méret ellenőrzés, biztonságos fájlnév, feltöltési kvóta és megszakadt feltöltés takarítása szükséges.
 
-Audit: actor, tenant, action, target, időpont, eredmény és korreláció. Jelszó/token soha nem auditadat. Érzékeny mezőknél explicit maszkolás. A megőrzést és hozzáférést az alkalmazás konfigurálja.
+Napló: audit-, biztonsági és üzemeltetési események elkülönítve, explicit [lefedési katalógus](product-direction.md#4-eseménynapló-lefedési-katalógus) alapján. Audit: actor, tenant, action, target, időpont, eredmény és korreláció. Jelszó/token/kód soha nem naplóadat. Érzékeny mezőknél explicit maszkolás. A megőrzést és hozzáférést az alkalmazás konfigurálja.
 
 Job: explicit tenant/actor referencia, újraellenőrzött hozzáférés, retry, idempotencia és sikertelen job kezelése. Exportnál a generálás és letöltés időpontjában is érvényes jogosultság kell.
 

@@ -22,6 +22,8 @@ export type ShellDefinition = {
   rememberAvailable?: boolean;
   rememberDays?: number;
   confirmation?: { email: string; expires: number };
+  passwordChange?: { expires: number };
+  loginIdentifier?: "email" | "username";
   displayName?: string;
   menu?: MenuDefinition[];
   views?: ViewDefinition[];
@@ -83,8 +85,8 @@ export class AdminShell {
       }
     }
     if (!this.loginWindow) return;
-    const width = this.definition.confirmation ? 460 : 420;
-    const height = this.definition.confirmation ? 420 : this.definition.rememberAvailable ? 340 : 290;
+    const width = this.definition.confirmation || this.definition.passwordChange ? 460 : 420;
+    const height = this.definition.confirmation || this.definition.passwordChange ? 420 : this.definition.rememberAvailable ? 340 : 290;
     this.loginWindow.setSize(
       Math.min(width, innerWidth - 24),
       Math.min(height, innerHeight - 24),
@@ -191,13 +193,14 @@ export class AdminShell {
       window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});
       this.route();
     } else {
-      if (definition.confirmation) this.mountConfirmation();
+      if (definition.passwordChange) this.mountPasswordChange();
+      else if (definition.confirmation) this.mountConfirmation();
       else this.mountLogin();
     }
     window.addEventListener("resize", this.resize);
     if (definition.error) requestAnimationFrame(() => {
       void alert({ header: t("Hiba"), text: definition.error, htmlEnable: false, buttons: [t("Rendben")] })
-        .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus(definition.confirmation ? "code" : "password"); });
+        .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus(definition.passwordChange ? "new_password" : definition.confirmation ? "code" : "password"); });
     });
   }
 
@@ -248,11 +251,11 @@ export class AdminShell {
         {
           type: "input",
           name: "username",
-          label: t("Felhasználónév"),
+          label: t(definition.loginIdentifier === "email" ? "E-mail" : "Felhasználónév"),
           labelPosition: "left",
           labelWidth: 120,
           required: true,
-          maxlength: 64,
+          maxlength: definition.loginIdentifier === "email" ? 254 : 64,
           value: definition.username,
           autocomplete: true,
         },
@@ -394,8 +397,58 @@ export class AdminShell {
     });
   }
 
+  /** Forced replacement of an administrator-issued temporary password; no session exists yet. */
+  private mountPasswordChange(): void {
+    this.loginWindow = new Window({
+      title: t("Jelszócsere"),
+      ariaLabel: t("Jelszócsere"),
+      css:"vapa-auth-window",
+      width: 460,
+      height: 420,
+      modal: true,
+      closable: false,
+      resizable: false,
+    });
+    const length = (value: string | number) => [...String(value)].length >= 12 && [...String(value)].length <= 128;
+    const form: Form = new Form(document.createElement("div"), {
+      padding: 20,
+      rows: [
+        { type: "text", name: "info", value: t("Az első belépéshez új jelszót kell megadnod (12–128 karakter).") },
+        { type: "input", inputType: "password", name: "new_password", label: t("Új jelszó"), labelPosition: "top", required: true, maxlength: 128,
+          validation: length, errorMessage: t("Az új jelszó 12–128 karakter legyen.") },
+        { type: "input", inputType: "password", name: "confirm_password", label: t("Új jelszó ismét"), labelPosition: "top", required: true, maxlength: 128,
+          validation: (value: string | number): boolean => String(value) === String(form.getValue().new_password ?? ""), errorMessage: t("A két új jelszó eltér.") },
+        { type: "button", name: "save", text: t("Jelszó mentése és belépés"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-key", color: "primary" },
+        { type: "button", name: "cancel", text: t("Vissza a belépéshez"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-arrow-left", view: "flat", color:"secondary" },
+      ],
+    });
+    this.loginForm = form;
+    form.events.on("afterValidate",()=>{void this.fitLogin();});
+    const submit = () => {
+      if (this.submitting || !form.validate()) return;
+      const value = form.getValue();
+      this.post("change_password", { new_password: String(value.new_password ?? ""), confirm_password: String(value.confirm_password ?? "") });
+    };
+    form.events.on("click", (name: string) => {
+      if (name === "save") submit();
+      if (name === "cancel") this.post("cancel_password_change");
+    });
+    document.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.repeat || !(event.target instanceof HTMLInputElement) || !["new_password", "confirm_password"].includes(event.target.name)) return;
+      event.preventDefault();
+      form.setValue({ [event.target.name]: event.target.value });
+      submit();
+    }, { capture: true, signal: this.listeners.signal });
+    this.attachLoginForm(form);
+    this.resize();
+    requestAnimationFrame(() => {
+      form.setFocus("new_password");
+      this.loginWindow?.getContainer().querySelectorAll<HTMLInputElement>('input[type="password"]').forEach(input => input.setAttribute("autocomplete", "new-password"));
+    });
+  }
+
   private post(
-    action: "language" | "login" | "logout" | "confirm_login" | "resend_login" | "cancel_login",
+    action: "language" | "login" | "logout" | "confirm_login" | "resend_login" | "cancel_login" | "change_password" | "cancel_password_change",
     fields: Record<string, string> = {},
   ): void {
     if (this.submitting) return;

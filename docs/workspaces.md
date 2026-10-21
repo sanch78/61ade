@@ -54,7 +54,7 @@ A kurzor a rendezési mezőt, irányt, határértéket és egyedi kulcsot is hor
 
 A smart rendering két rétege már működik: a Standard DHTMLX Grid virtualizálja a megjelenítést, a VAPA 100-as adatcsomagokkal, maximum 600 betöltött sorral korlátozza a memóriát. Ez nem a régi ADE teljes rekordszám szerinti görgetősávja: tetszőleges sorszámra ugrás és teljes táblaméretű scrollbar nincs. A rendezés és szűrés ettől függetlenül a teljes SQL-találathalmazra érvényes.
 
-Ellenőrzés: `tests/shell/sorting.php` (1501 rekord, szöveg/szám/ID mindkét irányban, ismétlődő és NULL értékek, teljes bejárás, visszagörgetés, rendezett live ablak, ACL/injection); `playwright.sorting.config.cjs` és `tests/fixtures/grid-sort` (1801 rekord, fejlécjel, teljes rendezés, szűrés, kétirányú görgetés, maximum 600 adat és 100-nál kevesebb renderelt sor).
+Ellenőrzés: `tests/shell/sorting.php` (1501 rekord, szöveg/szám/ID mindkét irányban, ismétlődő és NULL értékek, teljes bejárás, visszagörgetés, rendezett live ablak, ACL/injection); `--project=sorting` és `tests/fixtures/grid-sort` (1801 rekord, fejlécjel, teljes rendezés, szűrés, kétirányú görgetés, maximum 600 adat és 100-nál kevesebb renderelt sor).
 
 A korábbi üres `values` + offset API átmeneti kompatibilitásként megmarad, de az új frontend nem használja. A régi lapozó- és frissítőgombok megszűntek.
 
@@ -233,7 +233,7 @@ Hosszú tartalomnál a natív Window görgetése működik; a formvalidáció ut
 újramérés történik. Az ablak kézi átméretezése továbbra is használható.
 
 Ellenőrzés: `tests/shell/grid-edit.spec.cjs`,
-`npm run test:browser -- --config playwright.grid-edit.config.cjs`.
+`npm run test:browser -- --project=grid-edit`.
 Szintetikus adatbázison ellenőrzi a mentés közbeni és utáni nézetváltást,
 a kártya checkbox/text/select mentést, validációt, SQL-rendezést, méretresetet,
 reloadot, dupla kattintást és a popupok alsó térközét. FB-0024.

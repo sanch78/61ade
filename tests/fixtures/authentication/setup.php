@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 if (PHP_SAPI !== 'cli') exit;
 require dirname(__DIR__, 3).'/examples/demo-app/vendor/autoload.php';
-$directory = getenv('VAPA_TEST_AUTH_RUNTIME') ?: dirname(__DIR__, 3).'/codex/tmp/auth-fixture';
+$directory = getenv('VAPA_TEST_AUTH_RUNTIME') ?: dirname(__DIR__, 3).'/tmp/auth-fixture';
 if (!is_dir($directory)) mkdir($directory, 0700, true);
 if (is_file($directory.'/data.sqlite')) unlink($directory.'/data.sqlite');
 $db = new PDO('sqlite:'.$directory.'/data.sqlite', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);

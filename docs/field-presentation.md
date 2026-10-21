@@ -62,7 +62,7 @@ Előfeltétel: PDO SQLite vagy MySQL, tranzakcióképes fő- és kapcsolt tábla
 ## Ellenőrzés
 
 - `tests/shell/related-fields.php`: checkbox-validáció UI/API útvonalon, default, közös mentés, kapcsolt változás megfigyelése, 409-es konfliktus, tranzakciós rollback, mező-ACL, tiltott szűrés, törlés.
-- `VAPA_PHP=/path/to/php84 TMPDIR="$PWD/codex/tmp" npx playwright test --config=playwright.related.config.cjs`: külön szintetikus fogyasztó, natív lista-/form-checkbox, fix oszlopszélesség, közös mentés, újranyitás, beszédes filter.
+- `VAPA_PHP=/path/to/php84 VAPA_TMP_DIR="$PWD/tmp" npm run test:browser -- --project=related`: külön szintetikus fogyasztó, natív lista-/form-checkbox, fix oszlopszélesség, közös mentés, újranyitás, beszédes filter.
 
 Kapcsolódó elvárás: FB-0014. A korábbi külön regisztrált security action technikai lehetőség marad; kapcsoló megjelenítésének alapmódszere az objektum főűrlapja.
 
@@ -88,6 +88,6 @@ Nincs új konfiguráció: például a `notify` checkbox `column: {editable: true
 Előfeltétel a támogatott Suite és a soronkénti `_editable` szervermetaadat.
 
 Ellenőrzés: `tests/shell/grid-edit.spec.cjs`, védett
-`npm run test:browser -- --config playwright.grid-edit.config.cjs`;
+`npm run test:browser -- --project=grid-edit`;
 kattintás/billentyű, mentés, nézetváltás, readonly mező és sorjog,
 azonos checkboxméret és jobbra igazított szerkesztésjel. FB-0029.

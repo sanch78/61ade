@@ -41,3 +41,7 @@ Symfony 7.4 LTS hosting, mert bevált infrastruktúrát ad HTTP, DI, validáció
 | Mérhető teljesítménycélok | M7 előtt, baseline mérés után |
 
 A dokumentáció szándékosan nem nevez nyitott döntést kész implementációs szerződésnek. A következő fázisok feladata ezek lezárása.
+
+## Későbbi pontosítás — 2026-10-21
+
+A PHP-választás a referencia-backendre vonatkozik; a frontend nyelvfüggetlen JSON-szerződésen kommunikál. A verziókezelt feature-definíciók tagolt JSON-ban is készülhetnek. Részletek: [ADR-0003](0003-product-direction.md).

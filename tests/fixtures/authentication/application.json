@@ -1,6 +1,6 @@
 {
     "description": "Synthetic authentication consumer; no real users or mail recipients.",
-    "application": {"title": "VAPA authentication demo", "runtime": {"$env": "VAPA_TEST_AUTH_RUNTIME", "default": "../../../codex/tmp/auth-fixture"}},
+    "application": {"title": "VAPA authentication demo", "runtime": {"$env": "VAPA_TEST_AUTH_RUNTIME", "default": "../../../tmp/auth-fixture"}},
     "database": {"host": "unused", "port": 3306, "name": "unused", "charset": "utf8mb4", "user": "unused", "password": ""},
     "session": {"name": "vapa_auth_test", "cookie_path": "/"},
     "identity": {
