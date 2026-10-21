@@ -39,10 +39,10 @@ A történeti shell MenuItem levélelemek tiltottak. Az implementált modulok a 
 
 A VAPA `AdminShell` adapter kezeli a Layout, Toolbar, Menu, Window és Form teljes életciklusát, a bejelentkezési mezők validálását és billentyűzetes beküldését. A hibajelzést DHTMLX Alert jeleníti meg. A megjelenítést a DHTMLX vezérlői adják; a keret CSS-e a teljes ablak méretezését és a dokumentált Suite-témaváltozókat tartalmazza. 768 px alatti munkaterületen a keret a menüágakat egy DHTMLX „Menü” alá rendezi; a kijelentkezés is ugyanebbe a lenyíló menübe kerül. Átméretezéskor visszaáll a felső menüsor. A fogyasztónak nincs saját shell HTML/CSS/JS rétege.
 
-PHP 8.4+; ellenőrzött helyi runtime: PHP 8.4.26. Node 18.19.1, npm 9.2.0, TypeScript 5.9.3, esbuild 0.25.12, DHTMLX Suite Standard 9.3.12, Playwright 1.58.2. A dependencyket lockfile rögzíti. A Suite ikonfontjai a `tools/vendor-assets.json` SHA-256 értékeivel ellenőrizve, `codex/tmp/dhx-icons` cache-ből kerülnek a buildbe. Az első build internetet igényel; eltérő asset-hash leállítja a buildet. A fontok beágyazottak, a böngésző nem kér CDN-erőforrást.
+PHP 8.4+; ellenőrzött helyi runtime: PHP 8.4.26. Node 18.19.1, npm 9.2.0, TypeScript 5.9.3, esbuild 0.25.12, DHTMLX Suite Standard 9.3.12, Playwright 1.58.2. A dependencyket lockfile rögzíti. A Suite ikonfontjai a `tools/vendor-assets.json` SHA-256 értékeivel ellenőrizve, `tmp/dhx-icons` cache-ből kerülnek a buildbe. Az első build internetet igényel; eltérő asset-hash leállítja a buildet. A fontok beágyazottak, a böngésző nem kér CDN-erőforrást.
 
 ```bash
-npm ci --cache codex/tmp/npm-cache
+npm ci --cache tmp/npm-cache
 npm run typecheck
 npm run build
 ```
@@ -62,12 +62,12 @@ npm run demo:assets
 php8.4 tests/shell/contracts.php
 VAPA_PHP=/path/to/php84 tools/serve-demo.sh
 # Másik terminálban:
-TMPDIR="$PWD/codex/tmp" npm run test:browser
+npm run test:browser -- --project=shell
 ```
 
-A `VAPA_PHP` lehet olyan CLI-wrapper is, amely a szükséges extensionöket betölti. A demóhoz PDO SQLite szükséges. Elérés: `http://127.0.0.1:8086/`; szintetikus belépések: `demo` / `vapa-demo`, `viewer` / `vapa-demo`. A `blocked` fiók tiltott. Ezek kizárólag a külön demóban léteznek. A demo nem production belépési mód.
+A `VAPA_PHP` lehet olyan CLI-wrapper is, amely a szükséges extensionöket betölti. A demóhoz PDO SQLite szükséges. Elérés: `http://127.0.0.1:8086/`; szintetikus belépések: `demo@example.test` / `vapa-demo`, `viewer@example.test` / `vapa-demo`. A `blocked@example.test` fiók tiltott. A `tools/serve-demo.sh` indítás előtt idempotensen lefuttatja a `setup-workspace.php`-t; a fiókok a munkaterület SQLite-fájljában vannak, és a [felhasználóadmin](admin.md) kezeli őket. A belépési mező címkéje bekapcsolt felhasználóadminnál „E-mail”. Ezek kizárólag a külön demóban léteznek. A demo nem production belépési mód.
 
-A `tests/shell/contracts.php` a SQL provider, azonosítóvalidálás, fióktiltás, jelszóadat kizárása, menüjogok, üres ágak, duplikált ID és tiltott modul szerződését ellenőrzi. A saját böngészős tesztek a tényleges DHTMLX ablak/űrlap/menü működését, Enteres beküldést, hibás belépést, nézői jogokat, kijelentkezést és telefonméretet vizsgálják. Artifactok: `codex/tmp/playwright-results`. Ellenőrzés 2026-10-16: PHP szerződéstesztek, lint, TypeScript typecheck/build és mind a 4 Chromium keretteszt sikeres.
+A `tests/shell/contracts.php` a SQL provider, azonosítóvalidálás, fióktiltás, jelszóadat kizárása, menüjogok, üres ágak, duplikált ID és tiltott modul szerződését ellenőrzi. A saját böngészős tesztek a tényleges DHTMLX ablak/űrlap/menü működését, Enteres beküldést, hibás belépést, nézői jogokat, kijelentkezést és telefonméretet vizsgálják. Artifactok: `tmp/playwright-results`. Ellenőrzés 2026-10-16: PHP szerződéstesztek, lint, TypeScript typecheck/build és mind a 4 Chromium keretteszt sikeres.
 
 ## Biztonsági és fejlesztési határ
 
@@ -120,7 +120,7 @@ viszont külön kulcsot kap.
 
 Ellenőrzés: `node tests/shell/ui-preferences.mjs` (elkülönítés, definícióváltozás,
 méretkorlát, sérült/tiltott tár); védett szintetikus böngészőteszt:
-`npm run test:browser -- --config playwright.preferences.config.cjs`, a
+`npm run test:browser -- --project=preferences`, a
 `VAPA_TMP_DIR` és `VAPA_PLAYWRIGHT_MODULE` környezeti szerződésével.
 Kapcsolódó visszajelzés: FB-0021.
 

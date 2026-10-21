@@ -1,7 +1,7 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 test('native cards preserve selection, editing and live data across responsive changes',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');await page.getByLabel('Felhasználónév',{exact:true}).fill('demo');await page.getByLabel('Jelszó',{exact:true}).fill('vapa-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
+ await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('vapa-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
  await expect(page.locator('.dhx_grid')).toBeVisible();
  await page.setViewportSize({width:390,height:844});
@@ -61,6 +61,6 @@ test('synthetic cards escape content, retain fields, selection and scroll during
  expect(await page.evaluate(()=>adapter.capture().id)).toBe(position.id);
  expect(await page.evaluate(()=>selected)).toBe('5');
  await page.locator('.vapa-grid-cards').evaluate(e=>{e.scrollTop=e.scrollHeight;});await expect.poll(()=>page.evaluate(()=>more.includes('next'))).toBe(true);
- await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR || path.join(root,'codex/tmp'),'mobile-grid.png')});
+ await page.screenshot({path:path.join(process.env.VAPA_TMP_DIR || path.join(root,'tmp'),'mobile-grid.png')});
  await page.evaluate(()=>adapter.destroy());expect(errors).toEqual([]);
 });

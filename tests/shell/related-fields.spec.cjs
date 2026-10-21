@@ -33,5 +33,5 @@ test('checkbox grid, descriptive filters and a single main form save related val
  await expect(dialog.getByRole('checkbox',{name:'Notifications',exact:true})).not.toBeChecked();
  await expect(dialog.getByLabel('Title',{exact:true})).toHaveValue('Reject flags');
  expect(errors).toEqual([]);
- await page.screenshot({path:'codex/tmp/related-fields.png',fullPage:true});
+ await page.screenshot({path:require('node:path').join(process.env.VAPA_TMP_DIR || 'tmp','related-fields.png'),fullPage:true});
 });

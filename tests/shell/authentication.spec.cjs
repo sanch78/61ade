@@ -1,7 +1,7 @@
 const {test, expect} = require('../../tools/playwright-test.cjs');
 const {readFileSync} = require('node:fs');
 const path = require('node:path');
-const messageFile = path.join(process.env.VAPA_TEST_AUTH_RUNTIME || path.resolve(__dirname, '../../codex/tmp/auth-fixture'), 'last-email.eml');
+const messageFile = path.join(process.env.VAPA_TEST_AUTH_RUNTIME || path.resolve(__dirname, '../../tmp/auth-fixture'), 'last-email.eml');
 function code() {
   const message = readFileSync(messageFile, 'utf8').replace(/=\r?\n/g, '');
   const match = message.match(/>([0-9]{6})<\/p>/);

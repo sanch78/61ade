@@ -18,7 +18,7 @@ final class JsonApplication
         $config = JsonConfiguration::load($file);
         $config->validate(array_fill_keys([
             'application', 'database', 'session', 'identity', 'live', 'workspace',
-        ], 'array'), ['environment' => 'array', 'authentication' => 'array', 'i18n' => 'array']);
+        ], 'array'), ['environment' => 'array', 'authentication' => 'array', 'i18n' => 'array', 'admin' => 'array']);
         $languages = new \Vapa\I18n\Settings();
         if ($config->has('i18n')) {
             $languages = LanguageConfiguration::build($config->section('i18n'), $config->path(...));
@@ -51,6 +51,11 @@ final class JsonApplication
             array_map($config->path(...), $workspace['modules']),
             $workspaceBindings,
         );
+        $accounts = null;
+        if ($config->has('admin')) {
+            $accounts = AdminConfiguration::build($config->section('admin'), $config->section('identity'), $identityBindings, $builtWorkspace, $identities);
+            $identities = $accounts->identities($identities);
+        }
         $authentication = null;
         if ($config->has('authentication')) {
             $authentication = AuthenticationConfiguration::build(
@@ -70,6 +75,7 @@ final class JsonApplication
             authentication: $authentication,
             version: $application['version'] ?? '',
             languages: $languages,
+            accounts: $accounts,
         );
     }
 }

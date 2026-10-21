@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__, 2).'/examples/demo-app/vendor/autoload.php';
-putenv('VAPA_TEST_AUTH_RUNTIME='.(getenv('VAPA_TMP_DIR') ?: dirname(__DIR__, 2).'/codex/tmp').'/auth-contract');
+putenv('VAPA_TEST_AUTH_RUNTIME='.(getenv('VAPA_TMP_DIR') ?: dirname(__DIR__, 2).'/tmp').'/auth-contract');
 require dirname(__DIR__).'/fixtures/authentication/setup.php';
 
 use Vapa\Authentication\LoginSecurity;

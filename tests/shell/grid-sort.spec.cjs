@@ -7,7 +7,7 @@ test('editable headers, SQL sorting and virtual scrolling share the full result 
  await expect(header).toHaveClass(/vapa-grid-editable/);await expect(header).toHaveAttribute('aria-description','Szerkeszthető mező');
  expect(await header.locator('.dhx_grid-header-cell-text').evaluate(e=>getComputedStyle(e,'::after').content)).toContain('✎');
  await expect(grid.locator('[role="columnheader"][data-dhx-id="archived"]')).not.toHaveClass(/vapa-grid-editable/);
- await page.screenshot({path:require('node:path').join(process.env.VAPA_TMP_DIR || 'codex/tmp','grid-header-sort.png')});
+ await page.screenshot({path:require('node:path').join(process.env.VAPA_TMP_DIR || 'tmp','grid-header-sort.png')});
  await header.click();await expect(header).toHaveAttribute('aria-sort','ascending');
  await expect(grid.getByRole('rowgroup').last().getByRole('row').first()).toContainText('Item 0001');
  await expect(grid.getByRole('rowgroup').last().getByRole('row').nth(1)).toContainText('Item 0002');

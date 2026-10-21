@@ -21,6 +21,7 @@ return JsonApplication::load(
 | `session` | `name`, `cookie_path`. A session életciklusát a keret kezeli. |
 | `identity` | SQL fiókséma és névvel regisztrált `allowed`/`password_verifier` illesztés. |
 | `authentication` | Opcionális [e-mailes megerősítés és megjegyzett belépés](authentication.md), levélküldés és szövegfelülbírálás. |
+| `admin` | A beépített [felhasználó- és jogosultságadmin](admin.md) bekapcsolása; ilyenkor az `identity.username_column` az e-mail-oszlop. Opcionális `protected_role` (alapértelmezés `admin`). |
 | `live` | `transport` (`poll`/`websocket`), `endpoint`, integer `interval_ms`. |
 | `workspace.modules` | Modul-JSON fájlok a konfiguráció könyvtárához képest; a nézetek adják a menüt. |
 

@@ -6,8 +6,10 @@ namespace Vapa\Feature;
 final class SqlResource
 {
     private ?Registry $registry=null;
-    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [])
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [])
     {
+        // Read-only fields are listed and revisioned but never part of create/update input.
+        if (array_diff($readOnly, array_map(static fn($f)=>$f->name,$fields))) throw new \InvalidArgumentException('Unknown read-only field');
         foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
     }
     private function source(Context $ctx): string
@@ -34,12 +36,13 @@ final class SqlResource
         $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t,$values)=>$values ? $source->read($c,$values) : $this->listing($c,$t['id']),collection:true,listSource:$source));
         $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$this->project($c,$t['row'],'get'),resolve:fn($c,$id)=>$this->target($c,$id)));
         $actions=['get'];
+        $writable=array_values(array_filter($this->fields,fn($f)=>!in_array($f->name,$this->readOnly,true)));
         if($create) {
-            $registry->add(new Action($this->resource,'create','Új', $this->fields, fn($c,$t,$v)=>$this->save($c,null,$v),resolve:fn($c)=>['id'=>null,'owner'=>$this->ownerColumn?$c->actor->id:null],write:true));
+            $registry->add(new Action($this->resource,'create','Új', $writable, fn($c,$t,$v)=>$this->save($c,null,$v),resolve:fn($c)=>['id'=>null,'owner'=>$this->ownerColumn?$c->actor->id:null],write:true));
             $actions[]='create';
         }
         if($update) {
-            $registry->add(new Action($this->resource,'update','Mentés',[...$this->fields,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,editHandler:fn($c,$t,$v)=>$this->save($c,$t,$v,true)));
+            $registry->add(new Action($this->resource,'update','Mentés',[...$writable,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,editHandler:fn($c,$t,$v)=>$this->save($c,$t,$v,true)));
             $actions[]='update';
         }
         $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout);

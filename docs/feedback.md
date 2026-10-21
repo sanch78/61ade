@@ -65,3 +65,15 @@
 ## FB-0034 — Built-in localization and optional site selector
 
 ## FB-0035 — Actual PNG flags instead of emoji
+
+## FB-0036 — Mandatory admin and demand-driven framework work
+
+## FB-0037 — Withdraw Ext JS reference; DHTMLX and actual needs
+
+## FB-0038 — First admin-slice lifecycle decisions
+
+## FB-0039 — Built-in user administration, A1
+
+## FB-0040 — Built-in roles and permissions, A2
+
+## FB-0041 — Newly created row remains outside scrolled viewport

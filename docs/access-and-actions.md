@@ -4,11 +4,11 @@
 
 ## Tartós szerződés
 
-Az identitás adatait külön kezeljük a jogosultságoktól. Az actor ember vagy szolgáltatás; szerepkörtagságot és közvetlen szabályt kaphat. Nincs admin bypass. A regisztrált erőforrás és művelet az engedélyezhető jogok katalógusa; ismeretlen jog nem adhat hozzáférést.
+Az identitás adatait külön kezeljük a jogosultságoktól. Az actor ember vagy szolgáltatás; szerepkörtagságot és közvetlen szabályt kaphat. Nincs admin bypass. A regisztrált erőforrás és művelet az engedélyezhető jogok katalógusa; ismeretlen jog nem adhat hozzáférést. A katalógus (a tervezett, definíciókból generált változat is) önmagában soha nem ad jogot.
 
 Egy szabály: alany (user/role), erőforrás, művelet, csatorna (ui/api), hatás (allow/deny), objektumhatókör (all/own/id), opcionális objektumazonosító, mező (teljes művelet vagy konkrét mező). A konkrét objektum tulajdonosát a backend adatszolgáltató állapítja meg. Az explicit tiltás nyer; egyező engedély hiányában tiltás van. Mezőengedély önmagában nem engedélyez műveletet. API-token scope csak szűkít, soha nem ad jogot. A web UI és API ugyanazon műveletvégrehajtón fut.
 
-A szerepkörök és szabályok adatként kezelhetők a VAPA form/grid eszközeivel létrehozott alkalmazási felületen. A kernelnek nincs beégetett felhasználóadminja. A szabályok kezelése külön jog; a jogosultságváltozások auditáltak, a döntés minden kérésben friss. A beépített üzleti korlátot (például saját profil vagy tiltott felhasználó) ACL-engedély sem írja felül.
+Jelenleg a szerepkörök és szabályok adatként kezelhetők a VAPA form/grid eszközeivel létrehozott alkalmazási felületen. Az FB-0036 új célja minden alkalmazáshoz kötelező, a VAPA saját definícióiból épülő adminmodul; ebből a [felhasználóadmin](admin.md) (A1) és a [szerepkör- és szabálykezelés](admin.md#szerepkörök-és-jogosultságok-a2) (A2) elkészült. A keret modulja adja majd a közös felületet, a fogyasztó az identitás- és adatillesztést. Részletek: [termékirány](product-direction.md). A szabályok kezelése külön jog; a jogosultságváltozások auditáltak, a döntés minden kérésben friss. A beépített üzleti korlátot (például saját profil vagy tiltott felhasználó) ACL-engedély sem írja felül.
 
 Olvasásnál az objektumhatókör már az SQL lekérdezés feltétele; mezők szűrése a szerveroldali kivetítésben történik. Nincs tiltott mezőre kliens által megadható rendezés, szűrés vagy aggregáció. Módosítás explicit mezőlistás, objektumellenőrzéses és tranzakciós. Verzióütközés esetén mentés helyett 409.
 
