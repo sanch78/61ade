@@ -916,9 +916,7 @@ Implemented/verified, no user acceptance.
   [usage](usage.md#project-name-and-development-environment),
   [project contract](../AGENTS.md), [demos](demos.md).
 - **Implementation:** documentation only. Existing public capabilities, product
-  languages and code remain unchanged. The owner authorized a documentation
-  commit/push including earlier document edits, while preserving unrelated
-  source changes and the existing staged deletion.
+  languages and code remain unchanged.
 - **Verification, 2026-10-22:** both managed URLs returned HTTP 200 with TLS
   verification result 0. A temporary nonce source probe confirmed immediate
   source visibility and exact PHP document root
@@ -937,13 +935,8 @@ Implemented/verified, no user acceptance.
 - **Documentation verification:** all 30 maintained documents have English prose;
   localized examples/labels, technical identifiers, historical evidence and legacy
   fragment anchors are preserved. All 396 local file/fragment links and the
-  documentation whitespace check passed. Both tools' six shared skill links and
-  explicit-invocation frontmatter were checked; the published 12-file shared
-  release passed its read-only/hash check. This verifies filesystem integration,
-  not a fresh Claude session's skill discovery.
-- **Cleanup:** removed this task's nonce probe/link and isolated browser output/
-  cache, plus the inactive superseded tmp/baseline-sorting.config.cjs after
-  checking references/processes and the shared lock. Existing suites, demo data,
-  images, retained files and concurrent changes were preserved.
+  documentation whitespace check passed.
+- **Cleanup:** removed the nonce probe/link and isolated browser output/cache.
+  Existing suites, demo data, retained evidence and concurrent changes were preserved.
 - **Status:** accepted and incorporated, documentation verified. No production,
   deployment, post-deploy testing, backup workflow or new permanent test was created.
