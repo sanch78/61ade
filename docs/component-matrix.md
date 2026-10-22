@@ -1,56 +1,82 @@
-# DHTMLX komponens- és képességmátrix
+# DHTMLX component and capability matrix
 
-Ellenőrzés: 2026-10-16, upstream dokumentáció alapján; VAPA-állapot oszlop 2026-10-21, forrás és tesztek alapján. A Suite Standard 9.3.12 telepítve, a shell és workspace adapter használatban. A PRO-képességek továbbra sem részei a telepített csomagnak.
+Historical upstream review: 2026-10-16; 61de source/test status: 2026-10-21.
+Suite Standard 9.3.12 is installed and shell/workspace adapters are in use.
+PRO capabilities are not in the installed package.
 
-A mátrix a DHTMLX-elérhetőség, a kiadási/licenchatár és a VAPA tényleges állapotának leltára, nem lefedettségi cél. A VAPA támogatott képességköre a valós alkalmazási igényekből nő ([R3, R12](product-direction.md#1-elfogadott-termékkövetelmények)); a nem megvalósított sor jelölt bővítés, nem vállalás.
+This is an availability/edition/license/implementation inventory, not a coverage
+target. [R3/R12](product-direction.md#1-elfogadott-termékkövetelmények) grow
+capabilities from real needs; unimplemented rows are candidates, not commitments.
 
-| Képesség | Forrás | Kiadási határ | VAPA-állapot | VAPA feladat igény esetén |
+| Capability | Source | Edition boundary | 61de status | Work when needed |
 | --- | --- | --- | --- | --- |
-| Grid és inline szerkesztés | Suite Standard | Egyes fejlett funkciók PRO | Megvalósítva: Workspace adapter ([munkaterületek](workspaces.md), `grid-edit`) | Query, mezőtípus, action és policy integráció |
-| Grid dinamikus forrás | VAPA Standard Grid adapter | A natív LazyDataProxy integráció PRO-only | Megvalósítva: kurzoros adatsáv ([használat](workspaces.md)) | Kurzoros lekérdezés, korlátozott adatsáv, scroll események |
-| Form és validáció | Suite Standard | Konkrét controlok verzió szerint | Megvalósítva: metaadatból épített form, kliens/szerver validáció ([validáció](validation.md)) | Szerverhibák, relációk, további mezőtípusok |
-| Layout, window | Suite Standard | — | Megvalósítva: shell és munkaterület-layout, méretező, popupok ([shell](shell.md)) | Összetett többpaneles munkafolyamatok |
-| Menü, toolbar | Suite Standard | — | Megvalósítva: főmenü, lista-toolbar, téma- és nyelvválasztó | Navigáció és capability megjelenítés |
-| DataView | Suite Standard | Verzióhoz kötött részletes leltár | Megvalósítva: kártyanézet ([munkaterületek](workspaces.md)) | Template-regisztráció, kiválasztás |
-| Tab, popup, sidebar, ribbon, List | Suite Standard | Részletes leltár igény szerint | Nincs igazolt VAPA-adapter | Shell és komponens-életciklus |
-| Tree | Suite Standard | Fejlett opciók ellenőrizendők | Nincs (a `view.layout.tree` layoutfa, nem Tree komponens) | Lazy betöltés, scope, biztonságos áthelyezés |
-| TreeGrid | Suite PRO | PRO-only | Nincs | Külön capability és licencelt adapter |
-| Chart | Suite Standard | PRO-típusok/opciók külön | Nincs | Scope-olt aggregáció és drill-down |
-| Date/time/color picker, combo | Suite Standard | Nem eseménynaptár | Nem igazolt külön képességként | Típusok, locale, timezone |
-| Eseménynaptár | Scheduler Standard (GPL) | Alap nézetek és ismétlődés elérhetők | Nincs | Időablakos query és üzleti parancsok |
-| Timeline és Units/resource nézet | Scheduler PRO | PRO-only | Nincs | Erőforrás-policy és ütközési szabályok |
-| Több scheduler ugyanazon oldalon | Scheduler fizetős kiadás | Licencszint is számít | Nincs | Shell korlát és capability ellenőrzés |
-| Gantt alap | Gantt 10+ Community (MIT) | Core feladat/függőség/mérföldkő | Nincs | Hierarchia, parancsok, konfliktuskezelés |
-| Auto scheduling, critical path, resource | Gantt PRO | PRO-only | Nincs | Integráció külön licencdöntés után |
-| Fájl és média | Saját szolgáltatás + UI control | Vault külön termék | Nincs | Storage, jogosultság, preview, job |
-| Rich text, diagram, pivot, kanban | Külön termék/adapter | Nem automatikus Suite Standard részek | Nincs | Igény és licenc külön ellenőrzendő |
-| Export/import | Saját backend + vendor adapter | Formátum/exportservice függő | Nincs (tömeges műveletek igen, export nem) | Scope, mezőszűrés, háttérjob, letöltés |
+| Grid/inline edit | Suite Standard | Some advanced options PRO | Workspace implemented, [usage](workspaces.md), grid-edit | Query/types/actions/policies |
+| Dynamic grid source | Framework Standard Grid adapter | Native LazyDataProxy integration PRO-only | Cursor window implemented | Bounded queries/scrolling |
+| Forms/validation | Suite Standard | Controls version-dependent | Metadata forms, client/server [validation](validation.md) | Errors/relations/types |
+| Layout/window | Suite Standard | — | Shell/workspace/resizers/popups implemented | Complex multipanel flows |
+| Menu/toolbar | Suite Standard | — | Main/list menus, theme/language selectors | Navigation/capabilities |
+| DataView | Suite Standard | Detailed inventory version-dependent | Cards implemented | Templates/selection |
+| Tabs/popup/sidebar/ribbon/List | Suite Standard | Inventory on demand | No verified independent adapter | Shell/lifecycle |
+| Tree | Suite Standard | Advanced options need checking | None; view.layout.tree is a layout tree | Lazy children/scopes/moves |
+| TreeGrid | Suite PRO | PRO-only | None | Licensed adapter/capability |
+| Chart | Suite Standard | PRO types/options separate | None | Scoped aggregates/drill-down |
+| Date/time/color picker/combo | Suite Standard | Not event calendar | Not independently qualified as a capability | Types/locale/timezone |
+| Event calendar | Scheduler Standard GPL | Basic views/recurrence available | None | Windowed query/business actions |
+| Timeline/Units/resources | Scheduler PRO | PRO-only | None | Resource policies/conflicts |
+| Multiple schedulers/page | Paid Scheduler | License tier matters | None | Shell/capability checks |
+| Basic Gantt | Gantt 10+ Community MIT | Core tasks/dependencies/milestones | None | Hierarchy/actions/conflicts |
+| Autoscheduling/critical path/resources | Gantt PRO | PRO-only | None | Separate license decision |
+| Files/media | Own service + UI | Vault separate | None | Storage/access/preview/jobs |
+| Rich text/diagram/pivot/kanban | Separate product/adapter | Not automatic Standard Suite features | None | Need/license assessment |
+| Export/import | Backend + vendor adapter | Format/service-dependent | No export; bulk exists | Scopes/field filtering/jobs/downloads |
 
-Minden megvalósított sorhoz lokalizációnak, témázhatóságnak és kitchen-sink példának kell tartoznia ([R4, R11](product-direction.md#1-elfogadott-termékkövetelmények)); ahol a példa még hiányzik, az a termékirány 2. fejezetében hiányként szerepel.
+Every implemented capability needs localization/themes/kitchen-sink examples
+([R4/R11](product-direction.md#1-elfogadott-termékkövetelmények)); outstanding
+examples remain gaps in product direction.
 
-## Bővítés módja
+<a id="bővítés-módja"></a>
 
-Új komponens vagy vendoropció akkor kerül a VAPA-ba, ha konkrét alkalmazási igény indokolja ([módszer](development-plan.md#igényvezérelt-fejlesztési-módszer)). A korábbi „a kiválasztott verzió összes dokumentált publikus képessége” teljességi célt az [FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör) felváltotta.
+## Extension method
 
-A gyakori képességekhez típusos VAPA-konfiguráció kell; ritka vendoropciókhoz ellenőrzött adapterbővítés. Egyedi klienskód csak regisztrált modulon át. Nem kell minden vendor metódushoz külön backend REST-végpont. Private/protected/internal API-ra nem építünk publikus VAPA-szerződést.
+Add components/vendor options for concrete consumer needs, following
+[demand-driven work](development-plan.md#igényvezérelt-fejlesztési-módszer).
+[FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)
+supersedes exhaustive coverage of every public vendor capability.
 
-Ha egy igényelt képesség csak PRO-kiadásban érhető el, nyitott függőségként vezetjük, amíg licencelt vendoradapter vagy külön jóváhagyott alternatíva el nem készül. A licencelés megfontolása nem jelent vásárlást vagy vendorcsomag-beszerzést.
+Common capabilities need typed framework configuration; rare options need
+validated adapter extensions. Custom client code uses registered modules.
+Each vendor method does not require a separate REST endpoint. Public contracts
+must not depend on private/protected/internal APIs.
 
-## Licencek és lejárat
+PRO-only requests remain open dependencies until a licensed adapter or separately
+approved alternative exists. Considering licensing is not purchasing or acquiring packages.
 
-Suite Standard GPLv2; Scheduler Standard GPL; Gantt v10+ Community MIT. Régebbi Gantt-verziók GPL-feltételei nem változnak automatikusan MIT-vé. GPL-es felhasználás nem éves bevételi küszöbös CE-engedély; a terjesztési feltételeit teljesíteni kell. Az üzleti adat nem válik ettől publikussá.
+<a id="licencek-és-lejárat"></a>
 
-A VAPA saját licencét külön kell kiválasztani. A frontend és a vendor kombinált terjesztése, a backend leválasztása és az alkalmazások forrásátadási kötelezettsége a tényleges csomagolás alapján értékelendő. Nem állítjuk automatikusan, hogy minden PHP-kód GPL, vagy hogy a REST elválasztás minden licenckérdést megold.
+## Licenses and version boundaries
 
-PRO-forrás és licenckulcs nem kerülhet nyilvános Git-repóba. npm-ről elérhető csomag nem feltétlenül tartalmaz minden dokumentált funkciót. A DHTMLX Gantt típusdefiníciója is leírhat PRO-only API-t; a runtime csomagot és edition-mátrixot együtt kell vizsgálni.
+The original reviewed baseline records Suite Standard GPLv2, Scheduler Standard
+GPL, Gantt v10+ Community MIT. Older Gantt GPL versions do not automatically
+become MIT. GPL is not a revenue-threshold community license; distribution
+conditions apply and do not make business data public.
 
-## Ellenőrzött upstream források
+61de's own license remains undecided. Evaluate combined frontend/vendor
+distribution, backend separation and consumer source obligations against actual
+packaging. Do not assume all PHP is GPL or REST separation resolves every issue.
 
-- [Suite termék és Standard GPL](https://dhtmlx.com/docs/products/dhtmlxSuite/)
-- [Suite 9 dokumentáció](https://docs.dhtmlx.com/suite/)
+Never commit PRO source/keys to a public repository. npm availability does not
+prove every documented feature is included. Gantt types may describe PRO-only
+APIs; inspect runtime and edition matrix together.
+
+<a id="ellenőrzött-upstream-források"></a>
+
+## Previously reviewed upstream references
+
+- [Suite product/Standard GPL](https://dhtmlx.com/docs/products/dhtmlxSuite/)
+- [Suite 9 documentation](https://docs.dhtmlx.com/suite/)
 - [TreeGrid PRO-only](https://docs.dhtmlx.com/suite/grid/treegrid_mode/)
-- [Scheduler telepítés és Standard GPL](https://docs.dhtmlx.com/scheduler/guides/installation/)
-- [Scheduler Standard/PRO](https://docs.dhtmlx.com/scheduler/guides/editions-comparison/)
-- [Gantt Community/PRO](https://docs.dhtmlx.com/gantt/guides/editions-comparison/)
-- [Gantt MIT kiadás](https://dhtmlx.com/blog/meet-dhtmlx-gantt-community-edition-mit-license/)
-- [Gantt forrás és típusdefiníciós korlát](https://github.com/DHTMLX/gantt)
+- [Scheduler installation](https://docs.dhtmlx.com/scheduler/guides/installation/)
+- [Scheduler editions](https://docs.dhtmlx.com/scheduler/guides/editions-comparison/)
+- [Gantt editions](https://docs.dhtmlx.com/gantt/guides/editions-comparison/)
+- [Gantt MIT release](https://dhtmlx.com/blog/meet-dhtmlx-gantt-community-edition-mit-license/)
+- [Gantt source/types](https://github.com/DHTMLX/gantt)

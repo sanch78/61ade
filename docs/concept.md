@@ -1,165 +1,273 @@
-# VAPA részletes koncepció
+# Detailed 61de concept
 
-Állapot: tervezési alap, 2026-10-16; termékirány-frissítés 2026-10-21. Ez a dokumentum a célrendszert írja le, nem már elkészült funkciókat. A ténylegesen megvalósított, bizonyított képességeket a [termékirány 2. fejezete](product-direction.md#2-megvalósított-képességek-bizonyítékkal-és-hiányok) és a [használati útmutató](usage.md) vezeti.
+Status: design baseline 2026-10-16, product update 2026-10-21. This describes
+the target, not completed functionality. [Product evidence](product-direction.md#2-megvalósított-képességek-bizonyítékkal-és-hiányok)
+and [usage](usage.md) track verified implementation.
 
-## 0. Elfogadott termékirány — 2026-10-21
+<a id="0-elfogadott-termékirány--2026-10-21"></a>
 
-Az elfogadott követelmények canonical listája (R1–R12) a [termékirányban](product-direction.md#1-elfogadott-termékkövetelmények) található; döntés: [ADR-0003](decisions/0003-product-direction.md). Röviden:
+## 0. Accepted product direction — 2026-10-21
 
-- A VAPA újrahasznosítható admin alkalmazáskeret. A PHP a referencia-backend; a frontend verziózott, nyelvfüggetlen JSON-szerződésen kommunikál. A JSON-átvitel önmagában nem bizonyít backendfüggetlenséget.
-- Az alkalmazás a VAPA eszközeit használja; hiány esetén előbb a keret bővül. A szűk kivétel az AGENTS.md 1. pontja szerint.
-- A frontend fullscreen HTML5 alkalmazás a csomagolt DHTMLX komponensekkel, VAPA-adapterekkel és támogatott bővítési pontokkal. A layoutkezelés alapképesség; a form, layout és grid a konkrét igényekkel együtt fejlődik összetett, ergonomikus munkafolyamatokra. Nincs külső keretrendszer-benchmark vagy teljes komponenslefedési cél ([FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)).
-- Lokalizáció és téma beépített; minden új képesség részt vesz bennük.
-- Minden alkalmazásban kötelező, VAPA-definíciókból épülő user-, ACL-, API-kulcs- és naplóadmin; az alkalmazás konfigurációt, identitás-/tárolási illesztést és domainszabályt ad.
-- Felhasználó: e-mail, jelszó, teljes név, felhasználónként engedélyezhető Google/Facebook-belépés (tervezett), konfigurálható e-mailes megerősítés (megvalósított).
-- Tárolási cél: MySQL, PostgreSQL, SQLite, JSON-fájl, a [dokumentált garanciákkal](product-direction.md#3-tárolási-határ-és-szükséges-garanciák); a demó SQLite.
-- Moduláris JSON-konfiguráció, explicit regisztrált kezelők; nincs eval, végrehajtható string vagy korlátlan szkriptnyelv.
-- A definíciókból generált ACL-katalógus nem ad jogot; minden csatornán szerveroldali ellenőrzés; API-kitettség és token-scope csak szűkít.
-- [Eseménylefedési katalógus](product-direction.md#4-eseménynapló-lefedési-katalógus) audit/biztonsági/üzemeltetési kategóriákkal; credential és érzékeny payload nem naplózható.
-- Navigálható, szintetikus kitchen sink minden implementált publikus képességhez.
-- Igényvezérelt fejlesztés: konkrét igény → keretbeli hiány → legkisebb bővítés → szintetikus demó és teszt → dokumentáció → fogyasztói integráció → kontrollált kiadás.
+Canonical requirements: [R1–R12](product-direction.md#1-elfogadott-termékkövetelmények),
+[ADR-0003](decisions/0003-product-direction.md).
 
-Az alábbi fejezetek 2026-10-16-i technikai tervezési alapja ezzel összhangban érvényes; ahol eltér, ez a fejezet és az ADR-0003 az irányadó.
+- Reusable admin framework, PHP reference backend and versioned language-neutral JSON contract. JSON transport alone does not establish independence.
+- Consumers use framework tools; missing general capabilities are implemented first in 61de. Only the documented logically-unextendable exception permits another route.
+- Fullscreen HTML5/DHTMLX, framework adapters and supported extension points. Layout is foundational; forms/layouts/grids grow for real ergonomic workflow needs. No external benchmark or exhaustive coverage goal (FB-0037).
+- Localization/themes apply to every new capability.
+- Mandatory framework user/ACL/API-key/log admin; consumers supply configuration, identity/storage adapters and domain rules.
+- Users have e-mail/password/full name, per-user provider permission and configurable e-mail verification. Detailed implementation status belongs to current usage.
+- MySQL/PostgreSQL/SQLite/JSON-file targets with [guarantees](product-direction.md#3-tárolási-határ-és-szükséges-garanciák); demo SQLite.
+- Modular JSON, named handlers, no eval/executable strings/unrestricted scripting.
+- Generated catalogs never grant rights; server checks every channel; API exposure/scopes narrow access.
+- [Event catalog](product-direction.md#4-eseménynapló-lefedési-katalógus) separates audit/security/operational events, excluding credentials/sensitive payloads.
+- Navigable synthetic kitchen sink for all implemented public capabilities.
+- Need → framework gap → smallest extension → demo/checks → documentation → consumer integration; consumer releases follow their own contracts.
 
-## 1. Cél és sikerkritérium
+The following 2026-10-16 design remains applicable where consistent; this
+section/ADR-0003 prevail on conflicts. The later [environment contract](development.md#development-environment)
+requires direct development/testing only, without deployment or project backups.
 
-A VAPA (Very Advanced PHP Admin) több alkalmazásban használható admin keretrendszer. Egy fejlesztő által írt, típusos feature-definíció alapján kapcsolja össze az objektumok nézeteit, műveleteit, validációját és REST-elérését. Nem generál helyettesítő üzleti logikát: az alkalmazás explicit szolgáltatásai hajtják végre a műveleteket.
+<a id="1-cél-és-sikerkritérium"></a>
 
-Az első fogyasztó a teljes CityScreen admin újraírása. A VAPA sikere nem néhány CRUD-képernyő elkészülte: az új CityScreen admin összes egyeztetett képességét ki kell tudnia szolgálni. A teljes alkalmazási migráció külön projektmunka, saját repóval és elfogadási listával.
+## 1. Goal and success criteria
 
-Sikerkritériumok:
+61de connects object views/actions/validation/REST through developer-authored typed
+feature definitions. Explicit application services implement business logic;
+the framework never invents it.
 
-- Egyszerű feature-höz nem kell külön frontend CRUD-kódot írni.
-- Összetett üzleti képernyő és művelet elsőrendű bővítési lehetőség, nem kerülőút.
-- Az UI és REST ugyanazokat a use case-eket, tranzakciókat és policy-kat használja.
-- Szervezet, objektum és mező szintjén egységes, szerveroldali védelem működik.
-- A csomagok tiszta checkoutból egy második, CityScreen-független alkalmazásba is telepíthetők.
-- A régi ADE-s API, runlevel és generált JavaScript válaszformátum nem része az új szerződésnek.
+First consumer: the complete CityScreen admin rewrite. Success means serving all
+agreed consumer capabilities, not a few CRUD screens. Migration remains separate
+project work with its own repository/acceptance inventory.
 
-## 2. Hatókör
+- Simple features need no separate frontend CRUD implementation.
+- Complex screens/actions are supported extensions, not bypasses.
+- UI/REST share use cases, transactions and policies.
+- Organization/object/field authorization is uniform and server-side.
+- A clean checkout can serve a second independent consumer.
+- Legacy ADE API/runlevels/generated JavaScript responses are excluded.
 
-A VAPA része a feature registry, UI renderer és shell, komponensadapterek, query protokoll, API infrastruktúra, auth-integráció, policy motor, szervezeti kontextus, fájl- és háttérmunka-infrastruktúra, audit és megfigyelhetőség.
+<a id="2-hatókör"></a>
 
-Része továbbá a minden alkalmazásban kötelező user-, ACL-, API-kulcs- és naplóadmin modul (tervezett, R5).
+## 2. Scope
 
-Nem része: CityScreen üzleti fogalmak, adatbázistáblák, DMS vezérlés, ajánlatkalkuláció, munkalap-ellenőrzési szabályok, kampánylogika, produkciós adatkonverzió. Nem építünk vizuális no-code alkalmazásszerkesztőt. A frontend komponenseket nem írjuk újra a DHTMLX helyett.
+Framework scope: registry, renderer/shell, component adapters, query/API/auth/
+policy infrastructure, organization context, files/jobs/audit/observability,
+and mandatory user/ACL/key/log admin (R5, partly implemented).
 
-A támogatott komponenskör a valós alkalmazási igényekből nő; a DHTMLX-ben elérhető további komponensek (például tree, chart, scheduler, Gantt) jelölt bővítések, nem előre vállalt lefedési cél. Az elérhetőséget, kiadási/licenchatárt és a VAPA-állapotot a [komponensmátrix](component-matrix.md) rögzíti; egy könyvtár jelenléte nem jelent ingyenes vendorjogosultságot.
+Excluded: CityScreen concepts/tables/DMS control/quotes/worksheet rules/campaign
+logic/production conversion. No visual no-code builder or rewrite of DHTMLX controls.
 
-## 3. Technológiai alap
+Further tree/chart/scheduler/Gantt components are demand-driven candidates, not
+promised coverage. [Matrix](component-matrix.md) records availability/license/
+implementation; a directory does not grant vendor rights.
 
-Elfogadott alap: modern PHP + PHP-FPM + OPcache a referencia-backendhez. A frontend protokollja nem köti PHP-hoz (R1). A PHP 8.4 minimum technikai kiindulás; PHP 8.5 kompatibilitást is ellenőrizni kell. A régi CityScreen PHP-runtime nem referencia és nem módosítható automatikusan.
+<a id="3-technológiai-alap"></a>
 
-Javasolt hosting alap: Symfony 7.4 LTS, kész HTTP/router/DI/validation/security/messenger infrastruktúrával. Ezt az M1-ben döntési naplóban véglegesítjük; az üzleti domain ne függjön a HTTP-keretrendszertől. Nem írunk saját jelszóhashelést, HTTP-szervert vagy általános SQL-drivert.
+## 3. Technology foundation
 
-Frontend: TypeScript, DHTMLX Suite Standard; Scheduler és Gantt adapter csak konkrét igény esetén. Nincs kötelező React/Vue réteg. Build közben fordítjuk a TypeScriptet, éles működéshez nem kell Node-szerver. A pontos Node-, buildtool- és vendorverziók M1-ben rögzítendők a telepített csomagok és licencek ellenőrzése után.
+Accepted reference baseline: modern PHP-FPM + OPcache. Protocol need not depend
+on PHP. Technical minimum PHP 8.4; PHP 8.5 compatibility remains to verify.
+Legacy consumer runtime is not the reference and must not change automatically.
 
-FrankenPHP worker mód későbbi, méréshez kötött opció. Az induló architektúra nem függ tőle.
+Symfony 7.4 LTS hosting is a proposal for HTTP/router/DI/validation/security/
+messenger, to settle in M1 ADR. Business domain must not depend on HTTP hosting.
+Do not implement password hashing, HTTP servers or generic SQL drivers from scratch.
 
-## 4. Csomagolás és függési irány
+Frontend: TypeScript/Suite Standard; Scheduler/Gantt only when required.
+No mandatory React/Vue layer. TypeScript compiles at build time; ordinary served
+frontend assets do not need a Node server. M1 pins tool/vendor versions after
+package/license inspection. FrankenPHP worker mode is a later measured option,
+not an initial dependency.
 
-Egy VAPA-repó két együtt verziózott csomaggal: PHP és frontend. A CityScreen külön repóban fogyasztja őket. A PHP package a `Vapa\\` namespace-t használja; a frontend publikus API-ját külön exportlista definiálja majd.
+<a id="4-csomagolás-és-függési-irány"></a>
 
-A keret az alkalmazást csak regisztrált szerződéseken keresztül éri el. Tervezett szerepkörök: FeatureProvider, QueryProvider, ActionHandler, Policy, IdentityProvider, TenantResolver, FileStorage, JobDispatcher, AuditSink. Ezek még tervezett szerződésnevek, nem létező osztályok.
+## 4. Packaging and dependency direction
 
-Lokális fejlesztésnél Composer path repository és frontend workspace/link használható. Kiadásban rögzített csomagverzió, lockfile és reprodukálható build kell; abszolút lokális útvonal nem maradhat benne. GitHub-repó publikálása nem jelent automatikus npm/Packagist publikálást.
+One repository, co-versioned PHP/frontend packages; separate consumer repository.
+Namespace Blade; frontend exports will define its public API.
 
-## 5. Feature-modell
+Applications are accessed through registered contracts. Proposed names:
+FeatureProvider, QueryProvider, ActionHandler, Policy, IdentityProvider,
+TenantResolver, FileStorage, JobDispatcher, AuditSink. This list does not claim
+all are existing classes.
 
-Egy feature egy értelmezhető üzleti képesség, nem feltétlenül egy adatbázistábla. Több feature használhatja ugyanazt a domaint, más nézettel és hozzáféréssel. Az adatbázis sémáját nem publikáljuk automatikusan API-ként.
+Local Composer paths/workspace links are allowed. Distributed versions need
+lockfiles/reproducible builds without absolute development paths. Publishing a
+GitHub repository does not publish npm/Packagist packages.
 
-A definíció részei:
+<a id="5-feature-modell"></a>
 
-1. Stabil azonosító, címkék és lokalizációs kulcsok.
-2. Objektumazonosság és szervezeti scope forrása.
-3. Mezők: adattípus, olvasási/írási szerep, formátum, szervervalidáció és megjelenítési igény.
-4. Kapcsolatok: célfeature, választólista, hivatkozás és lazy betöltés.
-5. QueryProvider: engedélyezett szűrés, rendezés, lapozás és aggregáció.
-6. Nézetek: grid, form, tree, dataview, naptár stb., közös mezőhivatkozásokkal.
-7. Műveletek: input, ActionHandler, policy, tranzakció, audit, szinkron vagy job.
-8. API-kitettség: feature-, erőforrás- és műveletszinten explicit engedélyezés.
-9. Bővítések: regisztrált frontend komponens vagy eseménykezelő azonosítója.
+## 5. Feature model
 
-A fejlesztő egy belépő definíciót ír; a komplex részek osztályokba és aldefiníciókba bonthatók. Az egykonfigos működés nem egy óriási fájlt jelent.
+A feature represents a business capability, not necessarily a table. Multiple
+features may share a domain with different views/access. Database schema never
+becomes an API automatically.
 
-A registry fordításkor ellenőrzi a hivatkozásokat, duplikált ID-kat, műveletek handlerét, mezőtípusokat és vendor capability-ket. Hibás definícióval nincs részlegesen működő kiadás: a validálás a build/CI kapuja.
+Definitions contain:
 
-## 6. Backend és frontend metaadat határa
+1. Stable ID, labels/localization keys.
+2. Object identity and organization-scope source.
+3. Fields: type/read-write role/format/server validation/presentation.
+4. Relations: target feature/choices/reference/lazy loading.
+5. QueryProvider: allowed filtering/sorting/paging/aggregation.
+6. Views: grid/form/tree/DataView/calendar with shared fields.
+7. Actions: input/handler/policy/transaction/audit/sync or job.
+8. Explicit API exposure per feature/resource/action.
+9. Registered frontend component/event IDs.
 
-A teljes definíció szerveroldali. A böngésző csak ellenőrzött UI-projekciót kap: mezőcímkék, megjelenítési típus, layout, használható műveletek és endpointazonosítók. SQL, policy implementáció, secret, belső osztálynév vagy tiltott meződefiníció nem kerülhet bele.
+One entry definition may delegate complex parts into classes/subdefinitions;
+single-configuration use does not mean one giant file.
+Registry compilation checks references, duplicate IDs, handlers, types and vendor
+capabilities. Invalid definitions must not yield partially working delivery;
+validation belongs in build/CI qualification.
 
-A metaadat protokoll saját verziót kap. Eltérő frontend/backend protokoll esetén érthető inkompatibilitási hiba szükséges. A szerződés nyelvfüggetlen: dokumentált séma és megfelelőségi fixture alapján egy nem PHP backend is teljesíthetné; ez cél, jelenleg csak a bootstrap `protocol: 1` ellenőrzése létezik. A cache-kulcs része az alkalmazás/definíció verziója, locale és a jogosultsági kontextus; más felhasználónak vagy szervezetnek szánt metaadat nem osztható meg.
+<a id="6-backend-és-frontend-metaadat-határa"></a>
 
-Nem küldünk végrehajtható JS/PHP stringet. Eseménykezelőket a frontend buildben regisztrált azonosítókkal választunk ki. Egyedi HTML csak explicit, biztonságosan kezelt komponensben engedhető meg.
+## 6. Backend and frontend metadata boundary
 
-## 7. Adatfolyam és tranzakciók
+Full definitions stay server-side. Browsers receive checked UI projection:
+labels/types/layout/available actions/endpoint IDs, never SQL, policy code,
+secrets, internal class names or forbidden field definitions.
 
-Olvasás: hitelesítés → szervezeti kontextus → feature/műveletengedély → query scope → validált filter/sort/page → adatlekérés → mezőprojekció → válasz.
+Metadata gets a protocol version and clear mismatch handling. A documented
+language-neutral schema/conformance set should permit non-PHP implementations;
+currently only bootstrap protocol 1 is checked. Cache keys include application/
+definition version, locale and permission context; never share another user's/
+organization's projection.
 
-Írás: hitelesítés és CSRF/token ellenőrzés → szervezeti kontextus → inputmezők engedélyezése → objektum lekérése engedélyezett scope-ból → policy → validáció → alkalmazási use case → tranzakció → audit → válasz.
+No executable JS/PHP strings. Frontend handlers are registered build-time IDs.
+Custom HTML requires an explicit safely handled component.
 
-A UI inline edit és form save ugyanahhoz a use case-hez vezet. A bulk, import, scheduler drag és Gantt linkmódosítás sem kerülheti meg ezt. Az API nem általános táblamódosító végpont.
+<a id="7-adatfolyam-és-tranzakciók"></a>
 
-Tranzakción belül tartjuk az összetartozó adatváltozásokat. Külső mellékhatást commit után, tartós job/outbox segítségével indítunk, ahol a megbízható kézbesítés üzletileg szükséges. Többszöri kézbesítést kezelő handler kell; a nyelv vagy queue nem biztosít automatikusan exactly-once üzleti végrehajtást.
+## 7. Data flow and transactions
 
-Ütköző szerkesztéshez verziómező/optimista zárolás az alapirány. Egy időközben megváltozott objektum mentése 409 konfliktust adjon, ne írja felül csendben az újabb módosítást.
+Read: authenticate → organization context → feature/action permission → query
+scope → validated filters/sort/page → read → field projection → response.
 
-## 8. Lekérdezési modell és teljesítmény
+Write: authentication/CSRF or token → organization → input allowlist →
+authorized target query → policy → validation → business use case →
+transaction → audit → response.
 
-Filter-, sort- és mezőnevek allowlist alapján oldhatók fel. Kliensből nem fogadunk SQL-t, táblanevet, join-kifejezést vagy tetszőleges oszlopnevet. A paramétereket kötjük, az SQL scope-ot backend adapter állítja elő.
+Inline/form saves share use cases. Bulk/import/scheduler drag/Gantt links cannot
+bypass them; API is not an arbitrary table mutation endpoint.
 
-A lapméret korlátozott; a végleges limiteket valós terhelésmérés alapján rögzítjük. Nagy adattömeghez szerveroldali lapozás, tree-nél lazy gyermekbetöltés, naptárnál időablak, Ganttnál dokumentált kiadásfüggő betöltés szükséges.
+Related changes share a transaction. Reliable external effects start after commit
+through durable outbox/jobs where needed. Handlers must tolerate repeated delivery;
+language/queue choice does not create exactly-once business behavior.
 
-Count, autocomplete, aggregáció, export és kapcsolati feloldás ugyanazt a scope-ot használja. A jogosultságot nem soronkénti utólagos kiszűréssel oldjuk meg. A policy-scope hatékony lekérdezési terve és megfelelő indexei elfogadási feltételek.
+Optimistic versioning is the baseline: stale edits return 409 rather than silently
+overwriting new changes.
 
-Cache előtt mindig azonosítjuk a scope-ot és az érvénytelenítést. Megosztott cache nem tartalmazhat más szervezet számára olvasható eredményt. Nem vezetünk be Redis-függőséget pusztán megszokásból; infrastruktúraigényt mérés és funkció indokoljon.
+<a id="8-lekérdezési-modell-és-teljesítmény"></a>
 
-## 9. Admin shell és komponensintegráció
+## 8. Query model and performance
 
-Shell: bejelentkezés utáni navigáció, szervezetváltás, workspace, panelek/tabok, értesítések, loading/empty/error állapotok, route és állapotkezelés. Menü csak engedélyezett feature-öket mutat, de a backend ettől függetlenül ellenőriz.
+Resolve fields/filters/sort through allowlists. Never accept SQL, table names,
+joins or arbitrary columns from clients. Bind parameters; backend adapters
+construct scope.
 
-Adapterenként egységes mount/update/destroy életciklus kell. El kell távolítani az eseménykezelőket, abortálni a lejárt kéréseket, és védeni a nézetet a később beérkező régi válaszoktól. A nem mentett változásokat jelezni kell navigációnál.
+Bound page sizes and set final limits from measured loads. Large lists need
+server paging; trees lazy children; calendars time windows; Gantt documented
+edition-specific loading.
 
-Közös szabványok: lokalizáció, téma, timezone, hibák, billentyűzetes használat, fókuszkezelés, jogosultságváltozás, API megszakítás és kapcsolatvesztés. A jogosultságvesztés után a korábbi adatok nem maradhatnak aktív szerkesztőben.
+Counts/autocomplete/aggregates/export/relations use the same scope. Do not filter
+for authorization after reading rows. Efficient scope plans/indexes are acceptance
+criteria.
 
-Mentett nézet személyes vagy explicit megosztott lehet; mentett szűrő sosem tárol nyers SQL-t. A mezőjog változása után újra kell validálni.
+Identify cache scope/invalidation first; shared caches cannot disclose another
+organization's results. Add Redis only for measured functional need.
 
-## 10. Naptár, Gantt és hierarchia
+<a id="9-admin-shell-és-komponensintegráció"></a>
 
-Naptárhoz az időpont, időzóna, egész napos esemény és ismétlődés külön típus. A nyári/téli átállás tesztelendő; a dátum-only mezőt nem konvertáljuk automatikusan időpillanattá.
+## 9. Admin shell and component integration
 
-Áthúzás és átméretezés üzleti parancsot indít. A szerver elutasítása visszaállítja a nézetet és érthető hibaüzenetet ad. Ütközés, erőforrás-szabály és munkanaptár az alkalmazás szabálya; a keret hívási pontokat ad.
+Target shell: navigation, organization switching, workspaces/panels/tabs,
+notifications, loading/empty/errors, routing/state. Menus hide unavailable features;
+backend checks independently.
 
-Tree áthelyezésnél a forrás és cél szervezetét, mindkét oldali jogosultságot és a ciklusmentességet is ellenőrizni kell. Gantt függőségnél a ciklus és a hozzáférhetetlen célobjektum kezelése szükséges. PRO-ban létező képességet Standard adapter nem ígérhet teljesítettnek.
+Adapters share mount/update/destroy lifecycle: detach handlers, abort obsolete
+requests and ignore stale responses. Warn about unsaved changes during navigation.
 
-## 11. REST és külső kliensek
+Common contracts cover localization/themes/timezones/errors, keyboard/focus,
+permission changes, cancellation/network loss. Revoked data must not remain
+in active editors.
 
-Az admin belső HTTP API-ja és a külső integrációs REST-kitettség külön kapcsoló. Egy UI-ban használható feature nem válik automatikusan külső API-vá. A külső API verziózott; a séma dokumentációja csak az engedélyezett műveletekből készül.
+Saved views may be personal or explicitly shared. Saved filters never contain raw
+SQL and must be revalidated after field-right changes.
 
-Gépi identitás saját szervezeti és műveleti jogokkal rendelkezik. A token scope korlátoz, nem ad többet az identitás jogainál. A konkrét auth protokoll és token-életciklus M2-ben véglegesítendő; nem gyártunk saját kriptográfiai protokollt.
+<a id="10-naptár-gantt-és-hierarchia"></a>
 
-Hibák strukturáltak: validációs mezőhibák, nem hitelesített, tiltott/hozzáférhetetlen, konfliktus, limit és belső hiba. A válasz request ID-t ad, stack trace-t vagy SQL-t élesben nem. A publikus wire schema M1–M3 szerződésteszttel rögzítendő.
+## 10. Calendar, Gantt and hierarchy
 
-## 12. Fájlok, audit és háttérmunka
+Timestamps/timezones/all-day/recurrence are distinct types. Test DST; never
+automatically convert date-only fields into instants.
 
-Fájlok nem a publikus webrootba kerülnek alapértelmezetten. Letöltés és preview policy-n keresztül megy; a fájlazonosító nem fájlrendszerútvonal. MIME/méret ellenőrzés, biztonságos fájlnév, feltöltési kvóta és megszakadt feltöltés takarítása szükséges.
+Drag/resize invokes business commands. Server rejection restores UI with clear
+errors. Conflicts/resource rules/work calendars are consumer policy exposed
+through framework hooks.
 
-Napló: audit-, biztonsági és üzemeltetési események elkülönítve, explicit [lefedési katalógus](product-direction.md#4-eseménynapló-lefedési-katalógus) alapján. Audit: actor, tenant, action, target, időpont, eredmény és korreláció. Jelszó/token/kód soha nem naplóadat. Érzékeny mezőknél explicit maszkolás. A megőrzést és hozzáférést az alkalmazás konfigurálja.
+Tree moves check source/target organizations, both permissions and cycles.
+Gantt links reject cycles/inaccessible targets. Standard adapters cannot claim
+PRO-only functionality.
 
-Job: explicit tenant/actor referencia, újraellenőrzött hozzáférés, retry, idempotencia és sikertelen job kezelése. Exportnál a generálás és letöltés időpontjában is érvényes jogosultság kell.
+<a id="11-rest-és-külső-kliensek"></a>
 
-## 13. Tesztelés és üzemeltetés
+## 11. REST and external clients
 
-Unit: definíciófordítás, policy kombináció, filter-validálás. Integráció: valós izolált tesztadatbázis, tranzakció, scope és jogosultság. Contract: PHP metaadat és frontend kompatibilitása. E2E: shell és minden vállalt komponens tényleges felhasználói működése. Performance: p50/p95/p99, hibaarány, throughput, SQL darabszám/idő, CPU és memória rögzített adathalmazon.
+Internal admin API and external REST exposure are separate switches; UI access
+does not automatically expose a feature externally. External API is versioned,
+and documentation describes enabled actions only.
 
-PHP-FPM pool és OPcache a VAPA-demo/fogyasztó új admin számára külön konfigurálható. Első telepítés nem kapcsolja át a régi admin PHP-ját. Request log, slow query és jobmetrikák segítik a diagnózist; személyes adatot ne használjunk címkeként.
+Machine identities carry their own organization/action rights. Token scopes
+restrict identity permissions. M2 settles concrete auth/lifecycle; no custom
+cryptographic protocol.
 
-## 14. CityScreen teljes átállása
+Errors are structured: field validation, unauthenticated, denied/inaccessible,
+conflict, limit, internal failure. Return request ID without exposed SQL/stack
+traces in consumer operational responses. Public wire schema needs M1–M3 contracts.
 
-A fogyasztó repóban készüljön teljes képernyő/művelet/integráció leltár és megtart/újratervez/elhagy döntési lista. Minden átvett modul üzleti logikáját újraírjuk. Legacy kompatibilitási réteg nincs.
+<a id="12-fájlok-audit-és-háttérmunka"></a>
 
-Modulonkénti átadás előtt rögzítendő az adatok írási felelőse, az átmeneti közös adatbázis használata, a schema-kompatibilitás és visszaállási út. Két admin nem hajthat végre ugyanazon üzleti objektumon eltérő szabályú írást felügyelet nélkül.
+## 12. Files, audit and jobs
 
-Az adatmegőrzés, azonosítók, médiaútvonalak és kapcsolt DMS/publikus oldali olvasók szerződései alkalmazási migrációs feladatok. A publikus oldalak átépítése nem cél, működésük megőrzése viszont kötelező integrációs feltétel.
+Files default outside public roots. Download/preview pass policy; IDs are not
+filesystem paths. Require MIME/size checks, safe names, quota and interrupted
+upload cleanup.
 
-A régi ADE-admin csak a teljes egyeztetett üzleti képességlista teljesülése után vezethető ki. A VAPA demo elkészülte nem jelenti a CityScreen migráció befejezését.
+Separate audit/security/operational logging via the [catalog](product-direction.md#4-eseménynapló-lefedési-katalógus).
+Audit records actor/tenant/action/target/time/outcome/correlation. No passwords,
+tokens or codes. Explicitly mask sensitive fields; consumers configure retention/access.
+
+Jobs carry explicit tenant/actor references, recheck permissions, retry/idempotency
+and failure handling. Exports need valid rights at generation and download.
+
+<a id="13-tesztelés-és-üzemeltetés"></a>
+
+## 13. Testing and operations
+
+Units: compilation/policy combinations/filter validation. Integration: isolated
+real databases/transactions/scopes/permissions. Contracts: metadata/frontend.
+E2E: actual shell/supported component behavior. Performance: p50/p95/p99/error
+rate/throughput/SQL count/time/CPU/memory on fixed synthetic data.
+
+Consumer/demo PHP-FPM pools and OPcache may have separate managed configuration;
+initial integration never switches old admin PHP. Request/slow-query/job metrics
+support diagnosis without personal-data labels. Host changes belong to Infra.
+
+<a id="14-cityscreen-teljes-átállása"></a>
+
+## 14. Complete CityScreen migration
+
+The consumer owns screen/action/integration inventory and retain/redesign/remove
+decisions. Rewrite all migrated business logic; no legacy compatibility layer.
+
+Before each consumer transition, declare data writer, temporary shared database,
+schema compatibility and recovery route. Two admins must not write the same
+objects under differing rules without control.
+
+Data retention/IDs/media paths/DMS/public readers are consumer migration contracts.
+Public UI rewrite is outside scope, but preserving its behavior is required.
+Retire old ADE admin only after the agreed business capability list is complete.
+A completed framework demo does not complete CityScreen migration.

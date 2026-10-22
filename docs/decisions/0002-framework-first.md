@@ -1,23 +1,45 @@
-# ADR-0002 — VAPA = ADE v2; keretfejlesztés az üzleti modulok előtt
+# ADR-0002 — 61de = ADE v2; framework before business modules
 
-Dátum: 2026-10-16. Elfogadott, kötelező felhasználói utasítás.
+Date: 2026-10-16. Accepted mandatory owner instruction.
 
-A VAPA az ADE utódjaként készülő, DHTMLX alapú admin keretrendszer. Minden általános képesség a keretben készül el. A fogyasztók deklarálják az alkalmazást, a menüt, a feature-öket és a konkrét üzleti szabályokat/illesztéseket; a VAPA futtatja és megjeleníti ezeket.
+61de succeeds ADE as a DHTMLX admin framework. All general capabilities belong
+in the framework. Consumers declare application/menu/features and concrete
+business rules/adapters; 61de executes/renders them.
 
-Fejlesztési sorrend minden lépésben: szükséges keretszerződés → VAPA implementáció → szintetikus keretteszt → fogyasztói konfiguráció/üzleti modul → integrációs ellenőrzés. Hiányzó képességhez nem készül külön alkalmazási admin-infrastruktúra.
+Every increment follows required contract → framework implementation →
+synthetic verification → consumer configuration/business module → integration
+verification. Missing capabilities never justify separate application admin infrastructure.
 
-A kezdeti egyedi HTML loginoldal, oldalsáv és kártyás dashboard hibás irány volt. Nem elegendő más widgetre cserélni: a keret szerződéseit és felelősségeit kell megvalósítani. A shell első átadása DHTMLX Window/Form login, Menu és Layout, üres munkaterülettel. A menü struktúrája az alkalmazás definíciójából jön; a VAPA nem talál ki új információs architektúrát.
+The initial custom HTML login, sidebar and card dashboard were the wrong
+direction. Replacing widgets is insufficient: implement framework contracts and
+responsibilities. The initial shell is DHTMLX Window/Form login, Menu and Layout
+with an empty workspace. Application definitions supply menu hierarchy; the
+framework does not invent information architecture.
 
-ADE v2 az architekturális és használati folytonosságot jelenti. A régi ADE kódot nem másoljuk a keretbe, CityScreen üzleti fogalmakat nem égetünk bele. A modern PHP, TypeScript és DHTMLX alapirány fennmarad.
+ADE v2 means architectural/usage continuity, without copying old ADE code or
+embedding CityScreen business concepts. Modern PHP, TypeScript and DHTMLX remain
+the baseline. The full framework and migration span multiple milestones;
+login/menu completion proves only the first capability.
 
-A teljes keret és a teljes alkalmazásmigráció továbbra is több mérföldkő. A login és menü elkészülte kizárólag az első keretképesség átadása.
+<a id="pontosítás--2026-10-16"></a>
 
-## Pontosítás — 2026-10-16
+## Clarification — 2026-10-16
 
-## 1. Első és legfontosabb szabály minden AI-fejlesztőnek (Codex, Claude és bármely más agent)
+<a id="1-első-és-legfontosabb-szabály-minden-ai-fejlesztőnek-codex-claude-és-bármely-más-agent"></a>
 
-**NINCS A VAPA-T MEGKERÜLŐ EGYEDI FEJLESZTÉS.** A VAPA projekt a keretrendszer eszközeivel készül. Ha hiányzik egy képesség, a keretrendszer eszközeit kell bővíteni, és az üzleti logikát azokkal megvalósítani. Üzleti igény önmagában nem indokol külön egyedi folyamatot.
+## 1. First and most important development rule
 
-Kivétel **akkor és csak akkor** lehetséges, ha a keretrendszer logikusan nem bővíthető az adott igényre. Ennek konkrét okát, a megvizsgált keretbővítést és a kivétel határát az implementáció mellett dokumentálni kell. Ebben a szűk esetben az üzleti megoldás akár DHTMLX nélküli eljárást is alkalmazhat. Kényelmi, gyorsasági vagy AI-preferencia nem indok.
+No custom development bypassing 61de. Extend missing framework capabilities
+and implement business logic through them. A business need alone does not
+justify a separate flow.
 
-A korábbi, kizárólag alkalmazásspecifikus user adminra vonatkozó döntést 2026-10-21-én az FB-0036 felülírta: a keret minden projekthez kötelező adminmodult biztosít, saját VAPA-definíciókból és eszközökből. Ez elfogadott cél, a modul még nem kész. Döntés: [ADR-0003](0003-product-direction.md); részletek: [termékirány](../product-direction.md).
+An exception is allowed if and only if the framework logically cannot be
+extended for that need. Document the concrete reason, considered extension
+and boundary alongside implementation. Only that narrow exception may use a
+non-DHTMLX flow. Convenience, speed or tool preference is not justification.
+
+On 2026-10-21 FB-0036 superseded application-only user administration:
+every project must use a framework-owned admin module built from 61de
+definitions/tools. This is an accepted target, not proof the whole module is
+complete. [ADR-0003](0003-product-direction.md) and
+[current product evidence](../product-direction.md) track it.

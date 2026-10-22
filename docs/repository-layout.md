@@ -1,36 +1,66 @@
-# Könyvtárak és csomaghatárok
+# Directories and package boundaries
 
-## Két külön repó
+<a id="két-külön-repó"></a>
 
-- `/space/frameworks/vapa`: a keretrendszer canonical checkoutja, GitHub: https://github.com/sanch78/vapa.
-- `/space/apps/cityscreen`: a fogyasztó alkalmazás meglévő repója; az új admin későbbi helye `v2/`.
-- `/space/apps/cityscreen/vapa`: ignored helyi symlink a VAPA checkoutra, kizárólag kényelmes szerkesztéshez. Nem telepítési mechanizmus és nem submodule.
-- Függőség: CityScreen → VAPA. Fordított függőség, CityScreen-forrásra mutató include vagy VAPA-ból elért alkalmazásglobális tiltott.
+## Two separate repositories
+
+- `/space/share/libs/61ade`: canonical **61de** checkout on `catalyst`. The owner renamed the repository; use its configured Git remote. [Environment contract](development.md#development-environment): development only, with no deployment or project backup workflow.
+- `/space/apps/cityscreen`: the existing consumer repository; `v2/` is its planned new admin location.
+- Consumer editor symlinks are conveniences. Verify their targets in the consumer project; a historical framework path does not establish a valid link after renaming.
+- Dependency direction is CityScreen → 61de. Reverse dependencies, includes of CityScreen source and application globals accessed from 61de are forbidden.
 
 ## Backend
 
-`packages/php/src/Contracts`: bővítési interfészek; a konkrét alkalmazás adaptereit ezek kötik a kerethez.
+`packages/php/src/Contracts`: extension interfaces binding concrete application
+adapters to the framework.
 
-`Feature`: regisztráció, típusos definíciók, ellenőrzés és fordítás. `UI`: nézetleírások. `Http` és `Api`: transport, válaszok és verziózás. `Security`: auth és policy pipeline. `Tenancy`: explicit szervezeti kontextus. `Data`: engedélyezett filter/sort/page modell és query adapterek. `Validation`: közös validációs infrastruktúra. `Files`, `Jobs`, `Audit`: közös infrastruktúra, alkalmazási hookokkal. `Integration/Symfony`: konkrét hosting framework integrációja, ha az ADR megerősíti.
+Planned responsibilities: `Feature` for registration, typed definitions,
+validation and compilation; `UI` for views; `Http` and `Api` for transport,
+responses and versioning; `Security` for authentication and policy; `Tenancy`
+for explicit organization context; `Data` for allowed filter/sort/page models
+and query adapters; `Validation` for common validation; `Files`, `Jobs` and
+`Audit` for infrastructure with application hooks; `Integration/Symfony`
+for hosting integration if confirmed by ADR.
 
-`packages/php/config`: keret alapbeállításai; nem alkalmazássecret. `packages/php/migrations`: csak a keret által birtokolt táblák migrációi, amennyiben szükségesek. Ezeket a fogyasztó explicit regisztrálja és futtatja, csomagtelepítés nem migrál automatikusan.
+`packages/php/config` holds framework defaults, never application secrets.
+`packages/php/migrations` contains only framework-owned table migrations when
+needed. Consumers register and run them explicitly; package installation never
+migrates automatically.
 
 ## Frontend
 
-`packages/frontend/src/app`: inicializáció és szolgáltatásregisztráció. `shell`: elrendezés és navigációs működés. `renderer`: schema alapján komponensépítés. `components`: DHTMLX adapterek komponensenként. `actions`: deklarált műveletek dispatchere. `api`: transport. `state`: workspace és nézetállapot. `contracts`: szerver-kliens szerződések. `i18n` és `styles`: közös fordítás és arculati alap.
+Planned responsibilities under `packages/frontend/src`: `app` for initialization
+and services; `shell` for layout/navigation; `renderer` for schema-based component
+construction; `components` for DHTMLX adapters; `actions` for action dispatch;
+`api` for transport; `state` for workspace/view state; `contracts` for
+server/client contracts; `i18n` and `styles` for shared translation and styling.
 
-Az üres adapterkönyvtár a tervezett lefedést jelöli, nem telepített vagy licencelt komponenst.
+An empty adapter directory indicates planned scope, not an installed or licensed component.
 
-## Példaalkalmazás és tesztek
+<a id="példaalkalmazás-és-tesztek"></a>
 
-`examples/demo-app` önálló fogyasztóként fogja használni a két csomagot. Domainje szintetikus szervezetek, projektek, feladatok és dokumentumok. Nem CityScreen üzleti modulok másolata.
+## Example application and tests
 
-`tests/php`, `tests/frontend`, `tests/contracts`, `tests/e2e`, `tests/performance`, `tests/fixtures`: külön tesztrétegek. A CityScreen saját üzleti tesztjei a CityScreen `codex/tests/v2` alatt maradnak.
+`examples/demo-app` consumes both packages independently, using synthetic
+organizations, projects, tasks and documents rather than copies of CityScreen modules.
 
-`tools`: fejlesztési segédeszközök; `tmp`: ignored futási állományok. `docs/decisions`: elfogadott és javasolt döntések státusszal.
+The planned test layers are `tests/php`, `tests/frontend`, `tests/contracts`,
+`tests/e2e`, `tests/performance` and `tests/fixtures`; current runnable scripts
+and selectors are documented in [development](development.md). CityScreen business
+tests remain in its own `codex/tests/v2`.
 
-## Fogyasztó alkalmazás
+`tools` contains development utilities; ignored `tmp` holds runtime files.
+`docs/decisions` records accepted and proposed decisions with status.
 
-A CityScreen `v2/src/Modules` alá kerülnek a feature-definíciók, domainmodellek, use case-ek, repository-implementációk, üzleti policy-k és jobok. A DMS, térkép, levelezés és tartalomforrások konkrét integrációi `v2/src/Integrations` alatt élnek. Saját frontend csak ott kell, ahol a közös renderer nem elég.
+<a id="fogyasztó-alkalmazás"></a>
 
-A két VAPA-csomag ugyanabban a VAPA-repóban él, mert közös protokollt valósít meg. A fogyasztó alkalmazás soha nem kerül ebbe a repóba.
+## Consumer application
+
+CityScreen `v2/src/Modules` owns feature definitions, domain models, use cases,
+repository implementations, business policies and jobs. Concrete DMS, map, mail
+and content-source integrations belong in `v2/src/Integrations`. Consumer frontend
+extensions are permitted only within the documented framework-first exception;
+missing general renderer capabilities must first be added to 61de.
+
+Both 61de packages share a repository because they implement one protocol.
+The consumer application never belongs in this repository.

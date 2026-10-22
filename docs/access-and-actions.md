@@ -1,47 +1,120 @@
-# ACL, műveletek és audit
+# ACL, actions and audit
 
-Állapot: az alábbi első képesség implementálva és integrációban ellenőrizve, 2026-10-16.
+Status: the initial capability below was implemented and integration-verified on 2026-10-16.
 
-## Tartós szerződés
+<a id="tartós-szerződés"></a>
 
-Az identitás adatait külön kezeljük a jogosultságoktól. Az actor ember vagy szolgáltatás; szerepkörtagságot és közvetlen szabályt kaphat. Nincs admin bypass. A regisztrált erőforrás és művelet az engedélyezhető jogok katalógusa; ismeretlen jog nem adhat hozzáférést. A katalógus (a tervezett, definíciókból generált változat is) önmagában soha nem ad jogot.
+## Durable contract
 
-Egy szabály: alany (user/role), erőforrás, művelet, csatorna (ui/api), hatás (allow/deny), objektumhatókör (all/own/id), opcionális objektumazonosító, mező (teljes művelet vagy konkrét mező). A konkrét objektum tulajdonosát a backend adatszolgáltató állapítja meg. Az explicit tiltás nyer; egyező engedély hiányában tiltás van. Mezőengedély önmagában nem engedélyez műveletet. API-token scope csak szűkít, soha nem ad jogot. A web UI és API ugyanazon műveletvégrehajtón fut.
+Identity data is separate from authorization. Actors are humans or services with
+role memberships and direct rules. There is no admin bypass. Registered resources
+and actions form the permission catalog; unknown permissions cannot grant access.
+A catalog, including one generated from definitions, never grants rights by itself.
 
-Jelenleg a szerepkörök és szabályok adatként kezelhetők a VAPA form/grid eszközeivel létrehozott alkalmazási felületen. Az FB-0036 új célja minden alkalmazáshoz kötelező, a VAPA saját definícióiból épülő adminmodul; ebből a [felhasználóadmin](admin.md) (A1) és a [szerepkör- és szabálykezelés](admin.md#szerepkörök-és-jogosultságok-a2) (A2) elkészült. A keret modulja adja majd a közös felületet, a fogyasztó az identitás- és adatillesztést. Részletek: [termékirány](product-direction.md). A szabályok kezelése külön jog; a jogosultságváltozások auditáltak, a döntés minden kérésben friss. A beépített üzleti korlátot (például saját profil vagy tiltott felhasználó) ACL-engedély sem írja felül.
+Rules contain subject (user/role), resource, action, channel (ui/api), effect
+(allow/deny), object scope (all/own/id), optional object ID and field (whole action
+or named field). The backend data provider determines ownership. Explicit deny
+wins; no matching allow means deny. A field allow alone cannot authorize an
+action. API token scopes only restrict. UI and API share one executor.
 
-Olvasásnál az objektumhatókör már az SQL lekérdezés feltétele; mezők szűrése a szerveroldali kivetítésben történik. Nincs tiltott mezőre kliens által megadható rendezés, szűrés vagy aggregáció. Módosítás explicit mezőlistás, objektumellenőrzéses és tranzakciós. Verzióütközés esetén mentés helyett 409.
+Roles and rules are managed through framework forms/grids. FB-0036 requires
+a framework-owned admin module for every application; [users](admin.md) (A1)
+and [roles/rules](admin.md#szerepkörök-és-jogosultságok-a2) (A2) are implemented.
+The consumer supplies identity/data adapters. See [product direction](product-direction.md).
+Rule administration requires its own permission, changes are audited and decisions
+are fresh on each request. An ACL allow cannot override a business constraint,
+such as a disabled account or self-profile restriction.
 
-Minden regisztrált művelet a közös végrehajtón halad át: autentikáció → csatorna/token scope → ACL → mezővalidáció → üzleti korlát → tranzakció → handler + audit → commit. A sikeres írás auditja ugyanabban a tranzakcióban készül. Hibánál rollback és külön hibaaudit. Naplóhiba nem enged csendben sikeres írást. Jelszó, token, session, nyers input és személyes mezőérték sosem kerül a naplóba; az esemény a műveletet, célt, érintett mezőneveket és eredményt tartalmazza.
+Read scopes become SQL predicates; field projection happens server-side.
+Clients cannot sort/filter/aggregate forbidden fields. Writes have explicit
+field lists, object checks and transactions. Revision conflicts return 409.
 
-Új üzleti folyamat mindig regisztrált művelet. Cron/job/import adapter ugyanazt a végrehajtót köteles használni; a még át nem hozott régi rendszer nem válik ettől automatikusan auditálttá.
+Every registered action follows authentication → channel/token scope → ACL →
+field validation → business guard → transaction → handler + audit → commit.
+Successful-write audit shares the transaction. Failures roll back and produce
+separate failure audit; audit failure cannot silently permit a successful write.
+Never log passwords, tokens, sessions, raw input or personal field values.
+Events contain action, target, changed field names and outcome.
 
-## Bővítési határ
+New business flows must be registered actions. Cron/job/import adapters must
+use the same executor. Unmigrated legacy flows do not thereby become audited.
 
-Az első alkalmazás egyetlen realm. Többszervezetes üzemhez explicit realm-tagság és adatforrás-scope adapter szükséges; annak hiányában nem hirdetünk tenant izolációt. Összetett ABAC-kifejezéshez típusos, regisztrált feltételadapter kell; felületen írható PHP/SQL/JavaScript kifejezés nem támogatott.
+<a id="bővítési-határ"></a>
 
-## Használati felület (első implementáció)
+## Extension boundary
 
-`Registry::add(Action)` regisztrál egy műveletet; a szerveroldali resolver adja az objektumot és tulajdonost, a handler az üzleti műveletet. `SqlResource` deklarált SQL-adapter list/get/create/update műveletekkel, paraméterkötéssel, dinamikus kurzoros betöltéssel és optimista revízióval. A `Registry::view` csak a frontendnek szükséges oszlopokat, műveleteket, csoportot és singleton-viselkedést írja le. A DHTMLX Workspace ebből készít gridet, toolbart és szerkesztőablakot. A `__form` kernel-végpont a konkrét célra engedélyezett mezőket adja; a mentés újraellenőrzi őket.
+The first application uses one realm. Multiple organizations require explicit
+realm membership and data-source scope adapters; tenant isolation is not claimed
+without them. Complex ABAC requires typed registered condition adapters, never
+UI-authored PHP/SQL/JavaScript expressions.
 
-Az alkalmazás `ApplicationDefinition.workspace` argumentuma egy `Workspace(registry, PDO)` objektum. A PDO ugyanaz a kapcsolat, mint amelyen az üzleti handler és az audit fut. Minden írás tranzakcióban fut; a handler nem commitolhat önállóan. Külső mellékhatás (levél, eszközvezérlés) még nem támogatott: ahhoz előbb VAPA outbox/job képességet kell építeni.
+<a id="használati-felület-első-implementáció"></a>
 
-Explicit telepítés: `Vapa\Access\Schema::install(PDO)`. HTTP kérés közben nincs sémamigráció. A szerepkörök és kezdeti jogosultságok feltöltése a fogyasztó külön, auditált migrációja; a `role_key` stabil alkalmazási kulcs, a felületi név módosítható. Azonosító és teljes szabálylista a backendben marad.
+## Usage interface (initial implementation)
 
-API: `POST ./?vapa=1`, `Content-Type: application/json`, `Authorization: Bearer <token>`. Törzs: `{"resource":"notes","action":"get","id":"1","values":{}}`. A token csak hash formában tárolt, lejáró és visszavonható; a scope például `notes.get`. A tulajdonos fiókállapotát minden kérés újraellenőrzi. A böngésző ugyanezt a végpontot sessionnel és `X-VAPA-CSRF` fejléccel használja. Írás csak POST, nincs cookie-val működő CSRF nélküli API-csatorna.
+`Registry::add(Action)` registers an action. A server resolver supplies object
+and owner; the handler implements business work. `SqlResource` declares
+list/get/create/update SQL adapters with bound parameters, dynamic cursor loading
+and optimistic revisions. `Registry::view` declares only browser-needed columns,
+actions, grouping and singleton behavior. DHTMLX Workspace builds the grid,
+toolbar and editor. The `__form` kernel endpoint returns fields allowed for the
+specific target; saving checks them again.
 
-`Passwords` a fogyasztó fióksémáját és hash-kodekjét kapja. Saját jelszóváltásnál jelenlegi jelszó és ismétlés szükséges, minimum 12, maximum 128 karakter. Sikeres csere visszavonja a munkameneteket és API-tokeneket. Titkos mezős műveletek 5 próbálkozás/perc/actor/művelet korláttal futnak. A keret nem dönt a fogyasztó meglévő jelszóformátumáról; annak korszerűsítése külön kompatibilitási döntés.
+`ApplicationDefinition.workspace` takes `Workspace(registry, PDO)`. Use the
+same PDO connection for handlers and audit. All writes are transactional; a
+handler must not commit independently. Reliable external side effects such as
+mail/device control require a future framework outbox/job capability.
 
-Önálló demo: `php examples/demo-app/setup-workspace.php`, majd a shell demo. A Jegyzetek funkció kizárólag szintetikus, saját SQLite adatokkal használja ugyanazt a registryt és DHTMLX adaptert. `tests/shell/access.php` és `tests/shell/workspace.spec.cjs` ellenőrizte az ACL-t, API-scope-ot, rollbacket és a tényleges form/grid mentést. A fogyasztó integrációja és publikus telepítése ellenőrzött; a valódi fiókkal történő üzleti próba a felhasználóé.
+Install explicitly with `Blade\Access\Schema::install(PDO)`; HTTP requests never
+migrate schemas. Consumers seed roles/initial permissions through a separate
+audited migration. `role_key` is stable; the display name may change. Identifiers
+and complete rule lists remain backend-only.
 
-## Kapcsolt mezők és határok
+API: `POST ./?blade=1`, `Content-Type: application/json`,
+`Authorization: Bearer <token>`. Body:
+`{"resource":"notes","action":"get","id":"1","values":{}}`.
+Tokens are stored hashed, expire and can be revoked; example scope: `notes.get`.
+Every request rechecks owner account state. Browsers use the same endpoint with
+session and `X-BLADE-CSRF`. Writes require POST; no CSRF-free cookie API channel.
 
-A `Lookup` a kapcsolt objektum saját listajogával, SQL scope-jával és címkemező-jogával állít elő választékot. A `Field.options` lehet Contextet fogadó backend closure; ugyanazt a választékot validálja a mentés, mint amelyet a form megkap. A választék jelenleg legfeljebb 2000 elem; nagyobb katalógushoz kereshető/lapozott lookup adapter szükséges. A listák [kurzoros, görgetéses adatkezelést és automatikus élő követést](workspaces.md) használnak; nincs kézi lapozó-/frissítőgomb. A kernel nem enged kliens által megadott SQL-t, sortot vagy filtert.
+`Passwords` takes the consumer account schema/hash codec. Self-service changes
+require current password and confirmation, with 12–128 characters. Success
+revokes sessions/API tokens. Secret-field actions allow 5 attempts/minute/actor/
+action. Existing consumer password formats remain the consumer's compatibility decision.
 
-A mezőszabályok hiányában az objektumjog öröklődik. Ha az actorra az adott mezőhöz van külön szabály, a mezőhöz külön egyező allow kell, és az egyező deny elsőbbségű. Ezért egy csak tiltást tartalmazó mezőszabály alapból lezárja az érintett mezőt; részleges kivételhez adj explicit allow szabályt is. Titkos mező sosem kerül a listaprojekcióba vagy auditba.
+Synthetic demo: `php8.4 examples/demo-app/setup-workspace.php`, then open the
+managed demo URL. Notes uses the same registry/DHTMLX adapter with its own SQLite
+data. `tests/shell/access.php` and `workspace.spec.cjs` historically verified ACL,
+API scopes, rollback and actual form/grid saving. Consumer integration/public
+installation was verified separately; real-account business acceptance belongs
+to the owner.
 
-A `registerDelete` külön opt-in keretképesség: cél/revízió/jog ellenőrzés, üzleti deleteGuard és tranzakciós audit. A fogyasztó csak azoknál az erőforrásoknál kapcsolja be, ahol törlés ténylegesen támogatott.
+<a id="kapcsolt-mezők-és-határok"></a>
 
-A szabálycache kizárólag az aktuális Workspace példányon belül él. Műveletkezdéskor, SQL-módosítás után és rollbackkor érvénytelenítjük; nincs kérések között megmaradó jogosultságcache. Ez a listák mezőprojekciójánál elkerüli a soronként ismétlődő ACL-lekérdezéseket.
+## Related fields and limits
 
-Tulajdonosos SQL erőforrás létrehozásakor a backend a hitelesített actort rendeli tulajdonosnak; a kliens nem állíthatja be ezt a mezőt. A `create` saját-objektum szabálya ezt a leendő tulajdonost ellenőrzi. A revízió a deklarált adatmezőkből, kulcsból és tulajdonosból képződik; nem tartalmaz kívül eső fiók-/jelszó-/aktivitási adatot. MySQL alatt az audit és a módosított adattáblák tranzakcióképes InnoDB motorja előfeltétel; a telepítő a saját tábláit így hozza létre.
+`Lookup` uses the related object's list permission, SQL scope and label-field
+permission. `Field.options` may be a backend closure taking Context. Saving
+validates against the same choices supplied to the form. The current limit is
+2000 choices; larger catalogs need searchable/paged lookup support.
+[Lists](workspaces.md) use cursor scrolling and automatic live updates, with
+no manual pager/refresh buttons. Clients cannot supply SQL, arbitrary sorting
+or filtering expressions.
+
+Without field rules, object permissions are inherited. Once an actor has a
+separate rule for a field, that field needs a matching allow and matching deny
+wins. A deny-only rule therefore closes the field by default; add explicit allow
+for partial exceptions. Secret fields never enter list projection or audit.
+
+`registerDelete` is an explicit opt-in with target/revision/permission checks,
+business deleteGuard and transactional audit. Enable it only where deletion is supported.
+
+Rule caches live only within the current Workspace instance and are invalidated
+at action start, after SQL changes and on rollback. There is no cross-request
+permission cache; list projection avoids repeating ACL SQL per row.
+
+For owned SQL resources, create assigns the authenticated actor as owner;
+clients cannot set it. Own-object create rules check that prospective owner.
+Revisions derive from declared data fields, key and owner, excluding unrelated
+account/password/activity fields. MySQL requires transactional InnoDB tables
+for audit and modified data; the installer creates its tables accordingly.

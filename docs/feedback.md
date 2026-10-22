@@ -1,415 +1,949 @@
-# Felhasználói tesztelés és használati tanulságok
-
-A napló célja, hogy a tesztelés során elmondott elvárások, javítások és használati útmutatások ne vesszenek el a beszélgetésekben. Az aktuális használat canonical leírása a [felhasználási módszertan](usage.md); a napló a megértés, döntés és ellenőrzés történetét őrzi.
+# User testing and usage lessons
+
+This log preserves expectations, corrections, decisions and verification history.
+[Usage](usage.md) is canonical for current behavior. Historical test results,
+paths and superseded decisions below are evidence, not permission to repeat old
+workflows. Entries translated into English retain original IDs/dates/results;
+product labels, identifiers and quoted diagnostics stay unchanged.
 
-## Rögzítés és feldolgozás
-
-Minden érdemi észrevétel kap stabil `FB-NNNN` azonosítót. A rövid összefoglaló legyen önállóan érthető, teljes chatmásolat és bizalmas adatok nélkül. Azonnal különítsük el a megfigyelt viselkedést a kívánttól.
-
-Állapotok: **nyitott** (még értelmezendő), **elfogadott / tervezett**, **megvalósítva / ellenőrzésre vár**, **lezárt / ellenőrzött**, **elvetett**, **felülírt**. Dokumentációs elvárás dokumentációs ellenőrzéssel zárható; runtime-visszajelzéshez tényleges működésellenőrzés kell. Agent által ellenőrzött eredményt nem nevezünk felhasználó által elfogadottnak.
-
-Visszajelzés lezárása előtt a canonical útmutató és szükség esetén a fejlesztési terv, API-szerződés vagy ADR is frissüljön. Későbbi felülírásnál a korábbi bejegyzést megőrizzük, de jelöljük az utód azonosítóját, és az aktív útmutatóból eltávolítjuk az ellentmondást.
+<a id="rögzítés-és-feldolgozás"></a>
+
+## Recording and processing
+
+Assign stable FB-NNNN IDs to meaningful observations. Summaries must stand alone,
+without full chats or confidential data. Separate observed from requested behavior.
+
+Statuses: open (interpretation pending), accepted/planned, implemented/verification
+pending, closed/verified, rejected, superseded. Documentation expectations may
+close through documentation checks; runtime feedback requires actual behavior.
+Tool verification is not user acceptance.
 
-## Bejegyzéssablon
-
-- **Azonosító, dátum, cím:** FB-NNNN, YYYY-MM-DD, rövid tárgy.
-- **Forrás és kontextus:** felhasználói teszt/útmutatás, érintett komponens, verzió vagy commit, ha ismert.
-- **Megfigyelés / reprodukció:** mit tett a tesztelő, mi történt; ha nincs runtime, ezt jelölni kell.
-- **Elvárt működés / használat:** mit és hogyan szeretne alkalmazni.
-- **Hatókör és döntés:** általános keretszabály vagy alkalmazási sajátosság; elfogadott értelmezés és esetleges nyitott kérdés.
-- **Állapot és teendő:** megoldás, korlát vagy következő lépés.
-- **Átvezetés:** link a használati útmutató megfelelő szakaszára, érintett implementációra és tesztre, ha vannak.
-- **Ellenőrzés:** ki, hogyan és milyen eredménnyel ellenőrizte; felhasználói megerősítés csak akkor, ha ténylegesen megtörtént.
-
-## FB-0001 — A használati módszertan folyamatos vezetése
-
-- **Dátum:** 2026-10-16.
-- **Forrás:** felhasználói fejlesztési utasítás a VAPA alapstruktúrájának elkészülte után.
-- **Kontextus:** nincs még futtatható keret. A felhasználó kéri, hogy a használat módja folyamatosan dokumentálva legyen, és a későbbi tesztelés közben adott „mit hogyan” útmutatások a további felhasználásokat segítsék.
-- **Elvárás:** minden képességhez karbantartott használati leírás; a visszajelzések tartós rögzítése és az általános tanulságok beépítése.
-- **Hatókör és döntés:** kötelező VAPA-fejlesztési szabály, a definition of done része. Alkalmazásspecifikus üzleti tudás a fogyasztó dokumentációjában marad.
-- **Állapot:** lezárt / dokumentációsan ellenőrzött. A szabály folyamatosan érvényes; a lezárás a bevezetésre vonatkozik.
-- **Átvezetés:** [fejlesztési szabályok](../AGENTS.md), [használati módszertan](usage.md), [fejlesztési terv](development-plan.md).
-- **Ellenőrzés:** az agent ellenőrizte a szabály, útmutató, napló és készállapot-feltétel összhangját, a belső hivatkozásokat és a diff formátumát. Runtime-teszt nem alkalmazható; későbbi felhasználói teszt még nem történt.
-
-## FB-0002 — Fokozatos indulás login és navigációs shell segítségével
-
-- **Dátum:** 2026-10-16.
-- **Forrás:** első fogyasztó fejlesztési útmutatása.
-- **Elvárás:** először bejelentkezés, majd alkalmazásnak megfelelő, üzleti funkció nélküli menü.
-- **Döntés:** a keret adja a login/session/navigáció felületet; az identitásforrás és a menü az alkalmazásé. Nem tekintjük a shellt kész CRUD- vagy ACL-rendszernek.
-- **Állapot:** felülírt — a felhasználó elutasította a megvalósítás irányát; utód: FB-0003. A technikai tesztek nem igazolták a keretrendszerrel szembeni elvárás teljesülését.
-- **Átvezetés:** [shell használata és korlátai](shell.md), [PHP alkalmazás](../packages/php/src/Shell/Application.php), [frontend](../packages/frontend/src/admin.ts).
-- **Ellenőrzés:** PHP 8.4 lint, TypeScript typecheck és build; a fogyasztó négy Chromium E2E tesztje szintetikus fiókokkal, mobilképek vizuális ellenőrzésével.
-
-## FB-0003 — Minden általános képességet a VAPA ad; VAPA az ADE v2
-
-- **Dátum:** 2026-10-16.
-- **Forrás:** a felhasználó az első publikus felületet elutasította és kötelező szabályként pontosította az architektúrát.
-- **Megfigyelés:** az egyedi loginoldal/kártyás dashboard a kívánt keretfejlesztési irányt nem teljesítette.
-- **Elvárás:** VAPA keretrendszert fejlesztünk, majd erre kerülnek az üzleti modulok egyenként. Minden általános admin-képességet a VAPA ad DHTMLX komponensekkel; nincs azt megkerülő alkalmazási admin-megoldás.
-- **Döntés:** kötelező architektúraszabály, nem vizuális preferencia. Az FB-0002 megvalósítási értelmezését felülírja.
-- **Állapot:** első keretképesség és fogyasztói integráció megvalósítva, agent által ellenőrizve; felhasználói elfogadás még nincs. A szabály minden további képességre folyamatosan kötelező.
-- **Átvezetés:** [AGENTS.md](../AGENTS.md), [ADR-0002](decisions/0002-framework-first.md), [használati módszertan](usage.md).
-- **Ellenőrzés:** [önálló keretdemó és szerződéstesztek](shell.md#önálló-keretdemó-és-ellenőrzés), PHP lint, frontend typecheck/build. A 4 önálló Chromium keretteszt és a fogyasztó 4 integrációs tesztesete sikeres; publikus HTTPS login betöltése ellenőrizve. Mobilon a keret DHTMLX almenübe gyűjti az ágakat, átméretezéskor visszaállítja a menüsort.
-
-## FB-0004 — Elsőbbségi keretszabály, kezelhető ACL és audit
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Döntés:** az AGENTS.md 1. szabálya minden AI-fejlesztőre kötelező; kivétel csak logikusan nem bővíthető keret dokumentált esetére. Az FB-0003 abszolút DHTMLX-megkötését ez pontosítja.
-- **Elvárás:** UX-en kezelhető objektum-/művelet-/mező-/csatornajogok, azonos API-védelem; rendszeres audit minden admin- és üzleti folyamatra. Az alkalmazás adja saját user adminját, a keret az eszközöket. Admin szerepkör nem jelent üzleti szuperjogot. Csak implementált modul lehet a menüben.
-- **Állapot:** a kizárólag alkalmazásspecifikus useradmin-döntést az FB-0036 felülírta; az ACL/audit és keretelső szabály továbbra is érvényes. Az első implementáció ellenőrizve és fogyasztóba telepítve; felhasználói elfogadás még nincs. A további keretképességek határa az ACL-leírásban szerepel.
-- **Átvezetés:** [elsőbbségi szabály](../AGENTS.md), [ADR](decisions/0002-framework-first.md).
-
-## FB-0005 — Natív DHTMLX témaváltás
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Döntés:** Default és Éjjeli stílus (a témakínálatot és alapértéket az FB-0012 bővíti Skyblue-val), a főmenüsor jobb oldalán; DHTMLX `setTheme` API, nem az ADE saját skin-rétegének átvétele. A választás böngészőnként megmarad.
-- **Állapot:** implementálva, böngészőből ellenőrizve; a választás újratöltés után is megmarad.
-- **Átvezetés:** `AdminShell` adapter, [shell](shell.md).
-
-FB-0004 ellenőrzése: `tests/shell/access.php` és `tests/shell/workspace.spec.cjs`, valamint a fogyasztó profil/account/ACL/API PHP- és Chromium-tesztjei. Kapcsolódó implementáció: `packages/php/src/Feature`, `Access`, `Audit`, `packages/frontend/src/Workspace.ts`. Canonical használat: [ACL és műveletek](access-and-actions.md). Az admin saját profilján csak jelszóváltoztatás szerepel; ez a fogyasztó üzleti szabálya, nem kernelbe égetett user admin.
-
-## FB-0006 — Konfigurálható munkaterület, dinamikus és élő listák
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói pontosítás.
-- **Elvárás:** a filter/form/grid külön, címzett és konfigurálható layoutterület legyen. Az overlay form választható és lehet alapértelmezett. A lapozógombos grid és a kézi Frissítés nem alapműködés. Nagy listák dinamikusan, korlátozott memóriával töltődnek.
-- **Élő adatok:** minden látható lista változását figyeljük. Projektszinten polling vagy WebSocket választható; az első fogyasztó WebSocketet kap. A kiválasztást, szűrést, görgetést és nyitott űrlapot az automatikus frissítés megőrzi.
-- **Műveletfeliratok:** lista: Hozzáadás / Módosítás, ACL-engedéllyel. Mentés kizárólag a tényleges beküldő gombon szerepel.
-- **Profilom:** közvetlen adatlap/form, nem adatgrid. Csak a szerkeszthető mezők módosíthatók, a többi readonly. Saját ACL readonly nézete opcionális, nem helyettesíti a profilformot.
-- **Állapot:** implementálva és agent által ellenőrizve; felhasználói elfogadás még nincs.
-- **Döntés:** újrahasználható VAPA layout/lista/élőadat-képesség, alkalmazási frontend nélkül.
-- **Átvezetés és ellenőrzés:** [munkaterületek](workspaces.md); `ViewLayout`, `ListSource`, `LiveConfig`, `Realtime`, WebSocket worker. 5000 rekordos PHP-teszt, overlay/polling keretdemo és WebSocketes fogyasztói böngészőtesztek sikeresek.
-
-## FB-0007 — Az üzleti kód és a keret határa
-
-- **Dátum:** 2026-10-16.
-- **Forrás:** felhasználói kérdés arról, hol van az üzleti kód/konfiguráció, és szivárog-e alkalmazási logika a keretbe.
-- **Elvárás és döntés:** a függés alkalmazás → VAPA. A konkrét séma, üzleti szabály és kezdeti jogkiosztás a fogyasztóé; a keret az általános végrehajtást és dokumentált bővítési pontokat biztosítja. Ez az FB-0003/0004 megerősítése.
-- **Megfigyelés:** az ellenőrzött runtime-forrásban nem találtunk fogyasztói osztály-, üzleti tábla- vagy legacyflag-hivatkozást. Egy szintetikus pollingteszt alapértelmezett PHP-binárisa fogyasztói útvonalra mutatott; ez tesztkörnyezeti visszafüggés volt.
-- **Módosítás:** a teszt most a demóindítóval egyezően `VAPA_PHP` vagy `php8.4` binárist használ. A konfiguráció és üzleti callback szerepe a [használati útmutatóban](usage.md#üzleti-konfiguráció-és-kód-határa), a tesztfuttatás a [fejlesztői útmutatóban](development.md#ellenőrzési-stratégia) szerepel.
-- **Állapot és ellenőrzés:** útvonal javítva; a `tests/shell/workspace.spec.cjs` mindkét Chromium-tesztje sikeres, kívülről megadott `VAPA_PHP` binárissal (önálló CRUD/form és külső írás pollingkövetése). A célzott forráskeresésben nem maradt fogyasztói név/séma/legacyflag vagy a korábbi beégetett útvonal. `git diff --check` sikeres. Felhasználói elfogadást nem állítunk.
-
-## FB-0008 — Olvasható JSON-definíció, env és rendezett PHP
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Elvárás:** a konfiguráció érthetően szekcionált JSON, a hostspecifikus beállítás env legyen; az üzleti PHP jól formázott, felelősségenként rendezett maradjon.
-- **Döntés és megoldás:** új általános `Configuration` compiler a VAPA-ban; névvel regisztrált üzleti callbackekkel a meglévő Field/Action/SqlResource/Workspace végrehajtást használja. Az FB-0007 PHP-definíciós lehetőségét JSON-alapú alapmódszertannal egészíti ki.
-- **Átvezetés:** [JSON/env használat](configuration.md), [üzleti határ](usage.md#üzleti-konfiguráció-és-kód-határa).
-- **Ellenőrzés:** a szintetikus `tests/shell/configuration.php`, a shell- és ACL-szerződéstesztek sikeresek. A fogyasztó saját account/profil/ACL/API/jelszó PHP-tesztje sikeres. A publikus login JSON/env konfigurációval 200 választ ad. Felhasználói elfogadást nem állítunk.
-
-## FB-0009 — A referencia teljes validációja a migráció része
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Megfigyelés:** a fogyasztó felhasználókezelésében a required ellenőrzés mellett referencia szerinti formátum- és egyediségi szabályok hiányoztak.
-- **Döntés:** feature-migráció előtt teljes validációs leltár kell. Az általános mechanizmus a VAPA-é, a konkrét minta, hossz, üzenet és üzleti kivétel a fogyasztóé. A felhasználó kifejezetten megtartotta a jelenlegi 12–128 karakteres jelszószabályt.
-- **Megoldás:** közös deklaratív min-hossz/minta/mezőegyezés/SQL-egyediség, natív DHTMLX mezőhiba, név szerinti backend mezőhibák. Hibánál a form tartalma megmarad.
-- **Átvezetés:** [validáció és migráció](validation.md), [JSON-konfiguráció](configuration.md), AGENTS.md és CLAUDE.md kötelező paritásszabálya.
-- **Ellenőrzés:** `tests/shell/validation.php`, ACL- és 5000 rekordos listateszt sikeres. A fogyasztó külön PHP-paritástesztje és natív formhibát/egyediséget/javítás utáni mentést ellenőrző Chromium-tesztje sikeres. Felhasználói elfogadást nem állítunk.
-
-## FB-0010 — Megjegyzett belépés és e-mailes megerősítés
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Elvárás:** működő Bejelentkezve maradok, kiadástól 90 napos határral; felhasználónként kapcsolható, mindenkinél default-on e-mailes belépési megerősítés; keret által formázott levél üzletileg felülírható szöveggel.
-- **Döntés és megvalósítás:** a teljes shell/auth/session/SMTP/MIME/remember folyamat VAPA-képesség, JSON/env konfigurációval. A fogyasztó csak a fiókillesztést, levélszöveget és ACL-védett adminaction definícióját adja. A megerősítés előtti session nem hitelesített, és nem kap API/UI/WebSocket hozzáférést.
-- **Átvezetés:** [belépési védelem](authentication.md), [JSON-konfiguráció](configuration.md), `Authentication`, `Mail`, `Application`, DHTMLX `AdminShell`.
-- **Ellenőrzés:** `tests/shell/authentication.php` sikeres. A három önálló SMTP/MIME/DHTMLX Chromium-teszt sikeres, beleértve az Enterrel beküldést, új böngészősessiont, abszolút lejáratot, logoutot, default-on állapotot és per-user kapcsolót. A tesztadatok és levelek szintetikusak. A fogyasztó SMTP-relayén csak TLS-kapcsolatot ellenőriztünk, valódi levél vagy felhasználói belépés nélkül. Felhasználói elfogadást nem állítunk.
-
-## FB-0011 — Egyetlen alsó információs sáv
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Megfigyelés:** a felső alkalmazásnév-sáv, workspace-kapcsolatsáv és külön felhasználósáv fölöslegesen foglal helyet.
-- **Elvárás és döntés:** nincs felső alkalmazásnév-fejléc és külön workspace-állapotsáv. Egyetlen alsó DHTMLX Toolbar bal oldalán a bejelentkezett felhasználó, jobb szélén az alkalmazás neve és verziószáma jelenik meg. Az élő adatkövetés megmarad.
-- **Megvalósítás:** az alkalmazás opcionális `version` mezőt ad PHP/JSON-definícióban; az AdminShell jeleníti meg. A Workspace nem renderel állandó kapcsolati állapotot; műveleti hibák továbbra is Alertben, szerkesztési konfliktus Message-ben láthatók.
-- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-- **Ellenőrzés:** TypeScript typecheck/build és PHP lint/shell/JSON-szerződésteszt sikeres. A négy shell-böngészőteszt, az önálló CRUD/nézetváltás és a pollingteszt sikeres (a környezeti időtúllépéseket követő célzott újrafuttatásokkal).
-- **Átvezetés:** [shell](shell.md#egységes-alsó-információs-sáv), [munkaterületek](workspaces.md), `ApplicationDefinition`, `JsonApplication`, `AdminShell`, `Workspace`.
-
-## FB-0012 — Skyblue alapértelmezett megjelenés
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás; az FB-0005 témakínálatát bővíti.
-- **Elvárás:** Skyblue legyen az alapértelmezett skin.
-- **Döntés és korlát:** a Suite 9-ben nincs gyári legacy Skyblue. A VAPA a dokumentált custom-theme CSS-változókkal világoskék Skyblue-palettát biztosít; ez nem a régi skin teljes, képes másolata. A vezérlők és a témaváltás DHTMLX maradnak.
-- **Használat:** mentett választás nélkül `skyblue`; a meglévő érvényes böngészőpreferencia megmarad. Skyblue, Default és Éjjeli választható.
-- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-- **Ellenőrzés:** TypeScript typecheck/build; Chromiumban Skyblue alapérték, toolbar háttérszíne, Éjjeli/Skyblue váltás és reload utáni megőrzés sikeres. A képi ellenőrzés során az alsó Toolbar intrinsic magasságából eredő szövegvágást javítottuk; a teljes szöveg befoglaló méretét is ellenőrzi a shellteszt.
-- **Átvezetés:** [shell megjelenési mód](shell.md#megjelenési-mód), `AdminShell.ts`, `admin.css`, `browser.spec.cjs`.
-
-## FB-0013 — A panelméretező középre igazítása
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Megfigyelés:** a Suite `space` layoutban a hárompontos fogantyú a panel szegélyén jelenik meg; önálló gyári DHTMLX layouttal is reprodukálható.
-- **Elvárás és döntés:** javítsuk a VAPA saját, célzott CSS-szabályával; a gyári DHTMLX CSS-fájlt ne módosítsuk. A fogantyú a 12 px panelköz közepére kerül mindkét tengelyen.
-- **Megvalósítás:** `#vapa-application` alá szűkített `dhx_layout-space` resizerikon-felülírás; a többi layout és resizer változatlan.
-- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-- **Ellenőrzés:** frontend build és a két szintetikus Chromium-teszt sikeres; mindkét tengely középre igazítása három témával és tényleges egérhúzás ellenőrizve.
-- **Átvezetés:** [panelméretező](workspaces.md#panelméretező-megjelenítése), `packages/frontend/src/admin.css`, `tests/shell/layout-resizer.spec.cjs`.
-
-## FB-0014 — Checkboxok és kapcsolók az objektum főűrlapján
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Elvárás:** a bináris jelző a listában és a formon is checkbox; az oszlop szélessége korlátozható. A szűrők értékei ahol lehet, alkalmazási jelentésű feliratok legyenek általános Igen/Nem helyett. Egy kapcsoló ne igényeljen külön gombot és formot; a belépési megerősítés is főűrlapmező és listaoszlop.
-- **Döntés:** általános VAPA checkbox/column és egy-az-egyhez kapcsolt tárolás a közös tranzakció/revízió/ACL/audit alatt. A konkrét állapotfeliratok és táblaillesztés a fogyasztóé. Listában a checkbox állapotjelző, mentés a főűrlapon.
-- **Megvalósítás:** `Field`, `RelatedStorage`, `SqlResource`, `ListSource`, `WorkspaceConfiguration`, DHTMLX `Workspace`. A külön security action korábbi példája API-lehetőségként marad, UI-alapmintaként az egységes főűrlap váltja fel az FB-0010 megfelelő részét.
-- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-- **Ellenőrzés:** PHP related-field, ACL/API, lista és validációtesztek sikeresek; külön szintetikus Chromium-tesztben a natív checkboxok, fix szélesség, közös mentés, újranyitás és beszédes filter sikeres; a checkbox üzleti mezőhibája mezőnévvel ellátott DHTMLX Alertben jelenik meg, a form értékei megmaradnak. A fogyasztó account-checkbox integrációja, hat korábbi feature/validáció Chromium-próbája és PHP user/validáció-paritástesztje sikeres.
-- **Átvezetés:** [mezőmegjelenítés és kapcsolt tárolás](field-presentation.md), [konfiguráció](configuration.md), [belépési kapcsoló](authentication.md#felhasználónkénti-kapcsoló).
-
-## FB-0015 — Fölösleges keretezett layoutburkoló
-
-- **Dátum:** 2026-10-16. Felhasználói tesztelési észrevétel.
-- **Megfigyelés:** a Szűrés/Találatok panelek keretén kívül még egy keret és újabb térköz jelent meg. Az FB-0011-ben eltávolított állapotsáv egycellás `space` burkolója bent maradt.
-- **Döntés és megvalósítás:** többpaneles nézetben a deklarált layoutfa közvetlenül a Workspace layout gyökere; az egycellás burkoló megszűnik. A singleton címzett panel és a deklarált belső ágak megmaradnak.
-- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-- **Ellenőrzés:** typecheck/build és négy célzott Chromium-próba sikeres. A workspace egyetlen space gyökere és 12 px térköze, CRUD/nézetváltás/polling és a kétirányú méretező ellenőrizve.
-- **Átvezetés:** [layoutszintek és keretek](workspaces.md#layoutszintek-és-keretek), `Workspace.ts`, `workspace.spec.cjs`.
-
-## FB-0016 — Fejlesztői tesztfuttatás ne merítse ki a közös hostot
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás: VS Code fejlesztés közben előzzük meg a host memóriaelfogyását.
-- **Döntés:** közös fejlesztői guard, soros böngészőtesztek, indulási memóriaküszöb és systemd cgroup-korlát; nincs alkalmazási admin-infrastruktúra változás.
-- **Megvalósítás:** `tools/run-dev-check.sh`, `tools/playwright.sh`, npm belépési pont; a fogyasztó ugyanazt az eszközt hívja.
-- **Ellenőrzés:** tényleges cgroup limitek kiolvasása és konkurens lock elutasítása sikeres; mindkét projekt wrapperes tesztfelderítése és egy szintetikus login/menu Chromium-próba sikeres. Host-OOM stresszteszt nincs.
-- **Állapot:** fejlesztői tesztvédelmek megvalósítva; a teljes editor-session izolációját és a rootjogot igénylő hostvédelmet nem állítjuk késznek.
-- **Átvezetés:** [fejlesztői futtató és korlátai](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston).
-
-## FB-0017 — Deklarált mezőnkénti gridszerkesztés
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Elvárás:** checkbox csak kezelhető listaoszlophoz; szöveg, select és checkbox oszloponként szerkeszthető legyen, az ADE működésének megfelelően. A fogyasztó felhasználólistájában beosztás, telefon, e-mail és a kapcsolók legyenek kezelhetők. A Skyblue megjelenés külön feladat.
-- **Döntés:** `Field.column.editable` és natív DHTMLX szerkesztők a VAPA-ban; közös update ACL, API-scope, revízió, audit és mentési hookok. A többi oszlop beszédes érték. Teljes űrlap helyett egyetlen deklarált mező validációja fut; a fogyasztói üzleti guard a teljes egyesített rekordot ellenőrzi.
-- **Megvalósítás:** `GridEditing`, `Workspace`, `Executor::edit`, `SqlResource`; kapcsolt mezőre is ugyanaz a mentési út. A Suite kijelölési fókuszának befejezése után nyílik meg a cella; gyári fájl nem változik.
-- **Ellenőrzés:** önálló PHP szerződésteszt (mezővalidáció, legacy érintetlen mező, select, related checkbox, ACL, API-scope, revízió, audit) és szintetikus Chromium text/select/checkbox, hibavisszajelzés, elvetés és újratöltés. CityScreen: PHP mezőmentés/validáció/session-visszavonás és két Chromium-próba (grid és főűrlap) sikeres; a korábbi account/validáció PHP regresszió is sikeres.
-- **Állapot:** megvalósítva, agent által ellenőrizve; felhasználói elfogadást nem állítunk.
-- **Átvezetés:** [mezőnkénti gridszerkesztés](field-presentation.md#mezőnkénti-gridszerkesztés).
-
-## FB-0018 — Szerkeszthető fejlécjelzés, rendezés és smart rendering
-
-- **Dátum:** 2026-10-16. Elfogadott felhasználói elvárás.
-- **Elvárás:** a fejléc jelezze, ha az oszlop szerkeszthető; a listák legyenek rendezhetők; az ADE smart rendering képességének tényleges meglétét ellenőrizni kell.
-- **Megfigyelés:** a Standard Grid megjelenítési virtualizációja és a VAPA 100-as/600-as gördülő adatablaka már működött; a rendezés a fejlécben tiltott, szerveren csak fix kulcssorrend volt. Teljes rekordszám szerinti scrollbar/ugrás nem volt megvalósítva, most sem állítjuk azt.
-- **Döntés:** általános fejlécjelzés a VAPA közös CSS-ében, DHTMLX header tooltip és esemény; a teljes jogosult/szűrt halmaz SQL-rendezése, stabil kurzorokkal és live ablakhatárral. Az oszlopok olvashatóságából következik a rendezhetőség; nincs fogyasztói sort-kód vagy gyári DHTMLX-módosítás.
-- **Megvalósítás:** `GridHeaders`, `Workspace`, `ListSource::sortableFields/read`, `Realtime` pozíciómetaadat. A readonly/titkos mezők védelme megmarad; rendezési kulcs módosításakor új szerverlista készül.
-- **Ellenőrzés:** PHP teljes bejárás és visszafelé kurzor szöveg/szám/ID, NULL/duplikáció és ACL esetén; szintetikus Chromium 1801 rekorddal, fejlécjellel, mindkét rendezési iránnyal, szűréssel és virtualizált, memóriakorlátos görgetéssel sikeres. Kapcsolt checkbox és szám (2/9/10, hiányzó kapcsolt sor defaultja), valamint API-scope is ellenőrzött. CityScreen három Chromium-próbája: főűrlap, inline szerkesztés és fejléc/rendezés/WebSocket/újrarendező mentés sikeres.
-- **Állapot:** megvalósítva és szintetikus fogyasztóval ellenőrizve; felhasználói elfogadást nem állítunk.
-- **Átvezetés:** [rendezés és smart rendering](workspaces.md#rendezés-és-smart-rendering), [mezőmegjelenítés](field-presentation.md).
-
-## FB-0019 — Listák, rekordadatok és vezérlők megjelenése
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
-- **Elvárás:** valódi többoszlopos kártyanézet; egyetlen gridkeret; toolbarba nem belógó tartalom; elférő, minden témán kezelhető gombok; natív másodlagos gombok a filteren és a loginfolyamatban; ikonok. Minden listán alapértelmezett, kikapcsolható sorszám; annak dupla kattintására teljes, jogosultságszűrt rekordadatok DHTMLX ablakban. Később bekapcsolható sorjelölés és tömeges művelet.
-- **Megvalósítás:** `ResponsiveGrid`, `RecordPresentation`, `Workspace`, `AdminShell`, közös CSS; Registry/JSON nézetopciók, Action ikon/bulk opt-in, Executor soronkénti auditált batch. A kezdeti lokális sorszámozást az FB-0022 teljes SQL-rangra bővítette. A jelölés/bulk a fogyasztóban egyelőre kikapcsolva marad.
-- **Átvezetés:** [kártyák és rekordadatok](workspaces.md#kártyák-rekordadatok-sorszám-és-jelölés), [tömeges műveletek és ikonok](workspaces.md#tömeges-műveletek-és-ikonok).
-- **Kezdeti ellenőrzés (az FB-0022 előtt):** TypeScript typecheck/build, PHP list-presentation/ACL/lists/sorting/grid-edit/shell contracts PASS. A list-presentation a részleges sikert és revízióütközést is ellenőrzi. Egy közvetlen szintetikus DataView-teszt lefutott, a teljes UI-ellenőrzés nincs kész. Az első futás az örökölt rendszerszintű Playwright böngészőverzió-eltérésén megállt. A téves projektoldali böngészőtelepítést a felhasználó elutasította; leállítottuk és eltávolítottuk. A közben feltárt CSP-fixture és ikon-akadálymentességi hibák javítva, böngészős újraellenőrzésük vár. A fogyasztó INFRA-003/pool #36 rev1 kérésben kéri a közös környezet rendezését. **Frissített állapot:** az FB-0022 folytatásában a teljes UI-minősítés sikeresen lezárult; [evidencia](list-presentation-validation.md). Felhasználói elfogadást nem állítunk.
-
-## FB-0020 — Nézet-dropdown és szerkeszthető fejléc rendezésjelzése
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói pontosítás az FB-0019-hez.
-- **Elvárás:** a nézetválasztó dropdown legyen, mindig a lista-toolbar utolsó elemeként. Szerkeszthető mező fejlécében a rendezés ikonja ne ütközzön a szerkeszthetőség jelzésével.
-- **Megvalósítás:** `Workspace` a műveletek után, spacerrel jobbra igazított „Nézet: Táblázat / Kártyák” DHTMLX dropdownot ad; mobilon a kötelező kártyamód látszik, a dropdown tiltott. A közös CSS külön 24 px helyet tart fenn a hover-rendezésjelnek, a mezőcím csak a saját szélességét foglalja. Aktív SQL-rendezéskor kizárólag a VAPA iránynyila látszik, a második Suite ikon rejtett.
-- **Használat:** [nézetválasztás és fejlécjelzések](workspaces.md#nézetválasztás-és-fejlécjelzések).
-- **Ellenőrzés:** typecheck/build és a dropdown-/fejléc-, mobil- és háromtéma-regresszió PASS a meglévő rendszerfuttatóval; [teljes evidencia](list-presentation-validation.md). Nincs projektoldali böngészőtelepítés; felhasználói elfogadást nem állítunk.
-
-
-## FB-0022 — Az eredeti listajavítások teljes ellenőrzése
-
-- **Dátum:** 2026-10-17. A felhasználó kéri az FB-0019 és FB-0020 teljes befejezését; a build önmagában nem kész eredmény.
-- **Pontosítás:** az FB-0019 adatablakon belüli sorszáma helyett a teljes jogosult, szűrt és rendezett halmazon belüli rang készül. A `numbered: false` a számítást is kikapcsolja. A PHP rendezésteszt előre/hátra lapozást, NULL/azonos értékeket, középső élő ablakot és ablak elé beszúrt rekord hatását ellenőrzi.
-- **Feltárt hibák:** a filterablak `beforeHide` alatti destrukciója láthatatlan modalréteget hagyott; javítás `afterHide` életciklussal. A gyors műveletválasz és formleállítás közti rajzolási ütközés redraw-szinkronizálást kap. Nézetváltáskor inaktív widgetre rajzolást és elavult async restore-t tiltunk.
-- **Platform:** a meglévő rendszerszintű Playwright használható, a korábbi blokk projektoldali runner/modul-verzió-keveredés volt. A közös belépő és a tesztimport ugyanazt a rendszertelepítést használja, a guard megmarad; új telepítés nincs.
-- **Állapot:** lezárt / agent által ellenőrizve. PHP szerződések, a kibővített UI-, login-/téma- és valódi szerveres batch-próbák PASS. [Követelményenkénti evidencia](list-presentation-validation.md). Az FB-0019/0020 korábbi „Infra-javításra vár” állapota felülírt; felhasználói elfogadást nem állítunk.
-- **Használat:** [munkaterületek](workspaces.md), [közös futtató](development.md#meglévő-közös-playwright-bekötése).
-
-## FB-0021 — URL-követés és felületállapot megőrzése
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
-- **Elvárás:** a címsor kövesse az aktuális funkciót, frissítés ugyanarra a funkcióra térjen vissza; a grid és layout kézi beállításai maradjanak meg.
-- **Megvalósítás:** `AdminShell` fragmentes feature-navigáció, belépésen át megőrzött URL és böngészőelőzmény; `UiPreferences` verziózott, alkalmazásútvonal/user ID/resource szerinti localStorage. A `Workspace` és `ResponsiveGrid` oszlopszélességet, rendezést, kézi nézetválasztást és panelméretet állít vissza. Aktuális ACL/definíció és méretkorlát az elsődleges; űrlapértéket nem tárolunk.
-- **Használat és korlát:** [URL és helyi felületbeállítások](shell.md#url-és-helyi-felületbeállítások). Böngészőnkénti preferencia, szerveres szinkron nélkül; a megnyitott rekord/szerkesztő nem mélylink.
-- **Ellenőrzés:** TypeScript typecheck/build, PHP shell contracts/lint és `ui-preferences.mjs` PASS. Védett szintetikus Chromium: 3/3 PASS; a bővített méret/panelösszecsukás/mobil–asztali preferenciateszt külön újrafuttatva 1/1 PASS. A belépés, reload, Vissza/Előre, ismeretlen feature és tiltott localStorage ellenőrzött. Megvalósítva és agent által ellenőrizve; felhasználói elfogadást nem állítunk.
-
-## FB-0023 — Listafejléc, darabszám, menüikonok és kompakt login
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói pontosítás az FB-0019/0022-höz.
-- **Elvárás:** a lista neve a Találatok helyén legyen; ugyanabban a sorban jobbra az összes, szűrésnél összes/találat szám. A főmenü kapjon ikonokat. A filtergombok ne torlódjanak; a login és a megerősítés nagy üres alsó része szűnjön meg. A toolbar alatt árnyék válassza el a gördülő tartalmat.
-- **Megvalósítás:** natív Layout-fejléc és kiegészítőhely, ACL-szűrt `ListSource` count/metaadat és polling/WebSocket továbbítás; konfigurálható view/MenuItem ikonok; kirajzolt gombokhoz méretezett Window, 24 px alsó hellyel; fix toolbar-árnyék. Az assetverzió `v=8`, hogy a böngésző friss csomagot kérjen. A filter és megerősítés korábbi natív gombelrendezése az új assetben érvényesül.
-- **Átvezetés:** [munkaterületek](workspaces.md#listafejléc-és-rekordszám), [shell](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok).
-- **Ellenőrzés:** PHP teljeshalmaz/ACL/kurzor/szűrés/élő darabszám PASS; login/megerősítés három témában, desktop/mobil shell, toolbar/kártya és önálló szerveres fogyasztó PASS. CityScreen-integráció 3/3 PASS, WebSocketes szűrt darabszám 1→0→1 változással. Dev login és publikált assetegyezés is ellenőrzött; részletek a [minősítésben](list-presentation-validation.md#fb-0023-fejlécek-darabszám-és-hitelesítési-ablakok). Agent által ellenőrizve, felhasználói elfogadást nem állítunk.
-
-## FB-0024 — Kártyaszerkesztés, mentés utáni nézetváltás, méret és rendezés
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói hibajelzés és működési elvárás.
-- **Elvárás:** a kártyák írható mezői kezelhetők; gridmentés után is működő nézetváltás; dupla kattintás ne jelölje ki a funkciót indító mező szövegét; kártyákon jobb oldali rendezés-dropdown; layoutméretező dupla kattintására deklarált induló méret; minden form-/contentablak a tartalom magasságát vegye fel a viewport határáig.
-- **Megvalósítás:** `ResponsiveGrid` külön widget-adatpillanatképet tart, rejtett widgetet csak visszacsatoláskor szinkronizál; a DataView nem kapja meg a Workspace saját módosítható sorobjektumát. A kártyamezők a deklarált oszlopszerkeszthetőség és a sor `_editable` joga metszetét használják. Natív DHTMLX Window/Form, közös `saveCell`/`__edit`, kliens-/szervervalidáció, ACL, revízió és audit. Checkbox közvetlen kapcsolás, szöveg/select/textarea egyetlen mezős szerkesztő; a readonly adatablak változatlanul olvasás. A GridHeaders rejtett DOM-hoz nem ír ARIA-attribútumot. `UiPreferences` méretreset, `WindowSizing` tartalommérés és közös CSS. Assetverzió `v=9`.
-- **Használat:** [kártyaszerkesztés, rendezés és kompakt ablakok](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok), [módszertan](usage.md).
-- **Ellenőrzés:** TypeScript typecheck/build és PHP grid-edit/validáció szerződések PASS; a szintetikus grid/kártya Chromium 2/2 és a layout/lista/mobil/workspace regresszió 9/9 PASS. A késleltetett mentés alatti váltás, checkbox/text/select, mezőhiba, SQL-rendezés, reload, kétirányú méretreset és három téma ellenőrzött. Külső fogyasztói integráció 3/3 és dev betöltés 2/2 PASS. A kis viewportba illesztett rekordablak is ellenőrzött. Nem módosul gyári DHTMLX-kód.
-- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-
-## FB-0025 — Elkülönülő főmenügombok
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
-- **Elvárás:** a főmenüsor ne felsorolásnak hasson, a gombok különüljenek el; Skyblue esetén erősebb Windows-megjelenés. Felhasználói pontosítás: az elválasztó (például a kijelentkezés előtt) térköz mellett halvány vonallal is látszódjon.
-- **Megvalósítás:** közös VAPA CSS a natív DHTMLX menüre: állandó keret, háttér, 6 px térköz, fókusz és benyomott állapot; Skyblue domborított kék gombok és arany hover. Kompakt töréspont helyigénye frissítve, assetverzió `v=11`.
-- **Használat:** [shell](shell.md#elkülönülő-főmenügombok), [módszertan](usage.md). Az almenük listaelrendezése megmarad.
-- **Ellenőrzés:** TypeScript typecheck/build és a szintetikus shell Chromium 6/6 PASS; az elválasztó után a háromtémás célzott próba újra 1/1 PASS (látható 1 px széles, 12 px-nél magasabb vonal, gombkeret/háttér/árnyék és sorméretek). Skyblue és Éjjeli screenshot képi ellenőrzése sikeres. A gombmegjelenést a felhasználó pozitívan visszajelezte; a vonalra további elfogadást nem állítunk.
-
-## FB-0026 — Táblázatárnyék az oszlopfejléc alatt
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói pontosítás az FB-0023 árnyékelhelyezéséhez; táblázatnézetben az ottani toolbar-árnyék elvárását felülírja.
-- **Elvárás és megvalósítás:** táblázatnézetben a natív Grid oszlopfejléce veti az árnyékot a gördülő sorokra; a toolbar árnyéka ilyenkor kikapcsol. Kártyanézetben a toolbar alatt marad. Közös VAPA CSS, automatikus váltás a megjelenített Grid alapján, gyári kódmódosítás nélkül; assetverzió `v=12`.
-- **Használat:** [listafejléc és rekordszám](workspaces.md#listafejléc-és-rekordszám), [módszertan](usage.md).
-- **Ellenőrzés:** build és `git diff --check` PASS. Védett Chromium célzott prezentációs próba 1/1 PASS: Skyblue/Default/Dark témában nincs toolbar-árnyék táblázaton, van fejlécárnyék; kártyára váltva visszatér a toolbar-árnyék. Görgetés és visszaváltás is ellenőrzött, Skyblue screenshot képi ellenőrzése sikeres.
-- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-
-## FB-0027 — Toolbar/fejléc elválasztás és kártyák felső térköze
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói pontosítás az FB-0026 után: az árnyék helye megfelelő, de a toolbar és az oszlopfejléc összefolyik; kártyára váltáskor a tartalom kissé begörgetve jelenik meg.
-- **Megvalósítás:** 1 px témaszínű elválasztóvonal a toolbar alsó szélén táblázatnézetben, az árnyék az oszlopfejléc alatt marad. A `ResponsiveGrid.restore` külön kezeli a nézetváltást: a forrásnézet soron belüli pixeloffsetje nem kerül a más magasságú célnézetre; a lista tetején a scroll 0, középen a megfelelő rekord a természetes kártyatérközzel látható. Az azonos nézet élő frissítésének pontos pozíciómegőrzése megmarad. Assetverzió `v=13`.
-- **Használat:** [munkaterületek](workspaces.md), [módszertan](usage.md).
-- **Ellenőrzés:** typecheck/build és `git diff --check` PASS; védett Chromium listaprezentáció/mobil 6/6 PASS. Három téma, elválasztóvonal, árnyékhely, ismételt top→kártya→tábla váltás, részben görgetett táblázatból váltás, élő kártyafrissítés és kiválasztás ellenőrzött. A stabil kirajzolás után is vizsgált nézetváltási regresszió külön újrafuttatva; Skyblue screenshot képi ellenőrzése sikeres.
-- **Állapot:** megvalósítva / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-
-## FB-0029 — Jobb széli kártyaceruza és egységes, kezelhető checkbox
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás: a kártyaceruza a jobb szélen indítsa a szerkesztést; checkboxhoz egyik nézetben se legyen ceruza, és checkbox csak kezelhető mezőhöz jelenjen meg. A kártya és a tábla jelölője legyen egységes. Az FB-0018/FB-0024 checkboxra vonatkozó általános ceruzajelzését pontosítja.
-- **Megvalósítás:** közös `RecordPresentation.recordCheckbox` Suite-megjelenítés a Grid és DataView template-jében, deklarált szerkeszthetőség és sorjog metszetével; readonly mező/rekordadatablak szöveges. A mentés mindkét nézetben a meglévő mezőszerkesztési útvonal. A kártyaceruza jobb szélen, fenntartott helyen áll; checkbox fejlécében és értékénél nincs ceruza.
-- **Használat:** [mezőprezentáció](field-presentation.md#egységes-checkbox-és-kártya-szerkesztésjelzés), [módszertan](usage.md).
-- **Ellenőrzés:** typecheck/build és `git diff --check` PASS; védett szintetikus Chromium 2/2 és fogyasztói inline/kártya integráció 1/1 PASS. Checkboxméret-egyezés, ceruzamentes kapcsoló/fejléc, jobb széli ikonról nyitás, Enter/Space, mentés/validáció/újratöltés és readonly sorjog ellenőrzött. Skyblue képi ellenőrzés PASS; dev assetek publikálva, cacheverzió `v=15`.
-- **Állapot:** megvalósítva / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-
-## FB-0028 — Kompakt popup és teljes mobil navigáció/műveletsor
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói hibajelzés és elvárás.
-- **Elvárás:** kisebb popupfejléc; a grid toolbar a főmenühöz hasonlóan alkalmazkodjon; mobilon minden főmenüpont, a Kijelentkezés is a Menü alatt legyen; a mobilkártyák szélessége legyen egységes.
-- **Megvalósítás:** 40 px natív Window-fejléc a gyári felső/alsó többlettérköz nélkül; natív `ResponsiveToolbar` a meglévő elem-ID-k, ACL-állapot és események megőrzésével, mobilon vagy szűk panelen Műveletek dropdownnal. Kompakt főmenüben a kijelentkezés és elválasztó is a gyűjtőmenü része. Átméretezéskor a natív popupállapot lezárul, a gyári menüelem-típusok nem kerülnek át a visszaállított vízszintes toolbarba. A kártyák `border-box`, zsugorodás nélküli natív szélességet használnak. A végső csomag cacheverziója `v=16`. Az ablakméretező a záró kirajzolást is megvárja.
-- **Használat:** [ablakfejléc és mobilmenü](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü), [műveletsor és kártyaszélesség](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség), [módszertan](usage.md).
-- **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban 15 különálló keretpróba sikeres (a frissített elvárásokkal újrafuttatott esetekkel együtt): shell/belépés/kijelentkezés, háromtémás önálló műveletmenü, popup 40 px és azon belüli bezárás, tiltott/engedélyezett állapot, nested rendezés, desktop-visszaállás, jelölés/bulk, élő adatok és kártyaszélesség 390/460/1280 px-en, hosszú szóköz nélküli szöveggel. A három téma külön friss fogyasztót kap; a teszt kivárja a popup kirajzolását és bezárását. Külső alkalmazás integráció 3/3 és dev betöltés 2/2 PASS. Skyblue és a fogyasztó Éjjeli popupjának képi ellenőrzése sikeres.
-- **Állapot:** lezárt / agent által ellenőrzött; felhasználói elfogadást nem állítunk.
-
-## FB-0030 — Skyblue váltott táblázatsorok
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
-- **Elvárás:** Skyblue témában a grid sorai váltott háttérszínnel legyenek könnyebben követhetők.
-- **Megvalósítás:** natív Grid `rowCss`, aktuális adatindex alapján; fehér és `#edf5fc` halványkék sorok. A téma CSS-e csak Skyblue alatt színez, a natív kijelölési réteg megmarad. Cacheverzió `v=17`. A színválasztást az FB-0032 felülírja.
-- **Használat:** [módszertan](usage.md); fogyasztói konfiguráció nem szükséges.
-- **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban a meglévő háromtémás lista/görgetés/nézetváltás próba 1/1 PASS; Skyblue görgetett táblázat képi ellenőrzése PASS, a sorok szabályosan váltakoznak. Demo- és CityScreen dev-assetek publikálva.
-- **Állapot:** megvalósítva / agent által ellenőrzött.
-
-## FB-0031 — Elkülönülő popupfejléc és alsó elválasztóvonal
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás.
-- **Elvárás:** a popup fejléce alatt is legyen vonal, a grid fejlécéhez hasonlóan; Default és Éjjeli témában a fejléc háttérrel is különüljön el a tartalomtól.
-- **Megvalósítás:** a natív Window fejléc-toolbarja 1 px alsó keretet kap, a téma `--dhx-border-color` színével, a meglévő 40 px magasságon belül. A fejléc a téma másodlagos háttérszínét kapja, Skyblue kék színátmenete megmarad. Minden VAPA-popupra érvényes; külön fogyasztói konfiguráció nincs. Cacheverzió `v=18`.
-- **Használat:** [shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü), [módszertan](usage.md).
-- **Ellenőrzés:** build és `git diff --check` PASS; védett Chromiumban háromtémás kompakt popup/művelet/nézetváltás 3/3 PASS, 40 px fejléc és azon belüli bezárógomb ellenőrizve. Skyblue, Default és Éjjeli popupok képi ellenőrzése PASS: alsó vonal és elkülönülő háttér látható. Demo- és CityScreen dev-assetek publikálva.
-- **Állapot:** megvalósítva / agent által ellenőrzött.
-
-## FB-0032 — Finomabb, szürke Skyblue sorsávok
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói pontosítás az FB-0030-hoz.
-- **Elvárás:** a váltott sorháttér kevésbé legyen erős, kék helyett szürke legyen.
-- **Megvalósítás:** Skyblue váltott sorháttere `#f7f7f7` semleges halványszürke; a natív sorindexelés és kijelölés változatlan. Cacheverzió `v=19`.
-- **Használat:** [módszertan](usage.md); nincs külön fogyasztói beállítás.
-- **Ellenőrzés:** build, `git diff --check` és publikált CSS-egyezés PASS. Demo- és CityScreen dev-assetek frissítve; kizárólag a sorsáv színe változott.
-- **Állapot:** megvalósítva.
-
-## FB-0033 — Egyértelmű témanevek és többnyelvűségi helyzetkép
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói elvárás és képességkérdés.
-- **Elvárás:** a Default téma kapjon más nevet; Skyblue legyen a tényleges alapérték. Tisztázandó, hogy a keret és a fogyasztó többnyelvű-e.
-- **Megvalósítás:** a `light` téma megjelenített neve Világos; a meglévő Skyblue alapérték és mentett preferencia megőrzése változatlan. Cacheverzió `v=20`.
-- **Helyzetkép:** a keretben nincs kész i18n-katalógus/locale/nyelvválasztás; frontend- és backend-szövegek részben közvetlen magyar feliratok. A korábbi architekturális i18n-terv nem kész képesség. Többnyelvűség implementációját ez a módosítás nem tartalmazza.
-- **Használat:** [módszertan és többnyelvűség](usage.md#többnyelvűség), [témák](shell.md).
-- **Ellenőrzés:** typecheck/build és `git diff --check` PASS. Védett Chromiumban Skyblue alapérték, mentett téma újratöltése és háromtémás választó/megjelenítés 2/2 PASS. Frontend-, backend-, konfigurációs és tervdokumentáció-áttekintés alapján rögzített i18n-helyzetkép. Demo- és fogyasztói assetek publikálva.
-- **Állapot:** témamódosítás megvalósítva / agent által ellenőrzött; a többnyelvűség ebben a batchben még megvalósítandó képesség volt; ezt az FB-0034 követi.
-
-## FB-0034 — Alapvető többnyelvűség, opcionális site-választó
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói követelmény; felülírja az FB-0033 hiányállapotát.
-- **Elvárás:** a VAPA eleve többnyelvű, egy nyelvű site is ezt használja, legfeljebb választó nélkül. A site kérésére a választó a skinválasztó elé kerül. A konkrét fogyasztó nyelvei és üzleti fordításai fogyasztói felelősség.
-- **Megvalósítás:** közös PHP/TS locale és üzenetkatalógus, magyar/angol/német keretszövegek, kliens-/szervervalidáció, célzott definícióprezentáció és mail-render. Natív Toolbar-választó; modal belépésen natív Form select. CSRF-védett váltás, site-hatókörű preferenciacookie, locale a HTML/HTTP/bootstrap/API útvonalon. Egynyelvű választó nélküli mód. Rekordadatok és dinamikus lookupadatok nem fordulnak át. Cacheverzió `v=23`. A felhasználó kiegészítése szerint a nyelvnevek mellett konfigurált országzászló is látszik a Toolbar és Form választóban.
-- **Használat:** [többnyelvűség](i18n.md), [módszertan](usage.md#többnyelvűség), [shell](shell.md#opcionális-nyelvválasztó).
-- **Ellenőrzés:** typecheck/build, 47 PHP-fájl lintje és `git diff --check` PASS. i18n-, konfiguráció-, shell-, validáció- és hitelesítési PHP-szerződések, katalógus-/placeholderparitás PASS. Végső zászlós szintetikus Chromium 3/3 PASS: belépés/váltás/megőrzés, menü/mező/statikus opció/státusz, kliens- és szervervalidáció, mobil, választó nélküli angol site, CSRF és nem támogatott locale elutasítása, Bearer API német hiba és Content-Language. Meglévő shell-regresszió hat külön esete sikeres (a lefordított natív confirm nevét követő újrafuttatással). Külső alkalmazás integráció 4/4, tényleges dev betöltés és háromnyelvű belépőoldal 3/3 PASS. Zászlós, német mobilválasztó és fogyasztói német szűrő képi ellenőrzése sikeres. Valódi e-mailküldést nem végzett a renderpróba.
-- **Állapot:** megvalósítva / keretben és fogyasztóban agent által ellenőrzött.
-
-## FB-0035 — Valódi PNG-zászlók emoji helyett
-
-- **Dátum:** 2026-10-17. Elfogadott felhasználói hibajelzés: Windows/böngésző alatt a zászlóemoji GB betűként jelent meg; a helyi ADE PNG-k használata kért.
-- **Elvárás:** a zászló valódi kép legyen, betűkészlettől függetlenül.
-- **Megvalósítás:** az ADE három eredeti ország-PNG-je változatlanul a VAPA saját assetjei közé kerül. Natív Toolbar `icon` CSS-osztály, buildkor adat-URL-ként csomagolva. A belépési ablak Layoutja ugyanilyen natív Toolbar-választót kap. A `flags` konfiguráció országkódot vár (`hu`, `gb`, `de`), nem emojit. Cacheverzió `v=26`. Az FB-0034 emoji-alapú megoldását ez felülírja.
-- **Használat:** [többnyelvűség](i18n.md), [PNG-forrás](flag-assets.md), [módszertan](usage.md).
-- **Ellenőrzés:** typecheck/build, PHP i18n-szerződések és `git diff --check` PASS; mindhárom PNG bájtazonos az ADE-forrással. Védett keret-Chromium 3/3, fogyasztói háromnyelvű/mobil integráció 1/1, tényleges dev smoke 3/3 PASS. A teszt PNG adat-URL-t, dekódolt 16×11 méretet és látható ikonfelületet is ellenőriz; a nyitott dropdown mindhárom zászlójának és a dev belépőoldalnak képi ellenőrzése sikeres.
-- **Állapot:** megvalósítva / agent által ellenőrzött.
-
-## FB-0036 — Kötelező adminmodul és igényvezérelt keretfejlesztés
-
-- **Dátum:** 2026-10-21.
-- **Forrás:** a felhasználó termékcélokat pontosított; ebben a munkamenetben Codex elemez és angol promptokat ír, Claude fejleszt.
-- **Elfogadott elvárás:** minden projekt kötelező VAPA-adminmodult használ user-, ACL-, API-kulcs- és naplókezelésre, VAPA-definíciókból. PHP referenciaimplementáció, backendnyelvtől független JSON-szerződés; fullscreen DHTMLX, skin és i18n; ~~Ext JS alapú komponensreferencia~~ (felülírt, [FB-0037](#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)); szintetikus kitchen sink minden implementált képességhez; MySQL/PostgreSQL/SQLite/JSON tárolási cél, SQLite demó; JSON-vezérelt üzleti definíciók; konfigurációból épülő ACL-katalógus.
-- **Felülírás:** az FB-0004, az AGENTS.md és az ADR-0002 kizárólag alkalmazásspecifikus useradmin-döntését felváltja. Az adminmodul sem kerülheti meg a keretet vagy a szerveroldali ACL-t.
-- **Módszer:** az éles használat során felmerülő feladatból indul a legkisebb általánosítható keretbővítés; előbb szintetikus ellenőrzés és dokumentáció, majd fogyasztói integráció és kontrollált kiadás.
-- **Állapot:** elfogadott / tervezett, az Ext JS-részében **felülírt** (FB-0037); forrásalapú hiányelemzés és angol indítóprompt elkészült, runtime-implementáció nem történt. A pontos Ext JS referencia (FB-0037 óta tárgytalan), fiókéletciklus, auth-kombinációk, JSON-szabálynyelv, tárolási garanciák és eseménylefedés tervezési kérdések.
-- **Átvezetés:** [termékirány, hiányok és Claude-prompt](product-direction.md), [canonical használati belépési pont](usage.md#elfogadott-termékirány--2026-10-21), [ACL](access-and-actions.md), [koncepció](concept.md), [ADR-0002](decisions/0002-framework-first.md), [AGENTS.md](../AGENTS.md).
-- **Ellenőrzés:** dokumentáció és érintett PHP/frontend/demo források áttekintése. A korábbi teszteredmények dokumentált előzmények; ebben a batchben runtime-tesztet nem futtatunk. A `git diff --check` és nyolc érintett dokumentum lokális linkcéljainak ellenőrzése PASS; a követelmények nem lezártak. A kötelező `/usr/local/bin/gitpush --all -t` kísérlet nem futtatható: ezen a hoston a megadott eszköz hiányzik (exit 127). Commit/push nem történt.
-
-## FB-0037 — Ext JS referencia visszavonása; DHTMLX-alap, igényvezérelt képességkör
-
-- **Dátum:** 2026-10-21.
-- **Forrás:** felhasználói javítás az FB-0036 után; dokumentációs feladat, runtime nélkül.
-- **Megfigyelés:** az FB-0036 Ext JS-t nevezett meg komponens- és viselkedési referenciaként, verzióhoz kötött megfeleltetéssel és hosszú távú teljes lefedéssel. A felhasználó szerint ez téves hivatkozás volt.
-- **Elfogadott elvárás:** nincs Ext JS-paritás, komponensmegfeleltetés vagy teljes funkciólefedés mint termékkövetelmény, és nem lép helyébe más külső keretrendszer-benchmark. A frontend alapja a DHTMLX; a VAPA támogatott képességköre a valós alkalmazási igényekből nő. A többi FB-0036-cél tizenkét követelménybe (R1–R12) rendezve érvényes: PHP referencia és nyelvfüggetlen JSON-szerződés, kötelező kerethasználat, DHTMLX fullscreen frontend, i18n és téma, kötelező adminmodul, felhasználókezelés (OAuth tervezett), négy tárolócél garanciákkal, moduláris JSON eval nélkül, generált ACL-katalógus automatikus jogadás nélkül, eseménykatalógus, kitchen sink, igényvezérelt fejlesztés.
-- **Felülírás:** az FB-0036 Ext JS-részét felváltja; a korábbi szöveg történetként megmarad. A komponensmátrix „teljesség” célját is felváltja: a mátrix DHTMLX-elérhetőségi és VAPA-állapotleltár, nem lefedettségi cél.
-- **Átvezetés:** [termékirány](product-direction.md), [ADR-0003](decisions/0003-product-direction.md), [koncepció](concept.md#0-elfogadott-termékirány--2026-10-21), [fejlesztési terv](development-plan.md#igényvezérelt-fejlesztési-módszer), [komponensmátrix](component-matrix.md), [usage](usage.md#elfogadott-termékirány--2026-10-21), [README](../README.md), [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md), [hitelesítés](authentication.md); a beágyazott angol Claude-promptból is eltávolítva.
-- **Állapot:** elfogadott; a dokumentációs átvezetés kész. A felsorolt képességek többsége továbbra is tervezett (lásd a termékirány 2. fejezetét).
-- **Ellenőrzés:** csak dokumentációs (runtime-teszt nem futott, nem is szükséges). Ext JS-keresés a repó Markdown-fájljaiban: csak felülírási/történeti említés maradt (FB-0036, FB-0037, ADR-0003, usage, termékirány). Lokális link- és horgonyellenőrzés: 223 link, 0 hibás (közben javítva az FB-0033 korábban is hibás `usage.md` horgonya). `git diff --check` PASS; az új fájlokban nincs sorvégi szóköz. A megvalósítottnak jelölt állapotok forrásellenőrzéssel készültek (`Shell/Application.php`, `AdminShell.ts`, `Database.php`, `Access/Schema.php`, `Audit/Journal.php` és hívói, `examples/demo-app`). A `/usr/local/bin/gitpush` ezen a hoston nem létezik; commit/push nem történt.
-
-## FB-0038 — Fiókéletciklus-döntések az első adminszelethez
-
-- **Dátum:** 2026-10-21.
-- **Forrás:** felhasználói döntés a [termékirány](product-direction.md#5-nyitott-tervezési-kérdések-és-javasolt-munka) nyitott kérdéseire, a kötelező adminmodul (R5, R6) első szelete előtt. Runtime nincs.
-- **Elfogadott elvárás:** (1) új fiókot az admin hoz létre ideiglenes jelszóval, első belépéskor kötelező csere; (2) fiókmegszüntetés csak tiltás, azonnali session-/remember-/tokenvisszavonással, épen maradó auditnaplóval; (3) a teljes név kötelező, a meglévő `displayName` hordozza; (4) e-mailes jelszó-helyreállítás már az első szeletben, egyszer használható, lejáró linkkel, a fiók létezését fel nem fedő válasszal, rátakorláttal és audittal.
-- **Kiegészítés (2026-10-21):** (5) a bejelentkezési azonosító minden alkalmazásban az e-mail-cím; (6) API-kulcsot egyelőre csak admin kezel, minden kulcsot lát titok nélkül, felhasználói önkiszolgálás nincs; (7) ha a fogyasztói fióktábla nem enged beszúrást, a létrehozás letiltott, a meglévő fiókok kezelhetők.
-- **Jóváhagyva (2026-10-21):** a [terv alapértékei](admin-module-plan.md#4-alapértékek-jóváhagyva-2026-10-21): a VAPA generálja az ideiglenes jelszót (20 karakter, 72 óra); a reset link 30 perc, egyszer használható; a rátakorlát 3 / 15 perc / fiók és 10 / 15 perc / IP; reset után normál belépés; védett szerepkör `admin`; olvasáskor képzett naplókategória. Az utolsó admin és a saját fiók védelme az E8 szerint.
-- **Nyitott marad:** az ideiglenes jelszó és a reset link élettartama, reset utáni e-mailes megerősítés, végleges törlés/anonimizálás, OAuth-policy.
-- **Átvezetés:** [termékirány 5. fejezet](product-direction.md#eldöntve-az-első-adminszelethez--2026-10-21), [adminmodul első szelet terve](admin-module-plan.md) (javaslat).
-- **Állapot:** elfogadott / tervezett.
-- **Ellenőrzés:** dokumentációs; link- és diff-ellenőrzés.
-
-## FB-0039 — Beépített felhasználóadmin, A1 részszelet
-
-- **Dátum:** 2026-10-21.
-- **Forrás:** a jóváhagyott [adminmodul-terv](admin-module-plan.md) A1 részszelete (FB-0038 döntései).
-- **Megvalósítás:** `Vapa\Admin\Accounts` (felhasználók nézet a keret `SqlResource`/`RelatedStorage`/`Action` eszközeiből, tiltás, visszaengedés, ideiglenes jelszó, kötelező csere), `ManagedIdentities` (VAPA-fiókállapot a fogyasztói `allowed` mellett), `vapa_account_state` tábla, `SqlResource` csak olvasható mezők, `Application` jelszócsere-állapot, JSON `admin` szekció, DHTMLX jelszócsere-ablak, általános egyszer megjelenő titok (`reveal`) a műveleti válaszban, hu/en/de katalógus. A demó fiókjai a munkaterület SQLite-fájljába kerültek, e-mailes belépéssel; a `tools/serve-demo.sh` idempotens setupot futtat.
-- **Eltérés a tervtől:** külön `AccountStore` interfész helyett az `Accounts` szolgáltatás; az e-mailes megerősítés kapcsolója nem került az A1-be.
-- **Átvezetés:** [felhasználóadmin](admin.md), [usage](usage.md#beépített-felhasználóadmin), [JSON-konfiguráció](configuration.md), [hitelesítés](authentication.md), [shell](shell.md), [termékirány](product-direction.md), [terv](admin-module-plan.md).
-- **Ellenőrzés (agent):** mind a 12 PHP-teszt PASS, köztük az új `tests/shell/admin.php`; `npm run typecheck` és build PASS. Böngésző a védett runnerrel: `admin.spec.cjs` 2/2; a teljes alap csomag 19/21, a két hiba a `list-presentation` „compact commands” Világos/Éjjeli esetének `page.screenshot` időtúllépése volt, külön futtatva 3/3 PASS; az auth fixture 4/4, az i18n fixture 3/3 PASS. A böngészőteszteket `VAPA_TMP_DIR=tmp/a1-browser` mellett kellett futtatni, mert a `tmp/shell-demo/sessions` egy korábbi futásból `www-data` tulajdonú, és ez a felhasználó nem írhat bele.
-- **Állapot:** megvalósítva / ellenőrzésre vár (felhasználói elfogadás nincs).
-
-## FB-0040 — Beépített szerepkör- és jogosultságadmin, A2 részszelet
-
-- **Dátum:** 2026-10-21.
-- **Forrás:** a jóváhagyott [adminmodul-terv](admin-module-plan.md) A2 részszelete.
-- **Megvalósítás:** `Vapa\Admin\Catalogue` (a registryből képzett, jogot nem adó katalógus), `Vapa\Admin\Permissions` (Szerepkörök, Szerepkör-tagságok, Szerepkör-jogosultságok, Egyedi jogosultságok nézet a keret `SqlResource`/`Lookup` eszközeiből; katalógus-validáció; árva szabályok jelölése; védett szerepkör; utolsó aktív tag és saját tagság védelme; `grantAdministration` telepítőlépés), `Accounts::guardDisable` és `lookup`, JSON `admin.protected_role`, hu/en/de katalógus. A demó setup az 1-es fiókot a védett szerepkörrel teszi adminná.
-- **Döntés a terv keretein belül:** adminerőforrásra tiltó szabály a felületen nem hozható létre, mert kizárhatná az utolsó admint; az első admin csak UI-jogot kap.
-- **Átvezetés:** [admin](admin.md#szerepkörök-és-jogosultságok-a2), [usage](usage.md#beépített-felhasználóadmin), [JSON-konfiguráció](configuration.md), [ACL](access-and-actions.md), [termékirány](product-direction.md), [terv](admin-module-plan.md).
-- **Ellenőrzés (agent):** 13/13 PHP-teszt PASS, köztük az új `tests/shell/permissions.php`; `admin.spec.cjs` 3/3 PASS. A teljes alap böngészőcsomag 21/22; a hiba a mockolt `list-presentation` fixture-ben volt, külön futtatva más két esete bukott, miközben a teljes futásban zöldek voltak. Ez a terhelt gépen időzítési instabilitás; az A2 nem módosított frontend kódot, és ezek a fixture-ök PHP nélkül futnak.
-- **Állapot:** megvalósítva / ellenőrzésre vár.
-
-## FB-0041 — Saját létrehozás után az új sor nem kerül látótérbe görgethető listán
-
-- **Dátum:** 2026-10-21. Agent által megfigyelt, nyitott.
-- **Megfigyelés:** a demó Felhasználók listájában sok sor mellett a létrehozás után az élő frissítés az új sort a lista elejére tette („Összes” nőtt, a sorszámozás 2-ről indult), de a grid megtartotta a görgetési ablakot, így az új sor nem látszott, amíg a felhasználó fel nem görgetett vagy nem szűrt. Kevés, nem görgethető sornál nem jelentkezik.
-- **Elvárt működés (javaslat, nem elfogadott):** saját sikeres létrehozás után a lista mutassa és jelölje ki az új rekordot.
-- **Állapot:** nyitott; a keret élő listájának (`Workspace`/`ResponsiveGrid`) viselkedése, nem az adminmodulé. Az `admin.spec.cjs` szűréssel jelöli ki a sort.
-
-
-## FB-0042 — Egységes Playwright-konfiguráció és gyökérszintű tmp
-
-- **Dátum:** 2026-10-21.
-- **Elfogadott elvárás:** a gyökér Playwright-fájljainak rendezése; az ideiglenes állományok helye a gyökér `tmp/` könyvtára, a korábbi `codex/` megszüntetésével. Ez felülírja az AGENTS.md, CLAUDE.md és FB-0016 korábbi scratch-útvonalát; a hostvédelem megmarad.
-- **Megvalósítás:** egyetlen gyökérszintű [Playwright-belépő](../playwright.config.cjs), nyolc név szerint választható projekt a [tesztkonfigurációban](../tests/browser/config.cjs); futásonként egy projekt szervere indul, az alapértelmezés a korábbi `shell`. A [védett futtató](../tools/run-dev-check.sh), build, demó és tesztfixture-ök `tmp/` alapútvonalat használnak; a meglévő futási könyvtár átmozgatva, Gitből kizárva. A `VAPA_TMP_DIR` támogatott marad; a guard abszolút útvonalat ad tovább. A korábbi külön configfájlok megszűntek.
-- **Átvezetés:** [használat](usage.md#fejlesztői-memória-védelme), [fejlesztési útmutató és projektválasztás](development.md#egységes-playwright-konfiguráció), [könyvtárszerkezet](repository-layout.md), érintett témadokumentációk, AGENTS.md és CLAUDE.md.
-- **Ellenőrzés:** a védett `--list` 38 tesztet talál nyolc projektben; `--list --project auth preferences` 7 tesztet. PHP configuration/contracts/authentication, érintett PHP lint, Node/Bash szintaxis, build, lokális linkcélok és `git diff --check` PASS; a `tmp/` ignored és nincs követett tartalma. A közös lock párhuzamos guardhívást 75-tel visszautasít.
-- **Böngésző:** mind a nyolc projektből egy célzott szintetikus Chromium-próba PASS, külön védett futásokban (shell login/menu; auth megerősítés megjegyzés nélkül; related mezők; grid-edit; sorting; preferences URL; presentation bulk; i18n nyelvváltás). Az első, minden szervert egyszerre indító kísérlet időtúllépéseinél a scope `pids.current=128`, `pids.events: max 3` értékkel igazolta a taskkorlát elérését; ezt váltja fel az egyprojektes futtatás, változatlan hostvédelemmel. Az első egyprojektes sorting-próba a görgetési request-pollon egyszer elbukott; a korábbi konfigurációval és az újjal, friss runtime mellett is PASS lett. A görgetési próba időzítési instabilitása megmaradó korlát, a teljes 38 tesztes regressziót ez a batch nem állítja sikeresnek.
-- **Kiadás:** a kötelező `/usr/local/bin/gitpush --all -t` nem futtatható ezen a hoston (hiányzó eszköz, exit 127); commit/push nem történt. A munkakönyvtár korábbi, más feladathoz tartozó módosításai megőrizve.
-- **Állapot:** megvalósítva, célzottan ellenőrizve.
+Before closure update canonical usage and relevant plan/API/ADR. Preserve
+superseded entries with successor IDs and remove contradictions from active guidance.
+
+<a id="bejegyzéssablon"></a>
+
+## Entry template
+
+- ID/date/title.
+- Source/context, component/version/commit where known.
+- Observation/reproduction, explicitly noting documentation-only cases.
+- Expected behavior/usage.
+- General framework versus consumer scope, decision/open interpretation.
+- Status/action/limits.
+- Guide/implementation/test links.
+- Who checked what and actual results; user acceptance only when it occurred.
+
+<a id="fb-0001--a-használati-módszertan-folyamatos-vezetése"></a>
+
+## FB-0001 — Maintain usage guidance continuously
+
+Date: 2026-10-16. Owner instruction after initial structure, before runnable runtime.
+Every capability needs maintained usage guidance; preserve testing instructions
+and incorporate general lessons. Mandatory completion rule, with consumer-specific
+knowledge staying in consumer docs.
+Closed/documentation-verified: [project contract](../AGENTS.md), [usage](usage.md),
+[plan](development-plan.md) aligned; internal links/diff checked. Runtime not
+applicable and later user testing had not occurred. The rule remains ongoing.
+
+<a id="fb-0002--fokozatos-indulás-login-és-navigációs-shell-segítségével"></a>
+
+## FB-0002 — Start incrementally with login/navigation
+
+Date: 2026-10-16. First-consumer guidance: login then application-specific menu
+without business modules. Framework owns login/session/navigation; consumers own
+identity/menu. Shell was not complete CRUD/ACL.
+Superseded by FB-0003 after owner rejected the implementation direction:
+technical checks did not prove architectural acceptance.
+[Shell](shell.md), [Application](../packages/php/src/Shell/Application.php),
+[frontend](../packages/frontend/src/admin.ts).
+Historical checks: PHP 8.4 lint, typecheck/build, four synthetic consumer Chromium
+E2E cases and mobile visual inspection.
+
+<a id="fb-0003--minden-általános-képességet-a-61de-ad-61de-az-ade-v2"></a>
+
+## FB-0003 — All general capabilities belong to 61de, ADE v2
+
+Date: 2026-10-16. Owner rejected custom login/cards dashboard.
+Mandatory architecture, not visual preference: build framework capabilities with
+DHTMLX, then business modules, without bypassing application admin code.
+Supersedes FB-0002 interpretation; FB-0004 narrows the absolute DHTMLX rule.
+Initial framework capability/consumer integration verified, no user acceptance.
+[Contract](../AGENTS.md), [ADR-0002](decisions/0002-framework-first.md), [usage](usage.md).
+Historical PHP lint/typecheck/build, four independent Chromium and four consumer
+cases passed; HTTPS login loaded. Mobile gathers branches under native menu and
+restores on widening.
+
+<a id="fb-0004--elsőbbségi-keretszabály-kezelhető-acl-és-audit"></a>
+
+## FB-0004 — Framework-first rule, manageable ACL and audit
+
+Date: 2026-10-16. Accepted: framework-first with only documented logically-
+unextendable exception, refining FB-0003. Object/action/field/channel rights
+must be manageable in UI with equal API protection and audit of admin/business
+flows. Admin role is not business superuser; menu includes implemented modules only.
+The original application-owned useradmin decision is superseded by FB-0036.
+ACL/audit/framework-first remain. Initial implementation/integration verified,
+user acceptance open. [Contract](../AGENTS.md), [ADR](decisions/0002-framework-first.md).
+Checks: access.php/workspace.spec.cjs plus consumer profile/account/ACL/API PHP/
+Chromium. Implementation: Feature/Access/Audit and Workspace.ts.
+[Canonical ACL guide](access-and-actions.md). Password-only own-profile behavior
+was a consumer business rule, not a kernel useradmin requirement.
+
+<a id="fb-0005--natív-dhtmlx-témaváltás"></a>
+
+## FB-0005 — Native DHTMLX theme switching
+
+Date: 2026-10-16. Accepted: Default/dark at menu right, DHTMLX setTheme rather
+than ADE skin layer; browser persistence. FB-0012 later adds/defaults Skyblue.
+Implemented/browser-verified including reload; AdminShell and [shell](shell.md).
+
+<a id="fb-0006--konfigurálható-munkaterület-dinamikus-és-élő-listák"></a>
+
+## FB-0006 — Configurable workspace, dynamic/live lists
+
+Date: 2026-10-16. Accepted separate named/configurable filter/form/grid areas,
+optional default overlay, dynamic bounded lists without pager/manual refresh.
+All visible lists use configured polling/WebSocket; first consumer WebSocket.
+Keep selection/filter/scroll/open forms on refresh. List labels Add/Modify under
+ACL; Save only on submission. Profile is direct details/form, writable fields
+only; optional read-only ACL does not replace it.
+Implemented/verified, no user acceptance. [Workspace](workspaces.md), ViewLayout,
+ListSource, LiveConfig, Realtime and WebSocket worker. Historical 5000-row PHP,
+overlay/polling demo and consumer WebSocket browser checks passed.
+
+<a id="fb-0007--az-üzleti-kód-és-a-keret-határa"></a>
+
+## FB-0007 — Business code and framework boundary
+
+Date: 2026-10-16. Owner asked about code/configuration and business leakage.
+Dependency application → framework; consumers own schema/rules/initial grants,
+61de general execution/extensions. Reinforces FB-0003/0004.
+Runtime inventory found no consumer classes/tables/legacy flags, but polling
+test PHP default referenced a consumer path. Corrected to BLADE_PHP/php8.4.
+[Boundary](usage.md#üzleti-konfiguráció-és-kód-határa), [testing](development.md#ellenőrzési-stratégia).
+Both workspace Chromium cases passed with injected PHP (CRUD/form/external-write
+polling). Focused search clear; diff check passed. No user acceptance claimed.
+
+<a id="fb-0008--olvasható-json-definíció-env-és-rendezett-php"></a>
+
+## FB-0008 — Readable JSON, env and organized PHP
+
+Date: 2026-10-16. Accepted modular understandable JSON, host env and well-organized
+business PHP. Configuration compiler uses named callbacks through existing
+Field/Action/SqlResource/Workspace; extends FB-0007's PHP option.
+[JSON/env](configuration.md), [boundary](usage.md#üzleti-konfiguráció-és-kód-határa).
+Synthetic configuration/shell/ACL and consumer account/profile/ACL/API/password
+PHP passed; public login with JSON/env returned 200. No user acceptance.
+
+<a id="fb-0009--a-referencia-teljes-validációja-a-migráció-része"></a>
+
+## FB-0009 — Full reference validation belongs to migration
+
+Date: 2026-10-16. Required-only consumer account validation omitted reference
+format/uniqueness. Accepted full inventory before migration; framework owns
+mechanism, consumer patterns/length/messages/exceptions. Owner explicitly retained
+12–128 password length.
+Implemented shared min length/pattern/matches/SQL uniqueness, native field feedback,
+named backend errors and retained form values.
+[Validation](validation.md), [configuration](configuration.md), project parity rule.
+PHP validation/ACL/5000-row lists and consumer parity/browser correction-and-save
+passed. No user acceptance.
+
+<a id="fb-0010--megjegyzett-belépés-és-e-mailes-megerősítés"></a>
+
+## FB-0010 — Remembered login and e-mail verification
+
+Date: 2026-10-16. Accepted 90-day absolute remembered login, per-user default-on
+e-mail verification and framework-formatted mail with consumer text.
+61de owns auth/session/SMTP/MIME/remember through JSON/env; pending verification
+has no authenticated UI/API/WebSocket. Consumers supply account adapter/text
+and registered ACL actions.
+[Authentication](authentication.md), [configuration](configuration.md),
+Authentication/Mail/Application/AdminShell.
+PHP auth and three independent SMTP/MIME/DHTMLX Chromium cases passed, including
+Enter/new session/absolute expiry/logout/default/per-user toggle. Synthetic mail
+only; consumer relay TLS checked without real mail/login. No user acceptance.
+
+<a id="fb-0011--egyetlen-alsó-információs-sáv"></a>
+
+## FB-0011 — One lower information bar
+
+Date: 2026-10-16. Accepted removal of redundant top application header and workspace
+connection/user bars. One lower native Toolbar: user left, application/version
+right; live updates remain. Optional PHP/JSON version; no persistent workspace
+status, action alerts/conflict messages remain.
+Closed/verified, no user acceptance. Typecheck/build/PHP lint/shell/JSON and
+four browser cases plus CRUD/switch/polling passed including targeted reruns
+after environmental timeouts.
+[Shell](shell.md#egységes-alsó-információs-sáv), [workspace](workspaces.md),
+ApplicationDefinition/JsonApplication/AdminShell/Workspace.
+
+<a id="fb-0012--skyblue-alapértelmezett-megjelenés"></a>
+
+## FB-0012 — Skyblue default
+
+Date: 2026-10-16. Accepted default Skyblue, extending FB-0005.
+Suite 9 lacks factory legacy Skyblue; documented custom-theme variables define
+a light-blue palette, not a complete legacy image skin. Native controls remain.
+No saved preference → skyblue; valid saved choices retained.
+Closed/verified: typecheck/build, default/color/switch/reload Chromium.
+Visual inspection found/fixed lower Toolbar intrinsic-height clipping; tests
+also check complete label bounds. No user acceptance.
+[Appearance](shell.md#megjelenési-mód), AdminShell.ts/admin.css/browser.spec.cjs.
+
+<a id="fb-0013--a-panelméretező-középre-igazítása"></a>
+
+## FB-0013 — Center panel resizer grips
+
+Date: 2026-10-16. Suite space grip sat on border, reproduced with independent
+native Layout. Accepted scoped framework CSS, no vendor edit, centered in 12 px
+gaps both axes. Scoped #blade-application override preserves other resizers.
+Closed/verified, no user acceptance. Build/two Chromium checks across three themes
+and real drags passed. [Guide](workspaces.md#panelméretező-megjelenítése),
+admin.css/layout-resizer.spec.cjs.
+
+<a id="fb-0014--checkboxok-és-kapcsolók-az-objektum-főűrlapján"></a>
+
+## FB-0014 — Flags in the object's main form
+
+Date: 2026-10-16. Accepted checkbox flags/form/list, bounded columns, meaningful
+filter labels and no separate switch forms/buttons. Related one-to-one storage
+shares transaction/revision/ACL/audit; consumers own labels/mappings.
+Initial list checkbox was status-only; later editable-field decisions refine it.
+Field/RelatedStorage/SqlResource/ListSource/WorkspaceConfiguration/Workspace.
+Security action remains API option, while main form supersedes FB-0010's UI pattern.
+Closed/verified, no user acceptance. PHP related/ACL/API/lists/validation,
+synthetic native controls/width/shared save/reopen/filter/error retention and
+consumer account checkboxes/six feature browsers/PHP parity passed.
+[Fields](field-presentation.md), [config](configuration.md),
+[authentication switch](authentication.md#felhasználónkénti-kapcsoló).
+
+<a id="fb-0015--fölösleges-keretezett-layoutburkoló"></a>
+
+## FB-0015 — Remove redundant framed layout wrapper
+
+Date: 2026-10-16. A one-cell space wrapper remained after FB-0011, adding border/gap
+outside filter/results. Declared multipanel tree becomes direct root; singleton
+and explicit branches remain. Closed/verified, no user acceptance.
+Typecheck/build and four targeted Chromium cases passed: one root/12 px gaps,
+CRUD/switch/polling/two-axis resize.
+[Layout](workspaces.md#layoutszintek-és-keretek), Workspace.ts/workspace.spec.cjs.
+
+<a id="fb-0016--fejlesztői-tesztfuttatás-ne-merítse-ki-a-közös-hostot"></a>
+
+## FB-0016 — Protect the shared host during tests
+
+Date: 2026-10-16. Accepted prevent host memory exhaustion during editor development.
+Shared guard, serial browsers, initial memory threshold/systemd cgroup; no admin
+architecture change. run-dev-check.sh/playwright.sh/npm, shared by consumer.
+Actual cgroup values/nested-lock denial, both wrappers' discovery and one Chromium
+login/menu passed; no OOM stress. Test protection implemented, not complete
+editor-session/root-level host isolation.
+[Guard and limits](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston).
+
+<a id="fb-0017--deklarált-mezőnkénti-gridszerkesztés"></a>
+
+## FB-0017 — Declared per-field grid editing
+
+Date: 2026-10-16. Accepted text/select/checkbox editing per column, checkboxes only
+for manageable fields, including consumer contact/switch fields. Skyblue separate.
+column.editable/native editors share update ACL/scope/revision/audit/hooks.
+Validate selected field only; business guard receives full merged row.
+GridEditing/Workspace/Executor::edit/SqlResource, including related fields;
+open cell after native selection focus, no vendor edits.
+PHP checks field/legacy untouched/select/related/ACL/scope/revision/audit and
+synthetic text/select/checkbox/error/discard/reload passed. Consumer PHP
+save/validation/revocation and two browser/form checks plus prior regressions passed.
+Implemented/verified, no user acceptance. [Usage](field-presentation.md#mezőnkénti-gridszerkesztés).
+
+<a id="fb-0018--szerkeszthető-fejlécjelzés-rendezés-és-smart-rendering"></a>
+
+## FB-0018 — Editable headers, sorting and smart rendering
+
+Date: 2026-10-16. Accepted visible editable columns, sortable lists, verified smart
+rendering. Existing native virtualization/100-row chunks/600-row cap worked;
+sorting was disabled/fixed-key only. Full-table scrollbar/ordinal jumping absent.
+Framework CSS/tooltips/events plus complete authorized SQL sorting/stable cursors/
+live bounds; no consumer sort code/vendor edits. GridHeaders/Workspace/
+ListSource sortableFields/read and Realtime position metadata; protected fields
+and reorder-on-sort-key-edit retained.
+PHP full traversal/backward cursors text/number/id/NULL/ties/ACL; 1801-row
+Chromium headers/directions/filter/virtual bounds; related numeric/checkbox
+2/9/10/missing defaults/API scope; consumer three main-form/inline/WebSocket
+sorting cases passed.
+Implemented/synthetically verified, no user acceptance.
+[Sorting](workspaces.md#rendezés-és-smart-rendering), [fields](field-presentation.md).
+
+<a id="fb-0019--listák-rekordadatok-és-vezérlők-megjelenése"></a>
+
+## FB-0019 — Lists, record details and controls
+
+Date: 2026-10-17. Accepted multicolumn cards, single frame, toolbar isolation,
+fitting controls in every theme, native secondary filter/login buttons/icons,
+default optional ordinals/full ACL details on double-click, opt-in marks/bulk.
+ResponsiveGrid/RecordPresentation/Workspace/AdminShell/CSS; view options/action
+icons/bulk/Executor per-row audit. FB-0022 later replaces local numbering with
+full SQL rank. Consumer bulk stayed off.
+[Cards/details](workspaces.md#kártyák-rekordadatok-sorszám-és-jelölés),
+[bulk](workspaces.md#tömeges-műveletek-és-ikonok).
+Initial typecheck/build/PHP presentation/ACL/lists/sorting/grid-edit/contracts
+passed, including partial-success/revision checks; direct DataView check passed
+but full UI initially blocked by runner/browser mismatch. Owner rejected
+project browser install; it was stopped/removed. Fixture CSP/icon accessibility
+bugs fixed pending rerun. Consumer requested INFRA-003/pool #36 rev1.
+Updated: FB-0022 completed [UI qualification](list-presentation-validation.md).
+No user acceptance.
+
+<a id="fb-0020--nézet-dropdown-és-szerkeszthető-fejléc-rendezésjelzése"></a>
+
+## FB-0020 — Final view dropdown and nonoverlapping indicators
+
+Date: 2026-10-17. Accepted FB-0019 refinement: final Toolbar dropdown and separate
+sort/edit indicators. Workspace uses spacer/right native mode dropdown, disabled
+forced mobile cards. CSS reserves 24 px hover icon; one active SQL arrow, native
+duplicate hidden. [Usage](workspaces.md#nézetválasztás-és-fejlécjelzések).
+Typecheck/build/dropdown/header/mobile/three-theme regression passed with existing
+system runner, no browser install. [Evidence](list-presentation-validation.md).
+No user acceptance.
+
+<a id="fb-0022--az-eredeti-listajavítások-teljes-ellenőrzése"></a>
+
+## FB-0022 — Complete original list verification
+
+Date: 2026-10-17. Owner requested complete FB-0019/20, beyond build success.
+Full authorized/filtered/sorted rank replaces local numbering; numbered false
+also disables calculation. PHP covers both directions/NULL/ties/middle window/
+preceding insert.
+Fixed filter beforeHide destruction leaving invisible modal via afterHide;
+synchronized action-response/form teardown redraw, blocked inactive drawing/stale
+async restoration.
+System Playwright was usable; block was runner/module version mixing. Same
+installation now used by launcher/imports, guard retained, no install.
+Closed/verified: PHP/expanded UI/login/themes/real server batch passed.
+[Evidence](list-presentation-validation.md) supersedes earlier Infra-pending state.
+No user acceptance. [Workspace](workspaces.md), [runner](development.md#meglévő-közös-playwright-bekötése).
+
+<a id="fb-0021--url-követés-és-felületállapot-megőrzése"></a>
+
+## FB-0021 — Feature URLs and persistent UI state
+
+Date: 2026-10-17. Accepted current feature URL/reload restoration and saved manual
+grid/layout settings. AdminShell hash/history/login preservation; versioned
+UiPreferences by path/user/resource. Workspace/ResponsiveGrid restore widths,
+sort/manual mode/panels under current ACL/definitions/bounds; no form data.
+[Usage/limits](shell.md#url-és-helyi-felületbeállítások): local browser only,
+no record/editor deep links.
+Typecheck/build/PHP lint/contracts/ui-preferences.mjs and synthetic Chromium
+3/3 passed; expanded sizes/collapse/mobile preference case reran 1/1.
+Login/reload/history/unknown IDs/disabled storage checked.
+Implemented/verified, no user acceptance.
+
+<a id="fb-0023--listafejléc-darabszám-menüikonok-és-kompakt-login"></a>
+
+## FB-0023 — List headings/counts, menu icons and compact login
+
+Date: 2026-10-17. Accepted title in results header, total/matched at right, icons,
+spaced filters, no oversized login/confirmation bottoms, content shadow.
+Native Layout header/accessory, ACL counts via ListSource and both transports,
+configurable view/MenuItem icons, measured Window with 24 px bottom, Toolbar shadow.
+Historical asset v=8.
+[Workspace](workspaces.md#listafejléc-és-rekordszám),
+[shell](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok).
+Full-set/ACL/cursor/filter/live PHP counts, three-theme auth/desktop/mobile/
+cards/real consumer passed; consumer integration 3/3 with WebSocket 1→0→1,
+dev login/prepared-asset identity checked.
+[Qualification](list-presentation-validation.md#fb-0023-fejlécek-darabszám-és-hitelesítési-ablakok).
+Verified, no user acceptance.
+
+<a id="fb-0024--kártyaszerkesztés-mentés-utáni-nézetváltás-méret-és-rendezés"></a>
+
+## FB-0024 — Card editing, save switching, sizing and sorting
+
+Date: 2026-10-17. Accepted writable cards, switches after grid save, no display-text
+selection on functional double-click, right sorting dropdown, resizer reset,
+content-fitting viewport-capped windows.
+ResponsiveGrid keeps separate widget snapshots, syncs hidden widgets on attachment,
+never passes mutable Workspace row objects into DataView. column.editable
+intersects _editable. Native single-field editors/shared saveCell/__edit/
+validation/ACL/revision/audit; direct checkbox, read-only details. GridHeaders
+does not set ARIA on hidden DOM. UiPreferences reset, WindowSizing/CSS, asset v=9.
+[Usage](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok).
+Typecheck/build/PHP grid-edit/validation, Chromium grid/cards 2/2 and
+layout/list/mobile/workspace 9/9 passed, including delayed-save switching,
+errors/sort/reload/two-axis reset/themes/small viewport. Consumer integration
+3/3 and dev load 2/2 passed. No vendor edits.
+Closed/verified, no user acceptance.
+
+<a id="fb-0025--elkülönülő-főmenügombok"></a>
+
+## FB-0025 — Distinct main-menu buttons
+
+Date: 2026-10-17. Accepted separated buttons/classic Skyblue Windows appearance;
+separator also needs a faint line, not gap alone.
+Framework CSS/native Menu: permanent border/background/6 px gap/focus/pressed,
+raised blue/gold hover; adjusted breakpoint, asset v=11.
+[Shell](shell.md#elkülönülő-főmenügombok), [usage](usage.md); submenus stay lists.
+Typecheck/build/shell Chromium 6/6; separator three-theme repeat 1/1 with 1 px
+line >12 px high and button geometry passed. Skyblue/dark images inspected.
+Owner liked buttons; no further acceptance of separator claimed.
+
+<a id="fb-0026--táblázatárnyék-az-oszlopfejléc-alatt"></a>
+
+## FB-0026 — Grid shadow below column headings
+
+Date: 2026-10-17. Accepted refinement superseding FB-0023 grid Toolbar shadow.
+Native Grid header casts shadow over rows, Toolbar shadow off in grid/on in cards;
+shared CSS/automatic native Grid detection, no vendor edit, asset v=12.
+[Counts/presentation](workspaces.md#listafejléc-és-rekordszám), [usage](usage.md).
+Build/diff and targeted guarded Chromium 1/1 across themes/scroll/back passed;
+Skyblue image checked. Closed/verified, no user acceptance.
+
+<a id="fb-0027--toolbarfejléc-elválasztás-és-kártyák-felső-térköze"></a>
+
+## FB-0027 — Toolbar/header divider and card top spacing
+
+Date: 2026-10-17. Owner accepted shadow position but requested divider and correction
+of slightly scrolled cards. Theme 1 px divider; ResponsiveGrid.restore separates
+view switches from same-view refresh. Source row pixel offset is not transferred
+to cards; top stays zero, middle preserves record/natural gap. Same-view live
+offset retention stays exact. Asset v=13.
+[Workspace](workspaces.md), [usage](usage.md).
+Typecheck/build/diff, guarded presentation/mobile 6/6 across themes/divider/
+shadow/repeated switches/partial rows/live selection passed; stable-redraw
+regression rerun and Skyblue inspection passed.
+Implemented/verified, no user acceptance.
+
+<a id="fb-0029--jobb-széli-kártyaceruza-és-egységes-kezelhető-checkbox"></a>
+
+## FB-0029 — Right-edge card pencil and shared editable checkbox
+
+Date: 2026-10-17. Accepted right-edge pencil; no checkbox pencils anywhere;
+checkbox only for writable rows/fields, same Grid/DataView appearance.
+Refines FB-0018/24.
+RecordPresentation.recordCheckbox uses Suite styles, declared/per-row intersection;
+read-only/details remain text, shared edit route. Reserved right icon space;
+no checkbox header/value pencils.
+[Fields](field-presentation.md#egységes-checkbox-és-kártya-szerkesztésjelzés), [usage](usage.md).
+Typecheck/build/diff, guarded synthetic 2/2 and consumer 1/1 passed: dimensions,
+icons, Enter/Space/save/errors/reload/read-only ACL. Skyblue inspected, dev assets
+prepared v=15. Implemented/verified, no user acceptance.
+
+<a id="fb-0028--kompakt-popup-és-teljes-mobil-navigációműveletsor"></a>
+
+## FB-0028 — Compact popup, complete mobile navigation/commands
+
+Date: 2026-10-17. Accepted smaller headers, responsive commands, every mobile
+menu item/logout under Menu and equal mobile cards.
+Native Window 40 px header, ResponsiveToolbar preserving IDs/ACL/events,
+Actions dropdown for narrow panels, compact logout/separator. Resize closes
+native popups and prevents menu-item types leaking into restored horizontal bar.
+Cards use border-box/no shrinking. Final asset v=16; sizing waits for final redraw.
+[Shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü),
+[commands](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség), [usage](usage.md).
+Typecheck/build/diff and 15 distinct guarded framework cases passed including
+corrected reruns, 390/460/1280 widths/long words/themes/ACL/nested sort/desktop
+restore/marks/bulk/live. Fresh consumers per theme wait for popup draw/close.
+Consumer 3/3/dev 2/2, Skyblue/consumer dark inspection passed.
+Closed/verified, no user acceptance.
+
+<a id="fb-0030--skyblue-váltott-táblázatsorok"></a>
+
+## FB-0030 — Alternating Skyblue rows
+
+Date: 2026-10-17. Accepted readable alternate row backgrounds.
+Native rowCss by current data index, white/#edf5fc, Skyblue-only CSS with native
+selection overlay, asset v=17. FB-0032 supersedes color.
+[Usage](usage.md), no consumer config.
+Typecheck/build/diff/guarded three-theme scroll/mode 1/1 passed; Skyblue image
+showed regular bands; demo/consumer dev assets prepared.
+Implemented/verified.
+
+<a id="fb-0031--elkülönülő-popupfejléc-és-alsó-elválasztóvonal"></a>
+
+## FB-0031 — Popup header background and divider
+
+Date: 2026-10-17. Accepted bottom line/all-theme distinction, with light/dark
+background separation. Native header 1 px --dhx-border-color inside existing
+40 px; secondary background, retained Skyblue gradient. No consumer config;
+asset v=18. [Shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü), [usage](usage.md).
+Build/diff/guarded three-theme compact popup/action/mode 3/3 passed, close button
+within header. Images confirmed line/background; demo/consumer dev assets prepared.
+Implemented/verified.
+
+<a id="fb-0032--finomabb-szürke-skyblue-sorsávok"></a>
+
+## FB-0032 — Subtler gray Skyblue stripes
+
+Date: 2026-10-17. Accepted FB-0030 refinement from blue to subtler #f7f7f7 gray,
+same native row indexing/selection, asset v=19. [Usage](usage.md), no consumer config.
+Build/diff/prepared CSS equality passed; demo/consumer dev assets updated.
+Implemented; only stripe color changed.
+
+<a id="fb-0033--egyértelmű-témanevek-és-többnyelvűségi-helyzetkép"></a>
+
+## FB-0033 — Clear theme names and localization inventory
+
+Date: 2026-10-17. Accepted rename Default, keep Skyblue actual default, clarify
+localization status. Light display name becomes Világos; saved preferences retained,
+asset v=20.
+At this checkpoint catalogs/locale/selector were absent and PHP/frontend partly
+hardcoded Hungarian; architectural i18n plan was not a completed capability.
+[Usage](usage.md#többnyelvűség), [themes](shell.md).
+Typecheck/build/diff and default/persistence/themes 2/2 passed; inventory of
+frontend/backend/config/plans recorded, demo/consumer assets prepared.
+Theme done/verified; i18n still planned here, followed by FB-0034.
+
+<a id="fb-0034--alapvető-többnyelvűség-opcionális-site-választó"></a>
+
+## FB-0034 — Built-in localization and optional site selector
+
+Date: 2026-10-17. Accepted, supersedes FB-0033 missing status.
+Single-language sites share localization; optional selector before themes;
+consumers own business languages/translations.
+PHP/TS locale/catalogs hu/en/de, validation/definition presentation/mail,
+Toolbar and initial Form select, CSRF switching/site cookie/HTML/HTTP/bootstrap/
+API, single-language hidden-selector mode. Data/dynamic lookups stay unchanged.
+Asset v=23; owner additionally requested configured flags beside names.
+[I18n](i18n.md), [usage](usage.md#többnyelvűség), [shell](shell.md#opcionális-nyelvválasztó).
+Typecheck/build/47 PHP lint/diff and PHP i18n/config/shell/validation/auth/
+catalog-placeholder parity passed. Final flagged Chromium 3/3: switching/persistence,
+menus/fields/static options/status, validation/mobile/English-only, CSRF/unknown
+locale, German Bearer errors/Content-Language. Six shell cases including localized
+confirm rerun passed; consumer 4/4, dev three-language load 3/3, images checked.
+Render checks sent no real e-mail. Implemented/framework-and-consumer verified.
+
+<a id="fb-0035--valódi-png-zászlók-emoji-helyett"></a>
+
+## FB-0035 — Actual PNG flags instead of emoji
+
+Date: 2026-10-17. Owner saw GB letters on Windows; requested existing ADE PNGs.
+Accepted font-independent images. Three original files copied byte-identically
+into framework assets, native Toolbar icon CSS embedded as data URLs, login Layout
+Toolbar, country-code configuration hu/gb/de. Asset v=26, supersedes emoji.
+[I18n](i18n.md), [provenance](flag-assets.md), [usage](usage.md).
+Typecheck/build/PHP i18n/diff, byte equality, guarded framework 3/3, consumer
+mobile/languages 1/1, actual dev 3/3 passed. Tests decoded 16×11 PNG and visible
+icons; dropdown/dev login visually inspected. Implemented/verified.
+
+<a id="fb-0036--kötelező-adminmodul-és-igényvezérelt-keretfejlesztés"></a>
+
+## FB-0036 — Mandatory admin and demand-driven framework work
+
+Date: 2026-10-21. Owner clarified product goals; this original session used one
+tool for analysis/prompts and another for implementation.
+Accepted: framework-owned user/ACL/key/log admin, PHP reference with language-
+neutral JSON, fullscreen DHTMLX/themes/i18n, synthetic examples, four storage
+targets/SQLite demo, modular JSON/business handlers/generated catalog.
+Original Ext JS benchmark reference is superseded by FB-0037.
+Application-only useradmin in FB-0004/ADR-0002 is superseded; framework/ACL rules remain.
+Need → smallest general extension → synthetic proof/docs → consumer integration/
+consumer-controlled release.
+Accepted/planned, Ext JS portion superseded. Source gap inventory/prompt completed,
+no runtime implementation. Lifecycle/auth/JSON/storage/events remained questions.
+[Product direction](product-direction.md), [usage](usage.md#elfogadott-termékirány--2026-10-21),
+[ACL](access-and-actions.md), [concept](concept.md), [ADR](decisions/0002-framework-first.md),
+[contract](../AGENTS.md).
+Documentation/source reviewed; prior results historical, no runtime run.
+Diff/eight-document links passed. Historical /usr/local/bin/gitpush --all -t
+attempt failed exit 127; no commit/push. FB-0043 later corrects path/policy.
+
+<a id="fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör"></a>
+
+## FB-0037 — Withdraw Ext JS reference; DHTMLX and actual needs
+
+Date: 2026-10-21. Owner corrected FB-0036 benchmark/mapping/exhaustive scope.
+Accepted no Ext JS parity and no substitute external benchmark; DHTMLX capabilities
+grow with actual needs. Other goals remain R1–R12, including then-planned OAuth,
+storage guarantees, no eval/automatic catalog grants, events/demo.
+Earlier reference remains historical, matrix becomes inventory rather than target.
+[Product](product-direction.md), [ADR](decisions/0003-product-direction.md),
+[concept](concept.md#0-elfogadott-termékirány--2026-10-21),
+[plan](development-plan.md#igényvezérelt-fejlesztési-módszer), [matrix](component-matrix.md),
+[usage](usage.md#elfogadott-termékirány--2026-10-21), [README](../README.md),
+[contract](../AGENTS.md), [imports](../CLAUDE.md), [auth](authentication.md).
+Documentation incorporated, most capabilities still planned. No runtime test
+needed/run. Historical Ext JS search left only supersession mentions, links
+223/0 errors (including fixing FB-0033 anchor), diff/whitespace passed.
+Implemented-status claims inspected in Application/AdminShell/Database/Schema/
+Journal/callers/demo. Wrong /usr/local/bin/gitpush absent; no commit/push.
+
+<a id="fb-0038--fiókéletciklus-döntések-az-első-adminszelethez"></a>
+
+## FB-0038 — First admin-slice lifecycle decisions
+
+Date: 2026-10-21. Accepted before runtime implementation:
+admin-created temporary password/forced change; disable-only removal with immediate
+session/remember/token revocation and retained audit; full name in displayName;
+one-use expiring e-mail recovery with uniform response/rate/audit.
+Additions: e-mail login everywhere; admin-only keys/no self-service; non-insertable
+stores disable create but retain management.
+Approved defaults: generated 20 chars/72 hours, reset 30 minutes, 3/15min/account
+and 10/15min/IP, normal login afterward, protected admin role, read-derived categories,
+self/last-admin protection E8. The earlier “still open” line about those same
+durations/reset confirmation is superseded by this approval. Hard deletion/
+anonymization and broader OAuth policy remain separate.
+[Product](product-direction.md#eldöntve-az-első-adminszelethez--2026-10-21),
+[plan/defaults](admin-module-plan.md#4-alapértékek-jóváhagyva-2026-10-21).
+Accepted/planned at this checkpoint; documentation links/diff checked.
+
+<a id="fb-0039--beépített-felhasználóadmin-a1-részszelet"></a>
+
+## FB-0039 — Built-in user administration, A1
+
+Date: 2026-10-21. Approved plan implementation:
+Accounts over SqlResource/RelatedStorage/Action, disable/re-enable/temporary/forced
+change; ManagedIdentities checks framework state alongside consumer allowed;
+blade_account_state, read-only SqlResource fields, Application pre-auth change,
+JSON admin, DHTMLX change form, generic once-only reveal and hu/en/de.
+Demo accounts moved to workspace SQLite/e-mail login; server utility ran idempotent setup.
+Difference: Accounts service rather than AccountStore interface; e-mail switch
+outside A1.
+[Admin](admin.md), [usage](usage.md#beépített-felhasználóadmin),
+[config](configuration.md), [auth](authentication.md), [shell](shell.md),
+[product](product-direction.md), [plan](admin-module-plan.md).
+12 PHP scripts including new admin.php, typecheck/build passed.
+Guarded admin browser 2/2; full shell 19/21, two light/dark screenshot timeouts,
+targeted compact commands 3/3 passed; auth 4/4/i18n 3/3.
+BLADE_TMP_DIR=tmp/a1-browser required because earlier shell-demo sessions belonged
+to www-data and were unwritable. Implemented/verification pending (no user acceptance).
+
+<a id="fb-0040--beépített-szerepkör--és-jogosultságadmin-a2-részszelet"></a>
+
+## FB-0040 — Built-in roles and permissions, A2
+
+Date: 2026-10-21. Catalogue generates no rights. Permissions supplies four views
+via SqlResource/Lookup, validation/orphans/protected role/last member/self protection/
+grantAdministration; Accounts guardDisable/lookup, JSON protected_role and catalogs.
+Demo setup grants account 1. UI admin-resource deny rules are prohibited to avoid
+lockout; initial admin gets UI only.
+[Admin](admin.md#szerepkörök-és-jogosultságok-a2),
+[usage](usage.md#beépített-felhasználóadmin), [config](configuration.md),
+[ACL](access-and-actions.md), [product](product-direction.md), [plan](admin-module-plan.md).
+PHP 13/13 including permissions passed, admin browser 3/3.
+Full shell 21/22; mocked presentation failed, separate rerun failed two different
+previously green cases. Timing instability on loaded host; no frontend change in
+A2 and those fixtures used no PHP. Implemented/verification pending.
+
+<a id="fb-0041--saját-létrehozás-után-az-új-sor-nem-kerül-látótérbe-görgethető-listán"></a>
+
+## FB-0041 — Newly created row remains outside scrolled viewport
+
+Date: 2026-10-21. Tool-observed/open. With many demo users, live refresh inserted
+new row at start and increased count, but preserved scroll so numbering started
+at 2 until scrolling/filtering. Small lists unaffected.
+Proposal, not accepted requirement: show/select newly created record.
+Open framework Workspace/ResponsiveGrid behavior, not admin module.
+admin.spec.cjs uses filtering to select the row.
+
+<a id="fb-0042--egységes-playwright-konfiguráció-és-gyökérszintű-tmp"></a>
+
+## FB-0042 — Unified Playwright configuration and root tmp
+
+Date: 2026-10-21. Accepted one root config and tmp replacing codex scratch;
+supersedes old paths while retaining guard.
+[Entrypoint](../playwright.config.cjs), eight named [projects](../tests/browser/config.cjs),
+one selected server/default shell, absolute scratch propagation from
+[guard](../tools/run-dev-check.sh). Runtime moved/ignored; BLADE_TMP_DIR retained,
+separate configs removed.
+[Usage](usage.md#fejlesztői-memória-védelme), [development](development.md#egységes-playwright-konfiguráció),
+[layout](repository-layout.md), affected topics/entrypoints.
+Historical --list 38 tests/eight projects, auth+preferences seven.
+PHP config/contracts/auth, lint, Node/Bash syntax/build/links/diff passed;
+tmp ignored/untracked. Parallel guard denied with 75.
+One targeted Chromium per group passed. First all-server attempt hit
+pids.current=128/pids.events max 3, motivating one-project startup without
+weakening guard. Sorting scroll request poll failed once, then passed both old/
+new config with fresh runtime; instability remains. Full 38-test success not claimed.
+Historical wrong gitpush path exit 127/no commit/push superseded by FB-0043;
+existing unrelated work preserved. Implemented/targeted verified.
+
+<a id="fb-0043--gitpush-kötelezettség-megszüntetése-és-helperútvonal-javítása"></a>
+
+## FB-0043 — Remove mandatory gitpush and correct helper path
+
+Date: 2026-10-21. Owner decision: no gitpush requirement in this project.
+Helper is /space/share/bin/gitpush. Supersedes entrypoint/workflow batch command.
+FB-0036/37/42 failures establish only that /usr/local/bin/gitpush was wrong,
+not that the host lacked a helper.
+[Usage](usage.md#fejlesztési-batch-lezárása),
+[workflow](development.md#commit-és-push), [contract](../AGENTS.md), [imports](../CLAUDE.md).
+Read-only existence/executable check, no helper invocation; diff passed.
+Documentation-only, no runtime test needed. Recorded/incorporated.
+
+<a id="fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs"></a>
+
+## FB-0044 — Two demos, account switches, OAuth, mail, language and keys
+
+Date: 2026-10-21. Accepted:
+full feature demo grows with every demonstrable capability; /admin/ is mandatory
+starter only; field-managed values have no redundant toggle button and disabled
+is form/grid checkbox; configured OAuth requires existing e-mail and per-user allow,
+without password; demonstrate password/OAuth/e-mail-code; configurable mail command,
+formatted overridden texts without real demo mail; selector beside themes and
+account default, hidden single-language fields.
+
+E-mail code/selector already existed but were not enabled in demo.
+Command means argument list without shell, not executable string (R8).
+OAuth bypasses e-mail code/pending temporary password in this path, with no
+automatic framework account creation/linking and uniform denied messages.
+Key revocation is one-way. Initial mock provider/mailbox were documented external
+test-double exceptions; mock later removed.
+
+Implementation: Accounts switches/guard/revocation, ApiKeys/Administration,
+original OAuthProvider/OAuthLogin/JSON clients (superseded FB-0046), CommandDelivery/
+Layout/OAuthConfiguration/Application locale/mail/OAuth/CSP, ApplicationDefinition
+oauth/assets, multiselect, additive Schema columns/frontend, two apps/tasks/
+oauth-mock/mailbox and three-worker server utility.
+[Demos](demos.md), [admin](admin.md#fiókkapcsolók), [keys](admin.md#api-kulcsok-a3),
+[OAuth](authentication.md#oauth-belépés-authhandler), [mail](authentication.md#levélküldés),
+[locale](i18n.md#felhasználói-alapnyelv), [multiselect](field-presentation.md#többes-választás-multiselect),
+[shell](shell.md), [product](product-direction.md), [usage](usage.md).
+
+Historical PHP 16/16, lint/typecheck/build/diff passed; curl four OAuth identities
+(one success/three denials), mailbox code/English mail/UI passed.
+Guarded shell 24/27, new demo 6/6/admin 3/3; auth 4/4 after adapting code regex,
+i18n 3/3/related 1/1/grid-edit 2/2/sorting 1/1 after known initial scroll failure.
+Not passed: presentation shell 3–6 variable timeouts, presentation project 1/2
+because mobile filter is under Actions. Baseline without this frontend batch
+also failed; recorded as existing issues. Open: real provider check, timing/mobile
+filter issue and feature-demo singleton/WebSocket/custom-tree coverage.
+Implemented/targeted verified, no user acceptance; own OAuth superseded FB-0046.
+
+<a id="fb-0045--a-demó-a-natív-url-en-rendszerszintű-playwright-automatikusan"></a>
+
+## FB-0045 — Managed demo URL and automatic system Playwright
+
+Date: 2026-10-21. Owner saw unavailable page and questioned separate server when
+Apache serves it. Accepted all testing on native URL, not localhost, using system
+Playwright.
+Cause: 0700 developer-owned demo runtime inaccessible to FPM www-data
+(mkdir Permission denied/61de unavailable RuntimeException). Additional mock
+autoload/FPM PHP_BINARY/token-port and missing Authorization forwarding defects.
+Fixed web instance tmp/web/group modes+ACL, CGIPassAuth, CLI mail interpreter,
+then-mock in-process handling/autoload; runner module auto-resolution and ignored
+.env.test/BLADE_DEMO_URL.
+[Demos](demos.md#webszerveres-futtatás-apache--php-fpm),
+[development](development.md#rendszerszintű-playwright-és-natív-url).
+Managed /,/admin/,/mailbox/ 200; password/then-mock OAuth/code/English/starter curl
+passed; invalid Bearer 401. Shell initial 26/28 (one FPM reset/Bearer defect),
+then admin/demo 9/9, formerly unstable presentation 7/7; contracts passed.
+One AH01075 Connection reset by peer remained unexplained/nonreproduced; FPM logs
+root-only. Implemented/verified, no user acceptance.
+
+<a id="fb-0046--oauth-az-önálló-authhandler-könyvtárral-szebb-nyelvsor-helyi-playwright-törölve"></a>
+
+## FB-0046 — Independent AuthHandler, aligned language row, remove local Playwright
+
+Date: 2026-10-21. Accepted remove local Playwright; improve login language UI;
+use unchanged /space/share/libs/_AuthHandler/native overlay as an independent
+symlinked library. Supersedes FB-0044 custom OAuth.
+Removed extraneous local packages/user-cache browsers/tmp remnants.
+Language is first aligned form row/non-text-editable Combo/flags.
+AuthHandlerLogin provider-only separate session hands e-mail to 61de, destroys
+library session then checks account. Shim/scoped styling, private library link
+and public JS/CSS/images only; original clients removed. Mock adapter later
+removed FB-0047.
+Library unknown-address rows grant no framework rights. email_verified is not
+forwarded; simulated unverified case removed and library enhancement proposed
+in its own repository.
+Consumer reference on minecraft.gegu.hu was unreadable by this user; integration
+used library docs/example, no comparison claimed. Real providers then lacked keys.
+[OAuth](authentication.md#oauth-belépés-authhandler), [demos](demos.md),
+[i18n](i18n.md), [development](development.md#rendszerszintű-playwright-és-natív-url).
+PHP 16/16; native curl allowed/off/unknown checks passed. Shell first 27/28,
+admin repeat 3/3; demo 6/6 (overlay/handoff/session destruction/language);
+i18n 3/3 after locator correction/auth 4/4. Skyblue/dark overlay images inspected.
+Implemented/verified, no user acceptance.
+
+<a id="fb-0047--valódi-google--és-facebook-gomb-az-authhandler-overlay-én-mockup-nélkül"></a>
+
+## FB-0047 — Native Google/Facebook buttons without mockup
+
+Date: 2026-10-21. Accepted actual AuthHandler/native icons even without keys,
+remove mock, working start and explicit key-file/provider setup.
+Listed enabled providers reach overlay; configured checks keys. Missing-key start
+returns setup message before Hybridauth, auditing deny. Removed oauth-mock/
+DemoOAuthProvider/demo text. Keys remain ignored examples/demo-app/.env with
+developer/www-data access only.
+[Provider setup](authentication.md#szolgáltatói-beállítás-google-facebook),
+[OAuth](authentication.md#oauth-belépés-authhandler), [demos](demos.md#oauth-kulcsok),
+[usage](usage.md), [product](product-direction.md).
+PHP 16/16, native bootstrap Google/Facebook, missing-key Google 303 feedback,
+demo browser 6/6/full shell 28/28 passed; overlay screenshot checked.
+Owner then chose existing sanch.hu clients/apps, registered callbacks and supplied
+keys without printing them. Both starts 302 with exact redirect_uri; Facebook
+showed no error, Google redirect_uri_mismatch remained. Open actual provider
+completion/Google callback validity/email_verified limitation.
+Implemented/verified, no user acceptance.
+
+<a id="fb-0048--egységes-figyelmeztető-és-megerősítő-párbeszédablakok"></a>
+
+## FB-0048 — Unified warning and confirmation dialogs
+
+Date: 2026-10-21. Accepted independent severity neutral/warning/danger and
+acknowledge/confirm modes; icon/title/color, distinct header/body/actions,
+wrapping/safe-area margins/scroll/visible buttons, focus trap/restore/ARIA,
+explicit Enter/Escape/no accidental destructive action, localized themed defaults,
+existing callers and six long/mobile examples.
+[MessageDialog.ts](../packages/frontend/src/MessageDialog.ts) provides showDialog/
+acknowledge/requestConfirmation/compatible alert+confirm/closeDialogs; CSS,
+Action/JSON confirm with translated metadata and reveal.severity. Migrated login/
+workspace errors, unavailable external login/checkbox validation, once-only keys,
+bulk summaries. No native alert caller remains. Tasks has three confirm→ack actions.
+[Dialogs](dialogs.md), [usage](usage.md#figyelmeztető-és-megerősítő-párbeszédablakok),
+[demos](demos.md), [actions](workspaces.md#megerősítés-művelet-előtt).
+Framework-first exception: Suite confirm Escape/focus/severity/safe-area cannot
+meet requirements; [reason](dialogs.md#döntés-miért-nem-a-natív-dhtmlx-alertconfirm).
+Missing screenshot attachment meant source-based assessment. No real mobile/iOS/
+screen-reader test, no queue, no prior non-demo confirm caller; API has no confirm.
+Old native alert OK had Megerősítés aria label; checks now use data-blade-dialog-action=ok.
+Typecheck/build/PHP contracts-confirm/admin/validation/lists/config/i18n passed.
+Managed full shell 35/35, dialogs 7/7: desktop/320×480, ≥16 px margins,
+long scroll/visible buttons/focus/keys/trap/restore/invalid login. Existing specs
+migrated selectors. Historical images tmp/dialogs/*.png.
+Initial six failures were test selectors/mobile editor click, not product defects.
+Implemented/verified, no user acceptance.
+
+
+<a id="fb-0049"></a>
+
+## FB-0049 — Project renamed to 61de; one development environment
+
+- **Date:** 2026-10-21.
+- **Accepted owner instruction:** the project is now **61de**;
+  the repository has already been renamed. This project has one development
+  environment only, used directly without deployment. Project backups and a
+  dev/production split do not apply. The managed test URL is
+  `https://61ade.sanch.hu/`.
+- **Concrete location:** existing checkout `/space/share/libs/61ade`, active
+  host `catalyst`, owner `sanch`. The project name supplied by the owner is
+  `61de`; the existing path and hostname use `61ade`.
+- **Supersedes:** earlier local canonical checkout `/space/share/libs/61ade`,
+  `$CODEX_HOME/backup/project/blade` backup instruction, and application of the
+  generic Infra handoff's production/backup/deployment sections to this project.
+  FB-0045's managed-URL testing rule remains, using the renamed hostname.
+- **Implemented:** updated [agent contract](../AGENTS.md), [Claude entrypoint](../CLAUDE.md),
+  [README](../README.md), [usage](usage.md#project-name-and-development-environment),
+  [development workflow](development.md#development-environment),
+  [repository layout](repository-layout.md), [demos](demos.md),
+  [OAuth configuration](authentication.md#szolgáltatói-beállítás-google-facebook),
+  [product direction](product-direction.md#project-identity-and-environment) and
+  historical [foundation decision](decisions/0001-foundation.md).
+- **Original scope (superseded by [FB-0050](#fb-0050)):** this initial
+  documentation-only change did not migrate code/package/database identifiers. No host configuration, backup service, production tree or consumer
+  runtime is changed. The supplied Infra onboarding is a subsequent task;
+  credential enrollment and handoff readiness are not claimed here.
+- **Local configuration:** updated only the existing `BLADE_DEMO_URL` setting in
+  the ignored `.env.test` and `examples/demo-app/.env` files to the managed
+  hostname. Credentials and external provider-console settings were not changed.
+- **Verification:** relative documentation file links and the explicit feedback
+  anchor checked; `git diff --check` passed. Both `/` and `/admin/` returned HTTP
+  200 with expected framework titles and frontend scripts after the URL-setting
+  update. Both ignored URL settings match. No browser suite was run; real
+  provider login and the exact platform document-root mapping were not verified.
+- **Checkpoint:** changes remain in the working tree. The affected tracked files
+  already contained unrelated edits and `docs/demos.md` was already untracked;
+  no mixed commit was created. Existing staged work was preserved.
+
+
+<a id="fb-0050"></a>
+
+## FB-0050 — Complete name refactor and blade identifier fallback
+
+- **Date:** 2026-10-21.
+- **Accepted instruction:** replace the former framework name throughout the
+  project, including code, packages, database identifiers, configuration, demos,
+  tests and documentation. The owner selected **blade** wherever the numeric
+  product name cannot be an identifier. This supersedes FB-0049's initial
+  documentation-only scope and its identifier-preservation statement.
+- **Naming contract:** product/packages `61de`; namespace `Blade\`; technical
+  prefix `blade`, environment prefix `BLADE_`. Existing path and hostname keep
+  `61ade`. The GitHub API resolves the previous origin to `sanch78/61ade`; the
+  configured origin was updated to that verified destination, preserving transport.
+- **Implementation:** PHP namespace and Composer PSR-4 mapping, npm/Composer
+  manifests/locks, frontend selectors/datasets/preferences, request headers/query
+  keys, built-in resources/fields/tables, local env keys and generated package
+  integration metadata. No third-party library implementation or consumer project
+  was edited. The synthetic demo password is now `61de-demo`.
+- **Data:** new explicit [SQLite prefix migration](../packages/php/migrations/0001-rename-prefix.php);
+  all eleven tables in each of the two managed-web and two CLI-demo databases
+  migrated without deleting data. Built-in ACL identifiers, audit fields and token
+  scopes translated; customized passwords preserved. Old sessions/preferences are
+  not carried across the namespace change. MySQL migration is not implemented.
+- **Usage and constraints:** [renaming](renaming.md), [usage](usage.md),
+  [development](development.md), [agent contract](../AGENTS.md).
+- **Verification:** PHP lint 96 files PASS; all 16 PHP contract/integration checks
+  PASS; frontend typecheck/build and local asset preparation PASS; shell/Node
+  syntax 24 files PASS; npm dependency tree, Composer manifest hash/path-package
+  consistency and all 400 documentation file/fragment links PASS. Source-name
+  inventory is clear. Built assets contain no old identifiers; a coincidental
+  character sequence inside a binary data URL is not an identifier and was preserved.
+  Both managed URLs return HTTP 200 with new titles/bootstrap names. All four
+  databases have eleven renamed framework tables and no previous schema names.
+  Synthetic migration checks PASS for retained data, deny rules, both scope
+  formats, indexes, collision refusal, transaction rollback and idempotency.
+- **Browser result:** complete managed-URL `shell` run: **32/35 PASS**. Two failures
+  were caused by the existing synthetic viewer's preserved `disabled=1` state;
+  both passed on a targeted **2/2** repeat with that fixture temporarily enabled,
+  after which its disabled state was restored. The remaining test reached Google's
+  actual `redirect_uri_mismatch` page. Native provider buttons/overlay were visible;
+  a read-only HTTP start returned 302 to Google with the correct current callback.
+  The external Google client's allowed callback requires owner-side correction;
+  completed provider login is not claimed. Other fixture browser groups were not
+  launched because this host's tests must use the managed URL.
+- **Other limitation:** the existing standalone UI-preferences unit script fails
+  because its layout double lacks `getRootNode()`. The actual module's only change
+  from HEAD is the storage-key prefix; the stale double was not broadened in this
+  rename task. Composer is absent, so a fresh dependency install was not tested.
+- **Cleanup/checkpoint:** temporary migration test source, reports and task-created
+  synthetic browser accounts/roles/API keys/notes were removed; live demo databases
+  and existing user state retained. Changes remain in the working tree because
+  the same files already contain unrelated edits; no mixed commit or push was made.
+
+<a id="fb-0051"></a>
+
+## FB-0051 — Development/testing only; no deployment or project backups
+
+- **Date:** 2026-10-22.
+- **Accepted owner clarification:** this project has only the existing development
+  environment. Develop and test directly there. There is no development/production
+  split, deployment or post-deployment testability to provide. Project backups
+  also do not apply. This reinforces FB-0049 and overrides generic onboarding
+  deployment/backup assumptions; it does not authorize deleting retained evidence
+  or changing platform backups.
+- **Canonical guidance:** [development](development.md#development-environment),
+  [usage](usage.md#project-name-and-development-environment),
+  [project contract](../AGENTS.md), [demos](demos.md).
+- **Implementation:** documentation only. Existing public capabilities, product
+  languages and code remain unchanged. The owner authorized a documentation
+  commit/push including earlier document edits, while preserving unrelated
+  source changes and the existing staged deletion.
+- **Verification, 2026-10-22:** both managed URLs returned HTTP 200 with TLS
+  verification result 0. A temporary nonce source probe confirmed immediate
+  source visibility and exact PHP document root
+  /space/share/libs/61ade/examples/demo-app/public; both probe/link were removed.
+  Private dotfiles returned 403, application/AuthHandler PHP paths 404; attempted
+  composer.json/database paths returned the same login HTML as the root, with no
+  manifest/database disclosure. Vhost IP restrictions were inspected; denial
+  from a genuinely untrusted network was not tested from this host.
+  Protected discovery found 51 tests across eight projects. One existing managed
+  Chromium login/menu/footer/logout check passed (1/1). An initial overly exact
+  grep selected no tests, then the corrected title selector ran the actual browser.
+- **Coverage limits:** preserved localhost fixture projects cannot launch under
+  the current managed-URL contract. No full application smoke was required or
+  run for this documentation task. Existing external OAuth callback and
+  preferences-unit-double limits remain as recorded in FB-0050.
+- **Documentation verification:** all 30 maintained documents have English prose;
+  localized examples/labels, technical identifiers, historical evidence and legacy
+  fragment anchors are preserved. All 396 local file/fragment links and the
+  documentation whitespace check passed. Both tools' six shared skill links and
+  explicit-invocation frontmatter were checked; the published 12-file shared
+  release passed its read-only/hash check. This verifies filesystem integration,
+  not a fresh Claude session's skill discovery.
+- **Cleanup:** removed this task's nonce probe/link and isolated browser output/
+  cache, plus the inactive superseded tmp/baseline-sorting.config.cjs after
+  checking references/processes and the shared lock. Existing suites, demo data,
+  images, retained files and concurrent changes were preserved.
+- **Status:** accepted and incorporated, documentation verified. No production,
+  deployment, post-deploy testing, backup workflow or new permanent test was created.

@@ -1,26 +1,41 @@
-# ADR-0003 — Termékirány: kötelező adminmodul, nyelvfüggetlen szerződés, igényvezérelt képességkör
+# ADR-0003 — Mandatory admin, language-independent contract and demand-driven scope
 
-Dátum: 2026-10-21. Elfogadott felhasználói döntés ([FB-0036](../feedback.md#fb-0036--kötelező-adminmodul-és-igényvezérelt-keretfejlesztés), javítva: [FB-0037](../feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)). A követelmények, a bizonyított állapot és a nyitott kérdések részletesen: [termékirány](../product-direction.md).
+Date: 2026-10-21. Accepted owner decision
+([FB-0036](../feedback.md#fb-0036--kötelező-adminmodul-és-igényvezérelt-keretfejlesztés),
+corrected by [FB-0037](../feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)).
+[Product direction](../product-direction.md) separates requirements, evidence and open questions.
 
-## Döntés
+<a id="döntés"></a>
 
-- A PHP a referencia-backend; a frontend verziózott, nyelvfüggetlen JSON-szerződésen kommunikál. A JSON-átvitel önmagában nem backendfüggetlenség.
-- Minden alkalmazás kötelezően a VAPA által adott user-, ACL-, API-kulcs- és naplóadmint használja, a keret saját deklaratív definícióiból felépítve.
-- A frontend alapja a DHTMLX, VAPA-adapterekkel és támogatott bővítési pontokkal. Nincs külső frontendkeretrendszer-benchmark, komponensmegfeleltetés vagy teljes lefedettségi követelmény; a támogatott képességkör a valós igényekből nő.
-- Lokalizáció és téma beépített képesség; minden új keretképesség részt vesz bennük.
-- Tárolási cél: MySQL, PostgreSQL, SQLite, JSON-fájl; támogatottnak csak a dokumentált garanciákat teszttel teljesítő tároló jelölhető.
-- Moduláris JSON-konfiguráció, explicit regisztrált kezelők; nincs eval vagy végrehajtható string.
-- A definíciókból generált ACL-katalógus nem ad automatikusan jogot.
-- Eseménynaplózás explicit lefedési katalógussal; audit/biztonsági/üzemeltetési szétválasztás; credential és érzékeny payload nem naplózható.
-- Navigálható kitchen sink minden implementált publikus képességhez.
-- Fejlesztési sorrend: konkrét igény → keretbeli hiány → legkisebb újrahasznosítható bővítés → szintetikus demó és teszt → dokumentáció → fogyasztói integráció → kontrollált kiadás.
+## Decision
 
-## Felülírt és pontosított korábbi döntések
+- PHP is reference backend; frontend uses versioned language-independent JSON. JSON transport alone is not backend independence.
+- Every application uses framework user/ACL/API-key/log admin, built from its own declarations.
+- DHTMLX with framework adapters/supported extension points; no external benchmark, component mapping or exhaustive coverage requirement. Capabilities grow with actual needs.
+- Localization/themes are built in and apply to every new capability.
+- Storage targets: MySQL/PostgreSQL/SQLite/JSON file. Support requires tests proving documented guarantees.
+- Modular JSON with named registered handlers, no eval/executable strings.
+- Generated ACL catalog never grants rights automatically.
+- Explicit event coverage and audit/security/operational categories; no credentials/sensitive payloads in logs.
+- Navigable kitchen sink for implemented public capabilities.
+- Need → framework gap → smallest reusable extension → synthetic demo/tests → documentation → consumer integration → consumer-controlled release.
 
-- [ADR-0002](0002-framework-first.md) és FB-0004: a kizárólag alkalmazásspecifikus user admin döntését ez felülírja. A keretelső szabály és a szűk kivétel változatlan.
-- [ADR-0001](0001-foundation.md): a „Modern PHP … Go és Node backend nem választott” pont a referencia-backendre vonatkozik; a frontend protokollja nem köti PHP-hoz. A „feature-definíciók verziókezelt kódban” pont a verziókezelt JSON-definíciókat is magában foglalja.
-- Az FB-0036 Ext JS-referenciáját az FB-0037 visszavonta; aktív útmutatás nem írhat elő Ext JS-paritást.
+<a id="felülírt-és-pontosított-korábbi-döntések"></a>
 
-## Következmények
+## Superseded and clarified decisions
 
-Az adminmodul, a nyelvfüggetlen szerződés, a PostgreSQL- és JSON-tároló, az OAuth-belépés, a katalógus-API, a napló kategorizálása és a kitchen sink jelenleg nem kész; állapotukat a [termékirány](../product-direction.md#2-megvalósított-képességek-bizonyítékkal-és-hiányok) vezeti. Hasznos kiadásnak nem feltétele egy kimerítő komponenskatalógus.
+- [ADR-0002](0002-framework-first.md)/FB-0004 application-only user admin is superseded; framework-first/narrow exception remains.
+- [ADR-0001](0001-foundation.md): modern PHP rather than Go/Node refers to the reference backend, not a frontend protocol dependency. Versioned definitions include JSON.
+- FB-0037 withdraws FB-0036's Ext JS reference. Active guidance cannot require Ext JS parity.
+
+<a id="következmények"></a>
+
+## Consequences
+
+At the original decision checkpoint, mandatory admin, language-neutral schema,
+PostgreSQL/JSON stores, OAuth, catalog API, log categories and kitchen sink were
+incomplete. Subsequent A1–A3/OAuth/demo work is tracked in
+[current evidence](../product-direction.md#2-megvalósított-képességek-bizonyítékkal-és-hiányok).
+A useful increment does not require an exhaustive component catalog.
+The project's dev-only/no-deployment/no-backup environment is governed by the
+later owner [environment decision](../development.md#development-environment).

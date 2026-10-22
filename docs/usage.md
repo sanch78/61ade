@@ -1,171 +1,301 @@
-# VAPA felhasználási módszertan
+# 61de usage
 
-Ez a VAPA-t alkalmazásba építő fejlesztők és az admin működését tesztelők folyamatosan karbantartott útmutatója. A mindenkori tényleges használatot írja le; a célarchitektúra a [koncepcióban](concept.md), az elkészítés sorrendje a [fejlesztési tervben](development-plan.md) található.
+## Project name and development environment
 
-## Jelenlegi állapot
+61de is the framework project at /space/share/libs/61ade. Development and testing
+use only https://61ade.sanch.hu/ (starter admin /admin/), directly from this
+checkout. There is no production, deployment, post-deployment testing or project
+backup workflow. Frontend edits require build/local asset preparation;
+PHP/configuration edits are consumed directly. See [development](development.md#development-environment),
+[FB-0049](feedback.md#fb-0049) and [FB-0051](feedback.md#fb-0051).
 
-2026-10-16: a shell mellett működik a regisztrált műveletvégrehajtó, deklarált form/grid adapter, SQL objektumscope, mezőjog, ui/api csatornaszétválasztás, scope-olt token és tranzakciós audit. A jelenlegi fogyasztó saját user adminját és üzleti moduljait ezekből deklarálja; a kötelező beépített adminmodul új, még megvalósítandó cél (FB-0036). Részletek: [ACL és műveletek](access-and-actions.md), [shell](shell.md). A munkaterület [konfigurálható filter/form/grid layoutot, dinamikus listát, szerveroldali rendezést és polling/WebSocket követést](workspaces.md) ad; a singleton adatlap közvetlen form. A shell felső alkalmazásnév-fejléc nélkül indul; egyetlen alsó sávban balra a felhasználó, jobbra az alkalmazásnév és konfigurált verzió szerepel ([shell](shell.md#egységes-alsó-információs-sáv)). A Skyblue (alapértelmezett) / Világos / Éjjeli mód DHTMLX `setTheme` alapú; a Skyblue a Suite 9 dokumentált témaváltozóival definiált VAPA-paletta. Önálló szintetikus demó és fogyasztói integrációs tesztek tartoznak hozzá. Többszervezetes izoláció, külső mellékhatások outboxa, összetett ABAC, export és teljes release-folyamat még nincs; ez nem a teljes M1–M7 lezárása.
+Namespace Blade, env BLADE_*, technical identifiers blade; packages
+sanch78/61de and @61de/admin. [Renaming](renaming.md) explains breaking interfaces,
+explicit SQLite migration, prerequisites/examples/limits/checks (FB-0050).
+Consumer environments and future package publication have separate contracts.
 
-## Kötelező fejlesztési irány
+This maintained guide serves integrators and admin testers. It describes actual
+usage; [concept](concept.md) describes targets and [plan](development-plan.md)
+describes order.
 
-**VAPA = ADE v2.** Először minden általános képesség a VAPA-ban készül el, majd a fogyasztó deklarációval és üzleti logikával alkalmazza. Hiányzó keretfunkciót nem pótolunk külön alkalmazási admin-kóddal. Az első és legfontosabb AI-fejlesztési szabály az AGENTS.md 1. pontja. A UI-t alapértelmezetten VAPA által adott DHTMLX vezérlők alkotják. Egyedi folyamat csak dokumentáltan, logikusan nem bővíthető keret esetén készülhet; ekkor DHTMLX nélküli eljárás is megengedett. Részletes döntés: [ADR-0002](decisions/0002-framework-first.md).
+<a id="jelenlegi-állapot"></a>
 
-## Elfogadott termékirány — 2026-10-21
+## Current status
 
-A [termékirány](product-direction.md) a canonical lista: elfogadott követelmények (R1–R12), bizonyított jelenlegi állapot és nyitott kérdések külön; döntés: [ADR-0003](decisions/0003-product-direction.md). Fejlesztéskor alkalmazandó:
+The 2026-10-16 foundation includes registered execution, declarative forms/grids,
+SQL object scopes, field rights, UI/API separation, scoped tokens and transactional
+audit. Later built-in admin work supersedes the earlier consumer-only useradmin
+model; see [admin](admin.md), [ACL](access-and-actions.md) and [shell](shell.md).
+[Workspaces](workspaces.md) support configurable filter/form/grid, dynamic lists,
+server sorting and polling/WebSocket; singleton details are direct forms.
+No upper application-title header; one lower bar has user left, application/version
+right. Skyblue (default), light and dark use DHTMLX setTheme; Skyblue uses Suite 9
+theme variables. Synthetic and consumer integration evidence exists.
 
-- **Igényvezérelt lánc:** konkrét igény → keretbeli hiány → legkisebb újrahasznosítható bővítés → szintetikus demó és teszt → ez az útmutató → fogyasztói integráció → kontrollált kiadás. Kimerítő komponenskatalógus nem feltétele a kiadásnak.
-- **Frontend:** DHTMLX alapon, VAPA-adapterekkel és támogatott bővítési pontokkal. Nincs külső keretrendszer-benchmark (az FB-0036 Ext JS-referenciáját az [FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör) visszavonta).
-- **Minden új képesség** lokalizált és témázható, kitchen-sink példát kap, naplóeseményei a [lefedési katalógusba](product-direction.md#4-eseménynapló-lefedési-katalógus) kerülnek.
-- **Konfiguráció:** tagolt JSON és név szerint regisztrált kezelők; eval vagy végrehajtható string nem támogatott ([JSON-konfiguráció](configuration.md)).
-- **ACL:** a definíciókból képzett katalógus nem ad jogot; API-kitettség és token-scope csak szűkít.
+Multi-organization isolation, reliable external-side-effect outbox, complex ABAC,
+export and complete package distribution remain open. This is not full M1–M7 completion.
 
-Még **nem kész** (tervezett): a kötelező adminmodul API-kulcs- és naplórésze; a felhasználó- és jogosultságkezelés [elkészült](admin.md) (felülírja az FB-0004 alkalmazásonkénti useradmin-döntését), Google/Facebook-belépés, nyelvfüggetlen szerződésséma, PostgreSQL- és JSON-fájltároló, kategorizált napló és navigálható kitchen sink. Jelenleg a MySQL-kapcsolat és az SQLite-alapú demó/tesztek használhatók; a tárolási garanciák tételes igazolása nyitott ([tárolási határ](product-direction.md#3-tárolási-határ-és-szükséges-garanciák)). A dokumentum az angol Claude-indítópromptot is tartalmazza.
+<a id="kötelező-fejlesztési-irány"></a>
 
-## Már alkalmazható módszertan
+## Mandatory development direction
 
-- A keret a saját VAPA-repóban fejlődik; a fogyasztó üzleti kódja külön repóban marad. A függés kizárólag alkalmazás → VAPA.
-- Az alkalmazás saját feature-definíciói a közös keretet konfigurálják, saját üzleti szolgáltatásokra és policy-kra hivatkozva. A VAPA-ba nem kerülnek alkalmazásspecifikus táblák vagy szabályok.
-- A helyi CityScreen `vapa` symlink szerkesztési segítség. A canonical checkout `/space/frameworks/vapa`; commit előtt ebben ellenőrizzük a Git-állapotot. A symlink nem későbbi telepítési függőség.
-- A könyvtárstruktúra részletei a [csomaghatárok leírásában](repository-layout.md), a környezeti előfeltételek a [fejlesztői útmutatóban](development.md) vannak.
+61de = ADE v2. General capability first in framework, then consumer declarations/
+business logic. No parallel application admin implementation for missing features.
+Default UI is framework DHTMLX. Only a documented logically-unextendable exception
+may use another flow; see [project rules](development.md#mandatory-framework-development-rules)
+and [ADR-0002](decisions/0002-framework-first.md).
 
-### Üzleti konfiguráció és kód határa
+<a id="elfogadott-termékirány--2026-10-21"></a>
 
-A fogyasztóban marad az `ApplicationDefinition` összeállítása, a konkrét adatbázisséma illesztése, a `Field`/`SqlResource`/`Action` és nézetdefiníció, a kezdeti szerepkör- és jogkiosztás, valamint minden üzleti feltétel. A deklaratív beállítás tagolt JSON-ba kerül, a hostértékek env-be; a tényleges üzleti kód külön PHP-kezelő marad. A [JSON-konfiguráció útmutatója](configuration.md) rögzíti a betöltést, szekciókat és név szerinti bindingokat. A közvetlen PHP-definíciós API is elérhető. A `guard`, `normalize`, `afterSave` és regisztrált műveletkezelő a VAPA támogatott bővítési pontja. Növekedéskor a fogyasztó saját moduljaiba, policy-jaiba és szolgáltatásaiba emeli ki ezeket; a keret nem importál konkrét alkalmazási osztályt.
+## Accepted product direction — 2026-10-21
 
-Például a szintetikus jegyzetmodul mezői és „lezárt jegyzet nem módosítható” szabálya a fogyasztóé; a formépítés, mezőellenőrzés, ACL, tranzakció, audit, lista és élő frissítés végrehajtása a VAPA-é. Az üzleti callback a közös műveletvégrehajtón belül fut; nem külön HTTP-végpontot vagy alternatív mentési folyamatot épít. A UI/API műveleteket a registryben kell regisztrálni, a kollekcióolvasás a keret jogosultságszűrt listaforrását használja. Külső mellékhatások tranzakciós outboxa még nem implementált.
+[Product direction](product-direction.md) is canonical for R1–R12, verified status
+and open questions; [ADR-0003](decisions/0003-product-direction.md).
 
-A keret forrása, eszközei és szintetikus tesztjei sem tartalmazhatnak beégetett fogyasztói elérési utat. A futtató kívülről adhat át alkalmazásdefiníciót, autoloadert vagy PHP-binárist; ez konfigurált illesztés, nem fordított csomagfüggőség. Új képességnél az önálló szintetikus demó igazolja az alkalmazásfüggetlen használatot. Kapcsolódó visszajelzés: [FB-0007](feedback.md#fb-0007--az-üzleti-kód-és-a-keret-határa).
+- Need → framework gap → smallest reusable extension → synthetic demo/relevant checks → guide → consumer integration. Consumer releases follow their own contracts; exhaustive catalogs are not prerequisites.
+- DHTMLX with framework adapters/extensions. No external framework benchmark; [FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör) withdrew the Ext JS reference.
+- Every new capability is localized/themed, enters the feature demo and [event catalog](product-direction.md#4-eseménynapló-lefedési-katalógus).
+- Modular JSON/named handlers, never eval/executable strings; [configuration](configuration.md).
+- Generated catalogs never grant rights; API exposure/token scope only restrict.
 
-## Minden elkészülő képesség dokumentációs szerkezete
+Implemented [users/permissions/API keys](admin.md) replace FB-0004's application-only
+admin decision. [AuthHandler OAuth](authentication.md#oauth-belépés-authhandler)
+exists without completed real Google/Facebook acceptance.
+Still planned: log admin, password recovery, language-neutral schema,
+PostgreSQL/JSON stores and categorized logging. The [feature demo](demos.md)
+grows continuously but is not complete coverage. MySQL connection/SQLite demos
+exist; [storage guarantees](product-direction.md#3-tárolási-határ-és-szükséges-garanciák)
+need detailed qualification. Product direction contains an English implementation prompt.
 
-1. **Cél és hatókör:** milyen feladatot old meg, kinek szól, mi tartozik a kerethez és az alkalmazáshoz.
-2. **Előfeltételek:** támogatott VAPA-/vendorverzió, komponenskiadás, konfiguráció és jogosultság.
-3. **Alkalmazás lépései:** pontos fájlhelyek, regisztráció, bemenet, kimenet és működő minimálpélda szintetikus adatokkal.
-4. **Elvárt működés:** UI-műveletek, API-viselkedés, hibák, tiltások és releváns szélső esetek.
-5. **Ellenőrzés:** hogyan próbálja ki a fejlesztő vagy felhasználó, mi bizonyítja a helyes működést.
-6. **Korlátok és módosítások:** nem támogatott opciók, kiadásfüggés, ismert hiba és verzióváltási teendő.
-7. **Kapcsolódó tanulság:** visszajelzésazonosító és szükség esetén a döntési napló hivatkozása.
+<a id="már-alkalmazható-módszertan"></a>
 
-Növekedéskor témánként külön útmutató készülhet, innen hivatkozva; az aktív használati szabály egy canonical helyen legyen. Az API-referencia önmagában nem helyettesíti a lépésről lépésre alkalmazási példát.
+## Applicable methodology
 
-## Fokozatosan kitöltendő témák
+- Framework source and consumer business source stay in separate repositories; dependency is application → 61de.
+- Consumers configure features with their own services/policies; no consumer-specific tables/rules in framework.
+- Check Git state in /space/share/libs/61ade; consumer editor links need independent target verification.
+- See [package boundaries](repository-layout.md) and [development prerequisites](development.md).
 
-| Téma | Mikor válik alkalmazható útmutatóvá? |
+<a id="üzleti-konfiguráció-és-kód-határa"></a>
+
+### Business configuration and code boundary
+
+Consumers assemble ApplicationDefinition and concrete schema mappings,
+Field/SqlResource/Action/views, initial roles/rights and every business condition.
+Declarative settings use modular JSON; host values use env; business code remains
+separate PHP handlers. [Configuration](configuration.md) defines loading/sections/
+named bindings; direct PHP definitions remain supported.
+
+guard, normalize, afterSave and registered action handlers are extension points.
+As complexity grows, consumers extract modules/policies/services; 61de never
+imports application classes.
+
+For synthetic notes, fields and “closed notes cannot be edited” are consumer
+rules. Forms, validation, ACL, transaction, audit, lists and live refresh are
+framework responsibilities. Callbacks run within the common executor rather
+than parallel endpoints/saving. Register UI/API actions; collection reads use
+authorized list sources. Transactional outbox for external effects is not implemented.
+
+Framework source/tools/fixtures must not hardcode consumer paths. A runner may
+inject an application definition, autoloader or PHP binary: configuration, not
+a reverse dependency. Independent demos prove reuse. FB-0007.
+
+<a id="minden-elkészülő-képesség-dokumentációs-szerkezete"></a>
+
+## Documentation structure for every completed capability
+
+1. Purpose/scope, audience and framework/consumer ownership.
+2. Prerequisites: framework/vendor version, edition, configuration and rights.
+3. Integration steps: paths/registration/input/output and minimal synthetic example.
+4. Expected UI/API behavior, failures, denials and edge cases.
+5. Verification: how to try it and evidence of correctness.
+6. Limits/changes: unsupported options, versions, known defects and upgrades.
+7. Related feedback/decision links.
+
+Split larger topics into linked guides, with one canonical active rule.
+API reference alone does not replace step-by-step examples.
+
+<a id="fokozatosan-kitöltendő-témák"></a>
+
+## Topics to fill progressively
+
+| Topic | When guidance becomes applicable |
 | --- | --- |
-| Telepítés, konfiguráció, első indítás | M1 runtime elkészültekor |
-| Belépés, szervezet, szerepkör és policy | M2 ellenőrzött implementációval |
-| Feature, query, action, validáció és REST | M3 teljes folyamattal |
-| Shell, grid/form, tree, dataview és további nézetek | M4 adapterenként |
-| Scheduler, Gantt, időzóna és összetett műveletek | M5 támogatott kiadásonként |
-| Fájlok, export/import, audit és háttérjobok | M6 képességenként |
-| Csomagfrissítés, kompatibilitás és üzemeltetés | M7 kiadási folyamattal |
+| Install/configure/start | M1 runtime |
+| Login/organizations/roles/policies | Verified M2 implementation |
+| Features/query/action/validation/REST | Complete M3 flow |
+| Shell/grid/form/tree/DataView/views | Per M4 adapter |
+| Scheduler/Gantt/timezones/complex actions | Per supported M5 edition |
+| Files/export/import/audit/jobs | Per M6 capability |
+| Package upgrades/compatibility/operations | M7 package distribution |
 
-## Felhasználói tesztelésből származó tudás
+<a id="felhasználói-tesztelésből-származó-tudás"></a>
 
-A visszajelzést ugyanabban a munkamenetben rögzítjük a [visszajelzési naplóban](feedback.md). Az elfogadott használati szabály bekerül ide vagy az érintett témadoksiba; meg nem valósult működés jól láthatóan tervezett marad. A tesztelési útmutatás, ismert korlát és bevált megoldás így a következő alkalmazás fejlesztőjének is elérhető.
+## Knowledge from user testing
 
-A felhasználó egyértelmű útmutatását nem kell ismételten jóváhagyatni pusztán a rögzítéshez. Ha nem egyértelmű, hogy egy észrevétel általános keretszabály vagy alkalmazásspecifikus igény, ezt nyitott kérdésként jelöljük, és az értelmezést tisztázzuk.
+Record feedback in [feedback](feedback.md) within the same session. Incorporate
+accepted general rules here or in topic guides; unimplemented behavior remains
+clearly planned. This preserves testing instructions, limitations and established
+solutions for future consumers.
 
-## Beépített felhasználóadmin
+Clear owner instructions need no repeated approval merely to record them.
+If general framework versus consumer-specific scope is unclear, record an open
+question and clarify interpretation.
 
-A [felhasználóadmin](admin.md) (A1) a VAPA saját nézete az alkalmazás fióktáblája fölött: létrehozás generált, 72 órás ideiglenes jelszóval, kötelező jelszócsere az első belépéskor, név/e-mail módosítás, tiltás és visszaengedés. A bejelentkezési azonosító az e-mail. Az A2 óta a szerepkörök, tagságok és szabályok is itt kezelhetők a definíciókból képzett katalógus alapján, amely önmagában nem ad jogot; a védett szerepkörnek mindig marad aktív tagja. JSON-ban az `admin` szekció, PHP-ban az `Accounts` és a `Permissions` kapcsolja be; az első admint a `Permissions::grantAdministration` telepítőlépés hozza létre. API-kulcs- és naplókezelés még nincs.
+<a id="beépített-felhasználóadmin"></a>
 
-## E-mailes megerősítés és megjegyzett belépés
+## Built-in user administration
 
-A [belépési védelem](authentication.md) JSON-ból konfigurálható VAPA-képesség: alapból minden felhasználónál bekapcsolt e-mailes kód, ACL-védett felhasználónkénti kapcsoló, formázott és üzleti szöveggel felülírható levél, opcionális 90 napos megjegyzés és visszavonás. SMTP/env és explicit sématelepítés szükséges.
+[Admin](admin.md) A1 owns account-table views, creation with generated 72-hour
+temporary password/forced first-login change and name/e-mail updates.
+Disabled, OAuth, e-mail confirmation and default language are form/grid fields.
+No separate disable/enable button where a field already manages the value
+(FB-0044). E-mail is login identifier.
 
-## Jelzők és kapcsolt objektummezők
+A2 adds roles/memberships/catalog-based rules; catalog alone gives no rights
+and protected roles retain active membership. A3 adds [API keys](admin.md#api-kulcsok-a3)
+with once-only secret, catalog choices and irreversible revocation checkbox.
+JSON admin/PHP Administration::register enables the module.
+Permissions::grantAdministration explicitly seeds the first admin.
+Log administration remains open.
 
-A [mezőmegjelenítési útmutató](field-presentation.md) a natív lista-/form-checkboxot, beszédes állapotneveket, korlátozott oszlopszélességet és a főűrlapba integrált, egy-az-egyhez kapcsolt tárolás közös mentését írja le.
+General UI rule: use form fields and, where sensible, grid checkbox/select editing
+for managed values rather than single-purpose toggle actions.
 
-## Formvalidáció és migráció
+<a id="belépési-módok-jelszó-e-mailes-kétfaktor-oauth"></a>
 
-A [validációs útmutató](validation.md) a közös JSON/PHP mezőszabályokat, natív DHTMLX visszajelzést és backend/UI/API ellenőrzést rögzíti. Feature-migrációhoz a referencia teljes validációs leltára és az eltérések dokumentálása kötelező.
+## Login modes: password, e-mail code, OAuth
 
-## ACL és műveletvégrehajtó fejlesztés
+[Authentication](authentication.md) supports password, password plus per-user code,
+and AuthHandler's external-account overlay. Listed providers appear without keys
+but give setup feedback until configured. Only existing OAuth-enabled accounts
+can enter, without password. Optional remember lasts 90 days.
+Framework mail layout supports project text/color; delivery uses SMTP or argument-list
+commands without shell. Explicit schema installation is required.
 
-A [tartós ACL-/audit-szerződés](access-and-actions.md) első implementációja használható. A backend szerződésteszt `tests/shell/access.php`: default deny, objektumscope, mezőtiltás, API-csatorna és token-scope, optimista zárolás, audit és rollback ellenőrizve. A `Feature` registry/SqlResource és DHTMLX Workspace adapter önálló demo integrációja ellenőrzött; a fogyasztói telepítés és integráció ellenőrzött.
+<a id="demók"></a>
 
-## Fejlesztői memória védelme
+## Demos
 
-Böngészőteszt a [védett fejlesztői futtatóval](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston) indul: `npm run test:browser -- ...`. A közös lock, egy worker, indulási memóriaküszöb és cgroup-limit a fogyasztó saját tesztjeire is alkalmazható. Egyetlen gyökérszintű Playwright-konfigurációból név szerint választhatók a tesztcsoportok: `npm run test:browser -- --project=auth`; projektválasztás nélkül a korábbi `shell` csomag fut. A host taskkorlátja miatt egyszerre egy böngészős projekt indítható, a `--list` mindet felsorolja. Futási adatok és cache: Gitből kizárt `tmp/`, felülírás: `VAPA_TMP_DIR`. Előfeltételek, projektnevek és ellenőrzés: [egységes Playwright-konfiguráció](development.md#egységes-playwright-konfiguráció). Kapcsolódó visszajelzés: FB-0016, FB-0042.
+[Feature demo](demos.md) at / presents demonstrable capabilities; [starter admin](demos.md#alapadmin-admin)
+at /admin/ presents exactly the mandatory initial set. Add new demonstrable
+capabilities to feature demo/table in the same batch.
+Demo mail is saved to /mailbox/, never sent. Real Google/Facebook buttons need
+provider settings; starting a provider is not completed login.
 
-A lista szerkeszthető oszlopait a fejléc `✎` jelzi; a fejléc kattintása a teljes SQL-találatot rendezi. A virtualizált megjelenítés és a legfeljebb 600 soros gördülő adatablak részletei: [rendezés és smart rendering](workspaces.md#rendezés-és-smart-rendering).
+<a id="figyelmeztető-és-megerősítő-párbeszédablakok"></a>
 
-## Listaadatok és tömeges műveletek
+## Warning and confirmation dialogs
 
-A [kártyák és rekordadatok](workspaces.md#kártyák-rekordadatok-sorszám-és-jelölés)
-útmutatója a többoszlopos DataView-t, alapértelmezett sorszámot, dupla kattintásra
-nyíló jogosultságszűrt adatablakot és opcionális sorjelölést írja le. A
-[tömeges műveletek](workspaces.md#tömeges-műveletek-és-ikonok) kifejezett opt-int
-és soronkénti tranzakciót/ACL-t használnak; a teljes export továbbra sincs kész.
+All messages/confirmations use [shared dialogs](dialogs.md):
+neutral/warning/danger × acknowledgment/confirmation.
+Frontend acknowledge/requestConfirmation or compatible alert/confirm come from
+MessageDialog.ts; actions use confirm and reveal.severity. Destructive dialogs
+focus Cancel; Enter activates only focused button; Escape always cancels confirmation.
+Consumers cannot create their own modal. Demo: Tasks → Párbeszéd actions.
 
-A [nézetválasztó](workspaces.md#nézetválasztás-és-fejlécjelzések) a lista-toolbar
-utolsó, jobbra igazított dropdownja. A szerkeszthető fejléc és rendezésjel
-külön helyet kap; az aktuális rendezésnek egyetlen irányjelzése van.
+<a id="jelzők-és-kapcsolt-objektummezők"></a>
 
-## URL és helyi felületbeállítások
+## Flags and related object fields
 
-Az aktív funkciót a shell `#feature=items` URL-részlete követi: frissítés és
-Vissza/Előre navigáció visszaállítja a nézetet. A [helyi felületbeállítások](shell.md#url-és-helyi-felületbeállítások)
-a grid és a munkaterület megjelenítési preferenciáit automatikusan megőrzik.
+[Field presentation](field-presentation.md) covers native checkboxes, meaningful
+states, bounded widths, one-to-one related storage saved with the main form,
+and multiselect.
 
-A lista-, toolbar-, rekordablak- és logingomb-javítások [követelményenkénti
-minősítése](list-presentation-validation.md) a reprodukáló parancsokat és a
-szintetikus fogyasztó bizonyítékait is tartalmazza.
+<a id="formvalidáció-és-migráció"></a>
 
-A [listafejléc és rekordszám](workspaces.md#listafejléc-és-rekordszám)
-a nézet címét a panelben, a teljes jogosult és szűrt darabszámot jobb oldalon
-jeleníti meg. Ugyanitt található a konfigurálható főmenüikon használata.
-A [kompakt hitelesítési ablakok](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok)
-a kirajzolt űrlaphoz méreteződnek, egységes alsó térközzel.
+## Form validation and migration
 
-A [kártyaszerkesztés, rendezés és kompakt ablakok](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok)
-a deklarált írható mezőket kártyán is elérhetővé teszik, közös `__edit`
-mentéssel. A kártyák rendezése toolbar-dropdownból választható, a layout
-méretezője dupla kattintásra a deklarált méretre áll vissza. A munkaterület
-popupjai a tényleges tartalomhoz méreteződnek a viewport határáig.
+[Validation](validation.md) defines shared PHP/JSON rules, native DHTMLX feedback
+and server/UI/API checks. Feature migration requires the complete reference
+validation inventory and documented deviations, not just required fields.
 
-A főmenü állandó, elkülönülő gombfelületeit és a Skyblue klasszikus Windows-hatását a [shell útmutató](shell.md#elkülönülő-főmenügombok) írja le; külön fogyasztói konfiguráció nincs.
+<a id="acl-és-műveletvégrehajtó-fejlesztés"></a>
 
-A lista elválasztó árnyéka táblázatnézetben az oszlopfejléc alá kerül,
-kártyanézetben a toolbar alatt marad ([munkaterületek](workspaces.md#listafejléc-és-rekordszám)).
+## ACL and action execution
 
-A toolbar és a táblázat fejléce között témaszínű elválasztóvonal van.
-Táblázat/kártya váltáskor a felső térköz megmarad, és a táblázatsor pixelben
-mért belső eltolása nem görgeti be a kártyát ([munkaterületek](workspaces.md)).
+[ACL/audit](access-and-actions.md) is usable. access.php verifies default deny,
+object scope, field denial, API/token scope, optimistic conflicts, audit/rollback.
+Registry/SqlResource/Workspace independent integration and consumer integration
+were verified. Fresh checks must respect current coverage limits.
 
-A [checkbox és kártya-szerkesztésjelzés](field-presentation.md#egységes-checkbox-és-kártya-szerkesztésjelzés) közös Grid/DataView megjelenítést használ; checkbox csak módosítható mezőhöz és sorhoz látható.
+<a id="fejlesztői-memória-védelme"></a>
 
-A [kompakt ablakfejléc és teljes mobilmenü](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)
-40 px magas popupfejlécet és a Menü alá vont kijelentkezést ad. A
-[reszponzív műveletsor](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség)
-a grid teljes toolbarját szűk panelen egy Műveletek gomb alá rendezi,
-a kártyák pedig tartalomtól függetlenül egyforma szélességűek.
+## Protecting development-host memory
 
-Skyblue témában a táblázat fehér–halványszürke (`#f7f7f7`) váltott sorhátteret
-használ, az aktuális megjelenítési sorrend alapján, virtuális görgetésnél is.
-A natív kijelölés a háttér fölött látszik; más témákat ez nem érint.
-Külön fogyasztói konfiguráció nincs; build és assetpublikálás szükséges.
+Browser tests use the [guard](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston):
+shared lock, one worker, initial memory threshold/cgroup cap. Consumers may use
+the same guard. Root Playwright config exposes named groups; default shell,
+exactly one project per launch, --list discovers all.
+This host launches only managed-URL shell tests; [fixture limits](development.md#existing-full-smoke-and-coverage-limits)
+are explicit. Runtime/cache: ignored tmp, overridden by BLADE_TMP_DIR within checkout.
+FB-0016/FB-0042.
 
-A popupok fejléce témához illő, a tartalomtól elkülönülő hátteret és minden
-témában 1 px témaszínű alsó elválasztóvonalat kap,
-a kompakt 40 px fejlécmagasságon belül ([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)).
+Editable non-checkbox columns show ✎; header clicks sort full SQL results.
+[Smart rendering](workspaces.md#rendezés-és-smart-rendering) virtualizes and caps
+loaded data at 600 rows.
 
-A témaválasztóban a gyári világos téma neve **Világos** (`light`); az
-alapértelmezett téma **Skyblue**. A korábbi mentett választások megmaradnak.
+<a id="listaadatok-és-tömeges-műveletek"></a>
 
-## Többnyelvűség
+## List data and bulk actions
 
-A VAPA minden alkalmazásnál közös locale- és fordításkezelést használ,
-akkor is, ha a site egy nyelvű és nincs választó. Magyar, angol és német
-keretkatalógus tartozik hozzá; a fogyasztó az üzleti fordításokat adja meg.
-Az opcionális natív nyelvválasztó a skinválasztó elé kerül. A feliratok,
-kliens-/szervervalidációk és megerősítő levelek ugyanazt a nyelvet követik.
-Konfiguráció, fallback, cookie, API, fordítási határ és teszt:
-[többnyelvűség](i18n.md). Az FB-0033 korábbi hiányjelzését az FB-0034 váltja fel.
+[Cards/details/numbering/marks](workspaces.md#kártyák-rekordadatok-sorszám-és-jelölés)
+cover multicolumn DataView, default ordinal column, double-click ACL-filtered
+details and optional marks. [Bulk](workspaces.md#tömeges-műveletek-és-ikonok)
+requires opt-in with per-row ACL/transactions; export remains absent.
 
-A nyelvválasztó zászlói valódi, csomagolt PNG-k a natív DHTMLX Toolbar
-`icon` mezőjében, belépésnél is; konfigurációban országkód (`hu`, `gb`, `de`)
-választja őket. [Ikonforrás és csomagolás](flag-assets.md).
+The [view selector](workspaces.md#nézetválasztás-és-fejlécjelzések) is the last
+right-aligned dropdown; editing/sort indicators have separate space and only
+one active direction. Native headings show view title and authorized total/matched
+counts, not loaded-window size. See [counts](workspaces.md#listafejléc-és-rekordszám)
+and [historical qualification](list-presentation-validation.md).
+
+<a id="url-és-helyi-felületbeállítások"></a>
+
+## URLs and local UI preferences
+
+The shell uses #feature=items to restore active views on reload and Back/Forward.
+[Local preferences](shell.md#url-és-helyi-felületbeállítások) automatically retain
+grid/workspace display settings. [Compact login windows](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok)
+fit rendered forms with consistent lower space. List shadows appear under grid
+column headings or the card toolbar, with a separate theme divider between
+toolbar and grid headings. Shared checkbox/pencil presentation is described in
+[field presentation](field-presentation.md#egységes-checkbox-és-kártya-szerkesztésjelzés).
+
+Card editing shares __edit/revision/validation/ACL/audit with Grid; sorting uses
+full SQL. Layout-resizer double-click restores declared size. Content-fitted
+windows/scroll restoration preserve visible records across views rather than
+transferring mismatched row pixel offsets. [Details](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok).
+
+Main-menu buttons have theme borders/backgrounds/gaps; Skyblue gives the accepted
+classic Windows appearance. [Responsive commands](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség)
+collapse into Actions and keep uniform card width. Skyblue rows alternate white/
+#f7f7f7 by display index, including virtualization, with native selection above.
+No consumer configuration; rebuild/prepare assets.
+
+[Popup headers](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü) are 40 px, with
+theme background and 1 px divider. The light theme label is Világos; default
+is Skyblue and valid saved choices persist.
+
+<a id="többnyelvűség"></a>
+
+## Localization
+
+Every application uses common locale/translation, including single-language sites
+without selectors. Framework hu/en/de catalogs accompany consumer business catalogs.
+Optional native selector precedes theme. Labels, client/server validation and
+mail share locale. [i18n](i18n.md) defines config/fallback/cookie/API/boundaries/
+checks; FB-0034 supersedes FB-0033's earlier missing state.
+
+[Account default language](i18n.md#felhasználói-alapnyelv) exists on multilingual
+sites and controls login/mail. Flag assets are actual packaged PNGs selected
+by country code hu/gb/de. Login uses the native form Combo and the main bar
+Toolbar icon; see [source/packaging](flag-assets.md).
+
+<a id="fejlesztési-batch-lezárása"></a>
+
+## Closing a development batch
+
+The project does not require gitpush after changes (2026-10-21, FB-0043).
+Checks/documentation remain required. Follow [commit/push](development.md#commit-és-push)
+and preserve unrelated staged/unstaged changes.

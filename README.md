@@ -1,50 +1,97 @@
-# VAPA — Very Advanced PHP Admin
+# 61de
 
-Újrahasznosítható, konfigurációvezérelt admin alkalmazáskeret PHP referencia-backenddel és DHTMLX frontenddel. Cél a backendnyelvtől független JSON-szerződés.
+Checkout: `/space/share/libs/61ade`. The project uses a single development
+environment at https://61ade.sanch.hu/, directly from the checkout, with no
+deployment, post-deployment testing or project backups. See the
+[development contract](docs/development.md#development-environment).
+Packages: `sanch78/61de` and `@61de/admin`. Identifiers use `Blade\`,
+`BLADE_*` and `blade`; see [renaming and migration](docs/renaming.md).
 
-**Állapot: PHP 8.4+ és DHTMLX shell, deklaratív form/grid és műveletvégrehajtó, ACL/API-token/audit alapok, JSON-konfiguráció, e-mailes belépésmegerősítés és többnyelvűség. Nincs kiadott csomag; a kötelező adminmodul és a teljes célrendszer még nem kész.** Részletek: [aktuális használat](docs/usage.md).
+A reusable, configuration-driven admin application framework with a PHP
+reference backend and DHTMLX frontend. A backend-language-independent JSON
+contract is a product goal.
 
-## Cél
+**Status:** PHP 8.4+ DHTMLX shell, declarative forms/grids and action executor,
+ACL/API-token/audit foundations, JSON configuration, e-mail login verification
+and localization are available. No package has been released. The mandatory
+admin module and the complete target system remain incomplete.
+See [current usage](docs/usage.md).
 
-Egy PHP-ban vagy tagolt JSON-ban megadott feature-definíció összefogja az objektumok mezőit, nézeteit, műveleteit és API-kitettségét. A VAPA megjeleníti és kiszolgálja ezeket; az üzleti logikát az alkalmazás explicit regisztrált kezelői valósítják meg. A frontend fullscreen DHTMLX alkalmazás beépített többnyelvűséggel és témákkal; minden alkalmazás a VAPA által adott user-, ACL-, API-kulcs- és naplóadmint használja (tervezett). A támogatott komponenskör a valós alkalmazási igényekből nő; nincs külső keretrendszer-benchmark vagy teljes lefedési cél. Követelmények és tényleges állapot: [termékirány](docs/product-direction.md).
+<a id="cél"></a>
 
-Első fogyasztó: a teljesen újraírandó CityScreen admin. A CityScreen üzleti kódja, adatai és integrációi külön repóban maradnak. VAPA nem függhet CityScreentől vagy ADE-tól.
+## Goal
 
-## Dokumentáció
+A feature definition in PHP or modular JSON brings together object fields,
+views, actions and API exposure. 61de renders and serves them; explicitly
+registered application handlers implement business logic. The fullscreen DHTMLX
+frontend includes localization and themes. Every application must use the
+framework's user, ACL, API-key and log administration (partly implemented).
+Capabilities grow with actual application needs; no external framework benchmark
+or exhaustive component coverage is required. See [product direction](docs/product-direction.md)
+for requirements and verified status.
 
-A használati módszertant minden képességváltozással együtt vezetjük; a felhasználói tesztelés tanulságai tartósan bekerülnek a dokumentációba. Ez kötelező fejlesztési szabály.
+The first consumer is a complete rewrite of the CityScreen admin. Its business
+code, data and integrations stay in a separate repository. 61de must not depend
+on CityScreen or ADE.
 
-- [Felhasználási módszertan](docs/usage.md)
-- [Termékirány: követelmények, bizonyított állapot, nyitott kérdések, Claude-prompt](docs/product-direction.md)
-- [Bejelentkezési és navigációs shell](docs/shell.md)
-- [Tesztelési visszajelzések és tanulságok](docs/feedback.md)
-- [Részletes koncepció](docs/concept.md)
-- [Fejlesztési terv és mérföldkövek](docs/development-plan.md)
-- [Könyvtárak és csomaghatárok](docs/repository-layout.md)
-- [ACL, szervezetek és API-biztonság](docs/security-model.md)
-- [DHTMLX-képességek és licencek](docs/component-matrix.md)
-- [Fejlesztés, futtatás és kiadás](docs/development.md)
-- [Döntési napló](docs/decisions/0001-foundation.md)
-- [Kötelező irány: VAPA = ADE v2](docs/decisions/0002-framework-first.md)
-- [Termékirány-döntés (ADR-0003)](docs/decisions/0003-product-direction.md)
+<a id="dokumentáció"></a>
 
-## Csomagok
+## Documentation
 
-| Könyvtár | Tervezett csomag | Feladat |
+Usage guidance changes with every capability. Lessons from user testing are
+recorded durably and incorporated into the relevant guide; this is mandatory.
+
+- [Usage methodology](docs/usage.md)
+- [Product requirements, evidence, open questions and implementation prompt](docs/product-direction.md)
+- [Login and navigation shell](docs/shell.md)
+- [Testing feedback and lessons](docs/feedback.md)
+- [Detailed concept](docs/concept.md)
+- [Development plan and milestones](docs/development-plan.md)
+- [Directories and package boundaries](docs/repository-layout.md)
+- [ACL, organizations and API security](docs/security-model.md)
+- [DHTMLX capabilities and licenses](docs/component-matrix.md)
+- [Development environment and verification](docs/development.md)
+- [Foundation decisions](docs/decisions/0001-foundation.md)
+- [Mandatory framework-first direction: 61de = ADE v2](docs/decisions/0002-framework-first.md)
+- [Product direction decision (ADR-0003)](docs/decisions/0003-product-direction.md)
+
+<a id="csomagok"></a>
+
+## Packages
+
+| Directory | Planned package | Responsibility |
 | --- | --- | --- |
-| `packages/php` | `sanch78/vapa` | PHP-definíciók, API, policy-k, infrastruktúra |
-| `packages/frontend` | `@vapa/admin` | DHTMLX adapterek, renderer, admin shell |
-| `examples/demo-app` | nem publikált | Szintetikus adatokkal működő referenciaalkalmazás |
-| `tests` | nem publikált | Keret-, szerződés-, integrációs és böngészőtesztek |
+| `packages/php` | `sanch78/61de` | PHP definitions, API, policies and infrastructure |
+| `packages/frontend` | `@61de/admin` | DHTMLX adapters, renderer and admin shell |
+| `examples/demo-app` | Unpublished | Synthetic feature demo (`/`) and starter admin (`/admin/`); [demo guide](docs/demos.md) |
+| `tests` | Unpublished | Framework, contract, integration and browser tests |
 
-A csomagnevek helyi tervezési azonosítók; npm/Packagist névfoglalás vagy publikálás nem történt. A PHP namespace `Vapa\`.
+Package names are local design identifiers; no npm/Packagist registration or
+publication has taken place. The PHP namespace is `Blade\`.
 
-## Technológiai kiindulás
+<a id="technológiai-kiindulás"></a>
 
-Elfogadott: modern PHP referencia-backend (PHP-FPM + OPcache), DHTMLX, verziókezelt PHP/JSON feature-definíciók, külön alkalmazásrepók. A frontend protokollja nyelvfüggetlen JSON-szerződés cél ([ADR-0003](docs/decisions/0003-product-direction.md)); tárolási cél MySQL, PostgreSQL, SQLite és JSON-fájl, jelenleg MySQL-kapcsolat és SQLite demó. Javasolt első megvalósítás: PHP 8.4 minimum, PHP 8.5 CI-lefedés, Symfony 7.4 LTS integráció, TypeScript frontend. A Symfony-választás javaslat, nem korábbi felhasználói döntés; az első runtime-mérföldkőben rögzítendő.
+## Technology baseline
 
-A frontend lockfile rögzíti a DHTMLX, TypeScript és esbuild függőségeket. A PHP shell Composer-autoloadot használ, hosting framework nélkül; Symfony integráció és a teljes runtime-szerződés még nincs. Részletek: [shell](docs/shell.md).
+Accepted: modern PHP reference backend (PHP-FPM + OPcache), DHTMLX, versioned
+PHP/JSON feature definitions and separate application repositories. The frontend
+targets a language-independent JSON contract ([ADR-0003](docs/decisions/0003-product-direction.md)).
+Storage targets are MySQL, PostgreSQL, SQLite and JSON files; currently a MySQL
+connection and SQLite demo exist. The proposed initial implementation uses
+PHP 8.4 minimum, PHP 8.5 CI coverage, Symfony 7.4 LTS integration and TypeScript.
+Symfony remains a proposal to settle in the first runtime milestone, not a
+previously accepted owner decision.
 
-## Licencek
+The frontend lockfile pins DHTMLX, TypeScript and esbuild. The PHP shell uses
+Composer autoloading without a hosting framework; Symfony integration and the
+complete runtime contract remain open. See [shell](docs/shell.md).
 
-A VAPA saját kódjának licence még kiválasztandó; ez a repo jelenleg nem ad külön open source felhasználási engedélyt. A GitHub-repó nyilvánossága önmagában nem licenc. DHTMLX Suite Standard és Scheduler GPL, Gantt 10+ Community MIT; részletek és források a komponensmátrixban. Fizetős vendorcsomag, secret és ügyféladat nem kerülhet a repóba.
+<a id="licencek"></a>
+
+## Licenses
+
+The license for 61de's own code is undecided; this repository currently grants
+no separate open-source usage permission. A public GitHub repository is not a
+license. DHTMLX Suite Standard and Scheduler use GPL; Gantt 10+ Community uses
+MIT. Details and sources are in the component matrix. Never commit paid vendor
+packages, secrets or customer data.

@@ -1,28 +1,55 @@
-# VAPA alkalmazásalap — login, menü, munkaterület
+# 61de application foundation: login, menu and workspace
 
-A kötelező alapirány: [VAPA = ADE v2](decisions/0002-framework-first.md). A keret biztosítja az általános működést és a DHTMLX vezérlőket; a fogyasztó alkalmazásdefiníciót és üzleti illesztést ad. Az első képesség DHTMLX Window/Form bejelentkezés, Menu, Toolbar és Layout, üres munkaterülettel. Nincs külön alkalmazási frontend, dashboard vagy helyőrző oldal. A későbbi, már működő feature/workspace és ACL réteg használata: [ACL és műveletek](access-and-actions.md).
+Mandatory direction: [61de = ADE v2](decisions/0002-framework-first.md).
+The framework owns general behavior and DHTMLX controls; consumers provide
+application definitions and business adapters. The initial capability is
+DHTMLX Window/Form login, Menu, Toolbar and Layout with an empty workspace.
+There is no separate application frontend, dashboard or placeholder page.
+For the later feature/workspace/ACL layer, see [ACL and actions](access-and-actions.md).
 
-## Keretszerződés és használat
+<a id="keretszerződés-és-használat"></a>
 
-A PHP fogyasztó belépési pontja Composer-autoload után kizárólag a VAPA HTTP belépési pontját hívja:
+## Framework contract and usage
+
+After Composer autoloading, the PHP consumer entrypoint calls only:
 
 ```php
-Vapa\Infrastructure\HttpEntrypoint::run(static fn() => require '../application.php');
+Blade\Infrastructure\HttpEntrypoint::run(static fn() => require '../application.php');
 ```
 
-Az `application.php` egy `Vapa\Shell\ApplicationDefinition` objektumot ad vissza. Kötelező argumentumok: `title`, `identities` (IdentityProvider), `menu` (Menu), `runtime` (privát írható könyvtár). Opcionális: egyedi `sessionName`, `cookiePath`, valamint `version` (string, alapból üres). A JSON megfelelője `application.version`; például `"title": "Minta admin", "version": "0.1.0"`. Az alapindítás, hibaválasz, session, CSRF, belépés/kilépés, metadata és UI előállítása a keret feladata.
+`application.php` returns `Blade\Shell\ApplicationDefinition`. Required:
+`title`, `identities` (IdentityProvider), `menu` (Menu), `runtime` (private
+writable directory). Optional: `sessionName`, `cookiePath`, string `version`
+(default empty), `assets` (browser path to built assets relative to the page,
+default `assets`; e.g. `../assets` for the [starter admin](demos.md) at `/admin/`).
+Other options include `authentication`, `languages`, `accounts`, `oauth`;
+see [authentication](authentication.md). JSON uses `application.version`, e.g.
+`"title":"Minta admin","version":"0.1.0"`. Startup, errors, sessions, CSRF,
+login/logout, metadata and UI rendering belong to the framework.
 
-Az `IdentityProvider` `authenticate(username, password)` és `find(id)` metódusokat ad; siker esetén `Identity(id, displayName, attributes)` az eredmény. A backend attribútumokat nem serializáljuk. A `find` minden hitelesített HTTP-kéréskor újraellenőrzi a fiókot és a jogokat.
+`IdentityProvider` exposes `authenticate(username,password)` and `find(id)`,
+returning `Identity(id,displayName,attributes)` on success. Backend attributes
+are not serialized. Every authenticated HTTP request calls `find` to recheck
+the account and permissions.
 
-SQL-es fióktárhoz a keret `SqlIdentityProvider` képessége explicit táblanév- és oszlophozzárendelést fogad. Csak a deklarált oszlopokat olvassa, paraméterkötéssel; az azonosítókat ellenőrzi. A jelszóhash nem kerülhet attribútumba. Az alapellenőrzés `password_verify`; az alkalmazás konkrét meglévő jelszóformátumához és fiókállapotához szerveroldali `passwordVerifier`/`allowed` callback adható. Ez üzleti illesztés, nem saját alkalmazási loginfolyamat. A szolgáltató csak olvas.
+`SqlIdentityProvider` accepts explicit table/column mapping, validates identifiers
+and reads only declared columns with bound parameters. Password hashes must
+never enter attributes. Default verification is `password_verify`; server-side
+`passwordVerifier`/`allowed` callbacks adapt existing password formats and
+account state. This is business adaptation, not an application login flow.
+The provider only reads.
 
-A `Database::fromEnvironment(file, prefix, readOnly)` biztosítja a PDO MySQL kapcsolatot a `PREFIX_HOST/PORT/NAME/CHARSET/USER/PASSWORD` konfigurációból. Az environment felülírja a fájlt. `readOnly: true` esetén a kapcsolat tranzakciói read-only beállítással indulnak. A demo és az egységtesztek izolált PDO SQLite-ot használnak.
+`Database::fromEnvironment(file,prefix,readOnly)` opens PDO MySQL from
+`PREFIX_HOST/PORT/NAME/CHARSET/USER/PASSWORD`. Process env overrides the file.
+`readOnly: true` starts read-only transactions. Demo and unit tests use isolated PDO SQLite.
 
-## Deklarált menü
+<a id="deklarált-menü"></a>
+
+## Declared menu
 
 ```php
-use Vapa\Navigation\{Menu, MenuItem};
-use Vapa\Shell\Identity;
+use Blade\Navigation\{Menu, MenuItem};
+use Blade\Shell\Identity;
 
 $menu = new Menu([
     new MenuItem('library', 'Nyilvántartás', [
@@ -31,15 +58,35 @@ $menu = new Menu([
 ]);
 ```
 
-A VAPA validálja az egész fa egyedi, stabil azonosítóit; a `visible` üzleti szabályt szerveroldalon futtatja, és az üres ágakat elhagyja. A böngésző kizárólag `id`, `label`, `items`, `disabled` adatokat kap. Callback, SQL és fiókattribútum nem mehet ki. A fogyasztó menüszerkezetét változatlanul rendereli rekurzív DHTMLX Menu formában.
+61de validates unique stable IDs across the tree, evaluates `visible`
+server-side and omits empty branches. Browsers receive only `id`, `label`,
+`items`, `disabled`; never callbacks, SQL or account attributes.
+The consumer hierarchy renders recursively as native DHTMLX Menu.
 
-A történeti shell MenuItem levélelemek tiltottak. Az implementált modulok a Feature Registry view-definícióiból kerülnek a navigációba. Üzleti művelet, hash-route és művi tartalomoldal nincs. A kijelentkezést a VAPA adja működő menüműveletként. Új modulnál előbb a szükséges VAPA feature-/action-/policy-képességet kell megvalósítani, utána az üzleti modult bekötni.
+Historical shell MenuItem leaves are disabled. Implemented modules enter
+navigation from Feature Registry view definitions. Placeholder content and
+business actions do not belong in this initial shell API; later feature
+navigation is described below. Logout is a working framework menu action.
+For a new module, first implement needed feature/action/policy capabilities,
+then configure its business integration.
 
-## DHTMLX megjelenítés és csomagolás
+<a id="dhtmlx-megjelenítés-és-csomagolás"></a>
 
-A VAPA `AdminShell` adapter kezeli a Layout, Toolbar, Menu, Window és Form teljes életciklusát, a bejelentkezési mezők validálását és billentyűzetes beküldését. A hibajelzést DHTMLX Alert jeleníti meg. A megjelenítést a DHTMLX vezérlői adják; a keret CSS-e a teljes ablak méretezését és a dokumentált Suite-témaváltozókat tartalmazza. 768 px alatti munkaterületen a keret a menüágakat egy DHTMLX „Menü” alá rendezi; a kijelentkezés is ugyanebbe a lenyíló menübe kerül. Átméretezéskor visszaáll a felső menüsor. A fogyasztónak nincs saját shell HTML/CSS/JS rétege.
+## DHTMLX rendering and packaging
 
-PHP 8.4+; ellenőrzött helyi runtime: PHP 8.4.26. Node 18.19.1, npm 9.2.0, TypeScript 5.9.3, esbuild 0.25.12, DHTMLX Suite Standard 9.3.12, Playwright 1.58.2. A dependencyket lockfile rögzíti. A Suite ikonfontjai a `tools/vendor-assets.json` SHA-256 értékeivel ellenőrizve, `tmp/dhx-icons` cache-ből kerülnek a buildbe. Az első build internetet igényel; eltérő asset-hash leállítja a buildet. A fontok beágyazottak, a böngésző nem kér CDN-erőforrást.
+`AdminShell` owns Layout/Toolbar/Menu/Window/Form lifecycle, login validation
+and keyboard submission. Errors use the framework's DHTMLX dialogs. Framework
+CSS handles full-window sizing and documented Suite theme variables.
+Below 768 px workspace width, menu branches and logout move under native
+`Menü`; widening restores the top menu. Consumers have no shell HTML/CSS/JS layer.
+
+Historical initial verification: PHP 8.4.26, Node 18.19.1, npm 9.2.0,
+TypeScript 5.9.3, esbuild 0.25.12, Suite Standard 9.3.12, Playwright 1.58.2.
+Current system runner guidance is in [development](development.md).
+Lockfiles pin application dependencies. Suite icon fonts are checked against
+SHA-256 in `tools/vendor-assets.json` and cached in `tmp/dhx-icons`. The first
+build needs internet; hash mismatch fails the build. Fonts are embedded, with
+no browser CDN requests.
 
 ```bash
 npm ci --cache tmp/npm-cache
@@ -47,131 +94,183 @@ npm run typecheck
 npm run build
 ```
 
-A fogyasztó a `@vapa/admin` csomag `vapa-assets <public-assets-directory>` parancsával teszi ki a buildet. A package tartalmazza a publikáló eszközt; nincs fogyasztói asset-összeállító implementáció. A PHP belépési pont mellett `assets/admin.js` és `assets/admin.css` szükséges.
+Consumers prepare assets using the package's
+`61de-assets <public-assets-directory>` command. The package owns this utility;
+consumers need no asset assembler. `assets/admin.js` and `assets/admin.css`
+are required beside the PHP entrypoint.
 
-A `0.1.0` lokális fejlesztői csomagazonosító, nem publikált release. A mostani alkalmazásdefiníció felváltja az első, elutasított shell API-t; annak `brand/headline/description/loginHint` mezői és navigációs closure API-ja megszűntek. A korábbi UI nem marad támogatott alternatíva. Licenc- és végleges kiadási modell továbbra is külön nyitott mérföldkő.
+`0.1.0` is a local development identifier, not a published release. This
+application definition replaces the rejected initial shell API:
+`brand/headline/description/loginHint` and navigation closures were removed.
+The earlier UI is not a supported alternative. License and final packaging remain open.
 
-## Önálló keretdemó és ellenőrzés
+<a id="önálló-keretdemó-és-ellenőrzés"></a>
 
-Az `examples/demo-app` saját Composer-fogyasztó, kizárólag szintetikus SQLite memóriabeli fiókokkal és menüvel. Más alkalmazástól nem importál forráskódot, konfigurációt vagy adatot.
+## Independent framework demo and verification
+
+`examples/demo-app` is its own Composer consumer with synthetic SQLite data.
+It supplies the [feature demo and starter admin](demos.md) at `/` and `/admin/`,
+without importing application source/configuration/data.
 
 ```bash
-# Composer és PHP 8.4+ a saját fejlesztői környezetből:
-cd examples/demo-app && composer install && cd ../..
+# Use installed Composer/PHP 8.4+ when available:
+(cd examples/demo-app && composer install)
 npm run demo:assets
 php8.4 tests/shell/contracts.php
-VAPA_PHP=/path/to/php84 tools/serve-demo.sh
-# Másik terminálban:
-npm run test:browser -- --project=shell
+npm run test:browser -- --project=shell tests/shell/browser.spec.cjs
 ```
 
-A `VAPA_PHP` lehet olyan CLI-wrapper is, amely a szükséges extensionöket betölti. A demóhoz PDO SQLite szükséges. Elérés: `http://127.0.0.1:8086/`; szintetikus belépések: `demo@example.test` / `vapa-demo`, `viewer@example.test` / `vapa-demo`. A `blocked@example.test` fiók tiltott. A `tools/serve-demo.sh` indítás előtt idempotensen lefuttatja a `setup-workspace.php`-t; a fiókok a munkaterület SQLite-fájljában vannak, és a [felhasználóadmin](admin.md) kezeli őket. A belépési mező címkéje bekapcsolt felhasználóadminnál „E-mail”. Ezek kizárólag a külön demóban léteznek. A demo nem production belépési mód.
+Open https://61ade.sanch.hu/ or https://61ade.sanch.hu/admin/.
+Synthetic login: `demo@example.test` / `61de-demo`; more accounts are in
+[demos](demos.md). `BLADE_PHP` may select a PHP 8.4+ wrapper loading PDO SQLite.
+Use existing web-instance setup only when required, as documented in demos.
 
-A `tests/shell/contracts.php` a SQL provider, azonosítóvalidálás, fióktiltás, jelszóadat kizárása, menüjogok, üres ágak, duplikált ID és tiltott modul szerződését ellenőrzi. A saját böngészős tesztek a tényleges DHTMLX ablak/űrlap/menü működését, Enteres beküldést, hibás belépést, nézői jogokat, kijelentkezést és telefonméretet vizsgálják. Artifactok: `tmp/playwright-results`. Ellenőrzés 2026-10-16: PHP szerződéstesztek, lint, TypeScript typecheck/build és mind a 4 Chromium keretteszt sikeres.
+The retained `tools/serve-demo.sh` utility historically initialized both
+databases idempotently and launched port `BLADE_DEMO_PORT` (default 8086) with
+`PHP_CLI_SERVER_WORKERS=3` for the simulated OAuth token endpoint. Starting
+that ad-hoc server is prohibited on this host; managed URL testing supersedes
+those historical instructions. With user admin enabled, the login label is
+`E-mail`. Synthetic login is demo-only.
 
-## Biztonsági és fejlesztési határ
+`contracts.php` checks SQL identity mapping, identifier validation, disabled
+accounts, password exclusion, menu permissions, empty branches, duplicate IDs
+and disabled modules. Browser tests exercise actual DHTMLX controls, Enter,
+invalid credentials, viewer access, logout and phone size. Artifacts use
+`tmp/playwright-results`. Historical 2026-10-16 results: PHP contracts/lint,
+typecheck/build and all four initial Chromium tests passed.
 
-Session: strict ID, HttpOnly/SameSite=Lax, HTTPS-en Secure; sikeres belépéskor/kilépéskor ID-csere, CSRF mindkét POST-on, 30 perc inaktivitási időkorlát. Öt hibás belépés/IP/60 másodperc után 429, privát, fájlzárolt közös limiter. Nincs jelszó/session-adat a menüben vagy logban. A webroot csak a fogyasztó public könyvtára lehet.
+<a id="biztonsági-és-fejlesztési-határ"></a>
 
-Proxy esetén a `HttpEntrypoint` explicit `trustLocalProxy: true` mellett kizárólag loopback kérésből fogadja el az `X-VAPA-HTTPS` és `X-VAPA-Client-IP` fejléceket. A proxy köteles ezeket a saját kapcsolati adataival felülírni. A runtime és cookie path az alkalmazás telepítési konfigurációja.
+## Security and development boundary
 
-A shellhez azóta elkészült az első Feature Registry, SQL CRUD, objektum-/mező-ACL és auditképesség, lásd a fenti kapcsolódó leírást. A teljes M1/M2/M4, Symfony hosting, több szervezet, PHP 8.5 és production FPM továbbra is hátravan. A mostani menüjogosultság nem helyettesíti a későbbi üzleti endpointok backend policy-ját.
+Sessions use strict IDs, HttpOnly/SameSite=Lax and HTTPS Secure cookies, ID
+rotation on login/logout, CSRF on both POSTs and a 30-minute idle timeout.
+Five failed logins/IP/60 seconds return 429 through a private file-locked
+shared limiter. Password/session data never enter menus/logs. The document
+root must be only the consumer public directory.
 
-## Megjelenési mód
+With explicit `trustLocalProxy: true`, `HttpEntrypoint` trusts
+`X-BLADE-HTTPS`/`X-BLADE-Client-IP` only from loopback. The proxy must overwrite
+them from its own connection facts. Runtime and cookie path are application settings.
 
-A menüsor jobb oldalán DHTMLX Toolbar választó adja a Skyblue (`skyblue`), Világos (`light`) és Éjjeli (`dark`) témát. Mentett választás nélkül Skyblue az alapértelmezett. Érvényes korábbi választás megmarad; ismeretlen érték Skyblue-ra esik vissza. A `vapa-theme` localStorage kulcs a böngésző helyi preferenciája, nem jogosultsági vagy profiladat.
+Feature Registry, SQL CRUD, object/field ACL and audit have since been added.
+Complete M1/M2/M4, Symfony hosting, multiple organizations and PHP 8.5 remain
+open. Future consumer FPM qualification is separate; this project has no
+production environment. Menu visibility never replaces backend endpoint policy.
 
-A Suite 9.3.12 nem szállítja a régi Suite Skyblue skinjét. A VAPA Skyblue ezért a [dokumentált custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/) alapján, a DHTMLX CSS-változóival definiált világoskék paletta. A komponensek Suite 9 komponensek maradnak: ez nem a régi képes/gradient skin teljes másolata. A `setTheme` a dokumentum gyökerére állítja a témát, így a menü, toolbar, ablak, form és grid azonos témát kap. Nincs legacy CSS-betöltés vagy alkalmazási skinréteg. Ellenőrzés: `browser.spec.cjs` Skyblue alapérték, tényleges toolbar-szín, Éjjeli/Skyblue váltás és újratöltés utáni megőrzés.
+<a id="megjelenési-mód"></a>
 
-Munkaterület-váltáskor a VAPA leválasztja és felszabadítja az előző DHTMLX layoutot, kivárja az újrarajzolást, majd csatolja az új nézetet. A gyors egymás utáni váltások közül csak a legutolsó kerül fel. A `workspace.spec.cjs` ismételt nézetváltást is ellenőriz.
+## Appearance mode
 
-## Egységes alsó információs sáv
+The right-hand DHTMLX Toolbar selector offers Skyblue (`skyblue`), light
+(`light`) and dark (`dark`). Without a saved valid choice, Skyblue is used;
+existing valid choices persist. `blade-theme` in localStorage is a browser
+preference, not authorization/profile data.
 
-A felső sor közvetlenül a menü és a témaválasztó; nincs külön alkalmazásnév-fejléc. Egyetlen, 32 px magas DHTMLX Toolbar zárja az oldalt (a shell a Toolbar intrinsic magasságát a befogadó cellához méretezi, így a felirat nem vágódik le): balra a hitelesített identitás `displayName` értéke, jobbra a konfigurált alkalmazásnév és `version`. Bejelentkezés előtt balra „Nincs bejelentkezve” látható. A verzió az alkalmazás kiadásazonosítója; a keret nem következtet rá a saját csomagverziójából. Elhagyott verziónál csak az alkalmazásnév jelenik meg. Nincs workspace-enként külön kapcsolati/állapotsáv; az élő adatkövetés tovább működik. A műveleti hibák DHTMLX Alertben, a szerkesztés közben észlelt külső módosítás egyszeri DHTMLX Message-ben jelenik meg.
+Suite 9.3.12 does not ship legacy Skyblue. The framework uses the documented
+[custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/) and
+DHTMLX CSS variables for a light-blue palette; Suite 9 controls remain native,
+without recreating the entire legacy image/gradient skin. `setTheme` applies
+to the document root and all controls. No legacy CSS or application skin layer.
+`browser.spec.cjs` checks the default, actual toolbar color, switching and reload persistence.
 
-Ellenőrzés: `browser.spec.cjs` a felső menü és alsó felhasználó/alkalmazás/verzió elhelyezését; `workspace.spec.cjs` a külön állapotsáv hiányát és a háttérben tovább működő pollingot ellenőrzi. Kapcsolódó döntés: FB-0011.
+Workspace switching detaches/disposes the previous DHTMLX layout, waits for
+redraw and attaches the new view. Only the latest rapid switch mounts.
+`workspace.spec.cjs` checks repeated switching.
 
-## URL és helyi felületbeállítások
+<a id="egységes-alsó-információs-sáv"></a>
 
-A VAPA menüből megnyitott funkció címe például `/admin/#feature=items`.
-A fragmentben a registry `resource` azonosítója szerepel URL-kódolva; a shell
-frissítéskor, bejelentkezés után és Vissza/Előre navigációnál az aktuális,
-jogosultságszűrt `views` listából nyitja meg. Az üres vagy ismeretlen cím üres
-munkaterületet ad. A navigáció nem hajt végre adatíró műveletet; rekordhoz vagy
-nyitott szerkesztőhöz külön mélylink jelenleg nincs.
+## Unified lower information bar
 
-Nincs fogyasztói JavaScript vagy külön konfiguráció. A szerver bootstrap
-`userId` mezője a hitelesített identitás azonosítója. A böngésző
-`vapa-ui:1:` kezdetű localStorage kulcsa az alkalmazás pathname-ját, a user ID-t
-és a resource-t különíti el. Tárolt értékek: oszlopszélesség, sikeresen
-betöltött rendezés, kézzel választott táblázat/kártya mód, deklarált
-panelméretek és szűrőpanel összecsukása. A szerkesztőpanel automatikus
-nyitása/zárása nem tartós állapot. A mobil kényszerített kártyanézete nem írja
-felül a kézi választást. Űrlapérték, rekordadat, szűrőérték és secret nem
-kerül ebbe a tárolóba.
+The top row contains the menu/theme selector, without a separate application
+header. One 32 px DHTMLX Toolbar closes the page. Its intrinsic height fits the
+cell to avoid clipped text. Left: authenticated `displayName`, or
+`Nincs bejelentkezve` before login. Right: configured application title and
+optional version. The framework does not infer application version from its
+package. No per-workspace connection/status bar; live updates continue.
+Action errors use DHTMLX dialogs, while external changes during editing produce
+one DHTMLX Message.
 
-A visszaállítás mindig az aktuális definíciót követi: törölt oszlop vagy
-rendezési mező figyelmen kívül marad, méretkorlátok érvényesülnek. Sérült vagy
-letiltott localStorage mellett a felület alapértékekkel használható. Ez az
-adott böngésző preferenciája; nincs szerveroldali vagy gépek közötti szinkron.
-Visszaállítás alaphelyzetbe: az adott `vapa-ui:1:` kulcs törlése a böngésző
-webhelytárából. Kijelentkezés nem törli a preferenciát, másik felhasználó
-viszont külön kulcsot kap.
+`browser.spec.cjs` verifies placement; `workspace.spec.cjs` checks no extra
+status bar and continuing polling. Decision: FB-0011.
 
-Ellenőrzés: `node tests/shell/ui-preferences.mjs` (elkülönítés, definícióváltozás,
-méretkorlát, sérült/tiltott tár); védett szintetikus böngészőteszt:
-`npm run test:browser -- --project=preferences`, a
-`VAPA_TMP_DIR` és `VAPA_PLAYWRIGHT_MODULE` környezeti szerződésével.
-Kapcsolódó visszajelzés: FB-0021.
+<a id="url-és-helyi-felületbeállítások"></a>
 
-## Kompakt hitelesítési ablakok és menüikonok
+## URLs and local UI preferences
 
-A login és az e-mailes megerősítés natív Window/Form párost használ. Az ablak
-magasságát a kirajzolt gombok alja határozza meg, 24 px alsó hellyel; a
-viewport mérete felső korlát. Újramérés történik méretváltás és validáció
-után is. Az újraméretezés nem aktiválja újra az ablakot: a hibaüzenet
-modalrétege fölül marad. A megerősítés három azonos szélességű natív gombja
-között 8 px hely van. A másodlagos műveletek is valódi gombok.
+A menu-opened feature uses a URL such as `/admin/#feature=items`. The fragment
+contains URL-encoded registry resource ID. On reload, login and Back/Forward,
+the shell resolves it through current permission-filtered `views`. Unknown/
+empty IDs give an empty workspace. Navigation never writes data; record/editor
+deep links do not yet exist.
 
-A menü minden szintje kap ikont: a statikus elemek alapértelmezett mappát,
-a feature-ök konfigurálható nézetikont, a csoportok nyitott mappát, a kompakt
-Menü és a kijelentkezés saját ikont. A kompakt töréspont az ikonok helyével
-is számol. Fogyasztói megadás: [listafejléc és rekordszám](workspaces.md#listafejléc-és-rekordszám).
+No consumer JavaScript or extra configuration is required. Bootstrap `userId`
+is the authenticated identity. Versioned `blade-ui:1:` localStorage keys
+separate pathname, user ID and resource. Stored: column widths, successfully
+loaded sorting, manually chosen grid/card mode, declared panel sizes and filter
+collapse. Automatic editor open/close is not persistent. Forced mobile cards
+do not overwrite manual choice. Form/record/filter values and secrets are excluded.
 
-## Elkülönülő főmenügombok
+Restoration follows current definitions: removed columns/sort fields are ignored,
+size limits apply. Broken/disabled storage falls back safely. Preferences remain
+browser-local with no server/device synchronization. Delete the specific key
+to reset; logout preserves it and different users have distinct keys.
 
-A natív DHTMLX főmenüpontok mindhárom témában állandó keretet, témához illő
-hátteret és 6 px térközt kapnak. Skyblue esetén a kék színátmenet, világos
-felső él és árnyék klasszikus Windows-gombhatást ad; rámutatáskor arany,
-nyitott/benyomott állapotban süllyesztett kék felület látszik. A billentyűzetes
-fókusz külön körvonalat kap. Az almenük megőrzik a natív listaelrendezést. A konfigurált elválasztók
-(például a kijelentkezés előtt) 1 px széles, halvány függőleges vonallal
-jelennek meg; a vonal a téma keretszínét követi.
-Fogyasztói konfiguráció nem szükséges; újra kell buildelni és publikálni az
-asseteket. A shell assetverziója `v=11`. A kompakt menü töréspontja a keret
-és térköz többlethelyével is számol. Ellenőrzés: `browser.spec.cjs`, három téma,
-nyitott almenü és telefonméret.
+The existing unit script is `node tests/shell/ui-preferences.mjs`.
+Its last recorded limitation is
+a stale layout double lacking `getRootNode()` (FB-0050). The existing
+`preferences` browser group checks isolation, definition changes, bounds and
+broken storage, but currently needs localhost fixtures and is blocked on this
+host; see [coverage limits](development.md#existing-full-smoke-and-coverage-limits).
+Feedback: FB-0021.
 
+<a id="kompakt-hitelesítési-ablakok-és-menüikonok"></a>
 
-## Kompakt ablakfejléc és teljes mobilmenü
+## Compact authentication windows and menu icons
 
-A natív DHTMLX Window fejléce témától függetlenül 40 px magas, 16 px címfelirattal
-és 32 px bezárógombbal. A gyári 28 px felső és 20 px alsó fejléctérköz helyett
-4 px függőleges, 12 px vízszintes toolbar-padding érvényes. A tartalomhoz
-illeszkedő ablakmérés továbbra is a tényleges fejlécet veszi figyelembe.
-A fejléc alján 1 px, a téma `--dhx-border-color` színét követő vonal választja
-el a tartalmat; a vonal a 40 px magasságon belül marad (FB-0031).
-A fejléc háttérszíne a téma másodlagos háttere: Világos témában világosszürke,
-Éjjeli módban világosabb sötét árnyalat. Skyblue megtartja kék színátmenetét.
+Login and e-mail confirmation use native Window/Form. Rendered button bottoms
+determine height with 24 px lower space, capped by viewport. Resize/validation
+remeasures without activating the window over an error modal. Three equal-width
+confirmation buttons have 8 px gaps; secondary actions are real buttons.
 
-Kompakt főmenüben minden navigációs ág és a Kijelentkezés is a „Menü” gomb alá
-kerül, köztük a natív elválasztóval. Asztali szélességre visszatérve az eredeti
-felső menüsor áll vissza; az ACL és a kijelentkezés POST-folyamata változatlan.
-A fogyasztóban nincs külön konfiguráció. FB-0028.
+Menu icons exist at every level: static items default to folder, features have
+configurable view icons, groups use open folder, compact menu/logout have their
+own icons. Breakpoints include icon width. See [list headings/counts](workspaces.md#listafejléc-és-rekordszám).
 
-## Opcionális nyelvválasztó
+<a id="elkülönülő-főmenügombok"></a>
 
-Az alkalmazás `i18n.selector` beállításával a VAPA natív DHTMLX nyelvválasztót
-tesz a skinválasztó elé, mobilon is. A modal belépésen/megerősítésen belül
-natív ablakon belüli Layoutba csatolt Toolbar biztosítja a nyelvváltást. A nyelvi infrastruktúra választó
-nélkül is aktív; a konfiguráció és megőrzés szerződése: [többnyelvűség](i18n.md).
+## Distinct main-menu buttons
+
+All three themes give native top-level DHTMLX items permanent borders,
+theme backgrounds and 6 px gaps. Skyblue uses a blue gradient, light top edge
+and shadow for the requested classic Windows appearance; hover is gold and
+pressed/open state recessed blue. Keyboard focus has its own outline.
+Submenus retain native list layout. Separators, e.g. before logout, are faint
+1 px vertical lines following theme border color. No consumer configuration;
+rebuild/prepare assets. Historical shell asset version: `v=11`.
+Compact breakpoints include borders/gaps. Verified by `browser.spec.cjs`
+across themes, open submenus and phone width.
+
+<a id="kompakt-ablakfejléc-és-teljes-mobilmenü"></a>
+
+## Compact window header and complete mobile menu
+
+Native Window headers are 40 px high, with 16 px title and 32 px close button.
+Framework padding is 4 px vertical/12 px horizontal instead of factory
+28 px top/20 px bottom. Content sizing measures the actual header. Its 1 px
+bottom line uses `--dhx-border-color` inside the 40 px height (FB-0031).
+The secondary background is light gray in light theme and lighter dark in dark
+theme; Skyblue retains its blue gradient.
+
+Compact navigation puts all branches, logout and the native separator under
+`Menü`. Desktop width restores the original top menu. ACL and logout POST
+behavior stay consistent; no consumer configuration. FB-0028.
+
+<a id="opcionális-nyelvválasztó"></a>
+
+## Optional language selector
+
+`i18n.selector` adds a native language selector before the theme selector,
+including on mobile. A Toolbar attached to native in-window Layout provides
+language switching inside login/confirmation modals. Localization remains active
+without a selector; see [i18n](i18n.md) for configuration and persistence.

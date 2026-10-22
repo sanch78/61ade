@@ -1,108 +1,103 @@
-# Listamegjelenítés: az FB-0019, FB-0020 és FB-0022 ellenőrzése
+# List presentation: verification of FB-0019, FB-0020 and FB-0022
 
-Dátum: 2026-10-17. Állapot: **a kért keretképességek megvalósítva és agent által
-ellenőrizve**. Felhasználói elfogadást és production kiadást nem állítunk.
-Használat: [munkaterületek](workspaces.md#kártyák-rekordadatok-sorszám-és-jelölés).
+Date: 2026-10-17. Historical status: requested framework capabilities implemented
+and verified; no user acceptance or consumer release is claimed.
+[Usage](workspaces.md#kártyák-rekordadatok-sorszám-és-jelölés).
+These are preserved historical results, not checks rerun by translation.
 
-## Követelményenkénti evidencia
+<a id="követelményenkénti-evidencia"></a>
 
-| Követelmény | Megvalósítás és ellenőrzés |
+## Evidence by requirement
+
+| Requirement | Implementation and evidence |
 | --- | --- |
-| Valódi kártyák | A natív DataView szélesség szerint több oszlopot használ; mobilon egyet. `list-presentation.spec.cjs` és a valódi `list-integration.spec.cjs` két szomszédos kártya helyét méri. |
-| Egyetlen gridkeret | A belső layoutok `type: none`, a grid/content nem ad újabb külső bordert. A böngészőteszt számított 0 px belső bordert ellenőriz; a külső Találatok panel megmarad. |
-| Alaphelyzet és login másodlagos gombok | Natív flat gombok ikonokkal. A szűrőpár egy sorban, legalább 8 px távolsággal; a megerősítő ablak gombjai teljes szélességgel, legalább 8 px függőleges térközzel. Tényleges szűrés, mobil/asztali értékmegőrzés és törlés: `list-integration.spec.cjs`; három téma és ablakon belüli geometria: `authentication.spec.cjs`. |
-| Ikonok | A beépített műveletek és a konfigurált action ikonja megjelenik. A fontban minden használt osztály ellenőrzött; a dekoratív ikon `aria-hidden`, az elérhető gombnév tiszta szöveg. A fő műveletek teljes UI-útja és képernyőképei ellenőrzöttek. |
-| A tartalom nem görget bele a toolbarba | `list-presentation.spec.cjs` tényleges egérgörgetést és pozitív Grid scrollpozíciót, illetve tényleges kártyagörgetést követően hit-testtel ellenőrzi a toolbar gombját mindhárom témán. |
-| Teljes rekordadatok ablakban | Sorszám dupla kattintására natív Window nyílik, friss ACL-védett `get` adattal. A valódi JSON-fogyasztó gridből kihagyott leírása megjelenik; a titkos és objektummező-joggal tiltott érték nem jut a válaszba. `list-integration.spec.cjs`, `list-presentation.php`. |
-| Alapértelmezett, kikapcsolható sorszám | A teljes jogosult/szűrt/rendezett halmazon belül folyamatos rang; nem indul újra 600 sornál. PHP `sorting.php`: minden rendezési irány, NULL/azonos érték, előre/hátra lapozás, élő középső ablak, elé beszúrt rekord, szűrés és kikapcsolás. UI kikapcsolás: `list-presentation.spec.cjs`. |
-| Sorjelölés és tömeges művelet | Opt-in, tábla/kártya között megmaradó jelölés. A valódi szintetikus fogyasztó két kijelölt sorát a szerver ténylegesen módosította; a visszatöltött checkboxok is változtak. `list-integration.spec.cjs`. PHP `list-presentation.php`: ACL, API-tiltás, limit, duplikáció, titkos mező tilalma, soronkénti audit, részleges siker és revízióütközés. |
-| A gomb elfér a konténerben, hover alatt is | Toolbar és menüsor méretezése keret-CSS-ben; `list-presentation.spec.cjs` és `browser.spec.cjs` Skyblue/Default/Éjjeli témán mér. A témagomb tényleges hover-képe is ellenőrzött. |
-| Fehér csík a gombsor alatt | A Toolbar teljes cellamagasságot tölt ki, a navbar belső paddingje méretezett. A menüsor alján a teszt csak a natív 1 px panelhatárt engedi; nagy üres sáv nincs. |
-| Nézet-dropdown utolsóként | A műveletek után, spacerrel jobbra igazított natív dropdown; az aktív nézet a feliratban látszik. `list-presentation.spec.cjs` ellenőrzi, hogy utolsó gomb; a váltás és mobil állapot is ellenőrzött. |
-| Rendezés és ceruza nem ütközik | A mezőcím saját szélességű, a hover-ikon külön 24 px helyet kap; aktív rendezéskor nincs második Suite-nyíl. A fejléc CSS-geometriája és az `aria-sort` böngészőben ellenőrzött; a `header-editable-hover.png` és `header-editable-sorted.png` célzott képek vizuális ellenőrzése is sikeres. A rendezés továbbra is a teljes SQL-halmazé. |
+| Actual cards | Native DataView uses multiple columns by width, one on mobile. list-presentation.spec.cjs and real list-integration.spec.cjs measure adjacent positions. |
+| One grid border | Internal layouts type none, no extra grid/content frame. Browser computed inner border is 0; outer results panel remains. |
+| Reset/login secondary buttons | Native flat icons/buttons. Filter pair shares a row with ≥8 px gap; confirmation buttons equal width with ≥8 px vertical gap. Real filter/mobile-desktop value preservation/reset in integration; three-theme window geometry in authentication. |
+| Icons | Built-in/configured action icons, font classes verified; decorative aria-hidden, accessible names plain text. Real action routes/screenshots checked. |
+| Content cannot overdraw toolbar | Actual mouse scrolling, positive Grid scroll and card scroll, then toolbar hit-tests across themes. |
+| Full details window | Ordinal double-click opens native Window with fresh ACL get. Description omitted from real JSON-consumer grid appears; secret/object-field-denied values excluded. Integration/PHP presentation checks. |
+| Default optional numbering | Continuous full authorized/filtered/sorted rank beyond 600 rows. sorting.php checks directions, NULL/ties, forward/backward, middle live windows, preceding insert, filters/off. UI disabling checked. |
+| Marks/bulk | Opt-in survives modes. Real synthetic server changed two marked rows and reloaded checkboxes. PHP checks ACL/API denial/limits/duplicates/secrets/per-row audit/partial success/revision conflicts. |
+| Buttons fit including hover | Shared menu/toolbar sizing checked in Skyblue/Default/dark; actual theme-button hover image inspected. |
+| No white strip below buttons | Toolbar fills cell; measured navbar padding. Only native 1 px lower panel border permitted. |
+| Final view dropdown | Native dropdown after actions/spacer, current mode in label; final-item position/switching/mobile checked. |
+| Sort/edit indicators do not overlap | Title has own width, hover icon reserved 24 px; one active arrow. CSS geometry/aria-sort and targeted header-editable-hover.png/header-editable-sorted.png inspected; full SQL sorting preserved. |
 
-## Lefutott próbák
+<a id="lefutott-próbák"></a>
 
-- `list-presentation.spec.cjs`: **3/3 PASS** a végső, valódi görgetést is mérő változattal.
-- `--project=presentation` / `list-integration.spec.cjs`: **2/2 PASS** a végső, mobil szűrés/Alaphelyzet ellenőrzéssel is.
-- `--project=auth`: **4/4 PASS**; a későbbi egységes szélesség/térköz változtatása után az érintett háromtéma-próba külön **1/1 PASS**.
-- `browser.spec.cjs`: az öt korábbi shell-/login-/témapróba PASS; az új hover-/menüsor-próba a natív 1 px keretet figyelembe vevő javítás után **1/1 PASS**.
-- `mobile-grid.spec.cjs`: a külön szintetikus görgetéspróba PASS; a teljes mobil filter/modal/nézetváltás regressziója a widgetmozgatás megszüntetése után **1/1 PASS**.
-- `workspace.spec.cjs`: **2/2 PASS**, CRUD és polling.
-- `--project=sorting`: **1/1 PASS**, 1801 rekord, szerkeszthető fejléc, SQL-rendezés, kétirányú smart rendering és legfeljebb 600 betöltött sor.
-- PHP `list-presentation.php`, `sorting.php`, `lists.php`, `access.php`, `grid-edit.php`, `contracts.php`: PASS. TypeScript typecheck és frontend build: PASS.
-- A fogyasztó saját szintetikus felhasználólista-integrációja külön ellenőrizte a három témát, rekordablakot, kártyákat, fejlécet, inline mentést és WebSocketes rendezéskövetést; eredménye a fogyasztó dokumentációjában van.
+## Recorded runs
 
-## Reprodukció és környezeti határ
+- list-presentation.spec.cjs: final actual-scroll version 3/3 PASS.
+- presentation / list-integration.spec.cjs: final mobile-filter/reset version 2/2 PASS.
+- auth: 4/4 PASS; later width/gap change reran affected three-theme case 1/1 PASS.
+- browser.spec.cjs: five earlier cases PASS; new hover/menu case 1/1 PASS after respecting native 1 px border.
+- mobile-grid.spec.cjs: synthetic scroll PASS; full filter/modal/mode regression 1/1 PASS after removing widget movement.
+- workspace.spec.cjs: CRUD/polling 2/2 PASS.
+- sorting: 1801 rows, headers/SQL/two-way smart rendering/≤600 loaded, 1/1 PASS.
+- PHP list-presentation/sorting/lists/access/grid-edit/contracts, typecheck/build: PASS.
+- Consumer synthetic users independently checked themes/details/cards/headers/inline/WebSocket sorting; its own documentation holds results.
 
-A `tools/playwright.sh` a meglévő rendszertelepítést indítja a közös
-`run-dev-check.sh` guardon belül: egy worker, közös lock és systemd cgroup.
-`VAPA_PLAYWRIGHT_MODULE` a belépővel azonos rendszer-`@playwright/test`,
-`VAPA_TMP_DIR` a kijelölt projekt-scratch. Nincs projektoldali böngészőtelepítés.
-A rendszerfuttató bekötése: [fejlesztői útmutató](development.md#meglévő-közös-playwright-bekötése).
+<a id="reprodukció-és-környezeti-határ"></a>
+
+## Reproduction and environment boundary
+
+tools/playwright.sh uses installed system Playwright inside run-dev-check.sh,
+one worker/shared lock/cgroup. BLADE_PLAYWRIGHT_MODULE must match runner;
+BLADE_TMP_DIR is project scratch. No project browser install.
+[System runner](development.md#meglévő-közös-playwright-bekötése).
+
+Current supported focused reproduction here:
 
 ```sh
-npm run test:browser -- list-presentation.spec.cjs
-npm run test:browser -- --project=presentation
-npm run test:browser -- --project=auth
-npm run test:browser -- --project=sorting
+npm run test:browser -- --project=shell tests/shell/list-presentation.spec.cjs
 ```
 
-A fenti parancsok a leírt környezeti változókkal futnak. Az artifactok a
-kijelölt scratchben keletkeznek; a képernyőképek szintetikus adatot tartalmaznak.
-A sorjelölés/bulk a meglévő üzleti nézeteken egyelőre kikapcsolva marad,
-a keretben JSON/PHP opt-innel használható. A bulk soronkénti tranzakciójú,
-részleges siker lehetséges; nem teljes csomagra atomikus tranzakció.
+The original presentation/auth/sorting project commands are retained suite
+selectors but need localhost fixtures and must not launch on this host.
+See [current limits](development.md#existing-full-smoke-and-coverage-limits).
+Artifacts use scratch and synthetic data. Existing consumer business views kept
+marks/bulk off; framework JSON/PHP enables it explicitly. Bulk uses per-row
+transactions and may partially succeed, never whole-batch atomicity.
 
-## FB-0023: fejlécek, darabszám és hitelesítési ablakok
+<a id="fb-0023-fejlécek-darabszám-és-hitelesítési-ablakok"></a>
 
-2026-10-17, implementációs checkpoint `3796fea`, a végső CSS-/tesztpontosítással.
+## FB-0023: headings, counts and authentication windows
 
-- `sorting.php`: PASS, az ACL szerinti teljes és szűrt szám nem a limit/kurzor
-  mérete; a középső élő ablakon kívüli beszúrás is frissíti a számot.
-- `lists.php`, `list-presentation.php`, `contracts.php`, typecheck/build: PASS.
-- `--project=presentation`: 2/2 PASS, natív listacím, jobb oldali
-  összes, mobil filter után összes/találat, Alaphelyzet és menüikon.
-- `--project=auth`: végső teljes futás 4/4 PASS; háromtéma-geometria,
-  8 px gombköz, körülbelül 24 px alsó hely (natív keret/kerekítés ±2 px), a gomb
-  alsó szélének tényleges hit-testje, hibás kód utáni modal- és loginfolyamat.
-- `browser.spec.cjs`: 6/6 PASS; `mobile-grid.spec.cjs`: 2/2 PASS.
-- `list-presentation.spec.cjs`: a toolbar/görgetés és dropdown/fejléc két próbája
-  PASS. A kártya/bulk próba a natív átrajzolást megváró geometria és egyetlen
-  DOM-pillanatban mintavételezett mobilkártyák javítása után 1/1 PASS. Az első
-  azonnali koordinátamérés átmeneti pozíciót olvasott; a két egymást követő
-  `boundingBox` hívás a viewportváltás közben lecserélt elemen várt. Nem fix
-  időzített várakozás vagy lazított többoszlopos követelmény került a tesztbe.
-- Fogyasztói háromtéma-, inline- és WebSocket-próbák: 3/3 PASS. A szűrt számláló
-  külső átnevezés hatására 1→0→1 találatot mutat, ugyanannyi összes mellett.
-  A fogyasztó PHP feature- és validációs szerződései is PASS.
-- Dev HTTPS `/v2/`: login PASS, az utolsó gomb alsó széle is kattintható; a
-  kiszolgált `v=8` JS/CSS tartalma a publikált builddel azonos.
+2026-10-17, implementation checkpoint 3796fea with final CSS/test refinements.
 
-A Window/Form kétszeres alsó térközét a hitelesítési ablak keretstílusa
-szünteti meg; puszta magasságcsökkentés levágta volna a gomb alját.
-Az automatikus méretezés nem hív újabb `show`-t a hibaüzenet modalja fölé.
-Vizuálisan ellenőrzött szintetikus képek: `presentation-real-cards.png`,
-`cityscreen-cards-skyblue.png`, `confirmation-skyblue.png`;
-valódi dev login: `dev-login-compact.png`. Artifactgyökér:
-`/space/share/tmp/dev.cityscreen.hu/runtime/vapa-ui/`.
-A Playwright kizárólag a meglévő rendszerszintű runnerrel, a guardon belül futott.
+- sorting.php PASS: full/filtered ACL counts independent of limit/cursor, outside-middle-window inserts update counts.
+- lists/list-presentation/contracts/typecheck/build PASS.
+- presentation 2/2 PASS: native title/right total/mobile total+matched/reset/menu icon.
+- auth final 4/4 PASS: three-theme geometry, 8 px button gaps, about 24 px bottom space (native border/rounding ±2 px), actual lower-button hit-test, error modal/login flow.
+- browser 6/6 PASS, mobile-grid 2/2 PASS.
+- Presentation toolbar/scroll and dropdown/header cases PASS. Card/bulk 1/1 PASS after waiting for redraw geometry and sampling mobile cards in one DOM snapshot. Immediate coordinates had read transitional positions; consecutive boundingBox calls targeted replaced nodes during viewport changes. No fixed wait or weakened column requirement.
+- Consumer themes/inline/WebSocket 3/3 PASS; external rename changed matched 1→0→1 with unchanged total. Consumer PHP feature/validation contracts PASS.
+- Consumer development HTTPS /v2/ login PASS, final-button bottom clickable; served v=8 JS/CSS matched prepared build.
 
-## FB-0024 — Kártyaszerkesztés és ablakok, 2026-10-17
+Framework auth styling removes double Window/Form bottom spacing; height reduction
+alone would clip buttons. Auto-sizing does not call show above the error modal.
+Historically inspected synthetic images: presentation-real-cards.png,
+cityscreen-cards-skyblue.png, confirmation-skyblue.png; actual consumer dev:
+dev-login-compact.png. Historical artifact root:
+`/space/share/tmp/dev.cityscreen.hu/runtime/blade-ui/`. This records earlier
+consumer evidence, not a current 61de scratch location or permission to change it.
+All recorded Playwright runs used the existing guarded system runner.
 
-| Elvárás | Ellenőrzés | Eredmény |
+<a id="fb-0024--kártyaszerkesztés-és-ablakok-2026-10-17"></a>
+
+## FB-0024 — Card editing and windows, 2026-10-17
+
+| Expectation | Check | Result |
 | --- | --- | --- |
-| Kártyán is írható mezők | Natív mezőszerkesztő text/select; közvetlen checkbox; hibás telefon elutasítása és javított mentés/reload | PASS |
-| Gridmentés után nézetváltás | 600 ms késleltetett `__edit` válasz alatti váltás, mentés utáni ismételt kártya/tábla váltás | PASS |
-| Dupla kattintás szövegkijelölés nélkül | Sorszám dupla kattintás: rekordablak megnyílik, `getSelection().toString()` üres | PASS |
-| Kártyarendezés | Toolbar-dropdown SQL-rendezési kérése, aktív sorrend és visszaváltás/reload | PASS |
-| Layout dupla kattintásra reset | Tényleges egérhúzás és dupla kattintás mindkét tengelyen, 260 px induló méret visszaáll | PASS |
-| Tartalomhoz illeszkedő ablakok | Formgomb/adatcikk alatti térköz <40 px; 390×420 viewporton ablak ≤396 px és mindkét szélen ≥12 px | PASS |
+| Editable cards | Native text/select, direct checkbox, invalid phone denial then correction/save/reload | PASS |
+| Switch after grid save | Switch during 600 ms delayed __edit and repeatedly after save | PASS |
+| Double-click without text selection | Ordinal opens details, getSelection().toString() empty | PASS |
+| Card sorting | Dropdown SQL request, current order, switch/reload | PASS |
+| Double-click layout reset | Real dragging/double-click on both axes, restored 260 px | PASS |
+| Content-fit windows | Bottom gap <40 px; at 390×420 height ≤396 px and ≥12 px edges | PASS |
 
-Védett szintetikus Chromium: `--project=grid-edit` **2/2 PASS**;
-`layout-resizer.spec.cjs`, `list-presentation.spec.cjs`, `mobile-grid.spec.cjs`,
-`workspace.spec.cjs` **9/9 PASS**, három téma és élő frissítés mellett.
-A gridfixture futásonként külön, kijelölt scratch-almappát használ; a régi
-futások adatállománya nem befolyásolja a következő próbát.
-TypeScript typecheck/build, PHP `grid-edit.php` és `validation.php` PASS.
-Használat: [kártyaszerkesztés és méretezés](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok).
+Guarded synthetic Chromium grid-edit 2/2 PASS; layout-resizer/list-presentation/
+mobile-grid/workspace 9/9 PASS across themes/live refresh. Grid fixtures use
+per-run scratch, unaffected by old data. Typecheck/build and PHP grid-edit/
+validation PASS. [Usage](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok).

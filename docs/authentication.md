@@ -1,15 +1,34 @@
-# E-mailes belépési megerősítés és megjegyzett belépés
+# Login: passwords, e-mail second factor, OAuth and remembered sessions
 
-A teljes folyamat VAPA-képesség: DHTMLX loginablak, e-mailkód form, megerősítés, session, megjegyzett belépés, levélformázás és audit. A fogyasztó a fiókforrást, e-mail-attribútumot, levélküldési környezetet, szöveget és az adminisztrációhoz tartozó ACL-t deklarálja.
+The complete flow belongs to 61de: DHTMLX login/code forms, verification,
+OAuth through the independent AuthHandler library, sessions, remembered login,
+mail layout and audit. Consumers declare account source/e-mail attribute,
+delivery method/text, OAuth client settings and admin ACL.
 
-## Konfiguráció
+<a id="belépési-módok"></a>
 
-Az alkalmazás JSON-jának opcionális `authentication` szekciója kapcsolja be a képességet. Ha a szolgáltatás konfigurálva van, minden felhasználónál alapból bekapcsolt az e-mailes megerősítés; hiányzó felhasználói beállítás is bekapcsoltat jelent.
+## Login modes
+
+| Mode | Enablement | Permitted account |
+| --- | --- | --- |
+| Password (e-mail/password) | Always | Active, enabled account with correct password. |
+| Password + e-mail code | authentication / LoginSecurity | Account with E-mail confirmation enabled; code required after password. |
+| AuthHandler OAuth (Google/Facebook/other Hybridauth providers) | oauth / AuthHandlerLogin plus built-in admin | Existing exact e-mail match with OAuth enabled and account allowed; password is irrelevant. The provider verification limitation is below. |
+
+All may be enabled together, as in the [feature demo](demos.md).
+Switches are [admin fields](admin.md#fiókkapcsolók).
+
+<a id="konfiguráció"></a>
+
+## Configuration
+
+Optional application authentication enables the capability. With default settings,
+e-mail confirmation is on for every account, including missing per-user settings.
 
 ```json
 {
     "authentication": {
-        "description": "Belépés e-mailes megerősítéssel, opcionális 90 napos megjegyzéssel.",
+        "description": "E-mail verification and optional 90-day remembered login.",
         "email_attribute": "email",
         "default_email_confirmation": true,
         "remember_days": 90,
@@ -24,39 +43,233 @@ Az alkalmazás JSON-jának opcionális `authentication` szekciója kapcsolja be 
 }
 ```
 
-Az `identity.attribute_columns` tartalmazza az `email_attribute` nevét. A SMTP DSN és a feladó env-ben legyen; publikus SMTP-n például `smtp://user:password@smtp.example.test:587?require_tls=true`. A DSN-ben a felhasználónév/jelszó speciális karaktereit URL-kódolni kell. A keret Symfony Mailer `^7.4` és MIME komponenst használ: [hivatalos transport és TLS leírás](https://symfony.com/doc/7.4/mailer.html). A SMTP beállítás soha nem kerül böngészőmetaadatba vagy naplózott hibaüzenetbe.
+identity.attribute_columns must include email_attribute; the login e-mail column
+is always available. Hungarian strings in examples are product/localization text.
 
-A levél HTML és plain-text változatot is tartalmaz. Felülírható szövegek: `subject`, `heading`, `greeting`, `intro`, `code_label`, `expiry`, `footer`. Helyettesítők: `{application}`, `{name}`, `{minutes}`. A HTML-megjelenítés minden üzleti szöveget escape-el. Dinamikus felülbírálás: `mail.text_overrides_binding`, az alkalmazás explicit bindingtérképében regisztrált `(Identity): array` closure, ugyanazokkal a szövegkulcsokkal. Prioritás: keretalap → JSON `texts` → PHP-ból adott felülbírálás. Sem levélsablont, sem küldési/auth flow-t nem kell a fogyasztóban újraírni.
+<a id="levélküldés"></a>
 
-A közvetlen PHP API: `LoginSecurity(Workspace, IdentityProvider, Delivery, LoginMessage, runtime, emailAttribute, ...)`, majd `ApplicationDefinition.authentication`. Egyedi mailprovider a keret `Delivery` interfészéhez illeszthető; a hitelesítési folyamatot továbbra is a VAPA futtatja.
+### Mail delivery
 
-## Belépési folyamat
+mail.transport selects exactly one method:
 
-Helyes jelszó után nincs belépett session, menü, API/UI-adat vagy WebSocket-ticket, amíg a hatjegyű e-mail-kód megerősítése nem sikerül. A kód 10 percig érvényes, egyszer használható és az adott böngésző belépési kísérletéhez kötött. A privát runtime-ban tárolt kulccsal HMAC-elt kód kerül az adatbázisba. A kiadáskor mentett e-mail lenyomata és a hitelesítési verzió váltáskor újra ellenőrzött.
+| transport | Keys | Behavior |
+| --- | --- | --- |
+| smtp (default) | dsn | Symfony Mailer SMTP transport. |
+| command | command argument list; optional command_timeout_seconds 1–300, default 30 | Complete HTML/plain MIME on stdin, sendmail-compatible. Example: ["/usr/sbin/sendmail","-t","-i"]. Exact {recipient} arguments become validated recipient. Nonzero exit/timeout is delivery failure, UI 503 and email_send:error audit. |
 
-Öt hibás kód tízperces felhasználói ablakban korlátozza a további próbálkozást. Új kód legkorábban egy perc után küldhető; tíz perc alatt legfeljebb öt küldés kezdeményezhető felhasználónként. Az új kód az ugyanabban a böngészőben kért előzőt érvényteleníti. A korlátok nem nullázhatók a böngésző sessionjének törlésével. A jelszóoldali külön IP-limit is megmarad. Minden belépési POST CSRF-védett.
+```json
+"mail": {
+    "transport": "command",
+    "command": ["/usr/sbin/sendmail", "-t", "-i"],
+    "from_address": {"$env": "EXAMPLE_MAIL_FROM"},
+    "from_name": "Example admin",
+    "accent_color": "#0f7b6c",
+    "texts": {"footer": "Az Example Kft. automatikus levele."}
+}
+```
 
-Hibás vagy hiányzó e-mail-címnél, lejáratnál, tiltott fióknál vagy küldési hibánál nincs automatikus megkerülés. A cím javítása vagy a megerősítés kikapcsolása az arra jogosult admin feladata. A képesség bevezetése előtt ellenőrizni kell a kézbesítési környezetet és a felhasználói e-mail-adatok teljességét.
+Commands use proc_open array arguments without shell interpretation (R8).
+For pipelines/complex logic, point to a versioned script. Command output is not
+logged. PHP: `new CommandDelivery([...],$from,$fromName)`.
+Demo delivery saves locally for the [mailbox](demos.md#demó-postafiók-mailbox),
+without sending to recipients.
 
-## Felhasználónkénti kapcsoló
+Keep SMTP DSN/sender in env; synthetic example:
+`smtp://user:password@smtp.example.test:587?require_tls=true`. URL-encode
+special username/password characters. The framework uses Symfony Mailer ^7.4
+and MIME; [official transport/TLS reference](https://symfony.com/doc/7.4/mailer.html).
+SMTP settings never enter browser metadata or logged error messages.
 
-A `Settings.get(actorId)` hiányzó rekord esetén is `email_confirmation: 1` értéket ad az alapbeállítással. A `Settings.update(Context, Workspace, actorId, enabled)` a közös végrehajtón belül regisztrált, ACL-ellenőrzött műveletből hívandó; változtatáskor a fiók korábbi VAPA sessionjei és megjegyzett belépései érvénytelenednek.
+Mail has HTML/plain variants. Reusable `Blade\Mail\Layout` supplies an
+e-mail-client-compatible colored application header, card, highlighted code and
+footer. Consumers override texts and #rrggbb accent_color, not markup.
+Text keys: subject, heading, greeting, intro, code_label, expiry, footer.
+Placeholders: {application}, {name}, {minutes}. All business text is HTML-escaped.
+Dynamic mail.text_overrides_binding names an explicitly registered
+`(Identity): array` closure using those keys.
+Precedence: framework defaults → JSON texts → PHP override.
+No consumer rewrite of templates/delivery/auth flow is needed.
 
-Az e-mailes megerősítés kapcsolójának adminfelülete jelenleg a fogyasztóé; a VAPA [felhasználóadminja](admin.md) (A1) még nem tartalmazza. A kapcsolót az objektum főűrlapján célszerű deklarálni: [kapcsolt tárolás és checkbox](field-presentation.md). A mapping a settings táblájára mutat; az alkalmazás after_save hookja tényleges változáskor a VAPA `Workspace::revokeSessions` szolgáltatását hívja. Saját beállítás módosításakor `reauthenticate: true` válasz kér új belépést. A szintetikus [members.json](../tests/fixtures/authentication/members.json) a továbbra is támogatott külön `security` action API-ját példázza; ez nem kötelező UI-minta. A `form_values` binding kezdőértéket ad egy regisztrált action saját formjához; a `handler` a keretszolgáltatást hívja. A VAPA felhasználóadminja bekapcsolva kötelező jelszócserét is kér: a megerősített belépés után ideiglenes jelszónál a jelszócsere következik, és csak utána jön létre session vagy megjegyzett belépés ([felhasználóadmin](admin.md#elvárt-működés)).
+PHP: `LoginSecurity(Workspace,IdentityProvider,Delivery,LoginMessage,runtime,emailAttribute,...)`,
+then ApplicationDefinition.authentication. Custom providers implement Delivery;
+61de still owns authentication.
 
-## Bejelentkezve maradok
+<a id="belépési-folyamat"></a>
 
-A checkbox nélkül csak normál session készül. Bekapcsolva, teljes sikeres hitelesítés után külön, véletlen 256 bites titkot tartalmazó HttpOnly/SameSite cookie jön létre. TLS kiszolgáláskor Secure, hosthoz kötött, az alkalmazás cookie-útvonalán érvényes; nem localStorage. A keret a szerveren csak a titok hashét tárolja, lejárata kiadástól számított **90 nap**, visszaállításkor nem tolódik ki.
+## Login flow
 
-Új böngészősessionben ez új VAPA sessiont állít vissza, és forgatja a megjegyzett titkot. Régi titok újrajátszása elutasított és az adott megjegyzés visszavont. Logout a jelenlegi megjegyzett belépést törli. Jelszóváltás, fióktiltás és hitelesítési beállítás változtatása a VAPA hitelesítési verzióján keresztül visszavonja az összes ilyen belépést. Az alkalmazás e-mail-cím változtatásakor is hívja a `Workspace.revokeSessions(actorId)` metódust.
+After a correct password there is no authenticated session/menu/API/UI data/
+WebSocket ticket until a six-digit code succeeds. The code is single-use,
+valid ten minutes and bound to that browser's attempt. Database storage is
+HMAC with a key in private runtime. Saved e-mail fingerprint/authentication
+version are rechecked on transition.
 
-A már meglévő, e-mailvédelmet megelőző sessionök nem használhatók az új képesség bevezetése után; új hitelesítés kell. A régi, VAPA-n kívüli rendszer sessionjei és közvetlen jelszóírásai nincsenek automatikusan összekapcsolva a VAPA verziójával; az integráló folyamatnak explicit visszavonást kell hívnia.
+Five bad codes in a ten-minute account window limit further attempts.
+Resend waits one minute; at most five sends per ten minutes/account.
+New code invalidates that browser's predecessor. Clearing browser sessions
+does not reset limits. Password IP limits remain separate. All login POSTs use CSRF.
 
-## Telepítés és ellenőrzés
+Missing/invalid e-mail, expiry, disabled account or delivery failure has no
+automatic bypass. An authorized admin corrects the address or disables
+confirmation. Check delivery readiness and e-mail completeness before enabling.
 
-PHP 8.4+, PDO és Symfony Mailer dependency. Az explicit `Schema.install` új táblái: `vapa_auth_settings`, `vapa_login_challenges`, `vapa_remembered_logins`. HTTP kérés nem futtat DDL-migrációt. A privát runtime/sessions/login és `authentication.key` nem lehet publikus vagy verziókezelt. Több példány esetén a sessiont és a privát kulcsot közösen kell kezelni. A lejárt challenge- és remember-rekordok rendszeres takarítása üzemeltetési feladat; nem tolja ki a lejáratot.
+<a id="felhasználónkénti-kapcsoló"></a>
 
-- `tests/shell/authentication.php`: default-on, per-user kapcsoló és ACL, téves/lejárt/másik böngészőhöz tartozó/újrajátszott kód, tartós próbálkozáskorlát, megjegyzett titok hash/forgatás/lejárat/visszavonás, érzékeny adat nélküli audit.
-- `VAPA_PHP=/path/to/php npm run test:browser -- --project=auth`: elkülönített szintetikus SMTP-catcher + JSON-alkalmazás, a tényleges Symfony SMTP/MIME és natív DHTMLX UI. A teszt levelei csak `tmp/auth-fixture` alatt maradnak, nem valódi címzettekhez mennek.
+## Per-user switch
 
-A megközelítéshez használt források: [OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html), [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html). Az e-mailes megerősítés nem phishing-rezisztens hitelesítő; passkey/TOTP és külső identity provider (a tervezett Google/Facebook-belépés is) jelenleg nincs implementálva.
+Settings.get(actorId) returns email_confirmation 1 for missing rows under defaults.
+Call Settings.update(Context,Workspace,actorId,enabled) only within a registered
+ACL-checked executor action. Changes invalidate existing sessions/remembered login.
+
+The built-in [admin checkbox](admin.md#fiókkapcsolók) appears in form/grid when
+authentication is configured, replacing the earlier consumer-owned UI.
+Self-change returns reauthenticate true. [members.json](../tests/fixtures/authentication/members.json)
+retains the supported separate security action API as an example, not a required
+UI pattern. form_values supplies initial values for an action's own form;
+handler calls the framework service. Temporary-password accounts proceed from
+verified login to forced change, and only afterward receive a session/remember
+credential; see [admin behavior](admin.md#elvárt-működés).
+
+<a id="bejelentkezve-maradok"></a>
+
+## Remember me
+
+Without the checkbox, only an ordinary session is created. After complete
+authentication with it, a separate random 256-bit secret is placed in an
+HttpOnly/SameSite cookie, Secure on TLS, host-bound and scoped to application path;
+never localStorage. Server stores hash only. Absolute expiry is 90 days from
+issue and never slides on restore.
+
+A new browser session restores a 61de session and rotates the secret. Replay
+of an old secret is rejected and revokes that remembered login. Logout clears
+the current remembered credential. Password/account/auth-setting changes revoke
+all via authentication version. E-mail updates must also call
+Workspace.revokeSessions(actorId).
+
+Sessions predating e-mail protection require new authentication when it is
+introduced. Legacy non-61de sessions/direct password writes are not automatically
+version-linked; integration must explicitly revoke them.
+
+<a id="telepítés-és-ellenőrzés"></a>
+
+## Installation and verification
+
+PHP 8.4+, PDO, Symfony Mailer dependency. Explicit Schema.install adds
+blade_auth_settings, blade_login_challenges, blade_remembered_logins.
+No request-time DDL. Private runtime/sessions/login and authentication.key must
+be nonpublic/unversioned. Multiple instances need shared sessions/key.
+Expired challenges/remember records require operational cleanup; cleanup does
+not extend validity.
+
+- `php8.4 tests/shell/mail.php`: command stdin MIME, recipient substitution/option-like recipient, exit errors, transport choice, layout escaping/text/color.
+- `php8.4 tests/shell/authentication.php`: default-on/per-user ACL, wrong/expired/cross-browser/replayed code, persistent limits, remember hash/rotation/expiry/revoke, sensitive-data-free audit.
+- The existing auth browser project historically used isolated synthetic SMTP capture/JSON application with real Symfony SMTP/MIME and DHTMLX. It writes synthetic mail under tmp/auth-fixture. It needs a localhost server and must not launch here; [managed-only limits](development.md#existing-full-smoke-and-coverage-limits) apply. Managed demo mailbox checks cover a subset.
+
+<a id="oauth-belépés-authhandler"></a>
+
+## OAuth login (AuthHandler)
+
+The independent _AuthHandler library runs OAuth unchanged
+([FB-0046](feedback.md#fb-0046--oauth-az-önálló-authhandler-könyvtárral-szebb-nyelvsor-helyi-playwright-törölve)).
+An external-account button appears when at least one provider is listed and not
+disabled. It opens AuthHandler's native overlay with Google/Facebook icons,
+even without credentials ([FB-0047](feedback.md#fb-0047--valódi-google--és-facebook-gomb-az-authhandler-overlay-én-mockup-nélkül)).
+Without keys, 61de intercepts start and returns setup feedback to login, auditing
+oauth_start denial. With keys, AuthHandler owns redirect/callback through
+Hybridauth and its identity store, in short-lived session `<sessionName>_oauth`.
+
+On return, 61de reads the AuthHandler e-mail, destroys that session immediately
+and decides independently. Only existing lowercase exact-match accounts with
+OAuth enabled and not disabled can enter. Unknown/disabled/disallowed accounts
+share one generic message. Password, pending temporary-password state and
+e-mail code are not required in this path. Unknown addresses may create rows
+in AuthHandler's private oauth-identities.sqlite; these confer no 61de rights.
+Account language and remember selection, transferred through post-login
+blade_remember=1, apply.
+
+Known limitation: AuthHandler does not expose email_verified, so 61de cannot
+check it. The prior integration assumption was that configured Google/Facebook
+flows provide confirmed addresses; that assumption is not independent verification
+by 61de. Other providers require an explicit trust policy. Any library enhancement
+belongs in AuthHandler's own repository.
+
+Prerequisites:
+
+- `lib/_AuthHandler -> ../../_AuthHandler`; public links expose only AuthHandler.js, AuthHandler.css and images under public/lib/_AuthHandler, never PHP source.
+- HTTPS because AuthHandler cookies are always Secure; PHP cURL for Hybridauth.
+- Fixed site_url and exact registered callback `<site_url>?ah_action=provider&provider=<Name>&callback=1`.
+- Built-in user admin with oauth true.
+
+The overlay uses Bootstrap modal markup. 61de supplies a small compatible shim
+only without Bootstrap, plus scoped theme header/border styling; global Bootstrap
+CSS never enters the DHTMLX interface. Overlay is above the top DHTMLX layer.
+The same-origin `./?blade_auth=bootstrap` script preserves script-src self CSP.
+
+```json
+"oauth": {
+    "module": "../lib/_AuthHandler",
+    "assets": "lib/_AuthHandler",
+    "site_url": "https://admin.example.test/",
+    "providers": {
+        "Google": {"keys": {"id": {"$env": "GOOGLE_CLIENT_ID", "default": ""}, "secret": {"$env": "GOOGLE_CLIENT_SECRET", "default": ""}}, "scope": "openid email profile"},
+        "Facebook": {"keys": {"id": {"$env": "FACEBOOK_APP_ID", "default": ""}, "secret": {"$env": "FACEBOOK_APP_SECRET", "default": ""}}, "scope": "email"}
+    },
+    "texts": {"registration_with_provider_google": {"hu": "Google-fiók", "en": "Google account"}}
+}
+```
+
+- Module is the filesystem path relative to configuration; assets is browser-relative. Optional storage defaults to runtime/oauth-identities.sqlite. Texts follow AuthHandler lang.json key → {language:text}.
+- Names follow AuthHandler capitalization (Google/Facebook). Hybridauth adapter can select a custom adapter. Enabled false hides; empty keys keep buttons with feedback.
+- PHP: `new AuthHandlerLogin($moduleDir,'lib/_AuthHandler',$providers,$accounts,$identities,$workspace,$storage,$siteUrl,texts: …)`, then ApplicationDefinition(oauth: …).
+- AuthHandler receives only provider operations. provider_only_auth disables its password/register/reset flows; 61de owns those.
+- Audit: authentication.oauth_start, oauth_callback, oauth_login success/denial, without token/e-mail values.
+
+<a id="szolgáltatói-beállítás-google-facebook"></a>
+
+### Provider settings (Google, Facebook)
+
+The development hostname is 61ade.sanch.hu. These are required configuration
+values, not a claim of external-console verification. Latest evidence:
+[FB-0050](feedback.md#fb-0050), Google redirect_uri_mismatch, no completed
+real-provider login.
+
+The ignored [demo env](../examples/demo-app/.env) is reread each request;
+no restart is required. Only developer/web-server principals may read it.
+
+```ini
+BLADE_DEMO_GOOGLE_CLIENT_ID=
+BLADE_DEMO_GOOGLE_CLIENT_SECRET=
+BLADE_DEMO_FACEBOOK_CLIENT_ID=
+BLADE_DEMO_FACEBOOK_CLIENT_SECRET=
+```
+
+An existing own-site Google client/Facebook app may be reused by adding the
+callback/domain. The existing app name then appears during login; rotating its
+secret affects all associated sites. 61de matches e-mail, not app-specific IDs.
+This demo uses an existing own-domain app per FB-0047.
+
+Register the exact callback. The historical guide notes that Google changes
+may take several minutes to take effect; until then mismatch can occur.
+
+| Setting | Google | Facebook |
+| --- | --- | --- |
+| Console | [Google Cloud](https://console.cloud.google.com/) → APIs & Services | [Meta developers](https://developers.facebook.com/apps/) → My Apps |
+| Preparation | Consent screen / Branding/Audience, External, application/support details; Testing requires test-user addresses | Authenticate/request data with Facebook Login; Development permits assigned app roles only |
+| Client | Credentials → OAuth client ID → Web application | Use cases → Facebook Login → Settings |
+| Origin/domain | https://61ade.sanch.hu | App settings → Basic → App domains: 61ade.sanch.hu |
+| Callback | `https://61ade.sanch.hu/?ah_action=provider&provider=Google&callback=1` | `https://61ade.sanch.hu/?ah_action=provider&provider=Facebook&callback=1`; Client OAuth login/Web OAuth login/Enforce HTTPS enabled |
+| Scope | openid email profile; previously documented as nonsensitive | email, public_profile; previously documented as standard |
+| Env | Client ID/secret → BLADE_DEMO_GOOGLE_CLIENT_ID/_SECRET | App ID/secret → BLADE_DEMO_FACEBOOK_CLIENT_ID/_SECRET |
+
+The account e-mail must match and OAuth permission must be enabled in Users.
+Provider callbacks pass through the browser; server initiates outbound token
+exchange, so the managed site's client-IP restriction remains compatible.
+
+Verification: oauth.php checks provider filtering/configuration, single-use
+handoff, account allow/off/unknown/invalid/disabled decisions, audit/protections
+and JSON; configuration.php; managed demo.spec.cjs checks overlay/native icons
+and start or missing-key feedback. Starting a provider is not completed login.
+Original design references: [OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html),
+[OWASP Sessions](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html),
+[Hybridauth](https://hybridauth.github.io/).
+E-mail verification is not phishing-resistant; passkeys/TOTP are not implemented.

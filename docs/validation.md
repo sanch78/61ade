@@ -1,6 +1,9 @@
-# Deklaratív formvalidáció és migráció
+# Declarative form validation and migration
 
-A validáció ugyanabból a `Field`-definícióból működik DHTMLX Formban és a szerveroldali UI/API műveletvégrehajtóban. A kliens ellenőrzése gyors visszajelzés; a backend minden beküldést ellenőriz. A hibás mezők név szerinti `fieldErrors` válaszban érkeznek, a nyitott form megőrzi a kitöltött értékeket, és natív DHTMLX mezőhiba jelenik meg.
+The same `Field` definition drives DHTMLX Form and server-side UI/API action
+validation. Client checks give quick feedback; the backend checks every
+submission. Named `fieldErrors` preserve entered form values and produce native
+DHTMLX field errors.
 
 ```json
 {
@@ -20,27 +23,42 @@ A validáció ugyanabból a `Field`-definícióból működik DHTMLX Formban és
 }
 ```
 
-| Szabály | Végrehajtás |
+The example retains Hungarian product labels/messages.
+
+| Rule | Behavior |
 | --- | --- |
-| `required`, `max` | Kötelezőség és Unicode-karakterszám felső korlátja. Az üres opcionális érték a formátumszabályokat kihagyja. |
-| `validation.min_length` | Unicode-karakterszám alsó korlátja. |
-| `validation.pattern` | `expression`, opcionális `flags: "i"`, `message`. Közös JavaScript/PCRE szintaxisú reguláris kifejezést kell használni, PHP-delimiterek nélkül. |
-| `validation.matches_field` | Másik beküldött mező nevével azonos érték; például jelszómegerősítés. |
-| `validation.unique` | A `SqlResource` a konkrét táblában ellenőrzi az érték egyediségét, módosításkor a jelenlegi objektumot kihagyja. Csak szerveroldali, nincs külön kliensoldali adatlekérdezés. |
-| `type: number/select` | Nemnegatív egész szám, illetve az ACL-szűrt választék egyik eleme. |
+| `required`, `max` | Required value and maximum Unicode character count. Empty optional values skip format rules. |
+| `validation.min_length` | Minimum Unicode character count. |
+| `validation.pattern` | `expression`, optional `flags: "i"`, `message`. Use portable JavaScript/PCRE syntax without PHP delimiters. |
+| `validation.matches_field` | Equality with another submitted field, for example password confirmation. |
+| `validation.unique` | `SqlResource` checks the concrete table, excluding the current object on update. Server-only, without a separate client data query. |
+| `type: number/select` | Nonnegative integer or a member of the ACL-filtered choices. |
 
-Szövegnél a keret trimel; `secret` mezőnél a szóköz is az érték része. A jelszómegerősítés a beküldött párt ellenőrzi. A minták a fejlesztő által megadott, megbízható konfiguráció részei, nem felhasználói regexek. Nem támogatott regexflagek és hibás definíciók induláskor hibát adnak. A két regexmotor minden speciális konstrukcióját nem konvertáljuk; hordozható kifejezést és UI/backend tesztet kell használni.
+Text is trimmed; spaces remain significant in `secret` fields. Password
+confirmation checks the submitted pair. Patterns are trusted developer
+configuration, not user-supplied regexes. Invalid definitions and unsupported
+flags fail at startup. The framework does not translate all engine-specific
+constructs; use portable expressions and UI/backend checks.
 
-A `unique` előellenőrzés érthető hibát biztosít, de párhuzamos írás ellen adatbázisbeli UNIQUE constraint is szükséges. Az ellenőrzés a teljes táblát figyeli, a nem látható vagy törölt sorokat is; a foglalt érték nem foglalható újra pusztán UI-szűréssel. Nem adja vissza a másik rekord adatait. A hiba nem tartalmazhat beküldött jelszót, tokent vagy érzékeny értéket; az audit mezőneveket és eredményt tárol.
+A uniqueness precheck gives useful feedback, but concurrent writes also require
+a database UNIQUE constraint. It checks the whole table, including invisible/
+deleted rows; UI filters cannot make an occupied value reusable. No other record
+data is returned. Errors must never include submitted passwords, tokens or
+sensitive values; audit stores field names and outcome.
 
-## Kötelező feature-migrációs lépés
+<a id="kötelező-feature-migrációs-lépés"></a>
 
-Minden átvezetett feature előtt fel kell mérni a referencia modul, lokális felülírás, közös konfiguráció és mentési folyamat validációit. A kötelező mezők átvétele önmagában nem teljes migráció.
+## Mandatory feature migration step
 
-1. Mezőnként rögzítsd a formátumot, hosszt, egyediséget, kapcsolati/keresztmezős feltételt és védett értékeket.
-2. Az általános mechanizmust a VAPA-ba emeld; a konkrét regexet, határértéket, üzenetet és üzleti kivételt a fogyasztó JSON-jában/PHP-szabályában tartsd.
-3. A kiváltott régi jogosultságmezőket az új ACL-lel feleltesd meg. Ne másold vissza a régi flagalapú jogrendszert.
-4. Minden eltérést dokumentálj; felhasználói döntés nélkül ne tekints elveszett validációt elfogadott változásnak.
-5. Ellenőrizd a natív form visszajelzését és a közvetlen szerver/API beküldést is. Hibánál ne legyen részleges mentés; javítás után ugyanabból a formból lehessen újra küldeni.
+Before migrating a feature, inventory reference-module, local-override, shared-
+configuration and persistence validation. Required fields alone are not parity.
 
-Ellenőrzés: `tests/shell/validation.php`, az ACL-végrehajtó szerződéstesztjei, és a fogyasztó referencia szerinti mező-/egyediség-/jelszó-/böngészőtesztjei. A keret szintetikus példái nem tartalmaznak fogyasztói neveket vagy konkrét üzleti regexeket.
+1. Record each field's format, length, uniqueness, relation/cross-field constraints and protected values.
+2. Put general validation in 61de; keep concrete regexes, limits, messages and business exceptions in consumer JSON/PHP.
+3. Map replaced legacy permission fields to the new ACL; do not recreate flag-based authorization.
+4. Document every difference. Lost validation is not an accepted change without an owner decision.
+5. Check native form feedback and direct server/API submission. Errors must not partially save; correction must allow resubmission from the same form.
+
+Verification: `tests/shell/validation.php`, ACL executor contracts and consumer
+reference-parity field/uniqueness/password/browser tests. Framework fixtures
+contain no consumer names or concrete business regexes.
