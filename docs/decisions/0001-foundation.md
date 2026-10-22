@@ -1,25 +1,44 @@
-# ADR-0001 — Alapirány és nyitott döntések
+# ADR-0001 — Foundation and open decisions
 
-Dátum: 2026-10-16.
+Date: 2026-10-16.
 
-## Elfogadott felhasználói döntések
+Historical decision: identity/repository/checkout details were superseded on
+2026-10-21 by [FB-0049](../feedback.md#fb-0049). Current identity: 61de,
+checkout /space/share/libs/61ade, one development environment
+https://61ade.sanch.hu/, without deployment or project backups.
 
-## Ebben a scaffoldban választott technikai alapértékek
+<a id="elfogadott-felhasználói-döntések"></a>
 
-- Canonical checkout: `/space/frameworks/vapa`.
-- PHP és frontend csomag egy VAPA-monorepóban; PHP namespace `Vapa\\`.
-- PHP minimum 8.4 a manifestben; frontend TypeScript tervezett.
-- Példaalkalmazás szintetikus, alkalmazásfüggetlen domainnel.
-- A jelenlegi frontendcsomag private, publikálást véletlenül sem indítunk.
+## Accepted owner decisions
 
-## Javaslat, M1-ben véglegesítendő
+<a id="ebben-a-scaffoldban-választott-technikai-alapértékek"></a>
 
-Symfony 7.4 LTS hosting, mert bevált infrastruktúrát ad HTTP, DI, validáció, security és jobkezelés számára. A felhasználó modern PHP-t választott, konkrét PHP-frameworköt nem; ezt nem kezeljük korábban jóváhagyott termékválasztásként.
+## Scaffold technical defaults
 
-## Nyitott döntések, határidővel
+- Canonical checkout: /space/share/libs/61ade.
+- PHP/frontend packages share the 61de monorepo; namespace Blade.
+- Manifest minimum PHP 8.4; TypeScript frontend planned at this checkpoint.
+- Example application uses an independent synthetic domain.
+- Frontend package is private; no accidental publication.
 
-A dokumentáció szándékosan nem nevez nyitott döntést kész implementációs szerződésnek. A következő fázisok feladata ezek lezárása.
+<a id="javaslat-m1-ben-véglegesítendő"></a>
 
-## Későbbi pontosítás — 2026-10-21
+## Proposal to settle in M1
 
-A PHP-választás a referencia-backendre vonatkozik; a frontend nyelvfüggetlen JSON-szerződésen kommunikál. A verziókezelt feature-definíciók tagolt JSON-ban is készülhetnek. Részletek: [ADR-0003](0003-product-direction.md).
+Symfony 7.4 LTS hosting for established HTTP/DI/validation/security/jobs.
+The owner selected modern PHP, not a specific PHP framework. This remains a
+proposal rather than a previously approved product choice.
+
+<a id="nyitott-döntések-határidővel"></a>
+
+## Open decisions and deadlines
+
+Open choices are not completed implementation contracts; later phases must settle them.
+
+<a id="későbbi-pontosítás--2026-10-21"></a>
+
+## Later clarification — 2026-10-21
+
+PHP is the reference backend. The frontend targets a language-independent JSON
+contract; versioned modular JSON is also a valid feature-definition format.
+See [ADR-0003](0003-product-direction.md).

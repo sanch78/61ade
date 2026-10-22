@@ -1,33 +1,50 @@
-# Beépített felhasználóadmin
+# Built-in user administration
 
-Állapot: **A1 és A2 részszelet megvalósítva és agent által ellenőrizve**, 2026-10-21; felhasználói elfogadás még nincs. Terv és további részszeletek: [adminmodul első szelet](admin-module-plan.md). Követelmények: R5, R6 ([termékirány](product-direction.md)); döntések: [FB-0038](feedback.md#fb-0038--fiókéletciklus-döntések-az-első-adminszelethez).
+Status: A1/A2/A3 implemented and verified, 2026-10-21; user acceptance remains
+open. Account state uses form/grid checkboxes
+([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)).
+See [admin plan](admin-module-plan.md), [R5/R6](product-direction.md) and
+[FB-0038](feedback.md#fb-0038--fiókéletciklus-döntések-az-első-adminszelethez).
 
-## Cél és hatókör
+<a id="cél-és-hatókör"></a>
 
-A VAPA saját felhasználóadminja az alkalmazás meglévő fióktáblája fölött. A keret adja a nézetet, a műveleteket, a jogosultságot, az auditot, az ideiglenes jelszót és a kötelező jelszócserét. Az alkalmazás csak az identity mappinget, a beszúráskori alapértékeket és az ACL-jogosultságokat adja meg.
+## Purpose and scope
 
-Megvalósítva: lista és szűrés; létrehozás (teljes név, e-mail), amely generált ideiglenes jelszót ad; név és e-mail módosítása; tiltás és visszaengedés; új ideiglenes jelszó; kötelező jelszócsere az első belépéskor. A bejelentkezési azonosító az e-mail-cím.
+Framework-owned admin over the application's existing account table. 61de
+provides views/actions/permissions/audit, temporary passwords and forced changes.
+Consumers provide identity mapping, insertion defaults and explicit ACL.
 
-A2: szerepkörök, szerepkör-tagságok, szerepkör- és egyedi jogosultságok a definíciókból képzett katalógus alapján; védett szerepkör, utolsó aktív tag és saját tagság védelme; első admin explicit telepítőlépéssel. Részletek: [Szerepkörök és jogosultságok](#szerepkörök-és-jogosultságok-a2).
+Implemented: list/filter, create with full name/e-mail and generated temporary
+password, edit name/e-mail, Disabled checkbox in form/grid (no separate
+disable/enable buttons); optional OAuth, e-mail confirmation and default language
+[fields](#fiókkapcsolók); replacement temporary password; forced first-login change.
+Login identifier is e-mail.
 
-Még nincs: API-kulcsok (A3), naplónézet (A4), e-mailes jelszó-helyreállítás (A5), az e-mailes megerősítés kapcsolója az adminnézetben.
+A2 supplies roles, memberships, role/individual rules from the generated catalog,
+protected-role/last-active-member/self-membership protection and explicit first
+admin setup. A3 supplies key issue/scope/revoke. Log view A4 and e-mail password
+recovery A5 are not implemented.
 
-## Előfeltételek
+<a id="előfeltételek"></a>
 
-- PHP 8.4+, PDO; a `Schema::install` explicit futtatása (új tábla: `vapa_account_state`). HTTP-kérés nem futtat DDL-t.
-- A fióktáblában van egyedi e-mail-, név- és jelszóoszlop; az oszlopnevek kisbetűs SQL-azonosítók.
-- Egyedi hash-formátum (`identity.password_verifier`) esetén kötelező az `admin.password_encoder` binding is, különben az új jelszó nem lenne ellenőrizhető.
-- Az adminműveleteket ACL-szabályok engedik; nincs admin bypass.
+## Prerequisites
 
-## Alkalmazás
+- PHP 8.4+, PDO, explicit Schema::install including blade_account_state. No HTTP DDL.
+- Account table with unique e-mail, name and password columns; lowercase SQL identifiers.
+- Custom identity.password_verifier requires admin.password_encoder so generated passwords remain verifiable.
+- ACL must allow admin actions; no admin bypass.
 
-JSON-alkalmazásban az `admin` szekció kapcsolja be; az identity mapping `username_column` értéke az e-mail-oszlop:
+<a id="alkalmazás"></a>
+
+## Integration
+
+The JSON admin section enables it; identity.username_column is the e-mail column:
 
 ```json
 {
     "identity": {"table": "accounts", "id_column": "id", "username_column": "email", "password_column": "password_hash", "name_column": "display_name"},
     "admin": {
-        "description": "Beépített felhasználóadmin.",
+        "description": "Built-in user administration.",
         "group": "Adminisztráció",
         "create_defaults": {"active": 1},
         "temporary_password_hours": 72
@@ -35,67 +52,132 @@ JSON-alkalmazásban az `admin` szekció kapcsolja be; az identity mapping `usern
 }
 ```
 
-| Kulcs | Jelentés |
+| Key | Meaning |
 | --- | --- |
-| `group`, `users_title` | Menücsoport és nézetcím (alapértelmezés: „Adminisztráció”, „Felhasználók”). |
-| `create` | `false`, ha a fióktábla nem enged beszúrást: a létrehozás nincs regisztrálva, a meglévő fiókok kezelhetők. |
-| `create_defaults` | A fióktábla további kötelező oszlopainak értéke beszúráskor (string vagy egész). Identity-oszlop nem adható meg. |
-| `password_encoder` | Név szerint regisztrált `(string $password): string` closure az alkalmazás hash-formátumához. |
-| `temporary_password_hours` | Az ideiglenes jelszó élettartama (1–720, alapértelmezés 72). |
+| group, users_title | Menu group/view title; localized defaults Administration/Users. |
+| create | false for non-insertable tables; create is unregistered, existing accounts remain manageable. |
+| create_defaults | String/integer values for other mandatory columns; identity columns cannot be supplied. |
+| password_encoder | Named `(string $password): string` closure for the consumer hash format. |
+| temporary_password_hours | 1–720, default 72. |
+| protected_role | Stable role key, default admin. |
 
-PHP API (a demó így használja, [application.php](../examples/demo-app/application.php)):
+The section enables all current mandatory admin views (users/ACL/API keys).
+Switches appear automatically: OAuth when oauth is configured, confirmation
+when authentication is configured (default_email_confirmation), language when
+i18n offers more than one.
+
+PHP API, as in [application.php](../examples/demo-app/application.php):
 
 ```php
-$accounts = new Accounts($workspace, 'accounts', 'id', 'email', 'display_name', 'password_hash', createDefaults: ['active' => 1]);
-$accounts->register($workspace->registry);
-$identities = $accounts->identities(new SqlIdentityProvider($workspace->db, 'accounts', 'id', 'email', 'password_hash', 'display_name'));
+$accounts = new Accounts($workspace, 'accounts', 'id', 'email', 'display_name', 'password_hash', createDefaults: ['active' => 1],
+    languages: $languages, oauth: true, emailConfirmation: false); // optional switches
+$identities = Administration::register($workspace, $accounts, new SqlIdentityProvider($workspace->db, 'accounts', 'id', 'email', 'password_hash', 'display_name'));
 // ApplicationDefinition(..., identities: $identities, workspace: $workspace, accounts: $accounts)
 ```
 
-Jogosultság (példa, az alkalmazás auditált migrációjában): `vapa_users` erőforrás, műveletek `list`, `get`, `create`, `update`, `deactivate`, `reactivate`, `temporary_password`, csatorna `ui`. API-hozzáférés külön `api` szabályt és token-scope-ot igényel.
+In an audited consumer migration, allow blade_users list/get/create/update/
+temporary_password on ui. Switches use update or shared __edit with optional
+field narrowing. API needs api-channel rules plus token scope. Earlier
+deactivate/reactivate rules become powerless orphans marked absent from catalog
+and may be deleted.
 
-## Elvárt működés
+<a id="elvárt-működés"></a>
 
-- **Létrehozás:** az e-mail kisbetűsítve, szóközök nélkül, egyediként tárolódik. A VAPA 20 karakteres ideiglenes jelszót generál, amely egyszer jelenik meg az adminnak, és 72 óráig érvényes. A naplóba csak mezőnevek kerülnek, jelszó soha.
-- **Első belépés:** helyes ideiglenes jelszó (és bekapcsolt e-mailes megerősítés esetén a kód) után nincs session, menü, munkaterület, API vagy megjegyzett belépés, csak a „Jelszócsere” ablak. Az új jelszó 12–128 karakter, megerősítéssel, és nem egyezhet az ideiglenes jelszóval. Siker után az összes korábbi session és token visszavonódik, és létrejön a teljes session. A cserére 10 perc áll rendelkezésre.
-- **Lejárt ideiglenes jelszó:** a belépés elutasított; az admin új ideiglenes jelszót ad.
-- **Tiltás:** azonnal visszavonja a fiók sessionjeit, megjegyzett belépéseit és API-tokenjeit. A saját fiók nem tiltható le; ismételt tiltás vagy visszaengedés 409. A tiltás a fogyasztó saját `allowed` feltétele mellett, attól függetlenül érvényes.
-- **E-mail módosítása:** visszavonja a fiók minden sessionjét és tokenjét; saját e-mail módosításakor új belépés szükséges.
-- **Új ideiglenes jelszó:** másik fióknak adható, a saját fióknak nem.
-- A „Tiltva” és „Jelszócsere szükséges” oszlop csak olvasható; állapotváltozás után a régi revízióval küldött mentés 409.
+## Expected behavior
 
-## Ellenőrzés
+- Create normalizes e-mail to lowercase without spaces and enforces uniqueness. A generated 20-character password appears once, valid 72 hours by default. Audit contains field names, never password.
+- Correct temporary password plus enabled e-mail code reaches only Password change, without authenticated session/menu/workspace/API/remember credential. New password is 12–128 characters with confirmation and must differ from temporary password. Within ten minutes, success revokes prior sessions/tokens and creates full session.
+- Expired temporary passwords reject login; an admin issues another.
+- Disabled checkbox immediately revokes sessions/remembered logins/API tokens. Unchecking permits new login, without restoring old sessions. Self-disable returns 403 field error; disabling the protected role's last active member returns 409. Framework state applies independently alongside consumer allowed.
+- E-mail changes revoke all sessions/tokens; self-change requires login again.
+- Replacement temporary passwords may be issued to another account only.
+- Must-change state is read-only; stale revisions after state changes return 409.
 
-- `php8.4 tests/shell/admin.php`: default deny, létrehozás és normalizálás, egyedi és formátumhibás e-mail, csak olvasható állapot, kötelező csere és szabályai, lejárat, tiltás és visszaengedés, session-/tokenvisszavonás, e-mail-módosítás, API-csatorna és scope, konfigurációs hibák, audit jelszó nélkül.
-- `npm run test:browser -- tests/shell/admin.spec.cjs`: a demóban felhasználó létrehozása, az ideiglenes jelszó egyszeri megjelenése, kötelező csere hibás és helyes jelszóval, a régi jelszó elutasítása, tiltott fiók belépésének elutasítása.
-- Kézi próba: `tools/serve-demo.sh`, belépés `demo@example.test` / `vapa-demo`, Adminisztráció → Felhasználók.
+<a id="ellenőrzés"></a>
 
-## Szerepkörök és jogosultságok (A2)
+## Verification
 
-Nézetek az „Adminisztráció” csoportban: **Szerepkörök**, **Szerepkör-tagságok**, **Szerepkör-jogosultságok**, **Egyedi jogosultságok**. ACL-erőforrások: `vapa_roles`, `vapa_memberships`, `vapa_role_rules`, `vapa_user_rules` (a két szabálynézet ugyanazt a `vapa_rules` táblát kezeli, alanytípus szerint szétválasztva).
+- `php8.4 tests/shell/admin.php`: default deny, create/normalize/unique/invalid e-mail, read-only state, forced-change rules/expiry, form/grid disable/re-enable, optional switches/effects, revocation, e-mail change, API/scope, config errors, secret-free audit.
+- `npm run test:browser -- --project=shell tests/shell/admin.spec.cjs`: demo create/once-only password/forced change, invalid/correct password, old-password denial, grid disabling with no action button, disabled login denial.
+- Manual: managed URL, demo@example.test / 61de-demo, Administration → Users; [demos](demos.md) describe / and /admin/. Do not start an ad-hoc server.
 
-- **Katalógus:** az erőforrás- és műveletválasztó a regisztrált definíciókból (`Vapa\Admin\Catalogue`) épül. Mentéskor a szerver ellenőrzi, hogy a művelet az adott erőforráson és csatornán létezik-e, a mezőszintű szabály mezője ismert-e, és az objektumazonosító pontosan a „Konkrét objektum” hatókörnél van-e megadva. **A katalógus semmilyen jogot nem ad**; új definíció után csak a kifejezetten felvett szabály enged.
-- **Árva szabály:** a definícióból eltűnt erőforrás vagy művelet szabálya „— nincs a katalógusban” jelzéssel látszik, jogot nem ad (a végrehajtó ismeretlen műveletet nem futtat), és kézzel törölhető.
-- **Szerepkör:** a `role_key` létrehozás után nem módosítható; tagokkal vagy szabályokkal rendelkező szerepkör nem törölhető; a védett szerepkör sosem törölhető.
-- **Védett szerepkör** (`admin.protected_role`, alapértelmezés `admin`): adminerőforrásokra vonatkozó szabályai a felületen nem módosíthatók és nem törölhetők; legalább egy aktív (nem tiltott, a fogyasztó szerint is engedélyezett) tagja mindig marad, ezt a tagság törlése és a fióktiltás is ugyanabban a tranzakcióban ellenőrzi (MySQL alatt sorzárral); a saját védett tagság nem vonható vissza.
-- **Tiltó szabály** VAPA-adminerőforrásra a felületen nem hozható létre (kizárási kockázat); ott a jog hiánya az alapértelmezett tiltás.
+<a id="szerepkörök-és-jogosultságok-a2"></a>
 
-**Első admin:** explicit, idempotens és auditált telepítőlépés, nem HTTP-kérés mellékhatása:
+## Roles and permissions (A2)
+
+Administration views: Roles, Role memberships, Role permissions, Individual
+permissions. Resources: blade_roles, blade_memberships, blade_role_rules,
+blade_user_rules; both rule views use blade_rules separated by subject type.
+
+- Catalogue derives choices from registered definitions (`Blade\Admin\Catalogue`). Saving checks resource/action/channel, known field and object ID only for specific-object scope. Generation never grants rights.
+- Removed definitions leave marked orphans; unknown actions cannot execute and rules are manually removable.
+- role_key is immutable after creation. Roles with members/rules cannot be deleted; protected role never can.
+- Protected-role admin-resource rules cannot be edited/deleted in UI. At least one active member, enabled by both framework and consumer, must remain. Membership removal/disabling checks transactionally, with MySQL row locks. Self protected membership cannot be revoked.
+- UI cannot create deny rules for framework admin resources due to lockout risk; absence of allow is default deny.
+
+First admin is explicit, idempotent, audited setup, never an HTTP side effect:
 
 ```php
-Vapa\Admin\Permissions::grantAdministration($db, $registry, $actorId); // védett szerepkör, tagság, admin UI-szabályok
+Blade\Admin\Permissions::grantAdministration($db, $registry, $actorId);
 ```
 
-Csak az adminerőforrások `ui` műveleteire ad engedélyt; üzleti erőforrásra és API-ra nem. A demó a `setup-workspace.php` végén hívja az 1-es fiókra.
+It grants protected role/membership and admin UI rules only, without business
+or API rights. Demo setup calls it for account 1.
+`permissions.php` checks catalog/no automatic grants, idempotency, immutable
+keys/deletion, validation, membership-based allows, individual field denies,
+orphans, protected rules/last member and secret-free audit.
+admin.spec.cjs creates a role/member/rule and verifies Notes access without admin access.
 
-Ellenőrzés: `php8.4 tests/shell/permissions.php` (katalógus, nincs automatikus jog, idempotens első admin, kulcs- és törlésszabályok, katalógus-validáció, tagságon át érvényes szerepkörszabály, egyedi mezőtiltás, árva szabály, védett szabály, utolsó aktív tag, audit értékek nélkül); `admin.spec.cjs`: szerepkör, tagság és szabály felvétele a felületen, majd az új tag eléri a Jegyzetek modult, az adminisztrációt nem.
+<a id="kötelező-adminmodul-egy-lépésben"></a>
 
-## Korlátok
+## Mandatory admin in one step
 
-- Csak SQLite-on ellenőrzött; a MySQL-ágak megmaradtak, de MySQL-próba nem történt.
-- Az e-mail-formátum ellenőrzése szintaktikai; a cím létezését semmi nem igazolja.
-- Meglévő, nem e-mail felhasználónevű fogyasztónál az átállás a fogyasztói integráció feladata; a keret ebben nem migrál adatot.
-- Az ideiglenes jelszót az admin juttatja el a felhasználóhoz; meghívó link nincs.
-- A tagság- és szabályválasztók legfeljebb 2000 elemet listáznak (a `Lookup` korlátja).
-- Az egyedi szabály alanya és objektumazonosítója nem keres: nagy fióklistához kereshető választó kell.
-- Jogosultságváltozás után a már megnyitott felület menüje újratöltésig a régi; a szerver minden kérésnél frissen dönt.
+`Blade\Admin\Administration::register($workspace,$accounts,$identities,usersTitle,group,protectedRole)`
+registers Users, Roles, Memberships, Role permissions, Individual permissions,
+API keys and returns the managed identity provider for ApplicationDefinition.
+JSON admin does the same. This is the [starter demo](demos.md#alapadmin-admin).
+
+<a id="fiókkapcsolók"></a>
+
+## Account switches
+
+| Field | Appears | Storage | Effect |
+| --- | --- | --- | --- |
+| Disabled (blade_disabled) | Always | blade_account_state.disabled | Form/grid flag, revocation as above. |
+| OAuth login (blade_oauth) | Accounts(oauth:true) / JSON oauth | blade_account_state.oauth_allowed | Only enabled non-disabled accounts use providers; switching off revokes sessions. |
+| E-mail confirmation (blade_email_confirmation) | Accounts(emailConfirmation: default) / JSON authentication | blade_auth_settings.email_confirmation | Code after password; changing revokes sessions, self-change reauthenticates. |
+| Default language (blade_locale) | Multiple Accounts languages / JSON i18n | blade_account_state.locale | Login/mail language; selector can later change it. Empty means site default; [i18n](i18n.md#felhasználói-alapnyelv). |
+
+Grid checkboxes use __edit with revision/ACL/audit; language uses native select.
+Explicit Schema::install adds oauth_allowed/locale on existing installations;
+HTTP never executes DDL.
+
+<a id="api-kulcsok-a3"></a>
+
+## API keys (A3)
+
+Administration → API keys, resource blade_api_keys over blade_tokens.
+Fields: label, owner account, permitted actions (multiselect from api-channel
+catalog with resource.action keys), expiry YYYY-MM-DD through end of UTC day,
+future and ≤365 days away, revoked checkbox.
+
+- Issue generates 256-bit secret shown once; only SHA-256 hash is stored. Lists/audit contain no secret.
+- Use `Authorization: Bearer <key>` at POST ./?blade=1. Both key scope and owner's api ACL must permit the action.
+- Revocation via form/grid is immediate and irreversible (409 to restore); issue another key. Owner is immutable; scope/expiry editable. Disable/e-mail change revokes all account keys.
+- New scopes use comma-separated storage; older Tokens::issue JSON lists remain valid.
+
+`api-keys.php` checks default deny, initial admin, catalog choices, once-only
+secret/hash/audit, ACL+scope, validation, one-way revocation and old format.
+Browser coverage: demo.spec.cjs.
+
+<a id="korlátok"></a>
+
+## Limits
+
+- Verified on SQLite only, without MySQL execution.
+- E-mail syntax validation does not prove the address exists.
+- Consumers with non-e-mail usernames own their data/integration migration.
+- Admin delivers temporary passwords; no invitation link.
+- Membership/rule choices have Lookup's 2000-item cap.
+- Individual subject/object-ID selectors lack search; large account lists need searchable support.
+- Open menus stay stale until reload after permission changes; server decisions are fresh on every request.

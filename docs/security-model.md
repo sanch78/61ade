@@ -1,57 +1,88 @@
-# Jogosultsági és szervezeti modell
+# Authorization and organization model
 
-Állapot: célarchitektúra. A jelenleg implementált rész és korlátai az [ACL-/műveletleírásban](access-and-actions.md) találhatók; a teljes szervezeti/bulk/export modell még tervezett. Kötelező alapelv: default deny, központi szerveroldali végrehajtás.
+Status: target architecture. The [ACL/action guide](access-and-actions.md)
+describes the implemented subset and its limits. The complete organization,
+bulk and export model is still planned. Mandatory principles: default deny
+and centralized server-side execution.
 
-## Kontextus és döntés
+<a id="kontextus-és-döntés"></a>
 
-A kérés actor (ember vagy gép), szervezet, csatorna, művelet és célobjektum kontextussal fut. A szervezetet nem fogadjuk el ellenőrzés nélkül kliensparaméterből: a tagságot és váltási jogot hitelesített identitással ellenőrizzük.
+## Context and decision
 
-Az effektív engedély az alábbi feltételek metszete:
+Requests carry actor (human or machine), organization, channel, action and
+target-object context. Never accept an organization from a client parameter
+without verifying membership and switching rights against the authenticated identity.
 
-- a feature és a kérés csatornája engedélyezett;
-- az actor szervezeti hozzáférése érvényes;
-- a szerepkör engedi a műveletet;
-- az objektumpolicy engedi az adott célt;
-- a mezőpolicy engedi az olvasott/írt mezőket;
-- az API-token scope-ja engedi a műveletet, ha tokenes a kérés;
-- az üzleti állapot megengedi az átmenetet.
+Effective permission is the intersection of these conditions:
 
-A szerepkör megadja a képességet, a policy szűkíti. Explicit tiltás felülírja az engedélyt. Rendszergazdai vagy szervezetközi hozzáférés külön, auditált képesség; nincs rejtett, minden scope-ot megkerülő flag.
+- The feature and requested channel are enabled.
+- The actor has valid organization access.
+- The role permits the action.
+- The object policy permits the target.
+- The field policy permits the fields read or written.
+- The API token scope permits the action, when a token is used.
+- The business state permits the transition.
 
-## Olvasás
+Roles grant capabilities; policies narrow them. Explicit deny wins. System-wide
+or cross-organization access is a distinct audited capability, with no hidden
+flag that bypasses every scope.
 
-A QueryProvider szervezeti és objektumhozzáférési feltételeket kap a lekérdezés előtt. Hiányzó scope adapter esetén a művelet meghiúsul, nem engedélyez mindent.
+<a id="olvasás"></a>
 
-Lista, egyedi objektum, count, chart, autocomplete, kapcsolt objektum, export és tree gyermekbetöltés azonos szabályt követ. A hozzáférhetetlen objektum létezését külső API-n következetes 404 válasz rejti; a belső audit rögzíti az okot.
+## Reads
 
-Tiltott mezőre nem engedünk rendezést, szűrést vagy aggregációt sem, ha azok információt árulnának el. A kliens csak a megengedett mezőket kapja, nem CSS-sel elrejtett teljes rekordot.
+The QueryProvider receives organization and object-access constraints before
+query execution. A missing scope adapter fails closed.
 
-## Írás
+Lists, individual objects, counts, charts, autocomplete, related objects,
+exports and tree child loading follow the same rules. A consistent external
+API 404 hides inaccessible objects; internal audit records the reason.
 
-Az input mezői allowlist alapján fogadhatók el; read-only vagy ismeretlen mező hibát eredményez, nem tömeges model bindingot. Tenant ID, owner és státusz csak saját deklarált műveletben változhat.
+Do not permit sorting, filtering or aggregation over forbidden fields if it
+could disclose information. The client receives permitted fields only.
 
-A módosítás célját engedélyezett query scope-ból töltjük be. Kapcsolt objektumhoz külön hozzáférésellenőrzés kell. A form, inline edit, import, API és bulk ugyanazt a handlert használja.
+<a id="írás"></a>
 
-Bulk esetén minden objektumot ellenőrzünk. Alapértelmezett egy tranzakciós műveletnél az egész kérés elutasítása; részleges végrehajtás csak explicit feature-szerződéssel és objektumonkénti eredménnyel engedett.
+## Writes
 
-## Hitelesítés és állapot
+Accept input fields through an allowlist. Read-only or unknown fields produce
+an error rather than unrestricted model binding. Tenant ID, owner and status
+change only through their declared actions.
 
-Böngészőben szerveroldali session, biztonságos cookie és CSRF-védelem az alapirány. A session cookie nem hordoz korlátlanul megbízható, tartós policy-döntést. Bejelentkezési próbák limitálása, kijelentkezés és session-visszavonás szükséges.
+Load targets through an authorized query scope. Check access to related objects
+separately. Forms, inline edits, imports, API calls and bulk operations share
+the same handler.
 
-Gépi klienseknek visszavonható, scope-olt credential szükséges. A protokoll M2-ben döntendő. Jogosultságváltás után a policy-cache érvénytelenítendő; szervezetváltás törli a korábbi adat- és UI-kontextust.
+Check every bulk target. The default for one transactional action is to reject
+the entire request. Partial execution requires an explicit feature contract and
+per-object results.
 
-## Kötelező tesztmátrix
+<a id="hitelesítés-és-állapot"></a>
 
-- Saját szervezetben engedélyezett olvasás és tiltott írás.
-- Más szervezet objektumának ID-val, relációval és szűrővel történő elérése.
-- Szerepkör engedély + objektum tiltás; mező olvasható, de nem írható.
-- API kikapcsolva, miközben az admin művelet engedélyezett.
-- API bekapcsolva, de elégtelen actor/token scope.
-- Export/count/chart/lookup információszivárgás elleni teszt.
-- Bulk vegyesen megengedett és tiltott célokkal.
-- Háttérjob indítása után visszavont jogosultság.
-- Cache és egymást követő kérések szervezeti izolációja.
-- CSRF, mass assignment, nem engedélyezett filter/sort, tárolt XSS.
-- Párhuzamos mentés és optimista zárolási konfliktus.
+## Authentication and state
 
-A frontend capability-listája kizárólag UX-segítség; a backend minden kérésnél új döntést hoz.
+The browser baseline is a server-side session, secure cookie and CSRF protection.
+Session cookies do not carry indefinitely trusted policy decisions. Login rate
+limits, logout and session revocation are required.
+
+Machine clients need revocable scoped credentials; the protocol is an M2 decision.
+Invalidate policy caches after permission changes. Organization switching clears
+the preceding data and UI context.
+
+<a id="kötelező-tesztmátrix"></a>
+
+## Required test matrix
+
+- Permitted reads and denied writes in the actor's organization.
+- Access to another organization's object through ID, relation or filter.
+- Role allow with object deny; readable but unwritable field.
+- API disabled while the admin action remains enabled.
+- API enabled with insufficient actor/token scope.
+- Export/count/chart/lookup information disclosure.
+- Bulk requests containing both permitted and denied targets.
+- Permission revocation after background-job submission.
+- Cache and organization isolation across successive requests.
+- CSRF, mass assignment, forbidden filters/sorts and stored XSS.
+- Concurrent saves and optimistic-lock conflicts.
+
+The frontend capability list is a UX aid; the backend decides afresh on every request.

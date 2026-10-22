@@ -1,18 +1,39 @@
-# Jelzők, beszédes értékek és kapcsolt objektummezők
+# Flags, meaningful values and related object fields
 
-A VAPA `checkbox` mezőt natív DHTMLX checkboxként jeleníti meg a főűrlapon. A listában akkor checkbox, ha a mező `column.editable: true` beállítással helyben szerkeszthető; egyébként a két beszédes opciófeliratot mutatja. A `select` oszlopok is az opciófeliratot mutatják a nyers kulcs helyett. A főűrlap továbbra is együtt kezeli az objektum mezőit.
+Checkbox fields use native DHTMLX controls in the main form. Lists show a
+checkbox only with `column.editable: true`; otherwise they show meaningful
+option labels. Select columns show labels rather than raw keys. The main form
+continues to manage object fields together.
 
-## Mezőnkénti gridszerkesztés
+<a id="mezőnkénti-gridszerkesztés"></a>
 
-A szerkeszthető, nem checkbox oszlop fejlécét a keret `✎` jellel és magyarázó tooltippel jelöli; az űrlap- és editorfelirat változatlan. A mező `column` konfigurációjában az `editable: true` kapcsolja be a natív DHTMLX szöveg-, textarea- és select-szerkesztőt, illetve a Grid/DataView közös checkbox-template-jét. Alapértelmezésben minden oszlop csak olvasható; titkos/jelszómező nem szerkeszthető így. Szöveg és select dupla kattintással nyílik meg, Enter vagy fókuszváltás ment, Escape elvet. A checkbox közvetlenül kapcsolható.
+## Per-field grid editing
 
-A `__edit` transzport az objektumazonosítót, mezőnevet, értéket és revíziót fogadja. A közös Executor `update` jogosultsága, mező-ACL-je, API-scope-ja, tranzakciója és auditja érvényes. Csak az engedélyezett mező változik; a kiválasztott mező teljes deklarált validációja fut. A többi mező változatlan régi értéke nem akadályozza az önálló javítást, a teljes űrlapmentés validációja változatlan. A cross-field validáció és a fogyasztói guard/normalize a tárolt rekord és az új mezőérték egyesítését kapja; az after-save a változó mezőt kapja, így például a session-visszavonás megmarad.
+Editable non-checkbox headers show ✎ with an explanatory tooltip; editor/form
+labels stay unchanged. Field column.editable enables native text/textarea/select
+editors and the shared Grid/DataView checkbox template. Default: read-only.
+Secrets/passwords cannot use inline editing. Double-click opens text/select,
+Enter or blur saves, Escape discards; checkbox toggles directly.
 
-A sor `_editable` listája csak a jelenleg olvasható és módosítható mezőket tartalmazza; a szerver minden kérésnél újra ellenőriz. A kapcsolt táblamező ugyanígy szerkeszthető. Sikertelen szervermentéskor a cella visszaáll és a mezőhiba DHTMLX Alertben jelenik meg. Szerkesztés közben az élő frissítés nem írja felül a piszkozatot. A `SqlResource` adja az alap mentést; saját `Action` esetén a keret `editHandler` szerződésével adható megfelelő mentő, kerülő mentési endpoint nélkül.
+`__edit` takes object ID, field, value and revision. Executor applies update
+permission, field ACL, API scope, transaction and audit. Only that permitted
+field changes and all its declared validation runs. Unchanged legacy values in
+other fields do not prevent an isolated correction; full-form validation stays
+intact. Cross-field validation and consumer guard/normalize receive stored row
+merged with the new value. After-save receives the changed field, preserving
+effects such as session revocation.
 
-Szintetikus referencia: `tests/fixtures/grid-edit`, `tests/shell/grid-edit.php`, `tests/shell/grid-edit.spec.cjs`.
+Row _editable contains only currently readable/writable fields; the server
+rechecks every call. Related-table fields follow the same route. Failed saves
+restore the cell and show a field-named DHTMLX dialog. Live updates preserve
+drafts. SqlResource supplies default saving; custom Action uses the supported
+editHandler contract rather than another endpoint.
 
-## Mező és oszlop deklarálása
+Synthetic references: `tests/fixtures/grid-edit`, `grid-edit.php`, `grid-edit.spec.cjs`.
+
+<a id="mező-és-oszlop-deklarálása"></a>
+
+## Declaring fields and columns
 
 ```json
 {
@@ -23,15 +44,45 @@ Szintetikus referencia: `tests/fixtures/grid-edit`, `tests/shell/grid-edit.php`,
 }
 ```
 
-A tárolt kanonikus érték `"0"` vagy `"1"`; bool és integer 0/1 is beküldhető, a backend ugyanarra normalizálja őket. Más érték mezőhibát ad. A required checkboxnál a kikapcsolt állapot is érvényes: a required nem „kötelező bepipálni”. Elhagyott opcionális mező megőrzi a korábbi értéket. A checkbox címkéje a jelölő mellett jelenik meg. A checkboxra érkező üzleti mezőhibát a kliens mezőnévvel ellátott DHTMLX Alertben mutatja (a Suite checkbox-captions kizárólag kötelező bepipálás mellett jelennek meg); a form kitöltése hiba esetén megmarad. A `default` a létrehozási form kezdőértéke; nem ír felül tárolt értéket, és nem helyettesít szerveroldali storage-defaultot.
+Canonical values are strings 0/1; booleans/integer 0/1 normalize to them.
+Other values produce field errors. Required checkbox allows unchecked state:
+required does not mean must be checked. Omitted optional fields retain stored
+values. Labels sit beside controls. Business errors use field-named dialogs
+because Suite checkbox captions only appear for mandatory checked controls;
+form values remain. Default initializes create forms, never overwrites saved
+values or replaces server storage defaults.
 
-A `column` támogatott opciói: pozitív integer `width`, `minWidth`, `maxWidth` (legfeljebb 10000 px), `editable` boolean, valamint `align`: `left`, `center`, `right`. Fix `width` mellett a grid nem nyújtja automatikusan a mezőt. A checkbox szűrője háromállapotú select: Bármely + a két beszédes opció. Az `options` fogyasztói feliratokat ad; elhagyáskor Nem/Igen az alap. A példában Aktív/Archivált szerepel. E két állapot megnevezésénél ahol lehet, az alkalmazási jelentést kell használni.
+Column supports positive integer width/minWidth/maxWidth up to 10000 px,
+boolean editable and align left/center/right. Fixed width prevents automatic
+stretch. Checkbox filters are three-state selectors: Any and meaningful labels.
+Consumer options define labels; absent options default to No/Yes.
+Use business meanings such as Active/Archived where possible.
 
-PHP API: a `Field` `type: 'checkbox'`, `column: ['width'=>100,'align'=>'center']`, `defaultValue: '0'` paramétereket fogadja. A deklarációt a JSON compiler ugyanarra a mezőre fordítja.
+PHP Field takes type checkbox, column width/alignment and defaultValue.
+The JSON compiler produces the same definition.
 
-## Egy-az-egyhez kapcsolt tárolás a főűrlapon
+<a id="többes-választás-multiselect"></a>
 
-Az objektum olyan mezői is szerepelhetnek ugyanazon a listán és formon, amelyek egy kapcsolt táblában vannak:
+## Multiple choice (`multiselect`)
+
+```json
+{"name": "labels", "label": "Címkék", "type": "multiselect", "max": 200,
+ "options": {"urgent": "Sürgős", "customer": "Ügyfél"}}
+```
+
+Forms use native multi-choice Combo; lists/cards join selected labels with commas.
+Canonical storage is comma-separated keys, e.g. urgent,customer; inputs may be
+a list or that string. Keys cannot contain commas. Client/server reject unknown
+or duplicate keys. Max applies to the entire string. Choices may be static,
+options_lookup/options_binding or PHP closures, e.g. [API-key catalog actions](admin.md#api-kulcsok-a3).
+Gridcell editing is unsupported (editable errors), and these fields do not
+filter/sort. Demo: Tasks → Labels.
+
+<a id="egy-az-egyhez-kapcsolt-tárolás-a-főűrlapon"></a>
+
+## One-to-one related storage in the main form
+
+Fields stored in a related table can share the same list/form:
 
 ```json
 {
@@ -51,43 +102,60 @@ Az objektum olyan mezői is szerepelhetnek ugyanazon a listán és formon, amely
 }
 ```
 
-A `fields` a publikus mezőnév → kapcsolt oszlopnév megfeleltetés. A kapcsolt `key` az objektum azonosítóját tárolja, a DB-ben egyedi/primary key legyen. A táblát és a kulcsindexet a fogyasztó migrációja hozza létre; a keret nem módosít sémát futás közben. A kapcsolt mezőnek a főtáblában nem lehet azonos nevű oszlopa; egy mező csak egy related tárolóhoz tartozhat. Related mezőn a `validation.unique` jelenleg nem támogatott. A default string vagy integer lehet, hiánya üres szöveg. A példa teljes futtatható alakja: `tests/fixtures/related-fields/items.json`.
+Fields map public names to related columns. Related key stores object ID and
+must be unique/primary in the database. Consumers migrate tables/indexes;
+the framework never changes schema during requests. Related fields cannot
+also name main-table columns or belong to multiple related stores.
+validation.unique is unsupported on related fields. Defaults are string/integer,
+empty string if omitted. Runnable example:
+`tests/fixtures/related-fields/items.json`.
 
-A listázás/szűrés/élő követés és a get ugyanazt az értéket adja hiányzó kapcsolt rekordnál is. A kapcsolt mező része az objektum revíziójának; külső módosítása a korábban megnyitott form mentését 409-cel védi. A fő- és kapcsolt tábla írása, az after_save hook és az audit a közös Executor tranzakciójában fut. Hibánál minden visszagördül. Az objektum törlése a deklarált kapcsolt rekordokat is törli; egyéb FK/outbox/cascade szabályokat továbbra is az alkalmazásnak kell meghatároznia.
+List/filter/watch/get agree on defaults for missing related rows. Related values
+participate in revisions; external changes protect stale saves with 409.
+Main/related writes, after_save and audit share the Executor transaction and
+roll back together. Deletion removes declared related rows; other FK/outbox/
+cascade rules remain consumer responsibilities.
 
-A kapcsolt mező ugyanazt az objektum-/mező-/csatornajogot kapja, mint a főűrlap többi mezője. Tiltott mező nem írható; az elhagyott mezőt nem mentjük újra, a tárolt érték megmarad. Tiltott listamező nem szűrhető. A táblanevek, mappingok és hooknevek nem kerülnek a frontend metaadataiba. Az `after_save` opcionálisan választömböt adhat vissza (pl. `['reauthenticate'=>true]`), az objektum ID-ját a keret rögzíti. A kapcsolt beállítás üzleti mellékhatásait a fogyasztó hookja hívja meg; például session-visszavonást a VAPA `Workspace::revokeSessions` szolgáltatásával.
+Related fields share object/field/channel ACL. Forbidden fields cannot be
+written; omitted values are preserved rather than rewritten. Forbidden list
+fields cannot filter. Tables/mappings/hook names never enter frontend metadata.
+after_save may return a response array, e.g. reauthenticate true; the framework
+sets object ID. Consumer hooks invoke business effects through framework services,
+e.g. Workspace::revokeSessions.
 
-Előfeltétel: PDO SQLite vagy MySQL, tranzakcióképes fő- és kapcsolt tábla (MySQL-en InnoDB), Suite Standard 9.3.12. MySQLen a mentés zárolja a főrekordot és a meglévő kapcsolt rekordot; párhuzamos külső írásnál a revízió és az egyedi kulcs védi a közös mentést. Több-a-többhöz kapcsolatok, összetett kapcsolati kulcsok és listán belüli checkboxos mentés nem része ennek a képességnek.
+Prerequisites: PDO SQLite/MySQL, transactional main/related tables (InnoDB on
+MySQL), Suite Standard 9.3.12. MySQL locks main/existing related rows; revision
+and unique key protect concurrent external writes. Many-to-many/composite keys
+are unsupported. Inline editing is a separate supported capability above.
 
-## Ellenőrzés
+<a id="ellenőrzés"></a>
 
-- `tests/shell/related-fields.php`: checkbox-validáció UI/API útvonalon, default, közös mentés, kapcsolt változás megfigyelése, 409-es konfliktus, tranzakciós rollback, mező-ACL, tiltott szűrés, törlés.
-- `VAPA_PHP=/path/to/php84 VAPA_TMP_DIR="$PWD/tmp" npm run test:browser -- --project=related`: külön szintetikus fogyasztó, natív lista-/form-checkbox, fix oszlopszélesség, közös mentés, újranyitás, beszédes filter.
+## Verification
 
-Kapcsolódó elvárás: FB-0014. A korábbi külön regisztrált security action technikai lehetőség marad; kapcsoló megjelenítésének alapmódszere az objektum főűrlapja.
+- `php8.4 tests/shell/related-fields.php`: UI/API checkbox validation, defaults, shared saves, related changes, 409, rollback, field ACL, forbidden filters and deletion.
+- The preserved related browser project checks native controls, fixed widths, shared save/reopen and meaningful filters. It needs localhost fixtures and cannot launch here; see [coverage limits](development.md#existing-full-smoke-and-coverage-limits).
 
-## Egységes checkbox és kártya-szerkesztésjelzés
+FB-0014: the separate security action remains a technical API option;
+main-form fields are the default switch UI.
 
-A Grid és DataView checkboxmezői közös VAPA template-et használnak a Suite
-`dhx_checkbox` megjelenítésével és témaváltozóival. Nincs Unicode-pipa,
-egyedi checkboxrajz vagy külön ceruza a kapcsoló mellett és oszlopfejlécében.
-A kezelhető mezőn csak a jelölő látszik, a beszédes állapot tooltipben olvasható;
-így a rövid állapotoszlopból sem lóg ki a vezérlő.
-A jelölő csak `column.editable: true` és az adott sor `_editable` mezőjoga
-együttes meglétekor jelenik meg; egyébként az `options` szerinti állapotfelirat
-látszik. A readonly rekordadatablakban sincs kezelhetetlen checkbox.
-A kattintás, Enter és Space a közös `saveCell`/`__edit` mentést használja,
-ugyanazzal a szerveres ACL-, revízió-, validáció- és auditérvényesítéssel.
-A fogyasztóban nincs külön checkbox-komponens vagy mentési végpont.
+<a id="egységes-checkbox-és-kártya-szerkesztésjelzés"></a>
 
-A kártya nem checkbox szerkeszthető mezőinek ceruzája a mező jobb szélén,
-fenntartott 24 px helyen áll. Az érték és az ikon is indítja a mezőszerkesztőt;
-a billentyűs Enter/Space működés megmarad. Hosszú érték a jel mellett törik.
-Nincs új konfiguráció: például a `notify` checkbox `column: {editable: true}`
-és `options: {"0": "Off", "1": "On"}` deklarációja mindkét nézetre érvényes.
-Előfeltétel a támogatott Suite és a soronkénti `_editable` szervermetaadat.
+## Shared checkbox and card editing indicators
 
-Ellenőrzés: `tests/shell/grid-edit.spec.cjs`, védett
-`npm run test:browser -- --project=grid-edit`;
-kattintás/billentyű, mentés, nézetváltás, readonly mező és sorjog,
-azonos checkboxméret és jobbra igazított szerkesztésjel. FB-0029.
+Grid/DataView use one template with Suite dhx_checkbox styling/theme variables,
+without Unicode ticks, custom drawings or pencils beside switches/in headers.
+Writable flags show only a control and meaningful tooltip, fitting narrow columns.
+It appears only when column.editable and row _editable both permit it;
+otherwise options labels show, including read-only detail windows.
+Click/Enter/Space share saveCell/__edit, server ACL, revision, validation and audit.
+Consumers add no checkbox component/endpoint.
+
+Editable non-checkbox card fields place their pencil at the right edge in
+reserved 24 px space. Both value/icon open the editor; Enter/Space remain.
+Long values wrap beside it. No new configuration:
+`column: {editable: true}` with options Off/On applies to both views.
+Supported Suite and per-row _editable are required.
+
+Historical grid-edit browser checks cover keyboard/click, save, switching,
+read-only/row permissions, equal checkbox sizes and right-aligned pencils.
+Current host fixture limits apply. FB-0029.

@@ -1,25 +1,47 @@
-# Könyvtárak és csomaghatárok
+# Directories and package boundaries
 
-## Két külön repó
+<a id="két-külön-repó"></a>
+
+## Two separate repositories
 
 ## Backend
 
-`packages/php/src/Contracts`: bővítési interfészek; a konkrét alkalmazás adaptereit ezek kötik a kerethez.
+`packages/php/src/Contracts`: extension interfaces binding concrete application
+adapters to the framework.
 
-`Feature`: regisztráció, típusos definíciók, ellenőrzés és fordítás. `UI`: nézetleírások. `Http` és `Api`: transport, válaszok és verziózás. `Security`: auth és policy pipeline. `Tenancy`: explicit szervezeti kontextus. `Data`: engedélyezett filter/sort/page modell és query adapterek. `Validation`: közös validációs infrastruktúra. `Files`, `Jobs`, `Audit`: közös infrastruktúra, alkalmazási hookokkal. `Integration/Symfony`: konkrét hosting framework integrációja, ha az ADR megerősíti.
+Planned responsibilities: `Feature` for registration, typed definitions,
+validation and compilation; `UI` for views; `Http` and `Api` for transport,
+responses and versioning; `Security` for authentication and policy; `Tenancy`
+for explicit organization context; `Data` for allowed filter/sort/page models
+and query adapters; `Validation` for common validation; `Files`, `Jobs` and
+`Audit` for infrastructure with application hooks; `Integration/Symfony`
+for hosting integration if confirmed by ADR.
 
-`packages/php/config`: keret alapbeállításai; nem alkalmazássecret. `packages/php/migrations`: csak a keret által birtokolt táblák migrációi, amennyiben szükségesek. Ezeket a fogyasztó explicit regisztrálja és futtatja, csomagtelepítés nem migrál automatikusan.
+`packages/php/config` holds framework defaults, never application secrets.
+`packages/php/migrations` contains only framework-owned table migrations when
+needed. Consumers register and run them explicitly; package installation never
+migrates automatically.
 
 ## Frontend
 
-`packages/frontend/src/app`: inicializáció és szolgáltatásregisztráció. `shell`: elrendezés és navigációs működés. `renderer`: schema alapján komponensépítés. `components`: DHTMLX adapterek komponensenként. `actions`: deklarált műveletek dispatchere. `api`: transport. `state`: workspace és nézetállapot. `contracts`: szerver-kliens szerződések. `i18n` és `styles`: közös fordítás és arculati alap.
+Planned responsibilities under `packages/frontend/src`: `app` for initialization
+and services; `shell` for layout/navigation; `renderer` for schema-based component
+construction; `components` for DHTMLX adapters; `actions` for action dispatch;
+`api` for transport; `state` for workspace/view state; `contracts` for
+server/client contracts; `i18n` and `styles` for shared translation and styling.
 
-Az üres adapterkönyvtár a tervezett lefedést jelöli, nem telepített vagy licencelt komponenst.
+An empty adapter directory indicates planned scope, not an installed or licensed component.
 
-## Példaalkalmazás és tesztek
+<a id="példaalkalmazás-és-tesztek"></a>
 
-`tools`: fejlesztési segédeszközök; `tmp`: ignored futási állományok. `docs/decisions`: elfogadott és javasolt döntések státusszal.
+## Example application and tests
 
-## Fogyasztó alkalmazás
+`tools` contains development utilities; ignored `tmp` holds runtime files.
+`docs/decisions` records accepted and proposed decisions with status.
 
-A két VAPA-csomag ugyanabban a VAPA-repóban él, mert közös protokollt valósít meg. A fogyasztó alkalmazás soha nem kerül ebbe a repóba.
+<a id="fogyasztó-alkalmazás"></a>
+
+## Consumer application
+
+Both 61de packages share a repository because they implement one protocol.
+The consumer application never belongs in this repository.

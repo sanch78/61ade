@@ -1,129 +1,217 @@
-# Beépített adminmodul — első szelet terve
+# Built-in admin module: first-slice plan
 
-Állapot: **jóváhagyott terv**, 2026-10-21. Az A1 és A2 megvalósítva és agent által ellenőrizve ([használat](admin.md)); A3–A5 még nem. Implementáció nem történt. A bejelentkezési azonosító, az API-kulcs-kezelés és a beszúrás nélküli fióktár kérdése eldöntve (FB-0038 kiegészítés). Követelmények: [R5, R6, R9, R10](product-direction.md#1-elfogadott-termékkövetelmények); döntések: [FB-0038](feedback.md#fb-0038--fiókéletciklus-döntések-az-első-adminszelethez). A 4. fejezet alapértékei javaslatok, nem elfogadott követelmények.
+Status: approved plan, 2026-10-21. A1/A2/A3 are implemented and verified
+([usage](admin.md), [API keys](admin.md#api-kulcsok-a3), FB-0044); A4/A5 are not.
+Login identifier, key administration and non-insertable account stores are
+decided by FB-0038. Requirements: [R5/R6/R9/R10](product-direction.md#1-elfogadott-termékkövetelmények);
+[decisions](feedback.md#fb-0038--fiókéletciklus-döntések-az-első-adminszelethez).
+Section 4 defaults were approved on 2026-10-21; the earlier introductory
+“proposal” wording was superseded by that approval.
 
-## 1. Cél és hatókör
+<a id="1-cél-és-hatókör"></a>
 
-Az SQLite demóban működő, a VAPA saját eszközeiből épülő user-, szerepkör/ACL-, API-kulcs- és naplóadmin, amelyet bármely alkalmazás konfigurációval kap meg.
+## 1. Purpose and scope
 
-**Része:** fióklista, létrehozás ideiglenes jelszóval, név/e-mail módosítás, tiltás és visszaengedés, új ideiglenes jelszó; kötelező jelszócsere első belépéskor; e-mailes jelszó-helyreállítás; szerepkörök, tagságok, szabályok a definíciókból generált katalógus alapján; API-kulcs kiadás és visszavonás; csak olvasható naplónézet; utolsó admin és saját fiók védelme; hu/en/de felirat, mindhárom téma.
+User, role/ACL, API-key and log administration in the SQLite demo, built with
+framework tools and available to any configured consumer.
 
-**Nem része:** meghívó link, végleges törlés/anonimizálás, Google/Facebook-belépés, PostgreSQL- és JSON-fájltároló, naplómegőrzés és külső logsink, többszervezetes izoláció, felhasználói önkiszolgáló API-kulcs.
+Included in the plan: account list/create/edit/disable/re-enable/replacement
+temporary password, forced first-login change, e-mail recovery, catalog-driven
+roles/memberships/rules, key issue/revoke, read-only logs, self/last-admin
+protection, hu/en/de and all themes.
 
-## 2. Kiindulási állapot (forrás alapján)
+Excluded: invitation links, hard deletion/anonymization, OAuth within this
+first-slice plan (later implemented separately), PostgreSQL/JSON stores,
+log retention/external sinks, multi-organization isolation and self-service keys.
 
-| Terület | Megfigyelés | Forrás |
+<a id="2-kiindulási-állapot-forrás-alapján"></a>
+
+## 2. Starting state (historical source inventory)
+
+| Area | Observation at planning time | Source |
 | --- | --- | --- |
-| Identitás | Az `IdentityProvider` csak olvas (`authenticate`, `find`); fiók létrehozására, módosítására vagy tiltására nincs keretszerződés. A tiltást a fogyasztó `allowed` closure-je dönti el. | `Shell/IdentityProvider.php`, `Shell/SqlIdentityProvider.php` |
-| Jelszó | `Passwords::change` kezeli a saját és admin általi cserét (12–128 karakter, megerősítés, munkamenet- és tokenvisszavonás); a hash-kodek a fogyasztóé. Kötelező csere állapota nincs. | `Access/Passwords.php` |
-| Session-visszavonás | `Workspace::revokeSessions` növeli a hitelesítési verziót és visszavonja az összes tokent. | `Feature/Workspace.php` |
-| Token | `Tokens::issue/revoke` közvetlen SQL; önmagában nem auditál, és nincs kezelőfelület. API-csatornán a scope csak szűkít (`Executor`). | `Access/Tokens.php`, `Feature/Executor.php` |
-| ACL | `vapa_roles`, `vapa_memberships`, `vapa_rules`; default deny, explicit deny nyer. Katalógus-lekérdezés nincs, a `Registry::all()` viszont minden regisztrált műveletet visszaad. | `Access/Acl.php`, `Access/Schema.php`, `Feature/Registry.php` |
-| Napló | `vapa_audit` kategória nélkül; belépés, kijelentkezés, CSRF, e-mailkód és minden végrehajtott művelet már rögzítve. | `Audit/Journal.php`, `Shell/Application.php` |
-| Belépési folyamat | Pre-auth állapotgép (`pendingLogin`) már létezik az e-mailes kódhoz; ide illeszthető a kötelező jelszócsere is. | `Shell/Application.php` |
-| Levél | Symfony Mailer `Delivery` és `LoginMessage` lokalizált sablonnal; a reset levél ugyanerre épülhet. | `Mail/*`, [hitelesítés](authentication.md) |
-| Demó | A fiókok **memóriabeli** SQLite-ban vannak (minden kérésnél újra létrejönnek), a munkaterület külön SQLite-fájlban. Admin általi módosítás így nem maradna meg. | `examples/demo-app/application.php`, `workspace.php` |
-| Előzmény | A fogyasztói useradmin mintája a `members.json` fixture (ACL-védett `security` action). | `tests/fixtures/authentication/members.json` |
+| Identity | IdentityProvider read-only authenticate/find; no writable account contract. Consumer allowed decided enablement. | Shell/IdentityProvider.php, SqlIdentityProvider.php |
+| Password | Passwords::change handled self/admin change, 12–128 characters, confirmation and revocation; no forced-change state. | Access/Passwords.php |
+| Revocation | Workspace::revokeSessions increments auth version and revokes tokens. | Feature/Workspace.php |
+| Token | Direct SQL issue/revoke, without audit/UI; Executor scopes only narrow. | Access/Tokens.php, Feature/Executor.php |
+| ACL | blade_roles/memberships/rules, default deny, deny wins; Registry::all lists actions but no catalog query. | Access/Acl.php, Schema.php, Feature/Registry.php |
+| Log | blade_audit without category; login/logout/CSRF/code/actions already recorded. | Audit/Journal.php, Shell/Application.php |
+| Login | pendingLogin pre-auth state machine existed for codes, extensible for forced change. | Shell/Application.php |
+| Mail | Delivery/LoginMessage localized templates; reusable for reset. | Mail/*, [authentication](authentication.md) |
+| Demo | Originally in-memory accounts; since 2026-10-21 two file-backed SQLite demos. | application.php, admin-application.php, [demos](demos.md) |
+| Precedent | Consumer-style user administration in members.json with ACL-protected security action. | tests/fixtures/authentication/members.json |
 
-## 3. Keretbővítések
+<a id="3-keretbővítések"></a>
 
-Minden írás a közös `Executor`-on fut (ACL → validáció → tranzakció → audit). Nincs admin bypass: az adminmodul műveletei közönséges, katalógusba kerülő ACL-erőforrások.
+## 3. Framework extensions
 
-### E1 — Írható fióktár-szerződés
+All writes use Executor: ACL → validation → transaction → audit.
+Admin resources are ordinary catalog entries; no bypass.
 
-Új `AccountStore` szerződés, a meglévő identity mapping bővítésével (opcionális `create_defaults` a fogyasztói tábla kötelező egyéb oszlopaihoz). **A bejelentkezési azonosító minden alkalmazásban az e-mail-cím** (eldöntve): a `username_column` az e-mail oszlopra mutat, az érték kisbetűsítve, szóközök nélkül tárolt és egyedi. E-mail-módosítás a fiók összes sessionjét, megjegyzett belépését és tokenjét visszavonja. Külön felhasználónevet használó meglévő fogyasztónál az átállás a fogyasztói integráció feladata. SQL-implementáció a `SqlIdentityProvider` mappingjéből. A VAPA-állapot külön, VAPA-tulajdonú `vapa_account_state` táblába kerül (`actor_id`, `disabled`, `must_change_password`, `temporary_expires_at`), így a fogyasztói sémát nem kell módosítani. Belépni csak akkor lehet, ha a fogyasztó `allowed` feltétele **és** a VAPA-állapot is engedi. Ha a fogyasztói tábla nem enged beszúrást, a létrehozás képessége kifejezetten letiltott, a meglévő fiókok továbbra is kezelhetők (eldöntve); a felület ezt jelzi, nem hibázik csendben.
+<a id="e1--írható-fióktár-szerződés"></a>
 
-### E2 — Adminmodul VAPA-definíciókból
+### E1 — Writable account-store contract
 
-A VAPA-tulajdonú táblák (szerepkör, tagság, szabály, token, napló) erőforrásai a csomagban szállított modul-JSON-ban vannak, a meglévő `WorkspaceConfiguration` compilerrel és név szerint regisztrált keretbindingokkal. A fióktábla erőforrása a fogyasztó identity mappingjéből épül, regisztrált keretbindinggal; nincs JSON-ba írt SQL-tábla vagy kód. Bekapcsolás az alkalmazás-JSON új `admin` szekciójával; menücsoport: „Adminisztráció”.
+Proposed AccountStore extends identity mapping with optional create_defaults for
+other required consumer columns. Every application uses e-mail as login
+(decided): username_column points to unique normalized lowercase e-mail without
+spaces. E-mail change revokes sessions, remembered credentials and tokens.
+Consumers with separate usernames own their migration.
 
-| Nézet | Műveletek |
+SQL implementation derives from SqlIdentityProvider mapping. Framework state
+lives separately in blade_account_state (actor_id, disabled, must_change_password,
+temporary_expires_at), without altering consumer schema. Login requires both
+consumer allowed and framework state. Non-insertable stores explicitly disable
+create but retain existing-account management (decided), with visible UI behavior.
+
+<a id="e2--adminmodul-61de-definíciókból"></a>
+
+### E2 — Admin from 61de definitions
+
+Framework-owned role/membership/rule/token/log resources use package module JSON,
+WorkspaceConfiguration and named framework bindings. Accounts derive from
+consumer identity mapping, with registered bindings rather than table/code in JSON.
+Application admin section enables group Administration.
+
+| View | Operations |
 | --- | --- |
-| Felhasználók | lista, létrehozás (teljes név = `displayName`, e-mail mint bejelentkezési azonosító), név/e-mail módosítás, tiltás, visszaengedés, új ideiglenes jelszó, e-mailes megerősítés kapcsolója (meglévő `Settings`) |
-| Szerepkörök | lista, létrehozás, átnevezés (stabil `role_key`), tagok hozzáadása/eltávolítása |
-| Jogosultságok | szabálylista, létrehozás, módosítás, törlés; erőforrás/művelet/mező választó a katalógusból; árva szabály jelölése |
-| API-kulcsok | lista (címke, tulajdonos, scope, lejárat, állapot; hash és titok soha), kiadás felhasználónak, visszavonás |
-| Napló | csak olvasható lista szűréssel (idő, actor, erőforrás, művelet, eredmény, kategória) |
+| Users | List/create full name via displayName and e-mail login; edit; disable/re-enable; temporary password; existing Settings confirmation switch. |
+| Roles | List/create/rename display name with stable role_key; add/remove members. |
+| Permissions | List/create/edit/delete; resource/action/field choices from catalog; mark orphans. |
+| API keys | List label/owner/scope/expiry/state, never hash/secret; issue/revoke. |
+| Log | Read-only filtering by time, actor, resource, action, result, category. |
 
-### E3 — Kötelező jelszócsere
+<a id="e3--kötelező-jelszócsere"></a>
 
-Sikeres jelszavas (és ha be van kapcsolva, e-mailes) hitelesítés után, ha `must_change_password` aktív, a session új `pendingPasswordChange` állapotba kerül: nincs menü, munkaterület, API vagy WebSocket-ticket. A DHTMLX-űrlap a `Passwords` szabályait használja. Siker után a jelző törlődik, az összes korábbi session és token visszavonódik, és a teljes session létrejön. Lejárt ideiglenes jelszóval nem lehet belépni. Kötelező csere alatt álló fiók API-tokenje nem fogadható el.
+### E3 — Forced password change
 
-### E4 — E-mailes jelszó-helyreállítás
+After password and optional e-mail verification, must_change_password enters
+pendingPasswordChange with no menu/workspace/API/WebSocket ticket.
+DHTMLX uses Passwords rules. Success clears flag, revokes old sessions/tokens
+and establishes full session. Expired temporary passwords and API tokens for
+accounts awaiting change are rejected.
 
-A loginablakban „Elfelejtett jelszó” link: az e-mail-cím megadása után mindig ugyanaz a válasz. Létező, nem tiltott fiókhoz egyszer használható, lejáró link megy (`vapa_password_resets`: selector, verifier-hash, actor, hitelesítési verzió, lejárat, felhasználás). A link új jelszó megadását kéri. Siker után: jelszócsere, kötelező-csere jelző törlése, minden session, megjegyzett belépés és token visszavonása, audit. Ha nincs levélküldés konfigurálva, a funkció rejtett és letiltott. A levél lokalizált, és a `LoginMessage` szövegfelülírási rendjét követi.
+<a id="e4--e-mailes-jelszó-helyreállítás"></a>
 
-### E5 — ACL-katalógus
+### E4 — E-mail password recovery
 
-Csak olvasható katalógus a `Registry`-ből: erőforrás, művelet, felirat, csatornák, írás jelző, mezők. Ez szolgál a szabályszerkesztő választékául és az API-scope-ok forrásaként. A katalógus **nem ad jogot**. A definícióból eltűnt erőforrásra mutató szabály árvaként jelenik meg, és csak kézzel törölhető. Az első admin explicit, auditált telepítő-/setup-lépéssel jön létre (szerepkör + szabályok), nem automatikusan.
+Forgot-password from login returns uniform feedback for any address.
+Existing enabled accounts receive one-use expiring links, stored as selector,
+verifier hash, actor, auth version, expiry/use in blade_password_resets.
+Success changes password, clears flag, revokes all sessions/remember/tokens and
+audits. Without delivery configuration, recovery is hidden/disabled.
+Mail is localized using LoginMessage override conventions.
 
-### E6 — API-kulcsok auditált kezelése
+<a id="e5--acl-katalógus"></a>
 
-**API-kulcsot csak megfelelő ACL-jogú admin kezel** (eldöntve): kiad bármely aktív felhasználónak, minden kulcsot lát (titok nélkül), visszavon. Közönséges felhasználó nem lát és nem kezel kulcsot; önkiszolgálás csak későbbi, külön jogként. A kiadás és a visszavonás regisztrált művelet (`Executor`), így auditált. Scope csak a katalógus `api` csatornás műveleteiből választható. Lejárat 1–90 nap (meglévő korlát). A titok egyszer jelenik meg. A tiltás és a jelszócsere minden tokent visszavon (meglévő `revokeSessions`).
+### E5 — ACL catalog
 
-### E7 — Naplónézet és kategória
+Read-only Registry projection: resource/action/label/channels/write/fields.
+It drives rule choices/API scopes, never rights. Removed definitions leave
+marked orphans for manual deletion. First admin comes from explicit audited
+setup creating role/rules, never automatic grants.
 
-Csak olvasható lista a `vapa_audit` fölött, szerveroldali szűréssel és rendezéssel, szerkesztő vagy törlő művelet nélkül. Kategória az első szeletben olvasáskor képezve: `session`, `authentication`, `transport` és az admin-erőforrások **biztonsági**, minden más **audit**. Üzemeltetési események még nincsenek a táblában. Külön kategóriaoszlop sémamigrációval későbbi döntés.
+<a id="e6--api-kulcsok-auditált-kezelése"></a>
 
-### E8 — Védelmek
+### E6 — Audited API-key administration
 
-- Saját fiók nem tiltható le, saját védett szerepkör-tagság nem vonható vissza.
-- A konfigurált védett szerepkörnek (`admin.protected_role`) mindig marad legalább egy aktív tagja; a tiltást, tagságeltávolítást és szabálytörlést ugyanabban a tranzakcióban ellenőrizzük, MySQL alatt sorzárral.
-- A védett szerepkör szabályai csak ACL-kezelési joggal módosíthatók; az üzleti szabály ACL-engedéllyel sem kerülhető meg.
+Only ACL-authorized admins manage keys for active users and list all without
+secrets (decided). Ordinary users have no key UI; self-service is a later separate
+permission. Issue/revoke are audited registered actions. Scopes come only from
+catalog api actions. Original plan used 1–90 days; implemented A3 permits an
+expiry date within 365 days as documented in [current usage](admin.md#api-kulcsok-a3).
+Secret appears once. Disable/password change revoke all tokens.
 
-### E9 — Lokalizáció és téma
+<a id="e7--naplónézet-és-kategória"></a>
 
-Minden felirat, hibaüzenet és levél keretkatalógusban hu/en/de nyelven. Kizárólag natív DHTMLX-vezérlők, így Skyblue/Világos/Éjjeli témában ellenőrizhetők.
+### E7 — Log view and categories
 
-## 4. Alapértékek (jóváhagyva 2026-10-21)
+Read-only server-filtered/sorted blade_audit, no edit/delete. First-slice category
+is derived at read time: session/authentication/transport/admin resources are
+security; others audit. Operational events are not yet in the table.
+A separate category-column migration is a later decision.
 
-| Kérdés | Javaslat |
+<a id="e8--védelmek"></a>
+
+### E8 — Protections
+
+- Self-disable and removal of own protected membership are forbidden.
+- Configured admin.protected_role always retains an active member; disable/member removal/rule deletion check transactionally with MySQL row locks.
+- Protected-role rules require ACL administration rights; business guards cannot be bypassed by ACL.
+
+<a id="e9--lokalizáció-és-téma"></a>
+
+### E9 — Localization and themes
+
+Framework catalogs contain all labels/errors/mail in hu/en/de.
+Native DHTMLX controls support checking Skyblue/light/dark.
+
+<a id="4-alapértékek-jóváhagyva-2026-10-21"></a>
+
+## 4. Defaults (approved 2026-10-21)
+
+| Topic | Approved value |
 | --- | --- |
-| Ideiglenes jelszó forrása | A VAPA generálja (20 karakter), egyszer jelenik meg az adminnak; kézi megadás nincs. |
-| Ideiglenes jelszó élettartama | 72 óra; utána új ideiglenes jelszó kell. |
-| Reset link élettartama | 30 perc, egyszer használható; új kérés érvényteleníti az előzőt. |
-| Reset rátakorlát | 3 kérés / 15 perc / fiók és 10 kérés / 15 perc / IP; a válasz ettől függetlenül egységes. |
-| Reset után | Nincs automatikus belépés; normál belépés, a bekapcsolt e-mailes megerősítéssel együtt. |
-| Védett szerepkör | `role_key: "admin"`, konfigurálható. |
-| Naplókategória | Olvasáskor képezve (E7); sémamigráció nélkül. |
+| Temporary password | Framework-generated 20 characters, once-only display, no manual entry. |
+| Temporary validity | 72 hours; issue replacement after expiry. |
+| Reset link | 30 minutes, single-use; a new request invalidates predecessor. |
+| Reset rate | 3 per 15 minutes/account and 10 per 15 minutes/IP, still uniform response. |
+| After reset | Normal login, including configured e-mail verification; no automatic sign-in. |
+| Protected role | Configurable role_key admin. |
+| Log category | Derived on read (E7), no schema migration. |
 
-## 5. Tárolás
+<a id="5-tárolás"></a>
 
-Az első szelet SQLite-on ellenőrzött. A meglévő MySQL-ágak (`FOR UPDATE`, InnoDB) megmaradnak, de MySQL-igazolás nem része a szeletnek. Az új táblák (`vapa_account_state`, `vapa_password_resets`) az explicit `Schema::install` részei; HTTP-kérés nem futtat DDL-t. PostgreSQL- és JSON-fájltámogatást nem ígérünk ([tárolási határ](product-direction.md#3-tárolási-határ-és-szükséges-garanciák)). A demó fiókjai a munkaterület SQLite-fájljába költöznek, a setup szkript hozza létre őket.
+## 5. Storage
 
-## 6. Új naplóesemények
+Initial slice verified on SQLite. Existing MySQL FOR UPDATE/InnoDB branches
+remain without MySQL qualification. New blade_account_state and planned
+blade_password_resets belong to explicit Schema::install, never HTTP DDL.
+No PostgreSQL/JSON support is promised; see [guarantees](product-direction.md#3-tárolási-határ-és-szükséges-garanciák).
+Setup creates demo accounts in file-backed workspace databases.
 
-| Esemény | Kategória | Útvonal |
+<a id="6-új-naplóesemények"></a>
+
+## 6. New log events
+
+| Event | Category | Path |
 | --- | --- | --- |
-| Fiók létrehozása, módosítása, tiltása, visszaengedése, új ideiglenes jelszó | biztonsági | `Executor` |
-| Szerepkör, tagság és szabály módosítása | biztonsági | `Executor` |
-| API-kulcs kiadása és visszavonása | biztonsági | `Executor` |
-| Kötelező jelszócsere sikere/elutasítása | biztonsági | pre-auth, `Journal` |
-| Reset kérés (eredménytől független rögzítés), reset befejezése vagy elutasítása | biztonsági | pre-auth, `Journal` |
-| Naplónézet megnyitása | audit | meglévő `subscribe` |
+| Account create/edit/disable/re-enable/temporary password | Security | Executor |
+| Role/membership/rule changes | Security | Executor |
+| Key issue/revoke | Security | Executor |
+| Forced password change success/rejection | Security | Pre-auth Journal |
+| Reset request regardless of existence, completion/rejection | Security | Planned pre-auth Journal |
+| Log-view opening | Audit | Existing subscribe |
 
-Jelszó, ideiglenes jelszó, reset link, token és e-mail-cím értéke nem kerül a naplóba; csak mezőnevek és eredmény.
+Never log passwords, temporary secrets, reset links, tokens or e-mail values;
+only field names/outcome.
 
-## 7. Elfogadási feltételek és tesztek
+<a id="7-elfogadási-feltételek-és-tesztek"></a>
 
-- **PHP szerződésteszt** (`tests/shell/admin.php`): default deny minden admin-műveletre; jogosult admin létrehoz, módosít, tilt; a tiltott fiók sessionje, megjegyzett belépése és tokenje azonnal érvénytelen; ideiglenes jelszó lejárata; kötelező csere előtt nincs munkaterület és API; reset: egységes válasz, egyszer használható, lejár, rátakorlát, tiltott fióknak nem megy levél; utolsó admin és saját fiók védelme; árva szabály nem ad jogot; a katalógus nem ad jogot; API-scope csak szűkít; minden művelet auditált érzékeny érték nélkül; rollback hibánál.
-- **Böngészőteszt** a védett runnerrel: a demó Adminisztráció menüje, felhasználó létrehozása → első belépés → kötelező csere; reset levél egy szintetikus SMTP-catcherrel (a meglévő auth fixture mintájára); a három nyelv és a három téma füstpróbája.
-- **UI/API paritás:** ugyanaz a művelet UI-ból és tokennel is ellenőrizve, tiltott esetekkel.
-- **Kitchen sink:** a demó „Adminisztráció” csoportja szintetikus fiókokkal (`demo`, `viewer`, `blocked`), ugyanazon a konfigurációs felületen, amelyet egy alkalmazás használ.
-- **Dokumentáció:** új `docs/admin.md` használati útmutató (konfiguráció, első admin, korlátok, ellenőrzés), hivatkozás a [usage](usage.md)-ből, feedback-bejegyzés, az [authentication](authentication.md) frissítése.
+## 7. Acceptance criteria and tests
 
-## 8. Részszeletek
+- PHP admin contract: default deny; authorized account operations; immediate revocation; temporary expiry; no workspace/API before forced change; recovery uniformity/single-use/expiry/rate/disabled-account denial; self/last-admin protection; powerless orphans/catalog; narrowing scopes; audit without sensitive values; rollback.
+- Protected browser checks: demo Administration, create → first login → forced change; planned synthetic reset delivery; languages/themes. Current host permits only managed URL; preserve fixture suites without launching localhost.
+- UI/API parity for the same actions, including denials.
+- Kitchen sink via the same public consumer configuration with synthetic demo/viewer/blocked accounts.
+- Usage/config/first-admin/limits/checks in admin.md, linked from usage, feedback and authentication. Acceptance targets for unimplemented A4/A5 are not passed tests.
 
-Mindegyik önállóan tesztelhető és dokumentálható; a sorrend függőséget jelöl.
+<a id="8-részszeletek"></a>
 
-1. **A1 — Fióktár és felhasználók:** E1, Felhasználók nézet, tiltás, ideiglenes jelszó, E3, demó-fiókok áttelepítése. **Kész** ([használat](admin.md)). Eltérés a tervtől: az E1 fióktár-szerződés az `Accounts` szolgáltatás és a `SqlResource` csak olvasható mezőivel valósult meg, külön interfész nélkül; az e-mailes megerősítés kapcsolója nem került az A1-be.
-2. **A2 — Szerepkörök és jogosultságok:** E5, Szerepkörök és Jogosultságok nézet, E8, első admin setup. **Kész** ([használat](admin.md#szerepkörök-és-jogosultságok-a2)). Pontosítások: a szabályok két nézetben (szerepkör / egyedi) kezelhetők; adminerőforrásra tiltó szabály a felületen nem hozható létre; az első admin csak UI-jogot kap.
-3. **A3 — API-kulcsok:** E6.
-4. **A4 — Naplónézet:** E7.
-5. **A5 — Jelszó-helyreállítás:** E4.
+## 8. Subslices
 
-## 9. Felhasználói döntést igénylő kérdések
+Each slice is independently verifiable/documentable; order expresses dependencies.
 
-Nincs nyitott kérdés az első szelethez.
+1. A1 accounts/users: E1, disable, temporary/forced change and file-backed demo. Complete. Difference: Accounts service plus SqlResource read-only fields instead of a separate AccountStore interface; e-mail switch was outside A1.
+2. A2 roles/permissions: E5/E8, views, first admin. Complete. Role/individual rules have separate views; admin deny rules cannot be authored in UI; first admin receives UI rights only.
+3. A3 API keys: E6, complete; see current admin usage.
+4. A4 log view: E7, planned.
+5. A5 recovery: E4, planned.
 
-Eldöntve (FB-0038 kiegészítés): a 4. fejezet alapértékei; bejelentkezési azonosító az e-mail; API-kulcsot csak admin kezel, minden kulcsot lát titok nélkül; beszúrást nem engedő fióktárnál a létrehozás letiltott, a meglévő fiókok kezelhetők.
+<a id="9-felhasználói-döntést-igénylő-kérdések"></a>
+
+## 9. Owner decisions still required
+
+None for the approved first-slice design. FB-0038 settled defaults, e-mail
+identifier, admin-only key management and non-insertable-store behavior.
+This does not imply A4/A5 implementation is complete.

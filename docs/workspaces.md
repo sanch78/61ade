@@ -1,21 +1,39 @@
-# Munkaterület és élő listák
+# Workspaces and live lists
 
-Állapot: implementálva és szintetikus integrációban ellenőrizve, 2026-10-16. Kapcsolódó elvárás: FB-0006.
+Status: implemented and verified with synthetic integration on 2026-10-16.
+Requirement: FB-0006.
 
-A VAPA view külön filter, grid és opcionális beágyazott form területből álló, validált layoutfát deklarál. A területek fejléce, mérete, összecsukhatósága és sorrendje konfigurálható. Alap: bal oldali Szűrés és jobb oldali Találatok, overlay szerkesztő. A formMode panel esetén külön formterületet kell deklarálni. A singleton nézet közvetlen readonly/szerkeszthető adatlap, grid nélkül.
+Views declare validated layout trees with separate filter/grid and optional
+embedded form. Headers, sizes, collapse and order are configurable. Default:
+left filter, right results, overlay editor. Panel mode requires a form area.
+Singleton views are direct readable/editable details without a grid.
 
-A lista kulcs szerinti kurzoros lekérdezést használ, nem mély SQL OFFSET-et. A DHTMLX grid megjelenítéséhez egy korlátozott, két irányba mozgó adatsáv töltődik; görgetéskor a keret előtölt és elengedi a távoli sorokat. Nincs szükség az összes rekord vagy placeholder böngészőbe töltésére. Az ACL és az engedélyezett mezőszűrők minden lekérdezés részei; a rejtett mezőn keresés is tiltott.
+Lists use key cursors rather than deep SQL OFFSET. A bounded bidirectional
+data window prefetches on scroll and releases distant rows, without downloading
+all records/placeholders. Every query applies ACL and permitted field filters;
+searching hidden fields is forbidden.
 
-A Suite Standard 9.3.12 csomag nem tartalmazza a dokumentált PRO LazyDataProxy gridintegrációt. A VAPA a Standard Grid publikus scroll/data/selection API-jaira épített, saját adatforrás-adaptert ad; nem állítja, hogy PRO funkciót hív. A megjelenítés, layout és form továbbra is DHTMLX. Natív PRO adapter külön regisztrálható később.
+Suite Standard 9.3.12 lacks the PRO LazyDataProxy grid integration. The framework
+uses Standard Grid public scroll/data/selection APIs for its own source adapter;
+it does not claim PRO support. Layout/forms/rendering remain DHTMLX.
+A licensed native PRO adapter could be registered later.
 
-A listák automatikus frissítése projektszintű LiveConfig alapján polling vagy WebSocket. Mindkét csatorna ugyanazt a jogosultságellenőrzött, korlátozott ablakot figyeli. Csak a megváltozott sorok kerülnek át a megjelenítésbe; a nyitott form nem írható felül háttérfrissítéssel. A megfigyelő a kereten kívüli adatbázisírásokat is érzékeli. A WebSocket szerver saját, loopback szolgáltatás; rövid, sessionhöz kötött jegy kell a feliratkozáshoz, és a jogokat minden ellenőrzés újraértékeli. A böngésző hálózata megszakadáskor újracsatlakozik, háttérben lévő lap nem tart fenn aktív figyelőt.
+Project LiveConfig selects polling or WebSocket. Both watch the same authorized
+bounded window, update changed rows only and never overwrite open forms.
+External database writes are detected too. WebSocket runs as a dedicated loopback
+service, with short-lived session-bound tickets and repeated authorization.
+Clients reconnect on network loss; hidden tabs stop active watchers.
 
-A nézet nem hoz létre külön állapotsávot vagy állandó „Élő kapcsolat” feliratot. A felhasználó és az alkalmazás/verzió adatai az [egyetlen shell-sávban](shell.md#egységes-alsó-információs-sáv) szerepelnek; ez nem kapcsolja ki a háttérfrissítést.
+Views add no separate status/live-connection bar. User/application/version
+appear in the [single shell bar](shell.md#egységes-alsó-információs-sáv);
+background updates continue.
 
-## Konfiguráció
+<a id="konfiguráció"></a>
+
+## Configuration
 
 ```php
-use Vapa\Feature\ViewLayout;
+use Blade\Feature\ViewLayout;
 $source->register($registry, 'Elemek', layout: new ViewLayout(
     formMode: 'panel',
     tree: ['cols' => [
@@ -28,236 +46,295 @@ $source->register($registry, 'Elemek', layout: new ViewLayout(
 ));
 ```
 
-Az alapértelmezett `new ViewLayout()` bal oldali filtert, jobb oldali gridet és overlay formot ad. Panel módban a `form` levél kötelező. Sorok/oszlopok tetszőleges fastruktúrában állíthatók össze a validált opciókból; header, width/height, minWidth/minHeight, resizable, collapsable és collapsed használható. Futtatható JavaScript/HTML vagy tetszőleges vendoropció nem kerülhet a layoutdefinícióba.
+`new ViewLayout()` gives filter/grid plus overlay form. Panel mode requires
+a `form` leaf. Validated nested rows/cols support header, width/height,
+minWidth/minHeight, resizable, collapsable, collapsed. No executable HTML/JS
+or arbitrary vendor options in definitions.
 
-A singleton view közvetlen űrlap: a `get` által engedett adatot mutatja; a konkrét objektumhoz kapott `__form(update)` mezők szerkeszthetők. A többi readonly. A jelszó és egyéb külön művelet a saját action-formját nyitja. A lista toolbar Hozzáadás és Módosítás gombjai a jogosultságokból jönnek; a tényleges formbeküldő gomb Mentés. A kijelölt sor `_actions` képességei tiltják/engedik a sorműveleteket.
+Singleton forms show permitted get data; fields from target-specific
+`__form(update)` are editable and others read-only. Password/other actions
+open their own action forms. List Add/Modify permissions derive from ACL;
+only the actual submit button says Save. Row `_actions` enables/disables row actions.
 
-## Listaprotokoll
+<a id="listaprotokoll"></a>
 
-Ugyanaz a regisztrált `list` művelet fogadja az új `values` objektumot:
+## List protocol
+
+The registered list action accepts:
 
 ```json
 {"mode":"dynamic","limit":100,"filters":{"title":"minta"},"sort":{"field":"title","direction":"asc"},"cursor":null}
 ```
 
-Válasz: `items`, `previous`, `next`. A kurzor a következő/előző adatsáv kulcshatárát és irányát adja; nem jogosultság és nem SQL. Az adatforrás mindig újra alkalmazza az actor/csatorna ACL-jét. Egyszerre legfeljebb 200 rekord kérhető; a böngésző 100-as sávokat kér, és legfeljebb 600 rekordot tart. A megjelenítést a Standard Grid virtualizálja. A teljes adatállományhoz nincs böngészőbeli placeholder tömb és sorszám nélkül nincs kötelező COUNT lekérdezés. Sorszámozott középső ablaknál a szerver az első sor előtti jogosult/szűrt rekordok számát számolja meg, majd a betöltött sorokhoz folyamatos `_number` értéket ad; az első ablakhoz nincs külön COUNT. Ez gördülő adatsáv, nem a teljes táblát pozicionáló, rekordösszeggel arányos scrollbar.
+Response: items, previous, next. Cursors describe boundary/direction, never
+permission or SQL. Actor/channel ACL is reapplied. Request limit: 200; browser
+chunks: 100; retained rows: 600. Standard Grid virtualizes rendering. No complete
+placeholder array. Without numbering no mandatory count for rank; numbered middle
+windows count authorized/filtered rows before the first row, then assign continuous
+`_number`. The first window needs no extra rank COUNT. This is a rolling window,
+not a scrollbar proportional to total table size.
 
-A szűrőmezők a regisztrált, nem titkos skalármezőkből jönnek; szövegnél contains, számnál/selectnél egyenlőség. A `%` és `_` literális karakter, nem kliens által megadott wildcard. Részlegesen tiltott olvashatóságú mezőt konzervatívan nem lehet szűrésre használni. A `textarea` nem alapszűrő. Összetett/ágazati filterhez előbb a keret típusos query-szerződését kell bővíteni. A fejléc kattintása szerveroldali növekvő/csökkenő rendezést kér. Nincs kliensoldali részlistasort.
+Filters derive from registered nonsecret scalar fields: text contains,
+number/select equality. Percent/underscore are literals, not client wildcards.
+Partially readable fields are conservatively excluded from filtering.
+Textarea is not a basic filter. Complex/domain filters require extending the
+typed query contract first. Header clicks request server ascending/descending
+sort, never sorting only a loaded subset.
 
-### Rendezés és smart rendering
+<a id="rendezés-és-smart-rendering"></a>
 
-A `sort` opcionális, alakja `{"field":"title","direction":"asc"}`; a másik irány `desc`. Az alap a publikus `id` csökkenő sorrendje. A teljes jogosult és szűrt találati halmazt az SQL rendezi. Egy mező rendezhető egyszerre; az azonos értékek közt az egyedi kulcs ugyanabban az irányban dönt, a NULL mindkét irányban a végére kerül. Számok numerikusan, szövegek az adatbázis kollációja szerint, select/checkbox mezők a tárolt érték szerint rendeződnek. Titkos, textarea, ismeretlen és részlegesen tiltott mezőre rendezni sem lehet; a `sortable` nézetmetaadat az engedélyezett publikus mezőneveket adja. Külön fogyasztói frontend vagy sort-endpoint nem kell. Gyakran rendezett nagy táblán a fogyasztó adatbázisindexet ad a rendezési mezőre és kulcsra; a keret nem módosít adatbázissémát.
+### Sorting and smart rendering
 
-A fejléc `↑` / `↓` jelzi az irányt, és `aria-sort` teszi elérhetővé. A `column.editable: true` oszlop fejlécén `✎` látható, tooltipje leírja a szerkesztés módját; az editor és checkbox akadálymentes neve változatlan. A jelzés az oszlop képessége, a konkrét sor/mező ACL-je továbbra is korlátozhatja a szerkesztést.
+Optional sort: `{"field":"title","direction":"asc"}` or desc. Default: public
+id descending. SQL sorts the complete authorized/filtered result. One field
+at a time; unique key breaks ties in the same direction, NULL last both ways.
+Numbers sort numerically, strings by database collation, select/checkbox by stored
+value. Secret, textarea, unknown and partially denied fields cannot sort.
+Sortable metadata lists permitted public field names. Consumers need no frontend
+or sorting endpoint; they supply indexes for frequently sorted large tables.
+The framework does not alter schemas.
 
-A kurzor a rendezési mezőt, irányt, határértéket és egyedi kulcsot is hordozza. Más rendezéshez tartozó kurzor elutasításra kerül. A sor `_position` technikai metaadata teszi lehetővé, hogy a kliens a 600-as gördülő ablak levágásakor is helyes visszafelé kurzort és élő ablakhatárt készítsen, Unicode értékekkel is. A `watch` a `sort` mellett középső ablaknál az első sor `first` azonosítóját és az abból képzett `anchor` kurzort kapja. Az első ablak követi az új élre kerülő sorokat; középső ablak a rendezett határhoz kötött marad. Új rendezés az elejéről tölt. A rendezési mező helyben módosítása után a szerver újrarendezi a listát.
+Headers show ↑/↓ with aria-sort. Editable non-checkbox headers show ✎ plus
+editing tooltip, preserving editor/checkbox accessible names. Column capability
+does not override row/field ACL.
 
-A smart rendering két rétege már működik: a Standard DHTMLX Grid virtualizálja a megjelenítést, a VAPA 100-as adatcsomagokkal, maximum 600 betöltött sorral korlátozza a memóriát. Ez nem a régi ADE teljes rekordszám szerinti görgetősávja: tetszőleges sorszámra ugrás és teljes táblaméretű scrollbar nincs. A rendezés és szűrés ettől függetlenül a teljes SQL-találathalmazra érvényes.
+Cursors carry field, direction, boundary and unique key; other-sort cursors
+are rejected. Row `_position` supports correct backward cursors/live bounds
+after trimming 600-row windows, including Unicode values. Watch receives sort
+and, for middle windows, first-row ID plus anchor cursor. The first window follows
+new leading rows; middle windows stay bound to their sorted boundary.
+Changing sort reloads from the beginning; editing a sort value triggers server reorder.
 
-Ellenőrzés: `tests/shell/sorting.php` (1501 rekord, szöveg/szám/ID mindkét irányban, ismétlődő és NULL értékek, teljes bejárás, visszagörgetés, rendezett live ablak, ACL/injection); `--project=sorting` és `tests/fixtures/grid-sort` (1801 rekord, fejlécjel, teljes rendezés, szűrés, kétirányú görgetés, maximum 600 adat és 100-nál kevesebb renderelt sor).
+Both smart-rendering layers work: native Grid render virtualization and 100-row
+chunks capped at 600. There is no arbitrary ordinal jump or full-table scrollbar.
+Sort/filter still cover the full SQL result.
 
-A korábbi üres `values` + offset API átmeneti kompatibilitásként megmarad, de az új frontend nem használja. A régi lapozó- és frissítőgombok megszűntek.
+Historical verification: `sorting.php` with 1501 rows, text/number/id both
+ways, duplicate/NULL values, complete traversal, backward scroll, live order,
+ACL/injection; sorting browser fixture with 1801 rows, headers, full sorting,
+filters, bidirectional scrolling, ≤600 loaded and <100 rendered rows.
+The old empty-values/offset API remains transitional compatibility, unused by
+the new frontend. Pager/refresh buttons were removed.
 
-## Élő adat konfigurálása és futtatása
+<a id="élő-adat-konfigurálása-és-futtatása"></a>
+
+## Live-data configuration and execution
 
 ```php
-new ApplicationDefinition(/* alkalmazásdefiníció */, live: new Vapa\Live\LiveConfig(
-    transport: 'websocket', // vagy poll
+new ApplicationDefinition(/* application definition */, live: new Blade\Live\LiveConfig(
+    transport: 'websocket', // or poll
     endpoint: 'wss://admin.example.test/live',
     interval: 2000,
 ));
 ```
 
-Polling módban csak HTTP kell. `__watch` a látható, maximum 600 soros ablak hashét ellenőrzi. Változatlan állapotnál csak verzióválasz jön; a kliens nem rajzol újra.
+Polling needs HTTP only. `__watch` hashes the visible ≤600 rows; unchanged
+responses contain version only and do not redraw.
 
-WebSocket módban a VAPA `tools/live-server.mjs` folyamatát kell indítani Node 18+ és PHP 8.4+ alatt. Függőség: lockfile-ban rögzített `ws` (jelenleg 8.22.0). Környezet: `VAPA_AUTOLOAD_FILE`, `VAPA_APPLICATION_FILE`, `VAPA_PHP`, `VAPA_LIVE_ORIGIN`, opcionálisan `VAPA_LIVE_PORT` (8088), `VAPA_LIVE_INTERVAL` (2000). A proxy HTTPS/WSS útvonalról loopbackre továbbít. Az `Origin` pontos ellenőrzése és a sessionhöz kötött, privát runtime-ban tárolt ticket kötelező; a jegy nem visz ki session ID-t a böngészőnek.
+WebSocket uses `tools/live-server.mjs`, Node 18+, PHP 8.4+ and lockfile-pinned
+ws (currently 8.22.0). Settings: BLADE_AUTOLOAD_FILE, BLADE_APPLICATION_FILE,
+BLADE_PHP, BLADE_LIVE_ORIGIN; optional BLADE_LIVE_PORT (8088),
+BLADE_LIVE_INTERVAL (2000). A managed HTTPS/WSS proxy forwards to loopback.
+Exact Origin checking and session-bound tickets in private runtime are mandatory;
+tickets do not expose session IDs. Service/proxy provisioning belongs to Infra.
 
-A szerver megfigyelője a látható adatsávokat ellenőrzi időközönként az adatbázisban, így külső írás is felismerhető. A böngésző felé csak változáskor küld WebSocket csomagot: módosult sorok, törölt azonosítók és aktuális sorrend. A kapcsolati heartbeat, az újracsatlakozás és a régi szűrőhöz tartozó késői csomagok eldobása a keret feladata. Elrejtett böngészőfülnél a figyelő leáll, visszatéréskor automatikusan feliratkozik. Nincs csendes átváltás pollingra, ha a projekt WebSocketet választott.
+Server watchers periodically inspect visible database windows, including external
+writes. Only changes send packets: changed rows, deleted IDs and current order.
+The framework owns heartbeat/reconnect/stale-filter packet rejection. Hidden
+tabs unsubscribe and resubscribe on return. WebSocket selection does not silently
+fall back to polling.
 
-A hitelesítés, lejárat, fiókállapot, session-visszavonás és ACL minden megfigyelésnél új ellenőrzést kap. A megfigyelés technikai olvasás: a feliratkozás auditált, a változatlan tickek nem termelnek üzleti auditot. A valódi módosítás továbbra is a közös tranzakciós műveletvégrehajtón naplózódik. Nyitott formot a háttéradat nem ír felül; konfliktus esetén a beküldés 409-cel védett.
+Every observation rechecks authentication, expiry, account state, revocation
+and ACL. Subscriptions are audited technical reads; unchanged ticks do not
+produce business audit. Actual writes use the transactional executor. Open forms
+retain drafts and stale saves return 409.
 
-## Ellenőrzés
+<a id="ellenőrzés"></a>
 
-`tests/shell/lists.php`: 5000 rekord, scope, kétirányú kurzor, teljes bejárás duplikáció nélkül, filter-injection/mezőtiltás, külső írás és törlés. `tests/shell/workspace.spec.cjs`: valódi overlay form, polling, ismételt nézetváltás. A fogyasztó szintetikus integrációja külön ellenőrzi a WebSocketes módosítást és jogvisszavonást, a filtert, a beágyazott form megőrzését, a profilformot és a 600 soros memóriakorlátot.
+## Verification
 
-A WebSocket kliens a sorrendlistán kívüli cache-bejegyzéseket is elengedi, így az újracsatlakozás sem növeli korlátlanul a memóriát. A leállított/régi socket késői eseményeit figyelmen kívül hagyja.
+`lists.php`: 5000 rows, scopes, both cursor directions, duplicate-free traversal,
+filter injection/field denial, external writes/deletes.
+`workspace.spec.cjs`: actual overlay form, polling, repeated switching.
+Separate consumer synthetic integration historically checked WebSocket updates/
+revocation, filtering, preserved panel forms, profile form and 600-row bounds.
+The client releases cached rows outside current order and ignores late events
+from stopped/replaced sockets. Current host [coverage limits](development.md#existing-full-smoke-and-coverage-limits)
+apply to fixture-dependent browser groups.
 
-## Layoutszintek és keretek
+<a id="layoutszintek-és-keretek"></a>
 
-A többpaneles nézet deklarált layoutfája közvetlenül a munkaterület DHTMLX `space` layoutjának gyökere. Nincs körülötte újabb egycellás, keretezett `space` burkoló: a panelek saját keretet és egyetlen 12 px külső térközt kapnak. Az alkalmazás shellje és a grid toolbar/adatterületének belső layoutja külön feladatot lát el; ezek nem adnak újabb keretezett panelburkolót. A singleton adatlap saját, címzett panelje megmarad. A fogyasztó által szándékosan deklarált további sor/oszlopágakat a keret megtartja.
+## Layout levels and borders
 
-Ellenőrzés: `workspace.spec.cjs` az alapnézet egyetlen `space` gyökerét, a filter/grid panelek 12 px eltolását, a CRUD-ot és az ismételt nézetváltást vizsgálja. Kapcsolódó döntés: FB-0015.
+The declared multipanel tree is the direct DHTMLX space root. No extra framed
+one-cell wrapper; panels get their own borders and one 12 px outer gap. Shell
+and internal toolbar/data layouts have distinct responsibilities without extra
+panel frames. Singleton titled panels and explicitly declared branches remain.
 
-## Panelméretező megjelenítése
+`workspace.spec.cjs` checks one space root, 12 px offsets, CRUD and repeated
+switching. FB-0015.
 
-A Suite 9.3.12 `space` layoutja 12 px panelközt hagy, de a gyári CSS a hárompontos fogantyút az előző cella szegélyére teszi. A VAPA `admin.css` a `#vapa-application` alatti `dhx_layout-space` resizerikonjára célzott CSS-felülírást ad: vízszintes panelosztásnál `right: -6px`, függőleges panelosztásnál `bottom: -6px`. Így az ikon a panelköz közepére kerül; a natív DHTMLX méretezési eseménykezelés működik tovább.
+<a id="panelméretező-megjelenítése"></a>
 
-A fogyasztónak nincs külön teendője: a VAPA assetet kell publikálnia. A gyári Suite CSS-fájl változatlan marad; a VAPA szabályai utána töltődnek be. A `line` és `wide` layoutot, valamint a gridoszlop- és ablakméretezőt ez nem érinti. A javítás a Suite 9.3.12 gyári 12 px panelközére épül; vendorfrissítéskor a célzott tesztet futtatni kell.
+## Panel resizer appearance
 
-Ellenőrzés: `tests/shell/layout-resizer.spec.cjs` önálló szintetikus DHTMLX layouton méri mindkét tengely fogantyújának középpontját Light/Skyblue/Dark témában, és tényleges egérhúzással ellenőrzi a panel átméretezését. Kapcsolódó visszajelzés: FB-0013.
+Suite 9.3.12 space layout has a 12 px gap but places the factory three-dot grip
+on the preceding border. Scoped admin.css rules beneath `#blade-application`
+move the dhx_layout-space grip to gap center: right -6 px for horizontal panel
+division, bottom -6 px for vertical division. Native dragging remains intact.
 
-## Kártyák, rekordadatok, sorszám és jelölés
+Consumers only prepare updated framework assets. Factory CSS is unchanged;
+framework rules load afterward. Line/wide layouts, grid-column/window resizers
+are unaffected. This relies on Suite 9.3.12's gap; rerun focused checks on upgrades.
+`layout-resizer.spec.cjs` measures centers on both axes across themes and drags
+with the mouse. FB-0013.
 
-A kártyanézet natív DHTMLX DataView: a rendelkezésre álló panelszélesség szerint
-340 px célméretű oszlopokat használ; mobilon egy oszlopra vált. A kártya minden
-regisztrált, a `list` válaszában olvasható mezőt megjelenít, a gridből kihagyott
-mezőket is. A technikai revízió/ACL-metaadat és a titkos mező nem adatlapmező.
+<a id="kártyák-rekordadatok-sorszám-és-jelölés"></a>
 
-Minden listában alapértelmezett a `#` sorszámoszlop. A sorszám a teljes jogosult, szűrt és rendezett találathalmazon belüli
-pozíciót mutatja, az adatablak továbbgörgetésekor is folyamatos. Nem adatbázis-ID;
-rendezés, szűrés vagy közben beszúrt/törölt sor változtathatja a pozíciót. Dupla kattintása a friss `get`
-műveleten át DHTMLX rekordablakot nyit. Az „Adatok” toolbar-gomb ugyanazt adja,
-akkor is, ha a sorszámot kikapcsoljuk. Kártyán dupla kattintás is ezt nyitja.
-Ablakban minden regisztrált, `get` szerint olvasható mező látható; a szerver
-objektum- és mezőjogai érvényesek. A módosító űrlap külön művelet marad.
+## Cards, record details, numbering and marks
 
-JSON `view` beállítások: `row_numbers: false` kikapcsolja a sorszámot;
-`selection: true` bekapcsolja a sorjelölő checkboxokat (alapból false).
-PHP: `$registry->view(..., rowNumbers: false, selection: true)`.
-A jelölés elkülönül az aktív/szerkesztett sortól, megmarad tábla/kártya váltáskor
-és azonos sorok élő frissítésekor. Az adatablakból kikerülő sor jelölése megszűnik.
+Native DataView uses columns targeting 340 px according to panel width,
+one column on mobile. Cards show all registered fields readable in list responses,
+including fields omitted from the grid, excluding technical ACL/revision metadata
+and secrets.
 
-A toolbar és a nézetváltó belső layoutja `type: none`; a külső Találatok panel
-adja az egyetlen keretet. A toolbar a saját sorának magasságát tölti ki,
-a görgethető tartalom nem rajzolhat bele. Táblázatnézetben 1 px, a témához
-igazodó elválasztóvonal határolja a toolbart az oszlopfejléctől. A szűrő alaphelyzetbe állítása és a
-belépési megerősítés másodlagos műveletei natív másodlagos flat gombok.
+Lists default to a # ordinal column showing position in the complete authorized,
+filtered, sorted result across scrolling. It is not database ID and may change
+with ordering, filtering or insert/delete. Double-click opens a fresh ACL-checked
+get in native Window. Details toolbar action works even without numbering;
+card double-click also opens it. All get-readable fields appear; editing remains
+a separate action.
 
-## Tömeges műveletek és ikonok
+JSON view `row_numbers: false` disables numbering; `selection: true` enables
+marks (default false). PHP: `$registry->view(...,rowNumbers:false,selection:true)`.
+Marks differ from active/editor row, survive grid/card switches and same-row
+live updates, and disappear when rows leave the data window.
 
-A regisztrált Action opcionális `icon` DHTMLX ikon-osztályt fogad, például
-`dxi dxi-check`; JSON action ugyanilyen `icon` kulcsot használ. Az alapműveletek,
-a nézetváltás, szűrés és mentés keretbeli alapikont kapnak.
+Toolbar/view-switch internal layouts are type none; the outer results panel
+owns the only frame. Toolbar fills its own height and scrolling content cannot
+overdraw it. Grid mode has a theme-colored 1 px divider above column headings.
+Filter reset and authentication secondary actions are native secondary flat buttons.
 
-Tömeges művelet csak kifejezett `Action(..., bulk: true)` / JSON `bulk: true`
-esetén és bekapcsolt sorjelölés mellett jelenik meg. A jelenlegi fogyasztói
-üzleti modulok ezt még nem kapcsolják be. Példa egy fogyasztó által regisztrált,
-objektumonként végrehajtott „Lezárás” művelet: adj hozzá `bulk: true`-t és
-`icon: 'dxi dxi-check'`-et, majd a view-hoz `selection: true`-t. A handler,
-a resolver és a jogkiosztás ugyanaz, mint az egyedi műveletnél.
+<a id="tömeges-műveletek-és-ikonok"></a>
 
-A „… — jelöltek” gomb az engedélyezett sorokra közös űrlapot nyit;
-eltérő mezőjogoknál elutasítja az összevont űrlapot. 1–100 sor kezelhető.
-A `__bulk` UI-csatornán `operation` és `items: [{id, values}]` bemenetet fogad.
-Minden sor saját revízióval, validációval, objektum-/mező-ACL-lel, tranzakcióval
-és audittal fut a közös Executorban. Titkos/jelszómezős és collection action
-nem lehet bulk. API bulk nem támogatott. A soronkénti eredmény részleges sikert
-is jelenthet; a már sikeres sorok nem gördülnek vissza más sor hibája miatt.
-A kliens összesítést és a sikertelen azonosítókhoz hibaüzenetet mutat;
-automatikus újrapróbálás nincs. Ez nem atomikus tömeges tranzakció és nem export.
+## Bulk actions and icons
 
-Ellenőrzés: `tests/shell/list-presentation.php` a jogosultságot, titkos mezőt,
-nézetmetaadatot, bulk opt-int, limitet, duplikációt és részleges sikert vizsgálja;
-`tests/shell/list-presentation.spec.cjs` a kártyaoszlopokat, mobilváltást,
-rekordablakot, ikonokat, jelölést, tömeges beküldést és három téma geometriai
-határait ellenőrzi. Kapcsolódó visszajelzés: FB-0019.
+Actions accept an optional DHTMLX icon CSS class, e.g. `dxi dxi-check`, also
+as JSON icon. Built-ins, view switching, filters and save have framework defaults.
 
-## Nézetválasztás és fejlécjelzések
+Bulk requires explicit Action/JSON `bulk: true` plus view selection. Existing
+consumer business views had not enabled it at the time of this guide.
+For a per-object Close action, add bulk true/icon and view selection true;
+handler, resolver and permissions stay the individual action's ones.
 
-A lista-toolbar utolsó eleme a jobbra igazított DHTMLX nézet-dropdown.
-Felirata az aktuális megjelenítés: „Nézet: Táblázat” vagy „Nézet: Kártyák”.
-A menüben Táblázat és Kártyák választható; a váltás megőrzi a kijelölt sort.
-Mobilon a kártyamegjelenítés kötelező, ezt a tiltott dropdown felirata is mutatja;
-az asztali preferencia a szélesség visszaállításakor ismét érvényesül.
-Singleton adatlapon nincs nézet-dropdown. Ez az FB-0019 két külön nézetgombját
-az FB-0020 pontosítása szerint váltja fel; fogyasztói konfiguráció nem kell.
+The marked-rows button opens one form for permitted targets; differing field
+permissions reject the combined form. Limit: 1–100 rows. UI `__bulk` takes
+operation and `items: [{id,values}]`. Every row has its own revision, validation,
+object/field ACL, transaction and audit in Executor. Secret/password fields and
+collection actions cannot bulk. API bulk is unsupported. Partial success is
+possible; another row's failure does not roll back successful rows. Clients show
+summary and per-ID errors, without automatic retries. This is neither an atomic
+whole-batch transaction nor export.
 
-A szerkeszthetőség ceruzája a mezőcím mellett marad, a hover-rendezés ikonja
-külön, 24 px széles helyet kap a fejléc jobb szélén. Aktív rendezéskor egyetlen
-irányjelzés jelenik meg a VAPA SQL-sorrendje alapján. A mezőcím szükség esetén
-ellipszissel rövidül, a tooltip és az `aria-sort` megmarad. A szabály minden
-VAPA-témára érvényes. Ellenőrzés: `list-presentation.spec.cjs` és
-`mobile-grid.spec.cjs`; a [befejezett minősítés](list-presentation-validation.md) a teljes követelménylistát ellenőrzi.
+`list-presentation.php` checks ACL/secrets/metadata/opt-in/limits/duplicates/
+partial success; `list-presentation.spec.cjs` checks columns/mobile/details/icons/
+marks/bulk and theme geometry. FB-0019.
 
-A listaprotokoll `numbered` logikai értéke alapértelmezetten true; false esetén
-a pozíciószámítás és az `_number` metaadat is kimarad. A frontend a
-`view.row_numbers` szerint kéri, az élő megfigyelésben is. A PHP rendezésteszt
-mindkét irányú lapozásnál és középső élő ablaknál ellenőrzi a teljes rangot.
+<a id="nézetválasztás-és-fejlécjelzések"></a>
 
-A mobil szűrőablak külön natív Form-példányt használ; alkalmazáskor az értékek
-a panel szűrőjébe is átkerülnek. Bezáráskor nincs widgetmozgatás a layoutok
-között. A Szűrés/Alaphelyzet gombpár egy sorban, 8 px távolsággal jelenik meg.
+## View selection and header indicators
 
-## Listafejléc és rekordszám
+The final right-aligned Toolbar dropdown shows the current grid/card mode.
+Switching preserves active row. On mobile it is disabled and indicates forced
+cards; desktop restores manual preference. Singleton views have none.
+This replaces FB-0019's two buttons per FB-0020; no consumer configuration.
 
-A `grid` régió natív Layout-fejlécében mindig a nézet `title` értéke jelenik
-meg; a toolbar kizárólag műveleteket és az utolsó nézetválasztót tartalmazza.
-Jobb oldalon szűrés nélkül `Összes: 123`, alkalmazott szűrővel
-`Összes: 123 / Találat: 8` látszik. Az összes a `list` jogosultsággal és
-az adatforrás alapfeltételével elérhető rekordok száma; a találat ezen belül
-az alkalmazott szűrőnek megfelelő darabszám. Egyik sem a betöltött adatablak
-mérete. Üres találatnál is megmaradnak; a kurzor és a rendezés nem módosítja
-őket. A szerver `total` és `matched` számokat ad minden lista- és megváltozott
-watch-válaszban; polling és WebSocket is továbbítja őket. Az ablakon kívüli
-változás is módosítja a snapshot verzióját, ha a darabszám változik.
+The pencil stays beside the title. Hover sort icon has its own 24 px right area.
+Only one direction indicator reflects server SQL order. Titles ellipsize as
+needed; tooltip/aria-sort remain. All themes use this rule.
+`list-presentation.spec.cjs`, `mobile-grid.spec.cjs` and the
+[historical qualification](list-presentation-validation.md) document evidence.
 
-A natív fejléc `headerIcon` kiegészítőhelyén a VAPA számlálóosztálya jelenik
-meg, a keret stílusa jobbra rendezi; nincs külön fogyasztói fejléc vagy
-HTML-adminfelület. Táblázatnézetben az árnyék az oszlopfejléc alatt választja el a gördülő
-sorokat; kártyanézetben a toolbar alatt jelenik meg. Nézetváltáskor a
-megjelenített natív Grid alapján automatikusan vált, minden témában. A filter két natív gombja egy sorban, legalább 8 px
-közzel jelenik meg.
+List `numbered` defaults true; false omits rank calculation and _number.
+Frontend requests it from view.row_numbers, including watch. PHP tests check
+full ordinal rank across both paging directions/middle windows.
 
-A nézet `icon` attribútuma a főmenü ikonját adja, például JSON-ban
-`"icon": "dxi dxi-file-outline"`; PHP-ban a `Registry::view` utolsó opcionális
-`icon` argumentuma ugyanez. Csak CSS-osztálynevek adhatók meg. Az ikonfontban
-létező glyph szükséges. Alapértelmezés: `dxi dxi-table-check`; a csoportok
-mappaikont kapnak. A statikus `MenuItem` is fogad opcionális `icon` argumentumot.
+Mobile filtering creates a separate native Form, copying applied values into the
+panel form. Closing does not move widgets between layouts. Filter/reset buttons
+share one row with 8 px gap.
 
-## Kártyaszerkesztés, rendezés és kompakt ablakok
+<a id="listafejléc-és-rekordszám"></a>
 
-A `column.editable: true` kártyanézetben is érvényes, a sor szerveroldali
-`_editable` mezőjogával együtt. A ceruzával jelölt értékre kattintva natív
-DHTMLX Window/Form nyílik (szöveg, select, textarea); Mentés ugyanazt a
-`__edit` műveletet, revíziót, validációt, ACL-t és auditot használja, mint a
-Grid. A mezők közötti kliensvalidáció a teljes sor értékeit is megkapja. A checkbox egy kattintással kapcsolható; Enter/Space is működik.
-Nem írható mezőn továbbra is a rekordadatok olvashatók. A szerkesztő bezárása
-elveti a meg nem mentett értéket. Mentés alatt nincs új szerkesztés.
+## List heading and counts
 
-Kártyanézetben a toolbar jobb oldalán, a nézetválasztó előtt a **Rendezés**
-dropdown minden `sortable` mezőhöz növekvő/csökkenő opciót ad. Például a
-szintetikus `title` mező „Title ↑” választása a teljes jogosult SQL-halmazt
-rendezi, ugyanazzal a kurzorral és helyi preferenciával, mint a táblafejléc.
-Mobilon is használható. Nem kell külön fogyasztói konfiguráció vagy végpont.
+Native grid-region Layout header always shows view.title. Toolbar contains
+actions and the final selector. Right-hand counts are total without filter,
+or total/matched with filter. Total means records allowed by list ACL and base
+source condition; matched adds the applied filter. Neither means loaded-window
+size. They persist for empty results and are independent of cursor/order.
+Server total/matched appear in list and changed-watch responses over both transports.
+Outside-window changes update snapshot version when counts change.
 
-A layout méretezőjének dupla kattintása a szomszédos panelek deklarált
-induló méretét állítja vissza, és törli e tengely mentett méretpreferenciáját.
-A normál húzás és az összecsukott állapot ettől függetlenül megmarad.
-A funkciót indító grid-/kártya-dupla kattintás nem jelöli ki a megjelenített
-szöveget; az inputokban továbbra is használható a szövegkijelölés.
+The native headerIcon slot contains the framework counter class aligned right,
+without a consumer header/HTML interface. Grid mode shadow falls beneath column
+headings; cards use toolbar shadow, switching automatically across themes.
+Native filter buttons have at least 8 px gap.
 
-A filter-, CRUD-, bulk- és rekordablak megnyitáskor a kirajzolt tartalomhoz
-igazodik, legfeljebb a viewport magassága mínusz 24 px. A form utolsó gombja
-alatt 24 px hely marad; a rekordcikk saját paddingján túl 24 px marad.
-Hosszú tartalomnál a natív Window görgetése működik; a formvalidáció után
-újramérés történik. Az ablak kézi átméretezése továbbra is használható.
+View icon sets the menu icon, e.g. JSON `"icon":"dxi dxi-file-outline"` or the
+last optional Registry::view icon argument. CSS class names only; the glyph
+must exist. Default: dxi dxi-table-check. Groups use folders; static MenuItem
+also accepts icon.
 
-Ellenőrzés: `tests/shell/grid-edit.spec.cjs`,
-`npm run test:browser -- --project=grid-edit`.
-Szintetikus adatbázison ellenőrzi a mentés közbeni és utáni nézetváltást,
-a kártya checkbox/text/select mentést, validációt, SQL-rendezést, méretresetet,
-reloadot, dupla kattintást és a popupok alsó térközét. FB-0024.
+<a id="kártyaszerkesztés-rendezés-és-kompakt-ablakok"></a>
 
+## Card editing, sorting and compact windows
 
-Nézetváltáskor a soron belüli pixelpozíció nem vihető át közvetlenül a más
-magasságú kártyákra. A VAPA ugyanazt a rekordot tartja láthatóan, a cél nézet
-természetes felső térközével; a lista tetejéről váltáskor a görgetés 0 marad.
-Az azonos nézet élő frissítése továbbra is a pontos belső offsetet őrzi.
-Ellenőrzés: `list-presentation.spec.cjs` nézetváltási regressziója és
-`mobile-grid.spec.cjs` élő görgetési próbája. FB-0027.
+Card editing intersects column.editable with row _editable. Clicking a penciled
+text/select/textarea opens native Window/Form; save uses the same __edit,
+revision, validation, ACL and audit as Grid. Cross-field client validation also
+receives the full row. Checkbox toggles directly with click/Enter/Space.
+Read-only values stay text. Closing discards drafts; saving blocks another edit.
 
+Cards expose a sorting dropdown before the view selector with asc/desc options
+for each sortable field. A synthetic title “Title ↑” sorts the full SQL result
+with the same cursors/preferences as headers, including on mobile.
+No consumer endpoint/configuration is required.
 
-## Reszponzív műveletsor és azonos kártyaszélesség
+Double-clicking a layout resizer restores declared adjacent-panel sizes and
+clears that axis's saved size preference; dragging/collapse remain independent.
+Feature-triggering grid/card double-clicks do not select display text; inputs
+retain text selection.
 
-768 px alatti viewporton vagy a gombokhoz elégtelen panelszélességnél a VAPA
-natív Toolbar „Műveletek” dropdownba rendezi a teljes műveletsort. Innen érhető
-el az Adatok, Szűrés, az alkalmazás műveletei, a rendezés és a nézetválasztó.
-Az elemek eredeti azonosítója, rejtett/tiltott állapota és eseménye megmarad;
-a mező- és műveleti ACL-t továbbra is a szerver ellenőrzi. Elég széles panelen
-az eredeti vízszintes toolbar és a jobb oldali választók térnek vissza.
-A mobilon kötelező kártyanézet választója továbbra is tiltott.
+Filter/CRUD/bulk/detail windows size to rendered content, capped at viewport
+height minus 24 px. Forms retain 24 px below the final button; details retain
+24 px beyond article padding. Native scrolling handles long content;
+validation remeasures; manual resize remains available.
 
-A DataView kártyái a natív `itemsInRow` szerinti szélességet használják,
-`border-box` méretezéssel, tartalom miatti flex-zsugorodás nélkül. Hosszú,
-szóköz nélküli szöveg is tördelődik, nem okoz eltérő kártyaszélességet.
-Egyoszlopos mobilnézetben az összes kártya azonos szélességű. FB-0028.
+Historical `grid-edit.spec.cjs` checks switches during/after save, card field
+saving/validation, SQL sort, size reset, reload, double-click and bottom space
+(FB-0024). Its grid-edit fixture project cannot launch here currently.
+View switching transfers the visible record rather than a source row's pixel
+offset to different-height cards; at list start scroll stays zero. Same-view live
+updates retain exact offsets. Regression checks: list-presentation/mobile-grid,
+FB-0027.
+
+<a id="reszponzív-műveletsor-és-azonos-kártyaszélesség"></a>
+
+## Responsive command bar and uniform card width
+
+Below 768 px viewport or when panel width cannot fit buttons, the entire native
+Toolbar moves into Actions dropdown: Details, Filter, business actions, sorting
+and views. Original IDs, hidden/disabled state and events remain; backend ACL
+still checks. Wide panels restore horizontal layout/right selectors. Forced
+mobile cards keep their selector disabled.
+
+DataView uses native itemsInRow widths with border-box and no content-driven
+flex shrinking. Long unbroken words wrap; every mobile card has equal width.
+FB-0028.
+
+<a id="megerősítés-művelet-előtt"></a>
+
+## Confirmation before actions
+
+Action/JSON confirm requests the shared [dialog](dialogs.md#szerver-által-deklarált-megerősítés)
+before individual or bulk execution. Result reveal.severity selects acknowledgment severity.

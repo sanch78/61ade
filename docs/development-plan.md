@@ -1,102 +1,145 @@
-# VAPA fejlesztési terv
+# 61de development plan
 
-Állapot: 2026-10-16, M0 után első login/navigációs shell és frontend build készült ([használat](shell.md)). M1/M2/M4 részfeladatok implementálva, a teljes mérföldkövek továbbra is nyitottak. A sorrend függőségeket jelöl, nem időbecslést. 2026-10-21: a [termékirány](product-direction.md) (R1–R12, [ADR-0003](decisions/0003-product-direction.md)) szerint frissítve.
+Status: initial login/navigation shell/build after M0, 2026-10-16.
+Parts of M1/M2/M4 exist; full milestones remain open. Order indicates dependency,
+not estimates. Updated for [R1–R12](product-direction.md)/[ADR-0003](decisions/0003-product-direction.md)
+on 2026-10-21. The [dev-only environment](development.md#development-environment)
+has no deployment/post-deploy testing/backups; future package/consumer release
+plans below do not introduce those workflows here.
 
-## Igényvezérelt fejlesztési módszer
+<a id="igényvezérelt-fejlesztési-módszer"></a>
 
-Minden fejlesztési szelet ezt a láncot követi:
+## Demand-driven development method
 
-konkrét igény → keretbeli hiány → legkisebb újrahasznosítható bővítés → szintetikus demó és releváns teszt → használati dokumentáció → fogyasztói integráció → kontrollált éles kiadás.
+Need → framework gap → smallest reusable extension → synthetic demo/relevant
+checks → usage docs → consumer integration. Consumer-controlled release, if
+applicable, belongs to that consumer's environment contract.
 
-A mérföldkövek függőségi csoportok, nem kiadási kapuk. Hasznos kiadásnak nem feltétele egy kimerítő komponens- vagy funkciókatalógus elkészülte; a támogatott képességkör a valós igényekből nő. Nincs külső keretrendszer-benchmark ([FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)).
+Milestones group dependencies, not release gates. Useful delivery needs no
+exhaustive component/function catalog. Scope grows from real needs; no external
+benchmark ([FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör)).
 
-## Termékirány-munkafolyamatok (javasolt, nem ütemezett)
+<a id="termékirány-munkafolyamatok-javasolt-nem-ütemezett"></a>
 
-Ezek javasolt munkák; a nyitott döntéseket a [termékirány 5. fejezete](product-direction.md#5-nyitott-tervezési-kérdések-és-javasolt-munka) sorolja.
+## Product workstreams (proposed, unscheduled)
 
-| Munka | Követelmény | Első javasolt lépés |
+See [open questions](product-direction.md#5-nyitott-tervezési-kérdések-és-javasolt-munka).
+
+| Workstream | Requirement | Next direction |
 | --- | --- | --- |
-| P1 Kötelező adminmodul | R5, R6, R9 | [Terv](admin-module-plan.md); A1 és A2 kész ([használat](admin.md)); A3–A5 következik: API-kulcsok, naplónézet, jelszó-helyreállítás az SQLite demóban. |
-| P2 Nyelvfüggetlen JSON-szerződés | R1 | Bootstrap, metaadat, query, action, hiba és capability séma rögzítése verzióval; conformance fixture-formátum javaslat. |
-| P3 Tárolási határ | R7 | Tárolóinterfészek és garanciamátrix-tesztek; SQLite és MySQL tételes igazolása; PostgreSQL és JSON-fájl csak igény és teljesíthető garanciák esetén. |
-| P4 Eseménykatalógus | R10 | Kategóriamező a naplóban; hiányzó biztonsági események (token, ACL-változás) és megőrzési szabály. |
-| P5 Kitchen sink | R11 | A demó navigálható katalógussá szervezése; minden implementált képességhez példa. |
-| P6 OAuth-belépés | R6 | Csak a hitelesítési policy-kérdések eldöntése után; provider adapter és biztonságos fiókösszekapcsolás. |
-| P7 JSON-konfiguráció érése | R8, R9 | JSON Schema és sémaverzió; generált ACL-katalógus lekérdezése és árva szabályok egyeztetése. |
+| P1 Mandatory admin | R5/R6/R9 | [Plan](admin-module-plan.md), A1–A3 complete; A4 logs/A5 recovery remain. |
+| P2 Language-neutral JSON | R1 | Version bootstrap/metadata/query/action/errors/capabilities; propose conformance fixtures. |
+| P3 Storage boundary | R7 | Interfaces/guarantee tests; qualify SQLite/MySQL; PostgreSQL/JSON only with need and guarantees. |
+| P4 Events | R10 | Categories, missing security events and retention. |
+| P5 Kitchen sink | R11 | Navigable examples for every implemented capability; two demos already exist. |
+| P6 OAuth | R6 | Implemented through AuthHandler; real provider acceptance and trust-policy limits remain. |
+| P7 JSON maturity | R8/R9 | Schema/version, catalog query and orphan reconciliation. |
 
-## M0 — Külön repó, szerkezet és koncepció
+<a id="m0--külön-repó-szerkezet-és-koncepció"></a>
 
-Átadási feltétel: manifestek érvényes JSON-t tartalmaznak, dokumentumhivatkozások működnek, csomaghatárok egyértelműek, nincs secret/vendor/üzleti kód, a külön remote-ra push megtörtént. Ez még nem futtatható release.
+## M0 — Separate repository, structure and concept
 
-## M1 — Runtime és csomagszerződés
+Deliverable: checkout/package/test/demo structure, concept, ACL model, component
+matrix and plan. Consumer may use an ignored editor symlink.
+Acceptance: valid manifests/links, clear package boundaries, no secrets/vendor/
+business code and distinct remote push. This scaffold is not a runnable release.
 
-Feladatok:
+<a id="m1--runtime-és-csomagszerződés"></a>
 
-- PHP 8.4+ fejlesztői futtatókörnyezet és Composer biztosítása a régi admin módosítása nélkül; PHP-FPM + OPcache referencia-konfiguráció.
-- Symfony 7.4 LTS hosting javaslat véglegesítése ADR-ben; a szükséges komponensek és adatbázisadapter kiválasztása.
-- Node/buildtool/TypeScript verziók rögzítése, DHTMLX tényleges csomagverzió és licence ellenőrzése.
-- VAPA saját licencének és a GPL-es függőségek terjesztési modelljének eldöntése a publikálás előtt.
-- Composer autoload, frontend build és szintetikus demoalkalmazás indítása; csak public webroot.
-- HTTP/API hibamodell, metaadat-protokoll v1, feature registry és adapter interfészek rögzítése.
-- Automatizált lint/static analysis, unit és contract tesztparancsok, CI; dependency lock és ellenőrizhető build.
+## M1 — Runtime and package contract
 
-## M2 — Auth, tenant és ACL alap
+- PHP 8.4+/Composer without altering old admin; managed FPM/OPcache reference.
+- Decide Symfony proposal, components and DB adapter in ADR.
+- Pin Node/build/TypeScript/vendor versions and verify licenses.
+- Decide own license/GPL distribution before publication.
+- Composer autoload/frontend build/synthetic demo with public-only webroot.
+- Define HTTP/API errors, protocol v1, registry/adapter contracts.
+- Automated lint/static/unit/contracts/CI, locks and verifiable build.
 
-Feladatok: szintetikus identitások és két szervezet, login/logout, session/CSRF, szervezetváltás, gépi auth megoldás, role/action policy, query scope és mezőprojekció, cache invalidálás, audit.
+Acceptance: documented clean-checkout demo health/empty shell, clear version
+mismatch rejection, no absolute consumer path. No business-module promise.
 
-## M3 — Első teljes feature-folyamat
+<a id="m2--auth-tenant-és-acl-alap"></a>
 
-Szintetikus projekt/feladat domain: lista, keresés, szerveroldali lapozás, részletek, form, létrehozás, módosítás és explicit törlési/archiválási művelet. Egy típusos definícióból UI-metaadat, műveleti regisztráció és opcionális külső REST.
+## M2 — Authentication, tenant and ACL foundations
 
-Feladatok: inputvalidáció, engedélyezett filter/sort, QueryProvider és ActionHandler, tranzakció és optimista zárolás, strukturált mezőhibák, read-only és tiltott mezők kezelése.
+Synthetic identities/two organizations, login/logout/session/CSRF/switching,
+machine auth, roles/actions/query scopes/field projection/cache invalidation/audit.
+Acceptance: relevant security matrix automated, direct API cannot bypass policy,
+organization switch clears old data and framework knows no consumer legacy flags.
 
-Átadás: ugyanaz a use case működik formból, inline editből és API-ból. API-kitettség kikapcsolható az admin letiltása nélkül. Két egyidejű mentés konfliktusa nem okoz csendes adatvesztést. A feature-definíció nem tartalmaz frontendbe kijutó SQL-t.
+<a id="m3--első-teljes-feature-folyamat"></a>
 
-## M4 — Teljes admin shell és adatnézetek
+## M3 — First complete feature flow
 
-Navigáció, panelek, tabok, ablakok, toolbarok, mentetlen módosítás, jogosultságfüggő műveletek, személyes nézetállapot, lokalizáció, fókusz és billentyűzet.
+Synthetic projects/tasks: list/search/server paging/details/forms/create/update/
+explicit delete/archive. One typed definition produces UI metadata/action
+registration/optional external REST.
 
-Grid/form/DataView és kapcsolt objektumválasztók; további DHTMLX nézetek (tree, list, chart) konkrét igény esetén. TreeGrid csak ténylegesen rendelkezésre álló licencelt megoldással, explicit capability-ként. Minden nézet lokalizált és témázható. Layout és adapter életciklus tesztek szükségesek.
+Input validation, allowed filters/sorts, query/handler, transactions/optimistic
+conflicts, structured errors/read-only/denied fields.
+Acceptance: form/inline/API share use case; API exposure can be off while admin
+works; concurrent edits do not silently lose data; SQL stays out of UI definitions.
 
-Átadás: minden vállalt adapterhez dokumentált konfiguráció és E2E példa; mount/destroy ciklus nem halmoz eseménykezelőket. Hibás vagy nem támogatott képességre érthető hiba jön, nem üres vagy félig működő UI. Nincs automatikus jogvesztés a nézetváltások között.
+<a id="m4--teljes-admin-shell-és-adatnézetek"></a>
 
-## M5 — Időtervezés, Gantt és összetett műveletek
+## M4 — Complete shell and data views
 
-Csak konkrét alkalmazási igény esetén indul.
+Navigation/panels/tabs/windows/toolbars/unsaved state/permission actions/preferences/
+localization/focus/keyboard. Grid/form/DataView/related selectors; tree/list/chart
+only on demand. TreeGrid requires a licensed explicit capability.
+All views participate in localization/themes/lifecycle checks.
 
-Scheduler időablakos adatokkal, ismétlődés, timezone és DST tesztek. Gantt hierarchia, függőségek és módosítások. Áthelyezés, átméretezés és függőségmódosítás szerveroldali parancs.
+Acceptance: documented config/E2E for supported adapters, no handler growth
+across mount/destroy, clear unsupported-capability errors rather than blank/partial
+UI, no unintended loss of permissions across view changes.
 
-A timeline, több erőforrásos nézet, automatikus ütemezés és más PRO-képesség előtt kiadás-/licencdöntés szükséges. Ezek teljesítetlenek maradnak, amíg megfelelő implementáció és teszt nincs; nem nyilvánítjuk késznek a teljes lefedést pusztán az alap Gantt alapján.
+<a id="m5--időtervezés-gantt-és-összetett-műveletek"></a>
 
-Átadás: tiltott áthúzás visszaáll; hozzáférhetetlen cél és ciklus elutasított; DST és ismétlődő esemény módosítása dokumentált viselkedésű; a támogatott komponensverziók rögzítettek.
+## M5 — Scheduling, Gantt and complex actions
 
-## M6 — Fájlok, export/import, jobok és megfigyelhetőség
+Start only for concrete needs. Scheduler windows/recurrence/timezones/DST;
+Gantt hierarchy/dependencies; drag/resize/link changes are server commands.
 
-Privát storage adapter, feltöltés/preview/letöltés, kvóta és ellenőrzés, aszinkron export és import, retry és idempotencia, szükség esetén outbox. Audit, request ID, strukturált logok, jobstátusz és slow query mérés.
+Timeline/resources/autoscheduling/PRO need edition/license decisions. Basic Gantt
+does not prove complete coverage. Acceptance: denied drag restores, inaccessible
+targets/cycles reject, DST/recurrence behavior documented, versions pinned.
 
-Átadás: export és letöltés sem ad ki tiltott mezőt vagy más szervezeti rekordot; visszavont hozzáférés a háttérmunkánál is érvényesül. Retry nem dupláz üzleti mellékhatást. Nagy export nem tartja fogva a webes kérést. Log nem tartalmaz credentialt.
+<a id="m6--fájlok-exportimport-jobok-és-megfigyelhetőség"></a>
 
-## M7 — Teljesítmény, csomagkiadás és második fogyasztó
+## M6 — Files, import/export, jobs and observability
 
-Rögzített gép-/runtime-/adatbázisprofil és szintetikus terhelési készlet. Lista, lookup, összetett ACL, bulk, naptár és exportindítás mérendő. Jelentés: p50/p95/p99, throughput, hibaarány, CPU, memória, SQL darabszám és idő.
+Private storage/upload/preview/download, quota/checks, async import/export,
+retry/idempotency/outbox where needed, audit/request IDs/structured logs/job
+state/slow queries.
 
-### A2 — Modulcsoportonkénti átállás
+Acceptance: no forbidden-field/cross-organization exports/downloads, revoked job
+access enforced, retries do not duplicate effects, large exports do not hold web
+requests, logs exclude credentials.
 
-Minden csoporthoz új use case-ek, új policy-k és explicit schema/data migráció. Előbb a függőségek, utána a rájuk épülő folyamatok. Minden migrációnál készítsünk képességpárosítást a régi és új admin között; az ismert hibás működést nem másoljuk át automatikusan.
+<a id="m7--teljesítmény-csomagkiadás-és-második-fogyasztó"></a>
 
-### A3 — Teljes admin kiváltása
+Fix machine/runtime/database profiles and synthetic datasets. Measure lists,
+lookups/complex ACL/bulk/calendar/export start: p50/p95/p99, throughput/error rate,
+CPU/memory/SQL count/time. Set SLOs after baseline and consumer volume inventory
+before major migration; empty JSON benchmarks are insufficient.
+Worker mode needs measured benefit and isolation checks.
 
-Minden egyeztetett képesség megvalósított vagy kifejezetten elhagyott. Összes háttérfeladat és integráció felelőse tisztázott. Régi route-ok és írási utak lekapcsolása csak ezek után. A fennmaradó ADE-függőségeket külön listázni kell; admin kivezetés nem bizonyítja automatikusan a teljes rendszer ADE-mentességét.
+Acceptance: another empty consumer installs pinned versions without local symlinks;
+public API/release notes/upgrades/license settled; demo/consumer can upgrade
+independently. This future package process is not a deployment of this checkout.
 
-## Közös definition of done
+<a id="közös-definition-of-done"></a>
 
-- Implementáció és releváns teszt ugyanabban a batchben.
-- Doksik, capability-mátrix és API-szerződés frissítve.
-- Az új képesség lokalizált (keretkatalógus hu/en/de) és minden támogatott témában működik.
-- Reprodukálható kitchen-sink példa szintetikus adatokkal, ugyanazon a publikus interfészen, mint az alkalmazás.
-- Új naplóesemény a lefedési katalógusban kategorizálva; új tárolási igény a garanciamátrixban jelölve.
-- A [használati módszertan](usage.md) tartalmazza az érintett képesség alkalmazását és ellenőrzését; a felhasználói tesztelés [visszajelzései](feedback.md) rögzítve és az elfogadott tanulságok átvezetve. Nyitott elvárás nem szerepel megvalósított funkcióként.
-- Nincs keretbe került alkalmazási tudás vagy tiltott függési irány.
-- Valós teszteredmény és fennmaradó korlát rögzítve; scaffold nem feature.
-- Érdemi batch után `/usr/local/bin/gitpush --all -t`, az érintett repóban külön.
-- A felhasználó értesül az eredményről, a tesztelésről és a tényleges blokkoló tényezőkről.
+## Shared definition of done
+
+- Implementation and relevant verification in the same batch; preserve existing suites and follow the task-test retention policy.
+- Update documentation/capability matrix/API contracts.
+- Localized framework catalogs hu/en/de and supported themes.
+- Reproducible synthetic feature-demo example through public interfaces.
+- New events in catalog; storage needs in guarantee matrix.
+- [Usage](usage.md) explains integration/checks; [feedback](feedback.md) records lessons, incorporated canonically. Open expectations are not implemented features.
+- No consumer knowledge/reverse dependencies in framework.
+- Record actual checks/limits; scaffold is not capability.
+- Follow [local commit/push](development.md#commit-and-push); FB-0043 supersedes the old mandatory gitpush command.
+- Report outcomes/checks/concrete blockers. This project has no deployment or post-deployment gate.
