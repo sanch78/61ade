@@ -231,24 +231,21 @@ This host launches only managed-URL shell tests; [fixture limits](development.md
 are explicit. Runtime/cache: ignored tmp, overridden by BLADE_TMP_DIR within checkout.
 FB-0016/FB-0042.
 
-Editable non-checkbox columns show ✎; header clicks sort full SQL results.
-[Smart rendering](workspaces.md#rendezés-és-smart-rendering) virtualizes and caps
-loaded data at 600 rows.
+For agent-facing design and implementation rules for grid, data-tree, and
+responsive card/DataView surfaces, use the [grid-tree-card-ui skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
+The [workspace guide](workspaces.md) remains the public list contract, including
+server sorting/filtering, bounded rendering, field-level editing, accessibility,
+and current presentation limits.
 
 <a id="listaadatok-és-tömeges-műveletek"></a>
 
 ## List data and bulk actions
 
-[Cards/details/numbering/marks](workspaces.md#kártyák-rekordadatok-sorszám-és-jelölés)
-cover multicolumn DataView, default ordinal column, double-click ACL-filtered
-details and optional marks. [Bulk](workspaces.md#tömeges-műveletek-és-ikonok)
-requires opt-in with per-row ACL/transactions; export remains absent.
-
-The [view selector](workspaces.md#nézetválasztás-és-fejlécjelzések) is the last
-right-aligned dropdown; editing/sort indicators have separate space and only
-one active direction. Native headings show view title and authorized total/matched
-counts, not loaded-window size. See [counts](workspaces.md#listafejléc-és-rekordszám)
-and [historical qualification](list-presentation-validation.md).
+[Cards/details/numbering/marks](workspaces.md#kártyák-rekordadatok-sorszám-és-jelölés),
+[bulk](workspaces.md#tömeges-műveletek-és-ikonok), [view selection and header
+indicators](workspaces.md#nézetválasztás-és-fejlécjelzések), and [counts](workspaces.md#listafejléc-és-rekordszám)
+describe the public presentation contract, with evidence in
+[historical qualification](list-presentation-validation.md).
 
 <a id="url-és-helyi-felületbeállítások"></a>
 

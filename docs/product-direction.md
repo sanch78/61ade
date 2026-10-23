@@ -214,6 +214,10 @@ explicit named handlers, never eval or executable strings. Catalogs never
 grant rights; server authorization applies on every channel and token
 scopes only narrow access. Keep credentials/sensitive values out of logs.
 
+For grid, data-tree, and responsive card/DataView work, load the project's
+[`grid-tree-card-ui` skill](../.agents/skills/grid-tree-card-ui/SKILL.md) rather
+than copying presentation rules into a task prompt or markup.
+
 A1 users, A2 permissions and A3 API keys already exist. Read docs/admin.md
 before proposing the next slice; do not repeat the old first-slice plan.
 A4 log views and A5 password recovery remain open. Identify the smallest
