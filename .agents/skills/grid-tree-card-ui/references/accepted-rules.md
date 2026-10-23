@@ -1,0 +1,35 @@
+# Accepted grid, tree, and card rules
+
+This ledger keeps the skill tied to observed 61de decisions without turning
+feedback history into a second implementation guide. Read it when a task
+touches one of these rules; read the linked topic guide for the full public
+contract and current limitations.
+
+| Evidence | Reusable lesson | Current scope or limit |
+| --- | --- | --- |
+| [FB-0006](../../../../docs/feedback.md#fb-0006--konfigurálható-munkaterület-dinamikus-és-élő-listák) | A workspace is a validated layout tree with separate filter/results and optional panel form; list data is authorized, bounded, cursor-based, and live updates share the same window. | 61de Standard Grid uses public APIs because PRO LazyDataProxy is unavailable. |
+| [FB-0013](../../../../docs/feedback.md#fb-0013--a-panelméretező-középre-igazítása) and [FB-0015](../../../../docs/feedback.md#fb-0015--fölösleges-keretezett-layoutburkoló) | Keep the native layout root, one outer frame, and native resizers; do not repair spacing by moving widgets or adding wrapper frames. | Suite 9.3.12 gap/grip behavior is version-sensitive. |
+| [FB-0017](../../../../docs/feedback.md#fb-0017--deklarált-mezőnkénti-gridszerkesztés) | Grid editing is field metadata intersected with row/field ACL and uses the common executor, validation, revision, and audit path. | Consumer declarations choose which fields are editable. |
+| [FB-0019](../../../../docs/feedback.md#fb-0019--listák-rekordadatok-és-vezérlők-megjelenése) and [FB-0020](../../../../docs/feedback.md#fb-0020--nézet-dropdown-és-szerkeszthető-fejléc-rendezésjelzése) | Use native DataView cards as a responsive companion, keep marks distinct from the active row, and preserve the visible record across mode changes. | Mobile forces cards; desktop restores the saved preference. |
+| [FB-0023](../../../../docs/feedback.md#fb-0023--listafejléc-darabszám-menüikonok-és-kompakt-login) | Native headings own the title and authorized total/matched counts; loaded-window size is not a user-facing record count. | Counts remain independent of cursor/order and persist for empty results. |
+| [FB-0024](../../../../docs/feedback.md#fb-0024--kártyaszerkesztés-mentés-utáni-nézetváltás-méret-és-rendezés) | Cards can edit writable fields through the same save contract as grids; switching during or after save must not lose state, and cards sort the complete server result. | Text/select/textarea use an editor window; writable checkboxes may be direct. |
+| [FB-0026](../../../../docs/feedback.md#fb-0026--táblázatárnyék-az-oszlopfejléc-alatt) and [FB-0027](../../../../docs/feedback.md#fb-0027--toolbarfejléc-elválasztás-és-kártyák-felső-térköze) | Separate toolbar and grid-header layering; scrolling content must not overdraw commands, and mode switching must keep the correct top/record offset. | Theme CSS is framework-owned and scoped. |
+| [FB-0028](../../../../docs/feedback.md#fb-0028--kompakt-popup-és-teljes-mobil-navigációműveletsor) | Collapse the complete native command bar when it cannot fit and keep mobile card widths uniform with wrapping. | The current narrow breakpoint is 768 px or available-width failure. |
+| [FB-0029](../../../../docs/feedback.md#fb-0029--jobb-széli-kártyaceruza-és-egységes-kezelhető-checkbox) | Show edit affordances only for writable rows/fields and share checkbox presentation between Grid and DataView. | A visual pencil never replaces the accessible name or server ACL. |
+| [FB-0052](../../../../docs/feedback.md#fb-0052) | Reapply header accessibility after every data render; fast fixtures must not hide delayed-response failures. | Browser verification uses the managed URL and guarded runner. |
+| [FB-0053](../../../../docs/feedback.md#fb-0053--másodlagos-grid-oszlopok-kapcsolása) | Secondary columns are native show/hide toggles with per-user persistence; cards/details still show all permitted fields. | `secondary` is presentation metadata, never authorization. |
+| [FB-0055](../../../../docs/feedback.md#fb-0055--egyedi-muveleti-parancsok-es-ikonok) | Keep one command per action with its original label/icon; a marked-row execution reuses the bulk-capable action instead of adding a selected-rows command. | Field-free actions execute directly; input actions use one form. |
+| [FB-0058](../../../../docs/feedback.md#fb-0058) | A hierarchy browser may offer, per panel, either the listing or the tree as a selectable view mode (mc style); the tree selection is that panel's current folder and the mode switch keeps folder and marks. | File manager panels; the Tree adapter loads a mount's directories at once. |
+
+## Known boundaries
+
+- The current Tree adapter handles a flat parent list and the file manager. Lazy
+  children, drag/move, and large-tree virtualization are demand-driven work;
+  treat them as contracts to design and qualify, not as existing guarantees.
+- The exact current card target is approximately 340 px columns, one column on
+  mobile; the exact list window is bounded (100-row browser chunks and up to 600
+  retained rows in the current workspace). Choose and document different limits
+  only when the owning adapter and tests support them.
+- Public behavior and limitations belong in [workspaces](../../../../docs/workspaces.md),
+  [usage](../../../../docs/usage.md), and the affected topic guide. This ledger is
+  a routing map for the skill, not a replacement for those documents.

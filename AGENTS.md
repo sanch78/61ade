@@ -31,3 +31,8 @@ Browser tests must use `npm run test:browser -- ...` and the managed URL.
 Preserve existing changes and stage only intended paths. The project does not
 require the `gitpush` helper after each batch; the configured remote and
 checkpoint policy are documented in [development](docs/development.md#commit-and-push).
+
+For any general grid, data-tree, or responsive card/DataView work, use the
+project skill [grid-tree-card-ui](.agents/skills/grid-tree-card-ui/SKILL.md).
+Keep reusable presentation rules in that skill; keep public runtime contracts,
+limits, and evidence in the affected topic guide and feedback log.

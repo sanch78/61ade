@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grid, tree & card UI"
+  short_description: "Design shared grid, tree and card interfaces"
+  default_prompt: "Use $grid-tree-card-ui to design or extend a shared grid, tree or card interface."
