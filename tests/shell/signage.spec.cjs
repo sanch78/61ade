@@ -109,10 +109,11 @@ test('list: thumbnail, derived type/resolution/length, play time and usage colum
  await expect(await cell(page,'Promóciós videó','Hossz')).toHaveText(/^\d+:\d\d$/);
  await expect(await cell(page,'Promóciós videó','Felbontás')).toHaveText(/^\d+ × \d+$/);
  await expect(row(page,'Promóciós videó').getByRole('img',{name:/^Videó: minta-video\.webm/})).toBeVisible();
- await expect(await cell(page,'Logó állókép','Típus')).toHaveText('Kép');await expect(await cell(page,'Logó állókép','Hossz')).toHaveText('');
  // Usage: the run's asset is referenced by one schedule event and one default.
  await search(page,prefix);
  await expect(await cell(page,prefix+' használt','Használat')).toHaveText('2');
+ // The run's own PNG asset: type from the media metadata, no length for a still image (independent of the seeded demo rows).
+ await expect(await cell(page,prefix+' használt','Típus')).toHaveText('Kép');await expect(await cell(page,prefix+' használt','Hossz')).toHaveText('');
  await expect(await cell(page,prefix+' fájlhivatkozás','Használat')).toHaveText('0');
  await expect(await cell(page,prefix+' használt','Felbontás')).toHaveText('1 × 1');
  // Derived columns are neither sortable nor filterable.
@@ -128,9 +129,9 @@ test('list: thumbnail, derived type/resolution/length, play time and usage colum
  const typeFilter=page.locator('[data-cell-id="filter"]').getByLabel('Médiafájl',{exact:true}).or(page.locator('[data-cell-id="filter"] select').first());
  if(await typeFilter.count()){
   await typeFilter.first().selectOption({label:'Videó'});await page.locator('[data-cell-id="filter"]').getByRole('button',{name:'Szűrés',exact:true}).click();
-  await expect(row(page,'Promóciós videó')).toBeVisible();await expect(row(page,'Logó állókép')).toHaveCount(0);
+  await expect(row(page,'Promóciós videó')).toBeVisible();await expect(row(page,prefix+' használt')).toHaveCount(0);
   await page.locator('[data-cell-id="filter"]').getByRole('button',{name:'Alaphelyzet',exact:true}).click();
-  await expect(row(page,'Logó állókép')).toBeVisible();
+  await expect(row(page,prefix+' használt')).toBeVisible();
  }
  expect(errors).toEqual([]);
 });
@@ -242,12 +243,13 @@ test('deleting a used asset warns with the usage counts, then clears the default
  await openLibrary(page);const {used}=await seed(page);
  await search(page,prefix+' használt');
  await row(page,prefix+' használt').locator('.dhx_grid-cell').nth(1).click();
- const previews=[];page.on('request',request=>{try{const body=request.postDataJSON();if(body?.action==='delete'||body?.values?.operation==='delete')previews.push(body);}catch{}});
+ const previews=[];page.on('request',request=>{try{const body=request.postDataJSON();if(body?.action==='__bulk'&&body.values?.operation==='delete')previews.push(body);}catch{}});
  await command(page,'Törlés');
  const warning=dialog(page);await expect(warning).toBeVisible();
  await expect(warning).toContainText('Műsorterv-események: 1');await expect(warning).toContainText('Alapértelmezett tartalmak: 1');
  await expect(warning).toContainText(RECORD_CONSEQUENCE);await expect(warning).not.toContainText(FILE_CONSEQUENCE);
- expect(previews.length).toBe(1);expect(previews[0].values.preview).toBe('1');
+ // A mark (row-marking mode) deletes through the bulk path: one preview request, nothing deleted yet.
+ expect(previews.length).toBe(1);expect(previews[0].values.items.every(item=>item.values.preview==='1')).toBe(true);
  // Cancel keeps everything.
  await expect(warning.getByRole('button',{name:'Mégse',exact:true})).toBeFocused();
  await warning.getByRole('button',{name:'Mégse',exact:true}).click();await expect(warning).toHaveCount(0);
@@ -267,7 +269,7 @@ test('deleting a used asset warns with the usage counts, then clears the default
  const free=await createAsset(page,prefix+' szabad',seeded.files[prefix+'-b.jpg']);
  await search(page,prefix+' szabad');await row(page,prefix+' szabad').locator('.dhx_grid-cell').nth(1).click();
  // Without references only the declared confirmation (if any) is shown, never the usage list.
- const deleted=page.waitForResponse(r=>{try{const body=r.request().postDataJSON();return body?.action==='delete'&&body.values?.preview!=='1';}catch{return false;}});
+ const deleted=page.waitForResponse(r=>{try{const body=r.request().postDataJSON();return body?.action==='__bulk'&&body.values?.operation==='delete'&&body.values.items.every(item=>item.values.preview!=='1');}catch{return false;}});
  await command(page,'Törlés');
  await expect.poll(async()=>await dialog(page).count()||await row(page,prefix+' szabad').count()===0).toBeTruthy();
  if(await dialog(page).count()){await expect(dialog(page)).not.toContainText('Hivatkozások:');await dialog(page).getByRole('button',{name:'Törlés',exact:true}).click();}

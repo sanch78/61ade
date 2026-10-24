@@ -109,7 +109,7 @@ const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, 
 });
 
 /**
- * Page-lifetime uploader: one non-modal Suite Window (drop zone with the rules, queue Grid, summary
+ * Page-lifetime uploader: one modal Suite Window (drop zone with the rules, queue Grid, summary
  * and commands) owned by this service, not by a view, so transfers survive route changes and a
  * closed window. Files go through the `__upload` chunked protocol of the target action
  * (preflight → begin → chunks → finish) with 3 parallel transfers and resume after reload.
@@ -191,11 +191,12 @@ class UploadService {
     const { files, transfer, ...context } = options;
     this.context = context;
     this.mount();
-    this.renderZone();
+    // Shown first: repainting the zone of a hidden window leaves the whole window empty when it is shown.
     if (!this.win!.isVisible()) {
       this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       this.win!.show();
     }
+    this.renderZone();
     this.restore();
     this.updateIndicator();
     void awaitRedraw().then(() => this.zoneNode()?.focus({ preventScroll: true }));
@@ -223,7 +224,7 @@ class UploadService {
     const win = new Window({
       css: "blade-uploader-window", title: escape(t("Feltöltés")), ariaLabel: t("Feltöltés"),
       width: Math.min(760, innerWidth - 24), height: Math.min(580, innerHeight - 24), minWidth: 300, minHeight: 360,
-      modal: false, closable: true, movable: true, resizable: true,
+      modal: true, closable: true, movable: true, resizable: true,
     });
     const layout = new Layout(document.createElement("div"), { type: "none", css: "blade-uploader", rows: [
       { id: "zone", height: "content", css: "blade-uploader__zone-cell" },

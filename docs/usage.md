@@ -195,6 +195,7 @@ MessageDialog.ts; actions use confirm, while successful action results and revea
 secrets use a non-blocking toast. Destructive dialogs
 focus Cancel; Enter activates only focused button; Escape always cancels confirmation.
 Consumers cannot create their own modal. Demo: Tasks → Párbeszéd actions.
+General rule: every framework `Window` is `modal: true`; while one is open the main layout behind the DHTMLX overlay is not operable. A non-modal `Window` is a defect.
 Actions without input fields run directly and acknowledge success with a
 non-blocking gritter/toast; a dialog is reserved for a justified confirmation
 or an error.
