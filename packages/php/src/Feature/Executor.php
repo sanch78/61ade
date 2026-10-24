@@ -19,7 +19,7 @@ final class Executor
         }
         $results=[];
         foreach($items as $item){
-            try{$result=$this->execute($ctx,$resource,$name,$item['id'],$item['values'],false,true);$results[]=['id'=>$item['id'],'ok'=>true,...(is_array($result)?['data'=>array_diff_key($result,['audit'=>true])]:[])];}
+            try{$result=$this->execute($ctx,$resource,$name,$item['id'],$item['values'],false,true);$results[]=['id'=>$item['id'],'ok'=>true,...(is_array($result)&&($data=array_diff_key($result,['audit'=>true]))?['data'=>$data]:[])];}
             catch(Failure $error){$results[]=['id'=>$item['id'],'ok'=>false,'error'=>$error->getMessage()];}
         }
         return $results;

@@ -103,7 +103,7 @@ test('choice with "apply to all": checkbox in the focus trap, Escape cancels',as
  const before=await read();
  await page.getByRole('button',{name:'Feltöltés',exact:true}).click();
  const upload=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')});
- await upload.locator('input[data-blade-upload-input="files"]').setInputFiles([{name:'jegyzet.txt',mimeType:'text/plain',buffer:Buffer.from('nem kerül be\n')}]);
+ await page.locator('input[data-blade-upload-input="files"]').setInputFiles([{name:'jegyzet.txt',mimeType:'text/plain',buffer:Buffer.from('nem kerül be\n')}]);
  await expect(dialog(page).getByRole('heading',{name:'Névütközés'})).toBeVisible();
  const all=dialog(page).getByRole('checkbox',{name:'Alkalmazás az összes ütközésre'});
  await expect(all).not.toBeChecked();

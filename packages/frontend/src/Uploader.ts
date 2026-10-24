@@ -136,6 +136,25 @@ class UploadService {
   private restored = false;
   private opener?: HTMLElement | null;
   private zone = "";
+  /**
+   * The hidden file inputs live outside Suite's virtual DOM: a Layout repaint (for example a summary
+   * update while files upload) would otherwise replace an input whose native picker is open, and its
+   * `change` event would never reach the document, losing the chosen files.
+   */
+  private pickers: HTMLInputElement[] = [];
+  private picker(folder: boolean): HTMLInputElement {
+    const kind = folder ? "folder" : "files";
+    let input = this.pickers.find(item => item.dataset.bladeUploadInput === kind);
+    if (!input) {
+      input = Object.assign(document.createElement("input"), { type: "file", multiple: true, tabIndex: -1, className: "blade-uploader__input" });
+      input.setAttribute("aria-hidden", "true");
+      input.dataset.bladeUploadInput = kind;
+      if (folder) input.setAttribute("webkitdirectory", "");
+      document.body.append(input);
+      this.pickers.push(input);
+    }
+    return input;
+  }
   private summaryText = "";
   private listening = false;
   private waiting: (() => void)[] = [];
@@ -253,11 +272,11 @@ class UploadService {
     document.addEventListener("click", event => {
       const button = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-blade-upload-pick]");
       if (!button || !inside(button)) return;
-      this.root()?.querySelector<HTMLInputElement>(`input[data-blade-upload-input="${button.dataset.bladeUploadPick}"]`)?.click();
+      this.picker(button.dataset.bladeUploadPick === "folder").click();
     });
     document.addEventListener("change", event => {
       const input = event.target as HTMLInputElement;
-      if (!(input instanceof HTMLInputElement) || input.dataset.bladeUploadInput === undefined || !inside(input)) return;
+      if (!(input instanceof HTMLInputElement) || input.dataset.bladeUploadInput === undefined || !this.pickers.includes(input)) return;
       const folder = input.dataset.bladeUploadInput === "folder";
       let files = Array.from(input.files ?? [], file => ({ file, relativePath: folder ? file.webkitRelativePath : "" }));
       input.value = "";
@@ -331,9 +350,9 @@ class UploadService {
       <p class="blade-uploader__hint" id="blade-uploader-hint">${escape(t("Húzd ide a fájlokat, vagy illeszd be őket Ctrl+V-vel."))}</p>
       <p class="blade-uploader__rules" id="blade-uploader-rules">${escape(rules)}</p>
       <div class="blade-uploader__buttons">${button("files", "dxi dxi-file-import", t("Fájlok kiválasztása"), "primary")}${folders ? button("folder", "dxi dxi-folder-open", t("Mappa kiválasztása"), "secondary") : ""}</div>
-      <input class="blade-uploader__input" type="file" multiple tabindex="-1" aria-hidden="true" data-blade-upload-input="files" accept="${escape(accept)}">
-      ${folders ? `<input class="blade-uploader__input" type="file" multiple webkitdirectory tabindex="-1" aria-hidden="true" data-blade-upload-input="folder">` : ""}
     </div>`;
+    this.picker(false).accept = accept;
+    if (folders) this.picker(true);
     if (html === this.zone) return;
     this.zone = html;
     this.layout!.getCell("zone").attachHTML(html);

@@ -1515,4 +1515,20 @@ that exactly equals an option label lists every option. The managed
   `uploader` 14/14, `mobile-grid` 6/6, `calendar` 6/6, `list-presentation` 9/9,
   `preferences` 3/3, `i18n` 2/2. Failures not caused by this work (FB-0062
   collapsed menu, external OAuth): `demo` 4, `dialogs` 6, `browser` 4.
+- **Final verification fixes (2026-10-24):** the uploader's hidden file
+  inputs now live outside Suite's virtual DOM (a Layout repaint could replace
+  an input whose picker was open, losing the chosen files); `TreeAdapter`
+  destroys its Tree after Suite's pending redraw (a re-created file manager
+  could throw `null.isFolder`); `__bulk` items carry `data` only when non-empty;
+  the uploader spec passes its 20-file batch from disk (multi-MB buffers stalled
+  under the guarded memory limit). Lead re-run, one spec per invocation: all PHP
+  suites pass; `uploader` 14/14, `files` 11/11 (3 of 4 consecutive runs; the
+  failing one came right after a rebuild), `signage` 7/7, `list-integration`
+  2/2, `list-presentation` 9/9, `mobile-grid` 6/6, `preferences` 3/3,
+  `calendar` 6/6, `diagram` 4/4, `grid-edit` 2/2, `grid-sort` 2/2, `i18n` 2/2,
+  `layout-resizer` 4/4. Not caused by this work: `browser` 4, `demo` 4,
+  `dialogs` 6, `admin` 3, `authentication` 1, `workspace` 2 (they click menu
+  items directly although FB-0062 collapsed the desktop menu, or need the
+  unconfigured OAuth), `related-fields` 1 (Suite 9.3.12 names an unlabelled
+  checkbox `checkbox <label>`).
 - **Status:** accepted; U1–U5 implemented (user acceptance pending).

@@ -32,7 +32,7 @@ const row=(page,title)=>page.locator('[data-cell-id="grid"] .dhx_grid-row').filt
 const editor=(page,label)=>page.getByRole('dialog',{name:new RegExp(' — '+label+'$')});
 const picker=page=>page.getByRole('dialog',{name:/^(Fájl kiválasztása|Choose a file): /});
 const uploader=page=>page.getByRole('dialog').filter({has:page.locator('.blade-uploader')});
-const filesInput=page=>uploader(page).locator('input[data-blade-upload-input="files"]');
+const filesInput=page=>page.locator('input[data-blade-upload-input="files"]');
 const fileName=form=>form.locator('.blade-file-field__body input').first();
 const tile=(scope,name)=>scope.locator('.blade-grid-tile').filter({hasText:name});
 // Grid column id of a header (derived columns have consumer-chosen ids).
