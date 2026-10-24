@@ -28,7 +28,7 @@ const uploader=page=>page.getByRole('dialog').filter({has:page.locator('.blade-u
 const queueRow=(page,name)=>uploader(page).locator('.dhx_grid-row').filter({has:page.locator('.blade-uploader__file',{hasText:new RegExp('^'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$')})});
 const state=(page,name)=>queueRow(page,name).locator('.blade-uploader__state');
 const summary=page=>uploader(page).locator('.blade-uploader__summary');
-const filesInput=page=>uploader(page).locator('input[data-blade-upload-input="files"]');
+const filesInput=page=>page.locator('input[data-blade-upload-input="files"]');
 const toast=(page,text)=>page.locator('.blade-toast').filter({hasText:text});
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
 const jpg=fs.readFileSync(path.resolve(__dirname,'../../examples/demo-app/resources/files/minta-fraktal.jpg'));
@@ -118,7 +118,10 @@ test('20 mixed files give per-file results without re-sends',async({page})=>{
   ...Array.from({length:13},(_,index)=>text(`${prefix}-t${String(index+1).padStart(2,'0')}.txt`,`sor ${index+1}\n`)),
  ];
  expect(files).toHaveLength(20);
- await filesInput(page).setInputFiles(files);
+ // The batch goes through files on disk (Playwright cannot mix paths and buffers): in-memory buffers
+ // of several MB can stall the transfer to the browser under the guarded test memory limit.
+ const onDisk=files.map(file=>{const target=path.join(scratch,file.name);fs.writeFileSync(target,file.buffer);return target;});
+ await filesInput(page).setInputFiles(onDisk);
  await expect(summary(page)).toHaveText('Sikeres: 17, kihagyva: 0, sikertelen: 3.',{timeout:60000});
  await expect(state(page,prefix+'-x.exe')).toContainText('Sikertelen');await expect(state(page,prefix+'-x.exe')).toContainText('Nem engedélyezett');
  await expect(state(page,prefix+'-large.txt')).toContainText('túl nagy');
@@ -216,7 +219,7 @@ test('folder upload keeps relative paths',async({page})=>{
  const ops=await record(page);
  await openUploader(page);
  await expect(uploader(page).getByRole('button',{name:'Mappa kiválasztása',exact:true})).toBeVisible();
- await uploader(page).locator('input[data-blade-upload-input="folder"]').setInputFiles(top);
+ await page.locator('input[data-blade-upload-input="folder"]').setInputFiles(top);
  await expect(summary(page)).toHaveText('Sikeres: 3, kihagyva: 0, sikertelen: 0.');
  await expect(queueRow(page,'a.txt').locator('.blade-uploader__meta')).toContainText(prefix+'-mappa/al');
  const preflight=(await ops()).find(op=>op.operation==='upload_preflight');

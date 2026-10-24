@@ -161,7 +161,7 @@ test('upload validation, conflict dialog and the TXT editor',async({page})=>{
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
  // The framework uploader (Uploader.ts): a non-modal window with a per-file queue; rejected files fail in place.
  await command(page,'Feltöltés');
- const upload=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')}),input=upload.locator('input[data-blade-upload-input="files"]');
+ const upload=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')}),input=page.locator('input[data-blade-upload-input="files"]');
  await input.setInputFiles([
   {name:prefix+'-a.txt',mimeType:'text/plain',buffer:Buffer.from('első sor\n')},
   {name:prefix+'-b.png',mimeType:'image/png',buffer:png},
