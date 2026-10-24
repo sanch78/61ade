@@ -26,8 +26,9 @@ The 2026-10-16 foundation includes registered execution, declarative forms/grids
 SQL object scopes, field rights, UI/API separation, scoped tokens and transactional
 audit. Later built-in admin work supersedes the earlier consumer-only useradmin
 model; see [admin](admin.md), [ACL](access-and-actions.md) and [shell](shell.md).
-[Workspaces](workspaces.md) support configurable filter/form/grid, dynamic lists,
-server sorting and polling/WebSocket; singleton details are direct forms.
+[Workspaces](workspaces.md) support configurable filter/form/grid, integrated
+column header filters, dynamic lists, server sorting and polling/WebSocket;
+singleton details are direct forms.
 No upper application-title header; one lower bar has user left, application/version
 right. Skyblue (default), light and dark use DHTMLX setTheme; Skyblue uses Suite 9
 theme variables. Synthetic and consumer integration evidence exists.
@@ -190,9 +191,13 @@ provider settings; starting a provider is not completed login.
 All messages/confirmations use [shared dialogs](dialogs.md):
 neutral/warning/danger × acknowledgment/confirmation.
 Frontend acknowledge/requestConfirmation or compatible alert/confirm come from
-MessageDialog.ts; actions use confirm and reveal.severity. Destructive dialogs
+MessageDialog.ts; actions use confirm, while successful action results and reveal
+secrets use a non-blocking toast. Destructive dialogs
 focus Cancel; Enter activates only focused button; Escape always cancels confirmation.
 Consumers cannot create their own modal. Demo: Tasks → Párbeszéd actions.
+Actions without input fields run directly and acknowledge success with a
+non-blocking gritter/toast; a dialog is reserved for a justified confirmation
+or an error.
 
 <a id="jelzők-és-kapcsolt-objektummezők"></a>
 
@@ -201,6 +206,60 @@ Consumers cannot create their own modal. Demo: Tasks → Párbeszéd actions.
 [Field presentation](field-presentation.md) covers native checkboxes, meaningful
 states, bounded widths, one-to-one related storage saved with the main form,
 and multiselect.
+
+<a id="virtuális-fájlkezelő"></a>
+
+## Virtual file manager
+
+[Files](files.md) provides a two-panel, Norton Commander-style file manager over
+the framework table `blade_files`: `FileStorage`, `FileManagerDefinition`
+(mounts, upload allowlist, size and file count, duplicate policy, separate
+text-editor limit, depth, required `contentRoot`, `thumbnails`), registered
+`tree`, `list`, `create_directory`, `upload`, `copy`, `move`, `text_get`,
+`text_save`, `content_get`, `content_stream` and `thumbnail_get` actions with
+per-mount ACL, multipart upload transport, the DHTMLX Tree adapter and the
+shared conflict dialog. Contents live in a content-addressed disk store
+(`ContentStore`), with probed media metadata and 320 px WebP thumbnails made by
+the post-response `TaskQueue`; `DownloadStream` and GET-capable actions
+(`Action::$get`, frontend `actionUrl()`) stream viewer content with HTTP Range
+under the same ACL and audit. Install it explicitly in setup, register it in
+the application definition and grant rules (`content_stream`/`thumbnail_get`
+are separate rights). Earlier BLOB databases upgrade with the explicit,
+verified migration 0002. Deletion, rename, download and per-entry permissions
+are not implemented yet ([FB-0058](feedback.md#fb-0058), [FB-0063](feedback.md#fb-0063)).
+
+Any view (list, singleton or file manager) can request the generic
+`desktopOnly` option (JSON `desktop_only`): below 768 px the shell shows a
+centred desktop-only notice instead of the view ([shell](shell.md#desktop-only-views)).
+
+<a id="vizuális-diagramszerkesztő"></a>
+
+## Visual diagram editor
+
+[Diagrams](diagrams.md) provides a node-and-link editor over the framework
+tables `blade_diagrams` and `blade_diagram_types`: `DiagramStorage`,
+`DiagramDefinition` (element palette, connection types, limits, runtime element
+types), registered `list`, `get`, `create`, `save`, `delete`, `type_create` and
+`type_delete` actions with the space as ACL object and server-side canonical
+validation, and the `DiagramEditor` view (Suite shell, lists, form and windows
+around an SVG canvas, because Suite Standard has no diagram widget). Install it
+in setup, register it and grant rules. The feature demo configures it as a
+network topology builder ([FB-0060](feedback.md#fb-0060)).
+
+<a id="eseménynaptár"></a>
+
+## Event calendar
+
+[Calendar](calendar.md) wraps the native DHTMLX Scheduler Standard (GPL) as the
+`calendar` view kind over the framework table `blade_calendar_events`:
+`CalendarDefinition` (space, extra event fields, views, hours, window limit,
+optional day action), registered `events`, `occurrences`, `create`, `update`
+and `delete` actions with the space as ACL object, optimistic revisions, the
+Scheduler recurring model (series, moved and deleted occurrences) and the
+server-side `Recurrence` expansion of the editor's RRULE subset. Install it in
+setup, register it and grant rules; `CalendarDefinition::occurrences()` serves
+consumer handlers. The feature demo configures a digital signage scheduler with
+a per-day playlist API ([FB-0061](feedback.md#fb-0061)).
 
 <a id="formvalidáció-és-migráció"></a>
 
@@ -214,7 +273,9 @@ validation inventory and documented deviations, not just required fields.
 
 ## ACL and action execution
 
-[ACL/audit](access-and-actions.md) is usable. access.php verifies default deny,
+[ACL/audit](access-and-actions.md) is usable; it also documents the opt-in
+multipart transport, ID-only audit detail and SQLite immediate transactions.
+access.php verifies default deny,
 object scope, field denial, API/token scope, optimistic conflicts, audit/rollback.
 Registry/SqlResource/Workspace independent integration and consumer integration
 were verified. Fresh checks must respect current coverage limits.
@@ -225,9 +286,9 @@ were verified. Fresh checks must respect current coverage limits.
 
 Browser tests use the [guard](development.md#böngészőteszt-korlátozott-memóriájú-fejlesztői-hoston):
 shared lock, one worker, initial memory threshold/cgroup cap. Consumers may use
-the same guard. Root Playwright config exposes named groups; default shell,
-exactly one project per launch, --list discovers all.
-This host launches only managed-URL shell tests; [fixture limits](development.md#existing-full-smoke-and-coverage-limits)
+the same guard. The root Playwright config has one project, `shell`, that runs
+every spec against the managed URL (`BLADE_DEMO_URL`) and starts no server;
+--list discovers all. [Coverage limits](development.md#existing-full-smoke-and-coverage-limits)
 are explicit. Runtime/cache: ignored tmp, overridden by BLADE_TMP_DIR within checkout.
 FB-0016/FB-0042.
 
@@ -269,6 +330,9 @@ classic Windows appearance. [Responsive commands](workspaces.md#reszponzív-műv
 collapse into Actions and keep uniform card width. Skyblue rows alternate white/
 #f7f7f7 by display index, including virtualization, with native selection above.
 No consumer configuration; rebuild/prepare assets.
+
+A collapsed desktop `Menü` is followed by the open feature's sibling menu items
+([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)); no configuration.
 
 [Popup headers](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü) are 40 px, with
 theme background and 1 px divider. The light theme label is Világos; default

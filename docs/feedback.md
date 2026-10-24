@@ -940,3 +940,492 @@ Implemented/verified, no user acceptance.
   Existing suites, demo data, retained evidence and concurrent changes were preserved.
 - **Status:** accepted and incorporated, documentation verified. No production,
   deployment, post-deploy testing, backup workflow or new permanent test was created.
+
+<a id="fb-0052"></a>
+
+## FB-0052 — Browser tests only on the feature demo; localhost fixtures removed
+
+- **Date:** 2026-10-22.
+- **Accepted instruction:** the seven browser projects that started localhost
+  fixture servers (`auth`, `related`, `grid-edit`, `sorting`, `preferences`,
+  `presentation`, `i18n`) are migrated onto the managed feature demo. No legacy
+  route remains: fixture routers/servers, the extra Playwright projects and the
+  localhost demo launcher are removed. Supersedes the "preserved but not
+  launchable" coverage limit of [FB-0050](#fb-0050) and [FB-0051](#fb-0051).
+- **Feature demo additions:** Tasks `after_save` business rule (an in-progress
+  task keeps its notifications; the field error rolls the save back), the
+  read-only Mérések list with 1801 rows, and `reader@example.test` with the Tasks
+  description field denied. Setup now adds missing synthetic accounts to an
+  existing database; an account added later takes the next free id.
+- **Framework defect found by the migration:** the Enter that committed an
+  inline grid edit also activated the focused OK button of the validation message
+  it raised, so the message closed instantly. `MessageDialog` now ignores keyboard
+  clicks until a new key press inside the dialog; pointer clicks are unchanged.
+- **Second framework defect found:** with list responses slower than about
+  300 ms, editable grid headers never received their `aria-description`; the
+  one-time pass after the first redraw ran before the header cells existed in
+  their final form. `GridHeaders.decorate()` now also runs after every data
+  render ([workspaces](workspaces.md)). The localhost fixtures were fast enough
+  to hide it.
+- **Usage:** [development](development.md#existing-full-smoke-and-coverage-limits),
+  [Playwright configuration](development.md#unified-playwright-configuration),
+  [demos](demos.md), [dialogs](dialogs.md#keyboard-and-focus).
+- **Coverage changes:** the single-language consumer has no managed demo; its
+  hidden selector lost its browser check (translation stays in `i18n.php`).
+  German is not offered by the demo, so the browser checks use Hungarian/English.
+  SMTP transport stays covered by `mail.php`; the demo delivers by command.
+  `twofactor@example.test` allows five code sends per ten minutes, so the
+  authentication and demo specs can be repeated only after ten minutes.
+- **Open question:** a session restored from the remember cookie starts in the
+  site default language; the account default language applies only to password,
+  code and OAuth logins ([i18n](i18n.md#account-default-language)). Whether
+  restoration should apply the account default is not decided.
+- **Verification, 2026-10-22:** PHP lint and 13 PHP checks PASS (contracts,
+  related-fields, grid-edit, sorting, authentication, i18n, list-presentation,
+  configuration, lists, validation, access, permissions, admin); typecheck,
+  build and demo assets PASS; setup ran on both demo instances; 405 local
+  documentation links and the whitespace check PASS. Full managed browser run:
+  **46/49 PASS**, all 14 migrated tests included. The three failures are the
+  FB-0050 states: `viewer@example.test` keeps `disabled=1` (authorization test,
+  API-key call 401 instead of 404) and Google returns `redirect_uri_mismatch`.
+- **Cleanup:** temporary exploration specs and browser output removed; accounts,
+  roles, rules and unrevoked API keys created by these runs deleted; created
+  tasks are deleted by the specs. Older test accounts/roles from earlier
+  sessions were left unchanged.
+- **Status:** implemented and verified on the managed URL; the open question
+  above remains.
+
+<a id="fb-0053--másodlagos-grid-oszlopok-kapcsolása"></a>
+
+## FB-0053 — Toggleable secondary grid columns
+
+Date: 2026-10-23. Requested a Grid Toolbar dropdown listing secondary-use
+fields whose visibility can be enabled or disabled. Implemented as the shared
+`column.secondary` presentation capability: native DHTMLX menu checkboxes call
+the Grid `showColumn`/`hideColumn` API, while the existing per-user view
+preferences retain the selected state. The Columns menu is omitted when the
+view has no secondary columns. Cards and details keep all permitted readable
+fields.
+The admin account view marks password-change-required, OAuth, locale and email
+confirmation status as secondary; these remain visible initially and can be
+hidden per user.
+
+The synthetic browser check exercised omission without secondary columns and
+opening the Columns menu, hiding and restoring a secondary column; typecheck,
+build, asset preparation, PHP lint, contracts and diff checks passed. User
+acceptance remains pending.
+
+<a id="fb-0054--önálló-api-kulcs-menü-és-saját-kulcsok"></a>
+
+## FB-0054 — Standalone API-key menu and self-scoped keys
+
+Date: 2026-10-23. Accepted: API keys move out of the Administration submenu to
+their own root-menu item. The existing `blade_api_keys` ACL catalogue now also
+supports self-service through `own` UI rules: a permitted actor sees the menu,
+can issue and manage keys owned by that actor, and cannot list or open another
+owner's key. Administrator `all` rules continue to cover account-wide work.
+
+The framework API-key resource uses owner-scoped SQL listing and target checks;
+self-service account choices include the current actor without exposing the
+account administration view. The owner input exception is opt-in and remains
+disabled for other consumer resources.
+
+<a id="fb-0055--egyedi-muveleti-parancsok-es-ikonok"></a>
+
+## FB-0055 — One command per action and complete action icons
+
+Date: 2026-10-23. Requested: remove the separate “selected rows” command from
+the list toolbar. Implemented: every action keeps its original label and icon;
+when marks exist, a bulk-capable action applies to those rows. Actions with
+input fields open the bulk form; field-free commands execute directly. Sort
+choices also expose native icons, and the bulk form title refers only to the
+row count.
+
+The frontend bulk and list presentation browser checks were updated to use the
+original command. Typecheck, build, asset preparation, PHP i18n/list contracts,
+and the two focused managed-URL browser checks passed. User acceptance remains
+pending.
+
+<a id="fb-0056--minden-muvelethez-ervenyes-ikon"></a>
+
+## FB-0056 — Every action uses a bundled icon
+
+Date: 2026-10-23. Review found that the demo warning and danger actions used
+icon aliases absent from the bundled DHTMLX font, leaving their disabled menu
+rows without glyphs. Replaced them with the bundled `alert-circle` and
+`close-circle` glyphs. The workspace icon contract now explicitly requires a
+bundled glyph for every configured action icon.
+
+<a id="fb-0056--formok-megse-muvelete"></a>
+
+## FB-0056 — Explicit Cancel on editable forms
+
+Date: 2026-10-23. Requested: Add/Modify forms should offer Cancel, with the
+same escape route on other forms where abandoning the current input is logical.
+The shared frontend form actions now expose Cancel beside Save or the operation
+button for panel and overlay Add/Modify forms, singleton editing, card editing,
+bulk operations and mobile filter dialogs. Cancel closes the transient form or
+restores the singleton form from its current row; it never submits values.
+Desktop filter panels retain Apply and Reset because they are persistent.
+
+The framework build and demo assets were regenerated; TypeScript validation
+passed. A managed-URL `related-fields` browser run was attempted after the
+guard became available, but the existing feature page loaded without its
+panel form region before the assertion, so this batch does not claim a passing
+browser result for the new Cancel controls.
+
+<a id="fb-0056"></a>
+
+## FB-0056 — No redundant intermediate action dialogs
+
+Date: 2026-10-23. Accepted correction: do not require a user to press a
+button only to reach another button that starts the same field-free action. A
+field-free individual or bulk command now executes from its originating
+control; successful results are acknowledged with a non-blocking gritter/toast.
+The shared confirmation dialog remains available when an action declares a
+meaningful risk, and alerts remain for errors or other necessary blocking
+information. Forms remain for actions that need input fields.
+
+Implemented in the shared frontend workspace execution path and documented in
+[development](development.md#mandatory-framework-development-rules),
+[dialogs](dialogs.md#szerver-által-deklarált-megerősítés),
+[workspaces](workspaces.md#tömeges-műveletek-és-ikonok) and
+[usage](usage.md#figyelmeztető-és-megerősítő-párbeszédablakok). Existing
+individual and bulk browser checks now assert that the field-free command does
+not open a dialog; input-bearing bulk updates retain their form.
+
+Verification, 2026-10-23: TypeScript typecheck, frontend build and demo asset
+preparation passed; PHP contracts and list/bulk checks passed; the managed
+`list-presentation` direct-bulk check passed 1/1 and the managed feature-demo
+integration check passed 1/1. The change is implemented; user acceptance
+remains pending.
+
+<a id="fb-0057--integralt-grid-fejlec-szurok"></a>
+
+## FB-0057 — Integrated grid header filters
+
+Date: 2026-10-23. Requested for the Feature demo Tasks list: place the relevant
+filter control above each displayed grid field and filter the list by its value.
+Implemented in the shared Grid/Workspace path with native DHTMLX input filters
+for text/number fields and option pickers for select/checkbox fields. Empty
+controls remain empty and omit the field from the request; changing a control
+reloads the ACL-scoped server result and keeps the existing bounded-window and
+count behavior. The separate filter panel remains for filterable fields omitted
+from the grid and for mobile/persistent workflows.
+
+Typecheck, frontend build and managed `grid-sort` browser coverage passed after
+the header filter was added. User acceptance remains pending.
+
+Follow-up 2026-10-24: after a select filter was chosen, the input showed the
+technical option key and reopening listed only that option, so another value
+could not be chosen. Option picker items now carry the visible label as the
+DHTMLX value (the key stays the item id and the request value), and an input
+that exactly equals an option label lists every option. The managed
+`grid-sort` filter test now reselects a second option after the first choice.
+
+<a id="fb-0058"></a>
+
+## FB-0058 — Virtual two-panel file manager (first vertical slice)
+
+- **Date:** 2026-10-23.
+- **Request:** a Norton Commander-style virtual file manager in the full feature
+  demo, built as a reusable framework capability: a virtual `demo` space with
+  fictional Drive A/B/C mounts, two panels with independent mount selection,
+  directory Tree and file Grid, create directory (depth ≤ 5), copy/move to the
+  opposite panel, `.txt` editing and binary upload. No deletion in this slice;
+  no host directories, web-root storage, TreeGrid PRO or new frontend framework.
+- **Accepted design:** framework `Blade\Files` (`FileStorage` over the
+  `blade_files` table with BLOB content, `FileManagerDefinition`,
+  `FileActions`), a `files` view kind, `FileManager.ts` and `TreeAdapter.ts`.
+  All operations are registered actions through the common executor; the ACL
+  object is the mount key. Supporting framework extensions: opt-in multipart
+  transport (`Action::$upload`, `Context::$uploads`), `Failure::$details`,
+  ID-only audit `detail`, resolver `acl_id`, `requestChoice` in the shared
+  dialog, `ResponsiveGrid` `idColumn: false`.
+- **Decisions taken in implementation:** one conflict decision applies to all
+  conflicting items of a request; overwrite replaces files only (directories
+  are reported as failed, never merged or deleted); move needs `move` on the
+  source mount as well as `list`; the depth limit applies to directories; the
+  directory name field is trimmed by the shared `Field` normalization, upload
+  names with outer spaces are rejected; names are unique case-insensitively.
+- **Framework defect found:** two concurrent deferred SQLite transactions that
+  both read and then write audit failed immediately with `SQLITE_BUSY` (both
+  panels loading at once returned a 500). The executor and list observer now
+  begin SQLite transactions with `BEGIN IMMEDIATE`
+  ([access and actions](access-and-actions.md#multipart-audit-detail-sqlite)).
+- **Usage:** [files](files.md), [usage](usage.md#virtuális-fájlkezelő),
+  [demos](demos.md#teljes-feature-demó-), [dialogs](dialogs.md),
+  [component matrix](component-matrix.md).
+- **Follow-up instruction (same day):** a panel shows either the tree or the
+  file listing, selectable, as in mc. Implemented as per-panel view modes;
+  in tree mode the selected folder is the panel's folder and, as a source, the
+  copied/moved item. Create-folder, upload and editor windows gained Cancel
+  beside the submit button (FB-0056 rule).
+- **Framework defect found:** `ResponsiveGrid` read the width of a host inside
+  an inactive Layout view (no DOM) and threw; it now skips resizing until shown.
+- **Follow-up feedback (same day):** a stray border showed at the top and
+  bottom of the gap between the panels: the panel group was a `none` group
+  inside the `space` layout, which drew its own frame. The group is now a
+  native `wide` group without the custom gap/border overrides. The divider
+  between the panels is draggable.
+- **Follow-up feedback (same day):** the divider still behaved custom: dragged
+  fully left and then right, the divider stopped and the right panel shrank
+  from its right edge. Cause: `minWidth` makes a DHTMLX Layout cell fixed, and
+  a `calc()` width rewritten after each drag fought the native pixel logic.
+  The panels now use the plain native resizer without width, `minWidth`,
+  stored share, custom grip, keys or ARIA; only `contain: inline-size` keeps
+  content from sizing the cells. The browser spec drags left and back right.
+- **Follow-up feedback (2026-10-24):** the tree should show files too; the
+  listing should use row marking as Notes does, without a checkbox column, and
+  show an icon by MIME type; the divider's dots sat on the left panel's border
+  again. The `tree` action now returns files (first 5000, `truncated`), the
+  tree shows them as leaves with MIME icons and a chosen file is the operand.
+  The listing uses `rowSelection` and a new framework `icon` column type. The
+  grip was Suite's factory wide-layout position (right 13 px, on the cell
+  border); the FB-0013 centring rule now covers wide layouts too. Found while
+  testing: a Layout `views` switch re-created the listing's DOM and dropped
+  `ResponsiveGrid`'s row-marking listeners, so the panel modes now toggle cell
+  CSS instead.
+- **Follow-up feedback (2026-10-24, later):** no Up button; the grid should have
+  a `..` row instead. The panel header should show the current path, smartly:
+  cut when it does not fit, the full path on hover. The listing's first row in
+  a subfolder is now `..` with the framework's `_markable: false` row flag; it
+  opens the parent with the cursor on the folder left. The Layout cell header
+  shows the path; folders are collapsed from the root side until it fits, and
+  the native Suite tooltip shows the full path.
+- **Follow-up feedback (2026-10-24, editor window):** the text editor window
+  again had a large empty band below its buttons; a recurring problem that
+  the skill or the code must prevent. The editor was the only content window
+  not sized by `fitWindow`, and its textarea had a fixed pixel height in a
+  larger (and resizable) window. Fixed in the framework: `fitWindow` sizes
+  every content window, and a Form textarea's cell grows into the height the
+  window has or gains beyond its fitted content (paused while measuring), so
+  workspace forms that users enlarge are covered too. The browser spec checks
+  the gap after opening and after a drag of the window's bottom edge; the
+  skill records the rule.
+- **Follow-up feedback (2026-10-24, document windows):** a tasteful editor:
+  a full one-cell Layout in the window with the editor inside and a button
+  row (at least a Save icon); the same for an image viewer and a video
+  player. Implemented as document windows: a full-window Layout with a native
+  Toolbar row above the content cell (editor: Save with Ctrl+S, line wrap,
+  cursor position, save state; image: zoom steps, fit/50/100/200 %,
+  rotation, dimensions and size; video: native controls, loop, speed,
+  dimensions and length; all: native full size). The bytes come from the new
+  `content_get` action through the framework `Download` result (allowlisted
+  type, `nosniff`, attachment, sandboxing CSP) as a blob URL; the shell CSP
+  allows `blob:` images and media. Upload accepts `mp4`/`webm` with detected
+  MIME types; the demo seeds `Drive A/Média` with a synthetic fractal JPEG and
+  a test-pattern WebM. The editor's Cancel button is replaced by the window
+  close with the unsaved-changes confirmation. The managed nginx strips the
+  application's CSP headers, so the browser spec checks type, `nosniff` and
+  disposition, not the CSP.
+- **Follow-up instruction (same day):** when the viewport is unsuitable the
+  content is not shown; a centred alert-style container says `Csak desktop
+  környezetben elérhető funkció`. This is a system option a feature requests in
+  its configuration: generic view option `desktopOnly` / JSON `desktop_only`
+  ([shell](shell.md#desktop-only-views)); the demo file manager opts in.
+- **Open:** `ResponsiveGrid` binds its root DOM listeners once, so any host
+  that re-creates the grid's Layout DOM (such as a `views` switch) loses row
+  marking, card scrolling and card editing; the file manager avoids it.
+- **Open:** deletion, download/preview, per-entry permissions, lazy trees and
+  paged lists, JSON module configuration and an external blob store.
+- **Status:** implemented; verification results are listed in
+  [files](files.md#demo-and-verification) and the task report. User acceptance
+  is pending.
+
+<a id="fb-0059"></a>
+
+## FB-0059 — Single-record commands are disabled while several rows are marked
+
+- **Date:** 2026-10-24.
+- **Observation:** in Notes (row marking), with several rows marked, the
+  `Módosítás` command stayed enabled although no Notes field is bulk-editable;
+  it opened the single-record editor for the active row only.
+- **Expected:** with multiple marks, a command that cannot apply to the marks
+  is unavailable; this covers every command that is not meaningful for a
+  multi-row selection, not only update.
+- **Scope:** general framework rule in the workspace toolbar.
+- **Implementation:** `Workspace.capabilities()` disables non-bulk object
+  actions and `Adatok` while two or more rows are marked; bulk-capable actions
+  and create stay available. The click handler applies the same guard.
+  [Workspaces](workspaces.md#tömeges-műveletek-és-ikonok).
+- **Verification (agent):** `list-presentation.spec.cjs` checks that a non-bulk
+  action and `Adatok` are disabled with two marks and enabled again with one;
+  `list-presentation.spec.cjs` and `list-integration.spec.cjs` 10/10 pass.
+  The live-login demo/workspace specs failed at sign-in both with and without
+  this change (pre-existing environment issue), so the live Notes view was not
+  rechecked by browser test.
+- **Status:** implemented; user acceptance pending.
+
+<a id="fb-0060"></a>
+
+## FB-0060 — Visual diagram editor: network topology builder demo
+
+- **Date:** 2026-10-24.
+- **Request:** a visual workflow demo with movable elements where new elements
+  can be defined; the demo is a network topology builder.
+- **Accepted design:** reusable framework capability `Blade\Diagram`
+  (`DiagramStorage` over `blade_diagrams`/`blade_diagram_types`,
+  `DiagramDefinition`, `DiagramActions`), a `diagram` view kind and
+  `DiagramEditor.ts`. The consumer declares the element palette, connection
+  types and limits; users may define further element types at runtime (name,
+  framework glyph, shape, colour). All reads and writes are registered actions;
+  the ACL object is the space; saved content is rebuilt canonically on the
+  server.
+- **Framework-first exception (narrow):** Suite Standard has no diagram widget
+  and DHTMLX Diagram is a separate, uninstalled product, so only the drawing
+  surface is an own SVG element; the shell, palette and diagram lists, property
+  form, windows, dialogs and toasts are Suite adapters. Considered extension:
+  a licensed DHTMLX Diagram adapter, which would replace only the canvas
+  ([diagrams](diagrams.md#building-blocks)).
+- **Decision taken in implementation:** "new elements" was read as
+  user-defined element types at runtime, in addition to the consumer palette;
+  placing elements on the canvas is the other half. Open question for the
+  owner whether element types should also carry custom properties/ports.
+- **Framework lesson:** replacing the widget of an already rendered Layout cell
+  follows the workspace detail order — `detach()`, destroy the old widget,
+  `awaitRedraw()`, then `attach()`; attaching directly over earlier HTML left
+  the cell empty without an error.
+- **Usage:** [diagrams](diagrams.md), [usage](usage.md#vizuális-diagramszerkesztő),
+  [demos](demos.md#teljes-feature-demó-), [component matrix](component-matrix.md).
+- **Verification (agent):** `php8.4 tests/shell/diagram.php` pass;
+  `npm run test:browser -- tests/shell/diagram.spec.cjs` 4/4 pass on the
+  managed URL; `i18n.php`, `contracts.php`, `files.php`, `access.php` pass;
+  `npm run typecheck` clean.
+- **Status:** implemented; user acceptance pending.
+
+<a id="fb-0061"></a>
+
+## FB-0061 — Event calendar: digital signage (DMS) scheduler demo
+
+- **Date:** 2026-10-24.
+- **Request:** a calendar view like a DMS scheduler; image and video assets
+  that can be scheduled into the programme; a recurring option; a demo of an
+  API query that tells what goes on air on a selected day; a default content
+  that can be given per day.
+- **Follow-up instruction (same day):** not with the grid manager; use the
+  native DHTMLX calendar solution. Accepted: the view is the native DHTMLX
+  Scheduler Standard (GPL), the component the [matrix](component-matrix.md)
+  lists for the event calendar; the newer DHTMLX Event Calendar is a paid
+  product and not installed.
+- **Accepted design:** reusable framework capability `Blade\Calendar`
+  (`CalendarDefinition` over `blade_calendar_events`, `CalendarActions`,
+  `Recurrence`), a `calendar` view kind and `Calendar.ts`. All reads and writes
+  are registered actions with the space as ACL object; the Scheduler recurring
+  model (series, moved and deleted occurrences) is stored as is and expanded
+  on the server by `occurrences` for API consumers. The DMS logic stays in the
+  feature demo consumer.
+- **Decisions taken in implementation:** "default content per day" is
+  implemented both per weekday and per specific date (the date wins); assets
+  reference image/video files of the demo file manager; in the playlist
+  timeline the latest-starting active programme wins and free time falls back
+  to the default. Open question for the owner whether overlapping programmes
+  need explicit priorities or a playlist of several assets per slot.
+- **Framework lessons:** the Standard Scheduler is a single shared instance,
+  so a view borrows and releases it instead of destroying it; occurrence copies
+  inherit series fields through their prototype, so the save router reads the
+  live event, not the data processor's serialized copy; the Scheduler reports
+  view changes that keep the window (opening the lightbox), and a reload must
+  not replace the data while a save is pending. The vendor Hungarian catalogue
+  contains mistranslations, overridden by framework captions.
+- **Follow-up instruction (same day):** "use unified form handling; the
+  Scheduler's forms differ" (screenshot of the vendor lightbox with its select
+  rows). Accepted: the vendor lightbox is replaced by the framework's Suite Form
+  in a Window (the shared field inputs, Cancel + Save row, `FormValidation`
+  with inline errors), the recurring scope question uses the shared choice
+  dialog (`scheduler.ext.recurring.confirm`), deletion uses the shared danger
+  confirmation, and the vendor select bar (inline edit, vendor delete confirm)
+  is off. The form hands its values to the Scheduler the way the lightbox does,
+  so the recurring plugin's occurrence/following/series handling is unchanged.
+  Framework additions: `FormValidation.clearServerError()` for cross-field
+  errors, exported `input`/`formActions` from `Workspace.ts`, and Suite
+  Calendar/TimePicker locale (month/day names via `Intl`). Suite 9.3 datepicker
+  repaints a typed value away when its open popup closes, so the date fields are
+  picked in the popup (`editable: false`).
+- **Usage:** [calendar](calendar.md), [usage](usage.md#eseménynaptár),
+  [demos](demos.md#teljes-feature-demó-), [component matrix](component-matrix.md).
+- **Verification (agent):** `php8.4 tests/shell/calendar.php` pass;
+  `npm run test:browser -- tests/shell/calendar.spec.cjs` 6/6 pass on the
+  managed URL after the form follow-up (shared form create, single-occurrence
+  exception via the choice dialog, period validation and weekly series rule); `contracts.php`, `i18n.php`, `configuration.php`, `access.php`,
+  `files.php`, `diagram.php` pass; `npm run typecheck` clean.
+- **Status:** implemented; user acceptance pending.
+
+<a id="fb-0062"></a>
+
+## FB-0062 — Sibling items beside the collapsed desktop main menu
+
+- **Date:** 2026-10-24.
+- **Request:** when the main menu is a single button on desktop and the open
+  menu item has siblings in the menu tree, show the relevant items next to the
+  main menu (example: `#feature=signage_assets`).
+- **Accepted design:** `AdminShell` renders, after the compact `Menü` button
+  and a native separator, the items of the open feature's branch as native
+  top-level Menu items with prefixed IDs; the open one uses the native `active`
+  state. Only at ≥ 768 px, only for nested items, and only when they fit by the
+  existing width estimate; route changes re-render the menu.
+- **Decision taken in implementation:** top-level features show no siblings,
+  since their siblings are the whole collapsed menu.
+- **Usage:** [shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü),
+  [usage](usage.md).
+- **Verification (agent):** `npm run typecheck` clean; build and demo assets
+  prepared; `npm run test:browser -- tests/shell/browser.spec.cjs -g "compact
+  desktop"` pass; `i18n.spec.cjs`, `files.spec.cjs`, `preferences.spec.cjs`
+  pass after the shared `openMenu` step. Failures seen in the same runs and not
+  caused by this change: `browser.spec.cjs` tests expecting an uncollapsed
+  1280 px menu and the viewer login, `dialogs.spec.cjs` actions that open a
+  confirmation instead of a form, `grid-sort.spec.cjs` select header filter.
+- **Status:** implemented; user acceptance pending.
+
+<a id="fb-0063"></a>
+
+## FB-0063 — Uploader and file/media list decisions
+
+- **Date:** 2026-10-24.
+- **Request:** a proper file uploader and a very good file list view for
+  `#feature=signage_assets`, and the same new uploader in `#feature=files` and
+  for every future upload.
+- **Owner decisions:** disk content storage instead of DB BLOBs; 100 MB per
+  file, at most 20 files per upload; video length is not validated at upload;
+  ffmpeg/ffprobe may be used; signage assets' files are visible and managed in
+  the file manager (shared files, dedicated demo mount); the file manager keeps
+  its two panels; first version includes chunked/resumable and background
+  upload, folder upload, clipboard paste (also into file manager panels),
+  delete, rename and download; deleting a used file warns and clears the
+  references; thumbnails are produced by a background task; build our own
+  uploader on DHTMLX components (no Vault purchase, no Uppy); multi-file ZIP
+  download is in the first version.
+- **Delete policy decision:** the framework gets a configurable delete
+  behaviour, `archive` (hidden as if deleted) or real `delete`. The demos use
+  real delete; for framework development archive is the recommendation, but
+  it is a per-case decision. Permission-gated visibility of archived records is
+  always consumer-specific and needs no system-level feature.
+- **Scope note:** `files` and `signage` are synthetic demo consumers showing
+  the capabilities, not a DMS or file-manager product; real consumers configure
+  the capabilities.
+- **Plan:** [uploader and file/media list](files-media-plan.md).
+- **U1 — disk content store, metadata, derivative tasks (implemented
+  2026-10-24):** `ContentStore`, `MediaProbe`, `Thumbnails`, `TaskQueue`,
+  `DownloadStream` and GET-capable actions (`content_stream`,
+  `thumbnail_get`); `FileManagerDefinition` options `contentRoot`, `tempRoot`,
+  `maxFiles` (replaces `multiple`) and `thumbnails`; migration 0002; the viewers
+  load the GET stream. Guide: [files](files.md). Decision taken in
+  implementation: `content_get` keeps its POST contract beside the new
+  `content_stream`; derivative rows are only `ready`/`failed`, "pending" comes
+  from the task state; a render failure is not retried on read.
+  Found while testing: Suite Grid reads a row's `height` property as its pixel
+  height, so the listing keeps media dimensions as `media_width`/`media_height`;
+  the general guard for record fields named `height` belongs to U3.
+  **Verification (agent):** `php8.4 tests/shell/files.php`, `access.php`,
+  `lists.php`, `configuration.php`, `i18n.php`, `contracts.php`, `calendar.php`,
+  `list-presentation.php` pass; `npm run typecheck`, `npm run build`,
+  `npm run demo:assets` clean; `npm run test:browser --
+  tests/shell/files.spec.cjs` 6/6 pass on the managed URL (Range `206`, `416`,
+  `304`, HEAD, WebP thumbnail, cross-site and per-mount GET denial, seeking).
+  Retained demo data of `tmp/demo` (20 files) and `tmp/web` (24 files) was
+  migrated, verified (store and BLOB hashes) and the BLOB column dropped.
+  `demo.spec.cjs` fails in 4 tests that click raw menu items or the
+  unconfigured Google overlay (the FB-0062 collapsed-menu change; not caused
+  by U1).
+- **Status:** accepted; U1 implemented (user acceptance pending); U2–U5
+  planned, not implemented.

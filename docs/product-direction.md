@@ -51,22 +51,22 @@ own contracts. Naming ([FB-0050](feedback.md#fb-0050)): product/packages
 ## 2. Implemented capabilities, evidence and gaps
 
 This inventory includes historical results; consult [development coverage
-limits](development.md#existing-full-smoke-and-coverage-limits) before rerunning
-fixture browser projects on this host.
+limits](development.md#existing-full-smoke-and-coverage-limits) for current
+browser coverage.
 
 | # | Evidence-backed state | Evidence | Remaining gap |
 | --- | --- | --- | --- |
 | R1 | PHP 8.4+ runtime; bootstrap `protocol: 1`, mismatch rejection; structured JSON action API `POST ./?blade=1` | `Shell/Application.php`, `AdminShell.ts`, [ACL/actions](access-and-actions.md) | No published wire schema, per-endpoint version, compatibility rules or language-neutral conformance fixture; shell is PHP-rendered. |
 | R2 | Mandatory project rules and ADR-0002; `guard`, `normalize`, `after_save`, registered actions run through common executor | [Project contract](../AGENTS.md), [ADR](decisions/0002-framework-first.md), [business boundary](usage.md#üzleti-konfiguráció-és-kód-határa) | Continuous review needed; no automated architecture enforcement. |
-| R3 | Window/Form login, Menu/Layout/Toolbar, Workspace grid/form/DataView, configurable layout/resizers | [Shell](shell.md), [workspaces](workspaces.md), `tests/shell/*.spec.cjs` | Full keyboard/focus ergonomics, complex multipanel flows and tree/chart/scheduler/Gantt adapters remain unproven. |
+| R3 | Window/Form login, Menu/Layout/Toolbar, Workspace grid/form/DataView, configurable layout/resizers; two-panel file manager with the Standard Tree adapter, upload and text-editor windows; event calendar over Scheduler Standard with recurrence | [Shell](shell.md), [workspaces](workspaces.md), [files](files.md), [calendar](calendar.md), `tests/shell/*.spec.cjs` | Full keyboard/focus ergonomics and chart/Gantt adapters remain unproven; the Tree adapter has no lazy loading or drag moves. |
 | R4 | hu/en/de catalogs, optional selector, matching client/server validation/mail language, Skyblue/light/dark via setTheme | [i18n](i18n.md), [themes](shell.md), `i18n.php`, `i18n.spec.cjs`, `browser.spec.cjs` | Participation is a completion rule, without automatic coverage enforcement. |
 | R5 | ACL, scoped tokens, transactional audit; A1 users with temporary password/forced change and grid/form disabled checkbox; A2 roles/rules with protection; A3 API keys with once-only secret/revocation checkbox; `Administration::register` | `packages/php/src/Admin/*`, `admin.php`, `permissions.php`, `api-keys.php`, `admin.spec.cjs`, `demo.spec.cjs`, [admin](admin.md) | Log admin A4 absent. |
-| R6 | SQL identity/displayName, password verification/change, per-user e-mail code, remembered login; e-mail identifier/full name/temporary password/forced change; AuthHandler OAuth overlay and per-user authorization without password; SMTP/command delivery; account language | [Authentication](authentication.md), `authentication.php`, `oauth.php`, `mail.php`, historical auth browser project, managed `demo.spec.cjs` | Real Google/Facebook completion unverified; latest Google start reaches callback mismatch (FB-0050). AuthHandler does not expose email_verified. Password reset A5 absent. |
-| R7 | SQLite demo/fixtures; MySQL connection/configuration, FOR UPDATE and InnoDB branches | `Infrastructure/Database.php`, `Access/Schema.php`, `examples/demo-app/common.php` | No PostgreSQL dialect (non-MySQL DDL is SQLite), JSON adapter or storage interface. Workspace/ACL/audit require PDO. |
+| R6 | SQL identity/displayName, password verification/change, per-user e-mail code, remembered login; e-mail identifier/full name/temporary password/forced change; AuthHandler OAuth overlay and per-user authorization without password; SMTP/command delivery; account language | [Authentication](authentication.md), `authentication.php`, `oauth.php`, `mail.php`, `authentication.spec.cjs`, managed `demo.spec.cjs` | Real Google/Facebook completion unverified; latest Google start reaches callback mismatch (FB-0050). AuthHandler does not expose email_verified. Password reset A5 absent. |
+| R7 | SQLite demo/fixtures with immediate write transactions in the executor; MySQL connection/configuration, FOR UPDATE and InnoDB branches; file contents in a content-addressed disk store with verified BLOB migration | `Infrastructure/Database.php`, `Infrastructure/Transaction.php`, `Access/Schema.php`, `Files/FileStorage.php`, `examples/demo-app/common.php` | No PostgreSQL dialect (non-MySQL DDL is SQLite), JSON adapter or storage interface. Workspace/ACL/audit require PDO. |
 | R8 | Modular `JsonApplication::load`, env references, named bindings, unknown-key rejection, no eval | [Configuration](configuration.md), `configuration.php` | No JSON Schema/config schema version/migration path; storage.where is trusted developer SQL. |
 | R9 | Default deny, object/field/channel rules, narrowing token scopes, unknown-right denial; generated Catalogue, validated rule admin, orphan marking, explicit first admin | [ACL](access-and-actions.md), [permissions](admin.md#szerepkörök-és-jogosultságok-a2), `access.php`, `permissions.php` | A3 manages token scopes; catalog JSON API absent. |
-| R10 | blade_audit actor/channel/resource/action/target/outcome/field names/request ID without sensitive values | `Audit/Journal.php`, `Feature/Executor.php`, `Shell/Application.php` | No category separation, retention or searchable log view; some coverage unproven (section 4). |
-| R11 | Feature demo at / with login/languages/admin/API/tasks; starter at /admin/; focused fixtures | [Demos](demos.md), `examples/demo-app`, `demo.spec.cjs` | Singleton, WebSocket live connection and custom layout tree still lack full feature-demo coverage. |
+| R10 | blade_audit actor/channel/resource/action/target/outcome/field names/request ID, optional ID-only detail, without sensitive values | `Audit/Journal.php`, `Feature/Executor.php`, `Shell/Application.php` | No category separation, retention or searchable log view; some coverage unproven (section 4). |
+| R11 | Feature demo at / with login/languages/admin/API/tasks/large list/file manager; starter at /admin/; all browser specs on the managed demos | [Demos](demos.md), `examples/demo-app`, `demo.spec.cjs` | Singleton, WebSocket live connection and custom layout tree still lack full feature-demo coverage. |
 | R12 | Framework-first, synthetic verification, then consumer integration since ADR-0002 | [ADR](decisions/0002-framework-first.md), [plan](development-plan.md) | Future package/consumer versioning, upgrades and schema compatibility need their own release process; no project deployment gate. |
 
 <a id="3-tárolási-határ-és-szükséges-garanciák"></a>
@@ -111,8 +111,12 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 | Password login success/deny, logout | Security | Implemented, Shell/Application. |
 | CSRF/transport rejection | Security | Implemented. |
 | E-mail code send/check, remembered-login restore | Security | Implemented, Authentication. |
-| Admin API-key issue/revoke | Security | Registered `blade_api_keys.create/update`, `__edit`, without secret. |
+| API-key issue/revoke (admin all-scope or user own-scope) | Security | Registered `blade_api_keys.create/update`, `__edit`, without secret. |
 | OAuth start/callback/login result | Security | `authentication.oauth_start`, `oauth_callback`, `oauth_login`. |
+| Calendar events/occurrences reads and create/update/delete | Audit | Implemented through the executor (space as object, event ID on writes); no captions or field values in the journal ([calendar](calendar.md)). |
+| File manager tree/list/create/upload/copy/move/text read and save | Audit | Implemented through the executor with ID-only detail (sources, target, results); no names or contents ([files](files.md)). |
+| File content stream and thumbnail GET reads (each request, incl. range/304) | Audit | Implemented through the executor (`content_stream`, `thumbnail_get`), detail `size` only; cross-site GETs are rejected and audited as transport rejections. |
+| Background task claim/retry/failure (`blade_tasks`) | Operational | Minimal: state, attempts and a short non-sensitive error stored in `blade_tasks`; handler exceptions go to the PHP error log. No log view or alerting (M6). |
 | ACL rules/roles changed | Security + audit | Audited through registered actions; A2 admin is implemented. |
 | List reads/export | Audit | Planned; volume/detail undecided. |
 | Configuration/schema changes, installation | Operational | Planned. |
@@ -135,7 +139,9 @@ does not prove completion.
 - Required full name uses existing displayName, without a separate name field.
 - Password reset uses one-time expiring e-mail link from login, uniform response regardless of existence, rate limits and audit.
 - Every application uses normalized unique e-mail as login identifier.
-- API keys are admin-managed for now (issue/list without secret/revoke); self-service requires a separate permission/decision.
+- API keys are a root-level capability. Administrators retain account-wide
+  management; users may issue/list/update/revoke their own keys when ACL grants
+  `blade_api_keys` UI operations with `own` scope.
 - Non-insertable stores disable create but permit existing-account management.
 
 <a id="még-nyitott"></a>
@@ -225,8 +231,7 @@ requested increment, unresolved decisions, affected test groups and
 acceptance criteria before implementation.
 
 Verify only affected groups using the guarded browser wrapper and managed
-URL. Preserve existing fixture suites; do not launch localhost fixtures on
-this host or install tools. Full smoke is not an onboarding/deployment
+URL. Do not start local servers on this host or install tools. Full smoke is not an onboarding/deployment
 gate here. Clean temporary task verification/output, preserve retained
 evidence and configured Git identity, and follow the local commit/push
 contract. Report actual changes, checks, visible URL and remaining limits.

@@ -41,6 +41,16 @@ API 404 hides inaccessible objects; internal audit records the reason.
 Do not permit sorting, filtering or aggregation over forbidden fields if it
 could disclose information. The client receives permitted fields only.
 
+Binary reads used as element sources (`<img>`, `<video>`) are GET-capable
+actions (`Action::$get`), not public paths: the same executor authenticates,
+checks channel, token scope and the object ACL, and audits every request,
+including range and conditional ones. They take no input fields and never
+write. Because an element cannot send the CSRF header, the UI channel rejects
+cross-site and same-site fetch metadata instead; responses are
+`Cross-Origin-Resource-Policy: same-origin`, `nosniff`, sandboxed by CSP, and
+carry an allowlisted type and a `private` cache policy. See
+[files](files.md#actions-and-authorization).
+
 <a id="írás"></a>
 
 ## Writes
