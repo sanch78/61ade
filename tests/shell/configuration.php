@@ -157,6 +157,70 @@ try {
         file_put_contents($directory.'/media-variant.json', json_encode($variant, JSON_THROW_ON_ERROR));
         rejected(static fn() => WorkspaceConfiguration::build($db, [$directory.'/media-variant.json'], static fn() => []), 'Invalid media column accepted: '.json_encode($column));
     }
+    // U5 keys: `file` fields, storage.computed, hooks.after_delete, operations.delete_policy, derived media columns; lookups over an archiving table hide archived rows.
+    $db->exec("CREATE TABLE shelves (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, picture TEXT NOT NULL DEFAULT '', archived_at TEXT NULL, archived_by TEXT NOT NULL DEFAULT '')");
+    $db->exec("CREATE TABLE shelf_items (id INTEGER PRIMARY KEY AUTOINCREMENT, shelf_id TEXT NOT NULL)");
+    $db->exec("INSERT INTO shelves (title) VALUES ('Kept'), ('Archived'); INSERT INTO shelf_items (shelf_id) VALUES ('1'), ('1'), ('2')");
+    foreach (['shelves' => ['list', 'get', 'create', 'update', 'delete'], 'shelf_items' => ['list', 'get', 'create']] as $resource => $actions) foreach ($actions as $action) $db->exec("INSERT INTO blade_rules(subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('user', '1', '$resource', '$action', 'ui', 'allow', 'all', '', '')");
+    $shelvesModule = [
+        'lookups' => ['shelf_titles' => ['resource' => 'shelves', 'table' => 'shelves', 'key' => 'id', 'label' => 'title']],
+        'resources' => [
+            'shelves' => [
+                'storage' => ['table' => 'shelves', 'key' => 'id', 'computed' => ['items' => 'SELECT COUNT(*) FROM shelf_items i WHERE i.shelf_id = CAST(blade_base.id AS TEXT)']],
+                'hooks' => ['after_delete' => 'shelves.deleted'],
+                'fields' => [
+                    ['name' => 'title', 'label' => 'Cím', 'required' => true],
+                    ['name' => 'picture', 'label' => 'Kép', 'type' => 'file', 'file' => ['resource' => 'library', 'mount' => 'a', 'folder' => 'Képek', 'accept' => ['image']]],
+                    ['name' => 'items', 'label' => 'Tételek', 'type' => 'number'],
+                ],
+                'operations' => ['delete' => true, 'delete_policy' => 'archive'],
+                'view' => ['title' => 'Polcok', 'columns' => [['id' => 'title', 'header' => 'Cím'], ['id' => 'picture', 'header' => 'Kép'], ['id' => 'picture_type', 'header' => 'Típus', 'media_of' => 'picture', 'part' => 'type'], ['id' => 'items', 'header' => 'Tételek']]],
+            ],
+            'shelf_items' => [
+                'storage' => ['table' => 'shelf_items', 'key' => 'id'],
+                'fields' => [['name' => 'shelf_id', 'label' => 'Polc', 'type' => 'select', 'options_lookup' => 'shelf_titles']],
+                'view' => ['title' => 'Tételek'],
+            ],
+        ],
+    ];
+    file_put_contents($directory.'/shelves.json', json_encode($shelvesModule, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+    $deletedShelves = [];
+    $onDelete = static function (Context $ctx, string $id, array $target) use (&$deletedShelves): void { $deletedShelves[] = $id; };
+    $shelfBindings = static fn() => ['shelves.deleted' => $onDelete];
+    $shelfWorkspace = WorkspaceConfiguration::build($db, [$directory.'/shelves.json'], $shelfBindings);
+    $shelfContext = new Context($actor, 'ui', $shelfWorkspace->acl, $db);
+    $picture = $shelfWorkspace->registry->fields('shelves')['picture'];
+    verify($picture->type === 'file' && $picture->file === ['resource' => 'library', 'mount' => 'a', 'folder' => 'Képek', 'accept' => ['image']] && $picture->media() === 'library', 'JSON file field');
+    verify(!in_array('items', array_column($shelfWorkspace->registry->get('shelves', 'create')->fields, 'name'), true), 'JSON computed column is read-only');
+    $shelfView = array_column(array_column($shelfWorkspace->views($actor), null, 'resource')['shelves']['columns'], null, 'id');
+    verify($shelfView['picture_type']['media_of'] === 'picture' && $shelfView['picture']['media'] === 'library' && $shelfView['picture']['type'] === 'file', 'JSON derived media column and file column');
+    $read = $shelfWorkspace->executor->execute($shelfContext, 'shelves', 'list', null, ['limit' => 10, 'sort' => ['field' => 'items', 'direction' => 'desc']]);
+    verify($read['items'][0]['title'] === 'Kept' && (int) $read['items'][0]['items'] === 2, 'JSON computed column listed and sortable');
+    $options = static fn() => $shelfWorkspace->registry->fields('shelf_items')['shelf_id']->metadata($shelfContext)['options'];
+    verify($options() === ['1' => 'Kept', '2' => 'Archived'], 'Lookup before archiving');
+    $shelfWorkspace->executor->execute($shelfContext, 'shelves', 'delete', '2', ['revision' => $shelfWorkspace->executor->execute($shelfContext, 'shelves', 'get', '2', [])['revision']]);
+    verify($deletedShelves === ['2'] && $db->query('SELECT archived_at FROM shelves WHERE id = 2')->fetchColumn() !== null, 'JSON delete_policy archive and after_delete hook');
+    verify($options() === ['1' => 'Kept'], 'JSON lookup over an archiving table hides archived rows');
+    foreach ([
+        static function (array &$m): void { $m['resources']['shelves']['fields'][1]['file']['path'] = '/x'; },
+        static function (array &$m): void { unset($m['resources']['shelves']['fields'][1]['file']['accept']); },
+        static function (array &$m): void { $m['resources']['shelves']['fields'][1]['file']['accept'] = 'image'; },
+        static function (array &$m): void { $m['resources']['shelves']['fields'][1]['files'] = []; },
+        static function (array &$m): void { unset($m['resources']['shelves']['fields'][1]['file']); },
+        static function (array &$m): void { $m['resources']['shelves']['operations']['delete_policy'] = 'purge'; },
+        static function (array &$m): void { $m['resources']['shelves']['operations'] = ['delete_policy' => 'archive']; },
+        static function (array &$m): void { $m['resources']['shelves']['hooks']['after_remove'] = 'shelves.deleted'; },
+        static function (array &$m): void { $m['resources']['shelves']['hooks']['after_delete'] = 'shelves.unknown'; },
+        static function (array &$m): void { $m['resources']['shelves']['storage']['computed'] = ['missing' => 'SELECT 1']; },
+        static function (array &$m): void { $m['resources']['shelves']['storage']['computed'] = 'SELECT 1'; },
+        static function (array &$m): void { $m['resources']['shelves']['view']['columns'][2]['part'] = 'codec'; },
+        static function (array &$m): void { $m['resources']['shelves']['view']['columns'][2]['media_of'] = 'title'; },
+    ] as $index => $change) {
+        $variant = $shelvesModule;
+        $change($variant);
+        file_put_contents($directory.'/shelves-variant.json', json_encode($variant, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        rejected(static fn() => WorkspaceConfiguration::build($db, [$directory.'/shelves-variant.json'], $shelfBindings), 'Invalid U5 configuration accepted: variant '.$index);
+    }
     echo "61de JSON/environment configuration contracts passed.\n";
 } finally {
     putenv('BLADE_TEST_CONFIG_PORT');

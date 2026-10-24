@@ -10,7 +10,7 @@ final readonly class ListSource
     {
         $known=array_column($fields,null,'name');
         if(!array_is_list($search)||count($search)>20||count(array_unique($search))!==count($search))throw new \InvalidArgumentException('Invalid list search declaration.');
-        foreach($search as $name){$field=is_string($name)?($known[$name]??null):null;if(!$field||$field->secret||!in_array($field->type,['text','textarea'],true)||isset($field->column['media']))throw new \InvalidArgumentException('Invalid list search declaration.');}
+        foreach($search as $name){$field=is_string($name)?($known[$name]??null):null;if(!$field||$field->secret||!in_array($field->type,['text','textarea'],true)||$field->media()!==null)throw new \InvalidArgumentException('Invalid list search declaration.');}
     }
 
     public function filterDefinitions(Context $ctx):array
@@ -18,9 +18,9 @@ final readonly class ListSource
         $out=[];
         foreach($this->fields as $field){
             if($field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$field->name))continue;
-            if(isset($field->column['media'])){
+            if($field->media()!==null){
                 // A media column filters by MIME class; without a registered source it is not filterable.
-                $media=$this->registry?->mediaSource($field->column['media']);
+                $media=$this->registry?->mediaSource($field->media());
                 if($media)$out[]=[...$field->metadata($ctx),'type'=>'select','options'=>array_map(\Blade\I18n\Translator::text(...),$media->classes())];
                 continue;
             }
@@ -42,7 +42,7 @@ final readonly class ListSource
     public function media(Context $ctx,array $items):array
     {
         $groups=[];
-        foreach($this->fields as $field)if(isset($field->column['media']))$groups[$field->column['media']][]=$field->name;
+        foreach($this->fields as $field)if($field->media()!==null)$groups[$field->media()][]=$field->name;
         foreach($groups as $resource=>$names){
             $source=$this->registry?->mediaSource($resource);$ids=[];
             if($source)foreach($items as $item)foreach($names as $name){$value=$item[$name]??null;if((is_string($value)||is_int($value))&&(string)$value!=='')$ids[(string)$value]=true;}
@@ -115,8 +115,8 @@ final readonly class ListSource
             if(!$field||$field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$key))throw new Failure('A mező nem szűrhető.',403);
             if(!is_string($value)||strlen($value)>255||str_contains($value,"\0"))throw new Failure('Hibás szűrőérték.');
             $param='f'.count($params);
-            if(isset($field->column['media'])){
-                $media=$this->registry?->mediaSource($field->column['media'])??throw new Failure('A mező nem szűrhető.',403);
+            if($field->media()!==null){
+                $media=$this->registry?->mediaSource($field->media())??throw new Failure('A mező nem szűrhető.',403);
                 if(!array_key_exists($value,$media->classes()))throw new Failure('Hibás szűrőérték.');
                 $terms[]=self::predicate($media->classPredicate($ctx,$key,$value),$param.'_',$params);
             }elseif(in_array($field->type,['select','checkbox'],true)){

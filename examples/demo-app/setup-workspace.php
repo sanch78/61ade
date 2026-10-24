@@ -127,11 +127,13 @@ $rules[] = [(string) $reader, 'demo_tasks', ['list', 'get'], 'deny', 'descriptio
 $rules[] = [(string) $reader, 'files', ['tree', 'list', 'text_get', 'content_get', 'content_stream', 'thumbnail_get', 'download', 'zip_prepare', 'zip_get']];
 // Read-only topology viewer: opens diagrams, no editing.
 $rules[] = [(string) $reader, 'topology', ['list', 'get']];
-// Digital signage: calendar table, synthetic assets, weekday defaults and programme; the reader only views.
+// Digital signage: calendar table, synthetic assets, weekday defaults and programme; the seeded asset media move into
+// the Signage mount (the file rights above cover every mount). The reader only views.
 require_once __DIR__.'/signage.php';
-blade_demo_signage_setup($db);
-array_push($rules, ['1', 'signage_assets', ['list', 'get', 'create', 'update', 'delete']], ['1', 'signage_defaults', ['list', 'get', 'create', 'update', 'delete']],
+blade_demo_signage_setup($db, $storage);
+array_push($rules, ['1', 'signage_assets', ['list', 'get', 'create', 'update', 'delete', 'upload_asset']], ['1', 'signage_defaults', ['list', 'get', 'create', 'update', 'delete']],
     ['1', 'signage_schedule', ['events', 'occurrences', 'create', 'update', 'delete']], ['1', 'signage_playlist', ['day']],
+    [(string) $reader, 'signage_assets', ['list', 'get']], [(string) $reader, 'signage_defaults', ['list', 'get']],
     [(string) $reader, 'signage_schedule', ['events', 'occurrences']], [(string) $reader, 'signage_playlist', ['day']]);
 foreach ($rules as $rule) foreach ($rule[2] as $action) {
     $row = [$rule[0], $rule[1], $action, $rule[3] ?? 'allow', $rule[4] ?? ''];

@@ -363,6 +363,70 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   host Layout that re-renders it (cell hide/show, a `views` switch) keeps
   marking, card scroll paging, editing and reflow ([FB-0058](feedback.md#fb-0058)).
 
+- **Derived media columns.** A view column without a field may declare
+  `media_of: <media field>` and `part: "type" | "resolution" | "duration"`;
+  it is rendered from `_media` (`Kép`/`Videó`, `1920 × 1080`, `0:06`) in the
+  table, cards, tiles and details, and is never sortable or editable.
+
+<a id="file-field"></a>
+
+### File field
+
+`type: "file"` with `file: {resource, mount, accept, folder?}` (PHP
+`new Field(…, 'file', file: [...])`) stores a file id of a file manager's
+mount. The server validates that the id is a live file of that mount, of an
+accepted MIME class, which the actor may read (`thumbnail_get`); errors are
+field errors on every channel. Its metadata carries the resolved `folder_id`,
+the accepted classes, the file manager's upload policy narrowed to them (no
+folders) and `can_upload`; list rows carry its `_media` descriptor, so the
+column is a media column automatically. The form control shows the thumbnail
+and name with `Kiválasztás…` (a tiles picker over the folder with search and a
+type filter; Enter or double-click chooses, Escape or `Mégse` cancels),
+`Fájl feltöltése…` (the shared uploader; the first stored file is chosen) and
+`Törlés` for optional fields. Grid editing of a file field is not supported.
+Consumers that store uploads themselves use `FileManagerDefinition::files()`
+(`MountStorage::folder()`/`store()`), which applies the file manager's
+validation, metadata and thumbnails.
+
+<a id="delete-usages"></a>
+
+### Record delete policy and usages
+
+`SqlResource::registerDelete(…, deletePolicy: 'delete'|'archive')` (JSON
+`operations.delete_policy`; default `delete` for compatibility, `archive` is
+the recommendation for new development). `archive` sets the consumer's
+`archived_at`/`archived_by` columns and every framework read of the resource
+(object loads, lists, counts, rank, live watch, unique checks and JSON
+`lookups` on the same table) hides the row as if deleted. Consumer SQL
+outside these reads must filter `archived_at IS NULL` itself.
+
+A consumer reports references with `Registry::usage($resource, UsageProvider)`
+(`usages(Context, ids)` → label/count pairs, `clear(Context, ids, policy)`
+inside the deleting transaction). Delete actions of a resource with providers
+are offered with `usages: true` and accept a hidden `preview` value
+(`{count, usages}` without changes); the browser previews first (through
+`__bulk` for marks, whose items now carry `data`) and shows one shared danger
+confirmation listing the counts and that the references are cleared; the apply
+result reports `cleared` and a toast summarises it. Under `archive` the
+providers are called too, so archived records behave as deleted everywhere.
+The file manager's `delete` works the same way over every file of the selected
+subtrees. Usage counts are labels and counts only, but they may count
+references in records the actor cannot read. `clear()` is consumer code that
+runs inside the deleting transaction regardless of the actor's rights on the
+referencing resource and writes no audit row there (the demo blanks event
+assets, removes defaults and empties asset file references — owner decision).
+Contract change for consumers: `after_save` no longer runs after a delete; use
+`after_delete`. An archive-policy resource checks its `archived_at`/`archived_by`
+columns on first use (a developer error otherwise); a PHP `Lookup` hides
+archived rows with `hideArchived`. File deletes say that referencing items stay
+and only their file reference is cleared. An unchanged stored file id is not
+re-validated on save; the picker is offered only with `can_choose` (`list` on
+the mount) and returns focus to the field.
+
+List actions that declare an `UploadPolicy` carry `upload` metadata and open
+the shared [uploader](uploader.md) from the toolbar (an action without fields,
+whose handler result counts as one success per file).
+
 Limits: tile title/secondary columns are chosen automatically; reserved-key
 columns appear to the Grid as `__blade_height`/`__blade_css` (DOM selectors and
 stored column widths see the alias; editing, sorting and filtering convert it);

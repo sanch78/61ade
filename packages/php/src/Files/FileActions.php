@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Blade\Files;
 
-use Blade\Feature\{Action, Context, DownloadStream, Failure, Field, Registry, StreamedDownload, Upload, UploadPolicy};
+use Blade\Feature\{Action, Context, DownloadStream, Failure, Field, Registry, StreamedDownload, Upload, UploadPolicy, Usages};
 use Blade\I18n\Translator;
 
 /**
@@ -27,15 +27,18 @@ final class FileActions
 
     /** Upload rules of the `upload` action, shared by the direct multipart request and the transfer protocol. */
     private readonly UploadPolicy $policy;
+    /** Registry of the UsageProviders of this resource (delete preview and clearing). */
+    private ?Registry $registry = null;
 
     public function __construct(private FileManagerDefinition $definition, private FileStorage $storage)
     {
-        $this->policy = $definition->uploadPolicy(fn(Context $ctx, array $target, array $files): array => $this->preflight($target, $files));
+        $this->policy = $definition->uploadPolicy(fn(Context $ctx, array $target, array $files): array => $this->preflight($ctx, $target, $files));
     }
 
     public function register(Registry $registry): void
     {
         $resource = $this->definition->resource;
+        $this->registry = $registry;
         $decision = new Field('decision', 'Névütközés esetén', 'select', options: ['overwrite' => 'Felülírás', 'rename' => 'Átnevezés', 'skip' => 'Kihagyás']);
         $sources = new Field('sources', 'Kijelölt elemek', required: true, max: 2000);
         $entry = fn(Context $ctx, ?string $id): array => $this->target($id);
@@ -56,7 +59,7 @@ final class FileActions
             new Action($resource, 'content_get', 'Megtekintés', [], fn(Context $ctx, array $target) => $this->contentGet($target), resolve: $entry, icon: 'dxi dxi-eye'),
             new Action($resource, 'content_stream', 'Médiatartalom', [], fn(Context $ctx, array $target) => $this->contentStream($target), resolve: $entry, get: true),
             new Action($resource, 'thumbnail_get', 'Bélyegkép', [], fn(Context $ctx, array $target) => $this->thumbnailGet($target), resolve: $entry, get: true),
-            new Action($resource, 'delete', 'Törlés', [$sources], fn(Context $ctx, array $target, array $values) => $this->delete($ctx, $target, $values), resolve: $entry, write: true, icon: 'dxi dxi-delete',
+            new Action($resource, 'delete', 'Törlés', [$sources, new Field('preview', 'Előnézet', 'checkbox')], fn(Context $ctx, array $target, array $values) => $this->delete($ctx, $target, $values), resolve: $entry, write: true, icon: 'dxi dxi-delete',
                 confirm: ['title' => 'Törlés', 'severity' => 'danger', 'confirm_label' => 'Törlés', 'message' => $archive
                     ? '{count} kijelölt elem archiválódik. A mappák tartalma is archiválódik.' : '{count} kijelölt elem véglegesen törlődik. A mappák tartalma is törlődik.']),
             new Action($resource, 'rename', 'Átnevezés', [new Field('name', 'Új név', required: true, max: 255)], fn(Context $ctx, array $target, array $values) => $this->rename($target, $values['name']), resolve: $entry, write: true, icon: 'dxi dxi-pencil'),
@@ -212,12 +215,7 @@ final class FileActions
     private function rejected(Upload $file, string $path, int $depth): ?array
     {
         if ($depth + count(UploadPolicy::segments($file->name, $path)) > $this->definition->maxDepth) return ['code' => 'depth', 'error' => $this->tooDeep()];
-        $extension = FileStorage::extension($file->name);
-        $detected = (string) (new \finfo(FILEINFO_MIME_TYPE))->file($file->path);
-        // libmagic reports very short text as octet-stream; text types then need clean UTF-8 bytes.
-        $text = in_array('text/plain', FileManagerDefinition::TYPES[$extension][1], true);
-        if ($text && $detected === 'application/octet-stream' && filesize($file->path) <= 65536 && preg_match('/^[^\x00-\x08\x0B\x0E-\x1F\x7F]*$/Du', (string) file_get_contents($file->path))) $detected = 'text/plain';
-        if (!in_array($detected, FileManagerDefinition::TYPES[$extension][1], true)) return ['code' => 'content_mismatch', 'error' => Translator::text('A fájl tartalma nem felel meg a kiterjesztésnek.')];
+        if (!FileManagerDefinition::contentMatches(FileStorage::extension($file->name), $file->path)) return ['code' => 'content_mismatch', 'error' => Translator::text('A fájl tartalma nem felel meg a kiterjesztésnek.')];
         return null;
     }
 
@@ -242,9 +240,10 @@ final class FileActions
 
     /**
      * Transfer preflight (no writes): depth of the folder path below the mount root and name conflicts
-     * that need a decision (`ask`) or fail (`reject`). Names, types and sizes are the policy's own checks.
+     * that need a decision (`ask`) or fail (`reject`); a conflicting file's references (`usages`) warn that an
+     * overwrite under `archive` clears them. Names, types and sizes are the policy's own checks.
      */
-    private function preflight(array $target, array $files): array
+    private function preflight(Context $ctx, array $target, array $files): array
     {
         $directory = $this->directory($target);
         $depth = count($this->storage->ancestry($directory)) - 1;
@@ -255,7 +254,8 @@ final class FileActions
             $parent = $this->existingParent($directory, $segments);
             if ($parent === false) { $out[$index] = ['code' => 'conflict', 'message' => $this->conflictMessage(), 'conflict' => ['existing_kind' => 'file']]; continue; }
             $existing = $parent && in_array($this->definition->duplicatePolicy, ['ask', 'reject'], true) ? $this->storage->child((int) $parent['id'], $file['name']) : null;
-            if ($existing) $out[$index] = ['code' => 'conflict', 'message' => $this->conflictMessage(), 'conflict' => ['existing_kind' => $existing['kind']]];
+            if ($existing) $out[$index] = ['code' => 'conflict', 'message' => $this->conflictMessage(), 'conflict' => ['existing_kind' => $existing['kind'],
+                ...(($usages = $existing['kind'] === 'file' ? $this->usages($ctx, [(string) $existing['id']]) : []) ? ['usages' => $usages] : [])]];
         }
         return $out;
     }
@@ -289,11 +289,11 @@ final class FileActions
             }
             $names[$key] = true;
             $existing = $parent ? $this->storage->child((int) $parent['id'], $file->name) : null;
-            if ($existing) $conflicts[] = ['name' => $file->name, 'kind' => 'file', 'existing_kind' => $existing['kind']];
+            if ($existing) $conflicts[] = ['name' => $file->name, 'kind' => 'file', 'existing_kind' => $existing['kind'], 'existing' => $existing['kind'] === 'file' ? (string) $existing['id'] : null];
             $accepted[] = [$file, $segments];
         }
         if (!$accepted) throw new Failure('Egyik fájl sem tölthető fel.', 400, [], ['code' => $failed[0]['code'], 'failed' => $failed]);
-        if ($conflicts && $policy === '') throw new Failure('Névütközés a célmappában.', 409, [], ['conflicts' => $conflicts, 'failed' => $failed]);
+        if ($conflicts && $policy === '') throw $this->conflict($ctx, $conflicts, ['failed' => $failed]);
         $succeeded = $skipped = $created = $replaced = $archived = $directories = [];
         foreach ($accepted as [$file, $segments]) {
             $name = $file->name;
@@ -305,7 +305,9 @@ final class FileActions
                 [$parent, $new] = $found;
                 if ($new) $directories[] = (string) $parent['id'];
             }
-            $existing = $this->storage->child((int) $parent['id'], $name);
+            // The parent row is locked before the name check (MySQL), so concurrent stores of one name serialize into a decision or a free name, never a duplicate key.
+            $this->storage->locked((int) $parent['id']);
+            $existing = $this->storage->child((int) $parent['id'], $name, true);
             if ($existing && $policy === 'skip') { $skipped[] = ['name' => $name]; continue; }
             if ($existing && $policy === 'reject') { $failed[] = ['name' => $name, 'code' => 'conflict', 'error' => $this->conflictMessage()]; continue; }
             if ($existing && $policy === 'overwrite' && $existing['kind'] !== 'file') { $failed[] = ['name' => $name, 'code' => 'conflict', 'error' => Translator::text('Mappa nem írható felül.')]; continue; }
@@ -321,7 +323,7 @@ final class FileActions
                 $replaced[] = $id;
                 continue;
             }
-            if ($existing) $name = $this->storage->freeName((int) $parent['id'], $name, 'file');
+            if ($existing) $name = $this->storage->freeName((int) $parent['id'], $name, 'file', true);
             $id = (string) $this->storage->createFile($parent, $name, $mime, $file->path);
             $succeeded[] = ['id' => $id, 'name' => $name, 'parent' => (string) $parent['id']];
             $created[] = $id;
@@ -330,8 +332,10 @@ final class FileActions
         $items = $succeeded ? array_column($this->items($this->storage->entries(array_column($succeeded, 'id'))), null, 'id') : [];
         foreach ($succeeded as &$item) $item['item'] = $items[$item['id']] ?? null;
         unset($item);
-        return ['succeeded' => $succeeded, 'skipped' => $skipped, 'failed' => $failed,
-            'audit' => ['directory' => (string) $directory['id'], 'created' => $created, 'replaced' => $replaced, 'archived' => $archived, 'directories' => $directories, 'skipped' => count($skipped), 'failed' => count($failed)]];
+        // Archived (replaced) files are gone for every reader: their references are cleared like a delete's. An in-place rewrite keeps the id and its references.
+        $cleared = $this->cleared($ctx, $archived);
+        return ['succeeded' => $succeeded, 'skipped' => $skipped, 'failed' => $failed, 'cleared' => $cleared,
+            'audit' => ['directory' => (string) $directory['id'], 'created' => $created, 'replaced' => $replaced, 'archived' => $archived, 'directories' => $directories, 'skipped' => count($skipped), 'failed' => count($failed), ...($cleared ? ['cleared' => $cleared] : [])]];
     }
 
     /** Copy or move into the target directory. Every check precedes the first write; one transaction. */
@@ -361,7 +365,7 @@ final class FileActions
             if ($move && (int) $row['parent_id'] === (int) $destination['id']) { $plans[] = [$row, null, 'Az elem már a célmappában van.']; continue; }
             $key = mb_strtolower($row['name'], 'UTF-8');
             $existing = $this->storage->child((int) $destination['id'], $row['name']);
-            if ($existing || isset($planned[$key])) $conflicts[] = ['id' => (string) $id, 'name' => $row['name'], 'kind' => $row['kind'], 'existing_kind' => $existing['kind'] ?? $planned[$key]];
+            if ($existing || isset($planned[$key])) $conflicts[] = ['id' => (string) $id, 'name' => $row['name'], 'kind' => $row['kind'], 'existing_kind' => $existing['kind'] ?? $planned[$key], 'existing' => ($existing['kind'] ?? null) === 'file' ? (string) $existing['id'] : null];
             $planned[$key] = $row['kind'];
             // A moved folder's top row is locked before its subtree is read (MySQL), so a concurrent delete or move of it waits.
             if ($move && $row['kind'] === 'directory') $row = $this->storage->locked((int) $row['id']) ?? throw new Failure('Az elem időközben módosult.', 409);
@@ -373,9 +377,9 @@ final class FileActions
             $plans[] = [$row, $subtree, null];
         }
         if ($tooDeep) throw new Failure(Translator::text('A művelet túllépné a megengedett {depth} szintes mappamélységet: {names}.', ['depth' => $this->definition->maxDepth, 'names' => implode(', ', $tooDeep)]), 400, [], ['too_deep' => $tooDeep]);
-        if ($conflicts && $decision === '') throw new Failure('Névütközés a célmappában.', 409, [], ['conflicts' => $conflicts]);
+        if ($conflicts && $decision === '') throw $this->conflict($ctx, $conflicts);
 
-        $succeeded = $skipped = $failed = $archived = [];
+        $succeeded = $skipped = $failed = $archived = $removed = [];
         foreach ($plans as [$row, $subtree, $error]) {
             $source = (string) $row['id'];
             $existing = $error === null ? $this->storage->child((int) $destination['id'], $row['name']) : null;
@@ -392,16 +396,42 @@ final class FileActions
                 $this->storage->replaceFrom((int) $existing['id'], $row);
                 $succeeded[] = ['source' => $source, 'id' => (string) $existing['id'], 'name' => $name];
                 continue;
-            } elseif ($existing && $decision === 'overwrite') $this->storage->removeFile((int) $existing['id']);
+            } elseif ($existing && $decision === 'overwrite') { $this->storage->removeFile((int) $existing['id']); $removed[] = (string) $existing['id']; }
             if ($move) $this->storage->moveTree($subtree, $destination, $name);
             $id = $move ? $source : (string) $this->storage->copyTree($subtree, $destination, $name);
             $succeeded[] = ['source' => $source, 'id' => $id, 'name' => $name];
         }
-        return ['succeeded' => $succeeded, 'skipped' => $skipped, 'failed' => $failed, 'audit' => [
+        // Replaced files that are gone (archived, or removed by a move) lose their references; an in-place copy overwrite keeps the id and them.
+        $cleared = $this->cleared($ctx, [...$archived, ...$removed]);
+        return ['succeeded' => $succeeded, 'skipped' => $skipped, 'failed' => $failed, 'cleared' => $cleared, 'audit' => [
             'target' => (string) $destination['id'], 'sources' => array_map('strval', $ids),
             'succeeded' => array_map(static fn($item) => $item['source'].'>'.$item['id'], $succeeded),
             'skipped' => array_column($skipped, 'source'), 'failed' => array_column($failed, 'source'), 'archived' => $archived,
+            ...($removed ? ['removed' => $removed] : []), ...($cleared ? ['cleared' => $cleared] : []),
         ]];
+    }
+
+    /** UsageProviders of this resource. */
+    private function providers(): array { return $this->registry?->usageProviders($this->definition->resource) ?? []; }
+
+    /** Reference counts over file ids (Usages::count). */
+    private function usages(Context $ctx, array $files): array { return $files ? Usages::count($ctx, $this->providers(), $files) : []; }
+
+    /** Clears the references to replaced files that no longer exist; label => count before clearing. */
+    private function cleared(Context $ctx, array $files): array
+    {
+        if (!$files) return [];
+        return Usages::clear($ctx, $this->providers(), $files, $this->definition->deletePolicy, $this->usages($ctx, $files));
+    }
+
+    /**
+     * 409 of conflicts awaiting a decision: `conflicts` (without internal ids of the existing entries) and `usages`, the
+     * references to the conflicting existing files, so the dialog can warn before an overwrite.
+     */
+    private function conflict(Context $ctx, array $conflicts, array $details = []): Failure
+    {
+        $usages = $this->usages($ctx, array_values(array_filter(array_column($conflicts, 'existing'))));
+        return new Failure('Névütközés a célmappában.', 409, [], ['conflicts' => array_map(static fn($item) => array_diff_key($item, ['existing' => true]), $conflicts), ...$details, 'usages' => $usages]);
     }
 
     /** Comma-separated source ids (≤ SOURCE_LIMIT, distinct). @return list<int> */
@@ -430,7 +460,9 @@ final class FileActions
      * Deletes the selected entries with the definition's policy: `archive` marks each subtree (hidden from every read,
      * name free again, content kept), `delete` removes rows and derivatives and queues content collection. The
      * `delete` right is checked on every source's mount; a mount root is refused; ≤ 5000 entries; one transaction.
-     * Sources gone meanwhile are reported as failed.
+     * Sources gone meanwhile are reported as failed. `preview: '1'` changes nothing and returns `{count, entries, usages}`:
+     * the selected entries, every entry of their subtrees and the UsageProviders' reference counts over all their files.
+     * An applied delete calls the providers' clear() under both policies and reports `cleared` (label => count).
      */
     private function delete(Context $ctx, array $target, array $values): array
     {
@@ -455,11 +487,19 @@ final class FileActions
             if ($subtree === null || ($total += count($subtree)) > self::OPERATION_LIMIT) throw new Failure('Egy műveletben legfeljebb 5000 elem kezelhető.', 413);
             $plans[$id] = $subtree;
         }
+        $files = [];
+        foreach ($plans as $subtree) foreach ($subtree as $row) if ($row['kind'] === 'file') $files[] = (string) $row['id'];
+        $providers = $this->providers();
+        $usages = Usages::count($ctx, $providers, $files);
+        // The preview changes nothing; it is journaled as `delete_preview` (ACL decision on `delete`).
+        if (($values['preview'] ?? '0') === '1') return ['count' => count($plans), 'entries' => $total, 'usages' => $usages, 'failed' => $failed, 'audit_action' => 'delete_preview',
+            'audit' => ['target' => (string) $directory['id'], 'sources' => array_map('strval', $ids), 'entries' => $total]];
         foreach ($plans as $subtree) $policy === 'delete' ? $this->storage->deleteTree($subtree) : $this->storage->archiveTree($subtree, $ctx->actor->id);
+        $cleared = Usages::clear($ctx, $providers, $files, $policy, $usages);
         $succeeded = array_map(static fn($id) => ['source' => (string) $id], array_keys($plans));
-        return ['succeeded' => $succeeded, 'failed' => $failed, 'policy' => $policy, 'audit' => [
+        return ['succeeded' => $succeeded, 'failed' => $failed, 'policy' => $policy, 'cleared' => $cleared, 'audit' => [
             'target' => (string) $directory['id'], 'sources' => array_map('strval', $ids), 'succeeded' => array_column($succeeded, 'source'),
-            'failed' => array_column($failed, 'source'), 'entries' => $total, 'policy' => $policy,
+            'failed' => array_column($failed, 'source'), 'entries' => $total, 'policy' => $policy, ...($cleared ? ['cleared' => $cleared] : []),
         ]];
     }
 

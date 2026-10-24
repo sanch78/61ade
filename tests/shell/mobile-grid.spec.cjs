@@ -279,3 +279,114 @@ test('details and cards render every media field and name an icon without option
  await expect(card).toContainText('image outline');await expect(card).not.toContainText('f2');
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });
+// Independent synthetic consumer of phase U5 (no server): derived media columns (`media_of`/`part`) in
+// table, cards, tiles and details; the `file` field with its tiles picker and clearing; the usage-aware
+// delete confirmation (single `preview`, bulk `__bulk` preview) and the toast of cleared references.
+test('synthetic file field, derived media columns and usage-aware delete',async({page})=>{
+ const path=require('node:path');const {buildSync}=require('esbuild');
+ const root=path.resolve(__dirname,'../..');
+ const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/file-field-fixture',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><div id="blade-application"></div>'}));
+ await page.setViewportSize({width:1280,height:800});await page.goto('/file-field-fixture');
+ await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
+ await page.evaluate(()=>{
+  const media=(id,name,mime_type,duration_ms,width,height)=>({id,name,mime_type,revision:'r'+id,duration_ms,width,height,thumbnail:'none'});
+  const file={resource:'files',mount:'signage',folder_id:'20',accept:['image','video'],can_upload:false,can_choose:true};
+  const fields=[{name:'title',label:'Cím',type:'text',required:true,max:120,options:{}},{name:'file_id',label:'Médiafájl',type:'file',required:false,max:20,options:{},file}];
+  window.rows=[
+   {id:'1',title:'Videós',file_id:'31',revision:'a',_actions:['get','update','delete'],_media:{file_id:media('31','clip.webm','video/webm',6000,640,360)}},
+   {id:'2',title:'Képes',file_id:'32',revision:'b',_actions:['get','update','delete'],_media:{file_id:media('32','kep.png','image/png',null,1920,1080)}},
+   {id:'3',title:'Üres',file_id:'',revision:'c',_actions:['get','update','delete'],_media:{file_id:null}},
+  ];
+  const listing={directory:{id:'20',mount:'signage',depth:0,path:[{id:'20',name:'Signage'}]},next:null,total:5,matched:5,items:[
+   {id:'40',name:'Mappa',kind:'directory',mime_type:'',revision:'1',size:0},
+   {id:'31',name:'clip.webm',kind:'file',mime_type:'video/webm',revision:'r31',duration_ms:6000,width:640,height:360,thumbnail:'none'},
+   {id:'32',name:'kep.png',kind:'file',mime_type:'image/png',revision:'r32',width:1920,height:1080,thumbnail:'none'},
+   {id:'33',name:'masik.jpg',kind:'file',mime_type:'image/jpeg',revision:'r33',width:800,height:600,thumbnail:'none'},
+   {id:'34',name:'jegyzet.txt',kind:'file',mime_type:'text/plain',revision:'r34'},
+  ]};
+  window.requests=[];
+  window.fetch=async(_url,config)=>{
+   const request=JSON.parse(config.body);requests.push(request);let data;
+   if(request.resource==='files'&&request.action==='list'){
+    const search=request.values.search??'',type=request.values.type??'';
+    data={...listing,items:listing.items.filter(item=>item.name.includes(search)&&(!type||item.mime_type.startsWith(type+'/')))};
+   }
+   else if(request.action==='list'||request.action==='__watch')data={items:rows,previous:null,next:null,version:'v1'};
+   else if(request.action==='get')data=rows.find(row=>row.id===request.id);
+   else if(request.action==='__form')data={fields:[...fields,{name:'revision',label:'Verzió',type:'text',required:true,max:64,options:{}}],values:{...rows.find(row=>row.id===request.id)}};
+   else if(request.action==='update')data={};
+   else if(request.action==='delete')data=request.values.preview==='1'?{count:1,usages:[{label:'Műsorterv-események',count:2},{label:'Alapértelmezett tartalmak',count:1}]}:{cleared:{'Műsorterv-események':2,'Alapértelmezett tartalmak':1}};
+   else if(request.action==='__bulk')data=request.values.items.map(item=>({id:item.id,ok:true,data:item.values.preview==='1'?{count:1,usages:[{label:'Műsorterv-események',count:1}]}:{cleared:{'Műsorterv-események':1}}}));
+   return {ok:true,json:async()=>({ok:true,data})};
+  };
+  fixture.setTheme('skyblue',document.documentElement);
+  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{resource:'assets',title:'Médiatár',selection:true,
+   columns:[{id:'file_id',header:'Médiafájl',type:'file',media:'files'},{id:'title',header:'Cím'},{id:'media_type',header:'Típus',media_of:'file_id',part:'type'},{id:'resolution',header:'Felbontás',media_of:'file_id',part:'resolution'},{id:'length',header:'Hossz',media_of:'file_id',part:'duration'}],
+   detailFields:[{id:'title',header:'Cím',type:'text'},{id:'file_id',header:'Médiafájl',type:'file',media:'files'}],
+   actions:[{name:'get',label:'Adatok',fields:[]},{name:'update',label:'Módosítás',submitLabel:'Mentés',write:true,fields},{name:'delete',label:'Törlés',submitLabel:'Törlés',write:true,bulk:true,usages:true,fields:[{name:'revision',label:'Verzió',type:'text',required:true,max:64,options:{}}]}],
+   singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},'csrf',{transport:'poll',endpoint:'live',interval:60000});
+ });
+ const gridRow=title=>page.locator('.dhx_grid-row').filter({has:page.getByRole('gridcell',{name:title,exact:true})});
+ const at=(title,column)=>gridRow(title).locator(`.dhx_grid-cell[data-dhx-col-id="${column}"]`);
+ await expect(gridRow('Videós')).toBeVisible();
+ await expect(at('Videós','media_type')).toHaveText('Videó');await expect(at('Videós','resolution')).toHaveText('640 × 360');await expect(at('Videós','length')).toHaveText('0:06');
+ await expect(at('Képes','media_type')).toHaveText('Kép');await expect(at('Képes','resolution')).toHaveText('1920 × 1080');await expect(at('Képes','length')).toHaveText('');
+ await expect(at('Üres','media_type')).toHaveText('');
+ // Details and cards list the derived parts after the media field, although `detailFields` has fields only.
+ await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
+ const details=page.getByRole('dialog',{name:'Rekordadatok',exact:true});
+ await expect(details).toContainText('Felbontás');await expect(details).toContainText('640 × 360');
+ await details.getByRole('button',{name:'Close',exact:false}).click();
+ await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
+ await expect(page.locator('.blade-grid-card').first()).toContainText('Hossz');await expect(page.locator('.blade-grid-card').first()).toContainText('0:06');
+ await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Csempék',{exact:true}).click();
+ await expect(page.locator('.blade-grid-tile').filter({hasText:'Képes'}).locator('.blade-grid-tile__meta')).toHaveText('Kép');
+ await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Táblázat',{exact:true}).click();
+ // The file field: thumbnail and name, the tiles picker over the folder (accepted classes only), clearing.
+ await at('Videós','title').click();await page.getByRole('button',{name:'Módosítás',exact:true}).click();
+ const form=page.getByRole('dialog',{name:'Médiatár — Módosítás'});await expect(form).toBeVisible();
+ const name=form.locator('.blade-file-field__body input').first();
+ await expect(name).toHaveValue('clip.webm');await expect(form.locator('.blade-file-field__media .dhx_avatar__preview-icon.dxi-menu-right')).toBeVisible();
+ await expect(form.getByRole('button',{name:'Fájl feltöltése…',exact:true})).toHaveCount(0);
+ await form.getByRole('button',{name:'Kiválasztás…',exact:true}).click();
+ const picker=page.getByRole('dialog',{name:'Fájl kiválasztása: Médiafájl'});await expect(picker).toBeVisible();
+ await expect(picker.locator('.blade-grid-tile')).toHaveCount(3);await expect(picker).not.toContainText('jegyzet.txt');await expect(picker).not.toContainText('Mappa');
+ await expect(picker.locator('.blade-grid-tile').filter({hasText:'clip.webm'}).locator('.blade-grid-tile__meta')).toHaveText('Videó · 640 × 360 · 0:06');
+ await picker.locator('[data-dhx-id="type"]').click();await page.getByRole('menuitem',{name:'Videók',exact:true}).click();
+ await expect(picker.locator('.blade-grid-tile')).toHaveCount(1);
+ expect(await page.evaluate(()=>requests.filter(r=>r.resource==='files'&&r.action==='list').at(-1).values.type)).toBe('video');
+ await picker.locator('[data-dhx-id="type"]').click();await page.getByRole('menuitem',{name:'Minden típus',exact:true}).click();
+ const find=picker.getByRole('textbox',{name:'Keresés',exact:true});await find.fill('masik');await find.press('Enter');
+ await expect(picker.locator('.blade-grid-tile')).toHaveCount(1);
+ await picker.locator('.blade-grid-tile').first().dblclick();await expect(picker).toHaveCount(0);
+ await expect(name).toHaveValue('masik.jpg');await expect(form.locator('.blade-file-field__media .dhx_avatar__preview-icon.dxi-image-outline')).toBeVisible();
+ await form.getByRole('button',{name:'Törlés',exact:true}).click();await expect(name).toHaveValue('');
+ await expect(form.getByRole('button',{name:'Törlés',exact:true})).toBeDisabled();
+ await form.getByRole('button',{name:'Kiválasztás…',exact:true}).click();await expect(picker).toBeVisible();
+ await picker.locator('.blade-grid-tile').filter({hasText:'kep.png'}).click();await picker.getByRole('button',{name:'Kiválasztás',exact:true}).click();
+ await expect(name).toHaveValue('kep.png');
+ await form.getByRole('button',{name:'Mentés',exact:true}).click();await expect(form).toHaveCount(0);
+ const update=await page.evaluate(()=>requests.find(r=>r.action==='update'));
+ expect(update.values.file_id).toBe('32');expect(Object.keys(update.values)).not.toContain('file_id__display');
+ // Usage-aware delete: one preview, one danger confirmation listing the counts, then the cleared toast.
+ await at('Videós','title').click();
+ await page.getByRole('button',{name:'Törlés',exact:true}).click();
+ const warning=page.getByRole('alertdialog');await expect(warning).toBeVisible();
+ await expect(warning).toContainText('Műsorterv-események: 2');await expect(warning).toContainText('Alapértelmezett tartalmak: 1');await expect(warning).toContainText('Törléskor a hivatkozások törlődnek.');
+ await expect(warning.getByRole('button',{name:'Mégse',exact:true})).toBeFocused();
+ await warning.getByRole('button',{name:'Törlés',exact:true}).click();
+ await expect(page.locator('.blade-toast').filter({hasText:'Törölt hivatkozások: Műsorterv-események: 2, Alapértelmezett tartalmak: 1'})).toBeVisible();
+ const deletes=await page.evaluate(()=>requests.filter(r=>r.action==='delete').map(r=>r.values.preview??null));
+ expect(deletes).toEqual(['1',null]);
+ // Bulk: the marks are previewed through `__bulk` and their usages summed.
+ await page.getByLabel('Sor jelölése: 1',{exact:true}).filter({visible:true}).check();await page.getByLabel('Sor jelölése: 2',{exact:true}).filter({visible:true}).check();
+ await page.getByRole('button',{name:'Törlés',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toContainText('Műsorterv-események: 2');
+ await page.getByRole('alertdialog').getByRole('button',{name:'Törlés',exact:true}).click();
+ await expect(page.locator('.blade-toast').filter({hasText:'Sikeres: 2, sikertelen: 0.'})).toBeVisible();
+ const bulk=await page.evaluate(()=>requests.filter(r=>r.action==='__bulk').map(r=>r.values.items.map(item=>item.values.preview??null)));
+ expect(bulk).toEqual([['1','1'],[null,null]]);
+ await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
+});

@@ -6,7 +6,7 @@ use Blade\Audit\Journal;
 final class Executor
 {
     public function __construct(public Registry $registry, private \PDO $db, public Journal $journal) {}
-    /** Bounded, explicitly opted-in batch; each object has its own ACL, transaction and audit. */
+    /** Bounded, explicitly opted-in batch; each object has its own ACL, transaction and audit. A handler's array result is the item's `data` (without `audit`). */
     public function bulk(Context $ctx, string $resource, string $name, array $items): array
     {
         $action=$this->registry->get($resource,$name);
@@ -19,7 +19,7 @@ final class Executor
         }
         $results=[];
         foreach($items as $item){
-            try{$this->execute($ctx,$resource,$name,$item['id'],$item['values'],false,true);$results[]=['id'=>$item['id'],'ok'=>true];}
+            try{$result=$this->execute($ctx,$resource,$name,$item['id'],$item['values'],false,true);$results[]=['id'=>$item['id'],'ok'=>true,...(is_array($result)?['data'=>array_diff_key($result,['audit'=>true])]:[])];}
             catch(Failure $error){$results[]=['id'=>$item['id'],'ok'=>false,'error'=>$error->getMessage()];}
         }
         return $results;
@@ -71,6 +71,19 @@ final class Executor
         if(!$accepted)throw new Failure('Egyik fájl sem tölthető fel.',400,[],['code'=>$rejected[0]['code'],'failed'=>$rejected]);
         return [$rejected?new Context($ctx->actor,$ctx->channel,$ctx->acl,$ctx->db,$ctx->scopes,$accepted,$ctx->owner):$ctx,$rejected];
     }
+    /**
+     * Server rule of a `file` field value: a live file of the declared file manager in the declared mount that the actor
+     * may read (`thumbnail_get` on that mount), of an accepted MIME class. A missing, other-mount, archived or unreadable
+     * file gets one message, so the reply reveals nothing about files the actor cannot see.
+     */
+    private function fileProblem(Context $ctx, Field $field, string $id): ?string
+    {
+        $source=$this->registry->mediaSource($field->file['resource']);
+        $file=$source instanceof FileSource?$source->file($id):null;
+        if(!$file||$file['mount']!==$field->file['mount']||!$source->allows($ctx,'thumbnail_get',$file['mount']))return 'A kiválasztott fájl nem érhető el.';
+        foreach($field->file['accept'] as $class)if(str_starts_with((string)$file['mime_type'],$class.'/'))return null;
+        return 'A fájl típusa ehhez a mezőhöz nem engedélyezett.';
+    }
     public function execute(Context $ctx, string $resource, string $name, ?string $id, array $input, bool $fieldEdit = false, bool $partial = false): mixed
     {
         $fields=[];$detail=[];
@@ -106,6 +119,9 @@ final class Executor
                 if (!array_key_exists($field->name,$input) && !$field->required) continue;
                 try {
                     $values[$field->name]=$field->validate($input[$field->name] ?? '',$ctx,($fieldEdit||$partial)?array_replace($target['row']??[],$input):$input);
+                    // An unchanged stored file id is not re-validated (a file moved out of the mount, or no longer readable, does not block saving other fields).
+                    $unchanged=is_array($target['row']??null)&&array_key_exists($field->name,$target['row'])&&(string)$target['row'][$field->name]===(string)$values[$field->name];
+                    if($field->type==='file'&&$values[$field->name]!==''&&!$unchanged&&($problem=$this->fileProblem($ctx,$field,$values[$field->name]))!==null)$field->reject($problem);
                 } catch (Failure $error) {
                     if (!$error->fieldErrors) throw $error;
                     $fieldErrors = array_replace($fieldErrors, $error->fieldErrors);
@@ -130,7 +146,13 @@ final class Executor
             $auditObject=$object ?? (is_array($result) && isset($result['id']) ? (string)$result['id'] : '');
             if(is_array($result) && is_array($result['audit'] ?? null))$detail=[...$detail,...$result['audit']];
             if($result instanceof Download||$result instanceof DownloadStream||$result instanceof StreamedDownload)$detail=[...$detail,...$result->audit];
-            $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$name,$auditObject, 'success',$fields,$detail);
+            // `audit_action`: a handler journals a side-effect-free variant under its own name (a delete's usage preview: `delete_preview`); the ACL decision stays on $name.
+            $audited=$name;
+            if(is_array($result)&&array_key_exists('audit_action',$result)){
+                if(!is_string($result['audit_action'])||!preg_match('/^[a-z][a-z0-9_]{0,99}$/D',$result['audit_action']))throw new \LogicException('Invalid audit action.');
+                $audited=$result['audit_action'];unset($result['audit_action']);
+            }
+            $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$audited,$auditObject, 'success',$fields,$detail);
             $this->db->commit();
             return $result;
         } catch (\Throwable $error) {
@@ -138,6 +160,8 @@ final class Executor
             $ctx->acl->invalidate();
             $this->journal->record($ctx->actor->id,$ctx->channel,substr($resource,0,100),substr($name,0,100),substr($id ?? '',0,100),$error instanceof Failure ? 'rejected' : 'error',$fields,$detail);
             if ($error instanceof Failure) throw $error;
+            // Developer errors (a misconfigured definition) reach the server log; the caller sees the generic 500.
+            if ($error instanceof \LogicException) error_log('61de: '.$resource.'.'.$name.': '.$error->getMessage());
             if ($error instanceof \PDOException && str_starts_with((string)$error->getCode(),'23')) throw new Failure('Az adat már létezik, vagy hivatkozási feltételt sért.',409);
             throw new Failure('A művelet nem hajtható végre.',500);
         }

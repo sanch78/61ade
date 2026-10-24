@@ -675,6 +675,117 @@ $dAudit=json_decode($db->query("SELECT detail FROM blade_audit WHERE resource='d
 check($dAudit['replaced']===[(string)$oUp]&&$dAudit['archived']===[],'Delete policy: upload audit reports the replaced id, nothing archived');
 $delWs->tasks->run(100,60);
 check(!array_filter($oKeys,$dstored),'Delete policy: replaced content collected');
+// U5: usage providers on file deletes (preview over subtrees without changes; apply clears under both policies), `file` fields, the storage API.
+$db->exec("CREATE TABLE posters(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL DEFAULT '',file_id TEXT NOT NULL DEFAULT '')");
+$usage=new class('Plakátok') implements Blade\Feature\UsageProvider{
+    public array $calls=[];
+    public function __construct(private string $label){}
+    public function usages(Context $ctx,array $ids):array{$out=[];$q=$ctx->db->prepare('SELECT file_id,COUNT(*) FROM posters WHERE file_id IN ('.implode(',',array_fill(0,count($ids),'?')).') GROUP BY file_id');$q->execute($ids);foreach($q->fetchAll(PDO::FETCH_NUM) as [$id,$n])$out[$id]=[['label'=>$this->label,'count'=>(int)$n]];return $out;}
+    public function clear(Context $ctx,array $ids,string $policy):void{$this->calls[]=[$policy,$ids];$ctx->db->prepare("UPDATE posters SET file_id='' WHERE file_id IN (".implode(',',array_fill(0,count($ids),'?')).')')->execute($ids);}
+};
+foreach(['archive','delete'] as $policy){
+    $res='lib_'.$policy;
+    $uDef=new FileManagerDefinition($res,'Lib','lib-'.$policy,['m'=>'Media','n'=>'Other'],allowedExtensions:['txt','png'],maxSizeBytes:100000,contentRoot:$root,deletePolicy:$policy);$uDef->install($db);
+    $uRegistry=new Registry();$uWs=new Workspace($uRegistry,$db);$uDef->register($uWs);$uStorage=$uDef->storage($db,$uWs->tasks);
+    $other=new class implements Blade\Feature\UsageProvider{public array $ids=[];public function usages(Context $ctx,array $ids):array{return array_fill_keys(array_intersect($ids,$this->ids),[['label'=>'Egyéb','count'=>1]]);}public function clear(Context $ctx,array $ids,string $policy):void{}};
+    $uRegistry->usage($res,$usage);$uRegistry->usage($res,$other);
+    if($policy==='archive'){
+        foreach([fn()=>$uRegistry->usage($res,$usage),fn()=>$uRegistry->usage('Bad name',$other)] as $invalid){try{$invalid();throw new RuntimeException('Invalid usage provider accepted');}catch(InvalidArgumentException){}}
+        check($uRegistry->usageProviders($res)===[$usage,$other]&&$uRegistry->usageProviders('none')===[],'Usage providers registered per resource, in order');
+        check($registry->usageProviders('files')===[]&&!isset(array_column(array_values(array_filter($workspace->views(new Identity('1','x')),fn($v)=>$v['resource']==='files'))[0]['actions'],null,'name')['delete']['usages']),'No usages flag without providers');
+    }
+    $uRule=$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,?,?,'ui','allow',?,?,'')");
+    foreach(['tree','list','delete','upload','thumbnail_get'] as $a)$uRule->execute(['1',$res,$a,'all','']);
+    $uRule->execute(['2',$res,'thumbnail_get','id','n']);
+    $posters=new Blade\Feature\SqlResource('posters_'.$policy,'posters','id',[new Field('title','Cím'),new Field('file_id','Fájl','file',file:['resource'=>$res,'mount'=>'m','folder'=>'Képek/Plakát','accept'=>['image']])]);
+    $posters->register($uRegistry,'Posters');
+    foreach(['1','2'] as $actor)foreach(['list','get','create'] as $a)$uRule->execute([$actor,'posters_'.$policy,$a,'all','']);
+    $ucall=fn(string $resource,string $action,?string $id,array $values=[],string $actor='1',array $uploads=[])=>$uWs->executor->execute(new Context(new Identity($actor,'A'),'ui',$uWs->acl,$db,[],$uploads),$resource,$action,$id,$values);
+    $m=$uStorage->root('m');$box=$uStorage->entry($uStorage->createDirectory($m,'Box'));$deep=$uStorage->entry($uStorage->createDirectory($box,'Deep'));
+    $img1=(string)$uStorage->createFile($deep,'a.png','image/png',$tmp.'/wide.png');$img2=(string)$uStorage->createFile($m,'b.png','image/png',$tmp.'/wide.png');$keep=(string)$uStorage->createFile($m,'c.png','image/png',$tmp.'/wide.png');
+    $txt=(string)$uStorage->createFile($m,'d.txt','text/plain',$src("text\n"));$onN=(string)$uStorage->createFile($uStorage->root('n'),'e.png','image/png',$tmp.'/wide.png');
+    $other->ids=[$img2];
+    $db->exec('DELETE FROM posters');
+    $ins=$db->prepare('INSERT INTO posters(title,file_id) VALUES (?,?)');foreach([['p1',$img1],['p2',$img1],['p3',$img2],['p4',$keep]] as $r)$ins->execute($r);
+    $usage->calls=[];
+    $preview=$ucall($res,'delete',(string)$m['id'],['sources'=>$box['id'].','.$img2,'preview'=>'1']);
+    check($preview['count']===2&&$preview['entries']===4&&$preview['usages']===[['label'=>'Plakátok','count'=>3],['label'=>'Egyéb','count'=>1]],'Delete preview aggregates usages over every file of the subtrees ('.$policy.')');
+    check($uStorage->entry((int)$img1)&&$uStorage->entry((int)$box['id'])&&$usage->calls===[]&&(int)$db->query("SELECT COUNT(*) FROM posters WHERE file_id<>''")->fetchColumn()===4,'Preview changes nothing ('.$policy.')');
+    $applied=$ucall($res,'delete',(string)$m['id'],['sources'=>$box['id'].','.$img2]);
+    check($applied['policy']===$policy&&count($applied['succeeded'])===2&&$applied['cleared']===['Plakátok'=>3,'Egyéb'=>1],'Applied delete reports cleared references ('.$policy.')');
+    check($db->query("SELECT action FROM blade_audit WHERE resource='$res' AND outcome='success' AND action LIKE 'delete%' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN)===['delete_preview','delete'],'The preview is journaled as delete_preview ('.$policy.')');
+    check(count($usage->calls)===1&&$usage->calls[0][0]===$policy&&array_values(array_diff($usage->calls[0][1],[$img1,$img2]))===[]&&count($usage->calls[0][1])===2,'Providers cleared the deleted files under '.$policy);
+    check($db->query('SELECT GROUP_CONCAT(file_id) FROM (SELECT file_id FROM posters ORDER BY id)')->fetchColumn()===',,,'.$keep&&$uStorage->entry((int)$img1)===null,'References cleared, others kept ('.$policy.')');
+    check($policy==='delete'?(int)$db->query('SELECT COUNT(*) FROM blade_files WHERE id='.(int)$img1)->fetchColumn()===0:$db->query('SELECT archived_at FROM blade_files WHERE id='.(int)$img1)->fetchColumn()!==null,'Delete policy applied ('.$policy.')');
+    $auditDetail=json_decode($db->query("SELECT detail FROM blade_audit WHERE resource='$res' AND action='delete' AND outcome='success' ORDER BY id DESC LIMIT 1")->fetchColumn(),true);
+    check($auditDetail['cleared']===['Plakátok'=>3,'Egyéb'=>1],'Cleared counts audited ('.$policy.')');
+    // `file` field: metadata resolves the folder once it exists; no paths; validation against mount, class, liveness and the thumbnail right.
+    $field=$uRegistry->fields('posters_'.$policy)['file_id'];
+    $meta=$uWs->fieldMetadata(new Context(new Identity('1','A'),'ui',$uWs->acl,$db),$field);
+    check($meta['type']==='file'&&$meta['file']['folder_id']===null&&$meta['file']['can_upload']===false&&!isset($meta['file']['folder']),'Missing field folder: no target, no upload ('.$policy.')');
+    $files=$uDef->files($db,$uWs->tasks);
+    $folder=$files->folder('m','Képek/Plakát',true);
+    check($files->folder('m','Képek/Plakát')['id']===$folder['id']&&$files->folder('m','Nincs')===null&&$files->folder('m')['id']===$m['id'],'Storage API finds and creates folders');
+    $meta=$uWs->fieldMetadata(new Context(new Identity('1','A'),'ui',$uWs->acl,$db),$field);
+    check($meta['file']===['resource'=>$res,'mount'=>'m','accept'=>['image'],'folder_id'=>(string)$folder['id'],'policy'=>[...$uDef->uploadPolicy()->metadata(),'extensions'=>['png'],'folders'=>false],'can_upload'=>true,'can_choose'=>true],'File field metadata ('.$policy.')');
+    check($uWs->fieldMetadata(new Context(new Identity('2','B'),'ui',$uWs->acl,$db),$field)['file']['can_upload']===false&&$uWs->fieldMetadata(new Context(new Identity('2','B'),'ui',$uWs->acl,$db),$field)['file']['can_choose']===false&&!str_contains(json_encode($meta),$root),'Upload right per actor; no paths');
+    $created=$ucall('posters_'.$policy,'create',null,['title'=>'ok','file_id'=>$keep]);
+    check($db->query('SELECT file_id FROM posters WHERE id='.(int)$created['id'])->fetchColumn()===$keep,'A live readable image of the mount is accepted');
+    foreach([[$onN,'1','other mount'],[$txt,'1','wrong class'],[$img1,'1',$policy==='archive'?'archived file':'deleted file'],[(string)$box['id'],'1','folder'],[$keep,'2','no thumbnail right'],['12x','1','malformed']] as [$value,$actor,$case]){
+        $error=fails(fn()=>$ucall('posters_'.$policy,'create',null,['title'=>'x','file_id'=>$value],$actor),400,'File field rejects '.$case);
+        check(isset($error->fieldErrors['file_id']),'File field error: '.$case);
+    }
+    // Storage API: stores into a mount folder under the file manager's rules and the actor's upload right.
+    $part=function(string $field,string $name,string $content) use ($tmp):Upload{$path=$tmp.'/'.bin2hex(random_bytes(6));file_put_contents($path,$content);return new Upload($field,$name,$path,strlen($content),UPLOAD_ERR_OK);};
+    $ctx1=new Context(new Identity('1','A'),'ui',$uWs->acl,$db);
+    $stored=$files->store($ctx1,(string)$folder['id'],new Upload('files','plakát.png',$tmp.'/wide.png',(int)filesize($tmp.'/wide.png'),UPLOAD_ERR_OK),['image']);
+    $again=$files->store($ctx1,(string)$folder['id'],new Upload('files','plakát.png',$tmp.'/wide.png',(int)filesize($tmp.'/wide.png'),UPLOAD_ERR_OK));
+    check($stored['name']==='plakát.png'&&$stored['mount']==='m'&&$stored['mime_type']==='image/png'&&$again['name']==='plakát (2).png'&&$uStorage->entry((int)$stored['id'])['parent_id']==$folder['id'],'Storage API stores with a free name');
+    fails(fn()=>$files->store(new Context(new Identity('2','B'),'ui',$uWs->acl,$db),(string)$folder['id'],$part('files','x.png','x')),403,'Storage API needs the upload right');
+    check(fails(fn()=>$files->store($ctx1,(string)$folder['id'],$part('files','x.png','not png')),400,'Storage API detects content')->details['code']==='content_mismatch','Content mismatch code');
+    check(fails(fn()=>$files->store($ctx1,(string)$folder['id'],$part('files','x.txt',"t\n"),['image']),400,'Storage API narrows classes')->details['code']==='type','Type code');
+    fails(fn()=>$files->store($ctx1,$img2,$part('files','x.png','x')),404,'Storage API needs a live folder');
+    // Overwrites follow the delete policy for references too: a replaced file that disappears (archived, or removed by a
+    // move) has its references cleared in the same transaction; an in-place rewrite (`delete`, upload and copy) keeps the id and them.
+    foreach(['copy','move','download'] as $a)$uRule->execute(['1',$res,$a,'all','']);
+    $n=$uStorage->root('n');
+    $over=static function(string $name) use ($uStorage,$m,$n,$src,$ins,$db):array{
+        $target=(string)$uStorage->createFile($m,$name,'text/plain',$src("old $name\n"));$source=(string)$uStorage->createFile($n,$name,'text/plain',$src("new $name\n"));
+        $ins->execute(['ref '.$name,$target]);return [$target,$source,(int)$db->lastInsertId()];
+    };
+    $refOf=fn(int $poster)=>$db->query('SELECT file_id FROM posters WHERE id='.$poster)->fetchColumn();
+    foreach(['upload','copy','move'] as $operation){
+        [$target,$source,$poster]=$over($operation.'-over.txt');
+        $usage->calls=[];
+        $run=fn(string $decision)=>$operation==='upload'
+            ?$ucall($res,'upload',(string)$m['id'],$decision?['decision'=>$decision]:[],'1',[$part('files',$operation.'-over.txt',"uploaded\n")])
+            :$ucall($res,$operation,(string)$m['id'],['sources'=>$source,...($decision?['decision'=>$decision]:[])]);
+        $conflict=fails(fn()=>$run(''),409,ucfirst($operation).' conflict asks for a decision ('.$policy.')');
+        check($conflict->details['usages']===[['label'=>'Plakátok','count'=>1]]&&!isset($conflict->details['conflicts'][0]['existing'])&&$refOf($poster)===$target,ucfirst($operation).' conflict lists the references of the existing file ('.$policy.')');
+        $result=$run('overwrite');
+        $gone=$policy==='archive'||$operation==='move';
+        check($result['cleared']===($gone?['Plakátok'=>1]:[])&&$refOf($poster)===($gone?'':$target)&&$usage->calls===($gone?[[$policy,[$target]]]:[]),ucfirst($operation).' overwrite '.($gone?'clears':'keeps').' the references ('.$policy.')');
+        check(($uStorage->entry((int)$target)!==null)===!$gone,ucfirst($operation).' overwrite '.($gone?'replaces':'rewrites in place').' the target ('.$policy.')');
+        $audit=json_decode($db->query("SELECT detail FROM blade_audit WHERE resource='$res' AND action='$operation' AND outcome='success' ORDER BY id DESC LIMIT 1")->fetchColumn(),true);
+        check(($audit['cleared']??[])===($gone?['Plakátok'=>1]:[]),ucfirst($operation).' overwrite audits the cleared references ('.$policy.')');
+    }
+    // The transfer protocol's preflight also names the references of a conflicting file.
+    [$target]=$over('preflight.txt');
+    $preflight=$uWs->transfers->handle(new Context(new Identity('1','A'),'ui',$uWs->acl,$db,[],[],$session1),$session1,$res,(string)$m['id'],['operation'=>'upload_preflight','action'=>'upload','files'=>[['name'=>'preflight.txt','size'=>4,'type'=>'text/plain']]]);
+    check(($preflight['files'][0]['conflict']['usages']??null)===[['label'=>'Plakátok','count'=>1]],'Preflight conflict carries usages ('.$policy.')');
+}
+foreach([
+    fn()=>new Field('f','F','file'),
+    fn()=>new Field('f','F','text',file:['resource'=>'files','mount'=>'a','accept'=>['image']]),
+    fn()=>new Field('f','F','file',file:['resource'=>'files','mount'=>'a','accept'=>[]]),
+    fn()=>new Field('f','F','file',file:['resource'=>'files','mount'=>'a']),
+    fn()=>new Field('f','F','file',file:['resource'=>'files','mount'=>'a','accept'=>['image'],'path'=>'/x']),
+    fn()=>new Field('f','F','file',file:['resource'=>'files','mount'=>'a','accept'=>['image'],'folder'=>'../x']),
+    fn()=>new Field('f','F','file',file:['resource'=>'files','mount'=>'a','accept'=>['image']],column:['editable'=>true]),
+    fn()=>new Field('f','F','file',file:['resource'=>'files','mount'=>'a','accept'=>['image']],column:['media'=>'files']),
+    fn()=>new Field('f','F','file',bulk:true,file:['resource'=>'files','mount'=>'a','accept'=>['image']]),
+] as $invalid){try{$invalid();throw new RuntimeException('Invalid file field accepted');}catch(InvalidArgumentException){}}
+check((new Field('f','F','file',file:['resource'=>'files','mount'=>'a','accept'=>['image']]))->media()==='files','A file field is a media column of its file manager');
 // Copy reads bytes: a source mount with `list` only refuses the copy (403); a move needs `list` and `move` only.
 $delRule->execute(['8','list','id','a']);$delRule->execute(['8','copy','id','b']);$delRule->execute(['8','list','id','b']);
 $oListOnly=$delStorage->createFile($dRootA,'csak lista.txt','text/plain',$src("list only\n"));

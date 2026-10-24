@@ -55,16 +55,16 @@ final class Workspace
                 $a=$this->registry->get($view['resource'],$name);
                 if($view['singleton'] && !$this->acl->allows($actor->id,$a->resource,$name,'ui',$actor->id,$actor->id))continue;
                 if(!$this->offered($actor,$a->resource,$name))continue;
-                $actions[]=['name'=>$name,'icon'=>$a->icon,'bulk'=>$a->bulk,'confirm'=>$a->confirm?array_filter(['message'=>\Blade\I18n\Translator::text($a->confirm['message']),'title'=>isset($a->confirm['title'])?\Blade\I18n\Translator::text($a->confirm['title']):null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>isset($a->confirm['confirm_label'])?\Blade\I18n\Translator::text($a->confirm['confirm_label']):null,'cancelLabel'=>isset($a->confirm['cancel_label'])?\Blade\I18n\Translator::text($a->confirm['cancel_label']):null],static fn($v)=>$v!==null):null,'label'=>match($name){'create'=>'Hozzáadás','update'=>'Módosítás',default=>$a->label},'submitLabel'=>in_array($name,['create','update'],true)?'Mentés':$a->label,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
+                $actions[]=['name'=>$name,'icon'=>$a->icon,'bulk'=>$a->bulk,'confirm'=>$a->confirm?array_filter(['message'=>\Blade\I18n\Translator::text($a->confirm['message']),'title'=>isset($a->confirm['title'])?\Blade\I18n\Translator::text($a->confirm['title']):null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>isset($a->confirm['confirm_label'])?\Blade\I18n\Translator::text($a->confirm['confirm_label']):null,'cancelLabel'=>isset($a->confirm['cancel_label'])?\Blade\I18n\Translator::text($a->confirm['cancel_label']):null],static fn($v)=>$v!==null):null,'label'=>match($name){'create'=>'Hozzáadás','update'=>'Módosítás',default=>$a->label},'submitLabel'=>in_array($name,['create','update'],true)?'Mentés':$a->label,'write'=>$a->write,'fields'=>$this->fieldsMetadata($ctx,$a),...$this->actionExtras($a)];
             }
             if(!$actions)continue;
             $fields=$this->registry->fields($view['resource']);
             $view['columns']=array_map(static function($column) use ($fields,$ctx){
                 $field=$fields[$column['id']]??null;
                 if(!$field)return $column;
-                return [...$field->column,...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
+                return [...$field->column,...($field->media()!==null?['media'=>$field->media()]:[]),...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
             },$view['columns']);
-            $view['detailFields']=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...array_intersect_key($field->column,['media'=>true,'presentation'=>true])],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
+            $view['detailFields']=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...array_intersect_key($field->column,['presentation'=>true])],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
             $view['actions']=$actions;
             $view['layout']=$view['layout']->metadata();
             $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
@@ -74,6 +74,31 @@ final class Workspace
             $out[]=\Blade\I18n\Translator::presentation($view);
         }
         return $out;
+    }
+    /** Fields a client fills: a delete's `preview` switch is a protocol flag of the usage confirmation, not a form field. */
+    private function formFields(Action $action):array
+    {
+        return array_values(array_filter($action->fields,static fn($f)=>!($action->name==='delete'&&$f->name==='preview')));
+    }
+    private function fieldsMetadata(Context $ctx,Action $action):array { return array_map(fn($f)=>$this->fieldMetadata($ctx,$f),$this->formFields($action)); }
+    /**
+     * Field metadata; a `file` field adds the resolved folder id, the upload policy for its classes, whether the actor
+     * may upload there (`can_upload`) and choose from it (`can_choose`: `list` on the mount, the picker's read); the folder
+     * path, storage and rules stay server-side.
+     */
+    public function fieldMetadata(Context $ctx,Field $field):array
+    {
+        $out=$field->metadata($ctx);
+        if($field->file===null)return $out;
+        $source=$this->registry->mediaSource($field->file['resource']);
+        $folder=$source instanceof FileSource?$source->folder($field->file['mount'],$field->file['folder']??''):null;
+        return [...$out,'file'=>[...$out['file'],'folder_id'=>$folder,'policy'=>$source instanceof FileSource?$source->uploadPolicy($field->file['accept']):null,
+            'can_upload'=>$folder!==null&&$source->allows($ctx,'upload',$field->file['mount']),'can_choose'=>$folder!==null&&$source->allows($ctx,'list',$field->file['mount'])]];
+    }
+    /** `usages: true` on a delete with registered UsageProviders (the client previews first); `upload`: the policy metadata of an UploadPolicy action. */
+    private function actionExtras(Action $action):array
+    {
+        return [...($action->name==='delete'&&$this->registry->usageProviders($action->resource)?['usages'=>true]:[]),...($action->upload instanceof UploadPolicy?['upload'=>$action->upload->metadata()]:[])];
     }
     /** Some allow rule exists and no whole-action deny for all objects; object checks still run per request. */
     private function offered(Identity $actor,string $resource,string $name):bool
@@ -87,7 +112,7 @@ final class Workspace
         $actions=[];
         foreach($view['actions'] as $name){
             $a=$this->registry->get($view['resource'],$name);
-            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write,'get'=>$a->get,'confirm'=>$a->confirm?array_filter(['message'=>$a->confirm['message'],'title'=>$a->confirm['title']??null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>isset($a->confirm['confirm_label'])?\Blade\I18n\Translator::text($a->confirm['confirm_label']):null,'cancelLabel'=>isset($a->confirm['cancel_label'])?\Blade\I18n\Translator::text($a->confirm['cancel_label']):null],static fn($v)=>$v!==null):null,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
+            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write,'get'=>$a->get,'confirm'=>$a->confirm?array_filter(['message'=>$a->confirm['message'],'title'=>$a->confirm['title']??null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>isset($a->confirm['confirm_label'])?\Blade\I18n\Translator::text($a->confirm['confirm_label']):null,'cancelLabel'=>isset($a->confirm['cancel_label'])?\Blade\I18n\Translator::text($a->confirm['cancel_label']):null],static fn($v)=>$v!==null):null,'fields'=>$this->fieldsMetadata($ctx,$a),...$this->actionExtras($a)];
         }
         $mounts=array_values(array_filter($view['files']['mounts'],fn($m)=>$this->acl->allows($actor->id,$view['resource'],'tree','ui',$m['id'])));
         if(!$actions||!$mounts)return null;
@@ -118,7 +143,7 @@ final class Workspace
         $day=$view['calendar']['day_action'];
         if($day&&!$this->offered($actor,$day['resource'],$day['action']))$day=null;
         return ['kind'=>'calendar','resource'=>$view['resource'],'title'=>$view['title'],'group'=>$view['group'],'icon'=>$view['icon'],'desktopOnly'=>$view['desktopOnly'],'singleton'=>false,'columns'=>[],'filters'=>[],'actions'=>$actions,
-            'calendar'=>[...array_diff_key($view['calendar'],['space'=>1]),'day_action'=>$day,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$fields)]];
+            'calendar'=>[...array_diff_key($view['calendar'],['space'=>1]),'day_action'=>$day,'fields'=>array_map(fn($f)=>$this->fieldMetadata($ctx,$f),$fields)]];
     }
     /** Technical observation; unchanged snapshots do not create business read events. */
     public function observe(Context $ctx,string $resource,array $query,string $version=''):array
@@ -237,10 +262,10 @@ final class Workspace
                 $ctx=new Context($actor,$channel,$this->acl,$this->db,owner:$owner);
                 $t=$a->resolve?($a->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
                 if(!$this->acl->allows($actor->id,$a->resource,$a->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
-                $fields=array_values(array_filter($a->fields,fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
+                $fields=array_values(array_filter($this->formFields($a),fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
                 $values=$a->formValues?($a->formValues)($ctx,$t):($id!==null?$this->executor->execute($ctx,$a->resource,'get',$id,[]):[]);
                 $this->journal->record($actor->id,'ui',$a->resource,'describe',$id??'','success');
-                echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$f->metadata($ctx),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
+                echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$this->fieldMetadata($ctx,$f),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             $handled=true;
             $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner),$data['resource'],$data['action'],$id,$data['values']??[]);

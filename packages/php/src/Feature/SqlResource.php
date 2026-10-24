@@ -7,9 +7,25 @@ final class SqlResource
 {
     private ?Registry $registry=null;
     private ?ListSource $list=null;
-    /** $search: declared name-search fields of the list (non-secret text/textarea, field ACL applies per actor). */
-    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [])
+    /** Delete policy of registerDelete(): `delete` removes the row, `archive` marks it (`archived_at`, `archived_by`) and every framework read hides it. */
+    private string $deletePolicy='delete';
+    public const DELETE_POLICIES=['delete','archive'];
+    /**
+     * $search: declared name-search fields of the list (non-secret text/textarea, field ACL applies per actor).
+     * $afterSave(Context, string $id, ?array $target, array $values) runs after create/update only;
+     * $afterDelete(Context, string $id, array $target) after a delete or archive (not after a preview).
+     * $computed: field name => trusted developer SQL expression over the base row alias `blade_base` (e.g. a usage
+     * count subquery); such a declared number/text field is read-only, listed, sortable and filterable, never written.
+     */
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [])
     {
+        $known=array_column($fields,null,'name');
+        foreach($computed as $name=>$sql){
+            $field=is_string($name)?($known[$name]??null):null;
+            if(!$field||!in_array($field->type,['number','text'],true)||$field->secret||($field->column['editable']??false)||$field->media()!==null||($field->validation['unique']??false)||in_array($name,array_merge(...$unique ?: [[]]),true)||isset($defaults[$name])||$name===$ownerColumn
+                ||!is_string($sql)||trim($sql)===''||str_contains($sql,';')||str_contains($sql,'?')||str_contains($sql,"\0"))throw new \InvalidArgumentException('Invalid computed column.');
+        }
+        $this->readOnly=$readOnly=array_values(array_unique([...$readOnly,...array_keys($computed)]));
         // Read-only fields are listed and revisioned but never part of create/update input.
         if (array_diff($readOnly, array_map(static fn($f)=>$f->name,$fields))) throw new \InvalidArgumentException('Unknown read-only field');
         // Composite unique keys: each entry lists field, default or owner columns that together must be unique.
@@ -17,12 +33,30 @@ final class SqlResource
         foreach ($unique as $columns) if (!is_array($columns) || !array_is_list($columns) || !$columns || array_diff($columns,$declared) || count(array_unique($columns))!==count($columns)) throw new \InvalidArgumentException('Invalid unique key');
         foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
     }
+    /** `archived_at`/`archived_by` verified once (first archive-aware read or delete) on the connection in use. */
+    private bool $archiveColumns=false;
+    private function archive(): bool { return $this->deletePolicy==='archive'; }
+    /**
+     * Policy `archive` needs the consumer columns; checked lazily on first use (registration has no database) with a
+     * developer error instead of an SQL error deep inside a read.
+     */
+    private function archiveReady(\PDO $db): void
+    {
+        if(!$this->archive()||$this->archiveColumns)return;
+        try{$ok=@$db->query("SELECT archived_at, archived_by FROM {$this->table} WHERE 1=0")!==false;}catch(\PDOException){$ok=false;}
+        if(!$ok)throw new \LogicException("Delete policy 'archive' of {$this->resource} needs the columns archived_at (NULL) and archived_by on {$this->table}.");
+        $this->archiveColumns=true;
+    }
+    /** Row source of every listing read: related and computed columns, archived rows left out (delete policy `archive`). */
     private function source(Context $ctx): string
     {
-        if (!$this->related) return $this->table;
+        $this->archiveReady($ctx->db);
         $expressions = [];
         foreach ($this->related as $storage) $expressions = [...$expressions, ...$storage->expressions($ctx->db, $this->key)];
-        return '(SELECT blade_base.*, '.implode(', ', $expressions)." FROM {$this->table} blade_base) blade_source";
+        // Text like stored columns (RelatedStorage does the same): filters bind strings, number sorting casts.
+        foreach ($this->computed as $name => $sql) $expressions[] = "CAST(($sql) AS CHAR) AS $name";
+        if (!$expressions && !$this->archive()) return $this->table;
+        return '(SELECT blade_base.*'.($expressions ? ', '.implode(', ', $expressions) : '')." FROM {$this->table} blade_base".($this->archive() ? ' WHERE blade_base.archived_at IS NULL' : '').') blade_source';
     }
     public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false): void
     {
@@ -33,7 +67,7 @@ final class SqlResource
         foreach ($this->related as $storage) {
             if (!$storage instanceof RelatedStorage) throw new \InvalidArgumentException('Invalid related storage.');
             foreach ($storage->fields as $field => $column) {
-                if (!isset($known[$field]) || isset($mapped[$field]) || $field === $this->key || $field === $this->ownerColumn || isset($this->defaults[$field]) || ($known[$field]->validation['unique'] ?? false) || in_array($field, array_merge(...$this->unique ?: [[]]), true)) throw new \InvalidArgumentException('Invalid related field mapping.');
+                if (!isset($known[$field]) || isset($mapped[$field]) || isset($this->computed[$field]) || $field === $this->key || $field === $this->ownerColumn || isset($this->defaults[$field]) || ($known[$field]->validation['unique'] ?? false) || in_array($field, array_merge(...$this->unique ?: [[]]), true)) throw new \InvalidArgumentException('Invalid related field mapping.');
                 $mapped[$field] = true;
             }
         }
@@ -52,32 +86,55 @@ final class SqlResource
         }
         $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles);
     }
-    public function registerDelete(Registry $registry):void
+    /**
+     * Bulk-capable delete with the definition's policy: `delete` (default, backward compatible) removes the row and its
+     * related storage; `archive` (recommended for new development) needs the consumer columns `archived_at` (NULL) and
+     * `archived_by` and hides the row from every framework read. `preview: '1'` changes nothing and returns
+     * `{count: 1, usages}` of the registered UsageProviders; an applied delete calls their clear() and reports `cleared`.
+     */
+    public function registerDelete(Registry $registry, string $deletePolicy = 'delete'):void
     {
-        $registry->add(new Action($this->resource,'delete','Törlés',[new Field('revision','Verzió',required:true,max:64)],function(Context $ctx,array $target,array $values):array{
+        if(!in_array($deletePolicy,self::DELETE_POLICIES,true))throw new \InvalidArgumentException('Invalid delete policy.');
+        $this->deletePolicy=$deletePolicy;
+        $this->registry??=$registry;
+        $registry->add(new Action($this->resource,'delete','Törlés',[new Field('revision','Verzió',required:true,max:64),new Field('preview','Előnézet','checkbox')],function(Context $ctx,array $target,array $values) use ($registry):array{
             if(!hash_equals($this->revision($target['row']),$values['revision']))throw new Failure('Az adat közben módosult.',409);
             if($this->deleteGuard)($this->deleteGuard)($ctx,$target);
-            foreach ($this->related as $storage) $storage->delete($ctx->db,$target['id']);
-            $q=$ctx->db->prepare("DELETE FROM {$this->table} WHERE {$this->key}=?");$q->execute([$target['id']]);
+            $providers=$registry->usageProviders($this->resource);
+            $usages=Usages::count($ctx,$providers,[$target['id']]);
+            // The preview changes nothing; it is journaled as `delete_preview` (ACL decision on `delete`).
+            if(($values['preview']??'0')==='1')return ['count'=>1,'usages'=>$usages,'audit_action'=>'delete_preview'];
+            if($this->archive()){
+                $q=$ctx->db->prepare("UPDATE {$this->table} SET archived_at=?, archived_by=? WHERE {$this->key}=? AND archived_at IS NULL");$q->execute([gmdate('Y-m-d\\TH:i:s\\Z'),substr($ctx->actor->id,0,64),$target['id']]);
+            }else{
+                foreach ($this->related as $storage) $storage->delete($ctx->db,$target['id']);
+                $q=$ctx->db->prepare("DELETE FROM {$this->table} WHERE {$this->key}=?");$q->execute([$target['id']]);
+            }
+            $cleared=Usages::clear($ctx,$providers,[$target['id']],$this->deletePolicy,$usages);
             $ctx->acl->invalidate();
-            if($this->afterSave)($this->afterSave)($ctx,$target['id'],$target,[]);
-            return [];
+            if($this->afterDelete)($this->afterDelete)($ctx,$target['id'],$target);
+            return ['cleared'=>$cleared,'policy'=>$this->deletePolicy,'audit'=>['policy'=>$this->deletePolicy,...($cleared?['cleared'=>$cleared]:[])]];
         },resolve:fn($c,$id)=>$this->target($c,$id),write:true,channels:['ui'],bulk:true,confirm:[
-            'message' => 'A kiválasztott adat végleg törlődik.',
+            'message' => $this->archive() ? 'A kiválasztott adat archiválódik, és többé nem jelenik meg.' : 'A kiválasztott adat végleg törlődik.',
             'title' => 'Törlés',
             'severity' => 'danger',
             'confirm_label' => 'Törlés',
             'cancel_label' => 'Mégse',
         ]));
-        foreach($registry->views() as $view)if($view['resource']===$this->resource)$registry->view($view['resource'],$view['title'],$view['columns'],[...$view['actions'],'delete'],$view['singleton'],$view['group'],$view['layout'],$view['rowNumbers'],$view['selection'],$view['icon'],$view['desktopOnly']??false,$view['rowSelection']??false,$view['rowHeight']??null,$view['tileMinWidth']??null,$view['tiles']??false);
+        foreach($registry->views() as $view)if($view['resource']===$this->resource)$registry->appendViewActions($this->resource,['delete']);
     }
     public function target(Context $ctx, ?string $id): array
     {
         if($this->selfOnly) { if($id!==$ctx->actor->id && $id!=='self')throw new Failure('Csak a saját profil érhető el.',403); $id=$ctx->actor->id; }
         if($id===null || !preg_match('/^[a-zA-Z0-9_.:-]{1,100}$/D',$id)) throw new Failure('Hiányzó objektum.',404);
-        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
+        $this->archiveReady($ctx->db);
+        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($this->archive()?' AND archived_at IS NULL':'').($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
         $q->execute([$id]); $row=$q->fetch(\PDO::FETCH_ASSOC);
         if(!$row)throw new Failure('Nem található objektum.',404);
+        if($this->computed){
+            $q=$ctx->db->prepare('SELECT '.implode(', ',array_map(static fn($name,$sql)=>"CAST(($sql) AS CHAR) AS $name",array_keys($this->computed),$this->computed))." FROM {$this->table} blade_base WHERE blade_base.{$this->key} = ?");
+            $q->execute([$row[$this->key]]);$row=array_replace($row,$q->fetch(\PDO::FETCH_ASSOC)?:[]);
+        }
         foreach ($this->related as $storage) $row = array_replace($row, $storage->read($ctx->db, (string)$row[$this->key]));
         return ['id'=>(string)$row[$this->key],'owner'=>$this->ownerColumn?(string)$row[$this->ownerColumn]:null,'row'=>$row];
     }
@@ -105,19 +162,21 @@ final class SqlResource
     }
     private function revision(array $row): string
     {
-        $columns=[$this->key,...array_map(static fn($f)=>$f->name,$this->fields),...($this->ownerColumn?[$this->ownerColumn]:[])];
+        // Computed values change with other records; they never make a stored revision stale.
+        $columns=[$this->key,...array_diff(array_map(static fn($f)=>$f->name,$this->fields),array_keys($this->computed)),...($this->ownerColumn?[$this->ownerColumn]:[])];
         return hash('sha256',json_encode(array_map(static fn($value)=>$value===null?null:(string)$value,array_intersect_key($row,array_flip($columns))),JSON_THROW_ON_ERROR));
     }
     public function save(Context $ctx, ?array $target, array $values, bool $fieldEdit = false): array
     {
         if($target && !hash_equals($this->revision($target['row']),$values['revision'] ?? ''))throw new Failure('Az adat közben módosult. Nyisd meg újra.',409);
         unset($values['revision']);
+        $this->archiveReady($ctx->db);
         $ruleValues=$target?array_replace(array_intersect_key($target['row'],array_column($this->fields,null,'name')),$values):$values;
         if($this->guard)($this->guard)($ctx,$target,$ruleValues);
         if($this->normalize){$normalized=($this->normalize)($ctx,$target,$ruleValues);$values=$target?array_intersect_key($normalized,$values):$normalized;}
         foreach ($this->fields as $field) {
             if (!($field->validation['unique'] ?? false) || !isset($values[$field->name]) || $values[$field->name] === '') continue;
-            $sql = "SELECT {$this->key} FROM {$this->table} WHERE {$field->name} = ?";
+            $sql = "SELECT {$this->key} FROM {$this->table} WHERE {$field->name} = ?".($this->archive() ? ' AND archived_at IS NULL' : '');
             $params = [$values[$field->name]];
             if ($target) { $sql .= " AND {$this->key} <> ?"; $params[] = $target['id']; }
             $query = $ctx->db->prepare($sql.' LIMIT 1');
@@ -133,7 +192,7 @@ final class SqlResource
                 if ($value === '') $conditions[] = "($column = '' OR $column IS NULL)";
                 else { $conditions[] = "$column = ?"; $params[] = $value; }
             }
-            $sql = "SELECT {$this->key} FROM {$this->table} WHERE ".implode(' AND ', $conditions);
+            $sql = "SELECT {$this->key} FROM {$this->table} WHERE ".implode(' AND ', [...$conditions, ...($this->archive() ? ['archived_at IS NULL'] : [])]);
             if ($target) { $sql .= " AND {$this->key} <> ?"; $params[] = $target['id']; }
             $query = $ctx->db->prepare($sql.' LIMIT 1');
             $query->execute($params);

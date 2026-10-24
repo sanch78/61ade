@@ -76,6 +76,22 @@ final readonly class FileManagerDefinition
 
     public function store(): ContentStore { return new ContentStore($this->contentRoot, $this->space); }
 
+    /** Public storage API for consumer code (folders of a mount, storing an uploaded file); see MountStorage. */
+    public function files(\PDO $db, ?TaskQueue $tasks = null): MountStorage { return new MountStorage($this, $this->storage($db, $tasks)); }
+
+    /**
+     * Whether the type detected from the bytes at $path is accepted for $extension (TYPES); libmagic reports very
+     * short text as octet-stream, so text types then need clean UTF-8 bytes.
+     */
+    public static function contentMatches(string $extension, string $path): bool
+    {
+        if (!isset(self::TYPES[$extension])) return false;
+        $detected = (string) (new \finfo(FILEINFO_MIME_TYPE))->file($path);
+        $text = in_array('text/plain', self::TYPES[$extension][1], true);
+        if ($text && $detected === 'application/octet-stream' && filesize($path) <= 65536 && preg_match('/^[^\x00-\x08\x0B\x0E-\x1F\x7F]*$/Du', (string) file_get_contents($path))) $detected = 'text/plain';
+        return in_array($detected, self::TYPES[$extension][1], true);
+    }
+
     public function temporaryRoot(): string { return $this->tempRoot ?? rtrim($this->contentRoot, '/').'/.transfers'; }
 
     /** Upload rules of the `upload` action: folders allowed, transfers under temporaryRoot(); $preflight adds the domain checks. */

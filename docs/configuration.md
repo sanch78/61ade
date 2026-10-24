@@ -67,7 +67,10 @@ Complete synthetic example: [notes.json](../tests/fixtures/configuration/notes.j
 | `resources.<name>.storage` | `table`, `key`; optional `owner_column`, `defaults`, `where`, `self_only`. `where` is trusted developer-authored SQL. |
 | `fields` | `name`, `label`; optional `type`, `required`, `max`, `secret` and one choices source: `options`, `options_lookup` or `options_binding`. `validation` follows [form validation](validation.md); `checkbox`, `default` and `column` (including optional secondary grid columns) follow [field presentation](field-presentation.md). |
 | `operations` | `create`/`update` default true; `delete` defaults false. |
-| `hooks` | `guard`, `normalize`, `after_save`, `delete_guard`: explicit PHP binding names. |
+| `hooks` | `guard`, `normalize`, `after_save`, `delete_guard`, `after_delete`: explicit PHP binding names. `after_save` runs after create/update only; `after_delete` (`fn(Context, string $id, array $target)`) after a delete. |
+| `operations.delete_policy` | `delete` (default) or `archive` (requires `delete: true` and consumer columns `archived_at`/`archived_by`); see [record delete policy and usages](workspaces.md#delete-usages). |
+| `storage.computed` | `{name: SQL expression}` over the base row `blade_base` (trusted developer SQL, no `;`/`?`); the name must also be a declared text/number field, which becomes read-only and sortable. |
+| `fields[].type: "file"` | With `file: {resource, mount, accept: ["image","video"], folder?}`: a file reference picked from or uploaded into a file-manager mount; see [workspaces](workspaces.md#file-field). |
 | `view` | `title`; optional `group`, `singleton`, `columns`, `actions`, `layout`, `row_numbers`, `selection`, `row_selection`, `icon`, `desktop_only`, `row_height` (32–160), `tile_min_width` (120–480), `tiles`, `search` (field names). Omitted columns/actions use the registered resource's default view. Media columns (`column.media`), icon columns (`column.presentation`), tiles and search: [workspaces](workspaces.md#media-tiles). |
 | `view.layout` | `form_mode` (`overlay`/`panel`) and optional validated `tree`; see [workspaces](workspaces.md). |
 | `actions` | Additional registered actions: `resource`, `name`, `label`, `handler`; optional `fields`, `target_resource`, `write`, `channels`, `form_values` (named initial-value binding). |

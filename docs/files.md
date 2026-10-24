@@ -236,6 +236,18 @@ revision of the same entry, not an overwrite. On MySQL the top rows of a
 delete, archive, folder move or folder rename are locked before their
 subtree is read.
 
+**Usages.** Consumers register a `UsageProvider` for the file manager's
+resource; `delete` with `preview: '1'` returns `{count, entries, usages,
+failed}` without changes, and the apply calls every provider's `clear` for the
+files of the selected subtrees (also under `archive`) and reports `cleared`.
+The browser shows the counts in its single danger confirmation. Deleting a
+used file is allowed; the reference is cleared by the consumer's provider.
+Overwrites that make a file disappear (every overwrite under `archive`, a move
+overwrite under `delete`) clear its references too and report `cleared`;
+in-place rewrites under `delete` keep the id, so references stay. Conflict
+`409` details and the upload preflight include `usages` of the existing files.
+Previews are journaled as `delete_preview`.
+
 **Copy and move.** Recursive; across mounts too. Each request is one
 transaction and handles at most 5000 entries. Name conflicts without a decision
 return `409` with `details.conflicts` and change nothing. The UI then shows the
@@ -393,11 +405,14 @@ seeds Drive A–C with nested folders (depth-5 chains under
 Markdown, CSV, JSON, PNG and JPEG files, `Média` on Drive A with a synthetic
 fractal JPEG (1600 × 1000) and a 6-second test-pattern WebM made with ffmpeg
 (`examples/demo-app/resources/files`, added to existing demos on the next
-setup run), `OLVASS-EL.TXT` (uppercase
+setup run; the four files the signage assets use — the fractal, the video,
+`logo.png` and `foto.jpg` — are moved, with unchanged ids, into the fourth
+mount `Signage`, so `Média` and `Képek` on Drive A end up empty), `OLVASS-EL.TXT` (uppercase
 extension), `Feltöltési minták` with non-uploadable `.exe`/`.pdf` samples and
 `nagy-naplo.txt` above the 64 KiB editor limit, and `jegyzet.txt` on Drive A
 and C for conflicts. `demo@example.test` has every file action;
-`reader@example.test` may only browse, read text and view media.
+`reader@example.test` may only browse, read text, view media and download.
+The demo uses `deletePolicy: 'delete'`.
 
 - `php8.4 tests/shell/files.php`: content-addressed layout, dedupe and shared
   keys on copy, collection of unreferenced content only, no BLOB content, image

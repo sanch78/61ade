@@ -25,6 +25,13 @@ final class WorkspaceConfiguration
         $workspace = new Workspace($registry, $db);
         $compiler = new self($registry, new Bindings($callbacks($workspace, $registry)));
         $modules = array_map(JsonConfiguration::read(...), $files);
+        // Tables of resources deleting with policy `archive`: lookups over them hide archived rows (compile-time).
+        $archived = [];
+        foreach ($modules as $module) {
+            foreach (is_array($module['resources'] ?? null) ? $module['resources'] : [] as $definition) {
+                if (($definition['operations']['delete_policy'] ?? null) === 'archive' && is_string($definition['storage']['table'] ?? null)) $archived[$definition['storage']['table']] = true;
+            }
+        }
 
         foreach ($modules as $module) {
             Shape::check($module, [], [
@@ -48,7 +55,7 @@ final class WorkspaceConfiguration
                     key: $definition['key'],
                     label: $definition['label'],
                     owner: $definition['owner'] ?? null,
-                    where: $definition['where'] ?? '1=1',
+                    where: '('.($definition['where'] ?? '1=1').')'.(isset($archived[$definition['table']]) ? ' AND archived_at IS NULL' : ''),
                     extra: $definition['extra'] ?? [],
                 );
             }
@@ -80,8 +87,11 @@ final class WorkspaceConfiguration
                 'type' => 'string', 'required' => 'boolean', 'max' => 'integer',
                 'options' => 'array', 'secret' => 'boolean',
                 'options_lookup' => 'string', 'options_binding' => 'string',
-                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean',
+                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array',
             ], '$.fields');
+            if (isset($definition['file'])) {
+                Shape::check($definition['file'], ['resource' => 'string', 'mount' => 'string', 'accept' => 'array'], ['folder' => 'string'], '$.fields.'.$definition['name'].'.file');
+            }
             if (isset($names[$definition['name']])) {
                 throw new InvalidArgumentException('Duplicate field: '.$definition['name']);
             }
@@ -109,6 +119,7 @@ final class WorkspaceConfiguration
                 column: $definition['column'] ?? [],
                 defaultValue: $definition['default'] ?? null,
                 bulk: $definition['bulk'] ?? false,
+                file: $definition['file'] ?? null,
             );
         }
         return $fields;
@@ -127,14 +138,17 @@ final class WorkspaceConfiguration
         $operations = $definition['operations'] ?? [];
         $view = $definition['view'];
         Shape::check($storage, ['table' => 'string', 'key' => 'string'], [
-            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array',
+            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array',
         ], '$.resources.'.$name.'.storage');
         Shape::check($hooks, [], [
-            'guard' => 'string', 'normalize' => 'string', 'after_save' => 'string', 'delete_guard' => 'string',
+            'guard' => 'string', 'normalize' => 'string', 'after_save' => 'string', 'delete_guard' => 'string', 'after_delete' => 'string',
         ], '$.resources.'.$name.'.hooks');
         Shape::check($operations, [], [
-            'create' => 'boolean', 'update' => 'boolean', 'delete' => 'boolean',
+            'create' => 'boolean', 'update' => 'boolean', 'delete' => 'boolean', 'delete_policy' => 'string',
         ], '$.resources.'.$name.'.operations');
+        if (isset($operations['delete_policy']) && !($operations['delete'] ?? false)) {
+            throw new InvalidArgumentException('A delete policy needs operations.delete: '.$name);
+        }
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
@@ -161,6 +175,8 @@ final class WorkspaceConfiguration
             related: $related,
             unique: $storage['unique'] ?? [],
             search: $view['search'] ?? [],
+            afterDelete: $this->bindings->get($hooks['after_delete'] ?? null),
+            computed: $storage['computed'] ?? [],
         );
         $resource->register(
             registry: $this->registry,
@@ -171,7 +187,7 @@ final class WorkspaceConfiguration
             layout: $this->layout($view),
         );
         if ($operations['delete'] ?? false) {
-            $resource->registerDelete($this->registry);
+            $resource->registerDelete($this->registry, $operations['delete_policy'] ?? 'delete');
         }
         $this->resources[$name] = $resource;
     }

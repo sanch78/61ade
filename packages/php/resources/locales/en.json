@@ -654,5 +654,21 @@
   "Archiválva: {count} elem.": "Archived: {count} items.",
   "Átnevezve: {name}": "Renamed: {name}",
   "ZIP-letöltés: {name}.zip ({count} fájl, {size}).": "ZIP download: {name}.zip ({count} files, {size}).",
-  "Az alábbi fájlok tartalma nem érhető el, ezért kimaradtak az archívumból:": "The content of the following files is unavailable, so they were left out of the archive:"
+  "Az alábbi fájlok tartalma nem érhető el, ezért kimaradtak az archívumból:": "The content of the following files is unavailable, so they were left out of the archive:",
+  "Kiválasztás…": "Choose…",
+  "Kiválasztás": "Choose",
+  "Fájl feltöltése…": "Upload file…",
+  "Nincs kiválasztott fájl": "No file selected",
+  "Fájl #{id}": "File #{id}",
+  "Fájl kiválasztása: {field}": "Choose a file: {field}",
+  "Hivatkozások:": "References:",
+  "Törléskor a hivatkozások törlődnek.": "Deleting removes these references.",
+  "Törölt hivatkozások: {list}": "Cleared references: {list}",
+  "{count} rekord törlődik.": "{count} record(s) will be deleted.",
+  "Törlés: {count} elem.": "Delete: {count} item(s).",
+  "A kiválasztott fájl nem érhető el.": "The selected file is not available.",
+  "A fájl típusa ehhez a mezőhöz nem engedélyezett.": "This file type is not allowed for this field.",
+  "A kiválasztott adat archiválódik, és többé nem jelenik meg.": "The selected record will be archived and no longer shown.",
+  "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.": "Referencing items are kept; their file reference is cleared.",
+  "{count} elem előnézete nem sikerült.": "Preview failed for {count} items."
 }

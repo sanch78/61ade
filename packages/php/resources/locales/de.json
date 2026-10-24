@@ -654,5 +654,21 @@
   "Archiválva: {count} elem.": "Archiviert: {count} Elemente.",
   "Átnevezve: {name}": "Umbenannt: {name}",
   "ZIP-letöltés: {name}.zip ({count} fájl, {size}).": "ZIP-Download: {name}.zip ({count} Dateien, {size}).",
-  "Az alábbi fájlok tartalma nem érhető el, ezért kimaradtak az archívumból:": "Der Inhalt der folgenden Dateien ist nicht verfügbar, daher fehlen sie im Archiv:"
+  "Az alábbi fájlok tartalma nem érhető el, ezért kimaradtak az archívumból:": "Der Inhalt der folgenden Dateien ist nicht verfügbar, daher fehlen sie im Archiv:",
+  "Kiválasztás…": "Auswählen…",
+  "Kiválasztás": "Auswählen",
+  "Fájl feltöltése…": "Datei hochladen…",
+  "Nincs kiválasztott fájl": "Keine Datei ausgewählt",
+  "Fájl #{id}": "Datei #{id}",
+  "Fájl kiválasztása: {field}": "Datei auswählen: {field}",
+  "Hivatkozások:": "Verweise:",
+  "Törléskor a hivatkozások törlődnek.": "Beim Löschen werden die Verweise entfernt.",
+  "Törölt hivatkozások: {list}": "Entfernte Verweise: {list}",
+  "{count} rekord törlődik.": "{count} Datensatz/Datensätze werden gelöscht.",
+  "Törlés: {count} elem.": "Löschen: {count} Element(e).",
+  "A kiválasztott fájl nem érhető el.": "Die ausgewählte Datei ist nicht verfügbar.",
+  "A fájl típusa ehhez a mezőhöz nem engedélyezett.": "Dieser Dateityp ist für dieses Feld nicht zulässig.",
+  "A kiválasztott adat archiválódik, és többé nem jelenik meg.": "Der ausgewählte Datensatz wird archiviert und nicht mehr angezeigt.",
+  "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.": "Verweisende Elemente bleiben erhalten, ihr Dateiverweis wird entfernt.",
+  "{count} elem előnézete nem sikerült.": "Die Vorschau von {count} Elementen ist fehlgeschlagen."
 }
