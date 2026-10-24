@@ -1,0 +1,197 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: digital signage (DMS) content register for the event calendar.",
+        "covers": "media assets referencing file-manager images and videos, default content per weekday or per date, lookup choices, a business rule hook."
+    },
+    "lookups": {
+        "signage_assets": {
+            "resource": "signage_assets",
+            "table": "signage_assets",
+            "key": "id",
+            "label": "title"
+        }
+    },
+    "resources": {
+        "signage_assets": {
+            "storage": {
+                "table": "signage_assets",
+                "key": "id",
+                "defaults": {
+                    "kind": "image"
+                }
+            },
+            "hooks": {
+                "after_save": "signage.asset_check"
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 120,
+                    "column": {
+                        "editable": true,
+                        "minWidth": 200
+                    }
+                },
+                {
+                    "name": "kind",
+                    "label": "Típus",
+                    "type": "select",
+                    "required": true,
+                    "default": "image",
+                    "options": {
+                        "image": "Kép",
+                        "video": "Videó"
+                    },
+                    "column": {
+                        "width": 110
+                    }
+                },
+                {
+                    "name": "file_id",
+                    "label": "Médiafájl",
+                    "type": "select",
+                    "required": true,
+                    "options_binding": "signage.media_files",
+                    "column": {
+                        "minWidth": 220,
+                        "media": "files"
+                    }
+                },
+                {
+                    "name": "duration",
+                    "label": "Lejátszási idő (mp)",
+                    "type": "number",
+                    "required": true,
+                    "max": 5,
+                    "default": "10",
+                    "column": {
+                        "editable": true,
+                        "width": 150,
+                        "align": "right"
+                    }
+                }
+            ],
+            "operations": {
+                "delete": true
+            },
+            "view": {
+                "title": "Médiatár",
+                "group": "Digitális kijelző",
+                "icon": "dxi dxi-image-outline",
+                "tiles": true,
+                "row_height": 56,
+                "search": [
+                    "title"
+                ],
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "kind",
+                        "header": "Típus"
+                    },
+                    {
+                        "id": "file_id",
+                        "header": "Médiafájl"
+                    },
+                    {
+                        "id": "duration",
+                        "header": "Lejátszási idő (mp)"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update",
+                    "delete"
+                ]
+            }
+        },
+        "signage_defaults": {
+            "storage": {
+                "table": "signage_defaults",
+                "key": "id"
+            },
+            "hooks": {
+                "after_save": "signage.default_check"
+            },
+            "fields": [
+                {
+                    "name": "weekday",
+                    "label": "A hét napja",
+                    "type": "select",
+                    "options": {
+                        "1": "Hétfő",
+                        "2": "Kedd",
+                        "3": "Szerda",
+                        "4": "Csütörtök",
+                        "5": "Péntek",
+                        "6": "Szombat",
+                        "7": "Vasárnap"
+                    },
+                    "column": {
+                        "width": 150
+                    }
+                },
+                {
+                    "name": "date",
+                    "label": "Dátum",
+                    "max": 10,
+                    "validation": {
+                        "pattern": {
+                            "expression": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                            "message": "Formátum: ÉÉÉÉ-HH-NN."
+                        }
+                    },
+                    "column": {
+                        "editable": true,
+                        "width": 130
+                    }
+                },
+                {
+                    "name": "asset_id",
+                    "label": "Alapértelmezett tartalom",
+                    "type": "select",
+                    "required": true,
+                    "options_lookup": "signage_assets",
+                    "column": {
+                        "editable": true,
+                        "minWidth": 220
+                    }
+                }
+            ],
+            "operations": {
+                "delete": true
+            },
+            "view": {
+                "title": "Alapértelmezett tartalom",
+                "group": "Digitális kijelző",
+                "icon": "dxi dxi-clock-outline",
+                "columns": [
+                    {
+                        "id": "weekday",
+                        "header": "A hét napja"
+                    },
+                    {
+                        "id": "date",
+                        "header": "Dátum"
+                    },
+                    {
+                        "id": "asset_id",
+                        "header": "Alapértelmezett tartalom"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update",
+                    "delete"
+                ]
+            }
+        }
+    }
+}

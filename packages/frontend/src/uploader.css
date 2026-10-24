@@ -1,0 +1,82 @@
+/* Framework uploader (Uploader.ts): Suite Window/Layout/Grid with theme tokens only. */
+.blade-uploader-live,
+.blade-uploader__input {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.blade-uploader { font-family: var(--dhx-font-family); color: var(--dhx-font-color-primary); }
+.blade-uploader__zone-cell { padding: 12px 16px 8px; }
+.blade-uploader__zone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border: 2px dashed var(--dhx-border-color);
+  border-radius: 8px;
+  background: var(--dhx-background-secondary);
+  font-size: var(--dhx-font-size-normal);
+  overflow-wrap: anywhere;
+}
+.blade-uploader__zone:focus-visible { outline: 2px solid var(--dhx-border-color-focused, var(--dhx-color-primary)); outline-offset: 2px; }
+.blade-uploader__zone--over {
+  border-color: var(--dhx-color-primary);
+  background: color-mix(in srgb, var(--dhx-color-primary) 10%, var(--dhx-background-secondary));
+}
+.blade-uploader__zone p { margin: 0; }
+.blade-uploader__target { font-weight: 600; }
+.blade-uploader__rules { color: var(--dhx-font-color-secondary); font-size: var(--dhx-font-size-small); }
+.blade-uploader__buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.blade-uploader__pick { gap: 6px; }
+
+.blade-uploader__queue { padding: 0 16px; min-height: 120px; }
+.blade-uploader__grid .dhx_grid { border-radius: 4px; }
+.blade-uploader__thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; vertical-align: middle; background: var(--dhx-background-additional); }
+.blade-uploader__name { display: flex; flex-direction: column; width: 100%; min-width: 0; line-height: 1.3; }
+.blade-uploader__file,
+.blade-uploader__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blade-uploader__file { font-weight: 500; }
+.blade-uploader__meta { color: var(--dhx-font-color-secondary); font-size: var(--dhx-font-size-small); }
+.blade-uploader__status { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; line-height: 1.3; }
+.blade-uploader__state { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; font-size: var(--dhx-font-size-small); }
+.blade-uploader__status--failed .blade-uploader__state { color: var(--dhx-color-danger); }
+.blade-uploader__status--done .blade-uploader__state { color: var(--dhx-color-success); }
+.blade-uploader__progress {
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--dhx-background-additional);
+  box-shadow: inset 0 0 0 1px var(--dhx-border-color);
+}
+.blade-uploader__bar { display: block; height: 100%; background: var(--dhx-color-primary); transition: width .2s linear; }
+.blade-uploader__status--done .blade-uploader__bar { background: var(--dhx-color-success); }
+.blade-uploader__status--failed .blade-uploader__bar { background: var(--dhx-color-danger); }
+.blade-uploader__actions { display: flex; gap: 4px; }
+.blade-uploader__action:focus-visible { outline: 2px solid var(--dhx-border-color-focused, var(--dhx-color-primary)); outline-offset: 1px; }
+
+.blade-uploader__summary-cell { padding: 8px 16px 0; }
+.blade-uploader__summary { color: var(--dhx-font-color-secondary); font-size: var(--dhx-font-size-small); overflow-wrap: anywhere; }
+
+/* Completion toast with failures; the success toast keeps the shell's green edge. */
+.blade-toast.blade-uploader-toast--failed { border-left-color: var(--dhx-color-danger); }
+
+/* Shell lower-bar indicator. */
+.blade-session-bar .blade-upload-indicator .dhx_button__text { font-variant-numeric: tabular-nums; }
+
+
+[data-dhx-theme="dark"] .blade-uploader__zone { border-color: var(--dhx-border-color); background: var(--dhx-background-secondary); }
+[data-dhx-theme="dark"] .blade-uploader__zone--over { background: color-mix(in srgb, var(--dhx-color-primary) 22%, var(--dhx-background-secondary)); }
+
+@media (max-width: 480px) {
+  .blade-uploader__zone-cell { padding: 8px 8px 4px; }
+  .blade-uploader__queue { padding: 0 8px; }
+  .blade-uploader__summary-cell { padding: 6px 8px 0; }
+  .blade-uploader__pick { flex: 1 1 100%; justify-content: center; }
+}

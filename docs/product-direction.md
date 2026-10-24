@@ -116,6 +116,7 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 | Calendar events/occurrences reads and create/update/delete | Audit | Implemented through the executor (space as object, event ID on writes); no captions or field values in the journal ([calendar](calendar.md)). |
 | File manager tree/list/create/upload/copy/move/text read and save | Audit | Implemented through the executor with ID-only detail (sources, target, results); no names or contents ([files](files.md)). |
 | File content stream and thumbnail GET reads (each request, incl. range/304) | Audit | Implemented through the executor (`content_stream`, `thumbnail_get`), detail `size` only; cross-site GETs are rejected and audited as transport rejections. |
+| Upload transfer begin and finish (`__upload`) | Audit | Implemented: `upload_begin` is audited as the target action with detail `size` only; `upload_finish` is the target action's normal executor audit; chunk, status, preflight and abort write no row on success, transport rejections are audited. No names or owners. |
 | Background task claim/retry/failure (`blade_tasks`) | Operational | Minimal: state, attempts and a short non-sensitive error stored in `blade_tasks`; handler exceptions go to the PHP error log. No log view or alerting (M6). |
 | ACL rules/roles changed | Security + audit | Audited through registered actions; A2 admin is implemented. |
 | List reads/export | Audit | Planned; volume/detail undecided. |

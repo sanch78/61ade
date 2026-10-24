@@ -29,13 +29,35 @@ final class Executor
         if ($field === 'revision') throw new Failure('Nem szerkeszthető mező.', 403);
         return $this->execute($ctx,$resource,'update',$id,[$field=>$value,'revision'=>$revision],true);
     }
+    /**
+     * Channel/scope, resolver and object ACL of $action in execute()'s order and error mapping, without a
+     * transaction, field validation or audit (steps of the upload transfer protocol). Returns the target.
+     */
+    public function authorize(Context $ctx, Action $action, ?string $id): array
+    {
+        $ctx->acl->invalidate();
+        self::channel($ctx,$action);
+        $target=$action->resolve ? ($action->resolve)($ctx,$id) : ['id'=>$id,'owner'=>null];
+        $object=isset($target['id']) ? (string)$target['id'] : null;
+        if (!$action->collection) self::allowed($ctx,$action,$object,isset($target['acl_id']) ? (string)$target['acl_id'] : $object,isset($target['owner']) ? (string)$target['owner'] : null);
+        return $target;
+    }
+    private static function channel(Context $ctx, Action $action): void
+    {
+        if (!in_array($ctx->channel,$action->channels,true) || ($ctx->channel==='api' && !in_array($action->resource.'.'.$action->name,$ctx->scopes,true))) throw new Failure('Nincs hozzáférés.',403);
+    }
+    /** API callers learn nothing about objects they may not use (404); UI callers get 403. */
+    private static function allowed(Context $ctx, Action $action, ?string $object, ?string $aclObject, ?string $owner): void
+    {
+        if (!$ctx->acl->allows($ctx->actor->id,$action->resource,$action->name,$ctx->channel,$aclObject,$owner)) throw new Failure($ctx->channel==='api' && $object!==null ? 'Nem található objektum.' : 'Nincs hozzáférés.',$ctx->channel==='api' && $object!==null ? 404 : 403);
+    }
     public function execute(Context $ctx, string $resource, string $name, ?string $id, array $input, bool $fieldEdit = false, bool $partial = false): mixed
     {
         $fields=[];$detail=[];
         $ctx->acl->invalidate();
         try {
             $action=$this->registry->get($resource,$name);
-            if (!in_array($ctx->channel,$action->channels,true) || ($ctx->channel==='api' && !in_array($resource.'.'.$name,$ctx->scopes,true))) throw new Failure('Nincs hozzáférés.',403);
+            self::channel($ctx,$action);
             \Blade\Infrastructure\Transaction::begin($this->db);
             $target=$action->resolve ? ($action->resolve)($ctx,$id) : ['id'=>$id,'owner'=>null];
             if(array_filter($action->fields,static fn($f)=>$f->secret)){
@@ -48,7 +70,7 @@ final class Executor
             $aclObject=isset($target['acl_id']) ? (string)$target['acl_id'] : $object;
             $detail=$target['audit'] ?? [];
             // Collection handlers must use the kernel SQL scope; no raw collection result is allowed.
-            if (!$action->collection && !$ctx->acl->allows($ctx->actor->id,$resource,$name,$ctx->channel,$aclObject,$owner)) throw new Failure($ctx->channel==='api' && $object!==null ? 'Nem található objektum.' : 'Nincs hozzáférés.',$ctx->channel==='api' && $object!==null ? 404 : 403);
+            if (!$action->collection) self::allowed($ctx,$action,$object,$aclObject,$owner);
             $known=array_column($action->fields,null,'name');
             if($fieldEdit){
                 $edited=array_keys(array_diff_key($input,['revision'=>true]));

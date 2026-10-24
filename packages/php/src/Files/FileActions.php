@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Blade\Files;
 
-use Blade\Feature\{Action, Context, DownloadStream, Failure, Field, Registry, Upload};
+use Blade\Feature\{Action, Context, DownloadStream, Failure, Field, Registry, Upload, UploadPolicy};
 use Blade\I18n\Translator;
 
 /**
@@ -17,8 +17,12 @@ final class FileActions
     private const SOURCE_LIMIT = 100;
     private const OPERATION_LIMIT = 5000;
 
+    /** Upload rules of the `upload` action, shared by the direct multipart request and the transfer protocol. */
+    private readonly UploadPolicy $policy;
+
     public function __construct(private FileManagerDefinition $definition, private FileStorage $storage)
     {
+        $this->policy = $definition->uploadPolicy(fn(Context $ctx, array $target, array $files): array => $this->preflight($target, $files));
     }
 
     public function register(Registry $registry): void
@@ -31,8 +35,8 @@ final class FileActions
             new Action($resource, 'tree', 'Mappafa', [], fn(Context $ctx, array $target) => $this->tree($target), resolve: fn(Context $ctx, ?string $id) => $this->mount($id)),
             new Action($resource, 'list', 'Mappa tartalma', [], fn(Context $ctx, array $target) => $this->listing($target), resolve: $entry),
             new Action($resource, 'create_directory', 'Új mappa', [new Field('name', 'Mappa neve', required: true, max: 255)], fn(Context $ctx, array $target, array $values) => $this->createDirectory($target, $values['name']), resolve: $entry, write: true, icon: 'dxi dxi-plus'),
-            new Action($resource, 'upload', 'Feltöltés', [$decision], fn(Context $ctx, array $target, array $values) => $this->upload($ctx, $target, $values['decision'] ?? ''), resolve: $entry, write: true, icon: 'dxi dxi-file-import',
-                upload: $this->definition->maxSizeBytes * $this->definition->maxFiles),
+            new Action($resource, 'upload', 'Feltöltés', [$decision, new Field('relative_path', 'Relatív útvonal', max: 4096)], fn(Context $ctx, array $target, array $values) => $this->upload($ctx, $target, $values), resolve: $entry, write: true, icon: 'dxi dxi-file-import',
+                upload: $this->policy),
             new Action($resource, 'copy', 'Másolás', [$sources, $decision], fn(Context $ctx, array $target, array $values) => $this->transfer($ctx, $target, $values, false), resolve: $entry, write: true, icon: 'dxi dxi-copy'),
             new Action($resource, 'move', 'Áthelyezés', [$sources, $decision], fn(Context $ctx, array $target, array $values) => $this->transfer($ctx, $target, $values, true), resolve: $entry, write: true, icon: 'dxi dxi-file-export'),
             new Action($resource, 'text_get', 'Szöveg megnyitása', [], fn(Context $ctx, array $target) => $this->textGet($target), resolve: $entry),
@@ -121,28 +125,33 @@ final class FileActions
         return ['id' => (string) $id, 'audit' => ['parent' => (string) $parent['id'], 'created' => [(string) $id]]];
     }
 
-    /** First violated upload rule; detection uses the received bytes, never the browser's MIME value. */
-    private function rejected(Upload $file): ?string
+    /**
+     * First violated upload rule as ['code' => ..., 'error' => ...]: the policy's name, type, size and folder
+     * rules on the received bytes, the depth below the mount root, then the MIME type detected from the
+     * content (never the browser's value).
+     */
+    private function rejected(Upload $file, string $path, int $depth): ?array
     {
-        if (in_array($file->error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) return $this->tooLarge();
-        if ($file->error !== UPLOAD_ERR_OK) return Translator::text('A fájl feltöltése nem sikerült.');
-        $name = FileStorage::invalidName($file->name);
-        if ($name !== null) return Translator::text($name);
+        if (in_array($file->error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) return ['code' => 'too_large', 'error' => $this->policy->tooLarge()];
+        if ($file->error !== UPLOAD_ERR_OK) return ['code' => 'incomplete', 'error' => Translator::text('A fájl feltöltése nem sikerült.')];
+        $problem = $this->policy->problem($file->name, (int) filesize($file->path), $path);
+        if ($problem !== null) return ['code' => $problem['code'], 'error' => $problem['message']];
+        if ($depth + count(UploadPolicy::segments($file->name, $path)) > $this->definition->maxDepth) return ['code' => 'depth', 'error' => $this->tooDeep()];
         $extension = FileStorage::extension($file->name);
-        if (!in_array($extension, $this->definition->allowedExtensions, true)) return Translator::text('Nem engedélyezett fájltípus. Engedélyezett: {types}.', ['types' => implode(', ', $this->definition->allowedExtensions)]);
-        if ((int) filesize($file->path) > $this->definition->maxSizeBytes) return $this->tooLarge();
         $detected = (string) (new \finfo(FILEINFO_MIME_TYPE))->file($file->path);
         // libmagic reports very short text as octet-stream; text types then need clean UTF-8 bytes.
         $text = in_array('text/plain', FileManagerDefinition::TYPES[$extension][1], true);
-        if ($text && $detected === 'application/octet-stream' && preg_match('/^[^\x00-\x08\x0B\x0E-\x1F\x7F]*$/Du', (string) file_get_contents($file->path))) $detected = 'text/plain';
-        if (!in_array($detected, FileManagerDefinition::TYPES[$extension][1], true)) return Translator::text('A fájl tartalma nem felel meg a kiterjesztésnek.');
+        if ($text && $detected === 'application/octet-stream' && filesize($file->path) <= 65536 && preg_match('/^[^\x00-\x08\x0B\x0E-\x1F\x7F]*$/Du', (string) file_get_contents($file->path))) $detected = 'text/plain';
+        if (!in_array($detected, FileManagerDefinition::TYPES[$extension][1], true)) return ['code' => 'content_mismatch', 'error' => Translator::text('A fájl tartalma nem felel meg a kiterjesztésnek.')];
         return null;
     }
 
-    private function tooLarge(): string
+    private function tooDeep(): string
     {
-        return Translator::text('A fájl túl nagy (legfeljebb {size} bájt).', ['size' => $this->definition->maxSizeBytes]);
+        return Translator::text('A mappák legfeljebb {depth} szint mélyek lehetnek.', ['depth' => $this->definition->maxDepth]);
     }
+
+    private function conflictMessage(): string { return Translator::text('Ilyen nevű elem már létezik ebben a mappában.'); }
 
     /** Display copy of a client-supplied name; it is never used as a path. */
     private static function shown(string $name): string
@@ -150,51 +159,100 @@ final class FileActions
         return mb_substr((string) preg_replace('/\p{Cc}|\p{Cf}/u', '?', mb_scrub($name, 'UTF-8')), 0, 255, 'UTF-8');
     }
 
-    private function upload(Context $ctx, array $target, string $decision): array
+    /** Existing directory reached by $segments below $directory; null when one is missing, false when a file blocks the path. */
+    private function existingParent(array $directory, array $segments): array|false|null
+    {
+        foreach ($segments as $segment) {
+            $child = $this->storage->child((int) $directory['id'], $segment);
+            if (!$child) return null;
+            if ($child['kind'] !== 'directory') return false;
+            $directory = $child;
+        }
+        return $directory;
+    }
+
+    /**
+     * Transfer preflight (no writes): depth of the folder path below the mount root and name conflicts
+     * that need a decision (`ask`) or fail (`reject`). Names, types and sizes are the policy's own checks.
+     */
+    private function preflight(array $target, array $files): array
     {
         $directory = $this->directory($target);
-        if (count($this->storage->ancestry($directory)) - 1 > $this->definition->maxDepth) throw new Failure('A célmappa túl mélyen van.');
+        $depth = count($this->storage->ancestry($directory)) - 1;
+        $out = [];
+        foreach ($files as $index => $file) {
+            $segments = UploadPolicy::segments($file['name'], $file['relative_path']) ?? [];
+            if ($depth + count($segments) > $this->definition->maxDepth) { $out[$index] = ['code' => 'depth', 'message' => $this->tooDeep()]; continue; }
+            $parent = $this->existingParent($directory, $segments);
+            if ($parent === false) { $out[$index] = ['code' => 'conflict', 'message' => $this->conflictMessage(), 'conflict' => ['existing_kind' => 'file']]; continue; }
+            $existing = $parent && in_array($this->definition->duplicatePolicy, ['ask', 'reject'], true) ? $this->storage->child((int) $parent['id'], $file['name']) : null;
+            if ($existing) $out[$index] = ['code' => 'conflict', 'message' => $this->conflictMessage(), 'conflict' => ['existing_kind' => $existing['kind']]];
+        }
+        return $out;
+    }
+
+    /**
+     * Multipart `files` parts (direct request, or one assembled transfer file). `relative_path` (one file
+     * only) places it below the target, creating missing directories; results carry per-file codes.
+     */
+    private function upload(Context $ctx, array $target, array $values): array
+    {
+        $directory = $this->directory($target);
+        $depth = count($this->storage->ancestry($directory)) - 1;
+        if ($depth > $this->definition->maxDepth) throw new Failure('A célmappa túl mélyen van.');
         $files = array_values(array_filter($ctx->uploads, static fn(Upload $upload) => $upload->field === 'files'));
         if (!$files) throw new Failure('Válassz feltöltendő fájlt.');
-        if (count($files) > $this->definition->maxFiles) throw new Failure($this->definition->maxFiles > 1 ? Translator::text('Egyszerre legfeljebb {count} fájl tölthető fel.', ['count' => $this->definition->maxFiles]) : 'Egyszerre csak egy fájl tölthető fel.');
-        $policy = $this->definition->duplicatePolicy === 'ask' ? $decision : $this->definition->duplicatePolicy;
+        if (count($files) > $this->definition->maxFiles) throw new Failure($this->definition->maxFiles > 1 ? Translator::text('Egyszerre legfeljebb {count} fájl tölthető fel.', ['count' => $this->definition->maxFiles]) : 'Egyszerre csak egy fájl tölthető fel.', 400, [], ['code' => 'quota']);
+        $path = $values['relative_path'] ?? '';
+        if ($path !== '' && count($files) !== 1) throw new Failure('A relatív útvonal csak egyetlen fájllal adható meg.');
+        $policy = $this->definition->duplicatePolicy === 'ask' ? ($values['decision'] ?? '') : $this->definition->duplicatePolicy;
         $accepted = $failed = $conflicts = $names = [];
         foreach ($files as $file) {
-            $error = $this->rejected($file);
+            $error = $this->rejected($file, $path, $depth);
             $key = mb_strtolower($file->name, 'UTF-8');
-            if ($error === null && isset($names[$key])) $error = Translator::text('Azonos nevű fájl többször szerepel a kijelölésben.');
+            if ($error === null && isset($names[$key])) $error = ['code' => 'conflict', 'error' => Translator::text('Azonos nevű fájl többször szerepel a kijelölésben.')];
+            $segments = $error === null ? UploadPolicy::segments($file->name, $path) : [];
+            $parent = $error === null ? $this->existingParent($directory, $segments) : null;
+            if ($parent === false) $error = ['code' => 'conflict', 'error' => $this->conflictMessage()];
             if ($error !== null) {
-                $failed[] = ['name' => self::shown($file->name), 'error' => $error];
+                $failed[] = ['name' => self::shown($file->name), ...$error];
                 continue;
             }
             $names[$key] = true;
-            $existing = $this->storage->child((int) $directory['id'], $file->name);
+            $existing = $parent ? $this->storage->child((int) $parent['id'], $file->name) : null;
             if ($existing) $conflicts[] = ['name' => $file->name, 'kind' => 'file', 'existing_kind' => $existing['kind']];
-            $accepted[] = $file;
+            $accepted[] = [$file, $segments];
         }
-        if (!$accepted) throw new Failure('Egyik fájl sem tölthető fel.', 400, [], ['failed' => $failed]);
+        if (!$accepted) throw new Failure('Egyik fájl sem tölthető fel.', 400, [], ['failed' => $failed, ...(count($files) === 1 ? ['code' => $failed[0]['code']] : [])]);
         if ($conflicts && $policy === '') throw new Failure('Névütközés a célmappában.', 409, [], ['conflicts' => $conflicts, 'failed' => $failed]);
-        $succeeded = $skipped = $created = $replaced = [];
-        foreach ($accepted as $file) {
+        $succeeded = $skipped = $created = $replaced = $directories = [];
+        foreach ($accepted as [$file, $segments]) {
             $name = $file->name;
             $mime = FileManagerDefinition::TYPES[FileStorage::extension($name)][0];
-            $existing = $this->storage->child((int) $directory['id'], $name);
+            $parent = $directory;
+            foreach ($segments as $segment) {
+                $found = $this->storage->directory($parent, $segment);
+                if ($found === null) { $failed[] = ['name' => $name, 'code' => 'conflict', 'error' => $this->conflictMessage()]; continue 2; }
+                [$parent, $new] = $found;
+                if ($new) $directories[] = (string) $parent['id'];
+            }
+            $existing = $this->storage->child((int) $parent['id'], $name);
             if ($existing && $policy === 'skip') { $skipped[] = ['name' => $name]; continue; }
-            if ($existing && $policy === 'reject') { $failed[] = ['name' => $name, 'error' => Translator::text('Ilyen nevű elem már létezik ebben a mappában.')]; continue; }
-            if ($existing && $policy === 'overwrite' && $existing['kind'] !== 'file') { $failed[] = ['name' => $name, 'error' => Translator::text('Mappa nem írható felül.')]; continue; }
+            if ($existing && $policy === 'reject') { $failed[] = ['name' => $name, 'code' => 'conflict', 'error' => $this->conflictMessage()]; continue; }
+            if ($existing && $policy === 'overwrite' && $existing['kind'] !== 'file') { $failed[] = ['name' => $name, 'code' => 'conflict', 'error' => Translator::text('Mappa nem írható felül.')]; continue; }
             if ($existing && $policy === 'overwrite') {
                 $this->storage->replaceContent((int) $existing['id'], $mime, $file->path);
-                $succeeded[] = ['id' => (string) $existing['id'], 'name' => $name];
+                $succeeded[] = ['id' => (string) $existing['id'], 'name' => $name, 'parent' => (string) $parent['id']];
                 $replaced[] = (string) $existing['id'];
                 continue;
             }
-            if ($existing) $name = $this->storage->freeName((int) $directory['id'], $name, 'file');
-            $id = (string) $this->storage->createFile($directory, $name, $mime, $file->path);
-            $succeeded[] = ['id' => $id, 'name' => $name];
+            if ($existing) $name = $this->storage->freeName((int) $parent['id'], $name, 'file');
+            $id = (string) $this->storage->createFile($parent, $name, $mime, $file->path);
+            $succeeded[] = ['id' => $id, 'name' => $name, 'parent' => (string) $parent['id']];
             $created[] = $id;
         }
         return ['succeeded' => $succeeded, 'skipped' => $skipped, 'failed' => $failed,
-            'audit' => ['directory' => (string) $directory['id'], 'created' => $created, 'replaced' => $replaced, 'skipped' => count($skipped), 'failed' => count($failed)]];
+            'audit' => ['directory' => (string) $directory['id'], 'created' => $created, 'replaced' => $replaced, 'directories' => $directories, 'skipped' => count($skipped), 'failed' => count($failed)]];
     }
 
     /** Copy or move into the target directory. Every check precedes the first write; one transaction. */

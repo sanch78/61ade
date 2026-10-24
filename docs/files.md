@@ -158,7 +158,7 @@ $files->register($workspace);     // application definition and task handlers
 | `tree` | mount key | Every directory of the mount (≤ 2000, otherwise `413`) and its first 5000 files by name, each with `kind` and `mime_type`; `truncated` marks omitted files. |
 | `list` | directory | Entries, path and depth (first 1000 entries; `truncated` flag). |
 | `create_directory` | parent directory | Field `name`. |
-| `upload` | target directory | Multipart `files[]` parts, optional `decision`. |
+| `upload` | target directory | The [uploader](uploader.md)'s `__upload` transfer protocol (policy from the definition: allowlist, size, `maxFiles`, folders, depth, duplicate policy), or direct multipart `files[]` parts; optional `decision`, `relative_path`. |
 | `copy` / `move` | target directory | `sources` (comma-separated IDs, ≤ 100), optional `decision`. |
 | `text_get` | file | Content and revision of a `.txt` file. |
 | `text_save` | file | Multipart `content` part and expected `revision`. |
@@ -199,7 +199,8 @@ streams in 64 KiB chunks. The shell CSP allows same-origin media
 UI and API are separate channels: UI rules do not grant API access, and API
 token scopes only narrow (`files.list`). Multipart requests are accepted only
 for actions that declare `Action::$upload` (`upload`, `text_save`) and within
-that byte limit; everything else stays JSON-only (415).
+that byte limit, and for the uploader's `upload_chunk` within its chunk size;
+everything else stays JSON-only (415).
 
 ## Behavior
 
@@ -218,13 +219,22 @@ reported as failed (no recursive merge or deletion). Rename picks the next free
 failed. The response summarizes `succeeded`, `skipped` and `failed` items;
 the UI shows a toast when everything succeeded, otherwise a summary dialog.
 
-**Upload.** A DHTMLX Window with a native file input. The server validates the
-safe name, extension allowlist, actual size, and MIME type detected from the
-received bytes with `finfo` (very short text files fall back to a clean-UTF-8
-check); the browser MIME value is ignored. Invalid files are reported per file;
-valid ones are stored. If every file is invalid the request fails with `400`.
-Duplicates follow `duplicatePolicy`; with `ask` the first request returns a
-`409` conflict and the browser resends the files with the chosen decision.
+**Upload.** `Feltöltés` opens the framework [uploader](uploader.md) for the
+active panel's folder: chunked, resumable, three files in parallel, folders and
+clipboard paste, per-file results and one conflict decision with "apply to
+all", without re-sending bytes. The server validates the safe name, extension
+allowlist, actual size, and MIME type detected from the received bytes with
+`finfo` (very short text files fall back to a clean-UTF-8 check, at most 64 KiB
+read); the browser MIME value is ignored. Each file gets its own result:
+`succeeded` items carry the new or replaced `id` and its `parent` folder,
+`failed` items a `code` (`too_large`, `type`, `content_mismatch`, `conflict`,
+`depth`, `name`, `quota`, `incomplete`) and a localized reason. A folder upload
+sends `relative_path`; missing folders are created below the target (existing
+ones are reused) under the safe-name rule and `maxDepth`, counted from the mount
+root. Duplicates follow `duplicatePolicy`; with `ask` the finish of a
+conflicting file returns `409` and the uploader asks once. The direct
+multipart request remains for API callers (`relative_path` only with one
+file).
 
 **Document windows.** The text editor, image viewer and video player share
 one window shape: a resizable DHTMLX Window holding one Layout that fills it,
@@ -356,8 +366,8 @@ and C for conflicts. `demo@example.test` has every file action;
   independent mounts, listing/tree view modes and their synchronization,
   files and MIME icons in the tree and listing, row marking without
   checkboxes, the unmarkable `..` row returning with the cursor on the folder
-  left, the header path collapsed with its full-path tooltip, a tree-mode folder copy and file move, depth limit, Cancel buttons, upload summary
-  and conflict dialog, the editor window (toolbar state, Ctrl+S, line wrap, the
+  left, the header path collapsed with its full-path tooltip, a tree-mode folder copy and file move, depth limit, Cancel buttons, uploader
+  results and the conflict dialog, the editor window (toolbar state, Ctrl+S, line wrap, the
   textarea filling the window also after enlarging it, unsaved warning,
   conflict), the image viewer (fit, zoom, 100 %, rotation, the `content_stream`
   URL as source), the stream's Range `206`, `416`, `304`, HEAD, CORP and cache
@@ -372,7 +382,9 @@ and C for conflicts. `demo@example.test` has every file action;
 
 ## Limits
 
-- No deletion, rename-in-place or file download yet (planned U4). Previews and
+- No deletion, rename-in-place or file download yet (planned U4); dropping or
+  pasting directly onto a panel is planned U4 too (the uploader window accepts
+  both). Previews and
   thumbnails cover PNG, JPEG, MP4 and WebM; other types (Markdown, CSV, PDF)
   have no viewer.
 - Thumbnails appear after the background task; until then the listing reports

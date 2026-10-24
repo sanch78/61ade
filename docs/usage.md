@@ -228,6 +228,23 @@ are separate rights). Earlier BLOB databases upgrade with the explicit,
 verified migration 0002. Deletion, rename, download and per-entry permissions
 are not implemented yet ([FB-0058](feedback.md#fb-0058), [FB-0063](feedback.md#fb-0063)).
 
+<a id="feltöltő"></a>
+
+The framework [uploader](uploader.md) is the only upload flow: an action
+declares a typed `UploadPolicy` (`Action::$upload`), the `__upload` transfer
+protocol (preflight, resumable chunks bound to their owner, finish through the
+executor) enforces it on the server, and the browser opens the shared
+`uploads` window (drop, folders, paste, three parallel transfers, per-file
+conflict decision with "apply to all", background upload with a shell
+indicator, resume after reload, `upload:*` events). Do not build another
+upload dialog.
+
+Lists gain [media columns, tiles, row height and search](workspaces.md#media-tiles):
+`column.media` renders file thumbnails with a type-stating accessible name,
+filters by MIME class, `tiles`/`tileMinWidth` add a tile mode, `rowHeight`
+drives all paging math, and a declared `search` adds a server-side text
+search box.
+
 Any view (list, singleton or file manager) can request the generic
 `desktopOnly` option (JSON `desktop_only`): below 768 px the shell shows a
 centred desktop-only notice instead of the view ([shell](shell.md#desktop-only-views)).

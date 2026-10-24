@@ -9,10 +9,11 @@ import { FormValidation, type FieldDefinition } from "./FormValidation";
 import { acknowledge, alert, requestChoice, requestConfirmation } from "./MessageDialog";
 import { escape } from "./RecordPresentation";
 import { actionUrl } from "./ActionUrl";
+import { uploads, type UploadPolicy } from "./Uploader";
 import type { Row } from "./Realtime";
 import type { ViewDefinition } from "./Workspace";
 
-export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{allowed_extensions:string[];max_size_bytes:number;multiple:boolean;duplicate_policy:string};text:{extension:string;max_bytes:number};preview:string[];max_depth:number};
+export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{allowed_extensions:string[];max_size_bytes:number;multiple:boolean;max_files?:number;duplicate_policy:string;policy:UploadPolicy};text:{extension:string;max_bytes:number};preview:string[];max_depth:number};
 export type FileViewDefinition={kind:"files";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean;fields:FieldDefinition[]}[];files:FileManagerConfig};
 export const isFileView=(view:ViewDefinition|FileViewDefinition):view is FileViewDefinition=>(view as FileViewDefinition).kind==="files";
 type Entry={id:string;name:string;kind:"directory"|"file";extension:string;mime_type:string;size:number;modified_at:string;revision:string;width?:number|null;height?:number|null;duration_ms?:number|null;orientation?:string;thumbnail?:"ready"|"pending"|"failed"|"none"};
@@ -35,8 +36,6 @@ const fileIcon=(kind:string,mime:string):string=>kind==="directory"?"dxi dxi-fol
 const iconLabels=():Record<string,string>=>({"dxi dxi-arrow-up":t("Szülőmappa"),"dxi dxi-folder":t("Mappa"),"dxi dxi-image-outline":t("Kép"),"dxi dxi-file-excel":t("Táblázat"),"dxi dxi-format-align-left":t("Szöveg"),"dxi dxi-file-outline":t("Fájl")});
 /** The listing's first row in a subfolder, as in mc: opens the parent and is never an operand. */
 const PARENT="..";
-/** PHP drops parts beyond its default max_file_uploads; the server applies the same cap. */
-const MAX_FILES=20;
 
 /** Two-panel virtual file manager: per-panel mount, Tree and Grid; every operation is a registered action. */
 export class FileManager {
@@ -407,39 +406,14 @@ export class FileManager {
     requestAnimationFrame(()=>form.setFocus("name"));
   }
 
-  /** Native file input inside a Suite Window; files travel as multipart parts. */
+  /**
+   * The framework uploader (Uploader.ts) for the active panel's folder: chunked, resumable and
+   * non-blocking, so the panels stay usable; a finished batch refreshes the listings.
+   */
   private openUpload():void{
     const panel=this.current,directory=panel.directory;if(!directory)return;
-    const upload=this.config.upload;
-    const id="blade-upload-"+Math.random().toString(36).slice(2);
-    const limit=new Intl.NumberFormat(locale(),{maximumFractionDigits:1}).format(upload.max_size_bytes/1048576)+" MB";
-    const win=this.window(t("Feltöltés"),500,320);
-    win.attachHTML(`<div class="blade-file-upload">
-      <p>${escape(t("Célmappa: {path}",{path:directory.path.map(part=>part.name).join("/")}))}</p>
-      <label class="blade-file-upload__label" for="${id}">${escape(t(upload.multiple?"Fájlok kiválasztása":"Fájl kiválasztása"))}</label>
-      <input class="blade-file-upload__input" id="${id}" type="file" ${upload.multiple?"multiple":""} accept="${escape(upload.allowed_extensions.map(ext=>"."+ext).join(","))}">
-      <p class="blade-file-upload__rules">${escape(t("Engedélyezett típusok: {types}. Legfeljebb {size} fájlonként.",{types:upload.allowed_extensions.join(", "),size:limit}))}</p>
-      <div class="blade-file-upload__actions"><button type="button" data-blade-cancel class="dhx_button dhx_button--size_medium dhx_button--view_link dhx_button--color_primary">${escape(t("Mégse"))}</button><button type="button" data-blade-submit class="dhx_button dhx_button--size_medium dhx_button--view_flat dhx_button--color_primary" disabled>${escape(t("Feltöltés"))}</button></div>
-    </div>`);
-    win.show();
-    void awaitRedraw().then(async()=>{
-      const root=win.getContainer(),input=root.querySelector<HTMLInputElement>("input[type=file]"),button=root.querySelector<HTMLButtonElement>("[data-blade-submit]");
-      if(!input||!button)return;
-      const sync=()=>{button.disabled=this.busy||!input.files?.length;};
-      input.addEventListener("change",sync);sync();
-      root.querySelector("[data-blade-cancel]")?.addEventListener("click",()=>{if(!this.busy)win.hide();});
-      button.addEventListener("click",()=>{
-        const files=Array.from(input.files??[]);
-        if(!files.length||this.busy)return;
-        if(files.length>(upload.multiple?MAX_FILES:1)){void alert({header:t("Hiba"),severity:"warning",text:t("Egyszerre legfeljebb {count} fájl tölthető fel.",{count:upload.multiple?MAX_FILES:1})});return;}
-        this.busy=true;button.disabled=true;input.disabled=true;
-        void this.resolving(decision=>this.call("upload",directory.id,decision?{decision}:{},files.map(file=>({field:"files[]",blob:file,name:file.name})))).then(async result=>{
-          if(!result||this.disposed)return;
-          win.hide();await this.refresh();await this.summary(result);
-        }).catch(error=>this.error(error)).finally(()=>{this.busy=false;input.disabled=false;sync();this.capabilities();});
-      });
-      await fitWindow(win,".blade-file-upload__actions button");
-    });
+    uploads.open({resource:this.view.resource,action:"upload",target:directory.id,targetLabel:panel.heading??directory.path.map(part=>part.name).join("/"),policy:this.config.upload.policy,
+      onUploaded:result=>{if(!this.disposed&&result.succeeded.length)void this.refresh();}});
   }
 
   /**

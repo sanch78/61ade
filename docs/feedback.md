@@ -1224,9 +1224,12 @@ that exactly equals an option label lists every option. The managed
   környezetben elérhető funkció`. This is a system option a feature requests in
   its configuration: generic view option `desktopOnly` / JSON `desktop_only`
   ([shell](shell.md#desktop-only-views)); the demo file manager opts in.
-- **Open:** `ResponsiveGrid` binds its root DOM listeners once, so any host
-  that re-creates the grid's Layout DOM (such as a `views` switch) loses row
-  marking, card scrolling and card editing; the file manager avoids it.
+- **Resolved (2026-10-24, [FB-0063](#fb-0063) U3):** `ResponsiveGrid` bound its
+  root DOM listeners once, so a host that re-created the grid's Layout DOM
+  (such as a `views` switch) lost row marking, card scrolling and card editing.
+  The listeners are now delegated from the document and filtered by the current
+  root, and a re-created root is observed again ([workspaces](workspaces.md#media-tiles));
+  `mobile-grid.spec.cjs` re-creates the root through a host `views` switch.
 - **Open:** deletion, download/preview, per-entry permissions, lazy trees and
   paged lists, JSON module configuration and an external blob store.
 - **Status:** implemented; verification results are listed in
@@ -1427,5 +1430,39 @@ that exactly equals an option label lists every option. The managed
   `demo.spec.cjs` fails in 4 tests that click raw menu items or the
   unconfigured Google overlay (the FB-0062 collapsed-menu change; not caused
   by U1).
-- **Status:** accepted; U1 implemented (user acceptance pending); U2–U5
+- **U2 — uploader (implemented 2026-10-24):** `UploadPolicy`, the `__upload`
+  transfer protocol in `Transfers` (preflight, owner-bound resumable chunks,
+  finish through the executor, TTL sweep), `Action::$upload` accepting a
+  policy, per-file codes, folder upload with depth/name checks; the
+  `uploads` window on Suite Window/Layout/Grid with drop, folders, paste,
+  3 parallel transfers, per-file conflict choice with "apply to all"
+  (`requestChoiceAll`), background upload with the lower-bar indicator and a
+  toast, resume after reload by re-adding the file. Guide: [uploader](uploader.md).
+  Decisions taken in implementation: the plan's `blade.upload.open` is the
+  module export `uploads.open` (no window global); every operation authorizes
+  before reading the transfer; a browser cannot keep a file across a reload,
+  so resuming needs the file to be added again.
+- **U3 — media-aware lists (implemented 2026-10-24):** `column.media` with
+  `MediaSource`/`FileMedia` descriptors (`_media`) limited to readable mounts,
+  `recordMedia()` (lazy thumbnail, type icon fallback, duration badge,
+  type-stating name), `presentation: "icon"`, the MIME-class filter, declared
+  server search, `rowHeight` in all paging math, the `tiles` mode
+  (`tileMinWidth`), keyboard navigation, the tiles mode in `UiPreferences`, a
+  guard for record fields named `height`/`css`, and the FB-0058 listener fix.
+  Guide: [workspaces](workspaces.md#media-tiles). The signage `Médiatár`
+  declares a media column, tiles, search and the type filter.
+  **Verification (agent, U2+U3):** PHP `files`, `lists`, `list-presentation`,
+  `configuration`, `access`, `sorting`, `i18n`, `contracts` pass;
+  `node tests/shell/ui-preferences.mjs` passes (it failed before U3 on its
+  own mock); typecheck/build/demo assets clean. Browser specs run one at a
+  time on the managed URL: `uploader` 10/10, `files` 6/6, `list-presentation`
+  9/9, `preferences` 3/3, `calendar` 6/6, `mobile-grid` 3/3 (its
+  `native cards preserve selection…` test had failed since FB-0062 by clicking
+  the `Jegyzetek` item directly inside the collapsed main menu; it now uses the
+  shared `openMenu` step); `dialogs` 2/8 — the
+  new `requestChoiceAll` case passes, the six severity tests are the known
+  FB-0062 failures. Running several heavy specs in one guarded invocation can
+  hit the guard's 128-task limit (`spawnSync … EAGAIN`) and time out; single
+  spec runs pass.
+- **Status:** accepted; U1–U3 implemented (user acceptance pending); U4–U5
   planned, not implemented.
