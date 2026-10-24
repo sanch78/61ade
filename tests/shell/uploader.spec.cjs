@@ -465,8 +465,11 @@ test('themes and English',async({page})=>{
  await start(page);
  await openUploader(page);
  for(const [label,theme] of [['Éjjeli','dark'],['Világos','light'],['Skyblue','skyblue']]){
+  // The window is modal: the theme menu behind it is not operable, so the theme changes with the window closed.
+  await page.keyboard.press('Escape');await expect(uploader(page)).toHaveCount(0);
   await page.locator('.blade-navigation-row').getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-dhx-theme',theme);
+  await openUploader(page);
   const zone=uploader(page).locator('.blade-uploader__zone');
   const colors=await zone.evaluate(element=>{const style=getComputedStyle(element);return [style.borderTopColor,style.backgroundColor,style.color];});
   expect(colors[0]).not.toBe('rgba(0, 0, 0, 0)');expect(colors[1]).not.toBe(colors[2]);
@@ -486,6 +489,7 @@ test('themes and English',async({page})=>{
   await expect(uploader(page).getByRole('button',{name:'Choose files',exact:true})).toBeVisible();
   await expect(uploader(page).getByRole('columnheader',{name:'Name'})).toBeVisible();
  }finally{
+  await page.keyboard.press('Escape');await expect(uploader(page)).toHaveCount(0);
   await page.locator('.blade-navigation-row').getByRole('button',{name:'English',exact:true}).click();await page.getByText('Magyar',{exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('lang','hu');
  }
