@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 require dirname(__DIR__, 2).'/examples/demo-app/vendor/autoload.php';
 
-use Vapa\Feature\Field;
-use Vapa\Feature\Failure;
+use Blade\Feature\Field;
+use Blade\Feature\Failure;
 
 function verify(bool $condition, string $message): void
 {
@@ -41,4 +41,15 @@ foreach ([['unknown' => true], ['min_length' => -1], ['pattern' => ['expression'
         throw new RuntimeException('Invalid validation definition accepted');
     } catch (InvalidArgumentException) {}
 }
-echo "VAPA declarative field validation contracts passed.\n";
+// Optional selects accept the explicit empty choice; required selects and unknown values do not.
+$optional = new Field('state', 'State', 'select', options: ['a' => 'A']);
+verify($optional->validate('') === '' && $optional->validate('a') === 'a', 'Optional select accepts empty value');
+foreach ([[$optional, 'x'], [new Field('state', 'State', 'select', required: true, options: ['a' => 'A']), '']] as [$select, $value]) {
+    try { $select->validate($value); throw new RuntimeException('Invalid select value accepted'); } catch (Failure $failure) { verify(isset($failure->fieldErrors['state']), 'Select field error'); }
+}
+// Composite unique keys may only name declared field, default or owner columns.
+new Blade\Feature\SqlResource('items', 'items', 'id', [new Field('a', 'A')], defaults: ['kind' => 'x'], unique: [['a', 'kind']]);
+foreach ([[['missing']], [[]], [['a', 'a']], ['a']] as $unique) {
+    try { new Blade\Feature\SqlResource('items', 'items', 'id', [new Field('a', 'A')], unique: $unique); throw new RuntimeException('Invalid unique key accepted'); } catch (InvalidArgumentException) {}
+}
+echo "61de declarative field validation contracts passed.\n";

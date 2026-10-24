@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Authentication;
+namespace Blade\Authentication;
 
 use PDO;
-use Vapa\Feature\Failure;
-use Vapa\Feature\Workspace;
-use Vapa\Mail\Delivery;
-use Vapa\Mail\LoginMessage;
-use Vapa\Shell\Identity;
-use Vapa\Shell\IdentityProvider;
+use Blade\Feature\Failure;
+use Blade\Feature\Workspace;
+use Blade\Mail\Delivery;
+use Blade\Mail\LoginMessage;
+use Blade\Shell\Identity;
+use Blade\Shell\IdentityProvider;
 
 final readonly class LoginSecurity
 {
@@ -56,17 +56,17 @@ final readonly class LoginSecurity
         $db->beginTransaction();
         try {
             $this->lockActor($actor->id);
-            $query = $db->prepare('SELECT COUNT(*) AS sends, COALESCE(SUM(attempts), 0) AS failures, MAX(created_at) AS last_sent FROM vapa_login_challenges WHERE actor_id = ? AND created_at > ?');
+            $query = $db->prepare('SELECT COUNT(*) AS sends, COALESCE(SUM(attempts), 0) AS failures, MAX(created_at) AS last_sent FROM blade_login_challenges WHERE actor_id = ? AND created_at > ?');
             $query->execute([$actor->id, $now - 600]);
             $limits = $query->fetch(PDO::FETCH_ASSOC);
             if ((int) $limits['sends'] >= 5 || (int) $limits['failures'] >= 5
                 || ($resend && (int) $limits['last_sent'] > $now - 60)) {
                 throw new Failure('Túl sok próbálkozás. Új kódot legkorábban egy perc múlva kérhetsz; az összesített korlát tíz perc.', 429);
             }
-            $query = $db->prepare('UPDATE vapa_login_challenges SET consumed = 1 WHERE actor_id = ? AND binding_hash = ?');
+            $query = $db->prepare('UPDATE blade_login_challenges SET consumed = 1 WHERE actor_id = ? AND binding_hash = ?');
             $query->execute([$actor->id, hash('sha256', $binding)]);
             $query = $db->prepare(
-                'INSERT INTO vapa_login_challenges(id, actor_id, code_hash, binding_hash, email_hash, credential_version, remember_login, created_at, expires_at, attempts, consumed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)',
+                'INSERT INTO blade_login_challenges(id, actor_id, code_hash, binding_hash, email_hash, credential_version, remember_login, created_at, expires_at, attempts, consumed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)',
             );
             $query->execute([
                 $id, $actor->id, hash_hmac('sha256', $id.'.'.$code, $this->key()), hash('sha256', $binding),
@@ -94,7 +94,7 @@ final readonly class LoginSecurity
     public function confirm(string $id, #[\SensitiveParameter] string $code, string $binding): array
     {
         $db = $this->workspace->db;
-        $lookup = $db->prepare('SELECT actor_id FROM vapa_login_challenges WHERE id = ?');
+        $lookup = $db->prepare('SELECT actor_id FROM blade_login_challenges WHERE id = ?');
         $lookup->execute([$id]);
         $actorId = $lookup->fetchColumn();
         if ($actorId === false) {
@@ -105,10 +105,10 @@ final readonly class LoginSecurity
         $recorded = false;
         try {
             $this->lockActor((string) $actorId);
-            $query = $db->prepare('SELECT * FROM vapa_login_challenges WHERE id = ?');
+            $query = $db->prepare('SELECT * FROM blade_login_challenges WHERE id = ?');
             $query->execute([$id]);
             $row = $query->fetch(PDO::FETCH_ASSOC);
-            $query = $db->prepare('SELECT COALESCE(SUM(attempts), 0) FROM vapa_login_challenges WHERE actor_id = ? AND created_at > ?');
+            $query = $db->prepare('SELECT COALESCE(SUM(attempts), 0) FROM blade_login_challenges WHERE actor_id = ? AND created_at > ?');
             $query->execute([$actorId, time() - 600]);
             $failures = (int) $query->fetchColumn();
             if (!$row || $row['consumed'] || (int) $row['expires_at'] <= time() || $failures >= 5
@@ -120,14 +120,14 @@ final readonly class LoginSecurity
             }
             if (!preg_match('/^[0-9]{6}$/D', $code)
                 || !hash_equals($row['code_hash'], hash_hmac('sha256', $id.'.'.$code, $this->key()))) {
-                $query = $db->prepare('UPDATE vapa_login_challenges SET attempts = attempts + 1 WHERE id = ?');
+                $query = $db->prepare('UPDATE blade_login_challenges SET attempts = attempts + 1 WHERE id = ?');
                 $query->execute([$id]);
                 $this->workspace->journal->record($actor->id, 'ui', 'authentication', 'email_verify', '', 'rejected');
                 $recorded = true;
                 $db->commit();
                 throw new Failure('Hibás vagy lejárt megerősítő kód.', 401);
             }
-            $query = $db->prepare('UPDATE vapa_login_challenges SET consumed = 1 WHERE id = ?');
+            $query = $db->prepare('UPDATE blade_login_challenges SET consumed = 1 WHERE id = ?');
             $query->execute([$id]);
             $this->workspace->journal->record($actor->id, 'ui', 'authentication', 'email_verify', '', 'success');
             $db->commit();
@@ -145,13 +145,13 @@ final readonly class LoginSecurity
 
     public function cancel(string $id, string $binding): void
     {
-        $query = $this->workspace->db->prepare('UPDATE vapa_login_challenges SET consumed = 1 WHERE id = ? AND binding_hash = ?');
+        $query = $this->workspace->db->prepare('UPDATE blade_login_challenges SET consumed = 1 WHERE id = ? AND binding_hash = ?');
         $query->execute([$id, hash('sha256', $binding)]);
     }
 
     private function lockActor(string $actor): void
     {
-        $sql = 'INSERT INTO vapa_auth_settings(actor_id, email_confirmation) VALUES (?, ?)';
+        $sql = 'INSERT INTO blade_auth_settings(actor_id, email_confirmation) VALUES (?, ?)';
         $sql .= $this->workspace->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql'
             ? ' ON DUPLICATE KEY UPDATE actor_id = actor_id'
             : ' ON CONFLICT(actor_id) DO UPDATE SET actor_id = excluded.actor_id';

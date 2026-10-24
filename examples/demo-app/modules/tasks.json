@@ -1,0 +1,246 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: one synthetic module that exercises the declarative workspace capabilities.",
+        "covers": "panel form, filters, sorting, cards, inline grid editing (text, select, checkbox), related storage, pattern validation, multiple choice, delete, selection with bulk action, registered business action, business rule hook with a field error."
+    },
+    "resources": {
+        "demo_tasks": {
+            "hooks": {
+                "after_save": "tasks.after_save"
+            },
+            "storage": {
+                "table": "demo_tasks",
+                "key": "id",
+                "owner_column": "owner_id",
+                "defaults": {
+                    "status": "new",
+                    "archived": 0
+                },
+                "related": [
+                    {
+                        "table": "demo_task_settings",
+                        "key": "task_id",
+                        "fields": {
+                            "notify": "notifications"
+                        },
+                        "defaults": {
+                            "notify": 1
+                        }
+                    }
+                ]
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 120,
+                    "column": {
+                        "editable": true,
+                        "minWidth": 200
+                    }
+                },
+                {
+                    "name": "status",
+                    "label": "Állapot",
+                    "type": "select",
+                    "required": true,
+                    "default": "new",
+                    "bulk": true,
+                    "options": {
+                        "new": "Új",
+                        "progress": "Folyamatban",
+                        "done": "Kész"
+                    },
+                    "column": {
+                        "editable": true,
+                        "width": 140
+                    }
+                },
+                {
+                    "name": "contact",
+                    "label": "Kapcsolattartó telefon",
+                    "max": 20,
+                    "validation": {
+                        "pattern": {
+                            "expression": "^\\+36[0-9]{8,9}$",
+                            "message": "Formátum: +36 és 8–9 számjegy."
+                        }
+                    },
+                    "column": {
+                        "editable": true,
+                        "width": 170
+                    }
+                },
+                {
+                    "name": "labels",
+                    "label": "Címkék",
+                    "type": "multiselect",
+                    "max": 200,
+                    "options": {
+                        "urgent": "Sürgős",
+                        "customer": "Ügyfél",
+                        "internal": "Belső",
+                        "risk": "Kockázat"
+                    },
+                    "column": {
+                        "width": 180
+                    }
+                },
+                {
+                    "name": "archived",
+                    "label": "Archivált",
+                    "type": "checkbox",
+                    "options": {
+                        "0": "Aktív",
+                        "1": "Archivált"
+                    },
+                    "column": {
+                        "editable": true,
+                        "width": 110,
+                        "align": "center"
+                    }
+                },
+                {
+                    "name": "notify",
+                    "label": "Értesítés",
+                    "type": "checkbox",
+                    "default": "1",
+                    "options": {
+                        "0": "Ki",
+                        "1": "Be"
+                    },
+                    "column": {
+                        "editable": true,
+                        "width": 110,
+                        "align": "center"
+                    }
+                },
+                {
+                    "name": "description",
+                    "label": "Részletes leírás",
+                    "type": "textarea",
+                    "max": 2000
+                }
+            ],
+            "operations": {
+                "delete": true
+            },
+            "view": {
+                "title": "Feladatok",
+                "group": "Feature demó",
+                "icon": "dxi dxi-checkbox-marked",
+                "selection": true,
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "status",
+                        "header": "Állapot"
+                    },
+                    {
+                        "id": "contact",
+                        "header": "Kapcsolattartó telefon"
+                    },
+                    {
+                        "id": "labels",
+                        "header": "Címkék"
+                    },
+                    {
+                        "id": "archived",
+                        "header": "Archivált"
+                    },
+                    {
+                        "id": "notify",
+                        "header": "Értesítés"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update",
+                    "delete",
+                    "complete",
+                    "dialog_neutral",
+                    "dialog_warning",
+                    "dialog_danger"
+                ],
+                "layout": {
+                    "form_mode": "panel"
+                }
+            }
+        }
+    },
+    "actions": [
+        {
+            "resource": "demo_tasks",
+            "name": "complete",
+            "label": "Lezárás",
+            "handler": "tasks.complete",
+            "target_resource": "demo_tasks",
+            "write": true,
+            "bulk": true,
+            "icon": "dxi dxi-check",
+            "channels": [
+                "ui",
+                "api"
+            ]
+        },
+        {
+            "resource": "demo_tasks",
+            "name": "dialog_neutral",
+            "label": "Párbeszéd: Információ (semleges)",
+            "handler": "tasks.dialog_neutral",
+            "target_resource": "demo_tasks",
+            "write": false,
+            "icon": "dxi dxi-information-outline",
+            "channels": [
+                "ui"
+            ],
+            "confirm": {
+                "message": "Folytatod a kiválasztott feladattal? Ez egy semleges megerősítés.",
+                "severity": "neutral",
+                "confirm_label": "Folytatás",
+                "cancel_label": "Mégse"
+            }
+        },
+        {
+            "resource": "demo_tasks",
+            "name": "dialog_warning",
+            "label": "Párbeszéd: Figyelmeztetés",
+            "handler": "tasks.dialog_warning",
+            "target_resource": "demo_tasks",
+            "write": false,
+            "icon": "dxi dxi-alert-circle",
+            "channels": [
+                "ui"
+            ],
+            "confirm": {
+                "message": "Ez a művelet figyelmeztetést ad. Ez egy szándékosan hosszú üzenet, amely a keret párbeszédablakának tördelését, görgetését és a mobil nézet biztonsági margóit mutatja. Ez egy szándékosan hosszú üzenet, amely a keret párbeszédablakának tördelését, görgetését és a mobil nézet biztonsági margóit mutatja. Ez egy szándékosan hosszú üzen",
+                "severity": "warning",
+                "confirm_label": "Folytatás",
+                "cancel_label": "Mégse"
+            }
+        },
+        {
+            "resource": "demo_tasks",
+            "name": "dialog_danger",
+            "label": "Párbeszéd: Hiba / veszély",
+            "handler": "tasks.dialog_danger",
+            "target_resource": "demo_tasks",
+            "write": false,
+            "icon": "dxi dxi-close-circle",
+            "channels": [
+                "ui"
+            ],
+            "confirm": {
+                "message": "Ez a művelet nem vonható vissza. Biztosan folytatod?\n\nEz egy szándékosan hosszú üzenet, amely a keret párbeszédablakának tördelését, görgetését és a mobil nézet biztonsági margóit mutatja. Ez egy szándékosan hosszú üzenet, amely a keret párbeszédablakának tördelését, görgetését és a mobil nézet biztonsági margóit mutatja. Ez egy szándékosan hosszú üzenet, amely a keret párbeszédablakának tördelését, görgetését és a mobil nézet biztonsági margóit mutatja. Ez egy szándékosan hosszú üzenet, amely a keret párbeszédablakának tördelését, görgetését és a mobil nézet biztonsági margóit mutatja. \n\nMásodik bekezdés: egy rendkívül_hosszú_törés_nélküli_szó_a_tördelés_ellenőrzéséhez_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "severity": "danger",
+                "confirm_label": "Végrehajtás",
+                "cancel_label": "Mégse"
+            }
+        }
+    ]
+}

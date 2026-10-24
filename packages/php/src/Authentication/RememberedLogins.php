@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Authentication;
+namespace Blade\Authentication;
 
 use PDO;
-use Vapa\Feature\Workspace;
-use Vapa\Shell\IdentityProvider;
+use Blade\Feature\Workspace;
+use Blade\Shell\IdentityProvider;
 
 /** Opaque random credentials; only hashes are stored, with an absolute expiry. */
 final readonly class RememberedLogins
@@ -21,7 +21,7 @@ final readonly class RememberedLogins
         $secret = bin2hex(random_bytes(32));
         $expires = time() + $days * 86400;
         $query = $this->db->prepare(
-            'INSERT INTO vapa_remembered_logins(selector, actor_id, secret_hash, credential_version, expires_at) VALUES (?, ?, ?, ?, ?)',
+            'INSERT INTO blade_remembered_logins(selector, actor_id, secret_hash, credential_version, expires_at) VALUES (?, ?, ?, ?, ?)',
         );
         $query->execute([$selector, $actor, hash('sha256', $secret), $version, $expires]);
         return ['cookie' => $selector.'.'.$secret, 'expires' => $expires];
@@ -34,7 +34,7 @@ final readonly class RememberedLogins
         }
         $this->db->beginTransaction();
         try {
-            $query = $this->db->prepare('SELECT * FROM vapa_remembered_logins WHERE selector = ?'
+            $query = $this->db->prepare('SELECT * FROM blade_remembered_logins WHERE selector = ?'
                 .($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : ''));
             $query->execute([$parts[1]]);
             $row = $query->fetch(PDO::FETCH_ASSOC);
@@ -47,7 +47,7 @@ final readonly class RememberedLogins
                 return null;
             }
             $secret = bin2hex(random_bytes(32));
-            $query = $this->db->prepare('UPDATE vapa_remembered_logins SET secret_hash = ? WHERE selector = ?');
+            $query = $this->db->prepare('UPDATE blade_remembered_logins SET secret_hash = ? WHERE selector = ?');
             $query->execute([hash('sha256', $secret), $parts[1]]);
             $workspace->journal->record($actor->id, 'ui', 'session', 'remember_restore', '', 'success');
             $this->db->commit();
@@ -72,7 +72,7 @@ final readonly class RememberedLogins
 
     private function delete(string $selector): void
     {
-        $query = $this->db->prepare('DELETE FROM vapa_remembered_logins WHERE selector = ?');
+        $query = $this->db->prepare('DELETE FROM blade_remembered_logins WHERE selector = ?');
         $query->execute([$selector]);
     }
 }

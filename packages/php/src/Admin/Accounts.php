@@ -2,23 +2,25 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Admin;
+namespace Blade\Admin;
 
 use Closure;
 use InvalidArgumentException;
 use PDO;
-use Vapa\Feature\{Action, Context, Failure, Field, Lookup, Registry, RelatedStorage, SqlResource, ValidationRules, Workspace};
-use Vapa\I18n\Translator;
-use Vapa\Shell\IdentityProvider;
+use Blade\Feature\{Action, Context, Failure, Field, Lookup, Registry, RelatedStorage, SqlResource, ValidationRules, Workspace};
+use Blade\I18n\{Settings, Translator};
+use Blade\Shell\IdentityProvider;
 
 /**
  * Framework-owned user administration over the consumer's mapped account table.
- * VAPA state (disabled, forced password change) lives in vapa_account_state, so the
- * consumer schema is not altered. The sign-in identifier is the e-mail address.
+ * 61de state (disabled, forced password change, OAuth permission, default language)
+ * lives in blade_account_state, so the consumer schema is not altered. The sign-in
+ * identifier is the e-mail address. Account switches are plain checkbox fields on
+ * the form and the grid; there are no single-purpose toggle actions.
  */
 final class Accounts
 {
-    public const RESOURCE = 'vapa_users';
+    public const RESOURCE = 'blade_users';
     private const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
 
     private Closure $encode;
@@ -38,6 +40,9 @@ final class Accounts
         private array $createDefaults = [],
         public readonly bool $creatable = true,
         public readonly int $temporaryHours = 72,
+        private ?Settings $languages = null,
+        public readonly bool $oauth = false,
+        private ?bool $emailConfirmation = null,
     ) {
         foreach ([$table, $idColumn, $emailColumn, $nameColumn, $passwordColumn, ...array_keys($createDefaults)] as $identifier) {
             if (!is_string($identifier) || !preg_match('/^[a-z_][a-z0-9_]*$/D', $identifier)) {
@@ -69,6 +74,20 @@ final class Accounts
         return new Lookup(self::RESOURCE, $this->table, $this->idColumn, $this->emailColumn);
     }
 
+    /**
+     * Returns account choices visible to a relation field, always including the
+     * current actor so self-scoped features do not require account-admin access.
+     */
+    public function ownerOptions(Context $ctx): array
+    {
+        $options = $this->lookup()->options($ctx);
+        $query = $this->workspace->db->prepare("SELECT {$this->emailColumn} FROM {$this->table} WHERE {$this->idColumn} = ?");
+        $query->execute([$ctx->actor->id]);
+        $email = $query->fetchColumn();
+        if ($email !== false) $options[$ctx->actor->id] ??= (string) $email;
+        return $options;
+    }
+
     public function identities(IdentityProvider $inner): IdentityProvider
     {
         return new ManagedIdentities($inner, $this);
@@ -76,13 +95,15 @@ final class Accounts
 
     public function state(string $actor): array
     {
-        $query = $this->workspace->db->prepare('SELECT disabled, must_change_password, temporary_expires_at FROM vapa_account_state WHERE actor_id = ?');
+        $query = $this->workspace->db->prepare('SELECT disabled, must_change_password, temporary_expires_at, oauth_allowed, locale FROM blade_account_state WHERE actor_id = ?');
         $query->execute([$actor]);
         $row = $query->fetch(PDO::FETCH_ASSOC) ?: [];
         return [
             'disabled' => (bool) ($row['disabled'] ?? false),
             'must_change' => (bool) ($row['must_change_password'] ?? false),
             'expires' => (int) ($row['temporary_expires_at'] ?? 0),
+            'oauth' => (bool) ($row['oauth_allowed'] ?? false),
+            'locale' => (string) ($row['locale'] ?? ''),
         ];
     }
 
@@ -97,43 +118,86 @@ final class Accounts
         return !$state['disabled'] && !($state['must_change'] && $state['expires'] <= time());
     }
 
+    /** External sign-in needs the per-account switch; the password state is irrelevant there. */
+    public function oauthAllowed(string $actor): bool
+    {
+        $state = $this->state($actor);
+        return $this->oauth && $state['oauth'] && !$state['disabled'];
+    }
+
     public function mustChangePassword(string $actor): bool
     {
         return $this->state($actor)['must_change'];
     }
 
+    /** The account's default language, only when the site still offers it. */
+    public function locale(string $actor): ?string
+    {
+        $locale = $this->state($actor)['locale'];
+        return $locale !== '' && isset($this->languages?->languages[$locale]) ? $locale : null;
+    }
+
+    /** Exact (normalized) e-mail match; never a fuzzy or domain-based account link. */
+    public function actorByEmail(string $email): ?string
+    {
+        $email = mb_strtolower(trim($email));
+        if ($email === '' || strlen($email) > 254) return null;
+        $query = $this->workspace->db->prepare("SELECT {$this->idColumn} FROM {$this->table} WHERE {$this->emailColumn} = ?");
+        $query->execute([$email]);
+        $ids = $query->fetchAll(PDO::FETCH_COLUMN);
+        return count($ids) === 1 ? (string) $ids[0] : null;
+    }
+
     public function register(Registry $registry, string $title = 'Felhasználók', ?string $group = 'Adminisztráció'): void
     {
+        $switch = ['editable' => true, 'align' => 'center', 'width' => 120];
+        $fields = [
+            new Field($this->nameColumn, 'Teljes név', required: true, max: 200),
+            new Field($this->emailColumn, 'E-mail', required: true, max: 254, validation: [
+                'unique' => true,
+                'pattern' => ['expression' => '^[^@\s]+@[^@\s]+\.[^@\s]+$', 'message' => 'Érvényes e-mail-cím szükséges.'],
+            ]),
+            new Field('blade_disabled', 'Tiltva', 'checkbox', column: $switch),
+            new Field('blade_must_change', 'Jelszócsere szükséges', 'checkbox', column: ['align' => 'center', 'width' => 120, 'secondary' => true]),
+        ];
+        $state = ['blade_disabled' => 'disabled', 'blade_must_change' => 'must_change_password'];
+        $defaults = ['blade_disabled' => 0, 'blade_must_change' => 0];
+        if ($this->oauth) {
+            $fields[] = new Field('blade_oauth', 'OAuth-belépés', 'checkbox', column: [...$switch, 'secondary' => true]);
+            $state['blade_oauth'] = 'oauth_allowed';
+            $defaults['blade_oauth'] = 0;
+        }
+        // One site language means no choice and no per-user language.
+        if ($this->languages && count($this->languages->languages) > 1) {
+            $fields[] = new Field('blade_locale', 'Alapnyelv', 'select', max: 16, options: ['' => 'Site alapértelmezése', ...$this->languages->languages], column: ['width' => 140, 'editable' => true, 'secondary' => true]);
+            $state['blade_locale'] = 'locale';
+            $defaults['blade_locale'] = '';
+        }
+        $related = [new RelatedStorage('blade_account_state', 'actor_id', $state, $defaults)];
+        if ($this->emailConfirmation !== null) {
+            $fields[] = new Field('blade_email_confirmation', 'E-mailes megerősítés', 'checkbox', defaultValue: $this->emailConfirmation ? '1' : '0', column: [...$switch, 'secondary' => true]);
+            $related[] = new RelatedStorage('blade_auth_settings', 'actor_id', ['blade_email_confirmation' => 'email_confirmation'], ['blade_email_confirmation' => (int) $this->emailConfirmation]);
+        }
         $this->resource = new SqlResource(
-            self::RESOURCE, $this->table, $this->idColumn,
-            [
-                new Field($this->nameColumn, 'Teljes név', required: true, max: 200),
-                new Field($this->emailColumn, 'E-mail', required: true, max: 254, validation: [
-                    'unique' => true,
-                    'pattern' => ['expression' => '^[^@\s]+@[^@\s]+\.[^@\s]+$', 'message' => 'Érvényes e-mail-cím szükséges.'],
-                ]),
-                new Field('vapa_disabled', 'Tiltva', 'checkbox'),
-                new Field('vapa_must_change', 'Jelszócsere szükséges', 'checkbox'),
-            ],
+            self::RESOURCE, $this->table, $this->idColumn, $fields,
             defaults: [$this->passwordColumn => '', ...$this->createDefaults],
+            guard: fn(Context $ctx, ?array $target, array $values) => $this->checkState($ctx, $target, $values),
             normalize: fn(Context $ctx, ?array $target, array $values): array => isset($values[$this->emailColumn])
                 ? [...$values, $this->emailColumn => mb_strtolower(trim((string) $values[$this->emailColumn]))]
                 : $values,
             afterSave: fn(Context $ctx, string $id, ?array $target, array $values): ?array => $this->saved($ctx, $id, $target, $values),
-            related: [new RelatedStorage('vapa_account_state', 'actor_id', ['vapa_disabled' => 'disabled', 'vapa_must_change' => 'must_change_password'], ['vapa_disabled' => 0, 'vapa_must_change' => 0])],
-            readOnly: ['vapa_disabled', 'vapa_must_change'],
+            related: $related,
+            readOnly: ['blade_must_change'],
         );
         $this->resource->register($registry, $title, create: $this->creatable, group: $group);
         $resolve = fn(Context $ctx, ?string $id): array => $this->resource->target($ctx, $id);
-        $registry->add(new Action(self::RESOURCE, 'deactivate', 'Tiltás', [], fn(Context $ctx, array $target): array => $this->setDisabled($ctx, $target['id'], true), resolve: $resolve, write: true, icon: 'dxi dxi-close-circle'));
-        $registry->add(new Action(self::RESOURCE, 'reactivate', 'Visszaengedés', [], fn(Context $ctx, array $target): array => $this->setDisabled($ctx, $target['id'], false), resolve: $resolve, write: true, icon: 'dxi dxi-undo'));
         $registry->add(new Action(self::RESOURCE, 'temporary_password', 'Ideiglenes jelszó', [], function (Context $ctx, array $target): array {
             if ($target['id'] === $ctx->actor->id) throw new Failure('A saját jelszavadat a jelszócsere művelettel módosítsd.', 403);
             return $this->issueTemporary($ctx, $target['id']);
         }, resolve: $resolve, write: true, icon: 'dxi dxi-key'));
         foreach ($registry->views() as $view) {
             if ($view['resource'] !== self::RESOURCE) continue;
-            $registry->view(self::RESOURCE, $view['title'], $view['columns'], [...$view['actions'], 'deactivate', 'reactivate', 'temporary_password'], group: $view['group'], layout: $view['layout'], icon: 'dxi dxi-person');
+            $registry->view(self::RESOURCE, $view['title'], $view['columns'], [...$view['actions'], 'temporary_password'], group: $view['group'], layout: $view['layout'], icon: 'dxi dxi-person');
         }
     }
 
@@ -168,29 +232,29 @@ final class Accounts
         }
     }
 
+    /** Runs inside the save transaction, before anything is written. */
+    private function checkState(Context $ctx, ?array $target, array $values): void
+    {
+        if (!$target || (string) ($values['blade_disabled'] ?? '0') !== '1' || (string) ($target['row']['blade_disabled'] ?? '0') === '1') return;
+        if ($target['id'] === $ctx->actor->id) throw new Failure('A saját fiók nem tiltható le.', 403, ['blade_disabled' => 'A saját fiók nem tiltható le.']);
+        foreach ($this->disableGuards as $guard) $guard($ctx, $target['id']);
+    }
+
     private function saved(Context $ctx, string $id, ?array $target, array $values): ?array
     {
         if (!$target) return $this->issueTemporary($ctx, $id);
-        $previous = mb_strtolower((string) ($target['row'][$this->emailColumn] ?? ''));
-        if (isset($values[$this->emailColumn]) && $values[$this->emailColumn] !== $previous) {
-            // The sign-in identifier changed: every session, remembered login and token of the account ends.
-            $this->workspace->revokeSessions($id);
-            if ($id === $ctx->actor->id) return ['reauthenticate' => true];
-        }
-        return null;
-    }
-
-    private function setDisabled(Context $ctx, string $id, bool $disabled): array
-    {
-        if ($disabled && $id === $ctx->actor->id) throw new Failure('A saját fiók nem tiltható le.', 403);
-        if ($this->state($id)['disabled'] === $disabled) {
-            throw new Failure($disabled ? 'A fiók már tiltott.' : 'A fiók nincs tiltva.', 409);
-        }
-        if ($disabled) foreach ($this->disableGuards as $guard) $guard($ctx, $id);
-        $this->writeState($id, ['disabled' => (int) $disabled]);
-        if ($disabled) $this->workspace->revokeSessions($id);
+        $before = $target['row'];
+        $changed = static fn(string $field): bool => array_key_exists($field, $values) && (string) $values[$field] !== (string) ($before[$field] ?? '');
+        // Disabling, losing external sign-in or changing the second factor ends every session,
+        // remembered login and token of the account; the sign-in identifier works the same way.
+        $revoke = ($changed('blade_disabled') && (string) $values['blade_disabled'] === '1')
+            || ($changed('blade_oauth') && (string) $values['blade_oauth'] === '0')
+            || $changed('blade_email_confirmation')
+            || (isset($values[$this->emailColumn]) && $values[$this->emailColumn] !== mb_strtolower((string) ($before[$this->emailColumn] ?? '')));
+        if (!$revoke) return null;
+        $this->workspace->revokeSessions($id);
         $ctx->acl->invalidate();
-        return ['id' => $id];
+        return $id === $ctx->actor->id ? ['reauthenticate' => true] : null;
     }
 
     private function issueTemporary(Context $ctx, string $id): array
@@ -216,15 +280,15 @@ final class Accounts
     private function writeState(string $actor, array $values): void
     {
         $db = $this->workspace->db;
-        $query = $db->prepare('SELECT actor_id FROM vapa_account_state WHERE actor_id = ?');
+        $query = $db->prepare('SELECT actor_id FROM blade_account_state WHERE actor_id = ?');
         $query->execute([$actor]);
         if ($query->fetchColumn() === false) {
             $values = ['disabled' => 0, 'must_change_password' => 0, 'temporary_expires_at' => 0, ...$values];
-            $query = $db->prepare('INSERT INTO vapa_account_state (actor_id, '.implode(', ', array_keys($values)).') VALUES (?'.str_repeat(', ?', count($values)).')');
+            $query = $db->prepare('INSERT INTO blade_account_state (actor_id, '.implode(', ', array_keys($values)).') VALUES (?'.str_repeat(', ?', count($values)).')');
             $query->execute([$actor, ...array_values($values)]);
             return;
         }
-        $query = $db->prepare('UPDATE vapa_account_state SET '.implode(', ', array_map(static fn($column) => "$column = ?", array_keys($values))).' WHERE actor_id = ?');
+        $query = $db->prepare('UPDATE blade_account_state SET '.implode(', ', array_map(static fn($column) => "$column = ?", array_keys($values))).' WHERE actor_id = ?');
         $query->execute([...array_values($values), $actor]);
     }
 }

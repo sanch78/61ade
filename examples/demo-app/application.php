@@ -1,27 +1,108 @@
 <?php
 declare(strict_types=1);
 
-use Vapa\Admin\{Accounts, Permissions};
-use Vapa\Navigation\Menu;
-use Vapa\Navigation\MenuItem;
-use Vapa\Shell\ApplicationDefinition;
-use Vapa\Shell\Identity;
-use Vapa\Shell\SqlIdentityProvider;
+/*
+ * Feature demo (kitchen sink, R11): every demonstrable 61de capability on synthetic data.
+ * Extend it in the same batch whenever a new demonstrable capability lands in 61de.
+ * The base admin demo (/admin/) shows only what a new 61de project starts with.
+ */
 
-$workspace = require __DIR__.'/workspace.php';
-// Built-in user administration over the demo's own account table; VAPA state stays in vapa_account_state.
-$accounts = new Accounts($workspace, 'accounts', 'id', 'email', 'display_name', 'password_hash', createDefaults: ['active' => 1, 'can_manage' => 0]);
-$accounts->register($workspace->registry);
-$provider = $accounts->identities(new SqlIdentityProvider($workspace->db, 'accounts', 'id', 'email', 'password_hash', 'display_name', ['active', 'can_manage'], allowed: static fn(array $row) => (bool) $row['active']));
-(new Permissions($workspace, $accounts, $provider))->register($workspace->registry);
-return new ApplicationDefinition(
-    title: 'VAPA keretdemó', version: '0.1.0', identities: $provider,
-    menu: new Menu([
-        new MenuItem('library', 'Nyilvántartás', [new MenuItem('documents', 'Dokumentumok')]),
-        new MenuItem('settings', 'Beállítások', [new MenuItem('members', 'Tagok')], visible: static fn(Identity $actor) => (bool) $actor->attributes['can_manage']),
-    ]),
-    runtime: (getenv('VAPA_TMP_DIR') ?: dirname(__DIR__, 2).'/tmp').'/shell-demo',
-    sessionName: 'vapa_demo',
+use Blade\Admin\{Accounts, Administration};
+use Blade\Authentication\{AuthHandlerLogin, LoginSecurity};
+use Blade\Configuration\WorkspaceConfiguration;
+use Blade\Feature\{Context, Failure, Field, SqlResource};
+use Blade\Mail\{CommandDelivery, Layout, LoginMessage};
+use Blade\Navigation\{Menu, MenuItem};
+use Blade\Shell\{ApplicationDefinition, Identity, SqlIdentityProvider};
+
+require_once __DIR__.'/common.php';
+$runtime = blade_demo_runtime('features');
+if (!is_file(blade_demo_runtime().'/features.sqlite')) throw new RuntimeException('Run examples/demo-app/setup-workspace.php first.');
+$db = blade_demo_db('features');
+$languages = blade_demo_languages();
+
+// Business modules: declarative JSON with explicitly registered handlers, plus one PHP-registered resource.
+require_once __DIR__.'/signage.php';
+$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json'], static fn() => [
+    ...blade_demo_signage_bindings(),
+    'tasks.complete' => static function (Context $ctx, array $target): array {
+        $ctx->db->prepare("UPDATE demo_tasks SET status = 'done' WHERE id = ?")->execute([$target['id']]);
+        return [];
+    },
+    // Business rule across main and related storage: runs after the save, a field error rolls it back.
+    'tasks.after_save' => static function (Context $ctx, string $id): array {
+        $query = $ctx->db->prepare('SELECT t.status, COALESCE(s.notifications, 1) FROM demo_tasks t LEFT JOIN demo_task_settings s ON s.task_id = t.id WHERE t.id = ?');
+        $query->execute([$id]);
+        [$status, $notify] = $query->fetch(PDO::FETCH_NUM) ?: ['', 1];
+        if ($status === 'progress' && !(int) $notify) throw new Failure('Javítsd a megjelölt mezőket.', 400, ['notify' => 'Folyamatban lévő feladatnál nem kapcsolható ki.']);
+        return [];
+    },
+    // Dialog showcase: each action asks for confirmation (Action `confirm`) and then acknowledges (`reveal` + severity).
+    'tasks.dialog_neutral' => static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Információ', 'value' => 'A művelet lefutott.', 'note' => 'Semleges nyugtázás: egyetlen Rendben gomb.', 'severity' => 'neutral']],
+    'tasks.dialog_warning' => static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Figyelmeztetés', 'value' => str_repeat('Hosszú figyelmeztető üzenet, amely természetesen tördelődik. ', 8), 'note' => 'Warning nyugtázás hosszú szöveggel.', 'severity' => 'warning']],
+    'tasks.dialog_danger' => static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Hiba', 'value' => 'A művelet sikertelen: '.str_repeat('részletes_hibaüzenet_törés_nélkül_', 6), 'note' => "Második sor.\nHarmadik sor.", 'severity' => 'danger']],
+]);
+$notes = new SqlResource('notes', 'notes', 'id', [new Field('title', 'Cím', required: true)], 'owner_id', ['owner_id' => '1']);
+$notes->register($workspace->registry, 'Jegyzetek', rowSelection: true);
+$notes->registerDelete($workspace->registry);
+// Two-panel virtual file manager (framework capability); mounts and upload limits are demo configuration.
+blade_demo_files()->register($workspace);
+// Visual diagram editor (framework capability) as a network topology builder; palette and link types are demo configuration.
+blade_demo_topology()->register($workspace);
+// Digital signage scheduler: framework event calendar over the media assets, plus the per-day playlist API.
+blade_demo_signage_register($workspace);
+
+// Mandatory administration with every sign-in switch: OAuth permission, e-mail confirmation, default language.
+$accounts = new Accounts($workspace, 'accounts', 'id', 'email', 'display_name', 'password_hash',
+    createDefaults: ['active' => 1, 'can_manage' => 0], languages: $languages, oauth: true, emailConfirmation: false);
+$identities = Administration::register($workspace, $accounts, new SqlIdentityProvider(
+    $workspace->db, 'accounts', 'id', 'email', 'password_hash', 'display_name', ['active', 'can_manage'],
+    allowed: static fn(array $row) => (bool) $row['active'],
+));
+
+// Second factor by e-mail. The demo never sends mail: the configured command is a local
+// writer, the message is read in the synthetic mailbox (/mailbox/).
+$authentication = new LoginSecurity(
     workspace: $workspace,
+    identities: $identities,
+    delivery: new CommandDelivery([blade_demo_php(), __DIR__.'/bin/outbox.php', blade_demo_runtime('outbox')], 'noreply@example.test', '61de feature demó'),
+    // Project-level overrides of the framework mail: texts and accent colour, never the markup.
+    message: new LoginMessage('61de feature demó', [
+        'subject' => '{application} – belépési kód',
+        'footer' => 'Szintetikus demólevél: valódi címzetthez nem kerül, a demó postafiókjában olvasható.',
+    ], layout: new Layout('#0f7b6c')),
+    runtime: $runtime,
+    emailAttribute: 'email',
+    defaultEmailConfirmation: false,
+);
+
+// External sign-in through the standalone _AuthHandler library (symlinked as lib/_AuthHandler,
+// assets under public/lib/_AuthHandler). The Google and Facebook buttons always show in its
+// overlay; the client keys go into the Git-ignored examples/demo-app/.env (see docs/authentication.md).
+$site = blade_demo_setting('BLADE_DEMO_URL');
+$oauth = new AuthHandlerLogin(
+    dirname(__DIR__, 2).'/lib/_AuthHandler', 'lib/_AuthHandler',
+    [
+        'Google' => ['keys' => ['id' => (string) blade_demo_setting('BLADE_DEMO_GOOGLE_CLIENT_ID'), 'secret' => (string) blade_demo_setting('BLADE_DEMO_GOOGLE_CLIENT_SECRET')], 'scope' => 'openid email profile'],
+        'Facebook' => ['keys' => ['id' => (string) blade_demo_setting('BLADE_DEMO_FACEBOOK_CLIENT_ID'), 'secret' => (string) blade_demo_setting('BLADE_DEMO_FACEBOOK_CLIENT_SECRET')], 'scope' => 'email'],
+    ],
+    $accounts, $identities, $workspace, $runtime.'/oauth-identities.sqlite', $site,
+);
+
+return new ApplicationDefinition(
+    title: '61de feature demó', version: '0.2.0', identities: $identities,
+    // Static menu: a not yet implemented module and a policy-filtered item (consumer flag can_manage).
+    menu: new Menu([
+        new MenuItem('library', 'Nyilvántartás', [
+            new MenuItem('documents', 'Dokumentumok'),
+            new MenuItem('members', 'Tagok', visible: static fn(Identity $actor) => (bool) $actor->attributes['can_manage']),
+        ]),
+    ]),
+    runtime: $runtime,
+    sessionName: 'blade_demo',
+    workspace: $workspace,
+    authentication: $authentication,
+    languages: $languages,
     accounts: $accounts,
+    oauth: $oauth,
 );

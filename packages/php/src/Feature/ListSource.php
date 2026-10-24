@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Feature;
+namespace Blade\Feature;
 
 /** ACL-scoped keyset data source, shared by scrolling, filtering and live observation. */
 final readonly class ListSource
@@ -11,7 +11,7 @@ final readonly class ListSource
     {
         $out=[];
         foreach($this->fields as $field){
-            if($field->secret||$field->type==='textarea'||!$this->queryable($ctx,$field->name))continue;
+            if($field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$field->name))continue;
             $out[]=$field->metadata($ctx);
         }
         return $out;
@@ -25,7 +25,7 @@ final readonly class ListSource
     }
     public function sortableFields(Context $ctx):array
     {
-        return ['id',...array_values(array_map(static fn($field)=>$field->name,array_filter($this->fields,fn($field)=>!$field->secret&&$field->type!=='textarea'&&$this->queryable($ctx,$field->name))))];
+        return ['id',...array_values(array_map(static fn($field)=>$field->name,array_filter($this->fields,fn($field)=>!$field->secret&&!in_array($field->type,['textarea','multiselect'],true)&&$this->queryable($ctx,$field->name))))];
     }
     private function cursor(array $position,string $direction):string
     {
@@ -67,7 +67,7 @@ final readonly class ListSource
         $terms=["($scope)","({$this->where})"];$totalTerms=$terms;$totalParams=$params;$known=array_column($this->fields,null,'name');
         foreach($filters as $key=>$value){
             $field=$known[$key]??null;
-            if(!$field||$field->secret||$field->type==='textarea'||!$this->queryable($ctx,$key))throw new Failure('A mező nem szűrhető.',403);
+            if(!$field||$field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$key))throw new Failure('A mező nem szűrhető.',403);
             if(!is_string($value)||strlen($value)>255||str_contains($value,"\0"))throw new Failure('Hibás szűrőérték.');
             $param='f'.count($params);
             if(in_array($field->type,['select','checkbox'],true)){

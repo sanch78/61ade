@@ -22,8 +22,8 @@ See [development](development.md#development-environment) for build/asset prepar
 
 ## Starter admin (`/admin/`)
 
-Menu: `Adminisztráció` → Users, Roles, Role memberships, Role permissions,
-Individual permissions, API keys. No business modules. Hungarian/English
+Menu: `Adminisztráció` → Users, Roles, Role memberships, Role permissions and
+Individual permissions, plus the root `API-kulcsok` item. No business modules. Hungarian/English
 selector and per-account default language. Login:
 `demo@example.test` / `61de-demo`; the first admin comes from explicit
 `Permissions::grantAdministration` in setup.
@@ -43,8 +43,14 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Language | Hungarian/English selector before theme, language row in login form, account default used for login and mail | `twofactor@example.test` defaults to English |
 | User admin | Disabled, OAuth, e-mail confirmation, default language as form/grid checkbox/select | Administration → Users |
 | ACL | Roles, memberships and catalog-based rules | Administration |
-| API keys | Once-only secret, multiselect action scope, revocation checkbox | Administration → API keys |
+| API keys | Once-only secret, multiselect action scope, revocation checkbox | Root menu → API keys |
 | Workspace | Filters, sorting, panel forms, cards, inline text/select/checkbox edits, related storage, pattern validation, multiselect, delete, marks and bulk business action | Feature demo → Tasks; Notes |
+| Business rule hook | `after_save` rule across main and related storage: an in-progress task cannot turn notifications off; the field error rolls the save back (form and inline edit) | Tasks → set `Folyamatban` with `Értesítés` off |
+| Large list | 1801 read-only rows: server-side sorting/filtering, virtual scrolling with a bounded client window | Feature demo → Mérések |
+| Field-level ACL | Read-only account; the description field is denied on list/get, so details, cards and responses never contain it | `reader@example.test` → Tasks |
+| File manager | Two panels with independent Drive A/B/C mounts and a draggable divider, each switchable between file listing (row marking, MIME icons) and a folder tree with files, new folder (depth ≤ 5), copy/move to the opposite panel with the conflict dialog, upload (txt, md, csv, json, png, jpg; 5 MB), TXT editor with revision conflicts; desktop only (`desktopOnly`), narrower windows show a notice; [details](files.md) | Feature demo → Fájlkezelő; `reader@example.test` browses and reads only; below 768 px |
+| Network topology builder | Visual diagram editor: drag network elements from the palette, move them, connect them by the element handle with Ethernet/fibre/Wi-Fi/VPN/WAN connections, edit captions and details in the property form, save with revision check; define new element types (name, glyph, shape, colour) at runtime; two synthetic topologies; desktop only; [details](diagrams.md) | Feature demo → Hálózati topológia; `reader@example.test` views only |
+| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content (asset) select and the recurrence fields, single-occurrence edits; `Médiatár` image/video assets over the file-manager media, `Alapértelmezett tartalom` per weekday or per date; `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; [details](calendar.md) | `Digitális kijelző` → Műsorterv; API key with scope `signage_playlist.day`; `reader@example.test` views only |
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
 | Appearance | Skyblue/light/dark, lower information bar and mobile menu | Any view |
@@ -52,7 +58,10 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
 `twofactor@example.test` (code, English default), `oauth@example.test`
-(OAuth only; random unknown password). Shared synthetic password: `61de-demo`.
+(OAuth only; random unknown password), `reader@example.test` (read-only Tasks
+without the description field; file manager browse/read only). Shared synthetic password: `61de-demo`.
+Setup adds missing synthetic accounts to an existing database without changing
+existing ones; an account added later takes the next free id.
 
 <a id="oauth-kulcsok"></a>
 
@@ -87,7 +96,7 @@ a consumer operational interface.
 ## Web-server execution (Apache + PHP-FPM)
 
 The managed URL serves `public/` behind the web server with an IP access policy.
-Compared with the retained CLI fixture tooling:
+Compared with the CLI demo instance:
 
 - `public/.htaccess` sets `BLADE_DEMO_INSTANCE web`, selecting `tmp/web/`; CLI uses `tmp/demo/`. The developer and `www-data` therefore do not write the same instance.
 - Initial/schema setup: `BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`. Setup creates 02770 directories and 0660 databases. If group access is insufficient, a platform-approved ACL is needed, e.g. `setfacl -R -m u:www-data:rwX,d:u:www-data:rwX tmp/web`; do not change host policy as an onboarding workaround.
@@ -109,9 +118,13 @@ See [project rules](development.md#mandatory-framework-development-rules).
 ## Verification
 
 - `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes.
-- Ignored `.env.test` selects `BLADE_DEMO_URL` and `BLADE_DEMO_INSTANCE=web`; the shell project uses the managed server without starting `php -S`.
+- Ignored `.env.test` supplies `BLADE_DEMO_URL` and `BLADE_DEMO_INSTANCE=web`; every browser spec runs against the managed server and none starts a local server ([development](development.md#unified-playwright-configuration)).
 - `npm run test:browser -- --project=shell tests/shell/demo.spec.cjs`: login modes/language row, provider overlay/start, mailbox code/English default, account columns, API issue/use/revoke, starter menu and Tasks. Real provider completion remains unverified; FB-0050 records Google's callback mismatch.
 - `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs`: six combinations on desktop/320×480, keys/focus and invalid-login caller.
+- Feature-demo specs migrated from the former localhost fixtures ([FB-0052](feedback.md#fb-0052)): `related-fields`, `grid-edit`, `list-integration`, `preferences` (Tasks), `grid-sort` (Mérések), `i18n` (Hungarian/English) and `authentication` (`twofactor@example.test`, demo mailbox, Users admin switch). They delete the tasks they create and restore changed account state.
+- `php8.4 tests/shell/files.php` and `npm run test:browser -- tests/shell/files.spec.cjs`: the file manager ([files](files.md#demo-and-verification)); the spec removes the entries it creates.
+- `php8.4 tests/shell/calendar.php` and `npm run test:browser -- tests/shell/calendar.spec.cjs`: the event calendar and signage playlist ([calendar](calendar.md#demo-and-verification)); the spec deletes the events it creates.
+- `php8.4 tests/shell/diagram.php` and `npm run test:browser -- tests/shell/diagram.spec.cjs`: the topology builder ([diagrams](diagrams.md#demo-and-verification)); the spec removes the diagrams and element types it creates.
 - Manual verification: open the managed URLs directly from the checkout.
 
 <a id="korlátok"></a>
@@ -119,4 +132,3 @@ See [project rules](development.md#mandatory-framework-development-rules).
 ## Limits
 
 - The unauthenticated demo mailbox is a development tool, not a consumer security pattern.
-- Retained `php -S` utilities are not a permitted testing route on this host or an operational reference.

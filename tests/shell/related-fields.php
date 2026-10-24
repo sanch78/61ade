@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 require dirname(__DIR__, 2).'/examples/demo-app/vendor/autoload.php';
 
-use Vapa\Access\Schema;
-use Vapa\Configuration\WorkspaceConfiguration;
-use Vapa\Feature\{Context, Failure, Field};
-use Vapa\Shell\Identity;
+use Blade\Access\Schema;
+use Blade\Configuration\WorkspaceConfiguration;
+use Blade\Feature\{Context, Failure, Field};
+use Blade\Shell\Identity;
 
 function verify(bool $value, string $message): void { if (!$value) throw new RuntimeException($message); }
 function denied(Closure $work, int $status): void {
@@ -31,7 +31,7 @@ $workspace = WorkspaceConfiguration::build($db, [dirname(__DIR__).'/fixtures/rel
         return ($values['title'] ?? '') === 'Reload' ? ['reauthenticate' => true] : [];
     },
 ]);
-$grant = $db->prepare("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items',?,?,'allow','all','','')");
+$grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items',?,?,'allow','all','','')");
 foreach (['ui', 'api'] as $channel) foreach (['list', 'get', 'create', 'update', 'delete'] as $action) $grant->execute([$action, $channel]);
 $actor = new Identity('1', 'Synthetic');
 $context = new Context($actor, 'ui', $workspace->acl, $db);
@@ -63,15 +63,15 @@ $result = $workspace->executor->execute($api, 'items', 'update', $id, ['title' =
 verify($result['reauthenticate'] === true && (int)$call('get', $id)['notify'] === 0, 'API uses same relation and hook result');
 $row = $call('get', $id);
 denied(static fn() => $workspace->executor->execute($api, 'items', 'update', $id, ['title' => 'Invalid', 'notify' => 'true', 'revision' => $row['revision']]), 400);
-$db->exec("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items','update','ui','deny','all','','notify')");
+$db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items','update','ui','deny','all','','notify')");
 denied(static fn() => $call('update', $id, ['title' => 'Denied', 'notify' => true, 'revision' => $row['revision']]), 403);
 $call('update', $id, ['title' => 'Allowed', 'revision' => $row['revision']]);
 verify((int)$call('get', $id)['notify'] === 0, 'Omitted denied relation field is preserved');
-$db->exec("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items','list','ui','deny','all','','notify')");
+$db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items','list','ui','deny','all','','notify')");
 denied(static fn() => $call('list', values: ['mode' => 'dynamic', 'filters' => ['notify' => '1']]), 403);
 $list = $call('list', values: ['mode' => 'dynamic']);
 verify(!array_key_exists('notify', $list['items'][0]), 'Denied related value is omitted');
 $row = $call('get', $id);
 $call('delete', $id, ['revision' => $row['revision']]);
 verify((int)$db->query('SELECT COUNT(*) FROM item_preferences')->fetchColumn() === 0, 'Related rows are removed with the object');
-echo "VAPA checkbox and related-field contracts passed.\n";
+echo "61de checkbox and related-field contracts passed.\n";

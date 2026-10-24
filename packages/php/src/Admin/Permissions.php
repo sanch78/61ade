@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Admin;
+namespace Blade\Admin;
 
 use InvalidArgumentException;
 use PDO;
-use Vapa\Feature\{Context, Failure, Field, Lookup, Registry, SqlResource, Workspace};
-use Vapa\Shell\IdentityProvider;
+use Blade\Feature\{Context, Failure, Field, Lookup, Registry, SqlResource, Workspace};
+use Blade\Shell\IdentityProvider;
 
 /**
- * Built-in role, membership and rule administration over the VAPA ACL tables.
+ * Built-in role, membership and rule administration over the 61de ACL tables.
  * Choices come from the definition catalogue; nothing is granted automatically.
  * The protected role always keeps at least one active member and its admin rules.
  */
 final class Permissions
 {
-    public const ROLES = 'vapa_roles';
-    public const MEMBERSHIPS = 'vapa_memberships';
-    public const ROLE_RULES = 'vapa_role_rules';
-    public const USER_RULES = 'vapa_user_rules';
-    public const ADMIN_RESOURCES = [Accounts::RESOURCE, self::ROLES, self::MEMBERSHIPS, self::ROLE_RULES, self::USER_RULES];
+    public const ROLES = 'blade_roles';
+    public const MEMBERSHIPS = 'blade_memberships';
+    public const ROLE_RULES = 'blade_role_rules';
+    public const USER_RULES = 'blade_user_rules';
+    public const ADMIN_RESOURCES = [Accounts::RESOURCE, self::ROLES, self::MEMBERSHIPS, self::ROLE_RULES, self::USER_RULES, ApiKeys::RESOURCE];
 
     private Catalogue $catalogue;
 
@@ -42,8 +42,8 @@ final class Permissions
 
     public function register(Registry $registry, ?string $group = 'Adminisztráció'): void
     {
-        $roles = new Lookup(self::ROLES, 'vapa_roles', 'id', 'name');
-        $roleResource = new SqlResource(self::ROLES, 'vapa_roles', 'id', [
+        $roles = new Lookup(self::ROLES, 'blade_roles', 'id', 'name');
+        $roleResource = new SqlResource(self::ROLES, 'blade_roles', 'id', [
             new Field('name', 'Név', required: true, max: 100, validation: ['unique' => true]),
             new Field('role_key', 'Kulcs', required: true, max: 100, validation: ['unique' => true, 'pattern' => ['expression' => '^[a-z][a-z0-9_]*$', 'message' => 'Kisbetűvel kezdődő kulcs (a–z, 0–9, _).']]),
         ], guard: function (Context $ctx, ?array $target, array $values): void {
@@ -52,17 +52,17 @@ final class Permissions
             }
         }, deleteGuard: function (Context $ctx, array $target): void {
             if ($target['row']['role_key'] === $this->protectedRole) throw new Failure('A védett szerepkör nem törölhető.', 403);
-            $query = $ctx->db->prepare("SELECT (SELECT COUNT(*) FROM vapa_memberships WHERE role_id = ?) + (SELECT COUNT(*) FROM vapa_rules WHERE subject_type = 'role' AND subject_id = ?)");
+            $query = $ctx->db->prepare("SELECT (SELECT COUNT(*) FROM blade_memberships WHERE role_id = ?) + (SELECT COUNT(*) FROM blade_rules WHERE subject_type = 'role' AND subject_id = ?)");
             $query->execute([$target['id'], $target['id']]);
             if ((int) $query->fetchColumn() > 0) throw new Failure('A szerepkörnek még vannak tagjai vagy szabályai.', 409);
         });
         $roleResource->register($registry, 'Szerepkörök', group: $group);
         $roleResource->registerDelete($registry);
 
-        $memberships = new SqlResource(self::MEMBERSHIPS, 'vapa_memberships', 'id', [
+        $memberships = new SqlResource(self::MEMBERSHIPS, 'blade_memberships', 'id', [
             new Field('actor_id', 'Felhasználó', 'select', required: true, max: 100, options: $this->accounts->lookup()->options(...)),
             new Field('role_id', 'Szerepkör', 'select', required: true, max: 100, options: $roles->options(...)),
-        ], deleteGuard: fn(Context $ctx, array $target) => $this->checkMembershipRemoval($ctx, $target['row']));
+        ], deleteGuard: fn(Context $ctx, array $target) => $this->checkMembershipRemoval($ctx, $target['row']), unique: [['actor_id', 'role_id']]);
         $memberships->register($registry, 'Szerepkör-tagságok', update: false, group: $group);
         $memberships->registerDelete($registry);
 
@@ -70,7 +70,7 @@ final class Permissions
             [self::ROLE_RULES, 'role', 'Szerepkör-jogosultságok', 'Szerepkör', $roles],
             [self::USER_RULES, 'user', 'Egyedi jogosultságok', 'Felhasználó', $this->accounts->lookup()],
         ] as [$resource, $type, $title, $subjectLabel, $subjects]) {
-            $rules = new SqlResource($resource, 'vapa_rules', 'id', [
+            $rules = new SqlResource($resource, 'blade_rules', 'id', [
                 new Field('subject_id', $subjectLabel, 'select', required: true, max: 100, options: $subjects->options(...)),
                 new Field('resource', 'Erőforrás', 'select', required: true, max: 100, options: fn(Context $ctx) => $this->choices($ctx, 'resource', $this->catalogue->resources())),
                 new Field('action', 'Művelet', 'select', required: true, max: 100, options: fn(Context $ctx) => $this->choices($ctx, 'action', $this->catalogue->actions())),
@@ -84,7 +84,9 @@ final class Permissions
                 where: "subject_type = '$type'",
                 deleteGuard: function (Context $ctx, array $target): void {
                     if ($this->protectedAdminRule($target['row'])) throw new Failure('A védett szerepkör adminjogai a felületen nem módosíthatók.', 403);
-                });
+                },
+                // Allow and deny for the same subject and target would only contradict each other (deny wins).
+                unique: [['subject_type', 'subject_id', 'resource', 'action', 'channel', 'scope', 'object_id', 'field_name']]);
             $rules->register($registry, $title, group: $group);
             $rules->registerDelete($registry);
         }
@@ -98,27 +100,27 @@ final class Permissions
     {
         $db->beginTransaction();
         try {
-            $query = $db->prepare('SELECT id FROM vapa_roles WHERE role_key = ?');
+            $query = $db->prepare('SELECT id FROM blade_roles WHERE role_key = ?');
             $query->execute([$protectedRole]);
             $roleId = $query->fetchColumn();
             if ($roleId === false) {
-                $taken = $db->prepare('SELECT COUNT(*) FROM vapa_roles WHERE name = ?');
+                $taken = $db->prepare('SELECT COUNT(*) FROM blade_roles WHERE name = ?');
                 $taken->execute([$roleName]);
-                $db->prepare('INSERT INTO vapa_roles (name, role_key) VALUES (?, ?)')->execute([$taken->fetchColumn() ? $protectedRole : $roleName, $protectedRole]);
+                $db->prepare('INSERT INTO blade_roles (name, role_key) VALUES (?, ?)')->execute([$taken->fetchColumn() ? $protectedRole : $roleName, $protectedRole]);
                 $roleId = $db->lastInsertId();
             }
             $roleId = (string) $roleId;
-            $query = $db->prepare('SELECT COUNT(*) FROM vapa_memberships WHERE actor_id = ? AND role_id = ?');
+            $query = $db->prepare('SELECT COUNT(*) FROM blade_memberships WHERE actor_id = ? AND role_id = ?');
             $query->execute([$actorId, $roleId]);
-            if (!$query->fetchColumn()) $db->prepare('INSERT INTO vapa_memberships (actor_id, role_id) VALUES (?, ?)')->execute([$actorId, $roleId]);
-            $exists = $db->prepare("SELECT COUNT(*) FROM vapa_rules WHERE subject_type = 'role' AND subject_id = ? AND resource = ? AND action = ? AND channel = 'ui' AND effect = 'allow' AND scope = 'all' AND field_name = ''");
-            $grant = $db->prepare("INSERT INTO vapa_rules (subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('role', ?, ?, ?, 'ui', 'allow', 'all', '', '')");
+            if (!$query->fetchColumn()) $db->prepare('INSERT INTO blade_memberships (actor_id, role_id) VALUES (?, ?)')->execute([$actorId, $roleId]);
+            $exists = $db->prepare("SELECT COUNT(*) FROM blade_rules WHERE subject_type = 'role' AND subject_id = ? AND resource = ? AND action = ? AND channel = 'ui' AND effect = 'allow' AND scope = 'all' AND field_name = ''");
+            $grant = $db->prepare("INSERT INTO blade_rules (subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('role', ?, ?, ?, 'ui', 'allow', 'all', '', '')");
             foreach ((new Catalogue($registry))->entries() as $entry) {
                 if (!in_array($entry['resource'], self::ADMIN_RESOURCES, true) || !in_array('ui', $entry['channels'], true)) continue;
                 $exists->execute([$roleId, $entry['resource'], $entry['action']]);
                 if (!$exists->fetchColumn()) $grant->execute([$roleId, $entry['resource'], $entry['action']]);
             }
-            (new \Vapa\Audit\Journal($db))->record('', 'cli', self::ROLES, 'grant_administration', $actorId, 'success');
+            (new \Blade\Audit\Journal($db))->record('', 'cli', self::ROLES, 'grant_administration', $actorId, 'success');
             $db->commit();
         } catch (\Throwable $error) {
             if ($db->inTransaction()) $db->rollBack();
@@ -129,8 +131,8 @@ final class Permissions
     /** Catalogue choices plus values already stored in rules, so orphaned rules stay visible. */
     private function choices(Context $ctx, string $column, array $known): array
     {
-        foreach ($ctx->db->query("SELECT DISTINCT $column FROM vapa_rules")->fetchAll(PDO::FETCH_COLUMN) as $value) {
-            $known[(string) $value] ??= \Vapa\I18n\Translator::text('{value} — nincs a katalógusban', ['value' => $value]);
+        foreach ($ctx->db->query("SELECT DISTINCT $column FROM blade_rules")->fetchAll(PDO::FETCH_COLUMN) as $value) {
+            $known[(string) $value] ??= \Blade\I18n\Translator::text('{value} — nincs a katalógusban', ['value' => $value]);
         }
         return $known;
     }
@@ -150,7 +152,7 @@ final class Permissions
             throw new Failure('Objektumazonosító pontosan a „Konkrét objektum” hatókörnél kell.', 400, ['object_id' => 'Objektumazonosító pontosan a „Konkrét objektum” hatókörnél kell.']);
         }
         if ($rule['effect'] === 'deny' && in_array($rule['resource'], self::ADMIN_RESOURCES, true)) {
-            throw new Failure('VAPA-adminerőforrásra tiltó szabály a felületen nem hozható létre.', 403);
+            throw new Failure('61de-adminerőforrásra tiltó szabály a felületen nem hozható létre.', 403);
         }
     }
 
@@ -174,8 +176,8 @@ final class Permissions
         $role = $this->protectedRoleId();
         if ($role === '') return;
         $db = $this->workspace->db;
-        if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') $db->prepare('SELECT id FROM vapa_roles WHERE id = ? FOR UPDATE')->execute([$role]);
-        $query = $db->prepare('SELECT actor_id FROM vapa_memberships WHERE role_id = ?');
+        if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') $db->prepare('SELECT id FROM blade_roles WHERE id = ? FOR UPDATE')->execute([$role]);
+        $query = $db->prepare('SELECT actor_id FROM blade_memberships WHERE role_id = ?');
         $query->execute([$role]);
         $members = array_map('strval', $query->fetchAll(PDO::FETCH_COLUMN));
         if (!in_array($actor, $members, true)) return;
@@ -185,7 +187,7 @@ final class Permissions
 
     private function protectedRoleId(): string
     {
-        $query = $this->workspace->db->prepare('SELECT id FROM vapa_roles WHERE role_key = ?');
+        $query = $this->workspace->db->prepare('SELECT id FROM blade_roles WHERE role_key = ?');
         $query->execute([$this->protectedRole]);
         return (string) ($query->fetchColumn() ?: '');
     }

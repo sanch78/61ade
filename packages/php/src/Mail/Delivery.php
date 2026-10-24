@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Mail;
+namespace Blade\Mail;
 
 interface Delivery
 {

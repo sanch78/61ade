@@ -1,5 +1,11 @@
 /* ADE PNG country flags, bundled into CSS to avoid runtime asset dependencies. */
-.vapa-language-flag { display: inline-block; width: 20px; height: 20px; flex-shrink: 0; background-repeat: no-repeat; background-position: center; background-size: 16px 11px; }
-.vapa-language-flag--hu { background-image: url("./hu.png"); }
-.vapa-language-flag--gb { background-image: url("./gb.png"); }
-.vapa-language-flag--de { background-image: url("./de.png"); }
+.blade-language-flag { display: inline-block; width: 20px; height: 20px; flex-shrink: 0; background-repeat: no-repeat; background-position: center; background-size: 16px 11px; }
+.blade-language-flag--hu { background-image: url("./hu.png"); }
+.blade-language-flag--gb { background-image: url("./gb.png"); }
+.blade-language-flag--de { background-image: url("./de.png"); }
+/* Sign-in language Combo: the chosen flag in the field, flags in the option list. */
+.blade-language-option { display: inline-flex; align-items: center; gap: 8px; }
+.blade-language-field input.dhx_combobox-input { background-repeat: no-repeat; background-position: 10px center; background-size: 16px 11px; }
+.blade-language-field--hu input.dhx_combobox-input { background-image: url("./hu.png"); padding-left: 34px; }
+.blade-language-field--gb input.dhx_combobox-input { background-image: url("./gb.png"); padding-left: 34px; }
+.blade-language-field--de input.dhx_combobox-input { background-image: url("./de.png"); padding-left: 34px; }

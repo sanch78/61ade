@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Feature;
-use Vapa\Shell\Identity;
-use Vapa\Shell\IdentityProvider;
-use Vapa\Access\{Acl,Tokens};
-use Vapa\Audit\Journal;
+namespace Blade\Feature;
+use Blade\Shell\Identity;
+use Blade\Shell\IdentityProvider;
+use Blade\Access\{Acl,Tokens};
+use Blade\Audit\Journal;
 
 final class Workspace
 {
@@ -17,26 +17,40 @@ final class Workspace
     }
     public function version(string $actor): int
     {
-        $q=$this->db->prepare('SELECT version FROM vapa_versions WHERE actor_id=?');$q->execute([$actor]);return (int)($q->fetchColumn() ?: 0);
+        $q=$this->db->prepare('SELECT version FROM blade_versions WHERE actor_id=?');$q->execute([$actor]);return (int)($q->fetchColumn() ?: 0);
     }
     public function revokeSessions(string $actor): void
     {
-        $q=$this->db->prepare('SELECT version FROM vapa_versions WHERE actor_id=?');$q->execute([$actor]);
-        if($q->fetchColumn()===false){$q=$this->db->prepare('INSERT INTO vapa_versions (actor_id,version) VALUES (?,1)');$q->execute([$actor]);}
-        else{$q=$this->db->prepare('UPDATE vapa_versions SET version=version+1 WHERE actor_id=?');$q->execute([$actor]);}
-        $q=$this->db->prepare('UPDATE vapa_tokens SET revoked=1 WHERE actor_id=?');$q->execute([$actor]);
+        $q=$this->db->prepare('SELECT version FROM blade_versions WHERE actor_id=?');$q->execute([$actor]);
+        if($q->fetchColumn()===false){$q=$this->db->prepare('INSERT INTO blade_versions (actor_id,version) VALUES (?,1)');$q->execute([$actor]);}
+        else{$q=$this->db->prepare('UPDATE blade_versions SET version=version+1 WHERE actor_id=?');$q->execute([$actor]);}
+        $q=$this->db->prepare('UPDATE blade_tokens SET revoked=1 WHERE actor_id=?');$q->execute([$actor]);
     }
     public function views(Identity $actor): array
     {
         $out=[];$ctx=new Context($actor,'ui',$this->acl,$this->db);
         foreach($this->registry->views() as $view){
+            if(($view['kind']??'list')==='files'){
+                $files=$this->fileView($actor,$ctx,$view);
+                if($files)$out[]=\Blade\I18n\Translator::presentation($files);
+                continue;
+            }
+            if(($view['kind']??'list')==='diagram'){
+                $diagram=$this->diagramView($actor,$ctx,$view);
+                if($diagram)$out[]=\Blade\I18n\Translator::presentation($diagram);
+                continue;
+            }
+            if(($view['kind']??'list')==='calendar'){
+                $calendar=$this->calendarView($actor,$ctx,$view);
+                if($calendar)$out[]=\Blade\I18n\Translator::presentation($calendar);
+                continue;
+            }
             $actions=[];
             foreach($view['actions'] as $name){
                 $a=$this->registry->get($view['resource'],$name);
                 if($view['singleton'] && !$this->acl->allows($actor->id,$a->resource,$name,'ui',$actor->id,$actor->id))continue;
-                $rules=$this->acl->rules($actor->id,$a->resource,$name,'ui');
-                if(!array_filter($rules,static fn($r)=>$r['effect']==='allow' && $r['field_name']==='') || array_filter($rules,static fn($r)=>$r['effect']==='deny' && $r['scope']==='all' && $r['field_name']===''))continue;
-                $actions[]=['name'=>$name,'icon'=>$a->icon,'bulk'=>$a->bulk,'label'=>match($name){'create'=>'Hozzáadás','update'=>'Módosítás',default=>$a->label},'submitLabel'=>in_array($name,['create','update'],true)?'Mentés':$a->label,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
+                if(!$this->offered($actor,$a->resource,$name))continue;
+                $actions[]=['name'=>$name,'icon'=>$a->icon,'bulk'=>$a->bulk,'confirm'=>$a->confirm?array_filter(['message'=>\Blade\I18n\Translator::text($a->confirm['message']),'title'=>isset($a->confirm['title'])?\Blade\I18n\Translator::text($a->confirm['title']):null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>isset($a->confirm['confirm_label'])?\Blade\I18n\Translator::text($a->confirm['confirm_label']):null,'cancelLabel'=>isset($a->confirm['cancel_label'])?\Blade\I18n\Translator::text($a->confirm['cancel_label']):null],static fn($v)=>$v!==null):null,'label'=>match($name){'create'=>'Hozzáadás','update'=>'Módosítás',default=>$a->label},'submitLabel'=>in_array($name,['create','update'],true)?'Mentés':$a->label,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
             }
             if(!$actions)continue;
             $fields=$this->registry->fields($view['resource']);
@@ -51,9 +65,54 @@ final class Workspace
             $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
             $view['filters']=$list->listSource?->filterDefinitions($ctx)??[];
             $view['sortable']=$list->listSource?->sortableFields($ctx)??[];
-            $out[]=\Vapa\I18n\Translator::presentation($view);
+            $out[]=\Blade\I18n\Translator::presentation($view);
         }
         return $out;
+    }
+    /** Some allow rule exists and no whole-action deny for all objects; object checks still run per request. */
+    private function offered(Identity $actor,string $resource,string $name):bool
+    {
+        $rules=$this->acl->rules($actor->id,$resource,$name,'ui');
+        return array_filter($rules,static fn($r)=>$r['effect']==='allow' && $r['field_name']==='') && !array_filter($rules,static fn($r)=>$r['effect']==='deny' && $r['scope']==='all' && $r['field_name']==='');
+    }
+    /** File manager metadata: offered actions and only the mounts whose tree the actor may read. */
+    private function fileView(Identity $actor,Context $ctx,array $view):?array
+    {
+        $actions=[];
+        foreach($view['actions'] as $name){
+            $a=$this->registry->get($view['resource'],$name);
+            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
+        }
+        $mounts=array_values(array_filter($view['files']['mounts'],fn($m)=>$this->acl->allows($actor->id,$view['resource'],'tree','ui',$m['id'])));
+        if(!$actions||!$mounts)return null;
+        return ['kind'=>'files','resource'=>$view['resource'],'title'=>$view['title'],'group'=>$view['group'],'icon'=>$view['icon'],'desktopOnly'=>$view['desktopOnly'],'singleton'=>false,'columns'=>[],'filters'=>[],'actions'=>$actions,'files'=>[...$view['files'],'mounts'=>$mounts]];
+    }
+    /** Diagram editor metadata: offered actions only; the space must be readable through `list`. */
+    private function diagramView(Identity $actor,Context $ctx,array $view):?array
+    {
+        $actions=[];
+        foreach($view['actions'] as $name){
+            $a=$this->registry->get($view['resource'],$name);
+            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write,'confirm'=>$a->confirm?array_filter(['message'=>$a->confirm['message'],'title'=>$a->confirm['title']??null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>$a->confirm['confirm_label']??null],static fn($v)=>$v!==null):null,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
+        }
+        if(!array_filter($actions,static fn($a)=>$a['name']==='list'))return null;
+        return ['kind'=>'diagram','resource'=>$view['resource'],'title'=>$view['title'],'group'=>$view['group'],'icon'=>$view['icon'],'desktopOnly'=>$view['desktopOnly'],'singleton'=>false,'columns'=>[],'filters'=>[],'actions'=>$actions,'diagram'=>$view['diagram']];
+    }
+    /** Calendar metadata: offered actions, readable extra fields and the day action only if offered; `events` is required. */
+    private function calendarView(Identity $actor,Context $ctx,array $view):?array
+    {
+        $actions=[];
+        foreach($view['actions'] as $name){
+            $a=$this->registry->get($view['resource'],$name);
+            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write];
+        }
+        if(!array_filter($actions,static fn($a)=>$a['name']==='events'))return null;
+        $space=$view['calendar']['space'];
+        $fields=array_values(array_filter($view['fields'],fn($f)=>$this->acl->fieldAllowed($actor->id,$view['resource'],'events','ui',$space,null,$f->name)));
+        $day=$view['calendar']['day_action'];
+        if($day&&!$this->offered($actor,$day['resource'],$day['action']))$day=null;
+        return ['kind'=>'calendar','resource'=>$view['resource'],'title'=>$view['title'],'group'=>$view['group'],'icon'=>$view['icon'],'desktopOnly'=>$view['desktopOnly'],'singleton'=>false,'columns'=>[],'filters'=>[],'actions'=>$actions,
+            'calendar'=>[...array_diff_key($view['calendar'],['space'=>1]),'day_action'=>$day,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$fields)]];
     }
     /** Technical observation; unchanged snapshots do not create business read events. */
     public function observe(Context $ctx,string $resource,array $query,string $version=''):array
@@ -61,8 +120,8 @@ final class Workspace
         if($ctx->channel!=='ui')throw new Failure('Nem érhető el.',403);
         $this->acl->invalidate();$view=null;
         foreach($this->registry->views() as $candidate)if($candidate['resource']===$resource)$view=$candidate;
-        if(!$view)throw new Failure('Ismeretlen lista.',404);
-        $this->db->beginTransaction();
+        if(!$view||($view['kind']??'list')!=='list')throw new Failure('Ismeretlen lista.',404);
+        \Blade\Infrastructure\Transaction::begin($this->db);
         try{
             if($view['singleton']){
                 $action=$this->registry->get($resource,'get');$target=($action->resolve)($ctx,'self');
@@ -91,16 +150,26 @@ final class Workspace
             }
             if(!$actor)throw new Failure('Bejelentkezés szükséges.',401);
             if($_SERVER['REQUEST_METHOD']!=='POST')throw new Failure('POST szükséges.',405);
-            if($channel==='ui' && !hash_equals($csrf,$_SERVER['HTTP_X_VAPA_CSRF']??''))throw new Failure('Érvénytelen munkamenet.',403);
-            $raw=file_get_contents('php://input',length:65537);
+            if($channel==='ui' && !hash_equals($csrf,$_SERVER['HTTP_X_BLADE_CSRF']??''))throw new Failure('Érvénytelen munkamenet.',403);
+            // Binary parts travel as multipart/form-data: a JSON `request` field plus file parts, never base64 JSON.
+            $multipart=str_starts_with(strtolower((string)($_SERVER['CONTENT_TYPE']??'')),'multipart/form-data');
+            $raw=$multipart?($_POST['request']??null):file_get_contents('php://input',length:65537);
+            if(!is_string($raw))throw new Failure('Hibás műveletkérés.');
             if(strlen($raw)>65536)throw new Failure('Túl nagy kérés.',413);
             try{$data=json_decode($raw,true,flags:JSON_THROW_ON_ERROR);}catch(\JsonException){throw new Failure('Érvénytelen JSON.');}
             if(!is_array($data) || !is_string($data['resource']??null)||!is_string($data['action']??null)||!is_array($data['values']??[]))throw new Failure('Hibás műveletkérés.');
             $id=$data['id']??null;if($id!==null&&!is_string($id))throw new Failure('Hibás azonosító.');
             $sessionId=session_id();session_write_close();
+            $uploads=[];
+            if($multipart){
+                $upload=str_starts_with($data['action'],'__')?null:$this->registry->get($data['resource'],$data['action'])->upload;
+                if($upload===null)throw new Failure('A művelet nem fogad fájlt.',415);
+                if((int)($_SERVER['CONTENT_LENGTH']??0)>$upload+65536)throw new Failure('Túl nagy kérés.',413);
+                $uploads=Upload::collect($_FILES);
+            }
             if($data['action']==='__ticket'){
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
-                echo json_encode(['ok'=>true,'data'=>['ticket'=>\Vapa\Live\Tickets::issue($runtime,$sessionId)]],JSON_THROW_ON_ERROR);exit;
+                echo json_encode(['ok'=>true,'data'=>['ticket'=>\Blade\Live\Tickets::issue($runtime,$sessionId)]],JSON_THROW_ON_ERROR);exit;
             }
             if($data['action']==='__watch'){
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
@@ -134,9 +203,16 @@ final class Workspace
                 echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$f->metadata($ctx),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             $handled=true;
-            $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes),$data['resource'],$data['action'],$id,$data['values']??[]);
+            $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads),$data['resource'],$data['action'],$id,$data['values']??[]);
+            if($result instanceof Download){
+                // Raw bytes of an allowlisted type; never rendered as a document of this origin.
+                header('Content-Type: '.$result->mimeType);header('Content-Length: '.strlen($result->content));
+                header('Content-Disposition: attachment');header('X-Content-Type-Options: nosniff');
+                header("Content-Security-Policy: default-src 'none'; sandbox");header('Cache-Control: no-store');
+                echo $result->content;exit;
+            }
             echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);
-        }catch(Failure $e){if(!$handled)$this->journal->record($actor?->id??'',$channel,'transport','request','','rejected');http_response_code($e->status);echo json_encode(['ok'=>false,'error'=>$e->getMessage(),'fieldErrors'=>(object)$e->fieldErrors],JSON_THROW_ON_ERROR);}
+        }catch(Failure $e){if(!$handled)$this->journal->record($actor?->id??'',$channel,'transport','request','','rejected');http_response_code($e->status);echo json_encode(['ok'=>false,'error'=>$e->getMessage(),'fieldErrors'=>(object)$e->fieldErrors,...($e->details?['details'=>$e->details]:[])],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);}
         exit;
     }
 }

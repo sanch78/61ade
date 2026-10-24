@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Shell;
+namespace Blade\Shell;
 
 final readonly class Identity
 {

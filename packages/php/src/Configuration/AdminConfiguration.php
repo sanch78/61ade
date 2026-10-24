@@ -2,16 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Configuration;
+namespace Blade\Configuration;
 
-use Vapa\Admin\{Accounts, Permissions};
-use Vapa\Feature\Workspace;
-use Vapa\Shell\IdentityProvider;
+use Blade\Admin\{Accounts, Administration};
+use Blade\I18n\Settings;
+use Blade\Feature\Workspace;
+use Blade\Shell\IdentityProvider;
 
 /** Enables the mandatory built-in administration over the declared identity mapping. */
 final class AdminConfiguration
 {
-    public static function build(array $definition, array $identity, array $callbacks, Workspace $workspace, IdentityProvider $identities): Accounts
+    public static function build(array $definition, array $identity, array $callbacks, Workspace $workspace, IdentityProvider $identities, ?Settings $languages = null, bool $oauth = false, ?bool $emailConfirmation = null): Accounts
     {
         Shape::check($definition, [], [
             'group' => 'string',
@@ -35,10 +36,11 @@ final class AdminConfiguration
             createDefaults: $definition['create_defaults'] ?? [],
             creatable: $definition['create'] ?? true,
             temporaryHours: $definition['temporary_password_hours'] ?? 72,
+            languages: $languages,
+            oauth: $oauth,
+            emailConfirmation: $emailConfirmation,
         );
-        $group = $definition['group'] ?? 'Adminisztráció';
-        $accounts->register($workspace->registry, $definition['users_title'] ?? 'Felhasználók', $group);
-        (new Permissions($workspace, $accounts, $accounts->identities($identities), $definition['protected_role'] ?? 'admin'))->register($workspace->registry, $group);
+        Administration::register($workspace, $accounts, $identities, $definition['users_title'] ?? 'Felhasználók', $definition['group'] ?? 'Adminisztráció', $definition['protected_role'] ?? 'admin');
         return $accounts;
     }
 }

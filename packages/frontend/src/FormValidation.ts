@@ -1,5 +1,6 @@
 import { t } from "./I18n";
-import { alert, type Form } from "@dhtmlx/suite";
+import { type Form } from "@dhtmlx/suite";
+import { alert } from "./MessageDialog";
 
 export type ValidationRules = {
   min_length?: number;
@@ -17,9 +18,11 @@ export type FieldDefinition = {
   secret?: boolean;
   defaultValue?: string | null;
   validation?: ValidationRules;
+  bulk?: boolean;
 };
 
 export function fieldError(field: FieldDefinition, raw: unknown, values: Record<string, unknown>): string | null {
+  if(field.type === "multiselect" && Array.isArray(raw)) raw = raw.join(",");
   if(field.type === "checkbox") {
     if(![true,false,0,1,"0","1"].includes(raw as any))return t("Csak 0 vagy 1 érték adható meg.");
     if(typeof raw === "boolean")raw=raw?"1":"0";
@@ -37,6 +40,10 @@ export function fieldError(field: FieldDefinition, raw: unknown, values: Record<
   if (rules.matches_field && value !== String(values[rules.matches_field] ?? "")) return t("A két mező értéke nem egyezik.");
   if (field.type === "number" && !/^[0-9]+$/.test(value)) return t("Nemnegatív egész szám szükséges.");
   if (field.type === "select" && !Object.hasOwn(field.options, value)) return t("Válassz az engedélyezett értékekből.");
+  if (field.type === "multiselect") {
+    const items = value.split(",");
+    if (new Set(items).size !== items.length || items.some(item => !Object.hasOwn(field.options, item))) return t("Válassz az engedélyezett értékekből.");
+  }
   return null;
 }
 
@@ -79,7 +86,7 @@ export class FormValidation {
     // Keep unchecked valid and show checkbox rule errors with the native Alert instead.
     const checkboxErrors=this.fields.filter(field=>field.type === "checkbox")
       .map(field=>{const error=this.error(field,values[field.name]);return error?`${field.label}: ${error}`:null;}).filter(Boolean);
-    if(checkboxErrors.length)void alert({header:t("Ellenőrizd a mezőt"),text:checkboxErrors.join("\n"),htmlEnable:false});
+    if(checkboxErrors.length)void alert({header:t("Ellenőrizd a mezőt"),text:checkboxErrors.join("\n"),severity:"warning"});
     return nativeValid && valid;
   }
 
@@ -95,5 +102,11 @@ export class FormValidation {
       this.validate();
     }
     return found;
+  }
+
+  /** Drops a shown server or cross-field error when a related field changes. */
+  clearServerError(name: string): void {
+    if (!this.serverErrors.delete(name)) return;
+    this.form.getItem(name)?.clearValidate();
   }
 }

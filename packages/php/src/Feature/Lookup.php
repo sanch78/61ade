@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Feature;
+namespace Blade\Feature;
 
 /** Relation choices use the same object and field ACL as ordinary queries. */
 final readonly class Lookup

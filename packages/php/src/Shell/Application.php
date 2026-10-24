@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Shell;
+namespace Blade\Shell;
 
-use Vapa\Authentication\PasswordAttempts;
-use Vapa\Feature\Failure;
-use Vapa\I18n\Translator;
+use Blade\Authentication\PasswordAttempts;
+use Blade\Feature\Failure;
+use Blade\I18n\Translator;
 
 /** Framework-owned session, password, email confirmation and remembered-device flow. */
 final class Application
@@ -18,18 +18,27 @@ final class Application
     public function run(): void
     {
         $this->headers();
-        $this->startSession();
         $settings = $this->definition->languages;
         $requested = $_COOKIE[$this->definition->sessionName.'_language'] ?? null;
-        if (isset($_SERVER['HTTP_AUTHORIZATION'])) $requested = $_SERVER['HTTP_X_VAPA_LOCALE'] ?? $requested;
+        if (isset($_SERVER['HTTP_AUTHORIZATION'])) $requested = $_SERVER['HTTP_X_BLADE_LOCALE'] ?? $requested;
         Translator::configure($settings, is_string($requested) ? $requested : null);
         header('Content-Language: '.Translator::locale());
+        // External sign-in (AuthHandler) uses its own short session, before the 61de session.
+        $external = $this->definition->oauth?->intercept($this->definition->sessionName, $this->definition->cookiePath, $this->definition->title);
+        $this->startSession();
         $workspace = $this->definition->workspace;
         $identity = $this->currentIdentity();
         $error = '';
         $username = '';
+        if (!$identity && isset($_SESSION['loginNotice'])) {
+            $error = (string) $_SESSION['loginNotice'];
+            unset($_SESSION['loginNotice']);
+        }
+        if (!$identity && $external !== null) {
+            $this->externalLogin($external);
+        }
 
-        if (isset($_GET['vapa'])) {
+        if (isset($_GET['blade'])) {
             if (!$workspace) {
                 http_response_code(404);
                 return;
@@ -47,7 +56,7 @@ final class Application
                 if ($action === 'language') {
                     $locale = $_POST['locale'] ?? null;
                     if (!$settings->selector || !is_string($locale) || !isset($settings->languages[$locale])) throw new Failure('Ismeretlen nyelv.');
-                    setcookie($this->definition->sessionName.'_language', $locale, ['expires'=>time()+31536000,'path'=>$this->definition->cookiePath,'secure'=>$this->secure(),'httponly'=>true,'samesite'=>'Lax']);
+                    $this->languageCookie($locale);
                     $this->redirect();
                 } elseif ($action === 'logout') {
                     $this->logout($identity);
@@ -82,6 +91,7 @@ final class Application
             'rememberAvailable' => $definition->authentication !== null,
             'rememberDays' => $definition->authentication?->rememberDays,
             'loginIdentifier' => $definition->accounts ? 'email' : 'username',
+            'oauth' => !$identity && $definition->oauth?->enabled(),
         ];
         if (!$identity && isset($_SESSION['pendingPasswordChange'])) {
             $bootstrap['passwordChange'] = ['expires' => $_SESSION['pendingPasswordChange']['expires']];
@@ -111,7 +121,7 @@ final class Application
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: same-origin');
         $liveSource = $this->definition->live->connectSource();
-        header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' $liveSource; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+        header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; connect-src 'self' $liveSource; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     }
 
     private function startSession(): void
@@ -123,6 +133,11 @@ final class Application
             }
         }
         session_name($this->definition->sessionName);
+        // Another session (AuthHandler) ran in this request: continue with the 61de cookie only.
+        if (session_id() !== '') {
+            $cookie = $_COOKIE[$this->definition->sessionName] ?? null;
+            session_id(is_string($cookie) && preg_match('/^[A-Za-z0-9,-]{22,256}$/D', $cookie) ? $cookie : session_create_id());
+        }
         session_save_path($runtime.'/sessions');
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
@@ -195,7 +210,7 @@ final class Application
         $remember = ($_POST['remember'] ?? '') === '1';
         if ($security && $security->needsConfirmation($actor)) {
             $binding = bin2hex(random_bytes(32));
-            $pending = $security->begin($actor, $remember, $binding);
+            $pending = $this->inLocale($actor, fn() => $security->begin($actor, $remember, $binding));
             $_SESSION = ['csrf' => bin2hex(random_bytes(32)), 'lastSeen' => time(), 'loginBinding' => $binding, 'pendingLogin' => $pending];
             session_regenerate_id(true);
             $this->redirect();
@@ -222,7 +237,7 @@ final class Application
             if (!$actor || $pending['expires'] <= time()) {
                 throw new Failure('A belépési kísérlet lejárt. Kezdd újra a bejelentkezést.', 401);
             }
-            $_SESSION['pendingLogin'] = $security->begin($actor, $pending['remember'], $binding, true);
+            $_SESSION['pendingLogin'] = $this->inLocale($actor, fn() => $security->begin($actor, $pending['remember'], $binding, true));
             $this->redirect();
         }
         $code = is_string($_POST['code'] ?? null) ? $_POST['code'] : '';
@@ -253,9 +268,10 @@ final class Application
         $this->finishLogin($actor, $pending['remember']);
     }
 
-    private function finishLogin(Identity $actor, bool $remember, ?int $verifiedVersion = null): never
+    private function finishLogin(Identity $actor, bool $remember, ?int $verifiedVersion = null, bool $external = false): never
     {
-        if ($this->definition->accounts?->mustChangePassword($actor->id)) {
+        // External sign-in does not use the password, so a pending temporary password does not block it.
+        if (!$external && $this->definition->accounts?->mustChangePassword($actor->id)) {
             // No session, menu, API or remembered login until the temporary password is replaced.
             $_SESSION = ['csrf' => bin2hex(random_bytes(32)), 'lastSeen' => time(), 'pendingPasswordChange' => ['actor_id' => $actor->id, 'remember' => $remember, 'expires' => time() + 600]];
             session_regenerate_id(true);
@@ -264,6 +280,9 @@ final class Application
         $this->establishSession($actor, $verifiedVersion);
         $workspace = $this->definition->workspace;
         $workspace?->journal->record($actor->id, 'ui', 'session', 'login', '', 'success');
+        // The account's default language applies at sign-in; the selector may change it afterwards.
+        $locale = $this->definition->accounts?->locale($actor->id);
+        if ($locale !== null) $this->languageCookie($locale);
         $security = $this->definition->authentication;
         if ($security) {
             $old = $_COOKIE[$this->rememberCookieName()] ?? '';
@@ -306,6 +325,41 @@ final class Application
         $_SESSION = [];
         session_regenerate_id(true);
         $this->redirect();
+    }
+
+    /** Hand-over from AuthHandler: 61de admits only an enabled account with that exact address. */
+    private function externalLogin(array $external): never
+    {
+        if (isset($external['notice'])) {
+            $_SESSION['loginNotice'] = $external['notice'];
+            $this->redirect();
+        }
+        try {
+            $actor = $this->definition->oauth->admit($external['email']);
+        } catch (Failure $failure) {
+            $_SESSION['loginNotice'] = $failure->getMessage();
+            $this->redirect();
+        }
+        $this->finishLogin($actor, $external['remember'], external: true);
+    }
+
+    /** Renders account-bound output (the sign-in mail) in the account's default language. */
+    private function inLocale(Identity $actor, \Closure $render): mixed
+    {
+        $locale = $this->definition->accounts?->locale($actor->id);
+        if ($locale === null || $locale === Translator::locale()) return $render();
+        $previous = Translator::locale();
+        Translator::configure($this->definition->languages, $locale);
+        try {
+            return $render();
+        } finally {
+            Translator::configure($this->definition->languages, $previous);
+        }
+    }
+
+    private function languageCookie(string $locale): void
+    {
+        setcookie($this->definition->sessionName.'_language', $locale, ['expires'=>time()+31536000,'path'=>$this->definition->cookiePath,'secure'=>$this->secure(),'httponly'=>true,'samesite'=>'Lax']);
     }
 
     private function rememberCookieName(): string

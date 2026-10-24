@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Configuration;
+namespace Blade\Configuration;
 
 use Closure;
 use PDO;
-use Vapa\Infrastructure\Database;
-use Vapa\Live\LiveConfig;
-use Vapa\Navigation\Menu;
-use Vapa\Shell\ApplicationDefinition;
+use Blade\Infrastructure\Database;
+use Blade\Live\LiveConfig;
+use Blade\Navigation\Menu;
+use Blade\Shell\ApplicationDefinition;
 
 final class JsonApplication
 {
@@ -18,8 +18,8 @@ final class JsonApplication
         $config = JsonConfiguration::load($file);
         $config->validate(array_fill_keys([
             'application', 'database', 'session', 'identity', 'live', 'workspace',
-        ], 'array'), ['environment' => 'array', 'authentication' => 'array', 'i18n' => 'array', 'admin' => 'array']);
-        $languages = new \Vapa\I18n\Settings();
+        ], 'array'), ['environment' => 'array', 'authentication' => 'array', 'i18n' => 'array', 'admin' => 'array', 'oauth' => 'array']);
+        $languages = new \Blade\I18n\Settings();
         if ($config->has('i18n')) {
             $languages = LanguageConfiguration::build($config->section('i18n'), $config->path(...));
         }
@@ -51,11 +51,17 @@ final class JsonApplication
             array_map($config->path(...), $workspace['modules']),
             $workspaceBindings,
         );
+        if ($config->has('oauth') && !$config->has('admin')) {
+            throw new \InvalidArgumentException('The oauth section requires the admin section (per-account OAuth permission).');
+        }
         $accounts = null;
         if ($config->has('admin')) {
-            $accounts = AdminConfiguration::build($config->section('admin'), $config->section('identity'), $identityBindings, $builtWorkspace, $identities);
+            $emailConfirmation = $config->has('authentication') ? ($config->section('authentication')['default_email_confirmation'] ?? true) : null;
+            if ($emailConfirmation !== null && !is_bool($emailConfirmation)) throw new \InvalidArgumentException('Invalid $.authentication.default_email_confirmation.');
+            $accounts = AdminConfiguration::build($config->section('admin'), $config->section('identity'), $identityBindings, $builtWorkspace, $identities, $languages, $config->has('oauth'), $emailConfirmation);
             $identities = $accounts->identities($identities);
         }
+        $oauth = $accounts && $config->has('oauth') ? OAuthConfiguration::build($config->section('oauth'), $config->path(...), $config->path($application['runtime']), $accounts, $identities, $builtWorkspace) : null;
         $authentication = null;
         if ($config->has('authentication')) {
             $authentication = AuthenticationConfiguration::build(
@@ -76,6 +82,7 @@ final class JsonApplication
             version: $application['version'] ?? '',
             languages: $languages,
             accounts: $accounts,
+            oauth: $oauth,
         );
     }
 }

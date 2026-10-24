@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Navigation;
+namespace Blade\Navigation;
 
-use Vapa\Shell\Identity;
+use Blade\Shell\Identity;
 
 /** A backend definition; visibility rules are never serialized. */
 final readonly class MenuItem
@@ -36,7 +36,7 @@ final readonly class MenuItem
         }
         if ($this->items && !$children) return null;
         return $children
-            ? [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => \Vapa\I18n\Translator::text($this->label), 'items' => $children]
-            : [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => \Vapa\I18n\Translator::text($this->label), 'disabled' => true];
+            ? [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => \Blade\I18n\Translator::text($this->label), 'items' => $children]
+            : [...($this->icon?['icon'=>$this->icon]:[]),'id' => $this->id, 'label' => \Blade\I18n\Translator::text($this->label), 'disabled' => true];
     }
 }

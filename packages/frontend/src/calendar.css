@@ -1,0 +1,23 @@
+/* Event calendar (DHTMLX Scheduler Standard) inside the 61de shell; vendor CSS loads first. */
+.blade-calendar-mount, .blade-calendar { width: 100%; height: 100%; }
+.blade-calendar {
+  --dhx-scheduler-font-family: var(--dhx-font-family);
+  --dhx-scheduler-base-colors-primary: var(--dhx-color-primary);
+  --dhx-scheduler-base-colors-primary-hover: var(--dhx-color-primary-hover);
+  --dhx-scheduler-base-colors-primary-active: var(--dhx-color-primary-active);
+  --dhx-scheduler-event-background: var(--dhx-color-primary);
+  position: relative;
+}
+.blade-calendar-cell > .dhx_layout-cell-content { overflow: hidden; }
+.blade-calendar-detail { font-size: 12px; opacity: .85; white-space: normal; }
+.blade-calendar-day__body { box-sizing: border-box; height: 100%; overflow: auto; padding: 12px 16px 24px; }
+.blade-calendar-day__label { margin: 8px 0 4px; font-weight: 600; }
+.blade-calendar-day__code {
+  margin: 0; padding: 12px; border-radius: 4px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--dhx-background-secondary, rgba(127,127,127,.08)); color: var(--dhx-font-color-primary);
+}
+/* Event form: the shared Suite Form window with two date columns and a wrapping weekday row. */
+.blade-calendar-dates { gap: 16px; }
+.blade-calendar-days .dhx_layout-columns, .blade-calendar-days .dhx_layout-cell { flex-wrap: wrap; }
+.blade-calendar-remove { margin-right: auto; }

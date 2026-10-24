@@ -1,7 +1,13 @@
 import { configureLanguage, languageIcon, type LanguageConfig, t } from "./I18n";
 import { widgetIcons } from "./WidgetIcons";
+import { externalSignInUnavailable, openExternalSignIn } from "./ExternalAuth";
 import { Workspace, type ViewDefinition } from "./Workspace";
-import { Form, Layout, Menu, Toolbar, Window, alert, setTheme, awaitRedraw } from "@dhtmlx/suite";
+import { FileManager, isFileView, type FileViewDefinition } from "./FileManager";
+import { DiagramEditor, isDiagramView, type DiagramViewDefinition } from "./DiagramEditor";
+import { Calendar, isCalendarView, type CalendarViewDefinition } from "./Calendar";
+import { DesktopOnly } from "./DesktopOnly";
+import { Form, Layout, Menu, Toolbar, Window, setTheme, awaitRedraw } from "@dhtmlx/suite";
+import { alert, closeDialogs } from "./MessageDialog";
 
 export type MenuDefinition = {
   id: string;
@@ -24,9 +30,10 @@ export type ShellDefinition = {
   confirmation?: { email: string; expires: number };
   passwordChange?: { expires: number };
   loginIdentifier?: "email" | "username";
+  oauth?: boolean;
   displayName?: string;
   menu?: MenuDefinition[];
-  views?: ViewDefinition[];
+  views?: (ViewDefinition | FileViewDefinition | DiagramViewDefinition | CalendarViewDefinition)[];
   csrf?: string;
   live?: import("./Realtime").LiveConfig;
 };
@@ -47,46 +54,35 @@ class NavigationMenu extends Menu {
   }
 }
 
-/** VAPA owns the DHTMLX lifecycle; consumers supply definitions, never shell markup. */
+/** 61de owns the DHTMLX lifecycle; consumers supply definitions, never shell markup. */
 export class AdminShell {
   private releaseIcons=widgetIcons();
   private layout: Layout;
   private menu?: NavigationMenu;
-  private workspace?: Workspace;
+  private workspace?: Workspace | FileManager | DiagramEditor | Calendar | DesktopOnly;
   private navigation=0;
   private route = () => {
     const resource = new URLSearchParams(location.hash.slice(1)).get("feature");
     const view = this.definition.views?.find(view => view.resource === resource);
     if (view) void this.openView(view, false);
     else {
+      this.renderMenu();
       ++this.navigation;
       this.layout.getCell("workspace").detach();
       this.workspace?.destroy(); this.workspace=undefined;
     }
   };
   private menuItems: object[] = [];
-  private compactMenu?: boolean;
+  private menuState?: string;
   private loginWindow?: Window;
   private loginForm?: Form;
   private submitting = false;
   private listeners = new AbortController();
   private resize = () => {
-    if (this.menu) {
-      const required=this.menuItems.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0));
-      const compact = this.root.clientWidth < Math.max(768,required);
-      if (compact !== this.compactMenu) {
-        this.compactMenu = compact;
-        const items = structuredClone(this.menuItems);
-        const entries=[...items,
-          { id: "vapa-session-separator", type: "separator" },
-          { id: "vapa-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" },
-        ];
-        this.menu.replaceItems(compact?[{id:"vapa-main-menu",value:t("Menü"),icon:"dxi dxi-view-grid",items:entries}]:entries);
-      }
-    }
+    this.renderMenu();
     if (!this.loginWindow) return;
     const width = this.definition.confirmation || this.definition.passwordChange ? 460 : 420;
-    const height = this.definition.confirmation || this.definition.passwordChange ? 420 : this.definition.rememberAvailable ? 340 : 290;
+    const height = (this.definition.confirmation || this.definition.passwordChange ? 420 : this.definition.rememberAvailable ? 340 : 290) + (this.definition.confirmation || this.definition.passwordChange || !this.definition.oauth ? 0 : 48);
     this.loginWindow.setSize(
       Math.min(width, innerWidth - 24),
       Math.min(height, innerHeight - 24),
@@ -94,6 +90,34 @@ export class AdminShell {
     if(!this.loginWindow.isVisible())this.loginWindow.show();
     void this.fitLogin();
   };
+
+  /** Top menu, or on narrow space one `Menü` button followed, on desktop, by the open feature's sibling items. */
+  private renderMenu():void{
+    if (!this.menu) return;
+    const width=this.root.clientWidth;
+    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0));
+    const compact = width < Math.max(768,required(this.menuItems));
+    const current="feature:"+(new URLSearchParams(location.hash.slice(1)).get("feature")??"");
+    const siblings=(items:any[],nested=false):any[]|undefined=>{
+      for(const item of items){
+        if(item.id===current)return nested?items:undefined;
+        const found=item.items&&siblings(item.items,true);
+        if(found)return found;
+      }
+    };
+    let context=compact&&width>=768?siblings(this.menuItems)??[]:[];
+    if(required([{value:t("Menü")},...context])>width)context=[];
+    const state=JSON.stringify([compact,context.length?current:""]);
+    if (state === this.menuState) return;
+    this.menuState = state;
+    const entries=[...structuredClone(this.menuItems),
+      { id: "blade-session-separator", type: "separator" },
+      { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" },
+    ];
+    const prefixed=(items:any[]):object[]=>items.map(item=>({...item,id:"sibling:"+item.id,active:item.id===current,...(item.items?{items:prefixed(item.items)}:{})}));
+    this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),icon:"dxi dxi-view-grid",items:entries},
+      ...(context.length?[{id:"blade-context-separator",type:"separator"},...prefixed(context)]:[])]:entries);
+  }
 
   private async fitLogin():Promise<void>{
     await awaitRedraw();
@@ -116,16 +140,16 @@ export class AdminShell {
   ) {
     configureLanguage(definition.i18n);
     let theme="skyblue";
-    try { const saved=localStorage.getItem("vapa-theme"); if(saved==="dark"||saved==="skyblue"||saved==="light")theme=saved; } catch {}
+    try { const saved=localStorage.getItem("blade-theme"); if(saved==="dark"||saved==="skyblue"||saved==="light")theme=saved; } catch {}
     setTheme(theme,document.documentElement);
     if (definition.protocol !== 1)
-      throw new Error(t("Nem kompatibilis VAPA felületverzió."));
+      throw new Error(t("Nem kompatibilis 61de felületverzió."));
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"vapa-navigation-row", cols: [{id:"main-menu"},...(definition.i18n?.selector?[{id:"language",width:130}]:[]),{id:"theme",width:145}] },
-        { id: "workspace", css: "vapa-workspace" },
-        { id: "status", height: 32, css: "vapa-session-bar" },
+        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(definition.i18n?.selector?[{id:"language",width:130}]:[]),{id:"theme",width:145}] },
+        { id: "workspace", css: "blade-workspace" },
+        { id: "status", height: 32, css: "blade-session-bar" },
       ],
     });
     const status = new Toolbar(undefined, {
@@ -154,7 +178,7 @@ export class AdminShell {
       const next=id==="theme-dark"?"dark":id==="theme-skyblue"?"skyblue":"light";
       setTheme(next,document.documentElement);
       themeControl.data.update("theme-choice",{value:next==="dark"?t("Éjjeli"):next==="skyblue"?"Skyblue":t("Világos")});
-      try{localStorage.setItem("vapa-theme",next);}catch{}
+      try{localStorage.setItem("blade-theme",next);}catch{}
       void this.fitLogin();
     });
     this.layout.getCell("theme").attach(themeControl);
@@ -185,7 +209,8 @@ export class AdminShell {
       this.menu = menu;
       this.resize();
       menu.events.on("click", (id: string | number) => {
-        if (id === "vapa-logout") this.post("logout");
+        id=String(id).replace(/^sibling:/,"");
+        if (id === "blade-logout") this.post("logout");
         const view=definition.views?.find(v=>"feature:"+v.resource===id);
         if(view)void this.openView(view);
       });
@@ -199,45 +224,65 @@ export class AdminShell {
     }
     window.addEventListener("resize", this.resize);
     if (definition.error) requestAnimationFrame(() => {
-      void alert({ header: t("Hiba"), text: definition.error, htmlEnable: false, buttons: [t("Rendben")] })
+      void alert({ header: t("Hiba"), text: definition.error, severity: "danger" })
         .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus(definition.passwordChange ? "new_password" : definition.confirmation ? "code" : "password"); });
     });
   }
 
-  private async openView(view:ViewDefinition,updateUrl=true):Promise<void>{
+  private async openView(view:ViewDefinition|FileViewDefinition|DiagramViewDefinition|CalendarViewDefinition,updateUrl=true):Promise<void>{
     if(updateUrl){
       const url=new URL(location.href);
       url.hash=new URLSearchParams({feature:view.resource}).toString();
       if(url.href!==location.href)history.pushState(null,"",url);
     }
+    this.renderMenu();
     const navigation=++this.navigation;
     this.layout.getCell("workspace").detach();
     this.workspace?.destroy();this.workspace=undefined;
     await awaitRedraw();
     if(navigation!==this.navigation || this.listeners.signal.aborted)return;
-    this.workspace=new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.definition.live || {transport:"poll",endpoint:"live",interval:2000},this.definition.userId??"");
+    const content=isCalendarView(view)
+      ?new Calendar(document.createElement("div"),view,this.definition.csrf || "")
+      :isDiagramView(view)
+      ?new DiagramEditor(document.createElement("div"),view,this.definition.csrf || "")
+      :isFileView(view)
+      ?new FileManager(document.createElement("div"),view,this.definition.csrf || "")
+      :new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.definition.live || {transport:"poll",endpoint:"live",interval:2000},this.definition.userId??"");
+    this.workspace=view.desktopOnly?new DesktopOnly(content,view.title):content;
     this.layout.getCell("workspace").attach(this.workspace.layout);
   }
 
-  private languageControl(withLabel=false):Toolbar{
+  private languageControl():Toolbar{
     const config=this.definition.i18n!;
-    const language=new Toolbar(undefined,{data:[...(withLabel?[{type:"title",value:t("Nyelv")},{type:"spacer"}]:[]),{id:"vapa-language",value:escape(config.languages[config.locale]),icon:languageIcon(config,config.locale),tooltip:t("Nyelv"),items:Object.keys(config.languages).map(id=>({id:"language:"+id,value:escape(config.languages[id]),icon:languageIcon(config,id)}))}]});
+    const language=new Toolbar(undefined,{data:[{id:"blade-language",value:escape(config.languages[config.locale]),icon:languageIcon(config,config.locale),tooltip:t("Nyelv"),items:Object.keys(config.languages).map(id=>({id:"language:"+id,value:escape(config.languages[id]),icon:languageIcon(config,id)}))}]});
     language.events.on("click",(id:string|number)=>{if(String(id).startsWith("language:"))this.post("language",{locale:String(id).slice(9)});});
     return language;
   }
+  /** Language row of the sign-in forms: an ordinary read-only Combo aligned with the other fields. */
+  private languageItem(labelPosition:"left"|"top"="left"):object[]{
+    const config=this.definition.i18n;
+    if(!config?.selector)return [];
+    const flag=(id:string)=>languageIcon(config,id)??"";
+    return [{type:"combo",name:"blade_language",label:t("Nyelv"),labelPosition,labelWidth:120,readOnly:true,
+      css:"blade-language-field"+(config.flags?.[config.locale]?" blade-language-field--"+config.flags[config.locale]:""),
+      value:config.locale,data:Object.keys(config.languages).map(id=>({id,value:config.languages[id]})),
+      template:(item:{id:string;value:string})=>`<span class="blade-language-option"><span class="${flag(item.id)}"></span>${escape(item.value)}</span>`}];
+  }
   private attachLoginForm(form:Form):void{
-    if(!this.definition.i18n?.selector){this.loginWindow!.attach(form);return;}
-    const content=new Layout(document.createElement("div"),{type:"none",rows:[{id:"language",height:48,padding:"0 16px",css:"vapa-auth-language"},{id:"form"}]});
-    content.getCell("language").attach(this.languageControl(true));
-    content.getCell("form").attach(form);
-    this.loginWindow!.attach(content);
+    form.events.on("change",(name:string)=>{
+      if(name!=="blade_language")return;
+      // The Combo reports an intermediate empty value while switching; read the settled choice.
+      const value=String(form.getItem("blade_language")?.getValue()??"");
+      if(value&&Object.hasOwn(this.definition.i18n?.languages??{},value)&&value!==this.definition.i18n?.locale)this.post("language",{locale:value});
+    });
+    this.loginWindow!.attach(form);
   }
   private mountLogin(): void {
     const definition = this.definition;
     this.loginWindow = new Window({
       title: t("Bejelentkezés"),
       ariaLabel: t("Bejelentkezés"),
-      css:"vapa-auth-window",
+      css:"blade-auth-window",
       width: 420,
       height: definition.rememberAvailable ? 340 : 290,
       modal: true,
@@ -248,6 +293,7 @@ export class AdminShell {
     const form = new Form(document.createElement("div"), {
       padding: 16,
       rows: [
+        ...this.languageItem(),
         {
           type: "input",
           name: "username",
@@ -289,6 +335,17 @@ export class AdminShell {
             },
           ],
         },
+        // External sign-in: AuthHandler's own overlay offers the configured providers.
+        ...(definition.oauth ? [{
+          type: "button" as const,
+          name: "oauth",
+          text: t("Belépés külső fiókkal"),
+          icon: "dxi dxi-link-variant",
+          view: "flat" as const,
+          color: "secondary" as const,
+          full: true,
+          padding: "16px 0 0 0",
+        }] : []),
       ],
     });
     this.loginForm = form;
@@ -304,6 +361,8 @@ export class AdminShell {
     };
     form.events.on("click", (name: string) => {
       if (name === "login") submit();
+      if (name === "oauth" && !this.submitting && !openExternalSignIn(!!(form.getValue() as Record<string, unknown>).remember))
+        void alert({ header: t("Hiba"), text: externalSignInUnavailable(), severity: "warning" });
     });
 
     this.attachLoginForm(form);
@@ -351,7 +410,7 @@ export class AdminShell {
     this.loginWindow = new Window({
       title: t("E-mailes megerősítés"),
       ariaLabel: t("E-mailes megerősítés"),
-      css:"vapa-auth-window",
+      css:"blade-auth-window",
       width: 460,
       height: 420,
       modal: true,
@@ -361,6 +420,7 @@ export class AdminShell {
     const form = new Form(document.createElement("div"), {
       padding: 20,
       rows: [
+        ...this.languageItem("top"),
         { type: "text", name: "recipient", label: t("Megerősítő levelet küldtünk"), value: escape(confirmation.email) },
         { type: "input", name: "code", label: t("Megerősítő kód"), labelPosition: "top", required: true, maxlength: 6,
           validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: t("A levélben kapott 6 számjegyű kód szükséges.") },
@@ -402,7 +462,7 @@ export class AdminShell {
     this.loginWindow = new Window({
       title: t("Jelszócsere"),
       ariaLabel: t("Jelszócsere"),
-      css:"vapa-auth-window",
+      css:"blade-auth-window",
       width: 460,
       height: 420,
       modal: true,
@@ -413,6 +473,7 @@ export class AdminShell {
     const form: Form = new Form(document.createElement("div"), {
       padding: 20,
       rows: [
+        ...this.languageItem("top"),
         { type: "text", name: "info", value: t("Az első belépéshez új jelszót kell megadnod (12–128 karakter).") },
         { type: "input", inputType: "password", name: "new_password", label: t("Új jelszó"), labelPosition: "top", required: true, maxlength: 128,
           validation: length, errorMessage: t("Az új jelszó 12–128 karakter legyen.") },
@@ -471,6 +532,7 @@ export class AdminShell {
     this.releaseIcons();
     this.listeners.abort();
     window.removeEventListener("resize", this.resize);
+    closeDialogs();
     this.workspace?.destroy();
     this.loginWindow?.destructor();
     this.layout.destructor();

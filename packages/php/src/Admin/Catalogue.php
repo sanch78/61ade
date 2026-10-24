@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Admin;
+namespace Blade\Admin;
 
-use Vapa\Feature\Registry;
-use Vapa\I18n\Translator;
+use Blade\Feature\Registry;
+use Blade\I18n\Translator;
 
 /**
  * Read-only resource/action catalogue derived from registered definitions.

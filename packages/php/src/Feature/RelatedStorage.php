@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Feature;
+namespace Blade\Feature;
 
 use InvalidArgumentException;
 use PDO;
@@ -40,7 +40,7 @@ final readonly class RelatedStorage
         foreach ($this->fields as $field => $column) {
             $default = $this->defaults[$field] ?? '';
             $fallback = is_int($default) ? (string) $default : $db->quote($default);
-            $out[] = "CAST(COALESCE((SELECT vapa_related.$column FROM {$this->table} vapa_related WHERE vapa_related.{$this->key} = CAST(vapa_base.$baseKey AS CHAR)), $fallback) AS CHAR) AS $field";
+            $out[] = "CAST(COALESCE((SELECT blade_related.$column FROM {$this->table} blade_related WHERE blade_related.{$this->key} = CAST(blade_base.$baseKey AS CHAR)), $fallback) AS CHAR) AS $field";
         }
         return $out;
     }

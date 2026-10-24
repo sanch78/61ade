@@ -1,18 +1,23 @@
 <!doctype html>
-<html lang="<?= $escape(\Vapa\I18n\Translator::locale()) ?>">
+<html lang="<?= $escape(\Blade\I18n\Translator::locale()) ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= $escape(\Vapa\I18n\Translator::text($definition->title)) ?></title>
-    <link rel="stylesheet" href="assets/admin.css?v=26">
-    <script type="module" src="assets/admin.js?v=26"></script>
+    <title><?= $escape(\Blade\I18n\Translator::text($definition->title)) ?></title>
+    <link rel="stylesheet" href="<?= $escape($definition->assets) ?>/admin.css?v=30">
+<?php if ($bootstrap['oauth'] ?? false): $auth = rtrim($definition->oauth->assets, '/'); ?>
+    <link rel="stylesheet" href="<?= $escape($auth) ?>/AuthHandler.css">
+    <script src="<?= $escape($auth) ?>/AuthHandler.js"></script>
+    <script src="./?blade_auth=bootstrap"></script>
+<?php endif; ?>
+    <script type="module" src="<?= $escape($definition->assets) ?>/admin.js?v=30"></script>
 </head>
 <body>
-    <div id="vapa-application"></div>
-    <form id="vapa-command" method="post" action="./" hidden>
+    <div id="blade-application"></div>
+    <form id="blade-command" method="post" action="./" hidden>
         <input type="hidden" name="csrf" value="<?= $escape($csrf) ?>">
     </form>
     <noscript>Az adminisztrációs felület használatához JavaScript szükséges.</noscript>
-    <script type="application/json" id="vapa-config"><?= json_encode($bootstrap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) ?></script>
+    <script type="application/json" id="blade-config"><?= json_encode($bootstrap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) ?></script>
 </body>
 </html>

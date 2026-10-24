@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Configuration;
+namespace Blade\Configuration;
 
 use InvalidArgumentException;
 use JsonException;

@@ -53,9 +53,9 @@ Current supported focused reproduction here:
 npm run test:browser -- --project=shell tests/shell/list-presentation.spec.cjs
 ```
 
-The original presentation/auth/sorting project commands are retained suite
-selectors but need localhost fixtures and must not launch on this host.
-See [current limits](development.md#existing-full-smoke-and-coverage-limits).
+The consumer-level checks run on the feature demo: `list-integration.spec.cjs`
+(Tasks details, cards, marks and bulk action; `reader@example.test` with the
+description field denied) and `grid-sort.spec.cjs` (Mérések, 1801 rows).
 Artifacts use scratch and synthetic data. Existing consumer business views kept
 marks/bulk off; framework JSON/PHP enables it explicitly. Bulk uses per-row
 transactions and may partially succeed, never whole-batch atomicity.

@@ -1,6 +1,6 @@
 # DHTMLX component and capability matrix
 
-Historical upstream review: 2026-10-16; 61de source/test status: 2026-10-21.
+Historical upstream review: 2026-10-16; 61de source/test status: 2026-10-23.
 Suite Standard 9.3.12 is installed and shell/workspace adapters are in use.
 PRO capabilities are not in the installed package.
 
@@ -17,17 +17,18 @@ capabilities from real needs; unimplemented rows are candidates, not commitments
 | Menu/toolbar | Suite Standard | — | Main/list menus, theme/language selectors | Navigation/capabilities |
 | DataView | Suite Standard | Detailed inventory version-dependent | Cards implemented | Templates/selection |
 | Tabs/popup/sidebar/ribbon/List | Suite Standard | Inventory on demand | No verified independent adapter | Shell/lifecycle |
-| Tree | Suite Standard | Advanced options need checking | None; view.layout.tree is a layout tree | Lazy children/scopes/moves |
+| Tree | Suite Standard | Advanced options need checking | `TreeAdapter` over a flat parent list, used by the [file manager](files.md); view.layout.tree remains a layout tree | Lazy children/drag moves |
 | TreeGrid | Suite PRO | PRO-only | None | Licensed adapter/capability |
 | Chart | Suite Standard | PRO types/options separate | None | Scoped aggregates/drill-down |
 | Date/time/color picker/combo | Suite Standard | Not event calendar | Not independently qualified as a capability | Types/locale/timezone |
-| Event calendar | Scheduler Standard GPL | Basic views/recurrence available | None | Windowed query/business actions |
+| Event calendar | Scheduler Standard GPL (`dhtmlx-scheduler` 7.2.15) | Basic views/recurrence available; one instance per page | Framework [calendar](calendar.md): day/week/month, framework event form (Suite Form) with recurrence, exceptions, windowed `events`, server-side `occurrences` | Live updates, time zones, per-event ACL |
 | Timeline/Units/resources | Scheduler PRO | PRO-only | None | Resource policies/conflicts |
 | Multiple schedulers/page | Paid Scheduler | License tier matters | None | Shell/capability checks |
 | Basic Gantt | Gantt 10+ Community MIT | Core tasks/dependencies/milestones | None | Hierarchy/actions/conflicts |
 | Autoscheduling/critical path/resources | Gantt PRO | PRO-only | None | Separate license decision |
-| Files/media | Own service + UI | Vault separate | None | Storage/access/preview/jobs |
-| Rich text/diagram/pivot/kanban | Separate product/adapter | Not automatic Standard Suite features | None | Need/license assessment |
+| Files/media | Own service + UI | Vault separate | Virtual [file manager](files.md): DB BLOB storage, per-mount ACL, multipart upload, TXT editor; native file input, no Vault | Deletion/download/preview, per-entry ACL, external blob store, jobs |
+| Diagram | DHTMLX Diagram is a separate product, not installed | Not in Suite Standard | Framework [diagram editor](diagrams.md): Suite shell/List/Form/Window around an own SVG canvas | Ports/routing/export; licensed Diagram adapter if acquired |
+| Rich text/pivot/kanban | Separate product/adapter | Not automatic Standard Suite features | None | Need/license assessment |
 | Export/import | Backend + vendor adapter | Format/service-dependent | No export; bulk exists | Scopes/field filtering/jobs/downloads |
 
 Every implemented capability needs localization/themes/kitchen-sink examples

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Vapa\Authentication\Settings;
-use Vapa\Configuration\JsonApplication;
-use Vapa\Configuration\JsonConfiguration;
-use Vapa\Feature\{Context, Registry, Workspace};
+use Blade\Authentication\Settings;
+use Blade\Configuration\JsonApplication;
+use Blade\Configuration\JsonConfiguration;
+use Blade\Feature\{Context, Registry, Workspace};
 
 $configuration = JsonConfiguration::load(__DIR__.'/application.json');
 $runtime = $configuration->path($configuration->section('application')['runtime']);

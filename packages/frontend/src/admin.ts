@@ -4,9 +4,9 @@ import "./themes/skyblue.css";
 import "./admin.css";
 import "./flags/flags.css";
 
-const root = document.querySelector<HTMLElement>("#vapa-application");
-const command = document.querySelector<HTMLFormElement>("#vapa-command");
-const config = document.querySelector("#vapa-config");
+const root = document.querySelector<HTMLElement>("#blade-application");
+const command = document.querySelector<HTMLFormElement>("#blade-command");
+const config = document.querySelector("#blade-config");
 if (root && command && config) {
   const shell = new AdminShell(
     root,

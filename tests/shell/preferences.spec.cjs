@@ -1,0 +1,57 @@
+const {test,expect}=require('../../tools/playwright-test.cjs');
+const {signIn,openView,view}=require('./feature-demo.cjs');
+// UI preferences (browser storage) and feature URLs on the feature demo's Feladatok view.
+test('feature URL restores through login/reload and browser history',async({page})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await signIn(page,'demo@example.test','/#feature=demo_tasks');
+ await expect(page.getByRole('grid')).toBeVisible();
+ await page.reload();await expect(page.getByRole('grid')).toBeVisible();
+ await page.goto('/');await expect(page.getByRole('grid')).toHaveCount(0);
+ await openView(page,'Feladatok');
+ await expect(page).toHaveURL(/#feature=demo_tasks$/);
+ await expect(page.getByRole('grid')).toBeVisible();
+ await page.goBack();await expect(page.getByRole('grid')).toHaveCount(0);
+ await page.goForward();await expect(page.getByRole('grid')).toBeVisible();
+ await page.goto('/#feature=unavailable');await expect(page.getByRole('grid')).toHaveCount(0);
+ expect(errors).toEqual([]);
+});
+test('grid size, sorting, view and panel width survive reload',async({page})=>{
+ await page.setViewportSize({width:1280,height:720});
+ await signIn(page,'demo@example.test','/#feature=demo_tasks');
+ const header=page.locator('[role="columnheader"][data-dhx-id="title"]').filter({hasText:'Megnevezés'}).first();
+ await expect(header).toBeVisible();await header.click();
+ await expect(header).toHaveAttribute('aria-sort','ascending');
+ const before=await header.boundingBox();
+ await page.mouse.move(before.x+before.width-2,before.y+before.height/2);
+ await page.mouse.down();await page.mouse.move(before.x+before.width+80,before.y+before.height/2,{steps:8});await page.mouse.up();
+ const width=(await header.boundingBox()).width;
+ expect(width).toBeGreaterThan(before.width+40);
+ const filter=page.locator('[data-cell-id="filter"]');
+ const panel=await filter.boundingBox();
+ await page.mouse.move(panel.x+panel.width+6,panel.y+panel.height/2);await page.mouse.down();
+ await page.mouse.move(panel.x+panel.width+66,panel.y+panel.height/2,{steps:8});await page.mouse.up();
+ const panelWidth=(await filter.boundingBox()).width;
+ expect(panelWidth).toBeGreaterThan(panel.width+30);
+ await page.reload();await expect(header).toHaveAttribute('aria-sort','ascending');
+ await expect.poll(async()=>Math.round((await header.boundingBox()).width)).toBe(Math.round(width));
+ await expect.poll(async()=>Math.round((await filter.boundingBox()).width)).toBe(Math.round(panelWidth));
+ await filter.getByRole('button',{name:'click to collapse',exact:true}).click();
+ await page.reload();
+ await filter.getByRole('button',{name:'click to expand',exact:true}).click();
+ await expect.poll(async()=>Math.round((await filter.boundingBox()).width)).toBe(Math.round(panelWidth));
+ const cards=page.locator('.blade-grid-card');
+ await view(page,'Kártyák');
+ await page.reload();await expect(cards.first()).toBeVisible();
+ await page.setViewportSize({width:390,height:844});await page.reload();
+ await page.setViewportSize({width:1280,height:720});
+ await expect(cards.first()).toBeVisible();
+ await view(page,'Táblázat');
+ await page.setViewportSize({width:390,height:844});await page.reload();
+ await page.setViewportSize({width:1280,height:720});
+ await expect(page.getByRole('grid')).toBeVisible();await expect(cards).toHaveCount(0);
+});
+test('invalid or unavailable storage cannot break navigation',async({page})=>{
+ await page.addInitScript(()=>{Storage.prototype.getItem=()=>{throw new Error('Storage disabled');};Storage.prototype.setItem=()=>{throw new Error('Storage disabled');};});
+ await signIn(page,'demo@example.test','/#feature=demo_tasks');await expect(page.getByRole('grid')).toBeVisible();
+ await page.reload();await expect(page.getByRole('grid')).toBeVisible();
+});

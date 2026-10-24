@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 require dirname(__DIR__, 2).'/examples/demo-app/vendor/autoload.php';
 
-use Vapa\Access\Schema;
-use Vapa\Configuration\JsonApplication;
-use Vapa\Configuration\JsonConfiguration;
-use Vapa\Configuration\WorkspaceConfiguration;
-use Vapa\Feature\Context;
-use Vapa\Feature\Failure;
+use Blade\Access\Schema;
+use Blade\Configuration\JsonApplication;
+use Blade\Configuration\JsonConfiguration;
+use Blade\Configuration\WorkspaceConfiguration;
+use Blade\Feature\Context;
+use Blade\Feature\Failure;
 
 function verify(bool $condition, string $message): void
 {
@@ -29,7 +29,7 @@ function rejected(Closure $work, string $message): void
 }
 
 $root = dirname(__DIR__, 2);
-$directory = (getenv('VAPA_TMP_DIR') ?: $root.'/tmp').'/configuration-'.bin2hex(random_bytes(6));
+$directory = (getenv('BLADE_TMP_DIR') ?: $root.'/tmp').'/configuration-'.bin2hex(random_bytes(6));
 mkdir($directory, 0700, true);
 $file = $directory.'/application.json';
 $write = static function (array $values) use ($file): void {
@@ -37,25 +37,25 @@ $write = static function (array $values) use ($file): void {
 };
 
 try {
-    file_put_contents($directory.'/.env', "VAPA_TEST_CONFIG_PORT=8080\nVAPA_TEST_CONFIG_ENABLED=false\n");
+    file_put_contents($directory.'/.env', "BLADE_TEST_CONFIG_PORT=8080\nBLADE_TEST_CONFIG_ENABLED=false\n");
     $settings = [
         'environment' => ['files' => [['path' => '.env']]],
         'test' => [
-            'port' => ['$env' => 'VAPA_TEST_CONFIG_PORT', 'type' => 'integer'],
-            'enabled' => ['$env' => 'VAPA_TEST_CONFIG_ENABLED', 'type' => 'boolean'],
-            'fallback' => ['$env' => 'VAPA_TEST_CONFIG_ABSENT', 'default' => 'safe'],
+            'port' => ['$env' => 'BLADE_TEST_CONFIG_PORT', 'type' => 'integer'],
+            'enabled' => ['$env' => 'BLADE_TEST_CONFIG_ENABLED', 'type' => 'boolean'],
+            'fallback' => ['$env' => 'BLADE_TEST_CONFIG_ABSENT', 'default' => 'safe'],
         ],
     ];
     $write($settings);
     $resolved = JsonConfiguration::load($file);
     verify($resolved->section('test') === ['port' => 8080, 'enabled' => false, 'fallback' => 'safe'], 'Typed env file and default');
     verify($resolved->path('relative') === $directory.'/relative', 'Config-relative paths');
-    putenv('VAPA_TEST_CONFIG_PORT=9090');
+    putenv('BLADE_TEST_CONFIG_PORT=9090');
     verify(JsonConfiguration::load($file)->section('test')['port'] === 9090, 'Process env overrides file');
-    putenv('VAPA_TEST_CONFIG_PORT=not-an-integer');
+    putenv('BLADE_TEST_CONFIG_PORT=not-an-integer');
     rejected(static fn() => JsonConfiguration::load($file), 'Invalid integer accepted');
-    putenv('VAPA_TEST_CONFIG_PORT');
-    $settings['test']['fallback'] = ['$env' => 'VAPA_TEST_CONFIG_ABSENT'];
+    putenv('BLADE_TEST_CONFIG_PORT');
+    $settings['test']['fallback'] = ['$env' => 'BLADE_TEST_CONFIG_ABSENT'];
     $write($settings);
     rejected(static fn() => JsonConfiguration::load($file), 'Missing env accepted');
     file_put_contents($file, '{invalid');
@@ -67,7 +67,7 @@ try {
     $query = $db->prepare('INSERT INTO accounts VALUES (1, ?, ?, ?, 1)');
     $query->execute(['synthetic', password_hash('synthetic-password', PASSWORD_DEFAULT), 'Synthetic User']);
     $db->exec('CREATE TABLE notes (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT, title TEXT)');
-    $grant = $db->prepare("INSERT INTO vapa_rules(subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('user', '1', 'notes', ?, 'ui', 'allow', 'all', '', '')");
+    $grant = $db->prepare("INSERT INTO blade_rules(subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('user', '1', 'notes', ?, 'ui', 'allow', 'all', '', '')");
     foreach (['list', 'get', 'create', 'update', 'mark'] as $action) {
         $grant->execute([$action]);
     }
@@ -102,23 +102,38 @@ try {
     verify($db->query('SELECT title FROM notes')->fetchColumn() === 'MARKED', 'Named custom action and target');
     $views = $workspace->views($actor);
     verify($views[0]['layout']['formMode'] === 'panel', 'JSON layout');
+    verify($views[0]['desktopOnly'] === true, 'JSON desktop_only view option');
     verify(!str_contains(json_encode($views), 'notes.normalize'), 'Backend bindings not exposed');
-    verify((int) $db->query("SELECT COUNT(*) FROM vapa_audit WHERE outcome='success'")->fetchColumn() === 3, 'JSON operations retain audit');
+    verify((int) $db->query("SELECT COUNT(*) FROM blade_audit WHERE outcome='success'")->fetchColumn() === 3, 'JSON operations retain audit');
     try {
-        $workspace->executor->execute(new Context(new Vapa\Shell\Identity('2', 'Other'), 'ui', $workspace->acl, $db), 'notes', 'get', $created['id'], []);
+        $workspace->executor->execute(new Context(new Blade\Shell\Identity('2', 'Other'), 'ui', $workspace->acl, $db), 'notes', 'get', $created['id'], []);
         throw new RuntimeException('JSON action bypassed ACL');
     } catch (Failure $error) {
         verify($error->status === 403, 'Default deny retained');
     }
+
+    // OAuth needs the per-account switch of the built-in administration; JSON wires both.
+    $oauth = ['module' => $root.'/lib/_AuthHandler', 'assets' => 'lib/_AuthHandler', 'site_url' => 'https://app.example.test/', 'providers' => [
+        'Google' => ['keys' => ['id' => ['$env' => 'BLADE_TEST_UNSET_GOOGLE_ID', 'default' => ''], 'secret' => ['$env' => 'BLADE_TEST_UNSET_GOOGLE_SECRET', 'default' => '']]],
+        'Facebook' => ['keys' => ['id' => 'f', 'secret' => 's'], 'scope' => 'email'],
+    ]];
+    $write([...$settings, 'oauth' => $oauth]);
+    rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'OAuth without admin accepted');
+    $write([...$settings, 'oauth' => $oauth, 'admin' => [], 'i18n' => ['default' => 'hu', 'languages' => ['hu' => 'Magyar', 'en' => 'English'], 'selector' => true]]);
+    $app = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
+    verify($app->oauth->providers() === ['Google', 'Facebook'] && !$app->oauth->configured('Google') && $app->oauth->configured('Facebook') && $app->oauth->assets === 'lib/_AuthHandler', 'AuthHandler providers from JSON; empty credentials shown, not usable');
+    $users = array_values(array_filter($app->workspace->registry->views(), static fn($view) => $view['resource'] === 'blade_users'))[0];
+    verify(in_array('blade_oauth', array_column($users['columns'], 'id'), true) && in_array('blade_locale', array_column($users['columns'], 'id'), true), 'OAuth and language switches in the user admin');
+    verify(in_array('blade_api_keys', array_column($app->workspace->registry->views(), 'resource'), true), 'JSON admin includes API keys');
 
     $settings['session']['cookie_patth'] = '/wrong';
     $write($settings);
     rejected(static fn() => JsonApplication::load($file, [], $callbacks, $db), 'Unknown setting accepted');
     rejected(static fn() => WorkspaceConfiguration::build($db, [$module], static fn() => []), 'Unknown handler accepted');
     rejected(static fn() => WorkspaceConfiguration::build($db, [$module, $module], $callbacks), 'Duplicate resource accepted');
-    echo "VAPA JSON/environment configuration contracts passed.\n";
+    echo "61de JSON/environment configuration contracts passed.\n";
 } finally {
-    putenv('VAPA_TEST_CONFIG_PORT');
+    putenv('BLADE_TEST_CONFIG_PORT');
     foreach (glob($directory.'/*') as $temporary) {
         if (is_file($temporary)) {
             unlink($temporary);

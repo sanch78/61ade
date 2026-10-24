@@ -3,10 +3,10 @@ import {spawn} from 'node:child_process';
 import {createInterface} from 'node:readline';
 import {fileURLToPath} from 'node:url';
 import {WebSocketServer,WebSocket} from 'ws';
-const origin=process.env.VAPA_LIVE_ORIGIN;
-if(!origin)throw new Error('VAPA_LIVE_ORIGIN is required');
-const interval=Math.max(500,Number(process.env.VAPA_LIVE_INTERVAL || 2000));
-const bridge=spawn(process.env.VAPA_PHP || 'php8.4',[fileURLToPath(new URL('../packages/php/bin/live-bridge.php',import.meta.url))],{stdio:['pipe','pipe','inherit']});
+const origin=process.env.BLADE_LIVE_ORIGIN;
+if(!origin)throw new Error('BLADE_LIVE_ORIGIN is required');
+const interval=Math.max(500,Number(process.env.BLADE_LIVE_INTERVAL || 2000));
+const bridge=spawn(process.env.BLADE_PHP || 'php8.4',[fileURLToPath(new URL('../packages/php/bin/live-bridge.php',import.meta.url))],{stdio:['pipe','pipe','inherit']});
 const pending=new Map();let requestId=0;
 createInterface({input:bridge.stdout}).on('line',line=>{try{const r=JSON.parse(line),p=pending.get(r.id);if(p){pending.delete(r.id);clearTimeout(p.timeout);p.resolve(r);}}catch{console.error('Invalid live worker response');}});
 bridge.on('exit',(code,signal)=>{console.error('Live worker exited',code,signal);process.exit(1);});
@@ -47,6 +47,6 @@ wss.on('connection',ws=>{
  const heartbeat=setInterval(()=>{if(!alive){ws.terminate();return;}alive=false;ws.ping();},30000);
  ws.on('close',()=>{clearInterval(timer);clearInterval(heartbeat);clearTimeout(authTimeout);epoch++;});
 });
-server.listen(Number(process.env.VAPA_LIVE_PORT || 8088),'127.0.0.1',()=>console.log('VAPA live transport ready'));
+server.listen(Number(process.env.BLADE_LIVE_PORT || 8088),'127.0.0.1',()=>console.log('61de live transport ready'));
 function shutdown(){for(const ws of wss.clients)ws.close(1001,'Restart');server.close();bridge.kill();setTimeout(()=>process.exit(0),1000).unref();}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

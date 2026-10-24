@@ -65,7 +65,7 @@ Complete synthetic example: [notes.json](../tests/fixtures/configuration/notes.j
 | `section_descriptions` | Free-text section explanations, non-executable metadata. |
 | `lookups` | Named permission-filtered selectors: `resource`, `table`, `key`, `label`; optional `owner`, `where`, `extra`. |
 | `resources.<name>.storage` | `table`, `key`; optional `owner_column`, `defaults`, `where`, `self_only`. `where` is trusted developer-authored SQL. |
-| `fields` | `name`, `label`; optional `type`, `required`, `max`, `secret` and one choices source: `options`, `options_lookup` or `options_binding`. `validation` follows [form validation](validation.md); `checkbox`, `default` and `column` follow [field presentation](field-presentation.md). |
+| `fields` | `name`, `label`; optional `type`, `required`, `max`, `secret` and one choices source: `options`, `options_lookup` or `options_binding`. `validation` follows [form validation](validation.md); `checkbox`, `default` and `column` (including optional secondary grid columns) follow [field presentation](field-presentation.md). |
 | `operations` | `create`/`update` default true; `delete` defaults false. |
 | `hooks` | `guard`, `normalize`, `after_save`, `delete_guard`: explicit PHP binding names. |
 | `view` | `title`; optional `group`, `singleton`, `columns`, `actions`, `layout`. Omitted columns/actions use the registered resource's default view. |
