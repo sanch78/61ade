@@ -211,3 +211,59 @@
 <a id="fb-0051"></a>
 
 ## FB-0051 — Development/testing only; no deployment or project backups
+
+<a id="fb-0052"></a>
+
+## FB-0052 — Browser tests only on the feature demo; localhost fixtures removed
+
+<a id="fb-0053--másodlagos-grid-oszlopok-kapcsolása"></a>
+
+## FB-0053 — Toggleable secondary grid columns
+
+<a id="fb-0054--önálló-api-kulcs-menü-és-saját-kulcsok"></a>
+
+## FB-0054 — Standalone API-key menu and self-scoped keys
+
+<a id="fb-0055--egyedi-muveleti-parancsok-es-ikonok"></a>
+
+## FB-0055 — One command per action and complete action icons
+
+<a id="fb-0056--minden-muvelethez-ervenyes-ikon"></a>
+
+## FB-0056 — Every action uses a bundled icon
+
+<a id="fb-0056--formok-megse-muvelete"></a>
+
+## FB-0056 — Explicit Cancel on editable forms
+
+<a id="fb-0056"></a>
+
+## FB-0056 — No redundant intermediate action dialogs
+
+<a id="fb-0057--integralt-grid-fejlec-szurok"></a>
+
+## FB-0057 — Integrated grid header filters
+
+<a id="fb-0058"></a>
+
+## FB-0058 — Virtual two-panel file manager (first vertical slice)
+
+<a id="fb-0059"></a>
+
+## FB-0059 — Single-record commands are disabled while several rows are marked
+
+<a id="fb-0060"></a>
+
+## FB-0060 — Visual diagram editor: network topology builder demo
+
+<a id="fb-0061"></a>
+
+## FB-0061 — Event calendar: digital signage (DMS) scheduler demo
+
+<a id="fb-0062"></a>
+
+## FB-0062 — Sibling items beside the collapsed desktop main menu
+
+<a id="fb-0063"></a>
+
+## FB-0063 — Uploader and file/media list decisions
