@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__,2).'/examples/demo-app/vendor/autoload.php';
 use Blade\Access\Schema;
-use Blade\Feature\{Action,Registry,Workspace,Context,DownloadStream,Failure,Field,Upload};
+use Blade\Feature\{Action,Registry,Workspace,Context,DownloadStream,Failure,Field,Transfers,Upload,UploadPolicy};
 use Blade\Files\{ContentStore,FileManagerDefinition,FileStorage,MediaProbe,Thumbnails};
 use Blade\Infrastructure\Transaction;
 use Blade\Shell\Identity;
@@ -96,7 +96,7 @@ $png=base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8
 $up=fn(array $parts,string $decision='')=>$call('upload',(string)$dirA['id'],$decision===''?[]:['decision'=>$decision],$ctx('1',$parts));
 $result=$up([$part('files','new.txt',"new\n"),$part('files','pixel.png',$png),$part('files','evil.exe','MZ'),$part('files','fake.png','not an image'),$part('files','huge.txt',str_repeat("z",101)),$part('files','a/b.txt','x'),$part('files',' lead.txt','x')]);
 check(array_column($result['succeeded'],'name')===['new.txt','pixel.png'],'Valid uploads stored');
-check(count($result['failed'])===5,'Invalid extension, MIME, size and names failed');
+check(array_column($result['failed'],'code')===['type','content_mismatch','too_large','name','name'],'Invalid extension, MIME, size and names failed with codes');
 check($storage->child((int)$dirA['id'],'pixel.png')['mime_type']==='image/png','Detected MIME stored');
 fails(fn()=>$up([$part('files','evil.exe','MZ')]),400,'All-invalid upload rejected');
 $ask=fails(fn()=>$up([$part('files','new.txt',"again\n")]),409,'Duplicate asks');
@@ -327,13 +327,168 @@ fails(fn()=>$call('text_get',$victim),404,'Missing content is a 404 for text');
 $storage->removeFile((int)$victim);$storage->removeFile((int)$victimB);
 ob_start();(new DownloadStream('image/png',$tmp.'/missing.png',10,'"a"'))->send(false,[]);check(ob_get_clean()==='','Unreadable stream file sends no body');
 
+// Chunked transfers (U2): driven through Transfers::handle as the `__upload` transport calls it.
+$transfers=$workspace->transfers;$session=Transfers::owner('session-1');$tempRoot=$root.'/.transfers';
+$upDir=$call('create_directory',$rootA,['name'=>'Uploads'])['id'];$upRow=$storage->entry((int)$upDir);
+check($view('1')[0]['files']['upload']['policy']===['extensions'=>['txt','png'],'max_size_bytes'=>100,'max_files'=>20,'chunk_bytes'=>4194304,'folders'=>true,'max_depth'=>5,'duplicate_policy'=>'ask']&&!str_contains(json_encode($view('1')),'.transfers'),'Upload policy metadata without the transfer root');
+check($registry->get('files','upload')->upload instanceof UploadPolicy&&$registry->get('files','upload')->upload->requestBytes()===2000&&is_int($registry->get('files','text_save')->upload),'Upload action declares a policy; text_save keeps its byte limit');
+foreach([fn()=>new UploadPolicy([],10),fn()=>new UploadPolicy(['TXT'],10),fn()=>new UploadPolicy(['txt','txt'],10),fn()=>new UploadPolicy(['txt'],0),fn()=>new UploadPolicy(['txt'],104857601),fn()=>new UploadPolicy(['txt'],10,21),fn()=>new UploadPolicy(['txt'],10,chunkBytes:1000),fn()=>new UploadPolicy(['txt'],10,chunkBytes:8388609),fn()=>new UploadPolicy(['txt'],10,duplicatePolicy:'merge'),fn()=>new UploadPolicy(['txt'],10,tempRoot:'relative'),fn()=>new UploadPolicy(['txt'],10,tempRoot:'/a/../b'),fn()=>new UploadPolicy(['txt'],10,ttlSeconds:60),fn()=>new UploadPolicy(['txt'],10,maxDepth:0)] as $invalid){try{$invalid();throw new RuntimeException('Invalid upload policy accepted');}catch(InvalidArgumentException){}}
+// A synthetic second consumer (not the file manager) with its own policy and the same transfer root.
+$attached=[];
+$registry->add(new Action('files','attach','Attach',[],function(Context $c,array $t,array $v) use (&$attached){$attached[]=[$c->uploads[0]->name,file_get_contents($c->uploads[0]->path)];return ['ok'=>true];},resolve:fn(Context $c,?string $id)=>['id'=>$id,'acl_id'=>'a','owner'=>null],write:true,upload:new UploadPolicy(['txt'],50,maxFiles:2,tempRoot:$tempRoot,ttlSeconds:600)));
+foreach(['1','8'] as $actor)foreach(['upload','attach','list','create_directory'] as $a)$rule->execute([$actor,$a,'ui','all','']);
+$op=fn(string $operation,array $values=[],?string $id=null,?Context $c=null,?string $owner=null,string $action='upload')=>$transfers->handle($c??$ctx(),$owner??$session,'files',$id??$upDir,['operation'=>$operation,'action'=>$action,...$values]);
+$sent=0;
+$chunk=function(string $transfer,int $offset,string $bytes,?string $id=null,string $actor='1',string $action='upload') use ($op,$part,$ctx,&$sent){$sent+=strlen($bytes);return $op('upload_chunk',['transfer'=>$transfer,'offset'=>$offset],$id,$ctx($actor,[$part('chunk','blob',$bytes)]),null,$action);};
+$begin=fn(string $name,int $size,string $fingerprint,string $path='',?string $id=null,?Context $c=null,?string $owner=null,string $action='upload')=>$op('upload_begin',['file'=>['name'=>$name,'size'=>$size,'type'=>'text/plain','relative_path'=>$path],'fingerprint'=>$fingerprint],$id,$c,$owner,$action);
+$send=function(string $name,string $bytes,string $path='',?string $id=null,array $finish=[]) use ($begin,$chunk,$op){$t=$begin($name,strlen($bytes),'fp:'.$path.$name.':'.strlen($bytes),$path,$id);foreach(str_split($bytes,7) as $i=>$piece)if($bytes!=='')$chunk($t['transfer'],$i*7,$piece,$id);return [$t['transfer'],$op('upload_finish',['transfer'=>$t['transfer'],...$finish],$id)];};
+$transferDirs=fn()=>array_values(array_filter(scandir($tempRoot)?:[],fn($e)=>preg_match('/^[0-9a-f]{32}$/',$e)));
+$countFiles=fn()=>(int)$db->query('SELECT COUNT(*) FROM blade_files')->fetchColumn();
+$storage->createFile($upRow,'taken.txt','text/plain',$src("taken\n"));
+// Preflight: per-file codes, no side effects.
+$before=$countFiles();
+$pre=$op('upload_preflight',['files'=>[['name'=>'ok.txt','size'=>10,'type'=>'text/plain'],['name'=>'huge.txt','size'=>101,'type'=>''],['name'=>'evil.exe','size'=>2,'type'=>''],['name'=>"bad\x01.txt",'size'=>1,'type'=>''],['name'=>'taken.txt','size'=>1,'type'=>''],
+    ['name'=>'deep.txt','size'=>1,'type'=>'','relative_path'=>'1/2/3/4/5/deep.txt'],['name'=>'dots.txt','size'=>1,'type'=>'','relative_path'=>'x/../dots.txt'],['name'=>'nested.txt','size'=>1,'type'=>'','relative_path'=>'Új/nested.txt'],...array_fill(0,13,['name'=>'many.txt','size'=>1,'type'=>''])]]);
+$codes=array_map(fn($f)=>$f['ok']?'ok':$f['code'],$pre['files']);
+check(array_slice($codes,0,8)===['ok','too_large','type','name','conflict','depth','name','ok']&&$codes[19]==='ok'&&$codes[20]==='quota'&&count($codes)===21,'Preflight codes: '.json_encode($codes));
+check($pre['files'][4]['conflict']===['existing_kind'=>'file']&&$pre['files'][1]['message']!==''&&array_column($pre['files'],'index')===range(0,20),'Preflight conflict kind, messages and indexes');
+check($countFiles()===$before&&(!is_dir($tempRoot)||$transferDirs()===[]),'Preflight creates nothing');
+fails(fn()=>$op('upload_preflight',['files'=>[['name'=>'x.txt']]]),400,'Malformed preflight file');
+fails(fn()=>$op('upload_preflight',['files'=>[],'extra'=>1]),400,'Unknown preflight value');
+fails(fn()=>$op('upload_preflight',['files'=>[['name'=>'x.txt','size'=>1]]],$rootA,null,null,'text_save'),415,'Action without a policy has no transfer protocol');
+fails(fn()=>$op('upload_status',['transfer'=>str_repeat('a',32)],null,$ctx('1',[$part('chunk','x','x')])),415,'Only chunks carry a part');
+// Begin, chunks (exact offsets), status, finish.
+$t=$begin('Átvitel.txt',15,'fp-1');
+check(preg_match('/^[0-9a-f]{32}$/',$t['transfer'])&&$t['received']===0&&$t['size']===15&&$t['chunk_bytes']===4194304&&$t['expires_at']>gmdate('Y-m-d\TH:i:s\Z'),'Begin returns transfer, chunk size and expiry');
+$dir=$tempRoot.'/'.$t['transfer'];
+check((fileperms($dir)&07777)===02770&&(fileperms($dir.'/data')&0777)===0660&&(fileperms($dir.'/meta.json')&0777)===0660,'Transfer directory and files are group-shared');
+check(!str_contains(file_get_contents($dir.'/meta.json'),'session-1')&&str_contains(file_get_contents($dir.'/meta.json'),$session),'Only the session hash is stored');
+check($chunk($t['transfer'],0,'hello ')===['received'=>6],'First chunk');
+check(fails(fn()=>$chunk($t['transfer'],0,'hello '),409,'Wrong offset')->details===['received'=>6],'Wrong offset reports the received bytes');
+check(fails(fn()=>$chunk($t['transfer'],6,'transfer!\nmore'),400,'Chunk beyond the declared size')->details===['code'=>'too_large'],'Oversize chunk code');
+fails(fn()=>$op('upload_chunk',['transfer'=>$t['transfer'],'offset'=>6]),400,'Chunk without a part');
+fails(fn()=>$op('upload_chunk',['transfer'=>$t['transfer'],'offset'=>'-1'],null,$ctx('1',[$part('chunk','b','x')])),400,'Negative offset');
+$huge=$tmp.'/huge-chunk';$h=fopen($huge,'wb');ftruncate($h,4194305);fclose($h);
+fails(fn()=>$op('upload_chunk',['transfer'=>$t['transfer'],'offset'=>6],null,$ctx('1',[new Upload('chunk','b',$huge,4194305,UPLOAD_ERR_OK)])),413,'Chunk above chunkBytes');
+check($op('upload_status',['transfer'=>$t['transfer']])===['received'=>6,'size'=>15,'state'=>'receiving'],'Status while receiving');
+check(fails(fn()=>$op('upload_finish',['transfer'=>$t['transfer']]),400,'Finish before all bytes')->details===['code'=>'incomplete']&&is_dir($dir),'Incomplete finish keeps the transfer');
+// Resume: the same fingerprint returns the same transfer and its received bytes; another file does not.
+$again=$begin('Átvitel.txt',15,'fp-1');check($again['transfer']===$t['transfer']&&$again['received']===6,'Resume returns the same transfer');
+check($begin('Átvitel.txt',16,'fp-1')['transfer']!==$t['transfer']&&$begin('Átvitel.txt',15,'fp-1')['transfer']!==$t['transfer'],'A different file under the same fingerprint starts anew');
+$t=$begin('Átvitel.txt',15,'fp-1b');$dir=$tempRoot.'/'.$t['transfer'];
+$chunk($t['transfer'],0,'hello ');$chunk($t['transfer'],6,"transfer\n");
+check($op('upload_status',['transfer'=>$t['transfer']])['state']==='complete','Status complete');
+// Ownership: another actor, session, target or action sees no transfer; unknown and malformed ids neither.
+$other=$call('create_directory',$rootA,['name'=>'Other'])['id'];
+foreach([[null,$ctx('8'),null,'upload'],[null,null,Transfers::owner('session-2'),'upload'],[$other,null,null,'upload'],[null,null,null,'attach']] as [$id,$c,$owner,$action])foreach(['upload_status','upload_finish','upload_abort'] as $operation)fails(fn()=>$op($operation,['transfer'=>$t['transfer']],$id,$c,$owner,$action),404,'Foreign transfer hidden: '.$operation);
+fails(fn()=>$chunk($t['transfer'],15,'x',null,'8'),404,'Foreign chunk hidden');
+foreach([str_repeat('0',32),'../x','ABC'] as $bad)fails(fn()=>$op('upload_status',['transfer'=>$bad]),404,'Unknown transfer id');
+check(is_dir($dir),'Foreign requests leave the transfer');
+$result=$op('upload_finish',['transfer'=>$t['transfer']]);
+$made=$storage->child((int)$upDir,'Átvitel.txt');
+check($result['succeeded']===[['id'=>(string)$made['id'],'name'=>'Átvitel.txt','parent'=>$upDir]]&&$storage->content((int)$made['id'])==="hello transfer\n"&&$made['sha256']===hash('sha256',"hello transfer\n"),'Finish stores the assembled file');
+check(!is_dir($dir)&&!array_filter(glob($tempRoot.'/*.resume')?:[],fn($f)=>trim(file_get_contents($f))===$t['transfer']),'Finish removes the transfer and its resume index');
+fails(fn()=>$op('upload_status',['transfer'=>$t['transfer']]),404,'Finished transfer is gone');
+[,$pixel]=$send('pixel-t.png',$png);$pixelRow=$storage->entry((int)$pixel['succeeded'][0]['id']);
+check($pixelRow['mime_type']==='image/png'&&(int)$pixelRow['width']===1&&$pixelRow['orientation']==='square','Transferred image has media metadata');
+check($db->query("SELECT state FROM blade_tasks WHERE dedupe='".Thumbnails::dedupe('test',(int)$pixelRow['id'],1)."'")->fetchColumn()==='pending','Transferred image queues its thumbnail');
+[,$empty]=$send('empty-t.txt','');check($storage->entry((int)$empty['succeeded'][0]['id'])['size']==0,'Empty file needs no chunk');
+// Begin applies the policy and the domain rules, except conflicts (decided at finish).
+foreach([['x.exe',1,'','type'],['big.txt',101,'','too_large'],["a\u{202E}.txt",1,'','name'],['d.txt',1,'1/2/3/4/5/d.txt','depth'],['d.txt',1,'../d.txt','name']] as [$name,$size,$path,$code])check(fails(fn()=>$begin($name,$size,'fp-bad-'.$code,$path),400,'Begin refuses '.$code)->details===['code'=>$code],'Begin code '.$code);
+check(preg_match('/^[0-9a-f]{32}$/',$begin('taken.txt',3,'fp-taken')['transfer'])===1,'Begin accepts a conflicting name');
+fails(fn()=>$begin('x.txt',1,str_repeat('f',129)),400,'Fingerprint length');
+// Conflicts at finish: 409 keeps the transfer; overwrite, rename and skip finish it without new bytes.
+foreach(['overwrite'=>"over\n",'rename'=>"renamed\n",'skip'=>"skipped\n"] as $decision=>$bytes){
+    $t=$begin('taken.txt',strlen($bytes),'fp-'.$decision);$chunk($t['transfer'],0,$bytes);
+    $conflict=fails(fn()=>$op('upload_finish',['transfer'=>$t['transfer']]),409,'Finish conflict asks');
+    check($conflict->details['conflicts'][0]['existing_kind']==='file'&&$op('upload_status',['transfer'=>$t['transfer']])['state']==='complete','Conflict keeps the transfer: '.$decision);
+    $done=$op('upload_finish',['transfer'=>$t['transfer'],'decision'=>$decision]);
+    check(!is_dir($tempRoot.'/'.$t['transfer']),'Decision finishes the transfer: '.$decision);
+    if($decision==='overwrite')check($done['succeeded'][0]['name']==='taken.txt'&&$storage->content((int)$done['succeeded'][0]['id'])===$bytes,'Overwrite decision');
+    if($decision==='rename')check($done['succeeded'][0]['name']==='taken (2).txt'&&$done['succeeded'][0]['parent']===$upDir,'Rename decision');
+    if($decision==='skip')check($done['skipped']===[['name'=>'taken.txt']]&&!$done['succeeded'],'Skip decision');
+}
+fails(fn()=>$op('upload_finish',['transfer'=>$begin('x.txt',1,'fp-decision')['transfer'],'decision'=>'merge']),400,'Unknown decision rejected');
+// Content detected at finish: a mismatch is permanent and removes the transfer.
+$t=$begin('fake-t.png',12,'fp-fake');$chunk($t['transfer'],0,'not an image');
+check(fails(fn()=>$op('upload_finish',['transfer'=>$t['transfer']]),400,'Content mismatch at finish')->details['code']==='content_mismatch'&&!is_dir($tempRoot.'/'.$t['transfer']),'Content mismatch removes the transfer');
+// Folder upload: missing directories are created below the target and reused; depth counts from the mount root.
+[,$a]=$send('a.txt',"a\n",'Fotók/2026/a.txt');[,$b]=$send('b.txt',"b\n",'Fotók/2026/b.txt');
+$fotok=$storage->child((int)$upDir,'Fotók');$year=$storage->child((int)$fotok['id'],'2026');
+check($fotok['kind']==='directory'&&$year['kind']==='directory'&&$a['succeeded'][0]['parent']===(string)$year['id']&&$b['succeeded'][0]['parent']===(string)$year['id'],'Folder upload creates and reuses directories');
+check(json_decode($db->query("SELECT detail FROM blade_audit WHERE action='upload' AND outcome='success' AND detail LIKE '%directories%' ORDER BY id DESC LIMIT 1")->fetchColumn(),true)['directories']===[],'Second folder file creates no directory');
+check(count($db->query("SELECT id FROM blade_files WHERE name='Fotók'")->fetchAll())===1,'One directory for both files');
+[,$deepest]=$send('c.txt',"c\n",'2/3/4/5/c.txt');check($storage->entry((int)$deepest['succeeded'][0]['parent'])['name']==='5','Depth 5 below the mount root is allowed');
+check(fails(fn()=>$begin('c.txt',2,'fp-depth6','2/3/4/5/6/c.txt'),400,'Depth 6 below the mount root')->details===['code'=>'depth'],'Depth from the mount root');
+$blocked=$storage->entry((int)$storage->createFile($upRow,'Blocker','text/plain',$src('x')));
+check(fails(fn()=>$send('x.txt',"x\n",'Blocker/x.txt'),400,'A file blocks the folder path')->details['code']==='conflict','Folder path blocked by a file');
+// Direct multipart keeps working: one relative path per request, per-file codes.
+$direct=$up([$part('files','direct.txt',"d\n")],'');
+check($direct['succeeded'][0]['parent']===(string)$dirA['id'],'Direct upload result carries the parent');
+fails(fn()=>$call('upload',(string)$dirA['id'],['relative_path'=>'X/a.txt'],$ctx('1',[$part('files','a.txt','a'),$part('files','b.txt','b')])),400,'Relative path needs a single file');
+check($call('upload',(string)$dirA['id'],['relative_path'=>'Direkt/a.txt'],$ctx('1',[$part('files','a.txt','a')]))['succeeded'][0]['parent']===(string)$storage->child((int)$dirA['id'],'Direkt')['id'],'Direct folder upload');
+// Abort removes the data; expired transfers are swept by a later begin and are not found.
+$t=$begin('abort.txt',5,'fp-abort');$chunk($t['transfer'],0,'ab');
+check($op('upload_abort',['transfer'=>$t['transfer']])===['aborted'=>true]&&!is_dir($tempRoot.'/'.$t['transfer']),'Abort removes the transfer');
+fails(fn()=>$op('upload_status',['transfer'=>$t['transfer']]),404,'Aborted transfer is gone');
+$expire=function(string $transfer) use ($tempRoot){$path=$tempRoot.'/'.$transfer.'/meta.json';$meta=json_decode(file_get_contents($path),true);$meta['expires_at']=time()-1;file_put_contents($path,json_encode($meta));touch($path,time()-3600);};
+$old1=$begin('old.txt',5,'fp-old1')['transfer'];$old2=$begin('old.txt',5,'fp-old2')['transfer'];$fresh=$begin('fresh.txt',5,'fp-fresh')['transfer'];
+$expire($old1);$expire($old2);
+fails(fn()=>$op('upload_status',['transfer'=>$old2]),404,'Expired transfer not found');
+check(!is_dir($tempRoot.'/'.$old2),'Expired transfer removed on access');
+$begin('new.txt',5,'fp-new');
+check(!is_dir($tempRoot.'/'.$old1)&&is_dir($tempRoot.'/'.$fresh),'Begin sweeps expired transfers only');
+check($begin('old.txt',5,'fp-old1')['transfer']!==$old1,'An expired transfer is not resumed');
+mkdir($tempRoot.'/'.str_repeat('e',32));touch($tempRoot.'/'.str_repeat('e',32),time()-90000);file_put_contents($tempRoot.'/'.str_repeat('d',64).'.resume',str_repeat('c',32));touch($tempRoot.'/'.str_repeat('d',64).'.resume',time()-3600);
+$begin('new.txt',5,'fp-new2');check(!is_dir($tempRoot.'/'.str_repeat('e',32))&&!is_file($tempRoot.'/'.str_repeat('d',64).'.resume'),'Orphans swept');
+// ACL: every operation checks the target action's rule on the mount and the API token scope.
+$t8=$begin('acl.txt',3,'fp-acl',c:$ctx('8'));
+$db->exec("DELETE FROM blade_rules WHERE subject_id='8' AND action='upload'");
+foreach([['upload_preflight',['files'=>[['name'=>'x.txt','size'=>1]]]],['upload_begin',['file'=>['name'=>'x.txt','size'=>1],'fingerprint'=>'f']],['upload_status',['transfer'=>$t8['transfer']]],['upload_abort',['transfer'=>$t8['transfer']]],['upload_finish',['transfer'=>$t8['transfer']]]] as [$operation,$values])fails(fn()=>$op($operation,$values,null,$ctx('8')),403,'Denied without upload right: '.$operation);
+fails(fn()=>$chunk($t8['transfer'],0,'abc',null,'8'),403,'Denied chunk without upload right');
+$rule->execute(['9','upload','ui','id','b']);
+fails(fn()=>$op('upload_preflight',['files'=>[['name'=>'x.txt','size'=>1]]],null,$ctx('9')),403,'Upload right on another mount does not apply');
+fails(fn()=>$begin('x.txt',1,'f',c:$ctx('1',[],'api',['files.upload']),owner:Transfers::owner('token')),404,'UI rule does not open the API');
+$rule->execute(['1','upload','api','all','']);
+$api=$begin('api.txt',3,'fp-api',c:$ctx('1',[],'api',['files.upload']),owner:Transfers::owner('token'));
+foreach([['upload_preflight',['files'=>[['name'=>'x.txt','size'=>1]]]],['upload_begin',['file'=>['name'=>'x.txt','size'=>1],'fingerprint'=>'f']],['upload_status',['transfer'=>$api['transfer']]],['upload_abort',['transfer'=>$api['transfer']]],['upload_finish',['transfer'=>$api['transfer']]]] as [$operation,$values])fails(fn()=>$op($operation,$values,null,$ctx('1',[],'api',['files.list']),Transfers::owner('token')),403,'Token scope required: '.$operation);
+fails(fn()=>$op('upload_status',['transfer'=>$api['transfer']],null,$ctx('1'),Transfers::owner('token')),404,'An API transfer is not visible on the UI channel');
+check($op('upload_status',['transfer'=>$api['transfer']],null,$ctx('1',[],'api',['files.upload']),Transfers::owner('token'))['size']===3,'API transfer with scope');
+// The generic consumer: its own policy (no folders) and handler receive the assembled file.
+check(fails(fn()=>$begin('a.txt',1,'fp-attach','Dir/a.txt',null,null,null,'attach'),400,'Folders off')->details===['code'=>'name'],'Policy without folders refuses paths');
+$t=$begin('attach.txt',4,'fp-attach',action:'attach');$chunk($t['transfer'],0,'data',null,'1','attach');
+check($op('upload_finish',['transfer'=>$t['transfer']],null,null,null,'attach')===['ok'=>true]&&$attached===[['attach.txt','data']]&&!is_dir($tempRoot.'/'.$t['transfer']),'Independent consumer receives the assembled file');
+// Twenty mixed files: preflight once, bytes sent once, conflicts decided without re-sending.
+$batchDir=$call('create_directory',$rootA,['name'=>'Batch'])['id'];$batchRow=$storage->entry((int)$batchDir);
+foreach(['dup-1.txt','dup-2.txt','dup-3.txt'] as $name)$storage->createFile($batchRow,$name,'text/plain',$src('old'));
+$batch=[];for($i=1;$i<=20;$i++)$batch[]=match(true){$i<=3=>['dup-'.$i.'.txt',"new $i\n"],$i<=5=>['pic-'.$i.'.png',$png],$i===6=>['bad-6.exe','MZ'],$i===7=>['big-7.txt',str_repeat('x',101)],$i===8=>['fake-8.png','text'],default=>['file-'.$i.'.txt',"file $i\n"]};
+$verdicts=$op('upload_preflight',['files'=>array_map(fn($f)=>['name'=>$f[0],'size'=>strlen($f[1]),'type'=>''],$batch)],$batchDir)['files'];
+check(array_map(fn($f)=>$f['ok']?'ok':$f['code'],$verdicts)===['conflict','conflict','conflict','ok','ok','type','too_large',...array_fill(0,13,'ok')],'Batch preflight verdicts');
+$sent=0;$outcomes=$batchTransfers=[];
+foreach($batch as $i=>[$name,$bytes]){
+    if(!$verdicts[$i]['ok']&&$verdicts[$i]['code']!=='conflict'){$outcomes[]='refused';continue;}
+    $t=$begin($name,strlen($bytes),'batch:'.$name,'',$batchDir);$batchTransfers[]=$t['transfer'];foreach(str_split($bytes,4) as $n=>$piece)$chunk($t['transfer'],$n*4,$piece,$batchDir);
+    try{$done=$op('upload_finish',['transfer'=>$t['transfer']],$batchDir);}
+    catch(Failure $e){if($e->status!==409){$outcomes[]=$e->details['code'];continue;}$done=$op('upload_finish',['transfer'=>$t['transfer'],'decision'=>'rename'],$batchDir);}
+    $outcomes[]=$done['succeeded'][0]['name'];
+}
+check($outcomes===['dup-1 (2).txt','dup-2 (2).txt','dup-3 (2).txt','pic-4.png','pic-5.png','refused','refused','content_mismatch',...array_map(fn($i)=>'file-'.$i.'.txt',range(9,20))],'Twenty mixed files give per-file results: '.json_encode($outcomes));
+check($sent===array_sum(array_map(fn($f)=>strlen($f[1]),array_filter($batch,fn($f,$i)=>$verdicts[$i]['ok']||$verdicts[$i]['code']==='conflict',ARRAY_FILTER_USE_BOTH))),'Every byte sent once');
+check(!array_intersect($batchTransfers,$transferDirs())&&in_array($fresh,$transferDirs(),true),'Finished batch transfers are removed, unfinished ones kept');
+// Transfer audit: begin rows carry the size only; names never reach the audit.
+$beginAudit=$db->query("SELECT detail FROM blade_audit WHERE action='upload' AND outcome='success' AND detail NOT LIKE '%directory%' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
+check($beginAudit&&!array_filter($beginAudit,fn($d)=>array_keys(json_decode($d,true))!==['size']),'Begin audit holds the size only');
+check((bool)$db->query("SELECT 1 FROM blade_audit WHERE action='upload' AND outcome='rejected' AND actor_id='8'")->fetchColumn(),'Denied begin audited');
+$transferAudit=json_encode($db->query("SELECT * FROM blade_audit WHERE action IN ('upload','attach')")->fetchAll(PDO::FETCH_ASSOC),JSON_UNESCAPED_UNICODE);
+foreach(['Átvitel','pixel-t','Fotók','dup-1','file-9','attach.txt','fp-',$session,'session-1'] as $secret)check(!str_contains($transferAudit,$secret),'Transfer audit excludes names and owners: '.$secret);
+
 // Audit: operation, actor, outcome and related IDs; never contents or names.
 $audit=$db->query("SELECT actor_id,action,object_id,outcome,field_names,detail FROM blade_audit WHERE resource='files' ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
 $copyAudit=array_values(array_filter($audit,fn($r)=>$r['action']==='copy'&&$r['outcome']==='success'))[0];
 $detail=json_decode($copyAudit['detail'],true);
 check($copyAudit['actor_id']==='1'&&$copyAudit['object_id']===$rootB&&$detail['sources']===[(string)$tree['id']]&&count($detail['succeeded'])===1,'Copy audit with source/target IDs');
 check((bool)array_filter($audit,fn($r)=>$r['action']==='text_save'&&$r['outcome']==='rejected'),'Rejected save audited');
-check((bool)array_filter($audit,fn($r)=>$r['action']==='upload'&&$r['outcome']==='success'&&json_decode($r['detail'],true)['created']),'Upload audited');
+check((bool)array_filter($audit,fn($r)=>$r['action']==='upload'&&$r['outcome']==='success'&&(json_decode($r['detail'],true)['created']??null)),'Upload audited');
 $all=json_encode($audit);
 foreach(['edited','hello','over','renamed','leaf','note.txt','clip.mp4','wide.png','identical'] as $secret)check(!str_contains($all,$secret),'Audit excludes content/names: '.$secret);
 // Metadata exposes no storage space, SQL or server paths.

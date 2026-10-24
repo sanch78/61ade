@@ -38,6 +38,20 @@ Error, Dangerous action. Styling uses `admin.css` `.blade-dialog*` with
 DHTMLX `--dhx-*` theme variables across Skyblue/light/dark; dark warning amber
 is lighter.
 
+`requestChoice({message, title?, severity?, cancelLabel?, choices})` is the
+multiple-choice mode: one button per `{value,label}` choice plus Cancel. It
+resolves the chosen value, or `null` for Cancel/Escape, and opens on Cancel.
+The first choice uses the primary style, the others secondary. The
+[file manager](files.md) uses it for name conflicts (Overwrite, Rename, Skip,
+Cancel) ([FB-0058](feedback.md#fb-0058)).
+
+`requestChoiceAll({…, applyToAll})` is the same dialog with a checkbox
+labelled `applyToAll` between the message and the buttons. It resolves
+`{value, all}` (or `null` for Cancel/Escape); the checkbox joins the focus
+cycle, Space toggles it, focus still starts on Cancel. The
+[uploader](uploader.md) uses it so one decision can apply to every later
+name conflict of a batch ([FB-0063](feedback.md#fb-0063)).
+
 Compatible callers `alert({header,text,buttons,htmlEnable})` and
 `confirm({…,buttons:[apply,reject]})` are exported with optional severity.
 Migrate imports from `@dhtmlx/suite` to `./MessageDialog` and set appropriate
@@ -49,7 +63,9 @@ remains a toast, outside this dialog API.
 ## Server-declared confirmation
 
 PHP `Action` / JSON action `confirm` requests confirmation before individual
-or bulk execution, after the form's Execute button:
+or bulk execution. If an action has input fields, the confirmation follows the
+form's Execute button; a command with no inputs runs directly and shows its
+confirmation at that point:
 
 ```json
 { "resource": "demo_tasks", "name": "purge", "label": "Ürítés", "handler": "tasks.purge",
@@ -63,7 +79,9 @@ throw. Metadata contains translated text. Confirmation is client UX only;
 server ACL/executor checks every call. API calls do not ask for confirmation.
 
 An action result's `reveal` may contain `severity`
-(`neutral`/`warning`/`danger`); partial bulk failures use warning.
+(`neutral`/`warning`/`danger`) for compatibility; toolbar success and one-time
+reveals and bulk results are shown as non-blocking toasts. Partial bulk failures
+include the failed row messages in that toast.
 
 <a id="billentyűzet-és-fókusz"></a>
 
@@ -71,7 +89,8 @@ An action result's `reveal` may contain `severity`
 
 - Acknowledgment opens on OK. Confirmation opens on Confirm except danger or explicit `initialFocus: "cancel"`, which focus Cancel.
 - Enter activates only the focused button; background/body cannot confirm.
-- Escape closes acknowledgment with true; confirmation always cancels with false, regardless of focused button. Native Suite confirm did not meet this rule.
+- The key press that opens a dialog cannot also activate its button: a keyboard click counts only after a new key press inside the dialog. Without this, Enter that commits an inline grid edit and raises a validation message closed the message instantly ([FB-0052](feedback.md#fb-0052)). Pointer clicks are unaffected.
+- Escape closes acknowledgment with true; confirmation always cancels with false, regardless of focused button. Native Suite confirm did not meet this rule. Choice mode resolves `null`.
 - Tab/Shift+Tab cycle buttons and, for long content, the scrollable body. Background is inert.
 - Backdrop clicks do not close. Closing restores opener focus if it still exists.
 - Accessibility: `role="alertdialog"`, `aria-modal`, title `aria-labelledby`, message `aria-describedby`.

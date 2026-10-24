@@ -1,20 +1,65 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Feature;
+namespace Blade\Feature;
 
 /** ACL-scoped keyset data source, shared by scrolling, filtering and live observation. */
 final readonly class ListSource
 {
-    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null){}
+    /** $search: declared name-search fields (non-secret text/textarea); $registry resolves `column.media` sources. */
+    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null, private array $search = [], private ?Registry $registry = null)
+    {
+        $known=array_column($fields,null,'name');
+        if(!array_is_list($search)||count($search)>20||count(array_unique($search))!==count($search))throw new \InvalidArgumentException('Invalid list search declaration.');
+        foreach($search as $name){$field=is_string($name)?($known[$name]??null):null;if(!$field||$field->secret||!in_array($field->type,['text','textarea'],true)||isset($field->column['media']))throw new \InvalidArgumentException('Invalid list search declaration.');}
+    }
 
     public function filterDefinitions(Context $ctx):array
     {
         $out=[];
         foreach($this->fields as $field){
-            if($field->secret||$field->type==='textarea'||!$this->queryable($ctx,$field->name))continue;
+            if($field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$field->name))continue;
+            if(isset($field->column['media'])){
+                // A media column filters by MIME class; without a registered source it is not filterable.
+                $media=$this->registry?->mediaSource($field->column['media']);
+                if($media)$out[]=[...$field->metadata($ctx),'type'=>'select','options'=>array_map(\Blade\I18n\Translator::text(...),$media->classes())];
+                continue;
+            }
             $out[]=$field->metadata($ctx);
         }
         return $out;
+    }
+    /** Declared search fields the actor may query; null when none (the view then offers no search). */
+    public function searchMetadata(Context $ctx):?array
+    {
+        $fields=$this->searchable($ctx);
+        return $fields?['fields'=>$fields]:null;
+    }
+    private function searchable(Context $ctx):array { return array_values(array_filter($this->search,fn($name)=>$this->queryable($ctx,$name))); }
+    /**
+     * Adds `_media[field]` to projected items: one describe() per media source and window, only for
+     * fields present in the projection (field ACL); null for empty, invalid, unknown or hidden files.
+     */
+    public function media(Context $ctx,array $items):array
+    {
+        $groups=[];
+        foreach($this->fields as $field)if(isset($field->column['media']))$groups[$field->column['media']][]=$field->name;
+        foreach($groups as $resource=>$names){
+            $source=$this->registry?->mediaSource($resource);$ids=[];
+            if($source)foreach($items as $item)foreach($names as $name){$value=$item[$name]??null;if((is_string($value)||is_int($value))&&(string)$value!=='')$ids[(string)$value]=true;}
+            $described=$ids?$source->describe($ctx,array_map('strval',array_keys($ids))):[];
+            foreach($items as &$item)foreach($names as $name)if(array_key_exists($name,$item)){
+                $value=$item[$name];$item['_media'][$name]=(is_string($value)||is_int($value))&&(string)$value!==''&&is_array($described[(string)$value]??null)?$described[(string)$value]:null;
+            }
+            unset($item);
+        }
+        return $items;
+    }
+    /** Binds a MediaSource predicate with uniquely prefixed parameter names. */
+    private static function predicate(array $predicate,string $prefix,array &$params):string
+    {
+        [$sql,$bound]=$predicate;
+        foreach($bound as $name=>$value){if(!is_string($name)||!preg_match('/^[a-z][a-z0-9_]*$/D',$name)||!is_scalar($value))throw new \LogicException('Media predicates bind named scalar parameters.');$params[$prefix.$name]=$value;}
+        return '('.preg_replace_callback('/:([a-z][a-z0-9_]*)\b/',static fn($m)=>array_key_exists($m[1],$bound)?':'.$prefix.$m[1]:$m[0],$sql).')';
     }
     private function queryable(Context $ctx,string $field):bool
     {
@@ -25,7 +70,7 @@ final readonly class ListSource
     }
     public function sortableFields(Context $ctx):array
     {
-        return ['id',...array_values(array_map(static fn($field)=>$field->name,array_filter($this->fields,fn($field)=>!$field->secret&&$field->type!=='textarea'&&$this->queryable($ctx,$field->name))))];
+        return ['id',...array_values(array_map(static fn($field)=>$field->name,array_filter($this->fields,fn($field)=>!$field->secret&&!in_array($field->type,['textarea','multiselect'],true)&&$this->queryable($ctx,$field->name))))];
     }
     private function cursor(array $position,string $direction):string
     {
@@ -54,7 +99,7 @@ final readonly class ListSource
     }
     public function read(Context $ctx,array $input):array
     {
-        foreach($input as $key=>$v)if(!in_array($key,['mode','limit','cursor','filters','first','front','sort','anchor','numbered'],true))throw new Failure('Ismeretlen listaparaméter.');
+        foreach($input as $key=>$v)if(!in_array($key,['mode','limit','cursor','filters','first','front','sort','anchor','numbered','search'],true))throw new Failure('Ismeretlen listaparaméter.');
         $mode=$input['mode']??'dynamic';
         if(!in_array($mode,['dynamic','watch'],true))throw new Failure('Hibás listamód.');
         $limit=$input['limit']??100;
@@ -67,10 +112,14 @@ final readonly class ListSource
         $terms=["($scope)","({$this->where})"];$totalTerms=$terms;$totalParams=$params;$known=array_column($this->fields,null,'name');
         foreach($filters as $key=>$value){
             $field=$known[$key]??null;
-            if(!$field||$field->secret||$field->type==='textarea'||!$this->queryable($ctx,$key))throw new Failure('A mező nem szűrhető.',403);
+            if(!$field||$field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$key))throw new Failure('A mező nem szűrhető.',403);
             if(!is_string($value)||strlen($value)>255||str_contains($value,"\0"))throw new Failure('Hibás szűrőérték.');
             $param='f'.count($params);
-            if(in_array($field->type,['select','checkbox'],true)){
+            if(isset($field->column['media'])){
+                $media=$this->registry?->mediaSource($field->column['media'])??throw new Failure('A mező nem szűrhető.',403);
+                if(!array_key_exists($value,$media->classes()))throw new Failure('Hibás szűrőérték.');
+                $terms[]=self::predicate($media->classPredicate($ctx,$key,$value),$param.'_',$params);
+            }elseif(in_array($field->type,['select','checkbox'],true)){
                 if($field->type==='checkbox'?!in_array($value,['0','1'],true):!array_key_exists($value,$field->metadata($ctx)['options']))throw new Failure('Hibás szűrőérték.');
                 $terms[]="$key = :$param";$params[$param]=$value;
             }elseif($field->type==='number'){
@@ -79,6 +128,15 @@ final readonly class ListSource
             }else{
                 $terms[]="$key LIKE :$param ESCAPE '!'";$params[$param]='%'.str_replace(['!','%','_'],['!!','!%','!_'],$value).'%';
             }
+        }
+        // Declared name search: OR over the searchable fields the actor may query (none: no match), bound and escaped.
+        $search=$input['search']??'';
+        if(!is_string($search)||str_contains($search,"\0")||preg_match('//u',$search)!==1||mb_strlen($search)>100)throw new Failure('Hibás keresés.');
+        $search=trim($search);
+        if($search!==''){
+            $parts=[];
+            foreach($this->searchable($ctx) as $index=>$name){$parts[]="$name LIKE :s$index ESCAPE '!'";$params['s'.$index]='%'.str_replace(['!','%','_'],['!!','!%','!_'],$search).'%';}
+            $terms[]='('.($parts?implode(' OR ',$parts):'1=0').')';
         }
         $sort=$input['sort']??['field'=>'id','direction'=>'desc'];
         if(!is_array($sort)||array_diff(array_keys($sort),['field','direction'])||!is_string($sort['field']??null)||!in_array($sort['direction']??null,['asc','desc'],true))throw new Failure('Hibás rendezés.');
@@ -91,7 +149,7 @@ final readonly class ListSource
         $count=static function(array $terms,array $params)use($ctx,$from):int{
             $query=$ctx->db->prepare("SELECT COUNT(*) FROM $from WHERE ".implode(' AND ',$terms));$query->execute($params);return (int)$query->fetchColumn();
         };
-        $total=$count($totalTerms,$totalParams);$matched=$filters?$count($baseTerms,$baseParams):$total;
+        $total=$count($totalTerms,$totalParams);$matched=$filters||$search!==''?$count($baseTerms,$baseParams):$total;
         $direction='next';$hasCursor=false;
         if($mode==='watch'){
             $front=$input['front']??true;$first=$input['first']??null;
@@ -119,7 +177,8 @@ final readonly class ListSource
             $rank=$ctx->db->prepare("SELECT COUNT(*) FROM $from WHERE ".implode(' AND ',[...$baseTerms,$before]));$rank->execute($baseParams);
             $offset=(int)$rank->fetchColumn();
         }
-        return ['total'=>$total,'matched'=>$matched,'items'=>array_map(fn($row,$index)=>[...($this->project)($ctx,$row),'_position'=>$position($row),...($numbered?['_number'=>$offset+$index+1]:[])],$rows,array_keys($rows)),
+        $items=$this->media($ctx,array_map(fn($row)=>($this->project)($ctx,$row),$rows));
+        return ['total'=>$total,'matched'=>$matched,'items'=>array_map(fn($item,$row,$index)=>[...$item,'_position'=>$position($row),...($numbered?['_number'=>$offset+$index+1]:[])],$items,$rows,array_keys($rows)),
             'previous'=>$first!==null&&($direction==='previous'?$more:$hasCursor)?$this->cursor($first,'previous'):null,
             'next'=>$last!==null&&($direction==='previous'?$hasCursor:$more)?$this->cursor($last,'next'):null];
     }

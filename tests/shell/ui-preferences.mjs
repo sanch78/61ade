@@ -12,6 +12,7 @@ first.setMode('cards');first.setSort({field:'title',direction:'asc'});
 assert.equal(new UiPreferences('user-a','items').mode,'cards');
 assert.equal(new UiPreferences('user-b','items').mode,'table');
 assert.equal(new UiPreferences('user-a','other').mode,'table');
+first.setMode('tiles');assert.equal(new UiPreferences('user-a','items').mode,'tiles');assert.equal(new UiPreferences('user-b','items').mode,'table');first.setMode('cards');
 location.pathname='/other/';assert.equal(new UiPreferences('user-a','items').mode,'table');location.pathname='/synthetic/';
 assert.deepEqual(first.sort(['title']),{field:'title',direction:'asc'});assert.equal(first.sort(['id']),undefined);
 const key=[...storage.keys()][0];
@@ -26,12 +27,13 @@ const restored=stale.layoutTree(tree);
 assert.equal(restored.cols[0].width,1120);assert.equal(restored.cols[0].collapsed,true);assert.equal(restored.cols[1].collapsed,true);
 assert.equal(tree.cols[0].width,300);
 const layoutEvents={},cell={width:'365.5px',height:'240px',collapsed:false};
-stale.bindLayout({getCell:()=>({config:cell}),events:{on:(name,handler)=>layoutEvents[name]=handler}},{rows:[{id:'filter',width:300,height:200,collapsable:true}]});
+stale.bindLayout({getCell:()=>({config:cell}),getRootNode:()=>({addEventListener(){}}),events:{on:(name,handler)=>layoutEvents[name]=handler}},{rows:[{id:'filter',width:300,height:200,collapsable:true}]});
 layoutEvents.resize('filter');
 assert.deepEqual(JSON.parse(storage.get(key)).regions.filter,{width:365.5,height:240,collapsed:true});
 layoutEvents.afterExpand('filter');assert.equal(JSON.parse(storage.get(key)).regions.filter.collapsed,false);
 column.width=280;events.afterResizeEnd();assert.equal(JSON.parse(storage.get(key)).columns[0].width,280);
+for(const unknown of ['grid','TILES',7,null]){storage.set(key,JSON.stringify({mode:unknown}));assert.equal(new UiPreferences('user-a','items').mode,'table');}
 for(const invalid of ['invalid','null','[]']){storage.set(key,invalid);assert.equal(new UiPreferences('user-a','items').mode,'table');}
 globalThis.localStorage={getItem(){throw Error('Denied');},setItem(){throw Error('Quota');}};
-const denied=new UiPreferences('user-a','items');denied.setMode('cards');assert.equal(denied.mode,'cards');
-console.log('UI preferences: isolation, stale schema, bounds, malformed/denied storage PASS');
+const denied=new UiPreferences('user-a','items');denied.setMode('cards');assert.equal(denied.mode,'cards');denied.setMode('tiles');assert.equal(denied.mode,'tiles');
+console.log('UI preferences: isolation, tiles mode, stale schema, bounds, malformed/denied storage PASS');

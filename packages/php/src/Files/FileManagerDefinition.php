@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Blade\Files;
 
-use Blade\Feature\Workspace;
+use Blade\Feature\{UploadPolicy, Workspace};
 use Blade\Tasks\TaskQueue;
 
 /**
@@ -72,6 +72,12 @@ final readonly class FileManagerDefinition
 
     public function temporaryRoot(): string { return $this->tempRoot ?? rtrim($this->contentRoot, '/').'/.transfers'; }
 
+    /** Upload rules of the `upload` action: folders allowed, transfers under temporaryRoot(); $preflight adds the domain checks. */
+    public function uploadPolicy(?\Closure $preflight = null): UploadPolicy
+    {
+        return new UploadPolicy($this->allowedExtensions, $this->maxSizeBytes, $this->maxFiles, folders: true, maxDepth: $this->maxDepth, duplicatePolicy: $this->duplicatePolicy, tempRoot: $this->temporaryRoot(), preflight: $preflight);
+    }
+
     /** Storage bound to $tasks; the file task handlers of this space are registered on it (setup and CLI too). */
     public function storage(\PDO $db, ?TaskQueue $tasks = null): FileStorage
     {
@@ -95,7 +101,10 @@ final readonly class FileManagerDefinition
 
     public function register(Workspace $workspace): void
     {
-        (new FileActions($this, $this->storage($workspace->db, $workspace->tasks)))->register($workspace->registry);
+        $storage = $this->storage($workspace->db, $workspace->tasks);
+        (new FileActions($this, $storage))->register($workspace->registry);
+        // Media columns of other resources (`column.media`) describe and filter files of this space.
+        $workspace->registry->media($this->resource, new FileMedia($this, $storage));
     }
 
     /** Browser configuration only: no SQL, storage keys, paths or rules. */
@@ -103,7 +112,7 @@ final readonly class FileManagerDefinition
     {
         return [
             'mounts' => array_map(static fn($key, $label) => ['id' => $key, 'label' => $label], array_keys($this->mounts), $this->mounts),
-            'upload' => ['allowed_extensions' => $this->allowedExtensions, 'max_size_bytes' => $this->maxSizeBytes, 'multiple' => $this->maxFiles > 1, 'max_files' => $this->maxFiles, 'duplicate_policy' => $this->duplicatePolicy],
+            'upload' => ['allowed_extensions' => $this->allowedExtensions, 'max_size_bytes' => $this->maxSizeBytes, 'multiple' => $this->maxFiles > 1, 'max_files' => $this->maxFiles, 'duplicate_policy' => $this->duplicatePolicy, 'policy' => $this->uploadPolicy()->metadata()],
             'text' => ['extension' => self::TEXT_EXTENSION, 'max_bytes' => $this->textMaxBytes],
             'preview' => self::PREVIEW_TYPES,
             'thumbnails' => $this->thumbnails ? Thumbnails::TYPES : [],

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Configuration;
+namespace Blade\Configuration;
 
 use Closure;
 use InvalidArgumentException;
 use PDO;
-use Vapa\Feature\{Action, Field, Lookup, Registry, SqlResource, ViewLayout, Workspace};
+use Blade\Feature\{Action, Field, Lookup, Registry, SqlResource, ViewLayout, Workspace};
 
-/** Compiles trusted declarations to the existing VAPA runtime; no consumer imports. */
+/** Compiles trusted declarations to the existing 61de runtime; no consumer imports. */
 final class WorkspaceConfiguration
 {
     private array $resources = [];
@@ -80,7 +80,7 @@ final class WorkspaceConfiguration
                 'type' => 'string', 'required' => 'boolean', 'max' => 'integer',
                 'options' => 'array', 'secret' => 'boolean',
                 'options_lookup' => 'string', 'options_binding' => 'string',
-                'validation' => 'array', 'column' => 'array', 'default' => 'string',
+                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean',
             ], '$.fields');
             if (isset($names[$definition['name']])) {
                 throw new InvalidArgumentException('Duplicate field: '.$definition['name']);
@@ -108,6 +108,7 @@ final class WorkspaceConfiguration
                 validation: $definition['validation'] ?? [],
                 column: $definition['column'] ?? [],
                 defaultValue: $definition['default'] ?? null,
+                bulk: $definition['bulk'] ?? false,
             );
         }
         return $fields;
@@ -126,7 +127,7 @@ final class WorkspaceConfiguration
         $operations = $definition['operations'] ?? [];
         $view = $definition['view'];
         Shape::check($storage, ['table' => 'string', 'key' => 'string'], [
-            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array',
+            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array',
         ], '$.resources.'.$name.'.storage');
         Shape::check($hooks, [], [
             'guard' => 'string', 'normalize' => 'string', 'after_save' => 'string', 'delete_guard' => 'string',
@@ -136,12 +137,13 @@ final class WorkspaceConfiguration
         ], '$.resources.'.$name.'.operations');
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
-            'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'icon' => 'string',
+            'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array',
         ], '$.resources.'.$name.'.view');
         $related = [];
         foreach ($storage['related'] ?? [] as $relation) {
             Shape::check($relation, ['table'=>'string','key'=>'string','fields'=>'array'], ['defaults'=>'array'], '$.storage.related');
-            $related[] = new \Vapa\Feature\RelatedStorage($relation['table'],$relation['key'],$relation['fields'],$relation['defaults']??[]);
+            $related[] = new \Blade\Feature\RelatedStorage($relation['table'],$relation['key'],$relation['fields'],$relation['defaults']??[]);
         }
         $resource = new SqlResource(
             resource: $name,
@@ -157,6 +159,8 @@ final class WorkspaceConfiguration
             afterSave: $this->bindings->get($hooks['after_save'] ?? null),
             deleteGuard: $this->bindings->get($hooks['delete_guard'] ?? null),
             related: $related,
+            unique: $storage['unique'] ?? [],
+            search: $view['search'] ?? [],
         );
         $resource->register(
             registry: $this->registry,
@@ -177,7 +181,7 @@ final class WorkspaceConfiguration
         Shape::check($definition, [
             'resource' => 'string', 'name' => 'string', 'label' => 'string', 'handler' => 'string',
         ], [
-            'icon' => 'string', 'bulk' => 'boolean', 'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array', 'form_values' => 'string',
+            'icon' => 'string', 'bulk' => 'boolean', 'confirm' => 'array', 'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array', 'form_values' => 'string',
         ], '$.actions');
         if (!isset($this->resources[$definition['resource']])) {
             throw new InvalidArgumentException('Unknown action resource: '.$definition['resource']);
@@ -210,6 +214,7 @@ final class WorkspaceConfiguration
             formValues: $this->bindings->get($definition['form_values'] ?? null),
             icon: $definition['icon'] ?? null,
             bulk: $definition['bulk'] ?? false,
+            confirm: $definition['confirm'] ?? null,
         ));
     }
 
@@ -241,6 +246,11 @@ final class WorkspaceConfiguration
             rowNumbers: $view['row_numbers'] ?? true,
             selection: $view['selection'] ?? false,
             icon: $view['icon'] ?? null,
+            desktopOnly: $view['desktop_only'] ?? false,
+            rowSelection: $view['row_selection'] ?? false,
+            rowHeight: $view['row_height'] ?? null,
+            tileMinWidth: $view['tile_min_width'] ?? null,
+            tiles: $view['tiles'] ?? false,
         );
     }
 }

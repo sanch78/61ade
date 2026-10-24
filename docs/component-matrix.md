@@ -15,7 +15,7 @@ capabilities from real needs; unimplemented rows are candidates, not commitments
 | Forms/validation | Suite Standard | Controls version-dependent | Metadata forms, client/server [validation](validation.md) | Errors/relations/types |
 | Layout/window | Suite Standard | — | Shell/workspace/resizers/popups implemented | Complex multipanel flows |
 | Menu/toolbar | Suite Standard | — | Main/list menus, theme/language selectors | Navigation/capabilities |
-| DataView | Suite Standard | Detailed inventory version-dependent | Cards implemented | Templates/selection |
+| DataView | Suite Standard | Detailed inventory version-dependent; no virtualization in Standard | Cards and media tiles implemented ([workspaces](workspaces.md#media-tiles)) | Templates/selection |
 | Tabs/popup/sidebar/ribbon/List | Suite Standard | Inventory on demand | No verified independent adapter | Shell/lifecycle |
 | Tree | Suite Standard | Advanced options need checking | `TreeAdapter` over a flat parent list, used by the [file manager](files.md); view.layout.tree remains a layout tree | Lazy children/drag moves |
 | TreeGrid | Suite PRO | PRO-only | None | Licensed adapter/capability |
@@ -26,7 +26,7 @@ capabilities from real needs; unimplemented rows are candidates, not commitments
 | Multiple schedulers/page | Paid Scheduler | License tier matters | None | Shell/capability checks |
 | Basic Gantt | Gantt 10+ Community MIT | Core tasks/dependencies/milestones | None | Hierarchy/actions/conflicts |
 | Autoscheduling/critical path/resources | Gantt PRO | PRO-only | None | Separate license decision |
-| Files/media | Own service + UI | Vault is a separate commercial widget: not licensed, not used; Suite 9.3.12 GPL only exports a headless `Uploader` | Virtual [file manager](files.md): content-addressed disk store, media metadata, background WebP thumbnails, streamed Range viewer GETs, per-mount ACL, multipart upload, TXT editor; native file input (own uploader planned, [plan](files-media-plan.md)) | Uploader, deletion/rename/download, per-entry ACL, object-store adapter, general jobs |
+| Files/media | Own service + UI | Vault is a separate commercial widget: not licensed, not used; Suite 9.3.12 GPL only exports a headless `Uploader` | Virtual [file manager](files.md): content-addressed disk store, media metadata, background WebP thumbnails, streamed Range viewer GETs, per-mount ACL, multipart upload, TXT editor; framework [uploader](uploader.md) on Window/Layout/Grid (chunked, resumable, folders, paste) | Deletion/rename/download, per-entry ACL, object-store adapter, general jobs |
 | Diagram | DHTMLX Diagram is a separate product, not installed | Not in Suite Standard | Framework [diagram editor](diagrams.md): Suite shell/List/Form/Window around an own SVG canvas | Ports/routing/export; licensed Diagram adapter if acquired |
 | Rich text/pivot/kanban | Separate product/adapter | Not automatic Standard Suite features | None | Need/license assessment |
 | Export/import | Backend + vendor adapter | Format/service-dependent | No export; bulk exists | Scopes/field filtering/jobs/downloads |

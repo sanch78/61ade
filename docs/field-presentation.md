@@ -53,13 +53,26 @@ form values remain. Default initializes create forms, never overwrites saved
 values or replaces server storage defaults.
 
 Column supports positive integer width/minWidth/maxWidth up to 10000 px,
-boolean editable and align left/center/right. Fixed width prevents automatic
+boolean editable, boolean secondary and align left/center/right. A secondary
+column remains available in the grid toolbar's Columns menu and can be shown
+or hidden per user; its initial state is visible. Fixed width prevents automatic
 stretch. Checkbox filters are three-state selectors: Any and meaningful labels.
 Consumer options define labels; absent options default to No/Yes.
 Use business meanings such as Active/Archived where possible.
 
+```json
+{"name": "internal_note", "label": "Belső megjegyzés",
+ "column": {"secondary": true}}
+```
+
 PHP Field takes type checkbox, column width/alignment and defaultValue.
 The JSON compiler produces the same definition.
+
+Two column presentations take typed data only: `media` (the file-manager
+resource whose file id the field holds; thumbnail, type icon, duration badge
+and a type-stating accessible name) and `presentation: "icon"` (a Suite icon
+class with `options` as accessible names). Neither may be `editable`; see
+[media columns and tiles](workspaces.md#media-tiles).
 
 <a id="többes-választás-multiselect"></a>
 
@@ -133,7 +146,7 @@ are unsupported. Inline editing is a separate supported capability above.
 ## Verification
 
 - `php8.4 tests/shell/related-fields.php`: UI/API checkbox validation, defaults, shared saves, related changes, 409, rollback, field ACL, forbidden filters and deletion.
-- The preserved related browser project checks native controls, fixed widths, shared save/reopen and meaningful filters. It needs localhost fixtures and cannot launch here; see [coverage limits](development.md#existing-full-smoke-and-coverage-limits).
+- `npm run test:browser -- tests/shell/related-fields.spec.cjs` (feature demo Tasks): panel form defaults, shared main/related save and reopen, meaningful related-field filter, and the demo `after_save` rule's field error keeping the entered values.
 
 FB-0014: the separate security action remains a technical API option;
 main-form fields are the default switch UI.
@@ -156,6 +169,6 @@ Long values wrap beside it. No new configuration:
 `column: {editable: true}` with options Off/On applies to both views.
 Supported Suite and per-row _editable are required.
 
-Historical grid-edit browser checks cover keyboard/click, save, switching,
-read-only/row permissions, equal checkbox sizes and right-aligned pencils.
-Current host fixture limits apply. FB-0029.
+The managed `grid-edit.spec.cjs` (feature demo Tasks) covers keyboard/click,
+save, switching, read-only/row permissions, equal checkbox sizes, right-aligned
+pencils and inline validation/business-rule messages. FB-0029.

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace Blade\Files;
 
+use Blade\Feature\UploadPolicy;
 use Blade\Infrastructure\Transaction;
 use Blade\Tasks\TaskQueue;
 
@@ -50,24 +51,10 @@ final class FileStorage
         TaskQueue::install($db);
     }
 
-    /** Message key of the first violated rule, or null for a safe entry name. */
-    public static function invalidName(string $name): ?string
-    {
-        if ($name === '') return 'A név nem lehet üres.';
-        if (preg_match('//u', $name) !== 1) return 'Érvénytelen karakterkódolás.';
-        if (mb_strlen($name, 'UTF-8') > 255) return 'Legfeljebb 255 karakter adható meg.';
-        // Path separators, NUL, control and invisible format characters (e.g. bidi overrides) never belong in a name.
-        if (preg_match('~[/\\\\]|\p{Cc}|\p{Cf}~u', $name)) return 'A név nem tartalmazhat perjelet, vezérlő- vagy formázókaraktert.';
-        if (trim($name) !== $name) return 'A név nem kezdődhet és nem végződhet szóközzel.';
-        if (preg_match('/^\.+$/D', $name)) return 'A név nem állhat csak pontokból.';
-        return null;
-    }
+    /** Message key of the first violated rule, or null for a safe entry name (the framework upload rule). */
+    public static function invalidName(string $name): ?string { return UploadPolicy::invalidName($name); }
 
-    public static function extension(string $name): string
-    {
-        $dot = strrpos($name, '.');
-        return $dot ? mb_substr(mb_strtolower(substr($name, $dot + 1), 'UTF-8'), 0, 32, 'UTF-8') : '';
-    }
+    public static function extension(string $name): string { return UploadPolicy::extension($name); }
 
     private static function key(string $name): string { return mb_strtolower($name, 'UTF-8'); }
     private static function now(): string { return gmdate('Y-m-d\TH:i:s\Z'); }
@@ -155,6 +142,19 @@ final class FileStorage
             if (count($out) > $limit) return null;
         }
         return $out;
+    }
+
+    /**
+     * Existing child directory of $parent named $name, or a new one ($created). The lookup is a locking
+     * read on MySQL, so parallel folder uploads into the same new directory serialize; an entry of
+     * another kind returns null.
+     * @return ?array{0:array,1:bool}
+     */
+    public function directory(array $parent, string $name): ?array
+    {
+        $row = $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND parent_id=? AND name_key=?'.$this->lock, [$this->space, (int) $parent['id'], self::key($name)]);
+        if ($row) return $row['kind'] === 'directory' ? [$row, false] : null;
+        return [$this->entry($this->createDirectory($parent, $name)), true];
     }
 
     public function createDirectory(array $parent, string $name): int

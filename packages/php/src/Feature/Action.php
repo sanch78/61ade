@@ -6,13 +6,14 @@ final readonly class Action
     /**
      * Resolver returns backend target ['id','owner',...] before permission evaluation; an optional
      * 'acl_id' separates the ACL object from the audited object, 'audit' adds non-sensitive IDs.
-     * $upload: multipart transport limit in bytes; null keeps the action JSON-only.
+     * $upload: multipart transport limit in bytes, or an UploadPolicy (direct multipart up to maxSizeBytes × maxFiles
+     * plus the chunked transfer protocol `__upload`); null keeps the action JSON-only.
      * $get: field-free read that is also served over GET/HEAD (e.g. an <img> or <video> source).
      */
-    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public ?int $upload = null, public bool $get = false)
+    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false)
     {
         if ($confirm !== null) self::checkConfirm($confirm);
-        if ($upload !== null && ($upload < 1 || $bulk || $collection)) throw new \InvalidArgumentException('Invalid upload action.');
+        if ($upload !== null && ((is_int($upload) && $upload < 1) || $bulk || $collection)) throw new \InvalidArgumentException('Invalid upload action.');
         if ($get && ($write || $upload !== null || $bulk || $collection || $fields)) throw new \InvalidArgumentException('GET actions must be field-free reads.');
         if ($icon !== null && !preg_match('/^[a-zA-Z0-9_ -]{1,150}$/D', $icon)) throw new \InvalidArgumentException('Invalid action icon classes.');
         if ($bulk && ($name === 'create' || !$resolve || $collection || array_filter($fields, static fn($field) => $field->secret || $field->type === 'password'))) throw new \InvalidArgumentException('Bulk actions must target individual objects without secret inputs.');

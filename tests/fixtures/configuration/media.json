@@ -1,0 +1,14 @@
+{
+    "description": "Synthetic consumer: media and icon columns, tiles, row height and declared search in JSON.",
+    "resources": {
+        "clips": {
+            "storage": {"table": "clips", "key": "id"},
+            "fields": [
+                {"name": "title", "label": "Title", "required": true},
+                {"name": "kind", "label": "Kind", "type": "select", "options": {"dxi dxi-image": "Image", "dxi dxi-video": "Video"}, "column": {"presentation": "icon", "width": 48}},
+                {"name": "file_id", "label": "File", "column": {"media": "library", "minWidth": 120}}
+            ],
+            "view": {"title": "Clips", "row_height": 64, "tile_min_width": 240, "tiles": true, "search": ["title"], "actions": ["get", "create", "update"]}
+        }
+    }
+}

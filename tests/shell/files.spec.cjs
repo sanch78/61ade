@@ -129,27 +129,27 @@ test('upload validation, conflict dialog and the TXT editor',async({page})=>{
  await start(page);
  const left=panel(page,0);
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
+ // The framework uploader (Uploader.ts): a non-modal window with a per-file queue; rejected files fail in place.
  await command(page,'Feltöltés');
- const upload=windowDialog(page);
- await upload.locator('input[type=file]').setInputFiles([
+ const upload=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')}),input=upload.locator('input[data-blade-upload-input="files"]');
+ await input.setInputFiles([
   {name:prefix+'-a.txt',mimeType:'text/plain',buffer:Buffer.from('első sor\n')},
   {name:prefix+'-b.png',mimeType:'image/png',buffer:png},
   {name:prefix+'-c.exe',mimeType:'text/plain',buffer:Buffer.from('MZ')},
   {name:prefix+'-big.txt',mimeType:'text/plain',buffer:Buffer.alloc(5242881,97)},
  ]);
- await upload.getByRole('button',{name:'Feltöltés',exact:true}).click();
- await expect(dialog(page)).toContainText('Sikeres: 2, kihagyva: 0, sikertelen: 2.');
- await expect(dialog(page)).toContainText('Nem engedélyezett fájltípus');await expect(dialog(page)).toContainText('túl nagy');
- await dialog(page).getByRole('button',{name:'Rendben',exact:true}).click();
+ await expect(upload.locator('.blade-uploader__summary')).toHaveText('Sikeres: 2, kihagyva: 0, sikertelen: 2.');
+ await expect(upload).toContainText('Nem engedélyezett fájltípus');await expect(upload).toContainText('túl nagy');
+ await expect(page.locator('.blade-toast').filter({hasText:'Sikeres: 2, kihagyva: 0, sikertelen: 2.'})).toBeVisible();
  await expect(row(left,prefix+'-a.txt')).toBeVisible();await expect(row(left,prefix+'-b.png')).toBeVisible();
- // Same name again: the shared dialog offers overwrite, rename, skip and cancel.
- await command(page,'Feltöltés');
- await windowDialog(page).locator('input[type=file]').setInputFiles([{name:prefix+'-a.txt',mimeType:'text/plain',buffer:Buffer.from('második\n')}]);
- await windowDialog(page).getByRole('button',{name:'Feltöltés',exact:true}).click();
+ // Same name again: the shared dialog offers overwrite, rename, skip and cancel, and "apply to all".
+ await input.setInputFiles([{name:prefix+'-a.txt',mimeType:'text/plain',buffer:Buffer.from('második\n')}]);
  await expect(dialog(page).getByRole('heading',{name:'Névütközés'})).toBeVisible();
  for(const name of ['Felülírás','Átnevezés','Kihagyás','Mégse'])await expect(dialog(page).getByRole('button',{name,exact:true})).toBeVisible();
+ await expect(dialog(page).getByRole('checkbox',{name:'Alkalmazás az összes ütközésre'})).toBeVisible();
  await dialog(page).getByRole('button',{name:'Átnevezés',exact:true}).click();
  await expect(row(left,prefix+'-a (2).txt')).toBeVisible();
+ await upload.getByRole('button',{name:'Bezárás',exact:true}).click();await expect(upload).toBeHidden();
  // Server-side editor rules: TXT only (case-insensitive), revision conflicts are structured.
  const txt=await entryId(page,'a',null,prefix+'-a.txt'),image=await entryId(page,'a',null,prefix+'-b.png'),upper=await entryId(page,'a',null,'OLVASS-EL.TXT');
  expect((await api(page,'files','text_get',image)).status).toBe(415);

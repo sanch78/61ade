@@ -14,9 +14,11 @@ final class Workspace
     public readonly Executor $executor;
     /** Post-response tasks; runs only when a feature registered a handler (e.g. file derivatives). */
     public readonly TaskQueue $tasks;
+    /** Chunked upload protocol (`__upload`) of actions declaring an UploadPolicy. */
+    public readonly Transfers $transfers;
     public function __construct(public readonly Registry $registry,public readonly \PDO $db)
     {
-        $this->acl=new Acl($db);$this->journal=new Journal($db);$this->executor=new Executor($registry,$db,$this->journal);$this->tasks=new TaskQueue($db);
+        $this->acl=new Acl($db);$this->journal=new Journal($db);$this->executor=new Executor($registry,$db,$this->journal);$this->tasks=new TaskQueue($db);$this->transfers=new Transfers($registry,$this->executor,$this->journal);
     }
     public function version(string $actor): int
     {
@@ -68,6 +70,7 @@ final class Workspace
             $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
             $view['filters']=$list->listSource?->filterDefinitions($ctx)??[];
             $view['sortable']=$list->listSource?->sortableFields($ctx)??[];
+            if($search=$list->listSource?->searchMetadata($ctx))$view['search']=$search;
             $out[]=\Blade\I18n\Translator::presentation($view);
         }
         return $out;
@@ -180,9 +183,17 @@ final class Workspace
             $sessionId=session_id();session_write_close();
             $uploads=[];
             if($multipart){
-                $upload=str_starts_with($data['action'],'__')?null:$this->registry->get($data['resource'],$data['action'])->upload;
-                if($upload===null)throw new Failure('A művelet nem fogad fájlt.',415);
-                if((int)($_SERVER['CONTENT_LENGTH']??0)>$upload+65536)throw new Failure('Túl nagy kérés.',413);
+                if($data['action']==='__upload'){
+                    // Only a chunk of a policy action travels as multipart; one chunk per request.
+                    $target=is_string($data['values']['action']??null)&&!str_starts_with($data['values']['action'],'__')?$this->registry->get($data['resource'],$data['values']['action'])->upload:null;
+                    if(($data['values']['operation']??null)!=='upload_chunk'||!$target instanceof UploadPolicy)throw new Failure('A művelet nem fogad fájlt.',415);
+                    $limit=$target->chunkBytes;
+                }else{
+                    $upload=str_starts_with($data['action'],'__')?null:$this->registry->get($data['resource'],$data['action'])->upload;
+                    if($upload===null)throw new Failure('A művelet nem fogad fájlt.',415);
+                    $limit=$upload instanceof UploadPolicy?$upload->requestBytes():$upload;
+                }
+                if((int)($_SERVER['CONTENT_LENGTH']??0)>$limit+UploadPolicy::ENVELOPE_BYTES)throw new Failure('Túl nagy kérés.',413);
                 $uploads=Upload::collect($_FILES);
             }
             if($data['action']==='__ticket'){
@@ -200,6 +211,14 @@ final class Workspace
                 if(!is_string($values['operation']??null)||!is_array($values['items']??null)||array_diff(array_keys($values),['operation','items']))throw new Failure('Hibás tömeges művelet.');
                 $result=$this->executor->bulk(new Context($actor,$channel,$this->acl,$this->db,$scopes),$data['resource'],$values['operation'],$values['items']);
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
+            }
+            if($data['action']==='__upload'){
+                // Transfers are bound to a hash of the session id (ui) or bearer token (api), never the raw value.
+                $secret=$channel==='api'?substr($_SERVER['HTTP_AUTHORIZATION'],7):$sessionId;
+                if($secret===''||$secret===false)throw new Failure('Érvénytelen munkamenet.',403);
+                $handled=in_array($data['values']['operation']??null,Transfers::AUDITED,true);
+                $result=$this->transfers->handle(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads),Transfers::owner($secret),$data['resource'],$id,$data['values']??[]);
+                $this->respond($result);exit;
             }
             if($data['action']==='__edit'){
                 $values=$data['values'];

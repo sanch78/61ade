@@ -2,7 +2,8 @@ import type { Grid, Layout } from "@dhtmlx/suite";
 import type { Sort } from "./GridHeaders";
 
 type Region={id?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;collapsable?:boolean;collapsed?:boolean};
-type Preferences={mode?:"table"|"cards";sort?:Sort;columns?:{id:string;width:number}[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>};
+type Mode="table"|"cards"|"tiles";
+type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>};
 const size=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value)&&value>=40&&value<=10000;
 const pixels=(value:unknown):number|undefined=>{
   const numeric=typeof value==="string"&&/^\d+(\.\d+)?px$/.test(value)?Number.parseFloat(value):value;
@@ -14,20 +15,25 @@ export class UiPreferences {
   private state:Preferences={};
   private key:string;
   constructor(user:string,resource:string){
-    this.key="vapa-ui:1:"+JSON.stringify([location.pathname,user,resource]);
+    this.key="blade-ui:1:"+JSON.stringify([location.pathname,user,resource]);
     try{
       const value=JSON.parse(localStorage.getItem(this.key)??"{}");
       if(value&&typeof value==="object"&&!Array.isArray(value))this.state=value;
     }catch{}
   }
   private save():void{try{localStorage.setItem(this.key,JSON.stringify(this.state));}catch{}}
-  get mode():"table"|"cards"{return this.state.mode==="cards"?"cards":"table";}
-  setMode(mode:"table"|"cards"):void{this.state.mode=mode;this.save();}
+  get mode():Mode{return this.state.mode==="cards"||this.state.mode==="tiles"?this.state.mode:"table";}
+  setMode(mode:Mode):void{this.state.mode=mode;this.save();}
   sort(allowed:string[]):Sort|undefined{
     const sort=this.state.sort;
     return sort&&allowed.includes(sort.field)&&(sort.direction==="asc"||sort.direction==="desc")?sort:undefined;
   }
   setSort(sort:Sort):void{this.state.sort=sort;this.save();}
+  visibleColumns(secondary:string[]):Set<string>{
+    const allowed=new Set(secondary),saved=this.state.visibleColumns;
+    return new Set(saved?.filter(id=>allowed.has(id))??secondary);
+  }
+  setVisibleColumns(columns:Set<string>):void{this.state.visibleColumns=[...columns];this.save();}
   layoutTree<T extends Region>(tree:T):T{
     const visit=(node:Region):Region=>{
       const saved=node.id?this.state.regions?.[node.id]:undefined;

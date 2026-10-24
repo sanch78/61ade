@@ -59,7 +59,10 @@ or arbitrary vendor options in definitions.
 Singleton forms show permitted get data; fields from target-specific
 `__form(update)` are editable and others read-only. Password/other actions
 open their own action forms. List Add/Modify permissions derive from ACL;
-only the actual submit button says Save. Row `_actions` enables/disables row actions.
+every editable form provides an explicit Cancel action beside Save (or its
+operation label), and Cancel discards the in-progress values. Filter dialogs
+also provide Cancel; persistent desktop filters keep Apply and Reset in the
+panel. Row `_actions` enables/disables row actions.
 
 <a id="listaprotokoll"></a>
 
@@ -86,6 +89,18 @@ Textarea is not a basic filter. Complex/domain filters require extending the
 typed query contract first. Header clicks request server ascending/descending
 sort, never sorting only a loaded subset.
 
+### Integrated grid header filters
+
+Every filterable field that is present in a view's grid receives a native DHTMLX
+header filter above its title. Text and number fields use an input; select and
+checkbox fields use an option picker whose values come from the declared field
+options; the picker shows option labels, sends option keys and lists every
+option again when reopened. An empty control omits that field from the request. Changes replace the
+server-side list window and update the existing total/matched count; the Grid
+does not apply a separate local filter to its bounded client window. ACL and
+typed `ListSource` validation remain authoritative. Views whose filterable field
+is not displayed in the grid continue to use the declared filter panel.
+
 <a id="rendezés-és-smart-rendering"></a>
 
 ### Sorting and smart rendering
@@ -100,8 +115,11 @@ or sorting endpoint; they supply indexes for frequently sorted large tables.
 The framework does not alter schemas.
 
 Headers show ↑/↓ with aria-sort. Editable non-checkbox headers show ✎ plus
-editing tooltip, preserving editor/checkbox accessible names. Column capability
-does not override row/field ACL.
+editing tooltip, preserving editor/checkbox accessible names, and carry the
+`Szerkeszthető mező` accessible description. Header accessibility attributes are
+reapplied after every data render, so a slow first response cannot leave them
+unset ([FB-0052](feedback.md#fb-0052)). Column capability does not override
+row/field ACL.
 
 Cursors carry field, direction, boundary and unique key; other-sort cursors
 are rejected. Row `_position` supports correct backward cursors/live bounds
@@ -116,8 +134,9 @@ Sort/filter still cover the full SQL result.
 
 Historical verification: `sorting.php` with 1501 rows, text/number/id both
 ways, duplicate/NULL values, complete traversal, backward scroll, live order,
-ACL/injection; sorting browser fixture with 1801 rows, headers, full sorting,
-filters, bidirectional scrolling, ≤600 loaded and <100 rendered rows.
+ACL/injection. The managed `grid-sort.spec.cjs` uses the feature demo's
+Mérések list (1801 rows): headers, full sorting, filters, bidirectional
+scrolling, ≤600 loaded and <100 rendered rows.
 The old empty-values/offset API remains transitional compatibility, unused by
 the new frontend. Pager/refresh buttons were removed.
 
@@ -164,8 +183,7 @@ filter injection/field denial, external writes/deletes.
 Separate consumer synthetic integration historically checked WebSocket updates/
 revocation, filtering, preserved panel forms, profile form and 600-row bounds.
 The client releases cached rows outside current order and ignores late events
-from stopped/replaced sockets. Current host [coverage limits](development.md#existing-full-smoke-and-coverage-limits)
-apply to fixture-dependent browser groups.
+from stopped/replaced sockets. See the [coverage limits](development.md#existing-full-smoke-and-coverage-limits).
 
 <a id="layoutszintek-és-keretek"></a>
 
@@ -183,16 +201,17 @@ switching. FB-0015.
 
 ## Panel resizer appearance
 
-Suite 9.3.12 space layout has a 12 px gap but places the factory three-dot grip
-on the preceding border. Scoped admin.css rules beneath `#blade-application`
-move the dhx_layout-space grip to gap center: right -6 px for horizontal panel
-division, bottom -6 px for vertical division. Native dragging remains intact.
+Suite 9.3.12 space and wide layouts have a 12 px gap but place the factory
+three-dot grip on a cell border. Scoped admin.css rules beneath
+`#blade-application` move the grip to gap center: dhx_layout-space right/bottom
+-6 px, dhx_layout-wide right/bottom 6 px (factory 1 px and 13 px). Native
+dragging remains intact.
 
 Consumers only prepare updated framework assets. Factory CSS is unchanged;
-framework rules load afterward. Line/wide layouts, grid-column/window resizers
+framework rules load afterward. Line layouts, grid-column/window resizers
 are unaffected. This relies on Suite 9.3.12's gap; rerun focused checks on upgrades.
-`layout-resizer.spec.cjs` measures centers on both axes across themes and drags
-with the mouse. FB-0013.
+`layout-resizer.spec.cjs` measures centers of both layout types on both axes
+across themes and drags with the mouse. FB-0013; wide layouts FB-0058.
 
 <a id="kártyák-rekordadatok-sorszám-és-jelölés"></a>
 
@@ -210,10 +229,21 @@ get in native Window. Details toolbar action works even without numbering;
 card double-click also opens it. All get-readable fields appear; editing remains
 a separate action.
 
-JSON view `row_numbers: false` disables numbering; `selection: true` enables
-marks (default false). PHP: `$registry->view(...,rowNumbers:false,selection:true)`.
-Marks differ from active/editor row, survive grid/card switches and same-row
-live updates, and disappear when rows leave the data window.
+JSON view `row_numbers: false` disables numbering. `selection: true` enables
+checkbox marks (default false); PHP: `$registry->view(...,selection:true)`.
+`row_selection: true` enables the separate row-marking mode; PHP resources pass
+`rowSelection:true`.
+`desktop_only: true` (PHP `desktopOnly: true`) replaces the view below 768 px
+with the [desktop-only notice](shell.md#desktop-only-views).
+In row-marking mode a normal row click starts one mark, Ctrl/Command-click adds
+or removes a row, and Shift-click adds the range from the last mark. A row with
+`_markable: false` (such as the file manager's `..` row) can hold the cursor
+but is never marked: a click on it clears the marks, a Shift range skips it and
+it gets no mark checkbox. Checkbox
+views do not respond to row modifiers. Text selection is disabled in list
+content while form controls remain selectable. Marks differ from the
+active/editor row, survive grid/card switches and same-row live updates, and
+disappear when rows leave the data window.
 
 Toolbar/view-switch internal layouts are type none; the outer results panel
 owns the only frame. Toolbar fills its own height and scrolling content cannot
@@ -226,14 +256,34 @@ Filter reset and authentication secondary actions are native secondary flat butt
 
 Actions accept an optional DHTMLX icon CSS class, e.g. `dxi dxi-check`, also
 as JSON icon. Built-ins, view switching, filters and save have framework defaults.
+Every configured icon must be present in the bundled DHTMLX icon font; use the
+bundled glyph names rather than an unavailable outline alias so disabled and
+enabled actions render the same icon.
 
-Bulk requires explicit Action/JSON `bulk: true` plus view selection. Existing
-consumer business views had not enabled it at the time of this guide.
+Bulk requires explicit Action/JSON `bulk: true` plus checkbox or row selection. A
+`SqlResource` update becomes bulk-capable when one of its fields declares
+`bulk: true`; only those fields are offered in the combined update form. JSON
+uses `"bulk": true`, while PHP uses `new Field(..., bulk: true)`. The selected
+value is validated and applied to every marked row with its own revision.
 For a per-object Close action, add bulk true/icon and view selection true;
 handler, resolver and permissions stay the individual action's ones.
 
-The marked-rows button opens one form for permitted targets; differing field
-permissions reject the combined form. Limit: 1–100 rows. UI `__bulk` takes
+The command bar shows each action once. When marked rows exist, selecting a
+bulk-capable action runs that same action for the marked rows; no separate
+“selected rows” command is added. Every action and its sort choices carry a
+native DHTMLX icon.
+
+While two or more rows are marked, only commands that are meaningful for the
+marks stay enabled: bulk-capable actions (when every marked row permits them)
+and create. Single-record commands are disabled instead of acting on the
+active row, including `Adatok` and an update without any `bulk: true` field.
+With one mark they follow the active row as before. Double-clicking a row still
+opens that one record. FB-0059.
+
+When the action has input fields, the marked-rows command opens one form for
+permitted targets; a field-free command executes directly without an
+intermediate window. Differing field permissions reject the combined form.
+Limit: 1–100 rows. UI `__bulk` takes
 operation and `items: [{id,values}]`. Every row has its own revision, validation,
 object/field ACL, transaction and audit in Executor. Secret/password fields and
 collection actions cannot bulk. API bulk is unsupported. Partial success is
@@ -249,10 +299,78 @@ marks/bulk and theme geometry. FB-0019.
 
 ## View selection and header indicators
 
-The final right-aligned Toolbar dropdown shows the current grid/card mode.
-Switching preserves active row. On mobile it is disabled and indicates forced
-cards; desktop restores manual preference. Singleton views have none.
-This replaces FB-0019's two buttons per FB-0020; no consumer configuration.
+The final right-aligned Toolbar dropdown shows the current mode: `Táblázat`,
+`Kártyák` and, when offered, `Csempék` (tiles). Switching preserves the
+visible record. On mobile a table is forced to cards: the table item is
+disabled and the desktop preference is restored when the window widens; when
+tiles are offered they stay available on mobile. The chosen mode persists per
+user, view and page (`UiPreferences`, unknown stored values read as table).
+Singleton views have none. This replaces FB-0019's two buttons per FB-0020.
+
+<a id="media-tiles"></a>
+
+### Media columns, tiles, row height and search
+
+Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb-0063)).
+
+- **Media column.** A field holding a file id declares the column option
+  `media: "<file-manager resource>"` (JSON `"column": {"media": "files"}`;
+  only on non-secret text/number/select fields, never `editable`). The file
+  manager registers itself as the `MediaSource` of its resource
+  (`Registry::media()`, `Blade\Files\FileMedia`). List, live and `get` rows then
+  carry `_media[<field>] = {id, name, mime_type, revision, duration_ms, width,
+  height, thumbnail}` — only for files whose `thumbnail_get` the actor may use
+  on that mount (channel and API token scope included); every other value is
+  `null`, so no name or type leaks. One describe call is made per window. The
+  browser renders `recordMedia()`: a lazy `<img>` from the GET
+  `thumbnail_get` URL when the thumbnail is ready, otherwise (and when the
+  image fails, which is not retried in the session) a type icon; videos get a
+  duration badge; the accessible name states the type in text
+  (`Videó: minta.webm, 0:06`). The table cell scales with the row height;
+  cards show the media slot on top.
+- **MIME-class filter.** A filter on a media column takes `image` or `video`
+  (advertised as a select with `Kép`/`Videó`), limited to mounts the actor may
+  read; other values are `400`, a field the actor may not query `403`.
+- **Icon column.** `column.presentation: "icon"` (non-secret text/select, not
+  editable): the value is a Suite class `dxi dxi-…`, `options` give the
+  accessible name.
+- **Tiles.** `tiles: true` (JSON `tiles`, default on when a media column
+  exists) offers a native DataView mode: media slot (or icon), the first text
+  column as title and the next as a secondary line; `tileMinWidth` (120–480,
+  default 180, JSON `tile_min_width`) decides tiles per row (6 at 1280 px,
+  2 at 390 px). Marks, row selection, double-click/Enter, scroll paging,
+  live updates and visible-record restore behave as in cards.
+- **Row height.** `rowHeight` (32–160, JSON `row_height`, default 40) is used
+  by every paging, capture and restore calculation of the table.
+- **Keyboard.** Arrow keys (native), Home/End/PageUp/PageDown move the cursor
+  row in table, cards and tiles; Enter opens like a double-click; Space toggles
+  the mark in row-selection mode; focus rings use the theme focus colour.
+- **Search.** A resource declares `search` (1–20 non-secret text/textarea
+  fields; PHP `SqlResource` `search:`, JSON view `search: ["title"]`). The view
+  then gets `search: {fields}` with only the fields the actor may query, and a
+  native Toolbar input left of the commands: it reloads 300 ms after typing,
+  Enter searches at once, Escape clears. The `search` list parameter (≤ 100
+  characters) is a server-side `LIKE` over those fields combined with filters,
+  scope, sort, cursors, counts and the live query; when the actor may query
+  none of them the search matches nothing.
+- **Reserved row keys.** Suite treats a row's `height` (and `css`) as its own
+  property; `ResponsiveGrid` keeps such data keys under an internal alias, so a
+  record field named `height` never changes the row height.
+- **Re-created DOM.** `ResponsiveGrid` delegates its DOM listeners from the
+  document filtered by its current root and re-observes a re-created root, so a
+  host Layout that re-renders it (cell hide/show, a `views` switch) keeps
+  marking, card scroll paging, editing and reflow ([FB-0058](feedback.md#fb-0058)).
+
+Limits: tile title/secondary columns are chosen automatically; an editable
+column whose id is a reserved key may briefly change the row height while its
+editor is open; the search input width is fixed when the view is built.
+
+Columns marked `secondary: true` are listed in a neighboring `Oszlopok`
+Toolbar dropdown as accessible toggle items. The grid uses the native
+`showColumn`/`hideColumn` methods, and each user's choices persist with the
+existing view preferences. The dropdown is rendered only when the view declares
+at least one secondary column. Cards and record details continue to include all
+permitted fields.
 
 The pencil stays beside the title. Hover sort icon has its own 24 px right area.
 Only one direction indicator reflects server SQL order. Titles ellipsize as
@@ -313,11 +431,19 @@ retain text selection.
 Filter/CRUD/bulk/detail windows size to rendered content, capped at viewport
 height minus 24 px. Forms retain 24 px below the final button; details retain
 24 px beyond article padding. Native scrolling handles long content;
-validation remeasures; manual resize remains available.
+validation remeasures; manual resize remains available. A Form textarea
+directly in a content window takes any height the window has beyond its
+fitted content: Suite sizes the textarea from its cell, which grows
+(`admin.css`), so a capped or manually enlarged window has no empty band
+below its actions. `fitWindow` pauses that growth while it measures. Every
+form and details window is sized by `fitWindow`; no window keeps a fixed pixel
+control height beside spare space. Document windows (the file manager's text
+editor, image viewer and video player) are not fitted: one Layout fills the
+Window, so the content cell follows every window size ([files](files.md#behavior)).
 
-Historical `grid-edit.spec.cjs` checks switches during/after save, card field
-saving/validation, SQL sort, size reset, reload, double-click and bottom space
-(FB-0024). Its grid-edit fixture project cannot launch here currently.
+The managed `grid-edit.spec.cjs` (feature demo Tasks) checks switches
+during/after save, card field saving/validation, SQL sort, size reset, reload,
+double-click and bottom space (FB-0024).
 View switching transfers the visible record rather than a source row's pixel
 offset to different-height cards; at list start scroll stays zero. Same-view live
 updates retain exact offsets. Regression checks: list-presentation/mobile-grid,
@@ -342,4 +468,9 @@ FB-0028.
 ## Confirmation before actions
 
 Action/JSON confirm requests the shared [dialog](dialogs.md#szerver-által-deklarált-megerősítés)
-before individual or bulk execution. Result reveal.severity selects acknowledgment severity.
+before individual or bulk execution. Result reveals are reported through the
+non-blocking toast described below.
+Actions that declare no input fields execute directly from the command bar; they do
+not open an intermediate form containing a second Execute button. Successful
+toolbar actions, including one-time secret reveals, report through a non-blocking
+toast; only actions that declare confirmation metadata open a confirmation dialog.
