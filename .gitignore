@@ -15,3 +15,6 @@
 .DS_Store
 
 /examples/demo-app/public/assets/
+
+# Local agent tool state (credentials, caches, databases)
+/.codex/
