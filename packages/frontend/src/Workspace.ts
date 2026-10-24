@@ -8,23 +8,31 @@ import { alert, requestConfirmation, type DialogSeverity } from "./MessageDialog
 import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
 import { GridHeaders, type Sort } from "./GridHeaders";
 import { GridEditing, alias, unalias } from "./GridEditing";
-import { escape as escapeRecord, isMedia, optionText, presentedFields, recordFields } from "./RecordPresentation";
+import { escape as escapeRecord, isMedia, optionText, presentedFields, recordFields, derivedOf, withDerived, mergeUsages, confirmUsages, clearedText, type MediaPart, type Usage } from "./RecordPresentation";
+import { FileFields, fileInput } from "./FilePicker";
+import { uploads, type UploadPolicy } from "./Uploader";
 import { ResponsiveGrid } from "./ResponsiveGrid";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 
 export type { FieldDefinition } from "./FormValidation";
 export type ActionConfirmation={message:string;title?:string;severity?:DialogSeverity;confirmLabel?:string;cancelLabel?:string};
-export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;icon?:string;bulk?:boolean;confirm?:ActionConfirmation;fields:FieldDefinition[]};
+/**
+ * `usages`: the action (a delete) reports references through a `preview` call before it is confirmed.
+ * `upload`: the action receives files through the shared uploader with this policy (no record needed).
+ */
+export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;icon?:string;bulk?:boolean;confirm?:ActionConfirmation;usages?:boolean;upload?:UploadPolicy;fields:FieldDefinition[]};
 const DECLINED=Symbol("declined");
 const ACTION_ICONS:Record<string,string>={create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key",get:"dxi dxi-information-outline"};
-const actionIcon=(action:ActionDefinition)=>action.icon??ACTION_ICONS[action.name]??"dxi dxi-check";
+const actionIcon=(action:ActionDefinition)=>action.icon??ACTION_ICONS[action.name]??(action.upload?"dxi dxi-file-import":"dxi dxi-check");
+/** Protocol values a command sends itself; an action with only these fields runs without a form. */
+const technical=(field:FieldDefinition)=>field.name==="revision"||field.name==="preview"&&field.type==="checkbox";
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
+export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 /** Server limit of the `search` list parameter, in characters. */
 const SEARCH_MAX=100;
 const cursor=(row:Row,direction:string)=>btoa(Array.from(new TextEncoder().encode(JSON.stringify({...row._position,edge:String(row.id),direction})),byte=>String.fromCharCode(byte)).join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-export const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="multiselect"&&!readOnly?{
+export const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="file"?fileInput(f,value,readOnly):f.type==="multiselect"&&!readOnly?{
   // Native Suite Combo with multiple selection; the kernel accepts the list or its comma-joined form.
   type:"combo",name:f.name,label:f.label,labelPosition:"top",required:f.required,multiselection:true,selectAllButton:false,css:"blade-multiselect-field",
   data:Object.entries(f.options).map(([id,value])=>({id,value})),value:String(value??f.defaultValue??"").split(",").filter(Boolean),
@@ -93,6 +101,10 @@ export class Workspace {
   private resize=()=>this.resizeFilters();
   private preferences:UiPreferences;
   private visibleColumns=new Set<string>();
+  /** `file` fields of the open editor and of the singleton detail form. */
+  private fileFields?:FileFields;
+  private detailFiles?:FileFields;
+  private resourceCall=(resource:string,action:string,id:string|null,values:Record<string,unknown>={})=>this.request(resource,action,id,values);
 
   constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,live:LiveConfig,user=""){
     this.preferences=new UiPreferences(user,view.resource);
@@ -109,7 +121,7 @@ export class Workspace {
       :region(this.preferences.layoutTree(view.layout.tree)))});
     if(!view.singleton)this.preferences.bindLayout(this.layout,view.layout.tree);
     this.commands=new ResponsiveToolbar(undefined,{data:[...(!view.singleton?[{id:"blade-results",value:t("Adatok"),icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"blade-filter",value:t("Szűrés"),icon:"dxi dxi-filter-variant"}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).map(a=>({id:a.name,value:escape(a.label),icon:actionIcon(a)})),...(!view.singleton?[{type:"spacer"},{id:"blade-sort",value:t("Rendezés"),hidden:true,icon:"dxi dxi-sort",items:(view.sortable??[]).flatMap(field=>["asc","desc"].map(direction=>({id:"blade-sort:"+field+":"+direction,value:escape((view.columns.find(column=>column.id===field)?.header??(field==="id"?"ID":field))+ (direction==="asc"?" ↑":" ↓")),icon:direction==="asc"?"dxi dxi-arrow-up":"dxi dxi-arrow-down"})))},...(secondaryColumns.length?[{id:"blade-columns",value:t("Oszlopok"),icon:"dxi dxi-table-check",items:secondaryColumns.map(column=>{const active=this.visibleColumns.has(column.id);return {id:"blade-column:"+column.id,value:escape(column.header),icon:active?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline",twoState:true,active};})}]:[]),{id:"blade-view",value:t("Nézet: Táblázat"),icon:"dxi dxi-table-check",items:[{id:"blade-table",value:t("Táblázat"),icon:"dxi dxi-table-check"},{id:"blade-cards",value:t("Kártyák"),icon:"dxi dxi-view-grid"},...(tiles?[{id:"blade-tiles",value:t("Csempék"),icon:"dxi dxi-border-all"}]:[])]}]:[])]});
-    this.commands.events.on("click",(id:string|number)=>{if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.openFilters();return;}if(id==="blade-results"){if(this.selected&&!((view.selection||view.rowSelection)&&(this.grid?.markedIds.length??0)>1))void this.showResults(this.selected);return;}const action=view.actions.find(a=>a.name===id);if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.open(action);}});
+    this.commands.events.on("click",(id:string|number)=>{if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.openFilters();return;}if(id==="blade-results"){if(this.selected&&!((view.selection||view.rowSelection)&&(this.grid?.markedIds.length??0)>1))void this.showResults(this.selected);return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.open(action);}});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
       // A declared search (`view.search`) gets its own native Toolbar input: the command bar may collapse into a menu.
@@ -215,7 +227,7 @@ export class Workspace {
     for(const a of this.view.actions){if(a.name==="get"||(this.view.singleton&&a.name==="update"))continue;
       const bulkSelected=!!(a.bulk&&(this.view.selection||this.view.rowSelection)&&marked.length);
       const bulkAllowed=bulkSelected&&marked.length<=100&&marked.every(id=>this.rows.find(row=>String(row.id)===id)?._actions?.includes(a.name));
-      if(a.name==="create"||(bulkSelected?bulkAllowed:!multiple&&this.selectedRow()?._actions?.includes(a.name)))this.commands.enable(a.name);else this.commands.disable(a.name);
+      if(a.name==="create"||a.upload||(bulkSelected?bulkAllowed:!multiple&&this.selectedRow()?._actions?.includes(a.name)))this.commands.enable(a.name);else this.commands.disable(a.name);
     }
   }
   private createFilters(onCancel?:()=>void):Form{
@@ -267,16 +279,46 @@ export class Workspace {
     }
     await this.load();
   }
-  private async call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{
+  private call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{return this.request(this.view.resource,action,id,values,signal);}
+  /** The JSON channel; another resource is the file manager of a `file` field (picker, upload target). */
+  private async request(resource:string,action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{
     const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?blade=1";
-    const r=await fetch(endpoint,{method:"POST",credentials:"same-origin",signal,headers:{"Content-Type":"application/json","X-BLADE-CSRF":this.csrf},body:JSON.stringify({resource:this.view.resource,action,id,values})});
+    const r=await fetch(endpoint,{method:"POST",credentials:"same-origin",signal,headers:{"Content-Type":"application/json","X-BLADE-CSRF":this.csrf},body:JSON.stringify({resource,action,id,values})});
     const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||t("Sikertelen művelet.")),{status:r.status,fieldErrors:result.fieldErrors});return result.data;
   }
   private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:t("Hiba"),severity:"danger",text:e && typeof e==="object" && "fieldErrors" in e && Object.values((e as any).fieldErrors??{}).length?Object.entries((e as any).fieldErrors).map(([name,error])=>`${this.view.actions.flatMap(a=>a.fields).find(f=>f.name===name)?.label??name}: ${error}`).join("\n"):e instanceof Error?e.message:t("Sikertelen művelet.")});}
   private resultNotice(result:any):void{
     if(result?.reveal){message({text:result.reveal.label+": "+result.reveal.value+(result.reveal.note?"\n\n"+result.reveal.note:""),css:"blade-toast",expire:10000});return;}
     if(result?.secret){message({text:t("Egyszer megjelenő API-token")+": "+result.secret,css:"blade-toast",expire:10000});return;}
-    message({text:t("A művelet sikerült."),css:"blade-toast",expire:4000});
+    // A delete that cleared references (usage providers) says which and how many.
+    const cleared=clearedText(result?.cleared);
+    message({text:t("A művelet sikerült.")+(cleared?"\n"+cleared:""),css:"blade-toast",expire:cleared?8000:4000});
+  }
+  /**
+   * Confirmation of an action that reports usages (`usages: true`): a `preview` of the same call (one
+   * record, or `__bulk` for marks) sums the references; when there are any, one shared danger
+   * confirmation lists them with the consequence, otherwise the declared confirmation applies. Marks
+   * whose preview failed are counted in the confirmation, never silently dropped.
+   */
+  private async confirmedUsages(action:ActionDefinition,items:{id:string;values:Record<string,unknown>}[],bulk=false):Promise<boolean>{
+    if(!action.usages)return this.confirmed(action,items.length);
+    let usages:Usage[],failed=0;
+    if(!bulk&&items.length===1)usages=mergeUsages([(await this.call(action.name,items[0].id,{...items[0].values,preview:"1"}))?.usages]);
+    else{
+      const preview:{id:string;ok:boolean;data?:{usages?:Usage[]}}[]=await this.call("__bulk",null,{operation:action.name,items:items.map(item=>({id:item.id,values:{...item.values,preview:"1"}}))});
+      usages=mergeUsages(preview.filter(row=>row.ok).map(row=>row.data?.usages));
+      failed=preview.filter(row=>!row.ok).length;
+    }
+    if(this.disposed)return false;
+    const note=failed?t("{count} elem előnézete nem sikerült.",{count:failed}):"";
+    const c=action.confirm;
+    if(!usages.length){
+      if(!note)return this.confirmed(action,items.length);
+      const declared=c?c.message.replace("{count}",String(items.length)):t("{count} rekord törlődik.",{count:items.length});
+      return requestConfirmation({message:declared+"\n\n"+note,title:c?.title,severity:c?.severity??"danger",confirmLabel:c?.confirmLabel??action.submitLabel,cancelLabel:c?.cancelLabel});
+    }
+    return confirmUsages({usages,title:c?.title,confirmLabel:c?.confirmLabel??action.submitLabel,cancelLabel:c?.cancelLabel,
+      message:(c?c.message.replace("{count}",String(items.length)):t("{count} rekord törlődik.",{count:items.length}))+(note?"\n\n"+note:"")});
   }
   /** Server-declared confirmation (`Action::$confirm`); resolves false when the user cancels. */
   private confirmed(action:ActionDefinition,count=1):Promise<boolean>{
@@ -364,8 +406,10 @@ export class Workspace {
     if(action){const schema=await this.call("__form",String(row.id),{operation:"update"});allowed=schema.fields;}
     if(this.disposed)return;
     this.layout.getCell("detail").detach();this.detail?.destructor();await awaitRedraw();if(this.disposed)return;
-    const fields=this.view.columns.map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:"text",required:false,max:255,options:{}});
+    // Derived media columns have no field of their own: the detail form shows the fields only.
+    const fields=this.view.columns.filter(c=>!derivedOf(c)).map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:"text",required:false,max:255,options:{}});
     const form=new Form(document.createElement("div"),{padding:24,rows:[...fields.map(f=>input(f,row[f.name],!allowed.some(a=>a.name===f.name))),...(action?[formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save",color:"primary"})]:[])]} as any);
+    this.detailFiles?.destroy();this.detailFiles=new FileFields(form,fields,this.resourceCall,[row],f=>!allowed.some(a=>a.name===f.name));
     this.detail=form;this.detailDirty=false;this.detailConflictShown=false;
     form.events.on("change",()=>{this.detailDirty=true;});
     if(action)this.bindSave(form,action,String(row.id),row,allowed,()=>{this.detailDirty=false;},()=>{void this.mountDetail(this.rows[0]??row);});
@@ -379,7 +423,7 @@ export class Workspace {
       if(this.disposed||epoch!==this.resultsEpoch)return;
       const dialog=new Window({css:"blade-content-window",title:escape(this.view.title+" — "+t("Adatok")+" · "+id),ariaLabel:t("Rekordadatok"),width:Math.min(680,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
       this.results=dialog;
-      dialog.attachHTML(`<article class="blade-record-details"><div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>${recordFields(row,presentedFields(this.view.detailFields??this.view.columns,this.view.columns))}</article>`);
+      dialog.attachHTML(`<article class="blade-record-details"><div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>${recordFields(row,presentedFields(withDerived(this.view.detailFields??this.view.columns,this.view.columns),this.view.columns))}</article>`);
       dialog.show();void fitWindow(dialog);
     }catch(error){await this.error(error);}
   }
@@ -387,7 +431,7 @@ export class Workspace {
     const ids=this.grid?.markedIds??[];if(!ids.length||ids.length>100)return;
     // A field-free bulk command must not open a window whose only control is
     // another Execute button. Forms remain for actions that need input.
-    const commandOnly=action.name!=="create"&&action.name!=="update"&&action.fields.every(field=>field.name==="revision");
+    const commandOnly=action.name!=="create"&&action.name!=="update"&&action.fields.every(technical);
     if(commandOnly){await this.executeBulk(action,ids);return;}
     const epoch=++this.formEpoch;
     try{
@@ -398,11 +442,12 @@ export class Workspace {
       const fields=eligible(schemas[0]).filter(field=>schemas.every(schema=>eligible(schema).some((other:FieldDefinition)=>other.name===field.name)));
       if(schemas.some(schema=>eligible(schema).some((field:FieldDefinition)=>!fields.some(common=>common.name===field.name))))throw new Error(t("A sorok eltérő mezőjogosultságúak. Válassz azonos jogosultságú sorokat."));
       const form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(field=>input(field,undefined)),formActions({name:"submit",text:t("Végrehajtás ({count} sor)",{count:ids.length}),icon:actionIcon(action),color:"primary"})]} as any);
-      this.dialog?.destructor();this.editor?.destructor();this.editor=form;
+      this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.editor=form;
+      this.fileFields=new FileFields(form,fields,this.resourceCall);
       const dialog=new Window({css:"blade-content-window",title:escape(action.label+" — "+ids.length+t(" sor")),width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
       const validation=new FormValidation(form,fields);let saving=false;
       form.events.on("click",(name:string)=>{
-        if(name==="cancel"){dialog.destructor();this.dialog=undefined;this.editor=undefined;return;}
+        if(name==="cancel"){this.dialog=undefined;this.editor=undefined;dialog.hide();void awaitRedraw().then(()=>dialog.destructor());return;}
         if(name!=="submit"||saving||!validation.validate())return;saving=true;form.disable();
         const raw=form.getValue() as Record<string,unknown>;
         const values=Object.fromEntries(fields.map(field=>[field.name,raw[field.name]]));
@@ -419,11 +464,13 @@ export class Workspace {
     try{
       const revisions:{fields:FieldDefinition[];values:Row}[]=[];
       if(action.fields.some(field=>field.name==="revision"))for(const id of ids)revisions.push(await this.call("__form",id,{operation:action.name}));
-      if(!await this.confirmed(action,ids.length))return;
-      const result:{id:string;ok:boolean;error?:string}[]=await this.call("__bulk",null,{operation:action.name,items:ids.map((id,index)=>({id,values:revisions[index]?.fields.some(field=>field.name==="revision")?{revision:revisions[index].values.revision}:{}}))});
+      const items=ids.map((id,index)=>({id,values:revisions[index]?.fields.some(field=>field.name==="revision")?{revision:revisions[index].values.revision}:{}}));
+      if(!await this.confirmedUsages(action,items,true))return;
+      const result:{id:string;ok:boolean;error?:string;data?:{cleared?:Record<string,number>}}[]=await this.call("__bulk",null,{operation:action.name,items});
       if(this.disposed)return;
       this.grid?.clearMarks();await this.load();
-      message({text:t("Sikeres: {success}, sikertelen: {failed}.",{success:result.filter(row=>row.ok).length,failed:result.filter(row=>!row.ok).length})+result.filter(row=>!row.ok).map(row=>`\n${row.id}: ${row.error}`).join(""),css:"blade-toast",expire:10000});
+      const cleared=clearedText(...result.filter(row=>row.ok).map(row=>row.data?.cleared));
+      message({text:t("Sikeres: {success}, sikertelen: {failed}.",{success:result.filter(row=>row.ok).length,failed:result.filter(row=>!row.ok).length})+(cleared?"\n"+cleared:"")+result.filter(row=>!row.ok).map(row=>`\n${row.id}: ${row.error}`).join(""),css:"blade-toast",expire:10000});
     }catch(error){if(error!==DECLINED)await this.error(error);}
     finally{this.busy=false;}
   }
@@ -431,7 +478,7 @@ export class Workspace {
     const id=action.name==="create"?null:this.selected;if(action.name!=="create"&&!id)return;
     // Actions without inputs are commands, not forms. Execute them immediately
     // so a one-click operation does not open a dialog containing another button.
-    const commandOnly=action.name!=="create"&&action.name!=="update"&&action.fields.every(field=>field.name==="revision");
+    const commandOnly=action.name!=="create"&&action.name!=="update"&&action.fields.every(technical);
     if(commandOnly){
       if(!id)return;
       await this.execute(action,id);
@@ -442,25 +489,39 @@ export class Workspace {
       const schema=await this.call("__form",id??null,{operation:action.name});if(this.disposed||epoch!==this.formEpoch)return;
       const allowed=schema.fields as FieldDefinition[];
       const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision").map(f=>input(f,f.type==="password"?"":schema.values[f.name])),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
-      this.dialog?.destructor();this.editor?.destructor();this.editor=form;
+      this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.editor=form;
+      const files=this.fileFields=new FileFields(form,allowed,this.resourceCall,[schema.values,id?this.rows.find(row=>String(row.id)===id):undefined]);
       const close=()=>{
+        files.destroy();if(this.fileFields===files)this.fileFields=undefined;
         if(this.view.layout.formMode==="panel"&&!this.view.singleton){this.layout.getCell("form").detach();this.layout.getCell("form").collapse();}
-        else{this.dialog?.destructor();this.dialog=undefined;}
+        // Destroyed after the click that closes it: Suite 9.3.12 still fires the Form's events after the handler returns.
+        else{const dialog=this.dialog;this.dialog=undefined;dialog?.hide();void awaitRedraw().then(()=>dialog?.destructor());}
         this.editor=undefined;
       };
       if(this.view.layout.formMode==="panel"&&!this.view.singleton){this.layout.getCell("form").expand();this.layout.getCell("form").attach(form);}
       else{
         const dialog=new Window({css:"blade-content-window",title:escape(this.view.title+" — "+action.label),ariaLabel:this.view.title+" — "+action.label,width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
+        // Closing with the window's own close button also ends an open picker and a pending upload choice.
+        dialog.events.on("afterHide",()=>{files.destroy();if(this.fileFields===files)this.fileFields=undefined;});
       }
       this.bindSave(form,action,id??null,schema.values,allowed,close,close);
     }catch(e){await this.error(e);}
+  }
+  /**
+   * An upload action (`upload` policy, for example "upload as asset"): the shared uploader sends the files
+   * to it; the list reloads once a batch has settled (live updates may show the rows earlier).
+   */
+  private openUpload(action:ActionDefinition):void{
+    if(!action.upload||this.disposed)return;
+    uploads.open({resource:this.view.resource,action:action.name,target:null,targetLabel:this.view.title,policy:action.upload,
+      onUploaded:result=>{if(!this.disposed&&result.succeeded.length)void this.load();}});
   }
   private async execute(action:ActionDefinition,id:string):Promise<void>{
     if(this.busy||this.disposed)return;
     this.busy=true;
     try{
-      if(!await this.confirmed(action))return;
       const values=action.fields.some(field=>field.name==="revision")?{revision:this.selectedRow()?.revision}:{};
+      if(!await this.confirmedUsages(action,[{id,values}]))return;
       const result=await this.call(action.name,id,values);
       if(this.disposed)return;
       this.resultNotice(result);
@@ -484,8 +545,8 @@ export class Workspace {
       }).catch(e=>{if(e===DECLINED)return;if(!this.disposed&&!validation.showServerErrors(e.fieldErrors??{}))return this.error(e);}).finally(()=>{saving=false;if(!this.disposed&&(this.editor===form||this.detail===form))form.enable();});
     });
   }
-  private revoke():void{this.cardEditor?.destructor();this.cardEditor=undefined;this.cellEditing=false;this.resultsEpoch++;this.results?.destructor();this.results=undefined;this.rows=[];this.grid?.setRows([]);this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
-  destroy():void{this.commands.disposeResponsive();this.disposed=true;clearTimeout(this.searchTimer);
+  private revoke():void{this.fileFields?.destroy();this.fileFields=undefined;this.detailFiles?.destroy();this.cardEditor?.destructor();this.cardEditor=undefined;this.cellEditing=false;this.resultsEpoch++;this.results?.destructor();this.results=undefined;this.rows=[];this.grid?.setRows([]);this.detail?.clear();this.detail?.disable();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;this.capabilities();}
+  destroy():void{this.commands.disposeResponsive();this.disposed=true;clearTimeout(this.searchTimer);this.fileFields?.destroy();this.detailFiles?.destroy();
     // Suite 9.3.12 reads a destroyed vnode when a focused Toolbar input blurs during unmount.
     const focused=document.activeElement;if(focused instanceof HTMLElement&&this.searchBar?.getRootNode()?.contains(focused))focused.blur();
     this.cardEditor?.destructor();this.cardEditor=undefined;this.releaseIcons();this.resultsEpoch++;this.results?.destructor();window.removeEventListener("resize",this.resize);this.closeFilters();this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.layout.destructor();}

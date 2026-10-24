@@ -228,10 +228,11 @@ test('image viewer and video player over the content_stream GET transport',async
  await start(page);
  const left=panel(page,0),view=page.getByRole('button',{name:'Megtekintés',exact:true});
  // Server: only stored image/video types are served, as raw bytes that cannot run as a document.
- const image=await entryId(page,'a','Média','minta-fraktal.jpg'),text=await entryId(page,'a','Dokumentumok','jegyzet.txt'),folder=await entryId(page,'a',null,'Média');
+ // The seeded images and videos live in the Signage mount (signage demo, files-media-plan U5).
+ const image=await entryId(page,'signage',null,'minta-fraktal.jpg'),text=await entryId(page,'a','Dokumentumok','jegyzet.txt'),folder=await entryId(page,'a',null,'Média');
  expect(await content(page,image)).toEqual({status:200,type:'image/jpeg',nosniff:'nosniff',disposition:'attachment',head:[255,216,255]});
  expect((await api(page,'files','content_get',text)).status).toBe(415);expect((await api(page,'files','content_get',folder)).status).toBe(400);
- await enter(left,'Média');
+ await mount(page,left,'Signage');
  await pick(left,'minta-fraktal.jpg');await expect(view).toBeEnabled();
  await expect(page.getByRole('button',{name:'Szerkesztés',exact:true})).toBeDisabled();
  // Image viewer: fitted (never enlarged) by default, zoom steps and rotation in the toolbar, size and dimensions beside them.
@@ -383,16 +384,18 @@ test('tiles with thumbnails, folder and parent tiles',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await start(page);
  const left=panel(page,0),tiles=left.locator('.blade-grid-tile');
- await enter(left,'Média');await view(page,left,'Csempék');
+ await mount(page,left,'Signage');await view(page,left,'Csempék');
  await expect(tiles.first()).toBeVisible();await expect(left.locator('.dhx_grid-row').first()).toBeHidden();
  // Media slot from the listing's metadata: a ready thumbnail is the GET thumbnail_get image; type in text.
  const picture=left.getByRole('img',{name:'Kép: minta-fraktal.jpg',exact:true});await expect(picture).toBeVisible();
  expect(await picture.locator('img').getAttribute('src')).toMatch(/action=thumbnail_get&id=\d+&v=\d+$/);
  await expect.poll(()=>picture.locator('img').evaluate(image=>image.complete&&image.naturalWidth)).toBeGreaterThan(0);
  await expect(left.getByRole('img',{name:'Videó: minta-video.webm, 0:06',exact:true})).toBeVisible();
- // The ".." tile names its type; marking and double-click behave as in the listing.
- const parent=tiles.filter({hasText:'Szülőmappa'});await expect(parent).toHaveCount(1);await expect(parent.locator('.blade-grid-tile__title')).toHaveText('..');
  await tiles.filter({hasText:'minta-fraktal.jpg'}).click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(1);
+ // The ".." tile names its type; marking and double-click behave as in the listing.
+ await mount(page,left,'Drive A');await tiles.filter({hasText:'Dokumentumok'}).dblclick();await expect(path(left)).toHaveText('Drive A:/Dokumentumok');
+ const parent=tiles.filter({hasText:'Szülőmappa'});await expect(parent).toHaveCount(1);await expect(parent.locator('.blade-grid-tile__title')).toHaveText('..');
+ await tiles.filter({hasText:'jegyzet.txt'}).click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(1);
  await parent.click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(0);
  await parent.dblclick();await expect(path(left)).toHaveText('Drive A:/');
  // A folder tile shows the folder glyph in its media slot and "Mappa" as its type line.
@@ -403,11 +406,11 @@ test('tiles with thumbnails, folder and parent tiles',async({page})=>{
  const boxes=await tiles.evaluateAll(nodes=>nodes.slice(0,3).map(node=>Math.round(node.getBoundingClientRect().top)));expect(new Set(boxes).size).toBe(1);
  await view(page,left,'Fájllista');await expect(row(left,'Dokumentumok')).toBeVisible();
  // Videos carry the video icon ("Videó") in the listing and in the tree, as the media fallback does.
- await enter(left,'Média');await expect(row(left,'minta-video.webm').getByRole('img',{name:'Videó',exact:true})).toBeVisible();
+ await mount(page,left,'Signage');await expect(row(left,'minta-video.webm').getByRole('img',{name:'Videó',exact:true})).toBeVisible();
  await expect(row(left,'minta-video.webm').locator('.dxi-menu-right')).toHaveCount(1);
  await view(page,left,'Mappafa');
  // The current folder is selected but collapsed; its toggle (a Suite menu-right glyph outside the item content) opens it.
- if(!await treeItem(left,'minta-video.webm').isVisible())await left.locator('.dhx_tree-folder').filter({has:page.locator('.dhx_tree-list-item__content').filter({hasText:exact('Média')})}).locator('.dhx_tree-toggle-button').click();
+ if(!await treeItem(left,'minta-video.webm').isVisible())await left.locator('.dhx_tree-toggle-button').first().click();
  await expect(treeItem(left,'minta-video.webm').locator('.dxi-menu-right')).toHaveCount(1);
  await view(page,left,'Fájllista');
  expect(errors).toEqual([]);
@@ -518,16 +521,18 @@ test('drop and paste onto a panel: in-flight rows, in-place insertion without re
 test('viewer previous and next across the images and videos of the listing',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await start(page);
- const left=panel(page,0),media=(await api(page,'files','list',await entryId(page,'a',null,'Média'))).body.data.items;
- const count=media.filter(item=>['image/png','image/jpeg','video/mp4','video/webm'].includes(item.mime_type)).length;
- await enter(left,'Média');await row(left,'minta-fraktal.jpg').dblclick();
+ // The seeded images and videos live in the Signage mount root (signage demo, files-media-plan U5).
+ const left=panel(page,0),media=(await api(page,'files','list',(await api(page,'files','tree','signage')).body.data.root,{limit:200})).body.data.items.filter(item=>['image/png','image/jpeg','video/mp4','video/webm'].includes(item.mime_type));
+ const count=media.length,at=media.findIndex(item=>item.name==='minta-fraktal.jpg')+1;
+ expect(media[at]?.name).toBe('minta-video.webm');
+ await mount(page,left,'Signage');await row(left,'minta-fraktal.jpg').dblclick();
  const windows=page.locator('.blade-document-window');
  let bar=windowDialog(page).locator('.blade-document__bar');
- await expect(bar.locator('[data-dhx-id="index"]')).toHaveText('1 / '+count);
- await expect(bar.getByRole('button',{name:'Előző',exact:true})).toBeDisabled();
+ await expect(bar.locator('[data-dhx-id="index"]')).toHaveText(at+' / '+count);
+ if(at===1)await expect(bar.getByRole('button',{name:'Előző',exact:true})).toBeDisabled();
  await bar.getByRole('button',{name:'Következő',exact:true}).click();
  await expect(windows).toHaveCount(1);await expect(windowDialog(page).locator('video')).toHaveAttribute('aria-label','minta-video.webm');
- bar=windowDialog(page).locator('.blade-document__bar');await expect(bar.locator('[data-dhx-id="index"]')).toHaveText('2 / '+count);
+ bar=windowDialog(page).locator('.blade-document__bar');await expect(bar.locator('[data-dhx-id="index"]')).toHaveText((at+1)+' / '+count);
  // PageUp/PageDown inside the viewer walk the same sequence.
  await page.keyboard.press('PageUp');
  await expect(windows).toHaveCount(1);await expect(windowDialog(page).getByRole('img',{name:'minta-fraktal.jpg'})).toBeVisible();
@@ -554,7 +559,7 @@ test('server authorization on direct requests and audit records',async({page,bro
  try{
   const other=await context.newPage();
   await signIn(other,'reader@example.test');await openFiles(other);
-  const picture=await entryId(page,'a','Média','minta-fraktal.jpg');
+  const picture=await entryId(page,'signage',null,'minta-fraktal.jpg');
   for(const [action,id,values,status] of [['tree','a',{},200],['text_get',file,{},200],['tree','c',{},403],['list',rootC,{},403],['create_directory',root,{name:prefix+'-x'},403],['copy',root,{sources:file},403],['move',root,{sources:file},403]])
    expect((await api(other,'files',action,id,values)).status,'reader '+action).toBe(status);
   expect((await content(other,picture)).status,'reader content_get').toBe(200);
@@ -562,7 +567,7 @@ test('server authorization on direct requests and audit records',async({page,bro
   const stream=`?blade=1&resource=files&action=content_stream&id=${picture}`,thumb=`?blade=1&resource=files&action=thumbnail_get&id=${picture}`;
   expect((await other.request.get(stream)).status(),'reader content_stream').toBe(200);
   expect((await other.request.get(thumb)).status(),'reader thumbnail_get').toBe(200);
-  php(`foreach(['content_stream','thumbnail_get'] as $a)$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','${reader}','files',?,'ui','deny','id','a','')")->execute([$a]);`);
+  php(`foreach(['content_stream','thumbnail_get'] as $a)$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','${reader}','files',?,'ui','deny','id','signage','')")->execute([$a]);`);
   expect((await other.request.get(stream)).status(),'denied content_stream').toBe(403);
   expect((await other.request.get(thumb)).status(),'denied thumbnail_get').toBe(403);
   const stranger=await browser.newContext();
@@ -581,7 +586,7 @@ test('server authorization on direct requests and audit records',async({page,bro
   expect((await page.request.get(new URL(`?blade=1&resource=files&action=zip_get&id=${prepared.body.data.token}`,page.url()).href)).status(),'foreign zip token').toBe(404);
   await panel(other,0).locator('[data-dhx-id="mount"]').click();
   await expect(other.getByRole('menuitem',{name:'Drive B',exact:true})).toBeVisible();await expect(other.getByRole('menuitem',{name:'Drive C',exact:true})).toHaveCount(0);
- }finally{await context.close();php(`$db->exec("DELETE FROM blade_rules WHERE ${rule}");$db->exec("DELETE FROM blade_rules WHERE subject_type='user' AND subject_id='${reader}' AND resource='files' AND action IN ('content_stream','thumbnail_get') AND effect='deny' AND object_id='a'");`);}
+ }finally{await context.close();php(`$db->exec("DELETE FROM blade_rules WHERE ${rule}");$db->exec("DELETE FROM blade_rules WHERE subject_type='user' AND subject_id='${reader}' AND resource='files' AND action IN ('content_stream','thumbnail_get') AND effect='deny' AND object_id='signage'");`);}
  const audit=JSON.parse(php(`$q=$db->prepare("SELECT actor_id,action,outcome,object_id,detail FROM blade_audit WHERE resource='files' AND occurred_at>=? ORDER BY id");$q->execute(['${started}']);echo json_encode($q->fetchAll(PDO::FETCH_ASSOC));`));
  for(const action of ['create_directory','upload','copy','move','text_save','content_get','content_stream','thumbnail_get','rename','delete','download','zip_prepare','zip_get'])expect(audit.some(r=>r.action===action&&r.outcome==='success'),action).toBe(true);
  expect(audit.some(r=>r.outcome==='rejected'&&r.actor_id===reader)).toBe(true);
@@ -608,7 +613,7 @@ test('localization, themes, the panel divider and the desktop-only notice',async
  for(const name of ['Rename','Delete','Download'])await expect(page.getByRole('button',{name,exact:true})).toBeVisible();
  await expect(panel(page,0).locator('[data-dhx-id="sort"]')).toHaveText('Sort: Name ↑');
  await expect(panel(page,0).locator('.dhx_grid-header-cell').filter({hasText:'Modified'})).toBeVisible();
- const denied=await api(page,'files','text_get',await entryId(page,'a','Képek','logo.png'));expect(denied.body.error).toBe('Only .txt files can be edited.');
+ const denied=await api(page,'files','text_get',await entryId(page,'signage',null,'logo.png'));expect(denied.body.error).toBe('Only .txt files can be edited.');
  await page.locator('.blade-navigation-row').getByRole('button',{name:'English',exact:true}).click();await page.getByText('Magyar',{exact:true}).click();
  // Native Layout divider: drag fully left, then right; the right panel keeps filling the row.
  await openFiles(page);

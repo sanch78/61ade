@@ -7,6 +7,7 @@ final class Registry
     private array $views = [];
     private array $fields = [];
     private array $media = [];
+    private array $usages = [];
     public function registerFields(string $resource, array $fields): void { $this->fields[$resource] = array_column($fields, null, 'name'); }
     public function fields(string $resource): array { return $this->fields[$resource] ?? []; }
     public function add(Action $action): void
@@ -24,12 +25,42 @@ final class Registry
         $this->media[$resource]=$source;
     }
     public function mediaSource(string $resource): ?MediaSource { return $this->media[$resource] ?? null; }
+    /** References to objects of $resource (several providers per resource); its delete actions preview and clear them. */
+    public function usage(string $resource, UsageProvider $provider): void
+    {
+        if(!preg_match('/^[a-z][a-z0-9_.-]*$/D',$resource)||in_array($provider,$this->usages[$resource]??[],true))throw new \InvalidArgumentException('Invalid or duplicate usage provider.');
+        $this->usages[$resource][]=$provider;
+    }
+    /** @return list<UsageProvider> */
+    public function usageProviders(string $resource): array { return $this->usages[$resource] ?? []; }
+    /** Appends registered actions to an existing view of $resource, keeping every other view option. */
+    public function appendViewActions(string $resource, array $actions): void
+    {
+        if(!isset($this->views[$resource]))throw new \InvalidArgumentException('Unknown view.');
+        foreach($actions as $action)$this->get($resource,$action);
+        $this->views[$resource]['actions']=array_values(array_unique([...$this->views[$resource]['actions'],...$actions]));
+    }
+    /**
+     * Derived media columns: a column without a field may declare `media_of` (a media field of the resource) and
+     * `part` (type, resolution or duration); the client renders it from the row's `_media`; never sorted or filtered.
+     */
+    private function checkColumns(string $resource, array $columns): void
+    {
+        $fields=$this->fields[$resource]??[];
+        foreach($columns as $column){
+            if(!is_array($column)||!is_string($column['id']??null))throw new \InvalidArgumentException('Invalid view column.');
+            if(!isset($column['media_of'])&&!isset($column['part']))continue;
+            $source=is_string($column['media_of']??null)?($fields[$column['media_of']]??null):null;
+            if(isset($fields[$column['id']])||!$source||$source->media()===null||!in_array($column['part']??null,['type','resolution','duration'],true))throw new \InvalidArgumentException('Invalid derived media column.');
+        }
+    }
     /** $rowHeight (32–160 px, default 40), $tileMinWidth (120–480 px) and $tiles are list presentation only; absent keys keep the client defaults. */
     public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false): void
     {
         if($icon!==null&&!preg_match('/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/D',$icon))throw new \InvalidArgumentException('Invalid view icon.');
         if(($rowHeight!==null&&($rowHeight<32||$rowHeight>160))||($tileMinWidth!==null&&($tileMinWidth<120||$tileMinWidth>480)))throw new \InvalidArgumentException('Invalid view presentation.');
         foreach ($actions as $action) $this->get($resource,$action);
+        $this->checkColumns($resource,$columns);
         $layout??=new ViewLayout();
         $this->views[$resource]=[...compact('resource','title','columns','actions','singleton','group','layout','rowNumbers','selection','icon','desktopOnly','rowSelection'),...array_filter(['rowHeight'=>$rowHeight,'tileMinWidth'=>$tileMinWidth,'tiles'=>$tiles?:null],static fn($v)=>$v!==null)];
     }

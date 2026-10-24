@@ -55,6 +55,10 @@ The file manager builds its policy from its own options
 (`FileManagerDefinition::uploadPolicy()`, `tempRoot`) and exposes it as
 `files.upload.policy` metadata ([files](files.md#behavior)).
 
+List views open it automatically for actions that declare an `UploadPolicy`
+(the signage `Feltöltés` command), and the `file` field opens it for its
+folder ([workspaces](workspaces.md#file-field)).
+
 Client: open the shared uploader from a command; never build another upload
 dialog.
 

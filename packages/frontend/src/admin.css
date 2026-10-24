@@ -296,6 +296,22 @@ body,
 /* Tiles: folders, the ".." row and in-flight uploads have no thumbnail; their media slot shows the
    folder, parent or upload glyph of the Suite icon font (the tile's secondary line names the type in text). */
 .blade-file-list .blade-grid-tile[data-blade-row^="upload:"] { opacity: .75; }
+/* `file` form field: thumbnail beside the read-only file name and its commands (FilePicker.ts). */
+.blade-file-field__row { align-items: flex-start; gap: 12px; flex-wrap: nowrap; }
+.blade-file-field__body { flex: 1 1 0; min-width: 0; }
+.blade-file-field__media { flex: none; padding-top: 4px; }
+.blade-file-field__media .dhx_avatar { border: 1px solid var(--dhx-border-color); border-radius: 6px; overflow: hidden; background: var(--dhx-background-secondary); }
+.blade-file-field__media .dhx_avatar__image { object-fit: cover; }
+.blade-file-field__media .dhx_avatar__preview-icon::before { font-size: 32px; color: var(--dhx-font-color-secondary); }
+.blade-file-field__actions { flex-wrap: wrap; gap: 4px 8px; }
+.blade-file-field__actions .dhx_button { white-space: nowrap; }
+/* Picker window: search and type filter above the tiles, Cancel + choose below; the tiles take the rest. */
+.blade-file-picker-window .dhx_window-content { padding: 0; }
+.blade-file-picker__body { min-height: 0; }
+.blade-file-picker__actions { border-top: 1px solid var(--dhx-border-color); }
+@media (max-width: 480px) {
+  .blade-file-field__row { flex-wrap: wrap; }
+}
 /* Document windows (text editor, image viewer, video player): the Layout fills the window, the
    toolbar sits above the content cell, and the content takes every size the window gets. */
 .blade-document-window .dhx_window-content { padding: 0; }

@@ -21,11 +21,27 @@ final readonly class Field
         public array $column = [],
         public ?string $defaultValue = null,
         public bool $bulk = false,
+        /** Type `file` only: ['resource' => file manager resource, 'mount' => mount key, 'folder' => optional path below the mount, 'accept' => MIME classes]. */
+        public ?array $file = null,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
-            || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox'], true)
+            || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'file'], true)
             || $max < 1) {
             throw new InvalidArgumentException('Invalid field definition.');
+        }
+        // `file`: the value is a file id of that file manager's mount; the column is a media column of that resource.
+        if (($type === 'file') !== ($file !== null)) throw new InvalidArgumentException('File settings belong to file fields only.');
+        if ($file !== null) {
+            $folder = $file['folder'] ?? '';
+            $accept = $file['accept'] ?? null;
+            if (array_diff(array_keys($file), ['resource', 'mount', 'folder', 'accept'])
+                || !is_string($file['resource'] ?? null) || !preg_match('/^[a-z][a-z0-9_.-]*$/D', $file['resource'])
+                || !is_string($file['mount'] ?? null) || !preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $file['mount'])
+                || !is_string($folder) || ($folder !== '' && (count(explode('/', $folder)) > 32 || array_filter(explode('/', $folder), static fn($segment) => UploadPolicy::invalidName($segment) !== null)))
+                || !is_array($accept) || !$accept || !array_is_list($accept) || array_filter($accept, static fn($class) => !is_string($class) || !preg_match('/^[a-z]{1,32}$/D', $class)) || count(array_unique($accept)) !== count($accept)
+                || $secret || isset($column['media']) || isset($column['presentation']) || ($column['editable'] ?? false) || $bulk) {
+                throw new InvalidArgumentException('Invalid file field.');
+            }
         }
         foreach ($column as $property => $value) {
             if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'media', 'presentation'], true)
@@ -73,6 +89,10 @@ final readonly class Field
         if ($error !== null) {
             $this->reject($error);
         }
+        // A file id; that it is a live, readable file of the declared mount and class is checked by the executor (FileSource).
+        if ($value !== '' && $this->type === 'file' && !preg_match('/^[1-9][0-9]{0,17}$/D', $value)) {
+            $this->reject('A kiválasztott fájl nem érhető el.');
+        }
         if ($value !== '' && $this->type === 'number' && !preg_match('/^\d+$/D', $value)) {
             $this->reject('Nemnegatív egész szám szükséges.');
         }
@@ -91,6 +111,12 @@ final readonly class Field
             $value = implode(',', $items);
         }
         return $value;
+    }
+
+    /** MediaSource resource of the column: `column.media`, or the file manager of a `file` field. */
+    public function media(): ?string
+    {
+        return $this->column['media'] ?? $this->file['resource'] ?? null;
     }
 
     public function reject(string $message): never
@@ -119,6 +145,8 @@ final readonly class Field
             'validation' => (object) \Blade\I18n\Translator::presentation($this->validation),
             'defaultValue' => $this->defaultValue,
             'bulk' => $this->bulk,
+            // Workspace adds the resolved folder, the upload policy and the actor's upload right; the folder path stays server-side.
+            ...($this->file !== null ? ['file' => ['resource' => $this->file['resource'], 'mount' => $this->file['mount'], 'accept' => $this->file['accept']]] : []),
         ];
     }
 }

@@ -107,4 +107,69 @@ verify(count($mread(['limit'=>100,'search'=>str_repeat('é',100)])['items'])===0
 $live=$mw->observe($as('1'),'assets',['limit'=>50,'front'=>true,'search'=>'Asset 1']);verify(count($live['items'])===$mread(['limit'=>100,'search'=>'Asset 1'])['matched']&&isset($live['items'][0]['_media']),'Live window honours search and media');
 }finally{$remove($tmp);}
 verify(!file_exists($tmp),'Media scratch removed');
-echo "61de dynamic list, scope, filters, external changes, layout, media, class filter and search tests passed.\n";
+// Delete policy `archive` and computed read-only columns (U5): an independent synthetic consumer.
+$adb=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);Blade\Access\Schema::install($adb);
+$adb->exec("CREATE TABLE docs(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,code TEXT NOT NULL DEFAULT '',archived_at TEXT NULL,archived_by TEXT NOT NULL DEFAULT '')");
+$adb->exec('CREATE TABLE refs(id INTEGER PRIMARY KEY AUTOINCREMENT,doc_id TEXT NOT NULL)');
+$insert=$adb->prepare('INSERT INTO docs(title,code) VALUES (?,?)');for($i=1;$i<=10;$i++)$insert->execute([sprintf('Doc %02d',$i),sprintf('C%02d',$i)]);
+$adb->exec("INSERT INTO refs(doc_id) VALUES ('3'),('3'),('3'),('5')");
+$saved=$deletedHook=[];
+$computedField=new Field('refs','References','number');
+$docsDefinition=fn(array $computed,array $fields=[])=>new SqlResource('docs','docs','id',$fields?:[new Field('title','Title',required:true),new Field('code','Code',validation:['unique'=>true]),$computedField],computed:$computed,unique:[['title']]);
+foreach([['missing'=>'1'],['title'=>'1'],['refs'=>'SELECT 1; DROP TABLE docs'],['refs'=>'SELECT ?'],['refs'=>'']] as $invalid){try{$docsDefinition($invalid);throw new RuntimeException('Invalid computed column accepted');}catch(InvalidArgumentException){}}
+foreach([new Field('refs','R','textarea'),new Field('refs','R',column:['editable'=>true]),new Field('refs','R','select',options:['1'=>'1'])] as $bad){try{$docsDefinition(['refs'=>'1'],[new Field('title','Title'),$bad]);throw new RuntimeException('Invalid computed field accepted');}catch(InvalidArgumentException){}}
+$docs=new SqlResource('docs','docs','id',[new Field('title','Title',required:true),new Field('code','Code',validation:['unique'=>true]),$computedField],
+    afterSave:function(Context $c,string $id) use (&$saved){$saved[]=$id;return null;},afterDelete:function(Context $c,string $id,array $target) use (&$deletedHook){$deletedHook[]=[$id,$target['row']['title']];},
+    unique:[['title']],computed:['refs'=>'SELECT COUNT(*) FROM refs WHERE refs.doc_id = CAST(blade_base.id AS TEXT)']);
+$areg=new Registry();$docs->register($areg,'Docs');
+try{$docs->registerDelete($areg,'purge');throw new RuntimeException('Invalid delete policy accepted');}catch(InvalidArgumentException){}
+$docs->registerDelete($areg,'archive');
+$aw=new Workspace($areg,$adb);$actx=new Context(new Identity('1','One'),'ui',$aw->acl,$adb);
+$q=$adb->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','docs',?,'ui','allow','all','','')");foreach(['list','get','create','update','delete'] as $action)$q->execute([$action]);
+$acall=fn(string $action,?string $id,array $values=[])=>$aw->executor->execute($actx,'docs',$action,$id,$values);
+$aview=$aw->views($actx->actor)[0];$aactions=array_column($aview['actions'],null,'name');
+verify(in_array('refs',$aview['sortable'],true)&&!in_array('refs',array_column($aactions['create']['fields'],'name'),true)&&!in_array('refs',array_column($aactions['update']['fields'],'name'),true),'Computed column sortable, never a form field');
+verify(str_contains($aactions['delete']['confirm']['message'],'archiválódik')&&!isset($aactions['delete']['usages']),'Archive confirmation; no usages flag without providers');
+$bySort=$acall('list',null,['limit'=>3,'sort'=>['field'=>'refs','direction'=>'desc']]);
+verify(array_column($bySort['items'],'id')===['3','5','10']&&(int)$bySort['items'][0]['refs']===3,'Computed column listed and sorted on the server');
+verify($acall('list',null,['limit'=>10,'filters'=>['refs'=>'1']])['matched']===1&&(int)$acall('get','3')['refs']===3,'Computed column filterable and read by get');
+$revision=$acall('get','5')['revision'];$adb->exec("INSERT INTO refs(doc_id) VALUES ('5')");
+verify($acall('get','5')['revision']===$revision&&(int)$acall('get','5')['refs']===2,'A changed computed value does not make the revision stale');
+try{$acall('update','5',['refs'=>'9','revision'=>$revision]);throw new RuntimeException('Computed column written');}catch(Failure $e){verify($e->status===400,'Computed column never writable');}
+$acall('update','5',['title'=>'Doc 05 edited','revision'=>$revision]);verify($saved===['5'],'after_save runs on update');
+// Archive: the row is marked and every framework read hides it; the hook is after_delete, never after_save.
+$acall('delete','3',['revision'=>$acall('get','3')['revision']]);
+$archivedRow=$adb->query('SELECT archived_at, archived_by FROM docs WHERE id=3')->fetch(PDO::FETCH_ASSOC);
+verify($archivedRow['archived_at']!==null&&$archivedRow['archived_by']==='1'&&$deletedHook===[['3','Doc 03']]&&$saved===['5'],'Archived with actor; after_delete called, after_save not');
+try{$acall('get','3');throw new RuntimeException('Archived row read');}catch(Failure $e){verify($e->status===404,'Archived row hidden from target()');}
+try{$acall('delete','3',['revision'=>'x']);throw new RuntimeException('Archived row deleted again');}catch(Failure $e){verify($e->status===404,'Archived row cannot be deleted again');}
+$all=$acall('list',null,['limit'=>4,'sort'=>['field'=>'id','direction'=>'asc']]);
+verify($all['total']===9&&$all['matched']===9&&!in_array('3',array_column($all['items'],'id'),true),'Archived row hidden from list and counts');
+$next=$acall('list',null,['limit'=>4,'sort'=>['field'=>'id','direction'=>'asc'],'cursor'=>$all['next']]);
+verify($next['items'][0]['_number']===5&&$next['items'][0]['id']==='6','Rank counts live rows only');
+verify($acall('list',null,['limit'=>10,'filters'=>['title'=>'Doc 03']])['matched']===0&&$acall('list',null,['limit'=>10,'search'=>'Doc 03'])['matched']===0,'Archived row hidden from filters');
+verify(!in_array('3',array_column($aw->observe($actx,'docs',['limit'=>50,'front'=>true])['items'],'id'),true),'Archived row hidden from live windows');
+verify($acall('list',null,['limit'=>10,'sort'=>['field'=>'refs','direction'=>'desc']])['items'][0]['id']==='5','Archived row hidden from computed sorting');
+$recreated=$acall('create',null,['title'=>'Doc 03','code'=>'C03']);
+verify($recreated['id']!=='3'&&(int)$adb->query("SELECT COUNT(*) FROM docs WHERE code='C03'")->fetchColumn()===2,'Unique checks ignore archived rows');
+try{$acall('create',null,['title'=>'Doc 03','code'=>'C99']);throw new RuntimeException('Live duplicate accepted');}catch(Failure $e){verify($e->status===409,'Unique checks still see live rows');}
+// PHP Lookup over an archive-policy table hides archived rows on request (JSON lookups get the same predicate at compile time).
+verify(!isset((new Blade\Feature\Lookup('docs','docs','id','title',hideArchived:true))->options($actx)['3'])&&isset((new Blade\Feature\Lookup('docs','docs','id','title'))->options($actx)['3']),'Lookup hides archived rows with hideArchived');
+// The preview of a delete is journaled as `delete_preview` (ACL on `delete`), never as a successful `delete`.
+$adb->exec('DELETE FROM blade_audit');
+$preview=$acall('delete','6',['revision'=>$acall('get','6')['revision'],'preview'=>'1']);
+verify($preview===['count'=>1,'usages'=>[]]&&$adb->query("SELECT action||':'||outcome FROM blade_audit WHERE resource='docs' AND object_id='6' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN)===['get:success','delete_preview:success'],'Delete preview journaled as delete_preview');
+$adb->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','docs','delete','ui','deny','all','','')");
+try{$acall('delete','6',['revision'=>'x','preview'=>'1']);throw new RuntimeException('Denied preview accepted');}catch(Failure $e){verify($e->status===403,'Preview needs the delete right');}
+// Policy `archive` without the consumer columns: the first archive-aware read fails with a logged developer error.
+$adb->exec('CREATE TABLE plain(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL)');$adb->exec("INSERT INTO plain(title) VALUES ('x')");
+$plain=new SqlResource('plain','plain','id',[new Field('title','Title')]);$plain->register($areg,'Plain');$plain->registerDelete($areg,'archive');
+$plainRule=$adb->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','plain',?,'ui','allow','all','','')");foreach(['list','get','delete'] as $action)$plainRule->execute([$action]);
+$log=tempnam(sys_get_temp_dir(),'blade-log');$previousLog=ini_set('error_log',$log);
+try{
+    foreach([['list',null,['limit'=>5]],['get','1',[]],['delete','1',['revision'=>'x']]] as [$action,$id,$values]){
+        try{$aw->executor->execute($actx,'plain',$action,$id,$values);throw new RuntimeException('Archive policy without columns accepted');}catch(Failure $e){verify($e->status===500,'Missing archive columns fail '.$action);}
+    }
+    verify(substr_count((string)file_get_contents($log),"Delete policy 'archive' of plain needs the columns archived_at (NULL) and archived_by on plain.")===3,'Developer error names the missing columns');
+}finally{ini_set('error_log',(string)$previousLog);@unlink($log);}
+echo "61de dynamic list, scope, filters, external changes, layout, media, class filter, search, archive policy and computed column tests passed.\n";

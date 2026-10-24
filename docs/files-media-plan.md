@@ -1,8 +1,8 @@
 # Uploader and file/media list: implementation plan
 
-Status: approved plan, 2026-10-24. U1–U4 implemented (see [files](files.md),
-[uploader](uploader.md), [media tiles](workspaces.md#media-tiles)); U5 not
-implemented. Owner decisions and per-phase verification are
+Status: approved plan, 2026-10-24. U1–U5 implemented (see [files](files.md),
+[uploader](uploader.md), [media tiles](workspaces.md#media-tiles),
+[file field and usages](workspaces.md#file-field)); user acceptance pending. Owner decisions and per-phase verification are
 recorded in [FB-0063](feedback.md#fb-0063).
 Milestone: [M6](development-plan.md#m6--fájlok-exportimport-jobok-és-megfigyelhetőség).
 Current behavior: [files](files.md), [signage demo](feedback.md#fb-0061).

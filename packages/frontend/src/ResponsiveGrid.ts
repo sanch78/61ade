@@ -5,7 +5,7 @@ import { gridHeader } from "./GridHeaders";
 import { RESERVED, alias, gridEditor, unalias } from "./GridEditing";
 import type { Row } from "./Realtime";
 
-import { escape, recordFields, recordCheckbox, recordIcon, recordMedia, optionText, isIcon, isMedia, mediaOf, presentedFields, thumbnailFailed } from "./RecordPresentation";
+import { escape, recordFields, recordCheckbox, recordIcon, recordMedia, optionText, isIcon, isMedia, mediaOf, presentedFields, thumbnailFailed, derivedOf, derivedText, columnText, withDerived } from "./RecordPresentation";
 type Position={id?:string;offset:number;x:number;y:number};
 export type GridMode="table"|"cards"|"tiles";
 export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;fields?:ViewDefinition["columns"];filters?:{name:string;label:string;type?:string;options?:Record<string,string>}[];details?:(id:string)=>void;marked?:(ids:string[])=>void;edit?:(id:string,field:string,anchor:HTMLElement)=>void;idColumn?:boolean;
@@ -67,17 +67,19 @@ export class ResponsiveGrid {
       ...(isIcon(c)?{htmlEnable:true,template:(_:unknown,row:any)=>recordIcon(c,cell(row,c.id))}:{}),
       // Thumbnail cell: a square box of the row height minus 8 px (32 px at 40).
       ...(isMedia(c)?{htmlEnable:true,editable:false,width:c.width??Math.max(64,rh+24),minWidth:c.minWidth,autoWidth:false,template:(_:unknown,row:any)=>recordMedia(c,unguard(row),"cell")}:{}),
+      // Derived media part (`media_of`/`part`): text from the row's `_media`, never sortable, filterable or editable.
+      ...(derivedOf(c)?{editable:false,template:(_:unknown,row:any)=>escape(derivedText(c,unguard(row))??"")}:{}),
     }))],rowCss:row=>((this.grid?.data.getIndex(row.id!)??0)%2===1?"blade-grid-row-alternate":""),rowHeight:rh,autoWidth:true,resizable:true,selection:"row",keyNavigation:keys,htmlEnable:false});
     const mark=(row:Row)=>options.selection&&row._markable!==false?`<input class="blade-card-mark" type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`:"";
     // Card fields: every permitted field with its column's presentation; only the first media field moves to the top slot.
-    const editable=presentedFields(options.fields??columns,columns).filter(field=>!media||field.id!==media.id).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable}));
+    const editable=presentedFields(withDerived(options.fields??columns,columns),columns).filter(field=>!media||field.id!==media.id).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable}));
     this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:true,keyNavigation:keys,css:"blade-grid-cards",template:(item:Row)=>{const row=unguard(item);
       return `<article class="blade-grid-card${this.marked.has(String(row.id))?" blade-grid-card--marked":""}" data-blade-row="${escape(row.id)}">${media&&mediaOf(media,row)?`<div class="blade-grid-card__media">${recordMedia(media,row,"card")}</div>`:""}<div class="blade-grid-card__id">${mark(row)}${mark(row)?" ":""}${options.idColumn===false?"":`ID · ${escape(row.id)}`}</div>${recordFields(row,editable,true)}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
     // Tiles: media slot (or the icon column), the first text column as title and one secondary line.
     const text=columns.filter(c=>!isMedia(c)&&!isIcon(c)&&c.type!=="checkbox"),title=text[0],detail=text[1];
     this.tiles=new DataView(document.createElement("div"),{itemsInRow:1,gap:8,selection:true,keyNavigation:keys,css:"blade-grid-tiles",template:(item:Row)=>{const row=unguard(item);
-      const caption=title?optionText(title,row[title.id]):String(row.id),line=detail&&Object.hasOwn(row,detail.id)?optionText(detail,row[detail.id]):"";
+      const caption=title?columnText(title,row):String(row.id),line=detail&&(Object.hasOwn(row,detail.id)||derivedOf(detail))?columnText(detail,row):"";
       return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"><div class="blade-grid-tile__media">${media&&(mediaOf(media,row)||!icon||!row[icon.id])?recordMedia(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`}${mark(row)}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${escape(line)}</div>`:""}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
     const selected=(id:string|number)=>{this.selected=String(id);select(this.selected);};

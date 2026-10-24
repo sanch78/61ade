@@ -1,7 +1,8 @@
-import { t } from "./I18n";
+import { locale, t } from "./I18n";
 import type { Row } from "./Realtime";
 import type { ViewDefinition } from "./Workspace";
 import { actionUrl } from "./ActionUrl";
+import { requestConfirmation } from "./MessageDialog";
 export const escape=(value:unknown)=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 /** Display caption of a stored value: option label, or labels of a comma-separated multiple choice. */
 export function optionText(field:{type?:string;options?:Record<string,string>},value:unknown):string{
@@ -33,11 +34,33 @@ export function recordIcon(field:{options?:Record<string,string>},value:unknown,
 }
 /** Server media descriptor of a media column (`row._media[field]`); absent or null when the actor may not see it. */
 export type MediaDescriptor={id:string;name:string;mime_type:string;revision:string;duration_ms:number|null;width:number|null;height:number|null;thumbnail:"ready"|"pending"|"failed"|"none"};
-type Column={id:string;type?:string;media?:string;presentation?:string;options?:Record<string,string>};
+/** Derived media part of a field-less column: `media_of` names the media field whose `_media` it reads. */
+export type MediaPart="type"|"resolution"|"duration";
+type Column={id:string;type?:string;media?:string;presentation?:string;options?:Record<string,string>;mediaOf?:string;media_of?:string;part?:MediaPart};
 /** A media column is a presentation of a file-id value (`media` names the file resource), whatever its field type. */
 export const isMedia=(field:Column)=>typeof field.media==="string"&&field.media!==""||field.type==="media";
 export const isIcon=(field:Column)=>field.type==="icon"||field.presentation==="icon";
 export const mediaOf=(field:{id:string},row:Row):MediaDescriptor|undefined=>{const media=(row._media as Record<string,MediaDescriptor|null>|undefined)?.[field.id];return media&&typeof media==="object"&&typeof media.id==="string"?media:undefined;};
+/** The media field a derived column presents (`media_of`, camel-cased or not), or undefined for an ordinary column. */
+export const derivedOf=(field:Column):string|undefined=>{const of=field.mediaOf??field.media_of;return typeof of==="string"&&of!==""&&!!field.part?of:undefined;};
+/** Text of one media part: `Kép`/`Videó`, `1920 × 1080`, `0:06`; empty when the part does not apply. */
+export function mediaPart(media:MediaDescriptor|undefined,part:MediaPart|undefined):string{
+  if(!media)return "";
+  const kind=media.mime_type.startsWith("video/")?"video":media.mime_type.startsWith("image/")?"image":"file";
+  if(part==="type")return kind==="video"?t("Videó"):kind==="image"?t("Kép"):t("Fájl");
+  if(part==="resolution")return typeof media.width==="number"&&typeof media.height==="number"&&media.width>0&&media.height>0?`${media.width} × ${media.height}`:"";
+  if(part==="duration")return kind==="video"&&typeof media.duration_ms==="number"?duration(media.duration_ms):"";
+  return "";
+}
+/** Derived column text of a row (`media_of`/`part`); null when the column is not derived. */
+export function derivedText(field:Column,row:Row):string|null{
+  const of=derivedOf(field);if(!of)return null;
+  return mediaPart(mediaOf({id:of},row),field.part);
+}
+/** Whether the record carries the media slot a derived column reads (the media field is readable). */
+const hasDerived=(field:Column,row:Row)=>{const of=derivedOf(field),media=row._media;return !!of&&!!media&&typeof media==="object"&&Object.hasOwn(media as object,of);};
+/** Display text of a column value in tiles and lists: derived media part, option label or the value. */
+export const columnText=(field:Column,row:Row):string=>derivedText(field,row)??optionText(field,row[field.id]);
 const failedThumbnails=new Set<string>();
 /** An unavailable thumbnail (404/415 while missing, or a decode error) shows the type icon; later renders skip that URL. */
 export function thumbnailFailed(image:HTMLImageElement):void{
@@ -70,9 +93,17 @@ export function presentedFields<T extends Column>(fields:T[],columns:Column[]):T
       ...(!field.options&&column.options?{options:column.options}:{})};
   });
 }
+/** Fields with the derived media columns (`media_of`) of the view placed right after the media field they present. */
+export function withDerived<T extends {id:string}>(fields:T[],columns:(Column&{header:string})[]):T[]{
+  const derived=columns.filter(column=>derivedOf(column)&&!fields.some(field=>field.id===column.id));
+  if(!derived.length)return fields;
+  return fields.flatMap(field=>[field,...derived.filter(column=>derivedOf(column)===field.id) as unknown as T[]]);
+}
 /** Only declared fields present in the ACL-projected record are rendered; every media and icon field shows its media or icon. */
 export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=false):string{
-  return `<dl>${fields.filter(field=>Object.hasOwn(row,field.id)).map(field=>{
+  return `<dl>${fields.filter(field=>Object.hasOwn(row,field.id)||hasDerived(field,row)).map(field=>{
+    const derived=derivedText(field,row);
+    if(derived!==null)return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd>${escape(derived||"—")}</dd></div>`;
     const writable=editable&&field.editable&&row._editable?.includes(field.id);
     const value=row[field.id];
     const content=escape(value==null||value===""?(field.options?.[String(value??"")]??"—"):optionText(field,value));
@@ -80,4 +111,28 @@ export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=f
     const glyph=isIcon(field)?recordIcon(field,value,true):"";
     return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd ${writable&&field.type!=="checkbox"?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
   }).join("")}</dl>`;
+}
+
+/** One reference count of a usage provider (`label` is already translated by the server). */
+export type Usage={label:string;count:number};
+/** Usage counts summed per label, in first-seen order; zero counts are dropped. */
+export function mergeUsages(lists:(Usage[]|undefined|null)[]):Usage[]{
+  const merged=new Map<string,number>();
+  for(const list of lists)for(const usage of Array.isArray(list)?list:[])if(usage&&typeof usage.label==="string"&&Number(usage.count)>0)merged.set(usage.label,(merged.get(usage.label)??0)+Number(usage.count));
+  return [...merged].map(([label,count])=>({label,count}));
+}
+/**
+ * The one danger confirmation of a delete whose records are referenced: the declared message, the
+ * usage counts ("Műsorterv-események: 2") and the consequence. Resolves false on Cancel/Escape.
+ */
+export function confirmUsages(options:{message:string;title?:string;confirmLabel?:string;cancelLabel?:string;usages:Usage[]}):Promise<boolean>{
+  const lines=options.usages.map(usage=>`${usage.label}: ${usage.count.toLocaleString(locale())}`);
+  return requestConfirmation({severity:"danger",title:options.title??t("Törlés"),confirmLabel:options.confirmLabel??t("Törlés"),cancelLabel:options.cancelLabel,
+    message:[options.message,"",t("Hivatkozások:"),...lines,"",t("Törléskor a hivatkozások törlődnek.")].join("\n")});
+}
+/** Toast line of the references a delete cleared (`cleared: {label: count}`); empty when none. */
+export function clearedText(...cleared:unknown[]):string{
+  const merged=new Map<string,number>();
+  for(const item of cleared)if(item&&typeof item==="object"&&!Array.isArray(item))for(const [label,count] of Object.entries(item as Record<string,unknown>))if(Number(count)>0)merged.set(label,(merged.get(label)??0)+Number(count));
+  return merged.size?t("Törölt hivatkozások: {list}",{list:[...merged].map(([label,count])=>`${label}: ${count.toLocaleString(locale())}`).join(", ")}):"";
 }

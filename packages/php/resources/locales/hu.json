@@ -654,5 +654,21 @@
   "Archiválva: {count} elem.": "Archiválva: {count} elem.",
   "Átnevezve: {name}": "Átnevezve: {name}",
   "ZIP-letöltés: {name}.zip ({count} fájl, {size}).": "ZIP-letöltés: {name}.zip ({count} fájl, {size}).",
-  "Az alábbi fájlok tartalma nem érhető el, ezért kimaradtak az archívumból:": "Az alábbi fájlok tartalma nem érhető el, ezért kimaradtak az archívumból:"
+  "Az alábbi fájlok tartalma nem érhető el, ezért kimaradtak az archívumból:": "Az alábbi fájlok tartalma nem érhető el, ezért kimaradtak az archívumból:",
+  "Kiválasztás…": "Kiválasztás…",
+  "Kiválasztás": "Kiválasztás",
+  "Fájl feltöltése…": "Fájl feltöltése…",
+  "Nincs kiválasztott fájl": "Nincs kiválasztott fájl",
+  "Fájl #{id}": "Fájl #{id}",
+  "Fájl kiválasztása: {field}": "Fájl kiválasztása: {field}",
+  "Hivatkozások:": "Hivatkozások:",
+  "Törléskor a hivatkozások törlődnek.": "Törléskor a hivatkozások törlődnek.",
+  "Törölt hivatkozások: {list}": "Törölt hivatkozások: {list}",
+  "{count} rekord törlődik.": "{count} rekord törlődik.",
+  "Törlés: {count} elem.": "Törlés: {count} elem.",
+  "A kiválasztott fájl nem érhető el.": "A kiválasztott fájl nem érhető el.",
+  "A fájl típusa ehhez a mezőhöz nem engedélyezett.": "A fájl típusa ehhez a mezőhöz nem engedélyezett.",
+  "A kiválasztott adat archiválódik, és többé nem jelenik meg.": "A kiválasztott adat archiválódik, és többé nem jelenik meg.",
+  "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.": "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.",
+  "{count} elem előnézete nem sikerült.": "{count} elem előnézete nem sikerült."
 }

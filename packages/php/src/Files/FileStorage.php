@@ -137,9 +137,10 @@ final class FileStorage
         return $this->all('SELECT id,parent_id,name,mime_type FROM blade_files WHERE space=? AND mount_id=? AND kind=? AND '.self::live().' ORDER BY name_key, id LIMIT '.($limit + 1), [$this->space, $mount, 'file']);
     }
 
-    public function child(int $directory, string $name): ?array
+    /** Live entry $name of $directory; $locking reads it FOR UPDATE on MySQL (after locked() on the parent: sees a row committed meanwhile). */
+    public function child(int $directory, string $name, bool $locking = false): ?array
     {
-        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND parent_id=? AND name_key=? AND '.self::live(), [$this->space, $directory, self::key($name)]);
+        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND parent_id=? AND name_key=? AND '.self::live().($locking ? $this->lock : ''), [$this->space, $directory, self::key($name)]);
     }
 
     /**
@@ -573,14 +574,14 @@ final class FileStorage
         if ($this->thumbnails && Thumbnails::supports($mime)) $this->tasks->enqueue('files.thumbnail', ['space' => $this->space, 'file_id' => $id, 'revision' => $revision], Thumbnails::dedupe($this->space, $id, $revision));
     }
 
-    /** "name (2).ext" style free name in $directory. */
-    public function freeName(int $directory, string $name, string $kind): string
+    /** "name (2).ext" style free name in $directory; $locking as child(). */
+    public function freeName(int $directory, string $name, string $kind, bool $locking = false): string
     {
         $dot = $kind === 'file' ? strrpos($name, '.') : false;
         [$base, $suffix] = $dot && mb_strlen(substr($name, $dot), 'UTF-8') <= 33 ? [substr($name, 0, $dot), substr($name, $dot)] : [$name, ''];
         for ($i = 2; $i < 1000; $i++) {
             $candidate = mb_substr($base, 0, 248 - mb_strlen($suffix, 'UTF-8'), 'UTF-8').' ('.$i.')'.$suffix;
-            if (!$this->child($directory, $candidate)) return $candidate;
+            if (!$this->child($directory, $candidate, $locking)) return $candidate;
         }
         throw new \Blade\Feature\Failure('Nem található szabad név.', 409);
     }

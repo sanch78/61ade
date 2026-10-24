@@ -1,11 +1,26 @@
 import { t } from "./I18n";
-import { alert, type Form } from "@dhtmlx/suite";
+import { type Form } from "@dhtmlx/suite";
+import { alert } from "./MessageDialog";
+import type { UploadPolicy } from "./Uploader";
 
 export type ValidationRules = {
   min_length?: number;
   pattern?: { expression: string; flags?: string; message?: string };
   matches_field?: string;
   unique?: boolean;
+};
+/**
+ * Browser metadata of a `file` field: the file manager resource, its mount, the resolved folder
+ * (`folder_id`, the mount root when absent), accepted MIME classes, the file manager's upload policy
+ * and whether the actor may upload there. The value is the file id.
+ */
+export type FileFieldConfig = {
+  resource: string;
+  mount: string;
+  folder_id?: string | null;
+  accept?: string[];
+  policy?: UploadPolicy;
+  can_upload?: boolean;
 };
 export type FieldDefinition = {
   name: string;
@@ -17,9 +32,14 @@ export type FieldDefinition = {
   secret?: boolean;
   defaultValue?: string | null;
   validation?: ValidationRules;
+  bulk?: boolean;
+  file?: FileFieldConfig;
 };
+/** Visible Form item of a `file` field (its read-only file name); the value lives in the hidden item of the field name. */
+export const fileDisplay = (name: string) => name + "__display";
 
 export function fieldError(field: FieldDefinition, raw: unknown, values: Record<string, unknown>): string | null {
+  if(field.type === "multiselect" && Array.isArray(raw)) raw = raw.join(",");
   if(field.type === "checkbox") {
     if(![true,false,0,1,"0","1"].includes(raw as any))return t("Csak 0 vagy 1 érték adható meg.");
     if(typeof raw === "boolean")raw=raw?"1":"0";
@@ -37,6 +57,10 @@ export function fieldError(field: FieldDefinition, raw: unknown, values: Record<
   if (rules.matches_field && value !== String(values[rules.matches_field] ?? "")) return t("A két mező értéke nem egyezik.");
   if (field.type === "number" && !/^[0-9]+$/.test(value)) return t("Nemnegatív egész szám szükséges.");
   if (field.type === "select" && !Object.hasOwn(field.options, value)) return t("Válassz az engedélyezett értékekből.");
+  if (field.type === "multiselect") {
+    const items = value.split(",");
+    if (new Set(items).size !== items.length || items.some(item => !Object.hasOwn(field.options, item))) return t("Válassz az engedélyezett értékekből.");
+  }
   return null;
 }
 
@@ -48,17 +72,23 @@ export class FormValidation {
     for (const field of fields) {
       const item = form.getItem(field.name);
       if (!item) continue;
-      item.setProperties({
-        validation: (value: unknown) => !this.error(field, value),
+      // A file field keeps its id in a hidden item: the native error caption belongs to its visible name item.
+      const target = this.target(field);
+      target.setProperties({
+        validation: (value: unknown) => !this.error(field, field.type === "file" ? this.form.getValue()[field.name] : value),
         errorMessage: t(field.validation?.pattern?.message ?? "Ellenőrizd a mező értékét."),
       });
       const clear = () => {
         this.serverErrors.delete(field.name);
-        item.clearValidate();
+        target.clearValidate();
       };
       item.events.on("input", clear);
       item.events.on("change", clear);
     }
+  }
+
+  private target(field: FieldDefinition): any {
+    return (field.type === "file" ? this.form.getItem(fileDisplay(field.name)) : undefined) ?? this.form.getItem(field.name);
   }
 
   private error(field: FieldDefinition, value: unknown): string | null {
@@ -69,7 +99,7 @@ export class FormValidation {
     const values = this.form.getValue();
     let valid=true;
     for (const field of this.fields) {
-      const item = this.form.getItem(field.name);
+      const item = this.form.getItem(field.name) ? this.target(field) : undefined;
       const error=this.error(field,values[field.name]);
       if(error)valid=false;
       if (item) item.setProperties({errorMessage:error??""});
@@ -79,7 +109,7 @@ export class FormValidation {
     // Keep unchecked valid and show checkbox rule errors with the native Alert instead.
     const checkboxErrors=this.fields.filter(field=>field.type === "checkbox")
       .map(field=>{const error=this.error(field,values[field.name]);return error?`${field.label}: ${error}`:null;}).filter(Boolean);
-    if(checkboxErrors.length)void alert({header:t("Ellenőrizd a mezőt"),text:checkboxErrors.join("\n"),htmlEnable:false});
+    if(checkboxErrors.length)void alert({header:t("Ellenőrizd a mezőt"),text:checkboxErrors.join("\n"),severity:"warning"});
     return nativeValid && valid;
   }
 
@@ -95,5 +125,12 @@ export class FormValidation {
       this.validate();
     }
     return found;
+  }
+
+  /** Drops a shown server or cross-field error when a related field changes. */
+  clearServerError(name: string): void {
+    if (!this.serverErrors.delete(name)) return;
+    const field = this.fields.find(field => field.name === name);
+    (field && this.form.getItem(name) ? this.target(field) : this.form.getItem(name))?.clearValidate();
   }
 }

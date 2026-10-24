@@ -1,0 +1,184 @@
+<?php
+declare(strict_types=1);
+// Signage demo on shared files (U5): Signage mount, file field, derived media columns, usage counts, upload as
+// asset, usage warnings and clearing on file and asset deletes, playlist and reader rights. An in-memory database
+// is built like the demo setup; runtime files live in a private BLADE_TMP_DIR, never in tmp/web or tmp/demo.
+$tmp = (getenv('BLADE_TMP_DIR') ?: dirname(__DIR__, 2).'/tmp').'/signage-check-'.bin2hex(random_bytes(4));
+mkdir($tmp, 0700, true);
+putenv('BLADE_TMP_DIR='.$tmp);
+putenv('BLADE_DEMO_INSTANCE=check');
+require dirname(__DIR__, 2).'/examples/demo-app/vendor/autoload.php';
+require_once dirname(__DIR__, 2).'/examples/demo-app/common.php';
+require_once dirname(__DIR__, 2).'/examples/demo-app/signage.php';
+use Blade\Access\Schema;
+use Blade\Configuration\WorkspaceConfiguration;
+use Blade\Feature\{Context, Failure, Upload};
+use Blade\Shell\Identity;
+
+function check(bool $ok, string $message): void { if (!$ok) throw new RuntimeException($message); }
+function fails(callable $call, int $status, string $message): Failure { try { $call(); } catch (Failure $e) { check($e->status === $status, $message.' (status '.$e->status.': '.$e->getMessage().')'); return $e; } throw new RuntimeException($message.' (accepted)'); }
+
+try {
+    $db = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    Schema::install($db);
+    $files = blade_demo_files();
+    check(array_keys($files->mounts) === ['a', 'b', 'c', 'signage'] && $files->mounts['signage'] === 'Signage', 'Fourth demo mount Signage');
+    $files->install($db);
+    $storage = $files->storage($db);
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+    $jpg = base64_decode('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=');
+    $source = static function (string $content) use ($tmp): string { $path = $tmp.'/src-'.bin2hex(random_bytes(6)); file_put_contents($path, $content); return $path; };
+    // Seeded media as in setup-workspace.php, plus an unrelated file of a seeded name that must stay where it is.
+    $a = $storage->root('a');
+    $pictures = $storage->entry($storage->createDirectory($a, 'Képek'));
+    $media = $storage->entry($storage->createDirectory($a, 'Média'));
+    $logo = $storage->createFile($pictures, 'logo.png', 'image/png', $source($png));
+    $photo = $storage->createFile($pictures, 'foto.jpg', 'image/jpeg', $source($jpg));
+    $fractal = $storage->createFile($media, 'minta-fraktal.jpg', 'image/jpeg', dirname(__DIR__, 2).'/examples/demo-app/resources/files/minta-fraktal.jpg');
+    $video = $storage->createFile($media, 'minta-video.webm', 'video/webm', dirname(__DIR__, 2).'/examples/demo-app/resources/files/minta-video.webm');
+    $other = $storage->createFile($storage->root('b'), 'logo.png', 'image/png', $source($png));
+    blade_demo_signage_setup($db, $storage);
+    blade_demo_signage_setup($db, $storage);
+    $signage = $storage->root('signage');
+    check($signage !== null, 'Setup creates the Signage mount root');
+    foreach ([$logo, $photo, $fractal, $video] as $id) { $row = $storage->entry($id); check($row['mount_id'] === 'signage' && (int) $row['parent_id'] === (int) $signage['id'], 'Seeded asset file moved into Signage/ keeping its id'); }
+    check($storage->entry($other)['mount_id'] === 'b' && $storage->child((int) $pictures['id'], 'logo.png') === null, 'Other files untouched; moved files leave their folder');
+    $assets = $db->query('SELECT title, file_id FROM signage_assets ORDER BY id')->fetchAll(PDO::FETCH_KEY_PAIR);
+    check(count($assets) === 4 && $assets['Arculati háttérkép'] === (string) $fractal && $assets['Logó állókép'] === (string) $logo && $assets['Fotó plakát'] === (string) $photo && $assets['Promóciós videó'] === (string) $video, 'Assets keep their file references (idempotent setup)');
+    // A legacy reference outside the Signage mount is reported by setup (one line each) and left in place.
+    $db->prepare("INSERT INTO signage_assets(title,file_id,duration) VALUES ('Régi elem',?,'5')")->execute([(string) $other]);
+    $legacy = (string) $db->lastInsertId();
+    $lines = [];
+    blade_demo_signage_setup($db, $storage, static function (string $line) use (&$lines): void { $lines[] = $line; });
+    check($lines === ['Signage: asset #'.$legacy.' (Régi elem) references file #'.$other.' in mount "b", outside the Signage mount; left in place.'] && $storage->entry($other)['mount_id'] === 'b', 'Setup reports legacy references outside the Signage mount without moving them');
+    $db->exec('DELETE FROM signage_assets WHERE id = '.(int) $legacy);
+    check(blade_demo_signage_outside($db) === [], 'No other reference outside the mount');
+    $ids = array_map('strval', $db->query('SELECT title, id FROM signage_assets')->fetchAll(PDO::FETCH_KEY_PAIR));
+
+    $workspace = WorkspaceConfiguration::build($db, [dirname(__DIR__, 2).'/examples/demo-app/modules/signage.json'], static fn() => blade_demo_signage_bindings());
+    $files->register($workspace);
+    blade_demo_signage_register($workspace, $files);
+    $reader = '9';
+    $rule = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,?,?,'ui','allow','all','','')");
+    foreach (['tree', 'list', 'create_directory', 'upload', 'copy', 'move', 'content_get', 'content_stream', 'thumbnail_get', 'delete', 'rename', 'download'] as $action) $rule->execute(['1', 'files', $action]);
+    foreach (['tree', 'list', 'content_get', 'content_stream', 'thumbnail_get', 'download'] as $action) $rule->execute([$reader, 'files', $action]);
+    foreach (['list', 'get', 'create', 'update', 'delete', 'upload_asset'] as $action) $rule->execute(['1', 'signage_assets', $action]);
+    foreach (['list', 'get', 'create', 'update', 'delete'] as $action) $rule->execute(['1', 'signage_defaults', $action]);
+    foreach (['events', 'occurrences', 'create', 'update', 'delete'] as $action) $rule->execute(['1', 'signage_schedule', $action]);
+    $rule->execute(['1', 'signage_playlist', 'day']);
+    foreach (['list', 'get'] as $action) { $rule->execute([$reader, 'signage_assets', $action]); $rule->execute([$reader, 'signage_defaults', $action]); }
+    $ctx = static fn(string $actor = '1', array $uploads = []) => new Context(new Identity($actor, 'Actor '.$actor), 'ui', $workspace->acl, $db, [], $uploads);
+    $call = static fn(string $resource, string $action, ?string $id, array $values = [], ?Context $c = null) => $workspace->executor->execute($c ?? $ctx(), $resource, $action, $id, $values);
+
+    // Metadata: the file field is a media column with the resolved folder and the upload policy, never a path.
+    $views = array_column($workspace->views(new Identity('1', 'Demo')), null, 'resource');
+    $view = $views['signage_assets'];
+    $columns = array_column($view['columns'], null, 'id');
+    check(array_keys($columns) === ['file_id', 'title', 'media_type', 'media_resolution', 'media_length', 'duration', 'usage'], 'Asset columns: thumbnail, title, derived type/resolution/length, play time, usage');
+    check($columns['file_id']['type'] === 'file' && $columns['file_id']['media'] === 'files' && $columns['media_type']['media_of'] === 'file_id' && $columns['media_type']['part'] === 'type' && $columns['media_length']['part'] === 'duration', 'File column is a media column; derived columns reach the wire');
+    check(!in_array('media_type', $view['sortable'], true) && in_array('usage', $view['sortable'], true) && !in_array('kind', array_column($view['filters'], 'name'), true), 'Derived columns not sortable; usage sortable; no kind field');
+    check(($filters = array_column($view['filters'], null, 'name')) && $filters['file_id']['type'] === 'select' && array_keys($filters['file_id']['options']) === ['image', 'video'], 'Type filter from the file field');
+    $actions = array_column($view['actions'], null, 'name');
+    check(isset($actions['upload_asset']) && $actions['upload_asset']['upload']['extensions'] === ['png', 'jpg', 'mp4', 'webm'] && $actions['upload_asset']['upload']['folders'] === false && $actions['upload_asset']['fields'] === [], 'Upload as asset offered with its upload policy');
+    check(($actions['delete']['usages'] ?? false) === true && array_column($actions['delete']['fields'], 'name') === ['revision'], 'Asset delete announces usages; preview is no form field');
+    $fileField = array_column($actions['create']['fields'], null, 'name')['file_id'];
+    check(!in_array('usage', array_column($actions['create']['fields'], 'name'), true), 'Computed usage is never writable');
+    check($fileField['type'] === 'file' && $fileField['file']['resource'] === 'files' && $fileField['file']['mount'] === 'signage' && $fileField['file']['accept'] === ['image', 'video']
+        && $fileField['file']['folder_id'] === (string) $signage['id'] && $fileField['file']['can_upload'] === true && $fileField['file']['can_choose'] === true && $fileField['file']['policy']['extensions'] === ['png', 'jpg', 'mp4', 'webm'] && !isset($fileField['file']['folder']), 'File field metadata');
+    check(!str_contains(json_encode($view, JSON_THROW_ON_ERROR), $tmp), 'No storage path in metadata');
+    $fileActions = array_column($views['files']['actions'], null, 'name');
+    check(($fileActions['delete']['usages'] ?? false) === true && array_column($fileActions['delete']['fields'], 'name') === ['sources'] && in_array('signage', array_column($views['files']['files']['mounts'], 'id'), true), 'File manager delete announces usages; Signage mount shown');
+    $readerViews = array_column($workspace->views(new Identity($reader, 'Reader')), null, 'resource');
+    check(array_column($readerViews['signage_assets']['actions'], 'name') === ['get'] && in_array('signage', array_column($readerViews['files']['files']['mounts'], 'id'), true), 'Reader views assets and the Signage mount read-only');
+    $readerField = $workspace->fieldMetadata($ctx($reader), $workspace->registry->fields('signage_assets')['file_id']);
+    check($readerField['file']['can_upload'] === false && $readerField['file']['can_choose'] === true && $readerField['file']['folder_id'] === (string) $signage['id'], 'Reader may not upload into the field folder, but may browse it');
+    check($workspace->fieldMetadata($ctx('77'), $workspace->registry->fields('signage_assets')['file_id'])['file']['can_choose'] === false, 'Without `list` on the mount the picker is not offered');
+
+    // Listing: `_media` descriptors and usage counts (events and day defaults referencing the asset).
+    $list = $call('signage_assets', 'list', null, ['limit' => 10, 'sort' => ['field' => 'usage', 'direction' => 'desc']]);
+    $items = array_column($list['items'], null, 'title');
+    check($items['Arculati háttérkép']['usage'] === 5 || $items['Arculati háttérkép']['usage'] === '5', 'Brand: five weekday defaults');
+    check((int) $items['Fotó plakát']['usage'] === 3 && (int) $items['Promóciós videó']['usage'] === 1 && (int) $items['Logó állókép']['usage'] === 1, 'Usage counts events and defaults');
+    check($list['items'][0]['title'] === 'Arculati háttérkép' && $list['items'][1]['title'] === 'Fotó plakát', 'Sorted by usage on the server');
+    check($items['Promóciós videó']['_media']['file_id']['mime_type'] === 'video/webm' && $items['Logó állókép']['_media']['file_id']['width'] === 1 && $items['Promóciós videó']['_media']['file_id']['name'] === 'minta-video.webm', 'Media descriptors in rows');
+    check($call('signage_assets', 'list', null, ['filters' => ['file_id' => 'video']])['matched'] === 1, 'Type filter over the file');
+    $readerList = $call('signage_assets', 'list', null, ['limit' => 10], $ctx($reader));
+    check($readerList['total'] === 4 && is_array($readerList['items'][0]['_media']['file_id'] ?? null), 'Reader lists assets with media');
+
+    // Upload as asset: each file lands in Signage/ through the file manager's storage API and becomes an asset.
+    $part = static function (string $name, string $content) use ($tmp): Upload { $path = $tmp.'/up-'.bin2hex(random_bytes(6)); file_put_contents($path, $content); return new Upload('files', $name, $path, strlen($content), UPLOAD_ERR_OK); };
+    $result = $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('Nyitó kép.png', $png), $part('logo.png', $png)]));
+    check(count($result['assets']) === 2 && !isset($result['succeeded']), 'Generic success result, one asset per file');
+    $created = $db->query('SELECT title, file_id, duration FROM signage_assets WHERE id IN ('.implode(',', array_map('intval', $result['assets'])).') ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+    $stored = $storage->entry((int) $created[0]['file_id']);
+    check($created[0]['title'] === 'Nyitó kép' && $created[0]['duration'] === '10' && $stored['mount_id'] === 'signage' && (int) $stored['parent_id'] === (int) $signage['id'] && $stored['mime_type'] === 'image/png', 'Asset title, duration and stored file');
+    check($storage->entry((int) $created[1]['file_id'])['name'] === 'logo (2).png' && $created[1]['title'] === 'logo (2)', 'A taken name gets a free one');
+    fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('notes.txt', 'text')])), 400, 'Non-media upload rejected by the policy');
+    $mismatch = fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('fake.png', 'not an image')])), 400, 'Content mismatch rejected');
+    check(($mismatch->details['code'] ?? null) === 'content_mismatch' && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 6, 'Failed upload creates no asset');
+    fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx($reader, [$part('r.png', $png)])), 403, 'Reader cannot upload');
+
+    // File field rules: another mount, a non-media file and an unknown id are field errors.
+    $textFile = $storage->createFile($signage, 'leiras.txt', 'text/plain', $source("text\n"));
+    foreach ([(string) $other => 'other mount', (string) $textFile => 'wrong class', '999999' => 'unknown', 'abc' => 'malformed'] as $value => $case) {
+        $error = fails(fn() => $call('signage_assets', 'create', null, ['title' => 'X', 'file_id' => $value, 'duration' => '5']), 400, 'File field rejects '.$case);
+        check(isset($error->fieldErrors['file_id']), 'Field error for '.$case);
+    }
+    $new = $call('signage_assets', 'create', null, ['title' => 'Új elem', 'file_id' => (string) $logo, 'duration' => '5']);
+    check($db->query('SELECT file_id FROM signage_assets WHERE id = '.(int) $new['id'])->fetchColumn() === (string) $logo, 'A Signage image is accepted');
+    // An unchanged stored file id is not re-validated: a legacy reference outside the mount does not block saving other fields; a new one must pass.
+    $db->prepare('UPDATE signage_assets SET file_id = ? WHERE id = ?')->execute([(string) $other, $new['id']]);
+    $saved = $call('signage_assets', 'update', $new['id'], ['title' => 'Átnevezett', 'file_id' => (string) $other, 'duration' => '6', 'revision' => $call('signage_assets', 'get', $new['id'])['revision']]);
+    check($saved['id'] === $new['id'] && $db->query('SELECT title FROM signage_assets WHERE id = '.(int) $new['id'])->fetchColumn() === 'Átnevezett', 'Unchanged out-of-mount file saves');
+    $changed = fails(fn() => $call('signage_assets', 'update', $new['id'], ['title' => 'X', 'file_id' => (string) $textFile, 'duration' => '6', 'revision' => $call('signage_assets', 'get', $new['id'])['revision']]), 400, 'A changed file is validated');
+    check(isset($changed->fieldErrors['file_id']), 'Changed file: field error');
+    $db->prepare('UPDATE signage_assets SET file_id = ? WHERE id = ?')->execute([(string) $logo, $new['id']]);
+    $call('signage_assets', 'delete', $new['id'], ['revision' => $call('signage_assets', 'get', $new['id'])['revision']]);
+
+    // Deleting a used file: the preview counts the assets, changes nothing; the delete clears `file_id` and keeps the asset.
+    $preview = $call('files', 'delete', (string) $signage['id'], ['sources' => (string) $fractal, 'preview' => '1']);
+    check($preview['count'] === 1 && $preview['entries'] === 1 && $preview['usages'] === [['label' => 'Médiatár-elemek', 'count' => 1]] && $storage->entry($fractal) !== null, 'File delete preview');
+    $deleted = $call('files', 'delete', (string) $signage['id'], ['sources' => (string) $fractal]);
+    check($deleted['cleared'] === ['Médiatár-elemek' => 1] && $storage->entry($fractal) === null, 'File deleted, references cleared');
+    check($db->query('SELECT file_id FROM signage_assets WHERE id = '.(int) $ids['Arculati háttérkép'])->fetchColumn() === '', 'The asset stays without a file');
+    $brand = $call('signage_assets', 'get', $ids['Arculati háttérkép']);
+    check($brand['file_id'] === '' && $brand['_media']['file_id'] === null, 'Asset without file reads cleanly');
+
+    // Deleting a used asset: one preview over the marks (bulk), then the defaults go and the events lose their asset.
+    $poster = $ids['Fotó plakát'];
+    $revision = $call('signage_assets', 'get', $poster)['revision'];
+    $bulk = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision, 'preview' => '1']], ['id' => $ids['Logó állókép'], 'values' => ['revision' => $call('signage_assets', 'get', $ids['Logó állókép'])['revision'], 'preview' => '1']]]);
+    check($bulk[0]['ok'] && $bulk[0]['data']['count'] === 1 && $bulk[0]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1], ['label' => 'Alapértelmezett tartalmak', 'count' => 2]] && !isset($bulk[0]['data']['audit']), 'Bulk preview carries the usages');
+    check($bulk[1]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && (int) $db->query("SELECT COUNT(*) FROM signage_assets")->fetchColumn() === 6, 'Preview changes nothing');
+    check(!isset($bulk[0]['data']['audit_action']) && $db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete_preview' AND outcome = 'success' AND object_id IN (".$db->quote($poster).','.$db->quote($ids['Logó állókép']).')')->fetchColumn() == 2
+        && !$db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete' AND object_id = ".$db->quote($poster))->fetchColumn(), 'Previews journaled as delete_preview');
+    $applied = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision]]]);
+    check($applied[0]['ok'] && $applied[0]['data']['cleared'] === ['Műsorterv-események' => 1, 'Alapértelmezett tartalmak' => 2], 'Applied delete reports the cleared references');
+    check((int) $db->query('SELECT COUNT(*) FROM signage_defaults WHERE asset_id = '.$db->quote($poster))->fetchColumn() === 0 && (int) $db->query('SELECT COUNT(*) FROM signage_defaults')->fetchColumn() === 5, 'Its day defaults are removed');
+    $event = $db->query("SELECT data, revision FROM blade_calendar_events WHERE text = 'Rendezvény plakát'")->fetch(PDO::FETCH_ASSOC);
+    check(json_decode($event['data'], true)['asset_id'] === '' && (int) $event['revision'] === 2, 'Its event keeps the slot without an asset');
+    // A default delete no longer runs the after_save rule (which re-read the deleted row and rejected every delete).
+    $default = $db->query('SELECT id FROM signage_defaults ORDER BY id LIMIT 1')->fetchColumn();
+    $call('signage_defaults', 'delete', (string) $default, ['revision' => $call('signage_defaults', 'get', (string) $default)['revision']]);
+    check((int) $db->query('SELECT COUNT(*) FROM signage_defaults')->fetchColumn() === 4, 'A default can be deleted');
+
+    // Playlist: assets without a file and events without an asset are skipped.
+    $monday = new DateTimeImmutable('monday this week');
+    foreach (range(0, 6) as $offset) {
+        $day = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify("+$offset days")->format('Y-m-d'));
+        check(!array_filter($day['scheduled'], static fn($entry) => $entry['asset'] === null || $entry['asset']['file'] === null), 'Scheduled entries all have a playable asset');
+        check($day['default'] === null || $day['default']['file'] !== null, 'Default content has a file');
+        check(!in_array('Rendezvény plakát', array_column($day['scheduled'], 'title'), true), 'Blanked event skipped');
+        if ($offset < 5) check($day['default'] === null, 'Weekday default (brand, no file) skipped');
+    }
+    $tuesday = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+1 day')->format('Y-m-d'));
+    check($tuesday['scheduled'][0]['asset']['kind'] === 'video' && $tuesday['scheduled'][0]['title'] === 'Reggeli promó', 'Type derived from the file');
+
+    // Reader: no write channel.
+    fails(fn() => $call('signage_assets', 'delete', $ids['Promóciós videó'], ['revision' => 'x'], $ctx($reader)), 403, 'Reader cannot delete assets');
+    fails(fn() => $call('files', 'delete', (string) $signage['id'], ['sources' => (string) $video, 'preview' => '1'], $ctx($reader)), 403, 'Reader cannot preview file deletes');
+    fails(fn() => $call('signage_assets', 'create', null, ['title' => 'R', 'file_id' => (string) $video, 'duration' => '5'], $ctx($reader)), 403, 'Reader cannot create assets');
+    echo "Signage demo on shared files: mount, file field, media columns, usage, upload, delete warnings and playlist passed.\n";
+} finally {
+    exec('rm -rf '.escapeshellarg($tmp));
+}

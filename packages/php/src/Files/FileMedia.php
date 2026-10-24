@@ -2,15 +2,16 @@
 declare(strict_types=1);
 namespace Blade\Files;
 
-use Blade\Feature\{Context, MediaSource};
+use Blade\Feature\{Context, FileSource, MediaSource};
 
 /**
  * MediaSource over a file manager space: a `column.media` value is a `blade_files` id. A file is
  * described only when the actor may read its thumbnail (`thumbnail_get` on its mount, for the channel
  * and API token scope), so names, types and states of other files never reach a list. Archived files are
- * neither described (FileStorage::entries) nor matched by a class filter.
+ * neither described (FileStorage::entries) nor matched by a class filter. As FileSource it backs `file` fields
+ * (validation of the chosen file, folder and upload policy of the field metadata).
  */
-final readonly class FileMedia implements MediaSource
+final readonly class FileMedia implements MediaSource, FileSource
 {
     public const CLASSES = ['image' => 'Kép', 'video' => 'Videó'];
     /** Distinct ids described per call; the largest list window is 600 rows. */
@@ -54,6 +55,41 @@ final readonly class FileMedia implements MediaSource
     }
 
     public function classes(): array { return self::CLASSES; }
+
+    public function file(string $id): ?array
+    {
+        $row = preg_match('/^[1-9][0-9]{0,17}$/D', $id) ? $this->storage->entry((int) $id) : null;
+        if (!$row || $row['kind'] !== 'file' || !isset($this->definition->mounts[$row['mount_id']])) return null;
+        return ['id' => (string) $row['id'], 'name' => (string) $row['name'], 'mount' => (string) $row['mount_id'], 'mime_type' => (string) $row['mime_type']];
+    }
+
+    public function allows(Context $ctx, string $action, string $mount): bool
+    {
+        $resource = $this->definition->resource;
+        if (!isset($this->definition->mounts[$mount]) || ($ctx->channel === 'api' && !in_array($resource.'.'.$action, $ctx->scopes, true))) return false;
+        return $ctx->acl->allows($ctx->actor->id, $resource, $action, $ctx->channel, $mount);
+    }
+
+    public function folder(string $mount, string $path = ''): ?string
+    {
+        if (!isset($this->definition->mounts[$mount])) return null;
+        try {
+            $folder = (new MountStorage($this->definition, $this->storage))->folder($mount, $path);
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+        return $folder ? (string) $folder['id'] : null;
+    }
+
+    /** The file manager's upload rules for single files of $accept classes: extensions narrowed to those types, no folders. */
+    public function uploadPolicy(array $accept): array
+    {
+        $extensions = array_values(array_filter($this->definition->allowedExtensions, static function (string $extension) use ($accept): bool {
+            foreach ($accept as $class) if (str_starts_with(FileManagerDefinition::TYPES[$extension][0], $class.'/')) return true;
+            return false;
+        }));
+        return [...$this->definition->uploadPolicy()->metadata(), 'extensions' => $extensions, 'folders' => false];
+    }
 
     /** The outer column stays outside the subquery, so it never resolves to a `blade_files` column. */
     public function classPredicate(Context $ctx, string $column, string $class): array

@@ -1488,5 +1488,31 @@ that exactly equals an option label lists every option. The managed
   `uploader` 14/14, `mobile-grid` 5/5, `list-presentation` 9/9, `preferences`
   3/3, `calendar` 6/6; `ui-preferences.mjs` passes. A first `files` run timed
   out once in the upload summary (passed on rerun).
-- **Status:** accepted; U1–U4 implemented (user acceptance pending); U5
-  planned, not implemented.
+- **U5 — signage on shared files (implemented 2026-10-24):** `UsageProvider`
+  (`Registry::usage`), delete preview/apply with `cleared` for the file manager
+  and `SqlResource` (journaled previews as `delete_preview`), the `SqlResource`
+  delete policy (`archive`/`delete`, JSON `operations.delete_policy`), the
+  `after_delete` hook (`after_save` no longer runs on delete — this also fixed
+  signage deletes that always failed), field type `file` with picker and
+  upload, derived media columns (`media_of`/`part`), computed read-only columns,
+  `MountStorage` for consumer uploads, list actions with an `UploadPolicy`
+  opening the uploader. Demo: `Signage` mount holding the asset files (moved
+  with unchanged ids), `Médiatár` with thumbnail/type/resolution/length/play
+  time/usage columns, upload as assets in one step, usage warnings that clear
+  file references, defaults and event assets; the 500-row binding and kind
+  check are gone. Review fixes: overwrites clear references, unchanged file ids
+  are not re-validated, picker rights/focus/class rule, failed previews shown,
+  name-check locks. Decisions taken in implementation: the upload button is
+  `Fájl feltöltése…` (`Feltöltés…` is the existing "Uploading…" status); the
+  plan's `file.policy` option is derived from the file manager's policy
+  narrowed to the accepted classes; usage counts may count references the
+  actor cannot read; `clear()` runs as consumer code without audit rows on the
+  referencing resource.
+  **Verification (agent):** PHP `signage`, `files`, `lists`,
+  `list-presentation`, `configuration`, `calendar`, `access`, `admin`,
+  `permissions`, `i18n`, `contracts` pass; typecheck/build/assets clean;
+  browser, one spec per run on the managed URL: `signage` 7/7, `files` 11/11,
+  `uploader` 14/14, `mobile-grid` 6/6, `calendar` 6/6, `list-presentation` 9/9,
+  `preferences` 3/3, `i18n` 2/2. Failures not caused by this work (FB-0062
+  collapsed menu, external OAuth): `demo` 4, `dialogs` 6, `browser` 4.
+- **Status:** accepted; U1–U5 implemented (user acceptance pending).

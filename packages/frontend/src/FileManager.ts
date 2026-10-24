@@ -7,14 +7,14 @@ import { widgetIcons } from "./WidgetIcons";
 import { fitWindow } from "./WindowSizing";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 import { acknowledge, alert, requestChoice, requestConfirmation } from "./MessageDialog";
-import { escape } from "./RecordPresentation";
+import { escape, clearedText, mergeUsages, type Usage } from "./RecordPresentation";
 import { actionUrl } from "./ActionUrl";
 import { uploads, type UploadEvents, type UploadFileInfo, type UploadPolicy } from "./Uploader";
 import type { Row } from "./Realtime";
 import type { ActionConfirmation, ViewDefinition } from "./Workspace";
 
 export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{allowed_extensions:string[];max_size_bytes:number;multiple:boolean;max_files?:number;duplicate_policy:string;policy:UploadPolicy};text:{extension:string;max_bytes:number};preview:string[];max_depth:number};
-export type FileViewDefinition={kind:"files";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean;get?:boolean;confirm?:ActionConfirmation;fields:FieldDefinition[]}[];files:FileManagerConfig};
+export type FileViewDefinition={kind:"files";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean;get?:boolean;confirm?:ActionConfirmation;usages?:boolean;fields:FieldDefinition[]}[];files:FileManagerConfig};
 export const isFileView=(view:ViewDefinition|FileViewDefinition):view is FileViewDefinition=>(view as FileViewDefinition).kind==="files";
 type Entry={id:string;name:string;kind:"directory"|"file";extension:string;mime_type:string;size:number;modified_at:string;revision:string;width?:number|null;height?:number|null;duration_ms?:number|null;orientation?:string;thumbnail?:"ready"|"pending"|"failed"|"none"};
 type Listing={directory:Directory;items:Entry[];next?:string|null;total?:number;matched?:number};
@@ -28,7 +28,9 @@ type Navigation={index:number;count:number;go:(win:Window,step:1|-1)=>void};
 type TreeItem={id:string;parent:string;name:string;kind:"directory"|"file";mime_type:string};
 type Tree={root:string;items:TreeItem[];truncated:boolean};
 type Directory={id:string;mount:string;depth:number;path:{id:string;name:string}[]};
-type Summary={succeeded:{name:string}[];skipped:{name:string}[];failed:{name:string;error:string}[]};
+type Summary={succeeded:{name:string}[];skipped:{name:string}[];failed:{name:string;error:string}[];cleared?:Record<string,number>};
+/** "Plakátok: 2, Médiatár-elemek: 1" of usage counts. */
+const usageList=(usages:Usage[])=>usages.map(usage=>`${usage.label}: ${usage.count.toLocaleString(locale())}`).join(", ");
 type Failure=Error&{status?:number;fieldErrors?:Record<string,string>;details?:any};
 type Part={field:string;blob:Blob;name:string};
 /** `file` is the file chosen in tree mode; `files` maps the tree's file nodes to their folders. */
@@ -651,14 +653,18 @@ export class FileManager {
       const e=error as Failure;
       if(e.status!==409||!Array.isArray(e.details?.conflicts))throw error;
       const names=(e.details.conflicts as {name:string}[]).map(item=>item.name).join(", ");
-      const decision=await requestChoice({title:t("Névütközés"),severity:"warning",message:t("A célmappában már létezik: {names}. Mit tegyünk az ütköző elemekkel?",{names}),
+      // References to the existing files warn that an overwrite may clear them (`details.usages`).
+      const usages=mergeUsages([e.details.usages as Usage[]|undefined]);
+      const warning=usages.length?"\n\n"+t("Hivatkozások:")+" "+usageList(usages):"";
+      const decision=await requestChoice({title:t("Névütközés"),severity:"warning",message:t("A célmappában már létezik: {names}. Mit tegyünk az ütköző elemekkel?",{names})+warning,
         choices:[{value:"overwrite",label:t("Felülírás")},{value:"rename",label:t("Átnevezés")},{value:"skip",label:t("Kihagyás")}]});
       return decision?await run(decision):null;
     }
   }
   private async summary(result:Summary):Promise<void>{
-    const text=t("Sikeres: {success}, kihagyva: {skipped}, sikertelen: {failed}.",{success:result.succeeded.length,skipped:result.skipped.length,failed:result.failed.length});
-    if(!result.failed.length&&!result.skipped.length){message({text,css:"blade-toast",expire:5000});return;}
+    const cleared=clearedText(result.cleared);
+    const text=t("Sikeres: {success}, kihagyva: {skipped}, sikertelen: {failed}.",{success:result.succeeded.length,skipped:result.skipped.length,failed:result.failed.length})+(cleared?"\n"+cleared:"");
+    if(!result.failed.length&&!result.skipped.length){message({text,css:"blade-toast",expire:cleared?8000:5000});return;}
     await acknowledge({title:t("Összesítés"),severity:result.failed.length?"warning":"neutral",message:[text,...result.skipped.map(item=>t("Kihagyva: {name}",{name:item.name})),...result.failed.map(item=>`${item.name}: ${item.error}`)].join("\n")});
   }
 
@@ -677,23 +683,38 @@ export class FileManager {
   /**
    * Delete of the marked entries (folders with their content): the shared confirmation built from the
    * action's declared `confirm`, then one request and a toast; the listings drop the rows in place.
+   * When the action reports usages, a `preview` first sums the references to every file of the selected
+   * subtrees: if there are any, one danger confirmation lists them and says that they are cleared.
    */
   private async remove():Promise<void>{
     const panel=this.current,ids=this.selection(panel),directory=panel.directory,action=this.action("delete");
     if(!ids.length||!directory||!action)return;
     const c=action.confirm;
-    if(c&&!await requestConfirmation({title:c.title,severity:c.severity??"danger",message:t(c.message,{count:ids.length}),confirmLabel:c.confirmLabel??action.label,cancelLabel:c.cancelLabel}))return;
+    let usages:Usage[]=[];
+    if(action.usages){
+      this.busy=true;this.capabilities();
+      try{usages=mergeUsages([(await this.call("delete",directory.id,{sources:ids.join(","),preview:"1"}) as {usages?:Usage[]})?.usages]);}
+      catch(error){await this.error(error);return;}
+      finally{this.busy=false;this.capabilities();}
+      if(this.disposed)return;
+    }
+    const declared=c?t(c.message,{count:ids.length}):"";
+    // The shared usage confirmation, with the file consequence: referencing records stay, only their file reference is cleared.
+    if(usages.length){if(!await requestConfirmation({severity:"danger",title:c?.title??t("Törlés"),confirmLabel:c?.confirmLabel??action.label,cancelLabel:c?.cancelLabel,
+      message:[declared||t("Törlés: {count} elem.",{count:ids.length}),"",t("Hivatkozások:"),...usages.map(usage=>`${usage.label}: ${usage.count.toLocaleString(locale())}`),"",t("A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.")].join("\n")}))return;}
+    else if(c&&!await requestConfirmation({title:c.title,severity:c.severity??"danger",message:declared,confirmLabel:c.confirmLabel??action.label,cancelLabel:c.cancelLabel}))return;
     if(this.disposed)return;
     this.busy=true;this.capabilities();
     try{
-      const result:{succeeded:{source:string}[];failed:{source:string;name:string;error:string}[];policy?:string}=await this.call("delete",directory.id,{sources:ids.join(",")});
+      const result:{succeeded:{source:string}[];failed:{source:string;name:string;error:string}[];policy?:string;cleared?:Record<string,number>}=await this.call("delete",directory.id,{sources:ids.join(",")});
       const removed=new Set(result.succeeded.map(item=>String(item.source)));
       panel.grid.clearMarks();
       if(panel.file&&removed.has(panel.file))panel.file=undefined;
       await this.removed(removed,panel.mount);
-      const text=t(result.policy==="archive"?"Archiválva: {count} elem.":"Törölve: {count} elem.",{count:removed.size});
+      const cleared=clearedText(result.cleared);
+      const text=t(result.policy==="archive"?"Archiválva: {count} elem.":"Törölve: {count} elem.",{count:removed.size})+(cleared?"\n"+cleared:"");
       if(result.failed.length)await acknowledge({title:t("Összesítés"),severity:"warning",message:[text,...result.failed.map(item=>`${item.name||item.source}: ${item.error}`)].join("\n")});
-      else message({text,css:"blade-toast",expire:4000});
+      else message({text,css:"blade-toast",expire:cleared?8000:4000});
     }catch(error){await this.error(error);}
     finally{this.busy=false;this.capabilities();}
   }

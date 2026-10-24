@@ -87,4 +87,36 @@ check(!isset($view['rowHeight'])&&!isset($view['tileMinWidth'])&&!isset($view['t
 foreach([['rowHeight'=>31],['rowHeight'=>161],['tileMinWidth'=>119],['tileMinWidth'=>481]] as $options){try{$mediaRegistry->view('assets','Assets',[],['get'],...$options);throw new RuntimeException('Out-of-range view presentation accepted');}catch(InvalidArgumentException){}}
 $mediaRegistry->view('assets','Assets',[],['get'],rowHeight:32,tileMinWidth:480);$mediaRegistry->view('assets','Assets',[],['get'],rowHeight:160,tileMinWidth:120);
 check($mediaRegistry->views()[0]['rowHeight']===160&&!isset($mediaRegistry->views()[0]['tiles']),'Range bounds accepted; tiles off is absent');
-echo "List presentation and bulk ACL contracts passed.\n";
+// Usage warnings on a SqlResource delete (U5): preview through the bulk channel, clear on apply, after_delete only.
+$db->exec("CREATE TABLE shelves(id INTEGER PRIMARY KEY,title TEXT NOT NULL); INSERT INTO shelves VALUES(1,'Used'),(2,'Free'),(3,'Guarded'); CREATE TABLE books(id INTEGER PRIMARY KEY,shelf_id TEXT NOT NULL); INSERT INTO books(shelf_id) VALUES('1'),('1'),('3')");
+$hooks=['save'=>[],'delete'=>[]];
+$shelves=new SqlResource('shelves','shelves','id',[new Field('title','Title',required:true)],afterSave:function(Context $c,string $id) use (&$hooks){$hooks['save'][]=$id;return null;},
+    deleteGuard:static function(Context $c,array $target):void{if($target['id']==='3')throw new Failure('Guarded.',409);},afterDelete:function(Context $c,string $id,array $target) use (&$hooks){$hooks['delete'][]=$id.':'.$target['row']['title'];});
+$usageRegistry=new Registry();$shelves->register($usageRegistry,'Shelves');$shelves->registerDelete($usageRegistry);
+$books=new class implements Blade\Feature\UsageProvider{
+    public array $cleared=[];
+    public function usages(Context $ctx,array $ids):array{$out=[];foreach($ids as $id){$n=(int)$ctx->db->query('SELECT COUNT(*) FROM books WHERE shelf_id='.$ctx->db->quote($id))->fetchColumn();if($n)$out[$id]=[['label'=>'Könyvek','count'=>$n]];}return $out;}
+    public function clear(Context $ctx,array $ids,string $policy):void{$this->cleared[]=[$policy,$ids];foreach($ids as $id)$ctx->db->prepare('DELETE FROM books WHERE shelf_id=?')->execute([$id]);}
+};
+$usageWorkspace=new Workspace($usageRegistry,$db);
+$db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','shelves','list','ui','allow','all','',''),('user','1','shelves','get','ui','allow','all','',''),('user','1','shelves','update','ui','allow','all','',''),('user','1','shelves','delete','ui','allow','all','','')");
+$usageCtx=new Context($actor,'ui',$usageWorkspace->acl,$db);
+$deleteMeta=fn()=>array_column($usageWorkspace->views($actor)[0]['actions'],null,'name')['delete'];
+check(!isset($deleteMeta()['usages'])&&array_column($deleteMeta()['fields'],'name')===['revision'],'No usages flag without providers; preview is no form field');
+$usageRegistry->usage('shelves',$books);
+check($deleteMeta()['usages']===true&&array_column($deleteMeta()['fields'],'name')===['revision'],'Delete announces usages');
+$rev=fn(string $id)=>$usageWorkspace->executor->execute($usageCtx,'shelves','get',$id,[])['revision'];
+$preview=$usageWorkspace->executor->bulk($usageCtx,'shelves','delete',[['id'=>'1','values'=>['revision'=>$rev('1'),'preview'=>'1']],['id'=>'2','values'=>['revision'=>$rev('2'),'preview'=>'1']],['id'=>'3','values'=>['revision'=>$rev('3'),'preview'=>'1']]]);
+check($preview[0]['data']===['count'=>1,'usages'=>[['label'=>'Könyvek','count'=>2]]]&&$preview[1]['data']===['count'=>1,'usages'=>[]]&&!$preview[2]['ok']&&$preview[2]['error']==='Guarded.','Bulk preview data per object; the delete guard already answers the preview');
+check((int)$db->query('SELECT COUNT(*) FROM shelves')->fetchColumn()===3&&$books->cleared===[]&&$hooks['delete']===[],'Preview changes nothing and calls no hook');
+$applied=$usageWorkspace->executor->bulk($usageCtx,'shelves','delete',[['id'=>'1','values'=>['revision'=>$rev('1')]],['id'=>'2','values'=>['revision'=>$rev('2')]]]);
+check($applied[0]['data']['cleared']===['Könyvek'=>2]&&$applied[1]['data']['cleared']===[]&&$applied[0]['data']['policy']==='delete','Applied delete reports what it cleared');
+check($books->cleared===[['delete',['1']],['delete',['2']]]&&(int)$db->query("SELECT COUNT(*) FROM books WHERE shelf_id='1'")->fetchColumn()===0&&(int)$db->query('SELECT COUNT(*) FROM shelves')->fetchColumn()===1,'Providers clear inside the delete');
+check($hooks['delete']===['1:Used','2:Free']&&$hooks['save']===[],'after_delete runs after a delete; after_save never does');
+$usageWorkspace->executor->execute($usageCtx,'shelves','update','3',['title'=>'Renamed','revision'=>$rev('3')]);check($hooks['save']===['3'],'after_save still runs on update');
+check($db->query("SELECT COUNT(*) FROM blade_audit WHERE resource='shelves' AND action='delete_preview' AND outcome='success'")->fetchColumn()>0&&json_decode($db->query("SELECT detail FROM blade_audit WHERE resource='shelves' AND action='delete' AND outcome='success' ORDER BY id LIMIT 1")->fetchColumn(),true)['policy']==='delete','Preview journaled as delete_preview; the first delete success is an applied delete');
+// Derived media columns name a media field of the resource and a part; they are no fields themselves.
+$mediaRegistry->view('assets','Assets',[['id'=>'file','header'=>'File'],['id'=>'m_type','header'=>'Type','media_of'=>'file','part'=>'type'],['id'=>'m_size','header'=>'Resolution','media_of'=>'file','part'=>'resolution']],['get']);
+check(array_column($mediaRegistry->views()[0]['columns'],'part')===['type','resolution'],'Derived media columns kept');
+foreach([[['id'=>'x','media_of'=>'title','part'=>'type']],[['id'=>'x','media_of'=>'file','part'=>'size']],[['id'=>'x','media_of'=>'missing','part'=>'type']],[['id'=>'title','media_of'=>'file','part'=>'type']],[['id'=>'x','part'=>'duration']]] as $columns){try{$mediaRegistry->view('assets','Assets',$columns,['get']);throw new RuntimeException('Invalid derived media column accepted');}catch(InvalidArgumentException $e){check($e->getMessage()==='Invalid derived media column.','Invalid derived media column rejected');}}
+echo "List presentation, bulk ACL and delete usage contracts passed.\n";
