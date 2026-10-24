@@ -28,15 +28,18 @@ final readonly class FileManagerDefinition
     /** Only plain text files open in the editor; the check is server-side and case-insensitive. */
     public const TEXT_EXTENSION = 'txt';
     public const DUPLICATE_POLICIES = ['ask', 'overwrite', 'rename', 'skip', 'reject'];
+    /** `archive` (recommended) hides deleted entries from every framework read and keeps their content; `delete` removes them. */
+    public const DELETE_POLICIES = ['archive', 'delete'];
     /** PHP's default max_file_uploads; more parts would be dropped silently by the runtime. */
     public const MAX_FILES = 20;
 
     /**
-     * @param array<string,string> $mounts mount key => label
+     * @param array<string,string> $mounts mount key => label (a safe name, UploadPolicy::invalidName)
      * @param list<string> $allowedExtensions upload allowlist, a subset of TYPES
      * @param string $contentRoot absolute directory of the content store (required); never exposed to the browser
      * @param ?string $tempRoot absolute directory of upload transfers, default `<contentRoot>/.transfers`
      * @param string $ffprobePath / $ffmpegPath absolute media tool paths (metadata, video thumbnails)
+     * @param string $deletePolicy `archive` (default) or `delete`, see DELETE_POLICIES
      */
     public function __construct(
         public string $resource,
@@ -57,13 +60,16 @@ final readonly class FileManagerDefinition
         public bool $thumbnails = true,
         public string $ffprobePath = '/usr/bin/ffprobe',
         public string $ffmpegPath = '/usr/bin/ffmpeg',
+        public string $deletePolicy = 'archive',
     ) {
         if (!preg_match('/^[a-z][a-z0-9_.-]*$/D', $resource) || $title === '' || !$mounts || count($mounts) > 26) throw new \InvalidArgumentException('Invalid file manager definition.');
-        foreach ($mounts as $key => $label) if (!is_string($key) || !preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $key) || !is_string($label) || $label === '') throw new \InvalidArgumentException('Invalid file mount.');
+        // A label names the mount root in paths and ZIP archives, so it follows the safe-name rule (no separators, not dot-only).
+        foreach ($mounts as $key => $label) if (!is_string($key) || !preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $key) || !is_string($label) || UploadPolicy::invalidName($label) !== null) throw new \InvalidArgumentException('Invalid file mount.');
         if (!$allowedExtensions || array_diff($allowedExtensions, array_keys(self::TYPES)) || count(array_unique($allowedExtensions)) !== count($allowedExtensions)) throw new \InvalidArgumentException('Unsupported upload extension.');
         if ($maxSizeBytes < 1 || $maxSizeBytes > 104857600 || $textMaxBytes < 1 || $textMaxBytes > 4194304 || $maxDepth < 1 || $maxDepth > 32) throw new \InvalidArgumentException('Invalid file manager limit.');
         if ($maxFiles < 1 || $maxFiles > self::MAX_FILES) throw new \InvalidArgumentException('Invalid file manager limit.');
         if (!in_array($duplicatePolicy, self::DUPLICATE_POLICIES, true)) throw new \InvalidArgumentException('Invalid duplicate policy.');
+        if (!in_array($deletePolicy, self::DELETE_POLICIES, true)) throw new \InvalidArgumentException('Invalid delete policy.');
         foreach ([$ffprobePath, $ffmpegPath] as $path) if (!str_starts_with($path, '/') || str_contains($path, "\0") || preg_match('~(^|/)\.\.?(/|$)~', $path)) throw new \InvalidArgumentException('Media tool paths must be absolute.');
         foreach ([$contentRoot, $tempRoot ?? '/'] as $path) if (!str_starts_with($path, '/') || str_contains($path, "\0") || preg_match('~(^|/)\.\.?(/|$)~', $path)) throw new \InvalidArgumentException('The file manager content root must be an absolute path.');
     }
@@ -117,6 +123,7 @@ final readonly class FileManagerDefinition
             'preview' => self::PREVIEW_TYPES,
             'thumbnails' => $this->thumbnails ? Thumbnails::TYPES : [],
             'max_depth' => $this->maxDepth,
+            'delete_policy' => $this->deletePolicy,
         ];
     }
 }

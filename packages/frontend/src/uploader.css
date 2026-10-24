@@ -1,6 +1,9 @@
 /* Framework uploader (Uploader.ts): Suite Window/Layout/Grid with theme tokens only. */
+/* Visually hidden, still announced: the live region, the file inputs and the text name of an
+   icon without an option label (recordIcon, also used by the queue's type icons). */
 .blade-uploader-live,
-.blade-uploader__input {
+.blade-uploader__input,
+.blade-record-icon__label {
   position: absolute !important;
   width: 1px;
   height: 1px;

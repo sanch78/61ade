@@ -48,7 +48,11 @@ including range and conditional ones. They take no input fields and never
 write. Because an element cannot send the CSRF header, the UI channel rejects
 cross-site and same-site fetch metadata instead; responses are
 `Cross-Origin-Resource-Policy: same-origin`, `nosniff`, sandboxed by CSP, and
-carry an allowlisted type and a `private` cache policy. See
+carry an allowlisted type and a `private` cache policy. Downloads of any
+stored type are always `attachment`. Multi-file ZIP downloads use a two-step
+flow: an authorized POST writes a short-lived, single-use manifest bound to
+actor, channel and the session/token owner, and the GET re-checks the rights
+of every source before streaming. See
 [files](files.md#actions-and-authorization).
 
 <a id="írás"></a>

@@ -1464,5 +1464,29 @@ that exactly equals an option label lists every option. The managed
   FB-0062 failures. Running several heavy specs in one guarded invocation can
   hit the guard's 128-task limit (`spawnSync … EAGAIN`) and time out; single
   spec runs pass.
-- **Status:** accepted; U1–U3 implemented (user acceptance pending); U4–U5
+- **U4 — file manager demo (implemented 2026-10-24):** paged server-sorted
+  `list` (search, type filter, four sorts, keyset cursor; the 1000-entry cap is
+  gone), the framework `deletePolicy` (`archive` default and recommended,
+  hiding records from every framework read and also applied to overwrites;
+  `delete` in the demo), `delete`, `rename`, GET `download`, streamed ZIP via a
+  single-use owner-bound manifest (`zip_prepare`/`zip_get`, `ZipStream`,
+  `StreamedDownload`, `Context::$owner`), listing/tiles/tree per panel, F2/Del,
+  drop and paste onto panels with in-flight rows and in-place results, viewer
+  previous/next. Review fixes applied: overwrite under archive, copy requires
+  `download` on sources, ZIP `MISSING` note, mount-label and ZIP segment rules,
+  MySQL top-row locks, video icon, counter drift; U2/U3 review fixes (direct
+  multipart policy enforcement, generic finish results, resume by target,
+  finish retry, cancel race, conflict slot release, reserved-key editing,
+  media in details). Decisions taken in implementation: command labels
+  `Másolás`/`Áthelyezés` (long texts as tooltips) so nine commands fit at
+  1400 px; tiles without a media descriptor fall back to the icon column
+  (framework `ResponsiveGrid`). Not yet: usages in the delete confirmation
+  (U5 `FileUsageProvider`); previous/next covers the loaded rows only.
+  **Verification (agent):** PHP `files`, `lists`, `list-presentation`, `access`,
+  `configuration`, `i18n`, `contracts`, `calendar`, `sorting`, `grid-edit` pass;
+  typecheck/build/assets clean; browser, one spec per run: `files` 11/11,
+  `uploader` 14/14, `mobile-grid` 5/5, `list-presentation` 9/9, `preferences`
+  3/3, `calendar` 6/6; `ui-preferences.mjs` passes. A first `files` run timed
+  out once in the upload summary (passed on rerun).
+- **Status:** accepted; U1–U4 implemented (user acceptance pending); U5
   planned, not implemented.

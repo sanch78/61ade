@@ -51,6 +51,26 @@ final class Executor
     {
         if (!$ctx->acl->allows($ctx->actor->id,$action->resource,$action->name,$ctx->channel,$aclObject,$owner)) throw new Failure($ctx->channel==='api' && $object!==null ? 'Nem található objektum.' : 'Nincs hozzáférés.',$ctx->channel==='api' && $object!==null ? 404 : 403);
     }
+    /**
+     * UploadPolicy of the action on the direct multipart path: batch quota, a relative path for one part only,
+     * then per part the PHP upload error and the policy's name/type/size/folder rules on the received bytes.
+     * Rejected parts never reach the handler; with none left the request fails. Returns [Context, failed items].
+     */
+    private static function uploads(Context $ctx, UploadPolicy $policy, string $relativePath): array
+    {
+        if(count($ctx->uploads)>$policy->maxFiles)throw new Failure($policy->quota(),400,[],['code'=>'quota']);
+        if($relativePath!==''&&count($ctx->uploads)!==1)throw new Failure('A relatív útvonal csak egyetlen fájllal adható meg.');
+        $accepted=$rejected=[];
+        foreach($ctx->uploads as $upload){
+            if(in_array($upload->error,[UPLOAD_ERR_INI_SIZE,UPLOAD_ERR_FORM_SIZE],true))$problem=['code'=>'too_large','message'=>$policy->tooLarge()];
+            elseif($upload->error!==UPLOAD_ERR_OK)$problem=['code'=>'incomplete','message'=>\Blade\I18n\Translator::text('A fájl feltöltése nem sikerült.')];
+            else{clearstatcache(true,$upload->path);$problem=$policy->problem($upload->name,(int)@filesize($upload->path),$relativePath);}
+            if($problem===null)$accepted[]=$upload;
+            else $rejected[]=['name'=>UploadPolicy::shown($upload->name),'code'=>$problem['code'],'error'=>$problem['message']];
+        }
+        if(!$accepted)throw new Failure('Egyik fájl sem tölthető fel.',400,[],['code'=>$rejected[0]['code'],'failed'=>$rejected]);
+        return [$rejected?new Context($ctx->actor,$ctx->channel,$ctx->acl,$ctx->db,$ctx->scopes,$accepted,$ctx->owner):$ctx,$rejected];
+    }
     public function execute(Context $ctx, string $resource, string $name, ?string $id, array $input, bool $fieldEdit = false, bool $partial = false): mixed
     {
         $fields=[];$detail=[];
@@ -93,11 +113,23 @@ final class Executor
                 if (!$field->secret) $fields[]=$field->name;
             }
             if ($fieldErrors) throw new Failure('Javítsd a megjelölt mezőket.', 400, $fieldErrors);
+            $rejected=[];
+            if($action->upload instanceof UploadPolicy && $ctx->uploads){
+                [$ctx,$rejected]=self::uploads($ctx,$action->upload,is_string($values['relative_path']??null)?$values['relative_path']:'');
+            }
             $handler=$fieldEdit?$action->editHandler:$action->handler;
-            $result=$handler($ctx,$target,$values);
+            try{$result=$handler($ctx,$target,$values);}
+            catch(Failure $error){
+                // A handler's own per-file report (`failed`, e.g. a 409 conflict) also lists the parts rejected by the policy.
+                if(!$rejected||!is_array($error->details['failed']??null))throw $error;
+                $failed=[...$rejected,...$error->details['failed']];
+                throw new Failure($error->getMessage(),$error->status,$error->fieldErrors,[...$error->details,'failed'=>$failed,...(isset($error->details['code'])?['code'=>$failed[0]['code']]:[])]);
+            }
+            if($rejected&&is_array($result))$result['failed']=[...$rejected,...(is_array($result['failed']??null)?$result['failed']:[])];
+            if($rejected)$detail=[...$detail,'rejected_files'=>count($rejected)];
             $auditObject=$object ?? (is_array($result) && isset($result['id']) ? (string)$result['id'] : '');
             if(is_array($result) && is_array($result['audit'] ?? null))$detail=[...$detail,...$result['audit']];
-            if($result instanceof Download||$result instanceof DownloadStream)$detail=[...$detail,...$result->audit];
+            if($result instanceof Download||$result instanceof DownloadStream||$result instanceof StreamedDownload)$detail=[...$detail,...$result->audit];
             $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$name,$auditObject, 'success',$fields,$detail);
             $this->db->commit();
             return $result;

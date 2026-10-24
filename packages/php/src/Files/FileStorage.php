@@ -12,12 +12,19 @@ use Blade\Tasks\TaskQueue;
  * content and nothing reaches a web root. This class owns all SQL of `blade_files` and
  * `blade_file_derivatives`. Released content is collected by the `files.collect` task after commit.
  * A mount root has parent_id 0 and depth 0; names are unique per parent, case-insensitively.
+ * Archived entries (`archived_at` set) are hidden from every read of this class as if deleted (live()); only
+ * content collection still counts their references.
  */
 final class FileStorage
 {
     private const COLUMNS = 'id,mount_id,parent_id,kind,name,extension,mime_type,size,modified_at,revision,storage_key,sha256,width,height,duration_ms,orientation';
     /** Content columns; earlier tables receive them through ALTER TABLE. */
-    private const CONTENT = ['storage_key' => "VARCHAR(80) NOT NULL DEFAULT ''", 'sha256' => "CHAR(64) NOT NULL DEFAULT ''", 'width' => 'INT NULL', 'height' => 'INT NULL', 'duration_ms' => 'BIGINT NULL', 'orientation' => "VARCHAR(10) NOT NULL DEFAULT ''"];
+    private const CONTENT = ['storage_key' => "VARCHAR(80) NOT NULL DEFAULT ''", 'sha256' => "CHAR(64) NOT NULL DEFAULT ''", 'width' => 'INT NULL', 'height' => 'INT NULL', 'duration_ms' => 'BIGINT NULL', 'orientation' => "VARCHAR(10) NOT NULL DEFAULT ''",
+        'archived_at' => 'VARCHAR(30) NULL', 'archived_by' => "VARCHAR(64) NOT NULL DEFAULT ''"];
+    /** Listing sorts => key columns per kind rank (0 directories, 1 files); `id` is always the final tie-breaker. */
+    public const SORTS = ['name' => [['name_key'], ['name_key']], 'modified' => [['modified_at'], ['modified_at']], 'size' => [['name_key'], ['size']], 'type' => [['extension', 'name_key'], ['extension', 'name_key']]];
+    /** Listing type filters: `text` is text/* and JSON, `other` every file of no other class. */
+    public const CLASSES = ['directory', 'image', 'video', 'text', 'other'];
     public readonly MediaProbe $probe;
     /** Locking-read suffix: on MySQL, shared content is read FOR UPDATE so a concurrent removal waits. */
     private readonly string $lock;
@@ -41,7 +48,10 @@ final class FileStorage
             : array_column($db->query('PRAGMA table_info(blade_files)')->fetchAll(\PDO::FETCH_ASSOC), 'name');
         foreach (self::CONTENT as $column => $definition) if (!in_array($column, $columns, true)) $db->exec("ALTER TABLE blade_files ADD COLUMN $column $definition");
         $db->exec("CREATE TABLE IF NOT EXISTS blade_file_derivatives (space VARCHAR(64) NOT NULL, file_id BIGINT NOT NULL, kind VARCHAR(32) NOT NULL, revision BIGINT NOT NULL, storage_key VARCHAR(80) NOT NULL DEFAULT '', mime VARCHAR(100) NOT NULL DEFAULT '', state VARCHAR(10) NOT NULL DEFAULT 'pending', updated_at VARCHAR(30) NOT NULL, PRIMARY KEY (file_id, kind))".($mysql ? ' ENGINE=InnoDB' : ''));
-        foreach ([['blade_files', 'blade_files_parent', 'space, parent_id'], ['blade_files', 'blade_files_content', 'space, storage_key'], ['blade_file_derivatives', 'blade_file_derivatives_content', 'space, storage_key']] as [$table, $name, $index]) {
+        // The listing indexes serve the keyset reads of page() (per kind, sort key, id).
+        foreach ([['blade_files', 'blade_files_parent', 'space, parent_id'], ['blade_files', 'blade_files_content', 'space, storage_key'], ['blade_file_derivatives', 'blade_file_derivatives_content', 'space, storage_key'],
+            ['blade_files', 'blade_files_list_name', 'space, parent_id, kind, name_key, id'], ['blade_files', 'blade_files_list_modified', 'space, parent_id, kind, modified_at, id'],
+            ['blade_files', 'blade_files_list_size', 'space, parent_id, kind, size, id'], ['blade_files', 'blade_files_list_type', 'space, parent_id, kind, extension, name_key, id']] as [$table, $name, $index]) {
             if ($mysql) {
                 $q = $db->prepare('SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=?');
                 $q->execute([$table, $name]);
@@ -57,11 +67,14 @@ final class FileStorage
     public static function extension(string $name): string { return UploadPolicy::extension($name); }
 
     private static function key(string $name): string { return mb_strtolower($name, 'UTF-8'); }
+
+    /** The single archive predicate of every read ($alias: a table alias of blade_files). */
+    public static function live(string $alias = ''): string { return ($alias !== '' ? $alias.'.' : '').'archived_at IS NULL'; }
     private static function now(): string { return gmdate('Y-m-d\TH:i:s\Z'); }
 
     public function root(string $mount): ?array
     {
-        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND mount_id=? AND parent_id=0', [$this->space, $mount]);
+        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND mount_id=? AND parent_id=0 AND '.self::live(), [$this->space, $mount]);
     }
 
     /** Setup-time creation of a mount root; idempotent. */
@@ -76,7 +89,18 @@ final class FileStorage
 
     public function entry(int $id): ?array
     {
-        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND id=?', [$this->space, $id]);
+        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND id=? AND '.self::live(), [$this->space, $id]);
+    }
+
+    /** Entries of $ids keyed by id (unknown ids and other spaces are absent); one IN query per 500 ids. */
+    public function entries(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $out = [];
+        foreach (array_chunk($ids, 500) as $chunk) {
+            foreach ($this->all('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND '.self::live().' AND id IN ('.implode(',', array_fill(0, count($chunk), '?')).')', [$this->space, ...$chunk]) as $row) $out[(int) $row['id']] = $row;
+        }
+        return $out;
     }
 
     /** Store path of a file's content, for streaming; client paths are never used. */
@@ -99,23 +123,33 @@ final class FileStorage
     /** Directories first, then names; one row more than $limit reveals truncation. */
     public function children(int $directory, int $limit): array
     {
-        return $this->all('SELECT '.self::COLUMNS." FROM blade_files WHERE space=? AND parent_id=? ORDER BY CASE kind WHEN 'directory' THEN 0 ELSE 1 END, name_key, id LIMIT ".($limit + 1), [$this->space, $directory]);
+        return $this->all('SELECT '.self::COLUMNS." FROM blade_files WHERE space=? AND parent_id=? AND archived_at IS NULL ORDER BY CASE kind WHEN 'directory' THEN 0 ELSE 1 END, name_key, id LIMIT ".($limit + 1), [$this->space, $directory]);
     }
 
     public function directories(string $mount, int $limit): array
     {
-        return $this->all('SELECT id,parent_id,name FROM blade_files WHERE space=? AND mount_id=? AND kind=? ORDER BY name_key, id LIMIT '.($limit + 1), [$this->space, $mount, 'directory']);
+        return $this->all('SELECT id,parent_id,name FROM blade_files WHERE space=? AND mount_id=? AND kind=? AND '.self::live().' ORDER BY name_key, id LIMIT '.($limit + 1), [$this->space, $mount, 'directory']);
     }
 
     /** Files of a whole mount for its tree, by name; one row more than $limit reveals truncation. */
     public function files(string $mount, int $limit): array
     {
-        return $this->all('SELECT id,parent_id,name,mime_type FROM blade_files WHERE space=? AND mount_id=? AND kind=? ORDER BY name_key, id LIMIT '.($limit + 1), [$this->space, $mount, 'file']);
+        return $this->all('SELECT id,parent_id,name,mime_type FROM blade_files WHERE space=? AND mount_id=? AND kind=? AND '.self::live().' ORDER BY name_key, id LIMIT '.($limit + 1), [$this->space, $mount, 'file']);
     }
 
     public function child(int $directory, string $name): ?array
     {
-        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND parent_id=? AND name_key=?', [$this->space, $directory, self::key($name)]);
+        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND parent_id=? AND name_key=? AND '.self::live(), [$this->space, $directory, self::key($name)]);
+    }
+
+    /**
+     * Current live row of $id, read FOR UPDATE on MySQL (a plain read on SQLite, whose write transaction already
+     * serializes): callers lock the top entry before reading its subtree (delete, archive, move, rename), so two
+     * requests on the same entry serialize instead of acting on a subtree the other one is changing. Null when gone.
+     */
+    public function locked(int $id): ?array
+    {
+        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND id=? AND '.self::live().$this->lock, [$this->space, $id]);
     }
 
     /** Root-first chain ending with the entry itself; its length minus one is the depth. */
@@ -130,14 +164,14 @@ final class FileStorage
         return $chain;
     }
 
-    /** Entry and descendants breadth-first with relative depth; null when larger than $limit. */
-    public function subtree(array $entry, int $limit): ?array
+    /** Entry and descendants breadth-first with relative depth; null when larger than $limit. $archived includes archived descendants (removal). */
+    public function subtree(array $entry, int $limit, bool $archived = false): ?array
     {
         $out = [[...$entry, 'relative' => 0]];
         for ($level = [$entry], $depth = 1; $level; $depth++) {
             $directories = array_column(array_filter($level, static fn($row) => $row['kind'] === 'directory'), 'id');
             if (!$directories) break;
-            $level = $this->all('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND parent_id IN ('.implode(',', array_fill(0, count($directories), '?')).') ORDER BY id', [$this->space, ...$directories]);
+            $level = $this->all('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=?'.($archived ? '' : ' AND '.self::live()).' AND parent_id IN ('.implode(',', array_fill(0, count($directories), '?')).') ORDER BY id', [$this->space, ...$directories]);
             foreach ($level as $row) $out[] = [...$row, 'relative' => $depth];
             if (count($out) > $limit) return null;
         }
@@ -145,16 +179,26 @@ final class FileStorage
     }
 
     /**
-     * Existing child directory of $parent named $name, or a new one ($created). The lookup is a locking
-     * read on MySQL, so parallel folder uploads into the same new directory serialize; an entry of
-     * another kind returns null.
+     * Existing child directory of $parent named $name, or a new one ($created); an entry of another kind
+     * returns null. On MySQL the parent row is locked first, so parallel finishes into the same (possibly
+     * empty) folder serialize on it instead of deadlocking on the gap locks of their lookups; the lookup is
+     * a locking read so it sees a directory committed meanwhile. A duplicate-key race that still happens
+     * (another writer, SQLite) re-reads the winner's row.
      * @return ?array{0:array,1:bool}
      */
     public function directory(array $parent, string $name): ?array
     {
-        $row = $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND parent_id=? AND name_key=?'.$this->lock, [$this->space, (int) $parent['id'], self::key($name)]);
-        if ($row) return $row['kind'] === 'directory' ? [$row, false] : null;
-        return [$this->entry($this->createDirectory($parent, $name)), true];
+        $this->locked((int) $parent['id']);
+        $find = fn() => $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND parent_id=? AND name_key=? AND '.self::live().$this->lock, [$this->space, (int) $parent['id'], self::key($name)]);
+        $row = $find();
+        if (!$row) {
+            try {
+                return [$this->entry($this->createDirectory($parent, $name)), true];
+            } catch (\PDOException $error) {
+                if (!str_starts_with((string) $error->getCode(), '23') || !($row = $find())) throw $error;
+            }
+        }
+        return $row['kind'] === 'directory' ? [$row, false] : null;
     }
 
     public function createDirectory(array $parent, string $name): int
@@ -243,6 +287,112 @@ final class FileStorage
         $this->dropDerivatives($id);
         $this->run("DELETE FROM blade_files WHERE space=? AND id=? AND kind='file'", [$this->space, $id]);
         $this->release($row['storage_key']);
+    }
+
+    /**
+     * One window of a directory's live entries: directories before files in both directions, then the sort's key
+     * columns (SORTS) and `id`, all in $direction. $after is the keyset position ['rank' => 0|1, 'keys' => [...],
+     * 'id' => int] of the previous window's last row. $search is a case-folded substring of the name (bound LIKE
+     * with ESCAPE), $type one of CLASSES or ''. Returns [rows, more].
+     * @return array{0:list<array>,1:bool}
+     */
+    public function page(int $directory, string $sort, string $direction, string $search, string $type, int $limit, ?array $after): array
+    {
+        if (!isset(self::SORTS[$sort]) || !in_array($direction, ['asc', 'desc'], true) || ($type !== '' && !in_array($type, self::CLASSES, true)) || $limit < 1) throw new \InvalidArgumentException('Invalid listing query.');
+        [$filter, $params] = $this->filter($search, $type);
+        $ranks = match ($type) { '' => [0, 1], 'directory' => [0], default => [1] };
+        $op = $direction === 'asc' ? '>' : '<';
+        $rows = [];
+        foreach ($ranks as $rank) {
+            if ($after !== null && $rank < $after['rank']) continue;
+            $columns = self::SORTS[$sort][$rank];
+            $where = 'space=? AND parent_id=? AND kind=? AND '.self::live().$filter;
+            $bind = [$this->space, $directory, $rank === 0 ? 'directory' : 'file', ...$params];
+            if ($after !== null && $rank === $after['rank']) {
+                // (k1, …, id) beyond the cursor, as nested comparisons the indexes can serve.
+                $condition = "id $op ?";
+                $values = [(int) $after['id']];
+                foreach (array_reverse($columns, true) as $index => $column) {
+                    $condition = "($column $op ? OR ($column = ? AND $condition))";
+                    $values = [$after['keys'][$index], $after['keys'][$index], ...$values];
+                }
+                $where .= ' AND '.$condition;
+                array_push($bind, ...$values);
+            }
+            $order = implode(', ', array_map(static fn($column) => "$column $direction", [...$columns, 'id']));
+            array_push($rows, ...$this->run('SELECT '.self::COLUMNS." FROM blade_files WHERE $where ORDER BY $order LIMIT ".($limit + 1 - count($rows)), $bind)->fetchAll(\PDO::FETCH_ASSOC));
+            if (count($rows) > $limit) break;
+        }
+        return [array_slice($rows, 0, $limit), count($rows) > $limit];
+    }
+
+    /** Live entries of a directory: all of them, and those matching the listing's search and type. @return array{0:int,1:int} */
+    public function counts(int $directory, string $search, string $type): array
+    {
+        [$filter, $params] = $this->filter($search, $type);
+        $total = (int) $this->run('SELECT COUNT(*) FROM blade_files WHERE space=? AND parent_id=? AND '.self::live(), [$this->space, $directory])->fetchColumn();
+        $matched = $filter === '' ? $total : (int) $this->run('SELECT COUNT(*) FROM blade_files WHERE space=? AND parent_id=? AND '.self::live().$filter, [$this->space, $directory, ...$params])->fetchColumn();
+        return [$total, $matched];
+    }
+
+    /** Keyset position of a listed row under $sort. */
+    public static function position(array $row, string $sort): array
+    {
+        $rank = $row['kind'] === 'directory' ? 0 : 1;
+        return ['rank' => $rank, 'keys' => array_map(static fn($column) => $column === 'size' ? (int) $row['size'] : (string) ($column === 'name_key' ? self::key($row['name']) : $row[$column]), self::SORTS[$sort][$rank]), 'id' => (int) $row['id']];
+    }
+
+    private function filter(string $search, string $type): array
+    {
+        $sql = '';
+        $params = [];
+        if ($search !== '') {
+            $sql .= " AND name_key LIKE ? ESCAPE '!'";
+            $params[] = '%'.strtr(self::key($search), ['!' => '!!', '%' => '!%', '_' => '!_']).'%';
+        }
+        $text = "(mime_type LIKE 'text/%' OR mime_type = 'application/json')";
+        $sql .= match ($type) {
+            '' => '', 'directory' => " AND kind = 'directory'", 'image' => " AND kind = 'file' AND mime_type LIKE 'image/%'", 'video' => " AND kind = 'file' AND mime_type LIKE 'video/%'",
+            'text' => " AND kind = 'file' AND $text", 'other' => " AND kind = 'file' AND NOT (mime_type LIKE 'image/%' OR mime_type LIKE 'video/%' OR $text)",
+        };
+        return [$sql, $params];
+    }
+
+    /** Renames a live entry of the read revision in place and bumps the revision; a file's derivatives stay current (content unchanged). */
+    public function rename(array $row, string $name): bool
+    {
+        $q = $this->run('UPDATE blade_files SET name=?, name_key=?, extension=?, revision=revision+1 WHERE space=? AND id=? AND revision=? AND '.self::live(),
+            [$name, self::key($name), $row['kind'] === 'file' ? self::extension($name) : '', $this->space, (int) $row['id'], (int) $row['revision']]);
+        if ($q->rowCount() !== 1) return false;
+        if ($row['kind'] === 'file') $this->run('UPDATE blade_file_derivatives SET revision=revision+1 WHERE space=? AND file_id=? AND revision=?', [$this->space, (int) $row['id'], (int) $row['revision']]);
+        return true;
+    }
+
+    /**
+     * Delete policy `archive`: marks the subtree; the top entry's name becomes a unique tombstone so the name is free again. Content stays referenced.
+     * An overwrite under `archive` archives the replaced file this way ([$row]) and stores the incoming content as a new entry.
+     */
+    public function archiveTree(array $subtree, string $actor): void
+    {
+        $now = self::now();
+        foreach (array_chunk(array_map(static fn($row) => (int) $row['id'], $subtree), 500) as $ids) {
+            $this->run('UPDATE blade_files SET archived_at=?, archived_by=? WHERE space=? AND '.self::live().' AND id IN ('.implode(',', array_fill(0, count($ids), '?')).')', [$now, substr($actor, 0, 64), $this->space, ...$ids]);
+        }
+        $this->run('UPDATE blade_files SET name_key=? WHERE space=? AND id=?', ['\0archived:'.$subtree[0]['id'], $this->space, (int) $subtree[0]['id']]);
+    }
+
+    /** Delete policy `delete`: removes the subtree's rows (archived descendants included) and derivatives; released content is collected after commit. */
+    public function deleteTree(array $subtree): void
+    {
+        $keys = [];
+        foreach (array_chunk(array_map(static fn($row) => (int) $row['id'], $subtree), 500) as $ids) {
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            array_push($keys, ...array_column($this->all("SELECT storage_key FROM blade_file_derivatives WHERE space=? AND file_id IN ($in)", [$this->space, ...$ids]), 'storage_key'));
+            $this->run("DELETE FROM blade_file_derivatives WHERE space=? AND file_id IN ($in)", [$this->space, ...$ids]);
+            $this->run("DELETE FROM blade_files WHERE space=? AND id IN ($in)", [$this->space, ...$ids]);
+        }
+        foreach ($subtree as $row) if ($row['kind'] === 'file') $keys[] = $row['storage_key'];
+        foreach (array_unique($keys) as $key) $this->release($key);
     }
 
     public function derivative(int $id, string $kind): ?array
@@ -399,7 +549,7 @@ final class FileStorage
     /** Current source row of a copy, read FOR UPDATE on MySQL; gone meanwhile → retryable conflict. */
     private function source(array $row): array
     {
-        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND id=?'.$this->lock, [$this->space, (int) $row['id']])
+        return $this->one('SELECT '.self::COLUMNS.' FROM blade_files WHERE space=? AND id=? AND '.self::live().$this->lock, [$this->space, (int) $row['id']])
             ?? throw new \Blade\Feature\Failure('Egy fájl tartalma időközben eltávolításra került. Próbáld újra.', 409);
     }
 

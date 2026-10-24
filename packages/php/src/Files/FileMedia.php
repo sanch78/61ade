@@ -7,7 +7,8 @@ use Blade\Feature\{Context, MediaSource};
 /**
  * MediaSource over a file manager space: a `column.media` value is a `blade_files` id. A file is
  * described only when the actor may read its thumbnail (`thumbnail_get` on its mount, for the channel
- * and API token scope), so names, types and states of other files never reach a list.
+ * and API token scope), so names, types and states of other files never reach a list. Archived files are
+ * neither described (FileStorage::entries) nor matched by a class filter.
  */
 final readonly class FileMedia implements MediaSource
 {
@@ -33,9 +34,10 @@ final readonly class FileMedia implements MediaSource
         if ($ctx->channel === 'api' && !in_array($resource.'.thumbnail_get', $ctx->scopes, true)) return [];
         $rows = [];
         $allowed = [];
-        foreach (array_slice(array_values(array_unique(array_filter($ids, 'is_string'))), 0, self::MAX_IDS) as $id) {
-            if (!preg_match('/^[1-9][0-9]{0,17}$/D', $id)) continue;
-            $row = $this->storage->entry((int) $id);
+        $ids = array_values(array_filter(array_slice(array_values(array_unique(array_filter($ids, 'is_string'))), 0, self::MAX_IDS), static fn($id) => preg_match('/^[1-9][0-9]{0,17}$/D', $id) === 1));
+        $entries = $ids ? $this->storage->entries($ids) : [];
+        foreach ($ids as $id) {
+            $row = $entries[(int) $id] ?? null;
             if (!$row || $row['kind'] !== 'file' || !isset($this->definition->mounts[$row['mount_id']])) continue;
             $allowed[$row['mount_id']] ??= $ctx->acl->allows($ctx->actor->id, $resource, 'thumbnail_get', $ctx->channel, (string) $row['mount_id']);
             if ($allowed[$row['mount_id']]) $rows[$id] = $row;
@@ -60,7 +62,7 @@ final readonly class FileMedia implements MediaSource
         $mounts = $this->visible($ctx);
         if (!$mounts) return ['1 = 0', []];
         $names = array_map(static fn($index) => 'mount'.$index, array_keys($mounts));
-        return ["$column IN (SELECT media_file.id FROM blade_files media_file WHERE media_file.space = :space AND media_file.kind = 'file' AND media_file.mime_type LIKE :pattern AND media_file.mount_id IN (:".implode(', :', $names).'))',
+        return ["$column IN (SELECT media_file.id FROM blade_files media_file WHERE media_file.space = :space AND media_file.kind = 'file' AND ".FileStorage::live('media_file')." AND media_file.mime_type LIKE :pattern AND media_file.mount_id IN (:".implode(', :', $names).'))',
             ['space' => $this->storage->space, 'pattern' => $class.'/%', ...array_combine($names, $mounts)]];
     }
 }

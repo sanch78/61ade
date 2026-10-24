@@ -42,6 +42,7 @@ final readonly class Field
         // `media`: the value is a file id of that registered MediaSource; `presentation: icon`: the value is a Suite icon class, options name it.
         if (isset($column['media']) && ($secret || !in_array($type, ['text', 'number', 'select'], true) || ($column['editable'] ?? false) || isset($column['presentation']))) throw new InvalidArgumentException('Media columns need a readable, non-editable text, number or select field.');
         if (isset($column['presentation']) && ($secret || !in_array($type, ['text', 'select'], true) || ($column['editable'] ?? false))) throw new InvalidArgumentException('Icon columns need a readable, non-editable text or select field.');
+        if (isset($column['presentation']) && (!is_array($options) || !$options || array_filter(array_keys($options), static fn($class) => !is_string($class) || trim($class) === '') || array_filter($options, static fn($label) => !is_string($label) || trim($label) === ''))) throw new InvalidArgumentException('Icon columns need static options naming every icon class.');
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
         if ($type === 'checkbox' && $defaultValue !== null && !in_array($defaultValue, ['0', '1'], true)) {

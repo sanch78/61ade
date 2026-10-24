@@ -2,10 +2,10 @@ import { t } from "./I18n";
 import { DataView, Grid, Layout, awaitRedraw } from "@dhtmlx/suite";
 import type { ViewDefinition } from "./Workspace";
 import { gridHeader } from "./GridHeaders";
-import { gridEditor } from "./GridEditing";
+import { RESERVED, alias, gridEditor, unalias } from "./GridEditing";
 import type { Row } from "./Realtime";
 
-import { escape, recordFields, recordCheckbox, recordIcon, recordMedia, optionText, isIcon, isMedia, mediaOf, thumbnailFailed } from "./RecordPresentation";
+import { escape, recordFields, recordCheckbox, recordIcon, recordMedia, optionText, isIcon, isMedia, mediaOf, presentedFields, thumbnailFailed } from "./RecordPresentation";
 type Position={id?:string;offset:number;x:number;y:number};
 export type GridMode="table"|"cards"|"tiles";
 export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;fields?:ViewDefinition["columns"];filters?:{name:string;label:string;type?:string;options?:Record<string,string>}[];details?:(id:string)=>void;marked?:(ids:string[])=>void;edit?:(id:string,field:string,anchor:HTMLElement)=>void;idColumn?:boolean;
@@ -17,11 +17,10 @@ export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSel
   tiles?:boolean;
   /** Arrow/Home/End/PageUp/PageDown move the cursor row, Enter opens, Space toggles the mark (default true). */
   keyNavigation?:boolean};
-/** Record keys that Suite reads as row/item configuration (`height`: Grid row pixel height, `css`: DataView item class). */
-const RESERVED=["height","css"];
-const guard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,key)){copy??={...row};copy["__blade_"+key]=copy[key];delete copy[key];}return copy??row;};
-const unguard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,"__blade_"+key)){copy??={...row};copy[key]=copy["__blade_"+key];delete copy["__blade_"+key];}return copy??row;};
-const cell=(row:any,id:string)=>RESERVED.includes(id)?row["__blade_"+id]:row[id];
+/** Reserved record keys (`RESERVED`) live under their alias in widget data and as Grid column ids, so editors use the alias too. */
+const guard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,key)){copy??={...row};copy[alias(key)]=copy[key];delete copy[key];}return copy??row;};
+const unguard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,alias(key))){copy??={...row};copy[key]=copy[alias(key)];delete copy[alias(key)];}return copy??row;};
+const cell=(row:any,id:string)=>row[alias(id)];
 
 /** Native Suite widgets share one bounded data window and action selection. */
 export class ResponsiveGrid {
@@ -61,16 +60,17 @@ export class ResponsiveGrid {
     this.tilesOffered=options.tiles??!!media;
     const keys=options.keyNavigation!==false;
     this.layout=new Layout(host,{type:"none",css:"blade-grid-views",views:[{id:"table"},{id:"cards"},{id:"tiles"}],activeView:"table"});
-    this.grid=new Grid(null,{columns:[...(options.selection?[{id:"_mark",header:[{text:t("Jelölés")}],width:66,sortable:false,htmlEnable:true,template:(_:unknown,row:any)=>row._markable===false?"":`<input type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`}]:[]),...(options.rowNumbers!==false?[{id:"_number",header:[{text:"#"}],width:56,sortable:false}]:[]),...(options.idColumn===false?[]:[{id:"id",header:[{text:"ID"}],width:80,sortable:false}]),...columns.map(c=>({id:c.id,header:(()=>{const header=gridHeader({...c,filter:filterDefinitions.get(c.id)});return Array.isArray(header)?header:[header];})(),width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
+    this.grid=new Grid(null,{columns:[...(options.selection?[{id:"_mark",header:[{text:t("Jelölés")}],width:66,sortable:false,htmlEnable:true,template:(_:unknown,row:any)=>row._markable===false?"":`<input type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`}]:[]),...(options.rowNumbers!==false?[{id:"_number",header:[{text:"#"}],width:56,sortable:false}]:[]),...(options.idColumn===false?[]:[{id:"id",header:[{text:"ID"}],width:80,sortable:false}]),...columns.map(c=>({id:alias(c.id),header:(()=>{const header=gridHeader({...c,filter:filterDefinitions.get(c.id)});return Array.isArray(header)?header:[header];})(),width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
       ...gridEditor(c),
       ...(c.type==="checkbox"?{type:"string" as const,editable:false,htmlEnable:true,template:(_:unknown,row:any)=>recordCheckbox(unguard(row),c)}:{}),
-      ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(_:unknown,row:any)=>escape(optionText(c,cell(row,c.id)))}:RESERVED.includes(c.id)&&c.type!=="checkbox"?{htmlEnable:true,template:(_:unknown,row:any)=>escape(cell(row,c.id))}:{}:{}),
+      ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(_:unknown,row:any)=>escape(optionText(c,cell(row,c.id)))}:{}:{}),
       ...(isIcon(c)?{htmlEnable:true,template:(_:unknown,row:any)=>recordIcon(c,cell(row,c.id))}:{}),
       // Thumbnail cell: a square box of the row height minus 8 px (32 px at 40).
       ...(isMedia(c)?{htmlEnable:true,editable:false,width:c.width??Math.max(64,rh+24),minWidth:c.minWidth,autoWidth:false,template:(_:unknown,row:any)=>recordMedia(c,unguard(row),"cell")}:{}),
     }))],rowCss:row=>((this.grid?.data.getIndex(row.id!)??0)%2===1?"blade-grid-row-alternate":""),rowHeight:rh,autoWidth:true,resizable:true,selection:"row",keyNavigation:keys,htmlEnable:false});
     const mark=(row:Row)=>options.selection&&row._markable!==false?`<input class="blade-card-mark" type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`:"";
-    const editable=(options.fields??columns).filter(field=>!media||field.id!==media.id).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable}));
+    // Card fields: every permitted field with its column's presentation; only the first media field moves to the top slot.
+    const editable=presentedFields(options.fields??columns,columns).filter(field=>!media||field.id!==media.id).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable}));
     this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:true,keyNavigation:keys,css:"blade-grid-cards",template:(item:Row)=>{const row=unguard(item);
       return `<article class="blade-grid-card${this.marked.has(String(row.id))?" blade-grid-card--marked":""}" data-blade-row="${escape(row.id)}">${media&&mediaOf(media,row)?`<div class="blade-grid-card__media">${recordMedia(media,row,"card")}</div>`:""}<div class="blade-grid-card__id">${mark(row)}${mark(row)?" ":""}${options.idColumn===false?"":`ID · ${escape(row.id)}`}</div>${recordFields(row,editable,true)}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
@@ -78,7 +78,7 @@ export class ResponsiveGrid {
     const text=columns.filter(c=>!isMedia(c)&&!isIcon(c)&&c.type!=="checkbox"),title=text[0],detail=text[1];
     this.tiles=new DataView(document.createElement("div"),{itemsInRow:1,gap:8,selection:true,keyNavigation:keys,css:"blade-grid-tiles",template:(item:Row)=>{const row=unguard(item);
       const caption=title?optionText(title,row[title.id]):String(row.id),line=detail&&Object.hasOwn(row,detail.id)?optionText(detail,row[detail.id]):"";
-      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"><div class="blade-grid-tile__media">${media?recordMedia(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`}${mark(row)}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${escape(line)}</div>`:""}</article>`;},
+      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"><div class="blade-grid-tile__media">${media&&(mediaOf(media,row)||!icon||!row[icon.id])?recordMedia(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`}${mark(row)}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${escape(line)}</div>`:""}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
     const selected=(id:string|number)=>{this.selected=String(id);select(this.selected);};
     const markRow=(id:string,event:MouseEvent)=>{
@@ -96,7 +96,7 @@ export class ResponsiveGrid {
     });
     // Native key navigation moves the Grid selection: it is the cursor row.
     this.grid.events.on("afterSelect",(row:any)=>{if(row?.id!==undefined&&String(row.id)!==this.selected)selected(row.id);});
-    this.grid.events.on("cellDblClick",(row:any,column:any)=>{selected(row.id);if(column.id==="_number"){options.details?.(String(row.id));return;}if(column.id==="_mark"||columns.some(c=>c.id===column.id&&c.type==="checkbox"&&c.editable&&row._editable?.includes(c.id)))return;if(column.editable&&row._editable?.includes(String(column.id)))return;open();});
+    this.grid.events.on("cellDblClick",(row:any,column:any)=>{selected(row.id);if(column.id==="_number"){options.details?.(String(row.id));return;}if(column.id==="_mark"||columns.some(c=>alias(c.id)===column.id&&c.type==="checkbox"&&c.editable&&row._editable?.includes(c.id)))return;if(column.editable&&row._editable?.includes(unalias(String(column.id))))return;open();});
     for(const list of [this.cards,this.tiles]){
       list.selection.events.on("afterSelect",(id:string|number)=>selected(id));
       // DataView arrows move its focus; the selection (cursor) follows it.
@@ -151,7 +151,7 @@ export class ResponsiveGrid {
       if(inside?.closest("input,textarea,select,[contenteditable],.dhx_grid-header,.dhx_grid-footer,.blade-card-edit"))return;
       if(event.key==="Enter"){
         if(!this.selected)return;
-        if(!this.compact){const active=this.grid.selection.getCell() as any,row=this.rows().find(r=>String(r.id)===this.selected);if(active?.column?.editable&&row?._editable?.includes(String(active.column.id)))return;}
+        if(!this.compact){const active=this.grid.selection.getCell() as any,row=this.rows().find(r=>String(r.id)===this.selected);if(active?.column?.editable&&row?._editable?.includes(unalias(String(active.column.id))))return;}
         activate(this.selected);
       }else if(event.key===" "){
         if(!(options.selection||options.rowSelection)||!this.selected)return;
@@ -177,7 +177,7 @@ export class ResponsiveGrid {
   private cardScroller():HTMLElement|null{const root=this.list().getRootNode();return root?.querySelector<HTMLElement>(".dhx_dataview")??root??null;}
   setMode(mode:GridMode):void{this.preferred=mode==="cards"||mode==="tiles"?mode:"table";void this.resize();}
   setColumnVisible(id:string,visible:boolean):void{
-    if(visible)this.grid.showColumn(id);else this.grid.hideColumn(id);
+    if(visible)this.grid.showColumn(alias(id));else this.grid.hideColumn(alias(id));
   }
   private moveCursor(key:string):void{
     const rows=this.rows();if(!rows.length)return;
@@ -240,9 +240,10 @@ export class ResponsiveGrid {
     const previous=this.shown[this.current];
     const rows=this.data;
     const rendered=this.compact?rows.map(row=>guard(structuredClone(row))):rows.map((row,index)=>{
-      const result:Row={...structuredClone(row),_number:row._number??index+1};
+      // Guarded first: boolean columns of reserved fields are found under their aliased column id.
+      const result=guard({...structuredClone(row),_number:row._number??index+1});
       for(const column of this.grid.config.columns??[])if(column.type==="boolean"&&Object.hasOwn(result,column.id))result[column.id]=result[column.id]===true||String(result[column.id])==="1";
-      return guard(result);
+      return result;
     });
     const same=previous.length===rows.length&&previous.every((row,index)=>String(row.id)===String(rows[index].id));
     if(same){for(let i=0;i<rows.length;i++)if(JSON.stringify(previous[i])!==JSON.stringify(rows[i]))widget.data.update(String(rows[i].id),rendered[i]);}

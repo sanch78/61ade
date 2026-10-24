@@ -97,16 +97,30 @@ final class Transfers
         return ['transfer' => $meta['id'], 'received' => $meta['received'], 'size' => $meta['size'], 'chunk_bytes' => $policy->chunkBytes, 'expires_at' => gmdate('Y-m-d\TH:i:s\Z', $meta['expires_at'])];
     }
 
-    /** Appends one part at exactly the received offset under an exclusive lock of the data file. */
+    /**
+     * Appends one part at exactly the received offset under an exclusive lock of the data file. A wrong offset
+     * (409, resumable) keeps the transfer; every other client error of an owned transfer is final for the
+     * uploader and removes it at once instead of leaving it to the TTL.
+     */
     private function chunk(Context $ctx, Action $action, UploadPolicy $policy, string $owner, ?string $id, array $values): array
     {
         $this->executor->authorize($ctx, $action, $id);
         $meta = $this->load($ctx, $policy, $owner, $action, $id, $values['transfer'] ?? null);
+        try {
+            return $this->append($policy, $meta, $values, $ctx->uploads);
+        } catch (Failure $error) {
+            if ($error->status >= 400 && $error->status < 500 && !in_array($error->status, [404, 409], true)) $this->remove($policy->tempRoot.'/'.$meta['id']);
+            throw $error;
+        }
+    }
+
+    private function append(UploadPolicy $policy, array $meta, array $values, array $uploads): array
+    {
         $offset = $values['offset'] ?? null;
         if (is_string($offset) && preg_match('/^(0|[1-9][0-9]{0,17})$/D', $offset)) $offset = (int) $offset;
         if (!is_int($offset) || $offset < 0) throw new Failure('Hibás feltöltési kérés.');
-        $part = $ctx->uploads[0] ?? null;
-        if (count($ctx->uploads) !== 1 || $part->field !== 'chunk') throw new Failure('Hibás feltöltés.');
+        $part = $uploads[0] ?? null;
+        if (count($uploads) !== 1 || $part->field !== 'chunk') throw new Failure('Hibás feltöltés.');
         if (in_array($part->error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) throw new Failure('Túl nagy kérés.', 413);
         if ($part->error !== UPLOAD_ERR_OK) throw new Failure('Hibás feltöltés.');
         clearstatcache(true, $part->path);
@@ -144,8 +158,9 @@ final class Transfers
     }
 
     /**
-     * Runs the target action for the assembled file. A name conflict (409) and transient errors keep the
-     * transfer for a later finish (with a decision); success, skip and permanent errors remove it.
+     * Runs the target action for the assembled file. A name conflict (409 with `details.conflicts`) and
+     * transient errors (≥ 500) keep the transfer for a later finish (with a decision); success, skip and
+     * permanent errors, including any other 409 (e.g. a unique violation), remove it.
      */
     private function finish(Context $ctx, Action $action, UploadPolicy $policy, string $owner, ?string $id, array $values): mixed
     {
@@ -165,11 +180,11 @@ final class Transfers
         $input = array_filter(['decision' => $values['decision'] ?? null, 'relative_path' => $meta['relative_path'] !== '' ? $meta['relative_path'] : null], static fn($value) => $value !== null);
         $upload = new Upload('files', $meta['name'], $directory.'/data', $meta['size'], UPLOAD_ERR_OK);
         try {
-            $result = $this->executor->execute(new Context($ctx->actor, $ctx->channel, $ctx->acl, $ctx->db, $ctx->scopes, [$upload]), $action->resource, $action->name, $id, $input);
+            $result = $this->executor->execute(new Context($ctx->actor, $ctx->channel, $ctx->acl, $ctx->db, $ctx->scopes, [$upload], $ctx->owner), $action->resource, $action->name, $id, $input);
             $this->remove($directory, $handle);
             return $result;
         } catch (Failure $error) {
-            if ($error->status !== 409 && $error->status < 500) $this->remove($directory, $handle);
+            if ($error->status < 500 && !($error->status === 409 && isset($error->details['conflicts']))) $this->remove($directory, $handle);
             throw $error;
         } finally {
             flock($handle, LOCK_UN);

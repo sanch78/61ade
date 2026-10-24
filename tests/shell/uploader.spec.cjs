@@ -305,6 +305,127 @@ test('an interrupted upload resumes after reload from the server offset',async({
  expect(await page.evaluate(key=>localStorage.getItem(key),key)).toBeNull();
 });
 
+test('an interrupted file added for another target is queued afresh',async({page})=>{
+ await start(page);
+ const rules=await policy(page),chunk=rules.chunk_bytes;
+ const other=await api(page,'files','create_directory',await rootOf(page,'a'),{name:prefix+'-elsewhere'});expect(other.status).toBe(200);
+ const elsewhere=String(other.body.data.id),origin=await folder(page,prefix+'-origin');
+ const name=prefix+'-moved.txt',file=path.join(scratch,name),size=Math.min(rules.max_size_bytes,chunk+8192);
+ fs.writeFileSync(file,Buffer.alloc(size,102));
+ await holdChunks(page,1);
+ await openUploader(page);
+ const first=firstChunk(page);
+ await filesInput(page).setInputFiles(file);
+ await first;
+ await page.reload();
+ await page.unrouteAll({behavior:'ignoreErrors'});
+ await expect(panel(page,0).locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
+ await row(panel(page,0),prefix+'-elsewhere').dblclick();await expect(heading(panel(page,0))).toHaveText('Drive A:/'+prefix+'-elsewhere');
+ const ops=await record(page);
+ await openUploader(page);
+ await expect(state(page,name)).toContainText('Megszakadt');
+ await filesInput(page).setInputFiles(file);
+ // The interrupted row keeps waiting for its own folder; a new row sends the whole file to this one.
+ await expect(queueRow(page,name)).toHaveCount(2);
+ await expect(queueRow(page,name).filter({hasText:'Kész'})).toHaveCount(1,{timeout:30000});
+ await expect(queueRow(page,name).filter({hasText:'Megszakadt'})).toHaveCount(1);
+ const sent=await ops();
+ expect(sent.filter(op=>op.operation==='upload_preflight')).toHaveLength(1);
+ expect(sent.filter(op=>op.operation==='upload_begin').map(op=>String(op.target))).toEqual([elsewhere]);
+ expect(sent.filter(op=>op.operation==='upload_chunk').map(op=>op.offset)).toEqual([0,chunk]);
+ expect((await list(page,elsewhere)).find(entry=>entry.name===name)?.size).toBe(size);
+ expect((await list(page,origin)).some(entry=>entry.name===name)).toBe(false);
+ // Removing the interrupted row releases its transfer and forgets it.
+ await queueRow(page,name).filter({hasText:'Megszakadt'}).getByRole('button',{name:'Eltávolítás: '+name,exact:true}).click();
+ await expect.poll(async()=>(await ops()).filter(op=>op.operation==='upload_abort').length).toBe(1);
+ expect(await page.evaluate(key=>localStorage.getItem(key),'blade-uploads:'+await userId(page))).toBeNull();
+});
+
+test('a retry while the cancelled begin is pending keeps its own controller and transfer',async({page})=>{
+ await start(page);
+ const rules=await policy(page);
+ await folder(page,prefix+'-race');
+ const name=prefix+'-race.txt',ops=await record(page);
+ // Aborted chunk fetches, counted in the page: a lost controller would leave the newer run's chunk running.
+ await page.evaluate(()=>{
+  window.__abortedChunks=0;const native=window.fetch;
+  window.fetch=function(input,init){if(init?.body instanceof FormData&&init.signal)init.signal.addEventListener('abort',()=>window.__abortedChunks++);return native.apply(this,arguments);};
+ });
+ let begins=0,releaseBegins,releaseChunks;
+ const beginsHeld=new Promise(resolve=>{releaseBegins=resolve;}),chunksHeld=new Promise(resolve=>{releaseChunks=resolve;});
+ await page.route(url=>url.searchParams.get('blade')==='1',async route=>{
+  let operation='';try{operation=route.request().postDataJSON()?.values?.operation;}catch{}
+  if(operation==='upload_begin'){begins++;await beginsHeld;}
+  else if(isChunk(route.request()))await chunksHeld;
+  try{await route.continue();}catch{}
+ });
+ await openUploader(page);
+ await filesInput(page).setInputFiles([{name,mimeType:'text/plain',buffer:Buffer.alloc(rules.chunk_bytes+100,103)}]);
+ await expect.poll(()=>begins).toBe(1);
+ await expect(state(page,name)).toHaveText('Feltöltés…');
+ await queueRow(page,name).getByRole('button',{name:'Megszakítás: '+name,exact:true}).click();
+ await expect(state(page,name)).toHaveText('Megszakítva');
+ await queueRow(page,name).getByRole('button',{name:'Újrapróbálás: '+name,exact:true}).click();
+ await expect(state(page,name)).toHaveText('Feltöltés…');
+ await expect.poll(()=>begins).toBe(2);
+ // Both begins answer now: the cancelled run neither releases the transfer the retry resumes nor clears its controller.
+ const chunk=page.waitForRequest(isChunk);
+ releaseBegins();
+ await chunk;
+ expect((await ops()).filter(op=>op.operation==='upload_abort')).toHaveLength(0);
+ await queueRow(page,name).getByRole('button',{name:'Megszakítás: '+name,exact:true}).click();
+ await expect(state(page,name)).toHaveText('Megszakítva');
+ await expect.poll(()=>page.evaluate(()=>window.__abortedChunks)).toBe(1);
+ await expect.poll(async()=>(await ops()).filter(op=>op.operation==='upload_abort').length).toBe(1);
+ releaseChunks();await page.unrouteAll({behavior:'ignoreErrors'});
+ await queueRow(page,name).getByRole('button',{name:'Újrapróbálás: '+name,exact:true}).click();
+ await expect(state(page,name)).toHaveText('Kész',{timeout:30000});
+ await expect(row(panel(page,0),name)).toBeVisible();
+});
+
+test('a 503 from finish is retried with the kept transfer',async({page})=>{
+ await start(page);
+ const target=await folder(page,prefix+'-finish503');
+ const name=prefix+'-finish503.txt',ops=await record(page);
+ let failures=0;
+ await page.route(url=>url.searchParams.get('blade')==='1',async route=>{
+  let operation='';try{operation=route.request().postDataJSON()?.values?.operation;}catch{}
+  if(operation==='upload_finish'&&!failures++)return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({ok:false,error:'Átmenetileg nem elérhető.'})});
+  try{await route.continue();}catch{}
+ });
+ await openUploader(page);
+ await filesInput(page).setInputFiles([text(name,'újra\n')]);
+ await expect(state(page,name)).toHaveText('Kész',{timeout:30000});
+ await page.unrouteAll({behavior:'ignoreErrors'});
+ const finishes=(await ops()).filter(op=>op.operation==='upload_finish');
+ expect(finishes).toHaveLength(2);expect(finishes[1].transfer).toBe(finishes[0].transfer);
+ expect((await list(page,target)).map(entry=>entry.name)).toEqual([name]);
+});
+
+test('a generic consumer result is one success; a result with only failures is a failure',async({page})=>{
+ await start(page);
+ await folder(page,prefix+'-generic');
+ const ops=await record(page);
+ // Answers of other target actions: a plain `{ok: true}` and the per-file shape with one refusal.
+ const answers=[{ok:true},{failed:[{name:prefix+'-refused.txt',code:'type',error:'Nem fogadható el.'}]}];
+ await page.route(url=>url.searchParams.get('blade')==='1',async route=>{
+  let operation='';try{operation=route.request().postDataJSON()?.values?.operation;}catch{}
+  if(operation==='upload_finish')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,data:answers.shift()})});
+  try{await route.continue();}catch{}
+ });
+ await openUploader(page);
+ await filesInput(page).setInputFiles([text(prefix+'-generic.txt','általános\n')]);
+ await expect(state(page,prefix+'-generic.txt')).toHaveText('Kész');
+ await expect(summary(page)).toHaveText('Sikeres: 1, kihagyva: 0, sikertelen: 0.');
+ await filesInput(page).setInputFiles([text(prefix+'-refused.txt','elutasított\n')]);
+ await expect(state(page,prefix+'-refused.txt')).toHaveText('Sikertelen: Nem fogadható el.');
+ await expect(summary(page)).toHaveText('Sikeres: 1, kihagyva: 0, sikertelen: 1.');
+ await page.unrouteAll({behavior:'ignoreErrors'});
+ // The fulfilled finishes never ran the action: release the transfers the server still keeps.
+ for(const op of (await ops()).filter(op=>op.operation==='upload_finish'))
+  expect((await api(page,'files','__upload',String(op.target),{operation:'upload_abort',action:'upload',transfer:op.transfer})).status).toBe(200);
+});
+
 test('keyboard path, accessible names and polite announcements',async({page})=>{
  await start(page);
  await folder(page,prefix+'-keys');

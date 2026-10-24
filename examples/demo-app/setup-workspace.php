@@ -118,13 +118,13 @@ $db->exec("INSERT OR IGNORE INTO blade_account_state(actor_id,locale) VALUES ('4
 $db->exec("INSERT OR IGNORE INTO blade_account_state(actor_id,oauth_allowed) VALUES ('5',1)");
 $exists = $db->prepare("SELECT COUNT(*) FROM blade_rules WHERE subject_type='user' AND subject_id=? AND resource=? AND action=? AND channel='ui' AND effect=? AND field_name=?");
 $grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,?,?,'ui',?,'all','',?)");
-$rules = [['1', 'files', ['tree', 'list', 'create_directory', 'upload', 'copy', 'move', 'text_get', 'text_save', 'content_get', 'content_stream', 'thumbnail_get']], ['1', 'notes', ['list', 'get', 'create', 'update', 'delete']], ['1', 'demo_tasks', ['list', 'get', 'create', 'update', 'delete', 'complete', 'dialog_neutral', 'dialog_warning', 'dialog_danger']], ['1', 'demo_readings', ['list', 'get']], ['1', 'topology', ['list', 'get', 'create', 'save', 'delete', 'type_create', 'type_delete']]];
+$rules = [['1', 'files', ['tree', 'list', 'create_directory', 'upload', 'copy', 'move', 'text_get', 'text_save', 'content_get', 'content_stream', 'thumbnail_get', 'delete', 'rename', 'download', 'zip_prepare', 'zip_get']], ['1', 'notes', ['list', 'get', 'create', 'update', 'delete']], ['1', 'demo_tasks', ['list', 'get', 'create', 'update', 'delete', 'complete', 'dialog_neutral', 'dialog_warning', 'dialog_danger']], ['1', 'demo_readings', ['list', 'get']], ['1', 'topology', ['list', 'get', 'create', 'save', 'delete', 'type_create', 'type_delete']]];
 foreach (['4', '5'] as $actor) $rules[] = [$actor, 'notes', ['list', 'get']];
 // Read-only reader: tasks without the description field (field-level deny).
 $rules[] = [(string) $reader, 'demo_tasks', ['list', 'get']];
 $rules[] = [(string) $reader, 'demo_tasks', ['list', 'get'], 'deny', 'description'];
-// Read-only file manager: browse, open text and view media, no write action.
-$rules[] = [(string) $reader, 'files', ['tree', 'list', 'text_get', 'content_get', 'content_stream', 'thumbnail_get']];
+// Read-only file manager: browse, open text, view media and download (single files and ZIP), no write action.
+$rules[] = [(string) $reader, 'files', ['tree', 'list', 'text_get', 'content_get', 'content_stream', 'thumbnail_get', 'download', 'zip_prepare', 'zip_get']];
 // Read-only topology viewer: opens diagrams, no editing.
 $rules[] = [(string) $reader, 'topology', ['list', 'get']];
 // Digital signage: calendar table, synthetic assets, weekday defaults and programme; the reader only views.

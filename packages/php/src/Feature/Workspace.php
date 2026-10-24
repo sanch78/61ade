@@ -64,7 +64,7 @@ final class Workspace
                 if(!$field)return $column;
                 return [...$field->column,...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
             },$view['columns']);
-            $view['detailFields']=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
+            $view['detailFields']=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...array_intersect_key($field->column,['media'=>true,'presentation'=>true])],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
             $view['actions']=$actions;
             $view['layout']=$view['layout']->metadata();
             $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
@@ -87,7 +87,7 @@ final class Workspace
         $actions=[];
         foreach($view['actions'] as $name){
             $a=$this->registry->get($view['resource'],$name);
-            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
+            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write,'get'=>$a->get,'confirm'=>$a->confirm?array_filter(['message'=>$a->confirm['message'],'title'=>$a->confirm['title']??null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>isset($a->confirm['confirm_label'])?\Blade\I18n\Translator::text($a->confirm['confirm_label']):null,'cancelLabel'=>isset($a->confirm['cancel_label'])?\Blade\I18n\Translator::text($a->confirm['cancel_label']):null],static fn($v)=>$v!==null):null,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
         }
         $mounts=array_values(array_filter($view['files']['mounts'],fn($m)=>$this->acl->allows($actor->id,$view['resource'],'tree','ui',$m['id'])));
         if(!$actions||!$mounts)return null;
@@ -155,6 +155,9 @@ final class Workspace
                 $actor=$token?$identities->find($token['actor_id']):null;$scopes=$token['scopes']??[];
             }
             if(!$actor)throw new Failure('Bejelentkezés szükséges.',401);
+            // Session binding of short-lived state (transfers, ZIP manifests): a hash of the session id (ui) or bearer token (api), never the raw value.
+            $secret=$channel==='api'?substr($_SERVER['HTTP_AUTHORIZATION'],7):session_id();
+            $owner=is_string($secret)&&$secret!==''?Transfers::owner($secret):'';
             // Post-response tasks only for authenticated requests; anonymous traffic never starts a runner.
             register_shutdown_function(fn()=>$this->tasks->afterResponse());
             $method=$_SERVER['REQUEST_METHOD']??'';
@@ -167,7 +170,7 @@ final class Workspace
                 if($channel==='ui'&&in_array($_SERVER['HTTP_SEC_FETCH_SITE']??'',['cross-site','same-site'],true))throw new Failure('Érvénytelen munkamenet.',403);
                 session_write_close();
                 $handled=true;
-                $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes),$query['resource'],$query['action'],$query['id']??null,[]);
+                $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner),$query['resource'],$query['action'],$query['id']??null,[]);
                 $this->respond($result,$method==='HEAD');exit;
             }
             if($method!=='POST')throw new Failure('POST szükséges.',405);
@@ -202,36 +205,36 @@ final class Workspace
             }
             if($data['action']==='__watch'){
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
-                $ctx=new Context($actor,'ui',$this->acl,$this->db);
+                $ctx=new Context($actor,'ui',$this->acl,$this->db,owner:$owner);
                 $result=$this->observe($ctx,$data['resource'],$data['values']['query']??[],$data['values']['version']??'');
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             if($data['action']==='__bulk'){
                 $values=$data['values'];
                 if(!is_string($values['operation']??null)||!is_array($values['items']??null)||array_diff(array_keys($values),['operation','items']))throw new Failure('Hibás tömeges művelet.');
-                $result=$this->executor->bulk(new Context($actor,$channel,$this->acl,$this->db,$scopes),$data['resource'],$values['operation'],$values['items']);
+                $result=$this->executor->bulk(new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner),$data['resource'],$values['operation'],$values['items']);
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             if($data['action']==='__upload'){
                 // Transfers are bound to a hash of the session id (ui) or bearer token (api), never the raw value.
-                $secret=$channel==='api'?substr($_SERVER['HTTP_AUTHORIZATION'],7):$sessionId;
-                if($secret===''||$secret===false)throw new Failure('Érvénytelen munkamenet.',403);
+                if($owner==='')throw new Failure('Érvénytelen munkamenet.',403);
                 $handled=in_array($data['values']['operation']??null,Transfers::AUDITED,true);
-                $result=$this->transfers->handle(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads),Transfers::owner($secret),$data['resource'],$id,$data['values']??[]);
+                $ctx=new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner);
+                $result=$this->transfers->handle($ctx,$ctx->owner,$data['resource'],$id,$data['values']??[]);
                 $this->respond($result);exit;
             }
             if($data['action']==='__edit'){
                 $values=$data['values'];
                 if(!is_string($id)||!is_string($values['field']??null)||!array_key_exists('value',$values)||!is_string($values['revision']??null)||array_diff(array_keys($values),['field','value','revision']))throw new Failure('Hibás mezőmentés.');
                 $handled=true;
-                $result=$this->executor->edit(new Context($actor,$channel,$this->acl,$this->db,$scopes),$data['resource'],$id,$values['field'],$values['value'],$values['revision']);
+                $result=$this->executor->edit(new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner),$data['resource'],$id,$values['field'],$values['value'],$values['revision']);
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             if($data['action']==='__form'){
                 if($channel!=='ui' || !is_string($data['values']['operation']??null))throw new Failure('Érvénytelen űrlapkérés.',403);
                 $a=$this->registry->get($data['resource'],$data['values']['operation']);
                 if(!in_array('ui',$a->channels,true))throw new Failure('Nem érhető el.',403);
-                $ctx=new Context($actor,$channel,$this->acl,$this->db);
+                $ctx=new Context($actor,$channel,$this->acl,$this->db,owner:$owner);
                 $t=$a->resolve?($a->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
                 if(!$this->acl->allows($actor->id,$a->resource,$a->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
                 $fields=array_values(array_filter($a->fields,fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
@@ -240,15 +243,16 @@ final class Workspace
                 echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$f->metadata($ctx),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             $handled=true;
-            $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads),$data['resource'],$data['action'],$id,$data['values']??[]);
+            $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner),$data['resource'],$data['action'],$id,$data['values']??[]);
             $this->respond($result);
         }catch(Failure $e){if(!$handled)$this->journal->record($actor?->id??'',$channel,'transport','request','','rejected');http_response_code($e->status);echo json_encode(['ok'=>false,'error'=>$e->getMessage(),'fieldErrors'=>(object)$e->fieldErrors,...($e->details?['details'=>$e->details]:[])],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);}
         exit;
     }
-    /** JSON envelope, raw bytes (Download) or a stream (DownloadStream); the audit is already committed. */
+    /** JSON envelope, raw bytes (Download) or a stream (DownloadStream, StreamedDownload); the audit is already committed. */
     private function respond(mixed $result,bool $head=false):void
     {
         if($result instanceof DownloadStream){$result->send($head,$_SERVER);return;}
+        if($result instanceof StreamedDownload){$result->send($head);return;}
         if($result instanceof Download){
             // Raw bytes of an allowlisted type; never rendered as a document of this origin.
             header('Content-Type: '.$result->mimeType);header('Content-Length: '.strlen($result->content));

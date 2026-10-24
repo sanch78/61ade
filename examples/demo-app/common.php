@@ -66,12 +66,12 @@ function blade_demo_accounts(PDO $db, array $accounts): void
     }
 }
 
-/** Feature-demo file manager: virtual space "demo" with three fictional mounts; entries in SQLite, content in the instance's files store. */
+/** Feature-demo file manager: virtual space "demo" with three fictional mounts; entries in SQLite, content in the instance's files store. The demo deletes for real (`archive` is the framework default and recommendation). */
 function blade_demo_files(): Blade\Files\FileManagerDefinition
 {
     return new Blade\Files\FileManagerDefinition('files', 'Fájlkezelő', 'demo', ['a' => 'Drive A', 'b' => 'Drive B', 'c' => 'Drive C'],
         allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm'], maxSizeBytes: 5242880, maxFiles: 20, duplicatePolicy: 'ask',
-        textMaxBytes: 65536, group: 'Feature demó', desktopOnly: true, contentRoot: blade_demo_runtime('files'));
+        textMaxBytes: 65536, group: 'Feature demó', desktopOnly: true, contentRoot: blade_demo_runtime('files'), deletePolicy: 'delete');
 }
 
 /** Feature-demo diagram editor configured as a network topology builder (synthetic palette). */

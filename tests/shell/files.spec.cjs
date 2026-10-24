@@ -57,6 +57,36 @@ function content(page,id){
   return {status:response.status,type:response.headers.get('content-type'),nosniff:response.headers.get('x-content-type-options'),disposition:response.headers.get('content-disposition'),head:[...bytes.slice(0,3)]};
  },id);
 }
+const PNG='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+// Synthetic entries through the direct multipart upload, 20 files per request (the demo policy's maxFiles).
+// Each file is [name, text] or [name, base64, true].
+async function seed(page,directory,files){
+ for(let i=0;i<files.length;i+=20){
+  const result=await page.evaluate(async([directory,files])=>{
+   const csrf=JSON.parse(document.getElementById('blade-config').textContent).csrf,form=new FormData();
+   form.append('request',JSON.stringify({resource:'files',action:'upload',id:directory,values:{}}));
+   for(const [name,data,binary] of files)form.append('files[]',new Blob([binary?Uint8Array.from(atob(data),c=>c.charCodeAt(0)):data],{type:'application/octet-stream'}),name);
+   const response=await fetch('?blade=1',{method:'POST',headers:{'X-BLADE-CSRF':csrf},body:form});
+   return {status:response.status,body:await response.json()};
+  },[directory,files.slice(i,i+20)]);
+  expect(result.status,JSON.stringify(result.body)).toBe(200);expect(result.body.data.failed).toEqual([]);
+ }
+}
+// Central directory of a downloaded ZIP: name → {flags, stored bytes} (store method, so the bytes are the content).
+function unzip(buffer){
+ let end=buffer.length-22;while(end>=0&&buffer.readUInt32LE(end)!==0x06054b50)end--;
+ expect(end).toBeGreaterThanOrEqual(0);
+ const count=buffer.readUInt16LE(end+10),entries={};let offset=buffer.readUInt32LE(end+16);
+ for(let i=0;i<count;i++){
+  expect(buffer.readUInt32LE(offset)).toBe(0x02014b50);
+  const flags=buffer.readUInt16LE(offset+8),method=buffer.readUInt16LE(offset+10),size=buffer.readUInt32LE(offset+20),length=buffer.readUInt16LE(offset+28),extra=buffer.readUInt16LE(offset+30),comment=buffer.readUInt16LE(offset+32),local=buffer.readUInt32LE(offset+42);
+  const name=buffer.toString('utf8',offset+46,offset+46+length),start=local+30+buffer.readUInt16LE(local+26)+buffer.readUInt16LE(local+28);
+  entries[name]={flags,method,data:buffer.subarray(start,start+size)};
+  offset+=46+length+extra+comment;
+ }
+ return entries;
+}
+const order=async(p,names)=>{const tops=[];for(const name of names)tops.push((await row(p,name).boundingBox()).y);return tops;};
 async function entryId(page,mount,parentName,name){
  const tree=await api(page,'files','tree',mount);
  if(parentName===null)return (await api(page,'files','list',tree.body.data.root)).body.data.items.find(item=>item.name===name).id;
@@ -101,7 +131,7 @@ test('independent mounts, Tree/Grid synchronization and the directory depth limi
  await enter(left,'Projektek');await expect(row(left,'..').getByRole('img',{name:'Szülőmappa',exact:true})).toBeVisible();
  await expect(left.locator('.dhx_grid-row').first()).toContainText('..');
  await pick(left,'..');await expect(left.locator('.blade-grid-row-marked')).toHaveCount(0);
- await expect(page.getByRole('button',{name:'Másolás a másik panelre',exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Másolás',exact:true})).toBeDisabled();
  await row(left,'..').dblclick();await expect(path(left)).toHaveText('Drive A:/Dokumentumok');
  // Suite draws the row cursor as an overlay: it lies on the Projektek row.
  const cursor=await left.locator('.dhx_grid-selected-row').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect()).filter(box=>box.height).map(box=>box.top));
@@ -265,7 +295,7 @@ test('recursive copy and move to the opposite panel, conflicts and cycles',async
  expect((await api(page,'files','copy',sub,{sources:file})).status).toBe(200);
  await mount(page,left,'Drive A');await mount(page,right,'Drive C');
  await pick(left,prefix+'-tree');
- await command(page,'Másolás a másik panelre');
+ await command(page,'Másolás');
  await expect(row(right,prefix+'-tree')).toBeVisible();await expect(row(left,prefix+'-tree')).toBeVisible();
  await enter(right,prefix+'-tree');await enter(right,prefix+'-sub');await expect(row(right,prefix+'-a.txt')).toBeVisible();
  await row(right,'..').dblclick();await expect(path(right)).toHaveText('Drive C:/'+prefix+'-tree');
@@ -273,14 +303,14 @@ test('recursive copy and move to the opposite panel, conflicts and cycles',async
  // In tree mode the selected folder is the source; copying again conflicts and skipping is summarized.
  await view(page,left,'Mappafa');await left.locator('.dhx_tree-toggle-button').first().click();await treeItem(left,prefix+'-tree').click();
  await expect(path(left)).toHaveText('Drive A:/'+prefix+'-tree');
- await command(page,'Másolás a másik panelre');
+ await command(page,'Másolás');
  await dialog(page).getByRole('button',{name:'Kihagyás',exact:true}).click();
  await expect(dialog(page)).toContainText('Sikeres: 0, kihagyva: 1, sikertelen: 0.');
  await dialog(page).getByRole('button',{name:'Rendben',exact:true}).click();
  await treeItem(left,'Drive A').click();await expect(path(left)).toHaveText('Drive A:/');
  // Move a file chosen in the tree: it leaves the source panel and appears in the target.
  await treeItem(left,prefix+'-a (2).txt').click();await expect(selectedFile(left)).toContainText(prefix+'-a (2).txt');
- await command(page,'Áthelyezés a másik panelre');
+ await command(page,'Áthelyezés');
  await expect(row(right,prefix+'-a (2).txt')).toBeVisible();await expect(treeItem(left,prefix+'-a (2).txt')).toHaveCount(0);
  await view(page,left,'Fájllista');await expect(row(left,prefix+'-a (2).txt')).toHaveCount(0);
  const copiedTree=await entryId(page,'c',null,prefix+'-tree');
@@ -294,6 +324,219 @@ test('recursive copy and move to the opposite panel, conflicts and cycles',async
  const d5=await entryId(page,'b','3',prefix+'-d5');
  expect((await api(page,'files','copy',d5,{sources:tree})).status).toBe(400);
  expect((await api(page,'files','move',d5,{sources:tree})).status).toBe(400);
+});
+
+test('paged server-sorted listing: search, type filter, sort and scrolling past 250 entries',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await start(page);
+ const right=panel(page,1),root=(await api(page,'files','tree','b')).body.data.root;
+ const many=(await api(page,'files','create_directory',root,{name:prefix+'-many'})).body.data.id;
+ for(let i=1;i<=5;i++)expect((await api(page,'files','create_directory',many,{name:`${prefix}-dir${i}`})).status).toBe(200);
+ const names=Array.from({length:258},(_,i)=>`${prefix}-f${String(i+1).padStart(3,'0')}.txt`);
+ await seed(page,many,[...names.map((name,i)=>[name,'x'.repeat(i+1)]),[prefix+'-p1.png',PNG,true],[prefix+'-p2.png',PNG,true]]);
+ // Server: keyset windows in the requested order, directories first, no duplicates; bad cursors and limits are refused.
+ const seen=[];let cursor='';
+ do{
+  const window=await api(page,'files','list',many,{limit:100,sort:'size',direction:'desc',...(cursor?{cursor}:{})});
+  expect(window.status).toBe(200);expect(window.body.data.total).toBe(265);seen.push(...window.body.data.items.map(item=>item.name));cursor=window.body.data.next;
+ }while(cursor);
+ expect(seen.length).toBe(265);expect(new Set(seen).size).toBe(265);
+ expect(seen.slice(0,5).every(name=>name.includes('-dir'))).toBe(true);expect(seen[5]).toBe(names[257]);
+ const stale=await api(page,'files','list',many,{cursor:'bogus'});expect(stale.status).toBe(400);
+ expect((await api(page,'files','list',many,{limit:201})).status).toBe(400);
+ // Panel: the first window, then the next ones while the cursor moves down (End), up to the last entry.
+ const listed=[];page.on('request',request=>{try{const body=request.postDataJSON();if(body?.action==='list')listed.push(body);}catch{}});
+ await mount(page,right,'Drive B');await enter(right,prefix+'-many');
+ const count=right.locator('[data-dhx-id="count"]');await expect(count).toHaveText('265 elem');
+ expect(listed.at(-1).values).toMatchObject({limit:200,sort:'name',direction:'asc'});
+ await pick(right,prefix+'-dir1');
+ await expect.poll(async()=>{await page.keyboard.press('End');return row(right,prefix+'-p2.png').isVisible();},{timeout:15000}).toBe(true);
+ expect(listed.some(body=>body.values.cursor)).toBe(true);
+ // Sort control: directories stay first, then the largest file.
+ const sort=right.locator('[data-dhx-id="sort"]');await expect(sort).toHaveText('Rendezés: Név ↑');
+ await sort.click();await page.getByRole('menuitem',{name:'Méret ↓',exact:true}).click();
+ await expect(sort).toHaveText('Rendezés: Méret ↓');await expect(row(right,names[257])).toBeVisible();
+ const [dir,largest,next]=await order(right,[prefix+'-dir5',names[257],names[256]]);expect(dir).toBeLessThan(largest);expect(largest).toBeLessThan(next);
+ expect(listed.at(-1).values).toMatchObject({sort:'size',direction:'desc'});expect(listed.at(-1).values.cursor).toBeUndefined();
+ // Search: server-side, the ".." row stays first; Escape clears.
+ const search=right.getByRole('textbox',{name:'Keresés',exact:true});
+ await search.fill(prefix+'-f12');await expect(count).toHaveText('10 / 265 elem');
+ await expect(row(right,names[119])).toBeVisible();await expect(row(right,names[0])).toHaveCount(0);
+ await expect(right.locator('.dhx_grid-row').first()).toContainText('..');
+ expect(listed.at(-1).values.search).toBe(prefix+'-f12');
+ await search.press('Escape');await expect(count).toHaveText('265 elem');
+ // Type filter.
+ const type=right.locator('[data-dhx-id="type"]');await expect(type).toHaveText('Minden típus');
+ await type.click();await page.getByRole('menuitem',{name:'Képek',exact:true}).click();
+ await expect(count).toHaveText('2 / 265 elem');await expect(row(right,prefix+'-p1.png')).toBeVisible();await expect(row(right,names[0])).toHaveCount(0);
+ await type.click();await page.getByRole('menuitem',{name:'Mappák',exact:true}).click();
+ await expect(count).toHaveText('5 / 265 elem');await expect(row(right,prefix+'-dir3')).toBeVisible();
+ // Another folder opens unfiltered by the search; the type and sort stay.
+ await search.fill('dir1');await expect(count).toHaveText('1 / 265 elem');
+ await enter(right,prefix+'-dir1');await expect(search).toHaveValue('');
+ await type.click();await page.getByRole('menuitem',{name:'Minden típus',exact:true}).click();
+ await row(right,'..').dblclick();await expect(count).toHaveText('265 elem');
+ expect(errors).toEqual([]);
+});
+
+test('tiles with thumbnails, folder and parent tiles',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await start(page);
+ const left=panel(page,0),tiles=left.locator('.blade-grid-tile');
+ await enter(left,'Média');await view(page,left,'Csempék');
+ await expect(tiles.first()).toBeVisible();await expect(left.locator('.dhx_grid-row').first()).toBeHidden();
+ // Media slot from the listing's metadata: a ready thumbnail is the GET thumbnail_get image; type in text.
+ const picture=left.getByRole('img',{name:'Kép: minta-fraktal.jpg',exact:true});await expect(picture).toBeVisible();
+ expect(await picture.locator('img').getAttribute('src')).toMatch(/action=thumbnail_get&id=\d+&v=\d+$/);
+ await expect.poll(()=>picture.locator('img').evaluate(image=>image.complete&&image.naturalWidth)).toBeGreaterThan(0);
+ await expect(left.getByRole('img',{name:'Videó: minta-video.webm, 0:06',exact:true})).toBeVisible();
+ // The ".." tile names its type; marking and double-click behave as in the listing.
+ const parent=tiles.filter({hasText:'Szülőmappa'});await expect(parent).toHaveCount(1);await expect(parent.locator('.blade-grid-tile__title')).toHaveText('..');
+ await tiles.filter({hasText:'minta-fraktal.jpg'}).click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(1);
+ await parent.click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(0);
+ await parent.dblclick();await expect(path(left)).toHaveText('Drive A:/');
+ // A folder tile shows the folder glyph in its media slot and "Mappa" as its type line.
+ const folder=tiles.filter({hasText:'Dokumentumok'});await expect(folder.locator('.blade-grid-tile__meta')).toHaveText('Mappa');
+ // Rows without a media descriptor fall back to the icon column with its accessible name.
+ await expect(folder.locator('.blade-grid-tile__media .blade-record-icon[role="img"]')).toHaveAttribute('aria-label','Mappa');
+ // Tiles reflow with the panel: several per row.
+ const boxes=await tiles.evaluateAll(nodes=>nodes.slice(0,3).map(node=>Math.round(node.getBoundingClientRect().top)));expect(new Set(boxes).size).toBe(1);
+ await view(page,left,'Fájllista');await expect(row(left,'Dokumentumok')).toBeVisible();
+ // Videos carry the video icon ("Videó") in the listing and in the tree, as the media fallback does.
+ await enter(left,'Média');await expect(row(left,'minta-video.webm').getByRole('img',{name:'Videó',exact:true})).toBeVisible();
+ await expect(row(left,'minta-video.webm').locator('.dxi-menu-right')).toHaveCount(1);
+ await view(page,left,'Mappafa');
+ // The current folder is selected but collapsed; its toggle (a Suite menu-right glyph outside the item content) opens it.
+ if(!await treeItem(left,'minta-video.webm').isVisible())await left.locator('.dhx_tree-folder').filter({has:page.locator('.dhx_tree-list-item__content').filter({hasText:exact('Média')})}).locator('.dhx_tree-toggle-button').click();
+ await expect(treeItem(left,'minta-video.webm').locator('.dxi-menu-right')).toHaveCount(1);
+ await view(page,left,'Fájllista');
+ expect(errors).toEqual([]);
+});
+
+test('rename (F2), delete (Del) with the declared confirmation, single and ZIP download',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await start(page);
+ const left=panel(page,0),right=panel(page,1),rootC=(await api(page,'files','tree','c')).body.data.root;
+ const work=(await api(page,'files','create_directory',rootC,{name:prefix+'-work'})).body.data.id;
+ const inner=(await api(page,'files','create_directory',work,{name:prefix+'-inner'})).body.data.id;
+ const zipdir=(await api(page,'files','create_directory',work,{name:prefix+'-zipdir'})).body.data.id;
+ expect((await api(page,'files','create_directory',inner,{name:prefix+'-empty'})).status).toBe(200);
+ expect((await api(page,'files','create_directory',zipdir,{name:prefix+'-hollow'})).status).toBe(200);
+ await seed(page,work,[[prefix+'-r.txt','átnevezendő\n'],[prefix+'-taken.txt','foglalt\n'],[prefix+'-z.txt','zip tartalom\n']]);
+ await seed(page,inner,[[prefix+'-deep.txt','mély\n']]);await seed(page,zipdir,[[prefix+'-zipped.txt','tömörítve ő\n']]);
+ await mount(page,left,'Drive C');await enter(left,prefix+'-work');
+ // Rename: F2 opens the shared form window with the base name selected; conflicts and type changes stay in the form.
+ await pick(left,prefix+'-r.txt');await page.keyboard.press('F2');
+ const form=windowDialog(page),input=form.getByLabel('Új név');
+ await expect(input).toHaveValue(prefix+'-r.txt');await expect(form.getByRole('button',{name:'Mégse',exact:true})).toBeVisible();
+ await expect.poll(()=>input.evaluate(element=>[element.selectionStart,element.selectionEnd].join())).toBe('0,'+(prefix+'-r').length);
+ await input.fill(prefix+'-taken.txt');await form.getByRole('button',{name:'Mentés',exact:true}).click();
+ await expect(form).toContainText('Ilyen nevű elem már létezik ebben a mappában.');
+ await input.fill(prefix+'-r.png');await form.getByRole('button',{name:'Mentés',exact:true}).click();
+ await expect(form).toContainText('kiterjesztés');
+ await input.fill(prefix+'-renamed.txt');await input.press('Enter');
+ await expect(page.locator('.blade-toast').filter({hasText:'Átnevezve: '+prefix+'-renamed.txt'})).toBeVisible();
+ await expect(row(left,prefix+'-renamed.txt')).toBeVisible();await expect(row(left,prefix+'-r.txt')).toHaveCount(0);
+ expect((await api(page,'files','rename',rootC,{name:prefix+'-root'})).status).toBe(400);
+ // Delete: the right panel shows a folder that goes away and returns to its surviving parent.
+ await mount(page,right,'Drive C');await enter(right,prefix+'-work');await enter(right,prefix+'-inner');
+ await pick(left,prefix+'-inner');await pick(left,prefix+'-taken.txt',['ControlOrMeta']);
+ await page.keyboard.press('Delete');
+ await expect(dialog(page).getByRole('heading',{name:'Törlés'})).toBeVisible();
+ await expect(dialog(page)).toContainText('2 kijelölt elem véglegesen törlődik. A mappák tartalma is törlődik.');
+ await dialog(page).getByRole('button',{name:'Mégse',exact:true}).click();await expect(dialog(page)).toHaveCount(0);
+ await expect(row(left,prefix+'-inner')).toBeVisible();
+ await command(page,'Törlés');await dialog(page).getByRole('button',{name:'Törlés',exact:true}).click();
+ await expect(page.locator('.blade-toast').filter({hasText:'Törölve: 2 elem.'})).toBeVisible();
+ await expect(row(left,prefix+'-inner')).toHaveCount(0);await expect(row(left,prefix+'-taken.txt')).toHaveCount(0);
+ await expect(path(right)).toHaveText('Drive C:/'+prefix+'-work');await expect(row(right,prefix+'-inner')).toHaveCount(0);
+ expect((await api(page,'files','list',work)).body.data.items.map(item=>item.name).sort()).toEqual([prefix+'-renamed.txt',prefix+'-z.txt',prefix+'-zipdir'].sort());
+ expect((await api(page,'files','list',inner)).status).not.toBe(200);
+ expect((await api(page,'files','delete',rootC,{sources:rootC})).status).toBe(400);
+ // Download: one file is the GET download URL; a folder with a file is one streamed ZIP.
+ await pick(left,prefix+'-z.txt');
+ const [single]=await Promise.all([page.waitForEvent('download'),command(page,'Letöltés')]);
+ expect(single.suggestedFilename()).toBe(prefix+'-z.txt');expect(single.url()).toMatch(/action=download&id=\d+/);
+ expect(require('node:fs').readFileSync(await single.path(),'utf8')).toBe('zip tartalom\n');
+ await pick(left,prefix+'-zipdir');await pick(left,prefix+'-z.txt',['ControlOrMeta']);
+ const [zip]=await Promise.all([page.waitForEvent('download'),command(page,'Letöltés')]);
+ expect(zip.suggestedFilename()).toBe(prefix+'-work.zip');
+ const entries=unzip(require('node:fs').readFileSync(await zip.path()));
+ expect(Object.keys(entries).filter(name=>!name.endsWith('/')).sort()).toEqual([prefix+'-z.txt',`${prefix}-zipdir/${prefix}-zipped.txt`].sort());
+ expect(Object.keys(entries)).toContain(`${prefix}-zipdir/${prefix}-hollow/`);
+ expect(entries[`${prefix}-zipdir/${prefix}-zipped.txt`].data.toString('utf8')).toBe('tömörítve ő\n');
+ expect(entries[prefix+'-z.txt'].method).toBe(0);expect(entries[prefix+'-z.txt'].flags&0x800).toBe(0x800);
+ // The ZIP token is single-use.
+ expect((await page.request.get(zip.url())).status()).toBe(404);
+ // Folder only: also a ZIP, named after the folder.
+ await pick(left,prefix+'-zipdir');
+ const [folderZip]=await Promise.all([page.waitForEvent('download'),command(page,'Letöltés')]);
+ expect(folderZip.suggestedFilename()).toBe(prefix+'-zipdir.zip');
+ expect(errors).toEqual([]);
+});
+
+test('drop and paste onto a panel: in-flight rows, in-place insertion without reloading the other panel',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await start(page);
+ const right=panel(page,1),rootB=(await api(page,'files','tree','b')).body.data.root;
+ const target=(await api(page,'files','create_directory',rootB,{name:prefix+'-drop'})).body.data.id;
+ await mount(page,right,'Drive B');await enter(right,prefix+'-drop');
+ // The finish of the transfer is held, so the in-flight row can be observed.
+ let release;const held=new Promise(resolve=>{release=resolve;});
+ const hold=async route=>{if((route.request().postData()??'').includes('"upload_finish"'))await held;await route.continue();};
+ await page.route(url=>url.search.includes('blade=1'),hold);
+ const lists=[];page.on('request',request=>{try{if(request.postDataJSON()?.action==='list')lists.push(request.postDataJSON().id);}catch{}});
+ await right.locator('.dhx_grid').evaluate((element,name)=>{
+  const data=new DataTransfer();data.items.add(new File(['ejtett\n'],name,{type:'text/plain'}));
+  for(const type of ['dragenter','dragover','drop'])element.dispatchEvent(new DragEvent(type,{dataTransfer:data,bubbles:true,cancelable:true}));
+ },prefix+'-dropped.txt');
+ const upload=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')});
+ await expect(upload).toBeVisible();await expect(upload).toContainText(prefix+'-drop');
+ const flying=row(right,prefix+'-dropped.txt');
+ await expect(flying.getByRole('img',{name:'Feltöltés alatt',exact:true})).toBeVisible();
+ // An in-flight row is never marked.
+ await flying.locator('.dhx_grid-cell').nth(1).dispatchEvent('click');await expect(right.locator('.blade-grid-row-marked')).toHaveCount(0);
+ release();
+ await expect(flying.getByRole('img',{name:'Szöveg',exact:true})).toBeVisible();
+ await upload.getByRole('button',{name:'Bezárás',exact:true}).click();await expect(upload).toBeHidden();
+ // Ctrl+V in the focused panel uploads clipboard files to its folder.
+ await pick(right,prefix+'-dropped.txt');
+ await right.locator('.dhx_grid').evaluate((element,name)=>{
+  const data=new DataTransfer();data.items.add(new File(['beillesztve\n'],name,{type:'text/plain'}));
+  element.dispatchEvent(new ClipboardEvent('paste',{clipboardData:data,bubbles:true,cancelable:true}));
+ },prefix+'-pasted.txt');
+ await expect(row(right,prefix+'-pasted.txt').getByRole('img',{name:'Szöveg',exact:true})).toBeVisible();
+ await expect(right.locator('[data-dhx-id="count"]')).toHaveText('2 elem');
+ // Results were inserted in place: no listing (of either panel) was reloaded.
+ await page.waitForTimeout(1500);expect(lists).toEqual([]);
+ expect((await api(page,'files','list',target)).body.data.items.map(item=>item.name).sort()).toEqual([prefix+'-dropped.txt',prefix+'-pasted.txt']);
+ await page.unroute(url=>url.search.includes('blade=1'),hold);
+ await upload.getByRole('button',{name:'Bezárás',exact:true}).click().catch(()=>{});
+ expect(errors).toEqual([]);
+});
+
+test('viewer previous and next across the images and videos of the listing',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await start(page);
+ const left=panel(page,0),media=(await api(page,'files','list',await entryId(page,'a',null,'Média'))).body.data.items;
+ const count=media.filter(item=>['image/png','image/jpeg','video/mp4','video/webm'].includes(item.mime_type)).length;
+ await enter(left,'Média');await row(left,'minta-fraktal.jpg').dblclick();
+ const windows=page.locator('.blade-document-window');
+ let bar=windowDialog(page).locator('.blade-document__bar');
+ await expect(bar.locator('[data-dhx-id="index"]')).toHaveText('1 / '+count);
+ await expect(bar.getByRole('button',{name:'Előző',exact:true})).toBeDisabled();
+ await bar.getByRole('button',{name:'Következő',exact:true}).click();
+ await expect(windows).toHaveCount(1);await expect(windowDialog(page).locator('video')).toHaveAttribute('aria-label','minta-video.webm');
+ bar=windowDialog(page).locator('.blade-document__bar');await expect(bar.locator('[data-dhx-id="index"]')).toHaveText('2 / '+count);
+ // PageUp/PageDown inside the viewer walk the same sequence.
+ await page.keyboard.press('PageUp');
+ await expect(windows).toHaveCount(1);await expect(windowDialog(page).getByRole('img',{name:'minta-fraktal.jpg'})).toBeVisible();
+ await page.keyboard.press('PageDown');await expect(windowDialog(page).locator('video')).toBeVisible();await expect(windows).toHaveCount(1);
+ // The panel cursor followed: the command reopens the shown file.
+ await windowDialog(page).getByRole('button',{name:/close/i}).click();await expect(windows).toHaveCount(0);
+ await command(page,'Megtekintés');await expect(windowDialog(page).locator('video')).toBeVisible();
+ await windowDialog(page).getByRole('button',{name:/close/i}).click();
+ expect(errors).toEqual([]);
 });
 
 test('server authorization on direct requests and audit records',async({page,browser})=>{
@@ -328,11 +571,19 @@ test('server authorization on direct requests and audit records',async({page,bro
   expect((await multipart(other,'text_save',file,{revision:'1'},[['content','x.txt','x']])).status,'reader save').toBe(403);
   await expect(other.getByRole('button',{name:'Új mappa',exact:true})).toHaveCount(0);
   await expect(other.getByRole('button',{name:'Feltöltés',exact:true})).toHaveCount(0);
+  // The reader may download (file and ZIP) but neither rename nor delete.
+  for(const name of ['Átnevezés','Törlés'])await expect(other.getByRole('button',{name,exact:true})).toHaveCount(0);
+  await expect(other.getByRole('button',{name:'Letöltés',exact:true})).toBeVisible();
+  expect((await api(other,'files','rename',file,{name:prefix+'-reader.txt'})).status,'reader rename').toBe(403);
+  expect((await api(other,'files','delete',root,{sources:file})).status,'reader delete').toBe(403);
+  expect((await other.request.get(new URL(`?blade=1&resource=files&action=download&id=${file}`,other.url()).href)).status(),'reader download').toBe(200);
+  const prepared=await api(other,'files','zip_prepare',root,{sources:file});expect(prepared.status,'reader zip_prepare').toBe(200);
+  expect((await page.request.get(new URL(`?blade=1&resource=files&action=zip_get&id=${prepared.body.data.token}`,page.url()).href)).status(),'foreign zip token').toBe(404);
   await panel(other,0).locator('[data-dhx-id="mount"]').click();
   await expect(other.getByRole('menuitem',{name:'Drive B',exact:true})).toBeVisible();await expect(other.getByRole('menuitem',{name:'Drive C',exact:true})).toHaveCount(0);
  }finally{await context.close();php(`$db->exec("DELETE FROM blade_rules WHERE ${rule}");$db->exec("DELETE FROM blade_rules WHERE subject_type='user' AND subject_id='${reader}' AND resource='files' AND action IN ('content_stream','thumbnail_get') AND effect='deny' AND object_id='a'");`);}
  const audit=JSON.parse(php(`$q=$db->prepare("SELECT actor_id,action,outcome,object_id,detail FROM blade_audit WHERE resource='files' AND occurred_at>=? ORDER BY id");$q->execute(['${started}']);echo json_encode($q->fetchAll(PDO::FETCH_ASSOC));`));
- for(const action of ['create_directory','upload','copy','move','text_save','content_get','content_stream','thumbnail_get'])expect(audit.some(r=>r.action===action&&r.outcome==='success'),action).toBe(true);
+ for(const action of ['create_directory','upload','copy','move','text_save','content_get','content_stream','thumbnail_get','rename','delete','download','zip_prepare','zip_get'])expect(audit.some(r=>r.action===action&&r.outcome==='success'),action).toBe(true);
  expect(audit.some(r=>r.outcome==='rejected'&&r.actor_id===reader)).toBe(true);
  const copy=audit.find(r=>r.action==='copy'&&r.outcome==='success');expect(JSON.parse(copy.detail).sources.length).toBeGreaterThan(0);
  expect(JSON.stringify(audit)).not.toContain(prefix);expect(JSON.stringify(audit)).not.toContain('szerkesztett');
@@ -347,11 +598,15 @@ test('localization, themes, the panel divider and the desktop-only notice',async
   const border=await panel(page,0).locator('.blade-file-panel__body').evaluate(element=>getComputedStyle(element).borderTopColor);
   expect(border).not.toBe('rgba(0, 0, 0, 0)');
   await expect(panel(page,1)).toBeVisible();
+  await expect(panel(page,0).getByRole('textbox',{name:'Keresés',exact:true})).toBeVisible();
+  await expect(panel(page,0).locator('[data-dhx-id="sort"]')).toBeVisible();
  }
  const language=page.locator('.blade-navigation-row').getByRole('button',{name:'Magyar',exact:true});
  await language.click();await page.getByText('English',{exact:true}).click();
  await openFiles(page,'Feature demo','File manager');
  await expect(path(panel(page,0))).toHaveText('Drive A:/');await expect(page.getByRole('button',{name:'New folder',exact:true})).toBeVisible();
+ for(const name of ['Rename','Delete','Download'])await expect(page.getByRole('button',{name,exact:true})).toBeVisible();
+ await expect(panel(page,0).locator('[data-dhx-id="sort"]')).toHaveText('Sort: Name ↑');
  await expect(panel(page,0).locator('.dhx_grid-header-cell').filter({hasText:'Modified'})).toBeVisible();
  const denied=await api(page,'files','text_get',await entryId(page,'a','Képek','logo.png'));expect(denied.body.error).toBe('Only .txt files can be edited.');
  await page.locator('.blade-navigation-row').getByRole('button',{name:'English',exact:true}).click();await page.getByText('Magyar',{exact:true}).click();

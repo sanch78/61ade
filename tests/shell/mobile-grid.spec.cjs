@@ -96,7 +96,7 @@ test('synthetic media tiles: reflow, row-height restore, keys, marks, reserved k
  // Table: the `height` data key is displayed but never becomes the Suite row height; thumbnail cell scales with rowHeight.
  const rowsInTable=page.locator('.dhx_grid-row');await expect(rowsInTable.first()).toBeVisible();
  expect(await rowsInTable.evaluateAll(rows=>rows.slice(0,5).map(row=>Math.round(row.getBoundingClientRect().height)))).toEqual([64,64,64,64,64]);
- await expect(page.locator('.dhx_grid-cell[data-dhx-col-id="height"]').first()).toHaveText('1000');
+ await expect(page.locator('.dhx_grid-cell[data-dhx-col-id="__blade_height"]').first()).toHaveText('1000');
  expect(await page.locator('.blade-media--cell').first().evaluate(e=>[e.offsetWidth,e.offsetHeight])).toEqual([56,56]);
  // The accessible name conveys the type in text.
  await expect(page.getByRole('img',{name:'Videó: minta0.webm, 0:06',exact:true})).toBeVisible();
@@ -191,4 +191,91 @@ test('synthetic media tiles: reflow, row-height restore, keys, marks, reserved k
  await mode('cards');await page.evaluate(()=>{more.length=0;});
  await page.locator('.blade-grid-cards').evaluate(e=>{e.scrollTop=e.scrollHeight;});await expect.poll(()=>page.evaluate(()=>more.includes('next'))).toBe(true);
  await page.evaluate(()=>adapter.destroy());expect(errors).toEqual([]);
+});
+
+// A record field named like a Suite row key (`height`) that is editable: the native editor reads and writes
+// its alias, so neither an edit nor a rejected save ever changes the row height (independent synthetic consumer).
+test('an editable reserved-key column edits its alias and keeps the row height',async({page})=>{
+ const path=require('node:path');const {buildSync}=require('esbuild');
+ const root=path.resolve(__dirname,'../..');
+ const bundle=buildSync({stdin:{contents:'export {ResponsiveGrid} from "./packages/frontend/src/ResponsiveGrid"; export {GridEditing} from "./packages/frontend/src/GridEditing";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/edit-fixture',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><div id="blade-application"></div>'}));
+ await page.setViewportSize({width:1280,height:800});await page.goto('/edit-fixture');
+ await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
+ await page.evaluate(()=>{
+  window.rows=Array.from({length:20},(_,i)=>({id:String(i+1),title:'Sor '+i,height:String(1000+i),revision:'r'+i,_editable:['height']}));
+  window.saved=[];window.failNext=false;window.reported=[];
+  window.adapter=new fixture.ResponsiveGrid(document.getElementById('blade-application'),[{id:'title',header:'Megnevezés'},{id:'height',header:'Magasság',editable:true}],()=>window.rows,()=>{},()=>{},()=>{},()=>{},{rowHeight:48,idColumn:false,rowNumbers:false});
+  adapter.setRows(rows);
+  window.editing=new fixture.GridEditing(adapter.table,[{name:'height',label:'Magasság',type:'text',required:true,max:10,options:{}}],()=>window.rows,async(row,field,value)=>{
+   saved.push([row.id,field,value]);
+   if(window.failNext){window.failNext=false;throw new Error('Mentés elutasítva');}
+   rows=rows.map(r=>r.id===row.id?{...r,[field]:value,revision:r.revision+'+'}:r);adapter.setRows(rows);
+  },async error=>{reported.push(error.message);},()=>{});
+ });
+ const heights=()=>page.locator('.dhx_grid-row').evaluateAll(rows=>rows.slice(0,3).map(row=>Math.round(row.getBoundingClientRect().height)));
+ const cell=()=>page.locator('.dhx_grid-row').first().locator('.dhx_grid-cell[data-dhx-col-id="__blade_height"]');
+ await expect(cell()).toHaveText('1000');expect(await heights()).toEqual([48,48,48]);
+ await cell().dblclick();
+ const editor=page.locator('.dhx_cell-editor__input');await expect(editor).toBeVisible();await expect(editor).toHaveValue('1000');
+ expect(await heights()).toEqual([48,48,48]);
+ await editor.fill('1200');await editor.press('Enter');
+ await expect.poll(()=>page.evaluate(()=>saved)).toEqual([['1','height','1200']]);
+ await expect(cell()).toHaveText('1200');expect(await heights()).toEqual([48,48,48]);
+ // Suite's own row key is never written: the item holds the value only under its alias.
+ expect(await page.evaluate(()=>{const item=adapter.table.data.getItem('1');return [Object.hasOwn(item,'height'),item.__blade_height];})).toEqual([false,'1200']);
+ // A rejected save restores the stored value through the alias as well.
+ await page.evaluate(()=>{window.failNext=true;});
+ await cell().dblclick();await expect(editor).toBeVisible();await editor.fill('77');await editor.press('Enter');
+ await expect.poll(()=>page.evaluate(()=>reported)).toEqual(['Mentés elutasítva']);
+ await expect(cell()).toHaveText('1200');expect(await heights()).toEqual([48,48,48]);
+ expect(await page.evaluate(()=>Object.hasOwn(adapter.table.data.getItem('1'),'height'))).toBe(false);
+ await page.evaluate(()=>{editing.destroy();adapter.destroy();});expect(errors).toEqual([]);
+});
+
+// Details and cards: every media field renders as media (a detail field without `media` takes it from its
+// column), and an icon value without option labels is named in text, never by its glyph alone.
+test('details and cards render every media field and name an icon without options',async({page})=>{
+ const path=require('node:path');const {buildSync}=require('esbuild');
+ const root=path.resolve(__dirname,'../..');
+ const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/details-fixture',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><div id="blade-application"></div>'}));
+ await page.setViewportSize({width:1280,height:800});await page.goto('/details-fixture');
+ await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
+ await page.evaluate(()=>{
+  const media=(id,name,mime_type,duration_ms)=>({id,name,mime_type,revision:'r',duration_ms,width:640,height:360,thumbnail:'none'});
+  const rows=[{id:'1',title:'Első',cover:'f1',clip:'f2',glyph:'dxi dxi-image-outline',revision:'r1',_actions:['get'],_media:{cover:media('f1','borito.jpg','image/jpeg',null),clip:media('f2','elozetes.webm','video/webm',6000)}}];
+  window.fetch=async(_url,config)=>{
+   const request=JSON.parse(config.body);let data;
+   if(request.action==='list'||request.action==='__watch')data={items:rows,previous:null,next:null,version:'v1'};
+   if(request.action==='get')data=rows[0];
+   return {ok:true,json:async()=>({ok:true,data})};
+  };
+  fixture.setTheme('skyblue',document.documentElement);
+  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{resource:'items',title:'Elemek',
+   columns:[{id:'title',header:'Cím'},{id:'cover',header:'Borító',media:'files'},{id:'glyph',header:'Jel',presentation:'icon'}],
+   detailFields:[{id:'title',header:'Cím',type:'text'},{id:'cover',header:'Borító',type:'text'},{id:'clip',header:'Előzetes',type:'text',media:'files'},{id:'glyph',header:'Jel',type:'text',presentation:'icon'}],
+   actions:[{name:'get',label:'Adatok',fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},'csrf',{transport:'poll',endpoint:'live',interval:60000});
+ });
+ await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
+ const glyph=page.locator('.dhx_grid-cell[data-dhx-col-id="glyph"] .blade-record-icon').first();
+ await expect(glyph.locator('.blade-record-icon__label')).toHaveText('image outline');
+ expect(await glyph.locator('.blade-record-icon__label').evaluate(e=>e.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
+ await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
+ const details=page.getByRole('dialog',{name:'Rekordadatok',exact:true});
+ await expect(details.getByRole('img',{name:'Kép: borito.jpg',exact:true})).toBeVisible();
+ await expect(details.getByRole('img',{name:'Videó: elozetes.webm, 0:06',exact:true})).toBeVisible();
+ await expect(details).not.toContainText('f2');
+ await expect(details.locator('.blade-record-icon')).toHaveAttribute('aria-hidden','true');
+ await expect(details).toContainText('image outline');await expect(details).not.toContainText('dxi dxi-');
+ await details.getByRole('button',{name:'Close',exact:false}).click();
+ // Cards: the first media field fills the slot on top, every further one is rendered in its own field.
+ await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
+ const card=page.locator('.blade-grid-card').first();await expect(card).toBeVisible();
+ await expect(card.locator('.blade-grid-card__media').getByRole('img',{name:'Kép: borito.jpg',exact:true})).toBeVisible();
+ await expect(card.locator('dd').getByRole('img',{name:'Videó: elozetes.webm, 0:06',exact:true})).toBeVisible();
+ await expect(card).toContainText('image outline');await expect(card).not.toContainText('f2');
+ await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });

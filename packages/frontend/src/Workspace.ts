@@ -7,8 +7,8 @@ import { Form, Layout, Toolbar, Window, message, awaitRedraw } from "@dhtmlx/sui
 import { alert, requestConfirmation, type DialogSeverity } from "./MessageDialog";
 import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
 import { GridHeaders, type Sort } from "./GridHeaders";
-import { GridEditing } from "./GridEditing";
-import { escape as escapeRecord, isMedia, optionText, recordFields } from "./RecordPresentation";
+import { GridEditing, alias, unalias } from "./GridEditing";
+import { escape as escapeRecord, isMedia, optionText, presentedFields, recordFields } from "./RecordPresentation";
 import { ResponsiveGrid } from "./ResponsiveGrid";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 
@@ -21,6 +21,8 @@ const actionIcon=(action:ActionDefinition)=>action.icon??ACTION_ICONS[action.nam
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
 export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
+/** Server limit of the `search` list parameter, in characters. */
+const SEARCH_MAX=100;
 const cursor=(row:Row,direction:string)=>btoa(Array.from(new TextEncoder().encode(JSON.stringify({...row._position,edge:String(row.id),direction})),byte=>String.fromCharCode(byte)).join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 export const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="multiselect"&&!readOnly?{
   // Native Suite Combo with multiple selection; the kernel accepts the list or its comma-joined form.
@@ -132,9 +134,10 @@ export class Workspace {
         if(tiles){if(mode==="tiles")this.commands.disable("blade-tiles");else this.commands.enable("blade-tiles");}
       },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,details:id=>void this.showResults(id),marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field)});
       this.sortLabel();
-      this.gridHeaders=new GridHeaders(this.grid.table,view.columns,view.sortable??[],sort=>void this.changeSort(sort),view.filters, (field,value)=>void this.changeFilter(field,value));
-      this.gridHeaders.setSort(this.sort);
-      this.gridHeaders.setFilterValues(this.filters);
+      // Grid column ids of reserved record keys are aliases (ResponsiveGrid): headers speak in column ids, requests in fields.
+      this.gridHeaders=new GridHeaders(this.grid.table,view.columns.map(column=>({...column,id:alias(column.id)})),(view.sortable??[]).map(alias),sort=>void this.changeSort({...sort,field:unalias(sort.field)}),view.filters.map(filter=>({...filter,name:alias(filter.name)})),(field,value)=>void this.changeFilter(unalias(field),value));
+      this.headerSort(this.sort);
+      this.headerFilters();
       this.preferences.bindGrid(this.grid.table);
       for(const column of view.columns.filter(column=>column.secondary))if(!this.visibleColumns.has(column.id))this.grid.setColumnVisible(column.id,false);
       this.grid.setMode(this.preferences.mode);
@@ -183,6 +186,8 @@ export class Workspace {
   }
   private mountSearch():void{
     const bar=new Toolbar(document.createElement("div"),{css:"blade-search-bar",data:[{type:"input",id:"blade-search",label:t("Keresés"),hiddenLabel:true,placeholder:t("Keresés…"),icon:"dxi dxi-magnify",width:"100%",autocomplete:false}]} as any);
+    // Suite's Toolbar input has no maxlength option: it is set on the input whenever Suite creates it.
+    bar.events.on("inputCreated",(_id:string|number,input:HTMLInputElement)=>{input.maxLength=SEARCH_MAX;});
     bar.events.on("input",(_id:string|number,value:string)=>{clearTimeout(this.searchTimer);this.searchTimer=setTimeout(()=>this.applySearch(String(value??"")),300);});
     bar.events.on("keydown",(event:KeyboardEvent)=>{
       const input=event.target as HTMLInputElement;
@@ -194,7 +199,7 @@ export class Workspace {
   /** Debounced input, Enter and Escape converge here; an empty search removes the parameter. */
   private applySearch(value:string):void{
     clearTimeout(this.searchTimer);this.searchTimer=undefined;
-    const next=value.trim().slice(0,200);if(next===this.search||this.disposed)return;
+    const next=Array.from(value.trim()).slice(0,SEARCH_MAX).join("").trim();if(next===this.search||this.disposed)return;
     this.search=next;void this.load();
   }
   private query():Record<string,unknown>{return {filters:this.filters,...(this.search?{search:this.search}:{})};}
@@ -221,7 +226,7 @@ export class Workspace {
       if(name==="clear")form.clear();
       const values=form.getValue() as Record<string,string>;this.filterForm?.setValue(values);this.filters={};
       for(const f of this.view.filters){const v=String(values[f.name]??"");if(v!=="")this.filters[f.name]=["select","checkbox"].includes(f.type)?v.slice(3):v;}
-      this.gridHeaders?.setFilterValues(this.filters);this.closeFilters();void this.load();
+      this.headerFilters();this.closeFilters();void this.load();
     });
     return form;
   }
@@ -282,10 +287,12 @@ export class Workspace {
   private watch():void{this.live.subscribe({numbered:this.view.rowNumbers!==false,sort:this.sort,anchor:this.rows[0]?cursor(this.rows[0],"next"):null,limit:Math.max(100,this.rows.length),first:this.rows[0]?.id??null,front:this.previous===null,...this.query()});}
   private async changeSort(sort:Sort):Promise<void>{
     if(this.busy||this.cellEditing||this.disposed)return;
-    const previous=this.sort;this.sort=sort;this.sortLabel();this.gridHeaders?.setSort(sort);
+    const previous=this.sort;this.sort=sort;this.sortLabel();this.headerSort(sort);
     const operation=this.epoch+1;
-    if(await this.load()){this.preferences.setSort(this.sort);}else if(operation===this.epoch&&!this.disposed){this.sort=previous;this.sortLabel();this.gridHeaders?.setSort(previous);this.watch();}
+    if(await this.load()){this.preferences.setSort(this.sort);}else if(operation===this.epoch&&!this.disposed){this.sort=previous;this.sortLabel();this.headerSort(previous);this.watch();}
   }
+  private headerSort(sort:Sort):void{this.gridHeaders?.setSort({...sort,field:alias(sort.field)});}
+  private headerFilters():void{this.gridHeaders?.setFilterValues(Object.fromEntries(Object.entries(this.filters).map(([field,value])=>[alias(field),value])));}
   private sortLabel():void{
     this.commands.data.update("blade-sort",{value:t("Rendezés: ")+escape(this.view.columns.find(column=>column.id===this.sort.field)?.header??(this.sort.field==="id"?"ID":this.sort.field))+(this.sort.direction==="asc"?" ↑":" ↓")});
   }
@@ -329,11 +336,11 @@ export class Workspace {
     const position=this.grid.capture();
     this.grid.setRows(rows);
     this.gridHeaders?.decorate();
-    this.gridHeaders?.setFilterValues(this.filters);
+    this.headerFilters();
     this.rows=rows;
     if(this.selected&&!this.selectedRow())this.selected=undefined;
     this.capabilities();await awaitRedraw();
-    this.gridHeaders?.setFilterValues(this.filters);
+    this.headerFilters();
     if(this.disposed)return;
     this.grid.restore(position,preserve,this.selected);
     this.rendering=false;
@@ -372,7 +379,7 @@ export class Workspace {
       if(this.disposed||epoch!==this.resultsEpoch)return;
       const dialog=new Window({css:"blade-content-window",title:escape(this.view.title+" — "+t("Adatok")+" · "+id),ariaLabel:t("Rekordadatok"),width:Math.min(680,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
       this.results=dialog;
-      dialog.attachHTML(`<article class="blade-record-details"><div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>${recordFields(row,this.view.detailFields??this.view.columns)}</article>`);
+      dialog.attachHTML(`<article class="blade-record-details"><div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>${recordFields(row,presentedFields(this.view.detailFields??this.view.columns,this.view.columns))}</article>`);
       dialog.show();void fitWindow(dialog);
     }catch(error){await this.error(error);}
   }
