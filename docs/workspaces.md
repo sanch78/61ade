@@ -332,8 +332,10 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   (advertised as a select with `Kép`/`Videó`), limited to mounts the actor may
   read; other values are `400`, a field the actor may not query `403`.
 - **Icon column.** `column.presentation: "icon"` (non-secret text/select, not
-  editable): the value is a Suite class `dxi dxi-…`, `options` give the
-  accessible name.
+  editable, static `options` required): the value is a Suite class
+  `dxi dxi-…`, `options` give the accessible name. Record details and cards
+  render media and icon fields the same way (`detailFields` carry `media` and
+  `presentation`).
 - **Tiles.** `tiles: true` (JSON `tiles`, default on when a media column
   exists) offers a native DataView mode: media slot (or icon), the first text
   column as title and the next as a secondary line; `tileMinWidth` (120–480,
@@ -361,9 +363,10 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   host Layout that re-renders it (cell hide/show, a `views` switch) keeps
   marking, card scroll paging, editing and reflow ([FB-0058](feedback.md#fb-0058)).
 
-Limits: tile title/secondary columns are chosen automatically; an editable
-column whose id is a reserved key may briefly change the row height while its
-editor is open; the search input width is fixed when the view is built.
+Limits: tile title/secondary columns are chosen automatically; reserved-key
+columns appear to the Grid as `__blade_height`/`__blade_css` (DOM selectors and
+stored column widths see the alias; editing, sorting and filtering convert it);
+the search input width is fixed when the view is built.
 
 Columns marked `secondary: true` are listed in a neighboring `Oszlopok`
 Toolbar dropdown as accessible toggle items. The grid uses the native

@@ -290,6 +290,12 @@ body,
 /* The header path fills the header: FileManager collapses folders, CSS cuts what still overflows. */
 .blade-file-panels > .blade-file-panel > .dhx_layout-cell-header .dhx_layout-cell-header__title { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .blade-tree { height: 100%; }
+/* Files or folders dragged over a panel: the panel frame and a tint mark the drop target (its folder). */
+.blade-file-panel__body.blade-file-panel__body--drop { border-style: dashed; border-color: var(--dhx-color-primary); background: color-mix(in srgb, var(--dhx-color-primary) 8%, var(--dhx-background-primary)); }
+.blade-file-find .blade-file-find__bar .dhx_navbar { padding-left: 0; }
+/* Tiles: folders, the ".." row and in-flight uploads have no thumbnail; their media slot shows the
+   folder, parent or upload glyph of the Suite icon font (the tile's secondary line names the type in text). */
+.blade-file-list .blade-grid-tile[data-blade-row^="upload:"] { opacity: .75; }
 /* Document windows (text editor, image viewer, video player): the Layout fills the window, the
    toolbar sits above the content cell, and the content takes every size the window gets. */
 .blade-document-window .dhx_window-content { padding: 0; }

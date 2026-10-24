@@ -15,12 +15,21 @@ export function recordCheckbox(row:Row,field:ViewDefinition["columns"][number]):
   if(!field.editable||!row._editable?.includes(field.id))return content;
   return `<label class="blade-card-edit blade-checkbox-edit dhx_checkbox" data-blade-row="${escape(row.id)}" data-blade-field="${escape(field.id)}" title="${content}"><input class="dhx_checkbox__input" type="checkbox" aria-label="${escape(field.header)}" aria-checked="${checked}" ${checked?"checked":""}><span class="dhx_checkbox__visual-input"></span></label>`;
 }
-/** Icon column: the value is a Suite icon class, `options` maps it to its accessible name. */
-export function recordIcon(field:{options?:Record<string,string>},value:unknown):string{
+const ICON=/^dxi dxi-[a-z0-9-]+$/;
+/** Name of an icon value: its option label, otherwise the readable class ("dxi dxi-image-outline" → "image outline"). */
+export const iconLabel=(field:{options?:Record<string,string>},value:unknown):string=>{const icon=String(value??"");return field.options?.[icon]||icon.replace(/^dxi dxi-/,"").replace(/-/g," ");};
+/**
+ * Icon column: the value is a Suite icon class, `options` maps it to its accessible name. Without a
+ * label the glyph is never the only meaning: a visually hidden text names it. `decorative` is for a
+ * caller that shows the name as visible text beside it.
+ */
+export function recordIcon(field:{options?:Record<string,string>},value:unknown,decorative=false):string{
   const icon=String(value??"");
-  if(!/^dxi dxi-[a-z0-9-]+$/.test(icon))return "";
+  if(!ICON.test(icon))return "";
+  if(decorative)return `<span class="blade-record-icon" aria-hidden="true"><span class="${icon}"></span></span>`;
   const label=escape(field.options?.[icon]??"");
-  return `<span class="blade-record-icon" ${label?`role="img" aria-label="${label}" title="${label}"`:`aria-hidden="true"`}><span class="${icon}"></span></span>`;
+  if(label)return `<span class="blade-record-icon" role="img" aria-label="${label}" title="${label}"><span class="${icon}"></span></span>`;
+  return `<span class="blade-record-icon"><span class="${icon}" aria-hidden="true"></span><span class="blade-record-icon__label">${escape(iconLabel(field,icon))}</span></span>`;
 }
 /** Server media descriptor of a media column (`row._media[field]`); absent or null when the actor may not see it. */
 export type MediaDescriptor={id:string;name:string;mime_type:string;revision:string;duration_ms:number|null;width:number|null;height:number|null;thumbnail:"ready"|"pending"|"failed"|"none"};
@@ -49,12 +58,26 @@ export function recordMedia(field:Column,row:Row,size:"cell"|"card"|"tile"="cell
   const label=escape(mediaLabel(media)),failed=!!url&&failedThumbnails.has(url);
   return `<span class="blade-media blade-media--${size} blade-media--${kind}${failed?" blade-media--failed":""}" role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon dxi ${kind==="video"?"dxi-menu-right":kind==="image"?"dxi-image-outline":"dxi-file-outline"}" aria-hidden="true"></span>${url&&!failed?`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-thumbnail>`:""}${kind==="video"&&typeof media.duration_ms==="number"?`<span class="blade-media__duration" aria-hidden="true">${escape(duration(media.duration_ms))}</span>`:""}</span>`;
 }
-/** Only declared fields present in the ACL-projected record are rendered. */
+/**
+ * Detail/card fields with the presentation of the matching grid column (`media`, `presentation`, icon
+ * `options`) when a field definition does not carry it itself, so every media or icon field renders as such.
+ */
+export function presentedFields<T extends Column>(fields:T[],columns:Column[]):T[]{
+  return fields.map(field=>{
+    const column=columns.find(c=>c.id===field.id);
+    if(!column)return field;
+    return {...field,...(field.media===undefined&&column.media!==undefined?{media:column.media}:{}),...(field.presentation===undefined&&column.presentation!==undefined?{presentation:column.presentation}:{}),
+      ...(!field.options&&column.options?{options:column.options}:{})};
+  });
+}
+/** Only declared fields present in the ACL-projected record are rendered; every media and icon field shows its media or icon. */
 export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=false):string{
   return `<dl>${fields.filter(field=>Object.hasOwn(row,field.id)).map(field=>{
     const writable=editable&&field.editable&&row._editable?.includes(field.id);
     const value=row[field.id];
     const content=escape(value==null||value===""?(field.options?.[String(value??"")]??"—"):optionText(field,value));
-    return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd ${writable&&field.type!=="checkbox"?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isIcon(field)?recordIcon(field,value)+" "+content:content}</dd></div>`;
+    // An icon is shown with its name as visible text, so the glyph itself stays decorative.
+    const glyph=isIcon(field)?recordIcon(field,value,true):"";
+    return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd ${writable&&field.type!=="checkbox"?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
   }).join("")}</dl>`;
 }

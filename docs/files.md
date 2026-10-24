@@ -150,13 +150,19 @@ $files->register($workspace);     // application definition and task handlers
 | `textMaxBytes` | Separate limit of the text editor, for opening and saving. |
 | `maxDepth` | Deepest directory level below a mount root (default 5). |
 | `desktopOnly` | Below 768 px show the desktop-only notice instead of the panels (default `false`). |
+| `deletePolicy` | `archive` (default, the recommendation for framework development) or `delete` (the demos). See [delete policy](#delete-policy). |
 
 ## Actions and authorization
 
 | Action | Target id | Purpose |
 | --- | --- | --- |
 | `tree` | mount key | Every directory of the mount (≤ 2000, otherwise `413`) and its first 5000 files by name, each with `kind` and `mime_type`; `truncated` marks omitted files. |
-| `list` | directory | Entries, path and depth (first 1000 entries; `truncated` flag). |
+| `list` | directory | Paged, server-sorted entries: optional `limit` (1–200, default 100), opaque `cursor`, `sort` (`name`, `modified`, `size`, `type`), `direction`, `search` (≤ 100 characters, case-insensitive name substring), `type` (`directory`, `image`, `video`, `text`, `other`). Directories always come first, then the key, then `id`; a keyset cursor that no longer matches sort, direction, filters or folder is `400` (`details.code` `stale_cursor`). Response `{directory, items, next, total, matched, truncated: false}`. |
+| `delete` | panel directory | `sources` (≤ 100 ids): recursive, one transaction, ≤ 5000 entries (`413`); `delete` right on every source's mount; mount roots and nested selections are refused. Declares a danger confirmation whose text follows the policy. Result `{succeeded, failed, policy}`. |
+| `rename` | entry | `name`: safe-name rule, `409` on conflict; a file keeps its extension (any case) or changes it only to an allowed one of the same stored type (`jpg` ↔ `jpeg`); mount roots refused; bumps the revision. |
+| `download` | file | GET/HEAD: any stored file as `attachment` with its name, HTTP Range, `no-store`. |
+| `zip_prepare` | panel directory | `sources` (≤ 100 files/folders): writes only a manifest (5 min, single use) bound to actor, channel and session/token owner; `download` right on every source mount; ≤ 5000 files and < 4 GiB, else `413`. Returns `{token, name, count, bytes}`. |
+| `zip_get` | token | GET: re-checks `download` on every source mount, then streams the ZIP (`StreamedDownload` + `ZipStream`: STORE, UTF-8 names, data descriptors, CRC32 computed while streaming, folders kept, no ZIP64, no temporary archive); unknown, foreign or expired tokens `404`. |
 | `create_directory` | parent directory | Field `name`. |
 | `upload` | target directory | The [uploader](uploader.md)'s `__upload` transfer protocol (policy from the definition: allowlist, size, `maxFiles`, folders, depth, duplicate policy), or direct multipart `files[]` parts; optional `decision`, `relative_path`. |
 | `copy` / `move` | target directory | `sources` (comma-separated IDs, ≤ 100), optional `decision`. |
@@ -174,8 +180,9 @@ Item-level rules are not supported. The view lists only offered actions and
 only the mounts whose `tree` the actor may read; hidden controls are not
 protection — every request is checked again.
 
-Copy checks `copy` on the destination mount and `list` (read) on every source
-item's mount. Move additionally requires `move` on every source mount, because
+Copy checks `copy` on the destination mount and `list` and `download` on
+every source item's mount (a copy reads the bytes, so it cannot bypass the
+download right). Move additionally requires `move` on every source mount, because
 it changes the source location. Copying or moving a mount root, a nested
 selection, or a directory into itself or a descendant is rejected.
 
@@ -209,6 +216,26 @@ rejected server-side. Files may be placed in any directory. Copy and move
 preflight the depth of every directory in every moved subtree before any write;
 one violation rejects the whole request.
 
+<a id="delete-policy"></a>
+
+**Delete policy.** `deletePolicy: 'archive'` marks the entry and its subtree
+(`archived_at`, `archived_by`) and frees the name (a tombstone `name_key`);
+content and thumbnails stay referenced. Every framework read, lookup, count,
+listing, tree, media description and class filter hides archived entries as
+if they were deleted; showing them to anyone is consumer-specific and has no
+framework feature. Consumer SQL that reads `blade_files` directly must add
+`archived_at IS NULL` itself. `'delete'` removes the subtree's rows and
+derivatives and queues reference-counted content collection (content shared
+with a copy stays). Audit detail: `{target, sources, succeeded, failed,
+entries, policy}` (ids only). Overwrites follow the policy too: under
+`archive` an overwritten file (upload, copy or move with Overwrite) is
+archived and the incoming file becomes a new entry with a new id (upload
+results report it as `replaced`, audits list `archived` ids); under `delete`
+it is rewritten in place (move removes the target). A text save is a
+revision of the same entry, not an overwrite. On MySQL the top rows of a
+delete, archive, folder move or folder rename are locked before their
+subtree is read.
+
 **Copy and move.** Recursive; across mounts too. Each request is one
 transaction and handles at most 5000 entries. Name conflicts without a decision
 return `409` with `details.conflicts` and change nothing. The UI then shows the
@@ -231,7 +258,8 @@ read); the browser MIME value is ignored. Each file gets its own result:
 `depth`, `name`, `quota`, `incomplete`) and a localized reason. A folder upload
 sends `relative_path`; missing folders are created below the target (existing
 ones are reused) under the safe-name rule and `maxDepth`, counted from the mount
-root. Duplicates follow `duplicatePolicy`; with `ask` the finish of a
+root; on MySQL the parent row is locked first so parallel finishes into an
+empty folder serialize. Duplicates follow `duplicatePolicy`; with `ask` the finish of a
 conflicting file returns `409` and the uploader asks once. The direct
 multipart request remains for API callers (`relative_path` only with one
 file).
@@ -269,8 +297,30 @@ length and size. Whether a format plays depends on the browser (WebM is the
 portable choice).
 
 **Panel view modes.** As in Midnight Commander, each panel independently shows
-either its file listing (`Nézet: Fájllista`, default) or its folder tree
-(`Nézet: Mappafa`), chosen in the panel bar. The tree shows folders and files,
+its file listing (`Nézet: Fájllista`, default), tiles (`Nézet: Csempék`:
+thumbnails through `thumbnail_get`, type icons for folders and other files,
+duration badges) or its folder tree (`Nézet: Mappafa`), chosen in the panel
+bar. A second bar row holds the search input (debounced, Enter, Escape,
+≤ 100 characters), the type filter (`Minden típus`, `Mappák`, `Képek`,
+`Videók`, `Szöveg`, `Egyéb`) and the sort control (`Név`, `Módosítva`,
+`Méret`, `Típus`, ascending/descending), all applied by the paged server
+`list`; scrolling loads the next page (at most 3000 rows, then a toast asks
+to narrow the list), and the first row shows the item counter. Entering a
+folder clears the search and keeps type and sort.
+
+**Commands.** `Új mappa`, `Másolás`, `Áthelyezés` (long texts as tooltips),
+`Átnevezés` (F2, the shared form window with Cancel/Save, the base name
+preselected), `Törlés` (Del, the shared danger confirmation from the action's
+declared `confirm`, then a toast), `Letöltés` (one file through the GET
+`download` URL; several marks or a folder through `zip_prepare` and the GET
+`zip_get` stream), `Szerkesztés`, `Megtekintés`, `Feltöltés`. Rename and delete
+update rows in place; a panel inside a deleted folder opens the surviving
+parent. Dropping files or folders onto a panel, or Ctrl+V in a focused panel,
+opens the uploader for that panel's folder: in-flight files appear as
+unmarkable rows with their state and finished files are inserted in sort
+position from the result without reloading the listings. The viewers step
+through the images and videos of the panel's loaded rows (`Előző`/`Következő`,
+PageUp/PageDown, `n / m`), and the panel cursor follows. The tree shows folders and files,
 files with the same MIME icon as the listing. Selecting a folder opens it in
 the tree and makes it the panel's current folder: the target of copy/move from
 the other panel, upload and new folder. Selecting a file makes its folder
@@ -382,9 +432,7 @@ and C for conflicts. `demo@example.test` has every file action;
 
 ## Limits
 
-- No deletion, rename-in-place or file download yet (planned U4); dropping or
-  pasting directly onto a panel is planned U4 too (the uploader window accepts
-  both). Previews and
+- Previews and
   thumbnails cover PNG, JPEG, MP4 and WebM; other types (Markdown, CSV, PDF)
   have no viewer.
 - Thumbnails appear after the background task; until then the listing reports
@@ -393,7 +441,18 @@ and C for conflicts. `demo@example.test` has every file action;
 - One byte range per request; multi-range requests receive the whole content.
 - Permissions are per mount, not per entry.
 - Trees load a mount's directories (≤ 2000) and first 5000 files at once;
-  lists show the first 1000 entries without paging, sorting or live updates.
+  lists page on the server but have no live updates.
+- ZIP downloads have no ZIP64 (< 4 GiB, ≤ 5000 files) and no compression. A
+  file whose content is unreadable while streaming is left out and listed in a
+  final `MISSING-<n>.txt` entry (the audit counts files missing before the first
+  byte). An error of the `zip_get` GET itself (expired or used token, revoked
+  right) shows as a failed browser download, not as an in-app message. Mount
+  labels must be safe names; ZIP path segments are sanitized with the same
+  rule. Video files use the `dxi-menu-right` glyph (labelled `Videó`), the same
+  glyph as the tree's folder toggle, because the Suite icon set has no video
+  icon. A
+  `HEAD` on `zip_get` consumes its token; a rejected `zip_get` audit row records
+  the token as its object id (single-use, session-bound, 5 minutes).
 - Conflict decisions apply to all conflicting items of one request.
 - Directory overwrite (merge) is not supported.
 - Content lives on the local filesystem below `contentRoot`; there is no

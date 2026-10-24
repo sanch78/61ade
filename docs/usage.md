@@ -225,8 +225,12 @@ the post-response `TaskQueue`; `DownloadStream` and GET-capable actions
 under the same ACL and audit. Install it explicitly in setup, register it in
 the application definition and grant rules (`content_stream`/`thumbnail_get`
 are separate rights). Earlier BLOB databases upgrade with the explicit,
-verified migration 0002. Deletion, rename, download and per-entry permissions
-are not implemented yet ([FB-0058](feedback.md#fb-0058), [FB-0063](feedback.md#fb-0063)).
+verified migration 0002. U4 adds paged server-sorted listings with tiles, search, type filter and
+sort, a configurable `deletePolicy` (`archive`, the recommendation, hides
+records from every framework read; `delete` removes them), `delete`,
+`rename`, GET `download` and streamed ZIP (`zip_prepare`/`zip_get`), and
+drop/paste onto panels. Per-entry permissions are not implemented
+([FB-0058](feedback.md#fb-0058), [FB-0063](feedback.md#fb-0063)).
 
 <a id="feltöltő"></a>
 

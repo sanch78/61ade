@@ -20,15 +20,28 @@ final readonly class UploadPolicy
     /** Bytes of a multipart request beyond its parts (JSON `request` field and boundaries). */
     public const ENVELOPE_BYTES = 65536;
 
-    public function __construct(public array $extensions, public int $maxSizeBytes, public int $maxFiles = self::MAX_FILES, public int $chunkBytes = 4194304, public bool $folders = false, public int $maxDepth = 5, public string $duplicatePolicy = 'ask', public string $tempRoot = '', public int $ttlSeconds = 86400, public ?\Closure $preflight = null)
+    public const CHUNK_BYTES = 4194304;
+    public const MIN_CHUNK_BYTES = 262144;
+    public const MAX_CHUNK_BYTES = 8388608;
+    /** Bytes per chunk request part; the default (null) is CHUNK_BYTES clamped to the runtime's request limits. */
+    public int $chunkBytes;
+
+    public function __construct(public array $extensions, public int $maxSizeBytes, public int $maxFiles = self::MAX_FILES, ?int $chunkBytes = null, public bool $folders = false, public int $maxDepth = 5, public string $duplicatePolicy = 'ask', public string $tempRoot = '', public int $ttlSeconds = 86400, public ?\Closure $preflight = null)
     {
+        // Runtime request limits (0 or negative: unlimited). One chunk part must fit upload_max_filesize and, with
+        // the envelope, post_max_size: an explicit chunk size beyond them fails, the default is clamped below them.
+        $limits = array_filter(['upload_max_filesize' => ini_parse_quantity((string) ini_get('upload_max_filesize')), 'post_max_size' => ini_parse_quantity((string) ini_get('post_max_size'))], static fn(int $limit) => $limit > 0);
+        if ($chunkBytes === null) {
+            $chunkBytes = min([self::CHUNK_BYTES, ...array_map(static fn(int $limit) => $limit - self::ENVELOPE_BYTES, array_values($limits))]);
+            if ($chunkBytes < self::MIN_CHUNK_BYTES) throw new \InvalidArgumentException('The default upload chunk size does not fit '.implode(' and ', array_keys($limits)).'.');
+        }
+        $this->chunkBytes = $chunkBytes;
         if (!$extensions || !array_is_list($extensions) || array_filter($extensions, static fn($e) => !is_string($e) || !preg_match('/^[a-z0-9]{1,32}$/D', $e)) || count(array_unique($extensions)) !== count($extensions)) throw new \InvalidArgumentException('Invalid upload extensions.');
-        if ($maxSizeBytes < 1 || $maxSizeBytes > self::MAX_SIZE_BYTES || $maxFiles < 1 || $maxFiles > self::MAX_FILES || $chunkBytes < 262144 || $chunkBytes > 8388608 || $maxDepth < 1 || $maxDepth > 32 || $ttlSeconds < 600 || $ttlSeconds > 604800) throw new \InvalidArgumentException('Invalid upload limit.');
+        if ($maxSizeBytes < 1 || $maxSizeBytes > self::MAX_SIZE_BYTES || $maxFiles < 1 || $maxFiles > self::MAX_FILES || $chunkBytes < self::MIN_CHUNK_BYTES || $chunkBytes > self::MAX_CHUNK_BYTES || $maxDepth < 1 || $maxDepth > 32 || $ttlSeconds < 600 || $ttlSeconds > 604800) throw new \InvalidArgumentException('Invalid upload limit.');
         if (!in_array($duplicatePolicy, self::DUPLICATE_POLICIES, true)) throw new \InvalidArgumentException('Invalid duplicate policy.');
         if ($tempRoot !== '' && (!str_starts_with($tempRoot, '/') || str_contains($tempRoot, "\0") || preg_match('~(^|/)\.\.?(/|$)~', $tempRoot))) throw new \InvalidArgumentException('The upload transfer root must be an absolute path.');
-        // A chunk request (part + envelope) must fit the runtime's request limit; 0 means unlimited.
-        $post = ini_parse_quantity((string) ini_get('post_max_size'));
-        if ($post > 0 && $chunkBytes + self::ENVELOPE_BYTES > $post) throw new \InvalidArgumentException('The upload chunk size exceeds post_max_size.');
+        if (isset($limits['upload_max_filesize']) && $chunkBytes > $limits['upload_max_filesize']) throw new \InvalidArgumentException('The upload chunk size exceeds upload_max_filesize.');
+        if (isset($limits['post_max_size']) && $chunkBytes + self::ENVELOPE_BYTES > $limits['post_max_size']) throw new \InvalidArgumentException('The upload chunk size exceeds post_max_size.');
     }
 
     /** Byte limit of a direct multipart request carrying every file at once. */
@@ -90,6 +103,18 @@ final readonly class UploadPolicy
         if ($segments && !$this->folders) return ['code' => 'name', 'message' => Translator::text('Mappa feltöltése nem engedélyezett.')];
         if (count($segments) > $this->maxDepth) return ['code' => 'depth', 'message' => Translator::text('A mappák legfeljebb {depth} szint mélyek lehetnek.', ['depth' => $this->maxDepth])];
         return null;
+    }
+
+    /** Translated message of a batch above maxFiles (code `quota`). */
+    public function quota(): string
+    {
+        return $this->maxFiles > 1 ? Translator::text('Egyszerre legfeljebb {count} fájl tölthető fel.', ['count' => $this->maxFiles]) : Translator::text('Egyszerre csak egy fájl tölthető fel.');
+    }
+
+    /** Display copy of a client-supplied name for per-file results; it is never used as a path. */
+    public static function shown(string $name): string
+    {
+        return mb_substr((string) preg_replace('/\p{Cc}|\p{Cf}/u', '?', mb_scrub($name, 'UTF-8')), 0, 255, 'UTF-8');
     }
 
     public function tooLarge(?int $size = null): string

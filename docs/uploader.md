@@ -44,7 +44,7 @@ $registry->add(new Action('attachments', 'upload', 'Feltöltés',
 | `extensions` | Lower-case allowlist (required). |
 | `maxSizeBytes` | Per file, at most 100 MB. |
 | `maxFiles` | Per batch, 1–20 (quota). |
-| `chunkBytes` | 256 KiB–8 MiB (default 4 MiB); construction fails when chunk + 64 KiB exceeds `post_max_size`. The web server's `upload_max_filesize` must admit one chunk. |
+| `chunkBytes` | 256 KiB–8 MiB. The default is min(4 MiB, `upload_max_filesize` − 64 KiB, `post_max_size` − 64 KiB) of the running PHP (the managed demo's FPM: 4 MiB); an explicit value above either limit fails at construction. |
 | `folders`, `maxDepth` | Allow `relative_path` folder uploads and their depth. |
 | `duplicatePolicy` | `ask`, `overwrite`, `rename`, `skip` or `reject`. |
 | `tempRoot` | Absolute, persistent, group-writable directory outside web roots (transfers live in `<tempRoot>/<id>/`). |
@@ -63,7 +63,8 @@ import { uploads } from "./Uploader";
 
 uploads.open({resource: "attachments", action: "upload", target: recordId,
   targetLabel: title, policy: view.upload.policy,
-  onUploaded: result => refresh(result)});   // once per batch: {succeeded, skipped, failed}
+  onUploaded: result => refresh(result)});   // once per batch; long-lived views subscribe to upload:file-done instead
+// A handler result without succeeded/skipped/failed (e.g. {ok: true}) counts as one success.
 uploads.on("upload:complete", ({succeeded, failed}) => …);
 ```
 
@@ -83,9 +84,9 @@ configures it with the CSRF token and the user id.
 | --- | --- | --- |
 | `upload_preflight` | `files: [{name, size, type, relative_path?}]` | Per-file `{index, ok, code?, message?, conflict?}`; nothing is created. |
 | `upload_begin` | `file: {name, size, type, relative_path?, last_modified?}`, `fingerprint` | `{transfer, received, size, chunk_bytes, expires_at}`; an unexpired transfer of the same owner, target, fingerprint, name, size and path is returned (resume). Audited with the size only. |
-| `upload_chunk` | multipart `request` + part `chunk`; `transfer`, `offset` | `{received}`; a wrong offset is `409` with `details.received`, bytes beyond the declared size `400 too_large`, a part above `chunkBytes` `413`. |
+| `upload_chunk` | multipart `request` + part `chunk`; `transfer`, `offset` | `{received}`; a wrong offset is `409` with `details.received` (the transfer stays resumable); bytes beyond the declared size `400 too_large`, a part above `chunkBytes` `413` and any other permanent `4xx` remove the transfer. |
 | `upload_status` | `transfer` | `{received, size, state}`. |
-| `upload_finish` | `transfer`, `decision?` | The target action runs through `Executor::execute` with the assembled file as the only upload: ACL, field validation, transaction and audit as usual. A name conflict is `409` with `details.conflicts` and keeps the transfer for a later finish with a decision; success, skip and other `4xx` remove it; `≥ 500` keeps it. |
+| `upload_finish` | `transfer`, `decision?` | The target action runs through `Executor::execute` with the assembled file as the only upload: ACL, field validation, transaction and audit as usual. A name conflict is `409` with `details.conflicts` and keeps the transfer for a later finish with a decision; `≥ 500` keeps it too (the client retries); success, skip and every other `4xx` (including a `409` without conflicts) remove it. A handler result without `succeeded`/`skipped`/`failed` counts as one success. |
 | `upload_abort` | `transfer` | `{aborted: true}`. |
 
 Every operation first checks the target action's channel, API token scope
@@ -106,7 +107,15 @@ name rule, a final segment equal to the file name is dropped, and a policy
 without `folders` refuses a path with `name`.
 
 The direct multipart request (`files[]` parts) keeps working for API callers
-up to `maxSizeBytes × maxFiles`; `relative_path` then needs a single file.
+up to `maxSizeBytes × maxFiles`; `relative_path` then needs a single file. The
+executor enforces the policy on this path for every consumer, before the
+handler: more than `maxFiles` parts is `400 quota`; each part is checked for
+PHP upload errors (`too_large`, `incomplete`) and the policy's name, type,
+size and folder rules; rejected parts are withheld from the handler and
+prepended to its result's `failed` list (also to the `details.failed` of a
+handler failure); when no part remains the request is `400` with
+`details.code` and `details.failed`. The audit detail records only the count
+(`rejected_files`).
 
 ## Behavior
 
@@ -133,8 +142,17 @@ up to `maxSizeBytes × maxFiles`; `relative_path` then needs a single file.
   The shell's lower bar then shows `Feltöltés: 3/20 · 45 %`; clicking it
   reopens the window. When a batch ends a toast reports the result; failures
   stay listed in the window.
+- **Robustness.** `upload_finish` is retried with the chunk backoff on network
+  errors and `5xx`; a file waiting for the conflict dialog releases its
+  parallel slot; Cancel during begin or a quick Retry never loses or aborts the
+  newer run's transfer; a folder larger than the batch limit is cut with a
+  toast and an announcement of how many files were left out; a file dropped
+  outside the window is refused instead of opening it in the tab; leaving the
+  page while uploading asks first (`beforeunload`).
 - **Resume.** Unfinished queue entries (transfer id, fingerprint, target) are
-  kept in `localStorage`. After a reload or a dropped connection they appear as
+  kept in `localStorage`; only a file re-added for the same target resumes
+  (otherwise it starts fresh). The owner is the PHP session, so resuming works
+  within one session (not after a new login) and the last tab to write wins. After a reload or a dropped connection they appear as
   interrupted rows; adding the same file again (choose, drop or paste)
   continues from the server's received offset. A browser cannot keep the file
   itself across a reload, so re-adding it is required.

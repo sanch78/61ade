@@ -15,7 +15,8 @@ export type UploadPolicy = {
 };
 /** Per-file outcome of the target action, the shape the file manager's `upload` returns. */
 export type UploadResult = {
-  succeeded: { id: string; name: string; parent?: string }[];
+  /** `item` is the target's listing shape of the stored entry when it reports one (the file manager does), for in-place insertion. */
+  succeeded: { id: string; name: string; parent?: string; item?: Record<string, unknown> }[];
   skipped: { name: string }[];
   failed: { name: string; code?: string; error: string }[];
 };
@@ -42,6 +43,8 @@ export type UploadOpenOptions = {
   policy: UploadPolicy;
   /** Files to queue at once (for example from a drop on the caller's own surface). */
   files?: File[] | FileList;
+  /** A drop's DataTransfer from the caller's own surface (folders included); pass it synchronously from the drop handler. */
+  transfer?: DataTransfer;
   /** Called once per batch when every file of it has settled; the caller refreshes its view. */
   onUploaded?: (result: UploadResult) => void;
 };
@@ -55,9 +58,13 @@ type Item = {
   resource: string; action: string; target: string | null; targetLabel: string; fingerprint: string;
   batch: Batch; state: State; received: number; transfer?: string; code?: string; error?: string; retry?: boolean;
   userSkipped?: boolean; result?: UploadResult["succeeded"][number]; preview?: string; controller?: AbortController; percent?: number;
+  /** Pending `upload_abort` of a released transfer; a later run waits for it before `upload_begin` may resume. */
+  releasing?: Promise<unknown>;
 };
+/** One of the {@link PARALLEL} transfer slots, held by a run; a run waiting for a conflict decision gives it up. */
+type Slot = { held: boolean };
 type Stored = Pick<Item, "fingerprint" | "transfer" | "resource" | "action" | "target" | "targetLabel" | "name" | "size" | "type" | "lastModified" | "relativePath">;
-type Context = Omit<UploadOpenOptions, "files">;
+type Context = Omit<UploadOpenOptions, "files" | "transfer">;
 type Added = { file: File; relativePath: string };
 type Handler<K extends keyof UploadEvents> = (payload: UploadEvents[K]) => void;
 
@@ -131,11 +138,15 @@ class UploadService {
   private zone = "";
   private summaryText = "";
   private listening = false;
+  private waiting: (() => void)[] = [];
+  private guarded = false;
+  private leaving = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
 
   /** Session data of the shell: CSRF header for the UI channel and the actor (keys stored resumes). */
   configure(options: { csrf: string; userId?: string }): void {
     this.csrf = options.csrf;
     this.user = options.userId ?? "";
+    this.listen();
   }
 
   on<K extends keyof UploadEvents>(event: K, handler: Handler<K>): void {
@@ -158,7 +169,7 @@ class UploadService {
 
   /** Shows the window for a target; queued files of other targets stay in the queue. */
   open(options: UploadOpenOptions): void {
-    const { files, ...context } = options;
+    const { files, transfer, ...context } = options;
     this.context = context;
     this.mount();
     this.renderZone();
@@ -169,7 +180,9 @@ class UploadService {
     this.restore();
     this.updateIndicator();
     void awaitRedraw().then(() => this.zoneNode()?.focus({ preventScroll: true }));
-    if (files?.length) void this.add(Array.from(files, file => ({ file, relativePath: "" })));
+    // Folder entries of a drop are readable only in the drop handler's task: `dropped` takes them synchronously.
+    if (transfer) void this.dropped(transfer);
+    else if (files?.length) void this.add(Array.from(files, file => ({ file, relativePath: "" })));
   }
 
   /** Reopens the window with its current queue (shell indicator click). */
@@ -246,8 +259,9 @@ class UploadService {
       const input = event.target as HTMLInputElement;
       if (!(input instanceof HTMLInputElement) || input.dataset.bladeUploadInput === undefined || !inside(input)) return;
       const folder = input.dataset.bladeUploadInput === "folder";
-      const files = Array.from(input.files ?? [], file => ({ file, relativePath: folder ? file.webkitRelativePath : "" }));
+      let files = Array.from(input.files ?? [], file => ({ file, relativePath: folder ? file.webkitRelativePath : "" }));
       input.value = "";
+      if (folder && files.length > this.limit()) { this.omitted(files.length - this.limit()); files = files.slice(0, this.limit()); }
       void this.add(files);
     }, true);
     const zone = (target: EventTarget | null) => target instanceof Element ? target.closest<HTMLElement>(".blade-uploader__zone") : null;
@@ -266,6 +280,15 @@ class UploadService {
       this.zoneNode()?.classList.remove("blade-uploader__zone--over");
       void this.dropped(event.dataTransfer);
     });
+    // A file dropped anywhere else would make the browser open it and leave the page (and its transfers).
+    // Only file drags nobody accepted are refused; other drags and the callers' own drop targets are untouched.
+    const foreign = (event: DragEvent) => !!event.dataTransfer?.types.includes("Files") && !event.defaultPrevented && !inside(event.target);
+    for (const type of ["dragenter", "dragover"] as const) document.addEventListener(type, event => {
+      if (!foreign(event)) return;
+      event.preventDefault();
+      event.dataTransfer!.dropEffect = "none";
+    });
+    document.addEventListener("drop", event => { if (foreign(event)) event.preventDefault(); });
     // A file that does not decode as an image (wrong content) falls back to its type icon.
     document.addEventListener("error", event => {
       const image = event.target;
@@ -449,7 +472,8 @@ class UploadService {
       return;
     }
     const policy = this.context?.policy, collected: Added[] = [], rejected: string[] = [];
-    const limit = (policy?.max_files ?? 20) + 100;
+    const limit = this.limit();
+    let omitted = 0;
     const fileOf = (entry: FileSystemFileEntry) => new Promise<File>((resolve, reject) => entry.file(resolve, reject));
     const children = async (directory: FileSystemDirectoryEntry) => {
       const reader = directory.createReader(), all: FileSystemEntry[] = [];
@@ -459,9 +483,10 @@ class UploadService {
         all.push(...batch);
       }
     };
+    // Beyond the limit files are only counted (no File is read), so the user learns how many were left out.
     const walk = async (entry: FileSystemEntry, depth: number): Promise<void> => {
-      if (collected.length >= limit) return;
-      if (entry.isFile) {
+      if (entry.isFile && collected.length >= limit) omitted++;
+      else if (entry.isFile) {
         const file = await fileOf(entry as FileSystemFileEntry), path = entry.fullPath.replace(/^\/+/, "");
         collected.push({ file, relativePath: path.includes("/") ? path : "" });
       } else if (entry.isDirectory && depth <= (policy?.max_depth ?? 5)) {
@@ -472,11 +497,21 @@ class UploadService {
       try {
         if (entry?.isDirectory && !policy?.folders) rejected.push(entry.name);
         else if (entry) await walk(entry, 0);
+        else if (file && collected.length >= limit) omitted++;
         else if (file) collected.push({ file, relativePath: "" });
       } catch { if (entry) rejected.push(entry.name); }
     }
     if (rejected.length) message({ text: t("Mappa nem tölthető fel ide: {names}", { names: rejected.join(", ") }), css: "blade-toast blade-uploader-toast--failed", expire: 6000 });
+    if (omitted) this.omitted(omitted);
     await this.add(collected);
+  }
+
+  /** Files of one drop or folder choice taken into the queue; the rest of a huge folder is only counted. */
+  private limit(): number { return (this.context?.policy.max_files ?? 20) + 100; }
+  private omitted(count: number): void {
+    const text = t("{count} további fájl nem került a feltöltési sorba.", { count });
+    message({ text, css: "blade-toast blade-uploader-toast--failed", expire: 8000 });
+    this.announce(text);
   }
 
   /** Preflights new files of one batch; resumable interrupted files continue without it. */
@@ -488,7 +523,8 @@ class UploadService {
     for (const added of files) {
       const fingerprint = await fingerprintOf(added.file, added.relativePath);
       const same = (item: Item) => item.fingerprint === fingerprint && item.resource === context.resource && item.action === context.action;
-      const waiting = [...this.items.values()].find(item => item.state === "interrupted" && same(item));
+      // Only a transfer to this very target is continued; for another target the file is queued afresh.
+      const waiting = [...this.items.values()].find(item => item.state === "interrupted" && same(item) && item.target === context.target);
       if (waiting) {
         Object.assign(waiting, { file: added.file, batch, preview: waiting.preview ?? (IMAGE.test(added.file.type) && added.file.size <= 20 * 1048576 ? URL.createObjectURL(added.file) : undefined) });
         batch.items.push(waiting);
@@ -536,9 +572,23 @@ class UploadService {
     while (this.active < PARALLEL) {
       const next = [...this.items.values()].find(item => item.state === "queued");
       if (!next) return;
+      const slot: Slot = { held: true };
       this.active++;
-      void this.transfer(next).finally(() => { this.active--; this.pump(); this.settle(); });
+      void this.transfer(next, slot).finally(() => { this.release(slot); this.settle(); });
     }
+  }
+  /** Takes a slot again (after a conflict decision); waiting runs get freed slots before queued files. */
+  private acquire(slot: Slot): Promise<void> {
+    if (slot.held) return Promise.resolve();
+    if (this.active < PARALLEL) { this.active++; slot.held = true; return Promise.resolve(); }
+    return new Promise(resolve => this.waiting.push(() => { slot.held = true; resolve(); }));
+  }
+  private release(slot: Slot): void {
+    if (!slot.held) return;
+    slot.held = false;
+    const next = this.waiting.shift();
+    if (next) next(); // handed over: `active` is unchanged
+    else { this.active--; this.pump(); }
   }
 
   // ---------------------------------------------------------------- protocol
@@ -565,58 +615,74 @@ class UploadService {
     throw new UploadError(String(failed?.error || result.error || t("Sikertelen művelet.")), response.status, String(result.details?.code ?? failed?.code ?? ""), result.details, response.status >= 500 || response.status === 0);
   }
 
-  /** Network errors and 5xx answers are retried with backoff (3 tries in all). */
-  private async retrying<T>(item: Item, run: () => Promise<T>): Promise<T> {
+  /** Network errors and 5xx answers are retried with backoff (3 tries in all) until the run is aborted. */
+  private async retrying<T>(signal: AbortSignal, run: () => Promise<T>): Promise<T> {
     for (let attempt = 1; ; attempt++) {
       try { return await run(); }
       catch (error) {
-        if (!(error instanceof UploadError) || !error.transient || attempt >= ATTEMPTS || item.controller?.signal.aborted) throw error;
-        await sleep(500 * 3 ** (attempt - 1), item.controller?.signal);
+        if (!(error instanceof UploadError) || !error.transient || attempt >= ATTEMPTS || signal.aborted) throw error;
+        await sleep(500 * 3 ** (attempt - 1), signal);
       }
     }
   }
+  /** Releases a server transfer; a later run of the item waits for it, so `upload_begin` cannot resume what is being removed. */
+  private releaseTransfer(item: Item, transfer: string): void {
+    const done = this.call(item, { operation: "upload_abort", transfer }).catch(() => undefined);
+    item.releasing = Promise.all([item.releasing, done]);
+  }
 
-  private async transfer(item: Item): Promise<void> {
+  private async transfer(item: Item, slot: Slot): Promise<void> {
     const controller = new AbortController(), signal = controller.signal;
     item.controller = controller;
+    // This run still owns the item: not cancelled meanwhile and not superseded by a Retry's newer run.
+    const owned = () => item.controller === controller && !signal.aborted && item.state === "uploading";
     this.set(item, { state: "uploading" });
     this.emit("upload:started", { file: this.info(item) });
     try {
       const file = item.file!;
-      const begin = await this.retrying(item, () => this.call(item, { operation: "upload_begin", fingerprint: item.fingerprint,
+      // A transfer released by an earlier Cancel is removed before begin could resume it.
+      await item.releasing;
+      if (!owned()) return;
+      const begin = await this.retrying(signal, () => this.call(item, { operation: "upload_begin", fingerprint: item.fingerprint,
         file: { name: item.name, size: item.size, type: item.type, last_modified: item.lastModified, ...(folderOf(item.relativePath) ? { relative_path: folderOf(item.relativePath) } : {}) } }));
-      // Begin is not aborted mid-flight, so a Cancel meanwhile can still release the transfer it created.
-      if (signal.aborted) { void this.call(item, { operation: "upload_abort", transfer: String(begin.transfer) }).catch(() => undefined); return; }
+      const transfer = String(begin.transfer);
+      if (!owned()) {
+        // Begin is not aborted mid-flight, so a Cancel meanwhile still releases the transfer it created,
+        // unless a newer run (Retry) owns the item: that run resumes this same transfer.
+        if (item.controller === controller) this.releaseTransfer(item, transfer);
+        return;
+      }
       const chunkBytes = Math.max(1, Number(begin.chunk_bytes) || this.context?.policy.chunk_bytes || 4194304);
-      item.transfer = String(begin.transfer);
+      item.transfer = transfer;
       item.received = Math.min(item.size, Math.max(0, Number(begin.received) || 0));
       this.persist();
       this.progress(item);
       let mismatches = 0;
       while (item.received < item.size) {
         const offset = item.received, blob = file.slice(offset, Math.min(item.size, offset + chunkBytes));
-        const answer = await this.retrying(item, async () => {
-          try { return { received: Number((await this.call(item, { operation: "upload_chunk", transfer: item.transfer, offset }, blob, signal)).received), mismatch: false }; }
+        const answer = await this.retrying(signal, async () => {
+          try { return { received: Number((await this.call(item, { operation: "upload_chunk", transfer, offset }, blob, signal)).received), mismatch: false }; }
           catch (error) {
             // The server holds another offset (a retried chunk had arrived after all): continue from there, never resend it.
             if (error instanceof UploadError && error.status === 409 && Number.isFinite(Number(error.details?.received))) return { received: Number(error.details.received), mismatch: true };
             throw error;
           }
         });
-        if (signal.aborted) return;
+        if (!owned()) return;
         if (answer.mismatch && ++mismatches > 3) throw new UploadError(t("Sikertelen művelet."), 409, "incomplete", undefined, true);
         if (!answer.mismatch) mismatches = 0;
         item.received = Math.min(item.size, Math.max(0, answer.received));
         this.progress(item);
       }
-      await this.finish(item);
+      if (!owned()) return;
+      await this.finish(item, slot, signal);
     } catch (error) {
-      if (error instanceof Aborted || signal.aborted || !ACTIVE.includes(item.state)) return;
+      if (error instanceof Aborted || signal.aborted || item.controller !== controller || !ACTIVE.includes(item.state)) return;
       const e = error instanceof UploadError ? error : new UploadError(t("Sikertelen művelet."));
       // An expired transfer (404) starts again on retry; permanent per-file reasons and denials do not.
       if (e.status === 404) item.transfer = undefined;
       this.fail(item, e.code, e.message, !PERMANENT.has(e.code) && (e.transient || e.status === 404 || e.code === "incomplete"));
-    } finally { item.controller = undefined; }
+    } finally { if (item.controller === controller) item.controller = undefined; }
   }
 
   private progress(item: Item): void {
@@ -626,23 +692,36 @@ class UploadService {
     this.updateIndicator();
   }
 
-  private async finish(item: Item, decision?: string): Promise<void> {
+  /** Runs the target action; network errors and 5xx answers are retried (the server keeps the transfer on ≥ 500). */
+  private async finish(item: Item, slot: Slot, signal: AbortSignal, decision?: string): Promise<void> {
+    // Only an uploaded (or conflict-decided) file of a live run is finished; a cancelled one never is.
+    if (signal.aborted || !(item.state === "uploading" || item.state === "conflict")) return;
+    const transfer = item.transfer;
     this.set(item, { state: "finishing" });
     try {
-      const data = await this.call(item, { operation: "upload_finish", transfer: item.transfer, ...(decision ? { decision } : {}) }, undefined, item.controller?.signal);
-      this.finished(item, data as UploadResult);
+      const data = await this.retrying(signal, () => this.call(item, { operation: "upload_finish", transfer, ...(decision ? { decision } : {}) }, undefined, signal));
+      this.finished(item, data);
     } catch (error) {
-      if (error instanceof UploadError && error.status === 409 && Array.isArray(error.details?.conflicts)) { await this.conflict(item, error.details.conflicts); return; }
+      if (error instanceof UploadError && error.status === 409 && Array.isArray(error.details?.conflicts)) { await this.conflict(item, slot, signal, error.details.conflicts); return; }
       throw error;
     }
   }
 
-  private finished(item: Item, data: UploadResult): void {
+  /**
+   * The target action's answer for one file. The file manager's shape (`succeeded`/`skipped`/`failed`,
+   * plus server-reported `rejected` parts) is used as is; any other 2xx result (`{ok: true}`, a record)
+   * is one success.
+   */
+  private finished(item: Item, data: any): void {
     if (item.state !== "finishing") return;
-    const result: UploadResult = { succeeded: data?.succeeded ?? [], skipped: data?.skipped ?? [], failed: data?.failed ?? [] };
+    const list = (value: unknown): any[] => Array.isArray(value) ? value.filter(entry => entry && typeof entry === "object") : [];
+    const shaped = !!data && typeof data === "object" && ["succeeded", "skipped", "failed", "rejected"].some(key => Array.isArray(data[key]));
+    const failed = shaped ? [...list(data.failed), ...list(data.rejected)].map(entry => ({ name: String(entry.name ?? item.name), ...(entry.code ? { code: String(entry.code) } : {}), error: String(entry.error ?? entry.message ?? t("Sikertelen művelet.")) })) : [];
+    const result: UploadResult = shaped ? { succeeded: list(data.succeeded), skipped: list(data.skipped), failed }
+      : { succeeded: [{ id: String(data?.id ?? ""), name: item.name }], skipped: [], failed: [] };
     item.transfer = undefined;
-    if (result.succeeded.length) {
-      this.set(item, { state: "done", received: item.size, result: result.succeeded[0] });
+    if (result.succeeded.length || (!result.skipped.length && !result.failed.length)) {
+      this.set(item, { state: "done", received: item.size, result: result.succeeded[0] ?? { id: "", name: item.name } });
       this.persist();
       this.announce(t("Feltöltve: {name}", { name: this.label(item) }));
       this.emit("upload:file-done", { file: this.info(item), result });
@@ -652,15 +731,19 @@ class UploadService {
       this.announce(t("Kihagyva: {name}", { name: this.label(item) }));
       this.emit("upload:file-done", { file: this.info(item), result });
     } else {
-      const failed = result.failed[0];
-      this.fail(item, String(failed?.code ?? ""), String(failed?.error ?? t("Sikertelen művelet.")), false);
+      const reason = result.failed[0];
+      this.fail(item, String(reason?.code ?? ""), String(reason?.error || t("Sikertelen művelet.")), false);
     }
   }
 
-  /** One shared dialog per conflict; "apply to all" answers the rest of the batch. */
-  private async conflict(item: Item, conflicts: unknown[]): Promise<void> {
+  /**
+   * One shared dialog per conflict; "apply to all" answers the rest of the batch. While the decision is
+   * pending the run gives up its parallel slot, so other queued files continue; it takes one again to finish.
+   */
+  private async conflict(item: Item, slot: Slot, signal: AbortSignal, conflicts: unknown[]): Promise<void> {
     this.set(item, { state: "conflict" });
     this.emit("upload:conflict", { file: this.info(item), conflicts });
+    this.release(slot);
     const answer = this.conflicts.then(async () => {
       if (item.batch.decision) return item.batch.decision;
       if (item.state !== "conflict") return null;
@@ -682,12 +765,13 @@ class UploadService {
       item.transfer = undefined;
       this.set(item, { state: "skipped", userSkipped: true });
       this.persist();
-      if (transfer) void this.call(item, { operation: "upload_abort", transfer }).catch(() => undefined);
+      if (transfer) this.releaseTransfer(item, transfer);
       this.announce(t("Kihagyva: {name}", { name: this.label(item) }));
       this.emit("upload:cancelled", { file: this.info(item) });
       return;
     }
-    await this.finish(item, decision);
+    await this.acquire(slot);
+    await this.finish(item, slot, signal, decision);
   }
 
   private fail(item: Item, code: string, error: string, retry: boolean): void {
@@ -707,7 +791,7 @@ class UploadService {
     item.transfer = undefined;
     this.set(item, { state: "cancelled", retry: true });
     this.persist();
-    if (transfer) void this.call(item, { operation: "upload_abort", transfer }).catch(() => undefined);
+    if (transfer) this.releaseTransfer(item, transfer);
     this.announce(t("Megszakítva: {name}", { name: this.label(item) }));
     this.emit("upload:cancelled", { file: this.info(item) });
     this.settle();
@@ -725,7 +809,7 @@ class UploadService {
 
   private remove(item: Item): void {
     if (ACTIVE.includes(item.state)) return;
-    if (item.transfer && item.state !== "done") void this.call(item, { operation: "upload_abort", transfer: item.transfer }).catch(() => undefined);
+    if (item.transfer && item.state !== "done") this.releaseTransfer(item, item.transfer);
     this.drop(item);
     this.persist();
     this.paintSummary();
@@ -802,6 +886,7 @@ class UploadService {
   }
 
   private updateIndicator(): void {
+    this.guardUnload();
     let text = "";
     if (this.run.some(item => ACTIVE.includes(item.state)) && !this.win?.isVisible()) {
       const { done, total, ratio } = this.runProgress();
@@ -811,6 +896,14 @@ class UploadService {
     this.indicatorText = text;
     const state: UploadIndicator = text ? { text, label: t("Feltöltési ablak megnyitása") } : null;
     for (const listener of [...this.indicators]) listener(state);
+  }
+
+  /** Leaving the page asks for confirmation only while files are checked, waiting or transferred. */
+  private guardUnload(): void {
+    const busy = this.busy;
+    if (busy === this.guarded) return;
+    this.guarded = busy;
+    if (busy) addEventListener("beforeunload", this.leaving); else removeEventListener("beforeunload", this.leaving);
   }
 
   // ---------------------------------------------------------------- resume after reload

@@ -64,6 +64,10 @@ foreach([
  fn()=>new Field('kind','Kind',column:['presentation'=>'icon','editable'=>true]),
  fn()=>new Field('kind','Kind','number',column:['presentation'=>'icon']),
  fn()=>new Field('kind','Kind',secret:true,column:['presentation'=>'icon']),
+ fn()=>new Field('kind','Kind',column:['presentation'=>'icon']),
+ fn()=>new Field('kind','Kind','select',options:fn()=>['dxi dxi-file'=>'Fájl'],column:['presentation'=>'icon']),
+ fn()=>new Field('kind','Kind','select',options:['dxi dxi-file'=>''],column:['presentation'=>'icon']),
+ fn()=>new Field('kind','Kind','select',options:['Fájl'],column:['presentation'=>'icon']),
 ] as $invalid){try{$invalid();throw new RuntimeException('Invalid media/icon column accepted');}catch(InvalidArgumentException $e){check($e->getMessage()!=='Invalid media/icon column accepted','Invalid media/icon column rejected');}}
 $icon=new Field('kind','Kind','select',options:['dxi dxi-folder'=>'Mappa','dxi dxi-file'=>'Fájl'],column:['presentation'=>'icon','width'=>48]);
 check(new Field('file','File','number',column:['media'=>'files'])->column['media']==='files','Media on a number field');
@@ -76,6 +80,8 @@ $db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,chann
 $mediaView=$mediaWorkspace->views($actor)[0];
 check($mediaView['rowHeight']===56&&$mediaView['tileMinWidth']===200&&$mediaView['tiles']===true,'View presentation survives registerDelete and reaches the wire');
 $columns=array_column($mediaView['columns'],null,'id');
+$details=array_column($mediaView['detailFields'],null,'id');
+check($details['file']['media']==='files'&&$details['kind']['presentation']==='icon'&&$details['kind']['options']['dxi dxi-file']==='Fájl'&&!isset($details['title']['media'])&&!isset($details['title']['presentation'])&&!isset($details['kind']['width']),'Detail fields carry media and icon presentation only');
 check($columns['file']['media']==='files'&&$columns['file']['type']==='number'&&$columns['kind']['presentation']==='icon'&&$columns['kind']['options']['dxi dxi-file']==='Fájl','Media and icon column options reach the wire');
 check(!isset($view['rowHeight'])&&!isset($view['tileMinWidth'])&&!isset($view['tiles']),'Presentation keys absent by default');
 foreach([['rowHeight'=>31],['rowHeight'=>161],['tileMinWidth'=>119],['tileMinWidth'=>481]] as $options){try{$mediaRegistry->view('assets','Assets',[],['get'],...$options);throw new RuntimeException('Out-of-range view presentation accepted');}catch(InvalidArgumentException){}}
