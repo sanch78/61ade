@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Configuration;
+namespace Blade\Configuration;
 
 use PDO;
-use Vapa\Shell\SqlIdentityProvider;
+use Blade\Shell\SqlIdentityProvider;
 
 final class IdentityConfiguration
 {

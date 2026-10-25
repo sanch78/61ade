@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Live;
-use Vapa\Feature\Failure;
+namespace Blade\Live;
+use Blade\Feature\Failure;
 final class Tickets
 {
     public static function issue(string $runtime,string $session):string

@@ -6,7 +6,7 @@ if (( $# == 0 )); then
     echo "Usage: tools/run-dev-check.sh command [args...]" >&2
     exit 64
 fi
-runtime_dir="${VAPA_TMP_DIR:-$root/tmp}"
+runtime_dir="${BLADE_TMP_DIR:-$root/tmp}"
 mkdir -p "$root/tmp" "$runtime_dir"
 exec 9>"$root/tmp/dev-check.lock"
 if ! flock -n 9; then
@@ -19,7 +19,7 @@ if [[ -z "$available_kib" ]] || (( available_kib < 1310720 )); then
     exit 75
 fi
 runtime_dir="$(cd "$runtime_dir" && pwd)"
-export VAPA_TMP_DIR="$runtime_dir"
+export BLADE_TMP_DIR="$runtime_dir"
 export TMPDIR="$runtime_dir"
 # Fail closed if the user manager cannot enforce cgroup limits; no unbounded fallback.
 systemd-run --user --scope --quiet --collect \

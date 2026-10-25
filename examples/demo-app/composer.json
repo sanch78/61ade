@@ -1,6 +1,6 @@
 {
-  "name":"vapa/shell-demo",
+  "name":"61de/shell-demo",
   "type":"project",
   "repositories":[{"type":"path","url":"../../packages/php","options":{"symlink":true}}],
-  "require":{"php":"^8.4","ext-pdo_sqlite":"*","sanch78/vapa":"0.1.0"}
+  "require":{"php":"^8.4","ext-pdo_sqlite":"*","sanch78/61de":"0.1.0"}
 }

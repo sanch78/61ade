@@ -158,6 +158,17 @@ tree as decoration for a flat list.
   row mark, editor, sort state, tree node, view switch, and action. Test after
   asynchronous redraw, live refresh, mode switches, and responsive toolbar
   replacement, not only on an initial fast response.
+- Size every form or details window with the shared `fitWindow` (content-fitted,
+  capped at the viewport, remeasured after validation). Never give a control a
+  fixed pixel height in a window that can be larger than its content: a Form
+  textarea takes the extra height when the window is capped or enlarged, so no
+  empty band remains below the actions (FB-0058).
+- Open a file or document (text editor, image viewer, video player) in a
+  document window: one Layout fills the Window, a native Toolbar row holds its
+  commands (at least Save for an editable document, with Ctrl+S) and state, and
+  the content cell takes every size the window gets, including native full
+  size. Closing the window is the cancel and asks about unsaved changes
+  (FB-0058).
 - Keep Cancel beside Save (or the operation label) for every editable form and
   discard unsubmitted values on Cancel/close. Do not make a user confirm merely
   to press a second button that starts the same field-free action. Confirm only

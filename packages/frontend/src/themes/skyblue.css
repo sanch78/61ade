@@ -24,11 +24,11 @@
   --dhx-s-toolbar-button-background-hover: #d1e5f6;
   --dhx-s-toolbar-button-background-active: #bdd8f0;
   --dhx-s-grid-header-background: #d1e5f6;
-  --vapa-skyblue-chrome: linear-gradient(to bottom, #f8fbff 0%, #e7f0fd 45%, #d8e7fa 50%, #eaf2fd 100%);
-  --vapa-skyblue-hover: linear-gradient(to bottom, #fffaf0 0%, #fff1ce 45%, #ffdfa0 50%, #fff0c6 100%);
-  --vapa-skyblue-button: linear-gradient(to bottom, #eaf6ff 0%, #cbe5f7 45%, #acd1ec 50%, #d3eafa 100%);
-  --vapa-skyblue-pressed: linear-gradient(to bottom, #aacbe5, #d1e6f7);
-  --vapa-skyblue-bevel: inset 0 0 0 1px #8faec9, inset 0 2px 0 rgba(255,255,255,.9), 0 1px 1px rgba(56,79,102,.15);
+  --blade-skyblue-chrome: linear-gradient(to bottom, #f8fbff 0%, #e7f0fd 45%, #d8e7fa 50%, #eaf2fd 100%);
+  --blade-skyblue-hover: linear-gradient(to bottom, #fffaf0 0%, #fff1ce 45%, #ffdfa0 50%, #fff0c6 100%);
+  --blade-skyblue-button: linear-gradient(to bottom, #eaf6ff 0%, #cbe5f7 45%, #acd1ec 50%, #d3eafa 100%);
+  --blade-skyblue-pressed: linear-gradient(to bottom, #aacbe5, #d1e6f7);
+  --blade-skyblue-bevel: inset 0 0 0 1px #8faec9, inset 0 2px 0 rgba(255,255,255,.9), 0 1px 1px rgba(56,79,102,.15);
 }
 
 /* Low selector specificity lets Suite validation, disabled and focus states win. */
@@ -38,7 +38,7 @@
 :where([data-dhx-theme="skyblue"]) .dhx_grid-header-cell,
 :where([data-dhx-theme="skyblue"]) .dhx_grid-footer-cell,
 :where([data-dhx-theme="skyblue"]) .dhx_window-header {
-  background-image: var(--vapa-skyblue-chrome);
+  background-image: var(--blade-skyblue-chrome);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.95);
 }
 :where([data-dhx-theme="skyblue"]) .dhx_layout-cell-header__title,
@@ -53,13 +53,13 @@
 :where([data-dhx-theme="skyblue"]) .dhx_menu-button:focus-visible:not(:disabled),
 :where([data-dhx-theme="skyblue"]) .dhx_toolbar-button:hover:not(:disabled),
 :where([data-dhx-theme="skyblue"]) .dhx_toolbar-button:focus-visible:not(:disabled) {
-  background-image: var(--vapa-skyblue-hover);
+  background-image: var(--blade-skyblue-hover);
   box-shadow: inset 0 0 0 1px #d6ae62;
 }
 :where([data-dhx-theme="skyblue"]) .dhx_button--view_flat.dhx_button--color_primary,
 :where([data-dhx-theme="skyblue"]) .dhx_button--view_flat.dhx_button--color_secondary {
-  background-image: var(--vapa-skyblue-button);
-  box-shadow: var(--vapa-skyblue-bevel);
+  background-image: var(--blade-skyblue-button);
+  box-shadow: var(--blade-skyblue-bevel);
   color: #173c58;
   border-radius: 3px;
   text-transform: none;
@@ -67,11 +67,11 @@
 }
 :where([data-dhx-theme="skyblue"]) .dhx_button--view_flat.dhx_button--color_primary:hover,
 :where([data-dhx-theme="skyblue"]) .dhx_button--view_flat.dhx_button--color_secondary:hover {
-  background-image: var(--vapa-skyblue-hover);
+  background-image: var(--blade-skyblue-hover);
 }
 :where([data-dhx-theme="skyblue"]) .dhx_button--view_flat.dhx_button--color_primary:active,
 :where([data-dhx-theme="skyblue"]) .dhx_button--view_flat.dhx_button--color_secondary:active {
-  background-image: var(--vapa-skyblue-pressed);
+  background-image: var(--blade-skyblue-pressed);
   box-shadow: inset 0 0 0 1px #6e92b2, inset 0 2px 3px rgba(45,74,102,.25);
 }
 :where([data-dhx-theme="skyblue"]) .dhx_button--disabled,
@@ -88,7 +88,7 @@
   box-shadow: inset 0 1px 2px rgba(45,74,102,.16), inset 0 0 0 1px var(--dhx-border-color);
 }
 :where([data-dhx-theme="skyblue"]) .dhx_select {
-  background-image: var(--vapa-skyblue-chrome);
+  background-image: var(--blade-skyblue-chrome);
 }
 :where([data-dhx-theme="skyblue"]) .dhx_window {
   outline: 1px solid #8faec9;
@@ -97,6 +97,6 @@
 }
 
 /* Native rowCss tracks the displayed order, including virtual scrolling. */
-:where([data-dhx-theme="skyblue"]) .vapa-grid-row-alternate {
+:where([data-dhx-theme="skyblue"]) .blade-grid-row-alternate {
   background-color: #f7f7f7;
 }

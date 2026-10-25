@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Infrastructure;
+namespace Blade\Infrastructure;
 
 final class Database
 {

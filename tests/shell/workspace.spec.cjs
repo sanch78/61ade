@@ -1,9 +1,9 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 test('standalone registry creates a DHTMLX grid and reusable form',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('vapa-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
+ await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61de-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
- const workspace=page.locator('.vapa-workspace');
+ const workspace=page.locator('.blade-workspace');
  await expect(workspace.locator('.dhx_layout-space')).toHaveCount(1);
  await expect(workspace.locator('[data-cell-id="filter"]')).toBeVisible();
  await expect(workspace.locator('[data-cell-id="grid"]')).toBeVisible();
@@ -13,14 +13,13 @@ test('standalone registry creates a DHTMLX grid and reusable form',async({page})
    return {left:first.left-outer.left,top:first.top-outer.top};
  });
  expect(insets).toEqual({left:12,top:12});
- await expect(page.locator('.vapa-session-bar')).toHaveCount(1);
- await expect(page.locator('.vapa-workspace .dhx_toolbar')).toHaveCount(1);
+ await expect(page.locator('.blade-session-bar')).toHaveCount(1);
+ await expect(page.locator('.blade-workspace .dhx_toolbar')).toHaveCount(1);
  await expect(page.getByText('Élő kapcsolat',{exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Hozzáadás',exact:true}).click();
  await page.getByRole('dialog').getByLabel('Cím',{exact:true}).fill('Standalone '+Date.now());
  await page.getByRole('dialog').getByRole('button',{name:'Mentés',exact:true}).click();
  await expect(page.getByText('A művelet sikerült.',{exact:true})).toBeVisible();
- await page.getByRole('button',{name:/^(confirm|Megerősítés)$/,exact:true}).click();
  for(let i=0;i<3;i++){
    await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
    await expect(page.getByRole('button',{name:'Hozzáadás',exact:true})).toBeVisible();
@@ -29,9 +28,9 @@ test('standalone registry creates a DHTMLX grid and reusable form',async({page})
 });
 test('polling observes external writes without a refresh control',async({page})=>{
  const {execFileSync}=require('node:child_process');
- await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('vapa-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
+ await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61de-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
  await expect(page.getByRole('button',{name:'Frissítés',exact:true})).toHaveCount(0);
  const value='Polling '+Date.now();
- execFileSync(process.env.VAPA_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${process.env.VAPA_TMP_DIR || 'tmp'}/demo-workspace.sqlite');$q=$db->prepare('UPDATE notes SET title=? WHERE id=1');$q->execute([$argv[1]]);`,value]);
+ execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${process.env.BLADE_TMP_DIR || 'tmp'}/${process.env.BLADE_DEMO_INSTANCE || 'demo'}/features.sqlite');$q=$db->prepare('UPDATE notes SET title=? WHERE id=1');$q->execute([$argv[1]]);`,value]);
  await expect(page.getByText(value,{exact:true})).toBeVisible({timeout:10000});
 });

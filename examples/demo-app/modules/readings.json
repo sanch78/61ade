@@ -1,0 +1,49 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: a large read-only synthetic list.",
+        "covers": "virtual scrolling over a large SQL result, server-side sorting and filtering with a bounded client window."
+    },
+    "resources": {
+        "demo_readings": {
+            "storage": {
+                "table": "demo_readings",
+                "key": "id"
+            },
+            "operations": {
+                "create": false,
+                "update": false
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 120
+                },
+                {
+                    "name": "reading",
+                    "label": "Érték",
+                    "max": 20
+                }
+            ],
+            "view": {
+                "title": "Mérések",
+                "group": "Feature demó",
+                "icon": "dxi dxi-table-check",
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "reading",
+                        "header": "Érték"
+                    }
+                ],
+                "actions": [
+                    "get"
+                ]
+            }
+        }
+    }
+}

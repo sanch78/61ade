@@ -1,8 +1,8 @@
 {
-  "name": "@vapa/admin",
+  "name": "@61de/admin",
   "version": "0.1.0",
   "private": true,
-  "description": "VAPA admin shell and DHTMLX navigation",
+  "description": "61de admin shell and DHTMLX navigation",
   "type": "module",
   "exports": {
     "./admin.js": "./dist/admin.js",
@@ -13,9 +13,10 @@
     "bin"
   ],
   "dependencies": {
-    "@dhtmlx/suite": "9.3.12"
+    "@dhtmlx/suite": "9.3.12",
+    "dhtmlx-scheduler": "7.2.15"
   },
   "bin": {
-    "vapa-assets": "bin/publish.mjs"
+    "61de-assets": "bin/publish.mjs"
   }
 }

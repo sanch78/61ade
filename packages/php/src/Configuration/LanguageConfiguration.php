@@ -1,10 +1,10 @@
 <?php
 
 declare(strict_types=1);
-namespace Vapa\Configuration;
+namespace Blade\Configuration;
 
 use Closure;
-use Vapa\I18n\Settings;
+use Blade\I18n\Settings;
 
 final class LanguageConfiguration
 {

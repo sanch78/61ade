@@ -81,6 +81,7 @@
                 "group": "Digitális kijelző",
                 "icon": "dxi dxi-image-outline",
                 "tiles": true,
+                "row_selection": true,
                 "row_height": 56,
                 "search": [
                     "title"

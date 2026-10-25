@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__,2).'/examples/demo-app/vendor/autoload.php';
-use Vapa\I18n\{Settings,Translator};
-use Vapa\Feature\{Field,Failure};
-use Vapa\Mail\LoginMessage;
-use Vapa\Shell\Identity;
+use Blade\I18n\{Settings,Translator};
+use Blade\Feature\{Field,Failure};
+use Blade\Mail\LoginMessage;
+use Blade\Shell\Identity;
 function check(bool $ok,string $message):void { if(!$ok)throw new RuntimeException($message); }
 $settings=new Settings('hu',['hu'=>'Magyar','en'=>'English','de'=>'Deutsch'],true,['en'=>['Synthetic title'=>'Fixture title'],'de'=>['Synthetic title'=>'Testtitel']]);
 foreach(['hu'=>'Mentés','en'=>'Save','de'=>'Speichern'] as $locale=>$save){

@@ -61,7 +61,10 @@ The JSON admin section enables it; identity.username_column is the e-mail column
 | temporary_password_hours | 1–720, default 72. |
 | protected_role | Stable role key, default admin. |
 
-The section enables all current mandatory admin views (users/ACL/API keys).
+The section enables the current mandatory admin views (users/ACL) and the
+top-level API-key view. The API-key view is included in the root menu when the
+actor has a usable UI list permission; `own` rules expose only that actor's keys,
+while administrators can retain `all` scope for account-wide management.
 Switches appear automatically: OAuth when oauth is configured, confirmation
 when authentication is configured (default_email_confirmation), language when
 i18n offers more than one.
@@ -133,8 +136,9 @@ admin.spec.cjs creates a role/member/rule and verifies Notes access without admi
 ## Mandatory admin in one step
 
 `Blade\Admin\Administration::register($workspace,$accounts,$identities,usersTitle,group,protectedRole)`
-registers Users, Roles, Memberships, Role permissions, Individual permissions,
-API keys and returns the managed identity provider for ApplicationDefinition.
+registers Users, Roles, Memberships, Role permissions and Individual
+permissions, plus the top-level API-key view, and returns the managed identity
+provider for ApplicationDefinition.
 JSON admin does the same. This is the [starter demo](demos.md#alapadmin-admin).
 
 <a id="fiókkapcsolók"></a>
@@ -156,18 +160,22 @@ HTTP never executes DDL.
 
 ## API keys (A3)
 
-Administration → API keys, resource blade_api_keys over blade_tokens.
-Fields: label, owner account, permitted actions (multiselect from api-channel
-catalog with resource.action keys), expiry YYYY-MM-DD through end of UTC day,
-future and ≤365 days away, revoked checkbox.
+The root menu → API keys, resource blade_api_keys over blade_tokens. Fields:
+label, owner account, permitted actions (multiselect from api-channel catalog
+with resource.action keys), expiry YYYY-MM-DD through end of UTC day, future
+and ≤365 days away, revoked checkbox. An empty owner on issue defaults to the
+current actor; an administrator can select another account when their ACL scope
+allows it.
 
 - Issue generates 256-bit secret shown once; only SHA-256 hash is stored. Lists/audit contain no secret.
 - Use `Authorization: Bearer <key>` at POST ./?blade=1. Both key scope and owner's api ACL must permit the action.
 - Revocation via form/grid is immediate and irreversible (409 to restore); issue another key. Owner is immutable; scope/expiry editable. Disable/e-mail change revokes all account keys.
+- Grant `blade_api_keys` list/get/create/update on `ui` with `own` scope for self-service. The actor may then issue and manage only keys whose `actor_id` matches the session; the view is absent without a usable UI rule. Use `all` scope for an administrator managing other accounts.
 - New scopes use comma-separated storage; older Tokens::issue JSON lists remain valid.
 
-`api-keys.php` checks default deny, initial admin, catalog choices, once-only
-secret/hash/audit, ACL+scope, validation, one-way revocation and old format.
+`api-keys.php` checks default deny, initial admin, root-menu registration,
+catalog choices, once-only secret/hash/audit, self-scope menu/list/create/update,
+ACL+scope, validation, one-way revocation and old format.
 Browser coverage: demo.spec.cjs.
 
 <a id="korlátok"></a>

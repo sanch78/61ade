@@ -191,7 +191,7 @@ only field names/outcome.
 ## 7. Acceptance criteria and tests
 
 - PHP admin contract: default deny; authorized account operations; immediate revocation; temporary expiry; no workspace/API before forced change; recovery uniformity/single-use/expiry/rate/disabled-account denial; self/last-admin protection; powerless orphans/catalog; narrowing scopes; audit without sensitive values; rollback.
-- Protected browser checks: demo Administration, create → first login → forced change; planned synthetic reset delivery; languages/themes. Current host permits only managed URL; preserve fixture suites without launching localhost.
+- Protected browser checks: demo Administration, create → first login → forced change; planned synthetic reset delivery; languages/themes. Browser checks run only on the managed URL.
 - UI/API parity for the same actions, including denials.
 - Kitchen sink via the same public consumer configuration with synthetic demo/viewer/blocked accounts.
 - Usage/config/first-admin/limits/checks in admin.md, linked from usage, feedback and authentication. Acceptance targets for unimplemented A4/A5 are not passed tests.

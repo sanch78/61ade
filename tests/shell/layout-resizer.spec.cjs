@@ -3,20 +3,20 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
 const preferencesBundle=require('esbuild').buildSync({stdin:{contents:'export {UiPreferences} from "./packages/frontend/src/UiPreferences";',resolveDir:root},bundle:true,format:'iife',globalName:'preferencesFixture',write:false}).outputFiles[0].text;
 
-for(const axis of ['x','y']){
- test(`space layout ${axis} grip is centered and remains draggable`,async({page})=>{
-  await page.setContent('<div id="vapa-application"></div>');
+for(const type of ['space','wide'])for(const axis of ['x','y']){
+ test(`${type} layout ${axis} grip is centered and remains draggable`,async({page})=>{
+  await page.setContent('<div id="blade-application"></div>');
   await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});
   await page.addScriptTag({path:path.join(root,'node_modules/@dhtmlx/suite/codebase/suite.min.js')});
   await page.addScriptTag({content:preferencesBundle});
-  await page.evaluate(axis=>{
+  await page.evaluate(([type,axis])=>{
    const tree={
-    type:'space',
+    type,
     [axis==='x'?'cols':'rows']:[{id:'first',resizable:true,[axis==='x'?'width':'height']:260},{id:'second'}],
    };
-   window.syntheticLayout=new dhx.Layout('vapa-application',tree);
+   window.syntheticLayout=new dhx.Layout('blade-application',tree);
    new preferencesFixture.UiPreferences('synthetic',axis).bindLayout(syntheticLayout,tree);
-  },axis);
+  },[type,axis]);
   const grip=page.locator('.dhx_layout-resizer__icon');
   async function geometry(){
    return page.evaluate(()=>{

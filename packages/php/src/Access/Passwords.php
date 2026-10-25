@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Access;
-use Vapa\Feature\{Context,Failure,Workspace};
+namespace Blade\Access;
+use Blade\Feature\{Context,Failure,Workspace};
 
 /** Account schema and password codec are supplied by the consuming application. */
 final class Passwords
@@ -14,7 +14,7 @@ final class Passwords
     {
         if($self && $target!==$ctx->actor->id)throw new Failure('Csak a saját jelszó módosítható.',403);
         $password=$values['new_password']??'';
-        if(\Vapa\Feature\ValidationRules::length($password)<12 || \Vapa\Feature\ValidationRules::length($password)>128)throw new Failure('Az új jelszó 12–128 karakter legyen.',400,['new_password'=>'Az új jelszó 12–128 karakter legyen.']);
+        if(\Blade\Feature\ValidationRules::length($password)<12 || \Blade\Feature\ValidationRules::length($password)>128)throw new Failure('Az új jelszó 12–128 karakter legyen.',400,['new_password'=>'Az új jelszó 12–128 karakter legyen.']);
         if(!hash_equals($password,$values['confirm_password']??''))throw new Failure('A két új jelszó eltér.',400,['confirm_password'=>'A két új jelszó eltér.']);
         $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->idColumn}=?".($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));$q->execute([$target]);$row=$q->fetch(\PDO::FETCH_ASSOC);
         if(!$row || ($this->allowed && !($this->allowed)($row)))throw new Failure('A fiók nem módosítható.',403);

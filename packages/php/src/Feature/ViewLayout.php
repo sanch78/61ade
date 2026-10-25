@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Feature;
+namespace Blade\Feature;
 
 /** Serializable layout contract; never accepts executable vendor configuration. */
 final readonly class ViewLayout

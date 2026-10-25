@@ -125,11 +125,9 @@ Synthetic login: `demo@example.test` / `61de-demo`; more accounts are in
 [demos](demos.md). `BLADE_PHP` may select a PHP 8.4+ wrapper loading PDO SQLite.
 Use existing web-instance setup only when required, as documented in demos.
 
-The retained `tools/serve-demo.sh` utility historically initialized both
-databases idempotently and launched port `BLADE_DEMO_PORT` (default 8086) with
-`PHP_CLI_SERVER_WORKERS=3` for the simulated OAuth token endpoint. Starting
-that ad-hoc server is prohibited on this host; managed URL testing supersedes
-those historical instructions. With user admin enabled, the login label is
+The former localhost launcher `tools/serve-demo.sh` was removed
+([FB-0052](feedback.md#fb-0052)); the demos run only on the managed URL. With
+user admin enabled, the login label is
 `E-mail`. Synthetic login is demo-only.
 
 `contracts.php` checks SQL identity mapping, identifier validation, disabled
@@ -216,12 +214,27 @@ size limits apply. Broken/disabled storage falls back safely. Preferences remain
 browser-local with no server/device synchronization. Delete the specific key
 to reset; logout preserves it and different users have distinct keys.
 
+<a id="desktop-only-views"></a>
+
+### Desktop-only views
+
+A view may declare that it is not offered on narrow screens: PHP
+`$registry->view(..., desktopOnly: true)` or `FileManagerDefinition(...,
+desktopOnly: true)`, JSON view `"desktop_only": true` (default `false`); the
+view metadata carries `desktopOnly`. Below 768 px (the framework breakpoint of
+toolbars, grids and workspaces) the shell shows a centred notice in the shared
+[dialog](dialogs.md) style, with the view title and `Csak desktop környezetben
+elérhető funkció.`, instead of the view. The view stays mounted but hidden, so
+widening the window restores it with its state. The option is presentation
+only: actions, API calls and ACL are unchanged, and no device detection is
+used (a narrow desktop window gets the notice too).
+
 The existing unit script is `node tests/shell/ui-preferences.mjs`.
 Its last recorded limitation is
-a stale layout double lacking `getRootNode()` (FB-0050). The existing
-`preferences` browser group checks isolation, definition changes, bounds and
-broken storage, but currently needs localhost fixtures and is blocked on this
-host; see [coverage limits](development.md#existing-full-smoke-and-coverage-limits).
+a stale layout double lacking `getRootNode()` (FB-0050). The managed
+`preferences.spec.cjs` checks feature URLs through login/reload/history,
+persisted column width, sort, view and panel width, and broken storage on the
+feature demo's Tasks view.
 Feedback: FB-0021.
 
 <a id="kompakt-hitelesítési-ablakok-és-menüikonok"></a>
@@ -265,6 +278,16 @@ theme; Skyblue retains its blue gradient.
 Compact navigation puts all branches, logout and the native separator under
 `Menü`. Desktop width restores the original top menu. ACL and logout POST
 behavior stay consistent; no consumer configuration. FB-0028.
+
+When the top menu does not fit a desktop-width (≥ 768 px) row and collapses into
+`Menü`, the open feature's siblings follow it after a faint separator: the
+items of the same menu branch (e.g. the other views of its `group`), with the
+open one in the native pressed (`active`) state. They are the same entries as
+inside `Menü`, so ACL filtering is unchanged. Top-level features have no
+context, phone width shows only `Menü`, and the siblings are omitted when they
+would not fit by the same width estimate. Navigation updates them.
+`browser.spec.cjs` checks it on the signage group; shared test steps prefer a
+visible sibling button (`openMenu` in `feature-demo.cjs`). FB-0062.
 
 <a id="opcionális-nyelvválasztó"></a>
 

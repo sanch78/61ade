@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Navigation;
+namespace Blade\Navigation;
 
-use Vapa\Shell\Identity;
+use Blade\Shell\Identity;
 
 final readonly class Menu
 {

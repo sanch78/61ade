@@ -163,7 +163,7 @@ not extend validity.
 
 - `php8.4 tests/shell/mail.php`: command stdin MIME, recipient substitution/option-like recipient, exit errors, transport choice, layout escaping/text/color.
 - `php8.4 tests/shell/authentication.php`: default-on/per-user ACL, wrong/expired/cross-browser/replayed code, persistent limits, remember hash/rotation/expiry/revoke, sensitive-data-free audit.
-- The existing auth browser project historically used isolated synthetic SMTP capture/JSON application with real Symfony SMTP/MIME and DHTMLX. It writes synthetic mail under tmp/auth-fixture. It needs a localhost server and must not launch here; [managed-only limits](development.md#existing-full-smoke-and-coverage-limits) apply. Managed demo mailbox checks cover a subset.
+- `npm run test:browser -- tests/shell/authentication.spec.cjs` (feature demo, `twofactor@example.test`, code from the demo mailbox): code gate, CSRF and wrong-code rejection, 90-day remembered login with rotation and revocation, no credential without remember, the Users admin e-mail-confirmation switch and the confirmation window in all themes. The demo delivers by command, so SMTP transport stays covered by `mail.php`. A session restored from the remember cookie starts in the site default language; the account default applies to password, code and OAuth logins ([i18n](i18n.md#account-default-language)).
 
 <a id="oauth-belépés-authhandler"></a>
 

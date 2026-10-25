@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Shell;
+namespace Blade\Shell;
 
-/** Maps an explicitly declared account schema; no application table names in VAPA. */
+/** Maps an explicitly declared account schema; no application table names in 61de. */
 final class SqlIdentityProvider implements IdentityProvider
 {
     public function __construct(

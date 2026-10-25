@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-namespace Vapa\I18n;
+namespace Blade\I18n;
 
 /** Every application has a locale, independently of selector visibility. */
 final readonly class Settings

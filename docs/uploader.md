@@ -19,7 +19,7 @@ action's handler, like any other registered action.
 | `Blade\Feature\UploadPolicy` | `packages/php/src/Feature/UploadPolicy.php` | Typed rules: extensions, size, file count, chunk size, folders, depth, duplicate policy, temporary root, TTL, optional domain preflight. Canonical safe-name and folder-segment rules. |
 | `Blade\Feature\Transfers` | `packages/php/src/Feature/Transfers.php` | The `__upload` transfer protocol: preflight, resumable chunked transfers bound to their owner, assembly, finish through the executor, TTL sweep. |
 | `Action::$upload` | `packages/php/src/Feature/Action.php` | `int` (direct multipart limit), `UploadPolicy` (protocol plus direct multipart) or `null`. |
-| `uploads` | `packages/frontend/src/Uploader.ts`, `uploader.css` | Page-lifetime service: non-modal window, drop zone, queue grid, parallel chunked transfers, conflict decisions, resume, shell indicator, toasts, events. |
+| `uploads` | `packages/frontend/src/Uploader.ts`, `uploader.css` | Page-lifetime service: modal window, drop zone, queue grid, parallel chunked transfers, conflict decisions, resume, shell indicator, toasts, events. |
 | `requestChoiceAll` | `packages/frontend/src/MessageDialog.ts` | Shared choice dialog with an "apply to all" checkbox ([dialogs](dialogs.md)). |
 
 ## Integration
@@ -123,8 +123,8 @@ handler failure); when no part remains the request is `400` with
 
 ## Behavior
 
-- **Window.** One non-modal window owned by the service (it survives route
-  changes and is not closed with a view). The upper cell shows the target and
+- **Window.** One modal window (the layout behind it is inactive like for every other window) owned by the service (transfers survive route
+  changes and a closed window; the shell indicator reopens it). The upper cell shows the target and
   the rules (types, size, file count, folders) with `Fájlok kiválasztása` and,
   when allowed and supported by the browser (`webkitdirectory`),
   `Mappa kiválasztása`; files can be dropped onto it or pasted with Ctrl+V
