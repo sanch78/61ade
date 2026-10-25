@@ -2,7 +2,7 @@ import { build } from "esbuild";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
-const cache = path.resolve(process.env.VAPA_TMP_DIR || "tmp", "dhx-icons");
+const cache = path.resolve(process.env.BLADE_TMP_DIR || "tmp", "dhx-icons");
 await mkdir(cache, { recursive: true });
 const assets = JSON.parse(
     await readFile(new URL("vendor-assets.json", import.meta.url), "utf8"),

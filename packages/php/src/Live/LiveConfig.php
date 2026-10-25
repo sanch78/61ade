@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Live;
+namespace Blade\Live;
 final readonly class LiveConfig
 {
     public function __construct(public string $transport='poll',public string $endpoint='live',public int $interval=2000)

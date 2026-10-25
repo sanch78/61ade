@@ -118,3 +118,35 @@ clients cannot set it. Own-object create rules check that prospective owner.
 Revisions derive from declared data fields, key and owner, excluding unrelated
 account/password/activity fields. MySQL requires transactional InnoDB tables
 for audit and modified data; the installer creates its tables accordingly.
+
+<a id="multipart-audit-detail-sqlite"></a>
+
+## Multipart transport, audit detail and SQLite transactions
+
+Added for the [file manager](files.md) ([FB-0058](feedback.md#fb-0058)); the
+mechanisms are general.
+
+- **Multipart.** An action opts in with `Action::$upload` (byte limit). Such a
+  request is `multipart/form-data` to the same `POST ./?blade=1` endpoint with a
+  JSON `request` field (`resource`, `action`, `id`, `values`, ≤ 64 KiB) and file
+  parts. The browser still sends `X-BLADE-CSRF`; API calls use Bearer tokens.
+  Verified PHP upload parts reach the handler as `Context::$uploads`
+  (`Blade\Feature\Upload`: field, client name, temporary path, size, error).
+  Other actions and kernel operations reject multipart with 415; a body above the
+  limit plus 64 KiB is rejected with 413. Handlers validate names, sizes and
+  contents themselves and never trust the browser's MIME value.
+- **ACL object and audit detail.** A resolver may return `acl_id` to separate the
+  ACL object from the audited object (file actions authorize the mount, audit
+  the entry) and `audit` with related IDs. A handler result's `audit` array is
+  merged. `Schema::install()` adds the `blade_audit.detail` JSON column to
+  earlier databases; rows without detail keep the previous column list, so an
+  un-upgraded database keeps auditing other actions. Detail carries IDs only.
+- **Structured failures.** `Failure::$details` adds a non-sensitive `details`
+  object to the error response, e.g. `409` conflicts with the current revision.
+- **SQLite transactions.** The executor and list observer start transactions
+  with `Blade\Infrastructure\Transaction::begin()`: `BEGIN IMMEDIATE` on
+  SQLite, the PDO default elsewhere. Every action writes audit, and two
+  concurrent deferred SQLite transactions that both read and then write fail at
+  once with `SQLITE_BUSY` (observed as a 500 when both file panels loaded
+  together). Immediate transactions serialize writers within the busy timeout
+  instead. Other direct `beginTransaction()` callers are unchanged.

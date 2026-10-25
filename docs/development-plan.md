@@ -117,6 +117,8 @@ Acceptance: no forbidden-field/cross-organization exports/downloads, revoked job
 access enforced, retries do not duplicate effects, large exports do not hold web
 requests, logs exclude credentials.
 
+Planned slice: [uploader and file/media list](files-media-plan.md) (FB-0063).
+
 <a id="m7--teljesítmény-csomagkiadás-és-második-fogyasztó"></a>
 
 ## M7 — Performance, package distribution and second consumer

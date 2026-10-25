@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Admin;
+namespace Blade\Admin;
 
-use Vapa\Shell\Identity;
-use Vapa\Shell\IdentityProvider;
+use Blade\Shell\Identity;
+use Blade\Shell\IdentityProvider;
 
-/** Adds VAPA account state to the consumer's identity mapping; both must allow the account. */
+/** Adds 61de account state to the consumer's identity mapping; both must allow the account. */
 final readonly class ManagedIdentities implements IdentityProvider
 {
     public function __construct(private IdentityProvider $inner, private Accounts $accounts)

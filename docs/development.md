@@ -122,15 +122,18 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | --- | --- |
 | Documentation/entrypoints | Internal file/fragment links, skill symlinks, `git diff --check`; no artificial runtime test |
 | Shell/bootstrap/theme | `php8.4 tests/shell/contracts.php`; `npm run test:browser -- --project=shell tests/shell/browser.spec.cjs` |
-| Workspace/layout/live lists | `php8.4 tests/shell/lists.php`; shell `workspace.spec.cjs`, `layout-resizer.spec.cjs`, `mobile-grid.spec.cjs` |
+| Workspace/layout/live lists | `php8.4 tests/shell/lists.php`; shell `workspace.spec.cjs`, `layout-resizer.spec.cjs`, `mobile-grid.spec.cjs`, `preferences.spec.cjs` |
 | ACL/action/API permissions | PHP `access.php`, `permissions.php`, `api-keys.php`; shell `admin.spec.cjs` or the relevant `demo.spec.cjs` selector |
 | Accounts/admin | PHP `admin.php`, `permissions.php`; shell `admin.spec.cjs` |
-| Authentication/OAuth/mail | PHP `authentication.php`, `oauth.php`, `mail.php`; managed shell `demo.spec.cjs` with `--grep` for the affected flow |
+| Authentication/OAuth/mail | PHP `authentication.php`, `oauth.php`, `mail.php`; shell `authentication.spec.cjs`, `demo.spec.cjs` with `--grep` for the affected flow |
 | JSON/env/validation | PHP `configuration.php`, `validation.php`, affected `contracts.php` |
-| Inline/related fields | PHP `grid-edit.php`, `related-fields.php`; managed shell task demo where covered |
-| Sorting/list presentation | PHP `sorting.php`, `list-presentation.php`, `lists.php`; shell `list-presentation.spec.cjs` |
-| Localization | `php8.4 tests/shell/i18n.php`; managed shell language/login checks |
+| Inline/related fields | PHP `grid-edit.php`, `related-fields.php`; shell `grid-edit.spec.cjs`, `related-fields.spec.cjs` |
+| Sorting/list presentation | PHP `sorting.php`, `list-presentation.php`, `lists.php`; shell `list-presentation.spec.cjs`, `list-integration.spec.cjs`, `grid-sort.spec.cjs` |
+| Localization | `php8.4 tests/shell/i18n.php`; shell `i18n.spec.cjs` |
 | Dialogs | `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs` |
+| Diagram editor | `php8.4 tests/shell/diagram.php`; shell `diagram.spec.cjs` |
+| Event calendar | `php8.4 tests/shell/calendar.php`; shell `calendar.spec.cjs` |
+| File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
 
 PHP shorthand in the table means `php8.4 tests/shell/<name>.php`.
@@ -144,13 +147,13 @@ There is **no pre-deploy or post-deploy smoke gate** here. When a full developme
 regression is actually warranted, the existing broad commands are:
 
 ```sh
-(for check in contracts access admin api-keys permissions authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation; do
+(for check in contracts access admin api-keys permissions authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation files diagram calendar; do
     php8.4 "tests/shell/$check.php" || exit
 done)
 npm run typecheck
 npm run build
 npm run demo:assets
-npm run test:browser -- --project=shell
+npm run test:browser
 ```
 
 Do not run this full set merely for skill linking or translation.
@@ -158,14 +161,20 @@ A targeted pass does not establish full-smoke success. The full shell run
 includes external OAuth behavior; the last recorded limitation is Google's
 `redirect_uri_mismatch` ([FB-0050](feedback.md#fb-0050)).
 
-Existing `auth`, `related`, `grid-edit`, `sorting`, `preferences`,
-`presentation` and `i18n` browser projects start localhost fixture servers.
-They remain preserved and discoverable, but cannot be launched on this host
-under the managed-URL-only contract. Their older passing results are historical,
-not current managed-endpoint coverage. Do not disguise them as managed checks.
-There is no production-only coverage category in this dev-only project.
-Real external providers, MySQL guarantees and currently unconfigured managed
-fixture routes remain distinct coverage limits.
+Every browser spec runs in the single `shell` project against the managed
+feature demo or starter admin ([FB-0052](feedback.md#fb-0052)). The former
+localhost fixture projects were migrated onto the feature demo and removed;
+`tests/fixtures/` now holds only synthetic definitions read by the PHP checks.
+Specs that change shared demo data restore it: created tasks are deleted, the
+demo account ends on Hungarian and `twofactor@example.test` keeps its e-mail
+confirmation. The framework allows five code sends per account in ten minutes;
+`demo.spec.cjs` and `authentication.spec.cjs` together request four codes for
+`twofactor@example.test`, so repeat those specs only after ten minutes.
+
+A single-language consumer has no managed demo; its translation is covered by
+`i18n.php`, but the hidden language selector has no browser check. There is no
+production-only coverage category in this dev-only project. Real external
+providers and MySQL guarantees remain distinct coverage limits.
 
 <a id="commit-és-push"></a>
 
@@ -257,7 +266,7 @@ The project manifests/locks do not install Playwright.
 ```sh
 BLADE_PLAYWRIGHT_MODULE=/opt/infraadmin/playwright/npm/lib/node_modules/@playwright/test \
 BLADE_TMP_DIR="$PWD/tmp" \
-  npm run test:browser -- list-presentation.spec.cjs --project=shell
+  npm run test:browser -- list-presentation.spec.cjs
 ```
 
 The runner and imported test package must match; `test()` from different
@@ -268,31 +277,28 @@ Playwright instances is incompatible.
 ### Unified Playwright configuration
 
 The sole root `playwright.config.cjs` imports `tests/browser/config.cjs`.
-Discover suites without launching browsers or fixture servers:
+It defines one project, `shell`, for every `tests/shell/*.spec.cjs` with the
+managed `BLADE_DEMO_URL` as base URL, and starts no web server. A missing
+`BLADE_DEMO_URL` stops the run with an error. Discover tests without launching
+a browser:
 
 ```sh
 npm run test:browser -- --list
-npm run test:browser -- --project=shell tests/shell/browser.spec.cjs
-npm run test:browser -- --project=shell tests/shell/workspace.spec.cjs
+npm run test:browser -- tests/shell/browser.spec.cjs
+npm run test:browser -- tests/shell/workspace.spec.cjs
 ```
 
-Project names: `shell`, `auth`, `related`, `grid-edit`, `sorting`,
-`preferences`, `presentation`, `i18n`. The default is `shell`. Browser
-launches accept exactly one project because all fixtures plus Chromium exceed
-the 128-task host limit. `--list` permits multiple names and wildcards.
-Only the selected fixture's server would start; sorting/preferences share 8096.
-This host permits launches only for the managed `shell` URL, as described above.
-
+Shared feature-demo steps (sign-in, menu, commands, view switch, API calls,
+synthetic task creation/deletion) live in `tests/shell/feature-demo.cjs`.
 Artifacts use `tmp/playwright-results/` or the corresponding subdirectory of
 `BLADE_TMP_DIR`; relative scratch resolves from the repository root.
-Use `--project` rather than former separate config files.
 Before cleaning runtime files, check active consumers and retain needed evidence.
 
 <a id="rendszerszintű-playwright-és-natív-url"></a>
 
 ## System Playwright and managed URL
 
-The ignored `.env.test` selects the managed server without `php -S`.
+The ignored `.env.test` supplies the managed server URL; no local server is started.
 See [demos](demos.md#webszerveres-futtatás-apache--php-fpm), FB-0045.
 Local Playwright packages and the user-cache browsers were removed on
 2026-10-21 (FB-0046). If dependencies reintroduce them, remove that dependency;
@@ -301,6 +307,15 @@ the system runner remains canonical.
 ## Mandatory framework development rules
 
 These project rules apply to all development tools.
+
+**No redundant dialogs:** a user must not confirm an action merely to press a
+second button that starts the same action. Field-free commands, including bulk
+commands, execute from their originating control and acknowledge success with a
+non-blocking gritter/toast. Use the shared confirmation dialog only when the
+action declares a meaningful risk that requires confirmation, and use an alert
+only for an error or other necessary blocking information. A form remains
+appropriate when the action needs input fields; this rule does not remove a
+justified confirm or alert.
 
 **Framework first:** no custom development that bypasses 61de. Implement
 missing general capabilities in 61de, then express business logic through them.

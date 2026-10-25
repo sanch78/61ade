@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Authentication;
+namespace Blade\Authentication;
 
-use Vapa\Feature\Failure;
-use Vapa\Shell\Identity;
-use Vapa\Shell\IdentityProvider;
+use Blade\Feature\Failure;
+use Blade\Shell\Identity;
+use Blade\Shell\IdentityProvider;
 
 /** Shared IP limit survives session resets; no credentials are written to disk. */
 final class PasswordAttempts

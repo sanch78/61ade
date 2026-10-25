@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "62887876e30abde2f3ddc5dcee025983",
+    "content-hash": "3d2a5d120514afc7591700edcfe43b25",
     "packages": [
         {
             "name": "doctrine/lexer",
@@ -302,7 +302,7 @@
             "time": "2024-09-11T13:17:53+00:00"
         },
         {
-            "name": "sanch78/vapa",
+            "name": "sanch78/61de",
             "version": "0.1.0",
             "dist": {
                 "type": "path",
@@ -316,10 +316,10 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Vapa\\": "src/"
+                    "Blade\\": "src/"
                 }
             },
-            "description": "Very Advanced PHP Admin — reusable login and navigation shell",
+            "description": "61de admin framework — reusable login and navigation shell",
             "transport-options": {
                 "symlink": true,
                 "relative": true

@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-namespace Vapa\I18n;
+namespace Blade\I18n;
 
 /** Request-scoped language context. Source text is a stable message key/fallback. */
 final class Translator

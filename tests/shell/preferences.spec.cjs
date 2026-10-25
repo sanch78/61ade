@@ -1,18 +1,14 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
-async function login(page,route='/'){
- await page.goto(route);
- await page.getByLabel('Felhasználónév',{exact:true}).fill('synthetic');
- await page.getByLabel('Jelszó',{exact:true}).fill('synthetic-password');
- await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
-}
+const {signIn,openView,view}=require('./feature-demo.cjs');
+// UI preferences (browser storage) and feature URLs on the feature demo's Feladatok view.
 test('feature URL restores through login/reload and browser history',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await login(page,'/#feature=items');
+ await signIn(page,'demo@example.test','/#feature=demo_tasks');
  await expect(page.getByRole('grid')).toBeVisible();
  await page.reload();await expect(page.getByRole('grid')).toBeVisible();
  await page.goto('/');await expect(page.getByRole('grid')).toHaveCount(0);
- await page.getByRole('menuitem',{name:'Items',exact:true}).click();
- await expect(page).toHaveURL(/#feature=items$/);
+ await openView(page,'Feladatok');
+ await expect(page).toHaveURL(/#feature=demo_tasks$/);
  await expect(page.getByRole('grid')).toBeVisible();
  await page.goBack();await expect(page.getByRole('grid')).toHaveCount(0);
  await page.goForward();await expect(page.getByRole('grid')).toBeVisible();
@@ -20,8 +16,9 @@ test('feature URL restores through login/reload and browser history',async({page
  expect(errors).toEqual([]);
 });
 test('grid size, sorting, view and panel width survive reload',async({page})=>{
- await login(page,'/#feature=items');
- const header=page.locator('[role="columnheader"][data-dhx-id="title"]');
+ await page.setViewportSize({width:1280,height:720});
+ await signIn(page,'demo@example.test','/#feature=demo_tasks');
+ const header=page.locator('[role="columnheader"][data-dhx-id="title"]').filter({hasText:'Megnevezés'}).first();
  await expect(header).toBeVisible();await header.click();
  await expect(header).toHaveAttribute('aria-sort','ascending');
  const before=await header.boundingBox();
@@ -38,24 +35,23 @@ test('grid size, sorting, view and panel width survive reload',async({page})=>{
  await page.reload();await expect(header).toHaveAttribute('aria-sort','ascending');
  await expect.poll(async()=>Math.round((await header.boundingBox()).width)).toBe(Math.round(width));
  await expect.poll(async()=>Math.round((await filter.boundingBox()).width)).toBe(Math.round(panelWidth));
- await page.getByRole('button',{name:'click to collapse',exact:true}).click();
+ await filter.getByRole('button',{name:'click to collapse',exact:true}).click();
  await page.reload();
- await page.getByRole('button',{name:'click to expand',exact:true}).click();
+ await filter.getByRole('button',{name:'click to expand',exact:true}).click();
  await expect.poll(async()=>Math.round((await filter.boundingBox()).width)).toBe(Math.round(panelWidth));
- await page.getByRole('button',{name:'Nézet: Táblázat',exact:true}).click();
- await page.getByRole('menuitem',{name:'Kártyák',exact:true}).click();
- await page.reload();await expect(page.getByRole('button',{name:'Nézet: Kártyák',exact:true})).toBeVisible();
+ const cards=page.locator('.blade-grid-card');
+ await view(page,'Kártyák');
+ await page.reload();await expect(cards.first()).toBeVisible();
  await page.setViewportSize({width:390,height:844});await page.reload();
  await page.setViewportSize({width:1280,height:720});
- await expect(page.getByRole('button',{name:'Nézet: Kártyák',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Nézet: Kártyák',exact:true}).click();
- await page.getByRole('menuitem',{name:'Táblázat',exact:true}).click();
+ await expect(cards.first()).toBeVisible();
+ await view(page,'Táblázat');
  await page.setViewportSize({width:390,height:844});await page.reload();
  await page.setViewportSize({width:1280,height:720});
- await expect(page.getByRole('button',{name:'Nézet: Táblázat',exact:true})).toBeVisible();
+ await expect(page.getByRole('grid')).toBeVisible();await expect(cards).toHaveCount(0);
 });
 test('invalid or unavailable storage cannot break navigation',async({page})=>{
  await page.addInitScript(()=>{Storage.prototype.getItem=()=>{throw new Error('Storage disabled');};Storage.prototype.setItem=()=>{throw new Error('Storage disabled');};});
- await login(page,'/#feature=items');await expect(page.getByRole('grid')).toBeVisible();
+ await signIn(page,'demo@example.test','/#feature=demo_tasks');await expect(page.getByRole('grid')).toBeVisible();
  await page.reload();await expect(page.getByRole('grid')).toBeVisible();
 });

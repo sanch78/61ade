@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__,2).'/examples/demo-app/vendor/autoload.php';
-use Vapa\Access\{Schema,Tokens};
-use Vapa\Admin\Accounts;
-use Vapa\Configuration\AdminConfiguration;
-use Vapa\Feature\{Registry,Workspace,Context,Failure};
-use Vapa\Shell\{Identity,SqlIdentityProvider};
+use Blade\Access\{Schema,Tokens};
+use Blade\Admin\Accounts;
+use Blade\Configuration\AdminConfiguration;
+use Blade\Feature\{Registry,Workspace,Context,Failure};
+use Blade\Shell\{Identity,SqlIdentityProvider};
 function check(bool $ok,string $message):void{if(!$ok)throw new RuntimeException($message);}
 function fails(callable $call,int $status,string $message,?string $field=null):Failure{
     try{$call();}catch(Failure $e){check($e->status===$status,$message.' (status '.$e->status.')');if($field!==null)check(isset($e->fieldErrors[$field]),$message.' (field error)');return $e;}
@@ -22,16 +22,20 @@ $identities=$accounts->identities(new SqlIdentityProvider($db,'accounts','id','e
 $admin=new Context(new Identity('1','Admin'),'ui',$workspace->acl,$db);
 $user=new Context(new Identity('2','User'),'ui',$workspace->acl,$db);
 $run=fn(Context $ctx,string $action,?string $id=null,array $values=[])=>$workspace->executor->execute($ctx,Accounts::RESOURCE,$action,$id,$values);
+// Grid checkbox edit: the same update kernel with one editable field and the current revision.
+$edit=fn(Context $ctx,string $id,string $field,mixed $value)=>$workspace->executor->edit($ctx,Accounts::RESOURCE,$id,$field,$value,$run($ctx,'get',$id)['revision']);
 
 // Default deny: the module is an ordinary ACL resource without an admin bypass.
 check($run($user,'list')===[],'Default deny list');
 fails(fn()=>$run($user,'get','1'),403,'Default deny get');
 fails(fn()=>$run($user,'create',null,['display_name'=>'X','email'=>'x@example.test']),403,'Default deny create');
-$rule=$db->prepare("INSERT INTO vapa_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1',?,?,?,'allow','all','','')");
-foreach(['list','get','create','update','deactivate','reactivate','temporary_password'] as $action)$rule->execute([Accounts::RESOURCE,$action,'ui']);
+$rule=$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1',?,?,?,'allow','all','','')");
+foreach(['list','get','create','update','temporary_password'] as $action)$rule->execute([Accounts::RESOURCE,$action,'ui']);
 check(count($run($admin,'list'))===2,'Granted list');
 check(array_column($registry->views(),'resource')===[Accounts::RESOURCE],'Users view registered');
-check(in_array('deactivate',$registry->views()[0]['actions'],true),'Lifecycle actions in view');
+check(in_array('temporary_password',$registry->views()[0]['actions'],true) && !in_array('deactivate',$registry->views()[0]['actions'],true),'No single-purpose toggle actions');
+$columns=array_column($registry->views()[0]['columns'],'id');
+check(in_array('blade_disabled',$columns,true) && !in_array('blade_oauth',$columns,true) && !in_array('blade_locale',$columns,true) && !in_array('blade_email_confirmation',$columns,true),'Optional switches only when configured');
 
 // Creation issues a generated temporary password exactly once; the e-mail is normalized.
 $created=$run($admin,'create',null,['display_name'=>'New Person','email'=>'  New.Person@Example.TEST ']);
@@ -40,11 +44,11 @@ check(strlen($temporary)===20 && preg_match('/^[A-Za-z0-9]{20}$/D',$temporary)==
 check($db->query('SELECT email FROM accounts WHERE id='.(int)$created['id'])->fetchColumn()==='new.person@example.test','E-mail normalized');
 $state=$accounts->state($created['id']);
 check($state['must_change'] && abs($state['expires']-(time()+72*3600))<5,'Forced change for 72 hours');
-check(!str_contains(json_encode($db->query('SELECT * FROM vapa_audit')->fetchAll()),$temporary),'Temporary password never audited');
+check(!str_contains(json_encode($db->query('SELECT * FROM blade_audit')->fetchAll()),$temporary),'Temporary password never audited');
 check(!str_contains((string)$db->query('SELECT password_hash FROM accounts WHERE id='.(int)$created['id'])->fetchColumn(),$temporary),'Password stored only as hash');
 fails(fn()=>$run($admin,'create',null,['display_name'=>'Dup','email'=>'NEW.PERSON@example.test']),400,'Unique e-mail','email');
 fails(fn()=>$run($admin,'create',null,['display_name'=>'Bad','email'=>'not-an-email']),400,'E-mail format','email');
-fails(fn()=>$run($admin,'create',null,['display_name'=>'Bad','email'=>'b@example.test','vapa_disabled'=>'1']),400,'Read-only state is not writable');
+fails(fn()=>$run($admin,'create',null,['display_name'=>'Bad','email'=>'b@example.test','blade_must_change'=>'1']),400,'Read-only state is not writable');
 
 // Sign-in with the temporary password leads to the forced change; nothing else is accepted.
 $identity=$identities->authenticate('NEW.person@example.test',$temporary);
@@ -59,28 +63,30 @@ check(!$accounts->mustChangePassword($id) && $workspace->version($id)>$version,'
 check($identities->authenticate('new.person@example.test',$temporary)===null,'Temporary password retired');
 check($identities->authenticate('new.person@example.test','chosen-password-1')!==null,'Chosen password works');
 fails(fn()=>$accounts->completeForcedChange($id,'other-password-1','other-password-1'),401,'No change without pending flag');
-check((int)$db->query("SELECT COUNT(*) FROM vapa_audit WHERE action='password_change_forced' AND outcome='success'")->fetchColumn()===1,'Forced change audited');
+check((int)$db->query("SELECT COUNT(*) FROM blade_audit WHERE action='password_change_forced' AND outcome='success'")->fetchColumn()===1,'Forced change audited');
 
 // A new temporary password expires; an expired one cannot sign in or complete the change.
 $reissued=$run($admin,'temporary_password',$id)['reveal']['value'];
 check($accounts->mustChangePassword($id),'Reissue forces change');
-$db->exec("UPDATE vapa_account_state SET temporary_expires_at=".(time()-1)." WHERE actor_id='$id'");
+$db->exec("UPDATE blade_account_state SET temporary_expires_at=".(time()-1)." WHERE actor_id='$id'");
 check($identities->authenticate('new.person@example.test',$reissued)===null,'Expired temporary password rejected');
 fails(fn()=>$accounts->completeForcedChange($id,'later-password-1','later-password-1'),401,'Expired change rejected');
 fails(fn()=>$run($admin,'temporary_password','1'),403,'No temporary password for self');
 
-// Disabling ends sessions and tokens at once; self-disable and repeated transitions are rejected.
+// Disabling is a checkbox on the form and the grid; it ends sessions and tokens at once.
 $tokens=new Tokens($db);$token=$tokens->issue('2','test',[Accounts::RESOURCE.'.get']);
 $row=$run($admin,'get','2');
-$run($admin,'deactivate','2');
+check((string)$row['blade_disabled']==='0','Disabled state listed as checkbox value');
+$edit($admin,'2','blade_disabled',true);
 check($identities->find('2')===null && $identities->authenticate('user@example.test','initial-password-1')===null,'Disabled account unavailable');
 check($tokens->authenticate($token['secret'])===null,'Disabled account token revoked');
-fails(fn()=>$run($admin,'deactivate','2'),409,'Repeated disable');
-fails(fn()=>$run($admin,'deactivate','1'),403,'Self disable');
-fails(fn()=>$run($admin,'update','2',['display_name'=>'Stale','email'=>'user@example.test','revision'=>$row['revision']]),409,'State change invalidates revision');
-$run($admin,'reactivate','2');
-check($identities->find('2')!==null,'Reactivated account available');
-fails(fn()=>$run($admin,'reactivate','2'),409,'Repeated reactivate');
+fails(fn()=>$edit($admin,'1','blade_disabled','1'),403,'Self disable','blade_disabled');
+fails(fn()=>$run($admin,'update','2',['display_name'=>'Stale','email'=>'user@example.test','blade_disabled'=>'1','revision'=>$row['revision']]),409,'State change invalidates revision');
+$row=$run($admin,'get','2');
+$run($admin,'update','2',['display_name'=>'User','email'=>'user@example.test','blade_disabled'=>'0','revision'=>$row['revision']]);
+check($identities->find('2')!==null,'Re-enabled on the form');
+$version=$workspace->version('2');$edit($admin,'2','blade_disabled','0');
+check($workspace->version('2')===$version,'Re-enabling keeps sessions');
 
 // Changing the sign-in e-mail revokes the account's sessions and tokens.
 $token=$tokens->issue('2','test',[Accounts::RESOURCE.'.get']);$version=$workspace->version('2');
@@ -105,4 +111,30 @@ $identity=['table'=>'accounts','id_column'=>'id','username_column'=>'email','pas
 try{AdminConfiguration::build(['unknown'=>true],$identity,[],new Workspace(new Registry(),$db),$identities);throw new RuntimeException('Unknown admin key accepted');}catch(InvalidArgumentException){}
 $configured=new Registry();AdminConfiguration::build(['group'=>'Admin','temporary_password_hours'=>24],$identity,[],new Workspace($configured,$db),$identities);
 check($configured->views()[0]['group']==='Admin','Configured admin group');
-echo "VAPA built-in user administration (A1) tests passed.\n";
+check(in_array('blade_api_keys',array_column($configured->views(),'resource'),true) && in_array('blade_roles',array_column($configured->views(),'resource'),true),'Configured administration includes ACL and API keys');
+
+// Optional switches: OAuth permission, e-mail confirmation and default language (several site languages).
+$optional=new Registry();$optionalWorkspace=new Workspace($optional,$db);
+$languages=new Blade\I18n\Settings('hu',['hu'=>'Magyar','en'=>'English'],true);
+$full=new Accounts($optionalWorkspace,'accounts','id','email','display_name','password_hash',languages:$languages,oauth:true,emailConfirmation:false);$full->register($optional);
+$columns=array_column($optional->views()[0]['columns'],'id');
+check(!array_diff(['blade_disabled','blade_oauth','blade_locale','blade_email_confirmation'],$columns),'Optional switches registered');
+$single=new Registry();(new Accounts(new Workspace($single,$db),'accounts','id','email','display_name','password_hash',languages:new Blade\I18n\Settings('en',['en'=>'English'])))->register($single);
+check(!in_array('blade_locale',array_column($single->views()[0]['columns'],'id'),true),'One site language: no per-user language');
+$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1',?,?,'ui','allow','all','','')")->execute([Accounts::RESOURCE,'list']);
+$runFull=fn(string $action,?string $id=null,array $values=[])=>$optionalWorkspace->executor->execute($admin,Accounts::RESOURCE,$action,$id,$values);
+$editFull=fn(string $id,string $field,mixed $value)=>$optionalWorkspace->executor->edit($admin,Accounts::RESOURCE,$id,$field,$value,$runFull('get',$id)['revision']);
+$row=$runFull('get','2');
+check((string)$row['blade_oauth']==='0' && (string)$row['blade_locale']==='' && (string)$row['blade_email_confirmation']==='0','Switch defaults');
+check(!$full->oauthAllowed('2') && $full->locale('2')===null,'No OAuth or language by default');
+$editFull('2','blade_oauth','1');$editFull('2','blade_locale','en');
+check($full->oauthAllowed('2') && $full->locale('2')==='en','OAuth permission and default language stored');
+fails(fn()=>$editFull('2','blade_locale','de'),400,'Unsupported language rejected','blade_locale');
+$version=$optionalWorkspace->version('2');$editFull('2','blade_email_confirmation','1');
+check((new Blade\Authentication\Settings($db,false))->get('2')['email_confirmation']===1 && $optionalWorkspace->version('2')>$version,'E-mail confirmation switch stored in auth settings and revokes sessions');
+$version=$optionalWorkspace->version('2');$editFull('2','blade_oauth','0');
+check(!$full->oauthAllowed('2') && $optionalWorkspace->version('2')>$version,'Removing OAuth permission revokes sessions');
+$editFull('2','blade_oauth','1');$editFull('2','blade_disabled','1');
+check(!$full->oauthAllowed('2'),'Disabled account has no OAuth sign-in');
+check($full->actorByEmail(' RENAMED@example.test ')==='2' && $full->actorByEmail('unknown@example.test')===null,'Exact e-mail account lookup');
+echo "61de built-in user administration (A1) tests passed.\n";

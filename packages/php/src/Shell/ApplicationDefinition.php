@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
-namespace Vapa\Shell;
+namespace Blade\Shell;
 
-use Vapa\Navigation\Menu;
+use Blade\Navigation\Menu;
 
 final readonly class ApplicationDefinition
 {
@@ -11,18 +11,22 @@ final readonly class ApplicationDefinition
         public IdentityProvider $identities,
         public Menu $menu,
         public string $runtime,
-        public string $sessionName = 'vapa_session',
+        public string $sessionName = 'blade_session',
         public string $cookiePath = '/',
-        public ?\Vapa\Feature\Workspace $workspace = null,
-        public \Vapa\Live\LiveConfig $live = new \Vapa\Live\LiveConfig(),
-        public ?\Vapa\Authentication\LoginSecurity $authentication = null,
+        public ?\Blade\Feature\Workspace $workspace = null,
+        public \Blade\Live\LiveConfig $live = new \Blade\Live\LiveConfig(),
+        public ?\Blade\Authentication\LoginSecurity $authentication = null,
         public string $version = '',
-        public \Vapa\I18n\Settings $languages = new \Vapa\I18n\Settings(),
-        public ?\Vapa\Admin\Accounts $accounts = null,
+        public \Blade\I18n\Settings $languages = new \Blade\I18n\Settings(),
+        public ?\Blade\Admin\Accounts $accounts = null,
+        public ?\Blade\Authentication\AuthHandlerLogin $oauth = null,
+        /** Browser path of the built frontend, relative to the page (e.g. "../assets" under /admin/). */
+        public string $assets = 'assets',
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
-            || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)) {
-            throw new \InvalidArgumentException('Invalid VAPA application definition.');
+            || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
+            || !preg_match('~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$~D', $assets)) {
+            throw new \InvalidArgumentException('Invalid 61de application definition.');
         }
     }
 }

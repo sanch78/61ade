@@ -1,0 +1,7 @@
+# Behind Apache (PHP-FPM, other OS user) the demos keep their own data copy under
+# tmp/web, separate from the CLI/test copy (tmp/demo). Prepare it once with:
+#   BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php
+SetEnv BLADE_DEMO_INSTANCE web
+
+# Bearer API keys: Apache does not forward the Authorization header to PHP-FPM by default.
+CGIPassAuth On

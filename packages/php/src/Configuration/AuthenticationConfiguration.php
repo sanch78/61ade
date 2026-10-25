@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Vapa\Configuration;
+namespace Blade\Configuration;
 
-use Vapa\Authentication\LoginSecurity;
-use Vapa\Feature\Workspace;
-use Vapa\Mail\LoginMessage;
-use Vapa\Mail\SmtpDelivery;
-use Vapa\Shell\IdentityProvider;
+use Blade\Authentication\LoginSecurity;
+use Blade\Feature\Workspace;
+use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage, SmtpDelivery};
+use Blade\Shell\IdentityProvider;
 
 final class AuthenticationConfiguration
 {
@@ -18,20 +17,34 @@ final class AuthenticationConfiguration
             'remember_days' => 'integer', 'code_lifetime_seconds' => 'integer', 'default_email_confirmation' => 'boolean',
         ], '$.authentication');
         $mail = $definition['mail'];
-        Shape::check($mail, ['dsn' => 'string', 'from_address' => 'string', 'from_name' => 'string'], [
-            'texts' => 'array', 'text_overrides_binding' => 'string',
+        Shape::check($mail, ['from_address' => 'string', 'from_name' => 'string'], [
+            'transport' => 'string', 'dsn' => 'string', 'command' => 'array', 'command_timeout_seconds' => 'integer',
+            'texts' => 'array', 'text_overrides_binding' => 'string', 'accent_color' => 'string',
         ], '$.authentication.mail');
         $bindings = new Bindings($callbacks);
         return new LoginSecurity(
             workspace: $workspace,
             identities: $identities,
-            delivery: new SmtpDelivery($mail['dsn'], $mail['from_address'], $mail['from_name']),
-            message: new LoginMessage($title, $mail['texts'] ?? [], $bindings->get($mail['text_overrides_binding'] ?? null)),
+            delivery: self::delivery($mail),
+            message: new LoginMessage($title, $mail['texts'] ?? [], $bindings->get($mail['text_overrides_binding'] ?? null), new Layout($mail['accent_color'] ?? '#2f6fd0')),
             runtime: $runtime,
             emailAttribute: $definition['email_attribute'],
             rememberDays: $definition['remember_days'] ?? 90,
             codeLifetime: $definition['code_lifetime_seconds'] ?? 600,
             defaultEmailConfirmation: $definition['default_email_confirmation'] ?? true,
         );
+    }
+
+    /** "smtp" (default, Symfony Mailer DSN) or "command" (argument list, started without a shell). */
+    public static function delivery(array $mail): Delivery
+    {
+        $transport = $mail['transport'] ?? 'smtp';
+        if ($transport === 'smtp' && isset($mail['dsn']) && !isset($mail['command'])) {
+            return new SmtpDelivery($mail['dsn'], $mail['from_address'], $mail['from_name']);
+        }
+        if ($transport === 'command' && isset($mail['command']) && !isset($mail['dsn'])) {
+            return new CommandDelivery($mail['command'], $mail['from_address'], $mail['from_name'], $mail['command_timeout_seconds'] ?? 30);
+        }
+        throw new \InvalidArgumentException('Mail transport must be "smtp" with dsn or "command" with command at $.authentication.mail.');
     }
 }
