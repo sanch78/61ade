@@ -1,4 +1,5 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
+const {openMenu}=require('./feature-demo.cjs');
 // Feature demo (/) and base admin demo (/admin/) on the managed demo URL (BLADE_DEMO_URL).
 async function signIn(page,email,password='61de-demo',path='/'){
  await page.goto(path);await page.getByLabel('E-mail',{exact:true}).fill(email);await page.getByLabel('Jelszó',{exact:true}).fill(password);
@@ -10,12 +11,14 @@ async function command(page,name){
  else await page.getByRole('button',{name,exact:true}).click();
 }
 async function openAdmin(page,title){
- await page.getByRole('menuitem',{name:'Adminisztráció',exact:true}).click();
- await page.getByRole('menuitem',{name:title,exact:true}).click();
+ await openMenu(page,title,'Adminisztráció');
  await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
 }
+// Top-level item: inside the collapsed desktop menu it sits directly under "Menü".
 async function openApiKeys(page){
- await page.getByRole('menuitem',{name:'API-kulcsok',exact:true}).click();
+ const item=page.getByRole('menuitem',{name:'API-kulcsok',exact:true});
+ if(!await item.isVisible()){await page.getByRole('menuitem',{name:/^(Menü|Menu)$/}).click();await page.waitForTimeout(750);}
+ await item.click();
  await expect(page.getByRole('heading',{name:'API-kulcsok',exact:true})).toBeVisible();
 }
 const OAUTH='Belépés külső fiókkal';
@@ -102,10 +105,10 @@ test('users carry OAuth, e-mail confirmation and default language switches; an A
  await page.locator('.dhx_combobox-options').getByText('Feladatok · Megnyitás (demo_tasks.get)',{exact:true}).click();
  await dialog.getByLabel('Megnevezés',{exact:true}).click();
  await dialog.getByRole('button',{name:'Mentés',exact:true}).click();
- const notice=page.locator('.blade-dialog');
- await expect(notice).toContainText('API-kulcs (egyszer jelenik meg)');
- const secret=(await notice.locator('.blade-dialog__body').innerText()).match(/[a-f0-9]{64}/)[0];
- await page.locator('[data-blade-dialog-action=ok]').click();
+ // One-time reveals are a non-blocking toast (docs/dialogs.md).
+ const notice=page.getByRole('alert').filter({hasText:'API-kulcs (egyszer jelenik meg)'});
+ await expect(notice).toBeVisible();
+ const secret=(await notice.innerText()).match(/[a-f0-9]{64}/)[0];
  const call=key=>page.evaluate(async key=>(await fetch('./?blade=1',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({resource:'demo_tasks',action:'get',id:'1',values:{}})})).status,key);
  // Authenticated API call: the owner has no API rule, so the object stays hidden (404, not 401/403).
  expect(await call(secret)).toBe(404);
