@@ -271,3 +271,7 @@
 <a id="fb-0064"></a>
 
 ## FB-0064 — Versioned Composer VCS package
+
+<a id="fb-0065"></a>
+
+## FB-0065 — Command-only mail delivery without symfony/mailer

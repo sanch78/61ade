@@ -10,7 +10,7 @@
     "authentication": {
         "email_attribute": "email", "remember_days": 90, "default_email_confirmation": true,
         "mail": {
-            "dsn": "smtp://127.0.0.1:8091?auto_tls=false",
+            "command": ["/bin/false", "--to={recipient}", "--body-file={body_file}"],
             "from_address": "demo@example.test", "from_name": "Synthetic 61de",
             "texts": {"subject": "Synthetic sign-in", "heading": "Synthetic custom heading"}
         }

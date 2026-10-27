@@ -54,6 +54,34 @@ reverse order, JSON default. With `override_file_env`, only the selected env fil
 loads. Files are INI-compatible `KEY=value`, not shell: no export, commands or
 variable substitution. Local `.env` stays ignored; `.env.example` contains placeholders only.
 
+<a id="mail-command"></a>
+
+## Mail command
+
+`$.authentication.mail` is consumer-supplied. On our hosts applications hand
+mail to local Postfix through the Infra helper
+`/space/share/bin/send-infra-mail.php`; they hold no SMTP credentials. A working
+configuration ([placeholders and checks](authentication.md#levélküldés)):
+
+```json
+"mail": {
+    "command": [
+        "/usr/bin/php", "/space/share/bin/send-infra-mail.php",
+        "--from={from_address}", "--from-name={from_name}",
+        "--to={recipient}", "--subject={subject}",
+        "--html", "--body-file={body_file}", "--transport=auto"
+    ],
+    "command_timeout_seconds": 30,
+    "from_address": "noreply@example.test",
+    "from_name": "Example admin"
+}
+```
+
+Use a sender domain authorized by the configured mail transport. Exit code 0 means local MTA acceptance only; 61de never
+retries. A manual run of the helper sends real mail, so test only with the
+owner's own address. `/usr/sbin/sendmail -t -i` reads MIME on stdin and is not
+supported by this delivery.
+
 <a id="moduldefiníció"></a>
 
 ## Module definition

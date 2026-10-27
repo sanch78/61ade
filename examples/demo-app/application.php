@@ -61,12 +61,16 @@ $identities = Administration::register($workspace, $accounts, new SqlIdentityPro
     allowed: static fn(array $row) => (bool) $row['active'],
 ));
 
-// Second factor by e-mail. The demo never sends mail: the configured command is a local
-// writer, the message is read in the synthetic mailbox (/mailbox/).
+// Second factor by e-mail. The demo never sends mail: the command takes the arguments of the
+// host helper /space/share/bin/send-infra-mail.php, but it is a local writer read in the
+// synthetic mailbox (/mailbox/).
 $authentication = new LoginSecurity(
     workspace: $workspace,
     identities: $identities,
-    delivery: new CommandDelivery([blade_demo_php(), __DIR__.'/bin/outbox.php', blade_demo_runtime('outbox')], 'noreply@example.test', '61de feature demó'),
+    delivery: new CommandDelivery([
+        blade_demo_php(), __DIR__.'/bin/outbox.php', blade_demo_runtime('outbox'),
+        '--from={from_address}', '--from-name={from_name}', '--to={recipient}', '--subject={subject}', '--html', '--body-file={body_file}',
+    ], 'noreply@example.test', '61de feature demó', $runtime),
     // Project-level overrides of the framework mail: texts and accent colour, never the markup.
     message: new LoginMessage('61de feature demó', [
         'subject' => '{application} – belépési kód',

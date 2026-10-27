@@ -3,8 +3,7 @@
     "description": "61de admin framework — reusable login and navigation shell",
     "type": "library",
     "require": {
-        "php": "^8.4",
-        "symfony/mailer": "^7.4"
+        "php": "^8.4"
     },
     "autoload": {
         "psr-4": {

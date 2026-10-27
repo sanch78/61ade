@@ -78,8 +78,9 @@ No simulated provider or mockup page remains (FB-0047).
 ### Demo mailbox (`/mailbox/`)
 
 The demo does not send mail. It uses [command delivery](authentication.md#levélküldés)
-with [bin/outbox.php](../examples/demo-app/bin/outbox.php), saving complete MIME
-messages in `tmp/demo/outbox` (last 50). The mailbox renders HTML inside a
+with [bin/outbox.php](../examples/demo-app/bin/outbox.php): it takes the
+arguments of the Infra mail helper and stores recipient, subject and HTML body
+as JSON in `tmp/demo/outbox` (last 50). The mailbox renders HTML inside a
 sandboxed frame.
 
 <a id="kivétel-az-1-szabály-alól-dokumentáltan"></a>
