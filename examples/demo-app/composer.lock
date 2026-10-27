@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3d2a5d120514afc7591700edcfe43b25",
+    "content-hash": "37f2115dce761d2e70976f96c99119b3",
     "packages": [
         {
             "name": "doctrine/lexer",
@@ -307,7 +307,7 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/php",
-                "reference": "ef0e621fd3e8f8c5d58c3be5c0d35305a5bb0bf9"
+                "reference": "dfaeeb988bbdca8802a04f1d83f4c995053282fe"
             },
             "require": {
                 "php": "^8.4",
@@ -1080,13 +1080,13 @@
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.4",
         "ext-pdo_sqlite": "*"
     },
-    "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "platform-dev": [],
+    "plugin-api-version": "2.6.0"
 }
