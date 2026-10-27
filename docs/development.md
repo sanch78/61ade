@@ -37,8 +37,8 @@ files; inspect only needed keys and never print or commit credentials.
 
 Product/packages use `61de`; identifiers use `Blade\`, `BLADE_*` and
 `blade_*`. See [renaming](renaming.md) before reusing an earlier consumer or
-database. [Package releases](#package-releases-and-consumption) are Git tags;
-they and consumer releases do not create a production environment here.
+database. [Consumers](#shared-library-consumption) take this checkout directly;
+their deploys do not create a production environment here.
 
 <a id="jelenlegi-állapot"></a>
 
@@ -64,93 +64,91 @@ under the consumer's contract; an old link does not prove the current location.
 
 <a id="helyi-csomagfejlesztés-terve"></a>
 
-## Package releases and consumption
+<a id="package-releases-and-consumption"></a>
 
-Decision of 2026-10-27 ([FB-0064](feedback.md#fb-0064)): 61de is consumed as one
-Composer VCS package, `sanch78/61de`, from https://github.com/sanch78/61ade.
-There is no Packagist or npm registration; the Git tag is the release artifact.
+## Shared-library consumption
 
-The root `composer.json` is the package manifest (`Blade\` →
-`packages/php/src/`, no `version` field; Composer takes the version from the
-`vX.Y.Z` tag). `packages/php/composer.json` remains only for the demo's path
-repository: pointing the demo at the root would make its
-`vendor/sanch78/61de` a symlink to the checkout containing that vendor
-directory. Both manifests must declare the same `require`; the release tool
-refuses to run otherwise. `.gitattributes` export-ignores development paths, so a
-dist archive carries `composer.json`, `README.md`, `packages/php`,
-`packages/frontend/{bin,dist,package.json}` and `tools/live-server.mjs`
-(the [WebSocket transport](workspaces.md)).
+Owner decision of 2026-10-27 ([FB-0066](feedback.md#fb-0066), superseding
+[FB-0064](feedback.md#fb-0064)): 61de is consumed like the other shared
+libraries in `/space/share/libs`. There are no versions, tags, release tool or
+Composer installation for consumers. Existing `v*` tags remain as history only.
 
-### Release procedure
+- A pushed commit on `main` reaches every consumer's development URL at once on
+  both dev hosts; the host-local lib-sync timer carries Git commits between
+  Catalyst and Crypto.
+- Each consumer's next `deploy-site` copies the then-current code into its
+  release through `shared_assets`.
+
+Consumers use exactly these runtime paths:
+
+- `packages/php` as one directory (`src`, `resources`, `templates`,
+  `migrations` and the rest). The consumer loads `Blade\` with its own small
+  PSR-4 autoloader over `packages/php/src`.
+- `packages/frontend/dist/admin.js` and `admin.css`.
+
+`packages/php/composer.json` remains only for the demo's path repository.
+
+### Tracked frontend build
+
+`packages/frontend/dist` is tracked on `main`. Every commit that changes the
+frontend source carries the matching fresh `npm run build` output; the build is
+reproducible, and `npm run build` reports when `dist` changed. `npm run
+test:browser` first runs `node tools/build.mjs --check`, which builds in memory
+and refuses to test a `dist` that differs from the source.
+
+### Consumer layout
+
+Example with consumer-chosen paths. In development, the consumer links the
+shared checkout:
 
 ```sh
-tools/release X.Y.Z
+ln -s /space/share/libs/61ade/packages/php lib/61de
+ln -s /space/share/libs/61ade/packages/frontend/dist public/assets/61de
 ```
 
-It requires `main`, a clean working tree and `HEAD` equal to `origin/main`, and an
-unused tag. It runs `npm run build`, sets `X.Y.Z` in `packages/php/composer.json`,
-`packages/frontend/package.json` and `package-lock.json`, pins the demo to it
-(`composer require` refreshes `examples/demo-app/composer.lock`) and commits that
-bump to `main` as `Release X.Y.Z` when anything changed. It then creates a
-detached commit on top of it in a private index that force-adds
-`packages/frontend/dist`, tags it `vX.Y.Z`, checks that the tag archive holds
-the manifest, PHP source and built assets and no `docs`/`tests`/`examples`, and
-pushes `main` and the tag with one atomic push. `main` never tracks `dist`, and
-the working tree is not switched. Initial backend/frontend releases share one
-version. If a check fails before the push, delete the local tag and reset the
-unpushed bump commit before retrying.
-
-Before cutting a release, run the focused checks for the changes it contains.
-After the push, verify with a throwaway consumer under `tmp/` (below) and remove it.
-
-### Consumer contract
+These links must stay out of the consumer's release build; deploy refuses to
+sync a shared asset into an existing symlink. Its `.deploy.json` copies the
+same paths into the release:
 
 ```json
 {
-    "repositories": [
+    "shared_assets": [
         {
-            "type": "vcs",
-            "url": "https://github.com/sanch78/61ade"
+            "source": "/space/share/libs/61ade/packages/php",
+            "target": "target:lib/61de"
+        },
+        {
+            "source": "/space/share/libs/61ade/packages/frontend/dist",
+            "files": ["admin.js", "admin.css"],
+            "target": "target:public/assets/61de"
         }
-    ],
-    "require": {
-        "sanch78/61de": "0.1.0"
-    }
+    ]
 }
 ```
 
-- Require the exact release version and commit `composer.lock`; the lock pins the
-  tag's commit. Upgrade deliberately with `composer require sanch78/61de:X.Y.Z`.
-  Breaking protocol changes require release notes, migration guidance and new
-  compatibility ranges.
-- Frontend assets come from the same package:
-  `node vendor/sanch78/61de/packages/frontend/bin/publish.mjs public/assets`.
-  The WebSocket server, when used, is `vendor/sanch78/61de/tools/live-server.mjs`;
-  the consumer supplies its lockfile-pinned `ws` dependency.
-- Committed consumer manifests and lockfiles must never contain `/space/...`
-  development paths.
+The autoloader:
 
-**Dev-time linking against the shared checkout:** in an uncommitted local
-manifest (for example `COMPOSER=composer.dev.json composer install`, with its
-lock ignored), put a path repository before the VCS entry:
-
-```json
-{
-    "type": "path",
-    "url": "/space/share/libs/61ade",
-    "options": {
-        "symlink": true,
-        "versions": {
-            "sanch78/61de": "0.1.0"
+```php
+spl_autoload_register(static function (string $class): void {
+    if (str_starts_with($class, 'Blade\\')) {
+        $file = __DIR__ . '/lib/61de/src/' . strtr(substr($class, 6), '\\', '/') . '.php';
+        if (is_file($file)) {
+            require $file;
         }
     }
-}
+});
 ```
 
-`vendor/sanch78/61de` then symlinks the checkout, with the same layout as a
-release; `versions` lets the exact pin resolve. Its frontend is the checkout's
-working-tree build, so run `npm run build` there first. The demo app uses the
-equivalent path repository to `packages/php`.
+Committed consumer files must not depend on anything else from this checkout.
+
+### Breaking changes
+
+Every pushed commit goes live on all consumers' development sites at once, and
+into their production on their next deploy. A breaking change to a public PHP,
+configuration, template, database or frontend contract therefore needs a
+coordinated update of every affected consumer in the same session, before or
+together with the push. Run the [focused checks](#focused-task-groups) for each
+change before every push.
 
 <a id="fájlrendszer-és-környezet"></a>
 

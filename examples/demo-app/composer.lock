@@ -4,15 +4,15 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "37f2115dce761d2e70976f96c99119b3",
+    "content-hash": "dc06658316c7b0352e45aa6e6657124d",
     "packages": [
         {
             "name": "sanch78/61de",
-            "version": "0.1.0",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../../packages/php",
-                "reference": "233ce87c241a8f5d438dacdbd4518abf0242194a"
+                "reference": "185b939df1f33dfdbb0f09102dbfffc70f9e42f7"
             },
             "require": {
                 "php": "^8.4"
@@ -33,7 +33,9 @@
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "sanch78/61de": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

@@ -275,3 +275,7 @@
 <a id="fb-0065"></a>
 
 ## FB-0065 — Command-only mail delivery without symfony/mailer
+
+<a id="fb-0066"></a>
+
+## FB-0066 — Shared-library consumption without versions

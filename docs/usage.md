@@ -12,8 +12,8 @@ PHP/configuration edits are consumed directly. See [development](development.md#
 Namespace Blade, env BLADE_*, technical identifiers blade; packages
 sanch78/61de and @61de/admin. [Renaming](renaming.md) explains breaking interfaces,
 explicit SQLite migration, prerequisites/examples/limits/checks (FB-0050).
-Consumers install tagged releases through Composer; see
-[package releases](development.md#package-releases-and-consumption).
+Consumers use this checkout as a shared library; see
+[shared-library consumption](development.md#shared-library-consumption).
 Consumer environments have separate contracts.
 
 This maintained guide serves integrators and admin testers. It describes actual
