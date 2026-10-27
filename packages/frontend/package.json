@@ -1,6 +1,5 @@
 {
   "name": "@61de/admin",
-  "version": "0.1.0",
   "private": true,
   "description": "61de admin shell and DHTMLX navigation",
   "type": "module",

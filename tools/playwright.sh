@@ -2,6 +2,8 @@
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
+# Tests run against the tracked frontend build; refuse a dist that is stale against src.
+node tools/build.mjs --check
 runner="${BLADE_PLAYWRIGHT_BIN:-/usr/local/bin/playwright}"
 # The specs must use the same system-wide @playwright/test as the runner. Derive it from
 # the Infra launcher (".../npm/bin/playwright" -> ".../@playwright/test/cli.js") unless set.

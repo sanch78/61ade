@@ -1558,7 +1558,7 @@ that exactly equals an option label lists every option. The managed
   throwaway consumers under `tmp/`: the tag installs through a VCS repository with
   `dist/admin.js`/`admin.css` and `Blade\` autoloading, the dev path link
   resolves the exact pin, and the tag archive excludes development paths.
-- **Status:** accepted; implemented.
+- **Status:** superseded by [FB-0066](#fb-0066).
 
 <a id="fb-0065"></a>
 
@@ -1595,3 +1595,32 @@ that exactly equals an option label lists every option. The managed
   No real mail sent.
 - **Status:** accepted; implemented. Real sign-in mail through the helper
   pending owner agreement.
+
+<a id="fb-0066"></a>
+
+## FB-0066 — Shared-library consumption without versions
+
+- **Date:** 2026-10-27.
+- **Request (Infra, for the owner):** consume 61de like the other shared
+  libraries in `/space/share/libs`; step 2 after [FB-0065](#fb-0065).
+- **Owner decision:** supersedes [FB-0064](#fb-0064). A pushed commit reaches
+  every consumer's development URL on both dev hosts through lib-sync, and each
+  consumer's next `deploy-site` copies it through `shared_assets`. Consumers use
+  `packages/php` with their own PSR-4 autoloader and
+  `packages/frontend/dist/admin.{js,css}`. No versions, tags, release tool or
+  Composer installation for consumers; existing tags stay as history. Breaking
+  changes need a coordinated consumer update in the same session.
+- **Decisions taken in implementation:** `main` tracks
+  `packages/frontend/dist`; `tools/build.mjs --check` builds in memory and fails
+  on a stale `dist`, and `npm run test:browser` runs it first; a normal build
+  reports a changed `dist`. Removed `tools/release`, the root `composer.json`, the
+  export-ignore rules and the package `version` fields; `.gitattributes` now
+  only exempts `dist` from whitespace checks;
+  `packages/php/composer.json` stays for the demo's path repository, which
+  now requires `@dev`.
+- **Guide:** [shared-library consumption](development.md#shared-library-consumption).
+- **Verification (agent):** two consecutive builds are byte-identical and match
+  the previous Catalyst build; `--check` passes on it and fails on a modified
+  `admin.css`; the documented autoloader loads `Blade\Shell\ApplicationDefinition`
+  over a linked `packages/php`.
+- **Status:** accepted; implemented.

@@ -66,9 +66,9 @@ recorded durably and incorporated into the relevant guide; this is mandatory.
 | `examples/demo-app` | Unpublished | Synthetic feature demo (`/`) and starter admin (`/admin/`); [demo guide](docs/demos.md) |
 | `tests` | Unpublished | Framework, contract, integration and browser tests |
 
-Releases are Composer VCS tags of this repository (`sanch78/61de`, including the
-built frontend); there is no npm/Packagist registration. See
-[package releases](docs/development.md#package-releases-and-consumption).
+Consumers use this checkout as a shared library: `packages/php` and the tracked
+build in `packages/frontend/dist`, without versions or registry publication. See
+[shared-library consumption](docs/development.md#shared-library-consumption).
 The PHP namespace is `Blade\`.
 
 <a id="technológiai-kiindulás"></a>

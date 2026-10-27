@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import { execFileSync } from "node:child_process";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -23,7 +24,10 @@ for (const [name, { url, sha256 }] of Object.entries(assets)) {
         throw new Error(`Vendor asset integrity mismatch: ${name}`);
     await writeFile(path.join(cache, name), bytes);
 }
-await build({
+// dist is tracked; --check fails when it does not match a fresh build of src.
+const check = process.argv.includes("--check");
+const result = await build({
+    write: !check,
     entryPoints: ["packages/frontend/src/admin.ts"],
     bundle: true,
     format: "esm",
@@ -48,3 +52,11 @@ await build({
         },
     ],
 });
+if (check) {
+    for (const file of result.outputFiles) {
+        const current = await readFile(file.path).catch(() => null);
+        if (!current?.equals(file.contents))
+            throw new Error(`Stale ${path.relative(process.cwd(), file.path)}: run npm run build and commit dist with the source`);
+    }
+} else if (execFileSync("git", ["status", "--porcelain", "packages/frontend/dist"], { encoding: "utf8" }))
+    console.log("packages/frontend/dist changed: commit it together with the frontend source.");
