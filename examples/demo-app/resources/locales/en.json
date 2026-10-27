@@ -32,7 +32,7 @@
   "Mérések": "Readings",
   "Érték": "Value",
   "{application} – belépési kód": "{application} – sign-in code",
-  "Szintetikus demólevél: valódi címzetthez nem kerül, a demó postafiókjában olvasható.": "Synthetic demo mail: it never reaches a real recipient; read it in the demo mailbox.",
+  "A 61de feature demó automatikus levele.": "Automatic mail of the 61de feature demo.",
   "Fájlkezelő": "File manager",
   "Hálózati topológia": "Network topology",
   "Peremtűzfal": "Edge firewall",

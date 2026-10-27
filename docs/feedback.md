@@ -1593,8 +1593,17 @@ that exactly equals an option label lists every option. The managed
   managed URL; two Users-admin tests failed waiting for the `Adminisztráció`
   menu item (collapsed main menu, no mail involvement), not investigated here.
   No real mail sent.
-- **Status:** accepted; implemented. Real sign-in mail through the helper
-  pending owner agreement.
+- **Follow-up (owner, same day):** the demo may send real mail on our hosts
+  without host configuration in Git. `BLADE_DEMO_MAIL_HELPER` and
+  `BLADE_DEMO_MAIL_FROM` in the ignored demo `.env` route non-`@example.test`
+  recipients through the helper; `@example.test` stays in the outbox. The demo
+  mail footer no longer claims that mail never reaches a real recipient.
+- **Real mail (agent, owner agreed):** a temporary account with the owner's
+  address signed in through the managed URL; the web process ran the helper
+  (audit `email_send` success, 2026-10-27T21:41:48Z) and the outbox stayed
+  empty for it. The account and its rows were deleted afterwards. Receipt is
+  for the owner to confirm.
+- **Status:** accepted; implemented.
 
 <a id="fb-0066"></a>
 

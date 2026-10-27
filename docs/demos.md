@@ -80,7 +80,16 @@ No simulated provider or mockup page remains (FB-0047).
 The demo does not send mail. It uses [command delivery](authentication.md#levélküldés)
 with [bin/outbox.php](../examples/demo-app/bin/outbox.php): it takes the
 arguments of the Infra mail helper and stores recipient, subject and HTML body
-as JSON in `tmp/demo/outbox` (last 50). The mailbox renders HTML inside a
+as JSON in `tmp/demo/outbox` (last 50).
+
+Real mail is opt-in per host, never from Git: when the Git-ignored
+`examples/demo-app/.env` sets `BLADE_DEMO_MAIL_HELPER` (the helper path, e.g.
+`/space/share/bin/send-infra-mail.php`) and `BLADE_DEMO_MAIL_FROM` (an allowed
+sender, e.g. `noreply@cyberspace.hu`), mail to addresses outside
+`@example.test` goes out through the helper with `--transport=auto`.
+`@example.test` (reserved, undeliverable) always stays in the outbox, so the
+synthetic accounts and browser tests are unchanged. The catalyst checkout sets
+both ([FB-0065](feedback.md#fb-0065)). The mailbox renders HTML inside a
 sandboxed frame.
 
 <a id="kivétel-az-1-szabály-alól-dokumentáltan"></a>

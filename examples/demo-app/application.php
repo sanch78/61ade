@@ -11,7 +11,7 @@ use Blade\Admin\{Accounts, Administration};
 use Blade\Authentication\{AuthHandlerLogin, LoginSecurity};
 use Blade\Configuration\WorkspaceConfiguration;
 use Blade\Feature\{Context, Failure, Field, SqlResource};
-use Blade\Mail\{CommandDelivery, Layout, LoginMessage};
+use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage};
 use Blade\Navigation\{Menu, MenuItem};
 use Blade\Shell\{ApplicationDefinition, Identity, SqlIdentityProvider};
 
@@ -61,20 +61,28 @@ $identities = Administration::register($workspace, $accounts, new SqlIdentityPro
     allowed: static fn(array $row) => (bool) $row['active'],
 ));
 
-// Second factor by e-mail. The demo never sends mail: the command takes the arguments of the
-// host helper /space/share/bin/send-infra-mail.php, but it is a local writer read in the
-// synthetic mailbox (/mailbox/).
+// Second factor by e-mail. @example.test mail always goes to a local writer read in the synthetic
+// mailbox (/mailbox/); it takes the arguments of the host mail helper. Only when the Git-ignored
+// .env names the helper and an allowed sender does mail to real addresses go out through it.
+$arguments = ['--from={from_address}', '--from-name={from_name}', '--to={recipient}', '--subject={subject}', '--html', '--body-file={body_file}'];
+$outbox = new CommandDelivery([blade_demo_php(), __DIR__.'/bin/outbox.php', blade_demo_runtime('outbox'), ...$arguments], 'noreply@example.test', '61de feature demó', $runtime);
+$helper = blade_demo_setting('BLADE_DEMO_MAIL_HELPER');
+$sender = blade_demo_setting('BLADE_DEMO_MAIL_FROM');
+$delivery = $helper && $sender ? new class($outbox, new CommandDelivery([blade_demo_php(), $helper, ...$arguments, '--transport=auto'], $sender, '61de feature demó', $runtime)) implements Delivery {
+    public function __construct(private Delivery $outbox, private Delivery $helper) {}
+    public function send(string $recipient, string $subject, string $html, string $text): void
+    {
+        (str_ends_with(strtolower($recipient), '@example.test') ? $this->outbox : $this->helper)->send($recipient, $subject, $html, $text);
+    }
+} : $outbox;
 $authentication = new LoginSecurity(
     workspace: $workspace,
     identities: $identities,
-    delivery: new CommandDelivery([
-        blade_demo_php(), __DIR__.'/bin/outbox.php', blade_demo_runtime('outbox'),
-        '--from={from_address}', '--from-name={from_name}', '--to={recipient}', '--subject={subject}', '--html', '--body-file={body_file}',
-    ], 'noreply@example.test', '61de feature demó', $runtime),
+    delivery: $delivery,
     // Project-level overrides of the framework mail: texts and accent colour, never the markup.
     message: new LoginMessage('61de feature demó', [
         'subject' => '{application} – belépési kód',
-        'footer' => 'Szintetikus demólevél: valódi címzetthez nem kerül, a demó postafiókjában olvasható.',
+        'footer' => 'A 61de feature demó automatikus levele.',
     ], layout: new Layout('#0f7b6c')),
     runtime: $runtime,
     emailAttribute: 'email',
