@@ -173,8 +173,8 @@ for managed values rather than single-purpose toggle actions.
 and AuthHandler's external-account overlay. Listed providers appear without keys
 but give setup feedback until configured. Only existing OAuth-enabled accounts
 can enter, without password. Optional remember lasts 90 days.
-Framework mail layout supports project text/color; delivery uses SMTP or argument-list
-commands without shell. Explicit schema installation is required.
+Framework mail layout supports project text/color; delivery uses one argument-list
+command without shell, such as the Infra mail helper. Explicit schema installation is required.
 
 <a id="demók"></a>
 

@@ -34,8 +34,8 @@ e-mail confirmation is on for every account, including missing per-user settings
         "remember_days": 90,
         "code_lifetime_seconds": 600,
         "mail": {
-            "dsn": {"$env": "EXAMPLE_MAILER_DSN"},
-            "from_address": {"$env": "EXAMPLE_MAIL_FROM"},
+            "command": ["/usr/bin/php", "/space/share/bin/send-infra-mail.php", "--from={from_address}", "--from-name={from_name}", "--to={recipient}", "--subject={subject}", "--html", "--body-file={body_file}", "--transport=auto"],
+            "from_address": "noreply@cyberspace.hu",
             "from_name": "Example admin",
             "texts": {"subject": "{application} – belépési kód", "intro": "Írd be a kódot a belépési ablakban."}
         }
@@ -50,37 +50,40 @@ is always available. Hungarian strings in examples are product/localization text
 
 ### Mail delivery
 
-mail.transport selects exactly one method:
+61de has one delivery method: a configured local command, started with
+proc_open array arguments and no shell (R8). The command builds and submits
+the message itself; 61de does not build MIME or talk SMTP and has no
+third-party PHP dependency.
 
-| transport | Keys | Behavior |
-| --- | --- | --- |
-| smtp (default) | dsn | Symfony Mailer SMTP transport. |
-| command | command argument list; optional command_timeout_seconds 1–300, default 30 | Complete HTML/plain MIME on stdin, sendmail-compatible. Example: ["/usr/sbin/sendmail","-t","-i"]. Exact {recipient} arguments become validated recipient. Nonzero exit/timeout is delivery failure, UI 503 and email_send:error audit. |
+| Key | Meaning |
+| --- | --- |
+| command (required) | Non-empty argument list. It must pass {body_file}. |
+| command_timeout_seconds | 1–300, default 30. |
+| from_address, from_name | Sender, substituted as {from_address} and {from_name}. |
 
-```json
-"mail": {
-    "transport": "command",
-    "command": ["/usr/sbin/sendmail", "-t", "-i"],
-    "from_address": {"$env": "EXAMPLE_MAIL_FROM"},
-    "from_name": "Example admin",
-    "accent_color": "#0f7b6c",
-    "texts": {"footer": "Az Example Kft. automatikus levele."}
-}
-```
+An argument may end in exactly one placeholder, as the whole argument
+(`{recipient}`) or as a suffix (`--to={recipient}`): {recipient}, {subject},
+{from_address}, {from_name}, {body_file}. Values are checked before
+substitution: recipient and sender are single valid addresses not starting
+with `-`; subject and sender name are UTF-8 without newline or NUL, at most
+998 bytes; command arguments contain no newline or NUL. The HTML body is
+written to `mail-*.html` in the application runtime directory with mode 0600
+and deleted in a `finally` block; the runtime directory must be private and
+outside every web root. Stdin is `/dev/null`. Output is drained and never
+logged. Nonzero exit or timeout is delivery failure: UI 503 and
+email_send:error audit, without automatic retry (an exit code of 0 means local
+MTA acceptance, not delivery).
 
-Commands use proc_open array arguments without shell interpretation (R8).
-For pipelines/complex logic, point to a versioned script. Command output is not
-logged. PHP: `new CommandDelivery([...],$from,$fromName)`.
+The configuration stays consumer-supplied; on our hosts it uses the Infra mail
+helper ([configuration example](configuration.md#mail-command)). Keys
+`transport` and `dsn` were removed with SMTP delivery and now fail with
+"SMTP mail delivery was removed" ([FB-0065](feedback.md#fb-0065)).
+PHP: `new CommandDelivery([...],$from,$fromName,$runtime)`.
 Demo delivery saves locally for the [mailbox](demos.md#demó-postafiók-mailbox),
 without sending to recipients.
 
-Keep SMTP DSN/sender in env; synthetic example:
-`smtp://user:password@smtp.example.test:587?require_tls=true`. URL-encode
-special username/password characters. The framework uses Symfony Mailer ^7.4
-and MIME; [official transport/TLS reference](https://symfony.com/doc/7.4/mailer.html).
-SMTP settings never enter browser metadata or logged error messages.
-
-Mail has HTML/plain variants. Reusable `Blade\Mail\Layout` supplies an
+Mail is rendered in HTML and plain-text variants; command delivery passes the
+HTML body (the Infra helper sends one part). Reusable `Blade\Mail\Layout` supplies an
 e-mail-client-compatible colored application header, card, highlighted code and
 footer. Consumers override texts and #rrggbb accent_color, not markup.
 Text keys: subject, heading, greeting, intro, code_label, expiry, footer.
@@ -154,16 +157,16 @@ version-linked; integration must explicitly revoke them.
 
 ## Installation and verification
 
-PHP 8.4+, PDO, Symfony Mailer dependency. Explicit Schema.install adds
+PHP 8.4+, PDO; no third-party PHP dependency. Explicit Schema.install adds
 blade_auth_settings, blade_login_challenges, blade_remembered_logins.
 No request-time DDL. Private runtime/sessions/login and authentication.key must
 be nonpublic/unversioned. Multiple instances need shared sessions/key.
 Expired challenges/remember records require operational cleanup; cleanup does
 not extend validity.
 
-- `php8.4 tests/shell/mail.php`: command stdin MIME, recipient substitution/option-like recipient, exit errors, transport choice, layout escaping/text/color.
+- `php8.4 tests/shell/mail.php` (recording fake command, never real mail): placeholder substitution, 0600 HTML body file in runtime and its removal after success and failure, empty stdin, address/subject/name/argument validation, exit errors, removed `transport`/`dsn` keys, layout escaping/text/color.
 - `php8.4 tests/shell/authentication.php`: default-on/per-user ACL, wrong/expired/cross-browser/replayed code, persistent limits, remember hash/rotation/expiry/revoke, sensitive-data-free audit.
-- `npm run test:browser -- tests/shell/authentication.spec.cjs` (feature demo, `twofactor@example.test`, code from the demo mailbox): code gate, CSRF and wrong-code rejection, 90-day remembered login with rotation and revocation, no credential without remember, the Users admin e-mail-confirmation switch and the confirmation window in all themes. The demo delivers by command, so SMTP transport stays covered by `mail.php`. A session restored from the remember cookie starts in the site default language; the account default applies to password, code and OAuth logins ([i18n](i18n.md#account-default-language)).
+- `npm run test:browser -- tests/shell/authentication.spec.cjs` (feature demo, `twofactor@example.test`, code from the demo mailbox): code gate, CSRF and wrong-code rejection, 90-day remembered login with rotation and revocation, no credential without remember, the Users admin e-mail-confirmation switch and the confirmation window in all themes. The demo command takes the Infra helper's arguments but stores the message locally. A session restored from the remember cookie starts in the site default language; the account default applies to password, code and OAuth logins ([i18n](i18n.md#account-default-language)).
 
 <a id="oauth-belépés-authhandler"></a>
 

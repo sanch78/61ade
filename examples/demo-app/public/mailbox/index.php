@@ -13,43 +13,27 @@ header('Cache-Control: no-store');
 header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; frame-ancestors 'none'");
 $e = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
-/** Minimal reader for the framework's own multipart/alternative messages. */
-function blade_mailbox_read(string $raw): array
+/** A message stored by bin/outbox.php. */
+function blade_mailbox_read(string $file): array
 {
-    [$head, $body] = array_pad(preg_split("/\r?\n\r?\n/", $raw, 2), 2, '');
-    $head = preg_replace("/\r?\n[ \t]+/", ' ', $head);
-    $headers = [];
-    foreach (preg_split("/\r?\n/", $head) as $line) if (str_contains($line, ':')) {
-        [$name, $value] = explode(':', $line, 2);
-        $headers[strtolower(trim($name))] = trim($value);
-    }
-    $parts = ['text/plain' => '', 'text/html' => ''];
-    if (preg_match('/boundary="?([^";]+)"?/i', $headers['content-type'] ?? '', $match)) {
-        foreach (explode('--'.$match[1], $body) as $part) {
-            [$partHead, $content] = array_pad(preg_split("/\r?\n\r?\n/", ltrim($part), 2), 2, '');
-            if (!preg_match('~content-type:\s*(text/(?:plain|html))~i', $partHead, $type)) continue;
-            if (stripos($partHead, 'quoted-printable') !== false) $content = quoted_printable_decode($content);
-            elseif (stripos($partHead, 'base64') !== false) $content = base64_decode($content);
-            $parts[strtolower($type[1])] = $content;
-        }
-    }
-    return ['to' => iconv_mime_decode($headers['to'] ?? ''), 'subject' => iconv_mime_decode($headers['subject'] ?? ''), 'date' => $headers['date'] ?? '', ...$parts];
+    $mail = json_decode((string) file_get_contents($file), true);
+    return (is_array($mail) ? $mail : []) + ['to' => '', 'subject' => '', 'date' => '', 'html' => ''];
 }
 
-$files = glob(blade_demo_runtime('outbox').'/*.eml') ?: [];
+$files = glob(blade_demo_runtime('outbox').'/*.json') ?: [];
 rsort($files);
-$selected = $_GET['m'] ?? (isset($files[0]) ? basename($files[0], '.eml') : '');
-$file = preg_match('/^[0-9.]+-[a-f0-9]{8}$/D', (string) $selected) ? blade_demo_runtime('outbox').'/'.$selected.'.eml' : '';
+$selected = $_GET['m'] ?? (isset($files[0]) ? basename($files[0], '.json') : '');
+$file = preg_match('/^[0-9.]+-[a-f0-9]{8}$/D', (string) $selected) ? blade_demo_runtime('outbox').'/'.$selected.'.json' : '';
 if (isset($_GET['raw']) && is_file($file)) {
     // Frame content: the formatted HTML part in a sandboxed document without scripts.
     header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
-    echo blade_mailbox_read((string) file_get_contents($file))['text/html'];
+    echo blade_mailbox_read($file)['html'];
     exit;
 }
 $list = '';
 foreach ($files as $item) {
-    $mail = blade_mailbox_read((string) file_get_contents($item));
-    $id = basename($item, '.eml');
+    $mail = blade_mailbox_read($item);
+    $id = basename($item, '.json');
     $list .= '<a class="'.($id === $selected ? 'on' : '').'" href="?m='.$e($id).'"><strong>'.$e($mail['subject']).'</strong><small>'.$e($mail['to']).' · '.$e($mail['date']).'</small></a>';
 }
 ?><!doctype html>

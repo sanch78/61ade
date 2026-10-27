@@ -6,7 +6,7 @@ namespace Blade\Configuration;
 
 use Blade\Authentication\LoginSecurity;
 use Blade\Feature\Workspace;
-use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage, SmtpDelivery};
+use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage};
 use Blade\Shell\IdentityProvider;
 
 final class AuthenticationConfiguration
@@ -18,14 +18,14 @@ final class AuthenticationConfiguration
         ], '$.authentication');
         $mail = $definition['mail'];
         Shape::check($mail, ['from_address' => 'string', 'from_name' => 'string'], [
-            'transport' => 'string', 'dsn' => 'string', 'command' => 'array', 'command_timeout_seconds' => 'integer',
+            'command' => 'array', 'command_timeout_seconds' => 'integer', 'transport' => 'any', 'dsn' => 'any',
             'texts' => 'array', 'text_overrides_binding' => 'string', 'accent_color' => 'string',
         ], '$.authentication.mail');
         $bindings = new Bindings($callbacks);
         return new LoginSecurity(
             workspace: $workspace,
             identities: $identities,
-            delivery: self::delivery($mail),
+            delivery: self::delivery($mail, $runtime),
             message: new LoginMessage($title, $mail['texts'] ?? [], $bindings->get($mail['text_overrides_binding'] ?? null), new Layout($mail['accent_color'] ?? '#2f6fd0')),
             runtime: $runtime,
             emailAttribute: $definition['email_attribute'],
@@ -35,16 +35,13 @@ final class AuthenticationConfiguration
         );
     }
 
-    /** "smtp" (default, Symfony Mailer DSN) or "command" (argument list, started without a shell). */
-    public static function delivery(array $mail): Delivery
+    /** Argument-list command started without a shell; the body file is written inside the runtime directory. */
+    public static function delivery(array $mail, string $runtime): Delivery
     {
-        $transport = $mail['transport'] ?? 'smtp';
-        if ($transport === 'smtp' && isset($mail['dsn']) && !isset($mail['command'])) {
-            return new SmtpDelivery($mail['dsn'], $mail['from_address'], $mail['from_name']);
+        if (array_key_exists('transport', $mail) || array_key_exists('dsn', $mail)) {
+            throw new \InvalidArgumentException('SMTP mail delivery was removed: drop transport/dsn and configure a command argument list at $.authentication.mail.command.');
         }
-        if ($transport === 'command' && isset($mail['command']) && !isset($mail['dsn'])) {
-            return new CommandDelivery($mail['command'], $mail['from_address'], $mail['from_name'], $mail['command_timeout_seconds'] ?? 30);
-        }
-        throw new \InvalidArgumentException('Mail transport must be "smtp" with dsn or "command" with command at $.authentication.mail.');
+        if (!isset($mail['command'])) throw new \InvalidArgumentException('Missing configuration key: $.authentication.mail.command');
+        return new CommandDelivery($mail['command'], $mail['from_address'], $mail['from_name'], $runtime, $mail['command_timeout_seconds'] ?? 30);
     }
 }

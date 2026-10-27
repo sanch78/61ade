@@ -1559,3 +1559,39 @@ that exactly equals an option label lists every option. The managed
   `dist/admin.js`/`admin.css` and `Blade\` autoloading, the dev path link
   resolves the exact pin, and the tag archive excludes development paths.
 - **Status:** accepted; implemented.
+
+<a id="fb-0065"></a>
+
+## FB-0065 — Command-only mail delivery without symfony/mailer
+
+- **Date:** 2026-10-27.
+- **Request (Infra, for the owner):** remove the only third-party PHP
+  dependency, `symfony/mailer`, so 61de can later be consumed like the other
+  shared libraries without Composer versions. Applications hand mail to local
+  Postfix through the Infra helper `/space/share/bin/send-infra-mail.php` and
+  hold no SMTP credentials.
+- **Owner decision:** one configurable command transport; `SmtpDelivery` and
+  the `smtp`/`dsn` options are removed. Packaging and release model unchanged
+  in this step.
+- **Decisions taken in implementation:** placeholders `{recipient}`,
+  `{subject}`, `{from_address}`, `{from_name}`, `{body_file}`, each ending one
+  argument (whole or suffix); `{body_file}` is mandatory. The command gets the
+  HTML body only, because the helper sends a single part; `LoginMessage` and
+  `Layout` still render both variants. Stdin piping was dropped (stdin is
+  `/dev/null`), so `sendmail -t -i` configurations must move to the helper.
+  `transport`/`dsn` keys fail with "SMTP mail delivery was removed". The demo
+  command takes the helper's arguments but stores JSON for the demo mailbox
+  instead of sending.
+- **Guide:** [mail delivery](authentication.md#levélküldés),
+  [mail command](configuration.md#mail-command).
+- **Verification (agent):** `php -l` on changed PHP; `tests/shell/mail.php`
+  with a recording fake command, `authentication.php`, `configuration.php`,
+  `oauth.php`, `admin.php`, `i18n.php`, `contracts.php` passed; `composer
+  validate` on both manifests; the demo lock holds only `sanch78/61de`; no
+  `Symfony\` reference in `packages/php`. Browser: `authentication.spec.cjs`
+  code gate/remember and `demo.spec.cjs` mailbox test passed through the
+  managed URL; two Users-admin tests failed waiting for the `Adminisztráció`
+  menu item (collapsed main menu, no mail involvement), not investigated here.
+  No real mail sent.
+- **Status:** accepted; implemented. Real sign-in mail through the helper
+  pending owner agreement.
