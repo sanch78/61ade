@@ -8,11 +8,13 @@ final class Schema
     public static function install(\PDO $db): void
     {
         $auto = $db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? 'BIGINT PRIMARY KEY AUTO_INCREMENT' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+        // MySQL 8 accepts a TEXT default only as an expression; SQLite ADD COLUMN rejects expression defaults.
+        $emptyJson = $db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? "('{}')" : "'{}'";
         foreach ([
             "CREATE TABLE IF NOT EXISTS blade_roles (id $auto, name VARCHAR(100) NOT NULL UNIQUE, role_key VARCHAR(100) UNIQUE)",
             "CREATE TABLE IF NOT EXISTS blade_memberships (id $auto, actor_id VARCHAR(100) NOT NULL, role_id BIGINT NOT NULL, UNIQUE(actor_id, role_id))",
             "CREATE TABLE IF NOT EXISTS blade_rules (id $auto, subject_type VARCHAR(10) NOT NULL, subject_id VARCHAR(100) NOT NULL, resource VARCHAR(100) NOT NULL, action VARCHAR(100) NOT NULL, channel VARCHAR(10) NOT NULL, effect VARCHAR(10) NOT NULL, scope VARCHAR(10) NOT NULL, object_id VARCHAR(100) NOT NULL DEFAULT '', field_name VARCHAR(100) NOT NULL DEFAULT '')",
-            "CREATE TABLE IF NOT EXISTS blade_audit (id $auto, occurred_at VARCHAR(30) NOT NULL, request_id VARCHAR(40) NOT NULL, actor_id VARCHAR(100) NOT NULL, channel VARCHAR(10) NOT NULL, resource VARCHAR(100) NOT NULL, action VARCHAR(100) NOT NULL, object_id VARCHAR(100) NOT NULL, outcome VARCHAR(30) NOT NULL, field_names TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '{}')",
+            "CREATE TABLE IF NOT EXISTS blade_audit (id $auto, occurred_at VARCHAR(30) NOT NULL, request_id VARCHAR(40) NOT NULL, actor_id VARCHAR(100) NOT NULL, channel VARCHAR(10) NOT NULL, resource VARCHAR(100) NOT NULL, action VARCHAR(100) NOT NULL, object_id VARCHAR(100) NOT NULL, outcome VARCHAR(30) NOT NULL, field_names TEXT NOT NULL, detail TEXT NOT NULL DEFAULT $emptyJson)",
             "CREATE TABLE IF NOT EXISTS blade_tokens (id $auto, actor_id VARCHAR(100) NOT NULL, label VARCHAR(100) NOT NULL, token_hash VARCHAR(64) NOT NULL UNIQUE, scopes TEXT NOT NULL, expires_at VARCHAR(30) NOT NULL, revoked INTEGER NOT NULL DEFAULT 0)",
             "CREATE TABLE IF NOT EXISTS blade_versions (actor_id VARCHAR(100) PRIMARY KEY, version INTEGER NOT NULL DEFAULT 1)",
             "CREATE TABLE IF NOT EXISTS blade_migrations (name VARCHAR(100) PRIMARY KEY)",
@@ -25,7 +27,7 @@ final class Schema
         foreach ([
             ['blade_account_state', 'oauth_allowed', 'INTEGER NOT NULL DEFAULT 0'],
             ['blade_account_state', 'locale', "VARCHAR(16) NOT NULL DEFAULT ''"],
-            ['blade_audit', 'detail', "TEXT NOT NULL DEFAULT '{}'"],
+            ['blade_audit', 'detail', "TEXT NOT NULL DEFAULT $emptyJson"],
         ] as [$table, $column, $definition]) {
             if (!in_array($column, self::columns($db, $table), true)) $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
         }
