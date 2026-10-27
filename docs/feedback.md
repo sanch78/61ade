@@ -279,3 +279,7 @@
 <a id="fb-0066"></a>
 
 ## FB-0066 — Shared-library consumption without versions
+
+<a id="fb-0067"></a>
+
+## FB-0067 — Consumer adoption procedure and corrections
