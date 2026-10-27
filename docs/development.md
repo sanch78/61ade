@@ -129,8 +129,10 @@ The development links are committed in the consumer repository. Deploy
 replaces them with copies: `deploy-site` syncs the consumer tree with
 `--no-links` and protects the `shared_assets` targets during that sync. It then
 removes a symlink found at each target and copies the asset there. (The
-"Refusing to replace" errors belong to the separate `links` option, not to
-`shared_assets`.) The consumer's `.deploy.json` copies the same paths:
+symlink refusals such as "Refusing to replace symlink with different target"
+belong to the separate `links` option; `shared_assets` refuses only when a
+target is a file where a directory is expected, or the reverse.) The consumer's
+`.deploy.json` copies the same paths:
 
 ```json
 {
