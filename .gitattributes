@@ -1,0 +1,19 @@
+# Release archives (Composer dist) carry only the runtime packages.
+/.agents export-ignore
+/.claude export-ignore
+/.editorconfig export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/docs export-ignore
+/examples export-ignore
+/lib export-ignore
+/package.json export-ignore
+/package-lock.json export-ignore
+/packages/frontend/src export-ignore
+/playwright.config.cjs export-ignore
+/tests export-ignore
+/tools/** export-ignore
+/tools/live-server.mjs -export-ignore
+/tsconfig.json export-ignore

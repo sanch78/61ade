@@ -267,3 +267,7 @@
 <a id="fb-0063"></a>
 
 ## FB-0063 — Uploader and file/media list decisions
+
+<a id="fb-0064"></a>
+
+## FB-0064 — Versioned Composer VCS package

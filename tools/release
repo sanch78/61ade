@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Cut a Composer VCS release: tools/release X.Y.Z
+# main gets the version bump; the tag points at a detached commit on top of it
+# that also tracks the built packages/frontend/dist (main never tracks dist).
+set -euo pipefail
+version=${1:-}
+[[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Usage: tools/release X.Y.Z" >&2; exit 64; }
+tag=v$version
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+fail() { echo "release: $*" >&2; exit 1; }
+
+[[ $(git symbolic-ref --short HEAD) == main ]] || fail "not on main"
+[[ -z $(git status --porcelain) ]] || fail "working tree is not clean"
+git fetch --quiet --tags origin main
+[[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] || fail "main is not identical to origin/main"
+git rev-parse -q --verify "refs/tags/$tag" >/dev/null && fail "$tag already exists"
+[[ $(jq -S .require composer.json) == $(jq -S .require packages/php/composer.json) ]] \
+    || fail "require differs between composer.json and packages/php/composer.json"
+
+mkdir -p tmp
+npm run build
+
+jq --indent 4 --arg v "$version" '.version=$v' packages/php/composer.json >tmp/release.json
+mv tmp/release.json packages/php/composer.json
+jq --arg v "$version" '.version=$v' packages/frontend/package.json >tmp/release.json
+mv tmp/release.json packages/frontend/package.json
+jq --arg v "$version" '.packages["packages/frontend"].version=$v' package-lock.json >tmp/release.json
+mv tmp/release.json package-lock.json
+composer require --quiet --working-dir=examples/demo-app "sanch78/61de:$version"
+if [[ -n $(git status --porcelain) ]]; then
+    git add packages/php/composer.json packages/frontend/package.json package-lock.json \
+        examples/demo-app/composer.json examples/demo-app/composer.lock
+    git commit --quiet -m "Release $version"
+fi
+
+# Build the release commit in a private index so the working tree keeps its dist.
+index=$root/tmp/release-index
+rm -f "$index"
+GIT_INDEX_FILE=$index git read-tree HEAD
+GIT_INDEX_FILE=$index git add --force packages/frontend/dist
+commit=$(git commit-tree "$(GIT_INDEX_FILE=$index git write-tree)" -p HEAD -m "Release $version with frontend build")
+rm -f "$index"
+git tag -a "$tag" -m "61de $version" "$commit"
+
+archive=$(git archive "$tag" | tar -t)
+for path in composer.json packages/php/src/ packages/frontend/dist/admin.js packages/frontend/dist/admin.css; do
+    grep -qx "$path" <<<"$archive" || fail "$path missing from the $tag archive; delete the local tag and fix"
+done
+! grep -q '^docs/\|^tests/\|^examples/' <<<"$archive" || fail "$tag archive contains development paths"
+
+git push --atomic origin main "$tag"
+echo "Released $tag ($commit)"
