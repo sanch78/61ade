@@ -1,6 +1,6 @@
 const {test, expect} = require('../../tools/playwright-test.cjs');
 const path = require('node:path');
-const {signIn, command, api} = require('./feature-demo.cjs');
+const {signIn, openMenu, command, api} = require('./feature-demo.cjs');
 // Feature demo: twofactor@example.test signs in with password + e-mailed code (English account
 // language); the code is read from the demo mailbox (/mailbox/), the remember cookie is <session>_remember.
 const ACCOUNT = 'twofactor@example.test', COOKIE = 'blade_demo_remember';
@@ -85,13 +85,12 @@ test('without remember: the confirmation actions stay inside the login window in
 
 test('per-user e-mail confirmation is an account switch that affects only the selected account', async ({page, browser}) => {
   await signIn(page);
-  await page.getByRole('menuitem', {name: 'Adminisztráció', exact: true}).click();
-  await page.getByRole('menuitem', {name: 'Felhasználók', exact: true}).click();
+  await openMenu(page, 'Felhasználók', 'Adminisztráció');
   const filters = page.locator('[data-cell-id="filter"]');
   await filters.getByLabel('E-mail', {exact: true}).fill(ACCOUNT);
   await filters.getByRole('button', {name: 'Szűrés', exact: true}).click();
   await page.locator('.dhx_grid-cell', {hasText: ACCOUNT}).click();
-  const dialog = page.getByRole('dialog'), setting = dialog.getByRole('checkbox', {name: 'E-mailes megerősítés', exact: true});
+  const dialog = page.getByRole('dialog'), setting = dialog.getByRole('checkbox', {name: /^(checkbox )?E-mailes megerősítés$/});
   async function switchTo(on) {
     await command(page, 'Módosítás');
     await expect(setting).toBeChecked({checked: !on});
@@ -108,9 +107,14 @@ test('per-user e-mail confirmation is an account switch that affects only the se
   await switchTo(true);
   await otherPage.reload(); await signedOut(otherPage);
   await password(otherPage);
-  await expect(otherPage.getByLabel(/^(Megerősítő kód|Verification code)$/)).toBeVisible();
-  await otherPage.getByRole('button', {name: /^(Vissza a belépéshez|Back to sign-in)$/}).click();
-  await signedOut(otherPage);
+  // A code sent by the previous test within the last minute hits the resend limit instead; both mean the gate is on.
+  const gate = otherPage.getByLabel(/^(Megerősítő kód|Verification code)$/);
+  await expect(gate.or(otherPage.getByRole('alertdialog').filter({hasText: /egy perc múlva|Wait at least one minute/}))).toBeVisible();
+  await expect(otherPage.getByRole('menuitem', {name: /^(Kijelentkezés|Sign out)$/})).toHaveCount(0);
+  if (await gate.isVisible()) {
+    await otherPage.getByRole('button', {name: /^(Vissza a belépéshez|Back to sign-in)$/}).click();
+    await signedOut(otherPage);
+  }
   await other.close();
 });
 // The demo account must keep its e-mail confirmation even if the test above failed midway.

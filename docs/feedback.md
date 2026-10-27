@@ -1632,4 +1632,16 @@ that exactly equals an option label lists every option. The managed
   the previous Catalyst build; `--check` passes on it and fails on a modified
   `admin.css`; the documented autoloader loads `Blade\Shell\ApplicationDefinition`
   over a linked `packages/php`.
+- **Spec repair (owner asked, same day):** the two Users-admin specs FB-0063
+  listed as failing now pass. They open the menu through `openMenu` (the
+  collapsed desktop menu of FB-0062), accept the Suite 9.3.12 checkbox name
+  `checkbox <label>`, read the one-time API key from its documented toast,
+  and accept the resend-limit alert as proof of the code gate when the
+  previous test sent a code under a minute earlier. The web instance's
+  synthetic `viewer@example.test` had been disabled through the UI since
+  2026-10-21, which made its API key correctly return 401; it was restored to
+  its seeded enabled state. `authentication.spec.cjs` 3/3 and the
+  `demo.spec.cjs` Users/API-key test pass on the managed URL. Other suites
+  with direct menu clicks (`browser`, `dialogs`, `admin`, `workspace`) were
+  not changed.
 - **Status:** accepted; implemented.
