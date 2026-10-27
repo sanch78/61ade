@@ -73,7 +73,7 @@ test('e-mail second factor: the formatted code mail lands in the demo mailbox in
  await expect(mailbox.getByText('61de feature demo – sign-in code').first()).toBeVisible();
  const body=mailbox.frameLocator('iframe').locator('body');
  await expect(body).toContainText('Confirm sign-in');
- await expect(body).toContainText('Synthetic demo mail');
+ await expect(body).toContainText('Automatic mail of the 61de feature demo');
  const code=(await body.innerText()).match(/\b\d{6}\b/)[0];
  await confirmation.getByLabel('Megerősítő kód',{exact:true}).fill(code);
  await confirmation.getByRole('button',{name:'Belépés megerősítése',exact:true}).click();
