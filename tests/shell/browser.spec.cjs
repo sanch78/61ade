@@ -1,4 +1,6 @@
 const { test, expect } = require('../../tools/playwright-test.cjs');
+// The feature demo's full top menu fits from about 1600 px; at 1280 px it collapses into "Menü" (FB-0062).
+const WIDE = { width: 1600, height: 900 };
 async function login(page, name = 'demo@example.test', enter = false) {
     await page.goto('/');
     await page.getByLabel('E-mail', { exact: true }).fill(name);
@@ -10,6 +12,7 @@ async function login(page, name = 'demo@example.test', enter = false) {
 test('framework creates DHTMLX login and menu, with an empty workspace', async ({ page }) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
+    await page.setViewportSize(WIDE);
     await page.goto('/');
     await expect(page.getByRole('dialog', { name: 'Bejelentkezés' })).toBeVisible();
     expect(await page.locator('#blade-config').evaluate(e => JSON.parse(e.textContent).menu)).toBeUndefined();
@@ -57,7 +60,7 @@ test('login remains a usable DHTMLX window at phone width', async ({ page }) => 
     await page.getByRole('menuitem', { name: 'Menü', exact: true }).click();
     await expect(page.getByRole('menuitem', { name: /^Nyilvántartás/ })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Kijelentkezés', exact: true })).toBeVisible();
-    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.setViewportSize(WIDE);
     await expect(page.getByRole('menuitem', { name: 'Menü', exact: true })).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: /^Nyilvántartás/ })).toBeVisible();
     await expect(page.locator('.blade-workspace')).toHaveText('');
@@ -108,6 +111,7 @@ test('Skyblue is the default and explicit theme choices survive reload', async (
 });
 
 test('theme button fits its menu row on hover in all skins without a white gap below',async({page})=>{
+ await page.setViewportSize(WIDE);
  await login(page);
  for(const [theme,label] of [['skyblue','Skyblue'],['light','Világos'],['dark','Éjjeli']]){
   await page.getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).last().click();

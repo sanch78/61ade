@@ -1641,9 +1641,21 @@ that exactly equals an option label lists every option. The managed
   synthetic `viewer@example.test` had been disabled through the UI since
   2026-10-21, which made its API key correctly return 401; it was restored to
   its seeded enabled state. `authentication.spec.cjs` 3/3 and the
-  `demo.spec.cjs` Users/API-key test pass on the managed URL. Other suites
-  with direct menu clicks (`browser`, `dialogs`, `admin`, `workspace`) were
-  not changed.
+  `demo.spec.cjs` Users/API-key test pass on the managed URL.
+- **Remaining suites (owner asked, same day):** `openMenu` also opens
+  top-level items (no group) and sign-out; `admin`, `workspace` and `demo` use
+  it. `admin` checks "signed in without administration" in the shell metadata
+  and accepts the 9.3.12 checkbox name. `browser` checks the expanded top menu
+  at 1600 px, where the demo menu fits (it collapses at 1280 px). `dialogs`
+  follows FB-0056: the field-free `Párbeszéd:` actions confirm from their
+  control and report success as a toast, so the acknowledge-dialog half of the
+  old spec is gone; the confirmation checks (severity, focus, keyboard, mobile
+  margins) remain, and the acknowledge dialog stays covered only by the danger
+  sign-in error. `demo` filters the API-key grid by its label (the live insert
+  could land above the visible window) and accepts the real Google sign-in page,
+  because `page.route` never saw the redirect target. Result on the managed URL:
+  `browser` 7/7, `dialogs` 8/8, `admin` 3/3, `workspace` 2/2,
+  `authentication` 3/3, `demo` 6/6.
 - **Status:** accepted; implemented.
 
 <a id="fb-0067"></a>

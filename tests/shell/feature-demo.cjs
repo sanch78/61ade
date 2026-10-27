@@ -5,12 +5,14 @@ async function signIn(page,email='demo@example.test',path='/'){
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
 }
 // A compact desktop menu shows the open view's siblings beside "Menü"; use that button when present.
+// Without a group the item is top-level and sits directly under "Menü".
 async function openMenu(page,title,group){
  const top=page.locator('.blade-navigation-row .dhx_menu-nav > li');await expect(top.first()).toBeVisible();
  const sibling=top.getByRole('menuitem',{name:title,exact:true});
  if(await sibling.isVisible())return sibling.click();
  const burger=page.getByRole('menuitem',{name:/^(Menü|Menu)$/});if(await burger.isVisible()){await burger.click();await page.waitForTimeout(750);}
- await page.getByRole('menuitem',{name:group,exact:true}).click();await page.getByRole('menuitem',{name:title,exact:true}).click();
+ if(group)await page.getByRole('menuitem',{name:group,exact:true}).click();
+ await page.getByRole('menuitem',{name:title,exact:true}).click();
 }
 async function openView(page,title,group='Feature demó'){
  await openMenu(page,title,group);
