@@ -1,5 +1,5 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
-const {openMenu}=require('./feature-demo.cjs');
+const {openMenu,openView}=require('./feature-demo.cjs');
 // Feature demo (/) and base admin demo (/admin/) on the managed demo URL (BLADE_DEMO_URL).
 async function signIn(page,email,password='61de-demo',path='/'){
  await page.goto(path);await page.getByLabel('E-mail',{exact:true}).fill(email);await page.getByLabel('Jelszó',{exact:true}).fill(password);
@@ -14,11 +14,8 @@ async function openAdmin(page,title){
  await openMenu(page,title,'Adminisztráció');
  await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
 }
-// Top-level item: inside the collapsed desktop menu it sits directly under "Menü".
 async function openApiKeys(page){
- const item=page.getByRole('menuitem',{name:'API-kulcsok',exact:true});
- if(!await item.isVisible()){await page.getByRole('menuitem',{name:/^(Menü|Menu)$/}).click();await page.waitForTimeout(750);}
- await item.click();
+ await openMenu(page,'API-kulcsok');
  await expect(page.getByRole('heading',{name:'API-kulcsok',exact:true})).toBeVisible();
 }
 const OAUTH='Belépés külső fiókkal';
@@ -41,14 +38,14 @@ test('the feature demo login offers password, OAuth, remember me and the languag
  await expect(language).toBeVisible();
  expect((await language.boundingBox()).x).toBeLessThan((await theme.boundingBox()).x);
  await language.click();await page.getByText('Magyar',{exact:true}).click();
+ // The Hungarian sign-out entry; the collapsed desktop menu keeps it under "Menü".
+ const burger=page.getByRole('menuitem',{name:'Menü',exact:true});if(await burger.isVisible())await burger.click();
  await expect(page.getByRole('menuitem',{name:'Kijelentkezés',exact:true})).toBeVisible();
  expect(errors).toEqual([]);
 });
 
 test('OAuth opens the AuthHandler overlay with the native Google and Facebook buttons; a click runs the provider flow',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- // With keys in examples/demo-app/.env the click leaves for Google; the stub stops it there.
- await page.route(/^https:\/\/accounts\.google\.com\//,route=>route.fulfill({contentType:'text/html',body:'<h1>Google</h1>'}));
  await page.goto('/');
  await page.getByRole('button',{name:OAUTH,exact:true}).click();
  const overlay=page.locator('.authhandler-login-modal');
@@ -59,8 +56,10 @@ test('OAuth opens the AuthHandler overlay with the native Google and Facebook bu
   expect(icon).toContain(`images/${provider}.png`);
  }
  await overlay.locator('.authhandler-provider-google').click();
+ // Without keys: setup feedback. With keys in examples/demo-app/.env the browser leaves for Google's sign-in
+ // page; page.route cannot stub it, because routes do not see the target of a redirect.
  const unconfigured=page.getByText('A(z) Google belépés még nincs beállítva (hiányzó kulcs).',{exact:true});
- await expect(unconfigured.or(page.getByRole('heading',{name:'Google',exact:true}))).toBeVisible();
+ await expect.poll(async()=>/^https:\/\/accounts\.google\.com\//.test(page.url())||await unconfigured.isVisible(),{timeout:10000}).toBe(true);
  if(await unconfigured.isVisible()){
   await page.locator('[data-blade-dialog-action=ok]').click();
   await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();
@@ -113,6 +112,8 @@ test('users carry OAuth, e-mail confirmation and default language switches; an A
  // Authenticated API call: the owner has no API rule, so the object stays hidden (404, not 401/403).
  expect(await call(secret)).toBe(404);
  expect(await call('0'.repeat(64))).toBe(401);
+ // Filter by the unique label so the row is found regardless of the live list window.
+ await page.getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true}).fill(label);
  const row=page.locator('.dhx_grid-row').filter({hasText:label});
  await expect(row).toContainText('Feladatok · Lista (demo_tasks.list), Feladatok · Megnyitás (demo_tasks.get)');
  const revoked=row.getByRole('checkbox',{name:'Visszavonva',exact:true});
@@ -145,8 +146,7 @@ test('the base admin demo shows only the mandatory administration',async({page})
 test('the feature demo task module shows multiple choices, inline editors and a bulk business action',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await signIn(page,'demo@example.test');
- await page.getByRole('menuitem',{name:'Feature demó',exact:true}).click();
- await page.getByRole('menuitem',{name:'Feladatok',exact:true}).click();
+ await openView(page,'Feladatok');
  await expect(page.getByRole('heading',{name:'Feladatok',exact:true})).toBeVisible();
  await expect(page.locator('.dhx_grid-row').filter({hasText:'Szintetikus feladat 39'})).toContainText('Ügyfél, Sürgős');
  // The panel layout narrows the list, so commands may sit in the responsive "Műveletek" menu.

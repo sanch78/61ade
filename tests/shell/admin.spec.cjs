@@ -1,14 +1,20 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
+const {openMenu}=require('./feature-demo.cjs');
 async function signIn(page,email,password){
  await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill(email);await page.getByLabel('Jelszó',{exact:true}).fill(password);await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
 }
 async function signOut(page){
- await page.getByRole('menuitem',{name:'Kijelentkezés',exact:true}).click();
+ await openMenu(page,'Kijelentkezés');
  await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();
 }
+// Signed in without administration: checked in the shell metadata, which does not depend on the menu being collapsed.
+async function signedInWithoutAdmin(page){
+ const shell=JSON.parse(await page.locator('#blade-config').textContent());
+ expect(shell.authenticated).toBe(true);
+ expect(JSON.stringify([shell.menu,shell.views])).not.toContain('Adminisztráció');
+}
 async function openUsers(page){
- await page.getByRole('menuitem',{name:'Adminisztráció',exact:true}).click();
- await page.getByRole('menuitem',{name:'Felhasználók',exact:true}).click();
+ await openMenu(page,'Felhasználók','Adminisztráció');
  await expect(page.getByRole('heading',{name:'Felhasználók',exact:true})).toBeVisible();
 }
 // A narrow panel moves the toolbar into the responsive "Műveletek" menu.
@@ -53,8 +59,8 @@ test('admin creates a user; the temporary password forces a change before any se
  await change.getByLabel('Új jelszó',{exact:true}).fill('chosen-password-1');
  await change.getByLabel('Új jelszó ismét',{exact:true}).fill('chosen-password-1');
  await change.getByRole('button',{name:'Jelszó mentése és belépés',exact:true}).click();
- await expect(page.getByRole('menuitem',{name:'Kijelentkezés',exact:true})).toBeVisible();
- await expect(page.getByRole('menuitem',{name:'Adminisztráció',exact:true})).toHaveCount(0);
+ await expect(page.locator('.blade-session-bar')).toBeVisible();
+ await signedInWithoutAdmin(page);
  await signOut(page);
 
  await signIn(page,email,temporary);
@@ -73,7 +79,7 @@ test('disabling is a grid and form checkbox; a disabled account cannot sign in',
  await expect(page.getByRole('button',{name:'Visszaengedés',exact:true})).toHaveCount(0);
  await command(page,'Módosítás');
  const form=page.getByRole('dialog');
- await expect(form.getByRole('checkbox',{name:'Tiltva',exact:true})).not.toBeChecked();
+ await expect(form.getByRole('checkbox',{name:/^(checkbox )?Tiltva$/})).not.toBeChecked();
  await form.getByRole('button',{name:/close|Bezárás/i}).first().click();
  const row=page.locator('.dhx_grid-row').filter({hasText:email});
  const disabled=row.getByRole('checkbox',{name:'Tiltva',exact:true});
@@ -88,8 +94,7 @@ test('disabling is a grid and form checkbox; a disabled account cannot sign in',
  expect(errors).toEqual([]);
 });
 async function openAdmin(page,title){
- await page.getByRole('menuitem',{name:'Adminisztráció',exact:true}).click();
- await page.getByRole('menuitem',{name:title,exact:true}).click();
+ await openMenu(page,title,'Adminisztráció');
  await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
 }
 async function fillDialog(page,values){
@@ -136,8 +141,8 @@ test('a role with a catalogue rule grants a module to its new member',async({pag
  await change.getByLabel('Új jelszó',{exact:true}).fill('member-password-1');
  await change.getByLabel('Új jelszó ismét',{exact:true}).fill('member-password-1');
  await change.getByRole('button',{name:'Jelszó mentése és belépés',exact:true}).click();
- await page.getByRole('menuitem',{name:'Jegyzetek',exact:true}).click();
+ await openMenu(page,'Jegyzetek');
  await expect(page.locator('.blade-workspace').getByRole('row').nth(1)).toBeVisible();
- await expect(page.getByRole('menuitem',{name:'Adminisztráció',exact:true})).toHaveCount(0);
+ await signedInWithoutAdmin(page);
  expect(errors).toEqual([]);
 });
