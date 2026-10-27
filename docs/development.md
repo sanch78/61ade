@@ -88,6 +88,14 @@ Consumers use exactly these runtime paths:
 
 `packages/php/composer.json` remains only for the demo's path repository.
 
+**No external PHP dependency** ([FB-0067](feedback.md#fb-0067)): the
+no-Composer model holds only while `packages/php` requires nothing but PHP
+itself and its bundled extensions. Optional integrations such as
+`_AuthHandler` are separate shared libraries whose path the consumer passes in.
+Adding a third-party package would bring back an installer and is a breaking
+change. Every consumer would need a coordinated update, as described in
+[breaking changes](#breaking-changes).
+
 ### Tracked frontend build
 
 `packages/frontend/dist` is tracked on `main`. Every commit that changes the
@@ -98,6 +106,10 @@ and refuses to test a `dist` that differs from the source.
 
 ### Consumer layout
 
+This section is the consumer contract. Consumer agents follow it through the
+[61de-consumer skill](../.agents/skills/61de-consumer/SKILL.md), which is a
+checklist that links back here.
+
 Example with consumer-chosen paths. In development, the consumer links the
 shared checkout:
 
@@ -106,9 +118,19 @@ ln -s /space/share/libs/61ade/packages/php lib/61de
 ln -s /space/share/libs/61ade/packages/frontend/dist public/assets/61de
 ```
 
-These links must stay out of the consumer's release build; deploy refuses to
-sync a shared asset into an existing symlink. Its `.deploy.json` copies the
-same paths into the release:
+The assets link is a dedicated subdirectory such as `public/assets/61de`, never
+the consumer's whole `public/assets`. Through a whole-directory link, the
+consumer's own assets would be written into this shared `dist`. At deploy time
+the main sync hides and protects every `shared_assets` target, so the
+consumer's own files under that target never reach the release. A `files`
+selection with `delete_excluded` also removes anything else already there.
+
+The development links are committed in the consumer repository. Deploy
+replaces them with copies: `deploy-site` syncs the consumer tree with
+`--no-links` and protects the `shared_assets` targets during that sync. It then
+removes a symlink found at each target and copies the asset there. (The
+"Refusing to replace" errors belong to the separate `links` option, not to
+`shared_assets`.) The consumer's `.deploy.json` copies the same paths:
 
 ```json
 {
@@ -126,7 +148,10 @@ same paths into the release:
 }
 ```
 
-The autoloader:
+The autoloader goes in the consumer's earliest common bootstrap, before any
+entrypoint touches a `Blade\` class. An entrypoint that runs framework code
+before the application file is loaded needs it first. Here `__DIR__` is the
+consumer directory that holds `lib/61de`:
 
 ```php
 spl_autoload_register(static function (string $class): void {
@@ -139,7 +164,25 @@ spl_autoload_register(static function (string $class): void {
 });
 ```
 
+PHP resolves symlinks for `__DIR__`, so in development the framework loads its
+templates, locales and other resources from this checkout through the link. In
+a release it loads them from the copy. `packages/php/bin/live-bridge.php` (the
+WebSocket worker, see [live data](workspaces.md#élő-adat-konfigurálása-és-futtatása))
+requires `BLADE_AUTOLOAD_FILE`. Point it at a consumer PHP file that registers
+this autoloader and anything else the application file needs. Do not point it
+at a Composer `vendor/autoload.php`, which a consumer no longer has.
+
 Committed consumer files must not depend on anything else from this checkout.
+
+#### Release reproducibility
+
+`deploy-site` refuses a `shared_assets` source when it is not in a Git
+checkout, when the copied paths have uncommitted or untracked files (ignored
+files are allowed), or when HEAD is not on its upstream. It records the copied
+library commit in the consumer's `.deploy-history.jsonl`. For this repository,
+that means `packages/php` and the two `dist` files must always be committed and
+pushed. A half-done change there blocks every consumer's release until it is
+committed or removed.
 
 ### Breaking changes
 
@@ -149,6 +192,66 @@ configuration, template, database or frontend contract therefore needs a
 coordinated update of every affected consumer in the same session, before or
 together with the push. Run the [focused checks](#focused-task-groups) for each
 change before every push.
+
+#### Consumer update smoke check
+
+The update reaches a consumer by itself, so the check comes after the push and
+before the consumer's next release:
+
+1. List what changed since the commit last released:
+   `git -C /space/share/libs/61ade log --oneline <commit>..origin/main`, with
+   `<commit>` taken from the last `shared_assets` record in
+   `.deploy-history.jsonl`. Read the matching [feedback](feedback.md) entries
+   for contract changes.
+2. On the consumer's development URL: sign in, open the menu, open one list
+   and one form, save one synthetic change and revert it. Check the browser
+   console and the PHP error log for new errors.
+3. Run the consumer's own browser specs through its
+   [guarded wrapper](#consumer-browser-tests).
+4. Run `deploy-site` only after these pass.
+
+#### Consumer browser tests
+
+Consumer specs cannot `require('@playwright/test')`: the system runner's
+package is not on the consumer's module path. A consumer has two files of
+its own:
+
+- `tools/playwright.sh` derives the system `@playwright/test` from the exec
+  target of `/usr/local/bin/playwright`, exports it in a project variable and
+  runs `exec /space/share/bin/guarded-playwright test "$@"` with
+  `PLAYWRIGHT_GUARD_TMPDIR=/space/share/tmp/<project>/playwright`.
+- `tools/playwright-test.cjs` exports `require(<that variable>)`. Specs and
+  `playwright.config.cjs` import it instead of `@playwright/test`.
+
+The guard allows one run per host and fixes the worker count, so it refuses
+`--workers`/`-j`. It needs the tmp directory under the consumer's existing
+`/space/share/tmp/<project>/` and must be started from inside
+`/space/share/dev/<project>`. Exit 75/76 (busy, low memory) means retry later.
+Consumers do not call this checkout's `tools/run-dev-check.sh`.
+
+#### Consumer test accounts
+
+E-mail confirmation (`default_email_confirmation`, default `true`) applies only
+when the consumer configures `authentication` (login security). Without it,
+password login is the only gate. With it, a temporary test account either
+receives its code through the consumer's mail command or has its
+[e-mail confirmation switch](admin.md#fiókkapcsolók) turned off in the Users
+admin.
+
+Create the account in the consumer's Users admin. A generated temporary
+password leads to a forced password change. The framework has no account
+delete, so removal is consumer cleanup in its development database:
+
+- the consumer's identity row;
+- rows keyed by the actor ID: `blade_memberships`, `blade_versions`,
+  `blade_auth_settings`, `blade_account_state`, `blade_tokens`,
+  `blade_login_challenges`, `blade_remembered_logins`, and `blade_rules` with
+  `subject_type = 'user'`;
+- `blade_audit` rows the account produced or was the target of, if the
+  consumer's test policy removes them;
+- runtime files: its `runtime/sessions/sess_*` files and `runtime/live/`
+  tickets. `runtime/login/*.json` holds password-attempt counters per client IP,
+  not per account. Leave those to expire.
 
 <a id="fájlrendszer-és-környezet"></a>
 
@@ -285,9 +388,16 @@ nonblocking `tmp/dev-check.lock`, at least 1280 MiB initial MemAvailable,
 threads. On resource refusal, wait or free memory; never bypass the guard or
 start concurrent retries.
 
-Consumers may call `tools/run-dev-check.sh command [args...]` from their own
-working directory. They share this checkout's lock; other checkouts/users do
-not. There is no unlimited fallback if systemd is unavailable. The guard
+This checkout keeps its own guard instead of the host's
+`/space/share/bin/guarded-playwright` ([FB-0067](feedback.md#fb-0067)). That
+runner refuses to start outside `/space/share/dev/<project>` or
+`/space/apps/<project>` (exit 77 from `/space/share/libs/61ade`). It requires
+tmp under `/space/share/tmp/<project>/`, which conflicts with this project's
+checkout-local `tmp/`. The limits are the same, but the locks differ: this
+checkout's lock does not exclude a guarded consumer run on the same host.
+Consumers use the host runner, as described in
+[consumer browser tests](#consumer-browser-tests). There is no unlimited
+fallback if systemd is unavailable. The guard
 preserves the child exit status; busy lock or insufficient memory returns 75.
 The raw Playwright CLI is not a supported host entrypoint. The same guard may
 protect other large checks under the same limits.

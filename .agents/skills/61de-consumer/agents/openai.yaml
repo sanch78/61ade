@@ -1,0 +1,4 @@
+interface:
+  display_name: "61de consumer"
+  short_description: "Adopt or update 61de in a consumer project"
+  default_prompt: "Use $61de-consumer to adopt or update 61de in this consumer project."

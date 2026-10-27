@@ -1645,3 +1645,52 @@ that exactly equals an option label lists every option. The managed
   with direct menu clicks (`browser`, `dialogs`, `admin`, `workspace`) were
   not changed.
 - **Status:** accepted; implemented.
+
+<a id="fb-0067"></a>
+
+## FB-0067 — Consumer adoption procedure and corrections
+
+- **Date:** 2026-10-27.
+- **Request (Infra, for the owner):** turn the first consumer adoption
+  (StoryBloX) into one owned procedure: correct the consumer contract and add a
+  consumer checklist skill that links to it.
+- **Findings verified against the code:**
+  - `packages/php` uses no third-party PHP package. Its `composer.json`
+    requires only `php`, and the source imports only `Blade\` and PHP classes.
+    This is now a stated invariant; changing it needs a coordinated consumer
+    update.
+  - The old sentence "deploy refuses to sync a shared asset into an existing
+    symlink" was wrong. `deploy-site` syncs with `--no-links`, hides and
+    protects `shared_assets` targets in the main sync, then removes a symlink
+    at the target and copies the asset. "Refusing to replace" comes from
+    `links`.
+  - A whole-directory assets link (`public/assets` → `dist`) writes the
+    consumer's own assets into the shared `dist`. In a release those assets
+    never arrive, because the main sync hides the target. StoryBloX currently
+    links and deploys its whole `public/assets`; changing that is the
+    consumer's task.
+  - `live-bridge.php` requires `BLADE_AUTOLOAD_FILE`; a consumer has no
+    `vendor/autoload.php`.
+  - `deploy-site` refuses a dirty or unpushed `shared_assets` source and
+    records the library commit in `.deploy-history.jsonl`.
+  - E-mail confirmation exists only when `authentication` is configured. The
+    framework has no account delete; `runtime/login/*.json` is per client IP,
+    not per account.
+- **Runner decision:** consumers call `/space/share/bin/guarded-playwright`
+  from their own `tools/playwright.sh`, with `tools/playwright-test.cjs` as
+  the spec loader (the StoryBloX pattern). This checkout keeps
+  `tools/run-dev-check.sh`. The host runner exits 77 for a working directory
+  under `/space/share/libs`, and its tmp rule conflicts with the owner's
+  checkout-local `tmp/`. Consumers no longer call this checkout's guard.
+  **Open:** the two locks do not exclude each other. A shared lock would need
+  an Infra change to the host runner, and that change needs the owner's
+  approval.
+- **Guide:** [consumer layout](development.md#consumer-layout),
+  [update smoke check](development.md#consumer-update-smoke-check),
+  [consumer browser tests](development.md#consumer-browser-tests),
+  [consumer test accounts](development.md#consumer-test-accounts),
+  [61de-consumer skill](../.agents/skills/61de-consumer/SKILL.md).
+- **Verification (agent):** documentation only. Internal links and anchors
+  were checked with a script, plus `git diff --check`. No runner change, so no
+  browser run.
+- **Status:** accepted; implemented.
