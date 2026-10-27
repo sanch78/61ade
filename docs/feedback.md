@@ -1532,3 +1532,30 @@ that exactly equals an option label lists every option. The managed
   unconfigured OAuth), `related-fields` 1 (Suite 9.3.12 names an unlabelled
   checkbox `checkbox <label>`).
 - **Status:** accepted; U1–U5 implemented (user acceptance pending).
+
+<a id="fb-0064"></a>
+
+## FB-0064 — Versioned Composer VCS package
+
+- **Date:** 2026-10-27.
+- **Request:** make 61de consumable as a versioned Composer VCS package, which
+  resolves the open artifact/registry method of the former local package
+  development plan.
+- **Owner decisions:** root `composer.json` for `sanch78/61de` without a
+  `version` field; `.gitattributes` export-ignore for non-runtime paths;
+  `tools/release X.Y.Z` builds the frontend, bumps both package versions and
+  tags a detached commit that force-adds `packages/frontend/dist`; `main` never
+  tracks `dist`.
+- **Decisions taken in implementation:** `packages/php/composer.json` stays for
+  the demo's path repository (a root path repository would make the demo's
+  vendor link contain itself), and the release tool requires identical
+  `require` blocks; the version bump and demo pin are committed to `main`, and
+  `main` plus the tag go out in one atomic push; `tools/live-server.mjs` stays
+  in the archive as the WebSocket runtime; dev-time linking uses an uncommitted
+  path repository with `versions`.
+- **Guide:** [package releases](development.md#package-releases-and-consumption).
+- **Verification (agent):** release dry run against a local bare clone, then
+  throwaway consumers under `tmp/`: the tag installs through a VCS repository with
+  `dist/admin.js`/`admin.css` and `Blade\` autoloading, the dev path link
+  resolves the exact pin, and the tag archive excludes development paths.
+- **Status:** accepted; implemented.

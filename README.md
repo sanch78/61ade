@@ -66,8 +66,10 @@ recorded durably and incorporated into the relevant guide; this is mandatory.
 | `examples/demo-app` | Unpublished | Synthetic feature demo (`/`) and starter admin (`/admin/`); [demo guide](docs/demos.md) |
 | `tests` | Unpublished | Framework, contract, integration and browser tests |
 
-Package names are local design identifiers; no npm/Packagist registration or
-publication has taken place. The PHP namespace is `Blade\`.
+Releases are Composer VCS tags of this repository (`sanch78/61de`, including the
+built frontend); there is no npm/Packagist registration. See
+[package releases](docs/development.md#package-releases-and-consumption).
+The PHP namespace is `Blade\`.
 
 <a id="technológiai-kiindulás"></a>
 

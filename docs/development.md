@@ -37,8 +37,8 @@ files; inspect only needed keys and never print or commit credentials.
 
 Product/packages use `61de`; identifiers use `Blade\`, `BLADE_*` and
 `blade_*`. See [renaming](renaming.md) before reusing an earlier consumer or
-database. Future package distribution and consumer releases have their own
-contracts and do not create a production environment for this project.
+database. [Package releases](#package-releases-and-consumption) are Git tags;
+they and consumer releases do not create a production environment here.
 
 <a id="jelenlegi-állapot"></a>
 
@@ -64,21 +64,93 @@ under the consumer's contract; an old link does not prove the current location.
 
 <a id="helyi-csomagfejlesztés-terve"></a>
 
-## Local package development plan
+## Package releases and consumption
 
-The demo and CityScreen may consume PHP through a Composer path repository,
-and frontend packages through local workspace/file dependencies. Published
-packages and consumer release lockfiles must not retain absolute `/space/...`
-development paths.
+Decision of 2026-10-27 ([FB-0064](feedback.md#fb-0064)): 61de is consumed as one
+Composer VCS package, `sanch78/61de`, from https://github.com/sanch78/61ade.
+There is no Packagist or npm registration; the Git tag is the release artifact.
 
-M7 needs automated PHP/frontend artifacts from monorepo subdirectories. A
-package-level `composer.json` does not make the repository root a directly
-installable Composer VCS package. The artifact/registry method remains a
-package-release decision.
+The root `composer.json` is the package manifest (`Blade\` →
+`packages/php/src/`, no `version` field; Composer takes the version from the
+`vX.Y.Z` tag). `packages/php/composer.json` remains only for the demo's path
+repository: pointing the demo at the root would make its
+`vendor/sanch78/61de` a symlink to the checkout containing that vendor
+directory. Both manifests must declare the same `require`; the release tool
+refuses to run otherwise. `.gitattributes` export-ignores development paths, so a
+dist archive carries `composer.json`, `README.md`, `packages/php`,
+`packages/frontend/{bin,dist,package.json}` and `tools/live-server.mjs`
+(the [WebSocket transport](workspaces.md)).
 
-Library manifests declare compatible ranges; consumers pin exact versions in
-lockfiles. Initial backend/frontend releases share versions. Breaking protocol
-changes require release notes, migration guidance and new compatibility ranges.
+### Release procedure
+
+```sh
+tools/release X.Y.Z
+```
+
+It requires `main`, a clean working tree and `HEAD` equal to `origin/main`, and an
+unused tag. It runs `npm run build`, sets `X.Y.Z` in `packages/php/composer.json`,
+`packages/frontend/package.json` and `package-lock.json`, pins the demo to it
+(`composer require` refreshes `examples/demo-app/composer.lock`) and commits that
+bump to `main` as `Release X.Y.Z` when anything changed. It then creates a
+detached commit on top of it in a private index that force-adds
+`packages/frontend/dist`, tags it `vX.Y.Z`, checks that the tag archive holds
+the manifest, PHP source and built assets and no `docs`/`tests`/`examples`, and
+pushes `main` and the tag with one atomic push. `main` never tracks `dist`, and
+the working tree is not switched. Initial backend/frontend releases share one
+version. If a check fails before the push, delete the local tag and reset the
+unpushed bump commit before retrying.
+
+Before cutting a release, run the focused checks for the changes it contains.
+After the push, verify with a throwaway consumer under `tmp/` (below) and remove it.
+
+### Consumer contract
+
+```json
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/sanch78/61ade"
+        }
+    ],
+    "require": {
+        "sanch78/61de": "0.1.0"
+    }
+}
+```
+
+- Require the exact release version and commit `composer.lock`; the lock pins the
+  tag's commit. Upgrade deliberately with `composer require sanch78/61de:X.Y.Z`.
+  Breaking protocol changes require release notes, migration guidance and new
+  compatibility ranges.
+- Frontend assets come from the same package:
+  `node vendor/sanch78/61de/packages/frontend/bin/publish.mjs public/assets`.
+  The WebSocket server, when used, is `vendor/sanch78/61de/tools/live-server.mjs`;
+  the consumer supplies its lockfile-pinned `ws` dependency.
+- Committed consumer manifests and lockfiles must never contain `/space/...`
+  development paths.
+
+**Dev-time linking against the shared checkout:** in an uncommitted local
+manifest (for example `COMPOSER=composer.dev.json composer install`, with its
+lock ignored), put a path repository before the VCS entry:
+
+```json
+{
+    "type": "path",
+    "url": "/space/share/libs/61ade",
+    "options": {
+        "symlink": true,
+        "versions": {
+            "sanch78/61de": "0.1.0"
+        }
+    }
+}
+```
+
+`vendor/sanch78/61de` then symlinks the checkout, with the same layout as a
+release; `versions` lets the exact pin resolve. Its frontend is the checkout's
+working-tree build, so run `npm run build` there first. The demo app uses the
+equivalent path repository to `packages/php`.
 
 <a id="fájlrendszer-és-környezet"></a>
 
