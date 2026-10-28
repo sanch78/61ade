@@ -23,7 +23,8 @@ function blade_demo_db(string $name): PDO
 {
     $file = blade_demo_runtime().'/'.$name.'.sqlite';
     $db = new PDO('sqlite:'.$file, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-    if (PHP_SAPI === 'cli' && is_file($file) && fileowner($file) === getmyuid()) chmod($file, 0660);
+    // Effective process uid (getmyuid() is the script owner): only the file owner may chmod.
+    if (PHP_SAPI === 'cli' && is_file($file) && function_exists('posix_geteuid') && fileowner($file) === posix_geteuid()) chmod($file, 0660);
     return $db;
 }
 

@@ -1742,4 +1742,22 @@ that exactly equals an option label lists every option. The managed
   and the `/live` proxy on 61ade.sanch.hu. Then set
   `BLADE_DEMO_LIVE_ENDPOINT=wss://61ade.sanch.hu/live` in the demo `.env` and
   run `workspace.spec.cjs`; the WebSocket case is unverified until then.
+- **First live run (same day):** Infra installed `infra-61ade-live-demo.service`
+  and the `/live` proxy. With the endpoint set, the socket opened and passed
+  the Origin check, but every subscription got 401 "A munkamenet lejárt.". The
+  61ade FPM pool sets `php_admin_value[session.save_path] =
+  /space/share/php_sessions`, which silently overrides the shell's
+  `session_save_path($runtime.'/sessions')`; the bridge looks in the runtime
+  and finds no session. The owner takes the pool setting up with Infra; the
+  demo `.env` was reset to polling meanwhile.
+- **Fixes from that run:** the client no longer resets its reconnect backoff
+  when a socket opens, only after an update for the current subscription, so
+  repeated 4401 closes back off to 15 s instead of reconnecting every 500 ms.
+  The demo chmods a CLI-owned SQLite file only when the effective uid
+  (`posix_geteuid()`) owns it; `getmyuid()` is the script owner and flooded the
+  unit journal with chmod warnings under `www-data`. The earlier "PHP edits
+  apply without a restart" note was wrong: classes and `require_once` files
+  stay loaded, so any PHP change needs a unit restart. Checks: build
+  `--check`, typecheck, `php -l`, `contracts.php`, `workspace.spec.cjs`
+  2 passed / WebSocket case skipped (polling).
 - **Status:** accepted; implemented; live verification pending.
