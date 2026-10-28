@@ -118,8 +118,11 @@ Compared with the CLI demo instance:
 
 The feature demo (`/`) polls by default. It selects the WebSocket transport
 when the Git-ignored `examples/demo-app/.env` sets
-`BLADE_DEMO_LIVE_ENDPOINT=wss://61ade.sanch.hu/live`. Set it only after the
-Infra unit and the `/live` proxy run: WebSocket does not fall back to polling.
+`BLADE_DEMO_LIVE_ENDPOINT=wss://61ade.sanch.hu/live`, which the catalyst
+checkout does ([FB-0068](feedback.md#fb-0068)). Set it only while the Infra
+unit and the `/live` proxy run: WebSocket does not fall back to polling. The
+FPM pool must not force `session.save_path`: the bridge reads the sessions
+from the application runtime.
 The starter admin (`/admin/`) stays on polling; one server process serves one
 application file.
 

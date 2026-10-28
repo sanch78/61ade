@@ -1760,4 +1760,11 @@ that exactly equals an option label lists every option. The managed
   stay loaded, so any PHP change needs a unit restart. Checks: build
   `--check`, typecheck, `php -l`, `contracts.php`, `workspace.spec.cjs`
   2 passed / WebSocket case skipped (polling).
-- **Status:** accepted; implemented; live verification pending.
+- **Live verification (same day):** Infra removed the pool's session-path
+  override (sessions moved, so users sign in again). With
+  `BLADE_DEMO_LIVE_ENDPOINT=wss://61ade.sanch.hu/live` in the demo `.env`,
+  `workspace.spec.cjs` on the managed URL: 2 passed (WebSocket update frame
+  for an external write; standalone grid), polling case skipped. The demo now
+  runs on WebSocket. The unit (started 06:52:51 UTC) still runs the old
+  `common.php` and logs chmod warnings until it is restarted.
+- **Status:** accepted; implemented; verified live.
