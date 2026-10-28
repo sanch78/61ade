@@ -155,10 +155,14 @@ new ApplicationDefinition(/* application definition */, live: new Blade\Live\Liv
 Polling needs HTTP only. `__watch` hashes the visible ≤600 rows; unchanged
 responses contain version only and do not redraw.
 
-WebSocket uses `tools/live-server.mjs`, Node 18+, PHP 8.4+ and lockfile-pinned
-ws (currently 8.22.0). Settings: BLADE_AUTOLOAD_FILE, BLADE_APPLICATION_FILE,
-BLADE_PHP, BLADE_LIVE_ORIGIN; optional BLADE_LIVE_PORT (8088),
-BLADE_LIVE_INTERVAL (2000). A managed HTTPS/WSS proxy forwards to loopback.
+WebSocket runs `packages/php/bin/live-server.mjs` with the system Node 18+ and
+PHP 8.4+. It is the committed bundle of `tools/live-server.mjs` with the
+lockfile-pinned ws (currently 8.22.0) inlined, so it needs no `node_modules`.
+Settings: BLADE_AUTOLOAD_FILE, BLADE_APPLICATION_FILE, BLADE_PHP,
+BLADE_LIVE_ORIGIN; optional BLADE_LIVE_PORT (8088), BLADE_LIVE_INTERVAL (2000).
+A managed HTTPS/WSS proxy forwards `/live` to loopback. Consumer supervision:
+[live-data service](development.md#live-data-service-websocket); demo:
+[demos](demos.md#websocket-live-data).
 Exact Origin checking and session-bound tickets in private runtime are mandatory;
 tickets do not expose session IDs. Service/proxy provisioning belongs to Infra.
 

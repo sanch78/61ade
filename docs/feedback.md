@@ -1706,3 +1706,40 @@ that exactly equals an option label lists every option. The managed
   were checked with a script, plus `git diff --check`. No runner change, so no
   browser run.
 - **Status:** accepted; implemented.
+
+<a id="fb-0068"></a>
+
+## FB-0068 — WebSocket live server for releases and the demo
+
+- **Date:** 2026-10-28.
+- **Request (Infra, for the owner):** 61de live data over WebSocket, first on
+  61ade.sanch.hu, then StoryBloX and allflow. Infra supervises the server
+  (`.deploy-jobs.json` `mode: service`, `run_as: web`), proxies `/live` on each
+  hostname and reserves loopback ports (61ade demo 8088; storyblox 8091/8092;
+  allflow 8093/8094). The library supplies a server that runs from a copied
+  `packages/php`, the consumer contract and the demo settings.
+- **Decisions taken in implementation:** `tools/live-server.mjs` stays the only
+  source; `tools/build.mjs` bundles it with ws 8.22.0 inlined into the tracked
+  `packages/php/bin/live-server.mjs`, and `--check` covers it like `dist`. The
+  bundle uses Node built-ins only: ws's optional native add-ons are compiled
+  out, and it starts `live-bridge.php` beside itself, so the source is not run
+  directly. The demo selects WebSocket only when its ignored `.env` sets
+  `BLADE_DEMO_LIVE_ENDPOINT`; the starter admin stays on polling. The demo
+  bridge uses the demo's existing `vendor/autoload.php` and `application.php`
+  with `BLADE_DEMO_INSTANCE=web`.
+- **Guide:** [live-data service](development.md#live-data-service-websocket),
+  [demo WebSocket live data](demos.md#websocket-live-data),
+  [live-data configuration](workspaces.md#élő-adat-konfigurálása-és-futtatása).
+- **Verification (agent):** `node tools/build.mjs --check`; `node --check` on
+  the bundle; a copy of the bundle and bridge outside the checkout, run without
+  `node_modules` or environment, loaded all of ws and stopped at the missing
+  `BLADE_LIVE_ORIGIN` check, so it resolves only Node built-ins. The bridge,
+  fed one JSON line on stdin with the demo files, answered 401 for an invalid
+  ticket. `php -l`, `tests/shell/contracts.php`. `workspace.spec.cjs` on the
+  managed URL: 2 passed, the new WebSocket case skipped (the demo still polls).
+  No server or tunnel was started.
+- **Pending (Infra):** the demo unit from [demos](demos.md#websocket-live-data)
+  and the `/live` proxy on 61ade.sanch.hu. Then set
+  `BLADE_DEMO_LIVE_ENDPOINT=wss://61ade.sanch.hu/live` in the demo `.env` and
+  run `workspace.spec.cjs`; the WebSocket case is unverified until then.
+- **Status:** accepted; implemented; live verification pending.

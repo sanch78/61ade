@@ -52,11 +52,30 @@ const result = await build({
         },
     ],
 });
+// The WebSocket live server ships inside packages/php with ws inlined, so a consumer release
+// that copies packages/php runs it with the system node and nothing from node_modules.
+const live = await build({
+    write: !check,
+    entryPoints: ["tools/live-server.mjs"],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node18",
+    outfile: "packages/php/bin/live-server.mjs",
+    legalComments: "eof",
+    // ws requires Node built-ins through CommonJS require; its optional native add-ons stay out.
+    banner: { js: 'import { createRequire } from "node:module";\nconst require = createRequire(import.meta.url);' },
+    footer: { js: "// Bundled ws: MIT License, Copyright (c) 2011 Einar Otto Stangvik and contributors, https://github.com/websockets/ws" },
+    define: {
+        "process.env.WS_NO_BUFFER_UTIL": '"1"',
+        "process.env.WS_NO_UTF_8_VALIDATE": '"1"',
+    },
+});
 if (check) {
-    for (const file of result.outputFiles) {
+    for (const file of [...result.outputFiles, ...live.outputFiles]) {
         const current = await readFile(file.path).catch(() => null);
         if (!current?.equals(file.contents))
-            throw new Error(`Stale ${path.relative(process.cwd(), file.path)}: run npm run build and commit dist with the source`);
+            throw new Error(`Stale ${path.relative(process.cwd(), file.path)}: run npm run build and commit the output with the source`);
     }
-} else if (execFileSync("git", ["status", "--porcelain", "packages/frontend/dist"], { encoding: "utf8" }))
-    console.log("packages/frontend/dist changed: commit it together with the frontend source.");
+} else if (execFileSync("git", ["status", "--porcelain", "packages/frontend/dist", "packages/php/bin/live-server.mjs"], { encoding: "utf8" }))
+    console.log("Build output changed: commit packages/frontend/dist and packages/php/bin/live-server.mjs together with their source.");

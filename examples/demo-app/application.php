@@ -11,6 +11,7 @@ use Blade\Admin\{Accounts, Administration};
 use Blade\Authentication\{AuthHandlerLogin, LoginSecurity};
 use Blade\Configuration\WorkspaceConfiguration;
 use Blade\Feature\{Context, Failure, Field, SqlResource};
+use Blade\Live\LiveConfig;
 use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage};
 use Blade\Navigation\{Menu, MenuItem};
 use Blade\Shell\{ApplicationDefinition, Identity, SqlIdentityProvider};
@@ -102,6 +103,9 @@ $oauth = new AuthHandlerLogin(
     $accounts, $identities, $workspace, $runtime.'/oauth-identities.sqlite', $site,
 );
 
+// Live data: polling unless the Git-ignored .env names the WebSocket endpoint served by the Infra unit (docs/demos.md).
+$liveEndpoint = blade_demo_setting('BLADE_DEMO_LIVE_ENDPOINT');
+
 return new ApplicationDefinition(
     title: '61de feature demó', version: '0.2.0', identities: $identities,
     // Static menu: a not yet implemented module and a policy-filtered item (consumer flag can_manage).
@@ -118,4 +122,5 @@ return new ApplicationDefinition(
     languages: $languages,
     accounts: $accounts,
     oauth: $oauth,
+    live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint) : new LiveConfig(),
 );

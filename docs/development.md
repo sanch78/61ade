@@ -98,11 +98,12 @@ change. Every consumer would need a coordinated update, as described in
 
 ### Tracked frontend build
 
-`packages/frontend/dist` is tracked on `main`. Every commit that changes the
-frontend source carries the matching fresh `npm run build` output; the build is
+`packages/frontend/dist` and `packages/php/bin/live-server.mjs` (built from
+`tools/live-server.mjs`) are tracked on `main`. Every commit that changes their
+source carries the matching fresh `npm run build` output; the build is
 reproducible, and `npm run build` reports when `dist` changed. `npm run
 test:browser` first runs `node tools/build.mjs --check`, which builds in memory
-and refuses to test a `dist` that differs from the source.
+and refuses to test an output that differs from the source.
 
 ### Consumer layout
 
@@ -175,6 +176,49 @@ this autoloader and anything else the application file needs. Do not point it
 at a Composer `vendor/autoload.php`, which a consumer no longer has.
 
 Committed consumer files must not depend on anything else from this checkout.
+
+#### Live-data service (WebSocket)
+
+Polling needs nothing beyond PHP. For `LiveConfig` transport `websocket`, the
+consumer runs `packages/php/bin/live-server.mjs` from its copied `lib/61de`:
+a committed, self-contained bundle with the pinned `ws` inlined. A release
+needs only the system `node` (18+) and PHP 8.4; no `npm install` and nothing
+from `node_modules`. The server starts `live-bridge.php` beside itself.
+
+The consumer declares it in its `.deploy-jobs.json` as a service under the
+PHP-FPM identity, so the bridge reads the sessions and runtime the web pool
+writes. Example with consumer-chosen paths (environment values are literal
+absolute paths):
+
+```json
+{
+    "id": "live",
+    "description": "61de WebSocket live data",
+    "host": "catalyst",
+    "mode": "service",
+    "run_as": "web",
+    "cwd": "apps:.",
+    "command": ["/usr/bin/node", "lib/61de/bin/live-server.mjs"],
+    "environment": {
+        "BLADE_LIVE_PORT": "8091",
+        "BLADE_LIVE_ORIGIN": "https://admin.example.test",
+        "BLADE_AUTOLOAD_FILE": "/space/apps/example/bootstrap.php",
+        "BLADE_APPLICATION_FILE": "/space/apps/example/application.php",
+        "BLADE_PHP": "/usr/bin/php8.4"
+    }
+}
+```
+
+The application definition sets the matching endpoint:
+`live: new Blade\Live\LiveConfig('websocket', 'wss://admin.example.test/live')`.
+The server listens on `127.0.0.1:<BLADE_LIVE_PORT>` and accepts only an
+upgrade whose `Origin` equals `BLADE_LIVE_ORIGIN` exactly. Each hostname
+(production and development) therefore needs its own service with its own
+port and origin. The `/live` proxy on the hostname and the loopback port are
+requested from Infra; the consumer does not configure the web server. The
+service may write only the project's tmp and data roots, so the application
+file's runtime (sessions, `live/` tickets) must lie there. Keep polling until
+the proxy is live: WebSocket selection does not fall back to polling.
 
 #### Release reproducibility
 

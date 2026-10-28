@@ -1,5 +1,5 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
-const {openMenu}=require('./feature-demo.cjs');
+const {openMenu,signIn}=require('./feature-demo.cjs');
 test('standalone registry creates a DHTMLX grid and reusable form',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61de-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
@@ -27,11 +27,31 @@ test('standalone registry creates a DHTMLX grid and reusable form',async({page})
  }
  expect(errors).toEqual([]);
 });
+// External write to the first note, outside the application (CLI SQLite).
+function writeNote(value){
+ require('node:child_process').execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${process.env.BLADE_TMP_DIR || 'tmp'}/${process.env.BLADE_DEMO_INSTANCE || 'demo'}/features.sqlite');$q=$db->prepare('UPDATE notes SET title=? WHERE id=1');$q->execute([$argv[1]]);`,value]);
+}
+// LiveConfig transport of the signed-in demo: examples/demo-app/.env selects WebSocket (docs/demos.md).
+const transport=page=>page.evaluate(()=>JSON.parse(document.getElementById('blade-config').textContent).live?.transport);
 test('polling observes external writes without a refresh control',async({page})=>{
- const {execFileSync}=require('node:child_process');
- await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61de-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();await openMenu(page,'Jegyzetek');
+ await signIn(page);
+ test.skip(await transport(page)==='websocket','The demo selects WebSocket live data');
+ await openMenu(page,'Jegyzetek');
  await expect(page.getByRole('button',{name:'Frissítés',exact:true})).toHaveCount(0);
- const value='Polling '+Date.now();
- execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${process.env.BLADE_TMP_DIR || 'tmp'}/${process.env.BLADE_DEMO_INSTANCE || 'demo'}/features.sqlite');$q=$db->prepare('UPDATE notes SET title=? WHERE id=1');$q->execute([$argv[1]]);`,value]);
+ const value='Polling '+Date.now();writeNote(value);
  await expect(page.getByText(value,{exact:true})).toBeVisible({timeout:10000});
+});
+// Pending until Infra runs the demo live unit and the /live proxy and .env sets BLADE_DEMO_LIVE_ENDPOINT.
+test('WebSocket delivers external writes as update frames',async({page})=>{
+ await signIn(page);
+ test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
+ const opened=page.waitForEvent('websocket',socket=>new URL(socket.url()).pathname==='/live');
+ await openMenu(page,'Jegyzetek');
+ const socket=await opened;
+ await socket.waitForEvent('framereceived',{predicate:frame=>JSON.parse(frame.payload).type==='update',timeout:10000});
+ const value='WebSocket '+Date.now();
+ const update=socket.waitForEvent('framereceived',{predicate:frame=>{const m=JSON.parse(frame.payload);return m.type==='update'&&m.upserts.some(row=>row.title===value);},timeout:10000});
+ writeNote(value);
+ await update;
+ await expect(page.getByText(value,{exact:true})).toBeVisible();
 });
