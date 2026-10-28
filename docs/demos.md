@@ -140,9 +140,10 @@ for the demo with these settings:
 | Writable | `/space/share/libs/61ade/tmp/web` (sessions, live tickets, SQLite); the rest of the checkout read-only |
 
 The proxy forwards `/live` on `61ade.sanch.hu` to `http://127.0.0.1:8088/live`.
-The bridge loads the application file for every observation, so demo and
-framework PHP edits apply without a restart; a change to `live-server.mjs` or
-`live-bridge.php` needs a unit restart.
+The bridge is one long-running PHP process. It re-runs the application file
+for every observation, but classes and `require_once` files (the framework,
+`common.php`) stay as first loaded. Restart the unit after any change under
+`packages/php` or to demo PHP, including `live-server.mjs` and `live-bridge.php`.
 
 <a id="folyamatos-bővítés-kötelező"></a>
 

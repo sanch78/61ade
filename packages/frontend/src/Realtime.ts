@@ -38,7 +38,7 @@ export class Realtime {
       if(endpoint.protocol==="https:")endpoint.protocol="wss:";
       if(endpoint.protocol==="http:")endpoint.protocol="ws:";
       const socket=new WebSocket(endpoint);this.socket=socket;
-      socket.onopen=()=>{if(this.socket!==socket){socket.close();return;}this.failures=0;this.state(t("Élő kapcsolat"));this.send();};
+      socket.onopen=()=>{if(this.socket!==socket){socket.close();return;}this.state(t("Élő kapcsolat"));this.send();};
       socket.onmessage=event=>{
         try{
           if(this.socket!==socket)return;
@@ -48,7 +48,7 @@ export class Realtime {
           for(const id of message.removed)this.rows.delete(id);
           for(const row of message.upserts)this.rows.set(String(row.id),row);
           const visible=new Set(message.order);for(const id of this.rows.keys())if(!visible.has(id))this.rows.delete(id);
-          this.version=message.version;
+          this.version=message.version;this.failures=0;
           this.update({items:message.order.map((id:string)=>this.rows.get(id)).filter(Boolean),previous:message.previous,next:message.next,version:message.version,total:message.total,matched:message.matched});
         }catch{socket.close();}
       };
