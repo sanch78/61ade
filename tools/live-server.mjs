@@ -1,3 +1,4 @@
+// Source of packages/php/bin/live-server.mjs (tools/build.mjs); only the bundle runs, beside live-bridge.php.
 import http from 'node:http';
 import {spawn} from 'node:child_process';
 import {createInterface} from 'node:readline';
@@ -6,7 +7,7 @@ import {WebSocketServer,WebSocket} from 'ws';
 const origin=process.env.BLADE_LIVE_ORIGIN;
 if(!origin)throw new Error('BLADE_LIVE_ORIGIN is required');
 const interval=Math.max(500,Number(process.env.BLADE_LIVE_INTERVAL || 2000));
-const bridge=spawn(process.env.BLADE_PHP || 'php8.4',[fileURLToPath(new URL('../packages/php/bin/live-bridge.php',import.meta.url))],{stdio:['pipe','pipe','inherit']});
+const bridge=spawn(process.env.BLADE_PHP || 'php8.4',[fileURLToPath(new URL('live-bridge.php',import.meta.url))],{stdio:['pipe','pipe','inherit']});
 const pending=new Map();let requestId=0;
 createInterface({input:bridge.stdout}).on('line',line=>{try{const r=JSON.parse(line),p=pending.get(r.id);if(p){pending.delete(r.id);clearTimeout(p.timeout);p.resolve(r);}}catch{console.error('Invalid live worker response');}});
 bridge.on('exit',(code,signal)=>{console.error('Live worker exited',code,signal);process.exit(1);});

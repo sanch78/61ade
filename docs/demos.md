@@ -114,6 +114,36 @@ Compared with the CLI demo instance:
 - Under FPM, `PHP_BINARY` is the daemon. The demo selects the CLI interpreter via `BLADE_PHP`, otherwise `PHP_BINDIR/phpX.Y`.
 - OAuth callbacks use configured `BLADE_DEMO_URL`, never Host. Key files must be readable only by developer/web-server principals; the documented access arrangement is no other-user permissions plus a `www-data` read ACL. Both AuthHandler links must be readable by the server.
 
+## WebSocket live data
+
+The feature demo (`/`) polls by default. It selects the WebSocket transport
+when the Git-ignored `examples/demo-app/.env` sets
+`BLADE_DEMO_LIVE_ENDPOINT=wss://61ade.sanch.hu/live`. Set it only after the
+Infra unit and the `/live` proxy run: WebSocket does not fall back to polling.
+The starter admin (`/admin/`) stays on polling; one server process serves one
+application file.
+
+This checkout cannot be supervised by deploy-jobs, so Infra installs one unit
+for the demo with these settings:
+
+| Setting | Value |
+| --- | --- |
+| User | `www-data` (the PHP-FPM pool identity) |
+| Working directory | `/space/share/libs/61ade` |
+| Command | `/usr/bin/node /space/share/libs/61ade/packages/php/bin/live-server.mjs` |
+| `BLADE_LIVE_PORT` | `8088` (listens on `127.0.0.1` only) |
+| `BLADE_LIVE_ORIGIN` | `https://61ade.sanch.hu` |
+| `BLADE_AUTOLOAD_FILE` | `/space/share/libs/61ade/examples/demo-app/vendor/autoload.php` |
+| `BLADE_APPLICATION_FILE` | `/space/share/libs/61ade/examples/demo-app/application.php` |
+| `BLADE_PHP` | `/usr/bin/php8.4` |
+| `BLADE_DEMO_INSTANCE` | `web` (the same `tmp/web` instance as Apache) |
+| Writable | `/space/share/libs/61ade/tmp/web` (sessions, live tickets, SQLite); the rest of the checkout read-only |
+
+The proxy forwards `/live` on `61ade.sanch.hu` to `http://127.0.0.1:8088/live`.
+The bridge loads the application file for every observation, so demo and
+framework PHP edits apply without a restart; a change to `live-server.mjs` or
+`live-bridge.php` needs a unit restart.
+
 <a id="folyamatos-bővítés-kötelező"></a>
 
 ## Continuous extension (mandatory)
@@ -135,6 +165,7 @@ See [project rules](development.md#mandatory-framework-development-rules).
 - `php8.4 tests/shell/files.php` and `npm run test:browser -- tests/shell/files.spec.cjs`: the file manager ([files](files.md#demo-and-verification)); the spec removes the entries it creates.
 - `php8.4 tests/shell/calendar.php` and `npm run test:browser -- tests/shell/calendar.spec.cjs`: the event calendar and signage playlist ([calendar](calendar.md#demo-and-verification)); the spec deletes the events it creates.
 - `php8.4 tests/shell/diagram.php` and `npm run test:browser -- tests/shell/diagram.spec.cjs`: the topology builder ([diagrams](diagrams.md#demo-and-verification)); the spec removes the diagrams and element types it creates.
+- `npm run test:browser -- tests/shell/workspace.spec.cjs`: Notes on the feature demo observe an external SQLite write through polling, or, when `.env` selects WebSocket, through an update frame on the `/live` socket; each case skips under the other transport.
 - Manual verification: open the managed URLs directly from the checkout.
 
 <a id="korlátok"></a>

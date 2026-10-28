@@ -283,3 +283,7 @@
 <a id="fb-0067"></a>
 
 ## FB-0067 — Consumer adoption procedure and corrections
+
+<a id="fb-0068"></a>
+
+## FB-0068 — WebSocket live server for releases and the demo

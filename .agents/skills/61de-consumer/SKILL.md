@@ -26,6 +26,9 @@ instead of patching it.
 4. Register the `Blade\` autoloader in the earliest common bootstrap, before
    any entrypoint uses a `Blade\` class. If you run the live WebSocket bridge,
    point `BLADE_AUTOLOAD_FILE` at that bootstrap file.
+   For WebSocket live data, declare `lib/61de/bin/live-server.mjs` as a
+   `run_as: web` service per hostname and request `/live` and the port from
+   Infra ([live-data service](../../../docs/development.md#live-data-service-websocket)).
 5. Set up browser tests with your own `tools/playwright.sh` (calling
    `/space/share/bin/guarded-playwright`) and `tools/playwright-test.cjs`
    ([consumer browser tests](../../../docs/development.md#consumer-browser-tests)).
