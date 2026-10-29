@@ -450,55 +450,126 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.asset-viewer", 
 
 <a id="sandbox-protocol"></a>
 
-## Sandbox protocol (planned — P3 C-4)
+## Sandbox protocol (implemented — P3 C-4; Chromium verification pending)
 
-`SandboxFrame` creates `<iframe sandbox="allow-scripts" src="<assets>/sandbox.html">`:
-an opaque origin with no cookies, session, CSRF token or same-origin access.
-Messages use `postMessage` with the envelope `{blade: 1, id, type, payload}`
-(`SandboxMessage`; `id` unique per sender).
+`SandboxFrame` (`src/components/sandbox/SandboxFrame.ts`) creates
+`<iframe sandbox="allow-scripts" credentialless referrerpolicy="no-referrer"
+src="<admin.js directory>/sandbox.html?<admin.js cache key>">`: an opaque origin
+with no cookies, storage, session, CSRF token or same-origin access. The
+document's address is derived from `admin.js` (`import.meta.url`), so the
+two sandbox files must sit beside it. Messages use `postMessage` with the
+envelope `{blade: 1, id, type, payload}` (`SandboxMessage`; `id` 1–64
+characters, unique per sender: `p1…` from the parent, `f1…` from the frame).
 
 | Direction | `type` | Payload |
 | --- | --- | --- |
-| parent → frame | `load` | `{code, files}`: untrusted script source and named data (Blobs or strings) |
+| parent → frame | `load` | `{code, files}`: untrusted script source and named data (Blobs or strings); sent once, on the frame's first `load` event |
 | frame → parent | `ready` | `{}` after the code's top-level evaluation (and its returned promise, if any) completed |
-| frame → parent | `error` | `{message}`: a throw, rejection or protocol violation |
-| both | project types | dotted names (`scene.seek`), any structured-clone payload |
+| frame → parent | `error` | `{message}`: a throw, rejection, later uncaught error or protocol violation (at most 1000 characters) |
+| both | project types | dotted registry names (`scene.seek`, at most 128 characters), any structured-clone payload |
 
-- The parent accepts a message only if `event.source` is its own frame's
-  window and `event.origin` is `"null"`; other messages are ignored.
-- Inside the frame `sandbox.js` exposes `blade.on(type, handler)`,
-  `blade.post(type, payload)` and `blade.files` (name → `blob:` URL or
-  string) to the code, which runs from a `blob:` script inside the frame only
-  ([O7](#resolved-decisions)).
-- Proposed limits, finalised in C-4: code 1 MiB, files 32 MiB, `ready` within
-  10 s; violations raise `error` (`size`, `timeout`) and the `sandbox:error`
-  event. `destroy()` removes the frame at once.
-- Proposed meta CSP of `sandbox.html` (to verify in Playwright Chromium):
-  `default-src 'none'; script-src 'self' blob:; style-src 'unsafe-inline' blob:;
-  img-src data: blob:; media-src data: blob:; font-src data: blob:;
-  connect-src 'none'; base-uri 'none'; form-action 'none'`. The shell CSP is
-  not relaxed (`default-src 'self'` already permits the same-origin frame).
-- The frame can still navigate itself and so leak what it was given: never
-  pass it data the actor may not see. Security review: P7.
+```ts
+const frame = new app.components.SandboxFrame({ signal: host.signal, title: "Jelenet" });
+frame.mount(layout.getCell("stage"));                     // mount first: the ready timeout runs from load()
+frame.on("message", ({ type, payload }) => type === "scene.position" && timeline.move(Number(payload)));
+frame.on("error", ({ code, message }) => console.warn(code, message)); // also the page's `sandbox:error`
+const code = await (await app.server.request("scenes", "code_get", { id })).text();
+await frame.load(code, { "tone.wav": await (await app.server.request("scenes", "tone_get", { id })).blob() });
+frame.post("scene.seek", 12.5);
+```
+
+```js
+// The scene code: the body of an async function inside the frame (`blade` in scope, top-level await allowed).
+const audio = new Audio(blade.files["tone.wav"]);            // a blob: URL of the frame
+blade.on("scene.seek", seconds => { audio.currentTime = seconds; blade.post("scene.position", seconds); });
+await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+```
+
+- **Parent checks:** a message counts only if `event.source` is the current
+  frame's `contentWindow` and `event.origin` is `"null"`; anything else is
+  ignored. A malformed envelope, a `load` from the frame or a non-dotted type is
+  a `protocol` error. Everything the frame sends, `ready` and `error` included,
+  is untrusted input. The parent never sends the CSRF token, the session or
+  anything else except what the project passes to `load` and `post`.
+- **Frame checks** (`dist/sandbox.js`, a classic script built from
+  `src/sandbox/bootstrap.ts`): only messages whose `source` is `window.parent`;
+  one `load` per document; `ready`/`error` from the parent are protocol errors.
+  Opened directly (not framed) the document stays inert. The code runs from a
+  `blob:` classic script of the frame only ([O7](#resolved-decisions)) as the
+  body of an async function; `blade.on(type, handler)`, `blade.post(type,
+  payload)` and `blade.files` (name → `blob:` URL or string, frozen) are its API.
+- **Limits** (G1 values confirmed): code 1 MiB UTF-8 (`maxCodeBytes`), files
+  32 MiB in total (`maxFileBytes`, Blob sizes plus UTF-8 string sizes),
+  `ready` within 10 s of `load()` (`readyTimeout`). A size violation rejects
+  before anything is sent and keeps the current frame; a timeout removes the
+  frame. Both raise `error` (`size`, `timeout`) and `sandbox:error`.
+- **Lifecycle:** `load()` resolves on `ready` and rejects with an `Error` whose
+  `code` is the event code, or with an `AbortError` when a later `load()` or
+  `destroy()` replaces it; each `load()` creates a fresh frame document.
+  `post()` throws before `ready` and does nothing after `destroy()`. A second
+  `load` event of the iframe (the code navigated or reloaded the frame, or the
+  frame was moved in the DOM) is a `protocol` error and removes the frame.
+  `destroy()` removes the frame at once (kill switch), rejects a pending load
+  and releases the Layout and listeners; `signal` calls it.
+- **Meta CSP of `sandbox.html`** (exact text):
+  `default-src 'none'; script-src 'self' blob:; style-src 'unsafe-inline' blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'`.
+  `'self'` is the URL origin of `sandbox.html` (needed for `sandbox.js`); the
+  opaque origin sends no cookies with such script requests (SameSite=Lax
+  session cookie, `credentialless` in Chromium). `fetch`, XHR, WebSocket,
+  EventSource, beacons, images and frames to any host are blocked; forms and
+  pop-ups are blocked by the sandbox flags.
+- **Shell CSP unchanged:** `Shell/Application.php::headers` sends no
+  `frame-src`/`child-src`, so `default-src 'self'` already admits the
+  same-origin `sandbox.html`; no PHP change. The managed host serves static
+  files with `X-Frame-Options: SAMEORIGIN`, which permits this same-origin
+  embedding; the browser spec confirms both on the managed URL.
+- **Limits of the isolation** (security review: P7): the frame can always
+  navigate itself (a frame navigation may carry the Lax session cookie where
+  `credentialless` is not supported) and use WebRTC, so it can leak what it
+  was given: never pass it data the actor
+  may not see. Where the browser keeps a sandboxed frame in the parent's process,
+  a busy loop in the code also blocks the page; the timeout cannot interrupt it.
+- **Verification:** `node tests/shell/toolkit-sandbox.mjs` (envelope, limits,
+  both protocol sides with fake windows) passes; `npm run test:browser --
+  tests/shell/toolkit-sandbox.spec.cjs` (opaque origin, no cookie, storage or
+  parent access, CSP-blocked network, round trip, forged messages, error,
+  timeout, navigation, destroy) is written and still has to run in Chromium.
 
 <a id="packaging"></a>
 
-## Packaging (planned — P3 C-4, C-6)
+## Packaging (implemented — P3 C-4, C-6)
 
 | File | Deployed by consumers | Notes |
 | --- | --- | --- |
 | `dist/admin.js`, `dist/admin.css` | yes (unchanged) | one ESM bundle, no chunks |
-| `dist/admin.d.ts` | no | development only; `tsc --emitDeclarationOnly` from `src/api/index.ts` |
-| `dist/sandbox.html`, `dist/sandbox.js` | when `SandboxFrame` is used | add to `.deploy.json` `shared_assets.files` |
+| `dist/admin.d.ts` | no | development only; declarations of `src/api/index.ts` (`tsc --emitDeclarationOnly` through the TypeScript API), joined with `./types` into one file |
+| `dist/sandbox.html`, `dist/sandbox.js` | only when `SandboxFrame` is used | add to `.deploy.json` `shared_assets.files` beside `admin.js` |
 
-`packages/frontend/package.json` exports `./admin.d.ts`, `./sandbox.html` and
-`./sandbox.js`; `node tools/build.mjs --check` covers every tracked dist file.
+`npm run build` (`tools/build.mjs`) writes all five files and
+`packages/php/bin/live-server.mjs`; `node tools/build.mjs --check` builds them in
+memory and fails on any difference. `packages/frontend/package.json` exports
+`./admin.js`, `./admin.css`, `./admin.d.ts`, `./sandbox.html` and
+`./sandbox.js`; `npm run demo:assets` copies the four runtime files. A
+consumer that uses `SandboxFrame`:
+
+```json
+{
+    "source": "/space/share/libs/61ade/packages/frontend/dist",
+    "files": ["admin.js", "admin.css", "sandbox.html", "sandbox.js"],
+    "target": "target:public/assets/61ade"
+}
+```
+
 A project's own module files live in its public directory and are built by
 the project.
 
 <a id="typescript-recipe"></a>
 
-## TypeScript and esbuild recipe (planned — P3 C-6)
+## TypeScript and esbuild recipe (implemented — P3 C-6)
+
+Checked with TypeScript 5.9.3 and esbuild 0.25.12 against the generated
+`admin.d.ts`. The development link `public/assets/61ade` points at `dist`, so
+the declarations are available there without being deployed.
 
 ```json
 {
@@ -517,7 +588,24 @@ the project.
 ```ts
 // frontend/src/main.ts
 import type { ApplicationModule } from "@61ade/admin";
-const main: ApplicationModule = app => { app.views.register("demo.player", { create: host => mount(host) }); };
+
+declare module "@61ade/admin" {
+  interface AppEvents { "demo.scene": { seconds: number } }   // project events by module augmentation
+}
+
+const main: ApplicationModule = app => {
+  app.views.register("demo.player", {
+    create: host => {
+      const frame = new app.components.SandboxFrame({ signal: host.signal });
+      frame.mount(host);
+      frame.on("message", ({ type, payload }) => {
+        if (type === "scene.position") app.events.emit("demo.scene", { seconds: Number(payload) });
+      });
+      void frame.load("blade.on('scene.seek', t => blade.post('scene.position', t));").then(() => frame.post("scene.seek", 3));
+      return { destroy: () => frame.destroy() };
+    },
+  });
+};
 export default main;
 ```
 
@@ -526,10 +614,12 @@ tsc -p tsconfig.json
 esbuild frontend/src/main.ts --bundle --format=esm --target=es2022 --outfile=public/app/main.js
 ```
 
-Import 61ade and Suite **types only**; a runtime import of `@dhtmlx/suite` or
-`admin.js` would bundle a second instance. Use `app.dhx` for Suite widgets.
-The `@dhtmlx/suite` path may instead be a devDependency of the same version.
-Project events extend `AppEvents` by module augmentation of `@61ade/admin`.
+Import 61ade and Suite **types only** (`import type`): the bundle above
+contains no import at all. A runtime import of `@dhtmlx/suite` or `admin.js`
+would bundle a second instance; use `app.dhx` for Suite widgets. `admin.d.ts`
+also declares `apiVersion` from `src/api/index.ts`; read it as
+`app.apiVersion` at run time. The `@dhtmlx/suite` path may instead be a
+devDependency of the same version.
 
 ## Verification
 
