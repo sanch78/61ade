@@ -1,16 +1,16 @@
-import { locale, t } from "./I18n";
+import { locale, t } from "../../I18n";
 import { Form, Layout, Window, message, awaitRedraw } from "@dhtmlx/suite";
 import { scheduler as vendorScheduler } from "dhtmlx-scheduler";
 import "dhtmlx-scheduler/codebase/dhtmlxscheduler.css";
-import "./calendar.css";
-import { ResponsiveToolbar } from "./ResponsiveToolbar";
-import { widgetIcons } from "./WidgetIcons";
-import { alert, requestChoice, showDialog } from "./MessageDialog";
-import { escape } from "./RecordPresentation";
-import { FormValidation, type FieldDefinition } from "./FormValidation";
-import { formActions, input } from "./Workspace";
-import { fitWindow } from "./WindowSizing";
-import { server } from "./api/Server";
+import "../../calendar.css";
+import { ResponsiveToolbar } from "../../ResponsiveToolbar";
+import { widgetIcons } from "../../WidgetIcons";
+import { alert, requestChoice, showDialog } from "../../MessageDialog";
+import { escape } from "../../RecordPresentation";
+import { FormValidation, type FieldDefinition } from "../../FormValidation";
+import { formActions, input } from "../../Workspace";
+import { fitWindow } from "../../WindowSizing";
+import { server } from "../../api/Server";
 
 export type CalendarConfig={views:("day"|"week"|"month")[];default_view:string;first_hour:number;last_hour:number;max_range_days:number;day_action:{resource:string;action:string;label:string}|null;fields:FieldDefinition[]};
 export type CalendarViewDefinition={kind:"calendar";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean}[];calendar:CalendarConfig};
@@ -72,8 +72,9 @@ let pluginsEnabled=false;
  * of the visible window; every read and write is a registered action of the view's resource.
  * The Standard edition exposes one Scheduler instance (multiple instances are a paid feature),
  * so a view borrows it: on destroy it detaches its handlers and data processor and clears it.
+ * Internal: projects and the built-in `calendar` kind use the public `Calendar` facade (./Calendar.ts).
  */
-export class Calendar {
+export class CalendarView {
   readonly layout:Layout;
   private releaseIcons=widgetIcons();
   private scheduler=vendorScheduler;
