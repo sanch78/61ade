@@ -155,9 +155,73 @@ new ApplicationDefinition(/* application definition */, live: new Blade\Live\Liv
 Polling needs HTTP only. `__watch` hashes the visible ≤600 rows; unchanged
 responses contain version only and do not redraw.
 
-Today each list opens its own socket and the server re-queries it every
-interval. Planned replacement: one channel per tab with event-driven updates,
-see the [live channel plan](live-channel-plan.md) (not implemented).
+<a id="live-channel"></a>
+
+### One live channel per tab
+
+The shell (`AdminShell`) opens one `LiveChannel` per page once the user is
+signed in and the menu offers a list view. It closes the channel on sign-out,
+tenant switch (both reload the shell) and page unload. Every list on the page,
+including sub-view previews and full sub-view windows, holds a `Realtime`
+subscription handle on that channel: `subscribe(query)` replaces the list's
+subscription, `destroy()` ends it, and the callbacks `update`, `state` and
+`denied` are unchanged. Reconnect, backoff and re-subscription live in the
+channel once.
+
+WebSocket protocol 2 (JSON text frames; [FB-0075](feedback.md#fb-0075),
+[plan](live-channel-plan.md)):
+
+| Direction | Frame | Meaning |
+| --- | --- | --- |
+| C→S | `hello {protocol: 2, ticket}` | First frame. The server checks the ticket and session through the bridge. |
+| S→C | `ready {protocol: 2}` | Authenticated; subscriptions may follow. |
+| C→S | `subscribe {id, resource, query}` | Opens subscription `id`, or replaces it (a new first window). |
+| C→S | `unsubscribe {id}` | Ends it. |
+| S→C | `update {id, version, order, upserts, removed, previous, next, total, matched}` | Changed rows, removed ids and the current order of that subscription. |
+| S→C | `denied {id, status, error}` | That subscription only (403, 404, 400; 429 at the limit); the channel stays open. |
+| close | 4401 | No or refused ticket, or the session ended. |
+| close | 4409 | Another protocol (a page loaded before an update). |
+| close | 1008 | Malformed frame, a subscription before `ready`, a second `hello`. |
+| close | 1011 / 1012 / 1006 | Transient (bridge failure, server restart, network). |
+
+The browser uses a new `id` for every `subscribe`, so a frame of a replaced
+query is never applied. Limits: 64 subscriptions per connection (the 65th gets
+`denied` 429 and that list keeps its loaded rows without live updates) and 100
+connections per server (upgrade refused with 403). Each subscription ticks on
+its own every `BLADE_LIVE_INTERVAL` (2 s): a slow observation delays only its
+own next tick, while the single bridge still serializes all of them. A bridge
+5xx or timeout retries that subscription with backoff (interval × 2ⁿ, at most
+30 s) and is never reported as a denial; a 401 closes the whole connection with
+4401.
+
+Client reactions: 1011, 1012 and 1006 reconnect with backoff (0.5 s × 2ⁿ, at
+most 15 s), each with a fresh `__ticket`, and subscribe every list again. A
+4401 before `ready` means the fresh ticket was refused: every list shows
+"A hozzáférés megszűnt" and is revoked, and nothing reconnects. A 4401 after
+`ready` may be an expired ticket (tickets last 1 h), so the channel asks for one
+new ticket; `__ticket` answering 401/403 ends it the same way. A 4409 reloads the
+page once; `sessionStorage` (`blade-live-reload`) blocks a second reload within
+60 s, and without `sessionStorage` the page never reloads. A blocked reload
+leaves the lists without live updates ("Az élő követéshez töltse újra az
+oldalt."). `__ticket` needs no list resource (the channel sends `resource: ""`);
+the session and CSRF checks are unchanged.
+
+A hidden tab unsubscribes every list but keeps the socket open (the server's
+30 s ping keeps it alive); showing the tab subscribes them again and each gets
+a full first window. A drop while hidden reconnects only when the tab is shown.
+`pagehide` closes the socket; a page restored from the back-forward cache
+reconnects. Closing the socket after a hidden grace period is a later tuning
+item (plan L5).
+
+Polling uses the same handles: one `__watch` request per interval carries
+every subscription of the tab as `values.subscriptions: [{id, resource, query,
+version}]` (at most 64 per request; the channel splits a batch only above about
+48 KB). The answer `{results: [{id, ok: true, data} | {id, ok: false, status,
+error}]}` answers each entry separately, so a refused or failing list never
+fails the others; a 401 or CSRF 403 of the whole request ends the session state
+for every list. A new subscription polls at once. The single-list form
+(`values: {query, version}`) is still accepted for pages loaded before the
+change.
 
 WebSocket runs `packages/php/bin/live-server.mjs` with the system Node 18+ and
 PHP 8.4+. It is the committed bundle of `tools/live-server.mjs` with the
@@ -186,8 +250,8 @@ tickets do not expose session IDs. Service/proxy provisioning belongs to Infra.
 
 Server watchers periodically inspect visible database windows, including external
 writes. Only changes send packets: changed rows, deleted IDs and current order.
-The framework owns heartbeat/reconnect/stale-filter packet rejection. Hidden
-tabs unsubscribe and resubscribe on return. WebSocket selection does not silently
+The framework owns heartbeat/reconnect/stale-frame rejection. Hidden tabs
+unsubscribe and resubscribe on return. WebSocket selection does not silently
 fall back to polling.
 
 Every observation rechecks authentication, expiry, account state, revocation
@@ -201,7 +265,13 @@ retain drafts and stale saves return 409.
 
 `lists.php`: 5000 rows, scopes, both cursor directions, duplicate-free traversal,
 filter injection/field denial, external writes/deletes.
-`workspace.spec.cjs`: actual overlay form, polling, repeated switching.
+`workspace.spec.cjs`: actual overlay form, polling, repeated switching, the
+WebSocket update frame of an external write, exactly one `/live` socket while
+switching three views, expanding two sub-view rows and opening a sub-view
+window, and per-application tickets. `node tests/shell/live-protocol.mjs`: the
+protocol against the bundled server (see the
+[focused checks](development.md#focused-task-groups)). `lists.php` and
+`tenancy.php`: batched `__watch`, each entry answered on its own.
 Separate consumer synthetic integration historically checked WebSocket updates/
 revocation, filtering, preserved panel forms, profile form and 600-row bounds.
 The client releases cached rows outside current order and ignores late events

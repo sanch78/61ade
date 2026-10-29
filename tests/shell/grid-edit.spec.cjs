@@ -39,7 +39,10 @@ test('native text/select/checkbox grid editors save without opening an object fo
  await cell('status').dblclick();await grid.locator('select.dhx_cell-editor').selectOption({label:'Folyamatban'});await cell('title').click();
  await expect(page.getByText(RULE,{exact:true})).toBeVisible();await page.locator('[data-blade-dialog-action=ok]').click();await expect(row.getByText('Kész',{exact:true})).toBeVisible();
  await page.reload();await only(page,title);await expect(row.getByText('Kész',{exact:true})).toBeVisible();await expect(checkbox).not.toBeChecked();expect(errors).toEqual([]);
- await page.route('**/?blade=1',async route=>{const response=await route.fetch();const json=await response.json();if(Array.isArray(json.data?.items)){for(const item of json.data.items)item._editable=(item._editable??[]).filter(field=>field!=='notify');}await route.fulfill({response,json});});
+ // Rows without the notify right: list and batched __watch answers, and the live channel's update frames.
+ const strip=items=>{for(const item of items??[])item._editable=(item._editable??[]).filter(field=>field!=='notify');};
+ await page.route('**/?blade=1',async route=>{const response=await route.fetch();const json=await response.json();strip(json.data?.items);for(const answer of json.data?.results??[])strip(answer.data?.items);await route.fulfill({response,json});});
+ await page.routeWebSocket(url=>new URL(url).pathname.startsWith('/live'),ws=>{const server=ws.connectToServer();ws.onMessage(message=>server.send(message));server.onMessage(message=>{const m=JSON.parse(message);if(m.type==='update')strip(m.upserts);ws.send(JSON.stringify(m));});});
  await page.reload();await only(page,title);await expect(row).toBeVisible();await expect(checkbox).toHaveCount(0);
  await view(page,'Kártyák');const readonly=page.locator('.blade-grid-card').filter({hasText:title});await expect(readonly).toBeVisible();await expect(readonly.getByRole('checkbox',{name:'Értesítés',exact:true})).toHaveCount(0);await expect(readonly).toContainText('Ki');
  await page.unroute('**/?blade=1');

@@ -29,8 +29,9 @@ SQL object scopes, field rights, UI/API separation, scoped tokens and transactio
 audit. Later built-in admin work supersedes the earlier consumer-only useradmin
 model; see [admin](admin.md), [ACL](access-and-actions.md) and [shell](shell.md).
 [Workspaces](workspaces.md) support configurable filter/form/grid, integrated
-column header filters, dynamic lists, server sorting and polling/WebSocket;
-singleton details are direct forms.
+column header filters, dynamic lists, server sorting and polling/WebSocket live
+data over [one channel per tab](workspaces.md#live-channel) that every list and
+sub-view shares; singleton details are direct forms.
 No upper application-title header; one lower bar has user left, application/version
 right. Skyblue (default), light and dark use DHTMLX setTheme; Skyblue uses Suite 9
 theme variables. Synthetic and consumer integration evidence exists.

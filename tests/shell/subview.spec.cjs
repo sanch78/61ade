@@ -1,7 +1,7 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
-const bundle=require('esbuild').buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+const bundle=require('esbuild').buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
 // Synthetic hierarchy of one resource: records 1–3 at the top, 11 and 12 under 1. The sub-view is the same
 // resource (`shared`), so it has no toolbar of its own and the parent's toolbar acts on its cursor record.
 async function mount(page){
@@ -16,9 +16,11 @@ async function mount(page){
   window.requests=[];
   window.fetch=async(url,config)=>{
    const request=JSON.parse(config.body);requests.push(request);
-   const parent=(request.values?.filters??request.values?.query?.filters)?.parent_id??'';
+   const snapshot=values=>{const parent=values?.filters?.parent_id??'',items=rows.filter(row=>row.parent_id===parent);return {items,previous:null,next:null,version:'v1',total:rows.length,matched:items.length};};
    let data;
-   if(request.action==='list'||request.action==='__watch'){const items=rows.filter(row=>row.parent_id===parent);data={items,previous:null,next:null,version:'v1',total:rows.length,matched:items.length};}
+   if(request.action==='list')data=snapshot(request.values);
+   // The shell's live channel polls every subscription in one batched __watch.
+   if(request.action==='__watch')data={results:request.values.subscriptions.map(s=>({id:s.id,ok:true,data:snapshot(s.query)}))};
    if(request.action==='archive')data={};
    return {ok:true,json:async()=>({ok:true,data})};
   };
@@ -27,7 +29,7 @@ async function mount(page){
    columns:[{id:'title',header:'Cím'},{id:'parent_id',header:'Szülő'}],
    actions:[{name:'get',label:'Adatok',fields:[]},{name:'archive',label:'Archiválás',submitLabel:'Végrehajtás',write:true,fields:[]}],
    singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{rows:[{id:'grid'}]}},
-   subview:{resource:'items',field:'parent_id',height:200,shared:true}},'',{transport:'poll',endpoint:'live',interval:60000});
+   subview:{resource:'items',field:'parent_id',height:200,shared:true}},'',new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000},''));
  });
  await expect(page.locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
 }
@@ -56,6 +58,9 @@ test('a same-resource sub-view shares the parent toolbar: its cursor record take
  await expect(nested.locator('.dhx_grid-row')).toHaveCount(2);
  // The nested list is scoped to its parent and has no toolbar or scope column of its own.
  expect(await page.evaluate(()=>requests.some(request=>request.action==='list'&&request.values.filters?.parent_id==='1'))).toBe(true);
+ // Polling transport: one batched __watch carries the parent list and its preview, each under its own id.
+ await expect.poll(()=>page.evaluate(()=>requests.filter(request=>request.action==='__watch').map(request=>request.values.subscriptions.map(s=>s.query.filters?.parent_id??'')).find(list=>list.length===2))).toEqual(['','1']);
+ expect(await page.evaluate(()=>requests.filter(request=>request.action==='__watch').every(request=>request.resource===''&&new Set(request.values.subscriptions.map(s=>s.id)).size===request.values.subscriptions.length))).toBe(true);
  await expect(nested.getByRole('button',{name:'Archiválás',exact:true})).toHaveCount(0);
  await expect(nested.getByText('Szülő',{exact:true})).toHaveCount(0);
  await nested.locator('.dhx_grid-row').filter({hasText:'Elem 12'}).click();

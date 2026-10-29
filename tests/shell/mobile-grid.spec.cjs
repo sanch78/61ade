@@ -239,7 +239,7 @@ test('an editable reserved-key column edits its alias and keeps the row height',
 test('details and cards render every media field and name an icon without options',async({page})=>{
  const path=require('node:path');const {buildSync}=require('esbuild');
  const root=path.resolve(__dirname,'../..');
- const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+ const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/details-fixture',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><div id="blade-application"></div>'}));
  await page.setViewportSize({width:1280,height:800});await page.goto('/details-fixture');
@@ -249,7 +249,8 @@ test('details and cards render every media field and name an icon without option
   const rows=[{id:'1',title:'Első',cover:'f1',clip:'f2',glyph:'dxi dxi-image-outline',revision:'r1',_actions:['get'],_media:{cover:media('f1','borito.jpg','image/jpeg',null),clip:media('f2','elozetes.webm','video/webm',6000)}}];
   window.fetch=async(_url,config)=>{
    const request=JSON.parse(config.body);let data;
-   if(request.action==='list'||request.action==='__watch')data={items:rows,previous:null,next:null,version:'v1'};
+   if(request.action==='list')data={items:rows,previous:null,next:null,version:'v1'};
+   if(request.action==='__watch')data={results:request.values.subscriptions.map(s=>({id:s.id,ok:true,data:{items:rows,previous:null,next:null,version:'v1'}}))};
    if(request.action==='get')data=rows[0];
    return {ok:true,json:async()=>({ok:true,data})};
   };
@@ -257,7 +258,7 @@ test('details and cards render every media field and name an icon without option
   window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{resource:'items',title:'Elemek',
    columns:[{id:'title',header:'Cím'},{id:'cover',header:'Borító',media:'files'},{id:'glyph',header:'Jel',presentation:'icon'}],
    detailFields:[{id:'title',header:'Cím',type:'text'},{id:'cover',header:'Borító',type:'text'},{id:'clip',header:'Előzetes',type:'text',media:'files'},{id:'glyph',header:'Jel',type:'text',presentation:'icon'}],
-   actions:[{name:'get',label:'Adatok',fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},'csrf',{transport:'poll',endpoint:'live',interval:60000});
+   actions:[{name:'get',label:'Adatok',fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},'csrf',new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000},'csrf'));
  });
  await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
  const glyph=page.locator('.dhx_grid-cell[data-dhx-col-id="glyph"] .blade-record-icon').first();
@@ -285,7 +286,7 @@ test('details and cards render every media field and name an icon without option
 test('synthetic file field, derived media columns and usage-aware delete',async({page})=>{
  const path=require('node:path');const {buildSync}=require('esbuild');
  const root=path.resolve(__dirname,'../..');
- const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+ const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/file-field-fixture',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><div id="blade-application"></div>'}));
  await page.setViewportSize({width:1280,height:800});await page.goto('/file-field-fixture');
@@ -313,7 +314,8 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
     const search=request.values.search??'',type=request.values.type??'';
     data={...listing,items:listing.items.filter(item=>item.name.includes(search)&&(!type||item.mime_type.startsWith(type+'/')))};
    }
-   else if(request.action==='list'||request.action==='__watch')data={items:rows,previous:null,next:null,version:'v1'};
+   else if(request.action==='list')data={items:rows,previous:null,next:null,version:'v1'};
+   else if(request.action==='__watch')data={results:request.values.subscriptions.map(s=>({id:s.id,ok:true,data:{items:rows,previous:null,next:null,version:'v1'}}))};
    else if(request.action==='get')data=rows.find(row=>row.id===request.id);
    else if(request.action==='__form')data={fields:[...fields,{name:'revision',label:'Verzió',type:'text',required:true,max:64,options:{}}],values:{...rows.find(row=>row.id===request.id)}};
    else if(request.action==='update')data={};
@@ -326,7 +328,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
    columns:[{id:'file_id',header:'Médiafájl',type:'file',media:'files'},{id:'title',header:'Cím'},{id:'media_type',header:'Típus',media_of:'file_id',part:'type'},{id:'resolution',header:'Felbontás',media_of:'file_id',part:'resolution'},{id:'length',header:'Hossz',media_of:'file_id',part:'duration'}],
    detailFields:[{id:'title',header:'Cím',type:'text'},{id:'file_id',header:'Médiafájl',type:'file',media:'files'}],
    actions:[{name:'get',label:'Adatok',fields:[]},{name:'update',label:'Módosítás',submitLabel:'Mentés',write:true,fields},{name:'delete',label:'Törlés',submitLabel:'Törlés',write:true,bulk:true,usages:true,fields:[{name:'revision',label:'Verzió',type:'text',required:true,max:64,options:{}}]}],
-   singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},'csrf',{transport:'poll',endpoint:'live',interval:60000});
+   singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},'csrf',new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000},'csrf'));
  });
  const gridRow=title=>page.locator('.dhx_grid-row').filter({has:page.getByRole('gridcell',{name:title,exact:true})});
  const at=(title,column)=>gridRow(title).locator(`.dhx_grid-cell[data-dhx-col-id="${column}"]`);
