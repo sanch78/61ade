@@ -8,7 +8,7 @@ import { FileFields, type ResourceCall } from "../../FilePicker";
 import { uploads } from "../../Uploader";
 import { FormValidation } from "../../FormValidation";
 import type { ResponsiveGrid } from "../../ResponsiveGrid";
-import { DECLINED, actionIcon, escape, formActions, input, technical } from "./fields";
+import { DECLINED, actionIcon, bindFieldTypes, escape, formActions, input, technical } from "./fields";
 import type { ActionDefinition, FieldDefinition, ViewDefinition, WorkspaceScope } from "./types";
 
 /** What the action forms need from their list (`Workspace` implements it). */
@@ -58,6 +58,9 @@ export class ListActions{
   editor?:Form;
   /** `file` fields of the open editor. */
   fileFields?:FileFields;
+  /** Releases the field types bound to the open editor (`bindFieldTypes`). */
+  private fieldTypes?:()=>void;
+  private releaseTypes():void{this.fieldTypes?.();this.fieldTypes=undefined;}
   private epoch=0;
   constructor(private list:ActionHost){}
   /** Drops pending form requests (revocation, destroy). */
@@ -103,17 +106,17 @@ export class ListActions{
       const fields=eligible(schemas[0]).filter(field=>schemas.every(schema=>eligible(schema).some((other:FieldDefinition)=>other.name===field.name)));
       if(schemas.some(schema=>eligible(schema).some((field:FieldDefinition)=>!fields.some(common=>common.name===field.name))))throw new Error(t("A sorok eltérő mezőjogosultságúak. Válassz azonos jogosultságú sorokat."));
       const form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(field=>input(field,undefined)),formActions({name:"submit",text:t("Végrehajtás ({count} sor)",{count:ids.length}),icon:actionIcon(action),color:"primary"})]} as any);
-      this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.editor=form;
-      this.fileFields=new FileFields(form,fields,list.resourceCall);
+      this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.releaseTypes();this.editor=form;
+      this.fileFields=new FileFields(form,fields,list.resourceCall);this.fieldTypes=bindFieldTypes(form,fields);
       const dialog=new Window({css:"blade-content-window",title:escape(action.label+" — "+ids.length+t(" sor")),width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
       const validation=new FormValidation(form,fields);let saving=false;
       form.events.on("click",(name:string)=>{
-        if(name==="cancel"){this.dialog=undefined;this.editor=undefined;dialog.hide();void awaitRedraw().then(()=>dialog.destructor());return;}
+        if(name==="cancel"){this.dialog=undefined;this.editor=undefined;this.releaseTypes();dialog.hide();void awaitRedraw().then(()=>dialog.destructor());return;}
         if(name!=="submit"||saving||!validation.validate())return;saving=true;form.disable();
         const raw=form.getValue() as Record<string,unknown>;
         const values=Object.fromEntries(fields.map(field=>[field.name,raw[field.name]]));
         void confirmed(action,ids.length).then(ok=>ok?list.call("__bulk",null,{operation:action.name,items:ids.map((id,i)=>({id,values:{...values,...(schemas[i].fields.some((field:FieldDefinition)=>field.name==="revision")?{revision:schemas[i].values.revision}:{})}}))}):Promise.reject(DECLINED)).then(async(result:{id:string;ok:boolean;error?:string}[])=>{
-          await awaitRedraw();if(list.disposed||this.editor!==form)return;dialog.destructor();this.dialog=undefined;this.editor=undefined;list.grid?.clearMarks();await list.load();
+          await awaitRedraw();if(list.disposed||this.editor!==form)return;dialog.destructor();this.dialog=undefined;this.editor=undefined;this.releaseTypes();list.grid?.clearMarks();await list.load();
           message({text:t("Sikeres: {success}, sikertelen: {failed}.",{success:result.filter(row=>row.ok).length,failed:result.filter(row=>!row.ok).length})+result.filter(row=>!row.ok).map(row=>`\n${row.id}: ${row.error}`).join(""),css:"blade-toast",expire:10000});
         }).catch(error=>error===DECLINED?undefined:list.error(error)).finally(()=>{saving=false;if(!list.disposed&&this.editor===form)form.enable();});
       });
@@ -152,10 +155,12 @@ export class ListActions{
       const schema=await list.call("__form",id??null,{operation:action.name});if(list.disposed||epoch!==this.epoch)return;
       const allowed=schema.fields as FieldDefinition[];
       const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field).map(f=>input(f,f.type==="password"?"":schema.values[f.name])),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
-      this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.editor=form;
+      this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.releaseTypes();this.editor=form;
       const files=this.fileFields=new FileFields(form,allowed,list.resourceCall,[schema.values,id?list.rows.find(row=>String(row.id)===id):undefined]);
+      const types=this.fieldTypes=bindFieldTypes(form,allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field));
       const close=()=>{
         files.destroy();if(this.fileFields===files)this.fileFields=undefined;
+        types();if(this.fieldTypes===types)this.fieldTypes=undefined;
         if(view.layout.formMode==="panel"&&!view.singleton){list.layout.getCell("form").detach();list.layout.getCell("form").collapse();}
         // Destroyed after the click that closes it: Suite 9.3.12 still fires the Form's events after the handler returns.
         else{const dialog=this.dialog;this.dialog=undefined;dialog?.hide();void awaitRedraw().then(()=>dialog?.destructor());}
@@ -165,7 +170,7 @@ export class ListActions{
       else{
         const dialog=new Window({css:"blade-content-window",title:escape(view.title+" — "+action.label),ariaLabel:view.title+" — "+action.label,width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
         // Closing with the window's own close button also ends an open picker and a pending upload choice.
-        dialog.events.on("afterHide",()=>{files.destroy();if(this.fileFields===files)this.fileFields=undefined;});
+        dialog.events.on("afterHide",()=>{files.destroy();if(this.fileFields===files)this.fileFields=undefined;types();if(this.fieldTypes===types)this.fieldTypes=undefined;});
       }
       this.bindSave(form,action,id??null,schema.values,allowed,close,close);
     }catch(e){await list.error(e);}
@@ -214,6 +219,6 @@ export class ListActions{
     });
   }
   /** Revoked access: open forms are emptied and disabled, the dialog closes. */
-  revoke():void{this.fileFields?.destroy();this.fileFields=undefined;this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;}
-  destroy():void{this.epoch++;this.fileFields?.destroy();this.dialog?.destructor();}
+  revoke():void{this.fileFields?.destroy();this.fileFields=undefined;this.releaseTypes();this.editor?.clear();this.editor?.disable();this.dialog?.destructor();this.dialog=undefined;}
+  destroy():void{this.epoch++;this.fileFields?.destroy();this.releaseTypes();this.dialog?.destructor();}
 }

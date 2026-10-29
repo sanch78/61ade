@@ -22,7 +22,7 @@ export class ListView extends Component<ListViewEvents> implements ListViewApi{
     const app=context.app(),view=listDefinition(resolveListView(app,options.view));
     const scope=options.scope?{field:String(options.scope.field),id:String(options.scope.id),...(options.scope.select===false?{select:false}:{}),...(options.compact?{compact:{height:(pixels:number)=>options.compact!.height(pixels)}}:{})}:undefined;
     this.list=new Workspace(this.host,view,context.channel(),context.user,scope,{...options.filters},
-      {emit:(event,payload)=>this.emit(event,payload),app});
+      {emit:(event,payload)=>this.emit(event,payload),app,view:resolveListView(app,options.view)});
     this.layout=this.list.layout;
     this.bind(options.signal);
   }

@@ -71,9 +71,9 @@ final class SqlResource
     }
     /**
      * Registers `list`, `get`, optional `create`/`update` and the list view (id $id, default the resource; see
-     * Registry::view() for the presentation options and $activate) and returns that View.
+     * Registry::view() for the presentation options, $activate and $commands) and returns that View.
      */
-    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null): View
+    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = []): View
     {
         $this->registry=$registry;
         $registry->registerFields($this->resource,$this->fields);
@@ -100,7 +100,7 @@ final class SqlResource
             $registry->add(new Action($this->resource,'update','Mentés',[...$writable,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,editHandler:fn($c,$t,$v)=>$this->save($c,$t,$v,true),bulk:(bool) array_filter($writable,static fn($field)=>$field->bulk)));
             $actions[]='update';
         }
-        return $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id);
+        return $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands);
     }
     /**
      * Bulk-capable delete with the definition's policy: `delete` (default, backward compatible) removes the row and its

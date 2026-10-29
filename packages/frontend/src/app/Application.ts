@@ -6,7 +6,7 @@ import type { Application, ClientCommand, ColumnPresentation, Components, FieldT
 import { server } from "../api/Server";
 import { createEventBus, type InternalEventBus } from "../api/Events";
 import { i18n, identity, live, preferences, theme, ui, uploads } from "../api/services";
-import { NamedRegistry } from "./registries";
+import { NamedRegistry, extensions } from "./registries";
 import { registerBuiltins } from "./builtins";
 import { listComponents } from "../components/list";
 import { bindCalendar } from "../components/calendar/Calendar";
@@ -35,8 +35,11 @@ export function createApplication(bridge: ShellBridge): Kernel {
   const events = createEventBus();
   for (const name of UPLOAD_EVENTS) uploader.on(name, payload => events.dispatch(name, payload as never));
   const views = new NamedRegistry<ViewKind<any>>("view kind");
-  // Before any module, so a project can replace a built-in kind with `{replace: true}`.
-  registerBuiltins(views, { channel: bridge.channel, user: bridge.userId });
+  const presentations = new NamedRegistry<ColumnPresentation>("presentation");
+  const fieldTypes = new NamedRegistry<FieldType>("field type");
+  const commands = new NamedRegistry<ClientCommand>("command");
+  // Before any module, so a project can replace a built-in entry with `{replace: true}`.
+  registerBuiltins({ views, presentations, commands }, { channel: bridge.channel, user: bridge.userId });
   const offered = Object.freeze([...bridge.views]);
   const app: Application = Object.freeze({
     apiVersion: 1 as const,
@@ -51,9 +54,9 @@ export function createApplication(bridge: ShellBridge): Kernel {
     events,
     identity: identity(bridge.userId, bridge.displayName, bridge.tenant),
     views,
-    presentations: new NamedRegistry<ColumnPresentation>("presentation"),
-    fieldTypes: new NamedRegistry<FieldType>("field type"),
-    commands: new NamedRegistry<ClientCommand>("command"),
+    presentations,
+    fieldTypes,
+    commands,
     // Public component classes (toolkit P3 C-1 … C-4), bound to this application.
     components: Object.freeze<Partial<Components>>({
       ...listComponents({ channel: bridge.channel, user: bridge.userId, app: () => app }),
@@ -68,6 +71,8 @@ export function createApplication(bridge: ShellBridge): Kernel {
     viewDefinition: (id: string) => offered.find(view => view.id === id),
     navigate: (target: NavigationTarget) => bridge.navigate(target),
   });
+  // The framework surfaces (lists, details, forms) read the page's registries when they are created.
+  Object.assign(extensions, { app, presentations, fieldTypes, commands });
   return { app, events, views };
 }
 

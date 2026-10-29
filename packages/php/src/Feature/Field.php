@@ -23,6 +23,11 @@ final readonly class Field
         public bool $bulk = false,
         /** Type `file` only: ['resource' => file manager resource, 'mount' => mount key, 'folder' => optional path below the mount, 'accept' => MIME classes]. */
         public ?array $file = null,
+        /**
+         * A project field type (`app.fieldTypes`, docs/toolkit.md#registries) that renders this field in forms, grid and
+         * card editors and displays: a dotted name; the server still validates the value by $type.
+         */
+        public ?string $editor = null,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
             || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'file'], true)
@@ -49,7 +54,8 @@ final readonly class Field
                     'editable', 'secondary' => !is_bool($value),
                     'align' => !in_array($value, ['left', 'center', 'right'], true),
                     'media' => !is_string($value) || !preg_match('/^[a-z][a-z0-9_.-]*$/D', $value),
-                    'presentation' => !in_array($value, ['icon', 'image'], true),
+                    // `icon`, `image` or a project presentation (`app.presentations`): a dotted name the browser resolves.
+                    'presentation' => !is_string($value) || (!in_array($value, ['icon', 'image'], true) && !self::projectName($value)),
                     'imageBase', 'image_base' => !is_string($value) || !preg_match('~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*/$~D', $value),
                     'altOf', 'alt_of' => !is_string($value) || !preg_match('/^[a-z][a-z0-9_]*$/D', $value),
                     default => !is_int($value) || $value < 1 || $value > 10000,
@@ -66,8 +72,12 @@ final readonly class Field
             || count(array_intersect_key($column, ['imageBase' => 1, 'image_base' => 1])) !== 1 || count(array_intersect_key($column, ['altOf' => 1, 'alt_of' => 1])) > 1)) {
             throw new InvalidArgumentException('Image columns need a readable, non-editable text field with one imageBase and no options.');
         }
-        if (!$image && isset($column['presentation']) && ($secret || !in_array($type, ['text', 'select'], true) || ($column['editable'] ?? false))) throw new InvalidArgumentException('Icon columns need a readable, non-editable text or select field.');
-        if (!$image && isset($column['presentation']) && (!is_array($options) || !$options || array_filter(array_keys($options), static fn($class) => !is_string($class) || trim($class) === '') || array_filter($options, static fn($label) => !is_string($label) || trim($label) === ''))) throw new InvalidArgumentException('Icon columns need static options naming every icon class.');
+        $icon = ($column['presentation'] ?? null) === 'icon';
+        if ($icon && ($secret || !in_array($type, ['text', 'select'], true) || ($column['editable'] ?? false))) throw new InvalidArgumentException('Icon columns need a readable, non-editable text or select field.');
+        if ($icon && (!is_array($options) || !$options || array_filter(array_keys($options), static fn($class) => !is_string($class) || trim($class) === '') || array_filter($options, static fn($label) => !is_string($label) || trim($label) === ''))) throw new InvalidArgumentException('Icon columns need static options naming every icon class.');
+        // A project presentation only displays a readable value; its field stays editable like any other.
+        if (isset($column['presentation']) && !$icon && !$image && ($secret || $type === 'password')) throw new InvalidArgumentException('Project presentations need a readable, non-secret field.');
+        if ($editor !== null && (!self::projectName($editor) || $secret || in_array($type, ['password', 'file'], true) || isset($column['media']))) throw new InvalidArgumentException('Field editors need a dotted project field type name on a non-secret, non-password, non-file, non-media field.');
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
         if ($type === 'checkbox' && $defaultValue !== null && !in_array($defaultValue, ['0', '1'], true)) {
@@ -137,6 +147,12 @@ final readonly class Field
         return ($this->column['presentation'] ?? null) === 'image';
     }
 
+    /** A project registry name (`[a-z][a-z0-9_.-]*` containing a dot, docs/toolkit.md#registries). */
+    public static function projectName(mixed $name): bool
+    {
+        return is_string($name) && str_contains($name, '.') && preg_match('/^[a-z][a-z0-9_.-]*$/D', $name) === 1;
+    }
+
     /** A single image file name: letters, digits, `-`, `_`, `.`; no path, no `..`, no scheme, no leading dot; png, jpg, jpeg, webp, gif or svg. */
     public static function imageFile(mixed $value): bool
     {
@@ -172,6 +188,7 @@ final readonly class Field
             'bulk' => $this->bulk,
             // Workspace adds the resolved folder, the upload policy and the actor's upload right; the folder path stays server-side.
             ...($this->file !== null ? ['file' => ['resource' => $this->file['resource'], 'mount' => $this->file['mount'], 'accept' => $this->file['accept']]] : []),
+            ...($this->editor !== null ? ['editor' => $this->editor] : []),
         ];
     }
 }

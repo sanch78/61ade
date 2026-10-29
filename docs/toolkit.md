@@ -185,21 +185,61 @@ app.uploads.reopen();                                                           
 
 <a id="registries"></a>
 
-### Registries (built-in presentations, field types and commands on them: planned — P3 C-5)
+### Registries (implemented — P2 K-F3, P3 C-5)
 
 `Registry<T>`: `register(name, entry, {replace?})`, `get`, `has`, `names`.
 Names are `[a-z][a-z0-9_.-]*`; built-in names have no dot, project names must
 contain one (`demo.player`). A duplicate name throws unless `replace: true`,
 which is also how a project deliberately overrides a built-in. Register during
-module initialization; a later registration affects only views mounted after it.
+module initialization (modules run before the first view opens). A list,
+record details or form reads the registries when it is created, so a later
+registration affects only surfaces created after it.
+
+| Registry | Built-in entries (61ade dogfoods them) | Declared on the server by |
+| --- | --- | --- |
+| `views` | `list`, `files`, `diagram`, `calendar` | the view `kind` |
+| `presentations` | `image` (static image column; `icon` stays framework-internal) | `Field` `column: ['presentation' => 'demo.bar']`, JSON `"column": {"presentation": "demo.bar"}` |
+| `fieldTypes` | none | `new Field(…, editor: 'demo.rating')`, JSON field `"editor": "demo.rating"` |
+| `commands` | `details` (the lists' `Adatok` command) | `Registry::view(…, commands: [...])`, `SqlResource::register(…, commands: [...])`, JSON `view.commands` |
+
+The server checks only the shape of a project name (dotted, `Field::projectName`)
+and sends it with the view; the browser module supplies the behaviour. A view
+declares at most 20 unique commands. A project presentation needs a readable,
+non-secret, non-password field and keeps the field `editable`; an `editor` is
+refused on secret, password, `file` and media fields.
+
+```php
+$tasks->register($registry, 'Feladatok', commands: ['demo.copy-text']);   // SqlResource; Registry::view() alike
+new Field('score', 'Pont', 'number', column: ['presentation' => 'demo.bar']);
+new Field('priority', 'Prioritás', 'number', editor: 'demo.rating', column: ['editable' => true]);
+```
 
 ```ts
 app.views.register("demo.asset-viewer", { create: (host, view) => mountViewer(host, view) });
-app.presentations.register("demo.bar", { render: (value, row, column, size, escape) =>
-  `<span class="demo-bar" style="--w:${Math.min(100, Number(value) || 0)}%">${escape(value)}</span>` });
-app.fieldTypes.register("demo.rating", { input: (field, value, readOnly) =>
-  ({ type: "slider", name: field.name, label: field.label, min: 0, max: 5, value, disabled: readOnly }) });
-app.commands.register("demo.copy-text", { label: "Másolás szövegként", placement: "both", run: ctx => copy(ctx.row) });
+app.presentations.register("demo.bar", {
+  render: (value, row, column, size, escape) =>
+    `<span class="demo-bar demo-bar--${size}" style="--w:${Math.min(100, Number(value) || 0)}%">${escape(value)}</span>`,
+  text: value => `${value} %`,
+});
+app.fieldTypes.register("demo.rating", {
+  input: (field, value, readOnly) => ({ type: "slider", name: field.name, label: field.label, labelPosition: "top",
+    min: 0, max: 5, step: 1, value: Number(value) || 0, disabled: readOnly }),
+  display: (value, row, field, size, escape) => `<span aria-label="${escape(value)}/5">${"★".repeat(Number(value) || 0)}</span>`,
+});
+app.commands.register("demo.copy-text", {
+  label: "Másolás szövegként", icon: "dxi dxi-content-copy", placement: "both",
+  enabled: ({ row }) => !!row,
+  // Reads go through an action too: the server's ACL and field ACL decide what the text contains.
+  run: async ({ app, row, signal }) => {
+    const fresh = await app.server.call<Row>("demo_tasks", "get", { id: row!.id, signal });
+    await navigator.clipboard.writeText(String(fresh.title ?? ""));
+    app.ui.toast(app.i18n.t("Másolva."));
+  },
+});
+app.commands.register("demo.count-marked", {
+  label: "Kijelöltek száma", placement: "toolbar", enabled: ({ rows }) => rows.length > 0,
+  run: ({ app, rows }) => app.ui.toast(app.i18n.t("{count} elem", { count: rows.length })),
+});
 ```
 
 - **View kind** `create(host, view)` returns a `ViewInstance` (`destroy`,
@@ -207,15 +247,55 @@ app.commands.register("demo.copy-text", { label: "Másolás szövegként", place
   the view closes), `open` (`page`/`window`), `record` (`{resource, id, row}`
   for record views), `filters`, `attach`, `setTitle`, `close`. A throw shows the
   error dialog and leaves an empty workspace.
-- **Presentation** (`column.presentation`): synchronous HTML renderer per
-  value and size (`cell`, `card`, `tile`); it must escape every record value
-  with the given `escape`. A throw renders the escaped plain text.
-- **Field type** (`field.editor`, planned server option): a Suite Form item
-  factory, optional `bind` and `display`. The server keeps validating the
-  field by its storage `type`; an unknown editor falls back to that type.
-- **Client command** (`view.commands`, planned list option): label, icon,
-  placement, `enabled`, `run`. Anything it changes on the server goes through
-  `app.server.call`.
+- **Presentation** (`column.presentation`): a synchronous HTML renderer per
+  value and size: `cell` (table), `card` (card fields and the record details,
+  also `RecordDetails`) and `tile` (the tile's secondary line; the tile title
+  uses `text`, else the plain value). It must escape every record value with
+  the given `escape`. A presentation wins over a field type's `display`. The
+  built-in `image` renders through the registry in the table cell, the card and
+  tile media slot and the details, unchanged; replacing it (`{replace: true}`)
+  replaces all of them.
+- **Field type** (`field.editor`): `input` returns the Suite Form item (its
+  `name`, or a nested item's, must be the field name); optional `bind(context)`
+  runs once the Form exists, with a `signal` aborted when that form closes;
+  optional `display` renders the value in table cells, card fields, tiles and
+  details. It is used by the list's create, update and bulk forms, a
+  singleton's form, `RecordForm` and the edit window of an `editable` table cell
+  or card field: a field-type column never uses the native Grid cell editor; its
+  cell is an edit button (`<label> — szerkesztés`) that opens the same window as
+  a card, saved through `__edit` with the revision, validation, ACL and audit of
+  every inline edit. Filters keep the storage type's input; calendar event
+  forms take the `input` item only (no `bind`). The server keeps validating the
+  value by the storage `type`.
+- **Client command** (`ListOptions.commands`): `label` (source text,
+  translated), `icon`, `placement`, `enabled`, `run`. `toolbar` commands sit in
+  the list's command bar after the view's actions (and move into the
+  `Műveletek` menu like them); `record` commands form the **record menu**, the
+  native Suite context menu of a row, card or tile (right click, the context
+  menu key or Shift+F10; the record becomes the cursor first); `both` is in
+  each, the choice for anything that must be reachable on touch devices.
+  The context has `app`, `view` (as the server sent it), `row` (the record of
+  the menu, or the toolbar's record), `rows` (the marks) and `signal` (aborted
+  when the list closes). `enabled` is evaluated whenever the toolbar record,
+  marks or rows change and when the record menu opens; default: always on the
+  toolbar, with a record in the record menu; a throw disables the command. A
+  disabled command does not run. A throw or rejection of `run` shows the error
+  dialog (an `AbortError` stays silent). A client command never bypasses
+  server authorization: anything it reads or changes goes through
+  `app.server.call`. Compact sub-view previews show no project commands; a
+  full sub-view window shows its own view's.
+- **Unknown names never break a list.** A presentation or field type the
+  module did not register renders the plain value (option label or text) and
+  keeps the storage type's input; an undeclared or unregistered command is
+  left out. Each logs one console warning per name. A renderer that throws
+  shows the escaped plain value (logged once per column); a field type whose
+  `input` throws or returns an item without the field's name falls back to the
+  built-in input (logged).
+- Dogfooding: `builtins.ts` registers the `image` presentation and the
+  `details` command; the list renders and enables them through the registries
+  exactly like project entries (`src/app/registries.ts`). Checks:
+  `node tests/shell/toolkit-registries.mjs`, `php8.4 tests/shell/toolkit.php`,
+  `tests/shell/toolkit-registries.spec.cjs`.
 
 <a id="components"></a>
 

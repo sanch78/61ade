@@ -3,6 +3,8 @@ import type { Row } from "./Realtime";
 import type { ViewDefinition } from "./components/list/types";
 import { actionUrl } from "./ActionUrl";
 import { requestConfirmation } from "./MessageDialog";
+import type { ColumnPresentation } from "./api/types";
+import type { Resolved } from "./app/registries";
 export const escape=(value:unknown)=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 /** Display caption of a stored value: option label, or labels of a comma-separated multiple choice. */
 export function optionText(field:{type?:string;options?:Record<string,string>},value:unknown):string{
@@ -36,7 +38,7 @@ export function recordIcon(field:{options?:Record<string,string>},value:unknown,
 export type MediaDescriptor={id:string;name:string;mime_type:string;revision:string;duration_ms:number|null;width:number|null;height:number|null;thumbnail:"ready"|"pending"|"failed"|"none"};
 /** Derived media part of a field-less column: `media_of` names the media field whose `_media` it reads. */
 export type MediaPart="type"|"resolution"|"duration";
-type Column={id:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;options?:Record<string,string>;mediaOf?:string;media_of?:string;part?:MediaPart};
+type Column={id:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;options?:Record<string,string>;mediaOf?:string;media_of?:string;part?:MediaPart}&Resolved;
 /** A media column is a presentation of a file-id value (`media` names the file resource), whatever its field type. */
 export const isMedia=(field:Column)=>typeof field.media==="string"&&field.media!==""||field.type==="media";
 export const isIcon=(field:Column)=>field.type==="icon"||field.presentation==="icon";
@@ -69,7 +71,7 @@ export function derivedText(field:Column,row:Row):string|null{
 /** Whether the record carries the media slot a derived column reads (the media field is readable). */
 const hasDerived=(field:Column,row:Row)=>{const of=derivedOf(field),media=row._media;return !!of&&!!media&&typeof media==="object"&&Object.hasOwn(media as object,of);};
 /** Display text of a column value in tiles and lists: derived media part, option label or the value. */
-export const columnText=(field:Column,row:Row):string=>derivedText(field,row)??optionText(field,row[field.id]);
+export const columnText=(field:Column,row:Row):string=>field.text?.(row)??derivedText(field,row)??optionText(field,row[field.id]);
 const failedThumbnails=new Set<string>();
 /** An unavailable thumbnail (404/415 while missing, or a decode error) shows the type icon; later renders skip that URL. */
 export function thumbnailFailed(image:HTMLImageElement):void{
@@ -101,8 +103,15 @@ export function recordImage(field:Column,row:Row,size:"cell"|"card"|"tile"="cell
   const of=field.altOf??field.alt_of,alt=of&&row[of]!=null?escape(row[of]):"",failed=failedThumbnails.has(url);
   return `<span class="blade-media blade-media--${size} blade-media--image${failed?" blade-media--failed":""}" ${alt?`role="img" aria-label="${alt}" title="${alt}"`:`aria-hidden="true"`}><span class="blade-media__icon dxi dxi-image-outline" aria-hidden="true"></span>${failed?"":`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-static-image>`}</span>`;
 }
+/**
+ * The built-in `image` presentation (registered on `app.presentations` by builtins.ts). A static image column renders
+ * through the registry entry its list resolved (`column.render`, `listDefinition`); without one (a fixture without an
+ * Application) through this renderer directly.
+ */
+export const imagePresentation:ColumnPresentation={render:(_value,row,column,size)=>recordImage(column as Column,row,size)};
+export const imageSlot=(field:Column,row:Row,size:"cell"|"card"|"tile"="cell"):string=>field.render?field.render(row,size):recordImage(field,row,size);
 /** Media slot of a media or static image column. */
-export const recordSlot=(field:Column,row:Row,size:"cell"|"card"|"tile"="cell"):string=>isImage(field)?recordImage(field,row,size):recordMedia(field,row,size);
+export const recordSlot=(field:Column,row:Row,size:"cell"|"card"|"tile"="cell"):string=>isImage(field)?imageSlot(field,row,size):recordMedia(field,row,size);
 /** Whether the row has something to show in the media slot of the column. */
 export const hasSlot=(field:Column,row:Row):boolean=>isImage(field)?imageUrl(field,row[field.id])!=="":!!mediaOf(field,row);
 /**
@@ -131,10 +140,12 @@ export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=f
     if(derived!==null)return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd>${escape(derived||"—")}</dd></div>`;
     const writable=editable&&field.editable&&row._editable?.includes(field.id);
     const value=row[field.id];
+    // A registered presentation or field-type display (`column.render`) shows the value; a field type edits in the edit window, also a checkbox.
+    const custom=!isMedia(field)&&!isImage(field)&&field.render?field.render(row,"card"):undefined;
     const content=escape(value==null||value===""?(field.options?.[String(value??"")]??"—"):optionText(field,value));
     // An icon is shown with its name as visible text, so the glyph itself stays decorative.
     const glyph=isIcon(field)?recordIcon(field,value,true):"";
-    return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd ${writable&&field.type!=="checkbox"?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?recordImage(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
+    return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
   }).join("")}</dl>`;
 }
 

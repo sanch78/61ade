@@ -64,6 +64,36 @@ form items, `ListView.ts`, `RecordForm.ts`, `RecordDetails.ts`,
 existing fixtures; its constructor is not a contract
 ([migration M8](toolkit.md#migration)).
 
+<a id="list-extensions"></a>
+
+### Project presentations, field types and client commands
+
+A list renders, edits and commands through the toolkit
+[registries](toolkit.md#registries); the declaration names the entry, a
+project module registers its behaviour:
+
+- **Column presentation:** `column: ['presentation' => 'demo.bar']` (JSON
+  `"column": {"presentation": "demo.bar"}`) on a readable, non-secret field.
+  The module's renderer draws the table cell, the card field, the tile's
+  secondary line and the record details; the tile title stays text. The
+  built-in `image` presentation renders through the same registry.
+- **Field type:** `new Field(…, editor: 'demo.rating')` (JSON `"editor"`). Its
+  Form item replaces the storage type's input in the create, update and bulk
+  forms, the singleton form, `RecordForm` and the edit window; its `display`
+  renders the value. An `editable` field-type column is not edited by the
+  native cell editor: the cell is an edit button that opens the card editor
+  window (same `__edit` save, revision, validation and ACL). Filters keep the
+  storage type's input; the server validates by the storage type.
+- **Client commands:** `commands: ['demo.copy-text']` on `Registry::view` or
+  `SqlResource::register` (JSON `view.commands`, at most 20 dotted names). A
+  `toolbar` command follows the view's actions in the command bar; a `record`
+  command appears in the record menu, the native context menu of a row, card
+  or tile (right click, context menu key, Shift+F10); `both` in each. The
+  built-in `Adatok` command is the registry's `details` entry. Commands run in
+  the browser; every server effect is an ordinary ACL-checked action call.
+- An unknown name never breaks a list: the plain value, the built-in input or
+  no command, with one console warning per name.
+
 <a id="konfiguráció"></a>
 
 ## Configuration
@@ -573,7 +603,8 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   editable, static `options` required): the value is a Suite class
   `dxi dxi-…`, `options` give the accessible name. Record details and cards
   render media and icon fields the same way (`detailFields` carry `media` and
-  `presentation`).
+  `presentation`). A dotted `presentation` names a project renderer
+  ([extensions](#list-extensions)).
 - **Static image column.** `column.presentation: "image"` with a required
   `imageBase` (JSON `"column": {"presentation": "image", "image_base":
   "../demo-images/"}`): the text field holds a file name and the browser shows

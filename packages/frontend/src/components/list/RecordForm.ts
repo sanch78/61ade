@@ -6,7 +6,7 @@ import { FormValidation, fieldError } from "../../FormValidation";
 import { failure, server } from "../../api/Server";
 import type { ActionMetadata, FormDescription, RecordForm as RecordFormApi, RecordFormEvents, RecordFormOptions } from "../../api/types";
 import { Component } from "./component";
-import { DECLINED, errorText, formActions, input } from "./fields";
+import { DECLINED, bindFieldTypes, errorText, formActions, input } from "./fields";
 import { confirmed, resultNotice } from "./actions";
 import type { ListContext } from "./ListView";
 import type { FieldDefinition } from "./types";
@@ -29,6 +29,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
   private changedFields=false;
   private saving?:Promise<unknown>;
   private abort=new AbortController();
+  private releaseTypes?:()=>void;
   /** The action's offered metadata (label, icon, confirmation) from any view of the resource, if any. */
   private action?:ActionMetadata;
   constructor(private context:ListContext,private options:RecordFormOptions){
@@ -51,6 +52,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
         formActions({name:"submit",text:this.action?.submitLabel??t("Mentés"),icon:this.action?.icon??"dxi dxi-content-save",color:"primary"})]} as any);
       this.files=new FileFields(form,schema.fields as FieldDefinition[],(resource,action,id,values={})=>server.call(resource,action,{id,values}),[schema.values as Row]);
       this.validation=new FormValidation(form,fields);
+      this.releaseTypes=bindFieldTypes(form,fields);
       form.events.on("change",(name:string,value:unknown)=>{if(!fields.some(field=>field.name===name))return;this.changedFields=true;this.emit("changed",{field:name,value});});
       form.events.on("click",(name:string)=>{
         if(name==="cancel")this.emit("cancel",{});
@@ -117,5 +119,5 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
     const saving=this.saving=run().finally(()=>{if(this.saving===saving)this.saving=undefined;});
     return saving;
   }
-  protected dispose():void{this.abort.abort();this.files?.destroy();this.form?.destructor();this.layout.destructor();}
+  protected dispose():void{this.abort.abort();this.releaseTypes?.();this.files?.destroy();this.form?.destructor();this.layout.destructor();}
 }
