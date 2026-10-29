@@ -155,4 +155,34 @@ check($bootstrap($page)['modules']===['app/main.js?v=1.4.0','../app/up.js?v=2'],
 check(!isset($bootstrap($render($definition(runtime:$runtime)))['modules']),'No modules key without declared modules');
 array_map('unlink',glob($runtime.'/sessions/*')?:[]);
 
+// Registries (P3 C-5): project presentations and field types are dotted names the server accepts by shape only; the
+// list view declares its client commands; all of them reach the bootstrap.
+foreach(['demo.bar','demo.rating-bar','a.b_c'] as $name)check(Field::projectName($name)&&(new Field('n','N',column:['presentation'=>$name]))->column['presentation']===$name,'Project presentation '.$name);
+foreach(['bar','Demo.bar','demo bar','.bar','demo:bar',7,null] as $name)check(!Field::projectName($name),'Not a project name: '.var_export($name,true));
+rejects(fn()=>new Field('n','N',column:['presentation'=>'bar']),'A dot-free unknown presentation accepted');
+rejects(fn()=>new Field('n','N',secret:true,column:['presentation'=>'demo.bar']),'A project presentation on a secret field accepted');
+rejects(fn()=>new Field('n','N','password',column:['presentation'=>'demo.bar']),'A project presentation on a password field accepted');
+rejects(fn()=>new Field('n','N',column:['presentation'=>'demo.bar','image_base'=>'img/']),'Image options without presentation image accepted');
+rejects(fn()=>new Field('n','N',column:['presentation'=>'demo.bar','media'=>'files']),'A project presentation on a media column accepted');
+check((new Field('n','N','number',column:['presentation'=>'demo.bar','editable'=>true]))->column['editable'],'A project presentation keeps the field editable');
+$rating=new Field('priority','Prioritás','number',editor:'demo.rating',column:['editable'=>true]);
+check($rating->metadata()['editor']==='demo.rating'&&!array_key_exists('editor',(new Field('n','N'))->metadata()),'Field editor metadata only when declared');
+foreach([['editor'=>'rating'],['editor'=>'Demo.rating'],['editor'=>'demo.rating','secret'=>true],['editor'=>'demo.rating','type'=>'password']] as $invalid)rejects(fn()=>new Field('n','N',...$invalid),'Invalid editor accepted: '.json_encode($invalid));
+rejects(fn()=>new Field('n','N',editor:'demo.picker',column:['media'=>'files']),'An editor on a media column accepted');
+rejects(fn()=>new Field('n','N','file',file:['resource'=>'files','mount'=>'drive','accept'=>['image']],editor:'demo.picker'),'An editor on a file field accepted');
+$commandRegistry=new Registry();
+$commandSource=new SqlResource('assets','assets','id',[new Field('title','Cím'),new Field('kind','Fajta',column:['presentation'=>'demo.bar']),$rating],'owner_id');
+$commandView=$commandSource->register($commandRegistry,'Feladatok',commands:['demo.copy-text','demo.share']);
+check($commandView->options['commands']===['demo.copy-text','demo.share']&&!isset($resource()->register(new Registry(),'X')->options['commands']),'SqlResource and Registry::view keep declared commands only');
+foreach([['copy'],['demo.copy','demo.copy'],['Demo.copy'],[7],array_map(fn($i)=>'demo.c'.$i,range(1,21)),['a'=>'demo.copy']] as $invalid)rejects(fn()=>$commandRegistry->view('assets','X',$columns,['get'],commands:$invalid),'Invalid commands accepted: '.json_encode($invalid));
+rejects(fn()=>$commandRegistry->addView($commandView->with(options:[...$commandView->options,'commands'=>'demo.copy'])),'A commands string accepted');
+$commandWorkspace=new Workspace($commandRegistry,$db);
+$commandOptions=$commandWorkspace->views(new Identity('1','Egy'))[0]['options'];
+$commandColumns=array_column($commandOptions['columns'],null,'id');$commandDetails=array_column($commandOptions['detailFields'],null,'id');
+check($commandOptions['commands']===['demo.copy-text','demo.share'],'Declared commands reach the list options');
+check($commandColumns['kind']['presentation']==='demo.bar'&&$commandDetails['kind']['presentation']==='demo.bar','A project presentation reaches columns and detail fields');
+check($commandColumns['priority']['editor']==='demo.rating'&&$commandDetails['priority']['editor']==='demo.rating'&&!isset($commandColumns['title']['editor']),'A field editor reaches columns and detail fields');
+$updateFields=array_column(array_column($commandWorkspace->views(new Identity('1','Egy'))[0]['actions'],null,'name')['update']['fields'],null,'name');
+check($updateFields['priority']['editor']==='demo.rating','A field editor reaches the action fields');
+
 echo "61ade toolkit server contracts passed.\n";

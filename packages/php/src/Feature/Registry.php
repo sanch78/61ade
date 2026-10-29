@@ -117,11 +117,12 @@ final class Registry
      * '*' => default target]]` keyed by the string value of the non-secret field f. Absent: the update form, otherwise
      * the details. An activation the record or actor is not offered (ACL, `_actions`, no resolved sub-view, record view
      * not offered) opens the details.
+     * $commands: project client commands (`app.commands` names, dotted, at most 20) on the toolbar and record menu.
      */
-    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null): View
+    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = []): View
     {
         $options=['columns'=>$columns,'singleton'=>$singleton,'layout'=>$layout??new ViewLayout(),'rowNumbers'=>$rowNumbers,'selection'=>$selection,'rowSelection'=>$rowSelection,
-            ...array_filter(['rowHeight'=>$rowHeight,'tileMinWidth'=>$tileMinWidth,'tiles'=>$tiles?:null,'activate'=>$activate],static fn($v)=>$v!==null)];
+            ...array_filter(['rowHeight'=>$rowHeight,'tileMinWidth'=>$tileMinWidth,'tiles'=>$tiles?:null,'activate'=>$activate,'commands'=>$commands?:null],static fn($v)=>$v!==null)];
         return $this->addView(new View($id??$resource,'list',$title,$resource,actions:$actions,options:$options,group:$group,icon:$icon,desktopOnly:$desktopOnly));
     }
     /**
