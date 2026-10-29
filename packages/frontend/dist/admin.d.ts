@@ -3,7 +3,8 @@
  * 61ade toolkit API, version 1: the public type surface for project modules.
  *
  * Status: the kernel (application object, services, registries, module loader, routing, view host) is implemented in
- * toolkit P2 (lane K-F, `src/api/*`, `src/app/*`); components, presentations, field types and commands follow in P3.
+ * toolkit P2 (lane K-F, `src/api/*`, `src/app/*`); components follow in P3, presentations, field types and client
+ * commands on list surfaces are implemented (P3 C-5).
  * Each member names the internal code it wraps (FB-0081).
  * Reference and examples: docs/toolkit.md. Changes after gate G1 are recorded in docs/toolkit.md#changes.
  *
@@ -57,11 +58,11 @@ export interface Application {
     readonly identity: Identity;
     /** View kinds: kind name → factory. Built-ins `list`, `files`, `diagram`, `calendar` are registered by 61ade. */
     readonly views: Registry<ViewKind<any>>;
-    /** Column/value presentations: name → renderer (`column.presentation`). Built-ins `icon`, `image`. */
+    /** Column/value presentations: name → renderer (`column.presentation`). Built-in `image` (`icon` stays framework-internal). */
     readonly presentations: Registry<ColumnPresentation>;
-    /** Field editors: name → form item factory and display renderer (`field.editor`). */
+    /** Field editors: name → form item factory and display renderer (`field.editor`); no built-in entries. */
     readonly fieldTypes: Registry<FieldType>;
-    /** Client-side commands: name → handler, placed on view toolbars and record menus (`view.commands`). */
+    /** Client-side commands: name → handler, placed on list toolbars and record menus (`ListOptions.commands`). Built-in `details`. */
     readonly commands: Registry<ClientCommand>;
     /** Public component classes, bound to this application (P3: `ListView`, `RecordForm`, `RecordDetails`, `CommandBar` from C-1). */
     readonly components: Components;
@@ -603,7 +604,7 @@ export interface FieldMetadata {
     validation?: ValidationRules;
     bulk?: boolean;
     file?: FileFieldConfig;
-    /** Registered `fieldTypes` name rendering this field (planned P3 C-5, server `Field` editor option). */
+    /** Registered `fieldTypes` name rendering this field (server `Field` `editor`, JSON `editor`; a dotted name). */
     editor?: string;
 }
 /** Confirmation the server declares for an action (`Action::$confirm`). Plain text. */
@@ -643,8 +644,10 @@ export interface ColumnMetadata {
     type?: string;
     /** Media column: the value is a file id of this registered media source resource. */
     media?: string;
-    /** `icon`, `image` or a registered `presentations` name (planned P3 C-5 on the server side). */
+    /** `icon`, `image` or a dotted `presentations` name (the server checks the name shape only). */
     presentation?: string;
+    /** The field's `editor` (a `fieldTypes` name): its `display` renders the value unless a presentation does. */
+    editor?: string;
     imageBase?: string;
     image_base?: string;
     altOf?: string;
@@ -721,7 +724,10 @@ export interface ListOptions {
         fields: string[];
     };
     subview?: SubviewMetadata;
-    /** Registered client command names shown on the toolbar/record menu (planned P3 C-5). */
+    /**
+     * Declared client command names (`Registry::view`/`SqlResource::register` `commands`, JSON `view.commands`; dotted,
+     * at most 20) shown on the list's toolbar and record menu by their `placement`; an unregistered name is skipped.
+     */
     commands?: string[];
 }
 /** `options` of kind `files`: today's `files` key (`FileManager.ts` `FileManagerConfig`). */
@@ -797,8 +803,11 @@ export interface MediaDescriptor {
 /** Rendering size: a grid cell, a card field or a tile. */
 export type PresentationSize = "cell" | "card" | "tile";
 /**
- * A column value renderer, chosen by `column.presentation`. Built-ins `icon` and `image` move onto this registry
- * (`RecordPresentation.recordIcon/recordImage`). Must be pure and synchronous: it runs for every visible row.
+ * A column value renderer, chosen by `column.presentation`: grid cells (`cell`), card fields and record details
+ * (`card`) and the secondary line of a tile (`tile`; a tile's title uses `text`). The built-in `image` is registered
+ * here (its media slot in cards and tiles too); `icon` stays framework-internal. A list resolves its columns once
+ * when it is created; an unregistered name renders the plain value with one console warning. Must be pure and
+ * synchronous: it runs for every visible row.
  */
 export interface ColumnPresentation {
     /**
@@ -820,8 +829,10 @@ export interface FieldTypeContext {
     readonly signal: AbortSignal;
 }
 /**
- * A field editor, chosen by `field.editor` (the server still validates the field by its storage `type`). Unknown
- * editors fall back to the storage type's built-in editor with a console warning.
+ * A field editor, chosen by `field.editor` (the server still validates the field by its storage `type`): the list's
+ * create, update and bulk forms, a singleton's form, `RecordForm`, and the edit window an `editable` grid cell or card
+ * field opens (a field type never uses the native Grid cell editor). Filters keep the built-in input. Unknown editors,
+ * a throw or an item without the field's name fall back to the storage type's built-in editor (logged).
  */
 export interface FieldType {
     /** Suite Form item configuration for the field; its `name` must be the field name so values save normally. */
@@ -831,15 +842,19 @@ export interface FieldType {
     /** HTML of the value in grid cells, cards and details; escaping as in `ColumnPresentation.render`. */
     display?(value: unknown, row: Row, field: FieldMetadata, size: PresentationSize, escape: (value: unknown) => string): string;
 }
-/** Where a client command appears. */
+/**
+ * Where a client command appears: `toolbar` is the list's command bar (after the view's actions; the toolbar's record
+ * and marks are the context), `record` the record menu (the native context menu of a row, card or tile: right click,
+ * the context menu key, Shift+F10). `both` is in each; use it for a command that must be reachable on every device.
+ */
 export type CommandPlacement = "toolbar" | "record";
 /** Context of one command run. */
 export interface CommandContext {
     readonly app: Application;
     readonly view: ViewDefinition;
-    /** The cursor record (record placement, or the toolbar's current record). */
+    /** Record menu: the record it opened for; toolbar: the toolbar's current record (absent without one). */
     readonly row?: Row;
-    /** Marked rows (`rowSelection` lists), possibly empty. */
+    /** Marked rows (`selection`/`rowSelection` lists), possibly empty (also while a sub-view record holds the toolbar). */
     readonly rows: readonly Row[];
     /** Aborted when the view closes. */
     readonly signal: AbortSignal;
@@ -853,7 +868,10 @@ export interface ClientCommand {
     label: string;
     icon?: string;
     placement: CommandPlacement | "both";
-    /** Enabled state for the current context; default: always enabled (record placement: when a row exists). */
+    /**
+     * Enabled state for the current context, evaluated when the record, marks or rows change (toolbar) and when the
+     * record menu opens; default: always enabled (record placement: when a row exists). A throw disables it (logged).
+     */
     enabled?(context: CommandContext): boolean;
     run(context: CommandContext): void | Promise<void>;
 }
