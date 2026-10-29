@@ -44,146 +44,55 @@ final class Workspace
         if($tenant!==null&&!$this->tenancy?->member($actor->id,$tenant))throw new Failure('Nincs hozzáférés a tenanthoz.',403);
         return new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner,$tenant);
     }
-    /** Views offered to $actor; tenant-scoped ones only with an active $tenant (membership checked). */
+    /**
+     * Views offered to $actor (bootstrap `views`, docs/toolkit.md#views); tenant-scoped ones only with an active $tenant
+     * (membership checked), record views only with the record resource's `get` offered. Each entry is
+     * `{id, kind, title, resource?, record?, actions, group, icon, desktopOnly, open, options}`; the kind provider
+     * decides whether the view is offered and builds `actions` and `options`.
+     */
     public function views(Identity $actor,?string $tenant=null): array
     {
-        $out=[];$ctx=$this->context($actor,'ui',$tenant);
+        $this->registry->checkViews();
+        $out=[];$ctx=$this->context($actor,'ui',$tenant);$meta=new ViewMetadata($this->registry);
         foreach($this->registry->views() as $view){
-            if($ctx->tenant===null&&$this->registry->tenantScoped($view['resource']))continue;
-            if(($view['kind']??'list')==='files'){
-                $files=$this->fileView($actor,$ctx,$view);
-                if($files)$out[]=\Blade\I18n\Translator::presentation($files);
-                continue;
-            }
-            if(($view['kind']??'list')==='diagram'){
-                $diagram=$this->diagramView($actor,$ctx,$view);
-                if($diagram)$out[]=\Blade\I18n\Translator::presentation($diagram);
-                continue;
-            }
-            if(($view['kind']??'list')==='calendar'){
-                $calendar=$this->calendarView($actor,$ctx,$view);
-                if($calendar)$out[]=\Blade\I18n\Translator::presentation($calendar);
-                continue;
-            }
-            $actions=[];
-            foreach($view['actions'] as $name){
-                $a=$this->registry->get($view['resource'],$name);
-                if($view['singleton'] && !$this->acl->allows($actor->id,$a->resource,$name,'ui',$actor->id,$actor->id))continue;
-                if(!$this->offered($actor,$a->resource,$name))continue;
-                $actions[]=['name'=>$name,'icon'=>$a->icon,'bulk'=>$a->bulk,'confirm'=>$a->confirm?array_filter(['message'=>\Blade\I18n\Translator::text($a->confirm['message']),'title'=>isset($a->confirm['title'])?\Blade\I18n\Translator::text($a->confirm['title']):null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>isset($a->confirm['confirm_label'])?\Blade\I18n\Translator::text($a->confirm['confirm_label']):null,'cancelLabel'=>isset($a->confirm['cancel_label'])?\Blade\I18n\Translator::text($a->confirm['cancel_label']):null],static fn($v)=>$v!==null):null,'label'=>match($name){'create'=>'Hozzáadás','update'=>'Módosítás',default=>$a->label},'submitLabel'=>in_array($name,['create','update'],true)?'Mentés':$a->label,'write'=>$a->write,'fields'=>$this->fieldsMetadata($ctx,$a),...$this->actionExtras($a)];
-            }
-            if(!$actions)continue;
-            $fields=$this->registry->fields($view['resource']);
-            $view['columns']=array_map(static function($column) use ($fields,$ctx){
-                $field=$fields[$column['id']]??null;
-                if(!$field)return $column;
-                return [...$field->column,...($field->media()!==null?['media'=>$field->media()]:[]),...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
-            },$view['columns']);
-            $view['detailFields']=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true])],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
-            $view['actions']=$actions;
-            $view['layout']=$view['layout']->metadata();
-            $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
-            $view['filters']=$list->listSource?->filterDefinitions($ctx)??[];
-            $view['sortable']=$list->listSource?->sortableFields($ctx)??[];
-            if($search=$list->listSource?->searchMetadata($ctx))$view['search']=$search;
-            $out[$view['resource']]=\Blade\I18n\Translator::presentation($view);
+            if($ctx->tenant===null&&array_filter([$view->resource,$view->record],fn($name)=>$name!==null&&$this->registry->tenantScoped($name)))continue;
+            if($view->record!==null&&!$meta->offered($ctx,$view->record,'get'))continue;
+            $data=$this->registry->provider($view->kind)->metadata($ctx,$view);
+            if($data===null)continue;
+            $out[$view->id]=[...\Blade\I18n\Translator::presentation(['id'=>$view->id,'kind'=>$view->kind,'title'=>$view->title,
+                ...($view->resource!==null?['resource'=>$view->resource]:[]),...($view->record!==null?['record'=>$view->record]:[]),
+                'actions'=>$data['actions'],'group'=>$view->group,'icon'=>$view->icon,'desktopOnly'=>$view->desktopOnly,'open'=>$view->open]),
+                // An empty options map stays a JSON object.
+                'options'=>$data['options']===[]?new \stdClass():\Blade\I18n\Translator::presentation($data['options'])];
         }
         // A sub-view needs its child view offered to the actor; an embedded child has no menu entry of its own, any
         // other different child view carries `page` (its own page, the target of `activate: 'page'`).
         // Resolved depth first, so a child view carries its own (resolved) sub-view; a cycle ends at the repeat.
         $resolved=[];
         $resolve=function(string $key,array $path=[])use(&$resolve,&$out,&$resolved):void{
-            if(isset($resolved[$key])||!isset($out[$key]['subview']['child']))return;
-            ['child'=>$child,'field'=>$field]=$out[$key]['subview'];$select=($out[$key]['subview']['select']??true)?[]:['select'=>false];
-            if($child!==$out[$key]['resource']&&isset($out[$child])&&!in_array($child,$path,true))$resolve($child,[...$path,$key]);
-            $out[$key]['subview']=$child===$out[$key]['resource']?['resource'=>$child,'field'=>$field,'shared'=>true,...$select]
-                :(isset($out[$child])?['resource'=>$child,'field'=>$field,'view'=>$out[$child],...$select,...(empty($out[$child]['embedded'])?['page'=>true]:[])]:null);
-            if($out[$key]['subview']===null)unset($out[$key]['subview']);
+            if(isset($resolved[$key])||$out[$key]['kind']!=='list'||!isset($out[$key]['options']['subview']['child']))return;
+            ['child'=>$child,'field'=>$field]=$out[$key]['options']['subview'];$select=($out[$key]['options']['subview']['select']??true)?[]:['select'=>false];
+            if($child!==$key&&isset($out[$child])&&!in_array($child,$path,true))$resolve($child,[...$path,$key]);
+            $subview=$child===$key?['resource'=>$out[$key]['resource'],'field'=>$field,'shared'=>true,...$select]
+                :(isset($out[$child])?['resource'=>$out[$child]['resource'],'field'=>$field,'view'=>$out[$child],...$select,...($this->registry->embedded($child)?[]:['page'=>true])]:null);
+            if($subview===null)unset($out[$key]['options']['subview']);else $out[$key]['options']['subview']=$subview;
             $resolved[$key]=true;
         };
         foreach(array_keys($out) as $key)$resolve((string)$key);
-        return array_values(array_filter($out,static fn($view)=>empty($view['embedded'])));
+        return array_values(array_filter($out,fn($view)=>!$this->registry->embedded($view['id'])));
     }
-    /** Fields a client fills: a delete's `preview` switch is a protocol flag of the usage confirmation, not a form field. */
-    private function formFields(Action $action):array
-    {
-        return array_values(array_filter($action->fields,static fn($f)=>!($action->name==='delete'&&$f->name==='preview')));
-    }
-    private function fieldsMetadata(Context $ctx,Action $action):array { return array_map(fn($f)=>$this->fieldMetadata($ctx,$f),$this->formFields($action)); }
-    /**
-     * Field metadata; a `file` field adds the resolved folder id, the upload policy for its classes, whether the actor
-     * may upload there (`can_upload`) and choose from it (`can_choose`: `list` on the mount, the picker's read); the folder
-     * path, storage and rules stay server-side.
-     */
-    public function fieldMetadata(Context $ctx,Field $field):array
-    {
-        $out=$field->metadata($ctx);
-        if($field->file===null)return $out;
-        $source=$this->registry->mediaSource($field->file['resource']);
-        $folder=$source instanceof FileSource?$source->folder($field->file['mount'],$field->file['folder']??''):null;
-        return [...$out,'file'=>[...$out['file'],'folder_id'=>$folder,'policy'=>$source instanceof FileSource?$source->uploadPolicy($field->file['accept']):null,
-            'can_upload'=>$folder!==null&&$source->allows($ctx,'upload',$field->file['mount']),'can_choose'=>$folder!==null&&$source->allows($ctx,'list',$field->file['mount'])]];
-    }
-    /** `usages: true` on a delete with registered UsageProviders (the client previews first); `upload`: the policy metadata of an UploadPolicy action. */
-    private function actionExtras(Action $action):array
-    {
-        return [...($action->name==='delete'&&$this->registry->usageProviders($action->resource)?['usages'=>true]:[]),...($action->upload instanceof UploadPolicy?['upload'=>$action->upload->metadata()]:[])];
-    }
-    /** Some allow rule exists and no whole-action deny for all objects; object checks still run per request. */
-    private function offered(Identity $actor,string $resource,string $name):bool
-    {
-        $rules=$this->acl->rules($actor->id,$resource,$name,'ui');
-        return array_filter($rules,static fn($r)=>$r['effect']==='allow' && $r['field_name']==='') && !array_filter($rules,static fn($r)=>$r['effect']==='deny' && $r['scope']==='all' && $r['field_name']==='');
-    }
-    /** File manager metadata: offered actions and only the mounts whose tree the actor may read. */
-    private function fileView(Identity $actor,Context $ctx,array $view):?array
-    {
-        $actions=[];
-        foreach($view['actions'] as $name){
-            $a=$this->registry->get($view['resource'],$name);
-            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write,'get'=>$a->get,'confirm'=>$a->confirm?array_filter(['message'=>$a->confirm['message'],'title'=>$a->confirm['title']??null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>isset($a->confirm['confirm_label'])?\Blade\I18n\Translator::text($a->confirm['confirm_label']):null,'cancelLabel'=>isset($a->confirm['cancel_label'])?\Blade\I18n\Translator::text($a->confirm['cancel_label']):null],static fn($v)=>$v!==null):null,'fields'=>$this->fieldsMetadata($ctx,$a),...$this->actionExtras($a)];
-        }
-        $mounts=array_values(array_filter($view['files']['mounts'],fn($m)=>$this->acl->allows($actor->id,$view['resource'],'tree','ui',$m['id'])));
-        if(!$actions||!$mounts)return null;
-        return ['kind'=>'files','resource'=>$view['resource'],'title'=>$view['title'],'group'=>$view['group'],'icon'=>$view['icon'],'desktopOnly'=>$view['desktopOnly'],'singleton'=>false,'columns'=>[],'filters'=>[],'actions'=>$actions,'files'=>[...$view['files'],'mounts'=>$mounts]];
-    }
-    /** Diagram editor metadata: offered actions only; the space must be readable through `list`. */
-    private function diagramView(Identity $actor,Context $ctx,array $view):?array
-    {
-        $actions=[];
-        foreach($view['actions'] as $name){
-            $a=$this->registry->get($view['resource'],$name);
-            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write,'confirm'=>$a->confirm?array_filter(['message'=>$a->confirm['message'],'title'=>$a->confirm['title']??null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>$a->confirm['confirm_label']??null],static fn($v)=>$v!==null):null,'fields'=>array_map(static fn($f)=>$f->metadata($ctx),$a->fields)];
-        }
-        if(!array_filter($actions,static fn($a)=>$a['name']==='list'))return null;
-        return ['kind'=>'diagram','resource'=>$view['resource'],'title'=>$view['title'],'group'=>$view['group'],'icon'=>$view['icon'],'desktopOnly'=>$view['desktopOnly'],'singleton'=>false,'columns'=>[],'filters'=>[],'actions'=>$actions,'diagram'=>$view['diagram']];
-    }
-    /** Calendar metadata: offered actions, readable extra fields and the day action only if offered; `events` is required. */
-    private function calendarView(Identity $actor,Context $ctx,array $view):?array
-    {
-        $actions=[];
-        foreach($view['actions'] as $name){
-            $a=$this->registry->get($view['resource'],$name);
-            if($this->offered($actor,$a->resource,$name))$actions[]=['name'=>$name,'label'=>$a->label,'icon'=>$a->icon,'write'=>$a->write];
-        }
-        if(!array_filter($actions,static fn($a)=>$a['name']==='events'))return null;
-        $space=$view['calendar']['space'];
-        $fields=array_values(array_filter($view['fields'],fn($f)=>$this->acl->fieldAllowed($actor->id,$view['resource'],'events','ui',$space,null,$f->name)));
-        $day=$view['calendar']['day_action'];
-        if($day&&!$this->offered($actor,$day['resource'],$day['action']))$day=null;
-        return ['kind'=>'calendar','resource'=>$view['resource'],'title'=>$view['title'],'group'=>$view['group'],'icon'=>$view['icon'],'desktopOnly'=>$view['desktopOnly'],'singleton'=>false,'columns'=>[],'filters'=>[],'actions'=>$actions,
-            'calendar'=>[...array_diff_key($view['calendar'],['space'=>1]),'day_action'=>$day,'fields'=>array_map(fn($f)=>$this->fieldMetadata($ctx,$f),$fields)]];
-    }
+    /** Field metadata of $field for the actor of $ctx (ViewMetadata::field). */
+    public function fieldMetadata(Context $ctx,Field $field):array { return (new ViewMetadata($this->registry))->field($ctx,$field); }
     /** Technical observation; unchanged snapshots do not create business read events. */
     public function observe(Context $ctx,string $resource,array $query,string $version=''):array
     {
         if($ctx->channel!=='ui')throw new Failure('Nem érhető el.',403);
         $this->acl->invalidate();$view=null;
-        foreach($this->registry->views() as $candidate)if($candidate['resource']===$resource)$view=$candidate;
-        if(!$view||($view['kind']??'list')!=='list')throw new Failure('Ismeretlen lista.',404);
+        foreach($this->registry->views() as $candidate)if($candidate->resource===$resource&&$candidate->kind==='list')$view=$candidate;
+        if(!$view)throw new Failure('Ismeretlen lista.',404);
         \Blade\Infrastructure\Transaction::begin($this->db);
         try{
-            if($view['singleton']){
+            if($view->options['singleton']??false){
                 $action=$this->registry->get($resource,'get');$target=($action->resolve)($ctx,'self');
                 if(!$this->acl->allows($ctx->actor->id,$resource,'get','ui',$target['id'],$target['owner']??null))throw new Failure('Nincs hozzáférés.',403);
                 $result=['items'=>[($action->handler)($ctx,$target,[])],'previous'=>null,'next'=>null];
@@ -322,7 +231,7 @@ final class Workspace
                 $ctx=new Context($actor,$channel,$this->acl,$this->db,owner:$owner,tenant:$tenant);
                 $t=$a->resolve?($a->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
                 if(!$this->acl->allows($actor->id,$a->resource,$a->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
-                $fields=array_values(array_filter($this->formFields($a),fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
+                $fields=array_values(array_filter(ViewMetadata::formFields($a),fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
                 $values=$a->formValues?($a->formValues)($ctx,$t):($id!==null?$this->executor->execute($ctx,$a->resource,'get',$id,[]):[]);
                 $this->journal->record($actor->id,'ui',$a->resource,'describe',$id??'','success',tenant:$tenant);
                 echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$this->fieldMetadata($ctx,$f),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;

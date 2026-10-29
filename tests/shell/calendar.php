@@ -51,9 +51,9 @@ $call=fn(string $action,?string $id,array $values=[],string $actor='1')=>$worksp
 $view=fn($actor)=>array_values(array_filter($workspace->views(new Identity($actor,'x')),fn($v)=>$v['resource']==='cal'));
 $full=$view('1')[0];
 check($full['kind']==='calendar'&&array_column($full['actions'],'name')===['events','occurrences','create','update','delete'],'Calendar actions');
-check($full['calendar']['day_action']['action']==='show'&&array_column($full['calendar']['fields'],'name')===['asset_id'],'Day action and fields');
+check($full['options']['day_action']['action']==='show'&&array_column($full['options']['fields'],'name')===['asset_id'],'Day action and fields');
 check(!str_contains(json_encode($full),'"test"'),'Space key stays server-side');
-check(array_column($view('2')[0]['actions'],'name')===['events','occurrences']&&$view('2')[0]['calendar']['fields']===[]&&$view('2')[0]['calendar']['day_action']===null,'Read-only metadata');
+check(array_column($view('2')[0]['actions'],'name')===['events','occurrences']&&$view('2')[0]['options']['fields']===[]&&$view('2')[0]['options']['day_action']===null,'Read-only metadata');
 check($view('3')===[],'No view without rules');
 
 // Writes: series, single event, validation and read-only denial.

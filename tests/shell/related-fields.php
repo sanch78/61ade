@@ -42,7 +42,7 @@ $row = $call('get', $id);
 verify((int)$row['notify'] === 1 && (int)$row['archived'] === 0, 'Default relation and canonical unchecked value');
 $list = $call('list', values: ['mode' => 'dynamic', 'filters' => ['notify' => '1']]);
 verify(count($list['items']) === 1 && $list['items'][0]['revision'] === $row['revision'], 'Derived source filtering and identical object revision');
-$columns = $workspace->views($actor)[0]['columns'];
+$columns = $workspace->views($actor)[0]['options']['columns'];
 verify($columns[2]['type'] === 'checkbox' && $columns[2]['width'] === 120 && $columns[2]['options'][1] === 'On', 'Reusable checkbox/width/choice metadata');
 verify(!str_contains(json_encode($workspace->views($actor)), 'item_preferences'), 'Related storage remains backend-only');
 

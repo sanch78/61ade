@@ -19,7 +19,8 @@ final readonly class Catalogue
 
     public function entries(): array
     {
-        $titles = array_column($this->registry->views(), 'title', 'resource');
+        $titles = [];
+        foreach ($this->registry->views() as $view) if ($view->resource !== null) $titles[$view->resource] = $view->title;
         $out = [];
         foreach ($this->registry->all() as $action) {
             $out[] = [
