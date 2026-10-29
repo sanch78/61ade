@@ -63,7 +63,7 @@ export interface Application {
     readonly fieldTypes: Registry<FieldType>;
     /** Client-side commands: name → handler, placed on view toolbars and record menus (`view.commands`). */
     readonly commands: Registry<ClientCommand>;
-    /** Public component classes, bound to this application (empty until toolkit P3). */
+    /** Public component classes, bound to this application (P3: `ListView`, `RecordForm`, `RecordDetails`, `CommandBar` from C-1). */
     readonly components: Components;
     /** Views offered to the actor (server-filtered bootstrap `views`), in menu order. */
     viewDefinitions(): readonly ViewDefinition[];
@@ -257,7 +257,10 @@ export interface UploadFileInfo {
     action: string;
     target: string | null;
 }
-/** Options of `Uploads.open` (the same shape as `UploadOpenOptions` in `Uploader.ts`). */
+/**
+ * Options of `Uploads.open` (the same shape as `UploadOpenOptions` in `Uploader.ts`). The policy is the target
+ * action's `ActionMetadata.upload` (list views) or a files view's `FileManagerOptions.upload.policy`.
+ */
 export interface UploadOpenOptions {
     /** ACL resource and registered action that receives the files (an action with an `upload` policy). */
     resource: string;
@@ -276,12 +279,17 @@ export interface UploadOpenOptions {
 }
 /**
  * The shared uploader (`uploads` singleton of `Uploader.ts`: chunked, resumable `__upload` transfers, conflict
- * dialog, lower-bar indicator). Progress is reported through `Application.events` (`upload:*`).
+ * dialog, lower-bar indicator), the same one the file manager, list upload commands and `file` fields use (P3 C-2).
+ * Progress is reported through `Application.events` (`upload:*`), for every upload of the page.
  */
 export interface Uploads {
-    /** Shows the upload window for a target; files queued for other targets stay in the queue. */
+    /**
+     * Shows the upload window for a target; files queued for other targets stay in the queue. `files`/`transfer`
+     * queue at once (no second confirmation). Throws `TypeError` for a malformed option (no window opens); the server
+     * checks every file against the action's policy, ACL and handler as for any upload.
+     */
     open(options: UploadOpenOptions): void;
-    /** Reopens the window with its current queue. */
+    /** Reopens the window with its current queue; does nothing before the first `open` of the page. */
     reopen(): void;
 }
 /** Translations (wraps `I18n.ts` `t`/`locale` and the bootstrap `i18n` block). */
@@ -737,7 +745,7 @@ export interface FileManagerOptions {
     preview: string[];
     max_depth: number;
 }
-/** `options` of kind `diagram`: today's `diagram` key (`DiagramEditor.ts` `DiagramConfig`). */
+/** `options` of kind `diagram`: today's `diagram` key (`DiagramView.ts` `DiagramConfig`). */
 export interface DiagramOptions {
     nodeTypes: {
         id: string;
@@ -761,7 +769,7 @@ export interface DiagramOptions {
     maxNodes: number;
     maxLinks: number;
 }
-/** `options` of kind `calendar`: today's `calendar` key (`Calendar.ts` `CalendarConfig`). */
+/** `options` of kind `calendar`: today's `calendar` key (`CalendarView.ts` `CalendarConfig`). */
 export interface CalendarOptions {
     views: ("day" | "week" | "month")[];
     default_view: string;
@@ -875,7 +883,10 @@ export interface ComponentOptions {
 }
 /** A view reference: an offered view id, or a definition the caller already holds. */
 export type ViewReference<Options> = string | ViewDefinition<Options>;
-/** Options of `ListView` (today's `Workspace` constructor arguments as one object). */
+/**
+ * Options of `ListView` (the list's constructor arguments as one object). `view` must be a list view (kind `list`);
+ * anything else throws `TypeError`, as does `compact` without `scope`.
+ */
 export interface ListViewOptions extends ComponentOptions {
     view: ViewReference<ListOptions>;
     /** Nested list limited to `field` = `id` (today's `WorkspaceScope`). */
@@ -897,12 +908,18 @@ export interface ListViewEvents {
     select: {
         row: Row | undefined;
     };
-    /** Double-click/Enter resolved to `target` for `row` (after the activation map). */
+    /**
+     * Double-click/Enter resolved to `target` for `row` (after the activation map and its fallbacks), reported before it
+     * runs; `details` also for a card or tile without a declared target and for the `#` cell.
+     */
     activate: {
         row: Row;
         target: ActivationTarget;
     };
-    /** A create/update/edit saved; `row` is the server's answer. */
+    /**
+     * A form of the list (create, update, a record action with fields, the singleton's Save) or an inline cell/card edit
+     * (`action` `update`) saved; `row` is the server's answer (for an edit: the row with the saved values).
+     */
     saved: {
         action: string;
         row: Row;
@@ -914,13 +931,16 @@ export interface ListViewEvents {
         matched?: number;
     };
 }
-/** The framework list (grid, cards, tiles, filters, forms, live); today's `Workspace`, split in P3 C-1. */
+/**
+ * The framework list (grid, cards, tiles, filters, search, forms, sub-views, live, preferences); the built-in `list`
+ * kind mounts it (`src/components/list`). `destroy` also closes its forms, details and sub-view windows.
+ */
 export interface ListView extends Component<ListViewEvents> {
     editing(): boolean;
     refresh(): void;
     /** The cursor record. */
     selected(): Row | undefined;
-    /** Replaces the filters (validated against the declared filters) and reloads. */
+    /** Replaces the filters (declared filters only; other fields are ignored) and reloads. */
     setFilters(filters: Record<string, string>): void;
 }
 /** Options of `RecordForm`: one action form described by `Server.form`. */
@@ -946,7 +966,11 @@ export interface RecordFormEvents {
 }
 /** A framework action form (validation parity, file fields, field types, Cancel + submit row). */
 export interface RecordForm extends Component<RecordFormEvents> {
-    /** Validates and submits; rejects with `ServerFailure` after showing field errors in the form. */
+    /**
+     * Validates and submits; rejects with `ServerFailure` after showing field errors in the form (or the error dialog).
+     * A client-side validation failure sends nothing and rejects with status 400 and the field errors, the server's own
+     * shape; a declined confirmation (the action's `confirm` from an offered view) rejects with an `AbortError`.
+     */
     submit(): Promise<unknown>;
     values(): Record<string, unknown>;
     dirty(): boolean;
@@ -959,7 +983,7 @@ export interface RecordDetailsOptions extends ComponentOptions {
 }
 /** Read-only record details as the list's `Adatok` command shows them (`recordFields`). */
 export interface RecordDetails extends Component<Record<string, never>> {
-    /** Shows another row (no request) or loads another id. */
+    /** Shows another row (no request) or loads another id (a newer call wins); a failed load shows the error dialog and rejects. */
     show(record: Row | string): Promise<void>;
 }
 /** Options of `FileManager`. */
@@ -988,24 +1012,42 @@ export interface FilePickerApi {
     /** Resolves the chosen file or `null` (Cancel, Escape, abort). */
     pick(options: FilePickerOptions): Promise<MediaDescriptor | null>;
 }
-/** Options of `Calendar`. */
+/** Options of `Calendar` (implemented P3 C-2). */
 export interface CalendarComponentOptions extends ComponentOptions {
+    /**
+     * A calendar view: an offered view id or a held definition of any kind with a `resource`, its `actions` and
+     * `CalendarOptions`. A string that is not offered throws `Error`; a wrong shape throws `TypeError`.
+     */
     view: ViewReference<CalendarOptions>;
 }
-/** Event calendar over Scheduler Standard (`Calendar.ts`; one instance per page). */
+/**
+ * Event calendar over Scheduler Standard (`components/calendar/Calendar.ts` over `CalendarView.ts`), the same class
+ * as the built-in `calendar` kind. Writes go through the view resource's `create`/`update`/`delete`; read-only when
+ * neither `create` nor `update` is offered. One instance per page: constructing a second Calendar before the first
+ * is destroyed throws `Error`.
+ */
 export interface CalendarComponent extends Component<Record<string, never>> {
 }
-/** Options of `DiagramEditor`. */
+/** Options of `DiagramEditor` (implemented P3 C-2). */
 export interface DiagramEditorOptions extends ComponentOptions {
+    /** A diagram view: an offered view id or a held definition with a `resource`, `actions` and `DiagramOptions`. */
     view: ViewReference<DiagramOptions>;
 }
-/** Visual diagram editor (`DiagramEditor.ts`). */
+/**
+ * Visual diagram editor (`components/diagram/DiagramEditor.ts` over `DiagramView.ts`), the same class as the
+ * built-in `diagram` kind. `saved` fires after the open diagram's content was saved; read-only without `save`.
+ */
 export interface DiagramEditorComponent extends Component<{
     saved: Record<string, never>;
 }> {
+    /** `true` while the open diagram has unsaved changes. */
     editing(): boolean;
 }
-/** Media source of `MediaPlayer`. */
+/**
+ * Media source of `MediaPlayer`: a GET-capable action (`app.server.url`, fetched by the element with the session cookie
+ * and HTTP Range requests), a URL the caller owns (same origin or `blob:`), or a Blob the player turns into an object
+ * URL and revokes on `destroy()`.
+ */
 export type MediaSource = {
     resource: string;
     action: string;
@@ -1013,12 +1055,20 @@ export type MediaSource = {
     version?: string;
 } | {
     url: string;
+} | {
+    blob: Blob;
 };
-/** Options of `MediaPlayer` (planned P3 C-3, extracted from `FileManager.openImage/openVideo`). */
+/** Options of `MediaPlayer` (P3 C-3, extracted from the file manager's image viewer and video player). */
 export interface MediaPlayerOptions extends ComponentOptions {
     source: MediaSource;
-    /** MIME type of the source (`image/*`, `video/*`, `audio/*`); decides the element. */
+    /** MIME type of the source (`image/*`, `video/*`, `audio/*`); decides the element. Any other type throws `TypeError`. */
     mime: string;
+    /** Accessible name and image `alt` (plain text; the audio stage shows it); default the localized `Médiatartalom`. */
+    name?: string;
+    /** Plain text appended to the toolbar's dimensions, length and format (the file manager passes the file size). */
+    info?: string;
+    /** The player's toolbar (image zoom/rotation; video/audio loop and speed; the info text). Default true. */
+    toolbar?: boolean;
     /** Native controls (default true). */
     controls?: boolean;
     loop?: boolean;
@@ -1034,22 +1084,31 @@ export interface MediaPlayerEvents {
         width?: number;
         height?: number;
     };
-    /** Playback position, at most every 250 ms while playing and after every `seek`. */
+    /** Playback position, at most every 250 ms while playing, on pause and after every `seek`. */
     position: {
         seconds: number;
     };
     ended: Record<string, never>;
+    /** The source cannot be shown or played; `message` is localized (also shown in the toolbar). */
     error: {
         message: string;
     };
 }
-/** Image, video and audio player with the framework's look and keyboard handling. */
+/**
+ * Image, video and audio player with the framework's look and keyboard handling (media element: Space/K play or
+ * pause, arrows seek 5 s, Home/End; image stage: `+`, `-`, `0`). Media methods do nothing for images.
+ */
 export interface MediaPlayer extends Component<MediaPlayerEvents> {
+    /** Resolves when playback starts; rejects like `HTMLMediaElement.play()` (for example a refused autoplay). */
     play(): Promise<void>;
     pause(): void;
+    /** Clamped to `0 … duration()`; emits `position` when the seek completes. */
     seek(seconds: number): void;
     position(): number;
+    /** Seconds; 0 until the metadata is known and for images. */
     duration(): number;
+    /** Moves the keyboard focus to the media element or the image stage. */
+    focus(): void;
 }
 /**
  * Message between a `SandboxFrame` and its document (`postMessage`, structured clone). `id` is unique per sender
@@ -1125,7 +1184,7 @@ export interface CommandItem {
     /** `spacer` pushes the following items to the right. */
     type?: "button" | "spacer";
 }
-/** Options of `CommandBar`. */
+/** Options of `CommandBar`. Ids are `[A-Za-z0-9_.:-]+` and unique (`blade-command-menu` is reserved); otherwise `TypeError`. */
 export interface CommandBarOptions extends ComponentOptions {
     items: CommandItem[];
 }
