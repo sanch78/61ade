@@ -107,7 +107,7 @@ final class WorkspaceConfiguration
                 'type' => 'string', 'required' => 'boolean', 'max' => 'integer',
                 'options' => 'array', 'secret' => 'boolean',
                 'options_lookup' => 'string', 'options_binding' => 'string',
-                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array',
+                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array', 'editor' => 'string',
             ], '$.fields');
             if (isset($definition['file'])) {
                 Shape::check($definition['file'], ['resource' => 'string', 'mount' => 'string', 'accept' => 'array'], ['folder' => 'string'], '$.fields.'.$definition['name'].'.file');
@@ -140,6 +140,7 @@ final class WorkspaceConfiguration
                 defaultValue: $definition['default'] ?? null,
                 bulk: $definition['bulk'] ?? false,
                 file: $definition['file'] ?? null,
+                editor: $definition['editor'] ?? null,
             );
         }
         return $fields;
@@ -172,7 +173,7 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array',
         ], '$.resources.'.$name.'.view');
         // A string target or an `{field, map}` activation map; Registry::view() validates the targets.
         if (isset($view['activate']) && !is_string($view['activate']) && !is_array($view['activate'])) {
@@ -295,6 +296,7 @@ final class WorkspaceConfiguration
             tiles: $view['tiles'] ?? false,
             activate: is_array($view['activate'] ?? null) ? ['field' => $view['activate']['field'], 'map' => $view['activate']['map']] : ($view['activate'] ?? null),
             id: $id,
+            commands: $view['commands'] ?? [],
         );
     }
 

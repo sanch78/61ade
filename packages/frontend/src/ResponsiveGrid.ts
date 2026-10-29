@@ -5,7 +5,7 @@ import { gridHeader } from "./GridHeaders";
 import { RESERVED, alias, gridEditor, unalias } from "./GridEditing";
 import type { Row } from "./Realtime";
 
-import { escape, recordFields, recordCheckbox, recordIcon, recordMedia, recordSlot, hasSlot, recordImage, optionText, isIcon, isMedia, isImage, mediaOf, presentedFields, thumbnailFailed, derivedOf, derivedText, columnText, withDerived } from "./RecordPresentation";
+import { escape, recordFields, recordCheckbox, recordIcon, recordMedia, recordSlot, hasSlot, imageSlot, optionText, isIcon, isMedia, isImage, mediaOf, presentedFields, thumbnailFailed, derivedOf, derivedText, columnText, withDerived } from "./RecordPresentation";
 type Position={id?:string;offset:number;x:number;y:number};
 export type GridMode="table"|"cards"|"tiles";
 export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;fields?:ViewDefinition["columns"];filters?:{name:string;label:string;type?:string;options?:Record<string,string>}[];details?:(id:string)=>void;marked?:(ids:string[])=>void;edit?:(id:string,field:string,anchor:HTMLElement)=>void;idColumn?:boolean;
@@ -24,7 +24,12 @@ export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSel
   /** A declared activation: double-click and Enter run `open` in cards and tiles too (not the details); the accessible description of what it runs on a card or tile, `undefined` for a record without one. */
   activation?:(row:Row)=>string|undefined;
   /** false: rows never become the cursor record (native selection and key navigation off, no highlight); double-click and Enter open nothing, editable switch cells still save. */
-  select?:boolean};
+  select?:boolean;
+  /**
+   * The record menu (docs/toolkit.md#registries): a context menu on a row, card or tile (right click, the context menu
+   * key, Shift+F10) makes the record the cursor and calls this; true when a menu opened (the browser's own is then suppressed).
+   */
+  menu?:(id:string,event:MouseEvent,anchor:HTMLElement)=>boolean};
 /** Reserved record keys (`RESERVED`) live under their alias in widget data and as Grid column ids, so editors use the alias too. */
 const guard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,key)){copy??={...row};copy[alias(key)]=copy[key];delete copy[key];}return copy??row;};
 const unguard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,alias(key))){copy??={...row};copy[key]=copy[alias(key)];delete copy[alias(key)];}return copy??row;};
@@ -103,9 +108,14 @@ export class ResponsiveGrid {
       ...(isIcon(c)?{htmlEnable:true,template:(_:unknown,row:any)=>recordIcon(c,cell(row,c.id))}:{}),
       // Thumbnail cell: a square box of the row height minus 8 px (32 px at 40).
       ...(isMedia(c)?{htmlEnable:true,editable:false,width:c.width??Math.max(64,rh+24),minWidth:c.minWidth,autoWidth:false,template:(_:unknown,row:any)=>recordMedia(c,unguard(row),"cell")}:{}),
-      ...(isImage(c)?{htmlEnable:true,editable:false,width:c.width??Math.max(64,rh+24),minWidth:c.minWidth,autoWidth:false,template:(_:unknown,row:any)=>recordImage(c,unguard(row),"cell")}:{}),
+      ...(isImage(c)?{htmlEnable:true,editable:false,width:c.width??Math.max(64,rh+24),minWidth:c.minWidth,autoWidth:false,template:(_:unknown,row:any)=>imageSlot(c,unguard(row),"cell")}:{}),
       // Derived media part (`media_of`/`part`): text from the row's `_media`, never sortable, filterable or editable.
       ...(derivedOf(c)?{editable:false,template:(_:unknown,row:any)=>escape(derivedText(c,unguard(row))??"")}:{}),
+      // A registered presentation or field-type display renders the cell; a field type is edited in the framework edit window
+      // (`edit`, the cards' editor), never by the native cell editor.
+      ...(!isMedia(c)&&!isImage(c)&&(c.render||c.fieldType)?{htmlEnable:true,...(c.fieldType?{editable:false}:{}),template:(_:unknown,row:any)=>{
+        const record=unguard(row),html=c.render?c.render(record,"cell"):escape(optionText(c,record[c.id]));
+        return c.fieldType&&c.editable&&record._editable?.includes(c.id)?`<span class="blade-card-edit" data-blade-row="${escape(record.id)}" data-blade-field="${escape(c.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:c.header}))}">${html}</span>`:html;}}:{}),
     }))],rowCss:row=>{const sub=(row as any)[SUBROW],index=this.index.get(String(sub??row.id))??0;return (sub!==undefined?"blade-grid-subrow-row ":"")+(index%2===1?"blade-grid-row-alternate":"");},rowHeight:rh,autoWidth:true,resizable:true,selection:(pick?"row":false) as "row",keyNavigation:keys,htmlEnable:false});
     // Card sub-view button: a native DHTMLX flat button with the child list title and the count when known.
     const subviewButton=(row:Row)=>{const count=(row as any)._subview,caption=options.subview!.label+(count!==undefined&&count!==null?` (${Number(count)})`:"");
@@ -121,7 +131,7 @@ export class ResponsiveGrid {
     const text=columns.filter(c=>!isMedia(c)&&!isImage(c)&&!isIcon(c)&&c.type!=="checkbox"),title=text[0],detail=text[1];
     this.tiles=new DataView(document.createElement("div"),{itemsInRow:1,gap:8,selection:pick,keyNavigation:keys,css:"blade-grid-tiles",template:(item:Row)=>{const row=unguard(item);
       const caption=title?columnText(title,row):String(row.id),line=detail&&(Object.hasOwn(row,detail.id)||derivedOf(detail))?columnText(detail,row):"";
-      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}><div class="blade-grid-tile__media">${media&&(hasSlot(media,row)||!icon||!row[icon.id])?recordSlot(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`}${mark(row)}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${escape(line)}</div>`:""}</article>`;},
+      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}><div class="blade-grid-tile__media">${media&&(hasSlot(media,row)||!icon||!row[icon.id])?recordSlot(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`}${mark(row)}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${detail.render?detail.render(row,"tile"):escape(line)}</div>`:""}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
     const selected=(id:string|number)=>{if(!pick)return;this.selected=this.recordId(String(id));select(this.selected);};
     const markRow=(id:string,event:MouseEvent)=>{
@@ -142,7 +152,7 @@ export class ResponsiveGrid {
     });
     // Native key navigation moves the Grid selection: it is the cursor row.
     this.grid.events.on("afterSelect",(row:any)=>{if(row?.id!==undefined&&this.recordId(String(row.id))!==this.selected)selected(row.id);});
-    this.grid.events.on("cellDblClick",(row:any,column:any)=>{if(!pick)return;selected(row.id);if(row[SUBROW]!==undefined){open();return;}if(column.id===SUBROW)return;if(column.id==="_number"){options.details?.(String(row.id));return;}if(column.id==="_mark"||columns.some(c=>alias(c.id)===column.id&&c.type==="checkbox"&&c.editable&&row._editable?.includes(c.id)))return;if(column.editable&&row._editable?.includes(unalias(String(column.id))))return;open();});
+    this.grid.events.on("cellDblClick",(row:any,column:any)=>{if(!pick)return;selected(row.id);if(row[SUBROW]!==undefined){open();return;}if(column.id===SUBROW)return;if(column.id==="_number"){options.details?.(String(row.id));return;}if(column.id==="_mark"||columns.some(c=>alias(c.id)===column.id&&(c.type==="checkbox"||c.fieldType)&&c.editable&&row._editable?.includes(c.id)))return;if(column.editable&&row._editable?.includes(unalias(String(column.id))))return;open();});
     for(const list of [this.cards,this.tiles]){
       list.selection.events.on("afterSelect",(id:string|number)=>selected(id));
       // DataView arrows move its focus; the selection (cursor) follows it.
@@ -178,6 +188,15 @@ export class ResponsiveGrid {
       if(!anchor||!id)return false;
       event.preventDefault();event.stopPropagation();selected(id);options.edit?.(id,anchor.dataset.bladeField!,anchor);return true;
     };
+    on("contextmenu",(event,target)=>{
+      if(!options.menu||!pick||target.closest("input,textarea,select,[contenteditable],.dhx_grid-header,.dhx_grid-footer"))return;
+      const anchor=target.closest<HTMLElement>("[data-blade-row]")??target.closest<HTMLElement>(".dhx_grid-row"),raw=anchor?.dataset.bladeRow??anchor?.getAttribute("data-dhx-id");
+      if(!anchor||!raw||raw.startsWith(SUBROW))return;
+      const id=this.recordId(raw);
+      if(this.compact)this.list().selection.add(id);else (this.grid.selection as any).setCell(id);
+      if(this.selected!==id)selected(id);
+      if(options.menu(id,event as MouseEvent,anchor))event.preventDefault();
+    });
     on("click",(event,target)=>{
       if(edit(event)||!options.rowSelection)return;
       if(target.closest("input,textarea,select,.blade-card-edit"))return;

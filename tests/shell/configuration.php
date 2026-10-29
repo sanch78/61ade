@@ -207,6 +207,21 @@ try {
     $broken['resources']['projects']['view']['subview']['embed'] = true;
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
     rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Page activation over an embedded child accepted');
+    // Registries (docs/toolkit.md#registries): `view.commands` and a field `editor` are dotted project names.
+    unset($broken['resources']['projects']['view']['activate']);
+    $broken['resources']['projects']['view']['commands'] = ['demo.copy-text'];
+    $broken['resources']['projects']['fields'][0]['editor'] = 'demo.rating';
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    $registryWorkspace = WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true);
+    $registryViews = array_column($registryWorkspace->registry->views(), null, 'resource');
+    $editorField = $registryWorkspace->registry->fields('projects')[$broken['resources']['projects']['fields'][0]['name']];
+    verify($registryViews['projects']->options['commands'] === ['demo.copy-text'] && $editorField->editor === 'demo.rating', 'JSON view commands and field editor');
+    foreach ([['view', 'commands', ['copy']], ['view', 'commands', 'demo.copy'], ['field', 'editor', 'rating'], ['field', 'editor', 7]] as [$where, $key, $value]) {
+        $invalid = $broken;
+        if ($where === 'view') $invalid['resources']['projects']['view'][$key] = $value; else $invalid['resources']['projects']['fields'][0][$key] = $value;
+        file_put_contents($directory.'/broken-module.json', json_encode($invalid, JSON_THROW_ON_ERROR));
+        rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Invalid JSON '.$key.' accepted: '.json_encode($value));
+    }
     unlink($directory.'/broken-module.json');
     // Toolkit views (docs/toolkit.md#views): `view.id`, the activation map and module-level `views` of project kinds.
     $toolkit = [
