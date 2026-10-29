@@ -24,7 +24,7 @@ $languages = blade_demo_languages();
 
 // Business modules: declarative JSON with explicitly registered handlers, plus one PHP-registered resource.
 require_once __DIR__.'/signage.php';
-$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json', __DIR__.'/modules/catalog.json'], static fn() => [
+$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json', __DIR__.'/modules/catalog.json', __DIR__.'/modules/shelves.json'], static fn() => [
     ...blade_demo_signage_bindings(),
     'tasks.complete' => static function (Context $ctx, array $target): array {
         $ctx->db->prepare("UPDATE demo_tasks SET status = 'done' WHERE id = ?")->execute([$target['id']]);
@@ -37,6 +37,13 @@ $workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', 
         [$status, $notify] = $query->fetch(PDO::FETCH_NUM) ?: ['', 1];
         if ($status === 'progress' && !(int) $notify) throw new Failure('Javítsd a megjelölt mezőket.', 400, ['notify' => 'Folyamatban lévő feladatnál nem kapcsolható ki.']);
         return [];
+    },
+    // Declared activation (view.activate): double-click/Enter on a shelf item runs this record action.
+    'shelves.stock' => static function (Context $ctx, array $target): array {
+        $query = $ctx->db->prepare('SELECT title, quantity FROM demo_shelf_items WHERE id = ?');
+        $query->execute([$target['id']]);
+        [$title, $quantity] = $query->fetch(PDO::FETCH_NUM) ?: ['', 0];
+        return ['reveal' => ['label' => 'Készlet', 'value' => $title.': '.(int) $quantity.' db', 'severity' => 'neutral']];
     },
     // Dialog showcase: each action asks for confirmation (Action `confirm`) and then acknowledges (`reveal` + severity).
     'tasks.dialog_neutral' => static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Információ', 'value' => 'A művelet lefutott.', 'note' => 'Semleges nyugtázás: egyetlen Rendben gomb.', 'severity' => 'neutral']],

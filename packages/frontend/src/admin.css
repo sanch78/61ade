@@ -48,9 +48,11 @@ body,
   background: var(--dhx-background-primary);
   overflow: hidden;
 }
+.blade-grid-cards .dhx_dataview-item { transition: border-color .15s ease, box-shadow .15s ease; }
+/* Outer rings only: inset marks would be covered by full-bleed media. */
 .blade-grid-cards .dhx_dataview-item--selected {
   border-color: var(--dhx-border-color-focused);
-  box-shadow: inset 3px 0 var(--dhx-border-color-focused);
+  box-shadow: 0 0 0 1px var(--dhx-border-color-focused), 0 4px 14px color-mix(in srgb, var(--dhx-border-color-focused) 22%, transparent);
 }
 .blade-grid-card { padding: 14px 16px; min-width: 0; }
 .blade-grid-card__id { color: var(--dhx-font-color-additional); font-size: 12px; margin-bottom: 10px; }
@@ -93,7 +95,14 @@ body,
 }
 .blade-grid-tiles .dhx_dataview-item--selected { border-color: var(--dhx-border-color-focused); box-shadow: inset 0 0 0 1px var(--dhx-border-color-focused); }
 /* The cursor record keeps a visible ring in every theme, also after keyboard moves. */
-:is(.blade-grid-cards, .blade-grid-tiles) .dhx_dataview-item--focus { outline: 2px solid var(--dhx-border-color-focused); outline-offset: 1px; }
+:is(.blade-grid-cards, .blade-grid-tiles) .dhx_dataview-item--focus {
+  outline: none;
+  border-color: var(--dhx-border-color-focused);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dhx-border-color-focused) 35%, transparent);
+}
+:is(.blade-grid-cards, .blade-grid-tiles) .dhx_dataview-item--focus.dhx_dataview-item--selected {
+  box-shadow: 0 0 0 1px var(--dhx-border-color-focused), 0 0 0 4px color-mix(in srgb, var(--dhx-border-color-focused) 30%, transparent);
+}
 .blade-grid-views .dhx_grid-selected-row { box-shadow: inset 0 0 0 2px var(--dhx-border-color-focused); }
 .blade-grid-tile { display: flex; flex-direction: column; min-width: 0; height: 100%; }
 .blade-grid-tile--marked { background: color-mix(in srgb, var(--dhx-color-primary) 14%, transparent); box-shadow: inset 0 0 0 2px var(--dhx-color-primary); }
@@ -128,6 +137,8 @@ body,
 /* Declared list search: its own native Toolbar input beside the command bar. */
 .blade-search-cell .dhx_navbar { padding: 4px 8px 4px 8px; }
 .blade-search-cell .dhx_toolbar__item, .blade-search-cell .dhx_toolbar__input { flex: 1; width: 100%; min-width: 0; }
+/* Matches the vendor :first-child/:last-child margin rule (0,3,0); its 12px margin pushed the input past the cell. */
+.blade-search-cell .dhx_toolbar__item .dhx_form-group { margin: 0; }
 
 /* Common Grid affordances; vendor stylesheet remains unchanged. */
 .blade-grid-editable .dhx_grid-header-cell-text::after { content: "✎"; margin-left: .35em; }

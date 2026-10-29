@@ -27,9 +27,9 @@ const actionIcon=(action:ActionDefinition)=>action.icon??ACTION_ICONS[action.nam
 /** Protocol values a command sends itself; an action with only these fields runs without a form. */
 const technical=(field:FieldDefinition)=>field.name==="revision"||field.name==="preview"&&field.type==="checkbox";
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
+export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;activate?:string;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
   /** Records expand to the `resource` list filtered to `field` = record id: its own `view`, or this view when `shared`. */
-  subview?:{resource:string;field:string;shared?:boolean;view?:ViewDefinition;select?:boolean}};
+  subview?:{resource:string;field:string;shared?:boolean;view?:ViewDefinition;select?:boolean;page?:boolean}};
 /**
  * A nested (sub-view) instance: its list is limited to `field` = `id` and new records get that value. With
  * `shared` it has no toolbar of its own; its cursor record is reported to the parent, whose toolbar acts on it.
@@ -127,7 +127,8 @@ export class Workspace {
   /** Open full sub-view windows. */
   private windows=new Set<Workspace>();
 
-  constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,private channel:LiveChannel,private user="",private scope?:WorkspaceScope){
+  /** $preset: filters the view opens with (a navigation, `activate: 'page'`); declared filters only, removable like any other. */
+  constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,private channel:LiveChannel,private user="",private scope?:WorkspaceScope,preset:Record<string,string>={}){
     // A nested view: the scope field is implied (no column, filter or input), one grid region, overlay forms.
     if(scope)view=this.view={...view,columns:view.columns.filter(column=>column.id!==scope.field),filters:view.filters.filter(filter=>filter.name!==scope.field),sortable:(view.sortable??[]).filter(field=>field!==scope.field),layout:{formMode:"overlay",tree:{rows:[{id:"grid"}]}}};
     if(scope?.compact)view=this.view={...view,filters:[],search:undefined,rowNumbers:false,selection:false,rowSelection:false,tiles:false,columns:view.columns.map(column=>({...column,secondary:false}))};
@@ -158,9 +159,8 @@ export class Workspace {
         this.selected=id;this.delegated=undefined;this.capabilities();
         scope?.shared?.(this,this.selectedRow());
       },()=>{
-        const action=view.actions.find(a=>a.name==="update");
-        if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);
-        else if(this.selected)void this.showResults(this.selected);
+        const row=this.selectedRow();
+        if(row)this.activation(row).run();else if(this.selected)void this.showResults(this.selected);
       },direction=>{if(!this.rendering&&!this.busy&&!this.disposed)void this.more(direction);},(cards,mobile,mode)=>{
         if(cards&&(view.sortable??[]).length)this.commands.show("blade-sort");else this.commands.hide("blade-sort");
         this.commands.data.update("blade-view",{value:mode==="tiles"?t("Nézet: Csempék"):cards?t("Nézet: Kártyák"):t("Nézet: Táblázat"),icon:mode==="tiles"?"dxi dxi-border-all":cards?"dxi dxi-view-grid":"dxi dxi-table-check"});
@@ -169,7 +169,7 @@ export class Workspace {
         if(mode==="cards")this.commands.disable("blade-cards");else this.commands.enable("blade-cards");
         if(mode==="table"||mobile)this.commands.disable("blade-table");else this.commands.enable("blade-table");
         if(tiles){if(mode==="tiles")this.commands.disable("blade-tiles");else this.commands.enable("blade-tiles");}
-      },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,subview:scope?.compact?undefined:this.subviewOptions(),select:scope?.select,...(scope?.compact?{table:true,idColumn:false}:{}),details:id=>void this.showResults(id),marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field)});
+      },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,subview:scope?.compact?undefined:this.subviewOptions(),select:scope?.select,...(scope?.compact?{table:true,idColumn:false}:{}),activation:view.activate?row=>t("Megnyitás: {target}",{target:this.activation(row).label}):undefined,details:id=>void this.showResults(id),marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field)});
       this.sortLabel();
       // Grid column ids of reserved record keys are aliases (ResponsiveGrid): headers speak in column ids, requests in fields.
       this.gridHeaders=new GridHeaders(this.grid.table,view.columns.map(column=>({...column,id:alias(column.id)})),(view.sortable??[]).map(alias),sort=>void this.changeSort({...sort,field:unalias(sort.field)}),view.filters.map(filter=>({...filter,name:alias(filter.name)})),(field,value)=>void this.changeFilter(unalias(field),value));
@@ -185,6 +185,7 @@ export class Workspace {
       if(this.hasRegion("filter"))this.mountFilters();
     }
     window.addEventListener("resize",this.resize);this.resizeFilters();
+    for(const [field,value] of Object.entries(preset))if(value!=="")this.setFilter(field,value);
     this.live=new Realtime(channel,view.resource,data=>void this.changed(data),()=>{},()=>this.revoke());
     this.capabilities();void this.load();
   }
@@ -280,14 +281,31 @@ export class Workspace {
       return {destroy:()=>{if(this.previews.get(id)===preview)this.previews.delete(id);preview.destroy();}};
     }};
   }
+  /**
+   * Double-click and Enter on $row: the declared `activate` command as the toolbar runs it (`subview`: the full child
+   * list, also at a count of 0; `page`: the child view's page filtered to the record, the window where that page or
+   * its field filter is not offered or in a scoped view; an action the record offers), otherwise the update form or
+   * the details. A declared activation the record or actor is not offered opens the details; a compact preview opens
+   * no child window.
+   */
+  private activation(row:Row):{label:string;run:()=>void}{
+    const name=this.view.activate,sub=this.view.subview,child=sub?.shared?this.view:sub?.view,id=String(row.id);
+    // Only a menu page navigates: a window (a scoped view) would stay open over the new page.
+    if(name==="page"&&sub?.page&&sub.view?.filters.some(filter=>filter.name===sub.field)&&!this.scope)
+      return {label:sub.view.title,run:()=>{location.hash=new URLSearchParams({feature:sub.resource,["filter."+sub.field]:id}).toString();}};
+    if((name==="subview"||name==="page")&&sub&&child&&!this.scope?.compact)return {label:sub.shared?t("Alelemek"):child.title,run:()=>this.openRecord(id,row,true)};
+    const action=name==="details"||name==="subview"||name==="page"?undefined:this.view.actions.find(a=>a.name===(name??"update"));
+    if(action&&row._actions?.includes(action.name))return {label:action.label,run:()=>void this.open(action)};
+    return {label:t("Adatok"),run:()=>void this.showResults(id)};
+  }
   /** Toolbar command of a view with a sub-view: the full child list of the record the toolbar acts on. */
   private openSubview():void{const row=this.subviewTarget();if(row)this.openRecord(String(row.id),row);}
   /** The record whose child list the toolbar command opens: a selected child only in a hierarchy. */
   private subviewTarget():Row|undefined{return this.view.subview?.shared?this.target():this.selectedRow();}
-  /** The full child list of one record (toolbar command, card button); nothing for a record without sub-items. */
-  private openRecord(id:string,row=this.rows.find(r=>String(r.id)===id)):void{
+  /** The full child list of one record (toolbar command, card button); nothing for a record without sub-items unless $empty (activation). */
+  private openRecord(id:string,row=this.rows.find(r=>String(r.id)===id),empty=false):void{
     const sub=this.view.subview,child=sub?.shared?this.view:sub?.view;
-    if(!sub||!child||!row||!hasSubview(row))return;
+    if(!sub||!child||!row||!(empty||hasSubview(row)))return;
     this.openFull(child,sub.field,id,String(row[this.view.columns[0]?.id]??id),()=>this.previews.get(id)?.refresh());
   }
   /** The full child view of one record (every action) in a modal window; full screen on a phone. */
@@ -297,6 +315,8 @@ export class Workspace {
       width:mobile?innerWidth:Math.min(1100,innerWidth-24),height:mobile?innerHeight:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:!mobile,movable:!mobile});
     const full=new Workspace(document.createElement("div"),child,this.csrf,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})});
     dialog.attach(full.layout);dialog.show();this.windows.add(full);
+    // Opened by a double-click or Enter, the parent Grid would keep the focus: the window takes it (Escape closes it).
+    void awaitRedraw().then(()=>{const root=dialog.getContainer()?.closest<HTMLElement>(".dhx_popup");if(root&&!root.contains(document.activeElement))root.focus();});
     dialog.events.on("afterHide",()=>{this.windows.delete(full);full.destroy();void awaitRedraw().then(()=>dialog.destructor());if(!this.disposed)closed();});
   }
   /** The record the toolbar acts on: the cursor record of a shared sub-view, otherwise this view's. */
@@ -358,14 +378,7 @@ export class Workspace {
     void awaitRedraw().then(()=>dialog.destructor());
   }
   private async changeFilter(field:string,value:string):Promise<void>{
-    if(this.disposed)return;
-    const definition=this.view.filters.find(filter=>filter.name===field);if(!definition)return;
-    if(value)this.filters[field]=value;else delete this.filters[field];
-    if(this.filterForm){
-      const values=this.filterForm.getValue() as Record<string,string>;
-      values[field]=value&&["select","checkbox"].includes(definition.type)?"eq:"+value:value;
-      this.filterForm.setValue(values);
-    }
+    if(this.disposed||!this.setFilter(field,value))return;
     await this.load();
   }
   private call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{return this.request(this.view.resource,action,id,values,signal);}
@@ -423,6 +436,17 @@ export class Workspace {
     if(await this.load()){this.preferences.setSort(this.sort);}else if(operation===this.epoch&&!this.disposed){this.sort=previous;this.sortLabel();this.headerSort(previous);this.watch();}
   }
   private headerSort(sort:Sort):void{this.gridHeaders?.setSort({...sort,field:alias(sort.field)});}
+  /** One declared filter's value in the request and the filter panel; false for a field the view cannot filter. */
+  private setFilter(field:string,value:string):boolean{
+    const definition=this.view.filters.find(filter=>filter.name===field);if(!definition)return false;
+    if(value)this.filters[field]=value;else delete this.filters[field];
+    if(this.filterForm){
+      const values=this.filterForm.getValue() as Record<string,string>;
+      values[field]=value&&["select","checkbox"].includes(definition.type)?"eq:"+value:value;
+      this.filterForm.setValue(values);
+    }
+    return true;
+  }
   private headerFilters():void{this.gridHeaders?.setFilterValues(Object.fromEntries(Object.entries(this.filters).map(([field,value])=>[alias(field),value])));}
   private sortLabel():void{
     this.commands.data.update("blade-sort",{value:t("Rendezés: ")+escape(this.view.columns.find(column=>column.id===this.sort.field)?.header??(this.sort.field==="id"?"ID":this.sort.field))+(this.sort.direction==="asc"?" ↑":" ↓")});

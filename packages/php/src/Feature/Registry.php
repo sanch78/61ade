@@ -61,15 +61,24 @@ final class Registry
             if(isset($fields[$column['id']])||!$source||$source->media()===null||!in_array($column['part']??null,['type','resolution','duration'],true))throw new \InvalidArgumentException('Invalid derived media column.');
         }
     }
-    /** $rowHeight (32–160 px, default 40), $tileMinWidth (120–480 px) and $tiles are list presentation only; absent keys keep the client defaults. */
-    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false): void
+    /**
+     * $rowHeight (32–160 px, default 40), $tileMinWidth (120–480 px) and $tiles are list presentation only; absent keys keep the client defaults.
+     * $activate: what double-click and Enter on a record run, as the toolbar command of that name does: `details`,
+     * `subview` (the full child list of that record, also at a count of 0), `page` (the child view's own page, kept by
+     * `subview(…, embed: false)`, with its sub-view field filtered to the record; a window where the page is not
+     * available) or a record action of $actions (not
+     * `create`, `get`, an upload or a collection action). Absent: the update form, otherwise the details. An activation
+     * the record or actor is not offered (ACL, `_actions`, no resolved sub-view) opens the details.
+     */
+    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, ?string $activate = null): void
     {
         if($icon!==null&&!preg_match('/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/D',$icon))throw new \InvalidArgumentException('Invalid view icon.');
         if(($rowHeight!==null&&($rowHeight<32||$rowHeight>160))||($tileMinWidth!==null&&($tileMinWidth<120||$tileMinWidth>480)))throw new \InvalidArgumentException('Invalid view presentation.');
         foreach ($actions as $action) $this->get($resource,$action);
+        if($activate!==null&&($singleton||!in_array($activate,['details','subview','page',...$actions],true)||(!in_array($activate,['details','subview','page'],true)&&(in_array($activate,['create','get'],true)||($known=$this->get($resource,$activate))->collection||$known->upload!==null))))throw new \InvalidArgumentException('Invalid view activation.');
         $this->checkColumns($resource,$columns);
         $layout??=new ViewLayout();
-        $this->views[$resource]=[...compact('resource','title','columns','actions','singleton','group','layout','rowNumbers','selection','icon','desktopOnly','rowSelection'),...array_filter(['rowHeight'=>$rowHeight,'tileMinWidth'=>$tileMinWidth,'tiles'=>$tiles?:null],static fn($v)=>$v!==null)];
+        $this->views[$resource]=[...compact('resource','title','columns','actions','singleton','group','layout','rowNumbers','selection','icon','desktopOnly','rowSelection'),...array_filter(['rowHeight'=>$rowHeight,'tileMinWidth'=>$tileMinWidth,'tiles'=>$tiles?:null,'activate'=>$activate],static fn($v)=>$v!==null)];
     }
     /**
      * Sub-view: every record of the $resource list expands (grid sub-row or card) to the $child list filtered to
@@ -89,6 +98,8 @@ final class Registry
         if(!$parent||!$view||isset($parent['kind'])||isset($view['kind'])||$parent['singleton']||$view['singleton'])throw new \InvalidArgumentException('Sub-views need two list views.');
         $known=$this->fields($child)[$field]??null;
         if(!$known||!in_array($known->type,['select','number','text'],true)||$known->secret||($child===$resource&&$known->type!=='select'))throw new \InvalidArgumentException('Invalid sub-view.');
+        // `activate: 'page'` needs a child view with its own page: a different resource kept in the menu.
+        if(($parent['activate']??null)==='page'&&($child===$resource||$embed))throw new \InvalidArgumentException('A page activation needs a sub-view with embed: false.');
         $this->views[$resource]['subview']=['child'=>$child,'field'=>$field,...($select?[]:['select'=>false])];
         if($child!==$resource&&$embed)$this->views[$child]['embedded']=true;
     }

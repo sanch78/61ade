@@ -88,7 +88,8 @@ final class Workspace
             if($search=$list->listSource?->searchMetadata($ctx))$view['search']=$search;
             $out[$view['resource']]=\Blade\I18n\Translator::presentation($view);
         }
-        // A sub-view needs its child view offered to the actor; an embedded child has no menu entry of its own.
+        // A sub-view needs its child view offered to the actor; an embedded child has no menu entry of its own, any
+        // other different child view carries `page` (its own page, the target of `activate: 'page'`).
         // Resolved depth first, so a child view carries its own (resolved) sub-view; a cycle ends at the repeat.
         $resolved=[];
         $resolve=function(string $key,array $path=[])use(&$resolve,&$out,&$resolved):void{
@@ -96,7 +97,7 @@ final class Workspace
             ['child'=>$child,'field'=>$field]=$out[$key]['subview'];$select=($out[$key]['subview']['select']??true)?[]:['select'=>false];
             if($child!==$out[$key]['resource']&&isset($out[$child])&&!in_array($child,$path,true))$resolve($child,[...$path,$key]);
             $out[$key]['subview']=$child===$out[$key]['resource']?['resource'=>$child,'field'=>$field,'shared'=>true,...$select]
-                :(isset($out[$child])?['resource'=>$child,'field'=>$field,'view'=>$out[$child],...$select]:null);
+                :(isset($out[$child])?['resource'=>$child,'field'=>$field,'view'=>$out[$child],...$select,...(empty($out[$child]['embedded'])?['page'=>true]:[])]:null);
             if($out[$key]['subview']===null)unset($out[$key]['subview']);
             $resolved[$key]=true;
         };

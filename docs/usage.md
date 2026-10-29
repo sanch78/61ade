@@ -258,6 +258,14 @@ search box. A text field of static image file names shows as an image with
 `column.presentation: "image"` and `image_base`; the images are the
 application's own static files, outside every ACL.
 
+A list view's [`activate`](workspaces.md#activation) (JSON `view.activate`)
+declares what double-click and Enter run on a record in table, cards and
+tiles: `details`, `subview` (the record's full child list, also when empty),
+`page` (the child view's own page filtered to the record) or one of the
+view's record actions, as its toolbar command runs it; an
+activation the actor or record is not offered opens the details. Custom
+behavior is a registered action handler, not browser code.
+
 Any view (list, singleton or file manager) can request the generic
 `desktopOnly` option (JSON `desktop_only`): below 768 px the shell shows a
 centred desktop-only notice instead of the view ([shell](shell.md#desktop-only-views)).

@@ -367,7 +367,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | ACL/action/API permissions | PHP `access.php`, `permissions.php`, `api-keys.php`; shell `admin.spec.cjs` or the relevant `demo.spec.cjs` selector |
 | Accounts/admin | PHP `admin.php`, `permissions.php`; shell `admin.spec.cjs` |
 | Tenancy (tenants, scoped resources, keys) | PHP `tenancy.php`, `configuration.php`, `api-keys.php`; shell `tenancy.spec.cjs`, `admin.spec.cjs` |
-| Sub-views (expandable rows/cards) | PHP `tenancy.php`, `configuration.php`; shell `subview.spec.cjs`, `subview-demos.spec.cjs`, `tenancy.spec.cjs` |
+| Sub-views (expandable rows/cards), record activation | PHP `tenancy.php`, `configuration.php`; shell `subview.spec.cjs`, `subview-demos.spec.cjs`, `tenancy.spec.cjs`, `activation.spec.cjs` |
 | Authentication/OAuth/mail | PHP `authentication.php`, `oauth.php`, `mail.php`; shell `authentication.spec.cjs`, `demo.spec.cjs` with `--grep` for the affected flow |
 | JSON/env/validation | PHP `configuration.php`, `validation.php`, affected `contracts.php` |
 | Inline/related fields | PHP `grid-edit.php`, `related-fields.php`; shell `grid-edit.spec.cjs`, `related-fields.spec.cjs` |

@@ -1,0 +1,187 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: a declared double-click/Enter activation (view.activate).",
+        "covers": "a parent list whose activation opens the record's child list (subview, also for an empty shelf, from table, cards and tiles), a zone list whose activation opens the shelves page filtered to the zone (page), and a child list whose activation runs a registered record action."
+    },
+    "lookups": {
+        "demo_shelf_zones": {
+            "resource": "demo_shelf_zones",
+            "table": "demo_shelf_zones",
+            "key": "id",
+            "label": "title"
+        },
+        "demo_shelves": {
+            "resource": "demo_shelves",
+            "table": "demo_shelves",
+            "key": "id",
+            "label": "title"
+        }
+    },
+    "resources": {
+        "demo_shelf_zones": {
+            "storage": {
+                "table": "demo_shelf_zones",
+                "key": "id"
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 80
+                }
+            ],
+            "view": {
+                "title": "Raktárzónák",
+                "group": "Feature demó",
+                "icon": "dxi dxi-view-dashboard",
+                "tiles": true,
+                "activate": "page",
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update"
+                ],
+                "subview": {
+                    "resource": "demo_shelves",
+                    "field": "zone_id",
+                    "embed": false
+                }
+            }
+        },
+        "demo_shelves": {
+            "storage": {
+                "table": "demo_shelves",
+                "key": "id"
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 80
+                },
+                {
+                    "name": "note",
+                    "label": "Megjegyzés",
+                    "max": 120
+                },
+                {
+                    "name": "zone_id",
+                    "label": "Zóna",
+                    "type": "select",
+                    "options_lookup": "demo_shelf_zones"
+                }
+            ],
+            "view": {
+                "title": "Polcok",
+                "group": "Feature demó",
+                "icon": "dxi dxi-view-grid",
+                "tiles": true,
+                "activate": "subview",
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "note",
+                        "header": "Megjegyzés"
+                    },
+                    {
+                        "id": "zone_id",
+                        "header": "Zóna"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update"
+                ],
+                "subview": {
+                    "resource": "demo_shelf_items",
+                    "field": "shelf_id"
+                }
+            }
+        },
+        "demo_shelf_items": {
+            "storage": {
+                "table": "demo_shelf_items",
+                "key": "id"
+            },
+            "fields": [
+                {
+                    "name": "shelf_id",
+                    "label": "Polc",
+                    "type": "select",
+                    "required": true,
+                    "options_lookup": "demo_shelves"
+                },
+                {
+                    "name": "title",
+                    "label": "Tétel",
+                    "required": true,
+                    "max": 80
+                },
+                {
+                    "name": "quantity",
+                    "label": "Darab",
+                    "type": "number",
+                    "column": {
+                        "width": 100,
+                        "align": "right"
+                    }
+                }
+            ],
+            "operations": {
+                "delete": true
+            },
+            "view": {
+                "title": "Polc tételei",
+                "group": "Feature demó",
+                "activate": "stock",
+                "columns": [
+                    {
+                        "id": "shelf_id",
+                        "header": "Polc"
+                    },
+                    {
+                        "id": "title",
+                        "header": "Tétel"
+                    },
+                    {
+                        "id": "quantity",
+                        "header": "Darab"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update",
+                    "delete",
+                    "stock"
+                ]
+            }
+        }
+    },
+    "actions": [
+        {
+            "resource": "demo_shelf_items",
+            "name": "stock",
+            "label": "Készlet",
+            "handler": "shelves.stock",
+            "target_resource": "demo_shelf_items",
+            "write": false,
+            "icon": "dxi dxi-information-outline",
+            "channels": [
+                "ui"
+            ]
+        }
+    ]
+}

@@ -184,6 +184,17 @@ $inA=(int)$db->query("SELECT COUNT(*) FROM tasks WHERE tenant_id='$a' AND projec
 check($inA>=2 && $projects['1']===$inA && $projects['2']===0,'Project task counts within the tenant');
 check(!array_filter($run($ctxA,'projects','list','',['limit'=>50])['items'],fn($row)=>isset($row['_subview_open'])),'A fully counted child marks no record as always expandable');
 check(!isset($run($ctxA,'notices','list','',['limit'=>10])['items'][0]['_subview']),'No _subview without a sub-view');
+// A child kept in the menu is a page (`activate: 'page'` target); an embedded child is not.
+$projectsView=array_values(array_filter($workspace->views($one,$a),fn($v)=>$v['resource']==='projects'))[0];
+check(($projectsView['subview']['page']??null)===true && !isset($tenantView['subview']['page']),'Only a child with its own menu entry is a page');
+// SqlResource::register() forwards the activation to its view, with Registry::view() validation.
+$activated=new Blade\Feature\Registry();
+(new SqlResource('shelves','shelves','id',[new Field('title','Cím')]))->register($activated,'Polcok',activate:'page');
+(new SqlResource('items','items','id',[new Field('shelf_id','Polc')]))->register($activated,'Tételek',activate:'update');
+check(array_column($activated->views(),'activate','resource')===['shelves'=>'page','items'=>'update'],'SqlResource::register() forwards activate');
+try{$activated->subview('shelves','items','shelf_id');throw new LogicException('accepted');}catch(InvalidArgumentException){}
+$activated->subview('shelves','items','shelf_id',embed:false);
+try{(new SqlResource('broken','broken','id',[new Field('title','Cím')]))->register($activated,'Hibás',activate:'delete');throw new LogicException('accepted');}catch(InvalidArgumentException){}
 $db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope) VALUES ('user','2','tasks','list','ui','deny','all')");
 $ctxA->acl->invalidate();
 check($counts($run($ctxA,'projects','list','',['limit'=>50])['items'])['1']===0,'A child the actor may not list counts nothing');

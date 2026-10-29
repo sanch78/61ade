@@ -2270,3 +2270,101 @@ that exactly equals an option label lists every option. The managed
   name check is the same regex on both sides; the existence of `alt_of`'s field
   is not validated (an unknown or hidden field gives an empty `alt`); no
   responsive image sizes or `srcset`.
+
+<a id="fb-0077"></a>
+
+## FB-0077 — Declared record activation (double-click and Enter)
+
+- **Date:** 2026-10-29.
+- **Demand (consumer):** a catalog of categories shown as tiles, where each
+  category is a navigation entry to its items. Opening a category should show
+  its item list, not edit it; tiles never expand and have no button, so the
+  related list was reachable only through the toolbar command. The owner
+  widened the request: a project must be able to set, per list, what
+  double-click runs, including its own behavior.
+- **Decision:** a browser-side custom event or callback is rejected
+  ([R8](product-direction.md): no executable configuration; consumers ship no
+  frontend code). The activation is declarative: `view.activate` names a
+  command the view already has (`details`, `subview` or a record action) and
+  runs it as the toolbar does. Custom behavior is a registered action handler,
+  so ACL, confirmation and audit stay on the executor path. The narrower
+  `subview(…, openOnActivate: true)` proposal is superseded by
+  `activate: 'subview'`.
+- **Simpler routes considered:** none was supported: the card sub-view button
+  does not exist on tiles, and a consumer-side workaround would need its own
+  frontend.
+- **Implemented:** `Registry::view(…, activate:)` and JSON `view.activate`
+  (registration rejects `create`, `get`, upload and collection actions and
+  singletons); the Workspace runs it from the table, cards and tiles, opens the
+  sub-view window also at a count of 0, falls back to the details when the
+  action, record `_actions` or sub-view is not offered; cards and tiles carry an
+  `aria-description` of the target; a child window opened by activation takes
+  the focus so Escape closes it. Documented in
+  [workspaces](workspaces.md#activation), [configuration](configuration.md),
+  [usage](usage.md) and the [demos](demos.md) (`Polcok`). No new endpoint,
+  right or audit event.
+- **Consumer section:**
+  - Category tiles that open their items: declare the items as the view's
+    `subview` and set `"activate": "subview"`; add `"tiles": true` for tiles.
+  - Own behavior: register a record action (handler binding) in the view's
+    `actions` and name it in `activate`. It runs like its toolbar command,
+    with its declared confirmation.
+  - The details remain on the toolbar `Adatok` command.
+- **Verification (managed URL, 2026-10-29):** `php8.4 tests/shell/configuration.php`
+  (accepted and rejected `activate` values, absent by default), `tenancy`,
+  `lists`, `i18n`, `contracts` pass; `npm run typecheck`, `npm run build` pass.
+  Browser `activation.spec.cjs` (table/cards/tiles double-click and Enter,
+  empty shelf, child action toast, details on the toolbar, reader fallback,
+  `aria-description`) passes; `subview`, `subview-demos`, `list-presentation`,
+  `workspace`, `list-integration`, `grid-edit` pass. `mobile-grid` (the focus
+  ring style) and `tenancy.spec` (no-membership notice) failed on concurrent,
+  unrelated working-tree changes and demo state, see the task report.
+- **Status:** implemented on the working tree, not committed. Limits: the
+  table row itself carries no activation description (the grid's own row
+  semantics are unchanged); a compact sub-view preview keeps the default
+  activation; `activate: 'subview'` without a registered sub-view is accepted
+  and falls back to the details.
+
+<a id="fb-0078"></a>
+
+## FB-0078 — Activation through SqlResource and to the child page
+
+- **Date:** 2026-10-29.
+- **Demand (consumer, after [FB-0077](#fb-0077)):**
+  1. A PHP consumer registering lists with `SqlResource::register()` could
+     declare `activate` only by calling `Registry::view()` again with the same
+     columns and actions, which duplicates and drifts from `register()`.
+  2. A category list whose items have their own page should, on double-click
+     or Enter, go to that page filtered to the category, so the work happens
+     in the full page instead of a window.
+- **Implemented:**
+  - `SqlResource::register(…, activate:)` forwards to `Registry::view()` with
+    the same validation. Its view has `get`, `create` and `update`; an action
+    added later cannot be named there.
+  - `activate: 'page'`: needs `subview(…, embed: false)` (rejected otherwise at
+    `subview()`); `views()` marks such a resolved sub-view `page: true`. The
+    Workspace navigates to `#feature=<child>&filter.<field>=<id>`; the shell
+    presets that declared filter once (header and panel, removable like any
+    other) and keeps only `#feature=<child>` in the address. Fallback: the
+    sub-view window when the field is not filterable for the actor or the
+    parent is opened in a window; the details without a resolved sub-view.
+  - Documented in [workspaces](workspaces.md#activation),
+    [configuration](configuration.md), [usage](usage.md) and the
+    [demos](demos.md) (`Raktárzónák` → `Polcok`). No new endpoint or right.
+- **Consumer section:** replace a second `Registry::view()` call with
+  `$resource->register(…, activate: 'subview')`. For the page drill-down,
+  declare the child sub-view with `embed: false` and `activate: 'page'` on the
+  parent; the child's page must offer the sub-view field as a filter.
+- **Verification (managed URL, 2026-10-29):** `php8.4 tests/shell/configuration.php`
+  (`page` accepted with `embed: false`, rejected over an embedded child),
+  `tenancy` (`page` only for a child with its own menu entry; `register()`
+  forwards `activate`, rejects `delete`), `lists`, `contracts`, `i18n` pass;
+  `npm run typecheck`, `npm run build` pass. Browser `activation.spec.cjs`
+  (zone → filtered shelves page from table and tiles, Enter, empty zone with
+  the filter in the list request, `Alaphelyzet`, Back) passes, as do
+  `subview`, `subview-demos`, `workspace`, `list-integration`,
+  `list-presentation` and `browser`; `preferences.spec.cjs` failed once in the
+  combined run (view menu timeout) and passed alone.
+- **Status:** implemented on the working tree, not committed. Limits: a
+  reload of the filtered page shows it unfiltered; a hierarchy (`shared`)
+  sub-view has no page; a view opened in a window does not navigate.
