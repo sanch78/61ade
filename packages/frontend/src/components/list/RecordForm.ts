@@ -70,6 +70,14 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
   }
   dirty():boolean{return !this.destroyed&&this.changedFields;}
   /**
+   * Suite takes a typed value into the form on the input's `change` (blur). A `submit()` from code (a toolbar
+   * command, a shortcut) while the user is still in a field commits that field first, as a click on Save does.
+   */
+  private commit():void{
+    const focused=document.activeElement,root=this.layout.getRootNode() as HTMLElement|undefined;
+    if(focused instanceof HTMLElement&&root?.contains(focused)&&focused.matches("input,textarea"))focused.blur();
+  }
+  /**
    * Validates and runs the action. A client-side validation failure sends nothing and rejects with a status 400
    * `ServerFailure` carrying the field errors, like the server's own answer; a server failure shows its field errors
    * in the form (or the error dialog) and rejects with it. A declined confirmation rejects with an `AbortError`.
@@ -80,6 +88,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       await this.ready;
       const form=this.form,validation=this.validation,schema=this.schema;
       if(this.destroyed||!form||!validation||!schema)throw new DOMException("The form is closed.","AbortError");
+      this.commit();
       if(!validation.validate()){
         const raw=form.getValue() as Record<string,unknown>,errors:Record<string,string>={};
         for(const field of this.fields){const error=fieldError(field,raw[field.name],raw);if(error)errors[field.name]=error;}
