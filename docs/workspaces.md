@@ -155,6 +155,10 @@ new ApplicationDefinition(/* application definition */, live: new Blade\Live\Liv
 Polling needs HTTP only. `__watch` hashes the visible ≤600 rows; unchanged
 responses contain version only and do not redraw.
 
+Today each list opens its own socket and the server re-queries it every
+interval. Planned replacement: one channel per tab with event-driven updates,
+see the [live channel plan](live-channel-plan.md) (not implemented).
+
 WebSocket runs `packages/php/bin/live-server.mjs` with the system Node 18+ and
 PHP 8.4+. It is the committed bundle of `tools/live-server.mjs` with the
 lockfile-pinned ws (currently 8.22.0) inlined, so it needs no `node_modules`.
@@ -170,8 +174,11 @@ application. Each listed application sets its own endpoint, e.g.
 `new LiveConfig('websocket', 'wss://admin.example.test/live/admin')`. Sessions
 and tickets come from the selected application's runtime, so a ticket is valid
 only on its own path. Names match `[a-z][a-z0-9-]{0,31}`; the files never reach
-the browser. Adding an application needs no service or proxy change (the proxy
-forwards the `/live` prefix), only a restart. Consumer supervision:
+the browser. Adding an application needs no service, proxy or restart (the
+proxy forwards the `/live` prefix). The bridge respawns itself when a
+loaded PHP file changes (exit 75, open sockets and pending requests survive);
+a changed server bundle closes sockets with 1012 and exits with 1, so the
+supervisor must restart on failure. Consumer supervision:
 [live-data service](development.md#live-data-service-websocket); demo:
 [demos](demos.md#websocket-live-data).
 Exact Origin checking and session-bound tickets in private runtime are mandatory;
@@ -351,7 +358,33 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   `dxi dxi-…`, `options` give the accessible name. Record details and cards
   render media and icon fields the same way (`detailFields` carry `media` and
   `presentation`).
-- **Tiles.** `tiles: true` (JSON `tiles`, default on when a media column
+- **Static image column.** `column.presentation: "image"` with a required
+  `imageBase` (JSON `"column": {"presentation": "image", "image_base":
+  "../demo-images/"}`): the text field holds a file name and the browser shows
+  `<img src="<imageBase><name>">`. The image is a static file of the
+  application; there is no file id, upload, content store, endpoint or ACL.
+  `imageBase` is a path relative to the page (the same shape as the application
+  `assets` path, optionally absolute) and ends in `/`. Only non-secret,
+  non-editable `text` fields qualify; `media`, `options` (the icon contract),
+  `editable` or `imageBase`/`altOf` without `presentation: "image"` are
+  developer errors (`InvalidArgumentException`). Optional `altOf` (JSON
+  `alt_of`) names a text field of the row used as the accessible name; without it
+  the image is decorative (`alt=""`) because the title is beside it.
+  **Value rules**, enforced by the server: one file name of letters, digits,
+  `-`, `_` and `.`, no leading dot, no `/`, `\`, `..` or scheme, a
+  case-insensitive extension of `png`, `jpg`, `jpeg`, `webp`, `gif` or `svg`,
+  255 characters at most (`Field::imageFile()`). Field writes with another
+  value are `400`; list and live rows blank a stored value that breaks the
+  rules, and the browser repeats the check, so a value never becomes an
+  arbitrary URL (CSP `img-src 'self'` stays). Rendering reuses the media slot:
+  table cell (scales with the row height), card top slot, tile slot and record
+  details; lazy and async decoded. A missing file (load error) shows the neutral
+  image placeholder and is not retried in the session, like thumbnails. Tiles
+  and cards keep the aspect ratio: a square slot with `object-fit: contain`.
+  Existing lists, `media` and `icon` columns are unchanged. Synthetic demo:
+  `Feature demó` → `Katalógus`
+  ([FB-0076](feedback.md#fb-0076)).
+- **Tiles.** `tiles: true` (JSON `tiles`, default on when a media or static image column
   exists) offers a native DataView mode: media slot (or icon), the first text
   column as title and the next as a secondary line; `tileMinWidth` (120–480,
   default 180, JSON `tile_min_width`) decides tiles per row (6 at 1280 px,

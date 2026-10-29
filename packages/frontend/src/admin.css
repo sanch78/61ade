@@ -120,10 +120,13 @@ body,
 :is(.blade-media--card, .blade-media--tile).blade-media--video .blade-media__icon { border-width: 3px; }
 .blade-media__duration { position: absolute; right: 4px; bottom: 4px; padding: 1px 5px; border-radius: 3px; font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums; background: color-mix(in srgb, var(--dhx-color-black) 72%, transparent); color: var(--dhx-color-white); }
 .blade-media--cell .blade-media__duration { right: 1px; bottom: 1px; padding: 0 3px; font-size: 9px; line-height: 12px; }
+.blade-media--image .blade-media__image { object-fit: contain; }
+.blade-media--image:is(.blade-media--card, .blade-media--tile) { aspect-ratio: 1 / 1; }
+.blade-grid-card__media .blade-media--image { max-height: 240px; }
 .blade-record-details .blade-media--card { max-width: 320px; border-radius: 4px; }
 
 /* Declared list search: its own native Toolbar input beside the command bar. */
-.blade-search-cell .dhx_navbar { padding: 4px 0 4px 8px; }
+.blade-search-cell .dhx_navbar { padding: 4px 8px 4px 8px; }
 .blade-search-cell .dhx_toolbar__item, .blade-search-cell .dhx_toolbar__input { flex: 1; width: 100%; min-width: 0; }
 
 /* Common Grid affordances; vendor stylesheet remains unchanged. */

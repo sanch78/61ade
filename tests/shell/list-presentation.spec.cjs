@@ -1,5 +1,6 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
+const {signIn,openView}=require('./feature-demo.cjs');
 const root=path.resolve(__dirname,'../..');
 const bundle=require('esbuild').buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
 async function mount(page,options={},table=true){
@@ -8,7 +9,7 @@ async function mount(page,options={},table=true){
  await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
  await page.evaluate(options=>{
   const fields=[{id:'title',header:'Cím'},{id:'description',header:'Leírás',type:'textarea'},{id:'active',header:'Aktív',type:'checkbox',options:{0:'Nem',1:'Igen'}}];
-  const rows=Array.from({length:30},(_,i)=>({id:String(i+1),title:'Synthetic '+i,description:'Long description '+i,active:'1',revision:'r'+i,_actions:['get','archive','note']}));
+  const rows=options.rows??Array.from({length:30},(_,i)=>({id:String(i+1),title:'Synthetic '+i,description:'Long description '+i,active:'1',revision:'r'+i,_actions:['get','archive','note']}));
   window.requests=[];
   window.fetch=async(url,config)=>{
    const request=JSON.parse(config.body);requests.push(request);
@@ -206,4 +207,85 @@ test('media views offer tiles, persist the mode, keep mobile forcing and search 
  await expect.poll(async()=>(await lists()).slice(before)).toEqual(['min','minta',null]);await expect(search).toHaveValue('');
  expect(await page.evaluate(()=>Object.hasOwn(workspace.live.query,'search'))).toBe(false);
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
+});
+
+// Static image column (presentation image): a file name of the application below `image_base`.
+const imageRows=['ok.svg','missing.png','../secret.png','https://example.test/a.png','photo.exe','dir/ok.svg'].map((image,i)=>({id:String(i+1),image,title:'Kép '+(i+1),description:'Leírás',revision:'r'+i,_actions:['get']}));
+const imageColumns=[{id:'image',header:'Kép',type:'text',presentation:'image',image_base:'/static-img/',alt_of:'title'},{id:'title',header:'Cím'},{id:'description',header:'Leírás'}];
+async function imageRoutes(page){
+ const loaded=[];
+ await page.route('**/static-img/**',route=>{const name=new URL(route.request().url()).pathname.split('/').pop();loaded.push(name);
+  return name==='ok.svg'?route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80" width="160" height="80"><rect width="160" height="80" fill="#3b82c4"/></svg>'}):route.fulfill({status:404,body:''});});
+ return loaded;
+}
+for(const theme of ['skyblue','light','dark'])test(`static image column shows images in table, cards, tiles and details; bad values show none (${theme})`,async({page})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));const loaded=await imageRoutes(page);
+ await page.setViewportSize({width:1280,height:900});
+ await mount(page,{columns:imageColumns,rows:imageRows,rowHeight:56,tileMinWidth:160,detailFields:imageColumns});
+ await page.evaluate(theme=>fixture.setTheme(theme,document.documentElement),theme);
+ const toolbar=page.locator('.blade-command-row');
+ // Table cell: only the two plain file names are requested; the missing file falls back to the placeholder.
+ await expect(page.locator('.dhx_grid .blade-media--image.blade-media--failed')).toHaveCount(1);
+ await expect(page.locator('.dhx_grid img[data-blade-static-image]')).toHaveCount(1);
+ expect(await page.locator('.dhx_grid img[data-blade-static-image]').first().getAttribute('alt')).toBe('');
+ await expect(page.locator('.dhx_grid .blade-media--image[role="img"]').first()).toHaveAttribute('aria-label','Kép 1');
+ expect(loaded.every(name=>['ok.svg','missing.png'].includes(name))).toBe(true);
+ const before=loaded.filter(name=>name==='missing.png').length;
+ // Tiles are offered by default; images keep their ratio inside a square slot.
+ await toolbar.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Csempék',{exact:true}).click();
+ const tile=page.locator('.blade-grid-tile').first();await expect(tile).toBeVisible();
+ await expect(tile.locator('img[data-blade-static-image]')).toBeVisible();
+ expect(await tile.locator('img').evaluate(image=>getComputedStyle(image).objectFit)).toBe('contain');
+ const box=await tile.locator('.blade-media').boundingBox();expect(Math.abs(box.width-box.height)).toBeLessThan(2);
+ expect(await page.locator('.blade-grid-tile img[data-blade-static-image]').count()).toBeLessThanOrEqual(2);
+ await expect(page.locator('.blade-grid-tile__title').first()).toHaveText('Kép 1');
+ await toolbar.getByRole('button',{name:/^Nézet:/}).click();await page.getByRole('menuitem',{name:'Kártyák',exact:true}).click();
+ await expect(page.locator('.blade-grid-card .blade-grid-card__media img[data-blade-static-image]').first()).toBeVisible();
+ await expect(page.locator('.blade-grid-card').nth(2).locator('img')).toHaveCount(0);
+ await toolbar.getByRole('button',{name:/^Nézet:/}).click();await page.getByRole('menuitem',{name:'Táblázat',exact:true}).click();
+ await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
+ const dialog=page.getByRole('dialog');await expect(dialog.locator('img[data-blade-static-image]')).toHaveCount(1);
+ expect(loaded.filter(name=>name==='missing.png').length).toBe(before);
+ await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
+});
+test('static image tiles per row match media tiles on a mobile width; no image option leaves lists unchanged',async({page})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));await imageRoutes(page);
+ await page.route(/thumbnail_get/,route=>route.fulfill({status:404,contentType:'application/json',body:'{"ok":false}'}));
+ await page.setViewportSize({width:390,height:844});
+ const perRow=()=>page.locator('.blade-grid-tile').evaluateAll(tiles=>tiles.filter(tile=>Math.abs(tile.getBoundingClientRect().top-tiles[0].getBoundingClientRect().top)<2).length);
+ const mediaRows=imageRows.map(row=>({...row,thumb:'1'}));
+ await mount(page,{columns:[{id:'thumb',header:'Kép',type:'select',media:'files'},{id:'title',header:'Cím'}],rows:mediaRows,tileMinWidth:160},false);
+ await page.getByRole('button',{name:'Műveletek',exact:true}).click();await page.getByRole('menuitem',{name:/^Nézet:/}).click();await page.getByText('Csempék',{exact:true}).click();
+ await expect(page.locator('.blade-grid-tile').first()).toBeVisible();const media=await perRow();
+ await page.evaluate(()=>workspace.destroy());
+ await mount(page,{columns:imageColumns,rows:imageRows,tileMinWidth:160},false);
+ await expect(page.locator('.blade-grid-tile').first()).toBeVisible();expect(await perRow()).toBe(media);
+ await page.evaluate(()=>workspace.destroy());
+ await mount(page,{columns:[{id:'title',header:'Cím'}],rows:imageRows},false);
+ await expect(page.locator('.dhx_grid-row, .blade-grid-card, .blade-grid-tile').first()).toBeVisible();await expect(page.locator('img[data-blade-static-image]')).toHaveCount(0);
+ await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
+});
+
+test('feature demo catalog: static images in table, tiles and details; missing file placeholder; invalid values show no image',async({page})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.setViewportSize({width:1400,height:900});await signIn(page);await openView(page,'Katalógus');
+ const images=page.locator('.dhx_grid img[data-blade-static-image]');
+ await expect(images).toHaveCount(4);
+ const sources=await images.evaluateAll(list=>list.map(image=>image.getAttribute('src')).sort());
+ expect(sources).toEqual(expect.arrayContaining(['../demo-images/circle.svg','../demo-images/square.svg','../demo-images/triangle.svg','../demo-images/wide.svg']));
+ expect(sources.every(src=>/^\.\.\/demo-images\/[A-Za-z0-9_.-]+\.(svg|png)$/.test(src))).toBe(true);
+ await expect.poll(()=>page.locator('.dhx_grid .blade-media--failed').count()).toBe(1);
+ expect(await images.first().evaluate(image=>image.naturalWidth>0)).toBe(true);
+ await page.locator('.blade-command-row').getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Csempék',{exact:true}).click();
+ await expect(page.locator('.blade-grid-tile').first()).toBeVisible();
+ await expect(page.locator('.blade-grid-tile img[data-blade-static-image]').first()).toBeVisible();
+ await page.locator('.blade-command-row').getByRole('button',{name:/^Nézet:/}).click();await page.getByRole('menuitem',{name:'Táblázat',exact:true}).click();
+ const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});
+ // The first row (newest) holds an invalid extension: no image. A plain file name shows its image.
+ await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
+ await expect(detail).toContainText('Kiterjesztés');await expect(detail.locator('img')).toHaveCount(0);
+ await detail.getByRole('button',{name:/close/i}).click();
+ await page.locator('.dhx_grid-row').filter({hasText:'Háromszög'}).locator('[data-dhx-col-id="_number"]').dblclick();
+ await expect(detail.locator('img[data-blade-static-image]')).toHaveCount(1);
+ expect(errors).toEqual([]);
 });

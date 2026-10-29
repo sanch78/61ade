@@ -5,10 +5,10 @@ import { widgetIcons } from "./WidgetIcons";
 import { UiPreferences } from "./UiPreferences";
 import { Form, Layout, Toolbar, Window, message, awaitRedraw } from "@dhtmlx/suite";
 import { alert, requestConfirmation, type DialogSeverity } from "./MessageDialog";
-import { Realtime, type LiveConfig, type Row, type Snapshot } from "./Realtime";
+import { Realtime, type LiveChannel, type Row, type Snapshot } from "./Realtime";
 import { GridHeaders, type Sort } from "./GridHeaders";
 import { GridEditing, alias, unalias } from "./GridEditing";
-import { escape as escapeRecord, isMedia, optionText, presentedFields, recordFields, derivedOf, withDerived, mergeUsages, confirmUsages, clearedText, type MediaPart, type Usage } from "./RecordPresentation";
+import { escape as escapeRecord, isMedia, isImage, optionText, presentedFields, recordFields, derivedOf, withDerived, mergeUsages, confirmUsages, clearedText, type MediaPart, type Usage } from "./RecordPresentation";
 import { FileFields, fileInput } from "./FilePicker";
 import { uploads, type UploadPolicy } from "./Uploader";
 import { ResponsiveGrid, previewRows, hasSubview } from "./ResponsiveGrid";
@@ -27,7 +27,7 @@ const actionIcon=(action:ActionDefinition)=>action.icon??ACTION_ICONS[action.nam
 /** Protocol values a command sends itself; an action with only these fields runs without a form. */
 const technical=(field:FieldDefinition)=>field.name==="revision"||field.name==="preview"&&field.type==="checkbox";
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
+export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
   /** Records expand to the `resource` list filtered to `field` = record id: its own `view`, or this view when `shared`. */
   subview?:{resource:string;field:string;shared?:boolean;view?:ViewDefinition;select?:boolean}};
 /**
@@ -125,15 +125,14 @@ export class Workspace {
   /** Open compact previews by record id (refreshed when that record's full child view closes). */
   private previews=new Map<string,Workspace>();
 
-  constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,private liveConfig:LiveConfig,private user="",private scope?:WorkspaceScope){
+  constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,private channel:LiveChannel,private user="",private scope?:WorkspaceScope){
     // A nested view: the scope field is implied (no column, filter or input), one grid region, overlay forms.
     if(scope)view=this.view={...view,columns:view.columns.filter(column=>column.id!==scope.field),filters:view.filters.filter(filter=>filter.name!==scope.field),sortable:(view.sortable??[]).filter(field=>field!==scope.field),layout:{formMode:"overlay",tree:{rows:[{id:"grid"}]}}};
     if(scope?.compact)view=this.view={...view,filters:[],search:undefined,rowNumbers:false,selection:false,rowSelection:false,tiles:false,columns:view.columns.map(column=>({...column,secondary:false}))};
-    const live=liveConfig;
     this.preferences=new UiPreferences(user,scope?view.resource+"@"+scope.field:view.resource);
     this.sort=this.preferences.sort(view.sortable??[])??this.sort;
     const secondaryColumns=view.columns.filter(column=>column.secondary);
-    const tiles=view.tiles??view.columns.some(isMedia);
+    const tiles=view.tiles??view.columns.some(column=>isMedia(column)||isImage(column));
     const secondary=secondaryColumns.map(column=>column.id);
     this.visibleColumns=this.preferences.visibleColumns(secondary);
     const region=(node:Region):any=>({...node,header:node.id==="grid"?scope?undefined:escape(view.title):node.header?escape(node.header):undefined,
@@ -184,7 +183,7 @@ export class Workspace {
       if(this.hasRegion("filter"))this.mountFilters();
     }
     window.addEventListener("resize",this.resize);this.resizeFilters();
-    this.live=new Realtime(view.resource,live,this.call.bind(this),data=>void this.changed(data),()=>{},()=>this.revoke());
+    this.live=new Realtime(channel,view.resource,data=>void this.changed(data),()=>{},()=>this.revoke());
     this.capabilities();void this.load();
   }
   /** Runs a toolbar command; a parent's toolbar runs it here for this view's cursor record (shared sub-view). */
@@ -269,7 +268,7 @@ export class Workspace {
     // A non-selectable child (`select: false`) never delegates: the toolbar stays on this record.
     const shared=sub.select===false?{select:false}:{shared:(workspace:Workspace,selected:Row|undefined)=>{this.delegated=selected?workspace:this.delegated===workspace?undefined:this.delegated;this.capabilities();}};
     return {label:sub.shared?t("Alelemek"):child.title,open:(id:string)=>this.openRecord(id),mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>{
-      const id=String(row.id),preview=new Workspace(host,child,this.csrf,this.liveConfig,this.user,{field:sub.field,id,...shared,compact:{height}});
+      const id=String(row.id),preview=new Workspace(host,child,this.csrf,this.channel,this.user,{field:sub.field,id,...shared,compact:{height}});
       this.previews.set(id,preview);
       return {destroy:()=>{if(this.previews.get(id)===preview)this.previews.delete(id);preview.destroy();}};
     }};
@@ -289,7 +288,7 @@ export class Workspace {
     const mobile=innerWidth<768;
     const dialog=new Window({css:"blade-feature-window",title:escape(child.title+" — "+caption),ariaLabel:child.title+" — "+caption,
       width:mobile?innerWidth:Math.min(1100,innerWidth-24),height:mobile?innerHeight:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:!mobile,movable:!mobile});
-    const full=new Workspace(document.createElement("div"),child,this.csrf,this.liveConfig,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})});
+    const full=new Workspace(document.createElement("div"),child,this.csrf,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})});
     dialog.attach(full.layout);dialog.show();
     dialog.events.on("afterHide",()=>{full.destroy();void awaitRedraw().then(()=>dialog.destructor());if(!this.disposed)closed();});
   }

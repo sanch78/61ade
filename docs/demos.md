@@ -82,6 +82,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Field-level ACL | Read-only account; the description field is denied on list/get, so details, cards and responses never contain it | `reader@example.test` → Tasks |
 | File manager | Two panels with independent Drive A/B/C mounts and a draggable divider, each switchable between file listing (row marking, MIME icons) and a folder tree with files, new folder (depth ≤ 5), copy/move to the opposite panel with the conflict dialog, the framework [uploader](uploader.md) (txt, md, csv, json, png, jpg, mp4, webm; 5 MB, 20 files; chunked and resumable, folders, paste, background with a shell indicator), TXT editor with revision conflicts; listing/tiles/tree per panel with server search, type filter, sort and paging; rename (F2), delete (Del, real delete policy), single-file and streamed ZIP download; drop/paste onto a panel; image viewer and video player streamed with HTTP Range, 320 px WebP thumbnails from background tasks, content in a disk store; desktop only (`desktopOnly`), narrower windows show a notice; [details](files.md) | Feature demo → Fájlkezelő; `reader@example.test` browses and reads only; below 768 px |
 | Network topology builder | Visual diagram editor: drag network elements from the palette, move them, connect them by the element handle with Ethernet/fibre/Wi-Fi/VPN/WAN connections, edit captions and details in the property form, save with revision check; define new element types (name, glyph, shape, colour) at runtime; two synthetic topologies; desktop only; [details](diagrams.md) | Feature demo → Hálózati topológia; `reader@example.test` views only |
+| Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
 | Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content (asset) select and the recurrence fields, single-occurrence edits; `Médiatár` image/video assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date; `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; [details](calendar.md) | `Digitális kijelző` → Műsorterv; API key with scope `signage_playlist.day`; `reader@example.test` views only |
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
@@ -181,8 +182,15 @@ for the demo with these settings:
 The proxy forwards `/live` on `61ade.sanch.hu` to `http://127.0.0.1:8088/live`.
 The bridge is one long-running PHP process. It re-runs the application file
 for every observation, but classes and `require_once` files (the framework,
-`common.php`) stay as first loaded. Restart the unit after any change under
-`packages/php` or to demo PHP, including `live-server.mjs` and `live-bridge.php`.
+`common.php`) stay as first loaded. It therefore reloads itself: when an
+included PHP file changes or vanishes, it exits with code 75 between requests,
+and the server starts a new bridge and re-sends the unanswered requests, so open
+sockets stay open. When the content of `live-server.mjs` changes (a rebuild with
+an identical bundle does not count), the server closes its sockets with 1012 and
+exits with 1; the unit's `Restart=on-failure` starts the new bundle and the
+browsers reconnect with backoff. Changes under `packages/php`, to demo PHP and
+to the server bundle therefore need no restart. Only the change that introduced
+this self-reload needs one last owner restart ([FB-0075](feedback.md#fb-0075)).
 
 <a id="folyamatos-bővítés-kötelező"></a>
 

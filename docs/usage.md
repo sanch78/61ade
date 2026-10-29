@@ -253,7 +253,9 @@ Lists gain [media columns, tiles, row height and search](workspaces.md#media-til
 `column.media` renders file thumbnails with a type-stating accessible name,
 filters by MIME class, `tiles`/`tileMinWidth` add a tile mode, `rowHeight`
 drives all paging math, and a declared `search` adds a server-side text
-search box.
+search box. A text field of static image file names shows as an image with
+`column.presentation: "image"` and `image_base`; the images are the
+application's own static files, outside every ACL.
 
 Any view (list, singleton or file manager) can request the generic
 `desktopOnly` option (JSON `desktop_only`): below 768 px the shell shows a

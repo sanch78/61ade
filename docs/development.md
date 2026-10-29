@@ -184,6 +184,11 @@ consumer runs `packages/php/bin/live-server.mjs` from its copied `lib/61ade`:
 a committed, self-contained bundle with the pinned `ws` inlined. A release
 needs only the system `node` (18+) and PHP 8.4; no `npm install` and nothing
 from `node_modules`. The server starts `live-bridge.php` beside itself.
+Both reload themselves: the bridge exits with 75 when a loaded PHP file changes
+and the server respawns it without closing sockets; a changed bundle makes the
+server close sockets with 1012 and exit with 1. The supervisor must therefore
+restart the service on failure (deploy-jobs `service` mode, systemd
+`Restart=on-failure`).
 
 The consumer declares it in its `.deploy-jobs.json` as a service under the
 PHP-FPM identity, so the bridge reads the sessions and runtime the web pool

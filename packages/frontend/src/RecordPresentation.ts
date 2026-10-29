@@ -36,10 +36,19 @@ export function recordIcon(field:{options?:Record<string,string>},value:unknown,
 export type MediaDescriptor={id:string;name:string;mime_type:string;revision:string;duration_ms:number|null;width:number|null;height:number|null;thumbnail:"ready"|"pending"|"failed"|"none"};
 /** Derived media part of a field-less column: `media_of` names the media field whose `_media` it reads. */
 export type MediaPart="type"|"resolution"|"duration";
-type Column={id:string;type?:string;media?:string;presentation?:string;options?:Record<string,string>;mediaOf?:string;media_of?:string;part?:MediaPart};
+type Column={id:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;options?:Record<string,string>;mediaOf?:string;media_of?:string;part?:MediaPart};
 /** A media column is a presentation of a file-id value (`media` names the file resource), whatever its field type. */
 export const isMedia=(field:Column)=>typeof field.media==="string"&&field.media!==""||field.type==="media";
 export const isIcon=(field:Column)=>field.type==="icon"||field.presentation==="icon";
+/** Static image column: a plain file name of the application below the declared page-relative base. */
+export const isImage=(field:Column)=>field.presentation==="image"&&typeof imageBaseOf(field)==="string";
+const imageBaseOf=(field:Column)=>field.imageBase??field.image_base;
+const IMAGE_BASE=/^(?:\/|(?:\.\.\/)*)?[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*\/$/,IMAGE_FILE=/^[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:png|jpe?g|webp|gif|svg)$/i;
+/** URL of a static image value; empty unless the base and the single file name follow the server rules (never an arbitrary URL). */
+export function imageUrl(field:Column,value:unknown):string{
+  const base=imageBaseOf(field),name=typeof value==="string"?value:"";
+  return typeof base==="string"&&IMAGE_BASE.test(base)&&name.length<=255&&!name.includes("..")&&IMAGE_FILE.test(name)?base+encodeURIComponent(name):"";
+}
 export const mediaOf=(field:{id:string},row:Row):MediaDescriptor|undefined=>{const media=(row._media as Record<string,MediaDescriptor|null>|undefined)?.[field.id];return media&&typeof media==="object"&&typeof media.id==="string"?media:undefined;};
 /** The media field a derived column presents (`media_of`, camel-cased or not), or undefined for an ordinary column. */
 export const derivedOf=(field:Column):string|undefined=>{const of=field.mediaOf??field.media_of;return typeof of==="string"&&of!==""&&!!field.part?of:undefined;};
@@ -82,6 +91,21 @@ export function recordMedia(field:Column,row:Row,size:"cell"|"card"|"tile"="cell
   return `<span class="blade-media blade-media--${size} blade-media--${kind}${failed?" blade-media--failed":""}" role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon dxi ${kind==="video"?"dxi-menu-right":kind==="image"?"dxi-image-outline":"dxi-file-outline"}" aria-hidden="true"></span>${url&&!failed?`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-thumbnail>`:""}${kind==="video"&&typeof media.duration_ms==="number"?`<span class="blade-media__duration" aria-hidden="true">${escape(duration(media.duration_ms))}</span>`:""}</span>`;
 }
 /**
+ * Static image column (`presentation: image`): `<img>` of `imageBase` + file name in the media slot sizes; a load
+ * error shows the placeholder icon (shared with thumbnails, never retried). `alt_of` names a text field of the row,
+ * otherwise the image is decorative because the title is shown beside it.
+ */
+export function recordImage(field:Column,row:Row,size:"cell"|"card"|"tile"="cell"):string{
+  const url=imageUrl(field,row[field.id]);
+  if(!url)return size==="cell"?"":`<span class="blade-media blade-media--${size} blade-media--image blade-media--empty" aria-hidden="true"></span>`;
+  const of=field.altOf??field.alt_of,alt=of&&row[of]!=null?escape(row[of]):"",failed=failedThumbnails.has(url);
+  return `<span class="blade-media blade-media--${size} blade-media--image${failed?" blade-media--failed":""}" ${alt?`role="img" aria-label="${alt}" title="${alt}"`:`aria-hidden="true"`}><span class="blade-media__icon dxi dxi-image-outline" aria-hidden="true"></span>${failed?"":`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-static-image>`}</span>`;
+}
+/** Media slot of a media or static image column. */
+export const recordSlot=(field:Column,row:Row,size:"cell"|"card"|"tile"="cell"):string=>isImage(field)?recordImage(field,row,size):recordMedia(field,row,size);
+/** Whether the row has something to show in the media slot of the column. */
+export const hasSlot=(field:Column,row:Row):boolean=>isImage(field)?imageUrl(field,row[field.id])!=="":!!mediaOf(field,row);
+/**
  * Detail/card fields with the presentation of the matching grid column (`media`, `presentation`, icon
  * `options`) when a field definition does not carry it itself, so every media or icon field renders as such.
  */
@@ -90,6 +114,7 @@ export function presentedFields<T extends Column>(fields:T[],columns:Column[]):T
     const column=columns.find(c=>c.id===field.id);
     if(!column)return field;
     return {...field,...(field.media===undefined&&column.media!==undefined?{media:column.media}:{}),...(field.presentation===undefined&&column.presentation!==undefined?{presentation:column.presentation}:{}),
+      ...(column.presentation==="image"?{imageBase:column.imageBase??column.image_base,altOf:column.altOf??column.alt_of}:{}),
       ...(!field.options&&column.options?{options:column.options}:{})};
   });
 }
@@ -109,7 +134,7 @@ export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=f
     const content=escape(value==null||value===""?(field.options?.[String(value??"")]??"—"):optionText(field,value));
     // An icon is shown with its name as visible text, so the glyph itself stays decorative.
     const glyph=isIcon(field)?recordIcon(field,value,true):"";
-    return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd ${writable&&field.type!=="checkbox"?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
+    return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd ${writable&&field.type!=="checkbox"?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?recordImage(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
   }).join("")}</dl>`;
 }
 

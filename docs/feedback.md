@@ -311,3 +311,11 @@
 <a id="fb-0074"></a>
 
 ## FB-0074 — One live server for several applications
+
+<a id="fb-0075"></a>
+
+## FB-0075 — One live channel per tab, event-driven updates
+
+<a id="fb-0076"></a>
+
+## FB-0076 — Static image column for lists

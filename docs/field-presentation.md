@@ -68,6 +68,10 @@ Use business meanings such as Active/Archived where possible.
 PHP Field takes type checkbox, column width/alignment and defaultValue.
 The JSON compiler produces the same definition.
 
+A third presentation, `presentation: "image"` with `imageBase` (and optional
+`altOf`), shows a text field holding a static application image file name in
+the same slots; see [static image column](workspaces.md#media-tiles).
+
 Two column presentations take typed data only: `media` (the file-manager
 resource whose file id the field holds; thumbnail, type icon, duration badge
 and a type-stating accessible name) and `presentation: "icon"` (a Suite icon

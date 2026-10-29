@@ -87,6 +87,49 @@ check(!isset($view['rowHeight'])&&!isset($view['tileMinWidth'])&&!isset($view['t
 foreach([['rowHeight'=>31],['rowHeight'=>161],['tileMinWidth'=>119],['tileMinWidth'=>481]] as $options){try{$mediaRegistry->view('assets','Assets',[],['get'],...$options);throw new RuntimeException('Out-of-range view presentation accepted');}catch(InvalidArgumentException){}}
 $mediaRegistry->view('assets','Assets',[],['get'],rowHeight:32,tileMinWidth:480);$mediaRegistry->view('assets','Assets',[],['get'],rowHeight:160,tileMinWidth:120);
 check($mediaRegistry->views()[0]['rowHeight']===160&&!isset($mediaRegistry->views()[0]['tiles']),'Range bounds accepted; tiles off is absent');
+// Static image column: option validation, the single-file-name rule and the server-side projection.
+check(Field::imageFile('a-b_c.1.PNG')&&Field::imageFile('x.svg')&&Field::imageFile('x.JpEg')&&Field::imageFile('x.webp')&&Field::imageFile('x.gif')&&Field::imageFile('x.jpg'),'Image file names accepted');
+foreach(['','a','a.exe','a.png.exe','../a.png','a/../a.png','dir/a.png','dir\\a.png','/a.png','https://x.test/a.png','data:image/png;base64,AAAA','.png','.hidden.png','a..png','a b.png',"a.png\n",'a.png?x=1','a%2fb.png',str_repeat('a',256).'.png',null,7] as $bad)check(!Field::imageFile($bad),'Image file name rejected: '.var_export($bad,true));
+$image=new Field('image','Kép',column:['presentation'=>'image','image_base'=>'../demo-images/','alt_of'=>'title']);
+check($image->image()&&!(new Field('title','Title'))->image(),'Image presentation flag');
+check((new Field('image','Kép',column:['presentation'=>'image','imageBase'=>'/img/','altOf'=>'title','width'=>96]))->image(),'camelCase image options, abs path');
+foreach([
+ fn()=>new Field('image','Kép',column:['presentation'=>'image']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','image_base'=>'img']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','image_base'=>'//evil.test/']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','image_base'=>'https://evil.test/']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','image_base'=>'a/../b/']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','image_base'=>'a b/']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','image_base'=>7]),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','imageBase'=>'img/','image_base'=>'img/']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','image_base'=>'img/','alt_of'=>'Title']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','image_base'=>'img/','media'=>'files']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'image','image_base'=>'img/','editable'=>true]),
+ fn()=>new Field('image','Kép',secret:true,column:['presentation'=>'image','image_base'=>'img/']),
+ fn()=>new Field('image','Kép','select',options:['a.png'=>'A'],column:['presentation'=>'image','image_base'=>'img/']),
+ fn()=>new Field('image','Kép','number',column:['presentation'=>'image','image_base'=>'img/']),
+ fn()=>new Field('image','Kép','textarea',column:['presentation'=>'image','image_base'=>'img/']),
+ fn()=>new Field('image','Kép',options:['dxi dxi-file'=>'Fájl'],column:['presentation'=>'image','image_base'=>'img/']),
+ fn()=>new Field('image','Kép',column:['image_base'=>'img/']),
+ fn()=>new Field('image','Kép',column:['alt_of'=>'title']),
+ fn()=>new Field('kind','Kind','select',options:['dxi dxi-file'=>'Fájl'],column:['presentation'=>'icon','image_base'=>'img/']),
+ fn()=>new Field('image','Kép',column:['presentation'=>'bitmap','image_base'=>'img/']),
+] as $invalid){try{$invalid();throw new RuntimeException('Invalid image column accepted');}catch(InvalidArgumentException $e){check($e->getMessage()!=='Invalid image column accepted','Invalid image column rejected');}}
+check($image->validate('a.png')==='a.png','Image field accepts a file name');
+foreach(['../a.png','https://x.test/a.png','a.exe'] as $bad){try{$image->validate($bad);throw new RuntimeException('Bad image value accepted');}catch(Failure $e){check($e->getMessage()!=='Bad image value accepted','Image field write rejects '.$bad);}}
+check($image->validate('')==='','Empty image value allowed');
+$db->exec("CREATE TABLE gallery(id INTEGER PRIMARY KEY,image TEXT NOT NULL,title TEXT NOT NULL); INSERT INTO gallery VALUES (1,'ok.svg','Ok'),(2,'../x.png','Parent'),(3,'https://example.test/a.png','Scheme'),(4,'a.exe','Ext'),(5,'dir/a.png','Dir'),(6,'MISSING.PNG','Missing')");
+$galleryRegistry=new Registry();$gallery=new SqlResource('gallery','gallery','id',[$image,new Field('title','Title')]);
+$gallery->register($galleryRegistry,'Gallery');
+$galleryWorkspace=new Workspace($galleryRegistry,$db);
+$db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','gallery','list','ui','allow','all','',''),('user','1','gallery','get','ui','allow','all','','')");
+$galleryView=$galleryWorkspace->views($actor)[0];
+$galleryColumns=array_column($galleryView['columns'],null,'id');$galleryDetails=array_column($galleryView['detailFields'],null,'id');
+check($galleryColumns['image']['presentation']==='image'&&$galleryColumns['image']['image_base']==='../demo-images/'&&$galleryColumns['image']['alt_of']==='title','Image column options reach the wire');
+check($galleryDetails['image']['presentation']==='image'&&$galleryDetails['image']['image_base']==='../demo-images/'&&$galleryDetails['image']['alt_of']==='title'&&!isset($galleryDetails['title']['presentation']),'Detail fields carry the image options');
+$galleryCtx=new Context($actor,'ui',$galleryWorkspace->acl,$db);
+$listed=$galleryWorkspace->executor->execute($galleryCtx,'gallery','list',null,[]);
+check(array_column($listed,'image','id')==['1'=>'ok.svg','2'=>'','3'=>'','4'=>'','5'=>'','6'=>'MISSING.PNG'],'Server list blanks values that are not plain image file names');
 // Usage warnings on a SqlResource delete (U5): preview through the bulk channel, clear on apply, after_delete only.
 $db->exec("CREATE TABLE shelves(id INTEGER PRIMARY KEY,title TEXT NOT NULL); INSERT INTO shelves VALUES(1,'Used'),(2,'Free'),(3,'Guarded'); CREATE TABLE books(id INTEGER PRIMARY KEY,shelf_id TEXT NOT NULL); INSERT INTO books(shelf_id) VALUES('1'),('1'),('3')");
 $hooks=['save'=>[],'delete'=>[]];

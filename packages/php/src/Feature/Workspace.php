@@ -79,7 +79,7 @@ final class Workspace
                 if(!$field)return $column;
                 return [...$field->column,...($field->media()!==null?['media'=>$field->media()]:[]),...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
             },$view['columns']);
-            $view['detailFields']=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...array_intersect_key($field->column,['presentation'=>true])],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
+            $view['detailFields']=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true])],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
             $view['actions']=$actions;
             $view['layout']=$view['layout']->metadata();
             $list=$this->registry->get($view['resource'],$view['singleton']?'get':'list');
@@ -196,6 +196,26 @@ final class Workspace
             $this->db->commit();return hash_equals($hash,$version)?['version'=>$hash,'unchanged'=>true]:[...$result,'version'=>$hash];
         }catch(\Throwable $e){if($this->db->inTransaction())$this->db->rollBack();throw $e;}
     }
+    /** At most this many subscriptions per batched `__watch` (and per WebSocket connection, live-server.mjs). */
+    public const WATCH_LIMIT=64;
+    /**
+     * Batched polling observation (`__watch` with `subscriptions`): each `{id, resource, query, version}` is answered
+     * on its own, `{id, ok: true, data}` or `{id, ok: false, status, error}`, so one refused or failing list never
+     * fails the others. A 401 still fails the whole request: the session is gone.
+     */
+    public function watch(Context $ctx,array $subscriptions):array
+    {
+        if(!array_is_list($subscriptions)||count($subscriptions)>self::WATCH_LIMIT)throw new Failure('Túl sok feliratkozás.',413);
+        $out=[];
+        foreach($subscriptions as $s){
+            $id=is_array($s)&&(is_string($s['id']??null)||is_int($s['id']??null))?(string)$s['id']:null;
+            if($id===null||strlen($id)>64||!is_string($s['resource']??null)||!is_array($s['query']??[])||!is_string($s['version']??''))throw new Failure('Hibás feliratkozás.');
+            try{$out[]=['id'=>$id,'ok'=>true,'data'=>$this->observe($ctx,$s['resource'],$s['query']??[],$s['version']??'')];}
+            catch(Failure $e){if($e->status===401)throw $e;$out[]=['id'=>$id,'ok'=>false,'status'=>$e->status,'error'=>$e->getMessage()];}
+            catch(\Throwable $e){error_log('61ade __watch: '.$e->getMessage());$out[]=['id'=>$id,'ok'=>false,'status'=>500,'error'=>'Az élő kapcsolat nem érhető el.'];}
+        }
+        return $out;
+    }
     /** $sessionTenant: the tenant stored in the session; used only while the actor is still a member of it. */
     public function http(?Identity $sessionActor,IdentityProvider $identities,string $csrf,string $runtime,?string $sessionTenant=null): never
     {
@@ -268,7 +288,8 @@ final class Workspace
             if($data['action']==='__watch'){
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
                 $ctx=new Context($actor,'ui',$this->acl,$this->db,owner:$owner,tenant:$tenant);
-                $result=$this->observe($ctx,$data['resource'],$data['values']['query']??[],$data['values']['version']??'');
+                $list=$data['values']['subscriptions']??null;
+                $result=is_array($list)?['results'=>$this->watch($ctx,$list)]:$this->observe($ctx,$data['resource'],$data['values']['query']??[],$data['values']['version']??'');
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             if($data['action']==='__bulk'){
