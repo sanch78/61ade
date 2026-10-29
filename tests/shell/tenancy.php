@@ -141,8 +141,8 @@ $run($admin,Tenancy::RESOURCE,'update',$b,['name'=>'Béta','active'=>'0','revisi
 check(!$workspace->tenancy->member('3',$b) && $workspace->tenancy->memberships('1')===[$a=>'Alfa'],'A deactivated tenant drops out of every membership');
 $tenantRow=$run($admin,Tenancy::RESOURCE,'get',$b);$run($admin,Tenancy::RESOURCE,'update',$b,['name'=>'Béta','active'=>'1','revision'=>$tenantRow['revision']]);
 $tenantView=array_values(array_filter($workspace->views($admin->actor),fn($v)=>$v['resource']===Tenancy::RESOURCE))[0];
-check(($tenantView['subview']['resource']??null)===Tenancy::MEMBERS && $tenantView['subview']['field']==='tenant_id' && $tenantView['subview']['view']['resource']===Tenancy::MEMBERS && !in_array('members',array_column($tenantView['columns'],'id'),true),'Tenants expand to their member list (a sub-view)');
-check(($tenantView['subview']['select']??null)===false && $workspace->registry->subviewOf(Tenancy::RESOURCE)['select']===false && $tenantView['subview']['view']['title']==='Hozzáférések','The access list sub-view is not selectable');
+check(($tenantView['options']['subview']['resource']??null)===Tenancy::MEMBERS && $tenantView['options']['subview']['field']==='tenant_id' && $tenantView['options']['subview']['view']['resource']===Tenancy::MEMBERS && !in_array('members',array_column($tenantView['options']['columns'],'id'),true),'Tenants expand to their member list (a sub-view)');
+check(($tenantView['options']['subview']['select']??null)===false && $workspace->registry->subviewOf(Tenancy::RESOURCE)['select']===false && $tenantView['options']['subview']['view']['title']==='Hozzáférések','The access list sub-view is not selectable');
 check(!in_array(Tenancy::MEMBERS,array_column($workspace->views($admin->actor),'resource'),true),'The embedded member list has no menu entry of its own');
 foreach([['projects','missing','x'],['projects','projects','title'],['projects','notices','missing']] as $invalid){
     try{$workspace->registry->subview(...$invalid);throw new LogicException('accepted');}catch(InvalidArgumentException){}
@@ -186,12 +186,12 @@ check(!array_filter($run($ctxA,'projects','list','',['limit'=>50])['items'],fn($
 check(!isset($run($ctxA,'notices','list','',['limit'=>10])['items'][0]['_subview']),'No _subview without a sub-view');
 // A child kept in the menu is a page (`activate: 'page'` target); an embedded child is not.
 $projectsView=array_values(array_filter($workspace->views($one,$a),fn($v)=>$v['resource']==='projects'))[0];
-check(($projectsView['subview']['page']??null)===true && !isset($tenantView['subview']['page']),'Only a child with its own menu entry is a page');
+check(($projectsView['options']['subview']['page']??null)===true && !isset($tenantView['options']['subview']['page']),'Only a child with its own menu entry is a page');
 // SqlResource::register() forwards the activation to its view, with Registry::view() validation.
 $activated=new Blade\Feature\Registry();
 (new SqlResource('shelves','shelves','id',[new Field('title','Cím')]))->register($activated,'Polcok',activate:'page');
 (new SqlResource('items','items','id',[new Field('shelf_id','Polc')]))->register($activated,'Tételek',activate:'update');
-check(array_column($activated->views(),'activate','resource')===['shelves'=>'page','items'=>'update'],'SqlResource::register() forwards activate');
+check(array_combine(array_column($activated->views(),'resource'),array_map(fn($v)=>$v->options['activate'],$activated->views()))===['shelves'=>'page','items'=>'update'],'SqlResource::register() forwards activate');
 try{$activated->subview('shelves','items','shelf_id');throw new LogicException('accepted');}catch(InvalidArgumentException){}
 $activated->subview('shelves','items','shelf_id',embed:false);
 try{(new SqlResource('broken','broken','id',[new Field('title','Cím')]))->register($activated,'Hibás',activate:'delete');throw new LogicException('accepted');}catch(InvalidArgumentException){}

@@ -30,7 +30,7 @@ final class JsonApplication
         $session = $config->section('session');
         $live = $config->section('live');
         $workspace = $config->section('workspace');
-        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string'], '$.application');
+        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array'], '$.application');
         Shape::check($session, ['name' => 'string', 'cookie_path' => 'string'], [], '$.session');
         Shape::check($live, [
             'transport' => 'string',
@@ -88,6 +88,9 @@ final class JsonApplication
             oauth: $oauth,
             // Optional application skins: an identity binding name, Closure(Identity): list<Skin>.
             skins: (new Bindings($identityBindings))->get($application['skins'] ?? null),
+            // Browser paths relative to the page (not to the JSON directory), validated by ApplicationDefinition.
+            modules: $application['modules'] ?? [],
+            stylesheets: $application['stylesheets'] ?? [],
         );
     }
 }

@@ -98,6 +98,15 @@ try {
     $write([...$settings, 'application' => [...$settings['application'], 'skins' => 'app.skins']]);
     $skinned = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active'], 'app.skins' => static fn() => [$skin]], $callbacks, $db);
     verify(($skinned->skins)($actor) === [$skin], 'Application skins from a named identity binding');
+    // Browser modules and stylesheets (docs/toolkit.md#module-loading): page-relative paths, validated at load.
+    verify($app->modules === [] && $app->stylesheets === [], 'No project modules or stylesheets by default');
+    $write([...$settings, 'application' => [...$settings['application'], 'modules' => ['app/main.js'], 'stylesheets' => ['app/main.css']]]);
+    $moduled = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
+    verify($moduled->modules === ['app/main.js'] && $moduled->stylesheets === ['app/main.css'] && $moduled->versioned('app/main.js') === 'app/main.js?v=2.3.4', 'JSON application.modules and stylesheets');
+    foreach ([['modules' => ['https://cdn.example.test/main.js']], ['modules' => 'app/main.js'], ['stylesheets' => ['app/main.js']]] as $bad) {
+        $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
+        rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid application module path accepted: '.json_encode($bad));
+    }
     rejected(static fn() => new Blade\Shell\Skin('skyblue', 'Shadow', 'skins/brand.css'), 'Skin shadowing a factory theme accepted');
     verify($app->live->applications === [] && $app->live->route('/live/admin') === null, 'No further live applications without live.applications');
     $write([...$settings, 'live' => [...$settings['live'], 'transport' => 'websocket', 'applications' => ['admin' => 'admin.php', 'tenants' => '/srv/tenants.php']]]);
@@ -118,7 +127,7 @@ try {
     $workspace->executor->execute($context, 'notes', 'mark', $created['id'], []);
     verify($db->query('SELECT title FROM notes')->fetchColumn() === 'MARKED', 'Named custom action and target');
     $views = $workspace->views($actor);
-    verify($views[0]['layout']['formMode'] === 'panel', 'JSON layout');
+    verify($views[0]['options']['layout']['formMode'] === 'panel', 'JSON layout');
     verify($views[0]['desktopOnly'] === true, 'JSON desktop_only view option');
     verify(!str_contains(json_encode($views), 'notes.normalize'), 'Backend bindings not exposed');
     verify((int) $db->query("SELECT COUNT(*) FROM blade_audit WHERE outcome='success'")->fetchColumn() === 3, 'JSON operations retain audit');
@@ -139,8 +148,8 @@ try {
     $write([...$settings, 'oauth' => $oauth, 'admin' => [], 'i18n' => ['default' => 'hu', 'languages' => ['hu' => 'Magyar', 'en' => 'English'], 'selector' => true]]);
     $app = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
     verify($app->oauth->providers() === ['Google', 'Facebook'] && !$app->oauth->configured('Google') && $app->oauth->configured('Facebook') && $app->oauth->assets === 'lib/_AuthHandler', 'AuthHandler providers from JSON; empty credentials shown, not usable');
-    $users = array_values(array_filter($app->workspace->registry->views(), static fn($view) => $view['resource'] === 'blade_users'))[0];
-    verify(in_array('blade_oauth', array_column($users['columns'], 'id'), true) && in_array('blade_locale', array_column($users['columns'], 'id'), true), 'OAuth and language switches in the user admin');
+    $users = array_values(array_filter($app->workspace->registry->views(), static fn($view) => $view->resource === 'blade_users'))[0];
+    verify(in_array('blade_oauth', array_column($users->options['columns'], 'id'), true) && in_array('blade_locale', array_column($users->options['columns'], 'id'), true), 'OAuth and language switches in the user admin');
     verify(in_array('blade_api_keys', array_column($app->workspace->registry->views(), 'resource'), true), 'JSON admin includes API keys');
 
     // Tenancy is opt-in: an empty `tenancy` object enables it; `tenant_column` scopes resources and lookups.
@@ -164,7 +173,7 @@ try {
     $choices = $registry->fields('tasks')['project_id']->metadata($tenantApp->workspace->context(new Blade\Shell\Identity('1', 'Synthetic'), 'ui', '1'))['options'];
     verify(array_values($choices) === ['One'], 'JSON lookup tenant_column scopes choices');
     $views = array_column($registry->views(), null, 'resource');
-    verify($views['projects']['subview'] === ['child' => 'tasks', 'field' => 'project_id'] && empty($views['tasks']['embedded']), 'JSON view subview (child kept in the menu)');
+    verify($views['projects']->options['subview'] === ['child' => 'tasks', 'field' => 'project_id'] && !$registry->embedded('tasks'), 'JSON view subview (child kept in the menu)');
     $broken = json_decode(file_get_contents($directory.'/tenant-module.json'), true);
     $broken['resources']['projects']['view']['subview']['columns'] = [];
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
@@ -178,15 +187,15 @@ try {
     $broken['resources']['projects']['view']['subview']['select'] = false;
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
     $selectViews = array_column(WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true)->registry->views(), null, 'resource');
-    verify($selectViews['projects']['subview'] === ['child' => 'tasks', 'field' => 'project_id', 'select' => false], 'JSON view subview select: false');
+    verify($selectViews['projects']->options['subview'] === ['child' => 'tasks', 'field' => 'project_id', 'select' => false], 'JSON view subview select: false');
     // `view.activate`: what double-click and Enter run; built-ins or a record action of the view, absent by default.
-    verify(!isset($selectViews['projects']['activate']), 'No view activation by default');
+    verify(!isset($selectViews['projects']->options['activate']), 'No view activation by default');
     $broken['resources']['projects']['view']['subview']['embed'] = false;
     foreach (['subview', 'details', 'update', 'page'] as $activate) {
         $broken['resources']['projects']['view']['activate'] = $activate;
         file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
         $activateViews = array_column(WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true)->registry->views(), null, 'resource');
-        verify($activateViews['projects']['activate'] === $activate, 'JSON view activate '.$activate);
+        verify($activateViews['projects']->options['activate'] === $activate, 'JSON view activate '.$activate);
     }
     foreach (['create', 'get', 'list', 'missing', true] as $activate) {
         $broken['resources']['projects']['view']['activate'] = $activate;
@@ -199,6 +208,39 @@ try {
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
     rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Page activation over an embedded child accepted');
     unlink($directory.'/broken-module.json');
+    // Toolkit views (docs/toolkit.md#views): `view.id`, the activation map and module-level `views` of project kinds.
+    $toolkit = [
+        'resources' => ['projects' => [
+            'storage' => ['table' => 'projects', 'key' => 'id'],
+            'fields' => [['name' => 'title', 'label' => 'Title'], ['name' => 'kind', 'label' => 'Kind', 'type' => 'select', 'options' => ['a' => 'A', 'b' => 'B']]],
+            'view' => ['title' => 'Projects', 'id' => 'projects.main', 'activate' => ['description' => 'Per kind.', 'field' => 'kind', 'map' => ['a' => 'view:demo.viewer', '*' => 'details']]],
+        ]],
+        'views' => ['demo.viewer' => ['kind' => 'demo.viewer', 'title' => 'Viewer', 'resource' => 'projects', 'record' => 'projects', 'actions' => ['get'], 'options' => ['loop' => true], 'open' => 'window', 'group' => 'Demo', 'icon' => 'dxi dxi-play', 'desktop_only' => false]],
+    ];
+    $toolkitBuild = static function (array $module) use ($directory, $tenantDb): Blade\Feature\Registry {
+        file_put_contents($directory.'/toolkit-module.json', json_encode($module, JSON_THROW_ON_ERROR));
+        return WorkspaceConfiguration::build($tenantDb, [$directory.'/toolkit-module.json'], static fn() => [])->registry;
+    };
+    $toolkitRegistry = $toolkitBuild($toolkit);
+    $viewer = $toolkitRegistry->viewById('demo.viewer');
+    verify(array_column($toolkitRegistry->views(), 'id') === ['projects.main', 'demo.viewer'] && $toolkitRegistry->viewById('projects.main')->resource === 'projects', 'JSON view.id names the resource view');
+    verify($toolkitRegistry->viewById('projects.main')->options['activate'] === ['field' => 'kind', 'map' => ['a' => 'view:demo.viewer', '*' => 'details']], 'JSON activation map');
+    verify($viewer->kind === 'demo.viewer' && $viewer->record === 'projects' && $viewer->open === 'window' && $viewer->options === ['loop' => true] && $viewer->group === 'Demo' && $viewer->actions === ['get'], 'JSON module-level project view');
+    foreach ([
+        'built-in kind' => static function (array &$m): void { $m['views']['demo.viewer']['kind'] = 'list'; },
+        'duplicate view id' => static function (array &$m): void { $m['views']['projects.main'] = $m['views']['demo.viewer']; },
+        'unknown views key' => static function (array &$m): void { $m['views']['demo.viewer']['menu'] = true; },
+        'non-map activation' => static function (array &$m): void { $m['resources']['projects']['view']['activate'] = 3; },
+        'unknown activation key' => static function (array &$m): void { $m['resources']['projects']['view']['activate']['default'] = 'details'; },
+        'missing record view' => static function (array &$m): void { unset($m['views']); },
+        'record view of another resource' => static function (array &$m): void { $m['views']['demo.viewer']['record'] = 'missing'; },
+        'oversized options' => static function (array &$m): void { $m['views']['demo.viewer']['options'] = ['blob' => str_repeat('a', 70000)]; },
+    ] as $case => $mutate) {
+        $mutated = $toolkit;
+        $mutate($mutated);
+        rejected(static fn() => $toolkitBuild($mutated), 'Invalid toolkit JSON accepted: '.$case);
+    }
+    unlink($directory.'/toolkit-module.json');
     $write([...$settings, 'tenancy' => ['mode' => 'x']]);
     rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Unknown tenancy key accepted');
 
@@ -214,8 +256,8 @@ try {
     $mediaModule = $root.'/tests/fixtures/configuration/media.json';
     $media = WorkspaceConfiguration::build($db, [$mediaModule], static fn() => []);
     $clips = array_values(array_filter($media->views($actor), static fn($view) => $view['resource'] === 'clips'))[0];
-    $columns = array_column($clips['columns'], null, 'id');
-    verify($clips['rowHeight'] === 64 && $clips['tileMinWidth'] === 240 && $clips['tiles'] === true, 'JSON row_height, tile_min_width and tiles');
+    $columns = array_column($clips['options']['columns'], null, 'id');
+    verify($clips['options']['rowHeight'] === 64 && $clips['options']['tileMinWidth'] === 240 && $clips['options']['tiles'] === true, 'JSON row_height, tile_min_width and tiles');
     verify($columns['file_id']['media'] === 'library' && $columns['kind']['presentation'] === 'icon', 'JSON column.media and column.presentation');
     verify($media->registry->get('clips', 'list')->listSource->searchMetadata(new Context($actor, 'ui', $media->acl, $db)) === ['fields' => ['title']], 'JSON declared search');
     $clipsDefinition = json_decode(file_get_contents($mediaModule), true, flags: JSON_THROW_ON_ERROR);
@@ -268,7 +310,7 @@ try {
     $picture = $shelfWorkspace->registry->fields('shelves')['picture'];
     verify($picture->type === 'file' && $picture->file === ['resource' => 'library', 'mount' => 'a', 'folder' => 'Képek', 'accept' => ['image']] && $picture->media() === 'library', 'JSON file field');
     verify(!in_array('items', array_column($shelfWorkspace->registry->get('shelves', 'create')->fields, 'name'), true), 'JSON computed column is read-only');
-    $shelfView = array_column(array_column($shelfWorkspace->views($actor), null, 'resource')['shelves']['columns'], null, 'id');
+    $shelfView = array_column(array_column($shelfWorkspace->views($actor), null, 'resource')['shelves']['options']['columns'], null, 'id');
     verify($shelfView['picture_type']['media_of'] === 'picture' && $shelfView['picture']['media'] === 'library' && $shelfView['picture']['type'] === 'file', 'JSON derived media column and file column');
     $read = $shelfWorkspace->executor->execute($shelfContext, 'shelves', 'list', null, ['limit' => 10, 'sort' => ['field' => 'items', 'direction' => 'desc']]);
     verify($read['items'][0]['title'] === 'Kept' && (int) $read['items'][0]['items'] === 2, 'JSON computed column listed and sortable');

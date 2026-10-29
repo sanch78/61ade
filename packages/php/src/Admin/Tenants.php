@@ -21,10 +21,7 @@ final class Tenants
             new Field('name', 'Név', required: true, max: 200, validation: ['unique' => true]),
             new Field('active', 'Aktív', 'checkbox', defaultValue: '1', column: ['editable' => true, 'align' => 'center', 'width' => 100]),
         ]);
-        $resource->register($registry, $title, group: $group);
-        foreach ($registry->views() as $view) {
-            if ($view['resource'] === Tenancy::RESOURCE) $registry->view(Tenancy::RESOURCE, $view['title'], $view['columns'], $view['actions'], group: $view['group'], layout: $view['layout'], icon: 'dxi dxi-view-grid');
-        }
+        $registry->addView($resource->register($registry, $title, group: $group)->with(icon: 'dxi dxi-view-grid'));
         self::registerAccess($registry, $accounts, $tenancy, $group);
     }
 

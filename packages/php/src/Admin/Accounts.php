@@ -210,16 +210,13 @@ final class Accounts
             related: $related,
             readOnly: ['blade_must_change'],
         );
-        $this->resource->register($registry, $title, create: $this->creatable, group: $group);
+        $view = $this->resource->register($registry, $title, create: $this->creatable, group: $group);
         $resolve = fn(Context $ctx, ?string $id): array => $this->resource->target($ctx, $id);
         $registry->add(new Action(self::RESOURCE, 'temporary_password', 'Ideiglenes jelszó', [], function (Context $ctx, array $target): array {
             if ($target['id'] === $ctx->actor->id) throw new Failure('A saját jelszavadat a jelszócsere művelettel módosítsd.', 403);
             return $this->issueTemporary($ctx, $target['id']);
         }, resolve: $resolve, write: true, icon: 'dxi dxi-key'));
-        foreach ($registry->views() as $view) {
-            if ($view['resource'] !== self::RESOURCE) continue;
-            $registry->view(self::RESOURCE, $view['title'], $view['columns'], [...$view['actions'], 'temporary_password'], group: $view['group'], layout: $view['layout'], icon: 'dxi dxi-person');
-        }
+        $registry->addView($view->with(actions: [...$view->actions, 'temporary_password'], icon: 'dxi dxi-person'));
     }
 
     /** Completes the forced change after a successful temporary-password sign-in. */

@@ -31,7 +31,7 @@ $call=fn(string $action,?string $id,array $values=[],string $actor='1')=>$worksp
 
 // Metadata: palette and link types only; read-only actors get only read actions; no rule, no view.
 $view=fn($actor)=>array_values(array_filter($workspace->views(new Identity($actor,'x')),fn($v)=>$v['resource']==='net'));
-check($view('1')[0]['kind']==='diagram'&&array_column($view('1')[0]['diagram']['nodeTypes'],'id')===['router','switch'],'Palette metadata');
+check($view('1')[0]['kind']==='diagram'&&array_column($view('1')[0]['options']['nodeTypes'],'id')===['router','switch'],'Palette metadata');
 check(!str_contains(json_encode($view('1')),'"test"'),'Space key stays server-side');
 check(array_column($view('2')[0]['actions'],'name')===['list','get'],'Read-only actions');
 check($view('3')===[],'No view without rules');

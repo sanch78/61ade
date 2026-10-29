@@ -3,15 +3,15 @@ declare(strict_types=1);
 namespace Blade\Feature;
 
 /**
- * One view of an application (toolkit contract, docs/toolkit.md#views; planned `Registry::addView`, lane K-S1).
- * Not used by the runtime yet: the existing `Registry::view/fileManager/diagram/calendar` arrays stay authoritative
- * until P2 turns them into builders returning `View`s.
+ * One view of an application (docs/toolkit.md#views), added with `Registry::addView`; the built-in builders
+ * `Registry::view/fileManager/diagram/calendar` (and `SqlResource::register`) create Views of the built-in kinds.
  *
  * $id: unique per application, `[a-z][a-z0-9_.-]*`; the built-in builders default it to the resource.
  * $kind: `list`, `files`, `diagram`, `calendar`, or a project kind containing a dot (`demo.playlist-preview`), which
  *   a project module registers in the browser (`app.views`).
  * $resource: ACL resource whose $actions the view uses; null for a view without actions.
- * $record: resource of the record a record view opens for; the server resolves the row through its `get` action.
+ * $record: resource of the record a record view opens for; the client resolves the row through its `get` action (ACL,
+ *   field ACL, tenant). Offered only with that `get` offered to the actor; only project kinds accept it (P2).
  * $actions: action names of $resource; their existence is checked when the view is added to a Registry.
  * $options: the kind's declaration. Built-in kind providers read their own keys (which may be server-side objects
  *   such as ViewLayout or Field) and emit browser metadata only; the generic provider of a project kind sends the
@@ -45,5 +45,11 @@ final readonly class View
         foreach ($actions as $action) if (!is_string($action) || !preg_match(self::ID, $action)) throw new \InvalidArgumentException('Invalid view actions: '.$id);
         if ($icon !== null && !preg_match('/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/D', $icon)) throw new \InvalidArgumentException('Invalid view icon: '.$id);
         if (!in_array($open, ['page', 'window'], true)) throw new \InvalidArgumentException('Invalid view open mode: '.$id);
+    }
+
+    /** A copy with the given constructor arguments replaced, e.g. `$view->with(icon: 'dxi dxi-key')`. */
+    public function with(mixed ...$changes): self
+    {
+        return new self(...[...get_object_vars($this), ...$changes]);
     }
 }

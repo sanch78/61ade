@@ -8,6 +8,9 @@
 <?php foreach ($skins as $skin): ?>
     <link rel="stylesheet" href="<?= $escape($skin->stylesheet) ?>">
 <?php endforeach; ?>
+<?php if ($bootstrap['authenticated']): foreach ($definition->stylesheets as $stylesheet): ?>
+    <link rel="stylesheet" href="<?= $escape($definition->versioned($stylesheet)) ?>">
+<?php endforeach; endif; ?>
 <?php if ($bootstrap['oauth'] ?? false): $auth = rtrim($definition->oauth->assets, '/'); ?>
     <link rel="stylesheet" href="<?= $escape($auth) ?>/AuthHandler.css">
     <script src="<?= $escape($auth) ?>/AuthHandler.js"></script>

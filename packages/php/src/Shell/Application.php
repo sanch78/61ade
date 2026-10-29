@@ -112,6 +112,8 @@ final class Application
             $bootstrap['userId'] = $identity->id;
             $bootstrap['displayName'] = $identity->displayName;
             $bootstrap['menu'] = $definition->menu->project($identity);
+            // Project ES modules (page-relative, versioned) the shell imports before the first route.
+            if ($definition->modules) $bootstrap['modules'] = array_map($definition->versioned(...), $definition->modules);
             if ($tenancy) $bootstrap['tenant'] = ['current' => $tenant, 'choices' => array_map(static fn($id, $name) => ['id' => (string) $id, 'name' => $name], array_keys($memberships = $tenancy->memberships($identity->id)), $memberships)];
             if ($workspace) {
                 $bootstrap['views'] = $workspace->views($identity, $tenant);

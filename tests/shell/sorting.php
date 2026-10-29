@@ -30,7 +30,7 @@ rejected(fn()=>$read(['mode'=>'dynamic','sort'=>['field'=>'secret','direction'=>
 rejected(fn()=>$read(['mode'=>'dynamic','sort'=>['field'=>'title; DROP TABLE records','direction'=>'asc']]),403);
 rejected(fn()=>$read(['mode'=>'dynamic','sort'=>['field'=>'id','direction'=>'ASC;--']]),400);
 $db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES('user','1','records','list','ui','deny','id','1','title')");rejected(fn()=>$read(['mode'=>'dynamic','sort'=>['field'=>'title','direction'=>'asc']]),403);
-verify(!in_array('title',$w->views($context->actor)[0]['sortable'],true),'Denied field cannot be used to infer order');
+verify(!in_array('title',$w->views($context->actor)[0]['options']['sortable'],true),'Denied field cannot be used to infer order');
 $db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES('user','1','records','list','api','allow','own','','')");
 $api=new Context($context->actor,'api',$w->acl,$db,['records.list']);
 $apiRows=$w->executor->execute($api,'records','list',null,['mode'=>'dynamic','sort'=>['field'=>'amount','direction'=>'asc']]);
