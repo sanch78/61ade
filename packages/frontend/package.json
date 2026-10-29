@@ -5,7 +5,10 @@
   "type": "module",
   "exports": {
     "./admin.js": "./dist/admin.js",
-    "./admin.css": "./dist/admin.css"
+    "./admin.css": "./dist/admin.css",
+    "./admin.d.ts": "./dist/admin.d.ts",
+    "./sandbox.html": "./dist/sandbox.html",
+    "./sandbox.js": "./dist/sandbox.js"
   },
   "files": [
     "dist",

@@ -1032,8 +1032,9 @@ export interface MediaPlayer extends Component<MediaPlayerEvents> {
 }
 
 /**
- * Message between a `SandboxFrame` and its document (`postMessage`, structured clone). `id` is unique per sender;
- * `type` `load`, `ready` and `error` are reserved for the protocol, project types use a dotted prefix.
+ * Message between a `SandboxFrame` and its document (`postMessage`, structured clone). `id` is unique per sender
+ * (1–64 characters); `type` `load`, `ready` and `error` are reserved for the protocol, project types are dotted
+ * registry names (at most 128 characters). Anything else is a protocol violation.
  */
 export interface SandboxMessage<T = unknown> {
   blade: 1;
@@ -1044,38 +1045,51 @@ export interface SandboxMessage<T = unknown> {
 
 /** Payload of the parent's `load` message. */
 export interface SandboxLoad {
-  /** Untrusted script source, run inside the opaque-origin frame only (O7). */
+  /** Untrusted script source, run inside the opaque-origin frame only (O7) as the body of an async function. */
   code: string;
   /** Named data the code may use (media as Blobs; the frame turns them into `blob:` URLs). */
   files: Record<string, Blob | string>;
 }
 
-/** Options of `SandboxFrame` (planned P3 C-4; limits are proposed defaults finalised there). */
+/** Options of `SandboxFrame` (toolkit C-4). */
 export interface SandboxFrameOptions extends ComponentOptions {
-  /** Maximum `code` length in bytes (proposed 1 MiB) and total `files` size (proposed 32 MiB); larger loads fail with `size`. */
+  /** Maximum UTF-8 size of `code` (default 1 MiB) and total size of `files` (default 32 MiB); a larger load fails with `size`. */
   maxCodeBytes?: number;
   maxFileBytes?: number;
-  /** `ready` must arrive within this many ms after `load` (proposed 10 000), otherwise `error` with `timeout`. */
+  /** `ready` must arrive within this many ms after `load` (default 10 000), otherwise `error` with `timeout` and the frame is removed. */
   readyTimeout?: number;
+  /** Accessible name of the iframe (default: the translated `Tartalom`). */
+  title?: string;
 }
 
-/** Events of `SandboxFrame`. */
+/** Events of `SandboxFrame`; every `error` is also emitted as the page's `sandbox:error` event. */
 export interface SandboxFrameEvents {
   ready: Record<string, never>;
+  /**
+   * `error`: the frame reported a throw, rejection or uncaught error (`message` is the frame's untrusted text, at most
+   * 1000 characters); `timeout`: no `ready` in time; `size`: a limit was exceeded; `protocol`: an invalid or reserved
+   * message, or the frame document navigated or reloaded (the frame is then removed).
+   */
   error: { message: string; code: "error" | "timeout" | "size" | "protocol" };
   /** A project message from the frame (reserved types are not delivered here). */
   message: { type: string; payload: unknown };
 }
 
 /**
- * `<iframe sandbox="allow-scripts">` running `dist/sandbox.html` (opaque origin: no cookies, no session, no CSRF).
- * The parent accepts only messages whose `source` is its own frame and whose origin is `"null"`. `destroy()` removes
- * the frame at once (kill switch). Never pass the frame data the actor may not see.
+ * `<iframe sandbox="allow-scripts">` running `dist/sandbox.html` beside `admin.js` (opaque origin: no cookies, no
+ * session, no CSRF). The parent accepts only messages whose `source` is its own frame and whose origin is `"null"`;
+ * everything the frame sends, `ready` and `error` included, is untrusted input. Inside the frame the code sees
+ * `blade.on(type, handler)`, `blade.post(type, payload)` and `blade.files`. `destroy()` removes the frame at once
+ * (kill switch). Never pass the frame data the actor may not see: it can always navigate itself and leak it.
  */
 export interface SandboxFrame extends Component<SandboxFrameEvents> {
-  /** Sends `load`; resolves on `ready`, rejects on `error`. A new load replaces the frame document. */
+  /**
+   * Checks the limits, replaces the frame document and sends `load`; resolves on `ready`, rejects with an `Error`
+   * whose `code` is the `error` event's code, or with an `AbortError` when a later `load` or `destroy()` replaces it.
+   * Mount the component first: the timeout runs from this call.
+   */
   load(code: string, files?: Record<string, Blob | string>): Promise<void>;
-  /** Sends a project message. */
+  /** Sends a project message (dotted type); throws before `ready`, does nothing after `destroy()`. */
   post(type: string, payload?: unknown): void;
 }
 
