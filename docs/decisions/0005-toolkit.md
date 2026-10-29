@@ -58,4 +58,20 @@ own screens are built from the same building blocks.
   DHTMLX; framework-first now means "build the reusable tool", not "forbid
   the project's code".
 - The public API becomes a contract with its own reference documentation,
-  type declarations and breaking-change notes.
+  type declarations and breaking-change notes: the
+  [toolkit reference](../toolkit.md), `packages/frontend/src/api/types.ts`
+  and `Blade\Feature\View`/`ViewKindProvider` (contract only until P2/P3).
+- Resolved plan decisions ([details](../toolkit.md#resolved-decisions)):
+  modules get the `Application` by injection, no import map (O1); plain ES
+  modules or project-built TypeScript with `admin.d.ts` (O2); a view `id`
+  independent of the resource, canonical `#view=`, with `#feature=` kept as a
+  rewritten legacy alias because delivered consumer e-mails use it (O3);
+  record views resolved through the record resource's `get` (O4); per-row
+  activation maps with `view:<id>` targets (O5); a static sandbox document in
+  an opaque-origin frame (O6), the only place untrusted code may run (O7);
+  project `stylesheets` (O8); project texts through the existing merged
+  catalog, no new transport (O9); `app.dhx` is the shell's Suite instance
+  (O10); `apiVersion` 1 with a recorded change log after G1 (O11).
+- A later view declaration with the same id replaces the earlier one, as
+  today; the owner confirms this and the other
+  [open points](../toolkit.md#open-points) at gate G1.

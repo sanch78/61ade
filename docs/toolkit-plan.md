@@ -1,7 +1,9 @@
 # Toolkit plan: opening 61ade to project code
 
 Status: accepted direction ([ADR-0005](decisions/0005-toolkit.md),
-[FB-0081](feedback.md#fb-0081)), not started. Written 2026-10-29 for execution
+[FB-0081](feedback.md#fb-0081)); P1 contract drafted for gate G1 in the
+[toolkit reference](toolkit.md) (types and PHP value objects only, no runtime
+change). Written 2026-10-29 for execution
 by a coordinating agent with sub-agents in a new thread. Breaking changes are
 accepted; consumers adapt themselves.
 

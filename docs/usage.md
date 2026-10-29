@@ -55,6 +55,8 @@ general capability is requested from 61ade without blocking the project; see
 [project rules](development.md#mandatory-framework-development-rules),
 [ADR-0004](decisions/0004-project-domain-freedom.md) and
 [ADR-0002](decisions/0002-framework-first.md).
+The planned public API for project modules ([ADR-0005](decisions/0005-toolkit.md))
+is specified, not yet implemented, in the [toolkit reference](toolkit.md).
 
 <a id="elfogadott-termékirány--2026-10-21"></a>
 
