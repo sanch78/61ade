@@ -33,8 +33,8 @@ $rule=$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,act
 foreach(['list','get','create','update','temporary_password'] as $action)$rule->execute([Accounts::RESOURCE,$action,'ui']);
 check(count($run($admin,'list'))===2,'Granted list');
 check(array_column($registry->views(),'resource')===[Accounts::RESOURCE],'Users view registered');
-check(in_array('temporary_password',$registry->views()[0]['actions'],true) && !in_array('deactivate',$registry->views()[0]['actions'],true),'No single-purpose toggle actions');
-$columns=array_column($registry->views()[0]['columns'],'id');
+check(in_array('temporary_password',$registry->views()[0]->actions,true) && !in_array('deactivate',$registry->views()[0]->actions,true),'No single-purpose toggle actions');
+$columns=array_column($registry->views()[0]->options['columns'],'id');
 check(in_array('blade_disabled',$columns,true) && !in_array('blade_oauth',$columns,true) && !in_array('blade_locale',$columns,true) && !in_array('blade_email_confirmation',$columns,true),'Optional switches only when configured');
 
 // Creation issues a generated temporary password exactly once; the e-mail is normalized.
@@ -110,17 +110,17 @@ try{$readonly->get(Accounts::RESOURCE,'create');throw new RuntimeException('Crea
 $identity=['table'=>'accounts','id_column'=>'id','username_column'=>'email','password_column'=>'password_hash','name_column'=>'display_name'];
 try{AdminConfiguration::build(['unknown'=>true],$identity,[],new Workspace(new Registry(),$db),$identities);throw new RuntimeException('Unknown admin key accepted');}catch(InvalidArgumentException){}
 $configured=new Registry();AdminConfiguration::build(['group'=>'Admin','temporary_password_hours'=>24],$identity,[],new Workspace($configured,$db),$identities);
-check($configured->views()[0]['group']==='Admin','Configured admin group');
+check($configured->views()[0]->group==='Admin','Configured admin group');
 check(in_array('blade_api_keys',array_column($configured->views(),'resource'),true) && in_array('blade_roles',array_column($configured->views(),'resource'),true),'Configured administration includes ACL and API keys');
 
 // Optional switches: OAuth permission, e-mail confirmation and default language (several site languages).
 $optional=new Registry();$optionalWorkspace=new Workspace($optional,$db);
 $languages=new Blade\I18n\Settings('hu',['hu'=>'Magyar','en'=>'English'],true);
 $full=new Accounts($optionalWorkspace,'accounts','id','email','display_name','password_hash',languages:$languages,oauth:true,emailConfirmation:false);$full->register($optional);
-$columns=array_column($optional->views()[0]['columns'],'id');
+$columns=array_column($optional->views()[0]->options['columns'],'id');
 check(!array_diff(['blade_disabled','blade_oauth','blade_locale','blade_email_confirmation'],$columns),'Optional switches registered');
 $single=new Registry();(new Accounts(new Workspace($single,$db),'accounts','id','email','display_name','password_hash',languages:new Blade\I18n\Settings('en',['en'=>'English'])))->register($single);
-check(!in_array('blade_locale',array_column($single->views()[0]['columns'],'id'),true),'One site language: no per-user language');
+check(!in_array('blade_locale',array_column($single->views()[0]->options['columns'],'id'),true),'One site language: no per-user language');
 $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1',?,?,'ui','allow','all','','')")->execute([Accounts::RESOURCE,'list']);
 $runFull=fn(string $action,?string $id=null,array $values=[])=>$optionalWorkspace->executor->execute($admin,Accounts::RESOURCE,$action,$id,$values);
 $editFull=fn(string $id,string $field,mixed $value)=>$optionalWorkspace->executor->edit($admin,Accounts::RESOURCE,$id,$field,$value,$runFull('get',$id)['revision']);

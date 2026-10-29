@@ -7,13 +7,15 @@ namespace Blade\Configuration;
 use Closure;
 use InvalidArgumentException;
 use PDO;
-use Blade\Feature\{Action, Field, Lookup, Registry, SqlResource, ViewLayout, Workspace};
+use Blade\Feature\{Action, Field, Lookup, Registry, SqlResource, View, ViewLayout, Workspace};
 
 /** Compiles trusted declarations to the existing 61ade runtime; no consumer imports. */
 final class WorkspaceConfiguration
 {
     private array $resources = [];
     private array $lookups = [];
+    /** View ids declared in JSON (resource views and `views` entries); a repeated id is a duplicate definition. */
+    private array $viewIds = [];
 
     private function __construct(private Registry $registry, private Bindings $bindings)
     {
@@ -40,6 +42,7 @@ final class WorkspaceConfiguration
                 'lookups' => 'array',
                 'resources' => 'array',
                 'actions' => 'array',
+                'views' => 'array',
             ], '$.workspace.module');
             foreach ($module['lookups'] ?? [] as $name => $definition) {
                 Shape::check($definition, [
@@ -77,13 +80,21 @@ final class WorkspaceConfiguration
                 $compiler->view($name, $definition);
             }
         }
-        // Sub-views last: both views exist by then, wherever the child is declared.
+        foreach ($modules as $module) {
+            foreach ($module['views'] ?? [] as $id => $definition) {
+                $compiler->extraView((string) $id, $definition);
+            }
+        }
+        // Sub-views last: both views exist by then, wherever the child is declared. `subview.resource` names the
+        // child view id (its resource unless the child declares another `view.id`).
         foreach ($modules as $module) {
             foreach ($module['resources'] ?? [] as $name => $definition) {
                 $sub = $definition['view']['subview'] ?? null;
-                if ($sub) $workspace->registry->subview($name, $sub['resource'], $sub['field'], $sub['embed'] ?? true, $sub['select'] ?? true);
+                if ($sub) $workspace->registry->subview($definition['view']['id'] ?? $name, $sub['resource'], $sub['field'], $sub['embed'] ?? true, $sub['select'] ?? true);
             }
         }
+        // `view:<id>` activation targets exist once every view is declared.
+        $workspace->registry->checkViews();
         return $workspace;
     }
 
@@ -161,8 +172,15 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'string',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string',
         ], '$.resources.'.$name.'.view');
+        // A string target or an `{field, map}` activation map; Registry::view() validates the targets.
+        if (isset($view['activate']) && !is_string($view['activate']) && !is_array($view['activate'])) {
+            throw new InvalidArgumentException('Invalid configuration type: $.resources.'.$name.'.view.activate');
+        }
+        if (isset($view['activate']) && is_array($view['activate'])) {
+            Shape::check($view['activate'], ['field' => 'string', 'map' => 'array'], [], '$.resources.'.$name.'.view.activate');
+        }
         Shape::check($view['subview'] ?? ['resource' => '', 'field' => ''], ['resource' => 'string', 'field' => 'string'], ['embed' => 'boolean', 'select' => 'boolean'], '$.resources.'.$name.'.view.subview');
         $related = [];
         foreach ($storage['related'] ?? [] as $relation) {
@@ -196,6 +214,7 @@ final class WorkspaceConfiguration
             update: $operations['update'] ?? true,
             group: $view['group'] ?? null,
             layout: $this->layout($view),
+            id: $view['id'] ?? null,
         );
         if ($operations['delete'] ?? false) {
             $resource->registerDelete($this->registry, $operations['delete_policy'] ?? 'delete');
@@ -255,18 +274,14 @@ final class WorkspaceConfiguration
     private function view(string $name, array $definition): void
     {
         $view = $definition['view'];
-        $current = null;
-        foreach ($this->registry->views() as $candidate) {
-            if ($candidate['resource'] === $name) {
-                $current = $candidate;
-                break;
-            }
-        }
+        $id = $view['id'] ?? $name;
+        $this->claim($id);
+        $current = $this->registry->viewById($id);
         $this->registry->view(
             resource: $name,
             title: $view['title'],
-            columns: $view['columns'] ?? $current['columns'],
-            actions: $view['actions'] ?? $current['actions'],
+            columns: $view['columns'] ?? $current->options['columns'],
+            actions: $view['actions'] ?? $current->actions,
             singleton: $view['singleton'] ?? false,
             group: $view['group'] ?? null,
             layout: $this->layout($view),
@@ -278,7 +293,48 @@ final class WorkspaceConfiguration
             rowHeight: $view['row_height'] ?? null,
             tileMinWidth: $view['tile_min_width'] ?? null,
             tiles: $view['tiles'] ?? false,
-            activate: $view['activate'] ?? null,
+            activate: is_array($view['activate'] ?? null) ? ['field' => $view['activate']['field'], 'map' => $view['activate']['map']] : ($view['activate'] ?? null),
+            id: $id,
         );
+    }
+
+    private function claim(string $id): void
+    {
+        if (isset($this->viewIds[$id])) {
+            throw new InvalidArgumentException('Duplicate view: '.$id);
+        }
+        $this->viewIds[$id] = true;
+    }
+
+    /**
+     * Module-level `views.<id>`: a view of a project kind (dotted `kind`; built-in kinds are declared through
+     * `resources.<name>.view`). `options` reach the browser verbatim (JSON-safe, at most 64 KiB encoded).
+     */
+    private function extraView(string $id, mixed $definition): void
+    {
+        if (!is_array($definition)) {
+            throw new InvalidArgumentException('Invalid configuration type: $.views.'.$id);
+        }
+        Shape::check($definition, ['kind' => 'string', 'title' => 'string'], [
+            'resource' => 'string', 'record' => 'string', 'actions' => 'array', 'options' => 'array', 'open' => 'string',
+            'group' => 'string', 'icon' => 'string', 'desktop_only' => 'boolean',
+        ], '$.views.'.$id);
+        if (in_array($definition['kind'], View::BUILTIN_KINDS, true)) {
+            throw new InvalidArgumentException('Built-in view kinds are declared in resources.<name>.view: $.views.'.$id);
+        }
+        $this->claim($id);
+        $this->registry->addView(new View(
+            id: $id,
+            kind: $definition['kind'],
+            title: $definition['title'],
+            resource: $definition['resource'] ?? null,
+            record: $definition['record'] ?? null,
+            actions: $definition['actions'] ?? [],
+            options: $definition['options'] ?? [],
+            group: $definition['group'] ?? null,
+            icon: $definition['icon'] ?? null,
+            desktopOnly: $definition['desktop_only'] ?? false,
+            open: $definition['open'] ?? 'page',
+        ));
     }
 }

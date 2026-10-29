@@ -40,12 +40,22 @@ $base = require dirname(__DIR__, 2).'/examples/demo-app/admin-application.php';
 verify(array_column($base->workspace->registry->views(), 'resource') === ['blade_users', 'blade_roles', 'blade_memberships', 'blade_role_rules', 'blade_user_rules', 'blade_api_keys'], 'Base admin has only the mandatory administration');
 verify($base->cookiePath === '/admin/' && $base->assets === '../assets' && $base->sessionName !== $app->sessionName, 'Base admin is a separate application');
 verify(count($base->workspace->views($base->identities->authenticate('demo@example.test', '61ade-demo'))) === 6, 'First administrator reaches every admin view');
+// The starter admin and the tenant demo stay declarative: no project browser modules or stylesheets.
+$tenantDemo = require dirname(__DIR__, 2).'/examples/demo-app/tenant-application.php';
+verify($base->modules === [] && $base->stylesheets === [] && $tenantDemo->modules === [] && $tenantDemo->stylesheets === [], 'Starter admin and tenant demo declare no modules or stylesheets');
 // Feature demo: business modules plus every sign-in method.
 verify($app->authentication !== null && $app->oauth !== null && $app->oauth->providers() === ['Google', 'Facebook'] && count($app->languages->languages) === 2, 'Feature demo shows all sign-in methods and languages');
 verify($app->identities->authenticate('twofactor@example.test', '61ade-demo') !== null && $app->authentication->needsConfirmation($app->identities->find('4')), 'E-mail second factor account');
 verify($app->accounts->oauthAllowed('5') && !$app->accounts->oauthAllowed('1') && $app->accounts->locale('4') === 'en', 'OAuth and default language accounts');
 // Action confirmation metadata: validated at construction, passed to the browser, no unknown keys.
 $demoViews = $app->workspace->views($app->identities->find('1'));
+// Bootstrap views (docs/toolkit.md#views): id and kind always set, kind payloads under `options`, no placeholders.
+foreach ($demoViews as $view) {
+    verify(array_slice(array_keys($view), 0, 2) === ['id', 'kind'] && array_key_last($view) === 'options' && !array_diff(array_keys($view), ['id', 'kind', 'title', 'resource', 'record', 'actions', 'group', 'icon', 'desktopOnly', 'open', 'options']), 'Bootstrap view shape: '.$view['id']);
+}
+$demoKinds = array_column($demoViews, 'kind', 'id');
+verify($demoKinds['demo_tasks'] === 'list' && $demoKinds['files'] === 'files' && $demoKinds['topology'] === 'diagram' && $demoKinds['signage_schedule'] === 'calendar', 'Every built-in kind is named explicitly');
+verify(!array_filter($demoViews, static fn(array $view) => $view['kind'] !== 'list' && array_intersect_key($view['options'], ['columns' => 1, 'filters' => 1, 'singleton' => 1])), 'Non-list kinds carry no list placeholders');
 $dialogActions = array_values(array_filter(array_merge(...array_column($demoViews, 'actions')), static fn(array $a) => str_starts_with($a['name'], 'dialog_')));
 verify(array_column(array_column($dialogActions, 'confirm'), 'severity') === ['neutral', 'warning', 'danger'], 'Dialog demo actions expose confirm severities');
 foreach ([['message' => ''], ['message' => 'x', 'severity' => 'loud'], ['message' => 'x', 'onclick' => 'y']] as $bad) {

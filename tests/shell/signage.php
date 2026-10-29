@@ -73,11 +73,11 @@ try {
     // Metadata: the file field is a media column with the resolved folder and the upload policy, never a path.
     $views = array_column($workspace->views(new Identity('1', 'Demo')), null, 'resource');
     $view = $views['signage_assets'];
-    $columns = array_column($view['columns'], null, 'id');
+    $columns = array_column($view['options']['columns'], null, 'id');
     check(array_keys($columns) === ['file_id', 'title', 'media_type', 'media_resolution', 'media_length', 'duration', 'usage'], 'Asset columns: thumbnail, title, derived type/resolution/length, play time, usage');
     check($columns['file_id']['type'] === 'file' && $columns['file_id']['media'] === 'files' && $columns['media_type']['media_of'] === 'file_id' && $columns['media_type']['part'] === 'type' && $columns['media_length']['part'] === 'duration', 'File column is a media column; derived columns reach the wire');
-    check(!in_array('media_type', $view['sortable'], true) && in_array('usage', $view['sortable'], true) && !in_array('kind', array_column($view['filters'], 'name'), true), 'Derived columns not sortable; usage sortable; no kind field');
-    check(($filters = array_column($view['filters'], null, 'name')) && $filters['file_id']['type'] === 'select' && array_keys($filters['file_id']['options']) === ['image', 'video'], 'Type filter from the file field');
+    check(!in_array('media_type', $view['options']['sortable'], true) && in_array('usage', $view['options']['sortable'], true) && !in_array('kind', array_column($view['options']['filters'], 'name'), true), 'Derived columns not sortable; usage sortable; no kind field');
+    check(($filters = array_column($view['options']['filters'], null, 'name')) && $filters['file_id']['type'] === 'select' && array_keys($filters['file_id']['options']) === ['image', 'video'], 'Type filter from the file field');
     $actions = array_column($view['actions'], null, 'name');
     check(isset($actions['upload_asset']) && $actions['upload_asset']['upload']['extensions'] === ['png', 'jpg', 'mp4', 'webm'] && $actions['upload_asset']['upload']['folders'] === false && $actions['upload_asset']['fields'] === [], 'Upload as asset offered with its upload policy');
     check(($actions['delete']['usages'] ?? false) === true && array_column($actions['delete']['fields'], 'name') === ['revision'], 'Asset delete announces usages; preview is no form field');
@@ -87,9 +87,9 @@ try {
         && $fileField['file']['folder_id'] === (string) $signage['id'] && $fileField['file']['can_upload'] === true && $fileField['file']['can_choose'] === true && $fileField['file']['policy']['extensions'] === ['png', 'jpg', 'mp4', 'webm'] && !isset($fileField['file']['folder']), 'File field metadata');
     check(!str_contains(json_encode($view, JSON_THROW_ON_ERROR), $tmp), 'No storage path in metadata');
     $fileActions = array_column($views['files']['actions'], null, 'name');
-    check(($fileActions['delete']['usages'] ?? false) === true && array_column($fileActions['delete']['fields'], 'name') === ['sources'] && in_array('signage', array_column($views['files']['files']['mounts'], 'id'), true), 'File manager delete announces usages; Signage mount shown');
+    check(($fileActions['delete']['usages'] ?? false) === true && array_column($fileActions['delete']['fields'], 'name') === ['sources'] && in_array('signage', array_column($views['files']['options']['mounts'], 'id'), true), 'File manager delete announces usages; Signage mount shown');
     $readerViews = array_column($workspace->views(new Identity($reader, 'Reader')), null, 'resource');
-    check(array_column($readerViews['signage_assets']['actions'], 'name') === ['get'] && in_array('signage', array_column($readerViews['files']['files']['mounts'], 'id'), true), 'Reader views assets and the Signage mount read-only');
+    check(array_column($readerViews['signage_assets']['actions'], 'name') === ['get'] && in_array('signage', array_column($readerViews['files']['options']['mounts'], 'id'), true), 'Reader views assets and the Signage mount read-only');
     $readerField = $workspace->fieldMetadata($ctx($reader), $workspace->registry->fields('signage_assets')['file_id']);
     check($readerField['file']['can_upload'] === false && $readerField['file']['can_choose'] === true && $readerField['file']['folder_id'] === (string) $signage['id'], 'Reader may not upload into the field folder, but may browse it');
     check($workspace->fieldMetadata($ctx('77'), $workspace->registry->fields('signage_assets')['file_id'])['file']['can_choose'] === false, 'Without `list` on the mount the picker is not offered');
