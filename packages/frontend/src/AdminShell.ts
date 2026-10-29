@@ -72,7 +72,10 @@ export class AdminShell {
   private navigation=0;
   /** The tab's one live channel (signed in with a list view), shared by every list and sub-view. */
   private channel?: LiveChannel;
-  private get live():LiveChannel{return this.channel??=new LiveChannel(this.definition.live || {transport:"poll",endpoint:"live",interval:2000},this.definition.csrf || "");}
+  private get live():LiveChannel{return this.channel??=new LiveChannel(this.definition.live || {transport:"poll",endpoint:"live",interval:2000},this.definition.csrf || "",
+    {notice:text=>this.liveNotice(text),editing:()=>this.content instanceof Workspace||this.content instanceof DiagramEditor?this.content.editing():false});}
+  /** The open view behind a DesktopOnly wrapper, asked before a live reload. */
+  private content?: Workspace | FileManager | DiagramEditor | Calendar;
   private route = () => {
     const resource = new URLSearchParams(location.hash.slice(1)).get("feature");
     const view = this.definition.views?.find(view => view.resource === resource);
@@ -81,7 +84,7 @@ export class AdminShell {
       this.renderMenu();
       ++this.navigation;
       this.layout.getCell("workspace").detach();
-      this.workspace?.destroy(); this.workspace=undefined;
+      this.workspace?.destroy(); this.workspace=this.content=undefined;
     }
   };
   private menuItems: object[] = [];
@@ -189,6 +192,7 @@ export class AdminShell {
           value: escape(definition.tenant.choices.find(choice => choice.id === definition.tenant!.current)?.name ?? t("Nincs hozzárendelt tenant")),
           tooltip: definition.tenant.current ? t("Aktív tenant") : t("Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.") }] : []),
         { type: "spacer" },
+        { id: "live-status", type: "title", value: "", hidden: true },
         { id: "upload-status", value: "", icon: "dxi dxi-file-import", hidden: true, css: "blade-upload-indicator" },
         {
           id: "application-version",
@@ -276,7 +280,7 @@ export class AdminShell {
     this.renderMenu();
     const navigation=++this.navigation;
     this.layout.getCell("workspace").detach();
-    this.workspace?.destroy();this.workspace=undefined;
+    this.workspace?.destroy();this.workspace=this.content=undefined;
     await awaitRedraw();
     if(navigation!==this.navigation || this.listeners.signal.aborted)return;
     const content=isCalendarView(view)
@@ -286,8 +290,14 @@ export class AdminShell {
       :isFileView(view)
       ?new FileManager(document.createElement("div"),view,this.definition.csrf || "")
       :new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.live,this.definition.userId??"");
-    this.workspace=view.desktopOnly?new DesktopOnly(content,view.title):content;
+    this.content=content;this.workspace=view.desktopOnly?new DesktopOnly(content,view.title):content;
     this.layout.getCell("workspace").attach(this.workspace.layout);
+  }
+
+  /** The live channel's page-level hint (a stale page that did not reload) in the lower bar. */
+  private liveNotice(text: string): void {
+    this.status.data.update("live-status", { value: escape(text), tooltip: text });
+    this.status.show("live-status");
   }
 
   /** Shows, hides or relabels the indicator only when its text changes, so progress does not repaint the bar. */

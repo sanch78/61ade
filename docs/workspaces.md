@@ -185,14 +185,20 @@ WebSocket protocol 2 (JSON text frames; [FB-0075](feedback.md#fb-0075),
 | close | 1011 / 1012 / 1006 | Transient (bridge failure, server restart, network). |
 
 The browser uses a new `id` for every `subscribe`, so a frame of a replaced
-query is never applied. Limits: 64 subscriptions per connection (the 65th gets
-`denied` 429 and that list keeps its loaded rows without live updates) and 100
-connections per server (upgrade refused with 403). Each subscription ticks on
-its own every `BLADE_LIVE_INTERVAL` (2 s): a slow observation delays only its
-own next tick, while the single bridge still serializes all of them. A bridge
-5xx or timeout retries that subscription with backoff (interval × 2ⁿ, at most
-30 s) and is never reported as a denial; a 401 closes the whole connection with
-4401.
+query is never applied. Limits per connection: 64 subscriptions and a row
+budget of 2000, the sum of the subscriptions' `limit` (default 100, at most
+600). The subscription that exceeds either gets `denied` 429 (`Too many
+subscriptions`, `Row budget exceeded`) and that list keeps its loaded rows
+without live updates. At most 100 connections per server (upgrade refused with
+403). Every `BLADE_LIVE_INTERVAL` (2 s, each connection at its own random
+offset) all subscriptions of a connection become due. Bridge reads are
+scheduled fairly: `hello` checks first, then one read per connection in turn,
+at most 2 in flight per connection and 16 overall, so a flooding connection
+delays only itself. Repeated ticks or subscribes on one id coalesce into one
+read, and a replaced subscription is read after the running one finishes. A
+bridge 5xx or timeout retries that subscription with backoff (interval × 2ⁿ,
+at most 30 s) and is never reported as a denial; a 401 closes the whole
+connection with 4401.
 
 Client reactions: 1011, 1012 and 1006 reconnect with backoff (0.5 s × 2ⁿ, at
 most 15 s), each with a fresh `__ticket`, and subscribe every list again. A
@@ -201,9 +207,14 @@ most 15 s), each with a fresh `__ticket`, and subscribe every list again. A
 `ready` may be an expired ticket (tickets last 1 h), so the channel asks for one
 new ticket; `__ticket` answering 401/403 ends it the same way. A 4409 reloads the
 page once; `sessionStorage` (`blade-live-reload`) blocks a second reload within
-60 s, and without `sessionStorage` the page never reloads. A blocked reload
-leaves the lists without live updates ("Az élő követéshez töltse újra az
-oldalt."). `__ticket` needs no list resource (the channel sends `resource: ""`);
+60 s, and without `sessionStorage` the page never reloads. It never reloads
+over open input either: an open record form or bulk form, a card or cell
+editor, a changed singleton form (also in sub-views and sub-view windows), or
+unsaved diagram changes. In these cases the page stays as it is: lists keep
+loading and working without live updates (nothing is revoked) and the lower
+bar shows "Az élő követéshez töltse újra az oldalt." until the user reloads.
+The file manager's text editor and running uploads are not consulted (an
+upload's own leave warning still applies). `__ticket` needs no list resource (the channel sends `resource: ""`);
 the session and CSRF checks are unchanged.
 
 A hidden tab unsubscribes every list but keeps the socket open (the server's
@@ -219,7 +230,9 @@ version}]` (at most 64 per request; the channel splits a batch only above about
 48 KB). The answer `{results: [{id, ok: true, data} | {id, ok: false, status,
 error}]}` answers each entry separately, so a refused or failing list never
 fails the others; a 401 or CSRF 403 of the whole request ends the session state
-for every list. A new subscription polls at once. The single-list form
+for every list. A new subscription polls at once. A failing
+batch (network, 5xx, 413) marks only its own lists as reconnecting; the other
+batches of the interval still run. Batch size is measured in UTF-8 bytes. The single-list form
 (`values: {query, version}`) is still accepted for pages loaded before the
 change.
 

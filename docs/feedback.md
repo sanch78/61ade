@@ -2113,8 +2113,117 @@ that exactly equals an option label lists every option. The managed
   `touch examples/demo-app/common.php` logged `Live worker reloading after a PHP
   change` in the unit journal without `sudo`; `workspace.spec.cjs` through the
   managed URL: 4 passed, polling case skipped.
-- **Status:** approved plan; L0 implemented and verified on the demo; L1–L2
-  next.
+- **L1–L2 (2026-10-29, multiplexed protocol and browser channel):** live
+  protocol 2 ([workspaces](workspaces.md#live-channel)). Server
+  (`tools/live-server.mjs`, bundled into `packages/php/bin/live-server.mjs`):
+  the first frame must be `hello {protocol: 2, ticket}`, anything else closes
+  with 4409 (an old page's `subscribe` too); the bridge checks the ticket and
+  session in a new authentication-only `check` request before `ready`; the
+  ticket is kept per connection and sent with each of its observations. A
+  per-connection map of subscriptions, each a fresh object with its own busy
+  flag, diff state and 5xx/timeout backoff (interval × 2ⁿ, at most 30 s), all
+  ticked by one 2 s connection timer; 401 → close 4401, other 4xx → `denied
+  {id, status, error}` for that subscription only, 5xx → silent retry. Limits:
+  64 subscriptions per connection (`denied` 429), 100 connections per server
+  (unchanged). `live-bridge.php` takes `check: true` and validates
+  resource/query types. `Workspace::watch()` answers batched `__watch`
+  (`values.subscriptions`, at most `WATCH_LIMIT` 64) per entry; a 401 still
+  fails the request; the single-list form stays for old pages. Browser
+  (`Realtime.ts`): `LiveChannel` owned by `AdminShell`, opened after sign-in
+  when a list view exists, closed on sign-out, tenant switch, `destroy()` and
+  `pagehide`; `Realtime` is now the list's handle (`subscribe`, `destroy`,
+  callbacks unchanged) and every `Workspace`, sub-view preview and sub-view
+  window gets the shell's channel instead of a `LiveConfig`. Decisions: a new
+  wire id per subscribe (late frames of a replaced query are dropped); `__ticket`
+  is called with `resource: ""` (no PHP change needed); reconnect with a fresh
+  ticket and backoff 0.5 s × 2ⁿ (≤ 15 s); 4401 before `ready` revokes every
+  list without reconnecting, 4401 after `ready` asks for one new ticket
+  (expired ticket) and `__ticket` 401/403 revokes; 4409 reloads once, guarded
+  by `sessionStorage` `blade-live-reload` for 60 s and never reloading without
+  storage; a hidden tab unsubscribes everything and keeps the socket, showing it
+  resubscribes; 429 stops only that list's live updates. Polling sends one
+  batched `__watch` per interval (split above 64 entries or about 48 KB) and
+  polls at once for a new subscription. New text "Az élő követéshez töltse újra
+  az oldalt." (hu/en/de). Fixture specs (`subview`, `list-presentation`,
+  `mobile-grid`) construct the channel and answer the batched form;
+  `grid-edit.spec.cjs` now strips `_editable` from batched `__watch` answers
+  and WebSocket update frames too (its HTTP-only stub dated from polling and
+  failed once live frames carried the real rights).
+- **L1–L2 verification (agent, 2026-10-29):** `npm run typecheck`, `npm run
+  build`, `npm run demo:assets`, `node tools/build.mjs --check` pass; `php8.4
+  -l` on the bridge, `Workspace.php`, `lists.php`, `tenancy.php`;
+  `contracts.php`, `configuration.php`, `lists.php` (batched watch: per-entry
+  answers, 404 alone, unchanged version, 413 above 64, 400 malformed),
+  `tenancy.php` (batched watch: scoped list without a tenant 403 beside a
+  global list), `i18n.php` pass. `node tests/shell/live-protocol.mjs` (new;
+  bundled server on a free port, own `tmp/live-protocol-*` instance): 17
+  checks pass — hello/ready, three subscriptions on one connection, 404 and
+  tenant 403 `denied` while the other subscriptions keep updating, an external
+  write reaching two subscriptions, unsubscribe, id replacement, bad and
+  cross-application tickets 4401, protocol 1 hello and old `subscribe` 4409,
+  subscribe before ready 1008, 65th subscription 429, removed session → 4401
+  on an open channel. The demo unit restarted itself on the new bundle at
+  14:36:48–51 UTC (journal: `Live server bundle changed, exiting for
+  restart`, then `61ade live transport ready`). Managed URL: `npm run
+  test:browser -- workspace subview subview-demos tenancy list-integration
+  grid-edit`: 24 passed, 1 skipped (polling case), 1 failed — the known
+  `tenancy.spec.cjs` "no membership" case (leftover Alfa membership of
+  none@example.test, data, unrelated). `workspace.spec.cjs` now asserts one
+  `/live/tenants` socket, never closed, with ≥ 6 subscription ids and update
+  frames while switching three tenant-demo views, expanding two sub-view rows
+  and opening a sub-view window; plus 4409 reloading exactly once, 4401 before
+  `ready` not reconnecting and a hidden tab unsubscribing and resubscribing on
+  one socket. `list-presentation`, `mobile-grid`, `subview` after the fixture
+  change: 24 passed. `subview.spec.cjs` "a preview fits its records" failed
+  once in six runs (`scrollHeight > clientHeight` right after the row-count
+  poll), cause not determined. Not verified: polling transport on the demo
+  (its `.env` selects WebSocket; covered by the fixture specs and PHP tests
+  only), a real ticket expiry after 1 h, `pagehide`/back-forward-cache restore,
+  a server shipped without the matching dist.
+- **L1–L2 review fixes (2026-10-29):** an independent review found six
+  defects. (1) After a blocked 4409 reload the channel treated every later
+  subscribe as "session ended" and revoked the list: the channel now has
+  separate `ended` (revoke) and `stale` (lists keep working without live data)
+  states, and the stale hint is shown in the shell's lower bar (a hidden
+  `live-status` Toolbar title item). (2) One connection could fill the global
+  bridge queue (`pending > 100`) and make other users' `hello` close with 1011:
+  the server now schedules bridge reads fairly — `hello` checks first, then
+  round-robin across connections, at most 2 reads in flight per connection
+  and 16 overall; ticks and subscribes on one id coalesce in a per-connection
+  due set; a replaced subscription waits for the running read; each connection
+  ticks at a random offset. (3) A per-connection row budget of 2000 (sum of
+  `limit`, default 100, at most 600) answers `denied` 429 `Row budget
+  exceeded`. (4) Polling handles errors per batch and measures batch size in
+  UTF-8 bytes. (5) 4409 never reloads over open input: `Workspace.editing()`
+  (open record or bulk form, card or cell editor, changed singleton form, also
+  in previews and sub-view windows) and `DiagramEditor.editing()` (unsaved
+  diagram) are asked first, and the page stays stale with the hint instead.
+  The file manager text editor and running uploads are not consulted. (6)
+  `security-model.md` now states that polling `__watch` requests update
+  `lastSeen` (WebSocket does not); recorded as an open L5 item in the plan, with
+  idle connection slots, no periodic recheck and the 10 s unauthenticated slot.
+  Nit: `pause()` no longer cancels a pending WebSocket reconnect (its backoff
+  stays). The server messages "Túl sok feliratkozás.", "Hibás feliratkozás."
+  and "Az élő kapcsolat nem érhető el." never reach the UI (the client ignores
+  `denied`/batch error texts), so they got no catalogue entries.
+- **Review-fix verification (agent, 2026-10-29):** typecheck, build,
+  `demo:assets`, `build --check`, `php8.4 -l`, `contracts.php`,
+  `configuration.php`, `lists.php`, `tenancy.php`, `i18n.php` pass.
+  `live-protocol.mjs` now 22 checks, pass: added a sustained flood (one
+  connection subscribing 50× per 10 ms on one id plus 300 new ids) during
+  which another connection gets `ready` and its update, the flood capped with
+  237 × 429, and the row budget (fourth `limit: 600` subscription denied,
+  a `limit: 200` one served). The previous bundle (checkpoint 76b0cf3) failed
+  the flood check in 1 of 3 runs (`hello` timeout). The demo unit restarted
+  on the new bundle (journal 15:14:19 `Live server bundle changed`, 15:14:22
+  ready). Managed URL: `workspace`, `subview`, `subview-demos`, `grid-edit`:
+  19 passed, 1 skipped (polling case); `workspace.spec.cjs` adds a stale page
+  that still opens a list and shows the lower-bar hint, and a 4409 with an open
+  form that keeps the draft and does not reload. `subview.spec.cjs` three more
+  runs: 4 passed each, "a preview fits its records" passed every time.
+  `list-presentation` and `mobile-grid`: 20 passed.
+- **Status:** approved plan; L0 and L1–L2 implemented and verified by tools on
+  the demo; owner acceptance of L2 (one socket in DevTools) pending; L3 next.
 
 <a id="fb-0076"></a>
 

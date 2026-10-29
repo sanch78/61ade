@@ -82,13 +82,41 @@ try{
  check(await early.closed===1008,'subscribe before ready → close 1008');
 
  const many=connect();await hello(many,admin);
- for(let i=1;i<=65;i++)many.send({type:'subscribe',id:'s'+i,resource:'blade_roles',query:{}});
+ for(let i=1;i<=65;i++)many.send({type:'subscribe',id:'s'+i,resource:'blade_roles',query:{limit:1}});
  const limit=await many.wait(m=>m.type==='denied',8000,'limit denial');
  check(limit.id==='s65'&&limit.status===429,'the 65th subscription → denied {status: 429}');
- many.send({type:'subscribe',id:'s1',resource:'blade_roles',query:{}});many.send({type:'unsubscribe',id:'s2'});many.send({type:'subscribe',id:'s66',resource:'blade_roles',query:{}});
+ many.send({type:'subscribe',id:'s1',resource:'blade_roles',query:{limit:1}});many.send({type:'unsubscribe',id:'s2'});many.send({type:'subscribe',id:'s66',resource:'blade_roles',query:{limit:1}});
  await many.wait(m=>m.type==='update'&&m.id==='s66',8000,'s66 after a freed slot');
  check(many.frames.filter(m=>m.type==='denied').length===1,'replacing an id or a freed slot stays within the limit');
  many.ws.close();
+
+ // A sustained flood on one connection (50 subscribes on one id every 10 ms, 300 new ids) must not starve
+ // another connection's hello or updates.
+ const flood=connect();await hello(flood,admin);
+ const same=()=>flood.send({type:'subscribe',id:'same',resource:'blade_users',query:{}});same();
+ for(let i=1;i<=300;i++)flood.send({type:'subscribe',id:'f'+i,resource:'blade_roles',query:{limit:1}});
+ const storm=setInterval(()=>{for(let i=0;i<50;i++)same();},10);
+ await quiet(300);
+ try{
+  const other=connect();await hello(other,admin);
+  check(true,'hello of another connection during a flood → ready');
+  other.send({type:'subscribe',id:'o',resource:'blade_users',query:{}});
+  await other.wait(m=>m.type==='update'&&m.id==='o',8000,'update during flood');
+  check(true,'another connection gets its update during the flood');
+  other.ws.close();
+ }finally{clearInterval(storm);}
+ await flood.wait(m=>m.type==='update'&&m.id==='same',8000,'coalesced id');
+ check(flood.frames.filter(m=>m.type==='denied'&&m.status===429).length===300-63,'the flood is capped at 64 subscriptions (429 for the rest)');
+ flood.ws.close();
+ // Row budget: the sum of the subscriptions' limits (default 100, at most 600) is at most 2000 per connection.
+ const rich=connect();await hello(rich,admin);
+ for(const id of ['r1','r2','r3','r4'])rich.send({type:'subscribe',id,resource:'blade_users',query:{limit:600}});
+ const budget=await rich.wait(m=>m.type==='denied',8000,'budget');
+ check(budget.id==='r4'&&budget.status===429&&budget.error==='Row budget exceeded','a subscription beyond 2000 rows per connection → denied 429');
+ rich.send({type:'subscribe',id:'r5',resource:'blade_users',query:{limit:200}});
+ await rich.wait(m=>m.type==='update'&&m.id==='r5',8000,'r5 within budget');
+ check(true,'a subscription within the remaining budget is served');
+ rich.ws.close();
 
  // The bridge rechecks the session on every observation: a removed session closes the whole channel.
  const sessions=`${tmp}/${instance}/admin/sessions`;for(const f of readdirSync(sessions))unlinkSync(`${sessions}/${f}`);

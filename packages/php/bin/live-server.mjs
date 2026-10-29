@@ -3810,16 +3810,50 @@ server.on("upgrade", (req, socket, head) => {
 });
 var PROTOCOL = 2;
 var SUBSCRIPTIONS = 64;
+var ROWS = 2e3;
+var PER_CONNECTION = 2;
+var INFLIGHT = 16;
+var checks = [];
+var ring = [];
+var inflight = 0;
+function pump() {
+  while (inflight < INFLIGHT) {
+    const c = checks.shift();
+    if (c) {
+      inflight++;
+      read(c.request).then(c.resolve, c.reject).finally(() => {
+        inflight--;
+        pump();
+      });
+      continue;
+    }
+    let job = null;
+    for (let n = ring.length; n > 0 && !job; n--) {
+      const next = ring.shift();
+      ring.push(next);
+      job = next();
+    }
+    if (!job) return;
+    inflight++;
+    job.finally(() => {
+      inflight--;
+      pump();
+    });
+  }
+}
+var check = (request) => new Promise((resolve, reject) => {
+  checks.push({ request, resolve, reject });
+  pump();
+});
+var rows = (query) => Number.isSafeInteger(query.limit) ? Math.min(600, Math.max(1, query.limit)) : 100;
 wss.on("connection", (ws, req) => {
   const path = new URL(req.url, "http://localhost").pathname;
-  let ticket = null, ready = false, alive = true;
-  const subscriptions = /* @__PURE__ */ new Map();
+  let ticket = null, ready = false, alive = true, active = 0, timer = null;
+  const subscriptions = /* @__PURE__ */ new Map(), due = /* @__PURE__ */ new Set(), busy = /* @__PURE__ */ new Set();
   const send = (message) => {
     if (ws.readyState === import_websocket.default.OPEN) ws.send(JSON.stringify(message));
   };
-  const tick = async (s) => {
-    if (!ready || s.busy || s.retry > Date.now() || ws.readyState !== import_websocket.default.OPEN) return;
-    s.busy = true;
+  const observe = async (s) => {
     try {
       const r = await read({ path, ticket, resource: s.resource, query: s.query, version: s.previous?.version || "" });
       if (subscriptions.get(s.id) !== s || ws.readyState !== import_websocket.default.OPEN) return;
@@ -3843,9 +3877,27 @@ wss.on("connection", (ws, req) => {
       }
     } catch {
       s.retry = Date.now() + Math.min(3e4, interval * 2 ** s.failures++);
-    } finally {
-      s.busy = false;
     }
+  };
+  const next = () => {
+    if (!ready || active >= PER_CONNECTION || ws.readyState !== import_websocket.default.OPEN) return null;
+    for (const id of due) {
+      if (busy.has(id)) continue;
+      due.delete(id);
+      const s = subscriptions.get(id);
+      if (!s || s.retry > Date.now()) continue;
+      active++;
+      busy.add(id);
+      return observe(s).finally(() => {
+        active--;
+        busy.delete(id);
+      });
+    }
+    return null;
+  };
+  const tick = () => {
+    for (const id of subscriptions.keys()) due.add(id);
+    pump();
   };
   const hello = (msg) => {
     if (msg.type !== "hello" || msg.protocol !== PROTOCOL) {
@@ -3858,14 +3910,19 @@ wss.on("connection", (ws, req) => {
     }
     ticket = msg.ticket;
     clearTimeout(authTimeout);
-    read({ path, ticket, check: true }).then((r) => {
+    check({ path, ticket, check: true }).then((r) => {
       if (ws.readyState !== import_websocket.default.OPEN) return;
-      if (r.ok) {
-        ready = true;
-        send({ type: "ready", protocol: PROTOCOL });
+      if (!r.ok) {
+        ws.close(r.status >= 500 ? 1011 : 4401, r.status >= 500 ? "Live service unavailable" : "Authentication failed");
         return;
       }
-      ws.close(r.status >= 500 ? 1011 : 4401, r.status >= 500 ? "Live service unavailable" : "Authentication failed");
+      ready = true;
+      ring.push(next);
+      send({ type: "ready", protocol: PROTOCOL });
+      timer = setTimeout(() => {
+        tick();
+        timer = setInterval(tick, interval);
+      }, Math.random() * interval);
     }, () => {
       if (ws.readyState === import_websocket.default.OPEN) ws.close(1011, "Live service unavailable");
     });
@@ -3892,6 +3949,7 @@ wss.on("connection", (ws, req) => {
     }
     if (msg.type === "unsubscribe") {
       subscriptions.delete(id);
+      due.delete(id);
       return;
     }
     if (msg.type !== "subscribe" || typeof msg.resource !== "string" || msg.resource.length > 128 || !msg.query || typeof msg.query !== "object" || Array.isArray(msg.query)) {
@@ -3902,13 +3960,18 @@ wss.on("connection", (ws, req) => {
       send({ type: "denied", id, status: 429, error: "Too many subscriptions" });
       return;
     }
-    const s = { id, resource: msg.resource, query: msg.query, previous: null, busy: false, failures: 0, retry: 0 };
-    subscriptions.set(id, s);
-    void tick(s);
+    let total = rows(msg.query);
+    for (const [other, s] of subscriptions) if (other !== id) total += rows(s.query);
+    if (total > ROWS) {
+      subscriptions.delete(id);
+      due.delete(id);
+      send({ type: "denied", id, status: 429, error: "Row budget exceeded" });
+      return;
+    }
+    subscriptions.set(id, { id, resource: msg.resource, query: msg.query, previous: null, failures: 0, retry: 0 });
+    due.add(id);
+    pump();
   });
-  const timer = setInterval(() => {
-    for (const s of subscriptions.values()) void tick(s);
-  }, interval);
   const authTimeout = setTimeout(() => {
     if (ticket === null) ws.close(4401, "Authentication required");
   }, 1e4);
@@ -3924,10 +3987,14 @@ wss.on("connection", (ws, req) => {
     ws.ping();
   }, 3e4);
   ws.on("close", () => {
+    clearTimeout(timer);
     clearInterval(timer);
     clearInterval(heartbeat);
     clearTimeout(authTimeout);
     subscriptions.clear();
+    due.clear();
+    const i = ring.indexOf(next);
+    if (i >= 0) ring.splice(i, 1);
   });
 });
 server.listen(Number(process.env.BLADE_LIVE_PORT || 8088), "127.0.0.1", () => console.log("61ade live transport ready"));

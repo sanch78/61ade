@@ -281,6 +281,8 @@ export class DiagramEditor {
     this.notice.hidden=!this.notice.textContent;
   }
   private changed():void{this.dirty=true;this.capabilities();}
+  /** Unsaved diagram changes (the live channel does not reload the page over them). */
+  editing():boolean{return this.dirty;}
 
   private formWindow(title:string,action:string,items:any[],submit:(form:Form,values:Record<string,any>)=>Promise<void>):void{
     const win=new Window({css:"blade-content-window",title:escape(title),ariaLabel:title,width:Math.min(420,innerWidth-24),height:Math.min(460,innerHeight-24),modal:true,closable:true});

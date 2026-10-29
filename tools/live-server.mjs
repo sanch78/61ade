@@ -38,18 +38,34 @@ server.on('upgrade',(req,socket,head)=>{
  wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
 // Protocol 2: one channel per browser tab carries many subscriptions (docs/workspaces.md#live-channel).
-const PROTOCOL=2,SUBSCRIPTIONS=64;
+const PROTOCOL=2,SUBSCRIPTIONS=64,ROWS=2000,PER_CONNECTION=2,INFLIGHT=16;
+// Fair bridge access: hello checks first, then subscription reads round-robin across connections, at most
+// PER_CONNECTION in flight per connection and INFLIGHT overall (the bridge serializes them anyway), so no
+// connection can fill the worker queue and starve another one's hello or updates.
+const checks=[],ring=[];let inflight=0;
+function pump(){
+ while(inflight<INFLIGHT){
+  const c=checks.shift();
+  if(c){inflight++;read(c.request).then(c.resolve,c.reject).finally(()=>{inflight--;pump();});continue;}
+  let job=null;
+  for(let n=ring.length;n>0&&!job;n--){const next=ring.shift();ring.push(next);job=next();}
+  if(!job)return;
+  inflight++;job.finally(()=>{inflight--;pump();});
+ }
+}
+const check=request=>new Promise((resolve,reject)=>{checks.push({request,resolve,reject});pump();});
+// A list window's row count as the bridge reads it (ListSource: default 100, at most 600 in watch mode).
+const rows=query=>Number.isSafeInteger(query.limit)?Math.min(600,Math.max(1,query.limit)):100;
 wss.on('connection',(ws,req)=>{
  // The bridge picks the application from the path (LiveConfig applications).
  const path=new URL(req.url,'http://localhost').pathname;
  // The hello ticket is this connection's only credential: every bridge request of its subscriptions carries it,
  // and the bridge rechecks session, tenant and ACL per observation.
- let ticket=null,ready=false,alive=true;const subscriptions=new Map();
+ let ticket=null,ready=false,alive=true,active=0,timer=null;
+ // due: ids waiting for a read (a Set, so repeated ticks and subscribes on one id coalesce); busy: ids being read.
+ const subscriptions=new Map(),due=new Set(),busy=new Set();
  const send=message=>{if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(message));};
- // Each subscription ticks on its own; only the bridge serializes them.
- const tick=async s=>{
-  if(!ready||s.busy||s.retry>Date.now()||ws.readyState!==WebSocket.OPEN)return;
-  s.busy=true;
+ const observe=async s=>{
   try{
    const r=await read({path,ticket,resource:s.resource,query:s.query,version:s.previous?.version || ''});
    if(subscriptions.get(s.id)!==s || ws.readyState!==WebSocket.OPEN)return;
@@ -66,17 +82,31 @@ wss.on('connection',(ws,req)=>{
     send({type:'update',id:s.id,version:data.version,order,upserts:data.items.filter(row=>old.get(String(row.id))!==JSON.stringify(row)),removed:[...old.keys()].filter(id=>!visible.has(id)),previous:data.previous,next:data.next,total:data.total,matched:data.matched});s.previous=data;
    }
   }catch{s.retry=Date.now()+Math.min(30000,interval*2**s.failures++);}
-  finally{s.busy=false;}
  };
+ // This connection's next read for pump(), or null.
+ const next=()=>{
+  if(!ready||active>=PER_CONNECTION||ws.readyState!==WebSocket.OPEN)return null;
+  for(const id of due){
+   if(busy.has(id))continue;
+   due.delete(id);const s=subscriptions.get(id);
+   if(!s||s.retry>Date.now())continue;
+   active++;busy.add(id);
+   return observe(s).finally(()=>{active--;busy.delete(id);});
+  }
+  return null;
+ };
+ const tick=()=>{for(const id of subscriptions.keys())due.add(id);pump();};
  const hello=msg=>{
   // An old page sends `subscribe` first: 4409 makes the new client reload; old clients just back off.
   if(msg.type!=='hello'||msg.protocol!==PROTOCOL){ws.close(4409,'Protocol '+PROTOCOL+' required');return;}
   if(typeof msg.ticket!=='string'||msg.ticket.length>128){ws.close(4401,'Authentication required');return;}
   ticket=msg.ticket;clearTimeout(authTimeout);
-  read({path,ticket,check:true}).then(r=>{
+  check({path,ticket,check:true}).then(r=>{
    if(ws.readyState!==WebSocket.OPEN)return;
-   if(r.ok){ready=true;send({type:'ready',protocol:PROTOCOL});return;}
-   ws.close(r.status>=500?1011:4401,r.status>=500?'Live service unavailable':'Authentication failed');
+   if(!r.ok){ws.close(r.status>=500?1011:4401,r.status>=500?'Live service unavailable':'Authentication failed');return;}
+   ready=true;ring.push(next);send({type:'ready',protocol:PROTOCOL});
+   // Staggered: connections opened together do not tick together.
+   timer=setTimeout(()=>{tick();timer=setInterval(tick,interval);},Math.random()*interval);
   },()=>{if(ws.readyState===WebSocket.OPEN)ws.close(1011,'Live service unavailable');});
  };
  ws.on('message',raw=>{
@@ -85,17 +115,19 @@ wss.on('connection',(ws,req)=>{
   if(ticket===null){hello(msg);return;}
   const id=typeof msg.id==='string'||Number.isSafeInteger(msg.id)?String(msg.id):'';
   if(!ready||!id||id.length>64){ws.close(1008,ready?'Invalid subscription id':'Not ready');return;}
-  if(msg.type==='unsubscribe'){subscriptions.delete(id);return;}
+  if(msg.type==='unsubscribe'){subscriptions.delete(id);due.delete(id);return;}
   if(msg.type!=='subscribe'||typeof msg.resource!=='string'||msg.resource.length>128||!msg.query||typeof msg.query!=='object'||Array.isArray(msg.query)){ws.close(1008,'Invalid subscription');return;}
   if(!subscriptions.has(id)&&subscriptions.size>=SUBSCRIPTIONS){send({type:'denied',id,status:429,error:'Too many subscriptions'});return;}
-  // A new object: answers of the replaced subscription are dropped, it never blocks the new one.
-  const s={id,resource:msg.resource,query:msg.query,previous:null,busy:false,failures:0,retry:0};subscriptions.set(id,s);void tick(s);
+  // Every subscription keeps its last window for the diff: the sum of their row limits is bounded per connection.
+  let total=rows(msg.query);for(const [other,s] of subscriptions)if(other!==id)total+=rows(s.query);
+  if(total>ROWS){subscriptions.delete(id);due.delete(id);send({type:'denied',id,status:429,error:'Row budget exceeded'});return;}
+  // A new object: an answer for the replaced one is dropped; a read already running on this id finishes first.
+  subscriptions.set(id,{id,resource:msg.resource,query:msg.query,previous:null,failures:0,retry:0});due.add(id);pump();
  });
- const timer=setInterval(()=>{for(const s of subscriptions.values())void tick(s);},interval);
  const authTimeout=setTimeout(()=>{if(ticket===null)ws.close(4401,'Authentication required');},10000);
  ws.on('pong',()=>{alive=true;});
  const heartbeat=setInterval(()=>{if(!alive){ws.terminate();return;}alive=false;ws.ping();},30000);
- ws.on('close',()=>{clearInterval(timer);clearInterval(heartbeat);clearTimeout(authTimeout);subscriptions.clear();});
+ ws.on('close',()=>{clearTimeout(timer);clearInterval(timer);clearInterval(heartbeat);clearTimeout(authTimeout);subscriptions.clear();due.clear();const i=ring.indexOf(next);if(i>=0)ring.splice(i,1);});
 });
 server.listen(Number(process.env.BLADE_LIVE_PORT || 8088),'127.0.0.1',()=>console.log('61ade live transport ready'));
 function shutdown(code=0){if(stopping)return;stopping=true;process.exitCode=code;unwatchFile(self);for(const ws of wss.clients)ws.close(code?1012:1001,'Restart');server.close();bridge?.kill();setTimeout(()=>process.exit(code),1000).unref();}

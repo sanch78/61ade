@@ -1,8 +1,11 @@
 # Live channel: implementation plan
 
 Status: approved plan, 2026-10-29 (D1–D4 decided as proposed). L0
-implemented and verified on the demo. L1 and L2 run as one batch (protocol and
-browser ship together, so the demo never runs mismatched halves). L1–L6 not
+implemented and verified on the demo. L1 and L2 implemented as one batch
+(protocol 2 and the browser channel) and verified by tools on the demo
+(protocol test, browser specs; evidence in FB-0075); owner acceptance pending.
+Section 2 and the L1/L2 phase texts describe the starting state and plan, not
+current behavior: see [live channel](workspaces.md#live-channel). L3–L6 not
 implemented. Owner request and decisions: [FB-0075](feedback.md#fb-0075).
 Current behavior: [live data](workspaces.md#élő-adat-konfigurálása-és-futtatása),
 [demo unit](demos.md#websocket-live-data).
@@ -251,3 +254,10 @@ server self-reload, no session extension, 15 s sweep).
   measures it before any finer dependency tracking is considered.
 - **Single bridge** remains a serialization point; L4 decides on a pool with
   numbers.
+- **Open after L1–L2 (for L5):** a polling tab extends the session idle timeout
+  (every `__watch` is a shell HTTP request that updates `lastSeen`; WebSocket
+  does not), contrary to D3; hidden tabs and pages without any open list still
+  hold a connection slot of the 100; an idle channel has no periodic session
+  recheck, so it closes with 4401 only at its next observation; an
+  unauthenticated upgrade holds a slot for up to 10 s before the `hello`
+  timeout.
