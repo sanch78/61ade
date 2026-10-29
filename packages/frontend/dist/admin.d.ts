@@ -986,11 +986,19 @@ export interface RecordDetails extends Component<Record<string, never>> {
     /** Shows another row (no request) or loads another id (a newer call wins); a failed load shows the error dialog and rejects. */
     show(record: Row | string): Promise<void>;
 }
-/** Options of `FileManager`. */
+/** Options of `FileManager` (implemented P3 C-2). */
 export interface FileManagerComponentOptions extends ComponentOptions {
+    /**
+     * A files view: an offered view id or a held definition of any kind with a `resource`, its `actions` and
+     * `FileManagerOptions` (at least one mount). A string that is not offered throws `Error`; a wrong shape `TypeError`.
+     */
     view: ViewReference<FileManagerOptions>;
 }
-/** Two-panel virtual file manager (`FileManager.ts`). */
+/**
+ * Two-panel virtual file manager (`components/files/FileManager.ts` over `FileManager.ts`), the same class as the
+ * built-in `files` kind; what it offers follows the view's `actions`. `opened` fires each time the viewer or the text
+ * editor shows a file (also on previous/next). `destroy()` also closes its windows and aborts its pending reads.
+ */
 export interface FileManagerComponent extends Component<{
     opened: {
         id: string;
@@ -1000,6 +1008,7 @@ export interface FileManagerComponent extends Component<{
 }
 /** Options of `FilePicker.pick`. */
 export interface FilePickerOptions {
+    /** A `file` field's configuration (`FieldMetadata.file`, as `Server.form` describes it). */
     field: FileFieldConfig;
     /** Field label shown in the window title. */
     title: string;
@@ -1007,9 +1016,13 @@ export interface FilePickerOptions {
     current?: string;
     signal?: AbortSignal;
 }
-/** The modal tiles picker of `file` fields (`FilePicker.ts`). */
+/** The modal tiles picker of `file` fields (`FilePicker.ts`; implemented P3 C-2 as `components/files/FilePicker.ts`). */
 export interface FilePickerApi {
-    /** Resolves the chosen file or `null` (Cancel, Escape, abort). */
+    /**
+     * Opens the picker over the field's folder (`folder_id`, otherwise the mount root), limited to its accepted MIME
+     * classes. Resolves the chosen file or `null` (Cancel, Escape, abort; an already aborted signal opens nothing).
+     * Malformed options throw `TypeError` before anything opens.
+     */
     pick(options: FilePickerOptions): Promise<MediaDescriptor | null>;
 }
 /** Options of `Calendar` (implemented P3 C-2). */
