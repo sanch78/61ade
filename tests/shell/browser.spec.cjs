@@ -72,11 +72,11 @@ test('compact desktop menu shows the open feature\'s siblings beside Menü', asy
     const top = page.locator('.blade-navigation-row .dhx_menu-nav > li > button');
     await expect(page.getByRole('menuitem', { name: 'Menü', exact: true })).toBeVisible();
     await expect(top).toHaveCount(1);
-    await page.goto('/#feature=signage_assets');
+    await page.goto('/#view=signage_assets');
     await expect(top).toHaveText(['Menü', 'Médiatár', 'Alapértelmezett tartalom', 'Műsorterv']);
     await expect(top.filter({ hasText: 'Médiatár' })).toHaveClass(/--active/);
     await top.filter({ hasText: 'Műsorterv' }).click();
-    await expect(page).toHaveURL(/#feature=signage_schedule$/);
+    await expect(page).toHaveURL(/#view=signage_schedule$/);
     await expect(top.filter({ hasText: 'Műsorterv' })).toHaveClass(/--active/);
     await expect(top.filter({ hasText: 'Médiatár' })).not.toHaveClass(/--active/);
     await page.setViewportSize({ width: 390, height: 844 });

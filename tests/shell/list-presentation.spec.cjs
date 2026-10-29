@@ -22,7 +22,7 @@ async function mount(page,options={},table=true){
    return {ok:true,json:async()=>({ok:true,data})};
   };
   fixture.setTheme('skyblue',document.documentElement);
-  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{resource:'items',title:'Elemek',columns:[fields[0]],detailFields:fields,actions:[{name:'get',label:'Adatok',fields:[]},{name:'archive',label:'Archiválás',submitLabel:'Végrehajtás',write:true,bulk:true,fields:[]},{name:'note',label:'Megjegyzés',submitLabel:'Mentés',write:true,fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}},selection:true,...options},'csrf',new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000},'csrf'));
+  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'items',resource:'items',title:'Elemek',columns:[fields[0]],detailFields:fields,actions:[{name:'get',label:'Adatok',fields:[]},{name:'archive',label:'Archiválás',submitLabel:'Végrehajtás',write:true,bulk:true,fields:[]},{name:'note',label:'Megjegyzés',submitLabel:'Mentés',write:true,fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}},selection:true,...options},new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000}));
  },options);
  if(!table)return;
  await expect(page.locator('.dhx_grid')).toBeVisible();

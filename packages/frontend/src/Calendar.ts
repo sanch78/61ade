@@ -10,10 +10,10 @@ import { escape } from "./RecordPresentation";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 import { formActions, input } from "./Workspace";
 import { fitWindow } from "./WindowSizing";
+import { server } from "./api/Server";
 
 export type CalendarConfig={views:("day"|"week"|"month")[];default_view:string;first_hour:number;last_hour:number;max_range_days:number;day_action:{resource:string;action:string;label:string}|null;fields:FieldDefinition[]};
 export type CalendarViewDefinition={kind:"calendar";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean}[];calendar:CalendarConfig};
-export const isCalendarView=(view:object):view is CalendarViewDefinition=>(view as {kind?:string}).kind==="calendar";
 type Failure=Error&{status?:number;fieldErrors?:Record<string,string>};
 type SchedulerEvent={id:string|number;text:string;start_date:Date;end_date:Date;rrule?:string;duration?:number;recurring_event_id?:string|number;original_start?:Date|string;deleted?:boolean;_end_date?:Date;[field:string]:unknown};
 type Repeat={freq:"DAILY"|"WEEKLY"|"MONTHLY"|"YEARLY";interval:number;days:string[];position:boolean;count:number;until:string};
@@ -97,7 +97,7 @@ export class Calendar {
   private editing?:Window;
   private restoreVendor=()=>{};
 
-  constructor(container:HTMLElement,private view:CalendarViewDefinition,private csrf:string){
+  constructor(container:HTMLElement,private view:CalendarViewDefinition){
     this.config=view.calendar;
     this.layout=new Layout(container,{type:"space",rows:[{id:"panel",header:view.title,css:"blade-calendar-panel",rows:[
       {id:"commands",height:48,css:"blade-command-row"},
@@ -438,13 +438,7 @@ export class Calendar {
     win.show();
   }
 
-  private async call(resource:string,action:string,id:string|null,values:Record<string,unknown>):Promise<any>{
-    const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?blade=1";
-    const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-BLADE-CSRF":this.csrf},body:JSON.stringify({resource,action,id,values})});
-    const result=await response.json().catch(()=>({ok:false}));
-    if(!response.ok||!result.ok)throw Object.assign(new Error(result.error||t("Sikertelen művelet.")),{status:response.status,fieldErrors:result.fieldErrors});
-    return result.data;
-  }
+  private call(resource:string,action:string,id:string|null,values:Record<string,unknown>):Promise<any>{return server.call(resource,action,{id,values});}
 
   private async error(error:unknown):Promise<void>{
     if(this.disposed)return;

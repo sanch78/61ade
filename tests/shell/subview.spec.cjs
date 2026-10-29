@@ -25,11 +25,11 @@ async function mount(page){
    return {ok:true,json:async()=>({ok:true,data})};
   };
   fixture.setTheme('skyblue',document.documentElement);
-  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{resource:'items',title:'Elemek',
+  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'items',resource:'items',title:'Elemek',
    columns:[{id:'title',header:'Cím'},{id:'parent_id',header:'Szülő'}],
    actions:[{name:'get',label:'Adatok',fields:[]},{name:'archive',label:'Archiválás',submitLabel:'Végrehajtás',write:true,fields:[]}],
    singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{rows:[{id:'grid'}]}},
-   subview:{resource:'items',field:'parent_id',height:200,shared:true}},'',new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000},''));
+   subview:{resource:'items',field:'parent_id',height:200,shared:true}},new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000}));
  });
  await expect(page.locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
 }

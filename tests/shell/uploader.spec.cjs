@@ -39,7 +39,7 @@ async function start(page,email='demo@example.test'){
  await openMenu(page,'Fájlkezelő','Feature demó');
  await expect(panel(page,0).locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
 }
-const policy=page=>page.evaluate(()=>JSON.parse(document.getElementById('blade-config').textContent).views.find(view=>view.resource==='files').files.upload.policy);
+const policy=page=>page.evaluate(()=>JSON.parse(document.getElementById('blade-config').textContent).views.find(view=>view.id==='files').options.upload.policy);
 const userId=page=>page.evaluate(()=>JSON.parse(document.getElementById('blade-config').textContent).userId);
 async function rootOf(page,mount){return (await api(page,'files','tree',mount)).body.data.root;}
 async function list(page,directory){return (await api(page,'files','list',directory)).body.data.items;}
