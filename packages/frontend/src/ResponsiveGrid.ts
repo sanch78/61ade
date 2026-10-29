@@ -21,7 +21,7 @@ export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSel
   subview?:SubViewOptions;
   /** Always the table: no cards on narrow screens (a compact preview). */
   table?:boolean;
-  /** A declared activation: double-click and Enter run `open` in cards and tiles too (not the details); the accessible description of what it runs on a card or tile. */
+  /** A declared activation: double-click and Enter run `open` in cards and tiles too (not the details); the accessible description of what it runs on a card or tile, `undefined` for a record without one. */
   activation?:(row:Row)=>string|undefined;
   /** false: rows never become the cursor record (native selection and key navigation off, no highlight); double-click and Enter open nothing, editable switch cells still save. */
   select?:boolean};
@@ -132,7 +132,9 @@ export class ResponsiveGrid {
       else {this.marked.clear();this.marked.add(id);this.refreshMarks();}
       this.markAnchor=id;
     };
-    const activate=(id:string)=>{selected(id);if(this.compact&&options.details&&!options.activation)options.details(id);else open();};
+    // Cards and tiles open the details unless the record has a declared activation (an activation map may declare none for it).
+    const declared=(id:string)=>{const row=options.activation&&this.data.find(item=>String(item.id)===id);return !!row&&options.activation!(row)!==undefined;};
+    const activate=(id:string)=>{selected(id);if(this.compact&&options.details&&!declared(id))options.details(id);else open();};
     this.grid.events.on("cellClick",(row:any,column:any)=>{
       const id=this.recordId(String(row.id));selected(id);
       if(column.id===SUBROW&&row[SUBROW]===undefined){this.toggleSubRow(id);return;}
