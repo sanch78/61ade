@@ -1,4 +1,5 @@
 import { t } from "./I18n";
+import { server } from "./api/Server";
 export type LiveConfig={transport:"poll"|"websocket";endpoint:string;interval:number};
 export type Row={id:string;revision?:string;_actions?:string[];_editable?:string[];_position?:Record<string,unknown>;[key:string]:unknown};
 export type Snapshot={items:Row[];previous:string|null;next:string|null;version?:string;total?:number;matched?:number};
@@ -28,7 +29,7 @@ export class LiveChannel {
   private again=false;
   private listeners=new AbortController();
   /** notice: a shell-level hint (stale page); editing: an open form may hold unsaved input, so never reload over it. */
-  constructor(private config:LiveConfig,private csrf:string,private hooks:{notice?:(text:string)=>void;editing?:()=>boolean}={}){
+  constructor(private config:LiveConfig,private hooks:{notice?:(text:string)=>void;editing?:()=>boolean}={}){
     const signal=this.listeners.signal;
     // A hidden tab ends its subscriptions but keeps the socket; showing it subscribes again with fresh windows.
     document.addEventListener("visibilitychange",()=>{if(document.hidden)this.pause();else this.resume();},{signal});
@@ -171,12 +172,8 @@ export class LiveChannel {
       if(!this.halted&&!document.hidden){this.schedule(this.again?0:this.config.interval);this.again=false;}
     }
   }
-  /** The JSON channel of the page (`?blade=1`); `__ticket` and `__watch` belong to no single list. */
-  private async request(action:string,values:Record<string,unknown>):Promise<any>{
-    const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?blade=1";
-    const r=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-BLADE-CSRF":this.csrf},body:JSON.stringify({resource:"",action,id:null,values})});
-    const result=await r.json().catch(()=>({}));if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||t("Sikertelen művelet.")),{status:r.status});return result.data;
-  }
+  /** The page's JSON channel; `__ticket` and `__watch` belong to no single list (resource ""). */
+  private request(action:string,values:Record<string,unknown>):Promise<any>{return server.call("",action,{values});}
 }
 
 /** A list's subscription on the shell's channel: `subscribe(query)` replaces it, `destroy()` ends it. */

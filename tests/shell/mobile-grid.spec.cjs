@@ -256,10 +256,10 @@ test('details and cards render every media field and name an icon without option
    return {ok:true,json:async()=>({ok:true,data})};
   };
   fixture.setTheme('skyblue',document.documentElement);
-  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{resource:'items',title:'Elemek',
+  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'items',resource:'items',title:'Elemek',
    columns:[{id:'title',header:'Cím'},{id:'cover',header:'Borító',media:'files'},{id:'glyph',header:'Jel',presentation:'icon'}],
    detailFields:[{id:'title',header:'Cím',type:'text'},{id:'cover',header:'Borító',type:'text'},{id:'clip',header:'Előzetes',type:'text',media:'files'},{id:'glyph',header:'Jel',type:'text',presentation:'icon'}],
-   actions:[{name:'get',label:'Adatok',fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},'csrf',new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000},'csrf'));
+   actions:[{name:'get',label:'Adatok',fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000}));
  });
  await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
  const glyph=page.locator('.dhx_grid-cell[data-dhx-col-id="glyph"] .blade-record-icon').first();
@@ -325,11 +325,11 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
    return {ok:true,json:async()=>({ok:true,data})};
   };
   fixture.setTheme('skyblue',document.documentElement);
-  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{resource:'assets',title:'Médiatár',selection:true,
+  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'assets',resource:'assets',title:'Médiatár',selection:true,
    columns:[{id:'file_id',header:'Médiafájl',type:'file',media:'files'},{id:'title',header:'Cím'},{id:'media_type',header:'Típus',media_of:'file_id',part:'type'},{id:'resolution',header:'Felbontás',media_of:'file_id',part:'resolution'},{id:'length',header:'Hossz',media_of:'file_id',part:'duration'}],
    detailFields:[{id:'title',header:'Cím',type:'text'},{id:'file_id',header:'Médiafájl',type:'file',media:'files'}],
    actions:[{name:'get',label:'Adatok',fields:[]},{name:'update',label:'Módosítás',submitLabel:'Mentés',write:true,fields},{name:'delete',label:'Törlés',submitLabel:'Törlés',write:true,bulk:true,usages:true,fields:[{name:'revision',label:'Verzió',type:'text',required:true,max:64,options:{}}]}],
-   singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},'csrf',new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000},'csrf'));
+   singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000}));
  });
  const gridRow=title=>page.locator('.dhx_grid-row').filter({has:page.getByRole('gridcell',{name:title,exact:true})});
  const at=(title,column)=>gridRow(title).locator(`.dhx_grid-cell[data-dhx-col-id="${column}"]`);

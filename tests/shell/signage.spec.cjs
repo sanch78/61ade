@@ -43,7 +43,7 @@ async function column(page,header){
 async function cell(page,title,header){return row(page,title).locator(`.dhx_grid-cell[data-dhx-col-id="${await column(page,header)}"]`);}
 // Wide enough that every column (also Használat) is rendered by the virtualized Grid.
 async function openLibrary(page,email='demo@example.test'){
- await page.setViewportSize({width:1920,height:1000});await signIn(page,email,'/#feature=signage_assets');
+ await page.setViewportSize({width:1920,height:1000});await signIn(page,email,'/#view=signage_assets');
  await expect(page.locator('[data-cell-id="grid"]').locator('.dhx_grid-row, .blade-grid-card, .blade-grid-tile').first()).toBeVisible();
  await mode(page,'Táblázat');
 }
@@ -325,7 +325,7 @@ test('deleting a used file in the file manager (Signage mount) warns, and the as
 
 test('reader: read-only library and Signage mount',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
- await page.setViewportSize({width:1400,height:900});await signIn(page,'reader@example.test','/#feature=signage_assets');
+ await page.setViewportSize({width:1400,height:900});await signIn(page,'reader@example.test','/#view=signage_assets');
  await expect(page.locator('.blade-navigation-row')).toBeVisible();
  const listed=await api(page,'signage_assets','list',null,{mode:'dynamic',limit:10,sort:{field:'id',direction:'desc'},filters:{}});
  if(listed.status===200){
