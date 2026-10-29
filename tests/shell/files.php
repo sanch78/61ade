@@ -7,7 +7,7 @@ use Blade\Files\{ContentStore,FileManagerDefinition,FileStorage,MediaProbe,Thumb
 use Blade\Infrastructure\Transaction;
 use Blade\Shell\Identity;
 // Virtual file manager contract: names, depth, copy/move, conflicts, text editor, upload, ACL, audit,
-// content store, media metadata, thumbnails, streaming, paged listing, delete policies, rename, download, ZIP and the BLOB migration.
+// content store, media metadata, thumbnails, streaming, audio types, paged listing, delete policies, rename, download, ZIP and the BLOB migration.
 function check(bool $ok,string $message):void{if(!$ok)throw new RuntimeException($message);}
 function fails(callable $call,int $status,string $message):Failure{try{$call();}catch(Failure $e){check($e->status===$status,$message.' (status '.$e->status.': '.$e->getMessage().')');return $e;}throw new RuntimeException($message.' (accepted)');}
 $tmp=(getenv('BLADE_TMP_DIR')?:dirname(__DIR__,2).'/tmp').'/files-check-'.bin2hex(random_bytes(4));mkdir($tmp,0700,true);
@@ -237,7 +237,8 @@ check($meta('rotated.jpg')===['width'=>300,'height'=>600,'duration_ms'=>null,'or
 $mp4=$meta('clip.mp4');$webm=$meta('clip.webm');
 check($mp4['width']===640&&$mp4['height']===360&&$mp4['orientation']==='landscape'&&abs($mp4['duration_ms']-2000)<=100,'MP4 dimensions and duration');
 check($webm['width']===270&&$webm['height']===480&&$webm['orientation']==='portrait'&&abs($webm['duration_ms']-2000)<=100,'WebM dimensions and duration');
-check((new MediaProbe('/nonexistent/ffprobe'))->probe($tmp.'/clip.mp4','video/mp4')===['width'=>null,'height'=>null,'duration_ms'=>null,'orientation'=>''],'Missing probe tool gives empty metadata');
+check((new MediaProbe('/nonexistent/ffprobe'))->probe($tmp.'/clip.mp4','video/mp4')===['width'=>null,'height'=>null,'duration_ms'=>null,'orientation'=>'','codec'=>null],'Missing probe tool gives empty metadata');
+check((new MediaProbe())->probe($tmp.'/clip.mp4','video/mp4')['codec']==='h264'&&(new MediaProbe())->probe($tmp.'/clip.webm','video/webm')['codec']==='vp8'&&(new MediaProbe())->probe($tmp.'/wide.png','image/png')['codec']===null,'Probe reports the video codec');
 $listed=fn()=>array_column($call('list',(string)$media['id'])['items'],null,'name');
 check($listed()['wide.png']['thumbnail']==='pending'&&$listed()['wide.png']['width']===800&&$listed()['clip.mp4']['duration_ms']===$mp4['duration_ms'],'List carries metadata and pending thumbnails');
 $pending=fails(fn()=>$call('thumbnail_get',$mediaIds['wide.png']),404,'Thumbnail pending before the task');
@@ -302,6 +303,38 @@ foreach([fn()=>new DownloadStream('text/html; x','/x',1,'"a"'),fn()=>new Downloa
 // GET-capable actions are field-free reads.
 foreach([['write'=>true],['upload'=>10],['bulk'=>true,'resolve'=>fn()=>[]],['collection'=>true],['fields'=>[new Field('x','X')]]] as $options){try{new Action('files','bad','Bad',$options['fields']??[],fn()=>null,resolve:$options['resolve']??null,write:$options['write']??false,collection:$options['collection']??false,bulk:$options['bulk']??false,upload:$options['upload']??null,get:true);throw new RuntimeException('Invalid GET action accepted: '.json_encode(array_keys($options)));}catch(InvalidArgumentException){}}
 check($registry->get('files','content_stream')->get&&$registry->get('files','thumbnail_get')->get&&!$registry->get('files','content_get')->get,'Only the stream and thumbnail actions are GET-capable');
+
+// Audio (toolkit C-3): allowlist and detection rules, preview types, ffprobe duration and codec, streaming with ranges.
+// A 0.5 s PCM WAV is written here; MP3 and M4A are encoded from it with ffmpeg at test time.
+$rate=8000;$pcm='';for($i=0;$i<$rate/2;$i++)$pcm.=pack('v',(int)round(6000*sin(2*M_PI*440*$i/$rate))&0xFFFF);
+file_put_contents($tmp.'/tone.wav','RIFF'.pack('V',36+strlen($pcm)).'WAVEfmt '.pack('VvvVVvv',16,1,1,$rate,$rate*2,2,16).'data'.pack('V',strlen($pcm)).$pcm);
+foreach(['tone.mp3'=>['libmp3lame','32k'],'tone.m4a'=>['aac','32k']] as $name=>[$codec,$bitrate]){
+    MediaProbe::process(['/usr/bin/ffmpeg','-nostdin','-v','error','-y','-i',$tmp.'/tone.wav','-c:a',$codec,'-b:a',$bitrate,$tmp.'/'.$name],60);
+    check(is_file($tmp.'/'.$name)&&filesize($tmp.'/'.$name)>0,'ffmpeg test audio generated: '.$name);
+}
+$audioTypes=['tone.wav'=>['wav','audio/wav','pcm_s16le'],'tone.mp3'=>['mp3','audio/mpeg','mp3'],'tone.m4a'=>['m4a','audio/mp4','aac']];
+foreach($audioTypes as $name=>[$extension,$mime,$codec]){
+    check(FileManagerDefinition::TYPES[$extension][0]===$mime&&FileManagerDefinition::contentMatches($extension,$tmp.'/'.$name),'Audio content detected: '.$name);
+    check(in_array($mime,FileManagerDefinition::PREVIEW_TYPES,true)&&in_array($mime,$view('1')[0]['options']['preview'],true)&&!Thumbnails::supports($mime),'Audio preview type without thumbnail: '.$mime);
+    $probed=(new MediaProbe())->probe($tmp.'/'.$name,$mime);
+    check($probed['width']===null&&$probed['height']===null&&$probed['orientation']===''&&$probed['codec']===$codec&&abs($probed['duration_ms']-500)<=150,'Audio duration and codec: '.$name.' '.json_encode($probed));
+}
+check((new MediaProbe())->probe($tmp.'/tone.wav','audio/wav')===['width'=>null,'height'=>null,'duration_ms'=>500,'orientation'=>'','codec'=>'pcm_s16le'],'Exact WAV metadata');
+foreach([['mp3',$tmp.'/tone.wav'],['wav',$tmp.'/tone.mp3'],['m4a',$tmp.'/tone.wav'],['wav',$tmp.'/clip.mp4'],['mp3',$tmp.'/wide.png'],['m4a',$tmp.'/clip.mp4']] as [$extension,$path])check(!FileManagerDefinition::contentMatches($extension,$path),'Audio extension refuses other bytes: '.$extension.' '.basename($path));
+check((new MediaProbe('/nonexistent/ffprobe'))->probe($tmp.'/tone.wav','audio/wav')['duration_ms']===null,'Missing probe tool gives no audio length');
+$audioDefinition=new FileManagerDefinition('files','Files','test',['a'=>'A'],allowedExtensions:['txt','wav','mp3','m4a'],contentRoot:$root);
+check($audioDefinition->metadata()['upload']['allowed_extensions']===['txt','wav','mp3','m4a']&&$audioDefinition->uploadPolicy()->metadata()['extensions']===['txt','wav','mp3','m4a'],'Audio extensions in the upload allowlist');
+$audioDir=$storage->entry((int)$call('create_directory',$rootA,['name'=>'Audio'])['id']);$audioIds=[];
+foreach($audioTypes as $name=>[,$mime])$audioIds[$name]=(string)$storage->createFile($audioDir,$name,$mime,$tmp.'/'.$name);
+$audioListed=array_column($call('list',(string)$audioDir['id'])['items'],null,'name');
+check($audioListed['tone.wav']['duration_ms']===500&&$audioListed['tone.wav']['width']===null&&$audioListed['tone.mp3']['thumbnail']==='none'&&abs($audioListed['tone.m4a']['duration_ms']-500)<=150,'Audio files list their length without thumbnails');
+fails(fn()=>$call('thumbnail_get',$audioIds['tone.mp3']),415,'Audio has no thumbnail');
+$audioStream=$call('content_stream',$audioIds['tone.wav']);
+check($audioStream instanceof DownloadStream&&$audioStream->mimeType==='audio/wav'&&$audioStream->disposition==='inline'&&$audioStream->size===filesize($tmp.'/tone.wav'),'Audio content_stream is inline with the stored type');
+$audioRange=$audioStream->plan(['HTTP_RANGE'=>'bytes=44-']);
+check($audioRange['status']===206&&in_array('Content-Range: bytes 44-'.($audioStream->size-1).'/'.$audioStream->size,$audioRange['headers'],true)&&in_array('Content-Type: audio/wav',$audioRange['headers'],true),'Audio seeks with a single range');
+check($call('content_get',$audioIds['tone.m4a'])->mimeType==='audio/mp4','Audio bytes with stored type');
+fails(fn()=>$call('content_stream',$audioIds['tone.mp3'],[],$ctx('3')),403,'Audio stream needs its own rule');
 
 // Task queue: bounded retry with backoff, stale-run recovery, one runner per database, dedupe only against pending tasks.
 $queue=new Blade\Tasks\TaskQueue($db);$calls=0;$ran=[];

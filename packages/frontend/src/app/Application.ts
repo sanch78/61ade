@@ -11,6 +11,7 @@ import { registerBuiltins } from "./builtins";
 import { bindCalendar } from "../components/calendar/Calendar";
 import { bindDiagramEditor } from "../components/diagram/DiagramEditor";
 import { sandboxFrameClass } from "../components/sandbox/SandboxFrame";
+import { MediaPlayer } from "../components/media/MediaPlayer";
 
 /** What the shell hands the application object: its live channel, the signed-in identity, its views and router. */
 export type ShellBridge = {
@@ -55,6 +56,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
       Calendar: bindCalendar(() => app),
       DiagramEditor: bindDiagramEditor(() => app),
       SandboxFrame: sandboxFrameClass(payload => events.dispatch("sandbox:error", payload)),
+      MediaPlayer,
     }) as Components,
     viewDefinitions: () => offered,
     viewDefinition: (id: string) => offered.find(view => view.id === id),

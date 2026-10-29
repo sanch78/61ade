@@ -53,7 +53,13 @@ $registry->add(new Action('attachments', 'upload', 'Feltöltés',
 
 The file manager builds its policy from its own options
 (`FileManagerDefinition::uploadPolicy()`, `tempRoot`) and exposes it as
-`files.upload.policy` metadata ([files](files.md#behavior)).
+`files.upload.policy` metadata ([files](files.md#behavior)). Its allowlist may
+include audio (`mp3`, `wav`, `m4a`): at finish the bytes must be detected as
+the matching audio type (otherwise `content_mismatch`), the stored file gets its
+length from `ffprobe` and opens in the [media player](files.md#media-player). A
+`file` field narrows the policy to its `accept` classes, so `accept: ['audio']`
+offers only the audio extensions. The queue shows a type icon for audio (object
+URL previews are for images only).
 
 List views open it automatically for actions that declare an `UploadPolicy`
 (the signage `Feltöltés` command), and the `file` field opens it for its

@@ -311,6 +311,7 @@
   "Ismétlés": "Loop",
   "Sebesség: {speed}": "Speed: {speed}",
   "A videó nem játszható le ebben a böngészőben.": "This browser cannot play the video.",
+  "A hangfájl nem játszható le ebben a böngészőben.": "This browser cannot play the audio file.",
   "Ez a fájltípus nem tekinthető meg.": "This file type cannot be viewed.",
   "Médiatartalom": "Media content",
   "Bélyegkép": "Thumbnail",
