@@ -670,5 +670,19 @@
   "A fájl típusa ehhez a mezőhöz nem engedélyezett.": "A fájl típusa ehhez a mezőhöz nem engedélyezett.",
   "A kiválasztott adat archiválódik, és többé nem jelenik meg.": "A kiválasztott adat archiválódik, és többé nem jelenik meg.",
   "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.": "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.",
-  "{count} elem előnézete nem sikerült.": "{count} elem előnézete nem sikerült."
+  "{count} elem előnézete nem sikerült.": "{count} elem előnézete nem sikerült.",
+  "Nincs aktív tenant.": "Nincs aktív tenant.",
+  "Nincs hozzáférés a tenanthoz.": "Nincs hozzáférés a tenanthoz.",
+  "Ez a tenant nem érhető el.": "Ez a tenant nem érhető el.",
+  "Tenantok": "Tenantok",
+  "Tagok": "Tagok",
+  "Aktív": "Aktív",
+  "Tenant": "Tenant",
+  "Globális (csak globális erőforrások)": "Globális (csak globális erőforrások)",
+  "A kulcs tenantja kiadás után nem módosítható.": "A kulcs tenantja kiadás után nem módosítható.",
+  "A tulajdonos nem tagja ennek a tenantnak.": "A tulajdonos nem tagja ennek a tenantnak.",
+  "Nincs hozzárendelt tenant": "Nincs hozzárendelt tenant",
+  "Aktív tenant": "Aktív tenant",
+  "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.": "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.",
+  "Tenant váltása": "Tenant váltása"
 }

@@ -43,9 +43,11 @@ use the same executor. Unmigrated legacy flows do not thereby become audited.
 
 ## Extension boundary
 
-The first application uses one realm. Multiple organizations require explicit
-realm membership and data-source scope adapters; tenant isolation is not claimed
-without them. Complex ABAC requires typed registered condition adapters, never
+Without tenancy an application uses one realm. Optional [multi-tenancy](tenancy.md)
+adds explicit tenant membership and the `SqlResource`/`Lookup` scope adapters.
+Isolation is claimed only for resources whose adapter applies the tenant
+(`Registry::tenantScoped()`); other kinds stay global and are documented as
+limits there. Roles and rules are global and apply in every member tenant. Complex ABAC requires typed registered condition adapters, never
 UI-authored PHP/SQL/JavaScript expressions.
 
 <a id="használati-felület-első-implementáció"></a>

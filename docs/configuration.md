@@ -28,6 +28,7 @@ return JsonApplication::load(
 | `authentication` | Optional [e-mail verification and remembered login](authentication.md), delivery and text overrides. |
 | `admin` | Built-in [user/permission admin](admin.md); `identity.username_column` must be the e-mail column. Optional `protected_role`, default `admin`. |
 | `live` | `transport` (`poll`/`websocket`), `endpoint`, integer `interval_ms`. |
+| `tenancy` | Optional; an empty object `{}` enables [multi-tenancy](tenancy.md). No other keys yet. |
 | `workspace.modules` | Module JSON paths relative to the configuration directory; views supply menus. |
 
 Env reference example:
@@ -92,8 +93,8 @@ Complete synthetic example: [notes.json](../tests/fixtures/configuration/notes.j
 | Section | Responsibility |
 | --- | --- |
 | `section_descriptions` | Free-text section explanations, non-executable metadata. |
-| `lookups` | Named permission-filtered selectors: `resource`, `table`, `key`, `label`; optional `owner`, `where`, `extra`. |
-| `resources.<name>.storage` | `table`, `key`; optional `owner_column`, `defaults`, `where`, `self_only`. `where` is trusted developer-authored SQL. |
+| `lookups` | Named permission-filtered selectors: `resource`, `table`, `key`, `label`; optional `owner`, `where`, `extra`, `tenant_column` (choices of the active tenant only). |
+| `resources.<name>.storage` | `table`, `key`; optional `owner_column`, `defaults`, `where`, `self_only`, `tenant_column` (a [tenant-scoped](tenancy.md#tenant-scoped-resources) resource; server-stamped, never a field). `where` is trusted developer-authored SQL. |
 | `fields` | `name`, `label`; optional `type`, `required`, `max`, `secret` and one choices source: `options`, `options_lookup` or `options_binding`. `validation` follows [form validation](validation.md); `checkbox`, `default` and `column` (including optional secondary grid columns) follow [field presentation](field-presentation.md). |
 | `operations` | `create`/`update` default true; `delete` defaults false. |
 | `hooks` | `guard`, `normalize`, `after_save`, `delete_guard`, `after_delete`: explicit PHP binding names. `after_save` runs after create/update only; `after_delete` (`fn(Context, string $id, array $target)`) after a delete. |

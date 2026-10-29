@@ -90,7 +90,8 @@ Namespace Blade; frontend exports will define its public API.
 Applications are accessed through registered contracts. Proposed names:
 FeatureProvider, QueryProvider, ActionHandler, Policy, IdentityProvider,
 TenantResolver, FileStorage, JobDispatcher, AuditSink. This list does not claim
-all are existing classes.
+all are existing classes. Tenant resolution exists as `Blade\Tenancy\Tenancy` with
+`Workspace::context()` ([tenancy](tenancy.md)), not as a separate resolver contract.
 
 Local Composer paths/workspace links are allowed. Distributed versions need
 lockfiles/reproducible builds without absolute development paths. Publishing a

@@ -17,7 +17,8 @@ adapters to the framework.
 Planned responsibilities: `Feature` for registration, typed definitions,
 validation and compilation; `UI` for views; `Http` and `Api` for transport,
 responses and versioning; `Security` for authentication and policy; `Tenancy`
-for explicit organization context; `Data` for allowed filter/sort/page models
+for explicit tenant (organization) context, implemented as optional
+[multi-tenancy](tenancy.md); `Data` for allowed filter/sort/page models
 and query adapters; `Validation` for common validation; `Files`, `Jobs` and
 `Audit` for infrastructure with application hooks; `Integration/Symfony`
 for hosting integration if confirmed by ADR.

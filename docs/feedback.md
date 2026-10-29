@@ -1768,3 +1768,59 @@ that exactly equals an option label lists every option. The managed
   runs on WebSocket. The unit (started 06:52:51 UTC) still runs the old
   `common.php` and logs chmod warnings until it is restarted.
 - **Status:** accepted; implemented; verified live.
+
+<a id="fb-0069"></a>
+
+## FB-0069 — Optional multi-tenancy (stage 1)
+
+- **Date:** 2026-10-29.
+- **Request (consumer, recorded without consumer names or business terms):**
+  one installation manages several independent content lines. Each line is a
+  tenant, and users work only in the lines assigned to them. A user with one
+  line is never asked to choose. Multi-tenancy is an optional capability that
+  an application turns on. Without it nothing changes: no tables, menu entries,
+  fields, selectors, request handling or behavior. Running background processes
+  for a tenant is consumer business logic; the framework only lets a worker
+  resolve and recheck a tenant and its permissions outside HTTP.
+- **Owner decisions:** the public term is *tenant* (*organization* is a synonym).
+  Roles stay global, and membership is a separate gate; per-tenant roles come
+  later. A user without a membership signs in, keeps the global views the ACL
+  allows and is refused every tenant-scoped resource. The tenant table is
+  framework-owned only (`blade_tenants`).
+- **Decisions taken in implementation:** the switch is on the Workspace
+  (`tenancy: true`, JSON `"tenancy": {}`), installed explicitly with
+  `Tenancy::install()`. Scope is declared by `SqlResource`/`Lookup`
+  `tenantColumn` and marked in the registry. The executor, `__form` and the view
+  list refuse a marked resource without a tenant, and the adapter checks again.
+  A switch is a server POST that audits, rotates the CSRF token and reloads the
+  shell, a simpler and stronger route than clearing every component in place:
+  old tabs and live tickets of the previous tenant stop working. Uniqueness is
+  checked per tenant, so it reveals nothing about other tenants. Memberships
+  are edited through the new general `RelatedSet` (a many-to-many multiselect
+  storage) on Users and Tenants. The tenant demo is a separate `/tenants/` app,
+  because enabling tenancy in the full feature demo would change its behavior
+  and every existing spec.
+- **Guide:** [tenancy](tenancy.md); [usage](usage.md#multi-tenancy),
+  [configuration](configuration.md), [admin](admin.md#tenants),
+  [security model](security-model.md), [demos](demos.md#tenant-demo-tenants),
+  [plan M2](development-plan.md#m2--auth-tenant-és-acl-alap).
+- **Verification (agent):** `php8.4 tests/shell/tenancy.php` passed (new,
+  retained as the requested security-matrix check). Existing PHP checks passed:
+  contracts, access, admin, api-keys, permissions, authentication, oauth, mail,
+  configuration (extended with the JSON tenancy section), validation, i18n,
+  lists, sorting, grid-edit, related-fields, list-presentation, files, diagram,
+  calendar and signage. `npm run typecheck`, `npm run build` and
+  `npm run demo:assets` passed. On the managed URL, `tenancy.spec.cjs` passed
+  3/3 (no selector with one membership; the no-tenant notice and API refusal;
+  switching removes the previous tenant's rows, a foreign ID returns 404, the
+  old page token returns 403). `browser`, `admin`, `workspace` and `i18n`
+  specs passed 14/14.
+- **Limits / open:** tenant-scoped file spaces (requirement 9) are a later stage,
+  because file storage, thumbnail tasks and ZIP manifests are keyed per space;
+  file managers stay global under tenancy. Diagrams, calendars and non-SQL
+  custom actions have no tenant adapter. Per-tenant roles, an audited
+  cross-tenant read capability and list exports are not implemented. The
+  WebSocket bridge's tenant check has no live browser test (the tenant demo
+  polls). No user acceptance yet.
+- **Status:** accepted; stage 1 implemented and verified by the agent; file
+  stage open.

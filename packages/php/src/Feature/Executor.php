@@ -36,14 +36,16 @@ final class Executor
     public function authorize(Context $ctx, Action $action, ?string $id): array
     {
         $ctx->acl->invalidate();
-        self::channel($ctx,$action);
+        $this->channel($ctx,$action);
         $target=$action->resolve ? ($action->resolve)($ctx,$id) : ['id'=>$id,'owner'=>null];
         $object=isset($target['id']) ? (string)$target['id'] : null;
         if (!$action->collection) self::allowed($ctx,$action,$object,isset($target['acl_id']) ? (string)$target['acl_id'] : $object,isset($target['owner']) ? (string)$target['owner'] : null);
         return $target;
     }
-    private static function channel(Context $ctx, Action $action): void
+    private function channel(Context $ctx, Action $action): void
     {
+        // A tenant-scoped resource needs an active, membership-checked tenant; there is no unscoped fallback.
+        if ($ctx->tenant === null && $this->registry->tenantScoped($action->resource)) throw new Failure('Nincs aktív tenant.',403);
         if (!in_array($ctx->channel,$action->channels,true) || ($ctx->channel==='api' && !in_array($action->resource.'.'.$action->name,$ctx->scopes,true))) throw new Failure('Nincs hozzáférés.',403);
     }
     /** API callers learn nothing about objects they may not use (404); UI callers get 403. */
@@ -69,7 +71,7 @@ final class Executor
             else $rejected[]=['name'=>UploadPolicy::shown($upload->name),'code'=>$problem['code'],'error'=>$problem['message']];
         }
         if(!$accepted)throw new Failure('Egyik fájl sem tölthető fel.',400,[],['code'=>$rejected[0]['code'],'failed'=>$rejected]);
-        return [$rejected?new Context($ctx->actor,$ctx->channel,$ctx->acl,$ctx->db,$ctx->scopes,$accepted,$ctx->owner):$ctx,$rejected];
+        return [$rejected?new Context($ctx->actor,$ctx->channel,$ctx->acl,$ctx->db,$ctx->scopes,$accepted,$ctx->owner,$ctx->tenant):$ctx,$rejected];
     }
     /**
      * Server rule of a `file` field value: a live file of the declared file manager in the declared mount that the actor
@@ -90,7 +92,7 @@ final class Executor
         $ctx->acl->invalidate();
         try {
             $action=$this->registry->get($resource,$name);
-            self::channel($ctx,$action);
+            $this->channel($ctx,$action);
             \Blade\Infrastructure\Transaction::begin($this->db);
             $target=$action->resolve ? ($action->resolve)($ctx,$id) : ['id'=>$id,'owner'=>null];
             if(array_filter($action->fields,static fn($f)=>$f->secret)){
@@ -152,13 +154,13 @@ final class Executor
                 if(!is_string($result['audit_action'])||!preg_match('/^[a-z][a-z0-9_]{0,99}$/D',$result['audit_action']))throw new \LogicException('Invalid audit action.');
                 $audited=$result['audit_action'];unset($result['audit_action']);
             }
-            $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$audited,$auditObject, 'success',$fields,$detail);
+            $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$audited,$auditObject, 'success',$fields,$detail,$ctx->tenant);
             $this->db->commit();
             return $result;
         } catch (\Throwable $error) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             $ctx->acl->invalidate();
-            $this->journal->record($ctx->actor->id,$ctx->channel,substr($resource,0,100),substr($name,0,100),substr($id ?? '',0,100),$error instanceof Failure ? 'rejected' : 'error',$fields,$detail);
+            $this->journal->record($ctx->actor->id,$ctx->channel,substr($resource,0,100),substr($name,0,100),substr($id ?? '',0,100),$error instanceof Failure ? 'rejected' : 'error',$fields,$detail,$ctx->tenant);
             if ($error instanceof Failure) throw $error;
             // Developer errors (a misconfigured definition) reach the server log; the caller sees the generic 500.
             if ($error instanceof \LogicException) error_log('61de: '.$resource.'.'.$name.': '.$error->getMessage());

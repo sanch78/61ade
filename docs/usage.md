@@ -35,8 +35,11 @@ No upper application-title header; one lower bar has user left, application/vers
 right. Skyblue (default), light and dark use DHTMLX setTheme; Skyblue uses Suite 9
 theme variables. Synthetic and consumer integration evidence exists.
 
-Multi-organization isolation, reliable external-side-effect outbox, complex ABAC,
-export and complete package distribution remain open. This is not full M1–M7 completion.
+Optional [multi-tenancy](tenancy.md) (organizations) has its stage 1:
+tenant-scoped SQL resources and lookups, memberships, switching, tenant-bound
+API keys and audit. Tenant-scoped files remain open. A reliable
+external-side-effect outbox, complex ABAC, export and complete package
+distribution remain open. This is not full M1–M7 completion.
 
 <a id="kötelező-fejlesztési-irány"></a>
 
@@ -125,7 +128,7 @@ API reference alone does not replace step-by-step examples.
 | Topic | When guidance becomes applicable |
 | --- | --- |
 | Install/configure/start | M1 runtime |
-| Login/organizations/roles/policies | Verified M2 implementation |
+| Login/organizations/roles/policies | Login, roles and policies: [admin](admin.md), [ACL](access-and-actions.md); tenants/organizations: [tenancy](tenancy.md) (stage 1) |
 | Features/query/action/validation/REST | Complete M3 flow |
 | Shell/grid/form/tree/DataView/views | Per M4 adapter |
 | Scheduler/Gantt/timezones/complex actions | Per supported M5 edition |
@@ -303,6 +306,20 @@ access.php verifies default deny,
 object scope, field denial, API/token scope, optimistic conflicts, audit/rollback.
 Registry/SqlResource/Workspace independent integration and consumer integration
 were verified. Fresh checks must respect current coverage limits.
+
+<a id="multi-tenancy"></a>
+
+## Multi-tenancy (optional)
+
+[Tenancy](tenancy.md) is opt-in: `new Workspace($registry, $pdo, tenancy: true)` or
+a JSON `"tenancy": {}`, then `Tenancy::install()`. Scoped resources declare
+`tenantColumn` (JSON `tenant_column`) on `SqlResource` and on their lookups.
+Roles stay global. Membership is assigned in Users or in Tenants. The shell
+shows a selector only for several memberships, and the server resolves and
+rechecks the tenant on every request; without a membership, scoped resources
+fail closed. API keys are bound to a tenant or are global. Workers use
+`Workspace::context($actor, $channel, $tenant)`. The guide includes the consumer
+integration and migration steps. Demo: [/tenants/](demos.md#tenant-demo-tenants).
 
 <a id="fejlesztői-memória-védelme"></a>
 

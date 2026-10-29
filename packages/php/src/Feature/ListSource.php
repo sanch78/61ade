@@ -5,9 +5,13 @@ namespace Blade\Feature;
 /** ACL-scoped keyset data source, shared by scrolling, filtering and live observation. */
 final readonly class ListSource
 {
-    /** $search: declared name-search fields (non-secret text/textarea); $registry resolves `column.media` sources. */
-    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null, private array $search = [], private ?Registry $registry = null)
+    /**
+     * $search: declared name-search fields (non-secret text/textarea); $registry resolves `column.media` sources.
+     * $tenant: tenant column; every read, count and watch is limited to the Context's tenant and fails closed without one.
+     */
+    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null, private array $search = [], private ?Registry $registry = null, private ?string $tenant = null)
     {
+        if($tenant!==null&&!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$tenant))throw new \InvalidArgumentException('Invalid tenant column.');
         $known=array_column($fields,null,'name');
         if(!array_is_list($search)||count($search)>20||count(array_unique($search))!==count($search))throw new \InvalidArgumentException('Invalid list search declaration.');
         foreach($search as $name){$field=is_string($name)?($known[$name]??null):null;if(!$field||$field->secret||!in_array($field->type,['text','textarea'],true)||$field->media()!==null)throw new \InvalidArgumentException('Invalid list search declaration.');}
@@ -109,7 +113,9 @@ final readonly class ListSource
         $filters=$input['filters']??[];
         if(!is_array($filters)||count($filters)>count($this->fields))throw new Failure('Hibás szűrők.');
         [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
-        $terms=["($scope)","({$this->where})"];$totalTerms=$terms;$totalParams=$params;$known=array_column($this->fields,null,'name');
+        $terms=["($scope)","({$this->where})"];
+        if($this->tenant!==null){$terms[]="{$this->tenant} = :blade_tenant";$params['blade_tenant']=$ctx->tenant ?? throw new Failure('Nincs aktív tenant.',403);}
+        $totalTerms=$terms;$totalParams=$params;$known=array_column($this->fields,null,'name');
         foreach($filters as $key=>$value){
             $field=$known[$key]??null;
             if(!$field||$field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$key))throw new Failure('A mező nem szűrhető.',403);

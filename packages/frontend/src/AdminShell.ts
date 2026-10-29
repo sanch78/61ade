@@ -37,6 +37,8 @@ export type ShellDefinition = {
   views?: (ViewDefinition | FileViewDefinition | DiagramViewDefinition | CalendarViewDefinition)[];
   csrf?: string;
   live?: import("./Realtime").LiveConfig;
+  /** Only with tenancy: the server-resolved active tenant (null: no membership) and the actor's memberships. */
+  tenant?: { current: string | null; choices: { id: string; name: string }[] };
 };
 const escape = (text: string) =>
   text.replace(
@@ -99,7 +101,7 @@ export class AdminShell {
   private renderMenu():void{
     if (!this.menu) return;
     const width=this.root.clientWidth;
-    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0));
+    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantSelector?180:0));
     const compact = width < Math.max(768,required(this.menuItems));
     const current="feature:"+(new URLSearchParams(location.hash.slice(1)).get("feature")??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -151,7 +153,7 @@ export class AdminShell {
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(definition.i18n?.selector?[{id:"language",width:130}]:[]),{id:"theme",width:145}] },
+        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantSelector?[{id:"tenant",width:180}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),{id:"theme",width:145}] },
         { id: "workspace", css: "blade-workspace" },
         { id: "status", height: 32, css: "blade-session-bar" },
       ],
@@ -167,6 +169,9 @@ export class AdminShell {
               : t("Nincs bejelentkezve"),
           ),
         },
+        ...(definition.authenticated && definition.tenant ? [{ id: "tenant-status", type: "title", css: definition.tenant.current ? "blade-tenant-status" : "blade-tenant-status blade-tenant-status--none",
+          value: escape(definition.tenant.choices.find(choice => choice.id === definition.tenant!.current)?.name ?? t("Nincs hozzárendelt tenant")),
+          tooltip: definition.tenant.current ? t("Aktív tenant") : t("Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.") }] : []),
         { type: "spacer" },
         { id: "upload-status", value: "", icon: "dxi dxi-file-import", hidden: true, css: "blade-upload-indicator" },
         {
@@ -195,6 +200,7 @@ export class AdminShell {
     if(definition.i18n?.selector){
       this.layout.getCell("language").attach(this.languageControl());
     }
+    if(this.tenantSelector)this.layout.getCell("tenant").attach(this.tenantControl());
     if (definition.authenticated) {
       const map = (items: MenuDefinition[]): object[] =>
         items.map((item) => ({
@@ -272,6 +278,19 @@ export class AdminShell {
     if (item.hidden) this.status.show("upload-status");
   }
 
+  /** A selector only for several memberships; the switch is a server round trip that reloads the whole shell. */
+  private get tenantSelector():boolean{ return this.definition.authenticated && (this.definition.tenant?.choices.length ?? 0) > 1; }
+  private tenantControl():Toolbar{
+    const tenant=this.definition.tenant!;
+    const current=tenant.choices.find(choice=>choice.id===tenant.current);
+    const control=new Toolbar(undefined,{data:[{id:"blade-tenant",value:escape(current?.name??t("Tenant")),icon:"dxi dxi-view-grid",tooltip:t("Tenant váltása"),
+      items:tenant.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant.current?{icon:"dxi dxi-check"}:{})}))}]});
+    control.events.on("click",(id:string|number)=>{
+      const choice=String(id).startsWith("tenant:")?String(id).slice(7):"";
+      if(choice&&choice!==tenant.current)this.post("tenant",{tenant:choice});
+    });
+    return control;
+  }
   private languageControl():Toolbar{
     const config=this.definition.i18n!;
     const language=new Toolbar(undefined,{data:[{id:"blade-language",value:escape(config.languages[config.locale]),icon:languageIcon(config,config.locale),tooltip:t("Nyelv"),items:Object.keys(config.languages).map(id=>({id:"language:"+id,value:escape(config.languages[id]),icon:languageIcon(config,id)}))}]});
@@ -529,7 +548,7 @@ export class AdminShell {
   }
 
   private post(
-    action: "language" | "login" | "logout" | "confirm_login" | "resend_login" | "cancel_login" | "change_password" | "cancel_password_change",
+    action: "language" | "tenant" | "login" | "logout" | "confirm_login" | "resend_login" | "cancel_login" | "change_password" | "cancel_password_change",
     fields: Record<string, string> = {},
   ): void {
     if (this.submitting) return;

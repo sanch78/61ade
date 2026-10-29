@@ -670,5 +670,19 @@
   "A fájl típusa ehhez a mezőhöz nem engedélyezett.": "Dieser Dateityp ist für dieses Feld nicht zulässig.",
   "A kiválasztott adat archiválódik, és többé nem jelenik meg.": "Der ausgewählte Datensatz wird archiviert und nicht mehr angezeigt.",
   "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.": "Verweisende Elemente bleiben erhalten, ihr Dateiverweis wird entfernt.",
-  "{count} elem előnézete nem sikerült.": "Die Vorschau von {count} Elementen ist fehlgeschlagen."
+  "{count} elem előnézete nem sikerült.": "Die Vorschau von {count} Elementen ist fehlgeschlagen.",
+  "Nincs aktív tenant.": "Kein aktiver Mandant.",
+  "Nincs hozzáférés a tenanthoz.": "Kein Zugriff auf diesen Mandanten.",
+  "Ez a tenant nem érhető el.": "Dieser Mandant ist nicht verfügbar.",
+  "Tenantok": "Mandanten",
+  "Tagok": "Mitglieder",
+  "Aktív": "Aktiv",
+  "Tenant": "Mandant",
+  "Globális (csak globális erőforrások)": "Global (nur globale Ressourcen)",
+  "A kulcs tenantja kiadás után nem módosítható.": "Der Mandant des Schlüssels kann nach der Ausgabe nicht geändert werden.",
+  "A tulajdonos nem tagja ennek a tenantnak.": "Der Eigentümer ist kein Mitglied dieses Mandanten.",
+  "Nincs hozzárendelt tenant": "Kein Mandant zugewiesen",
+  "Aktív tenant": "Aktiver Mandant",
+  "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.": "Kein Mandant zugewiesen; mandantengebundene Ansichten sind nicht verfügbar.",
+  "Tenant váltása": "Mandant wechseln"
 }

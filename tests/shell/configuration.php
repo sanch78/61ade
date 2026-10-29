@@ -126,6 +126,29 @@ try {
     verify(in_array('blade_oauth', array_column($users['columns'], 'id'), true) && in_array('blade_locale', array_column($users['columns'], 'id'), true), 'OAuth and language switches in the user admin');
     verify(in_array('blade_api_keys', array_column($app->workspace->registry->views(), 'resource'), true), 'JSON admin includes API keys');
 
+    // Tenancy is opt-in: an empty `tenancy` object enables it; `tenant_column` scopes resources and lookups.
+    verify($app->workspace->tenancy === null && !in_array('blade_tenants', array_column($app->workspace->registry->views(), 'resource'), true), 'No tenancy without the tenancy section');
+    file_put_contents($directory.'/tenant-module.json', json_encode(['lookups' => ['projects' => ['resource' => 'projects', 'table' => 'projects', 'key' => 'id', 'label' => 'title', 'tenant_column' => 'tenant_id']],
+        'resources' => ['projects' => ['storage' => ['table' => 'projects', 'key' => 'id', 'tenant_column' => 'tenant_id'], 'fields' => [['name' => 'title', 'label' => 'Title', 'required' => true]], 'view' => ['title' => 'Projects']],
+            'tasks' => ['storage' => ['table' => 'tasks', 'key' => 'id', 'tenant_column' => 'tenant_id'], 'fields' => [['name' => 'project_id', 'label' => 'Project', 'type' => 'select', 'options_lookup' => 'projects']], 'view' => ['title' => 'Tasks']]]], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+    $tenantDb = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    Schema::install($tenantDb);
+    Blade\Tenancy\Tenancy::install($tenantDb);
+    $tenantDb->exec('CREATE TABLE accounts (id INTEGER PRIMARY KEY, login TEXT, password_hash TEXT, name TEXT, active INTEGER)');
+    $tenantDb->exec('CREATE TABLE projects (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL)');
+    $tenantDb->exec('CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, project_id TEXT)');
+    $tenantDb->exec("INSERT INTO projects (tenant_id, title) VALUES ('1', 'One'), ('2', 'Two')");
+    $tenantDb->exec("INSERT INTO blade_rules(subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('user', '1', 'projects', 'list', 'ui', 'allow', 'all', '', '')");
+    $write([...$settings, 'admin' => [], 'tenancy' => [], 'workspace' => ['modules' => [$directory.'/tenant-module.json']]]);
+    $tenantApp = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], static fn() => [], $tenantDb);
+    $registry = $tenantApp->workspace->registry;
+    verify($tenantApp->workspace->tenancy !== null && $registry->tenantScoped('projects') && $registry->tenantScoped('tasks') && in_array('blade_tenants', array_column($registry->views(), 'resource'), true), 'JSON tenancy section and tenant_column');
+    $tenantDb->exec("INSERT INTO blade_tenants (name) VALUES ('One')");$tenantDb->exec("INSERT INTO blade_tenant_members (tenant_id, actor_id) VALUES ('1', '1')");
+    $choices = $registry->fields('tasks')['project_id']->metadata($tenantApp->workspace->context(new Blade\Shell\Identity('1', 'Synthetic'), 'ui', '1'))['options'];
+    verify(array_values($choices) === ['One'], 'JSON lookup tenant_column scopes choices');
+    $write([...$settings, 'tenancy' => ['mode' => 'x']]);
+    rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Unknown tenancy key accepted');
+
     $settings['session']['cookie_patth'] = '/wrong';
     $write($settings);
     rejected(static fn() => JsonApplication::load($file, [], $callbacks, $db), 'Unknown setting accepted');

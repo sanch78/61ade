@@ -19,6 +19,8 @@ body,
 .blade-session-bar .dhx_navbar {
   padding: 0;
 }
+/* Active tenant beside the user; without a membership the notice uses the danger colour. */
+.blade-session-bar .blade-tenant-status--none .dhx_toolbar-button__text, .blade-session-bar .blade-tenant-status--none { color: var(--dhx-color-danger); }
 
 /* Suite 9.3.12 anchors space- and wide-layout grips to a cell border.
    Center them in the native 12px gap; leave line layouts unchanged. */

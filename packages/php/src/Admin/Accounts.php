@@ -178,6 +178,10 @@ final class Accounts
             $fields[] = new Field('blade_email_confirmation', 'E-mailes megerősítés', 'checkbox', defaultValue: $this->emailConfirmation ? '1' : '0', column: [...$switch, 'secondary' => true]);
             $related[] = new RelatedStorage('blade_auth_settings', 'actor_id', ['blade_email_confirmation' => 'email_confirmation'], ['blade_email_confirmation' => (int) $this->emailConfirmation]);
         }
+        if ($this->workspace->tenancy) {
+            $fields[] = $this->workspace->tenancy->membershipField();
+            $related[] = \Blade\Tenancy\Tenancy::members(true, 'blade_tenant_ids');
+        }
         $this->resource = new SqlResource(
             self::RESOURCE, $this->table, $this->idColumn, $fields,
             defaults: [$this->passwordColumn => '', ...$this->createDefaults],

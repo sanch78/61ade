@@ -670,5 +670,19 @@
   "A fájl típusa ehhez a mezőhöz nem engedélyezett.": "This file type is not allowed for this field.",
   "A kiválasztott adat archiválódik, és többé nem jelenik meg.": "The selected record will be archived and no longer shown.",
   "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.": "Referencing items are kept; their file reference is cleared.",
-  "{count} elem előnézete nem sikerült.": "Preview failed for {count} items."
+  "{count} elem előnézete nem sikerült.": "Preview failed for {count} items.",
+  "Nincs aktív tenant.": "No active tenant.",
+  "Nincs hozzáférés a tenanthoz.": "No access to this tenant.",
+  "Ez a tenant nem érhető el.": "This tenant is not available.",
+  "Tenantok": "Tenants",
+  "Tagok": "Members",
+  "Aktív": "Active",
+  "Tenant": "Tenant",
+  "Globális (csak globális erőforrások)": "Global (global resources only)",
+  "A kulcs tenantja kiadás után nem módosítható.": "The key's tenant cannot be changed after issue.",
+  "A tulajdonos nem tagja ennek a tenantnak.": "The owner is not a member of this tenant.",
+  "Nincs hozzárendelt tenant": "No tenant assigned",
+  "Aktív tenant": "Active tenant",
+  "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.": "No tenant assigned; tenant-scoped views are unavailable.",
+  "Tenant váltása": "Switch tenant"
 }

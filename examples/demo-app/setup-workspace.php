@@ -157,4 +157,45 @@ blade_demo_accounts($db, [[1, 'demo@example.test', '61de-demo', 'Demo Admin', 1,
 unset($db);
 $admin = require __DIR__.'/admin-application.php';
 Blade\Admin\Permissions::grantAdministration($admin->workspace->db, $admin->workspace->registry, '1');
-echo "Feature and base admin demos initialized.\n";
+
+// Tenant demo: two tenants; demo@ (admin) belongs to both, single@ to Alfa only, none@ to no tenant.
+$db = blade_demo_db('tenants');
+Blade\Access\Schema::install($db);
+Blade\Tenancy\Tenancy::install($db);
+$db->exec('CREATE TABLE IF NOT EXISTS tenant_projects(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT \'open\')');
+$db->exec('CREATE TABLE IF NOT EXISTS tenant_tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL, project_id TEXT NOT NULL)');
+$db->exec('CREATE TABLE IF NOT EXISTS tenant_notices(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL)');
+blade_demo_accounts($db, [
+    [1, 'demo@example.test', '61de-demo', 'Demo Admin', 1, 1],
+    [2, 'single@example.test', '61de-demo', 'Single Tenant', 1, 0],
+    [3, 'none@example.test', '61de-demo', 'No Tenant', 1, 0],
+]);
+$alfa = Blade\Tenancy\Tenancy::ensure($db, 'Alfa');
+$beta = Blade\Tenancy\Tenancy::ensure($db, 'Béta');
+foreach ([[$alfa, '1'], [$beta, '1'], [$alfa, '2']] as [$tenant, $actor]) Blade\Tenancy\Tenancy::join($db, $tenant, $actor);
+if (!$db->query('SELECT COUNT(*) FROM tenant_projects')->fetchColumn()) {
+    $project = $db->prepare('INSERT INTO tenant_projects(tenant_id,title) VALUES (?,?)');
+    $task = $db->prepare('INSERT INTO tenant_tasks(tenant_id,title,project_id) VALUES (?,?,?)');
+    foreach ([[$alfa, 'Alfa kutatás', ['Alfa mérés', 'Alfa jelentés']], [$alfa, 'Alfa karbantartás', []], [$beta, 'Béta bevezetés', ['Béta oktatás']]] as [$tenant, $title, $items]) {
+        $project->execute([$tenant, $title]);
+        $id = $db->lastInsertId();
+        foreach ($items as $item) $task->execute([$tenant, $item, $id]);
+    }
+    $db->exec("INSERT INTO tenant_notices(title) VALUES ('Közös karbantartási ablak péntek este')");
+}
+// Editors: the global role works in each member tenant; tenant membership decides where.
+$db->exec("INSERT OR IGNORE INTO blade_roles(name, role_key) VALUES ('Szerkesztő', 'editor')");
+$editor = (string) $db->query("SELECT id FROM blade_roles WHERE role_key = 'editor'")->fetchColumn();
+foreach (['1', '2', '3'] as $actor) $db->prepare('INSERT OR IGNORE INTO blade_memberships(actor_id, role_id) VALUES (?, ?)')->execute([$actor, $editor]);
+$exists = $db->prepare("SELECT COUNT(*) FROM blade_rules WHERE subject_type=? AND subject_id=? AND resource=? AND action=? AND channel=? AND field_name=''");
+$grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES (?,?,?,?,?,'allow','all','','')");
+$rules = [['role', $editor, 'tenant_projects', ['list', 'get', 'create', 'update'], 'ui'], ['role', $editor, 'tenant_tasks', ['list', 'get', 'create', 'update'], 'ui'], ['role', $editor, 'tenant_notices', ['list', 'get'], 'ui'],
+    ['user', '1', 'tenant_projects', ['list', 'get', 'create'], 'api'], ['user', '1', 'tenant_notices', ['list', 'get'], 'api']];
+foreach ($rules as [$type, $subject, $resource, $actions, $channel]) foreach ($actions as $action) {
+    $exists->execute([$type, $subject, $resource, $action, $channel]);
+    if (!$exists->fetchColumn()) $grant->execute([$type, $subject, $resource, $action, $channel]);
+}
+unset($exists, $grant, $project, $task, $db);
+$tenantDemo = require __DIR__.'/tenant-application.php';
+Blade\Admin\Permissions::grantAdministration($tenantDemo->workspace->db, $tenantDemo->workspace->registry, '1');
+echo "Feature, base admin and tenant demos initialized.\n";
