@@ -157,8 +157,9 @@ test('synthetic media tiles: reflow, row-height restore, keys, marks, reserved k
  await expect(page.locator('.blade-grid-tiles .dhx_dataview-item--focus')).toHaveCount(1);
  for(const theme of ['skyblue','light','dark']){
   await page.evaluate(theme=>fixture.setTheme(theme,document.documentElement),theme);await frame();
-  const ring=await page.locator('.blade-grid-tiles .dhx_dataview-item--focus').evaluate(e=>{const s=getComputedStyle(e);return {style:s.outlineStyle,width:s.outlineWidth,color:s.outlineColor};});
-  expect(ring.style).toBe('solid');expect(ring.width).toBe('2px');expect(ring.color).not.toBe('rgba(0, 0, 0, 0)');
+  // The ring is a box-shadow in the theme focus colour (no outline).
+  const ring=await page.locator('.blade-grid-tiles .dhx_dataview-item--focus').evaluate(e=>{const s=getComputedStyle(e);return {outline:s.outlineStyle,shadow:s.boxShadow};});
+  expect(ring.outline).toBe('none');expect(ring.shadow).not.toBe('none');expect(ring.shadow).not.toMatch(/^rgba\(0, 0, 0, 0\)/);
   expect(await page.locator('.blade-grid-tiles').evaluate(e=>e.scrollWidth-e.clientWidth)).toBe(0);
   await page.screenshot({path:path.join(process.env.BLADE_TMP_DIR||path.join(root,'tmp'),`media-tiles-${theme}.png`)});
  }

@@ -2465,3 +2465,33 @@ that exactly equals an option label lists every option. The managed
   agent thread with owner gates G1–G5.
 - **Verification:** documentation only; no runtime change.
 - **Status:** accepted/planned.
+
+<a id="fb-0082"></a>
+
+## FB-0082 — Green regression baseline before the toolkit kernel
+
+- **Date:** 2026-10-29.
+- **Observation:** the toolkit P0 baseline (full `npm run test:browser` at
+  `24c1894`) had four deterministic failures that also failed with the
+  pre-FB-0079 bundle: two from demo data changed by hand, two specs left
+  behind by intended changes.
+- **Decision (owner, G1):** repair them before toolkit P2 so gate G2 measures
+  against a green baseline.
+- **Implemented:**
+  - Form checkboxes carry their field label as a hidden Suite `label`, so their
+    accessible name is the label again ("Archivált", not "checkbox Archivált",
+    a side effect of `ef465be`). `Workspace.ts` `input()`.
+  - `mobile-grid.spec.cjs` checks the tile focus ring as the box-shadow ring
+    introduced in `02a64d6` (outline `none`, a non-transparent shadow),
+    instead of the former 2 px outline.
+  - Demo data (web instance, not in Git): the deleted signage seed assets
+    "Arculati háttérkép", "Logó állókép", "Fotó plakát", the weekday defaults
+    2–7 and the two events' asset references were restored; the leftover Alfa
+    membership of `none@example.test` was removed. The seed still runs only on
+    an empty table, so a later manual delete needs the same restore.
+- **Verification (managed URL, 2026-10-29):** `npm run typecheck`,
+  `npm run build`; browser `calendar`, `mobile-grid`, `related-fields`,
+  `tenancy`, `admin`, `grid-edit`, `authentication`, `demo`, `dialogs`,
+  `uploader`, `files`, `subview-demos` pass (`grid-edit` failed once on the
+  grid Space toggle and passed in two isolated re-runs: flaky).
+- **Status:** implemented and committed.

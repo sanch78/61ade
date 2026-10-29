@@ -53,7 +53,8 @@ export const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type=
   data:Object.entries(f.options).map(([id,value])=>({id,value})),value:String(value??f.defaultValue??"").split(",").filter(Boolean),
 }:f.type==="multiselect"?{type:"input",name:f.name,label:f.label,labelPosition:"top",readOnly:true,value:optionText(f,value)}:f.type==="checkbox"?{
   width:"100%",cols:[
-    {type:"checkbox",name:f.name,text:f.label,width:"content",checked:String(value??f.defaultValue??"0")==="1"||value===true,disabled:readOnly},
+    // The hidden label names the checkbox; Suite otherwise announces it as "checkbox <text>".
+    {type:"checkbox",name:f.name,text:f.label,label:f.label,hiddenLabel:true,width:"content",checked:String(value??f.defaultValue??"0")==="1"||value===true,disabled:readOnly},
   ],
 }:({
   type:readOnly?"input":f.type==="select"?"select":f.type==="textarea"?"textarea":"input",
