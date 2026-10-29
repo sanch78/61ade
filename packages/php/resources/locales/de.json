@@ -693,5 +693,6 @@
   "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.": "Kein Mandant zugewiesen; mandantengebundene Ansichten sind nicht verfügbar.",
   "Tenant váltása": "Mandant wechseln",
   "Hozzáférés": "Zugriff",
-  "Hozzáférések": "Zugriffe"
+  "Hozzáférések": "Zugriffe",
+  "Egy alkalmazásmodul nem indult el: {module}": "Ein Anwendungsmodul wurde nicht gestartet: {module}"
 }

@@ -693,5 +693,6 @@
   "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.": "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.",
   "Tenant váltása": "Tenant váltása",
   "Hozzáférés": "Hozzáférés",
-  "Hozzáférések": "Hozzáférések"
+  "Hozzáférések": "Hozzáférések",
+  "Egy alkalmazásmodul nem indult el: {module}": "Egy alkalmazásmodul nem indult el: {module}"
 }
