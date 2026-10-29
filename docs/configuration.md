@@ -27,7 +27,7 @@ return JsonApplication::load(
 | `identity` | SQL account schema and named `allowed`/`password_verifier` adapters. |
 | `authentication` | Optional [e-mail verification and remembered login](authentication.md), delivery and text overrides. |
 | `admin` | Built-in [user/permission admin](admin.md); `identity.username_column` must be the e-mail column. Optional `protected_role`, default `admin`. |
-| `live` | `transport` (`poll`/`websocket`), `endpoint`, integer `interval_ms`. |
+| `live` | `transport` (`poll`/`websocket`), `endpoint`, integer `interval_ms`. Optional `applications`: name → application file (relative to the JSON directory) the WebSocket server also serves at `<endpoint>/<name>` ([live data](workspaces.md#élő-adat-konfigurálása-és-futtatása)). |
 | `tenancy` | Optional; an empty object `{}` enables [multi-tenancy](tenancy.md). No other keys yet. |
 | `workspace.modules` | Module JSON paths relative to the configuration directory; views supply menus. |
 

@@ -56,3 +56,24 @@ test('WebSocket delivers external writes as update frames',async({page})=>{
  await update;
  await expect(page.getByText(value,{exact:true})).toBeVisible();
 });
+// The demo unit serves the starter admin and the tenant demo at <endpoint>/admin and <endpoint>/tenants (LiveConfig applications).
+for(const [path,menu,group,email] of [['/admin/','Felhasználók','Adminisztráció','demo@example.test'],['/tenants/','Projektek','Tenant demó','demo@example.test']]){
+ test(`WebSocket serves ${path} on its own live path with its own tickets`,async({page})=>{
+  await signIn(page,email,path);
+  test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
+  const live='/live/'+path.replaceAll('/','');
+  let subscribed,updated;
+  const sent=new Promise(resolve=>subscribed=resolve),received=new Promise(resolve=>updated=resolve);
+  page.on('websocket',socket=>{
+   if(new URL(socket.url()).pathname!==live)return;
+   socket.on('framesent',frame=>{const m=JSON.parse(frame.payload);if(m.type==='subscribe')subscribed(m);});
+   socket.on('framereceived',frame=>{if(JSON.parse(frame.payload).type==='update')updated();});
+  });
+  await openMenu(page,menu,group);
+  await expect.poll(()=>Promise.race([received.then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),250))]),{timeout:10000}).toBe(true);
+  // The ticket belongs to this application's runtime: the feature demo path refuses it.
+  const {ticket,resource,query}=await sent;
+  const code=await page.evaluate(({ticket,resource,query})=>new Promise(resolve=>{const endpoint=JSON.parse(document.getElementById('blade-config').textContent).live.endpoint.replace(/\/[a-z]+$/,'');const ws=new WebSocket(endpoint);ws.onopen=()=>ws.send(JSON.stringify({type:'subscribe',ticket,resource,query,subscriptionId:1}));ws.onclose=event=>resolve(event.code);}),{ticket,resource,query});
+  expect(code).toBe(4401);
+ });
+}

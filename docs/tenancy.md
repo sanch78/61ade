@@ -238,9 +238,10 @@ re-issued.
 - **Per-tenant roles** and an explicit, audited **cross-tenant read** capability
   are later extensions, as stated in the owner decisions.
 - Exports exist only as file downloads; list exports do not exist yet.
-- The tenant demo polls. The WebSocket bridge's ticket/tenant check
-  (`packages/php/bin/live-bridge.php`) has no live browser test yet; only the
-  polling watch path is covered.
+- The tenant demo uses WebSocket at `/live/tenants` when the demo `.env`
+  selects it ([FB-0074](feedback.md#fb-0074)). The browser test covers an
+  update frame and the refusal of its ticket on another application's path; a
+  tenant switch closing an open socket is covered by the bridge check only.
 
 ## Verification
 

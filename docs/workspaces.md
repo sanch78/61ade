@@ -160,7 +160,18 @@ PHP 8.4+. It is the committed bundle of `tools/live-server.mjs` with the
 lockfile-pinned ws (currently 8.22.0) inlined, so it needs no `node_modules`.
 Settings: BLADE_AUTOLOAD_FILE, BLADE_APPLICATION_FILE, BLADE_PHP,
 BLADE_LIVE_ORIGIN; optional BLADE_LIVE_PORT (8088), BLADE_LIVE_INTERVAL (2000).
-A managed HTTPS/WSS proxy forwards `/live` to loopback. Consumer supervision:
+A managed HTTPS/WSS proxy forwards `/live` to loopback.
+
+One server serves several application files of one hostname. The application
+named by BLADE_APPLICATION_FILE lists the others in `LiveConfig::$applications`
+(name → absolute file); a connection whose path ends in `/<name>` (for example
+`/live/admin`) is served by that file, every other path by the named
+application. Each listed application sets its own endpoint, e.g.
+`new LiveConfig('websocket', 'wss://admin.example.test/live/admin')`. Sessions
+and tickets come from the selected application's runtime, so a ticket is valid
+only on its own path. Names match `[a-z][a-z0-9-]{0,31}`; the files never reach
+the browser. Adding an application needs no service or proxy change (the proxy
+forwards the `/live` prefix), only a restart. Consumer supervision:
 [live-data service](development.md#live-data-service-websocket); demo:
 [demos](demos.md#websocket-live-data).
 Exact Origin checking and session-bound tickets in private runtime are mandatory;

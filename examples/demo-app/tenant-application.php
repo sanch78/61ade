@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 use Blade\Admin\{Accounts, Administration};
 use Blade\Feature\{Field, Lookup, Registry, SqlResource, Workspace};
+use Blade\Live\LiveConfig;
 use Blade\Navigation\Menu;
 use Blade\Shell\{ApplicationDefinition, SqlIdentityProvider};
 
@@ -43,9 +44,13 @@ $workspace->registry->subview('tenant_tasks', 'tenant_tasks', 'parent_id');
     new Field('title', 'Közlemény', required: true, max: 200),
 ]))->register($workspace->registry, 'Közös hirdetőtábla', group: 'Tenant demó');
 
+// Live data: the feature demo's WebSocket unit serves this application at <endpoint>/tenants (docs/demos.md).
+$liveEndpoint = blade_demo_setting('BLADE_DEMO_LIVE_ENDPOINT');
+
 return new ApplicationDefinition(
     title: '61ade tenant demó', version: '0.1.0', identities: $identities, menu: new Menu([]),
     runtime: blade_demo_runtime('tenants'),
     sessionName: 'blade_tenant_demo', cookiePath: '/tenants/', assets: '../assets',
     workspace: $workspace, languages: $languages, accounts: $accounts,
+    live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint.'/tenants') : new LiveConfig(),
 );

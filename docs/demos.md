@@ -157,8 +157,10 @@ checkout does ([FB-0068](feedback.md#fb-0068)). Set it only while the Infra
 unit and the `/live` proxy run: WebSocket does not fall back to polling. The
 FPM pool must not force `session.save_path`: the bridge reads the sessions
 from the application runtime.
-The starter admin (`/admin/`) stays on polling; one server process serves one
-application file.
+The same unit serves the starter admin and the tenant demo: the feature demo's
+`LiveConfig` lists `admin-application.php` and `tenant-application.php`, which
+connect to `<endpoint>/admin` and `<endpoint>/tenants`
+([FB-0074](feedback.md#fb-0074)).
 
 This checkout cannot be supervised by deploy-jobs, so Infra installs one unit
 for the demo with these settings:
@@ -203,7 +205,7 @@ See [project rules](development.md#mandatory-framework-development-rules).
 - `php8.4 tests/shell/files.php` and `npm run test:browser -- tests/shell/files.spec.cjs`: the file manager ([files](files.md#demo-and-verification)); the spec removes the entries it creates.
 - `php8.4 tests/shell/calendar.php` and `npm run test:browser -- tests/shell/calendar.spec.cjs`: the event calendar and signage playlist ([calendar](calendar.md#demo-and-verification)); the spec deletes the events it creates.
 - `php8.4 tests/shell/diagram.php` and `npm run test:browser -- tests/shell/diagram.spec.cjs`: the topology builder ([diagrams](diagrams.md#demo-and-verification)); the spec removes the diagrams and element types it creates.
-- `npm run test:browser -- tests/shell/workspace.spec.cjs`: Notes on the feature demo observe an external SQLite write through polling, or, when `.env` selects WebSocket, through an update frame on the `/live` socket; each case skips under the other transport.
+- `npm run test:browser -- tests/shell/workspace.spec.cjs`: Notes on the feature demo observe an external SQLite write through polling, or, when `.env` selects WebSocket, through an update frame on the `/live` socket; the starter admin and the tenant demo receive updates on `/live/admin` and `/live/tenants`, and the feature demo path refuses their tickets. The WebSocket cases skip under polling and vice versa.
 - `php8.4 tests/shell/tenancy.php` and `npm run test:browser -- tests/shell/tenancy.spec.cjs`: the tenant demo and the tenancy security matrix ([tenancy](tenancy.md#verification)). The spec switches demo@ back to Alfa.
 - Manual verification: open the managed URLs directly from the checkout.
 

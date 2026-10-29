@@ -99,6 +99,14 @@ try {
     $skinned = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active'], 'app.skins' => static fn() => [$skin]], $callbacks, $db);
     verify(($skinned->skins)($actor) === [$skin], 'Application skins from a named identity binding');
     rejected(static fn() => new Blade\Shell\Skin('skyblue', 'Shadow', 'skins/brand.css'), 'Skin shadowing a factory theme accepted');
+    verify($app->live->applications === [] && $app->live->route('/live/admin') === null, 'No further live applications without live.applications');
+    $write([...$settings, 'live' => [...$settings['live'], 'transport' => 'websocket', 'applications' => ['admin' => 'admin.php', 'tenants' => '/srv/tenants.php']]]);
+    $routed = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
+    verify($routed->live->route('/live/admin') === dirname($file).'/admin.php' && $routed->live->route('/live/tenants') === '/srv/tenants.php', 'Live applications resolve from the JSON directory and route by the last path segment');
+    verify($routed->live->route('/live') === null && $routed->live->route('/live/other') === null, 'Other live paths serve the configured application');
+    verify(!array_key_exists('applications', $routed->live->metadata()), 'Live application files stay out of the browser bootstrap');
+    rejected(static fn() => new Blade\Live\LiveConfig('websocket', 'live', applications: ['Admin' => '/srv/admin.php']), 'Invalid live application name accepted');
+    rejected(static fn() => new Blade\Live\LiveConfig('websocket', 'live', applications: ['admin' => 'admin.php']), 'Relative live application file accepted');
     rejected(static fn() => new Blade\Shell\Skin('brand', 'Brand', 'https://cdn.example.test/brand.css'), 'Off-page skin stylesheet accepted');
     rejected(static fn() => new Blade\Shell\Skin('brand', 'Brand', 'skins/brand.css', 'contrast-dark'), 'Skin over an unsupported base accepted');
     $write($settings);

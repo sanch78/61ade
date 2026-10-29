@@ -307,3 +307,7 @@
 <a id="fb-0073"></a>
 
 ## FB-0073 — Demo WebSocket refresh after the tenancy change
+
+<a id="fb-0074"></a>
+
+## FB-0074 — One live server for several applications

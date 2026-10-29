@@ -211,6 +211,9 @@ absolute paths):
 
 The application definition sets the matching endpoint:
 `live: new Blade\Live\LiveConfig('websocket', 'wss://admin.example.test/live')`.
+Further application files of the same hostname share the service: list them in
+that definition's `applications` (name → absolute file) and give each its
+endpoint `<endpoint>/<name>` ([live data](workspaces.md#élő-adat-konfigurálása-és-futtatása)).
 The server listens on `127.0.0.1:<BLADE_LIVE_PORT>` and accepts only an
 upgrade whose `Origin` equals `BLADE_LIVE_ORIGIN` exactly. Each hostname
 (production and development) therefore needs its own service with its own

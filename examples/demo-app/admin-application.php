@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 use Blade\Admin\{Accounts, Administration};
 use Blade\Feature\{Registry, Workspace};
+use Blade\Live\LiveConfig;
 use Blade\Navigation\Menu;
 use Blade\Shell\{ApplicationDefinition, SqlIdentityProvider};
 
@@ -22,9 +23,13 @@ $identities = Administration::register($workspace, $accounts, new SqlIdentityPro
     allowed: static fn(array $row) => (bool) $row['active'],
 ));
 
+// Live data: the feature demo's WebSocket unit serves this application at <endpoint>/admin (docs/demos.md).
+$liveEndpoint = blade_demo_setting('BLADE_DEMO_LIVE_ENDPOINT');
+
 return new ApplicationDefinition(
     title: '61ade alapadmin', version: '0.2.0', identities: $identities, menu: new Menu([]),
     runtime: blade_demo_runtime('admin'),
     sessionName: 'blade_admin_demo', cookiePath: '/admin/', assets: '../assets',
     workspace: $workspace, languages: $languages, accounts: $accounts,
+    live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint.'/admin') : new LiveConfig(),
 );

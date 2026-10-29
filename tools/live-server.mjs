@@ -21,13 +21,15 @@ server.on('upgrade',(req,socket,head)=>{
  if(req.headers.origin!==origin || wss.clients.size>=100){socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');socket.destroy();return;}
  wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
-wss.on('connection',ws=>{
+wss.on('connection',(ws,req)=>{
+ // The bridge picks the application from the path (LiveConfig applications).
+ const path=new URL(req.url,'http://localhost').pathname;
  let subscription=null,previous=null,busy=false,alive=true,epoch=0;
  const tick=async()=>{
   if(!subscription||busy||ws.readyState!==WebSocket.OPEN)return;
   busy=true;const generation=epoch;
   try{
-   const r=await read({...subscription,version:previous?.version || ''});
+   const r=await read({...subscription,path,version:previous?.version || ''});
    if(generation!==epoch || ws.readyState!==WebSocket.OPEN)return;
    if(!r.ok){ws.send(JSON.stringify({type:'error',error:r.error,status:r.status}));ws.close(r.status===401?4401:4403);return;}
    const data=r.data;

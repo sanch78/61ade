@@ -3779,14 +3779,15 @@ server.on("upgrade", (req, socket, head) => {
   }
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
 });
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
+  const path = new URL(req.url, "http://localhost").pathname;
   let subscription = null, previous = null, busy = false, alive = true, epoch = 0;
   const tick = async () => {
     if (!subscription || busy || ws.readyState !== import_websocket.default.OPEN) return;
     busy = true;
     const generation = epoch;
     try {
-      const r = await read({ ...subscription, version: previous?.version || "" });
+      const r = await read({ ...subscription, path, version: previous?.version || "" });
       if (generation !== epoch || ws.readyState !== import_websocket.default.OPEN) return;
       if (!r.ok) {
         ws.send(JSON.stringify({ type: "error", error: r.error, status: r.status }));
