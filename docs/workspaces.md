@@ -479,8 +479,8 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
 - **Accessibility:** with a declared activation every card and tile carries
   `aria-description` "Megnyitás: <target>" (the child list or page title, the
   action label, the record view title, or `Adatok` on fallback), per record; a
-  record whose map has no entry and no `*` carries none. A child window opened
-  this way takes the focus, so Escape closes it.
+  record whose map has no entry and no `*` carries none. A child window or
+  the details opened this way take the focus, so Escape closes them.
 - **Toolkit:** a `ListView` reports each activation as its `activate` event
   with the resolved target before it runs
   ([ListView](toolkit.md#listview)).

@@ -27,7 +27,14 @@ export class DetailsWindow{
       const dialog=new Window({css:"blade-content-window",title:escape(this.view.title+" — "+t("Adatok")+" · "+id),ariaLabel:t("Rekordadatok"),width:Math.min(680,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
       this.window=dialog;
       dialog.attachHTML(detailsHtml(row,this.view));
-      dialog.show();void fitWindow(dialog);
+      dialog.show();
+      // The details take the focus once the window has settled: the Grid moves Suite's widget focus back to itself after
+      // a double-click or Enter, and a fast answer opens the window before that, so Escape would not close it.
+      void fitWindow(dialog).then(()=>{
+        const body=dialog.getContainer()?.querySelector<HTMLElement>(".blade-record-details");
+        if(this.window!==dialog||!dialog.isVisible()||!body||body.contains(document.activeElement))return;
+        body.tabIndex=-1;body.style.outline="none";body.focus({preventScroll:true});
+      });
     }catch(error){await this.error(error);}
   }
   /** Closes the window and drops a pending load. */

@@ -52,7 +52,8 @@ async function mount(page){
 const row=(page,title)=>page.locator('.dhx_grid-row').filter({hasText:title}).first().locator('[data-dhx-col-id="title"]');
 const activations=page=>page.evaluate(()=>events.filter(event=>event.name==='activate').map(event=>[event.row,event.target]));
 const details=page=>page.getByRole('dialog',{name:'Rekordadatok'});
-const closeDetails=async page=>{await page.keyboard.press('Escape');await expect(details(page)).toHaveCount(0);};
+// The window's content takes the focus once it has settled; Escape then closes it (Suite closes the focused window).
+const closeDetails=async page=>{await expect(details(page).locator('.blade-record-details')).toBeFocused();await page.keyboard.press('Escape');await expect(details(page)).toHaveCount(0);};
 
 test('app.components offers the list components; ListView reports select, activate per row and changed',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -115,7 +116,8 @@ test('RecordForm and the list forms report saved; RecordForm validates like the 
  const rejected=await page.evaluate(()=>form.submit().then(()=>null,error=>({status:error.status,fields:Object.keys(error.fieldErrors)})));
  expect(rejected).toEqual({status:400,fields:['title']});
  expect(await page.evaluate(()=>requests.filter(request=>request.action==='update'&&request.id==='1').length)).toBe(0);
- await input.fill('Hang 1 új');
+ // Suite commits a typed value on the input's change (leaving the field); submit() commits a focused field itself.
+ await input.fill('Hang 1 új');await input.press('Tab');
  await expect.poll(()=>page.evaluate(()=>form.dirty())).toBe(true);
  expect(await page.evaluate(()=>formEvents.some(([name,field])=>name==='changed'&&field==='title'))).toBe(true);
  await side.getByRole('button',{name:'Mentés',exact:true}).click();

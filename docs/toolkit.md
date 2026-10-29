@@ -321,9 +321,12 @@ form.mount(win);
   nothing and rejects with a `ServerFailure` of status 400 with the field
   errors (the server's own shape); a server failure shows its field errors (or
   the error dialog) and rejects with it; a declined confirmation rejects with
-  an `AbortError`. Concurrent calls share one submission.
+  an `AbortError`. Concurrent calls share one submission. A field still being
+  typed in is committed first, as a click on the submit button does (Suite
+  takes an input's value on its `change`).
 - `values()` are the action's field values in the form; `dirty()` is true
-  after a change until a successful save. `changed` reports every field change.
+  after a change until a successful save. `changed` reports every committed
+  field change (on leaving the field).
 - A failed `__form` shows the error dialog; `submit()` then rejects with it.
 
 <a id="recorddetails"></a>
