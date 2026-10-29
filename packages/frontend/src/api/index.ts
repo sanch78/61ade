@@ -1,7 +1,7 @@
 /**
- * Public entry of the 61ade toolkit API (contract only, toolkit plan P1; docs/toolkit.md).
- * Planned P3 C-6: `dist/admin.d.ts` is emitted from this file for project modules (development use only).
- * Not imported by `admin.ts` yet, so the built bundle is unchanged.
+ * Public type entry of the 61ade toolkit API (docs/toolkit.md). The runtime is the `Application` the shell hands to
+ * every module (`src/app/Application.ts`). Planned P3 C-6: `dist/admin.d.ts` is emitted from this file for project
+ * modules (development use only).
  */
 export type * from "./types";
 import type { ApiVersion } from "./types";

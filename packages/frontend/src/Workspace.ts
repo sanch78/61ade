@@ -13,6 +13,7 @@ import { FileFields, fileInput } from "./FilePicker";
 import { uploads, type UploadPolicy } from "./Uploader";
 import { ResponsiveGrid, previewRows, hasSubview } from "./ResponsiveGrid";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
+import { server } from "./api/Server";
 
 export type { FieldDefinition } from "./FormValidation";
 export type ActionConfirmation={message:string;title?:string;severity?:DialogSeverity;confirmLabel?:string;cancelLabel?:string};
@@ -27,7 +28,8 @@ const actionIcon=(action:ActionDefinition)=>action.icon??ACTION_ICONS[action.nam
 /** Protocol values a command sends itself; an action with only these fields runs without a form. */
 const technical=(field:FieldDefinition)=>field.name==="revision"||field.name==="preview"&&field.type==="checkbox";
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;activate?:string;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
+/** The list kind's internal shape: the view's shared keys beside its `options` (src/app/builtins.ts). */
+export type ViewDefinition={id:string;resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;activate?:string;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
   /** Records expand to the `resource` list filtered to `field` = record id: its own `view`, or this view when `shared`. */
   subview?:{resource:string;field:string;shared?:boolean;view?:ViewDefinition;select?:boolean;page?:boolean}};
 /**
@@ -132,11 +134,11 @@ export class Workspace {
    * $preset: filters the view opens with (a navigation, `activate: 'page'`) instead of the saved ones; declared filters
    * only, removable like any other. A menu page keeps its filter values across reloads (UiPreferences).
    */
-  constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,private channel:LiveChannel,private user="",private scope?:WorkspaceScope,preset:Record<string,string>={}){
+  constructor(host:HTMLElement,private view:ViewDefinition,private channel:LiveChannel,private user="",private scope?:WorkspaceScope,preset:Record<string,string>={}){
     // A nested view: the scope field is implied (no column, filter or input), one grid region, overlay forms.
     if(scope)view=this.view={...view,columns:view.columns.filter(column=>column.id!==scope.field),filters:view.filters.filter(filter=>filter.name!==scope.field),sortable:(view.sortable??[]).filter(field=>field!==scope.field),layout:{formMode:"overlay",tree:{rows:[{id:"grid"}]}}};
     if(scope?.compact)view=this.view={...view,filters:[],search:undefined,rowNumbers:false,selection:false,rowSelection:false,tiles:false,columns:view.columns.map(column=>({...column,secondary:false}))};
-    this.preferences=new UiPreferences(user,scope?view.resource+"@"+scope.field:view.resource);
+    this.preferences=new UiPreferences(user,scope?view.id+"@"+scope.field:view.id);
     this.sort=this.preferences.sort(view.sortable??[])??this.sort;
     const secondaryColumns=view.columns.filter(column=>column.secondary);
     const tiles=view.tiles??view.columns.some(column=>isMedia(column)||isImage(column));
@@ -282,7 +284,7 @@ export class Workspace {
     // A non-selectable child (`select: false`) never delegates: the toolbar stays on this record.
     const shared=sub.select===false?{select:false}:{shared:(workspace:Workspace,selected:Row|undefined)=>{this.delegated=selected?workspace:this.delegated===workspace?undefined:this.delegated;this.capabilities();}};
     return {label:sub.shared?t("Alelemek"):child.title,open:(id:string)=>this.openRecord(id),mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>{
-      const id=String(row.id),preview=new Workspace(host,child,this.csrf,this.channel,this.user,{field:sub.field,id,...shared,compact:{height}});
+      const id=String(row.id),preview=new Workspace(host,child,this.channel,this.user,{field:sub.field,id,...shared,compact:{height}});
       this.previews.set(id,preview);
       return {destroy:()=>{if(this.previews.get(id)===preview)this.previews.delete(id);preview.destroy();}};
     }};
@@ -298,7 +300,7 @@ export class Workspace {
     const name=this.view.activate,sub=this.view.subview,child=sub?.shared?this.view:sub?.view,id=String(row.id);
     // Only a menu page navigates: a window (a scoped view) would stay open over the new page.
     if(name==="page"&&sub?.page&&sub.view?.filters.some(filter=>filter.name===sub.field)&&!this.scope)
-      return {label:sub.view.title,run:()=>{location.hash=new URLSearchParams({feature:sub.resource,["filter."+sub.field]:id}).toString();}};
+      return {label:sub.view.title,run:()=>{location.hash=new URLSearchParams({view:sub.view!.id,["filter."+sub.field]:id}).toString();}};
     if((name==="subview"||name==="page")&&sub&&child&&!this.scope?.compact)return {label:sub.shared?t("Alelemek"):child.title,run:()=>this.openRecord(id,row,true)};
     const action=name==="details"||name==="subview"||name==="page"?undefined:this.view.actions.find(a=>a.name===(name??"update"));
     if(action&&row._actions?.includes(action.name))return {label:action.label,run:()=>void this.open(action)};
@@ -319,7 +321,7 @@ export class Workspace {
     const mobile=innerWidth<768;
     const dialog=new Window({css:"blade-feature-window",title:escape(child.title+" — "+caption),ariaLabel:child.title+" — "+caption,
       width:mobile?innerWidth:Math.min(1100,innerWidth-24),height:mobile?innerHeight:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:!mobile,movable:!mobile});
-    const full=new Workspace(document.createElement("div"),child,this.csrf,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})});
+    const full=new Workspace(document.createElement("div"),child,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})});
     dialog.attach(full.layout);dialog.show();this.windows.add(full);
     // Opened by a double-click or Enter, the parent Grid would keep the focus: the window takes it (Escape closes it).
     void awaitRedraw().then(()=>{const root=dialog.getContainer()?.closest<HTMLElement>(".dhx_popup");if(root&&!root.contains(document.activeElement))root.focus();});
@@ -389,11 +391,7 @@ export class Workspace {
   }
   private call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{return this.request(this.view.resource,action,id,values,signal);}
   /** The JSON channel; another resource is the file manager of a `file` field (picker, upload target). */
-  private async request(resource:string,action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{
-    const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?blade=1";
-    const r=await fetch(endpoint,{method:"POST",credentials:"same-origin",signal,headers:{"Content-Type":"application/json","X-BLADE-CSRF":this.csrf},body:JSON.stringify({resource,action,id,values})});
-    const result=await r.json();if(!r.ok||!result.ok)throw Object.assign(new Error(result.error||t("Sikertelen művelet.")),{status:r.status,fieldErrors:result.fieldErrors});return result.data;
-  }
+  private request(resource:string,action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{return server.call(resource,action,{id,values,signal});}
   private async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:t("Hiba"),severity:"danger",text:e && typeof e==="object" && "fieldErrors" in e && Object.values((e as any).fieldErrors??{}).length?Object.entries((e as any).fieldErrors).map(([name,error])=>`${this.view.actions.flatMap(a=>a.fields).find(f=>f.name===name)?.label??name}: ${error}`).join("\n"):e instanceof Error?e.message:t("Sikertelen művelet.")});}
   private resultNotice(result:any):void{
     if(result?.reveal){message({text:result.reveal.label+": "+result.reveal.value+(result.reveal.note?"\n\n"+result.reveal.note:""),css:"blade-toast",expire:10000});return;}

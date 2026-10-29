@@ -1,8 +1,9 @@
 /**
  * 61ade toolkit API, version 1: the public type surface for project modules.
  *
- * Status: contract only (toolkit plan P1, FB-0081). Nothing here is wired into the shell yet; `admin.ts` does not
- * import this file and the built `admin.js` is unchanged. Each member names the internal code it will wrap (P2/P3).
+ * Status: the kernel (application object, services, registries, module loader, routing, view host) is implemented in
+ * toolkit P2 (lane K-F, `src/api/*`, `src/app/*`); components, presentations, field types and commands follow in P3.
+ * Each member names the internal code it wraps (FB-0081).
  * Reference and examples: docs/toolkit.md. Changes after gate G1 are recorded in docs/toolkit.md#changes.
  *
  * Ownership: 61ade owns every type, service and component declared here; a project owns its modules, the kinds,
@@ -68,7 +69,7 @@ export interface Application {
   readonly fieldTypes: Registry<FieldType>;
   /** Client-side commands: name → handler, placed on view toolbars and record menus (`view.commands`). */
   readonly commands: Registry<ClientCommand>;
-  /** Public component classes, bound to this application. */
+  /** Public component classes, bound to this application (empty until toolkit P3). */
   readonly components: Components;
   /** Views offered to the actor (server-filtered bootstrap `views`), in menu order. */
   viewDefinitions(): readonly ViewDefinition[];
@@ -116,7 +117,10 @@ export interface CallOptions {
  * answer, or a transport failure (`status` 0, localized generic message). `message` is already localized.
  */
 export interface ServerFailure extends Error {
-  /** HTTP status; 0 for a network failure or a non-JSON answer. 401: the session ended; 403: denied by ACL. */
+  /**
+   * HTTP status; 0 for a network failure or a 2xx answer without JSON (an error answer without JSON keeps its HTTP
+   * status, so 401/5xx handling stays the same). 401: the session ended; 403: denied by ACL.
+   */
   readonly status: number;
   /** Field name → localized message (server validation); empty when none. */
   readonly fieldErrors: Record<string, string>;

@@ -174,7 +174,11 @@ including sub-view previews and full sub-view windows, holds a `Realtime`
 subscription handle on that channel: `subscribe(query)` replaces the list's
 subscription, `destroy()` ends it, and the callbacks `update`, `state` and
 `denied` are unchanged. Reconnect, backoff and re-subscription live in the
-channel once.
+channel once. A module's `app.live.subscribe(resource, query, handlers, signal)`
+creates the same handle on the same channel and ends it with `destroy()` or the
+signal ([toolkit](toolkit.md#api-reference)). The channel's `__ticket` and
+`__watch` calls, like every list request, go through the shared transport
+(`src/api/Server.ts`).
 
 WebSocket protocol 2 (JSON text frames; [FB-0075](feedback.md#fb-0075),
 [plan](live-channel-plan.md)):
@@ -410,7 +414,7 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
   to the record. The filter is an ordinary one: it shows in the column header
   and the filter panel and `Alaphelyzet` removes it. The navigation is a
   browser history entry (Back returns to the parent page); the address keeps
-  `#feature=<child>` only, and the page keeps the filter across a reload like
+  `#view=<child view id>` only, and the page keeps the filter across a reload like
   any filter set there ([saved filters](shell.md#url-és-helyi-felületbeállítások)). The page
   needs the child view offered to the actor with the field among its filters;
   otherwise, and in a view opened in a window, the sub-view window opens; with
@@ -490,7 +494,7 @@ The final right-aligned Toolbar dropdown shows the current mode: `Táblázat`,
 visible record. On mobile a table is forced to cards: the table item is
 disabled and the desktop preference is restored when the window widens; when
 tiles are offered they stay available on mobile. The chosen mode persists per
-user, view and page (`UiPreferences`, unknown stored values read as table).
+user, view id and page (`UiPreferences`, unknown stored values read as table).
 Singleton views have none. This replaces FB-0019's two buttons per FB-0020.
 
 <a id="media-tiles"></a>

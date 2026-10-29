@@ -212,6 +212,11 @@ body,
 .blade-content-window [data-blade-measure] .dhx_form > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 0; }
 /* Non-blocking success notice (Suite message); themes override the accent through the Suite variable. */
 .blade-toast { border-left: 4px solid var(--dhx-color-success); }
+/* `app.ui.toast(text, severity)`: the text carries the meaning, the accent only repeats it. */
+.blade-toast--warning { border-left-color: var(--dhx-color-warning); }
+.blade-toast--danger { border-left-color: var(--dhx-color-danger); }
+/* A plain element a view host or window attached (`ViewHost.attach(element)`). */
+.blade-view-slot { height: 100%; overflow: auto; }
 .blade-card-edit { cursor: pointer; }
 .blade-card-edit:not(.blade-checkbox-edit) { position: relative; padding-right: 24px; }
 .blade-card-edit:not(.blade-checkbox-edit)::after { content: "✎"; position: absolute; right: 0; top: 0; color: var(--dhx-font-color-secondary); }
