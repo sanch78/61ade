@@ -264,7 +264,10 @@ export interface UploadFileInfo {
   target: string | null;
 }
 
-/** Options of `Uploads.open` (the same shape as `UploadOpenOptions` in `Uploader.ts`). */
+/**
+ * Options of `Uploads.open` (the same shape as `UploadOpenOptions` in `Uploader.ts`). The policy is the target
+ * action's `ActionMetadata.upload` (list views) or a files view's `FileManagerOptions.upload.policy`.
+ */
 export interface UploadOpenOptions {
   /** ACL resource and registered action that receives the files (an action with an `upload` policy). */
   resource: string;
@@ -284,12 +287,17 @@ export interface UploadOpenOptions {
 
 /**
  * The shared uploader (`uploads` singleton of `Uploader.ts`: chunked, resumable `__upload` transfers, conflict
- * dialog, lower-bar indicator). Progress is reported through `Application.events` (`upload:*`).
+ * dialog, lower-bar indicator), the same one the file manager, list upload commands and `file` fields use (P3 C-2).
+ * Progress is reported through `Application.events` (`upload:*`), for every upload of the page.
  */
 export interface Uploads {
-  /** Shows the upload window for a target; files queued for other targets stay in the queue. */
+  /**
+   * Shows the upload window for a target; files queued for other targets stay in the queue. `files`/`transfer`
+   * queue at once (no second confirmation). Throws `TypeError` for a malformed option (no window opens); the server
+   * checks every file against the action's policy, ACL and handler as for any upload.
+   */
   open(options: UploadOpenOptions): void;
-  /** Reopens the window with its current queue. */
+  /** Reopens the window with its current queue; does nothing before the first `open` of the page. */
   reopen(): void;
 }
 
@@ -725,7 +733,7 @@ export interface FileManagerOptions {
   max_depth: number;
 }
 
-/** `options` of kind `diagram`: today's `diagram` key (`DiagramEditor.ts` `DiagramConfig`). */
+/** `options` of kind `diagram`: today's `diagram` key (`DiagramView.ts` `DiagramConfig`). */
 export interface DiagramOptions {
   nodeTypes: { id: string; label: string; glyph: string; color: string; shape: string; custom: boolean }[];
   linkTypes: { id: string; label: string; color: string; style: "solid" | "dashed" | "dotted"; width: number }[];
@@ -737,7 +745,7 @@ export interface DiagramOptions {
   maxLinks: number;
 }
 
-/** `options` of kind `calendar`: today's `calendar` key (`Calendar.ts` `CalendarConfig`). */
+/** `options` of kind `calendar`: today's `calendar` key (`CalendarView.ts` `CalendarConfig`). */
 export interface CalendarOptions {
   views: ("day" | "week" | "month")[];
   default_view: string;
@@ -976,21 +984,35 @@ export interface FilePickerApi {
   pick(options: FilePickerOptions): Promise<MediaDescriptor | null>;
 }
 
-/** Options of `Calendar`. */
+/** Options of `Calendar` (implemented P3 C-2). */
 export interface CalendarComponentOptions extends ComponentOptions {
+  /**
+   * A calendar view: an offered view id or a held definition of any kind with a `resource`, its `actions` and
+   * `CalendarOptions`. A string that is not offered throws `Error`; a wrong shape throws `TypeError`.
+   */
   view: ViewReference<CalendarOptions>;
 }
 
-/** Event calendar over Scheduler Standard (`Calendar.ts`; one instance per page). */
+/**
+ * Event calendar over Scheduler Standard (`components/calendar/Calendar.ts` over `CalendarView.ts`), the same class
+ * as the built-in `calendar` kind. Writes go through the view resource's `create`/`update`/`delete`; read-only when
+ * neither `create` nor `update` is offered. One instance per page: constructing a second Calendar before the first
+ * is destroyed throws `Error`.
+ */
 export interface CalendarComponent extends Component<Record<string, never>> {}
 
-/** Options of `DiagramEditor`. */
+/** Options of `DiagramEditor` (implemented P3 C-2). */
 export interface DiagramEditorOptions extends ComponentOptions {
+  /** A diagram view: an offered view id or a held definition with a `resource`, `actions` and `DiagramOptions`. */
   view: ViewReference<DiagramOptions>;
 }
 
-/** Visual diagram editor (`DiagramEditor.ts`). */
+/**
+ * Visual diagram editor (`components/diagram/DiagramEditor.ts` over `DiagramView.ts`), the same class as the
+ * built-in `diagram` kind. `saved` fires after the open diagram's content was saved; read-only without `save`.
+ */
 export interface DiagramEditorComponent extends Component<{ saved: Record<string, never> }> {
+  /** `true` while the open diagram has unsaved changes. */
   editing(): boolean;
 }
 

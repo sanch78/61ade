@@ -1,12 +1,12 @@
-import { t } from "./I18n";
+import { t } from "../../I18n";
 import { Form, Layout, List, Toolbar, Window, message, awaitRedraw } from "@dhtmlx/suite";
-import { ResponsiveToolbar } from "./ResponsiveToolbar";
-import { widgetIcons } from "./WidgetIcons";
-import { fitWindow } from "./WindowSizing";
-import { FormValidation, type FieldDefinition } from "./FormValidation";
-import { alert, requestConfirmation } from "./MessageDialog";
-import { escape } from "./RecordPresentation";
-import { server } from "./api/Server";
+import { ResponsiveToolbar } from "../../ResponsiveToolbar";
+import { widgetIcons } from "../../WidgetIcons";
+import { fitWindow } from "../../WindowSizing";
+import { FormValidation, type FieldDefinition } from "../../FormValidation";
+import { alert, requestConfirmation } from "../../MessageDialog";
+import { escape } from "../../RecordPresentation";
+import { server } from "../../api/Server";
 
 export type NodeType={id:string;label:string;glyph:string;color:string;shape:string;custom:boolean};
 export type LinkType={id:string;label:string;color:string;style:"solid"|"dashed"|"dotted";width:number};
@@ -66,8 +66,9 @@ const svg=<K extends keyof SVGElementTagNameMap>(name:K,attributes:Record<string
  * Visual node-and-link editor. DHTMLX Suite Standard has no diagram widget (DHTMLX Diagram is a
  * separate product), so only the canvas is an SVG surface; the shell, palette, property form,
  * dialogs and windows are Suite widgets. Every read and write is a registered action.
+ * Internal: projects and the built-in `diagram` kind use the public `DiagramEditor` facade (./DiagramEditor.ts).
  */
-export class DiagramEditor {
+export class DiagramView {
   readonly layout:Layout;
   private releaseIcons=widgetIcons();
   private commands:ResponsiveToolbar;
@@ -103,7 +104,8 @@ export class DiagramEditor {
   private propertyTurn=0;
   private focused:{diagrams?:string;palette?:string}={};
 
-  constructor(host:HTMLElement,private view_:DiagramViewDefinition){
+  /** `saved`: called after the open diagram's content was saved (the facade's `saved` event). */
+  constructor(host:HTMLElement,private view_:DiagramViewDefinition,private hooks:{saved?():void}={}){
     this.config=view_.diagram;
     this.linkType=this.config.linkTypes[0].id;
     for(const type of this.config.nodeTypes)this.types.set(type.id,type);
@@ -322,6 +324,7 @@ export class DiagramEditor {
       if(this.disposed)return;
       diagram.revision=saved.revision;this.dirty=false;
       message({text:t("A diagram elmentve."),css:"blade-toast",expire:3000});
+      try{this.hooks.saved?.();}catch(error){console.error(error);}
     }catch(error){await this.error(error);}
     finally{this.busy=false;this.capabilities();}
   }

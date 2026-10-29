@@ -1,11 +1,9 @@
 import type { Layout } from "@dhtmlx/suite";
-import type { CalendarOptions, DiagramOptions, FileManagerOptions, ListOptions, ViewDefinition, ViewHost, ViewInstance, ViewKind } from "../api/types";
+import type { FileManagerOptions, ListOptions, ViewDefinition, ViewHost, ViewInstance, ViewKind } from "../api/types";
 import type { NamedRegistry } from "./registries";
 import type { LiveChannel } from "../Realtime";
 import { Workspace, type ViewDefinition as ListDefinition } from "../Workspace";
 import { FileManager, type FileViewDefinition } from "../FileManager";
-import { DiagramEditor, type DiagramViewDefinition } from "../DiagramEditor";
-import { Calendar, type CalendarViewDefinition } from "../Calendar";
 
 /** What the built-in list kind needs beyond the public API: the tab's live channel and the preference user. */
 export type BuiltinContext = { channel: () => LiveChannel; user: string };
@@ -42,9 +40,15 @@ export function registerBuiltins(views: NamedRegistry<ViewKind<any>>, context: B
     list => ({ editing: () => list.editing(), refresh: () => list.refresh() })));
   views.builtin("files", kind((view: ViewDefinition<FileManagerOptions>) =>
     new FileManager(document.createElement("div"), { ...shared(view), kind: "files", files: view.options } as unknown as FileViewDefinition)));
-  views.builtin("diagram", kind((view: ViewDefinition<DiagramOptions>) =>
-    new DiagramEditor(document.createElement("div"), { ...shared(view), kind: "diagram", diagram: view.options } as unknown as DiagramViewDefinition),
-    editor => ({ editing: () => editor.editing() })));
-  views.builtin("calendar", kind((view: ViewDefinition<CalendarOptions>) =>
-    new Calendar(document.createElement("div"), { ...shared(view), kind: "calendar", calendar: view.options } as unknown as CalendarViewDefinition)));
+  // Dogfooding: the diagram and calendar kinds are the public components, mounted into the host.
+  views.builtin("diagram", { create(host, view) {
+    const editor = new host.app.components.DiagramEditor({ view, signal: host.signal });
+    editor.mount(host);
+    return { editing: () => editor.editing(), destroy: () => editor.destroy() };
+  } });
+  views.builtin("calendar", { create(host, view) {
+    const calendar = new host.app.components.Calendar({ view, signal: host.signal });
+    calendar.mount(host);
+    return { destroy: () => calendar.destroy() };
+  } });
 }
