@@ -84,7 +84,9 @@ Consumers use exactly these runtime paths:
 - `packages/php` as one directory (`src`, `resources`, `templates`,
   `migrations` and the rest). The consumer loads `Blade\` with its own small
   PSR-4 autoloader over `packages/php/src`.
-- `packages/frontend/dist/admin.js` and `admin.css`.
+- `packages/frontend/dist/admin.js` and `admin.css`; `sandbox.html` and
+  `sandbox.js` beside them only for a project that uses
+  [`SandboxFrame`](toolkit.md#packaging).
 
 `packages/php/composer.json` remains only for the demo's path repository.
 
@@ -99,11 +101,16 @@ change. Every consumer would need a coordinated update, as described in
 ### Tracked frontend build
 
 `packages/frontend/dist` and `packages/php/bin/live-server.mjs` (built from
-`tools/live-server.mjs`) are tracked on `main`. Every commit that changes their
+`tools/live-server.mjs`) are tracked on `main`. `dist` holds `admin.js` and
+`admin.css` (one ESM bundle and its stylesheet), `sandbox.html` and
+`sandbox.js` (the [sandbox document](toolkit.md#sandbox-protocol), from
+`src/sandbox/`) and `admin.d.ts` (toolkit API declarations from
+`src/api/index.ts`, development use only). Every commit that changes their
 source carries the matching fresh `npm run build` output; the build is
 reproducible, and `npm run build` reports when `dist` changed. `npm run
-test:browser` first runs `node tools/build.mjs --check`, which builds in memory
-and refuses to test an output that differs from the source.
+test:browser` first runs `node tools/build.mjs --check`, which builds all of
+these files in memory and refuses to test an output that differs from the
+source.
 
 ### Consumer layout
 
@@ -150,6 +157,12 @@ target is a file where a directory is expected, or the reverse.) The consumer's
     ]
 }
 ```
+
+A project that uses `SandboxFrame` lists
+`["admin.js", "admin.css", "sandbox.html", "sandbox.js"]` instead; the frame
+loads `sandbox.html` from the directory of `admin.js`. `admin.d.ts` is never
+deployed: the development link already exposes it for the
+[TypeScript recipe](toolkit.md#typescript-recipe).
 
 The autoloader goes in the consumer's earliest common bootstrap, before any
 entrypoint touches a `Blade\` class. An entrypoint that runs framework code

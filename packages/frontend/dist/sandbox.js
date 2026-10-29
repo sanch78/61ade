@@ -1,0 +1,108 @@
+"use strict";
+(() => {
+  // packages/frontend/src/app/registries.ts
+  var NAME = /^[a-z][a-z0-9_.-]*$/;
+
+  // packages/frontend/src/sandbox/protocol.ts
+  var RESERVED = ["load", "ready", "error"];
+  var projectType = (type) => typeof type === "string" && type.length <= 128 && NAME.test(type) && type.includes(".");
+  function envelope(data) {
+    if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+    const { blade, id, type, payload } = data;
+    if (blade !== 1 || typeof id !== "string" || id.length < 1 || id.length > 64) return null;
+    if (typeof type !== "string" || !RESERVED.includes(type) && !projectType(type)) return null;
+    return { blade: 1, id, type, payload };
+  }
+  function describe(error) {
+    let text;
+    try {
+      text = error instanceof Error ? error.message || error.name : String(error);
+    } catch {
+      text = "Unknown error";
+    }
+    return text.length > 1e3 ? text.slice(0, 1e3) + "\u2026" : text;
+  }
+
+  // packages/frontend/src/sandbox/runtime.ts
+  var START = "__bladeSandboxStart";
+  function startSandbox(host) {
+    if (host.parent === host.self) return;
+    let sequence = 0, loaded = false;
+    const handlers = /* @__PURE__ */ new Map();
+    const files = {};
+    const send = (type, payload) => host.parent.postMessage({ blade: 1, id: "f" + ++sequence, type, payload }, "*");
+    const fail = (error) => send("error", { message: describe(error) });
+    const scope = Object.freeze({
+      on(type, handler) {
+        if (!projectType(type) || typeof handler !== "function") throw new TypeError(`blade.on: "${String(type)}" is not a dotted project message type.`);
+        const set = handlers.get(type) ?? /* @__PURE__ */ new Set();
+        handlers.set(type, set);
+        set.add(handler);
+        return () => {
+          set.delete(handler);
+        };
+      },
+      post(type, payload) {
+        if (!projectType(type)) throw new TypeError(`blade.post: "${String(type)}" is not a dotted project message type.`);
+        send(type, payload);
+      },
+      files
+    });
+    Object.defineProperty(host.global, "blade", { value: scope, enumerable: true });
+    const load = (payload) => {
+      if (loaded) return fail(new Error("Protocol: the frame accepts one load."));
+      loaded = true;
+      const { code, files: given } = typeof payload === "object" && payload !== null ? payload : {};
+      if (typeof code !== "string" || typeof given !== "object" || given === null) return fail(new Error("Protocol: invalid load payload."));
+      for (const [name, value] of Object.entries(given)) {
+        if (typeof value === "string") files[name] = value;
+        else if (value instanceof Blob) files[name] = host.objectUrl(value);
+        else return fail(new Error(`Protocol: file "${name}" is neither a Blob nor a string.`));
+      }
+      Object.freeze(files);
+      host.global[START] = (main) => {
+        delete host.global[START];
+        Promise.resolve().then(() => main(scope)).then(() => send("ready", {}), fail);
+      };
+      host.execute(`globalThis.${START}(async function (blade) {
+${code}
+});`, () => fail(new Error("The code could not be started.")));
+    };
+    host.on("message", (event) => {
+      if (event.source !== host.parent) return;
+      const message = envelope(event.data);
+      if (!message) return fail(new Error("Protocol: invalid message."));
+      if (message.type === "load") return load(message.payload);
+      if (message.type === "ready" || message.type === "error") return fail(new Error(`Protocol: "${message.type}" is sent by the frame only.`));
+      for (const handler of [...handlers.get(message.type) ?? []]) {
+        try {
+          handler(message.payload);
+        } catch (error) {
+          fail(error);
+        }
+      }
+    });
+    host.on("error", (event) => fail(event.error ?? event.message));
+    host.on("unhandledrejection", (event) => fail(event.reason));
+  }
+
+  // packages/frontend/src/sandbox/bootstrap.ts
+  startSandbox({
+    self: window,
+    parent: window.parent,
+    global: window,
+    on: (type, handler) => window.addEventListener(type, handler),
+    objectUrl: (blob) => URL.createObjectURL(blob),
+    execute(source, failed) {
+      const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      const script = document.createElement("script");
+      script.src = url;
+      script.onload = () => URL.revokeObjectURL(url);
+      script.onerror = () => {
+        URL.revokeObjectURL(url);
+        failed();
+      };
+      document.head.append(script);
+    }
+  });
+})();

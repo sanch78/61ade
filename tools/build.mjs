@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import ts from "typescript";
 import { execFileSync } from "node:child_process";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -26,13 +27,14 @@ for (const [name, { url, sha256 }] of Object.entries(assets)) {
 }
 // dist is tracked; --check fails when it does not match a fresh build of src.
 const check = process.argv.includes("--check");
+const dist = "packages/frontend/dist";
 const result = await build({
-    write: !check,
+    write: false,
     entryPoints: ["packages/frontend/src/admin.ts"],
     bundle: true,
     format: "esm",
     target: "es2022",
-    outdir: "packages/frontend/dist",
+    outdir: dist,
     minify: true,
     legalComments: "eof",
     loader: { ".woff": "dataurl", ".woff2": "dataurl", ".png": "dataurl" },
@@ -52,10 +54,21 @@ const result = await build({
         },
     ],
 });
+// SandboxFrame's document: a classic script (an opaque-origin frame cannot load module scripts without CORS),
+// left readable for review, beside the static sandbox.html with its meta CSP.
+const sandbox = await build({
+    write: false,
+    entryPoints: ["packages/frontend/src/sandbox/bootstrap.ts"],
+    bundle: true,
+    format: "iife",
+    target: "es2022",
+    outfile: `${dist}/sandbox.js`,
+    legalComments: "eof",
+});
 // The WebSocket live server ships inside packages/php with ws inlined, so a consumer release
 // that copies packages/php runs it with the system node and nothing from node_modules.
 const live = await build({
-    write: !check,
+    write: false,
     entryPoints: ["tools/live-server.mjs"],
     bundle: true,
     platform: "node",
@@ -71,11 +84,39 @@ const live = await build({
         "process.env.WS_NO_UTF_8_VALIDATE": '"1"',
     },
 });
+// admin.d.ts (development only): tsc --emitDeclarationOnly of src/api/index.ts, whose only import is ./types,
+// joined into one file so a project maps "@61ade/admin" to it.
+const declarations = {};
+{
+    const base = ts.readConfigFile("tsconfig.json", ts.sys.readFile).config.compilerOptions;
+    const { options } = ts.convertCompilerOptionsFromJson({ ...base, declaration: true, emitDeclarationOnly: true, noEmit: false }, process.cwd());
+    const program = ts.createProgram(["packages/frontend/src/api/index.ts"], options);
+    const emitted = program.emit(undefined, (name, text) => { declarations[path.basename(name)] = text; }, undefined, true);
+    const problems = [...ts.getPreEmitDiagnostics(program), ...emitted.diagnostics];
+    if (problems.length) throw new Error(ts.formatDiagnostics(problems, { getCanonicalFileName: (name) => name, getCurrentDirectory: () => process.cwd(), getNewLine: () => "\n" }));
+}
+const index = (declarations["index.d.ts"] ?? "").split("\n").filter((line) => !/^(export type \* from|import type \{[^}]*\} from) "\.\/types";$/.test(line));
+if (!declarations["types.d.ts"] || index.some((line) => /from "\.\//.test(line)))
+    throw new Error("admin.d.ts: src/api/index.ts may only re-export ./types");
+const outputs = [
+    ...[...result.outputFiles, ...sandbox.outputFiles, ...live.outputFiles].map((file) => [file.path, Buffer.from(file.contents)]),
+    [path.resolve(dist, "sandbox.html"), await readFile("packages/frontend/src/sandbox/sandbox.html")],
+    [path.resolve(dist, "admin.d.ts"), Buffer.from(
+        "// 61ade toolkit API types (docs/toolkit.md), generated from packages/frontend/src/api; development use only.\n"
+        + declarations["types.d.ts"] + index.join("\n"),
+    )],
+];
 if (check) {
-    for (const file of [...result.outputFiles, ...live.outputFiles]) {
-        const current = await readFile(file.path).catch(() => null);
-        if (!current?.equals(file.contents))
-            throw new Error(`Stale ${path.relative(process.cwd(), file.path)}: run npm run build and commit the output with the source`);
+    for (const [file, contents] of outputs) {
+        const current = await readFile(file).catch(() => null);
+        if (!current?.equals(contents))
+            throw new Error(`Stale ${path.relative(process.cwd(), file)}: run npm run build and commit the output with the source`);
     }
-} else if (execFileSync("git", ["status", "--porcelain", "packages/frontend/dist", "packages/php/bin/live-server.mjs"], { encoding: "utf8" }))
-    console.log("Build output changed: commit packages/frontend/dist and packages/php/bin/live-server.mjs together with their source.");
+} else {
+    for (const [file, contents] of outputs) {
+        await mkdir(path.dirname(file), { recursive: true });
+        await writeFile(file, contents);
+    }
+    if (execFileSync("git", ["status", "--porcelain", "packages/frontend/dist", "packages/php/bin/live-server.mjs"], { encoding: "utf8" }))
+        console.log("Build output changed: commit packages/frontend/dist and packages/php/bin/live-server.mjs together with their source.");
+}
