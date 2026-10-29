@@ -391,7 +391,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Event calendar | `php8.4 tests/shell/calendar.php`; shell `calendar.spec.cjs` |
 | File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
-| Toolkit (modules, views, registries, routing) | PHP `toolkit.php`, `contracts.php`, `configuration.php`, `lists.php`; `node tests/shell/toolkit-kernel.mjs`, `node tests/shell/ui-preferences.mjs`; shell `browser.spec.cjs`, `preferences.spec.cjs`, `activation.spec.cjs` |
+| Toolkit (modules, views, registries, routing) | PHP `toolkit.php`, `contracts.php`, `configuration.php`, `lists.php`; `node tests/shell/toolkit-kernel.mjs`, `toolkit-list.mjs`, `toolkit-components.mjs`, `toolkit-registries.mjs`, `toolkit-sandbox.mjs`, `ui-preferences.mjs`; shell `browser.spec.cjs`, `preferences.spec.cjs`, `activation.spec.cjs`, `toolkit-*.spec.cjs` |
 
 PHP shorthand in the table means `php8.4 tests/shell/<name>.php`.
 Inspect affected dependencies: `npm ls --depth=0`, relevant Composer manifest/
