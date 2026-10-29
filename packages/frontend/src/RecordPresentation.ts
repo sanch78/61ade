@@ -1,6 +1,6 @@
 import { locale, t } from "./I18n";
 import type { Row } from "./Realtime";
-import type { ViewDefinition } from "./Workspace";
+import type { ViewDefinition } from "./components/list/types";
 import { actionUrl } from "./ActionUrl";
 import { requestConfirmation } from "./MessageDialog";
 export const escape=(value:unknown)=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
