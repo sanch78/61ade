@@ -10,30 +10,37 @@ const PIXEL='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAY
 async function fixture(page,baseURL){
  const bundle=buildSync({stdin:{contents:'export {sandboxFrameClass} from "./packages/frontend/src/components/sandbox/SandboxFrame";',resolveDir:root},
   bundle:true,format:'iife',globalName:'fixture',write:false,loader:{'.css':'empty'},define:{'import.meta.url':JSON.stringify(baseURL+'/assets/admin.js?v=sandbox-spec')}}).outputFiles[0].text;
- const start=bundle+'\nwindow.reports=[];window.SandboxFrame=fixture.sandboxFrameClass(payload=>reports.push(payload));document.cookie="blade-sandbox-probe=parent; path=/";';
+ const start=bundle+'\nwindow.reports=[];window.SandboxFrame=fixture.sandboxFrameClass(payload=>reports.push(payload));document.cookie="blade-sandbox-probe=parent; path=/";'
+  // Errors of the fixture document itself; a frame's uncaught errors also surface as Playwright page errors.
+  +'window.parentErrors=[];addEventListener("error",e=>parentErrors.push(String(e.message)));addEventListener("unhandledrejection",e=>parentErrors.push(String(e.reason)));';
  await page.route('**/sandbox-fixture.js',route=>route.fulfill({contentType:'text/javascript',body:start}));
  await page.route('**/sandbox-fixture',route=>route.fulfill({contentType:'text/html',headers:{'Content-Security-Policy':SHELL_CSP},
   body:'<!doctype html><html><head><title>Sandbox fixture</title><script type="application/json" id="blade-config">{"csrf":"parent-only"}</script><script src="/sandbox-fixture.js"></script></head><body><div id="stage" style="width:480px;height:320px"></div></body></html>'}));
  // Forgers: a plain and a sandboxed iframe that post a valid envelope to the fixture page.
  await page.route('**/sandbox-forger',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><script src="/sandbox-forger.js"></script>'}));
  await page.route('**/sandbox-forger.js',route=>route.fulfill({contentType:'text/javascript',body:'parent.postMessage({blade:1,id:"x",type:"demo.pong",payload:"forged"},"*");'}));
- const probes=[],documents=[];
+ // `probes` are Playwright's request events. Chromium also reports a request that Blink blocked by CSP before it
+ // was sent (DevTools "(blocked:csp)": image, XHR, EventSource and script loads go through the resource fetcher,
+ // fetch/beacon/WebSocket/frames are checked earlier and never show up), so a request event is not egress.
+ // `routed` lists what reached the network layer: with route() active every request that leaves the renderer is
+ // paused here, and nothing reaches the server.
+ const probes=[],routed=[],documents=[];
  page.on('request',request=>{if(request.url().includes('sandbox-probe'))probes.push(request);});
  page.on('response',response=>{if(response.url().includes('/assets/sandbox.html'))documents.push(response);});
- await page.route('**/sandbox-probe**',route=>route.fulfill({contentType:'text/javascript',body:'/* probe */'}));
+ await page.route('**/sandbox-probe**',route=>{routed.push(new URL(route.request().url()).search);return route.fulfill({contentType:'text/javascript',body:'/* probe */'});});
  await page.goto('/sandbox-fixture');
- return {probes,documents};
+ return {probes,routed,documents};
 }
 
 test('sandbox frame: opaque origin, no cookies, storage or parent access, CSP blocks network',async({page,baseURL})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- const {probes}=await fixture(page,baseURL);
+ const {probes,routed}=await fixture(page,baseURL);
  const result=await page.evaluate(async base=>{
   const frame=new SandboxFrame({});frame.mount(document.getElementById('stage'));
   const answer=new Promise(resolve=>frame.on('message',({type,payload})=>{if(type==='probe.result')resolve(payload);}));
   await frame.load(`
    const result={origin:self.origin,violations:[]};
-   document.addEventListener('securitypolicyviolation',event=>result.violations.push(event.effectiveDirective));
+   document.addEventListener('securitypolicyviolation',event=>result.violations.push({directive:event.effectiveDirective,uri:event.blockedURI}));
    const attempt=(name,run)=>{try{result[name]=String(run());}catch(error){result[name]='blocked:'+error.name;}};
    attempt('cookie',()=>document.cookie);attempt('parent',()=>parent.document.getElementById('blade-config').textContent);
    attempt('storage',()=>localStorage.length);attempt('session',()=>sessionStorage.length);
@@ -58,10 +65,17 @@ test('sandbox frame: opaque origin, no cookies, storage or parent access, CSP bl
  expect(result.cookie==='' || result.cookie.startsWith('blocked:')).toBe(true);
  expect(result.parent).toMatch(/^blocked:/);expect(result.storage).toMatch(/^blocked:/);expect(result.session).toMatch(/^blocked:/);
  expect(result.fetch).toBe('blocked');expect(result.popup).toBe('null');
- expect(result.violations).toEqual(expect.arrayContaining(['connect-src','img-src','frame-src']));
- const reached=probes.map(request=>new URL(request.url()).search);
- expect(reached).toEqual(['?script']);
- expect((await probes[0].allHeaders()).cookie ?? '').not.toContain('blade-sandbox-probe');
+ const directives=result.violations.map(violation=>violation.directive);
+ expect(directives).toEqual(expect.arrayContaining(['connect-src','img-src','frame-src']));
+ expect(directives.filter(directive=>directive==='connect-src').length).toBeGreaterThanOrEqual(3);   // fetch, XHR, EventSource at least
+ // Evidence for the P7 review: every probe Playwright saw, whether it got a response and how it failed.
+ const evidence=await Promise.all(probes.map(async request=>({probe:new URL(request.url()).search,response:!!(await request.response()),failure:request.failure()?.errorText??null})));
+ test.info().annotations.push({type:'sandbox-probes',description:JSON.stringify({routed,evidence,violations:result.violations})});
+ // Only the 'self' script left the renderer; every other probe was blocked by the meta CSP or the sandbox flags.
+ expect(routed).toEqual(['?script']);
+ for(const item of evidence.filter(item=>item.probe!=='?script'))expect(item.response,JSON.stringify(item)).toBe(false);
+ const script=probes.find(request=>new URL(request.url()).search==='?script');
+ expect((await script.allHeaders()).cookie ?? '').not.toContain('blade-sandbox-probe');
  expect(errors).toEqual([]);
 });
 
@@ -97,7 +111,6 @@ test('sandbox frame: sandbox.html headers, load/ready, files and project message
 
 test('sandbox frame: error, syntax error, size, timeout, navigation and destroy are reported',async({page,baseURL})=>{
  test.setTimeout(60000);
- const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await fixture(page,baseURL);
  const result=await page.evaluate(async()=>{
   const stage=document.getElementById('stage'),outcome=async promise=>{try{await promise;return 'ready';}catch(error){return error.name==='AbortError'?'abort':error.code+':'+error.message;}};
@@ -131,6 +144,7 @@ test('sandbox frame: error, syntax error, size, timeout, navigation and destroy 
  expect(result.destroyed).toBe('abort');expect(result.afterDestroy).toBe(0);
  expect(result.events).toEqual(['error','error','error','timeout','protocol']);
  expect(result.reports).toEqual(['error','error','error','size','timeout','protocol']);
- // Uncaught errors inside the frame are expected here; the parent page itself must stay clean.
- expect(errors.filter(message=>!/boom|later|Unexpected|Invalid/.test(message))).toEqual([]);
+ // Uncaught errors inside the frame (syntax error, "later") are expected and reach `pageerror` too; the parent
+ // document itself must stay clean.
+ expect(await page.evaluate(()=>parentErrors)).toEqual([]);
 });

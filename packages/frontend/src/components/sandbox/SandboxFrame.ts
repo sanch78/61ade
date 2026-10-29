@@ -22,9 +22,10 @@ const aborted = () => new DOMException("The sandbox frame was replaced or destro
 /**
  * `app.components.SandboxFrame` (toolkit C-4): untrusted code in `<iframe sandbox="allow-scripts">` running
  * `sandbox.html` beside `admin.js` (opaque origin: no cookies, session, CSRF token or same-origin access).
- * `report` feeds the page's `sandbox:error` event; `address` is the sandbox document's URL.
+ * `report` feeds the page's `sandbox:error` event; `address` is the sandbox document's URL, by default resolved on the
+ * first `load()` beside `admin.js`, so creating the application never fails because of the sandbox.
  */
-export function sandboxFrameClass(report: Report, address = sandboxDocument()): ComponentClass<SandboxFrameOptions, SandboxFrameApi> {
+export function sandboxFrameClass(report: Report, address?: string): ComponentClass<SandboxFrameOptions, SandboxFrameApi> {
   return class SandboxFrame implements SandboxFrameApi {
     readonly layout: Layout;
     /** The Layout's own container, used for an element target. */
@@ -84,11 +85,15 @@ export function sandboxFrameClass(report: Report, address = sandboxDocument()): 
       // The current frame stays until a valid load replaces it.
       if (byteLength(code) > this.limits.code) return Promise.reject(this.fail("size", `The sandbox code exceeds ${this.limits.code} bytes.`));
       if (total > this.limits.files) return Promise.reject(this.fail("size", `The sandbox files exceed ${this.limits.files} bytes.`));
+      try { address ??= sandboxDocument(); } catch {
+        return Promise.reject(new Error("61ade: SandboxFrame cannot resolve sandbox.html beside admin.js (the bundle has no usable import.meta.url)."));
+      }
+      const src = address;
       this.close();
       return new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => this.fail("timeout", `The sandbox did not become ready within ${this.limits.ready} ms.`, true), this.limits.ready);
         this.pending = { resolve, reject, timer };
-        this.open({ code, files: { ...files } });
+        this.open(src, { code, files: { ...files } });
       });
     }
 
@@ -110,7 +115,7 @@ export function sandboxFrameClass(report: Report, address = sandboxDocument()): 
     }
 
     /** Creates the iframe; its first `load` sends the code, any later one (navigation, reload) kills it. */
-    private open(payload: { code: string; files: Record<string, Blob | string> }): void {
+    private open(src: string, payload: { code: string; files: Record<string, Blob | string> }): void {
       const frame = document.createElement("iframe");
       frame.className = "blade-sandbox__frame";
       frame.setAttribute("sandbox", "allow-scripts");
@@ -118,7 +123,7 @@ export function sandboxFrameClass(report: Report, address = sandboxDocument()): 
       frame.setAttribute("credentialless", "");
       frame.referrerPolicy = "no-referrer";
       frame.title = this.title;
-      frame.src = address;
+      frame.src = src;
       const listeners = new AbortController();
       let loads = 0;
       frame.addEventListener("load", () => {
@@ -190,9 +195,10 @@ export function sandboxFrameClass(report: Report, address = sandboxDocument()): 
   };
 }
 
-/** `sandbox.html` beside `admin.js`, with the bundle's cache key. */
+/** `sandbox.html` beside `admin.js`, with the bundle's cache key; throws when `import.meta.url` is not a usable base. */
 function sandboxDocument(): string {
   const script = new URL(import.meta.url);
+  if (script.protocol !== "https:" && script.protocol !== "http:") throw new TypeError(`admin.js is not served over HTTP: ${script.protocol}`);
   const url = new URL("sandbox.html", script);
   url.search = script.search;
   return url.href;
