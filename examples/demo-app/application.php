@@ -118,6 +118,7 @@ $skins = static function (Identity $actor) use ($db, $slate, $ink): array {
 };
 
 // Live data: polling unless the Git-ignored .env names the WebSocket endpoint served by the Infra unit (docs/demos.md).
+// The same unit serves the starter admin and the tenant demo at <endpoint>/admin and <endpoint>/tenants.
 $liveEndpoint = blade_demo_setting('BLADE_DEMO_LIVE_ENDPOINT');
 
 return new ApplicationDefinition(
@@ -137,5 +138,8 @@ return new ApplicationDefinition(
     accounts: $accounts,
     oauth: $oauth,
     skins: $skins,
-    live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint) : new LiveConfig(),
+    live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [
+        'admin' => __DIR__.'/admin-application.php',
+        'tenants' => __DIR__.'/tenant-application.php',
+    ]) : new LiveConfig(),
 );

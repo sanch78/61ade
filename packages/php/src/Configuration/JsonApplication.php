@@ -36,7 +36,7 @@ final class JsonApplication
             'transport' => 'string',
             'endpoint' => 'string',
             'interval_ms' => 'integer',
-        ], [], '$.live');
+        ], ['applications' => 'array'], '$.live');
         Shape::check($workspace, ['modules' => 'array'], [], '$.workspace');
         Shape::check($database, [
             'host' => 'string',
@@ -80,7 +80,7 @@ final class JsonApplication
             sessionName: $session['name'],
             cookiePath: $session['cookie_path'],
             workspace: $builtWorkspace,
-            live: new LiveConfig($live['transport'], $live['endpoint'], $live['interval_ms']),
+            live: new LiveConfig($live['transport'], $live['endpoint'], $live['interval_ms'], array_map($config->path(...), $live['applications'] ?? [])),
             authentication: $authentication,
             version: $application['version'] ?? '',
             languages: $languages,

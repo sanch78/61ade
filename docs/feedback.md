@@ -2001,3 +2001,40 @@ that exactly equals an option label lists every option. The managed
   shown in the grid), polling case skipped.
 - **Status:** fixed; verified by tools.
 - **Limits:** the standalone case still leaves its notes behind.
+
+<a id="fb-0074"></a>
+
+## FB-0074 — One live server for several applications
+
+- **Date:** 2026-10-29.
+- **Source:** owner: the feature demo refreshes over WebSocket, `/admin/` and
+  `/tenants/` poll; why not all? Not every such need should be an Infra request.
+- **Accepted instructions:** framework-first (option 1 of two offered); no new
+  unit, port or proxy route per application.
+- **Implementation:** `LiveConfig::$applications` (name → absolute application
+  file, never in the browser bootstrap) and `route()`; JSON `live.applications`
+  resolved from the configuration directory. `live-server.mjs` passes the
+  upgrade path to the bridge; the bridge serves a path ending in `/<name>` with
+  that file and takes the session name and save path from the selected
+  application per request, so a ticket is valid only on its own path. The
+  Infra proxy already forwards the `/live` prefix, so the existing unit serves
+  `/live/admin` and `/live/tenants` after a restart. Demo: the feature demo
+  lists `admin-application.php` and `tenant-application.php`; both use
+  `BLADE_DEMO_LIVE_ENDPOINT` + `/admin` or `/tenants`.
+- **Verification (agent, 2026-10-29):** `configuration.php` (routing, relative
+  paths, bootstrap without files, rejected names and relative files),
+  `contracts.php`, `tenancy.php`, typecheck, build `--check`. After the first
+  restart the owner saw no working socket on `/tenants/`: every `/live/admin`
+  and `/live/tenants` subscription got 401. In the CLI bridge the first `echo`
+  marks headers as sent, after which `session_name()` and
+  `session_save_path()` refuse to change, so later requests read the primary
+  application's sessions. The bridge now answers with `fwrite(STDOUT)`; a local
+  bridge run (primary request, then an admin ticket on `/live/admin` and on
+  `/live`) passes the session check on its own path only. After the second
+  restart (13:55:14 UTC), through the managed URL: `workspace.spec.cjs` 4
+  passed (feature demo update frame and grid; `/live/admin` and
+  `/live/tenants` update frames, their tickets refused with 4401 on `/live`),
+  polling case skipped; `tenancy.spec.cjs` 4 passed, 1 failed on data: a
+  leftover Alfa membership of `none@example.test` (`blade_tenant_members` id
+  24) hides the "no tenant" notice, unrelated to live data.
+- **Status:** implemented; verified by tools. No user acceptance.
