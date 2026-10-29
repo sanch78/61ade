@@ -3,7 +3,7 @@ import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { fitWindow } from "../../WindowSizing";
 import { widgetIcons } from "../../WidgetIcons";
 import { UiPreferences } from "../../UiPreferences";
-import { Form, Layout, Window, message, awaitRedraw } from "@dhtmlx/suite";
+import { ContextMenu, Form, Layout, Window, message, awaitRedraw } from "@dhtmlx/suite";
 import { alert } from "../../MessageDialog";
 import { Realtime, type LiveChannel, type Row, type Snapshot } from "../../Realtime";
 import { GridHeaders, type Sort } from "../../GridHeaders";
@@ -13,8 +13,10 @@ import { FileFields } from "../../FilePicker";
 import { ResponsiveGrid, previewRows, hasSubview } from "../../ResponsiveGrid";
 import { FormValidation } from "../../FormValidation";
 import { server } from "../../api/Server";
-import type { ListViewEvents } from "../../api/types";
-import { errorText, escape, formActions, input } from "./fields";
+import type { Application, CommandPlacement, ListViewEvents } from "../../api/types";
+import { commandEnabled, commandId, extensions, fieldTypeOf, placed, resolveCommands, type ListCommand } from "../../app/registries";
+import { LIST, builtinCommands, type ListCommandContext } from "./commands";
+import { bindFieldTypes, errorText, escape, formActions, input } from "./fields";
 import { declaredTarget, resolveActivation, type ResolvedActivation } from "./activation";
 import { listCommands } from "./toolbar";
 import { ListFilters } from "./filters";
@@ -74,6 +76,14 @@ export class Workspace implements ActionHost {
   private previews=new Map<string,Workspace>();
   /** Open full sub-view windows. */
   private windows=new Map<Workspace,Window>();
+  /** Client commands (`app.commands`) of the command bar and of the record menu. */
+  private toolbarCommands:ListCommand[]=[];
+  private recordCommands:ListCommand[]=[];
+  private recordMenu?:ContextMenu;
+  /** Aborted when the list closes (`CommandContext.signal`). */
+  private closed=new AbortController();
+  /** Releases the field types of the singleton detail form. */
+  private detailTypes?:()=>void;
 
   /**
    * $preset: filters the view opens with (a navigation, `activate: 'page'`) instead of the saved ones; declared filters
@@ -99,8 +109,15 @@ export class Workspace implements ActionHost {
       ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"detail"}]}]}
       :region(scope?view.layout.tree:this.preferences.layoutTree(view.layout.tree)))});
     if(!view.singleton&&!scope)this.preferences.bindLayout(this.layout,view.layout.tree);
-    this.commands=new ResponsiveToolbar(undefined,{data:listCommands(view,{scope,filter:this.hasRegion("filter"),tiles,secondary:secondaryColumns,visible:this.visibleColumns})});
-    this.commands.events.on("click",(id:string|number)=>{if(this.delegated&&(id==="blade-results"||view.actions.some(a=>a.name===id&&a.name!=="create"&&!a.upload)&&this.delegated.view.actions.some(a=>a.name===id))){this.delegated.command(String(id));return;}this.command(String(id));});
+    // Client commands: the built-in `details` of every selectable list (also a hidden preview toolbar: the parent
+    // delegates it), then the view's declared commands where the list has its own toolbar.
+    const builtin=!view.singleton&&scope?.select!==false?["details"]:[];
+    const commands=resolveCommands(builtin,scope?.compact||scope?.shared?[]:view.commands,extensions.commands,builtinCommands);
+    this.toolbarCommands=commands.filter(command=>placed(command.entry,"toolbar"));
+    this.recordCommands=view.singleton||scope?.select===false||scope?.compact?[]:commands.filter(command=>placed(command.entry,"record"));
+    const ofToolbar=(fromBuiltin:boolean)=>this.toolbarCommands.filter(command=>builtin.includes(command.name)===fromBuiltin);
+    this.commands=new ResponsiveToolbar(undefined,{data:listCommands(view,{scope,filter:this.hasRegion("filter"),tiles,secondary:secondaryColumns,visible:this.visibleColumns,commands:{builtin:ofToolbar(true),project:ofToolbar(false)}})});
+    this.commands.events.on("click",(id:string|number)=>{if(this.delegated&&(id===commandId("details")||view.actions.some(a=>a.name===id&&a.name!=="create"&&!a.upload)&&this.delegated.view.actions.some(a=>a.name===id))){this.delegated.command(String(id));return;}this.command(String(id));});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
       // A declared search (`view.search`) gets its own native Toolbar input: the command bar may collapse into a menu.
@@ -127,7 +144,8 @@ export class Workspace implements ActionHost {
       },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,subview:scope?.compact?undefined:this.subviewOptions(),select:scope?.select,...(scope?.compact?{table:true,idColumn:false}:{}),
         // Per row: the declared target's description; a map without an entry for the row keeps the default (no description, cards open the details).
         activation:view.activate?row=>declaredTarget(view.activate,row)===undefined?undefined:t("Megnyitás: {target}",{target:this.activation(row).label}):undefined,
-        details:id=>{const row=this.rows.find(r=>String(r.id)===id);if(row)this.hooks.emit?.("activate",{row,target:"details"});void this.showResults(id);},marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field)});
+        details:id=>{const row=this.rows.find(r=>String(r.id)===id);if(row)this.hooks.emit?.("activate",{row,target:"details"});void this.showResults(id);},marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field),
+        ...(this.recordCommands.length?{menu:(id:string,event:MouseEvent,anchor:HTMLElement)=>this.openRecordMenu(id,event,anchor)}:{})});
       this.sortLabel();
       // Grid column ids of reserved record keys are aliases (ResponsiveGrid): headers speak in column ids, requests in fields.
       this.gridHeaders=new GridHeaders(this.grid.table,view.columns.map(column=>({...column,id:alias(column.id)})),(view.sortable??[]).map(alias),sort=>void this.changeSort({...sort,field:unalias(sort.field)}),view.filters.map(filter=>({...filter,name:alias(filter.name)})),(field,value)=>void this.changeFilter(unalias(field),value));
@@ -151,7 +169,41 @@ export class Workspace implements ActionHost {
   }
   /** Runs a toolbar command; a parent's toolbar runs it here for this view's cursor record (shared sub-view). */
   command(id:string):void{
-    const view=this.view;if(id==="blade-subview"){this.openSubview();return;}if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.filterPanel?.open();return;}if(id==="blade-results"){if(this.selected&&!((view.selection||view.rowSelection)&&(this.grid?.markedIds.length??0)>1))void this.showResults(this.selected);return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.actions.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.actions.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.actions.open(action);}
+    const view=this.view;if(id.startsWith("blade-command:")){this.runCommand(id.slice("blade-command:".length),"toolbar");return;}if(id==="blade-subview"){this.openSubview();return;}if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.filterPanel?.open();return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.actions.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.actions.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.actions.open(action);}
+  }
+  /**
+   * What a client command sees: the application, the view as the server sent it, the toolbar's record (a shared
+   * sub-view's cursor record while it holds the toolbar), the marked rows (none while a sub-view holds the toolbar)
+   * and the list's lifetime signal.
+   */
+  private commandContext(row=this.target()):ListCommandContext{
+    const marked=this.delegated?[]:(this.grid?.markedIds??[]).map(id=>this.rows.find(item=>String(item.id)===id)).filter((item):item is Row=>!!item);
+    const view=this.hooks.view??{id:this.view.id,kind:"list",title:this.view.title,resource:this.view.resource,actions:this.view.actions as any,options:{} as any};
+    return Object.freeze({app:extensions.app as Application,view,row,rows:Object.freeze(marked),signal:this.closed.signal,[LIST]:{details:(record:Row)=>void this.showResults(String(record.id))}});
+  }
+  /** Runs an enabled client command; a throw or rejection shows the error dialog (an abort stays silent). */
+  private runCommand(name:string,placement:CommandPlacement,row?:Row):void{
+    const command=(placement==="toolbar"?this.toolbarCommands:this.recordCommands).find(item=>item.name===name);
+    if(!command||this.disposed)return;
+    const context=this.commandContext(row??this.target());
+    if(!commandEnabled(command.entry,context,placement))return;
+    const failed=(error:unknown)=>{if(!(error instanceof DOMException&&error.name==="AbortError"))void this.error(error);};
+    try{void Promise.resolve(command.entry.run(context)).catch(failed);}catch(error){failed(error);}
+  }
+  /**
+   * The record menu: a native Suite ContextMenu with the record commands of the view for $id (disabled where their
+   * `enabled` refuses), at the pointer or, opened by the keyboard, below the record.
+   */
+  private openRecordMenu(id:string,event:MouseEvent,anchor:HTMLElement):boolean{
+    const row=this.rows.find(item=>String(item.id)===id);
+    if(!row||this.disposed||!this.recordCommands.length)return false;
+    const context=this.commandContext(row);
+    this.recordMenu?.destructor();
+    const menu=this.recordMenu=new ContextMenu(undefined,{css:"blade-record-menu"});
+    menu.data.parse(this.recordCommands.map(({id,entry})=>({id,value:escape(t(entry.label)),...(entry.icon?{icon:entry.icon}:{}),...(commandEnabled(entry,context,"record")?{}:{disabled:true})})));
+    menu.events.on("click",(item:string|number)=>{const name=String(item).slice("blade-command:".length);if(this.recordCommands.some(command=>command.name===name))this.runCommand(name,"record",this.rows.find(entry=>String(entry.id)===id)??row);});
+    menu.showAt(event.clientX||event.clientY?event:anchor,"bottom");
+    return true;
   }
   private async saveCell(row:Row,field:string,value:unknown):Promise<void>{
     const result=await this.call("__edit",String(row.id),{field,value,revision:row.revision});
@@ -169,7 +221,8 @@ export class Workspace implements ActionHost {
     const field=this.view.actions.find(action=>action.name==="update")?.fields.find(field=>field.name===name);
     if(!row||!field||!row._editable?.includes(name))return;
     this.cellEditing=true;
-    if(field.type==="checkbox"){
+    // A switch saves directly; a registered field type always edits in the window with its Form item.
+    if(field.type==="checkbox"&&!fieldTypeOf(field)){
       this.cardSave=this.saveCell(row,name,!(row[name]===true||String(row[name])==="1")).catch(error=>this.error(error)).finally(()=>{this.cellEditing=false;this.cardSave=undefined;if(!this.disposed)this.watch();});
       await this.cardSave;
       return;
@@ -179,8 +232,9 @@ export class Workspace implements ActionHost {
     popup.attach(form);popup.show();void fitWindow(popup);
     form.events.on("afterValidate",()=>{void fitWindow(popup);});
     const validation=new FormValidation(form,[field],()=>row);let saving=false;
+    const releaseTypes=bindFieldTypes(form,[field]);
     popup.events.on("beforeHide",()=>!saving);
-    popup.events.on("afterHide",()=>{this.cellEditing=false;this.cardEditor=undefined;void awaitRedraw().then(()=>popup.destructor());if(!this.disposed)this.watch();});
+    popup.events.on("afterHide",()=>{releaseTypes();this.cellEditing=false;this.cardEditor=undefined;void awaitRedraw().then(()=>popup.destructor());if(!this.disposed)this.watch();});
     form.events.on("click",(name:string)=>{
       if(name==="cancel"){popup.hide();return;}
       if(name!=="submit"||saving||!validation.validate())return;
@@ -228,7 +282,7 @@ export class Workspace implements ActionHost {
     // A non-selectable child (`select: false`) never delegates: the toolbar stays on this record.
     const shared=sub.select===false?{select:false}:{shared:(workspace:Workspace,selected:Row|undefined)=>{this.delegated=selected?workspace:this.delegated===workspace?undefined:this.delegated;this.capabilities();}};
     return {label:sub.shared?t("Alelemek"):child.title,open:(id:string)=>this.openRecord(id),mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>{
-      const id=String(row.id),preview=new Workspace(host,child,this.channel,this.user,{field:sub.field,id,...shared,compact:{height}},{},{app:this.hooks.app});
+      const id=String(row.id),preview=new Workspace(host,child,this.channel,this.user,{field:sub.field,id,...shared,compact:{height}},{},{app:this.hooks.app,view:this.childView()});
       this.previews.set(id,preview);
       return {destroy:()=>{if(this.previews.get(id)===preview)this.previews.delete(id);preview.destroy();}};
     }};
@@ -276,12 +330,14 @@ export class Workspace implements ActionHost {
     const mobile=innerWidth<768;
     const dialog=new Window({css:"blade-feature-window",title:escape(child.title+" — "+caption),ariaLabel:child.title+" — "+caption,
       width:mobile?innerWidth:Math.min(1100,innerWidth-24),height:mobile?innerHeight:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:!mobile,movable:!mobile});
-    const full=new Workspace(document.createElement("div"),child,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})},{},{app:this.hooks.app});
+    const full=new Workspace(document.createElement("div"),child,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})},{},{app:this.hooks.app,view:this.childView()});
     dialog.attach(full.layout);dialog.show();this.windows.set(full,dialog);
     // Opened by a double-click or Enter, the parent Grid would keep the focus: the window takes it (Escape closes it).
     void awaitRedraw().then(()=>{const root=dialog.getContainer()?.closest<HTMLElement>(".dhx_popup");if(root&&!root.contains(document.activeElement))root.focus();});
     dialog.events.on("afterHide",()=>{this.windows.delete(full);full.destroy();void awaitRedraw().then(()=>dialog.destructor());if(!this.disposed)closed();});
   }
+  /** The public definition of the sub-view's child (this view's own for a hierarchy). */
+  private childView(){return this.view.subview?.shared?this.hooks.view:this.hooks.view?.options.subview?.view;}
   /** The record the toolbar acts on: the cursor record of a shared sub-view, otherwise this view's. */
   private target():Row|undefined{return this.delegated?.selectedRow()??this.selectedRow();}
   private hasRegion(id:string):boolean{
@@ -294,7 +350,9 @@ export class Workspace implements ActionHost {
     // Several marks make single-record commands ambiguous: only bulk-capable actions and create stay available.
     // A shared sub-view's cursor record takes the toolbar over; its marks stay its own.
     const multiple=!this.delegated&&!!((this.view.selection||this.view.rowSelection)&&marked.length>1),target=this.target();
-    if(!this.view.singleton){if(target&&!multiple)this.commands.enable("blade-results");else this.commands.disable("blade-results");}
+    // Client commands (the built-in `details` included) follow their `enabled` rule for the toolbar's record and marks.
+    const context=this.commandContext(target);
+    for(const command of this.toolbarCommands){if(commandEnabled(command.entry,context,"toolbar"))this.commands.enable(command.id);else this.commands.disable(command.id);}
     const parentRow=this.subviewTarget();
     if(this.view.subview){if(parentRow&&!multiple&&hasSubview(parentRow))this.commands.enable("blade-subview");else this.commands.disable("blade-subview");}
     for(const a of this.view.actions){if(a.name==="get"||(this.view.singleton&&a.name==="update"))continue;
@@ -415,6 +473,7 @@ export class Workspace implements ActionHost {
     const fields=this.view.columns.filter(c=>!derivedOf(c)).map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:"text",required:false,max:255,options:{}});
     const form=new Form(document.createElement("div"),{padding:24,rows:[...fields.map(f=>input(f,row[f.name],!allowed.some(a=>a.name===f.name))),...(action?[formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save",color:"primary"})]:[])]} as any);
     this.detailFiles?.destroy();this.detailFiles=new FileFields(form,fields,this.resourceCall,[row],f=>!allowed.some(a=>a.name===f.name));
+    this.detailTypes?.();this.detailTypes=bindFieldTypes(form,fields,f=>!allowed.some(a=>a.name===f.name));
     this.detail=form;this.detailDirty=false;this.detailConflictShown=false;
     form.events.on("change",()=>{this.detailDirty=true;});
     if(action)this.actions.bindSave(form,action,String(row.id),row,allowed,()=>{this.detailDirty=false;},()=>{void this.mountDetail(this.rows[0]??row);});
@@ -425,7 +484,7 @@ export class Workspace implements ActionHost {
   /** Releases everything, including open sub-view windows and dialogs; idempotent. */
   destroy():void{
     if(this.disposed)return;
-    this.commands.disposeResponsive();this.disposed=true;this.search?.destroy();this.actions.fileFields?.destroy();this.detailFiles?.destroy();
+    this.commands.disposeResponsive();this.disposed=true;this.closed.abort();this.recordMenu?.destructor();this.recordMenu=undefined;this.detailTypes?.();this.search?.destroy();this.actions.fileFields?.destroy();this.detailFiles?.destroy();
     this.cardEditor?.destructor();this.cardEditor=undefined;this.releaseIcons();this.details.close();this.filterPanel?.destroy();this.epoch++;this.actions.destroy();this.abort?.abort();this.live.destroy();
     // An open full sub-view window closes with its list (its afterHide destroys the nested view).
     for(const dialog of [...this.windows.values()])dialog.hide();

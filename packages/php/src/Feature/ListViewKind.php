@@ -6,12 +6,15 @@ use Blade\I18n\Translator;
 
 /**
  * Built-in kind `list` (`Registry::view`, `SqlResource::register`). Options: `columns`, `singleton`, `layout`
- * (ViewLayout), `rowNumbers`, `selection`, `rowSelection`, optional `rowHeight`, `tileMinWidth`, `tiles`, `activate`;
+ * (ViewLayout), `rowNumbers`, `selection`, `rowSelection`, optional `rowHeight`, `tileMinWidth`, `tiles`, `activate`,
+ * `commands` (project client commands of `app.commands`, docs/toolkit.md#registries);
  * `subview` is set only by `Registry::subview()`. Bootstrap options add `detailFields`, `filters`, `sortable`, `search`.
  */
 final class ListViewKind implements ViewKindProvider
 {
-    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'activate'];
+    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'activate', 'commands'];
+    /** Most client commands one list declares. */
+    private const COMMANDS = 20;
     private const TARGETS = ['details', 'subview', 'page'];
 
     public function __construct(private Registry $registry, private ViewMetadata $meta) {}
@@ -32,6 +35,9 @@ final class ListViewKind implements ViewKindProvider
         $rowHeight=$o['rowHeight']??null;$tileMinWidth=$o['tileMinWidth']??null;
         if(($rowHeight!==null&&(!is_int($rowHeight)||$rowHeight<32||$rowHeight>160))||($tileMinWidth!==null&&(!is_int($tileMinWidth)||$tileMinWidth<120||$tileMinWidth>480)))throw new \InvalidArgumentException('Invalid view presentation.');
         $this->activation($registry,$view,$o['activate']??null);
+        // Names only: the browser module registers the command; an unregistered one is skipped there with a warning.
+        $commands=$o['commands']??[];
+        if(!is_array($commands)||!array_is_list($commands)||count($commands)>self::COMMANDS||count(array_unique($commands,SORT_REGULAR))!==count($commands)||array_filter($commands,static fn($name)=>!Field::projectName($name)))throw new \InvalidArgumentException('Invalid view commands: '.$view->id);
         $this->columns($registry,$view->resource,$o['columns']);
     }
     /**
@@ -88,14 +94,14 @@ final class ListViewKind implements ViewKindProvider
         $columns=array_map(static function($column) use ($fields,$ctx){
             $field=$fields[$column['id']]??null;
             if(!$field)return $column;
-            return [...$field->column,...($field->media()!==null?['media'=>$field->media()]:[]),...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
+            return [...$field->column,...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
         },$o['columns']);
-        $detailFields=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true])],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
+        $detailFields=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true])],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
         $list=$this->registry->get($view->resource,$singleton?'get':'list');
         $activate=$o['activate']??null;
         $options=['columns'=>$columns,'detailFields'=>$detailFields,'singleton'=>$singleton,'layout'=>$o['layout']->metadata(),
             'rowNumbers'=>$o['rowNumbers']??true,'selection'=>$o['selection']??false,'rowSelection'=>$o['rowSelection']??false,
-            ...array_intersect_key($o,['rowHeight'=>1,'tileMinWidth'=>1,'tiles'=>1]),
+            ...array_intersect_key($o,['rowHeight'=>1,'tileMinWidth'=>1,'tiles'=>1]),...(($o['commands']??[])!==[]?['commands'=>$o['commands']]:[]),
             // A map is always a JSON object, also for consecutive integer keys.
             ...($activate!==null?['activate'=>is_array($activate)?['field'=>$activate['field'],'map'=>(object)$activate['map']]:$activate]:[]),
             'filters'=>$list->listSource?->filterDefinitions($ctx)??[],'sortable'=>$list->listSource?->sortableFields($ctx)??[]];

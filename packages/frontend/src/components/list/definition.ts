@@ -1,13 +1,22 @@
-import type { Application, ListOptions, ViewDefinition as PublicDefinition, ViewReference } from "../../api/types";
+import type { Application, ColumnMetadata, ListOptions, ViewDefinition as PublicDefinition, ViewReference } from "../../api/types";
+import { resolveColumn } from "../../app/registries";
+import { escape, optionText } from "../../RecordPresentation";
 import type { ViewDefinition } from "./types";
+
+/** Plain text of a column value (its option label or the value): what a failed renderer shows. */
+const plain=(column:Pick<ColumnMetadata,"id"|"type"|"options">,row:Record<string,unknown>)=>optionText(column,row[column.id]);
 
 /**
  * A list view in the list's internal shape: its `options` (the list keys, unchanged) beside the shared keys, the
- * sub-view's child view converted the same way.
+ * sub-view's child view converted the same way. Columns and detail fields get their registered presentation or
+ * field-type display here, once per mounted list or details (docs/toolkit.md#registries).
  */
 export function listDefinition(view:PublicDefinition<ListOptions>):ViewDefinition{
   const subview=view.options.subview;
-  return {...view.options,id:view.id,resource:view.resource??"",title:view.title,actions:view.actions,
+  const fields=[...(view.actions.find(action=>action.name==="update")?.fields??[]),...(view.actions.find(action=>action.name==="create")?.fields??[])];
+  const resolve=<C extends ColumnMetadata>(columns:C[]|undefined)=>columns?.map(column=>resolveColumn(column,fields.find(field=>field.name===column.id),{escape,plain}));
+  const detailFields=resolve(view.options.detailFields);
+  return {...view.options,columns:resolve(view.options.columns),...(detailFields?{detailFields}:{}),id:view.id,resource:view.resource??"",title:view.title,actions:view.actions,
     ...(view.group?{group:view.group}:{}),...(view.icon?{icon:view.icon}:{}),...(view.desktopOnly?{desktopOnly:true}:{}),
     ...(subview?{subview:{...subview,...(subview.view?{view:listDefinition(subview.view)}:{})}}:{})} as unknown as ViewDefinition;
 }
