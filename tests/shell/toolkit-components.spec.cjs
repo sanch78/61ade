@@ -60,12 +60,13 @@ const toggleTheme=async(page,name)=>{
 };
 
 test('Calendar and DiagramEditor mount in a project Layout cell, follow the theme and release everything on destroy',async({page})=>{
+ // Two framework views, two theme switches and a menu navigation in one test.
+ test.setTimeout(90000);
  const failures=errors(page);await start(page);
+ // Wide enough that the half-width diagram cell keeps a usable canvas beside its side lists.
+ await page.setViewportSize({width:1800,height:1000});
  const created=(await api(page,'topology','create',null,{name:prefix+' komponens'})).body.data.id;
  try{
-  const nodeType=await page.evaluate(()=>window.__bladeApp.viewDefinition('topology').options.nodeTypes[0].id);
-  const revision=(await api(page,'topology','get',created)).body.data.revision;
-  expect((await api(page,'topology','save',created,{revision,content:JSON.stringify({nodes:[{id:'n1',type:nodeType,label:'Fixture',detail:'',x:0,y:0}],links:[]})})).status).toBe(200);
   await layout(page);
   await page.evaluate(()=>{
    const C=window.__bladeApp.components,cells=window.__fixtureLayout;
@@ -79,11 +80,15 @@ test('Calendar and DiagramEditor mount in a project Layout cell, follow the them
   // One Scheduler per page (Standard edition): a second Calendar is refused while the first exists.
   expect(await page.evaluate(()=>{try{new window.__bladeApp.components.Calendar({view:'signage_schedule'});return 'created';}catch(error){return error.message;}})).toMatch(/only one Calendar/);
   expect(await page.evaluate(()=>{try{new window.__bladeApp.components.DiagramEditor({view:'missing_view'});return 'created';}catch(error){return error.message;}})).toMatch(/not offered/);
-  // The editor works like the built-in view: edit, Ctrl+S saves, `saved` fires and editing() follows.
+  // The editor works like the built-in view: add an element (palette double-click, as diagram.spec.cjs), Ctrl+S
+  // saves, `saved` fires and editing() follows.
   await inFixture(page,'.blade-diagram-list').getByText(prefix+' komponens',{exact:true}).click();
-  await inFixture(page,'.blade-diagram-node .blade-diagram-node__shape').first().click();
-  await page.keyboard.press('ArrowRight');
-  expect(await page.evaluate(()=>window.__editor.editing())).toBe(true);
+  await expect(inFixture(page,'.blade-diagram-summary__name')).toHaveText(prefix+' komponens');
+  await expect(inFixture(page,'.blade-diagram-node')).toHaveCount(0);
+  expect(await page.evaluate(()=>window.__editor.editing())).toBe(false);
+  await inFixture(page,'.blade-diagram-palette__item').first().dblclick();
+  await expect(inFixture(page,'.blade-diagram-node')).toHaveCount(1);
+  await expect.poll(()=>page.evaluate(()=>window.__editor.editing())).toBe(true);
   await page.keyboard.press('Control+s');
   await expect(page.locator('.blade-toast',{hasText:'A diagram elmentve.'})).toBeVisible();
   expect(await page.evaluate(()=>[window.__saved,window.__editor.editing()])).toEqual([1,false]);
@@ -103,7 +108,7 @@ test('Calendar and DiagramEditor mount in a project Layout cell, follow the them
   await expect(page.locator('.blade-calendar .dhx_cal_data')).toBeVisible();
   await expect(page.locator('.dhx_cal_event').filter({hasText:'Reggeli promó'}).first()).toBeVisible();
   expect(failures).toEqual([]);
- }finally{await api(page,'topology','delete',created);}
+ }finally{await api(page,'topology','delete',created).catch(()=>{});}
 });
 
 test('Calendar and DiagramEditor mount in app.ui windows; closing or destroying releases them',async({page})=>{
