@@ -298,8 +298,10 @@ types), registered `list`, `get`, `create`, `save`, `delete`, `type_create` and
 `type_delete` actions with the space as ACL object and server-side canonical
 validation, and the `DiagramEditor` view (Suite shell, lists, form and windows
 around an SVG canvas, because Suite Standard has no diagram widget). Install it
-in setup, register it and grant rules. The feature demo configures it as a
-network topology builder ([FB-0060](feedback.md#fb-0060)).
+in setup, register it and grant rules. Project modules mount the same editor
+as `app.components.DiagramEditor` ([toolkit](toolkit.md#calendar-and-diagrameditor)).
+The feature demo configures it as a network topology builder
+([FB-0060](feedback.md#fb-0060)).
 
 <a id="eseménynaptár"></a>
 
@@ -313,8 +315,10 @@ and `delete` actions with the space as ACL object, optimistic revisions, the
 Scheduler recurring model (series, moved and deleted occurrences) and the
 server-side `Recurrence` expansion of the editor's RRULE subset. Install it in
 setup, register it and grant rules; `CalendarDefinition::occurrences()` serves
-consumer handlers. The feature demo configures a digital signage scheduler with
-a per-day playlist API ([FB-0061](feedback.md#fb-0061)).
+consumer handlers. Project modules mount the same calendar (one per page) as
+`app.components.Calendar` ([toolkit](toolkit.md#calendar-and-diagrameditor)).
+The feature demo configures a digital signage scheduler with a per-day playlist
+API ([FB-0061](feedback.md#fb-0061)).
 
 <a id="formvalidáció-és-migráció"></a>
 

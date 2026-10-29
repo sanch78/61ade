@@ -8,6 +8,8 @@ import { createEventBus, type InternalEventBus } from "../api/Events";
 import { i18n, identity, live, preferences, theme, ui, uploads } from "../api/services";
 import { NamedRegistry } from "./registries";
 import { registerBuiltins } from "./builtins";
+import { bindCalendar } from "../components/calendar/Calendar";
+import { bindDiagramEditor } from "../components/diagram/DiagramEditor";
 
 /** What the shell hands the application object: its live channel, the signed-in identity, its views and router. */
 export type ShellBridge = {
@@ -47,8 +49,11 @@ export function createApplication(bridge: ShellBridge): Kernel {
     presentations: new NamedRegistry<ColumnPresentation>("presentation"),
     fieldTypes: new NamedRegistry<FieldType>("field type"),
     commands: new NamedRegistry<ClientCommand>("command"),
-    // Public component classes follow in toolkit P3 (C-1 … C-4).
-    components: Object.freeze({}) as Components,
+    // Public component classes (toolkit P3 C-1 … C-4), bound to this application.
+    components: Object.freeze({
+      Calendar: bindCalendar(() => app),
+      DiagramEditor: bindDiagramEditor(() => app),
+    }) as Components,
     viewDefinitions: () => offered,
     viewDefinition: (id: string) => offered.find(view => view.id === id),
     navigate: (target: NavigationTarget) => bridge.navigate(target),

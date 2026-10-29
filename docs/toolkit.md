@@ -149,6 +149,39 @@ the session ended; the shell's behaviour for it is unchanged. Event handlers
 that throw are logged and do not stop other handlers; emitting a framework
 event name (with `:`) throws.
 
+<a id="uploads"></a>
+
+#### Uploads (implemented — P3 C-2)
+
+`app.uploads` is the page's one [uploader](uploader.md) (`Uploader.ts`): the
+same window, queue, lower-bar indicator, conflict dialog and resume as the file
+manager, list upload commands and `file` fields. A project never builds another
+upload dialog.
+
+```ts
+const policy = (app.viewDefinition("files")!.options as FileManagerOptions).upload.policy;
+// (a list view's upload action carries its own: view.actions.find(action => action.upload)?.upload)
+const target = { resource: "files", action: "upload", target: folderId, targetLabel: "Drive A:/Képek", policy };
+app.uploads.open({ ...target, onUploaded: ({ succeeded }) => refresh(succeeded) });   // once per batch
+surface.addEventListener("drop", event => { event.preventDefault();
+  app.uploads.open({ ...target, transfer: event.dataTransfer! }); });                 // synchronously in the drop handler
+app.events.on("upload:file-done", ({ file, result }) => show(file.name, result), host.signal);
+app.uploads.reopen();                                                           // the current queue again
+```
+
+- `open` shows the window for that target; files queued for other targets stay.
+  `files` (`File[]`/`FileList`) or a drop's `transfer` (folders included) queue
+  at once, without a second confirmation. `policy` is the target action's
+  `ActionMetadata.upload` or a files view's `options.upload.policy`.
+- A malformed option (missing resource/action, non-string target, no policy,
+  non-`File` entries) throws `TypeError` before anything opens. The server
+  still checks every file against the action's `UploadPolicy`, ACL and handler.
+- Progress goes to `app.events` as `upload:queued`, `upload:started`,
+  `upload:progress`, `upload:conflict`, `upload:file-done`,
+  `upload:file-failed`, `upload:complete` and `upload:cancelled` for every
+  upload of the page (each `file` names `resource`, `action` and `target`, so
+  filter by them). `reopen()` does nothing before the first `open`.
+
 <a id="registries"></a>
 
 ### Registries (built-in presentations, field types and commands on them: planned — P3 C-5)
@@ -216,10 +249,55 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | `RecordForm` | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancel`, `changed`; `submit`, `values`, `dirty` |
 | `RecordDetails` | the `Adatok` details (`recordFields`) | `show(row \| id)` |
 | `FileManager`, `FilePicker` | `FileManager.ts`, `FilePicker.ts` | `opened`; `pick()` resolves a `MediaDescriptor` or `null` |
-| `Calendar`, `DiagramEditor` | `Calendar.ts`, `DiagramEditor.ts` | `saved`, `editing` (diagram) |
+| `Calendar`, `DiagramEditor` (implemented) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; `editing` |
 | `MediaPlayer` | `FileManager.openImage/openVideo`, plus audio | `loaded`, `position`, `ended`, `error`; `play`, `pause`, `seek`, `position`, `duration` |
 | `SandboxFrame` | new | `ready`, `error`, `message`; `load`, `post` |
 | `CommandBar` | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
+
+<a id="calendar-and-diagrameditor"></a>
+
+#### Calendar and DiagramEditor (implemented — P3 C-2)
+
+The built-in `calendar` and `diagram` kinds are these classes
+(`src/app/builtins.ts`: `new host.app.components.Calendar({view, signal:
+host.signal}).mount(host)`), so a project gets exactly the framework view,
+with the same actions, ACL, forms, dialogs, toasts, themes and locale.
+
+```ts
+const layout = new app.dhx.Layout(null, { cols: [{ id: "plan" }, { id: "network" }] });
+host.attach(layout);
+const calendar = new app.components.Calendar({ view: "signage_schedule", signal: host.signal });
+calendar.mount(layout.getCell("plan"));
+const editor = new app.components.DiagramEditor({ view: "topology", signal: host.signal });
+editor.on("saved", () => inventory.refresh());                     // after Mentés / Ctrl+S
+editor.mount(layout.getCell("network"));
+// In a window: closing it destroys the component (its signal); `fit: false` keeps the requested size.
+const win = app.ui.window({ title: "Műsorterv", width: 1100, height: 720, fit: false });
+new app.components.Calendar({ view: "signage_schedule", signal: win.signal }).mount(win);
+```
+
+- `view` is an offered view id (`Error` when not offered to the actor) or a
+  held `ViewDefinition` of any kind with `resource`, `actions` and the
+  `CalendarOptions`/`DiagramOptions` shape (`TypeError` otherwise). What the
+  component offers follows `actions`: read-only without `create`/`update`
+  (calendar) or `save` (diagram); the server checks every call again.
+- Lifecycle as for every component: create and `mount(target)` once (an
+  element target needs a height); a second `mount` or a `mount` after
+  `destroy()` throws. `destroy()` is idempotent and releases the widgets, the
+  windows the component opened (event form, day window, creation forms),
+  document and canvas listeners, observers and, for the calendar, the shared
+  Scheduler's handlers, data processor and data; a Layout cell is detached and
+  an `AppWindow`/`ViewHost` still open is left empty. Aborting the options'
+  `signal`, or the window's or host's signal, destroys it too.
+- **One Calendar per page** (Scheduler Standard, [O10](#resolved-decisions)):
+  `new Calendar(…)` throws while another one exists, including the built-in
+  calendar view; destroy it first. `app.dhx` never exposes Scheduler.
+- `DiagramEditor`: `saved` fires after the open diagram's content was saved
+  (`Mentés`, Ctrl+S); `editing()` is `true` while it has unsaved changes.
+  `Calendar` has no events.
+- Theme and skin changes repaint live (the Scheduler switches between its
+  `terrace` and `dark` skins); a language switch reloads the page, so
+  components are created again in the new language.
 
 <a id="views"></a>
 
