@@ -137,4 +137,4 @@ check(!$full->oauthAllowed('2') && $optionalWorkspace->version('2')>$version,'Re
 $editFull('2','blade_oauth','1');$editFull('2','blade_disabled','1');
 check(!$full->oauthAllowed('2'),'Disabled account has no OAuth sign-in');
 check($full->actorByEmail(' RENAMED@example.test ')==='2' && $full->actorByEmail('unknown@example.test')===null,'Exact e-mail account lookup');
-echo "61de built-in user administration (A1) tests passed.\n";
+echo "61ade built-in user administration (A1) tests passed.\n";

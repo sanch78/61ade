@@ -244,7 +244,7 @@ try {
         file_put_contents($directory.'/shelves-variant.json', json_encode($variant, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
         rejected(static fn() => WorkspaceConfiguration::build($db, [$directory.'/shelves-variant.json'], $shelfBindings), 'Invalid U5 configuration accepted: variant '.$index);
     }
-    echo "61de JSON/environment configuration contracts passed.\n";
+    echo "61ade JSON/environment configuration contracts passed.\n";
 } finally {
     putenv('BLADE_TEST_CONFIG_PORT');
     foreach (glob($directory.'/*') as $temporary) {

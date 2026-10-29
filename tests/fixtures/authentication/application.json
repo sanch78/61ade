@@ -1,6 +1,6 @@
 {
     "description": "Synthetic authentication consumer; no real users or mail recipients.",
-    "application": {"title": "61de authentication demo", "runtime": {"$env": "BLADE_TEST_AUTH_RUNTIME", "default": "../../../tmp/auth-fixture"}},
+    "application": {"title": "61ade authentication demo", "runtime": {"$env": "BLADE_TEST_AUTH_RUNTIME", "default": "../../../tmp/auth-fixture"}},
     "database": {"host": "unused", "port": 3306, "name": "unused", "charset": "utf8mb4", "user": "unused", "password": ""},
     "session": {"name": "blade_auth_test", "cookie_path": "/"},
     "identity": {
@@ -11,7 +11,7 @@
         "email_attribute": "email", "remember_days": 90, "default_email_confirmation": true,
         "mail": {
             "command": ["/bin/false", "--to={recipient}", "--body-file={body_file}"],
-            "from_address": "demo@example.test", "from_name": "Synthetic 61de",
+            "from_address": "demo@example.test", "from_name": "Synthetic 61ade",
             "texts": {"subject": "Synthetic sign-in", "heading": "Synthetic custom heading"}
         }
     },

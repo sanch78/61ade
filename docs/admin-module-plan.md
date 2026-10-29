@@ -66,7 +66,7 @@ create but retain existing-account management (decided), with visible UI behavio
 
 <a id="e2--adminmodul-61de-definíciókból"></a>
 
-### E2 — Admin from 61de definitions
+### E2 — Admin from 61ade definitions
 
 Framework-owned role/membership/rule/token/log resources use package module JSON,
 WorkspaceConfiguration and named framework bindings. Accounts derive from

@@ -7,7 +7,7 @@ An event calendar view over the native **DHTMLX Scheduler Standard (GPL)**
 component: day, week and month views, drag-and-drop create/move/resize and the
 Scheduler's recurring model ("this event / this and following / all events").
 Events are edited in the framework's own Suite Form window, like every other
-61de form; the vendor lightbox is not used. The framework owns storage, recurrence
+61ade form; the vendor lightbox is not used. The framework owns storage, recurrence
 expansion, actions, authorization, validation, transactions, audit and the
 DHTMLX integration; a consumer declares the space, the extra event fields, the
 offered views and an optional day action.

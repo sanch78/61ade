@@ -26,7 +26,7 @@ final readonly class ApplicationDefinition
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
             || !preg_match('~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$~D', $assets)) {
-            throw new \InvalidArgumentException('Invalid 61de application definition.');
+            throw new \InvalidArgumentException('Invalid 61ade application definition.');
         }
     }
 }

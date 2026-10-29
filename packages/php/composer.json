@@ -1,6 +1,6 @@
 {
-    "name": "sanch78/61de",
-    "description": "61de admin framework — reusable login and navigation shell",
+    "name": "sanch78/61ade",
+    "description": "61ade admin framework — reusable login and navigation shell",
     "type": "library",
     "require": {
         "php": "^8.4"

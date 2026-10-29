@@ -1,7 +1,7 @@
 const {expect}=require('../../tools/playwright-test.cjs');
 // Shared steps for specs that run on the managed feature demo (/), see docs/demos.md.
 async function signIn(page,email='demo@example.test',path='/'){
- await page.goto(path);await page.getByLabel('E-mail',{exact:true}).fill(email);await page.getByLabel('Jelszó',{exact:true}).fill('61de-demo');
+ await page.goto(path);await page.getByLabel('E-mail',{exact:true}).fill(email);await page.getByLabel('Jelszó',{exact:true}).fill('61ade-demo');
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
 }
 // A compact desktop menu shows the open view's siblings beside "Menü"; use that button when present.

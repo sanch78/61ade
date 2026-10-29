@@ -52,4 +52,4 @@ new Blade\Feature\SqlResource('items', 'items', 'id', [new Field('a', 'A')], def
 foreach ([[['missing']], [[]], [['a', 'a']], ['a']] as $unique) {
     try { new Blade\Feature\SqlResource('items', 'items', 'id', [new Field('a', 'A')], unique: $unique); throw new RuntimeException('Invalid unique key accepted'); } catch (InvalidArgumentException) {}
 }
-echo "61de declarative field validation contracts passed.\n";
+echo "61ade declarative field validation contracts passed.\n";

@@ -1,13 +1,13 @@
 ---
 name: grid-tree-card-ui
-description: Design and extend shared grid, tree, and card/DataView interfaces in 61de or a similar framework-first admin UI. Use when introducing a record list, hierarchy, responsive record surface, or reviewing its layout, interaction, accessibility, authorization, and validation contract; do not use for unrelated shell or one-off consumer markup.
+description: Design and extend shared grid, tree, and card/DataView interfaces in 61ade or a similar framework-first admin UI. Use when introducing a record list, hierarchy, responsive record surface, or reviewing its layout, interaction, accessibility, authorization, and validation contract; do not use for unrelated shell or one-off consumer markup.
 ---
 
 # Grid, tree, and card UI
 
 Use this skill when a feature adds or changes a flat record list, a hierarchical
 browser, a responsive record surface, or the shared behavior between those
-views. It captures reusable lessons from the 61de workspace, list, file-tree,
+views. It captures reusable lessons from the 61ade workspace, list, file-tree,
 and card work. It is guidance for designing and extending the framework; the
 public runtime contract remains in the project's topic guides.
 
@@ -134,7 +134,7 @@ tree as decoration for a flat list.
 ## Card and detail rules
 
 - Render cards with the native DataView. Choose a readable minimum width and
-  let the framework determine columns from the available panel; the 61de
+  let the framework determine columns from the available panel; the 61ade
   workspace default targets roughly 340 px columns and one column on mobile.
   Every card in a row has equal border-box width, wraps long unbroken text, and
   remains readable in all themes.

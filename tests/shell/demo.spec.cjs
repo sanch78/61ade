@@ -1,7 +1,7 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const {openMenu,openView}=require('./feature-demo.cjs');
 // Feature demo (/) and base admin demo (/admin/) on the managed demo URL (BLADE_DEMO_URL).
-async function signIn(page,email,password='61de-demo',path='/'){
+async function signIn(page,email,password='61ade-demo',path='/'){
  await page.goto(path);await page.getByLabel('E-mail',{exact:true}).fill(email);await page.getByLabel('Jelszó',{exact:true}).fill(password);
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
 }
@@ -31,7 +31,7 @@ test('the feature demo login offers password, OAuth, remember me and the languag
  const english=page.getByRole('dialog',{name:'Sign in',exact:true});
  await expect(english.getByRole('button',{name:'Sign in with an external account',exact:true})).toBeVisible();
  // Next to the theme selector after sign-in as well.
- await english.getByLabel('Email',{exact:true}).fill('demo@example.test');await english.getByLabel('Password',{exact:true}).fill('61de-demo');
+ await english.getByLabel('Email',{exact:true}).fill('demo@example.test');await english.getByLabel('Password',{exact:true}).fill('61ade-demo');
  await english.getByRole('button',{name:'Sign in',exact:true}).click();
  const language=page.locator('.blade-navigation-row').getByRole('button',{name:'English',exact:true});
  const theme=page.locator('.blade-navigation-row').getByRole('button',{name:'Skyblue',exact:true});
@@ -72,10 +72,10 @@ test('e-mail second factor: the formatted code mail lands in the demo mailbox in
  const confirmation=page.getByRole('dialog',{name:'E-mailes megerősítés',exact:true});
  await expect(confirmation).toBeVisible();
  const mailbox=await context.newPage();await mailbox.goto('/mailbox/');
- await expect(mailbox.getByText('61de feature demo – sign-in code').first()).toBeVisible();
+ await expect(mailbox.getByText('61ade feature demo – sign-in code').first()).toBeVisible();
  const body=mailbox.frameLocator('iframe').locator('body');
  await expect(body).toContainText('Confirm sign-in');
- await expect(body).toContainText('Automatic mail of the 61de feature demo');
+ await expect(body).toContainText('Automatic mail of the 61ade feature demo');
  const code=(await body.innerText()).match(/\b\d{6}\b/)[0];
  await confirmation.getByLabel('Megerősítő kód',{exact:true}).fill(code);
  await confirmation.getByRole('button',{name:'Belépés megerősítése',exact:true}).click();
@@ -129,8 +129,8 @@ test('the base admin demo shows only the mandatory administration',async({page})
  const login=page.getByRole('dialog',{name:'Bejelentkezés',exact:true});
  await expect(login.locator('.blade-language-field input')).toHaveValue('Magyar');
  await expect(login.getByRole('button',{name:OAUTH})).toHaveCount(0);
- await signIn(page,'demo@example.test','61de-demo','/admin/');
- await expect(page.locator('.blade-session-bar')).toContainText('61de alapadmin');
+ await signIn(page,'demo@example.test','61ade-demo','/admin/');
+ await expect(page.locator('.blade-session-bar')).toContainText('61ade alapadmin');
  await page.getByRole('menuitem',{name:'Adminisztráció',exact:true}).click();
  const items=await page.getByRole('menu',{name:'Adminisztráció'}).getByRole('menuitem').allInnerTexts();
  expect(items.map(item=>item.trim())).toEqual(['Felhasználók','Szerepkörök','Szerepkör-tagságok','Szerepkör-jogosultságok','Egyedi jogosultságok']);

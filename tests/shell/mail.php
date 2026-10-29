@@ -53,4 +53,4 @@ check(str_contains($mail['html'],'#aa3366') && str_contains($mail['html'],'Szia 
 check(str_contains($mail['text'],'123456') && str_contains($mail['text'],'Projekt lábléc') && !str_contains($mail['text'],'<table'),'Plain-text alternative');
 try{new Layout('red');throw new RuntimeException('Invalid accent accepted');}catch(InvalidArgumentException){}
 array_map('unlink',glob($scratch.'/*.*'));rmdir($runtime);rmdir($scratch);
-echo "61de mail delivery and layout tests passed.\n";
+echo "61ade mail delivery and layout tests passed.\n";

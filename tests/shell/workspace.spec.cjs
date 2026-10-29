@@ -2,7 +2,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const {openMenu,signIn}=require('./feature-demo.cjs');
 test('standalone registry creates a DHTMLX grid and reusable form',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61de-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
+ await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61ade-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  await openMenu(page,'Jegyzetek');
  const workspace=page.locator('.blade-workspace');
  await expect(workspace.locator('.dhx_layout-space')).toHaveCount(1);

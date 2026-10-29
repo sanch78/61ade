@@ -6,10 +6,10 @@ Shared-library role: `library`. The shared library is read-only.
 Use relevant shared skills within this project's locally declared scope.
 <!-- shared-agents:end -->
 
-# 61de project contract
+# 61ade project contract
 
 Canonical checkout: `/space/share/libs/61ade` on `catalyst`, owner `sanch`.
-The product is **61de**; identifiers use `Blade\`, `BLADE_*` and `blade`.
+The product is **61ade**; identifiers use `Blade\`, `BLADE_*` and `blade`.
 
 There is **one development environment only**, https://61ade.sanch.hu/
 (`/admin/` for the starter admin). Develop and test directly there. There is
@@ -25,7 +25,7 @@ Framework-first development, consumer boundaries, documentation duties,
 validation parity and host protection are mandatory rules in those documents.
 Use the existing DHTMLX framework capabilities; extend the framework first
 when a capability is missing. `_AuthHandler` is a separate read-only dependency
-during 61de work. Do not change consumer runtimes as a side effect.
+during 61ade work. Do not change consumer runtimes as a side effect.
 
 Browser tests must use `npm run test:browser -- ...` and the managed URL.
 Preserve existing changes and stage only intended paths. The project does not

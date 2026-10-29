@@ -38,7 +38,7 @@ $tasks->registerDelete($workspace->registry);
 ]))->register($workspace->registry, 'Közös hirdetőtábla', group: 'Tenant demó');
 
 return new ApplicationDefinition(
-    title: '61de tenant demó', version: '0.1.0', identities: $identities, menu: new Menu([]),
+    title: '61ade tenant demó', version: '0.1.0', identities: $identities, menu: new Menu([]),
     runtime: blade_demo_runtime('tenants'),
     sessionName: 'blade_tenant_demo', cookiePath: '/tenants/', assets: '../assets',
     workspace: $workspace, languages: $languages, accounts: $accounts,

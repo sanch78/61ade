@@ -1,6 +1,6 @@
 # Login: passwords, e-mail second factor, OAuth and remembered sessions
 
-The complete flow belongs to 61de: DHTMLX login/code forms, verification,
+The complete flow belongs to 61ade: DHTMLX login/code forms, verification,
 OAuth through the independent AuthHandler library, sessions, remembered login,
 mail layout and audit. Consumers declare account source/e-mail attribute,
 delivery method/text, OAuth client settings and admin ACL.
@@ -50,9 +50,9 @@ is always available. Hungarian strings in examples are product/localization text
 
 ### Mail delivery
 
-61de has one delivery method: a configured local command, started with
+61ade has one delivery method: a configured local command, started with
 proc_open array arguments and no shell (R8). The command builds and submits
-the message itself; 61de does not build MIME or talk SMTP and has no
+the message itself; 61ade does not build MIME or talk SMTP and has no
 third-party PHP dependency.
 
 | Key | Meaning |
@@ -95,7 +95,7 @@ No consumer rewrite of templates/delivery/auth flow is needed.
 
 PHP: `LoginSecurity(Workspace,IdentityProvider,Delivery,LoginMessage,runtime,emailAttribute,...)`,
 then ApplicationDefinition.authentication. Custom providers implement Delivery;
-61de still owns authentication.
+61ade still owns authentication.
 
 <a id="belépési-folyamat"></a>
 
@@ -143,14 +143,14 @@ HttpOnly/SameSite cookie, Secure on TLS, host-bound and scoped to application pa
 never localStorage. Server stores hash only. Absolute expiry is 90 days from
 issue and never slides on restore.
 
-A new browser session restores a 61de session and rotates the secret. Replay
+A new browser session restores a 61ade session and rotates the secret. Replay
 of an old secret is rejected and revokes that remembered login. Logout clears
 the current remembered credential. Password/account/auth-setting changes revoke
 all via authentication version. E-mail updates must also call
 Workspace.revokeSessions(actorId).
 
 Sessions predating e-mail protection require new authentication when it is
-introduced. Legacy non-61de sessions/direct password writes are not automatically
+introduced. Legacy non-61ade sessions/direct password writes are not automatically
 version-linked; integration must explicitly revoke them.
 
 <a id="telepítés-és-ellenőrzés"></a>
@@ -177,23 +177,23 @@ The independent _AuthHandler library runs OAuth unchanged
 An external-account button appears when at least one provider is listed and not
 disabled. It opens AuthHandler's native overlay with Google/Facebook icons,
 even without credentials ([FB-0047](feedback.md#fb-0047--valódi-google--és-facebook-gomb-az-authhandler-overlay-én-mockup-nélkül)).
-Without keys, 61de intercepts start and returns setup feedback to login, auditing
+Without keys, 61ade intercepts start and returns setup feedback to login, auditing
 oauth_start denial. With keys, AuthHandler owns redirect/callback through
 Hybridauth and its identity store, in short-lived session `<sessionName>_oauth`.
 
-On return, 61de reads the AuthHandler e-mail, destroys that session immediately
+On return, 61ade reads the AuthHandler e-mail, destroys that session immediately
 and decides independently. Only existing lowercase exact-match accounts with
 OAuth enabled and not disabled can enter. Unknown/disabled/disallowed accounts
 share one generic message. Password, pending temporary-password state and
 e-mail code are not required in this path. Unknown addresses may create rows
-in AuthHandler's private oauth-identities.sqlite; these confer no 61de rights.
+in AuthHandler's private oauth-identities.sqlite; these confer no 61ade rights.
 Account language and remember selection, transferred through post-login
 blade_remember=1, apply.
 
-Known limitation: AuthHandler does not expose email_verified, so 61de cannot
+Known limitation: AuthHandler does not expose email_verified, so 61ade cannot
 check it. The prior integration assumption was that configured Google/Facebook
 flows provide confirmed addresses; that assumption is not independent verification
-by 61de. Other providers require an explicit trust policy. Any library enhancement
+by 61ade. Other providers require an explicit trust policy. Any library enhancement
 belongs in AuthHandler's own repository.
 
 Prerequisites:
@@ -203,7 +203,7 @@ Prerequisites:
 - Fixed site_url and exact registered callback `<site_url>?ah_action=provider&provider=<Name>&callback=1`.
 - Built-in user admin with oauth true.
 
-The overlay uses Bootstrap modal markup. 61de supplies a small compatible shim
+The overlay uses Bootstrap modal markup. 61ade supplies a small compatible shim
 only without Bootstrap, plus scoped theme header/border styling; global Bootstrap
 CSS never enters the DHTMLX interface. Overlay is above the top DHTMLX layer.
 The same-origin `./?blade_auth=bootstrap` script preserves script-src self CSP.
@@ -224,7 +224,7 @@ The same-origin `./?blade_auth=bootstrap` script preserves script-src self CSP.
 - Module is the filesystem path relative to configuration; assets is browser-relative. Optional storage defaults to runtime/oauth-identities.sqlite. Texts follow AuthHandler lang.json key → {language:text}.
 - Names follow AuthHandler capitalization (Google/Facebook). Hybridauth adapter can select a custom adapter. Enabled false hides; empty keys keep buttons with feedback.
 - PHP: `new AuthHandlerLogin($moduleDir,'lib/_AuthHandler',$providers,$accounts,$identities,$workspace,$storage,$siteUrl,texts: …)`, then ApplicationDefinition(oauth: …).
-- AuthHandler receives only provider operations. provider_only_auth disables its password/register/reset flows; 61de owns those.
+- AuthHandler receives only provider operations. provider_only_auth disables its password/register/reset flows; 61ade owns those.
 - Audit: authentication.oauth_start, oauth_callback, oauth_login success/denial, without token/e-mail values.
 
 <a id="szolgáltatói-beállítás-google-facebook"></a>
@@ -248,7 +248,7 @@ BLADE_DEMO_FACEBOOK_CLIENT_SECRET=
 
 An existing own-site Google client/Facebook app may be reused by adding the
 callback/domain. The existing app name then appears during login; rotating its
-secret affects all associated sites. 61de matches e-mail, not app-specific IDs.
+secret affects all associated sites. 61ade matches e-mail, not app-specific IDs.
 This demo uses an existing own-domain app per FB-0047.
 
 Register the exact callback. The historical guide notes that Google changes

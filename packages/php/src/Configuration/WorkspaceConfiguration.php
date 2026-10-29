@@ -9,7 +9,7 @@ use InvalidArgumentException;
 use PDO;
 use Blade\Feature\{Action, Field, Lookup, Registry, SqlResource, ViewLayout, Workspace};
 
-/** Compiles trusted declarations to the existing 61de runtime; no consumer imports. */
+/** Compiles trusted declarations to the existing 61ade runtime; no consumer imports. */
 final class WorkspaceConfiguration
 {
     private array $resources = [];

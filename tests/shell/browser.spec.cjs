@@ -4,7 +4,7 @@ const WIDE = { width: 1600, height: 900 };
 async function login(page, name = 'demo@example.test', enter = false) {
     await page.goto('/');
     await page.getByLabel('E-mail', { exact: true }).fill(name);
-    await page.getByLabel(/Jelszó/).fill('61de-demo');
+    await page.getByLabel(/Jelszó/).fill('61ade-demo');
     if (enter) await page.getByLabel(/Jelszó/).press('Enter');
     else await page.getByRole('button', { name: 'Bejelentkezés', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Bejelentkezés', exact: true })).toHaveCount(0);
@@ -21,11 +21,11 @@ test('framework creates DHTMLX login and menu, with an empty workspace', async (
     const footer = page.locator('.blade-session-bar');
     await expect(footer).toHaveCount(1);
     await expect(footer).toContainText('Demo User');
-    await expect(footer).toContainText('61de feature demó 0.2.0');
+    await expect(footer).toContainText('61ade feature demó 0.2.0');
     const menuBox = await page.getByRole('menuitem', { name: 'Kijelentkezés', exact: true }).boundingBox();
     expect(menuBox.y).toBeLessThan(40);
     const userBox = await footer.getByText('Demo User', { exact: true }).boundingBox();
-    const applicationBox = await footer.getByText('61de feature demó 0.2.0', { exact: true }).boundingBox();
+    const applicationBox = await footer.getByText('61ade feature demó 0.2.0', { exact: true }).boundingBox();
     expect(userBox.x).toBeLessThan(applicationBox.x);
     const footerBox = await footer.boundingBox();
     expect(footerBox.y + footerBox.height).toBe(page.viewportSize().height);

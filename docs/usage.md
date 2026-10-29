@@ -1,8 +1,8 @@
-# 61de usage
+# 61ade usage
 
 ## Project name and development environment
 
-61de is the framework project at /space/share/libs/61ade. Development and testing
+61ade is the framework project at /space/share/libs/61ade. Development and testing
 use only https://61ade.sanch.hu/ (starter admin /admin/), directly from this
 checkout. There is no production, deployment, post-deployment testing or project
 backup workflow. Frontend edits require build/local asset preparation;
@@ -10,7 +10,7 @@ PHP/configuration edits are consumed directly. See [development](development.md#
 [FB-0049](feedback.md#fb-0049) and [FB-0051](feedback.md#fb-0051).
 
 Namespace Blade, env BLADE_*, technical identifiers blade; packages
-sanch78/61de and @61de/admin. [Renaming](renaming.md) explains breaking interfaces,
+sanch78/61ade and @61ade/admin. [Renaming](renaming.md) explains breaking interfaces,
 explicit SQLite migration, prerequisites/examples/limits/checks (FB-0050).
 Consumers use this checkout as a shared library; see
 [shared-library consumption](development.md#shared-library-consumption).
@@ -45,7 +45,7 @@ distribution remain open. This is not full M1–M7 completion.
 
 ## Mandatory development direction
 
-61de = ADE v2. General capability first in framework, then consumer declarations/
+61ade = ADE v2. General capability first in framework, then consumer declarations/
 business logic. No parallel application admin implementation for missing features.
 Default UI is framework DHTMLX. Only a documented logically-unextendable exception
 may use another flow; see [project rules](development.md#mandatory-framework-development-rules)
@@ -77,7 +77,7 @@ need detailed qualification. Product direction contains an English implementatio
 
 ## Applicable methodology
 
-- Framework source and consumer business source stay in separate repositories; dependency is application → 61de.
+- Framework source and consumer business source stay in separate repositories; dependency is application → 61ade.
 - Consumers configure features with their own services/policies; no consumer-specific tables/rules in framework.
 - Check Git state in /space/share/libs/61ade; consumer editor links need independent target verification.
 - See [package boundaries](repository-layout.md) and [development prerequisites](development.md).
@@ -93,7 +93,7 @@ separate PHP handlers. [Configuration](configuration.md) defines loading/section
 named bindings; direct PHP definitions remain supported.
 
 guard, normalize, afterSave and registered action handlers are extension points.
-As complexity grows, consumers extract modules/policies/services; 61de never
+As complexity grows, consumers extract modules/policies/services; 61ade never
 imports application classes.
 
 For synthetic notes, fields and “closed notes cannot be edited” are consumer

@@ -57,7 +57,7 @@ class NavigationMenu extends Menu {
   }
 }
 
-/** 61de owns the DHTMLX lifecycle; consumers supply definitions, never shell markup. */
+/** 61ade owns the DHTMLX lifecycle; consumers supply definitions, never shell markup. */
 export class AdminShell {
   private releaseIcons=widgetIcons();
   private layout: Layout;
@@ -149,7 +149,7 @@ export class AdminShell {
     try { const saved=localStorage.getItem("blade-theme"); if(saved==="dark"||saved==="skyblue"||saved==="light")theme=saved; } catch {}
     setTheme(theme,document.documentElement);
     if (definition.protocol !== 1)
-      throw new Error(t("Nem kompatibilis 61de felületverzió."));
+      throw new Error(t("Nem kompatibilis 61ade felületverzió."));
     this.layout = new Layout(root, {
       type: "line",
       rows: [

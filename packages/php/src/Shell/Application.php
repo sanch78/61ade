@@ -23,7 +23,7 @@ final class Application
         if (isset($_SERVER['HTTP_AUTHORIZATION'])) $requested = $_SERVER['HTTP_X_BLADE_LOCALE'] ?? $requested;
         Translator::configure($settings, is_string($requested) ? $requested : null);
         header('Content-Language: '.Translator::locale());
-        // External sign-in (AuthHandler) uses its own short session, before the 61de session.
+        // External sign-in (AuthHandler) uses its own short session, before the 61ade session.
         $external = $this->definition->oauth?->intercept($this->definition->sessionName, $this->definition->cookiePath, $this->definition->title);
         $this->startSession();
         $workspace = $this->definition->workspace;
@@ -140,7 +140,7 @@ final class Application
             }
         }
         session_name($this->definition->sessionName);
-        // Another session (AuthHandler) ran in this request: continue with the 61de cookie only.
+        // Another session (AuthHandler) ran in this request: continue with the 61ade cookie only.
         if (session_id() !== '') {
             $cookie = $_COOKIE[$this->definition->sessionName] ?? null;
             session_id(is_string($cookie) && preg_match('/^[A-Za-z0-9,-]{22,256}$/D', $cookie) ? $cookie : session_create_id());
@@ -352,7 +352,7 @@ final class Application
         $this->redirect();
     }
 
-    /** Hand-over from AuthHandler: 61de admits only an enabled account with that exact address. */
+    /** Hand-over from AuthHandler: 61ade admits only an enabled account with that exact address. */
     private function externalLogin(array $external): never
     {
         if (isset($external['notice'])) {

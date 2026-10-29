@@ -54,7 +54,7 @@ Before migrating a feature, inventory reference-module, local-override, shared-
 configuration and persistence validation. Required fields alone are not parity.
 
 1. Record each field's format, length, uniqueness, relation/cross-field constraints and protected values.
-2. Put general validation in 61de; keep concrete regexes, limits, messages and business exceptions in consumer JSON/PHP.
+2. Put general validation in 61ade; keep concrete regexes, limits, messages and business exceptions in consumer JSON/PHP.
 3. Map replaced legacy permission fields to the new ACL; do not recreate flag-based authorization.
 4. Document every difference. Lost validation is not an accepted change without an owner decision.
 5. Check native form feedback and direct server/API submission. Errors must not partially save; correction must allow resubmission from the same form.

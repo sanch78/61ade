@@ -1,5 +1,5 @@
 {
-  "name": "61de-workspace",
+  "name": "61ade-workspace",
   "private": true,
   "workspaces": [
     "packages/frontend"

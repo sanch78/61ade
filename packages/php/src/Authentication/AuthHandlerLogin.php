@@ -17,14 +17,14 @@ use Blade\Shell\IdentityProvider;
  * External (OAuth) sign-in through the standalone _AuthHandler library, used unmodified.
  *
  * AuthHandler runs its own overlay, provider redirect, callback and identity store in a
- * separate, short-lived session. 61de then reads the e-mail address AuthHandler signed in,
- * ends that session at once, and decides itself: only an existing 61de account with exactly
+ * separate, short-lived session. 61ade then reads the e-mail address AuthHandler signed in,
+ * ends that session at once, and decides itself: only an existing 61ade account with exactly
  * that address, the OAuth switch on and no disabled state may enter. AuthHandler's own user
- * rows (it creates one for unknown addresses) never grant anything in 61de.
+ * rows (it creates one for unknown addresses) never grant anything in 61ade.
  */
 final class AuthHandlerLogin
 {
-    /** Request parameters owned by AuthHandler; everything else stays with 61de. */
+    /** Request parameters owned by AuthHandler; everything else stays with 61ade. */
     private const ACTIONS = ['provider'];
 
     private ?Closure $factory;
@@ -89,7 +89,7 @@ final class AuthHandlerLogin
     }
 
     /**
-     * Runs before the 61de session starts. Serves the AuthHandler bootstrap script, forwards
+     * Runs before the 61ade session starts. Serves the AuthHandler bootstrap script, forwards
      * AuthHandler's own provider requests (redirect, callback), or hands over a completed
      * external sign-in: returns its e-mail address once and ends the AuthHandler session.
      * A provider without keys returns a notice instead of reaching AuthHandler.
@@ -133,7 +133,7 @@ final class AuthHandlerLogin
         return ['email' => mb_strtolower(trim($email)), 'remember' => ($_GET['blade_remember'] ?? '') === '1'];
     }
 
-    /** 61de decision after AuthHandler proved the address; one generic refusal (no enumeration). */
+    /** 61ade decision after AuthHandler proved the address; one generic refusal (no enumeration). */
     public function admit(string $email): Identity
     {
         $actor = filter_var($email, FILTER_VALIDATE_EMAIL) ? $this->accounts->actorByEmail($email) : null;

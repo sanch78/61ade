@@ -74,4 +74,4 @@ verify(!array_key_exists('notify', $list['items'][0]), 'Denied related value is 
 $row = $call('get', $id);
 $call('delete', $id, ['revision' => $row['revision']]);
 verify((int)$db->query('SELECT COUNT(*) FROM item_preferences')->fetchColumn() === 0, 'Related rows are removed with the object');
-echo "61de checkbox and related-field contracts passed.\n";
+echo "61ade checkbox and related-field contracts passed.\n";

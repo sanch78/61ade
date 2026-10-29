@@ -2,9 +2,9 @@
 declare(strict_types=1);
 
 /*
- * Feature demo (kitchen sink, R11): every demonstrable 61de capability on synthetic data.
- * Extend it in the same batch whenever a new demonstrable capability lands in 61de.
- * The base admin demo (/admin/) shows only what a new 61de project starts with.
+ * Feature demo (kitchen sink, R11): every demonstrable 61ade capability on synthetic data.
+ * Extend it in the same batch whenever a new demonstrable capability lands in 61ade.
+ * The base admin demo (/admin/) shows only what a new 61ade project starts with.
  */
 
 use Blade\Admin\{Accounts, Administration};
@@ -66,10 +66,10 @@ $identities = Administration::register($workspace, $accounts, new SqlIdentityPro
 // mailbox (/mailbox/); it takes the arguments of the host mail helper. Only when the Git-ignored
 // .env names the helper and an allowed sender does mail to real addresses go out through it.
 $arguments = ['--from={from_address}', '--from-name={from_name}', '--to={recipient}', '--subject={subject}', '--html', '--body-file={body_file}'];
-$outbox = new CommandDelivery([blade_demo_php(), __DIR__.'/bin/outbox.php', blade_demo_runtime('outbox'), ...$arguments], 'noreply@example.test', '61de feature demó', $runtime);
+$outbox = new CommandDelivery([blade_demo_php(), __DIR__.'/bin/outbox.php', blade_demo_runtime('outbox'), ...$arguments], 'noreply@example.test', '61ade feature demó', $runtime);
 $helper = blade_demo_setting('BLADE_DEMO_MAIL_HELPER');
 $sender = blade_demo_setting('BLADE_DEMO_MAIL_FROM');
-$delivery = $helper && $sender ? new class($outbox, new CommandDelivery([blade_demo_php(), $helper, ...$arguments, '--transport=auto'], $sender, '61de feature demó', $runtime)) implements Delivery {
+$delivery = $helper && $sender ? new class($outbox, new CommandDelivery([blade_demo_php(), $helper, ...$arguments, '--transport=auto'], $sender, '61ade feature demó', $runtime)) implements Delivery {
     public function __construct(private Delivery $outbox, private Delivery $helper) {}
     public function send(string $recipient, string $subject, string $html, string $text): void
     {
@@ -81,9 +81,9 @@ $authentication = new LoginSecurity(
     identities: $identities,
     delivery: $delivery,
     // Project-level overrides of the framework mail: texts and accent colour, never the markup.
-    message: new LoginMessage('61de feature demó', [
+    message: new LoginMessage('61ade feature demó', [
         'subject' => '{application} – belépési kód',
-        'footer' => 'A 61de feature demó automatikus levele.',
+        'footer' => 'A 61ade feature demó automatikus levele.',
     ], layout: new Layout('#0f7b6c')),
     runtime: $runtime,
     emailAttribute: 'email',
@@ -107,7 +107,7 @@ $oauth = new AuthHandlerLogin(
 $liveEndpoint = blade_demo_setting('BLADE_DEMO_LIVE_ENDPOINT');
 
 return new ApplicationDefinition(
-    title: '61de feature demó', version: '0.2.0', identities: $identities,
+    title: '61ade feature demó', version: '0.2.0', identities: $identities,
     // Static menu: a not yet implemented module and a policy-filtered item (consumer flag can_manage).
     menu: new Menu([
         new MenuItem('library', 'Nyilvántartás', [

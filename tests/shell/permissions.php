@@ -118,4 +118,4 @@ check($identities->find('2')===null,'Disable allowed while another active member
 $audit=$db->query("SELECT resource||'.'||action FROM blade_audit WHERE outcome='success'")->fetchAll(PDO::FETCH_COLUMN);
 foreach([Permissions::ROLES.'.create',Permissions::ROLE_RULES.'.create',Permissions::USER_RULES.'.create',Permissions::MEMBERSHIPS.'.create'] as $event)check(in_array($event,$audit,true),'Audited '.$event);
 check(!str_contains(json_encode($db->query('SELECT * FROM blade_audit')->fetchAll()),'Szerkesztő'),'No values in audit');
-echo "61de built-in role, membership, rule and catalogue administration (A2) tests passed.\n";
+echo "61ade built-in role, membership, rule and catalogue administration (A2) tests passed.\n";

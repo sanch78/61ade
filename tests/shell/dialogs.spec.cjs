@@ -3,7 +3,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 // They confirm straight from their control and report success as a toast, not an acknowledgement dialog (FB-0056).
 const VARIANTS=[['neutral','Párbeszéd: Információ (semleges)','Megerősítés','Információ'],['warning','Párbeszéd: Figyelmeztetés','Figyelmeztetés','Figyelmeztetés'],['danger','Párbeszéd: Hiba / veszély','Veszélyes művelet','Hiba']];
 async function signIn(page){
- await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61de-demo');
+ await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61ade-demo');
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  const burger=page.getByRole('menuitem',{name:'Menü',exact:true});if(await burger.isVisible())await burger.click();
  await page.getByRole('menuitem',{name:'Feature demó',exact:true}).click();await page.getByRole('menuitem',{name:'Feladatok',exact:true}).click();
@@ -85,7 +85,7 @@ test('existing caller: failed sign-in uses the shared danger dialog',async({page
 test('choice with "apply to all": checkbox in the focus trap, Escape cancels',async({page})=>{
  // requestChoiceAll() through the uploader's name conflict: Drive C already holds jegyzet.txt.
  await page.setViewportSize({width:1400,height:900});
- await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61de-demo');
+ await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61ade-demo');
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  const burger=page.getByRole('menuitem',{name:'Menü',exact:true});if(await burger.isVisible())await burger.click();
  await page.getByRole('menuitem',{name:'Feature demó',exact:true}).click();await page.getByRole('menuitem',{name:'Fájlkezelő',exact:true}).click();

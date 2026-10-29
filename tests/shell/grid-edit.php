@@ -35,4 +35,4 @@ $row=$call('get',$id);verify(!in_array('contact',$row['_editable'],true),'Revoke
 rejects(fn()=>$w->executor->edit(new Context(new Identity('2','Viewer'),'ui',$w->acl,$db),'items',$id,'notify',true,$row['revision']),403);
 rejects(fn()=>$w->executor->edit(new Context($c->actor,'api',$w->acl,$db,[]),'items',$id,'notify',true,$row['revision']),403);
 verify((int)$db->query("SELECT COUNT(*) FROM blade_audit WHERE resource='items' AND action='update' AND outcome='success'")->fetchColumn()===4,'Inline updates use normal update audit');
-echo "61de single-field grid editing, validation, ACL, API and revision contracts passed.\n";
+echo "61ade single-field grid editing, validation, ACL, API and revision contracts passed.\n";

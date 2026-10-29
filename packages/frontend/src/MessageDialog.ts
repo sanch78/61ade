@@ -31,7 +31,7 @@ const open: { node: HTMLElement; close: (value: boolean | string, escaped?: bool
 const severityLabel = (s: DialogSeverity) => s === "danger" ? t("Hiba") : s === "warning" ? t("Figyelmeztetés") : t("Információ");
 
 /**
- * Modal alert/confirm dialog for every 61de caller. Resolves `true` for OK/Confirm and `false` for Cancel.
+ * Modal alert/confirm dialog for every 61ade caller. Resolves `true` for OK/Confirm and `false` for Cancel.
  * Keyboard: Tab/Shift+Tab stay inside the dialog; Enter activates only the focused button;
  * Escape = OK in acknowledgement mode and always Cancel (false) in confirm mode; a backdrop click does nothing.
  * Danger confirmations start on Cancel, so a stray Enter never confirms.

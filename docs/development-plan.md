@@ -1,4 +1,4 @@
-# 61de development plan
+# 61ade development plan
 
 Status: initial login/navigation shell/build after M0, 2026-10-16.
 Parts of M1/M2/M4 exist; full milestones remain open. Order indicates dependency,

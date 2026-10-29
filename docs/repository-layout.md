@@ -44,5 +44,5 @@ An empty adapter directory indicates planned scope, not an installed or licensed
 
 ## Consumer application
 
-Both 61de packages share a repository because they implement one protocol.
+Both 61ade packages share a repository because they implement one protocol.
 The consumer application never belongs in this repository.

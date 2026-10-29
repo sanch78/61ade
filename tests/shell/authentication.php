@@ -99,4 +99,4 @@ verify($security->needsConfirmation($other), 'Per-user switch on');
 denied(static fn() => $workspace->executor->execute(new Context($other, 'ui', $workspace->acl, $db), 'members', 'security', '1', ['email_confirmation' => '0']), 'Settings action enforces ACL', 403);
 $logs = json_encode($db->query('SELECT * FROM blade_audit')->fetchAll(PDO::FETCH_ASSOC));
 verify(!str_contains($logs, $code) && !str_contains($logs, $credential['cookie']) && !str_contains($logs, 'demo-password-123'), 'Authentication audit contains no secrets');
-echo "61de email confirmation, settings and 90-day remembered login contracts passed.\n";
+echo "61ade email confirmation, settings and 90-day remembered login contracts passed.\n";

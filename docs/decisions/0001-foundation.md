@@ -3,7 +3,7 @@
 Date: 2026-10-16.
 
 Historical decision: identity/repository/checkout details were superseded on
-2026-10-21 by [FB-0049](../feedback.md#fb-0049). Current identity: 61de,
+2026-10-21 by [FB-0049](../feedback.md#fb-0049). Current identity: 61ade,
 checkout /space/share/libs/61ade, one development environment
 https://61ade.sanch.hu/, without deployment or project backups.
 
@@ -16,7 +16,7 @@ https://61ade.sanch.hu/, without deployment or project backups.
 ## Scaffold technical defaults
 
 - Canonical checkout: /space/share/libs/61ade.
-- PHP/frontend packages share the 61de monorepo; namespace Blade.
+- PHP/frontend packages share the 61ade monorepo; namespace Blade.
 - Manifest minimum PHP 8.4; TypeScript frontend planned at this checkpoint.
 - Example application uses an independent synthetic domain.
 - Frontend package is private; no accidental publication.

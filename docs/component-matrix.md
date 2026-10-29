@@ -1,6 +1,6 @@
 # DHTMLX component and capability matrix
 
-Historical upstream review: 2026-10-16; 61de source/test status: 2026-10-23.
+Historical upstream review: 2026-10-16; 61ade source/test status: 2026-10-23.
 Suite Standard 9.3.12 is installed and shell/workspace adapters are in use.
 PRO capabilities are not in the installed package.
 
@@ -8,7 +8,7 @@ This is an availability/edition/license/implementation inventory, not a coverage
 target. [R3/R12](product-direction.md#1-elfogadott-termékkövetelmények) grow
 capabilities from real needs; unimplemented rows are candidates, not commitments.
 
-| Capability | Source | Edition boundary | 61de status | Work when needed |
+| Capability | Source | Edition boundary | 61ade status | Work when needed |
 | --- | --- | --- | --- | --- |
 | Grid/inline edit | Suite Standard | Some advanced options PRO | Workspace implemented, [usage](workspaces.md), grid-edit | Query/types/actions/policies |
 | Dynamic grid source | Framework Standard Grid adapter | Native LazyDataProxy integration PRO-only | Cursor window implemented | Bounded queries/scrolling |
@@ -61,7 +61,7 @@ GPL, Gantt v10+ Community MIT. Older Gantt GPL versions do not automatically
 become MIT. GPL is not a revenue-threshold community license; distribution
 conditions apply and do not make business data public.
 
-61de's own license remains undecided. Evaluate combined frontend/vendor
+61ade's own license remains undecided. Evaluate combined frontend/vendor
 distribution, backend separation and consumer source obligations against actual
 packaging. Do not assume all PHP is GPL or REST separation resolves every issue.
 
