@@ -22,9 +22,12 @@ final readonly class FileManagerDefinition
         'jpeg' => ['image/jpeg', ['image/jpeg']],
         'mp4' => ['video/mp4', ['video/mp4']],
         'webm' => ['video/webm', ['video/webm']],
+        'mp3' => ['audio/mpeg', ['audio/mpeg']],
+        'wav' => ['audio/wav', ['audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave']],
+        'm4a' => ['audio/mp4', ['audio/mp4', 'audio/x-m4a']],
     ];
-    /** Stored types the image viewer and video player open; `content_get` serves only these. */
-    public const PREVIEW_TYPES = ['image/png', 'image/jpeg', 'video/mp4', 'video/webm'];
+    /** Stored types the media player (image viewer, video and audio player) opens; `content_get`/`content_stream` serve only these. */
+    public const PREVIEW_TYPES = ['image/png', 'image/jpeg', 'video/mp4', 'video/webm', 'audio/mpeg', 'audio/wav', 'audio/mp4'];
     /** Only plain text files open in the editor; the check is server-side and case-insensitive. */
     public const TEXT_EXTENSION = 'txt';
     public const DUPLICATE_POLICIES = ['ask', 'overwrite', 'rename', 'skip', 'reject'];
@@ -38,7 +41,7 @@ final readonly class FileManagerDefinition
      * @param list<string> $allowedExtensions upload allowlist, a subset of TYPES
      * @param string $contentRoot absolute directory of the content store (required); never exposed to the browser
      * @param ?string $tempRoot absolute directory of upload transfers, default `<contentRoot>/.transfers`
-     * @param string $ffprobePath / $ffmpegPath absolute media tool paths (metadata, video thumbnails)
+     * @param string $ffprobePath / $ffmpegPath absolute media tool paths (video/audio metadata, video thumbnails)
      * @param string $deletePolicy `archive` (default) or `delete`, see DELETE_POLICIES
      */
     public function __construct(

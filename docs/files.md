@@ -19,14 +19,15 @@ consumer's configured root, which must lie outside every web root.
 | --- | --- | --- |
 | `Blade\Files\FileStorage` | `packages/php/src/Files/FileStorage.php` | All SQL of `blade_files` and `blade_file_derivatives`: entries, content references, media metadata, hierarchy, copy/move primitives, safe-name rules. |
 | `Blade\Files\ContentStore` | `packages/php/src/Files/ContentStore.php` | Content-addressed bytes at `<root>/<space>/ab/cd/<sha256>`; atomic temp write + rename, group-shared permissions. |
-| `Blade\Files\MediaProbe`, `Thumbnails` | `packages/php/src/Files/` | Width, height, duration and orientation (`getimagesize`, EXIF, `ffprobe`); 320 px WebP thumbnails (GD, an `ffmpeg` frame). |
+| `Blade\Files\MediaProbe`, `Thumbnails` | `packages/php/src/Files/` | Width, height, duration and orientation (`getimagesize`, EXIF, `ffprobe` for video and audio, which also reports the codec); 320 px WebP thumbnails (GD, an `ffmpeg` frame). |
 | `Blade\Tasks\TaskQueue` | `packages/php/src/Tasks/TaskQueue.php` | Minimal post-response task queue (`blade_tasks`) for thumbnails and content collection. |
 | `Blade\Files\FileManagerDefinition` | `packages/php/src/Files/FileManagerDefinition.php` | Consumer configuration, explicit installer, registration and browser metadata. |
 | `Blade\Files\FileActions` | `packages/php/src/Files/FileActions.php` | Registered action handlers with item-level checks. |
 | Multipart transport | `Feature/Upload.php`, `Workspace::http`, `Action::$upload` | Binary parts for actions that opt in; never base64 JSON. |
 | Binary result | `Feature/Download.php`, `Feature/DownloadStream.php`, `Workspace::http` | A handler returns `Download` (bytes) or `DownloadStream` (a server-side path, streamed with one HTTP range, strong ETag and cache policy); the transport sends raw bytes instead of JSON. |
-| GET transport | `Action::$get`, `Workspace::http` | Field-free reads usable as `<img>`/`<video>` sources; same executor, ACL and audit. |
-| `FileManager` | `packages/frontend/src/FileManager.ts` | Two panels, mount selectors, operations bar, upload window and document windows (text editor, image viewer, video player). |
+| GET transport | `Action::$get`, `Workspace::http` | Field-free reads usable as `<img>`/`<video>`/`<audio>` sources; same executor, ACL and audit. |
+| `FileManager` | `packages/frontend/src/FileManager.ts` | Two panels, mount selectors, operations bar, upload window and document windows (text editor; the media player for images, videos and audio). |
+| `MediaPlayer` | `packages/frontend/src/components/media/` | Public toolkit component of the viewer: image stage, video and audio player ([toolkit](toolkit.md#mediaplayer)). |
 | `TreeAdapter` | `packages/frontend/src/TreeAdapter.ts` | DHTMLX Suite Standard Tree over a flat parent-linked list; folders and leaves with their own icon. |
 | `DesktopOnly` | `packages/frontend/src/DesktopOnly.ts` | Shell wrapper of the generic `desktopOnly` view option ([shell](shell.md#desktop-only-views)). |
 
@@ -83,10 +84,13 @@ temporary copy and renames it only when that hash is the key. No code path
 writes file content to the database.
 
 **Metadata and thumbnails.** On create and replace `MediaProbe` records
-width/height (images, EXIF orientation applied) and width/height/duration
-(videos, `ffprobe` with an argument array, `-protocol_whitelist file`, the
-demuxer forced from the stored type and a 10 s timeout). Metadata is
-informational; video length is never an upload rule. For PNG, JPEG, MP4 and
+width/height (images, EXIF orientation applied), width/height/duration
+(videos) and duration (audio: the first audio stream). Video and audio go
+through `ffprobe` with an argument array, `-protocol_whitelist file`, the
+demuxer forced from the stored type (`mp4`, `webm`, `mp3`, `wav`) and a 10 s
+timeout. `probe()` also returns the stream's `codec` (`h264`, `vp8`, `mp3`,
+`pcm_s16le`, `aac`, …) for consumer code; it is not stored. Metadata is
+informational; media length is never an upload rule. Audio has no thumbnail. For PNG, JPEG, MP4 and
 WebM a `files.thumbnail` task renders a 320 px (longest side) WebP into
 `blade_file_derivatives(space, file_id, kind, revision, storage_key, mime,
 state)`; images use GD (refused above 40 megapixels or the memory budget),
@@ -126,7 +130,7 @@ use Blade\Files\FileManagerDefinition;
 
 $files = new FileManagerDefinition('files', 'Fájlkezelő', 'demo',
     ['a' => 'Drive A', 'b' => 'Drive B', 'c' => 'Drive C'],
-    allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm'],
+    allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'],
     maxSizeBytes: 5242880, maxFiles: 20, duplicatePolicy: 'ask',
     textMaxBytes: 65536, group: 'Feature demó', desktopOnly: true,
     contentRoot: '/srv/example/data/files');
@@ -139,7 +143,7 @@ $files->register($workspace);     // application definition and task handlers
 | `resource` | ACL resource and view id; actions are `<resource>.<action>`. |
 | `space` | Storage namespace; several file managers may share the table. |
 | `mounts` | Mount key ⇒ label; each panel selects one independently. |
-| `allowedExtensions` | Upload allowlist; only `txt`, `md`, `csv`, `json`, `png`, `jpg`, `jpeg`, `mp4`, `webm` have known MIME detection rules, other values fail at startup. |
+| `allowedExtensions` | Upload allowlist; only `txt`, `md`, `csv`, `json`, `png`, `jpg`, `jpeg`, `mp4`, `webm`, `mp3`, `wav`, `m4a` have known MIME detection rules, other values fail at startup. Audio is stored as `audio/mpeg` (detected `audio/mpeg`), `audio/wav` (`audio/wav`, `audio/x-wav`, `audio/wave`, `audio/vnd.wave`) and `audio/mp4` (`audio/mp4`, `audio/x-m4a`). |
 | `maxSizeBytes` | Upload limit per file (actual received bytes), at most 100 MB. |
 | `maxFiles` | Files per upload, 1–20 (default 20). Replaces the former `multiple` flag. |
 | `contentRoot` | Required absolute directory of the content store, outside any web root; persistent data, not scratch. |
@@ -276,7 +280,7 @@ conflicting file returns `409` and the uploader asks once. The direct
 multipart request remains for API callers (`relative_path` only with one
 file).
 
-**Document windows.** The text editor, image viewer and video player share
+**Document windows.** The text editor and the media player share
 one window shape: a resizable DHTMLX Window holding one Layout that fills it,
 with a native Toolbar row above the content cell. The content takes every size
 the window gets, including the native full size (toolbar toggle), so no fitted
@@ -294,19 +298,28 @@ size) and the UI offers to load the current version. Closing with unsaved
 text asks first. Actors without `text_save` see the text read-only, without
 Save.
 
-**Image viewer and video player.** The viewers load `content_stream` of a
-`image/png`, `image/jpeg`, `video/mp4` or `video/webm` file (the type detected
-at upload) directly as the `<img>`/`<video>` source, keyed by the revision:
-the browser fetches only what it shows, and the video player seeks with HTTP
-Range requests instead of downloading the whole file first. The `Megtekintés`
+<a id="media-player"></a>
+
+**Media player (image viewer, video and audio player).** The viewer is the
+public [`MediaPlayer`](toolkit.md#mediaplayer) component in a document
+window; the window adds previous/next and full size to its toolbar. It loads
+`content_stream` of an `image/png`, `image/jpeg`, `video/mp4`, `video/webm`,
+`audio/mpeg`, `audio/wav` or `audio/mp4` file (the type detected at upload,
+`FileManagerDefinition::PREVIEW_TYPES`) directly as the `<img>`/`<video>`/`<audio>`
+source, keyed by the revision: the browser fetches only what it shows, and the
+player seeks with HTTP Range requests instead of downloading the whole file
+first. The `Megtekintés`
 command requires the `content_stream` right. `content_get` keeps its POST
 contract for API callers. The image viewer fits the image to the window without enlarging it,
 zooms in steps (toolbar, `+`/`-`, `0` to fit, double-click toggles fit and
 100 %), offers fit/50/100/200 %, rotates by 90°, scrolls when larger, and
-shows dimensions and size. The video player uses the browser's native
-controls, with loop and playback speed in the toolbar, and shows dimensions,
-length and size. Whether a format plays depends on the browser (WebM is the
-portable choice).
+shows dimensions, format and size. The video and audio player use the
+browser's native controls, with loop and playback speed in the toolbar, and
+show dimensions (video), length, format and size; on the focused element
+Space/K plays or pauses, the arrows seek 5 s and Home/End jump. The audio
+stage shows the file name above the controls. Whether a format plays depends
+on the browser (WebM is the portable video choice; Chromium plays MP3, WAV and
+AAC/M4A).
 
 **Panel view modes.** As in Midnight Commander, each panel independently shows
 its file listing (`Nézet: Fájllista`, default), tiles (`Nézet: Csempék`:
@@ -331,7 +344,7 @@ parent. Dropping files or folders onto a panel, or Ctrl+V in a focused panel,
 opens the uploader for that panel's folder: in-flight files appear as
 unmarkable rows with their state and finished files are inserted in sort
 position from the result without reloading the listings. The viewers step
-through the images and videos of the panel's loaded rows (`Előző`/`Következő`,
+through the images, videos and audio files of the panel's loaded rows (`Előző`/`Következő`,
 PageUp/PageDown, `n / m`), and the panel cursor follows. The tree shows folders and files,
 files with the same MIME icon as the listing. Selecting a folder opens it in
 the tree and makes it the panel's current folder: the target of copy/move from
@@ -369,7 +382,11 @@ never stored. Rejected and failed requests are audited without detail rows.
 
 PHP 8.4+ with PDO SQLite ≥ 3.35 (or MySQL InnoDB), `fileinfo`, GD with WebP
 and `exif`; `/usr/bin/ffprobe` and `/usr/bin/ffmpeg` (6.1 verified) for video
-metadata and thumbnails (without them videos have no metadata or thumbnail).
+and audio metadata and video thumbnails. Without `ffprobe` (or with another
+`ffprobePath` that is not executable) video and audio are still accepted,
+stored and played, but `width`/`height`/`duration_ms`/`codec` stay `null`
+and the player reads the length from the file itself; without `ffmpeg` videos
+have no thumbnail.
 The content root must be writable by both the web server and the CLI user.
 Run `Blade\Access\Schema::install()` (adds the audit `detail` column to earlier
 databases) and `FileManagerDefinition::install()` from setup; it also installs
@@ -417,7 +434,10 @@ The demo uses `deletePolicy: 'delete'`.
 - `php8.4 tests/shell/files.php`: content-addressed layout, dedupe and shared
   keys on copy, collection of unreferenced content only, no BLOB content, image
   and video metadata, thumbnails for PNG/JPEG/MP4/WebM generated with ffmpeg at
-  test time, list thumbnail states, `thumbnail_get` pending → ready, range
+  test time, audio (a 0.5 s WAV written by the test, MP3/M4A encoded from it
+  with ffmpeg): extension allowlist and MIME detection, refusal of other bytes,
+  preview types without thumbnails, ffprobe duration and codec, listing
+  length, `content_stream` with a `206` range and its rule, list thumbnail states, `thumbnail_get` pending → ready, range
   parsing, GET-action construction rules, `content_stream`/`thumbnail_get` ACL
   and token-scope denial, migration 0002 on the old schema (twice, verify,
   tampered content refusing `drop`, drop), plus
@@ -444,12 +464,24 @@ The demo uses `deletePolicy: 'delete'`.
   the divider grip centred in the gap, a drag fully left and back right with
   the right panel still filling the row, and the desktop-only notice with state kept. Entries created by the spec are removed. The panel switch of a file
   manager without `desktopOnly` has no browser test, as the demo opts in.
+- `npm run test:browser -- tests/shell/toolkit-media.spec.cjs`: the
+  `MediaPlayer` component on a synthetic page (generated WAV and PNG Blobs:
+  length and format, `loaded`/`position` events, clamped `seek`, Space, Home,
+  End and arrow keys, loop and speed, light/dark/Skyblue themes, 390 px width,
+  `signal` destroy with the object URL revoked, decoding errors, refused
+  types), then the demo's viewer: image and video toolbars as before plus the
+  format, and an audio row (a listing entry and its `content_stream` answered
+  by a route with a generated WAV and single ranges, no data change). The demo
+  has no audio files yet; its allowlist is unchanged.
 
 ## Limits
 
-- Previews and
-  thumbnails cover PNG, JPEG, MP4 and WebM; other types (Markdown, CSV, PDF)
-  have no viewer.
+- Previews cover PNG, JPEG, MP4, WebM, MP3, WAV and M4A, thumbnails PNG,
+  JPEG, MP4 and WebM; other types (Markdown, CSV, PDF) have no viewer. Audio
+  files use the generic file icon (`Fájl`) in the listing, tree and media
+  columns, fall under the `Egyéb` type filter and have no media class of their
+  own (`file` fields may still `accept: ['audio']`), because the Suite icon
+  set has no audio icon and the listing classes are unchanged.
 - Thumbnails appear after the background task; until then the listing reports
   `thumbnail: pending`. Post-response tasks die with a worker restart and are
   recovered on a later request or read, not by a timer.

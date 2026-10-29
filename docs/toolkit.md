@@ -250,7 +250,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | `RecordDetails` | the `Adatok` details (`recordFields`) | `show(row \| id)` |
 | `FileManager`, `FilePicker` | `FileManager.ts`, `FilePicker.ts` | `opened`; `pick()` resolves a `MediaDescriptor` or `null` |
 | `Calendar`, `DiagramEditor` (implemented) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; `editing` |
-| `MediaPlayer` | `FileManager.openImage/openVideo`, plus audio | `loaded`, `position`, `ended`, `error`; `play`, `pause`, `seek`, `position`, `duration` |
+| `MediaPlayer` (**implemented**, [below](#mediaplayer)) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | `SandboxFrame` | new | `ready`, `error`, `message`; `load`, `post` |
 | `CommandBar` | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
 
@@ -298,6 +298,61 @@ new app.components.Calendar({ view: "signage_schedule", signal: win.signal }).mo
 - Theme and skin changes repaint live (the Scheduler switches between its
   `terrace` and `dark` skins); a language switch reloads the page, so
   components are created again in the new language.
+
+<a id="mediaplayer"></a>
+
+#### MediaPlayer (implemented — P3 C-3)
+
+`app.components.MediaPlayer` shows an image, a video or an audio file. The file
+manager's viewer is the same component ([files](files.md#media-player)).
+
+```ts
+const player = new app.components.MediaPlayer({
+  source: { resource: "signage_assets", action: "content_stream", id: host.record!.id },
+  mime: String(host.record!.row.mime_type),       // image/*, video/* or audio/*; anything else throws TypeError
+  name: String(host.record!.row.title),           // accessible name, image alt, audio stage title
+  loop: true, signal: host.signal,                // destroyed with the view
+});
+player.on("loaded", ({ duration }) => timeline.setLength(duration));
+player.on("position", ({ seconds }) => timeline.move(seconds));
+player.mount(layout.getCell("stage"));
+bar.on("click", ({ id }) => id === "play" ? void player.play() : id === "pause" && player.pause());
+```
+
+- **Source.** `{resource, action, id, version?}` becomes `app.server.url(…)`.
+  The action must be a GET-capable read such as the file manager's
+  `content_stream` ([files](files.md#actions-and-authorization)). The element
+  loads it with the session cookie and seeks with HTTP Range requests, and the
+  server checks the ACL on every request. `{url}` is a same-origin or `blob:` URL
+  owned by the caller. `{blob}` is turned into an object URL that `destroy()`
+  revokes. The shell CSP allows `img-src`/`media-src` `'self' blob:`.
+- **Look.** A toolbar row (`toolbar: false` hides it) above the stage. Images
+  get fit (never enlarged), zoom steps, fit/50/100/200 % and 90° rotation;
+  video and audio get the browser's native controls (`controls: false` hides
+  them), `Ismétlés` and `Sebesség: …` (0.5–2×). The info text shows
+  dimensions, length (`m:ss`, `h:mm:ss` from one hour), the format (`JPEG`,
+  `PNG`, `MP4`, `WebM`, `MP3`, `WAV`, `M4A`, otherwise the MIME subtype) and
+  the caller's `info`. Below 600 px the info text is hidden. The audio stage
+  shows `name` on the theme's background. Colours come from the Suite theme
+  variables, so Skyblue, light, dark and skins apply without code.
+- **Keyboard.** `focus()` focuses the media element or the image stage. On the
+  media element, Space/K plays or pauses, ←/→ seek 5 s and Home/End jump.
+  A key the native controls already handled is not applied twice. On the image
+  stage, `+`/`-` zoom and `0` fits.
+- **Events and state.** Events are delivered only while the player is
+  mounted. `loaded` fires once the metadata is known. `position` fires every
+  250 ms while playing, on pause and after a completed seek. `error` carries
+  the localized message that the toolbar also shows. `seek` clamps to
+  `0 … duration()`. The media methods do nothing for images.
+- **Lifecycle.** `mount(target)` takes an element, a Layout cell, a Suite
+  Window, an `AppWindow` or a `ViewHost`. The last two, and `signal`, destroy
+  the player when they close. Mounting twice or after `destroy()` throws.
+  `destroy()` is idempotent: it pauses, empties the element, revokes its
+  object URL, removes its listeners and observers, and destructs its widgets.
+- **Limits.** Codec support is the browser's: WebM, MP3, WAV and AAC/M4A play
+  in Chromium. While the tab is hidden the browser throttles the position
+  timer. There is no playlist, waveform or subtitle support, and the image zoom
+  is not kept across sources.
 
 <a id="views"></a>
 

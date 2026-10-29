@@ -1,0 +1,11 @@
+/* MediaPlayer (toolkit C-3): the image and video stages are styled in admin.css with the document windows; the audio
+   stage centres the name and the native controls on the theme's additional background. */
+.blade-audio-stage { box-sizing: border-box; height: 100%; overflow: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px 16px; background: var(--dhx-background-additional); color: var(--dhx-font-color-primary); }
+.blade-audio-stage__name { max-width: 100%; font-family: var(--dhx-font-family); font-size: var(--dhx-font-size-normal); font-weight: 500; text-align: center; overflow-wrap: anywhere; }
+.blade-audio-stage audio { width: min(100%, 640px); }
+.blade-audio-stage audio:focus-visible, .blade-video-stage video:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: 2px; }
+.blade-video-stage video:focus-visible { outline-offset: -2px; }
+.blade-view-slot.blade-player__slot { overflow: hidden; }
+/* Narrow screens keep the controls; the length and format stay in the native controls. */
+@media (max-width: 600px) { .blade-player .blade-player__info { display: none; } }
+.blade-player__host { width: 100%; height: 100%; }
