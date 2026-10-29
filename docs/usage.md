@@ -61,8 +61,9 @@ modules and stylesheets (`ApplicationDefinition` `modules`/`stylesheets`, JSON
 `application.modules/stylesheets`), the `app` services, registries and view
 kinds, view ids, record views and the activation map; (P3) the public
 components `ListView`, `RecordForm`, `RecordDetails`, `CommandBar`,
-`Calendar`, `DiagramEditor`, `MediaPlayer` and `SandboxFrame`, `admin.d.ts`
-and the sandbox document.
+`FileManager`, `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer` and
+`SandboxFrame`, the presentation, field-type and command registries,
+`admin.d.ts` and the sandbox document.
 
 <a id="elfogadott-termékirány--2026-10-21"></a>
 

@@ -5,8 +5,9 @@ Status: **kernel (P2) and components (P3) implemented, 2026-10-29**
 the `app` services, the registries, built-in view kinds through the `views`
 registry, view ids, `#view=` routing with the `#feature=` alias, record views,
 the activation map (server and per-row client choice), and the components
-`ListView`, `RecordForm`, `RecordDetails`, `CommandBar`, `Calendar`,
-`DiagramEditor`, `MediaPlayer` and `SandboxFrame`, plus `admin.d.ts` and the
+`ListView`, `RecordForm`, `RecordDetails`, `CommandBar`, `FileManager`,
+`FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer` and `SandboxFrame`,
+the presentation, field-type and command registries in lists, plus `admin.d.ts` and the
 sandbox document. Sections still marked **planned** are not implemented.
 The owner accepted this contract at gate G1 on 2026-10-29
 ([decisions](#decisions-at-gate-g1)); changes need a recorded reason in
@@ -989,6 +990,9 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-29 | `RecordForm.submit()` blurs the focused input first; a client validation failure rejects with a 400 `ServerFailure` with field errors, a declined confirmation with `AbortError`; `RecordDetails.show()` rejects after the error dialog; `CommandBar` ids `[A-Za-z0-9_.:-]+`, unique, `blade-command-menu` reserved; `ListView` rejects a non-list view or `compact` without `scope`, `saved` also fires for inline edits; `view:<id>` targets need `get` in the row's `_actions` when present. | Found while integrating C-1 (stale value on submit). | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `MediaSource` gains `{blob}`; `MediaPlayerOptions` gains `name`, `info`, `toolbar`; `MediaPlayer.focus()`; `position` also fires on pause; a non-media MIME throws `TypeError`. | Object URL ownership, accessible name, keyboard. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `SandboxFrameOptions.title`; code runs as the body of an async function; a second iframe `load` (navigation, reload, DOM move) and a timeout remove the frame; `post()` throws before `ready`; `load()` rejects with `Error{code}` or `AbortError`; envelope `id` 1–64, `type` ≤ 128, error text ≤ 1000 characters; `credentialless`; the sandbox document URL is resolved on the first `load()`. | Kill switch and bounded protocol; non-ESM bundles must not fail at app creation. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | `FilePicker.pick` throws `TypeError` synchronously for malformed options; `FileManager` `opened` fires for every file the viewer or text editor shows (also previous/next); `FileManager.destroy()` aborts pending reads, sent writes complete. | Same pattern as `uploads.open`; no stale reads after close. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | Commands: `record` placement is a native record menu (context menu on a row, card or tile; right click, menu key, Shift+F10), `toolbar` after the view's actions, `both` in each; `ListOptions.commands` is a server declaration (≤ 20 dotted names); the built-in Adatok is the `details` command (toolbar id `blade-command:details`). iOS Safari fires no `contextmenu`, so touch-relevant commands use `both`. | New list UI needed for record commands; to be confirmed by the owner. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | Server validation keeps the storage type. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>
 
