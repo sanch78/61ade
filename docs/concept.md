@@ -12,7 +12,7 @@ Canonical requirements: [R1–R12](product-direction.md#1-elfogadott-termékköv
 [ADR-0003](decisions/0003-product-direction.md).
 
 - Reusable admin framework, PHP reference backend and versioned language-neutral JSON contract. JSON transport alone does not establish independence.
-- Consumers use framework tools; missing general capabilities are implemented first in 61ade. Only the documented logically-unextendable exception permits another route.
+- Consumers use framework tools for the shared infrastructure and request missing general capabilities from 61ade without being blocked; their domain data, logic and UI are theirs ([ADR-0004](decisions/0004-project-domain-freedom.md)).
 - Fullscreen HTML5/DHTMLX, framework adapters and supported extension points. Layout is foundational; forms/layouts/grids grow for real ergonomic workflow needs. No external benchmark or exhaustive coverage goal (FB-0037).
 - Localization/themes apply to every new capability.
 - Mandatory framework user/ACL/API-key/log admin; consumers supply configuration, identity/storage adapters and domain rules.

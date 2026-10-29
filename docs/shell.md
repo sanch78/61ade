@@ -273,12 +273,20 @@ deep links do not yet exist.
 No consumer JavaScript or extra configuration is required. Bootstrap `userId`
 is the authenticated identity. Versioned `blade-ui:1:` localStorage keys
 separate pathname, user ID and resource. Stored: column widths, successfully
-loaded sorting, manually chosen grid/card mode, declared panel sizes and filter
-collapse. Automatic editor open/close is not persistent. Forced mobile cards
-do not overwrite manual choice. Form/record/filter values and secrets are excluded.
+loaded sorting, manually chosen grid/card mode, declared panel sizes, filter
+collapse and the filter values of a menu page (header and panel filters,
+including one set by an [`activate: 'page'`](workspaces.md#activation)
+navigation, which replaces the saved ones; [FB-0079](feedback.md#fb-0079)).
+Automatic editor open/close is not persistent. Forced mobile cards do not
+overwrite manual choice. Form/record values, the search text, the filters of
+sub-view previews and windows, and secrets are excluded.
 
 Restoration follows current definitions: removed columns/sort fields are ignored,
-size limits apply. Broken/disabled storage falls back safely. Preferences remain
+size limits apply, and a saved filter value is applied only if the actor's
+current filter definitions accept it (the server's rules: a known select
+option, `0`/`1`, digits for a number, at most 255 characters); otherwise it is
+dropped, so the list still loads. A saved filter shows in the header and the
+panel; `Alaphelyzet` removes it, also from storage. Broken/disabled storage falls back safely. Preferences remain
 browser-local with no server/device synchronization. Delete the specific key
 to reset; logout preserves it and different users have distinct keys.
 

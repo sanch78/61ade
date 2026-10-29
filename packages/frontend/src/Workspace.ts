@@ -127,7 +127,10 @@ export class Workspace {
   /** Open full sub-view windows. */
   private windows=new Set<Workspace>();
 
-  /** $preset: filters the view opens with (a navigation, `activate: 'page'`); declared filters only, removable like any other. */
+  /**
+   * $preset: filters the view opens with (a navigation, `activate: 'page'`) instead of the saved ones; declared filters
+   * only, removable like any other. A menu page keeps its filter values across reloads (UiPreferences).
+   */
   constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,private channel:LiveChannel,private user="",private scope?:WorkspaceScope,preset:Record<string,string>={}){
     // A nested view: the scope field is implied (no column, filter or input), one grid region, overlay forms.
     if(scope)view=this.view={...view,columns:view.columns.filter(column=>column.id!==scope.field),filters:view.filters.filter(filter=>filter.name!==scope.field),sortable:(view.sortable??[]).filter(field=>field!==scope.field),layout:{formMode:"overlay",tree:{rows:[{id:"grid"}]}}};
@@ -185,7 +188,9 @@ export class Workspace {
       if(this.hasRegion("filter"))this.mountFilters();
     }
     window.addEventListener("resize",this.resize);this.resizeFilters();
-    for(const [field,value] of Object.entries(preset))if(value!=="")this.setFilter(field,value);
+    const initial=Object.keys(preset).length||scope?preset:this.preferences.filters(view.filters);
+    for(const [field,value] of Object.entries(initial))if(value!=="")this.setFilter(field,value);
+    this.keepFilters();
     this.live=new Realtime(channel,view.resource,data=>void this.changed(data),()=>{},()=>this.revoke());
     this.capabilities();void this.load();
   }
@@ -347,7 +352,7 @@ export class Workspace {
       if(name==="clear")form.clear();
       const values=form.getValue() as Record<string,string>;this.filterForm?.setValue(values);this.filters={};
       for(const f of this.view.filters){const v=String(values[f.name]??"");if(v!=="")this.filters[f.name]=["select","checkbox"].includes(f.type)?v.slice(3):v;}
-      this.headerFilters();this.closeFilters();void this.load();
+      this.keepFilters();this.headerFilters();this.closeFilters();void this.load();
     });
     return form;
   }
@@ -379,7 +384,7 @@ export class Workspace {
   }
   private async changeFilter(field:string,value:string):Promise<void>{
     if(this.disposed||!this.setFilter(field,value))return;
-    await this.load();
+    this.keepFilters();await this.load();
   }
   private call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{return this.request(this.view.resource,action,id,values,signal);}
   /** The JSON channel; another resource is the file manager of a `file` field (picker, upload target). */
@@ -436,6 +441,8 @@ export class Workspace {
     if(await this.load()){this.preferences.setSort(this.sort);}else if(operation===this.epoch&&!this.disposed){this.sort=previous;this.sortLabel();this.headerSort(previous);this.watch();}
   }
   private headerSort(sort:Sort):void{this.gridHeaders?.setSort({...sort,field:alias(sort.field)});}
+  /** A menu page stores its filter values; scoped views (previews, sub-view windows) do not. */
+  private keepFilters():void{if(!this.scope&&!this.view.singleton)this.preferences.setFilters(this.filters);}
   /** One declared filter's value in the request and the filter panel; false for a field the view cannot filter. */
   private setFilter(field:string,value:string):boolean{
     const definition=this.view.filters.find(filter=>filter.name===field);if(!definition)return false;

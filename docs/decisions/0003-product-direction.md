@@ -24,7 +24,7 @@ corrected by [FB-0037](../feedback.md#fb-0037--ext-js-referencia-visszavonása-d
 
 ## Superseded and clarified decisions
 
-- [ADR-0002](0002-framework-first.md)/FB-0004 application-only user admin is superseded; framework-first/narrow exception remains.
+- [ADR-0002](0002-framework-first.md)/FB-0004 application-only user admin is superseded; framework-first remains. Its narrow exception is later superseded by [ADR-0004](0004-project-domain-freedom.md).
 - [ADR-0001](0001-foundation.md): modern PHP rather than Go/Node refers to the reference backend, not a frontend protocol dependency. Versioned definitions include JSON.
 - FB-0037 withdraws FB-0036's Ext JS reference. Active guidance cannot require Ext JS parity.
 

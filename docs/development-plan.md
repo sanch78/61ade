@@ -34,6 +34,7 @@ See [open questions](product-direction.md#5-nyitott-tervezési-kérdések-és-ja
 | P5 Kitchen sink | R11 | Navigable examples for every implemented capability; two demos already exist. |
 | P6 OAuth | R6 | Implemented through AuthHandler; real provider acceptance and trust-policy limits remain. |
 | P7 JSON maturity | R8/R9 | Schema/version, catalog query and orphan reconciliation. |
+| P8 Toolkit | R2/R3 | Open 61ade to project code: public API, project modules, view registry, record views, MediaPlayer, sandbox frame; feature demo as toolkit consumer ([toolkit plan](toolkit-plan.md), [ADR-0005](decisions/0005-toolkit.md)). |
 
 <a id="m0--külön-repó-szerkezet-és-koncepció"></a>
 

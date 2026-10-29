@@ -2365,6 +2365,103 @@ that exactly equals an option label lists every option. The managed
   `subview`, `subview-demos`, `workspace`, `list-integration`,
   `list-presentation` and `browser`; `preferences.spec.cjs` failed once in the
   combined run (view menu timeout) and passed alone.
-- **Status:** implemented on the working tree, not committed. Limits: a
-  reload of the filtered page shows it unfiltered; a hierarchy (`shared`)
-  sub-view has no page; a view opened in a window does not navigate.
+- **Status:** implemented. Limits: a hierarchy (`shared`)
+  sub-view has no page; a view opened in a window does not navigate. The
+  original limit that a reload shows the page unfiltered is superseded by
+  [FB-0079](#fb-0079): menu pages keep their filter values.
+
+<a id="fb-0079"></a>
+
+## FB-0079 — Menu pages keep their filter values
+
+- **Date:** 2026-10-29.
+- **Observation (owner):** after an `activate: 'page'` drill-down
+  ([FB-0078](#fb-0078)) a reload showed the page unfiltered, exactly like a
+  filter set by hand: filter values were excluded from the UI preferences.
+  The owner chose to keep filter values per grid (over a filter in the
+  address).
+- **Decision:** supersedes the earlier exclusion of filter values in
+  [shell](shell.md#url-és-helyi-felületbeállítások). A menu page stores its
+  header and panel filter values with its other browser-local preferences
+  (per path, user and resource). A page drill-down replaces the saved filters
+  with its own. Not stored: the search text, sub-view previews and windows,
+  singletons.
+- **Implemented:** `UiPreferences.filters()`/`setFilters()`; restoration
+  applies the server's filter value rules to the actor's current filter
+  definitions and drops a value they no longer accept, so a stale option
+  never makes the list fail. `Alaphelyzet` clears storage too.
+- **Verification (managed URL, 2026-10-29):** `node tests/shell/ui-preferences.mjs`
+  (isolation per user/resource, valid and stale values, malformed state),
+  `npm run typecheck`, `npm run build`; browser `preferences.spec.cjs` (panel
+  filter survives reload, another view unaffected, stale saved select value
+  ignored without an error) and `activation.spec.cjs` (drill-down filter
+  survives reload, `Alaphelyzet` then reload is unfiltered) pass.
+- **Status:** implemented and committed. Limits:
+  browser-local only (no device or server sync); a saved filter can hide
+  records until reset, visible in the header, the panel and the count.
+
+<a id="fb-0080"></a>
+
+## FB-0080 — Framework-first covers shared infrastructure; projects own their domain
+
+- **Date:** 2026-10-29.
+- **Observation (owner):** consumer projects sent every file-related need to
+  the 61ade file manager and refused anything not already in the framework.
+  Example: a project wanted to bring in its own sound assets and add a player
+  for them and for its scenes. Its session concluded that it first needed a
+  version/file model from the 61ade file manager, an audio viewer in 61ade,
+  and that its WebGL scene player was forbidden browser code. The cause was
+  in 61ade's guidance: the exception applied only if the framework "logically
+  cannot be extended" (which practically never holds), usage said custom
+  behavior is "not browser code", and the shell has no extension point for
+  project UI.
+- **Decision:** [ADR-0004](decisions/0004-project-domain-freedom.md).
+  Framework-first covers shared infrastructure; the project's domain data,
+  storage, logic and UI, including its own browser code, belong to it. Test:
+  "would another project need this in the same form?" A missing general
+  capability is requested from 61ade without blocking the project, which may
+  build an interim local version. Server-side authorization stays mandatory;
+  untrusted (for example agent-written) code runs only in a sandboxed iframe.
+  Supersedes the narrow exception of [ADR-0002](decisions/0002-framework-first.md)
+  and R2's earlier wording.
+- **Guides updated:** [development](development.md#mandatory-framework-development-rules),
+  [usage](usage.md#kötelező-fejlesztési-irány), [concept](concept.md),
+  [product direction](product-direction.md) R2, [repository layout](repository-layout.md#fogyasztó-alkalmazás),
+  [development plan](development-plan.md) P8, ADR-0002/0003 notes and the
+  `61ade-consumer` skill. Usage now states that a consumer handler can stream
+  any MIME type with `DownloadStream`; only the file manager's viewer is
+  limited to PNG, JPEG, MP4 and WebM.
+- **Planned (accepted, not implemented):**
+  1. Project UI extension point (custom view) in two modes: a trusted ES
+     module from the project's own assets mounted in a shell cell or window,
+     and a sandboxed iframe for untrusted code; a synthetic example in the
+     feature demo.
+  2. Audio (`audio/mpeg`, `audio/wav`, `audio/mp4`) in the file manager's
+     `content_stream`, duration probe and an audio viewer, when a project
+     needs it through the file manager.
+- **Verification:** documentation only; no runtime change.
+- **Status:** decision accepted and guides updated; items 1–2 open, both
+  absorbed into the [toolkit plan](toolkit-plan.md) ([FB-0081](#fb-0081)).
+
+<a id="fb-0081"></a>
+
+## FB-0081 — 61ade becomes a toolkit
+
+- **Date:** 2026-10-29.
+- **Observation (owner):** after [FB-0080](#fb-0080) a consumer (StoryBloX)
+  still had to ask 61ade for a whole viewer feature: a Layout page with a
+  project stage cell, a sandboxed scene frame, per-record activation and an
+  audio player. Verified cause: the frontend bundle exports nothing, the shell
+  loads no project script, view kinds are hard-coded in `AdminShell` and
+  `Feature\Workspace`, and view identity is the resource. 61ade is a closed
+  program configured by declarations, not a framework providing tools.
+- **Decision:** [ADR-0005](decisions/0005-toolkit.md). 61ade provides public
+  services, components and registries; projects ship their own modules; the
+  framework's built-in views use the same API. Breaking changes are accepted;
+  consumers adapt themselves. Transform the existing feature demo into a
+  toolkit consumer instead of adding a separate demo; the starter admin and
+  tenant demo stay declarative.
+- **Plan:** [toolkit plan](toolkit-plan.md), to be executed in a separate
+  agent thread with owner gates G1–G5.
+- **Verification:** documentation only; no runtime change.
+- **Status:** accepted/planned.

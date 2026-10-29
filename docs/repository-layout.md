@@ -59,9 +59,10 @@ tests remain in its own `codex/tests/v2`.
 
 CityScreen `v2/src/Modules` owns feature definitions, domain models, use cases,
 repository implementations, business policies and jobs. Concrete DMS, map, mail
-and content-source integrations belong in `v2/src/Integrations`. Consumer frontend
-extensions are permitted only within the documented framework-first exception;
-missing general renderer capabilities must first be added to 61ade.
+and content-source integrations belong in `v2/src/Integrations`. Consumer
+domain UI and its browser code belong to the consumer
+([ADR-0004](decisions/0004-project-domain-freedom.md)); a missing general
+renderer capability is requested from 61ade without blocking the consumer.
 
 Both 61ade packages share a repository because they implement one protocol.
 The consumer application never belongs in this repository.

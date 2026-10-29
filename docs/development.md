@@ -567,21 +567,36 @@ only for an error or other necessary blocking information. A form remains
 appropriate when the action needs input fields; this rule does not remove a
 justified confirm or alert.
 
-**Framework first:** no custom development that bypasses 61ade. Implement
-missing general capabilities in 61ade, then express business logic through them.
-A business request alone never justifies a separate flow. An exception is
-permitted if and only if the framework logically cannot be extended for the
-need. Document the concrete reason, considered extension and exception boundary
-alongside the implementation. Only that narrow exception may use a flow
-without DHTMLX. Convenience, speed or tool preference is not justification.
+**Framework first, inside 61ade:** 61ade work implements general capabilities
+in the framework with its DHTMLX adapters; it does not add one-off flows for a
+single consumer.
+
+**Shared infrastructure versus project domain** ([ADR-0004](decisions/0004-project-domain-freedom.md),
+[FB-0080](feedback.md#fb-0080)): framework-first covers shared
+infrastructure, not a project's domain. 61ade owns startup,
+authentication/session, users/ACL/API keys/log admin, menu/shell/layout/windows,
+generic forms/grids/trees/cards, dialogs, the upload flow, the file manager, the
+action executor, audit, the live channel, localization and themes; a project
+never builds a parallel version of one that exists. The project owns its
+domain data and storage (including its own files and assets), business logic
+and domain-specific UI (players, editors, canvas/SVG/WebGL views) with its own
+browser code and libraries, without justification against 61ade. The test is
+"would another project need this in the same form?": no → the project builds
+it; yes and 61ade has it → use it; yes and 61ade lacks it → request it from
+61ade and, without waiting, build an interim local version marked with the
+request reference, migrating when 61ade delivers. Every server read/write
+channel enforces authorization, and agent-written or otherwise untrusted code
+runs only in a sandboxed `<iframe>` (`sandbox="allow-scripts"`, no
+same-origin), never in the admin session's origin.
 
 61ade is ADE v2, a reusable admin framework in a separate Git repository.
 It owns application startup, configuration, authentication/session, permissions,
 menus, layout, windows, forms, grids, communication, errors and state management.
 UI controls use its DHTMLX adapters by default. Consumers own configuration,
 business definitions/rules and concrete identity/data/integration adapters.
-Do not add application-specific frontend, hand-built HTML/CSS admin interfaces
-or parallel infrastructure to compensate for a missing framework capability.
+Do not add hand-built HTML/CSS replacements for the shared admin
+infrastructure or parallel infrastructure to compensate for a missing framework
+capability; a project's domain UI is not such a replacement.
 
 Every application requires the framework's user, ACL, API-key and log admin
 built from its own definitions/tools (FB-0036, ADR-0003). Consumers supply

@@ -1,16 +1,17 @@
 import type { Grid, Layout } from "@dhtmlx/suite";
 import type { Sort } from "./GridHeaders";
+import type { FieldDefinition } from "./FormValidation";
 
 type Region={id?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;collapsable?:boolean;collapsed?:boolean};
 type Mode="table"|"cards"|"tiles";
-type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>};
+type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>};
 const size=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value)&&value>=40&&value<=10000;
 const pixels=(value:unknown):number|undefined=>{
   const numeric=typeof value==="string"&&/^\d+(\.\d+)?px$/.test(value)?Number.parseFloat(value):value;
   return size(numeric)?numeric:undefined;
 };
 
-/** Only presentation preferences are stored; definitions and ACL remain authoritative. */
+/** Presentation preferences and list filter values are stored; definitions and ACL remain authoritative. */
 export class UiPreferences {
   private state:Preferences={};
   private key:string;
@@ -34,6 +35,14 @@ export class UiPreferences {
     return new Set(saved?.filter(id=>allowed.has(id))??secondary);
   }
   setVisibleColumns(columns:Set<string>):void{this.state.visibleColumns=[...columns];this.save();}
+  /** Saved filter values the current filter definitions still accept (the server's value rules); others are dropped. */
+  filters(definitions:FieldDefinition[]):Record<string,string>{
+    const saved=this.state.filters;if(!saved||typeof saved!=="object"||Array.isArray(saved))return {};
+    const valid=(definition:FieldDefinition|undefined,value:unknown):value is string=>!!definition&&typeof value==="string"&&value!==""&&value.length<=255&&!value.includes("\0")
+      &&(definition.type==="checkbox"?value==="0"||value==="1":definition.type==="select"?Object.hasOwn(definition.options??{},value):definition.type==="number"?/^\d+$/.test(value):true);
+    return Object.fromEntries(Object.entries(saved).filter(([field,value])=>valid(definitions.find(definition=>definition.name===field),value)));
+  }
+  setFilters(filters:Record<string,string>):void{this.state.filters=Object.keys(filters).length?{...filters}:undefined;this.save();}
   layoutTree<T extends Region>(tree:T):T{
     const visit=(node:Region):Region=>{
       const saved=node.id?this.state.regions?.[node.id]:undefined;

@@ -48,9 +48,13 @@ distribution remain open. This is not full M1–M7 completion.
 
 61ade = ADE v2. General capability first in framework, then consumer declarations/
 business logic. No parallel application admin implementation for missing features.
-Default UI is framework DHTMLX. Only a documented logically-unextendable exception
-may use another flow; see [project rules](development.md#mandatory-framework-development-rules)
-and [ADR-0002](decisions/0002-framework-first.md).
+61ade's own UI is framework DHTMLX. Framework-first covers the shared
+infrastructure only: a project's domain (its data, files, business logic and
+domain UI with its own browser code) belongs to the project, and a missing
+general capability is requested from 61ade without blocking the project; see
+[project rules](development.md#mandatory-framework-development-rules),
+[ADR-0004](decisions/0004-project-domain-freedom.md) and
+[ADR-0002](decisions/0002-framework-first.md).
 
 <a id="elfogadott-termékirány--2026-10-21"></a>
 
@@ -229,7 +233,10 @@ shared conflict dialog. Contents live in a content-addressed disk store
 (`ContentStore`), with probed media metadata and 320 px WebP thumbnails made by
 the post-response `TaskQueue`; `DownloadStream` and GET-capable actions
 (`Action::$get`, frontend `actionUrl()`) stream viewer content with HTTP Range
-under the same ACL and audit. Install it explicitly in setup, register it in
+under the same ACL and audit. A consumer's own action handler can return a
+`DownloadStream` of any MIME type (for example its own audio assets) without
+the file manager; the file manager's own viewer streams only PNG, JPEG, MP4
+and WebM. Install it explicitly in setup, register it in
 the application definition and grant rules (`content_stream`/`thumbnail_get`
 are separate rights). Earlier BLOB databases upgrade with the explicit,
 verified migration 0002. U4 adds paged server-sorted listings with tiles, search, type filter and
@@ -264,7 +271,10 @@ tiles: `details`, `subview` (the record's full child list, also when empty),
 `page` (the child view's own page filtered to the record) or one of the
 view's record actions, as its toolbar command runs it; an
 activation the actor or record is not offered opens the details. Custom
-behavior is a registered action handler, not browser code.
+server behavior is a registered action handler; a project's own browser UI is
+allowed by [ADR-0004](decisions/0004-project-domain-freedom.md), but 61ade has
+no shell extension point for it yet; the [toolkit plan](toolkit-plan.md)
+([ADR-0005](decisions/0005-toolkit.md)) adds project modules and a public API.
 
 Any view (list, singleton or file manager) can request the generic
 `desktopOnly` option (JSON `desktop_only`): below 768 px the shell shows a

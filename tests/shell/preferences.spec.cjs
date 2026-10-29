@@ -55,3 +55,21 @@ test('invalid or unavailable storage cannot break navigation',async({page})=>{
  await signIn(page,'demo@example.test','/#feature=demo_tasks');await expect(page.getByRole('grid')).toBeVisible();
  await page.reload();await expect(page.getByRole('grid')).toBeVisible();
 });
+test('filter values survive reload per user and view; a stale saved value is dropped',async({page})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await signIn(page,'demo@example.test','/#feature=demo_shelves');
+ const rows=page.locator('.dhx_grid-row'),panel=page.locator('.dhx_form').filter({has:page.getByRole('button',{name:'Alaphelyzet',exact:true})});
+ await expect(rows.filter({hasText:'Üres polc'})).toHaveCount(1);
+ await panel.getByLabel('Megnevezés',{exact:true}).fill('Felső');await panel.getByRole('button',{name:'Szűrés',exact:true}).click();
+ await expect(rows.filter({hasText:'Üres polc'})).toHaveCount(0);
+ await page.reload();
+ await expect(rows.filter({hasText:'Felső polc'})).toHaveCount(1);await expect(rows.filter({hasText:'Üres polc'})).toHaveCount(0);
+ await expect(panel.getByLabel('Megnevezés',{exact:true})).toHaveValue('Felső');
+ // Another view keeps its own (empty) filters.
+ await openView(page,'Raktárzónák');await expect(rows).toHaveCount(3);
+ // A saved select value the definitions no longer offer is ignored: the list loads unfiltered, without an error.
+ await page.evaluate(()=>{for(const key of Object.keys(localStorage))if(key.includes('"demo_shelves"')){const state=JSON.parse(localStorage.getItem(key));state.filters={zone_id:'999'};localStorage.setItem(key,JSON.stringify(state));}});
+ await page.goto('/#feature=demo_shelves');await expect(rows.filter({hasText:'Üres polc'})).toHaveCount(1);
+ await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ expect(errors).toEqual([]);
+});

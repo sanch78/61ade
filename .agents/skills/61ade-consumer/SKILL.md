@@ -13,6 +13,30 @@ when it and the contract disagree, follow the contract. The 61ade checkout is
 read-only for a consumer session. Report a framework gap to the 61ade owner
 instead of patching it.
 
+## What the project owns
+
+Framework-first covers 61ade's shared infrastructure, not your domain
+([ADR-0004](../../../docs/decisions/0004-project-domain-freedom.md)). Use
+61ade for login, users/ACL/API keys/logs, menu/shell/layout/windows, generic
+forms/grids/trees/cards, dialogs, uploads, the file manager, actions, audit and
+live data, and never build a parallel version of one of these. Your domain
+data and storage (including your own files and assets), business logic and
+domain UI (players, editors, canvas/SVG/WebGL views) with your own browser
+code are yours; they need no justification against 61ade.
+
+- Ask "would another project need this in the same form?" If not, build it.
+  If so and 61ade lacks it, send the request and do not wait: build an interim
+  local version, note the request in your documentation, migrate later.
+- Your own files can be served by your own action handler returning
+  `DownloadStream` (any MIME type, HTTP Range, ACL, audit); the file manager is
+  not required for them.
+- 61ade has no shell extension point for your browser UI yet. The
+  [toolkit plan](../../../docs/toolkit-plan.md) adds project modules, a public
+  API and record views, with breaking changes you will adapt to; check its
+  status before building around the gap.
+- Agent-written or untrusted code runs only in a sandboxed `<iframe>`
+  (`sandbox="allow-scripts"`, no same-origin), never in the admin origin.
+
 ## Adopt
 
 1. Read the [shared-library consumption](../../../docs/development.md#shared-library-consumption)

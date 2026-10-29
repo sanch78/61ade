@@ -32,8 +32,20 @@ layoutEvents.resize('filter');
 assert.deepEqual(JSON.parse(storage.get(key)).regions.filter,{width:365.5,height:240,collapsed:true});
 layoutEvents.afterExpand('filter');assert.equal(JSON.parse(storage.get(key)).regions.filter.collapsed,false);
 column.width=280;events.afterResizeEnd();assert.equal(JSON.parse(storage.get(key)).columns[0].width,280);
+// Filter values: kept per user/resource; restoring applies the server's value rules to the current definitions.
+const definitions=[{name:'zone',type:'select',options:{'1':'A','2':'B'}},{name:'done',type:'checkbox',options:{}},{name:'qty',type:'number',options:{}},{name:'title',type:'text',options:{}}];
+const filtering=new UiPreferences('user-a','filtered');filtering.setFilters({zone:'2',title:'pol'});
+assert.deepEqual(new UiPreferences('user-a','filtered').filters(definitions),{zone:'2',title:'pol'});
+assert.deepEqual(new UiPreferences('user-b','filtered').filters(definitions),{});
+filtering.setFilters({});assert.deepEqual(new UiPreferences('user-a','filtered').filters(definitions),{});
+const filterKey=[...storage.keys()].find(stored=>stored.includes('filtered'));
+storage.set(filterKey,JSON.stringify({filters:{zone:'9',done:'yes',qty:'1.5',title:'x'.repeat(256),gone:'1',secret:7}}));
+assert.deepEqual(new UiPreferences('user-a','filtered').filters(definitions),{});
+storage.set(filterKey,JSON.stringify({filters:{zone:'1',done:'0',qty:'12',title:'a'}}));
+assert.deepEqual(new UiPreferences('user-a','filtered').filters(definitions),{zone:'1',done:'0',qty:'12',title:'a'});
+for(const malformed of [null,[],'x']){storage.set(filterKey,JSON.stringify({filters:malformed}));assert.deepEqual(new UiPreferences('user-a','filtered').filters(definitions),{});}
 for(const unknown of ['grid','TILES',7,null]){storage.set(key,JSON.stringify({mode:unknown}));assert.equal(new UiPreferences('user-a','items').mode,'table');}
 for(const invalid of ['invalid','null','[]']){storage.set(key,invalid);assert.equal(new UiPreferences('user-a','items').mode,'table');}
 globalThis.localStorage={getItem(){throw Error('Denied');},setItem(){throw Error('Quota');}};
 const denied=new UiPreferences('user-a','items');denied.setMode('cards');assert.equal(denied.mode,'cards');denied.setMode('tiles');assert.equal(denied.mode,'tiles');
-console.log('UI preferences: isolation, tiles mode, stale schema, bounds, malformed/denied storage PASS');
+console.log('UI preferences: isolation, tiles mode, filters, stale schema, bounds, malformed/denied storage PASS');
