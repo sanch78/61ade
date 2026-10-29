@@ -20,14 +20,16 @@ offered views and an optional day action.
 | `Blade\Calendar\CalendarActions` | `packages/php/src/Calendar/CalendarActions.php` | Registered actions, window queries, exception rules, optimistic revisions and the expansion of series into concrete occurrences. |
 | `Blade\Calendar\Recurrence` | `packages/php/src/Calendar/Recurrence.php` | Server-side expansion of the RRULE subset the Scheduler editor writes. |
 | `Registry::calendar`, `Workspace` | `packages/php/src/Feature` | The `calendar` view kind; metadata lists only offered actions and readable extra fields. |
-| `Calendar` | `packages/frontend/src/Calendar.ts`, `calendar.css` | Shell view: Suite Layout and Toolbar around the Scheduler, event form (Suite Form + Window), custom data-processor router onto the registered actions, theme and locale bridge, day-action window. |
+| `CalendarView` | `packages/frontend/src/components/calendar/CalendarView.ts`, `calendar.css` | Internal view: Suite Layout and Toolbar around the Scheduler, event form (Suite Form + Window), custom data-processor router onto the registered actions, theme and locale bridge, day-action window. |
+| `Calendar` component | `packages/frontend/src/components/calendar/Calendar.ts` | Public `app.components.Calendar` ([toolkit](toolkit.md#calendar-and-diagrameditor)); the built-in `calendar` view kind mounts it too. |
 
 The vendor package is `dhtmlx-scheduler` 7.2.15 (GPL-2.0, npm), pinned in
 `packages/frontend/package.json` and bundled by the existing build. The
 Standard edition exposes **one** Scheduler instance (several instances are a
 paid feature), so the view borrows the shared instance: on destroy it detaches
 its own event handlers and data processor and clears the data. The shell shows
-one view at a time, so one calendar is on screen at a time.
+one view at a time, and constructing a second `Calendar` component while one
+exists throws, so one calendar is on screen at a time.
 
 ## Event model
 
@@ -83,6 +85,18 @@ $calendar->register($workspace);     // application definition
 | `maxRangeDays` | Longest window `events`/`occurrences` accept (default 62, month view needs 42). |
 | `dayAction` | Optional registered action called with `date` (`YYYY-MM-DD`) for the selected day; the toolbar button shows its JSON answer read-only beside the equivalent API request. Shown only if the actor is offered that action. |
 | `group`, `icon`, `desktopOnly` | Menu group, icon (default `dxi dxi-calendar-today`) and the generic desktop-only option. |
+
+### In project code
+
+A project module mounts the same calendar in its own Layout cell or window
+through the [toolkit](toolkit.md#calendar-and-diagrameditor); the view must be
+offered to the actor, and destroying the component (or closing its window)
+releases the Scheduler for the next one:
+
+```ts
+const win = app.ui.window({ title: "Műsorterv", width: 1100, height: 720, fit: false });
+new app.components.Calendar({ view: "signage_schedule", signal: win.signal }).mount(win);
+```
 
 ## Actions and authorization
 
@@ -195,11 +209,16 @@ curl -s https://61ade.sanch.hu/?blade=1 \
   count, month view, day-action window, Friday playlist timeline, window limit,
   read-only reader and dark skin. Its `afterEach` deletes the events the run
   created, also after a failure.
+- `npm run test:browser -- tests/shell/toolkit-components.spec.cjs` and `node
+  tests/shell/toolkit-components.mjs`: the public component in a project
+  Layout cell and in a window, the one-calendar rule, theme and language,
+  release on destroy and the built-in view afterwards.
 
 ## Limits
 
-- One calendar instance per page (Standard edition); no timeline/units/resource
-  views (PRO).
+- One calendar instance per page (Standard edition; a second `Calendar`
+  component throws); no timeline/units/resource views (PRO). The component has
+  no events of its own.
 - No per-event permissions, owners or attendees; the space is the ACL object.
 - No time zones: wall-clock values only.
 - No live updates from other users; the window reloads on navigation.

@@ -17,7 +17,8 @@ configures it as a network topology builder.
 | `Blade\Diagram\DiagramDefinition` | `packages/php/src/Diagram/DiagramDefinition.php` | Consumer configuration, glyph/shape/colour sets, explicit installer, registration and browser metadata. |
 | `Blade\Diagram\DiagramActions` | `packages/php/src/Diagram/DiagramActions.php` | Registered actions and server-side canonical validation of saved content. |
 | `Registry::diagram`, `Workspace` | `packages/php/src/Feature` | The `diagram` view kind; metadata lists only offered actions. |
-| `DiagramEditor` | `packages/frontend/src/DiagramEditor.ts` | Suite Layout, command Toolbar, diagram List, element palette List, property Form, creation Windows and the SVG canvas. |
+| `DiagramView` | `packages/frontend/src/components/diagram/DiagramView.ts` | Internal view: Suite Layout, command Toolbar, diagram List, element palette List, property Form, creation Windows and the SVG canvas. |
+| `DiagramEditor` component | `packages/frontend/src/components/diagram/DiagramEditor.ts` | Public `app.components.DiagramEditor` ([toolkit](toolkit.md#calendar-and-diagrameditor)) with the `saved` event and `editing()`; the built-in `diagram` view kind mounts it too. |
 
 **Framework-first boundary.** DHTMLX Suite Standard has no diagram widget;
 DHTMLX Diagram is a separate product that is not installed or licensed
@@ -60,6 +61,19 @@ Glyphs are a framework set of 24×24 stroke drawings: `router`, `switch`,
 `server`, `firewall`, `cloud`, `workstation`, `laptop`, `access-point`,
 `printer`, `database`, `phone`, `globe`, `storage`, `camera`, `box`. Runtime
 types choose a glyph, a shape and one of ten framework colours.
+
+### In project code
+
+A project module mounts the same editor in its own Layout cell or window
+through the [toolkit](toolkit.md#calendar-and-diagrameditor); the view must be
+offered to the actor:
+
+```ts
+const editor = new app.components.DiagramEditor({ view: "topology", signal: host.signal });
+editor.on("saved", () => inventory.refresh());   // after Mentés / Ctrl+S
+editor.mount(layout.getCell("network"));
+if (editor.editing()) { /* unsaved changes */ }
+```
 
 ## Actions and authorization
 
@@ -131,6 +145,10 @@ address ranges only), seeded once by `setup-workspace.php`.
   property form; drop from the palette, double-click add, move, connect, edit,
   save and reload; runtime element type creation and the in-use refusal;
   read-only reader. Created diagrams and types are removed afterwards.
+- `npm run test:browser -- tests/shell/toolkit-components.spec.cjs` and `node
+  tests/shell/toolkit-components.mjs`: the public component in a project
+  Layout cell and in a window, `saved` and `editing()` with Ctrl+S, theme and
+  language, release of its listeners on destroy.
 
 ## Limits
 

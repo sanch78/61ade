@@ -60,7 +60,18 @@ List views open it automatically for actions that declare an `UploadPolicy`
 folder ([workspaces](workspaces.md#file-field)).
 
 Client: open the shared uploader from a command; never build another upload
-dialog.
+dialog. Project modules use `app.uploads` and `app.events`
+([toolkit](toolkit.md#uploads)): the same service and events, with the
+options checked (`TypeError`) before the window opens.
+
+```ts
+app.uploads.open({resource: "attachments", action: "upload", target: recordId,
+  targetLabel: title, policy: action.upload,               // ActionMetadata.upload of the view's action
+  onUploaded: result => refresh(result)});
+app.events.on("upload:complete", ({succeeded, failed}) => …, host.signal);
+```
+
+Framework code inside 61ade imports the service directly:
 
 ```ts
 import { uploads } from "./Uploader";
@@ -179,6 +190,10 @@ denied.
   `content_mismatch`; nested folder creation and the depth limit; abort; TTL
   and orphan sweep; an independent synthetic consumer action; 20 mixed files
   with per-file results and every byte sent once; audit without names.
+- `npm run test:browser -- tests/shell/toolkit-components.spec.cjs`:
+  `app.uploads.open` for a files-view folder, `TypeError` without a policy,
+  files queued from `open`, the `upload:*` events on `app.events`,
+  `onUploaded` and `reopen()`.
 - `npm run test:browser -- tests/shell/uploader.spec.cjs`: 20 mixed files
   (counted chunk requests, no duplicate offsets), one conflict dialog with
   "apply to all", cancel and retry, folder upload, clipboard paste, closing
@@ -195,4 +210,5 @@ denied.
 - Folder upload depends on the browser's `webkitdirectory`; the file button
   remains the fallback. Paste needs files on the clipboard.
 - The plan's global `blade.upload.open` is the module export
-  `uploads.open`; there is no `window` global.
+  `uploads.open` (`app.uploads.open` for project modules); there is no
+  `window` global.

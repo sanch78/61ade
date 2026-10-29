@@ -69,7 +69,31 @@ export function live(channel: () => LiveChannel): Live {
 
 export const identity = (id: string, displayName: string, tenant: string | null): Identity => Object.freeze({ id, displayName, tenant });
 
-export const uploads: Uploads = { open: options => uploader.open(options), reopen: () => uploader.reopen() };
+/**
+ * `Application.uploads` over the page's one `Uploader.ts` service (the shell's own uploads use the same service, so
+ * the queue, window, indicator and `upload:*` events are shared). `open` checks and copies the options before the
+ * window opens: a wrong shape is a `TypeError`, never a half-opened window. Files and a drop's DataTransfer queue
+ * at once; the server still checks every file against the action's `UploadPolicy`, ACL and handler.
+ */
+export const uploads: Uploads = {
+  open(options) {
+    const invalid = (what: string) => new TypeError(`61ade: uploads.open needs ${what}.`);
+    if (!options || typeof options !== "object") throw invalid("an options object");
+    const { resource, action, target, targetLabel, policy, files, transfer, onUploaded } = options;
+    if (typeof resource !== "string" || !resource || typeof action !== "string" || !action) throw invalid("a resource and an action name");
+    if (target !== null && typeof target !== "string") throw invalid("a target id string or null");
+    if (typeof targetLabel !== "string") throw invalid("a targetLabel text");
+    if (!policy || typeof policy !== "object" || !Array.isArray(policy.extensions) || !(policy.max_files >= 1) || !(policy.max_size_bytes > 0))
+      throw invalid("the action's upload policy (ActionMetadata.upload or the files view's options.upload.policy)");
+    const queued = files === undefined ? undefined : Array.from(files as ArrayLike<File>);
+    if (queued?.some(file => !(file instanceof File))) throw invalid("File objects in `files`");
+    if (transfer !== undefined && !(transfer instanceof DataTransfer)) throw invalid("a DataTransfer in `transfer`");
+    if (onUploaded !== undefined && typeof onUploaded !== "function") throw invalid("a function in `onUploaded`");
+    uploader.open({ resource, action, target, targetLabel, policy: { ...policy, extensions: [...policy.extensions] },
+      ...(queued?.length ? { files: queued } : {}), ...(transfer ? { transfer } : {}), ...(onUploaded ? { onUploaded } : {}) });
+  },
+  reopen: () => uploader.reopen(),
+};
 
 let slots = 0;
 /**
