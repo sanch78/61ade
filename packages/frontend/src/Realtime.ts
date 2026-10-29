@@ -20,13 +20,15 @@ export class LiveChannel {
   private wires=new Map<string,Realtime>();
   private sequence=0;
   private failures=0;
-  /** closed: destroyed or unloaded; stopped: session gone or stale page, no further attempts. */
+  /** closed: destroyed or unloaded; ended: session gone (lists revoked); stale: older page, lists stay without live data. */
   private closed=false;
-  private stopped=false;
+  private ended=false;
+  private stale=false;
   private busy=false;
   private again=false;
   private listeners=new AbortController();
-  constructor(private config:LiveConfig,private csrf:string){
+  /** notice: a shell-level hint (stale page); editing: an open form may hold unsaved input, so never reload over it. */
+  constructor(private config:LiveConfig,private csrf:string,private hooks:{notice?:(text:string)=>void;editing?:()=>boolean}={}){
     const signal=this.listeners.signal;
     // A hidden tab ends its subscriptions but keeps the socket; showing it subscribes again with fresh windows.
     document.addEventListener("visibilitychange",()=>{if(document.hidden)this.pause();else this.resume();},{signal});
@@ -39,13 +41,15 @@ export class LiveChannel {
   detach(handle:Realtime):void{this.handles.delete(handle);this.drop(handle);}
   /** (Re)subscribes a handle with its current query. */
   open(handle:Realtime):void{
-    if(this.stopped){if(this.closed)return;handle.blocked=true;handle.denied();return;}
+    if(this.closed||this.stale)return;
+    if(this.ended){handle.blocked=true;handle.denied();return;}
     this.drop(handle);handle.wire=String(++this.sequence);this.wires.set(handle.wire,handle);
     if(this.config.transport==="poll"){if(this.busy)this.again=true;else this.schedule(0);return;}
     if(this.ready&&!document.hidden)this.send({type:"subscribe",id:handle.wire,resource:handle.resource,query:handle.query});
     else this.connect();
   }
-  close():void{this.closed=this.stopped=true;this.listeners.abort();this.disconnect();this.handles.clear();this.wires.clear();}
+  private get halted():boolean{return this.closed||this.ended||this.stale;}
+  close():void{this.closed=true;this.listeners.abort();this.disconnect();this.handles.clear();this.wires.clear();}
   private drop(handle:Realtime):void{
     if(handle.wire===undefined)return;
     if(this.wires.get(handle.wire)===handle){this.wires.delete(handle.wire);if(this.ready)this.send({type:"unsubscribe",id:handle.wire});}
@@ -54,18 +58,19 @@ export class LiveChannel {
   private send(message:object):void{if(this.socket?.readyState===WebSocket.OPEN)this.socket.send(JSON.stringify(message));}
   private active():Realtime[]{return [...this.handles].filter(handle=>handle.query&&!handle.blocked);}
   private pause():void{
-    clearTimeout(this.timer);this.timer=undefined;
+    // A pending reconnect keeps its backoff; it connects once the tab is shown again.
+    if(this.config.transport==="poll"){clearTimeout(this.timer);this.timer=undefined;}
     for(const handle of this.handles)this.drop(handle);
   }
   private resume():void{
-    if(this.closed||this.stopped||document.hidden)return;
+    if(this.halted||document.hidden)return;
     if(this.config.transport==="poll"){for(const handle of this.active())if(handle.wire===undefined)this.open(handle);this.schedule(0);return;}
     if(!this.ready){this.connect();return;}
     for(const handle of this.active())this.open(handle);
   }
   private disconnect():void{const socket=this.socket;this.socket=undefined;this.ready=false;clearTimeout(this.timer);this.timer=undefined;socket?.close(1000);}
   private connect():void{
-    if(this.closed||this.stopped||document.hidden||this.timer||this.socket)return;
+    if(this.halted||document.hidden||this.timer||this.socket)return;
     // A placeholder until the ticket arrives, so concurrent opens start one connection.
     const pending={readyState:WebSocket.CONNECTING,close(){}} as unknown as WebSocket;this.socket=pending;
     void this.request("__ticket",{}).then(result=>{
@@ -93,7 +98,7 @@ export class LiveChannel {
         if(this.socket!==socket)return;
         const authenticated=this.ready;this.socket=undefined;this.ready=false;
         for(const handle of this.handles)handle.wire=undefined;this.wires.clear();
-        if(this.closed||this.stopped)return;
+        if(this.halted)return;
         if(authenticated&&Date.now()-this.connected>30000)this.failures=0;
         if(event.code===4409){this.reload();return;}
         // 4401 before `ready`: a fresh ticket was refused, the session is gone. After `ready` the ticket may only have
@@ -109,51 +114,61 @@ export class LiveChannel {
     });
   }
   private retry():void{
-    if(this.closed||this.stopped)return;
+    if(this.halted)return;
     for(const handle of this.handles)handle.state(t("Kapcsolódás…"));
     clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;this.connect();},Math.min(15000,500*2**this.failures++));
   }
   /** Session ended: every list shows the revoked state once; nothing reconnects. */
   private block():void{
-    this.stopped=true;this.disconnect();
+    this.ended=true;this.disconnect();
     for(const handle of this.handles){handle.blocked=true;handle.wire=undefined;handle.state(t("A hozzáférés megszűnt"));handle.denied();}
     this.wires.clear();
   }
-  /** 4409: this page speaks an older protocol than the server. One reload a minute at most, never a loop. */
+  /**
+   * 4409: this page speaks an older protocol than the server. One reload a minute at most, never a loop, and never
+   * over an open form: then the lists keep working without live data and the shell shows the hint.
+   */
   private reload():void{
     try{
+      if(this.hooks.editing?.())throw new Error("editing");
       if(Date.now()-Number(sessionStorage.getItem(RELOAD)||0)<60000)throw new Error("reloaded");
       sessionStorage.setItem(RELOAD,String(Date.now()));
-    }catch{this.stopped=true;for(const handle of this.handles)handle.state(t("Az élő követéshez töltse újra az oldalt."));return;}
+    }catch{
+      this.stale=true;const text=t("Az élő követéshez töltse újra az oldalt.");
+      for(const handle of this.handles){handle.wire=undefined;handle.state(text);}this.wires.clear();this.hooks.notice?.(text);return;
+    }
     location.reload();
   }
   private schedule(delay:number):void{clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;void this.poll();},delay);}
   /** Polling: one `__watch` per interval for every subscription (split only above the request size limit). */
   private async poll():Promise<void>{
-    if(this.closed||this.stopped||document.hidden)return;
+    if(this.halted||document.hidden)return;
     if(this.busy){this.again=true;return;}
     const entries=this.active().filter(handle=>handle.wire!==undefined).map(handle=>({handle,body:{id:handle.wire!,resource:handle.resource,query:handle.query,version:handle.version}}));
     if(!entries.length)return;
     this.busy=true;
     try{
-      const batches:typeof entries[]=[[]];let bytes=0;
-      for(const entry of entries){const size=JSON.stringify(entry.body).length;if(batches[0].length&&(batches[0].length>=BATCH||bytes+size>BATCH_BYTES)){batches.unshift([]);bytes=0;}batches[0].push(entry);bytes+=size;}
+      const batches:typeof entries[]=[[]],encoder=new TextEncoder();let bytes=0;
+      for(const entry of entries){const size=encoder.encode(JSON.stringify(entry.body)).length;if(batches[0].length&&(batches[0].length>=BATCH||bytes+size>BATCH_BYTES)){batches.unshift([]);bytes=0;}batches[0].push(entry);bytes+=size;}
+      // Each batch on its own: a failing one (5xx, 413, network) leaves the others of this interval running.
       for(const batch of batches.reverse()){
-        const result=await this.request("__watch",{subscriptions:batch.map(entry=>entry.body)});
-        if(this.closed||this.stopped)return;
-        for(const answer of result.results??[]){
+        let result:any;
+        try{result=await this.request("__watch",{subscriptions:batch.map(entry=>entry.body)});}
+        catch(e:any){
+          if(e.status===401||e.status===403){this.block();return;}
+          for(const {handle} of batch)handle.state(t("Kapcsolódás…"));continue;
+        }
+        if(this.halted)return;
+        for(const answer of result?.results??[]){
           const handle=this.wires.get(String(answer.id));if(!handle)continue;
           if(answer.ok){if(answer.data.version!==handle.version){handle.version=answer.data.version;handle.update(answer.data);}handle.state(t("Automatikus követés"));}
           else if(answer.status>=500)handle.state(t("Kapcsolódás…"));
           else{this.wires.delete(handle.wire!);handle.wire=undefined;handle.refuse(answer.status);}
         }
       }
-    }catch(e:any){
-      if(e.status===401||e.status===403){this.block();return;}
-      for(const handle of this.handles)handle.state(t("Kapcsolódás…"));
     }finally{
       this.busy=false;
-      if(!this.closed&&!this.stopped&&!document.hidden){this.schedule(this.again?0:this.config.interval);this.again=false;}
+      if(!this.halted&&!document.hidden){this.schedule(this.again?0:this.config.interval);this.again=false;}
     }
   }
   /** The JSON channel of the page (`?blade=1`); `__ticket` and `__watch` belong to no single list. */

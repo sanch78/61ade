@@ -105,9 +105,14 @@ timeout, credential version, login security, tenant membership and the list's
 ACL. A 401 closes the whole connection with 4401; a 403/404 refuses only that
 subscription (`denied`); a bridge 5xx is retried and never denies. Resource
 names, ids and queries are validated as before (string resource, object query,
-64 KB frames); subscriptions are capped at 64 per connection and connections at
-100 per server. Live traffic does not extend the session idle timeout (plan D3);
-a ticket refresh after its hour is an ordinary authenticated HTTP request.
+64 KB frames); per connection at most 64 subscriptions, 2000 rows in total and
+2 bridge reads in flight (fair round-robin across connections, `hello` checks
+first), at most 100 connections per server. WebSocket observations do not
+extend the session idle timeout (plan D3); a ticket refresh after its hour is an
+ordinary authenticated HTTP request. Polling differs: every `__watch` is an HTTP
+request through the shell and updates the session's `lastSeen`, so an open
+polling tab keeps its session alive. This is unchanged behavior and an open L5
+item ([plan](live-channel-plan.md#7-risks)).
 Batched polling (`__watch` with `subscriptions`) answers each entry under the
 same request's session, tenant and ACL; a 401 still fails the whole request.
 

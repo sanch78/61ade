@@ -88,6 +88,68 @@ test('one live WebSocket carries every list and sub-view of the tab',async({page
  expect(closed).toEqual([]);
  expect(subscribed.size).toBeGreaterThanOrEqual(6);
 });
+// A stale page (another protocol) gets 4409: it reloads once, and a second 4409 within a minute does not loop.
+test('a 4409 protocol mismatch reloads the page once, never in a loop',async({page})=>{
+ await signIn(page);
+ test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
+ let hellos=0,loads=0;
+ await page.routeWebSocket(url=>new URL(url).pathname==='/live',ws=>{ws.onMessage(message=>{if(JSON.parse(message).type==='hello'){hellos++;ws.close({code:4409,reason:'Protocol 2 required'});}});});
+ page.on('load',()=>loads++);
+ await page.reload();
+ await expect.poll(()=>loads,{timeout:10000}).toBe(2);
+ await expect.poll(()=>hellos,{timeout:10000}).toBe(2);
+ await page.waitForTimeout(3000);
+ expect(loads).toBe(2);expect(hellos).toBe(2);
+ // The stale page keeps working without live data: lists load, nothing is revoked, the lower bar says why.
+ await expect(page.locator('.blade-session-bar').getByText('Az élő követéshez töltse újra az oldalt.',{exact:true})).toBeVisible();
+ await openMenu(page,'Jegyzetek');
+ await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
+ await expect(page.getByRole('button',{name:'Hozzáadás',exact:true})).toBeEnabled();
+ expect(hellos).toBe(2);
+});
+test('a 4409 never reloads over an open form',async({page})=>{
+ await signIn(page);
+ test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
+ let route,loads=0;
+ await page.routeWebSocket(url=>new URL(url).pathname==='/live',ws=>{route=ws;ws.connectToServer();});
+ await page.reload();page.on('load',()=>loads++);
+ await openMenu(page,'Jegyzetek');
+ await expect.poll(()=>!!route,{timeout:10000}).toBe(true);
+ await page.getByRole('button',{name:'Hozzáadás',exact:true}).click();
+ const form=page.getByRole('dialog');await form.getByLabel('Cím',{exact:true}).fill('Unsaved draft');
+ await route.close({code:4409,reason:'Protocol 2 required'});
+ await expect(page.locator('.blade-session-bar').getByText('Az élő követéshez töltse újra az oldalt.',{exact:true})).toBeVisible();
+ await page.waitForTimeout(1500);
+ expect(loads).toBe(0);
+ await expect(form.getByLabel('Cím',{exact:true})).toHaveValue('Unsaved draft');
+});
+// A refused ticket (4401 before ready) ends live data without a reconnect loop.
+test('a 4401 before ready ends live data and does not reconnect',async({page})=>{
+ await signIn(page);
+ test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
+ let hellos=0;
+ await page.routeWebSocket(url=>new URL(url).pathname==='/live',ws=>{ws.onMessage(message=>{if(JSON.parse(message).type==='hello'){hellos++;ws.close({code:4401,reason:'Authentication failed'});}});});
+ await page.reload();
+ await expect.poll(()=>hellos,{timeout:10000}).toBe(1);
+ await page.waitForTimeout(4000);
+ expect(hellos).toBe(1);
+});
+// A hidden tab unsubscribes its lists on the open socket; showing it subscribes them again.
+test('a hidden tab pauses its subscriptions without closing the channel',async({page})=>{
+ const frames=[];let sockets=0,closed=0;
+ page.on('websocket',socket=>{if(new URL(socket.url()).pathname!=='/live')return;sockets++;socket.on('close',()=>closed++);socket.on('framesent',frame=>frames.push(JSON.parse(frame.payload)));});
+ await signIn(page);
+ test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
+ await openMenu(page,'Jegyzetek');
+ await expect.poll(()=>frames.filter(m=>m.type==='subscribe').length,{timeout:10000}).toBeGreaterThan(0);
+ const visibility=hidden=>page.evaluate(hidden=>{Object.defineProperty(document,'hidden',{value:hidden,configurable:true});document.dispatchEvent(new Event('visibilitychange'));},hidden);
+ const before=frames.filter(m=>m.type==='subscribe').at(-1).id;
+ await visibility(true);
+ await expect.poll(()=>frames.some(m=>m.type==='unsubscribe'&&m.id===before),{timeout:5000}).toBe(true);
+ await visibility(false);
+ await expect.poll(()=>frames.filter(m=>m.type==='subscribe').at(-1).id,{timeout:5000}).not.toBe(before);
+ expect(sockets).toBe(1);expect(closed).toBe(0);
+});
 // The demo unit serves the starter admin and the tenant demo at <endpoint>/admin and <endpoint>/tenants (LiveConfig applications).
 for(const [path,menu,group,email] of [['/admin/','Felhasználók','Adminisztráció','demo@example.test'],['/tenants/','Projektek','Tenant demó','demo@example.test']]){
  test(`WebSocket serves ${path} on its own live path with its own tickets`,async({page})=>{

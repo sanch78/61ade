@@ -124,6 +124,8 @@ export class Workspace {
   private delegated?:Workspace;
   /** Open compact previews by record id (refreshed when that record's full child view closes). */
   private previews=new Map<string,Workspace>();
+  /** Open full sub-view windows. */
+  private windows=new Set<Workspace>();
 
   constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,private channel:LiveChannel,private user="",private scope?:WorkspaceScope){
     // A nested view: the scope field is implied (no column, filter or input), one grid region, overlay forms.
@@ -258,6 +260,11 @@ export class Workspace {
     const table=grid.layout.getRootNode() as HTMLElement|undefined,fit=grid.fitHeight(previewRows(grid.rowPixels));
     if(table&&fit)compact.height(root.offsetHeight-table.offsetHeight+fit);
   }
+  /** An open form, card editor or cell editor here or in a sub-view: input that a page reload would discard. */
+  editing():boolean{
+    return this.detailDirty||this.cellEditing||!!this.cardEditor?.isVisible()||(!!this.editor&&(this.view.layout.formMode==="panel"||!!this.dialog?.isVisible()))
+      ||[...this.previews.values(),...this.windows].some(view=>view.editing());
+  }
   /** Reloads the list (a compact preview after its full view closed). */
   refresh():void{if(!this.disposed)void this.load();}
   /** The nested view of an open record: the declared child list, or this view again (shared toolbar). */
@@ -289,8 +296,8 @@ export class Workspace {
     const dialog=new Window({css:"blade-feature-window",title:escape(child.title+" — "+caption),ariaLabel:child.title+" — "+caption,
       width:mobile?innerWidth:Math.min(1100,innerWidth-24),height:mobile?innerHeight:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:!mobile,movable:!mobile});
     const full=new Workspace(document.createElement("div"),child,this.csrf,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})});
-    dialog.attach(full.layout);dialog.show();
-    dialog.events.on("afterHide",()=>{full.destroy();void awaitRedraw().then(()=>dialog.destructor());if(!this.disposed)closed();});
+    dialog.attach(full.layout);dialog.show();this.windows.add(full);
+    dialog.events.on("afterHide",()=>{this.windows.delete(full);full.destroy();void awaitRedraw().then(()=>dialog.destructor());if(!this.disposed)closed();});
   }
   /** The record the toolbar acts on: the cursor record of a shared sub-view, otherwise this view's. */
   private target():Row|undefined{return this.delegated?.selectedRow()??this.selectedRow();}
