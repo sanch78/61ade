@@ -33,6 +33,37 @@ Views add no separate status/live-connection bar. User/application/version
 appear in the [single shell bar](shell.md#egységes-alsó-információs-sáv);
 background updates continue.
 
+<a id="list-components"></a>
+
+## List components in project code
+
+The list behind every list view is a public toolkit component
+([ListView](toolkit.md#listview), with [RecordForm](toolkit.md#recordform),
+[RecordDetails](toolkit.md#recorddetails) and
+[CommandBar](toolkit.md#commandbar)); the built-in `list` kind mounts the same
+`ListView` in the workspace. A project module composes them in its own Layout
+or `app.ui.window`; every read and write still goes through the view's
+registered, ACL-checked actions, and preferences, live updates and forms behave
+exactly as on a menu page:
+
+```ts
+const layout = new app.dhx.Layout(null, { type: "space", cols: [{ id: "list" }, { id: "side", width: 380 }] });
+host.attach(layout);
+const list = new app.components.ListView({ view: "demo_tasks", signal: host.signal });
+const details = new app.components.RecordDetails({ view: "demo_tasks", record: "1", signal: host.signal });
+list.on("select", ({ row }) => { if (row) void details.show(row); });
+list.mount(layout.getCell("list"));
+details.mount(layout.getCell("side"));
+```
+
+The implementation lives in `packages/frontend/src/components/list`
+(`Workspace.ts` list core; `toolbar.ts`, `filters.ts`, `search.ts`,
+`actions.ts` forms and commands, `details.ts`, `activation.ts`, `fields.ts`
+form items, `ListView.ts`, `RecordForm.ts`, `RecordDetails.ts`,
+`CommandBar.ts`). `src/Workspace.ts` only re-exports the internals for the
+existing fixtures; its constructor is not a contract
+([migration M8](toolkit.md#migration)).
+
 <a id="konfiguráció"></a>
 
 ## Configuration
@@ -297,6 +328,12 @@ window, and per-application tickets. `node tests/shell/live-protocol.mjs`: the
 protocol against the bundled server (see the
 [focused checks](development.md#focused-task-groups)). `lists.php` and
 `tenancy.php`: batched `__watch`, each entry answered on its own.
+`node tests/shell/toolkit-list.mjs`: the activation map per row, `view:<id>`
+targets and their details fallbacks. `toolkit-list.spec.cjs`: `ListView`,
+`RecordForm`, `RecordDetails` and `CommandBar` of a real `Application` in a
+project Layout and a framework window (events, per-row activation in table,
+cards and tiles, validation, theme switch, `destroy` releasing DOM, cell and
+live subscription).
 Separate consumer synthetic integration historically checked WebSocket updates/
 revocation, filtering, preserved panel forms, profile form and 600-row bounds.
 The client releases cached rows outside current order and ignores late events
@@ -408,7 +445,14 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
 - **Map:** `field` is a registered, non-secret field of the resource; each map
   entry (`*` is the default) takes one of the values above. A row whose value
   has no entry and no `*` keeps the default behaviour. The bootstrap always
-  sends the map as a JSON object.
+  sends the map as a JSON object. The client chooses per row by the string
+  value of the field in the list row (a field the actor may not read is absent
+  and takes `*`), the same in table, cards and tiles.
+- **`view:<id>`:** the client opens the record view through the shell's
+  navigation (`app.navigate({view, record})`: page or window as the view
+  declares, its row resolved by the record resource's `get`) when the view is
+  offered to the actor, is a record view of the list's resource and the row's
+  `_actions` contain `get`; otherwise the details.
 - **`page`:** the child view's own page (its menu entry, so the sub-view needs
   `embed: false`, checked at `subview()`) opens with the sub-view field filtered
   to the record. The filter is an ordinary one: it shows in the column header
@@ -434,8 +478,12 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
   (it opens no further child window).
 - **Accessibility:** with a declared activation every card and tile carries
   `aria-description` "Megnyitás: <target>" (the child list or page title, the
-  action label, or `Adatok` on fallback), per record. A child window opened this way
-  takes the focus, so Escape closes it.
+  action label, the record view title, or `Adatok` on fallback), per record; a
+  record whose map has no entry and no `*` carries none. A child window opened
+  this way takes the focus, so Escape closes it.
+- **Toolkit:** a `ListView` reports each activation as its `activate` event
+  with the resolved target before it runs
+  ([ListView](toolkit.md#listview)).
 - **Security:** nothing new runs: the action goes through the ordinary
   executor (ACL, confirmation metadata, audit), the child window through the
   child resource's `list`.

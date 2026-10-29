@@ -69,7 +69,7 @@ export interface Application {
   readonly fieldTypes: Registry<FieldType>;
   /** Client-side commands: name → handler, placed on view toolbars and record menus (`view.commands`). */
   readonly commands: Registry<ClientCommand>;
-  /** Public component classes, bound to this application (empty until toolkit P3). */
+  /** Public component classes, bound to this application (P3: `ListView`, `RecordForm`, `RecordDetails`, `CommandBar` from C-1). */
   readonly components: Components;
   /** Views offered to the actor (server-filtered bootstrap `views`), in menu order. */
   viewDefinitions(): readonly ViewDefinition[];
@@ -888,7 +888,10 @@ export interface ComponentOptions {
 /** A view reference: an offered view id, or a definition the caller already holds. */
 export type ViewReference<Options> = string | ViewDefinition<Options>;
 
-/** Options of `ListView` (today's `Workspace` constructor arguments as one object). */
+/**
+ * Options of `ListView` (the list's constructor arguments as one object). `view` must be a list view (kind `list`);
+ * anything else throws `TypeError`, as does `compact` without `scope`.
+ */
 export interface ListViewOptions extends ComponentOptions {
   view: ViewReference<ListOptions>;
   /** Nested list limited to `field` = `id` (today's `WorkspaceScope`). */
@@ -903,21 +906,30 @@ export interface ListViewOptions extends ComponentOptions {
 export interface ListViewEvents {
   /** The cursor record changed (`undefined`: none). */
   select: { row: Row | undefined };
-  /** Double-click/Enter resolved to `target` for `row` (after the activation map). */
+  /**
+   * Double-click/Enter resolved to `target` for `row` (after the activation map and its fallbacks), reported before it
+   * runs; `details` also for a card or tile without a declared target and for the `#` cell.
+   */
   activate: { row: Row; target: ActivationTarget };
-  /** A create/update/edit saved; `row` is the server's answer. */
+  /**
+   * A form of the list (create, update, a record action with fields, the singleton's Save) or an inline cell/card edit
+   * (`action` `update`) saved; `row` is the server's answer (for an edit: the row with the saved values).
+   */
   saved: { action: string; row: Row };
   /** The loaded window changed (load, live update, delete). */
   changed: { rows: readonly Row[]; total?: number; matched?: number };
 }
 
-/** The framework list (grid, cards, tiles, filters, forms, live); today's `Workspace`, split in P3 C-1. */
+/**
+ * The framework list (grid, cards, tiles, filters, search, forms, sub-views, live, preferences); the built-in `list`
+ * kind mounts it (`src/components/list`). `destroy` also closes its forms, details and sub-view windows.
+ */
 export interface ListView extends Component<ListViewEvents> {
   editing(): boolean;
   refresh(): void;
   /** The cursor record. */
   selected(): Row | undefined;
-  /** Replaces the filters (validated against the declared filters) and reloads. */
+  /** Replaces the filters (declared filters only; other fields are ignored) and reloads. */
   setFilters(filters: Record<string, string>): void;
 }
 
@@ -941,7 +953,11 @@ export interface RecordFormEvents {
 
 /** A framework action form (validation parity, file fields, field types, Cancel + submit row). */
 export interface RecordForm extends Component<RecordFormEvents> {
-  /** Validates and submits; rejects with `ServerFailure` after showing field errors in the form. */
+  /**
+   * Validates and submits; rejects with `ServerFailure` after showing field errors in the form (or the error dialog).
+   * A client-side validation failure sends nothing and rejects with status 400 and the field errors, the server's own
+   * shape; a declined confirmation (the action's `confirm` from an offered view) rejects with an `AbortError`.
+   */
   submit(): Promise<unknown>;
   values(): Record<string, unknown>;
   dirty(): boolean;
@@ -956,7 +972,7 @@ export interface RecordDetailsOptions extends ComponentOptions {
 
 /** Read-only record details as the list's `Adatok` command shows them (`recordFields`). */
 export interface RecordDetails extends Component<Record<string, never>> {
-  /** Shows another row (no request) or loads another id. */
+  /** Shows another row (no request) or loads another id (a newer call wins); a failed load shows the error dialog and rejects. */
   show(record: Row | string): Promise<void>;
 }
 
@@ -1147,7 +1163,7 @@ export interface CommandItem {
   type?: "button" | "spacer";
 }
 
-/** Options of `CommandBar`. */
+/** Options of `CommandBar`. Ids are `[A-Za-z0-9_.:-]+` and unique (`blade-command-menu` is reserved); otherwise `TypeError`. */
 export interface CommandBarOptions extends ComponentOptions {
   items: CommandItem[];
 }
