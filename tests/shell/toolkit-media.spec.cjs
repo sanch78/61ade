@@ -66,9 +66,13 @@ test('MediaPlayer plays audio: length and format, events, seek, keyboard, toolba
  const background=async theme=>{await page.evaluate(theme=>document.documentElement.setAttribute('data-dhx-theme',theme),theme);return stage.evaluate(element=>getComputedStyle(element).backgroundColor);};
  const light=await background('light'),dark=await background('dark');await background('skyblue');
  expect(light).not.toBe(dark);
- // Mobile: the controls stay inside the viewport, the info text gives way.
+ // Mobile: the controls stay inside the viewport, the info text gives way. The info is one toolbar item; Suite puts
+ // its `css` class on the item wrapper and on the text node, so every node with the class must be hidden.
+ const info=bar.locator('[data-dhx-id="info"]'),infoNodes=bar.locator('.blade-player__info');
+ await expect(info).toHaveCount(1);await expect(info).toBeVisible();
  await page.setViewportSize({width:390,height:700});
- await expect(bar.locator('.blade-player__info')).toBeHidden();
+ await expect(info).toBeHidden();
+ await expect.poll(()=>infoNodes.evaluateAll(nodes=>nodes.length>0&&nodes.every(node=>!node.checkVisibility()))).toBe(true);
  expect((await audio.boundingBox()).width).toBeLessThanOrEqual(390);
  await expect(bar.getByRole('button',{name:'Ismétlés',exact:true})).toBeVisible();
  // The owner's signal destroys the player: widgets, element and object URL are released, later calls are no-ops.
