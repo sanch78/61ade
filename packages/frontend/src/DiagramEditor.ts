@@ -6,13 +6,13 @@ import { fitWindow } from "./WindowSizing";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 import { alert, requestConfirmation } from "./MessageDialog";
 import { escape } from "./RecordPresentation";
+import { server } from "./api/Server";
 
 export type NodeType={id:string;label:string;glyph:string;color:string;shape:string;custom:boolean};
 export type LinkType={id:string;label:string;color:string;style:"solid"|"dashed"|"dotted";width:number};
 export type DiagramConfig={nodeTypes:NodeType[];linkTypes:LinkType[];glyphs:Record<string,string>;shapes:Record<string,string>;colors:string[];customTypes:boolean;maxNodes:number;maxLinks:number};
 type ActionDefinition={name:string;label:string;icon?:string;write:boolean;confirm?:{message:string;title?:string;severity?:"neutral"|"warning"|"danger";confirmLabel?:string};fields:FieldDefinition[]};
 export type DiagramViewDefinition={kind:"diagram";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:ActionDefinition[];diagram:DiagramConfig};
-export const isDiagramView=(view:object):view is DiagramViewDefinition=>(view as {kind?:string}).kind==="diagram";
 type DiagramNode={id:string;type:string;label:string;detail:string;x:number;y:number};
 type DiagramLink={id:string;source:string;target:string;type:string;label:string};
 type Diagram={id:string;name:string;revision:string;nodes:DiagramNode[];links:DiagramLink[]};
@@ -103,7 +103,7 @@ export class DiagramEditor {
   private propertyTurn=0;
   private focused:{diagrams?:string;palette?:string}={};
 
-  constructor(host:HTMLElement,private view_:DiagramViewDefinition,private csrf:string){
+  constructor(host:HTMLElement,private view_:DiagramViewDefinition){
     this.config=view_.diagram;
     this.linkType=this.config.linkTypes[0].id;
     for(const type of this.config.nodeTypes)this.types.set(type.id,type);
@@ -198,13 +198,7 @@ export class DiagramEditor {
   private linkLabel():string{return escape(this.config.linkTypes.find(type=>type.id===this.linkType)?.label??"");}
 
   // ---- transport ---------------------------------------------------------------------------
-  private async call(action:string,id:string|null,values:Record<string,unknown>={}):Promise<any>{
-    const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?blade=1";
-    const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-BLADE-CSRF":this.csrf},body:JSON.stringify({resource:this.view_.resource,action,id,values})});
-    const result=await response.json().catch(()=>({ok:false}));
-    if(!response.ok||!result.ok){const error=new Error(result.error||t("Sikertelen művelet.")) as Failure;error.status=response.status;error.fieldErrors=result.fieldErrors;throw error;}
-    return result.data;
-  }
+  private call(action:string,id:string|null,values:Record<string,unknown>={}):Promise<any>{return server.call(this.view_.resource,action,{id,values});}
   private async error(error:unknown):Promise<void>{
     if(this.disposed)return;
     const e=error as Failure;

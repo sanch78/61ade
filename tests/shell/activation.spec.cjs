@@ -55,7 +55,7 @@ test('a zone opens the shelves page filtered to it; the filter is an ordinary, r
  const shelves=page.locator('.dhx_grid-row');
  await page.locator('.dhx_grid-row').filter({hasText:'A zóna'}).first().locator('[data-dhx-col-id="title"]').dblclick();
  // The page, not a window; the filter leaves the address once applied.
- await expect(page).toHaveURL(/#feature=demo_shelves$/);
+ await expect(page).toHaveURL(/#view=demo_shelves$/);
  await expect(page.getByRole('heading',{name:'Polcok'})).toBeVisible();
  await expect(window(page)).toHaveCount(0);
  await expect(shelves.filter({hasText:'Felső polc'})).toHaveCount(1);await expect(shelves.filter({hasText:'Középső polc'})).toHaveCount(1);
@@ -63,17 +63,17 @@ test('a zone opens the shelves page filtered to it; the filter is an ordinary, r
  // The shelves page keeps its own activation (the item window).
  await shelves.filter({hasText:'Felső polc'}).first().locator('[data-dhx-col-id="title"]').dblclick();await opened(page,'Felső polc',2);await close(page);
  // The page keeps the filter across a reload, like any filter set there.
- await page.reload();await expect(page).toHaveURL(/#feature=demo_shelves$/);
+ await page.reload();await expect(page).toHaveURL(/#view=demo_shelves$/);
  await expect(shelves.filter({hasText:'Felső polc'})).toHaveCount(1);await expect(shelves.filter({hasText:'Üres polc'})).toHaveCount(0);
  await page.getByRole('button',{name:'Alaphelyzet',exact:true}).click();
  await expect(shelves.filter({hasText:'Üres polc'})).toHaveCount(1);
  await page.reload();await expect(shelves.filter({hasText:'Üres polc'})).toHaveCount(1);
- await page.goBack();await expect(page).toHaveURL(/#feature=demo_shelf_zones$/);
+ await page.goBack();await expect(page).toHaveURL(/#view=demo_shelf_zones$/);
  await view(page,'Csempék');
  const tile=name=>page.locator('.blade-grid-tile').filter({hasText:name}).first();
  await expect(tile('B zóna')).toHaveAttribute('aria-description','Megnyitás: Polcok');
  await tile('B zóna').click();await page.keyboard.press('Enter');
- await expect(page).toHaveURL(/#feature=demo_shelves$/);
+ await expect(page).toHaveURL(/#view=demo_shelves$/);
  await expect(shelves.filter({hasText:'Üres polc'})).toHaveCount(1);await expect(shelves.filter({hasText:'Felső polc'})).toHaveCount(0);
  // An empty zone: the shelves list is requested with the zone filter and is empty.
  await page.goBack();
@@ -81,7 +81,7 @@ test('a zone opens the shelves page filtered to it; the filter is an ordinary, r
  await tile('C zóna').dblclick();const response=await listed;
  expect(response.request().postDataJSON().values.filters).toMatchObject({zone_id:expect.any(String)});
  expect((await response.json()).data.items).toEqual([]);
- await expect(page).toHaveURL(/#feature=demo_shelves$/);await expect(shelves).toHaveCount(0);
+ await expect(page).toHaveURL(/#view=demo_shelves$/);await expect(shelves).toHaveCount(0);
  await page.goBack();await view(page,'Táblázat');
  expect(errors).toEqual([]);
 });

@@ -90,7 +90,7 @@ test('users carry OAuth, e-mail confirmation and default language switches; an A
  await openAdmin(page,'Felhasználók');
  // Wide grids render columns lazily; the view metadata lists every switch column.
  const views=JSON.parse(await page.locator('#blade-config').textContent()).views;
- expect(views.find(view=>view.resource==='blade_users').columns.map(column=>column.header)).toEqual(['Teljes név','E-mail','Tiltva','Jelszócsere szükséges','OAuth-belépés','Alapnyelv','E-mailes megerősítés']);
+ expect(views.find(view=>view.id==='blade_users').options.columns.map(column=>column.header)).toEqual(['Teljes név','E-mail','Tiltva','Jelszócsere szükséges','OAuth-belépés','Alapnyelv','E-mailes megerősítés']);
  await expect(page.getByRole('button',{name:'Rendezés: Tiltva',exact:true})).toBeVisible();
  await openApiKeys(page);
  await command(page,'Hozzáadás');

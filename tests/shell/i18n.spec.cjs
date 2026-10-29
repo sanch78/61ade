@@ -33,7 +33,7 @@ test('framework language works before login, persists through login, translates 
  await deleteTasks(page,created);
  // Back to Hungarian: the selection is kept by the account and other specs expect the default.
  await page.getByRole('button',{name:'English',exact:true}).click();await page.getByText('Magyar',{exact:true}).last().click();await expect(page.locator('html')).toHaveAttribute('lang','hu');
- await expect(page).toHaveURL(/feature=demo_tasks/);
+ await expect(page).toHaveURL(/view=demo_tasks/);
  await expect(page.locator('[role="columnheader"][data-dhx-id="title"]').filter({hasText:'Megnevezés'}).first()).toContainText('Megnevezés');
  await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','hu');
  await page.getByRole('button',{name:'Skyblue',exact:true}).click();await expect(page.getByText('Világos',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Skyblue',exact:true}).click();

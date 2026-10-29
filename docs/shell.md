@@ -78,7 +78,9 @@ then configure its business integration.
 and keyboard submission. Errors use the framework's DHTMLX dialogs. Framework
 CSS handles full-window sizing and documented Suite theme variables.
 Below 768 px workspace width, menu branches and logout move under native
-`Menü`; widening restores the top menu. Consumers have no shell HTML/CSS/JS layer.
+`Menü`; widening restores the top menu. Consumers write no shell markup; their
+own browser code, if any, is an [application module](#application-modules)
+that receives the toolkit API ([ADR-0005](decisions/0005-toolkit.md)).
 
 Historical initial verification: PHP 8.4.26, Node 18.19.1, npm 9.2.0,
 TypeScript 5.9.3, esbuild 0.25.12, Suite Standard 9.3.12, Playwright 1.58.2.
@@ -264,15 +266,39 @@ status bar and continuing polling. Decision: FB-0011.
 
 ## URLs and local UI preferences
 
-A menu-opened feature uses a URL such as `/admin/#feature=items`. The fragment
-contains URL-encoded registry resource ID. On reload, login and Back/Forward,
-the shell resolves it through current permission-filtered `views`. Unknown/
-empty IDs give an empty workspace. Navigation never writes data; record/editor
-deep links do not yet exist.
+A menu-opened view uses a URL such as `/admin/#view=items`
+([toolkit routing](toolkit.md#routing), [FB-0081](feedback.md#fb-0081)). The
+fragment is `view=<view id>[&record=<record id>][&filter.<field>=<value>]`,
+URL-encoded; a view id defaults to its resource. On reload, login and
+Back/Forward, the shell resolves it through the current permission-filtered
+`views`. Unknown, empty or unoffered ids, a record view without `record` and a
+view whose kind is not registered give an empty workspace. Filter presets apply
+once and leave the address (`history.replaceState`). Navigation never writes
+data.
+
+- **Legacy alias:** `#feature=<resource>` (delivered e-mails such as
+  `/admin/#feature=inquiries`) is read as `#view=<resource>`, the view whose id
+  equals that resource, and rewritten in place with `history.replaceState`
+  (other parameters kept), also after a sign-in.
+- **Menu ids** are `view:<id>` (`sibling:view:<id>` for the collapsed-menu
+  siblings). A [record view](toolkit.md#record-views) has no menu entry.
+- **Record views:** `#view=<id>&record=<id>` opens a view that declares
+  `record` for one record. Before the current view is replaced, the shell reads
+  the row through the record resource's `get` action (ACL, field ACL and tenant
+  scope on the server); a refusal shows the shared error dialog and keeps the
+  current view. `open: "page"` (default) is a page with an address and a history
+  entry; `open: "window"` opens a framework document window
+  (`blade-feature-window`, full screen below 768 px) over the page without an
+  address change. A page navigation closes such windows.
 
 No consumer JavaScript or extra configuration is required. Bootstrap `userId`
 is the authenticated identity. Versioned `blade-ui:1:` localStorage keys
-separate pathname, user ID and resource. Stored: column widths, successfully
+separate pathname, user ID and view id (`[path, user, <view id>]`; a sub-view
+preview adds `@<field>`). A view whose id equals its resource keeps the keys of
+earlier releases, so there is no key migration; a renamed view starts with
+defaults. A module's `app.preferences.scope("<project>.<name>")` store is one
+entry `[path, user, "scope:<project>.<name>"]`, which cannot collide with a
+view. Stored for lists: column widths, successfully
 loaded sorting, manually chosen grid/card mode, declared panel sizes, filter
 collapse and the filter values of a menu page (header and panel filters,
 including one set by an [`activate: 'page'`](workspaces.md#activation)
@@ -303,15 +329,56 @@ toolbars, grids and workspaces) the shell shows a centred notice in the shared
 elérhető funkció.`, instead of the view. The view stays mounted but hidden, so
 widening the window restores it with its state. The option is presentation
 only: actions, API calls and ACL are unchanged, and no device detection is
-used (a narrow desktop window gets the notice too).
+used (a narrow desktop window gets the notice too). The view host applies it
+to every kind, a project kind included, by wrapping what the kind attaches.
 
-The existing unit script is `node tests/shell/ui-preferences.mjs`.
-Its last recorded limitation is
+The existing unit scripts are `node tests/shell/ui-preferences.mjs` and
+`node tests/shell/toolkit-kernel.mjs` (address parsing and the `#feature=`
+alias, registry names, the event bus). Its last recorded limitation is
 a stale layout double lacking `getRootNode()` (FB-0050). The managed
-`preferences.spec.cjs` checks feature URLs through login/reload/history,
-persisted column width, sort, view and panel width, and broken storage on the
-feature demo's Tasks view.
+`preferences.spec.cjs` checks view URLs through login/reload/history, the
+`#feature=` alias through a sign-in, persisted column width, sort, view and
+panel width, and broken storage on the feature demo's Tasks view.
 Feedback: FB-0021.
+
+<a id="application-modules"></a>
+
+## Application modules, kinds and the view host
+
+Toolkit kernel P2 ([toolkit reference](toolkit.md), [FB-0081](feedback.md#fb-0081)).
+After sign-in the shell creates one `Application` (`src/app/Application.ts`)
+over the existing modules: `server` (the one JSON transport, `src/api/Server.ts`,
+`X-BLADE-CSRF` from the bootstrap `csrf`; every framework component uses it),
+`ui`, `uploads`, `i18n`, `theme`, `preferences`, `live` (the tab's one
+`LiveChannel`), `events`, `identity` (`src/api/services.ts`) and the
+registries `views`, `presentations`, `fieldTypes`, `commands`
+(`src/app/registries.ts`). Built-in names have no dot, project names need one;
+a duplicate throws unless `{replace: true}`.
+
+- **Built-in kinds** `list`, `files`, `diagram`, `calendar` are registered in
+  `src/app/builtins.ts` before any module; the shell opens every view only
+  through `app.views.get(view.kind)`. The bootstrap `views` carry the shared
+  keys at the top and the kind's payload in `options`; a built-in kind hands
+  `options` to its component unchanged.
+- **Modules:** the bootstrap `modules` list (page-relative paths of
+  `application.modules`; one without its own `?` cache key gets `?v=<version>`)
+  is imported in parallel; the default exports run one by one in declaration
+  order with `app`, then the shell routes. A failed import, a missing default
+  export, a throw, a rejection or more than 5 s (per import and per
+  initialization) is reported by a danger toast (`Egy alkalmazásmodul nem
+  indult el: {module}`), the `module:error` event and the console, and skipped;
+  the shell always starts. Without modules the shell routes at once, as before.
+  Signed-out pages create no `Application`.
+- **View host:** each opening gets a `ViewHost` (`signal`, `open`, `record`,
+  `filters`, `attach`, `setTitle`, `close`). The signal aborts when the view
+  closes (navigation, window close, sign-out, page unload) before the
+  instance's `destroy()` runs exactly once; `view:opened` and `view:closed`
+  follow. `attach` takes a Suite widget, a component or a plain element (kept
+  in a `.blade-view-slot`). A kind that throws shows the shared error dialog
+  and leaves an empty workspace (or closes its window). The live channel asks
+  the open instances' `editing()` before a protocol reload.
+- **Theme:** `app.theme` reports the applied base theme and skin and calls
+  `onChange` listeners after each switch.
 
 <a id="kompakt-hitelesítési-ablakok-és-menüikonok"></a>
 

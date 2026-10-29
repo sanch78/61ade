@@ -9,13 +9,13 @@ import { FormValidation, type FieldDefinition } from "./FormValidation";
 import { acknowledge, alert, requestChoice, requestConfirmation } from "./MessageDialog";
 import { escape, clearedText, mergeUsages, type Usage } from "./RecordPresentation";
 import { actionUrl } from "./ActionUrl";
+import { server } from "./api/Server";
 import { uploads, type UploadEvents, type UploadFileInfo, type UploadPolicy } from "./Uploader";
 import type { Row } from "./Realtime";
 import type { ActionConfirmation, ViewDefinition } from "./Workspace";
 
 export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{allowed_extensions:string[];max_size_bytes:number;multiple:boolean;max_files?:number;duplicate_policy:string;policy:UploadPolicy};text:{extension:string;max_bytes:number};preview:string[];max_depth:number};
 export type FileViewDefinition={kind:"files";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean;get?:boolean;confirm?:ActionConfirmation;usages?:boolean;fields:FieldDefinition[]}[];files:FileManagerConfig};
-export const isFileView=(view:ViewDefinition|FileViewDefinition):view is FileViewDefinition=>(view as FileViewDefinition).kind==="files";
 type Entry={id:string;name:string;kind:"directory"|"file";extension:string;mime_type:string;size:number;modified_at:string;revision:string;width?:number|null;height?:number|null;duration_ms?:number|null;orientation?:string;thumbnail?:"ready"|"pending"|"failed"|"none"};
 type Listing={directory:Directory;items:Entry[];next?:string|null;total?:number;matched?:number};
 type Sort="name"|"modified"|"size"|"type";
@@ -107,7 +107,7 @@ export class FileManager {
   };
   private uploadComplete=()=>{if(!this.disposed&&(this.uploaded.size||this.relist.size)){clearTimeout(this.uploadTimer);void this.refreshUploaded();}};
 
-  constructor(host:HTMLElement,private view:FileViewDefinition,private csrf:string){
+  constructor(host:HTMLElement,private view:FileViewDefinition){
     this.config=view.files;
     // Native wide group and resizer; no width or minWidth, which would make the Layout cells fixed.
     this.layout=new Layout(host,{type:"space",rows:[
@@ -407,23 +407,9 @@ export class FileManager {
     else if(id==="content_stream")await this.openPreview();
   }
 
-  private async request(action:string,id:string|null,values:Record<string,unknown>,parts?:Part[]):Promise<Response>{
-    const endpoint=new URL(location.href);endpoint.hash="";endpoint.search="?blade=1";
-    const request=JSON.stringify({resource:this.view.resource,action,id,values});
-    let body:BodyInit=request;const headers:Record<string,string>={"X-BLADE-CSRF":this.csrf};
-    // Binary content is sent as multipart parts; the JSON request travels beside them.
-    if(parts){const form=new FormData();form.append("request",request);for(const part of parts)form.append(part.field,part.blob,part.name);body=form;}
-    else headers["Content-Type"]="application/json";
-    return fetch(endpoint,{method:"POST",credentials:"same-origin",headers,body});
-  }
-  private failure(status:number,result:any):Failure{
-    return Object.assign(new Error(result.error||t("Sikertelen művelet.")),{status,fieldErrors:result.fieldErrors,details:result.details});
-  }
-  private async call(action:string,id:string|null,values:Record<string,unknown>={},parts?:Part[]):Promise<any>{
-    const response=await this.request(action,id,values,parts);
-    const result=await response.json().catch(()=>({ok:false}));
-    if(!response.ok||!result.ok)throw this.failure(response.status,result);
-    return result.data;
+  /** Binary content (`text_save`) travels as multipart parts beside the JSON request. */
+  private call(action:string,id:string|null,values:Record<string,unknown>={},parts?:Part[]):Promise<any>{
+    return server.call(this.view.resource,action,{id,values,parts});
   }
   private async error(error:unknown):Promise<void>{
     if(this.disposed)return;

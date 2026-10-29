@@ -1,15 +1,19 @@
 import { configureLanguage, languageIcon, type LanguageConfig, t } from "./I18n";
 import { widgetIcons } from "./WidgetIcons";
 import { externalSignInUnavailable, openExternalSignIn } from "./ExternalAuth";
-import { Workspace, type ViewDefinition } from "./Workspace";
 import { LiveChannel } from "./Realtime";
-import { FileManager, isFileView, type FileViewDefinition } from "./FileManager";
-import { DiagramEditor, isDiagramView, type DiagramViewDefinition } from "./DiagramEditor";
-import { Calendar, isCalendarView, type CalendarViewDefinition } from "./Calendar";
 import { DesktopOnly } from "./DesktopOnly";
 import { Form, Layout, Menu, Toolbar, Window, setTheme, awaitRedraw } from "@dhtmlx/suite";
 import { alert, closeDialogs } from "./MessageDialog";
 import { uploads, type UploadIndicator } from "./Uploader";
+import { configureServer, server } from "./api/Server";
+import { attachContent, openWindow, themeApplied } from "./api/services";
+import type { AppWindow, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
+import { createApplication, loadModules, type Kernel } from "./app/Application";
+import { parseRoute, routeHash } from "./app/routes";
+
+/** One open view: the workspace page or a document window, with the signal its host aborts on close. */
+type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow };
 
 export type MenuDefinition = {
   id: string;
@@ -35,7 +39,10 @@ export type ShellDefinition = {
   oauth?: boolean;
   displayName?: string;
   menu?: MenuDefinition[];
-  views?: (ViewDefinition | FileViewDefinition | DiagramViewDefinition | CalendarViewDefinition)[];
+  /** Offered views in menu order (toolkit `ViewDefinition`: shared keys at the top, the kind's payload in `options`). */
+  views?: ViewDefinition[];
+  /** Only after sign-in: the application's ES modules (`ApplicationDefinition::$modules`), page-relative paths. */
+  modules?: string[];
   csrf?: string;
   live?: import("./Realtime").LiveConfig;
   /** Only with tenancy: the server-resolved active tenant (null: no membership) and the actor's memberships. */
@@ -68,28 +75,28 @@ export class AdminShell {
   private status: Toolbar;
   private releaseUploads?: () => void;
   private menu?: NavigationMenu;
-  private workspace?: Workspace | FileManager | DiagramEditor | Calendar | DesktopOnly;
+  /** The view of the workspace page and the views open in document windows. */
+  private page?: Mounted;
+  private windows=new Set<Mounted>();
   private navigation=0;
+  /** The page's toolkit `Application`, its event bus and kind registry (signed in only). */
+  private kernel?: Kernel;
   /** The tab's one live channel (signed in with a list view), shared by every list and sub-view. */
   private channel?: LiveChannel;
-  private get live():LiveChannel{return this.channel??=new LiveChannel(this.definition.live || {transport:"poll",endpoint:"live",interval:2000},this.definition.csrf || "",
-    {notice:text=>this.liveNotice(text),editing:()=>this.content instanceof Workspace||this.content instanceof DiagramEditor?this.content.editing():false});}
-  /** The open view behind a DesktopOnly wrapper, asked before a live reload. */
-  private content?: Workspace | FileManager | DiagramEditor | Calendar;
-  /** `#feature=<resource>`; `filter.<field>=<value>` presets that view's filters once and leaves the address. */
+  private get live():LiveChannel{return this.channel??=new LiveChannel(this.definition.live || {transport:"poll",endpoint:"live",interval:2000},
+    {notice:text=>this.liveNotice(text),editing:()=>[this.page,...this.windows].some(mounted=>mounted?.instance?.editing?.()??false)});}
+  /**
+   * `#view=<id>[&record=<id>]`; `filter.<field>=<value>` presets that view's filters once and leaves the address.
+   * The legacy `#feature=<resource>` is the view whose id is that resource; the address is rewritten in place.
+   */
   private route = () => {
-    const params = new URLSearchParams(location.hash.slice(1)), resource = params.get("feature");
-    const view = this.definition.views?.find(view => view.resource === resource);
-    const preset: Record<string, string> = {};
-    params.forEach((value, key) => { if (key.startsWith("filter.")) preset[key.slice("filter.".length)] = value; });
-    if (view && Object.keys(preset).length) { const url = new URL(location.href); url.hash = new URLSearchParams({ feature: view.resource }).toString(); history.replaceState(null, "", url); }
-    if (view) void this.openView(view, false, preset);
-    else {
-      this.renderMenu();
-      ++this.navigation;
-      this.layout.getCell("workspace").detach();
-      this.workspace?.destroy(); this.workspace=this.content=undefined;
-    }
+    const route = parseRoute(location.hash);
+    if (route.legacy) { const url = new URL(location.href); url.hash = route.canonical; history.replaceState(null, "", url); }
+    const view = route.view === undefined ? undefined : this.offered(route.view);
+    const record = view?.record ? route.record : undefined;
+    if (view && Object.keys(route.filters).length) { const url = new URL(location.href); url.hash = routeHash({ view: view.id, record }); history.replaceState(null, "", url); }
+    if (view && this.openable(view, record)) void this.openView(view, { record, filters: route.filters });
+    else this.clear();
   };
   private menuItems: object[] = [];
   private menuState?: string;
@@ -116,7 +123,7 @@ export class AdminShell {
     const width=this.root.clientWidth;
     const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0));
     const compact = width < Math.max(768,required(this.menuItems));
-    const current="feature:"+(new URLSearchParams(location.hash.slice(1)).get("feature")??"");
+    const current="view:"+(parseRoute(location.hash).view??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
       for(const item of items){
         if(item.id===current)return nested?items:undefined;
@@ -167,7 +174,9 @@ export class AdminShell {
       const choice=choices.find(choice=>choice.id===id)!;
       if(skins.length)document.documentElement.dataset.bladeSkin=id;
       setTheme(choice.base??id,document.documentElement);
+      themeApplied(choice.base??id,skins.length?id:null);
     };
+    configureServer(definition.csrf || "");
     let theme=choices[0].id;
     try { const saved=localStorage.getItem(storage); if(choices.some(choice=>choice.id===saved))theme=saved!; } catch {}
     apply(theme);
@@ -207,7 +216,7 @@ export class AdminShell {
     });
     this.layout.getCell("status").attach(this.status);
     if (definition.authenticated) {
-      uploads.configure({ csrf: definition.csrf || "", userId: definition.userId });
+      uploads.configure({ userId: definition.userId });
       this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); });
       this.releaseUploads = uploads.indicator(state => this.uploadIndicator(state));
     }
@@ -239,8 +248,9 @@ export class AdminShell {
             : { disabled: true }),
         }));
       const features: any[]=[];
-      for(const view of definition.views || []) {
-        const item={id:"feature:"+view.resource,value:escape(view.title),icon:view.icon??"dxi dxi-table-check"};
+      // A record view opens for one record (activation, navigate, address) and has no menu entry.
+      for(const view of (definition.views || []).filter(view=>!view.record)) {
+        const item={id:"view:"+view.id,value:escape(view.title),icon:view.icon??"dxi dxi-table-check"};
         if(view.group){
           let group=features.find(v=>v.id==="group:"+view.group);
           if(!group){group={id:"group:"+view.group,value:escape(view.group),icon:"dxi dxi-folder-open",items:[]};features.push(group);}
@@ -255,14 +265,18 @@ export class AdminShell {
         id=String(id).replace(/^sibling:/,"");
         if (id === "blade-logout") this.post("logout");
         if (id.startsWith("tenant:") && id.slice(7) !== this.definition.tenant?.current) this.post("tenant", { tenant: id.slice(7) });
-        const view=definition.views?.find(v=>"feature:"+v.resource===id);
-        if(view)void this.openView(view);
+        const view=id.startsWith("view:")?this.offered(id.slice(5)):undefined;
+        if(view&&!view.record&&this.openable(view))void this.openView(view,{push:true});
       });
       this.layout.getCell("main-menu").attach(menu);
       // Opened once after sign-in, before the first list: every list of the page subscribes on it.
-      if((definition.views||[]).some(view=>!isCalendarView(view)&&!isDiagramView(view)&&!isFileView(view)))void this.live;
-      window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});
-      this.route();
+      if((definition.views||[]).some(view=>view.kind==="list"))void this.live;
+      this.kernel=createApplication({channel:()=>this.live,userId:definition.userId??"",displayName:definition.displayName??"",tenant:definition.tenant?.current??null,
+        views:definition.views??[],navigate:target=>this.navigate(target)});
+      const start=()=>{if(this.listeners.signal.aborted)return;window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});this.route();};
+      // Project modules register their kinds before the first route; a declarative application routes at once.
+      if(definition.modules?.length)void loadModules(this.kernel,definition.modules,definition.version).catch(error=>console.error(error)).then(start);
+      else start();
     } else {
       if (definition.passwordChange) this.mountPasswordChange();
       else if (definition.confirmation) this.mountConfirmation();
@@ -275,27 +289,113 @@ export class AdminShell {
     });
   }
 
-  private async openView(view:ViewDefinition|FileViewDefinition|DiagramViewDefinition|CalendarViewDefinition,updateUrl=true,preset:Record<string,string>={}):Promise<void>{
-    if(updateUrl){
+  /** An offered view by id (the bootstrap `views` are already filtered by the server). */
+  private offered(id:string):ViewDefinition|undefined{return this.definition.views?.find(view=>view.id===id);}
+  /** Its kind is registered, and a record view has its record id. */
+  private openable(view:ViewDefinition,record?:string):boolean{return !!this.kernel?.views.has(view.kind)&&(!view.record||!!record);}
+
+  /** `Application.navigate`: like a menu click or an address, through the `views` registry. */
+  private navigate(target:NavigationTarget):boolean{
+    const view=typeof target?.view==="string"?this.offered(target.view):undefined,record=view?.record?target.record:undefined;
+    if(!view||!this.openable(view,record))return false;
+    void this.openView(view,{record,filters:{...target.filters},open:target.open,push:true});
+    return true;
+  }
+
+  /** The empty workspace (unknown or unoffered address, `host.close()` of a page). */
+  private clear():void{
+    this.renderMenu();
+    ++this.navigation;
+    this.layout.getCell("workspace").detach();
+    this.unmountAll();
+  }
+
+  /**
+   * Opens a view through its registered kind. A page replaces the workspace (`push`: a history entry, as a menu click);
+   * a window (`open: "window"`) keeps the page and the address. A record view's row is resolved first through the
+   * record resource's `get`; its failure shows the error dialog and keeps the current view.
+   */
+  private async openView(view:ViewDefinition,options:{record?:string;filters?:Record<string,string>;open?:ViewOpenMode;push?:boolean}={}):Promise<void>{
+    const open=options.open??view.open??"page",kind=this.kernel!.views.get(view.kind)!;
+    const navigation=open==="page"?++this.navigation:this.navigation;
+    let record:ViewHost["record"];
+    if(view.record&&options.record!==undefined){
+      try{record={resource:view.record,id:options.record,row:await server.call<Row>(view.record,"get",{id:options.record})};}
+      catch(error){if(!this.listeners.signal.aborted&&navigation===this.navigation)await this.failed(error);return;}
+      if(this.listeners.signal.aborted||navigation!==this.navigation)return;
+    }
+    if(open==="window"){void this.mount(view,kind,"window",record,options.filters??{});return;}
+    if(options.push){
       const url=new URL(location.href);
-      url.hash=new URLSearchParams({feature:view.resource}).toString();
+      url.hash=routeHash({view:view.id,record:record?.id});
       if(url.href!==location.href)history.pushState(null,"",url);
     }
     this.renderMenu();
-    const navigation=++this.navigation;
     this.layout.getCell("workspace").detach();
-    this.workspace?.destroy();this.workspace=this.content=undefined;
+    this.unmountAll();
     await awaitRedraw();
     if(navigation!==this.navigation || this.listeners.signal.aborted)return;
-    const content=isCalendarView(view)
-      ?new Calendar(document.createElement("div"),view,this.definition.csrf || "")
-      :isDiagramView(view)
-      ?new DiagramEditor(document.createElement("div"),view,this.definition.csrf || "")
-      :isFileView(view)
-      ?new FileManager(document.createElement("div"),view,this.definition.csrf || "")
-      :new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.live,this.definition.userId??"",undefined,preset);
-    this.content=content;this.workspace=view.desktopOnly?new DesktopOnly(content,view.title):content;
-    this.layout.getCell("workspace").attach(this.workspace.layout);
+    await this.mount(view,kind,"page",record,options.filters??{});
+  }
+
+  /** Creates the view's `ViewHost` and instance; a throwing kind shows the error dialog and leaves nothing mounted. */
+  private async mount(view:ViewDefinition,kind:{create:(host:ViewHost,view:ViewDefinition)=>ViewInstance|Promise<ViewInstance>},open:ViewOpenMode,record:ViewHost["record"],filters:Record<string,string>):Promise<void>{
+    const controller=new AbortController(),signal=controller.signal;
+    const mounted:Mounted={view,record:record?.id,open,controller};
+    if(open==="window"){
+      // The record views' framework document window: like a sub-view window, full screen on a phone.
+      mounted.window=openWindow({title:view.title,css:"blade-feature-window",width:1100,height:720,fit:false});
+      mounted.window.signal.addEventListener("abort",()=>this.unmount(mounted),{once:true});
+      this.windows.add(mounted);
+    }else this.page=mounted;
+    const host:ViewHost=Object.freeze({
+      app:this.kernel!.app,signal,open,...(record?{record}:{}),filters:Object.freeze({...filters}),
+      attach:(content:Parameters<ViewHost["attach"]>[0])=>{
+        if(signal.aborted)return;
+        if(mounted.window){mounted.window.attach(content);return;}
+        const cell=this.layout.getCell("workspace");
+        if(!view.desktopOnly){attachContent(cell,content,signal);return;}
+        if(!mounted.wrapper){mounted.wrapper=new DesktopOnly(view.title);attachContent(mounted.wrapper.cell,content,signal);cell.attach(mounted.wrapper.layout);}
+        else attachContent(mounted.wrapper.cell,content,signal);
+      },
+      setTitle:(text:string)=>{if(!signal.aborted)mounted.window?.setTitle(String(text));},
+      close:()=>{
+        if(signal.aborted)return;
+        if(mounted.window){mounted.window.close();return;}
+        const url=new URL(location.href);url.hash="";history.pushState(null,"",url);this.clear();
+      },
+    });
+    try{
+      const instance=await kind.create(host,view);
+      if(signal.aborted){instance.destroy();return;}
+      mounted.instance=instance;
+    }catch(error){
+      if(signal.aborted)return;
+      if(mounted.window)mounted.window.close();else{this.layout.getCell("workspace").detach();this.unmount(mounted);}
+      await this.failed(error);
+      return;
+    }
+    this.kernel!.events.dispatch("view:opened",{id:view.id,...(record?{record:record.id}:{}),open});
+  }
+
+  /** Closes one view: its signal aborts, then the instance and wrapper are destroyed (exactly once). */
+  private unmount(mounted:Mounted):void{
+    if(mounted.controller.signal.aborted)return;
+    mounted.controller.abort();
+    if(this.page===mounted)this.page=undefined;
+    this.windows.delete(mounted);
+    try{mounted.instance?.destroy();}catch(error){console.error(error);}
+    mounted.wrapper?.destroy();
+    mounted.window?.close();
+    if(mounted.instance)this.kernel?.events.dispatch("view:closed",{id:mounted.view.id,...(mounted.record!==undefined?{record:mounted.record}:{})});
+  }
+  /** A page navigation closes the page and every view window. */
+  private unmountAll():void{for(const mounted of [...this.windows,...(this.page?[this.page]:[])])this.unmount(mounted);}
+
+  /** The shared error dialog of a failed record resolution or view kind. */
+  private async failed(error:unknown):Promise<void>{
+    const fields=Object.values((error as {fieldErrors?:Record<string,string>})?.fieldErrors??{});
+    await alert({header:t("Hiba"),severity:"danger",text:[error instanceof Error?error.message:t("Sikertelen művelet."),...fields].join("\n")});
   }
 
   /** The live channel's page-level hint (a stale page that did not reload) in the lower bar. */
@@ -619,7 +719,7 @@ export class AdminShell {
     this.listeners.abort();
     window.removeEventListener("resize", this.resize);
     closeDialogs();
-    this.workspace?.destroy();
+    this.unmountAll();
     this.channel?.close();
     this.loginWindow?.destructor();
     this.layout.destructor();

@@ -2,6 +2,7 @@ import { Grid, Layout, Toolbar, Window, awaitRedraw, message } from "@dhtmlx/sui
 import { locale, t } from "./I18n";
 import { escape, recordIcon } from "./RecordPresentation";
 import { requestChoiceAll } from "./MessageDialog";
+import { post } from "./api/Server";
 
 /** Browser part of a server `UploadPolicy` (`UploadPolicy::metadata()`); never contains server paths. */
 export type UploadPolicy = {
@@ -115,7 +116,6 @@ const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, 
  * (preflight → begin → chunks → finish) with 3 parallel transfers and resume after reload.
  */
 class UploadService {
-  private csrf = "";
   private user = "";
   private win?: Window;
   private grid?: Grid;
@@ -161,9 +161,8 @@ class UploadService {
   private guarded = false;
   private leaving = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
 
-  /** Session data of the shell: CSRF header for the UI channel and the actor (keys stored resumes). */
-  configure(options: { csrf: string; userId?: string }): void {
-    this.csrf = options.csrf;
+  /** Session data of the shell: the actor (keys stored resumes); requests use the shared transport (api/Server). */
+  configure(options: { userId?: string }): void {
     this.user = options.userId ?? "";
     this.listen();
   }
@@ -613,17 +612,10 @@ class UploadService {
 
   // ---------------------------------------------------------------- protocol
 
-  private endpoint(): string { const url = new URL(location.href); url.hash = ""; url.search = "?blade=1"; return url.toString(); }
-
   /** One `__upload` operation; `chunk` switches to multipart (JSON `request` + part `chunk`). */
   private async call(item: Item, values: Record<string, unknown>, chunk?: Blob, signal?: AbortSignal): Promise<any> {
-    const request = JSON.stringify({ resource: item.resource, action: "__upload", id: item.target, values: { action: item.action, ...values } });
-    const headers: Record<string, string> = { "X-BLADE-CSRF": this.csrf };
-    let body: BodyInit = request;
-    if (chunk) { const form = new FormData(); form.append("request", request); form.append("chunk", chunk, "chunk"); body = form; }
-    else headers["Content-Type"] = "application/json";
     let response: Response;
-    try { response = await fetch(this.endpoint(), { method: "POST", credentials: "same-origin", headers, body, signal }); }
+    try { response = await post(item.resource, "__upload", { id: item.target, values: { action: item.action, ...values }, parts: chunk ? [{ field: "chunk", blob: chunk, name: "chunk" }] : undefined, signal }); }
     catch (error) {
       if (signal?.aborted) throw new Aborted();
       throw new UploadError(t("Hálózati hiba. A feltöltés újrapróbálható."), 0, "", undefined, true);

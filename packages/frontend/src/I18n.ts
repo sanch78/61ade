@@ -1,10 +1,10 @@
 import { i18n } from "@dhtmlx/suite";
 export type LanguageConfig={locale:string;languages:Record<string,string>;selector:boolean;flags?:Record<string,string>;messages:Record<string,string>};
-let current="hu",messages:Record<string,string>={};
+let current="hu",messages:Record<string,string>={},siteLanguages:Record<string,string>={};
 const nativeDefaults:Record<string,Record<string,string>>=Object.fromEntries(["grid","form","window","toolbar","combobox"].map(group=>[group,{...i18n[group]}]));
 /** A locale always exists, even when the consumer hides language selection. */
 export function configureLanguage(config?:LanguageConfig):void{
-  current=config?.locale??"hu";messages=config?.messages??{};
+  current=config?.locale??"hu";messages=config?.messages??{};siteLanguages=config?.languages??{};
   document.documentElement.lang=current;
   // Suite native message buttons are localized independently of 61ade captions.
   i18n.setLocale("message",{apply:t("Rendben"),reject:t("Mégse"),aria_confirm:t("Megerősítés"),aria_reject:t("Mégse"),aria_apply:t("Rendben")});
@@ -16,6 +16,8 @@ export function configureLanguage(config?:LanguageConfig):void{
   i18n.setLocale("timepicker",{hours:t("Óra"),minutes:t("Perc"),save:t("Mentés")});
 }
 export const locale=()=>current;
+/** Site languages: code → native name (empty without an `i18n` block). */
+export const languages=()=>siteLanguages;
 export function t(key:string,parameters:Record<string,unknown>={}):string{
   return (messages[key]??key).replace(/\{([\w]+)\}/g,(match,name)=>Object.hasOwn(parameters,name)?String(parameters[name]):match);
 }
