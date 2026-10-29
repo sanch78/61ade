@@ -254,6 +254,119 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | `SandboxFrame` | new | `ready`, `error`, `message`; `load`, `post` |
 | `CommandBar` | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
 
+The list components below are **implemented (P3 C-1, 2026-10-29)** in
+`packages/frontend/src/components/list` and offered as
+`app.components.ListView`, `RecordForm`, `RecordDetails` and `CommandBar`
+(the other components have their own subsections). Common rules: `mount(target)`
+takes an element (filled at 100 %), a Layout cell, an `AppWindow` or a
+`ViewHost`; a window or view host destroys the component when it closes, and
+the `signal` option does the same. `destroy()` is idempotent, detaches the
+component from the cell it was mounted in and releases its widgets, the
+windows it opened, its requests and its live subscription. Handlers registered
+with `on` run in registration order (a throwing one is logged); events are
+delivered only while the component is mounted and never after `destroy()`.
+
+<a id="listview"></a>
+
+#### ListView (implemented)
+
+The framework list of one list view: table, cards and tiles, header filters
+and the filter panel, search, the view's action forms and bulk commands,
+details, sub-views, live updates and the user's saved mode, sort, columns and
+filters (keys by view id, as for a menu page). The built-in `list` kind is this
+component mounted in the view host.
+
+```ts
+const list = new app.components.ListView({ view: "demo_measurements", signal: host.signal });
+list.on("select", ({ row }) => chart.show(row));
+list.on("changed", ({ rows, matched }) => summary.update(rows, matched));
+list.mount(layout.getCell("list"));
+```
+
+- `view`: an offered view id or a `ViewDefinition` of kind `list`; anything
+  else throws `TypeError`. `filters` replaces the saved filter values once
+  (declared filters only); `scope` and `compact` give the nested list of a
+  record (`compact` needs `scope`).
+- Events: `select` (cursor record, `undefined` when it leaves the window),
+  `activate` (the resolved target of a double-click or Enter, reported before
+  it runs; `details` also for a card or tile without a declared target),
+  `saved` (the list's create, update, record-action and singleton forms and
+  inline cell or card edits; `action` is `update` for an edit), `changed` (the
+  loaded window after a load, scroll window, live update or revocation, with
+  the server's `total` and `matched`). Nested previews and sub-view windows
+  report nothing.
+- Methods: `editing()`, `refresh()`, `selected()`, `setFilters(filters)`
+  (replaces all values; undeclared fields are ignored).
+- The [activation map](#activation-map) is chosen per row; a `view:<id>`
+  target calls `app.navigate({view, record})`.
+
+<a id="recordform"></a>
+
+#### RecordForm (implemented)
+
+One action form outside a list: the fields and values of `__form` (field ACL
+applied, `revision` kept hidden and sent back), file fields, client validation
+mirroring the server rules, Cancel beside the submit button, the action's
+declared confirmation and submit label when an offered view of the resource
+has the action, the success toast and the server's field errors in place.
+
+```ts
+const form = new app.components.RecordForm({ resource: "demo_tasks", action: "update", id, signal: win.signal });
+form.on("saved", () => win.close());
+form.on("cancel", () => win.close());
+form.mount(win);
+```
+
+- `submit()` resolves the action's result. A client validation failure sends
+  nothing and rejects with a `ServerFailure` of status 400 with the field
+  errors (the server's own shape); a server failure shows its field errors (or
+  the error dialog) and rejects with it; a declined confirmation rejects with
+  an `AbortError`. Concurrent calls share one submission.
+- `values()` are the action's field values in the form; `dirty()` is true
+  after a change until a successful save. `changed` reports every field change.
+- A failed `__form` shows the error dialog; `submit()` then rejects with it.
+
+<a id="recorddetails"></a>
+
+#### RecordDetails (implemented)
+
+The `Adatok` details of a list view as a component: every declared detail
+field present in the ACL-projected row, with its media, icon and option
+presentation.
+
+```ts
+const details = new app.components.RecordDetails({ view: "signage_assets", record: host.record!.row });
+details.mount(layout.getCell("details"));
+list.on("select", ({ row }) => { if (row) void details.show(row); });
+```
+
+`record` (and `show`) take a row, shown as given, or an id, loaded through
+the view's `get` (a newer call wins). A failed load shows the error dialog and
+`show()` rejects. It has no events.
+
+<a id="commandbar"></a>
+
+#### CommandBar (implemented)
+
+The list's own responsive command bar: native Toolbar buttons that move into
+one `Műveletek` menu below 768 px or when they do not fit, keeping ids, state
+and click events.
+
+```ts
+const bar = new app.components.CommandBar({ signal: host.signal, items: [
+  { id: "play", label: app.i18n.t("Lejátszás"), icon: "dxi dxi-play" },
+  { id: "pause", label: app.i18n.t("Szünet"), disabled: true }] });
+bar.on("click", ({ id }) => (id === "play" ? void player.play() : player.pause()));
+bar.mount(layout.getCell("commands"));
+player.on("loaded", () => bar.update("pause", { disabled: false }));
+```
+
+Labels are plain text (escaped). Ids match `[A-Za-z0-9_.:-]+`, are unique and
+`blade-command-menu` is reserved; otherwise the constructor throws
+`TypeError`. `update(id, changes)` changes the label, icon, disabled or hidden
+state, also while the item sits in the collapsed menu. `toolbar` is the
+underlying Suite Toolbar.
+
 <a id="calendar-and-diagrameditor"></a>
 
 #### Calendar and DiagramEditor (implemented — P3 C-2)
@@ -480,7 +593,7 @@ without a record id opens nothing.
 
 <a id="activation-map"></a>
 
-## Activation map (client per-row choice: planned — P3 C-1)
+## Activation map (client per-row choice: implemented, P3 C-1)
 
 ```php
 $source->register($registry, 'Médiatár', tiles: true,
@@ -502,6 +615,13 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.asset-viewer", 
   offered) opens the details, exactly like today's
   [fallback](workspaces.md#activation). Tables, cards, tiles, Enter and
   double-click behave the same; `aria-description` names the per-row target.
+- Client (`components/list/activation.ts`): a `view:<id>` target is offered
+  when `app.viewDefinition(id)` exists, its `record` is the list's resource
+  and the row's `_actions` (when present) contain `get`; it then runs
+  `app.navigate({view: id, record: row.id})`, and a refused navigation opens
+  the details. A compact sub-view preview opens the details instead. A row
+  whose map has no entry and no `*` gets no `aria-description` and keeps the
+  default (update form in the table, details in cards and tiles).
 
 <a id="sandbox-protocol"></a>
 

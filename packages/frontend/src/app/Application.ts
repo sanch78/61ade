@@ -8,6 +8,7 @@ import { createEventBus, type InternalEventBus } from "../api/Events";
 import { i18n, identity, live, preferences, theme, ui, uploads } from "../api/services";
 import { NamedRegistry } from "./registries";
 import { registerBuiltins } from "./builtins";
+import { listComponents } from "../components/list";
 import { bindCalendar } from "../components/calendar/Calendar";
 import { bindDiagramEditor } from "../components/diagram/DiagramEditor";
 import { sandboxFrameClass } from "../components/sandbox/SandboxFrame";
@@ -52,7 +53,8 @@ export function createApplication(bridge: ShellBridge): Kernel {
     fieldTypes: new NamedRegistry<FieldType>("field type"),
     commands: new NamedRegistry<ClientCommand>("command"),
     // Public component classes (toolkit P3 C-1 … C-4), bound to this application.
-    components: Object.freeze({
+    components: Object.freeze<Partial<Components>>({
+      ...listComponents({ channel: bridge.channel, user: bridge.userId, app: () => app }),
       Calendar: bindCalendar(() => app),
       DiagramEditor: bindDiagramEditor(() => app),
       SandboxFrame: sandboxFrameClass(payload => events.dispatch("sandbox:error", payload)),
