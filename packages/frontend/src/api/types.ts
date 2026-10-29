@@ -994,16 +994,27 @@ export interface DiagramEditorComponent extends Component<{ saved: Record<string
   editing(): boolean;
 }
 
-/** Media source of `MediaPlayer`. */
+/**
+ * Media source of `MediaPlayer`: a GET-capable action (`app.server.url`, fetched by the element with the session cookie
+ * and HTTP Range requests), a URL the caller owns (same origin or `blob:`), or a Blob the player turns into an object
+ * URL and revokes on `destroy()`.
+ */
 export type MediaSource =
   | { resource: string; action: string; id: string; version?: string }
-  | { url: string };
+  | { url: string }
+  | { blob: Blob };
 
-/** Options of `MediaPlayer` (planned P3 C-3, extracted from `FileManager.openImage/openVideo`). */
+/** Options of `MediaPlayer` (P3 C-3, extracted from the file manager's image viewer and video player). */
 export interface MediaPlayerOptions extends ComponentOptions {
   source: MediaSource;
-  /** MIME type of the source (`image/*`, `video/*`, `audio/*`); decides the element. */
+  /** MIME type of the source (`image/*`, `video/*`, `audio/*`); decides the element. Any other type throws `TypeError`. */
   mime: string;
+  /** Accessible name and image `alt` (plain text; the audio stage shows it); default the localized `Médiatartalom`. */
+  name?: string;
+  /** Plain text appended to the toolbar's dimensions, length and format (the file manager passes the file size). */
+  info?: string;
+  /** The player's toolbar (image zoom/rotation; video/audio loop and speed; the info text). Default true. */
+  toolbar?: boolean;
   /** Native controls (default true). */
   controls?: boolean;
   loop?: boolean;
@@ -1016,19 +1027,28 @@ export interface MediaPlayerOptions extends ComponentOptions {
 export interface MediaPlayerEvents {
   /** Metadata known: duration in seconds (0 for images), natural size for images and videos. */
   loaded: { duration: number; width?: number; height?: number };
-  /** Playback position, at most every 250 ms while playing and after every `seek`. */
+  /** Playback position, at most every 250 ms while playing, on pause and after every `seek`. */
   position: { seconds: number };
   ended: Record<string, never>;
+  /** The source cannot be shown or played; `message` is localized (also shown in the toolbar). */
   error: { message: string };
 }
 
-/** Image, video and audio player with the framework's look and keyboard handling. */
+/**
+ * Image, video and audio player with the framework's look and keyboard handling (media element: Space/K play or
+ * pause, arrows seek 5 s, Home/End; image stage: `+`, `-`, `0`). Media methods do nothing for images.
+ */
 export interface MediaPlayer extends Component<MediaPlayerEvents> {
+  /** Resolves when playback starts; rejects like `HTMLMediaElement.play()` (for example a refused autoplay). */
   play(): Promise<void>;
   pause(): void;
+  /** Clamped to `0 … duration()`; emits `position` when the seek completes. */
   seek(seconds: number): void;
   position(): number;
+  /** Seconds; 0 until the metadata is known and for images. */
   duration(): number;
+  /** Moves the keyboard focus to the media element or the image stage. */
+  focus(): void;
 }
 
 /**

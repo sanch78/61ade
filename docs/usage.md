@@ -241,8 +241,9 @@ the post-response `TaskQueue`; `DownloadStream` and GET-capable actions
 (`Action::$get`, frontend `actionUrl()`) stream viewer content with HTTP Range
 under the same ACL and audit. A consumer's own action handler can return a
 `DownloadStream` of any MIME type (for example its own audio assets) without
-the file manager; the file manager's own viewer streams only PNG, JPEG, MP4
-and WebM. Install it explicitly in setup, register it in
+the file manager; the file manager's own viewer, the toolkit
+[`MediaPlayer`](toolkit.md#mediaplayer), streams PNG, JPEG, MP4, WebM, MP3,
+WAV and M4A. Install it explicitly in setup, register it in
 the application definition and grant rules (`content_stream`/`thumbnail_get`
 are separate rights). Earlier BLOB databases upgrade with the explicit,
 verified migration 0002. U4 adds paged server-sorted listings with tiles, search, type filter and

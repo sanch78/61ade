@@ -3,30 +3,31 @@ declare(strict_types=1);
 namespace Blade\Files;
 
 /**
- * Display metadata of stored images and videos: `getimagesize` (JPEG EXIF orientation applied) and
+ * Display metadata of stored images, videos and audio: `getimagesize` (JPEG EXIF orientation applied) and
  * `ffprobe` run with an argument array (no shell), a timeout, one thread, only the `file` protocol and
  * the demuxer forced from the stored MIME type. Metadata only: a missing tool or an unreadable file
- * gives nulls, and video length is never a validation rule.
+ * gives nulls, and media length is never a validation rule. `codec` (the first video or audio stream's
+ * ffprobe `codec_name`) is reported to callers but not stored.
  */
 final readonly class MediaProbe
 {
-    /** Stored video type => forced ffmpeg demuxer; other types are never handed to ffmpeg. */
-    public const DEMUXERS = ['video/mp4' => 'mp4', 'video/webm' => 'webm'];
+    /** Stored video and audio type => forced ffmpeg demuxer; other types are never handed to ffmpeg. */
+    public const DEMUXERS = ['video/mp4' => 'mp4', 'video/webm' => 'webm', 'audio/mpeg' => 'mp3', 'audio/wav' => 'wav', 'audio/mp4' => 'mp4'];
 
     public function __construct(public string $ffprobe = '/usr/bin/ffprobe', public float $timeout = 10.0)
     {
         if (!str_starts_with($ffprobe, '/') || str_contains($ffprobe, "\0")) throw new \InvalidArgumentException('The ffprobe path must be absolute.');
     }
 
-    /** @return array{width:?int,height:?int,duration_ms:?int,orientation:string} */
+    /** @return array{width:?int,height:?int,duration_ms:?int,orientation:string,codec:?string} */
     public function probe(string $path, string $mime): array
     {
-        [$width, $height, $duration] = match (true) {
-            str_starts_with($mime, 'image/') => $this->image($path, $mime),
-            isset(self::DEMUXERS[$mime]) => $this->video($path, self::DEMUXERS[$mime]),
-            default => [null, null, null],
+        [$width, $height, $duration, $codec] = match (true) {
+            str_starts_with($mime, 'image/') => [...$this->image($path, $mime), null],
+            isset(self::DEMUXERS[$mime]) => $this->stream($path, self::DEMUXERS[$mime], str_starts_with($mime, 'audio/')),
+            default => [null, null, null, null],
         };
-        return ['width' => $width, 'height' => $height, 'duration_ms' => $duration, 'orientation' => self::orientation($width, $height)];
+        return ['width' => $width, 'height' => $height, 'duration_ms' => $duration, 'orientation' => self::orientation($width, $height), 'codec' => $codec];
     }
 
     public static function orientation(?int $width, ?int $height): string
@@ -53,21 +54,24 @@ final readonly class MediaProbe
         return [$width, $height, null];
     }
 
-    private function video(string $path, string $format): array
+    /** First video stream (size, rotation) or, for audio types, first audio stream: duration and codec. */
+    private function stream(string $path, string $format, bool $audio): array
     {
+        $entries = $audio ? 'stream=codec_name,duration:format=duration' : 'stream=codec_name,width,height,duration:stream_tags=rotate:stream_side_data=rotation:format=duration';
         $json = self::process([$this->ffprobe, '-v', 'error', '-threads', '1', '-protocol_whitelist', 'file', '-f', $format, '-print_format', 'json',
-            '-show_entries', 'stream=width,height,duration:stream_tags=rotate:stream_side_data=rotation:format=duration', '-select_streams', 'v:0', 'file:'.$path], $this->timeout);
+            '-show_entries', $entries, '-select_streams', $audio ? 'a:0' : 'v:0', 'file:'.$path], $this->timeout);
         $data = $json !== null ? json_decode($json, true) : null;
-        if (!is_array($data)) return [null, null, null];
+        if (!is_array($data)) return [null, null, null, null];
         $stream = $data['streams'][0] ?? [];
-        $width = is_int($stream['width'] ?? null) && $stream['width'] > 0 ? $stream['width'] : null;
-        $height = is_int($stream['height'] ?? null) && $stream['height'] > 0 ? $stream['height'] : null;
+        $width = !$audio && is_int($stream['width'] ?? null) && $stream['width'] > 0 ? $stream['width'] : null;
+        $height = !$audio && is_int($stream['height'] ?? null) && $stream['height'] > 0 ? $stream['height'] : null;
         $rotation = (int) ($stream['tags']['rotate'] ?? 0);
         foreach ($stream['side_data_list'] ?? [] as $side) if (isset($side['rotation'])) $rotation = (int) $side['rotation'];
         if (abs($rotation) % 180 === 90) [$width, $height] = [$height, $width];
         $seconds = $stream['duration'] ?? $data['format']['duration'] ?? null;
         $duration = is_numeric($seconds) && (float) $seconds >= 0 ? (int) round((float) $seconds * 1000) : null;
-        return [$width, $height, $duration];
+        $codec = is_string($stream['codec_name'] ?? null) && preg_match('/^[a-z0-9_]{1,32}$/D', $stream['codec_name']) ? $stream['codec_name'] : null;
+        return [$width, $height, $duration, $codec];
     }
 
     /**
