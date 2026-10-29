@@ -21,7 +21,7 @@ return JsonApplication::load(
 | --- | --- |
 | `description` | Human explanation, not runtime configuration; valid on every configuration object. |
 | `environment` | Env files and the process variable selecting an alternate file. |
-| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. Optional `version`, and `skins` naming an identity binding `Closure(Identity): list<Skin>` ([application skins](shell.md#application-skins)). |
+| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. Optional `version`, `skins` naming an identity binding `Closure(Identity): list<Skin>` ([application skins](shell.md#application-skins)), and `modules` / `stylesheets`: browser paths of the project's ES modules and CSS ([module loading](toolkit.md#module-loading)). |
 | `database` | MySQL `host`, integer `port`, `name`, `charset`, `user`, `password`; password requires an env reference. |
 | `session` | `name`, `cookie_path`; the framework owns session lifecycle. |
 | `identity` | SQL account schema and named `allowed`/`password_verifier` adapters. |
@@ -101,14 +101,19 @@ Complete synthetic example: [notes.json](../tests/fixtures/configuration/notes.j
 | `operations.delete_policy` | `delete` (default) or `archive` (requires `delete: true` and consumer columns `archived_at`/`archived_by`); see [record delete policy and usages](workspaces.md#delete-usages). |
 | `storage.computed` | `{name: SQL expression}` over the base row `blade_base` (trusted developer SQL, no `;`/`?`); the name must also be a declared text/number field, which becomes read-only and sortable. |
 | `fields[].type: "file"` | With `file: {resource, mount, accept: ["image","video"], folder?}`: a file reference picked from or uploaded into a file-manager mount; see [workspaces](workspaces.md#file-field). |
-| `view` | `title`; optional `group`, `singleton`, `columns`, `actions`, `layout`, `row_numbers`, `selection`, `row_selection`, `icon`, `desktop_only`, `row_height` (32–160), `tile_min_width` (120–480), `tiles`, `search` (field names), `subview` (`resource`, `field`; optional `embed`, default true: see [sub-views](workspaces.md#sub-views)), `activate` (`details`, `subview`, `page` or a record action of the view: what double-click and Enter run, see [record activation](workspaces.md#activation)). Omitted columns/actions use the registered resource's default view. Media columns (`column.media`), icon columns (`column.presentation`), tiles and search: [workspaces](workspaces.md#media-tiles). |
+| `view` | `title`; optional `id` (the [view id](toolkit.md#views), default the resource name), `group`, `singleton`, `columns`, `actions`, `layout`, `row_numbers`, `selection`, `row_selection`, `icon`, `desktop_only`, `row_height` (32–160), `tile_min_width` (120–480), `tiles`, `search` (field names), `subview` (`resource`: the child view id, which is its resource name unless that view declares another `id`; `field`; optional `embed`, default true: see [sub-views](workspaces.md#sub-views)), `activate` (`details`, `subview`, `page`, `view:<id>` or a record action of the view, or an activation map `{"field": …, "map": {value: target, "*": target}}`: what double-click and Enter run, see [record activation](workspaces.md#activation)). Omitted columns/actions use the registered resource's default view. Media columns (`column.media`), icon columns (`column.presentation`), tiles and search: [workspaces](workspaces.md#media-tiles). |
 | `view.layout` | `form_mode` (`overlay`/`panel`) and optional validated `tree`; see [workspaces](workspaces.md). |
 | `actions` | Additional registered actions: `resource`, `name`, `label`, `handler`; optional `fields`, `target_resource`, `write`, `channels`, `form_values` (named initial-value binding). |
+| `views.<id>` | Views of a project kind ([toolkit views](toolkit.md#views)), keyed by view id: `kind` (dotted, registered in the browser by a project module) and `title`; optional `resource`, `record` (a [record view](toolkit.md#record-views); needs that resource's `get`), `actions` (of `resource`), `options` (sent to the browser verbatim: JSON only, at most 64 KiB encoded, never backend-only data), `open` (`page`/`window`), `group`, `icon`, `desktop_only`. Built-in kinds are declared through `resources.<name>.view`, `fileManager()`, `diagram()` and `calendar()`. |
 
-The compiler builds lookups/SQL resources, then custom actions, then views.
-Views may therefore reference actions declared later in the same or another
-module. Unknown keys, bindings, lookups, action resources and duplicate definitions
-fail. The PHP definition API remains available; JSON builds the same 61ade classes.
+The compiler builds lookups/SQL resources, then custom actions, then the
+resource views, then the module-level `views`, then sub-views; `view:<id>`
+activation targets are checked last, once every view exists. Views may
+therefore reference actions declared later in the same or another module.
+Unknown keys, bindings, lookups, action resources and duplicate definitions
+(including a view id declared twice in JSON) fail. The PHP definition API
+remains available; JSON builds the same 61ade classes (`Blade\Feature\View`
+through `Registry::addView`).
 
 `workspaceBindings` is a `(Workspace, Registry): array` closure returning an
 explicit name → closure map. JSON cannot discover arbitrary PHP functions.
@@ -121,7 +126,9 @@ and callback names stay server-side; only permitted view/field metadata reaches 
 
 `tests/shell/configuration.php` covers process/file/default precedence, type and
 missing-value errors, invalid JSON, a complete synthetic application, bindings,
-CRUD, layout, ACL and audit. The optional fourth PDO argument of
+CRUD, layout, ACL and audit, plus `view.id`, activation maps, module-level
+`views` and `application.modules`/`stylesheets`; `tests/shell/toolkit.php`
+covers the PHP view, kind-provider and module contracts behind them. The optional fourth PDO argument of
 `JsonApplication::load` injects an existing connection/isolated fixture;
 otherwise it opens the declared MySQL connection.
 
@@ -133,6 +140,15 @@ callback typing do not exist; the runtime compiler validates supported structure
 
 Optional string `application.version` supplies the application release identifier
 shown beside `application.title` in the lower shell bar; no automatic framework-version substitution.
+
+`application.modules` (`.js`/`.mjs`) and `application.stylesheets` (`.css`) are
+browser paths relative to the page (not to the JSON directory) or root-absolute,
+with `[A-Za-z0-9_-]` segments and an optional `?…` cache key; anything else, a
+duplicate or a non-list fails at load. Without a cache key the shell appends
+`?v=<application.version>` when the version is set. Only signed-in pages link
+the stylesheets (after the framework CSS and skins) and list the modules in the
+bootstrap `modules` key; the sign-in, e-mail confirmation and password-change
+pages load neither ([module loading](toolkit.md#module-loading)).
 
 `storage.related` declares a validated one-to-one mapping: `table`, `key`,
 `fields`, optional `defaults`. Saving shares the main form's transaction,

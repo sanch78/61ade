@@ -31,7 +31,7 @@ verify(!$batch[1]['ok']&&$batch[1]['status']===404&&$batch[2]['ok']&&($batch[2][
 try{$w->watch($ctx,array_fill(0,Workspace::WATCH_LIMIT+1,['id'=>'x','resource'=>'records','query'=>[]]));verify(false,'Batch limit');}catch(Failure $e){verify($e->status===413,'Batch limit');}
 try{$w->watch($ctx,[['id'=>['x'],'resource'=>'records']]);verify(false,'Malformed batch entry');}catch(Failure $e){verify($e->status===400,'Malformed batch entry');}
 try{new ViewLayout('panel',['cols'=>[['id'=>'grid']]]);throw new RuntimeException('Missing form accepted');}catch(InvalidArgumentException){}
-$views=$w->views($ctx->actor);verify($views[0]['layout']['formMode']==='panel','Layout reaches consumer');
+$views=$w->views($ctx->actor);verify($views[0]['options']['layout']['formMode']==='panel','Layout reaches consumer');
 
 // Media columns, MIME-class filter and declared search: an independent synthetic consumer over a real file space.
 $tmp=(getenv('BLADE_TMP_DIR')?:dirname(__DIR__,2).'/tmp').'/lists-media-'.bin2hex(random_bytes(4));mkdir($tmp,0700,true);
@@ -134,7 +134,7 @@ $aw=new Workspace($areg,$adb);$actx=new Context(new Identity('1','One'),'ui',$aw
 $q=$adb->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','docs',?,'ui','allow','all','','')");foreach(['list','get','create','update','delete'] as $action)$q->execute([$action]);
 $acall=fn(string $action,?string $id,array $values=[])=>$aw->executor->execute($actx,'docs',$action,$id,$values);
 $aview=$aw->views($actx->actor)[0];$aactions=array_column($aview['actions'],null,'name');
-verify(in_array('refs',$aview['sortable'],true)&&!in_array('refs',array_column($aactions['create']['fields'],'name'),true)&&!in_array('refs',array_column($aactions['update']['fields'],'name'),true),'Computed column sortable, never a form field');
+verify(in_array('refs',$aview['options']['sortable'],true)&&!in_array('refs',array_column($aactions['create']['fields'],'name'),true)&&!in_array('refs',array_column($aactions['update']['fields'],'name'),true),'Computed column sortable, never a form field');
 verify(str_contains($aactions['delete']['confirm']['message'],'archiválódik')&&!isset($aactions['delete']['usages']),'Archive confirmation; no usages flag without providers');
 $bySort=$acall('list',null,['limit'=>3,'sort'=>['field'=>'refs','direction'=>'desc']]);
 verify(array_column($bySort['items'],'id')===['3','5','10']&&(int)$bySort['items'][0]['refs']===3,'Computed column listed and sorted on the server');
@@ -178,4 +178,14 @@ try{
     }
     verify(substr_count((string)file_get_contents($log),"Delete policy 'archive' of plain needs the columns archived_at (NULL) and archived_by on plain.")===3,'Developer error names the missing columns');
 }finally{ini_set('error_log',(string)$previousLog);@unlink($log);}
+// Several views of one resource (docs/toolkit.md#views): each list view reads the resource's own `list`; a project
+// view of the same resource does not change what is observed; `registerDelete()` reaches every list view of it.
+$vreg=new Registry();$vsrc=new SqlResource('records','records','record_id',[new Field('title','Title'),new Field('category','Category','select',options:['A'=>'A','B'=>'B'])],'owner_id');
+$vsrc->register($vreg,'Records');$vreg->view('records','Category B',[['id'=>'title','header'=>'Title']],['get'],id:'records.b',rowNumbers:false);
+$vreg->addView(new Blade\Feature\View('demo.chart','demo.chart','Chart','records',actions:['list'],options:['series'=>'category']));
+$vsrc->registerDelete($vreg);
+verify($vreg->viewById('records')->actions===['get','create','update','delete']&&$vreg->viewById('records.b')->actions===['get','delete']&&$vreg->viewById('demo.chart')->actions===['list'],'registerDelete() appends to every list view of the resource');
+$vw=new Workspace($vreg,$db);$vviews=array_column($vw->views($ctx->actor),null,'id');
+verify(array_keys($vviews)===['records','records.b','demo.chart']&&$vviews['records.b']['resource']==='records'&&$vviews['records.b']['options']['rowNumbers']===false&&$vviews['records']['options']['rowNumbers']===true&&json_encode($vviews['records.b']['options']['filters'])===json_encode($vviews['records']['options']['filters']),'Two list views of one resource keep their own options and share its filters');
+$vlive=$vw->observe($ctx,'records',['limit'=>10,'front'=>true]);verify(count($vlive['items'])===10,'A resource with list and project views stays observable');
 echo "61ade dynamic list, scope, filters, external changes, layout, media, class filter, search, archive policy and computed column tests passed.\n";

@@ -51,6 +51,14 @@ $source->register($registry, 'Elemek', layout: new ViewLayout(
 ));
 ```
 
+`SqlResource::register()` and `Registry::view()` return the registered
+`Blade\Feature\View` (kind `list`); its id defaults to the resource, and an
+explicit `id:` adds a further view of the same resource
+([toolkit views](toolkit.md#views)). A later view with the same id replaces the
+earlier one and keeps its menu position. In the bootstrap a list view's own
+keys (`columns`, `layout`, `filters`, `activate`, `subview`, …) are under
+`options`.
+
 `new ViewLayout()` gives filter/grid plus overlay form. Panel mode requires
 a `form` leaf. Validated nested rows/cols support header, width/height,
 minWidth/minHeight, resizable, collapsable, collapsed. No executable HTML/JS
@@ -375,11 +383,28 @@ passes it through `register(…, activate: 'subview')`; that view has `get`,
 `create` and `update` only, so an action added later (`registerDelete()`,
 `appendViewActions()`) cannot be named there.
 
+Per-record targets use an activation map keyed by the string value of a field
+([toolkit activation map](toolkit.md#activation-map)):
+
+```php
+$source->register($registry, 'Médiatár', tiles: true,
+    activate: ['field' => 'kind', 'map' => ['audio' => 'view:demo.player', '*' => 'details']]);
+```
+
+JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "details"}}`.
+
 - **Values:** `details` (the record details), `subview` (the full window of the
   view's [sub-view](#sub-views) for that record, also at a child count of 0, so
   an empty list is the place to create the first item), `page` (see below) or
-  the name of a record action in the view's `actions`. `create`, `get`, upload
-  and collection actions are rejected at registration, as is a singleton view.
+  the name of a record action in the view's `actions`, or `view:<id>`: a
+  [record view](toolkit.md#record-views) whose `record` is the list's resource,
+  checked once every view is declared (end of the JSON build,
+  `ApplicationDefinition`, every bootstrap). `create`, `get`, upload and
+  collection actions are rejected at registration, as is a singleton view.
+- **Map:** `field` is a registered, non-secret field of the resource; each map
+  entry (`*` is the default) takes one of the values above. A row whose value
+  has no entry and no `*` keeps the default behaviour. The bootstrap always
+  sends the map as a JSON object.
 - **`page`:** the child view's own page (its menu entry, so the sub-view needs
   `embed: false`, checked at `subview()`) opens with the sub-view field filtered
   to the record. The filter is an ordinary one: it shows in the column header
@@ -394,8 +419,10 @@ passes it through `register(…, activate: 'subview')`; that view has `get`,
   record offers `update`, otherwise the details; cards and tiles open the
   details.
 - **Fallback:** a declared activation that is not offered opens the details:
-  the action is not in the actor's view or not in the record's `_actions`, or
-  the sub-view is not resolved (its child view is not offered to the actor).
+  the action is not in the actor's view or not in the record's `_actions`, the
+  sub-view is not resolved (its child view is not offered to the actor), or the
+  record view is not offered (the actor is not offered its record resource's
+  `get`, or a tenant-scoped record resource without an active tenant).
 - **Unchanged paths:** the details stay on the toolbar `Adatok` command (and
   the `#` cell in the table); editable cells and card fields, marks, the
   sub-view toggle and card button keep their own handling. A `select: false`
@@ -746,7 +773,13 @@ $registry->subview('projects', 'tasks', 'project_id', embed: false);
 $registry->subview('tasks', 'tasks', 'parent_id');
 ```
 
-JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "project_id", "embed": false, "select": true}}`.
+`subview()` takes view ids (default: the resource). A child view of the same
+resource is a hierarchy of the parent view itself. Attach a sub-view after the
+final declaration of both views: a redeclared parent loses its sub-view and a
+redeclared child its embedding.
+
+JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "project_id", "embed": false, "select": true}}`
+(`resource` names the child view id).
 
 - **Toggle:** the table gets a first toggle column (an accessible button with
   `aria-expanded`). Enter on the toggle cell or a click expands or collapses it.

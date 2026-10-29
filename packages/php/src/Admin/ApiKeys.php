@@ -40,10 +40,7 @@ final class ApiKeys
             normalize: fn(Context $ctx, ?array $target, array $values): array => $this->normalize($ctx, $target, $values),
             afterSave: fn(Context $ctx, string $id, ?array $target, array $values): ?array => $target ? null : $this->issue($ctx, $id),
         );
-        $resource->register($registry, 'API-kulcsok', group: $group);
-        foreach ($registry->views() as $view) {
-            if ($view['resource'] === self::RESOURCE) $registry->view(self::RESOURCE, $view['title'], $view['columns'], $view['actions'], group: $view['group'], layout: $view['layout'], icon: 'dxi dxi-key');
-        }
+        $registry->addView($resource->register($registry, 'API-kulcsok', group: $group)->with(icon: 'dxi dxi-key'));
     }
 
     /** "resource.action" => label for every catalogue operation exposed on the API channel. */
