@@ -59,8 +59,10 @@ The public API for project modules ([ADR-0005](decisions/0005-toolkit.md)) is
 specified in the [toolkit reference](toolkit.md). Implemented (P2): project
 modules and stylesheets (`ApplicationDefinition` `modules`/`stylesheets`, JSON
 `application.modules/stylesheets`), the `app` services, registries and view
-kinds, view ids, record views and the activation map; the public components
-follow in P3.
+kinds, view ids, record views and the activation map; (P3) the public
+components `ListView`, `RecordForm`, `RecordDetails`, `CommandBar`,
+`Calendar`, `DiagramEditor`, `MediaPlayer` and `SandboxFrame`, `admin.d.ts`
+and the sandbox document.
 
 <a id="elfogadott-termékirány--2026-10-21"></a>
 

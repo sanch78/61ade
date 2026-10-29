@@ -1,12 +1,13 @@
 # Toolkit API: project modules, views and components
 
-Status: **kernel implemented (P2, 2026-10-29), components planned (P3)**
+Status: **kernel (P2) and components (P3) implemented, 2026-10-29**
 ([FB-0081](feedback.md#fb-0081)). Implemented: project modules and stylesheets,
-the `app` services (`server`, `ui`, `uploads`, `i18n`, `theme`, `preferences`,
-`live`, `events`, `identity`), the four registries, built-in view kinds through
-the `views` registry, view ids, `#view=` routing with the `#feature=` alias,
-record views and the activation map on the server. `app.components` stays
-empty until P3; sections still marked **planned — P3** are not implemented.
+the `app` services, the registries, built-in view kinds through the `views`
+registry, view ids, `#view=` routing with the `#feature=` alias, record views,
+the activation map (server and per-row client choice), and the components
+`ListView`, `RecordForm`, `RecordDetails`, `CommandBar`, `Calendar`,
+`DiagramEditor`, `MediaPlayer` and `SandboxFrame`, plus `admin.d.ts` and the
+sandbox document. Sections still marked **planned** are not implemented.
 The owner accepted this contract at gate G1 on 2026-10-29
 ([decisions](#decisions-at-gate-g1)); changes need a recorded reason in
 [changes](#changes).
@@ -37,10 +38,10 @@ supported; the starter admin and tenant demo stay declarative.
   `admin.css` as today.
 - Modules and stylesheets are same-origin files below the application's public
   directory (CSP `script-src 'self'`, `style-src 'self'` unchanged).
-- Optional for TypeScript: `dist/admin.d.ts` (planned — P3 C-6) and the
+- Optional for TypeScript: `dist/admin.d.ts` (implemented — P3 C-6) and the
   `@dhtmlx/suite` 9.3.12 types it references.
 - `SandboxFrame` additionally needs `dist/sandbox.html` and `dist/sandbox.js`
-  deployed beside `admin.js` (planned — P3 C-4).
+  deployed beside `admin.js` (implemented — P3 C-4).
 
 <a id="module-loading"></a>
 
@@ -218,7 +219,7 @@ app.commands.register("demo.copy-text", { label: "Másolás szövegként", place
 
 <a id="components"></a>
 
-### Components (planned — P3)
+### Components
 
 Every component has `layout` (its root Suite Layout), `mount(target)` (an
 element, a Layout cell, an `AppWindow` or a `ViewHost`), idempotent
@@ -857,6 +858,12 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-29 | JSON `views.<id>` accepts project (dotted) kinds only; a duplicate id inside JSON fails like other JSON duplicates (the PHP replace rule is unchanged). | Built-in kinds keep their resource-based JSON. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | A `subview()` child view of the same resource is normalised to a hierarchy of the parent view. | Matches the per-resource counting of `ListSource`. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | Added `View::with()`, `Registry::provider()`, `Registry::embedded()`, `Registry::checkViews()`, `ApplicationDefinition::versioned()`; a broken `view:` target throws at definition and bootstrap; `View` requires a non-empty title and id-shaped resource and action names for every builder. | Needed by the builders and validation. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | Component lifecycle: `mount(target)` once (element, Layout cell, `AppWindow` or `ViewHost`; a second mount or one after `destroy()` throws); `destroy()` idempotent; a closing window/host or the `signal` destroys; events only while mounted. | One rule for every component. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | `Calendar`: one per page (Scheduler Standard), a second `new Calendar` throws; Calendar has no events; `DiagramEditor` `saved` fires after a content save only. | Scheduler is a page singleton; types.ts had no Calendar events. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | `uploads.open` throws `TypeError` on malformed options; `reopen` does nothing before the first `open`. | Fail before any UI opens. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | `RecordForm.submit()` blurs the focused input first; a client validation failure rejects with a 400 `ServerFailure` with field errors, a declined confirmation with `AbortError`; `RecordDetails.show()` rejects after the error dialog; `CommandBar` ids `[A-Za-z0-9_.:-]+`, unique, `blade-command-menu` reserved; `ListView` rejects a non-list view or `compact` without `scope`, `saved` also fires for inline edits; `view:<id>` targets need `get` in the row's `_actions` when present. | Found while integrating C-1 (stale value on submit). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | `MediaSource` gains `{blob}`; `MediaPlayerOptions` gains `name`, `info`, `toolbar`; `MediaPlayer.focus()`; `position` also fires on pause; a non-media MIME throws `TypeError`. | Object URL ownership, accessible name, keyboard. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | `SandboxFrameOptions.title`; code runs as the body of an async function; a second iframe `load` (navigation, reload, DOM move) and a timeout remove the frame; `post()` throws before `ready`; `load()` rejects with `Error{code}` or `AbortError`; envelope `id` 1–64, `type` ≤ 128, error text ≤ 1000 characters; `credentialless`; the sandbox document URL is resolved on the first `load()`. | Kill switch and bounded protocol; non-ESM bundles must not fail at app creation. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>
 
