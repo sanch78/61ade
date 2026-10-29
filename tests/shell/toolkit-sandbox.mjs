@@ -92,6 +92,13 @@ globalThis.document={createElement(tag){
 }};
 const warn=console.warn;console.warn=()=>{};
 try{
+ // Without a usable import.meta.url (a non-ESM bundle; here a data: URL) creating the class and a frame still works
+ // and load() rejects clearly, so createApplication never throws because of the sandbox.
+ for(const define of [{},{'import.meta.url':'undefined'}]){
+  const {sandboxFrameClass:unresolved}=await load('components/sandbox/SandboxFrame.ts',define);
+  const created=frames.length,orphan=new (unresolved(()=>{}))();
+  await assert.rejects(orphan.load(''),/cannot resolve sandbox\.html/);assert.equal(frames.length,created);orphan.destroy();
+ }
  const {sandboxFrameClass,SANDBOX_LIMITS}=await load('components/sandbox/SandboxFrame.ts',{'import.meta.url':'"https://admin.test/assets/admin.js?v=7"'});
  assert.deepEqual({...SANDBOX_LIMITS},{code:1048576,files:33554432,ready:10000});
  const reports=[],SandboxFrame=sandboxFrameClass(payload=>reports.push(payload));

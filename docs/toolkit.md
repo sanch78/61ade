@@ -631,8 +631,10 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.asset-viewer", 
 `<iframe sandbox="allow-scripts" credentialless referrerpolicy="no-referrer"
 src="<admin.js directory>/sandbox.html?<admin.js cache key>">`: an opaque origin
 with no cookies, storage, session, CSRF token or same-origin access. The
-document's address is derived from `admin.js` (`import.meta.url`), so the
-two sandbox files must sit beside it. Messages use `postMessage` with the
+document's address is derived from `admin.js` (`import.meta.url`) on the
+first `load()`, so the two sandbox files must sit beside it. Without a usable
+`import.meta.url` (a bundle that is not an ES module) creating the application
+or the component still works and `load()` rejects with a clear error. Messages use `postMessage` with the
 envelope `{blade: 1, id, type, payload}` (`SandboxMessage`; `id` 1–64
 characters, unique per sender: `p1…` from the parent, `f1…` from the frame).
 
@@ -709,6 +711,10 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   tests/shell/toolkit-sandbox.spec.cjs` (opaque origin, no cookie, storage or
   parent access, CSP-blocked network, round trip, forged messages, error,
   timeout, navigation, destroy) is written and still has to run in Chromium.
+  Network egress is judged by what reaches Playwright's `route()` (the network
+  layer), not by `request` events: Chromium also reports image, XHR,
+  EventSource and script loads that Blink blocked by CSP before sending them
+  (DevTools "blocked:csp").
 
 <a id="packaging"></a>
 
