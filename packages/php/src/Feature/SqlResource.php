@@ -16,8 +16,12 @@ final class SqlResource
      * $afterDelete(Context, string $id, array $target) after a delete or archive (not after a preview).
      * $computed: field name => trusted developer SQL expression over the base row alias `blade_base` (e.g. a usage
      * count subquery); such a declared number/text field is read-only, listed, sortable and filterable, never written.
+     * $tenantColumn: the resource is tenant-scoped. Every list, count, lookup, read, watch and write is limited to the
+     * Context's active tenant; create stamps it, a client cannot send it, and another tenant's row is not found.
+     * Without an active tenant (tenancy off or no membership) the resource fails closed. Computed SQL is trusted and
+     * must itself stay within the row's tenant.
      */
-    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [])
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [], private ?string $tenantColumn = null)
     {
         $known=array_column($fields,null,'name');
         foreach($computed as $name=>$sql){
@@ -31,11 +35,18 @@ final class SqlResource
         // Composite unique keys: each entry lists field, default or owner columns that together must be unique.
         $declared=[...array_map(static fn($f)=>$f->name,$fields),...array_keys($defaults),...($ownerColumn?[$ownerColumn]:[])];
         foreach ($unique as $columns) if (!is_array($columns) || !array_is_list($columns) || !$columns || array_diff($columns,$declared) || count(array_unique($columns))!==count($columns)) throw new \InvalidArgumentException('Invalid unique key');
-        foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
+        if ($tenantColumn !== null && (in_array($tenantColumn,[$key,$ownerColumn,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields)],true) || in_array($tenantColumn,array_merge(...$unique ?: [[]]),true))) throw new \InvalidArgumentException('The tenant column is set by the server only.');
+        foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[]),...($tenantColumn!==null?[$tenantColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
     }
     /** `archived_at`/`archived_by` verified once (first archive-aware read or delete) on the connection in use. */
     private bool $archiveColumns=false;
     private function archive(): bool { return $this->deletePolicy==='archive'; }
+    /** The active tenant of a tenant-scoped resource (null when unscoped); fails closed without one. */
+    private function tenant(Context $ctx): ?string
+    {
+        if($this->tenantColumn===null)return null;
+        return $ctx->tenant ?? throw new Failure('Nincs aktív tenant.',403);
+    }
     /**
      * Policy `archive` needs the consumer columns; checked lazily on first use (registration has no database) with a
      * developer error instead of an SQL error deep inside a read.
@@ -65,13 +76,14 @@ final class SqlResource
         $mapped = [];
         $known = array_column($this->fields, null, 'name');
         foreach ($this->related as $storage) {
-            if (!$storage instanceof RelatedStorage) throw new \InvalidArgumentException('Invalid related storage.');
+            if (!$storage instanceof RelatedStorage && !$storage instanceof RelatedSet) throw new \InvalidArgumentException('Invalid related storage.');
             foreach ($storage->fields as $field => $column) {
                 if (!isset($known[$field]) || isset($mapped[$field]) || isset($this->computed[$field]) || $field === $this->key || $field === $this->ownerColumn || isset($this->defaults[$field]) || ($known[$field]->validation['unique'] ?? false) || in_array($field, array_merge(...$this->unique ?: [[]]), true)) throw new \InvalidArgumentException('Invalid related field mapping.');
                 $mapped[$field] = true;
             }
         }
-        $source=$this->list=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'),fn($c)=>$this->source($c),$this->search,$registry);
+        if($this->tenantColumn!==null)$registry->scopeToTenant($this->resource);
+        $source=$this->list=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'),fn($c)=>$this->source($c),$this->search,$registry,$this->tenantColumn);
         $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t,$values)=>$values ? $source->read($c,$values) : $this->listing($c,$t['id']),collection:true,listSource:$source));
         $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$source->media($c,[$this->project($c,$t['row'],'get')])[0],resolve:fn($c,$id)=>$this->target($c,$id)));
         $actions=['get'];
@@ -128,8 +140,9 @@ final class SqlResource
         if($this->selfOnly) { if($id!==$ctx->actor->id && $id!=='self')throw new Failure('Csak a saját profil érhető el.',403); $id=$ctx->actor->id; }
         if($id===null || !preg_match('/^[a-zA-Z0-9_.:-]{1,100}$/D',$id)) throw new Failure('Hiányzó objektum.',404);
         $this->archiveReady($ctx->db);
-        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($this->archive()?' AND archived_at IS NULL':'').($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
-        $q->execute([$id]); $row=$q->fetch(\PDO::FETCH_ASSOC);
+        $tenant=$this->tenant($ctx);
+        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($tenant!==null?" AND {$this->tenantColumn} = ?":'').($this->archive()?' AND archived_at IS NULL':'').($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
+        $q->execute($tenant!==null?[$id,$tenant]:[$id]); $row=$q->fetch(\PDO::FETCH_ASSOC);
         if(!$row)throw new Failure('Nem található objektum.',404);
         if($this->computed){
             $q=$ctx->db->prepare('SELECT '.implode(', ',array_map(static fn($name,$sql)=>"CAST(($sql) AS CHAR) AS $name",array_keys($this->computed),$this->computed))." FROM {$this->table} blade_base WHERE blade_base.{$this->key} = ?");
@@ -143,6 +156,7 @@ final class SqlResource
         if($offset!==null && (!ctype_digit($offset) || (int)$offset>10000000))throw new Failure('Hibás lapozás.');
         $offset=(int)($offset ?? 0);
         [$where,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->ownerColumn);
+        if(($tenant=$this->tenant($ctx))!==null){$where="($where) AND {$this->tenantColumn} = :blade_tenant";$params['blade_tenant']=$tenant;}
         $from=$this->source($ctx);
         $q=$ctx->db->prepare("SELECT * FROM $from WHERE ($where) AND ({$this->where}) ORDER BY {$this->key} DESC LIMIT 200 OFFSET $offset");$q->execute($params);
         return $this->list->media($ctx,array_map(fn($row)=>$this->project($ctx,$row,'list'),$q->fetchAll(\PDO::FETCH_ASSOC)));
@@ -171,13 +185,16 @@ final class SqlResource
         if($target && !hash_equals($this->revision($target['row']),$values['revision'] ?? ''))throw new Failure('Az adat közben módosult. Nyisd meg újra.',409);
         unset($values['revision']);
         $this->archiveReady($ctx->db);
+        // Uniqueness is per tenant: another tenant's values are neither visible nor in the way.
+        $tenant=$this->tenant($ctx);
+        $inTenant=$tenant!==null?" AND {$this->tenantColumn} = ?":'';
         $ruleValues=$target?array_replace(array_intersect_key($target['row'],array_column($this->fields,null,'name')),$values):$values;
         if($this->guard)($this->guard)($ctx,$target,$ruleValues);
         if($this->normalize){$normalized=($this->normalize)($ctx,$target,$ruleValues);$values=$target?array_intersect_key($normalized,$values):$normalized;}
         foreach ($this->fields as $field) {
             if (!($field->validation['unique'] ?? false) || !isset($values[$field->name]) || $values[$field->name] === '') continue;
-            $sql = "SELECT {$this->key} FROM {$this->table} WHERE {$field->name} = ?".($this->archive() ? ' AND archived_at IS NULL' : '');
-            $params = [$values[$field->name]];
+            $sql = "SELECT {$this->key} FROM {$this->table} WHERE {$field->name} = ?".($this->archive() ? ' AND archived_at IS NULL' : '').$inTenant;
+            $params = $tenant !== null ? [$values[$field->name], $tenant] : [$values[$field->name]];
             if ($target) { $sql .= " AND {$this->key} <> ?"; $params[] = $target['id']; }
             $query = $ctx->db->prepare($sql.' LIMIT 1');
             $query->execute($params);
@@ -192,6 +209,7 @@ final class SqlResource
                 if ($value === '') $conditions[] = "($column = '' OR $column IS NULL)";
                 else { $conditions[] = "$column = ?"; $params[] = $value; }
             }
+            if ($tenant !== null) { $conditions[] = "{$this->tenantColumn} = ?"; $params[] = $tenant; }
             $sql = "SELECT {$this->key} FROM {$this->table} WHERE ".implode(' AND ', [...$conditions, ...($this->archive() ? ['archived_at IS NULL'] : [])]);
             if ($target) { $sql .= " AND {$this->key} <> ?"; $params[] = $target['id']; }
             $query = $ctx->db->prepare($sql.' LIMIT 1');
@@ -210,6 +228,7 @@ final class SqlResource
         }else{
             $values=array_merge($this->defaults,$values);
             if($this->ownerColumn && (!$this->acceptOwnerInput || !array_key_exists($this->ownerColumn,$values)))$values[$this->ownerColumn]=$ctx->actor->id;
+            if($tenant!==null)$values[$this->tenantColumn]=$tenant;
             $q=$ctx->db->prepare("INSERT INTO {$this->table} (".implode(',',array_keys($values)).') VALUES ('.implode(',',array_fill(0,count($values),'?')).')');$q->execute(array_values($values));$id=$ctx->db->lastInsertId();
         }
         foreach ($this->related as $storage) $storage->save($ctx->db,(string)$id,$allValues);

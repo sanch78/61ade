@@ -16,7 +16,8 @@ final class ApiKeys
 {
     public const RESOURCE = 'blade_api_keys';
 
-    public function __construct(private Accounts $accounts, private Catalogue $catalogue, public readonly int $maxDays = 365)
+    /** $tenancy: each key is bound to one of its owner's tenants or is global (global resources only). */
+    public function __construct(private Accounts $accounts, private Catalogue $catalogue, public readonly int $maxDays = 365, private ?\Blade\Tenancy\Tenancy $tenancy = null)
     {
         if ($maxDays < 1 || $maxDays > 3650) throw new \InvalidArgumentException('Invalid API key lifetime.');
     }
@@ -26,6 +27,7 @@ final class ApiKeys
         $resource = new SqlResource(self::RESOURCE, 'blade_tokens', 'id', [
             new Field('label', 'Megnevezés', required: true, max: 100),
             new Field('actor_id', 'Tulajdonos', 'select', max: 100, options: $this->accounts->ownerOptions(...)),
+            ...($this->tenancy ? [new Field('tenant_id', 'Tenant', 'select', max: 100, options: fn(Context $ctx): array => ['' => 'Globális (csak globális erőforrások)', ...$this->tenancy->lookup()->options($ctx)])] : []),
             new Field('scopes', 'Engedélyezett műveletek', 'multiselect', required: true, max: 4000, options: fn(Context $ctx): array => $this->operations()),
             new Field('expires_at', 'Lejárat', required: true, max: 30, defaultValue: gmdate('Y-m-d', time() + min(90, $this->maxDays) * 86400), validation: [
                 'pattern' => ['expression' => '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$', 'message' => 'ÉÉÉÉ-HH-NN formátumú dátum szükséges.'],
@@ -69,6 +71,13 @@ final class ApiKeys
         }
         if ($target && isset($values['actor_id']) && (string) $values['actor_id'] !== (string) $row['actor_id']) {
             throw new Failure('A kulcs tulajdonosa kiadás után nem módosítható.', 400, ['actor_id' => 'A kulcs tulajdonosa kiadás után nem módosítható.']);
+        }
+        if ($this->tenancy && $target && array_key_exists('tenant_id', $values) && (string) $values['tenant_id'] !== (string) $row['tenant_id']) {
+            throw new Failure('A kulcs tenantja kiadás után nem módosítható.', 400, ['tenant_id' => 'A kulcs tenantja kiadás után nem módosítható.']);
+        }
+        $tenant = (string) ($values['tenant_id'] ?? '');
+        if ($this->tenancy && !$target && $tenant !== '' && !$this->tenancy->member($owner, $tenant)) {
+            throw new Failure('A tulajdonos nem tagja ennek a tenantnak.', 400, ['tenant_id' => 'A tulajdonos nem tagja ennek a tenantnak.']);
         }
         if (!isset($values['expires_at']) || ($target && $values['expires_at'] === (string) $row['expires_at'])) return;
         $expires = self::expiry((string) $values['expires_at']);

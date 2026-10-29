@@ -4,19 +4,42 @@ Status: implemented and verified on 2026-10-21
 ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs));
 user acceptance is not claimed.
 
-Two independent applications share the Composer consumer `examples/demo-app`
+Three independent applications share the Composer consumer `examples/demo-app`
 and managed server, with separate SQLite databases, sessions and cookie paths:
 
 | Demo | URL | Definition | Data | Purpose |
 | --- | --- | --- | --- | --- |
 | Full feature demo (kitchen sink, R11) | https://61ade.sanch.hu/ | [application.php](../examples/demo-app/application.php) | `tmp/web/features.sqlite` | Every demonstrable capability on synthetic data. |
 | Starter admin | https://61ade.sanch.hu/admin/ | [admin-application.php](../examples/demo-app/admin-application.php) | `tmp/web/admin.sqlite` | Exactly the mandatory starter: login, language/theme selectors and admin module. |
+| Tenant demo | https://61ade.sanch.hu/tenants/ | [tenant-application.php](../examples/demo-app/tenant-application.php) | `tmp/web/tenants.sqlite` | The starter admin with optional [multi-tenancy](tenancy.md) on. |
 
 Use this single development environment directly. Development and testing happen
 there; there is no deployment, post-deployment testing or project backup workflow
 ([FB-0049](feedback.md#fb-0049), [FB-0051](feedback.md#fb-0051)).
 CLI fixture tools do not establish a second environment.
 See [development](development.md#development-environment) for build/asset preparation.
+
+<a id="tenant-demo-tenants"></a>
+
+## Tenant demo (`/tenants/`)
+
+[Multi-tenancy](tenancy.md) is opt-in and changes what every view returns, so it
+has its own application instead of entering the full feature demo. The full
+demo and the starter admin keep tenancy off, which is what keeps their
+behavior, rendering and suites unchanged (the exception to the
+[continuous extension](#continuous-extension-mandatory) rule).
+Tenants `Alfa` and `Béta`; password `61de-demo`:
+
+| Account | Memberships | Shows |
+| --- | --- | --- |
+| `demo@example.test` (admin, editor) | Alfa, Béta | Tenant selector in the navigation row; Administration → Tenantok, `Tenantok` on Users, tenant on API keys |
+| `single@example.test` (editor) | Alfa | No selector; Alfa projects and tasks only |
+| `none@example.test` (editor) | none | "Nincs hozzárendelt tenant" in the lower bar; only `Közös hirdetőtábla` |
+
+`Tenant demó` → `Projektek` and `Feladatok` are tenant-scoped (the task's project
+choice is a scoped lookup); `Közös hirdetőtábla` is global. The editor role is
+global, and membership decides where it applies. Setup adds the tenant demo to
+the same `setup-workspace.php` run.
 
 <a id="alapadmin-admin"></a>
 
@@ -170,6 +193,7 @@ See [project rules](development.md#mandatory-framework-development-rules).
 - `php8.4 tests/shell/calendar.php` and `npm run test:browser -- tests/shell/calendar.spec.cjs`: the event calendar and signage playlist ([calendar](calendar.md#demo-and-verification)); the spec deletes the events it creates.
 - `php8.4 tests/shell/diagram.php` and `npm run test:browser -- tests/shell/diagram.spec.cjs`: the topology builder ([diagrams](diagrams.md#demo-and-verification)); the spec removes the diagrams and element types it creates.
 - `npm run test:browser -- tests/shell/workspace.spec.cjs`: Notes on the feature demo observe an external SQLite write through polling, or, when `.env` selects WebSocket, through an update frame on the `/live` socket; each case skips under the other transport.
+- `php8.4 tests/shell/tenancy.php` and `npm run test:browser -- tests/shell/tenancy.spec.cjs`: the tenant demo and the tenancy security matrix ([tenancy](tenancy.md#verification)). The spec switches demo@ back to Alfa.
 - Manual verification: open the managed URLs directly from the checkout.
 
 <a id="korlátok"></a>

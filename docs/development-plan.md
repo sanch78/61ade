@@ -68,6 +68,13 @@ machine auth, roles/actions/query scopes/field projection/cache invalidation/aud
 Acceptance: relevant security matrix automated, direct API cannot bypass policy,
 organization switch clears old data and framework knows no consumer legacy flags.
 
+Status 2026-10-29: optional [multi-tenancy](tenancy.md) stage 1 is implemented and
+verified on synthetic data ([FB-0069](feedback.md#fb-0069)). It covers two
+tenants, zero, one and two memberships, server-side switching that clears the
+old data, tenant-scoped SQL resources and lookups, tenant-bound API keys, audit
+and a CLI context. Tenant-scoped file spaces, per-tenant roles and cross-tenant
+reads remain open.
+
 <a id="m3--első-teljes-feature-folyamat"></a>
 
 ## M3 — First complete feature flow

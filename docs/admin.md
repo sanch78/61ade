@@ -178,6 +178,17 @@ catalog choices, once-only secret/hash/audit, self-scope menu/list/create/update
 ACL+scope, validation, one-way revocation and old format.
 Browser coverage: demo.spec.cjs.
 
+<a id="tenants"></a>
+
+## Tenants (with tenancy)
+
+Only when the workspace has [tenancy](tenancy.md): Administration → `Tenantok`
+(`blade_tenants`: name, `Aktív` switch, `Tagok`; no delete), a `Tenantok`
+multiselect on the Users form and grid, and a `Tenant` field on API keys
+(one of the owner's tenants, or global). The field is fixed after issue.
+`grantAdministration` grants the Tenants actions to the protected role. Without
+tenancy none of these exist.
+
 <a id="korlátok"></a>
 
 ## Limits

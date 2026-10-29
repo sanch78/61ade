@@ -16,8 +16,11 @@ final class Workspace
     public readonly TaskQueue $tasks;
     /** Chunked upload protocol (`__upload`) of actions declaring an UploadPolicy. */
     public readonly Transfers $transfers;
-    public function __construct(public readonly Registry $registry,public readonly \PDO $db)
+    /** Optional multi-tenancy ($tenancy: true); null keeps the application single-realm with no tenant checks at all. */
+    public readonly ?\Blade\Tenancy\Tenancy $tenancy;
+    public function __construct(public readonly Registry $registry,public readonly \PDO $db,bool $tenancy=false)
     {
+        $this->tenancy=$tenancy?new \Blade\Tenancy\Tenancy($db):null;
         $this->acl=new Acl($db);$this->journal=new Journal($db);$this->executor=new Executor($registry,$db,$this->journal);$this->tasks=new TaskQueue($db);$this->transfers=new Transfers($registry,$this->executor,$this->journal);
     }
     public function version(string $actor): int
@@ -31,10 +34,22 @@ final class Workspace
         else{$q=$this->db->prepare('UPDATE blade_versions SET version=version+1 WHERE actor_id=?');$q->execute([$actor]);}
         $q=$this->db->prepare('UPDATE blade_tokens SET revoked=1 WHERE actor_id=?');$q->execute([$actor]);
     }
-    public function views(Identity $actor): array
+    /**
+     * Execution context of $actor; the public entry for workers and CLI tools too (pass it to $executor->execute()).
+     * A $tenant is accepted only while the actor is a member of that active tenant, checked now, so a worker that
+     * builds a fresh context before each step sees revoked memberships and deactivated tenants.
+     */
+    public function context(Identity $actor,string $channel='ui',?string $tenant=null,array $scopes=[],array $uploads=[],string $owner=''):Context
     {
-        $out=[];$ctx=new Context($actor,'ui',$this->acl,$this->db);
+        if($tenant!==null&&!$this->tenancy?->member($actor->id,$tenant))throw new Failure('Nincs hozzáférés a tenanthoz.',403);
+        return new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner,$tenant);
+    }
+    /** Views offered to $actor; tenant-scoped ones only with an active $tenant (membership checked). */
+    public function views(Identity $actor,?string $tenant=null): array
+    {
+        $out=[];$ctx=$this->context($actor,'ui',$tenant);
         foreach($this->registry->views() as $view){
+            if($ctx->tenant===null&&$this->registry->tenantScoped($view['resource']))continue;
             if(($view['kind']??'list')==='files'){
                 $files=$this->fileView($actor,$ctx,$view);
                 if($files)$out[]=\Blade\I18n\Translator::presentation($files);
@@ -164,11 +179,12 @@ final class Workspace
                 $result=$action->listSource->read($ctx,[...$query,'mode'=>'watch']);
             }
             $hash=hash('sha256',json_encode($result,JSON_THROW_ON_ERROR));
-            if($version==='')$this->journal->record($ctx->actor->id,'ui',$resource,'subscribe','','success');
+            if($version==='')$this->journal->record($ctx->actor->id,'ui',$resource,'subscribe','','success',tenant:$ctx->tenant);
             $this->db->commit();return hash_equals($hash,$version)?['version'=>$hash,'unchanged'=>true]:[...$result,'version'=>$hash];
         }catch(\Throwable $e){if($this->db->inTransaction())$this->db->rollBack();throw $e;}
     }
-    public function http(?Identity $sessionActor,IdentityProvider $identities,string $csrf,string $runtime): never
+    /** $sessionTenant: the tenant stored in the session; used only while the actor is still a member of it. */
+    public function http(?Identity $sessionActor,IdentityProvider $identities,string $csrf,string $runtime,?string $sessionTenant=null): never
     {
         header('Content-Type: application/json; charset=utf-8');
         $handled=false;$actor=$sessionActor;$channel='ui';
@@ -176,10 +192,18 @@ final class Workspace
             $channel=isset($_SERVER['HTTP_AUTHORIZATION'])?'api':'ui';$actor=$sessionActor;$scopes=[];
             if($channel==='api'){
                 $header=$_SERVER['HTTP_AUTHORIZATION'];
-                $token=str_starts_with($header,'Bearer ')?(new Tokens($this->db))->authenticate(substr($header,7)):null;
+                $token=str_starts_with($header,'Bearer ')?(new Tokens($this->db,$this->tenancy!==null))->authenticate(substr($header,7)):null;
                 $actor=$token?$identities->find($token['actor_id']):null;$scopes=$token['scopes']??[];
             }
             if(!$actor)throw new Failure('Bejelentkezés szükséges.',401);
+            // Active tenant: the session's choice (ui) or the key's binding (api), rechecked against membership now.
+            // A global key ('') reaches global resources only; a key whose owner left its tenant is refused.
+            $tenant=null;
+            if($this->tenancy&&$channel==='ui'&&$this->tenancy->member($actor->id,$sessionTenant))$tenant=$sessionTenant;
+            if($this->tenancy&&$channel==='api'&&($token['tenant']??'')!==''){
+                if(!$this->tenancy->member($actor->id,$token['tenant']))throw new Failure('Nincs hozzáférés.',403);
+                $tenant=$token['tenant'];
+            }
             // Session binding of short-lived state (transfers, ZIP manifests): a hash of the session id (ui) or bearer token (api), never the raw value.
             $secret=$channel==='api'?substr($_SERVER['HTTP_AUTHORIZATION'],7):session_id();
             $owner=is_string($secret)&&$secret!==''?Transfers::owner($secret):'';
@@ -195,7 +219,7 @@ final class Workspace
                 if($channel==='ui'&&in_array($_SERVER['HTTP_SEC_FETCH_SITE']??'',['cross-site','same-site'],true))throw new Failure('Érvénytelen munkamenet.',403);
                 session_write_close();
                 $handled=true;
-                $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner),$query['resource'],$query['action'],$query['id']??null,[]);
+                $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner,tenant:$tenant),$query['resource'],$query['action'],$query['id']??null,[]);
                 $this->respond($result,$method==='HEAD');exit;
             }
             if($method!=='POST')throw new Failure('POST szükséges.',405);
@@ -226,25 +250,25 @@ final class Workspace
             }
             if($data['action']==='__ticket'){
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
-                echo json_encode(['ok'=>true,'data'=>['ticket'=>\Blade\Live\Tickets::issue($runtime,$sessionId)]],JSON_THROW_ON_ERROR);exit;
+                echo json_encode(['ok'=>true,'data'=>['ticket'=>\Blade\Live\Tickets::issue($runtime,$sessionId,$tenant)]],JSON_THROW_ON_ERROR);exit;
             }
             if($data['action']==='__watch'){
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
-                $ctx=new Context($actor,'ui',$this->acl,$this->db,owner:$owner);
+                $ctx=new Context($actor,'ui',$this->acl,$this->db,owner:$owner,tenant:$tenant);
                 $result=$this->observe($ctx,$data['resource'],$data['values']['query']??[],$data['values']['version']??'');
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             if($data['action']==='__bulk'){
                 $values=$data['values'];
                 if(!is_string($values['operation']??null)||!is_array($values['items']??null)||array_diff(array_keys($values),['operation','items']))throw new Failure('Hibás tömeges művelet.');
-                $result=$this->executor->bulk(new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner),$data['resource'],$values['operation'],$values['items']);
+                $result=$this->executor->bulk(new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner,tenant:$tenant),$data['resource'],$values['operation'],$values['items']);
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             if($data['action']==='__upload'){
                 // Transfers are bound to a hash of the session id (ui) or bearer token (api), never the raw value.
                 if($owner==='')throw new Failure('Érvénytelen munkamenet.',403);
                 $handled=in_array($data['values']['operation']??null,Transfers::AUDITED,true);
-                $ctx=new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner);
+                $ctx=new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner,$tenant);
                 $result=$this->transfers->handle($ctx,$ctx->owner,$data['resource'],$id,$data['values']??[]);
                 $this->respond($result);exit;
             }
@@ -252,23 +276,24 @@ final class Workspace
                 $values=$data['values'];
                 if(!is_string($id)||!is_string($values['field']??null)||!array_key_exists('value',$values)||!is_string($values['revision']??null)||array_diff(array_keys($values),['field','value','revision']))throw new Failure('Hibás mezőmentés.');
                 $handled=true;
-                $result=$this->executor->edit(new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner),$data['resource'],$id,$values['field'],$values['value'],$values['revision']);
+                $result=$this->executor->edit(new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner,tenant:$tenant),$data['resource'],$id,$values['field'],$values['value'],$values['revision']);
                 echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             if($data['action']==='__form'){
                 if($channel!=='ui' || !is_string($data['values']['operation']??null))throw new Failure('Érvénytelen űrlapkérés.',403);
                 $a=$this->registry->get($data['resource'],$data['values']['operation']);
                 if(!in_array('ui',$a->channels,true))throw new Failure('Nem érhető el.',403);
-                $ctx=new Context($actor,$channel,$this->acl,$this->db,owner:$owner);
+                if($tenant===null&&$this->registry->tenantScoped($a->resource))throw new Failure('Nincs aktív tenant.',403);
+                $ctx=new Context($actor,$channel,$this->acl,$this->db,owner:$owner,tenant:$tenant);
                 $t=$a->resolve?($a->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
                 if(!$this->acl->allows($actor->id,$a->resource,$a->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
                 $fields=array_values(array_filter($this->formFields($a),fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
                 $values=$a->formValues?($a->formValues)($ctx,$t):($id!==null?$this->executor->execute($ctx,$a->resource,'get',$id,[]):[]);
-                $this->journal->record($actor->id,'ui',$a->resource,'describe',$id??'','success');
+                $this->journal->record($actor->id,'ui',$a->resource,'describe',$id??'','success',tenant:$tenant);
                 echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$this->fieldMetadata($ctx,$f),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             $handled=true;
-            $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner),$data['resource'],$data['action'],$id,$data['values']??[]);
+            $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner,$tenant),$data['resource'],$data['action'],$id,$data['values']??[]);
             $this->respond($result);
         }catch(Failure $e){if(!$handled)$this->journal->record($actor?->id??'',$channel,'transport','request','','rejected');http_response_code($e->status);echo json_encode(['ok'=>false,'error'=>$e->getMessage(),'fieldErrors'=>(object)$e->fieldErrors,...($e->details?['details'=>$e->details]:[])],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);}
         exit;

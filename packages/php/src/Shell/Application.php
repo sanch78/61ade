@@ -43,8 +43,12 @@ final class Application
                 http_response_code(404);
                 return;
             }
-            $workspace->http($identity, $this->definition->identities, $_SESSION['csrf'], $this->definition->runtime);
+            $workspace->http($identity, $this->definition->identities, $_SESSION['csrf'], $this->definition->runtime, $_SESSION['tenant'] ?? null);
         }
+        // Active tenant of the shell: the session's choice while it is a membership, else the first one (none: null).
+        $tenancy = $identity ? $workspace?->tenancy : null;
+        $tenant = $tenancy?->select($identity->id, $_SESSION['tenant'] ?? null);
+        if ($tenancy && ($_SESSION['tenant'] ?? null) !== $tenant) $_SESSION['tenant'] = $tenant;
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $token = $_POST['csrf'] ?? null;
@@ -58,6 +62,8 @@ final class Application
                     if (!$settings->selector || !is_string($locale) || !isset($settings->languages[$locale])) throw new Failure('Ismeretlen nyelv.');
                     $this->languageCookie($locale);
                     $this->redirect();
+                } elseif ($action === 'tenant' && $tenancy) {
+                    $this->switchTenant($identity, $tenancy, $_POST['tenant'] ?? null);
                 } elseif ($action === 'logout') {
                     $this->logout($identity);
                 } elseif ($action === 'login' && !$identity) {
@@ -104,8 +110,9 @@ final class Application
             $bootstrap['userId'] = $identity->id;
             $bootstrap['displayName'] = $identity->displayName;
             $bootstrap['menu'] = $definition->menu->project($identity);
+            if ($tenancy) $bootstrap['tenant'] = ['current' => $tenant, 'choices' => array_map(static fn($id, $name) => ['id' => (string) $id, 'name' => $name], array_keys($memberships = $tenancy->memberships($identity->id)), $memberships)];
             if ($workspace) {
-                $bootstrap['views'] = $workspace->views($identity);
+                $bootstrap['views'] = $workspace->views($identity, $tenant);
                 $bootstrap['csrf'] = $csrf;
                 $bootstrap['live'] = $definition->live->metadata();
             }
@@ -307,6 +314,24 @@ final class Application
             'loginSecurityEnabled' => $this->definition->authentication !== null,
         ];
         session_regenerate_id(true);
+    }
+
+    /**
+     * Audited tenant switch to one of the actor's memberships. A new CSRF token ends every request of pages still
+     * showing the previous tenant; the reload clears lists, forms, caches and live subscriptions.
+     */
+    private function switchTenant(Identity $actor, \Blade\Tenancy\Tenancy $tenancy, mixed $choice): never
+    {
+        $journal = $this->definition->workspace->journal;
+        if (!is_string($choice) || !$tenancy->member($actor->id, $choice)) {
+            $journal->record($actor->id, 'ui', 'session', 'tenant_switch', is_string($choice) ? substr($choice, 0, 100) : '', 'rejected', tenant: $_SESSION['tenant'] ?? null);
+            throw new Failure('Ez a tenant nem érhető el.', 403);
+        }
+        $previous = $_SESSION['tenant'] ?? null;
+        $_SESSION['tenant'] = $choice;
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+        $journal->record($actor->id, 'ui', 'session', 'tenant_switch', $choice, 'success', [], $previous !== null ? ['from' => $previous] : [], $choice);
+        $this->redirect();
     }
 
     private function logout(?Identity $actor): never

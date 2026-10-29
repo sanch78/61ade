@@ -18,7 +18,9 @@ final class JsonApplication
         $config = JsonConfiguration::load($file);
         $config->validate(array_fill_keys([
             'application', 'database', 'session', 'identity', 'live', 'workspace',
-        ], 'array'), ['environment' => 'array', 'authentication' => 'array', 'i18n' => 'array', 'admin' => 'array', 'oauth' => 'array']);
+        ], 'array'), ['environment' => 'array', 'authentication' => 'array', 'i18n' => 'array', 'admin' => 'array', 'oauth' => 'array', 'tenancy' => 'array']);
+        // Multi-tenancy is opt-in: an (empty) `tenancy` object enables it; there are no further keys yet.
+        if ($config->has('tenancy')) Shape::check($config->section('tenancy'), [], [], '$.tenancy');
         $languages = new \Blade\I18n\Settings();
         if ($config->has('i18n')) {
             $languages = LanguageConfiguration::build($config->section('i18n'), $config->path(...));
@@ -50,6 +52,7 @@ final class JsonApplication
             $db,
             array_map($config->path(...), $workspace['modules']),
             $workspaceBindings,
+            $config->has('tenancy'),
         );
         if ($config->has('oauth') && !$config->has('admin')) {
             throw new \InvalidArgumentException('The oauth section requires the admin section (per-account OAuth permission).');

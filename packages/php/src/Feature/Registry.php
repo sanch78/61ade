@@ -8,6 +8,7 @@ final class Registry
     private array $fields = [];
     private array $media = [];
     private array $usages = [];
+    private array $tenantScoped = [];
     public function registerFields(string $resource, array $fields): void { $this->fields[$resource] = array_column($fields, null, 'name'); }
     public function fields(string $resource): array { return $this->fields[$resource] ?? []; }
     public function add(Action $action): void
@@ -18,6 +19,12 @@ final class Registry
     }
     public function get(string $resource, string $action): Action { return $this->actions[$resource.'.'.$action] ?? throw new Failure('Ismeretlen művelet.',404); }
     public function all(): array { return array_values($this->actions); }
+    /**
+     * Marks $resource as tenant-scoped. Only adapters that apply the tenant to every read and write call this
+     * (SqlResource with a tenant column); the executor and views then refuse the resource without an active tenant.
+     */
+    public function scopeToTenant(string $resource): void { $this->tenantScoped[$resource] = true; }
+    public function tenantScoped(string $resource): bool { return isset($this->tenantScoped[$resource]); }
     /** Media lookup for `column.media` fields naming $resource; one source per resource. */
     public function media(string $resource, MediaSource $source): void
     {

@@ -88,9 +88,9 @@ final class Transfers
             if ($problem && $problem['code'] !== 'conflict') throw new Failure($problem['message'], 400, [], ['code' => $problem['code']]);
             $this->sweep($policy->tempRoot);
             $meta = $this->open($ctx, $policy, $owner, $action, $id, $file, $fingerprint);
-            $this->journal->record($ctx->actor->id, $ctx->channel, $action->resource, $action->name, (string) ($target['id'] ?? ''), 'success', [], ['size' => $size]);
+            $this->journal->record($ctx->actor->id, $ctx->channel, $action->resource, $action->name, (string) ($target['id'] ?? ''), 'success', [], ['size' => $size], $ctx->tenant);
         } catch (\Throwable $error) {
-            $this->journal->record($ctx->actor->id, $ctx->channel, $action->resource, $action->name, substr($id ?? '', 0, 100), $error instanceof Failure ? 'rejected' : 'error', [], $size !== null ? ['size' => $size] : []);
+            $this->journal->record($ctx->actor->id, $ctx->channel, $action->resource, $action->name, substr($id ?? '', 0, 100), $error instanceof Failure ? 'rejected' : 'error', [], $size !== null ? ['size' => $size] : [], $ctx->tenant);
             if ($error instanceof Failure) throw $error;
             throw new Failure('A fájl feltöltése nem sikerült.', 500);
         }
@@ -174,13 +174,13 @@ final class Transfers
             if (fstat($handle)['size'] !== $meta['size']) throw new Failure('A fájl még nem érkezett meg teljesen.', 400, [], ['code' => 'incomplete']);
         } catch (Failure $error) {
             if ($handle) { flock($handle, LOCK_UN); fclose($handle); }
-            $this->journal->record($ctx->actor->id, $ctx->channel, $action->resource, $action->name, substr($id ?? '', 0, 100), 'rejected');
+            $this->journal->record($ctx->actor->id, $ctx->channel, $action->resource, $action->name, substr($id ?? '', 0, 100), 'rejected', tenant: $ctx->tenant);
             throw $error;
         }
         $input = array_filter(['decision' => $values['decision'] ?? null, 'relative_path' => $meta['relative_path'] !== '' ? $meta['relative_path'] : null], static fn($value) => $value !== null);
         $upload = new Upload('files', $meta['name'], $directory.'/data', $meta['size'], UPLOAD_ERR_OK);
         try {
-            $result = $this->executor->execute(new Context($ctx->actor, $ctx->channel, $ctx->acl, $ctx->db, $ctx->scopes, [$upload], $ctx->owner), $action->resource, $action->name, $id, $input);
+            $result = $this->executor->execute(new Context($ctx->actor, $ctx->channel, $ctx->acl, $ctx->db, $ctx->scopes, [$upload], $ctx->owner, $ctx->tenant), $action->resource, $action->name, $id, $input);
             $this->remove($directory, $handle);
             return $result;
         } catch (Failure $error) {

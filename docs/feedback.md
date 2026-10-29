@@ -287,3 +287,7 @@
 <a id="fb-0068"></a>
 
 ## FB-0068 — WebSocket live server for releases and the demo
+
+<a id="fb-0069"></a>
+
+## FB-0069 — Optional multi-tenancy (stage 1)

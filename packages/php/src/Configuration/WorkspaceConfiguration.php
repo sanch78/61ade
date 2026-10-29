@@ -19,10 +19,11 @@ final class WorkspaceConfiguration
     {
     }
 
-    public static function build(PDO $db, array $files, Closure $callbacks): Workspace
+    /** $tenancy: the application's `tenancy` section is present (multi-tenancy on). */
+    public static function build(PDO $db, array $files, Closure $callbacks, bool $tenancy = false): Workspace
     {
         $registry = new Registry();
-        $workspace = new Workspace($registry, $db);
+        $workspace = new Workspace($registry, $db, $tenancy);
         $compiler = new self($registry, new Bindings($callbacks($workspace, $registry)));
         $modules = array_map(JsonConfiguration::read(...), $files);
         // Tables of resources deleting with policy `archive`: lookups over them hide archived rows (compile-time).
@@ -44,7 +45,7 @@ final class WorkspaceConfiguration
                 Shape::check($definition, [
                     'resource' => 'string', 'table' => 'string', 'key' => 'string', 'label' => 'string',
                 ], [
-                    'owner' => 'string', 'where' => 'string', 'extra' => 'array',
+                    'owner' => 'string', 'where' => 'string', 'extra' => 'array', 'tenant_column' => 'string',
                 ], '$.lookups.'.$name);
                 if (isset($compiler->lookups[$name])) {
                     throw new InvalidArgumentException('Duplicate lookup: '.$name);
@@ -57,6 +58,7 @@ final class WorkspaceConfiguration
                     owner: $definition['owner'] ?? null,
                     where: '('.($definition['where'] ?? '1=1').')'.(isset($archived[$definition['table']]) ? ' AND archived_at IS NULL' : ''),
                     extra: $definition['extra'] ?? [],
+                    tenantColumn: $definition['tenant_column'] ?? null,
                 );
             }
         }
@@ -138,7 +140,7 @@ final class WorkspaceConfiguration
         $operations = $definition['operations'] ?? [];
         $view = $definition['view'];
         Shape::check($storage, ['table' => 'string', 'key' => 'string'], [
-            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array',
+            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array', 'tenant_column' => 'string',
         ], '$.resources.'.$name.'.storage');
         Shape::check($hooks, [], [
             'guard' => 'string', 'normalize' => 'string', 'after_save' => 'string', 'delete_guard' => 'string', 'after_delete' => 'string',
@@ -177,6 +179,7 @@ final class WorkspaceConfiguration
             search: $view['search'] ?? [],
             afterDelete: $this->bindings->get($hooks['after_delete'] ?? null),
             computed: $storage['computed'] ?? [],
+            tenantColumn: $storage['tenant_column'] ?? null,
         );
         $resource->register(
             registry: $this->registry,

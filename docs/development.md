@@ -344,6 +344,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Workspace/layout/live lists | `php8.4 tests/shell/lists.php`; shell `workspace.spec.cjs`, `layout-resizer.spec.cjs`, `mobile-grid.spec.cjs`, `preferences.spec.cjs` |
 | ACL/action/API permissions | PHP `access.php`, `permissions.php`, `api-keys.php`; shell `admin.spec.cjs` or the relevant `demo.spec.cjs` selector |
 | Accounts/admin | PHP `admin.php`, `permissions.php`; shell `admin.spec.cjs` |
+| Tenancy (tenants, scoped resources, keys) | PHP `tenancy.php`, `configuration.php`, `api-keys.php`; shell `tenancy.spec.cjs`, `admin.spec.cjs` |
 | Authentication/OAuth/mail | PHP `authentication.php`, `oauth.php`, `mail.php`; shell `authentication.spec.cjs`, `demo.spec.cjs` with `--grep` for the affected flow |
 | JSON/env/validation | PHP `configuration.php`, `validation.php`, affected `contracts.php` |
 | Inline/related fields | PHP `grid-edit.php`, `related-fields.php`; shell `grid-edit.spec.cjs`, `related-fields.spec.cjs` |
@@ -366,7 +367,7 @@ There is **no pre-deploy or post-deploy smoke gate** here. When a full developme
 regression is actually warranted, the existing broad commands are:
 
 ```sh
-(for check in contracts access admin api-keys permissions authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation files diagram calendar; do
+(for check in contracts access admin api-keys permissions tenancy authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation files diagram calendar; do
     php8.4 "tests/shell/$check.php" || exit
 done)
 npm run typecheck

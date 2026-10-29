@@ -1,8 +1,13 @@
 # Authorization and organization model
 
 Status: target architecture. The [ACL/action guide](access-and-actions.md)
-describes the implemented subset and its limits. The complete organization,
-bulk and export model is still planned. Mandatory principles: default deny
+describes the implemented subset and its limits. Organizations are implemented as
+optional [tenants](tenancy.md) (stage 1, 2026-10-29). It covers membership
+verified on every request and never taken from a client parameter; switching
+that clears the UI and data context; fail-closed tenant-scoped SQL resources and
+lookups; tenant-bound API keys; and the tenant in audit. Global roles apply in
+every member tenant. Per-tenant roles, cross-tenant reads, tenant-scoped files
+and exports are still planned. Mandatory principles: default deny
 and centralized server-side execution.
 
 <a id="kontextus-és-döntés"></a>
@@ -100,3 +105,10 @@ the preceding data and UI context.
 - Concurrent saves and optimistic-lock conflicts.
 
 The frontend capability list is a UX aid; the backend decides afresh on every request.
+
+Automated today ([tenancy](tenancy.md#verification)): permitted reads and denied
+writes inside the tenant; another tenant's object through ID, relation, filter,
+lookup, live watch and API token; bulk requests mixing own and foreign targets;
+isolation across successive requests and after switching; membership revocation
+and deactivation; counts limited to the tenant. File and export rows wait for
+the tenant-scoped file stage.
