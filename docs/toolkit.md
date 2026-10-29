@@ -7,9 +7,9 @@ is unchanged) and the PHP value objects `Blade\Feature\View` and
 `Blade\Feature\ViewKindProvider` exist without callers. Every member is marked
 with the phase that implements it: **planned — P2** (kernel, lanes K-F/K-S) or
 **planned — P3** (components, lanes C-1 … C-6) of the
-[toolkit plan](toolkit-plan.md#8-work-breakdown). The owner reviews this
-contract at gate G1; afterwards changes need a recorded reason in
-[changes](#changes).
+[toolkit plan](toolkit-plan.md#8-work-breakdown). The owner accepted this
+contract at gate G1 on 2026-10-29 ([decisions](#decisions-at-gate-g1)); changes
+need a recorded reason in [changes](#changes).
 
 ## Purpose, scope and ownership
 
@@ -492,7 +492,9 @@ the [verification matrix](toolkit-plan.md#9-verification-matrix) per phase.
 
 <a id="open-points"></a>
 
-## Open points for gate G1
+## Decisions at gate G1
+
+Accepted by the owner on 2026-10-29 as recommended:
 
 ## Related
 
