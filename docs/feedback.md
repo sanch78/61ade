@@ -2483,7 +2483,28 @@ that exactly equals an option label lists every option. The managed
   pages under host load, so no deterministic regression was found.
   `preferences.spec.cjs:19` failed in both full runs (mobile↔desktop reloads)
   and needs watching.
-- **Status:** in progress (P3 components next).
+- **Progress P3 (2026-10-29):** public components `ListView`, `RecordForm`,
+  `RecordDetails`, `CommandBar` (`Workspace.ts` split into
+  `src/components/list`), `FileManager`, `FilePicker`, `Calendar`,
+  `DiagramEditor`, `MediaPlayer` (image/video/audio; server audio types and
+  ffprobe metadata), `SandboxFrame` with `dist/sandbox.{html,js}` and its meta
+  CSP, `dist/admin.d.ts`; the presentation, field-type and command registries
+  in lists (built-in `image` and `Adatok` on them); the client side of the
+  activation map. Integration found and fixed two list defects (the details
+  window's Escape after a fast answer, `RecordForm.submit()` with a focused
+  field). Contract changes: [toolkit changes](toolkit.md#changes).
+- **Verification (P3, managed URL):** typecheck, build `--check` (all dist
+  files), all PHP checks, node checks `toolkit-kernel`, `-list`,
+  `-components`, `-registries`, `-sandbox`, `ui-preferences`,
+  `live-protocol`; new browser specs `toolkit-list`, `toolkit-components`,
+  `toolkit-media`, `toolkit-sandbox`, `toolkit-registries` pass. Full suite
+  at gate G3: 119 passed, 8 failed, 26 not run. Every failure passed in
+  isolated re-runs (`admin`, `files`, `toolkit-components`, `toolkit-media`,
+  `uploader` 2×). The causes were timeouts, closed pages and the guard task
+  limit under host load. The sandbox's CSP egress probe passes: only
+  `?script` reaches the route. The full suite's stability under the guard
+  limits is an open risk.
+- **Status:** in progress (P4 feature demo next).
 
 <a id="fb-0082"></a>
 
