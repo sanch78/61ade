@@ -1,6 +1,6 @@
 import type { Application, CalendarComponent, CalendarComponentOptions, CalendarOptions, ComponentClass } from "../../api/types";
 import { CalendarView, type CalendarViewDefinition } from "./CalendarView";
-import { Facade, resolveView } from "./Facade";
+import { Facade, resolveView } from "../Facade";
 
 const calendarOptions = (options: unknown): boolean => {
   const value = options as Partial<CalendarOptions> | null;

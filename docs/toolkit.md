@@ -248,7 +248,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | `ListView` | `Workspace` (split into `src/components/list/*`) | `select`, `activate`, `saved`, `changed`; `editing`, `refresh`, `selected`, `setFilters` |
 | `RecordForm` | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancel`, `changed`; `submit`, `values`, `dirty` |
 | `RecordDetails` | the `Adatok` details (`recordFields`) | `show(row \| id)` |
-| `FileManager`, `FilePicker` | `FileManager.ts`, `FilePicker.ts` | `opened`; `pick()` resolves a `MediaDescriptor` or `null` |
+| `FileManager`, `FilePicker` (**implemented**, [below](#filemanager-and-filepicker)) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `pick()` resolves a `MediaDescriptor` or `null` |
 | `Calendar`, `DiagramEditor` (implemented) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; `editing` |
 | `MediaPlayer` (**implemented**, [below](#mediaplayer)) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | `SandboxFrame` | new | `ready`, `error`, `message`; `load`, `post` |
@@ -411,6 +411,51 @@ new app.components.Calendar({ view: "signage_schedule", signal: win.signal }).mo
 - Theme and skin changes repaint live (the Scheduler switches between its
   `terrace` and `dark` skins); a language switch reloads the page, so
   components are created again in the new language.
+
+<a id="filemanager-and-filepicker"></a>
+
+#### FileManager and FilePicker (implemented — P3 C-2)
+
+`app.components.FileManager` is the two-panel [file manager](files.md) of a
+files view; the built-in `files` kind is this class mounted in the view host.
+`app.components.FilePicker.pick` is the modal tiles picker of `file` fields
+(`Kiválasztás…`) as a promise.
+
+```ts
+const files = new app.components.FileManager({ view: "files", signal: host.signal });
+files.on("opened", ({ id, mime_type }) => recent.push({ id, mime_type }));  // viewer or text editor showed a file
+files.mount(layout.getCell("files"));
+
+const { fields } = await app.server.form("signage_assets", "create");
+const field = fields.find(field => field.type === "file")!;
+const media = await app.components.FilePicker.pick({ field: field.file!, title: field.label, current, signal: host.signal });
+if (media) preview.show(media);                                      // MediaDescriptor; null: Cancel, Escape, abort
+```
+
+- **FileManager.** `view` is an offered view id (`Error` when not offered) or
+  a held `ViewDefinition` with `resource`, `actions` and the
+  `FileManagerOptions` shape with at least one mount (`TypeError` otherwise).
+  Panels, mounts, upload (window, drop, paste), the viewer on
+  [`MediaPlayer`](#mediaplayer) with previous/next, the text editor, the
+  conflict and delete dialogs behave as in the built-in view and follow the
+  view's `actions`; the server checks every call. `opened` (`{id,
+  mime_type}`) fires each time the viewer or the text editor shows a file,
+  also on previous/next. The lifecycle is the common one
+  ([Calendar and DiagramEditor](#calendar-and-diagrameditor)): `destroy()`
+  also closes the windows it opened, removes its document and upload
+  listeners and aborts its pending reads (writes already sent complete).
+  Theme and skin changes apply through the Suite variables.
+- **FilePicker.** `field` is a `file` field's `FieldMetadata.file` (as
+  `app.server.form` or a list action describes it), `title` the field label
+  (`Fájl kiválasztása: {title}`), `current` a preselected file id. The picker
+  lists the field's folder (`folder_id`, otherwise the mount root) with
+  search and a type filter limited to the field's accepted MIME classes;
+  double-click, Enter or `Kiválasztás` resolves the file's `MediaDescriptor`
+  (`id`, `name`, `mime_type`, `revision`, `duration_ms`, `width`, `height`,
+  `thumbnail`). `Mégse`, Escape or aborting `signal` resolves `null` and
+  ends its requests; an already aborted signal opens nothing. Malformed
+  options throw `TypeError` before anything opens. The server checks `list`
+  on the mount; setting the chosen id on a record is the caller's write.
 
 <a id="mediaplayer"></a>
 

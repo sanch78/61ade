@@ -10,7 +10,7 @@ import type { ViewDefinition } from "./Workspace";
 
 /** JSON call of another resource (the file manager) through the same UI channel, session and CSRF header. */
 export type ResourceCall=(resource:string,action:string,id:string|null,values?:Record<string,unknown>)=>Promise<any>;
-type Directory={id:string;mount:string;depth:number;path:{id:string;name:string}[]};
+export type Directory={id:string;mount:string;depth:number;path:{id:string;name:string}[]};
 type Entry={id:string;name:string;kind:"directory"|"file";mime_type:string;revision:string;width?:number|null;height?:number|null;duration_ms?:number|null;thumbnail?:MediaDescriptor["thumbnail"]};
 type Listing={directory:Directory;items:Entry[];next?:string|null;total?:number;matched?:number};
 type Kind="image"|"video"|"text"|"other";
@@ -33,6 +33,11 @@ const accepted=(config:FileFieldConfig):Kind[]=>{
 const offered=(config:FileFieldConfig,mime:string)=>!config.accept?.length||config.accept.some(kind=>kind!=="other"&&KINDS.some(([key])=>key===kind)&&mime.startsWith(kind+"/"));
 const descriptor=(entry:Partial<Entry>&{id:string;name:string}):MediaDescriptor=>({id:String(entry.id),name:String(entry.name),mime_type:String(entry.mime_type??""),revision:String(entry.revision??""),
   duration_ms:typeof entry.duration_ms==="number"?entry.duration_ms:null,width:typeof entry.width==="number"?entry.width:null,height:typeof entry.height==="number"?entry.height:null,thumbnail:entry.thumbnail??"none"});
+/** The field's declared folder (`folder_id`) or its mount root, with its path (for the upload target label). */
+export async function fieldFolder(config:FileFieldConfig,call:ResourceCall):Promise<Directory>{
+  const id=config.folder_id||String((await call(config.resource,"tree",config.mount)).root);
+  return (await call(config.resource,"list",id,{limit:1}) as Listing).directory;
+}
 /** "Signage:/Képek", as the file manager's panel header. */
 const directoryLabel=(directory:Directory)=>{const names=directory.path.map(part=>part.name);return (names[0]??directory.mount)+":/"+names.slice(1).join("/");};
 /** Type glyph of the thumbnail item while no thumbnail image is ready. */
@@ -115,11 +120,7 @@ class FileField{
   }
   /** The declared folder (`folder_id`) or the mount root, with its path for the upload target label. */
   private directory():Promise<Directory>{
-    const load=async()=>{
-      const id=this.config.folder_id||String((await this.call(this.config.resource,"tree",this.config.mount)).root);
-      return (await this.call(this.config.resource,"list",id,{limit:1}) as Listing).directory;
-    };
-    return this.folder??=load().catch(error=>{this.folder=undefined;throw error;});
+    return this.folder??=fieldFolder(this.config,this.call).catch(error=>{this.folder=undefined;throw error;});
   }
   private async choose():Promise<void>{
     if(this.picker||this.disposed||!this.config.can_choose)return;
