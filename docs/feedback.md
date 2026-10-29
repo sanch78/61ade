@@ -327,3 +327,15 @@
 <a id="fb-0078"></a>
 
 ## FB-0078 — Activation through SqlResource and to the child page
+
+<a id="fb-0079"></a>
+
+## FB-0079 — Menu pages keep their filter values
+
+<a id="fb-0080"></a>
+
+## FB-0080 — Framework-first covers shared infrastructure; projects own their domain
+
+<a id="fb-0081"></a>
+
+## FB-0081 — 61ade becomes a toolkit

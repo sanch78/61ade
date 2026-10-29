@@ -2,6 +2,10 @@
 
 Date: 2026-10-16. Accepted mandatory owner instruction.
 
+> Superseded in part on 2026-10-29 by [ADR-0004](0004-project-domain-freedom.md):
+> framework-first covers shared infrastructure; the "logically cannot be
+> extended" exception no longer limits a consumer's own domain, data or UI.
+
 61ade succeeds ADE as a DHTMLX admin framework. All general capabilities belong
 in the framework. Consumers declare application/menu/features and concrete
 business rules/adapters; 61ade executes/renders them.

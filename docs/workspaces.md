@@ -385,7 +385,8 @@ passes it through `register(…, activate: 'subview')`; that view has `get`,
   to the record. The filter is an ordinary one: it shows in the column header
   and the filter panel and `Alaphelyzet` removes it. The navigation is a
   browser history entry (Back returns to the parent page); the address keeps
-  `#feature=<child>` only, so a reload shows the page unfiltered. The page
+  `#feature=<child>` only, and the page keeps the filter across a reload like
+  any filter set there ([saved filters](shell.md#url-és-helyi-felületbeállítások)). The page
   needs the child view offered to the actor with the field among its filters;
   otherwise, and in a view opened in a window, the sub-view window opens; with
   no resolved sub-view, the details.

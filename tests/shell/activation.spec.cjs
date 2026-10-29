@@ -62,8 +62,12 @@ test('a zone opens the shelves page filtered to it; the filter is an ordinary, r
  await expect(shelves.filter({hasText:'Üres polc'})).toHaveCount(0);
  // The shelves page keeps its own activation (the item window).
  await shelves.filter({hasText:'Felső polc'}).first().locator('[data-dhx-col-id="title"]').dblclick();await opened(page,'Felső polc',2);await close(page);
+ // The page keeps the filter across a reload, like any filter set there.
+ await page.reload();await expect(page).toHaveURL(/#feature=demo_shelves$/);
+ await expect(shelves.filter({hasText:'Felső polc'})).toHaveCount(1);await expect(shelves.filter({hasText:'Üres polc'})).toHaveCount(0);
  await page.getByRole('button',{name:'Alaphelyzet',exact:true}).click();
  await expect(shelves.filter({hasText:'Üres polc'})).toHaveCount(1);
+ await page.reload();await expect(shelves.filter({hasText:'Üres polc'})).toHaveCount(1);
  await page.goBack();await expect(page).toHaveURL(/#feature=demo_shelf_zones$/);
  await view(page,'Csempék');
  const tile=name=>page.locator('.blade-grid-tile').filter({hasText:name}).first();
