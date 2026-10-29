@@ -378,6 +378,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Event calendar | `php8.4 tests/shell/calendar.php`; shell `calendar.spec.cjs` |
 | File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
+| Toolkit (modules, views, registries, routing) | PHP `toolkit.php`, `contracts.php`, `configuration.php`, `lists.php`; `node tests/shell/toolkit-kernel.mjs`, `node tests/shell/ui-preferences.mjs`; shell `browser.spec.cjs`, `preferences.spec.cjs`, `activation.spec.cjs` |
 
 PHP shorthand in the table means `php8.4 tests/shell/<name>.php`.
 Inspect affected dependencies: `npm ls --depth=0`, relevant Composer manifest/
@@ -390,7 +391,7 @@ There is **no pre-deploy or post-deploy smoke gate** here. When a full developme
 regression is actually warranted, the existing broad commands are:
 
 ```sh
-(for check in contracts access admin api-keys permissions tenancy authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation files diagram calendar; do
+(for check in contracts access admin api-keys permissions tenancy authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation files diagram calendar signage toolkit; do
     php8.4 "tests/shell/$check.php" || exit
 done)
 npm run typecheck

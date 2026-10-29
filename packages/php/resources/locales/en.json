@@ -693,5 +693,6 @@
   "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.": "No tenant assigned; tenant-scoped views are unavailable.",
   "Tenant váltása": "Switch tenant",
   "Hozzáférés": "Access",
-  "Hozzáférések": "Access"
+  "Hozzáférések": "Access",
+  "Egy alkalmazásmodul nem indult el: {module}": "An application module did not start: {module}"
 }

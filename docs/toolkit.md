@@ -1,15 +1,15 @@
 # Toolkit API: project modules, views and components
 
-Status: **contract only** (toolkit plan P1, 2026-10-29, [FB-0081](feedback.md#fb-0081)).
-Nothing in this guide is implemented yet. The types exist in
-`packages/frontend/src/api/types.ts` (not imported by `admin.ts`, so `admin.js`
-is unchanged) and the PHP value objects `Blade\Feature\View` and
-`Blade\Feature\ViewKindProvider` exist without callers. Every member is marked
-with the phase that implements it: **planned — P2** (kernel, lanes K-F/K-S) or
-**planned — P3** (components, lanes C-1 … C-6) of the
-[toolkit plan](toolkit-plan.md#8-work-breakdown). The owner accepted this
-contract at gate G1 on 2026-10-29 ([decisions](#decisions-at-gate-g1)); changes
-need a recorded reason in [changes](#changes).
+Status: **kernel implemented (P2, 2026-10-29), components planned (P3)**
+([FB-0081](feedback.md#fb-0081)). Implemented: project modules and stylesheets,
+the `app` services (`server`, `ui`, `uploads`, `i18n`, `theme`, `preferences`,
+`live`, `events`, `identity`), the four registries, built-in view kinds through
+the `views` registry, view ids, `#view=` routing with the `#feature=` alias,
+record views and the activation map on the server. `app.components` stays
+empty until P3; sections still marked **planned — P3** are not implemented.
+The owner accepted this contract at gate G1 on 2026-10-29
+([decisions](#decisions-at-gate-g1)); changes need a recorded reason in
+[changes](#changes).
 
 ## Purpose, scope and ownership
 
@@ -44,7 +44,7 @@ supported; the starter admin and tenant demo stay declarative.
 
 <a id="module-loading"></a>
 
-## Module loading (planned — P2 K-S2, K-F3)
+## Module loading
 
 ```php
 return new ApplicationDefinition(
@@ -143,15 +143,15 @@ app.navigate({ view: "demo.asset-viewer", record: "42" });
 ```
 
 Errors: `server.*` rejects with `ServerFailure` (`status`, localized
-`message`, `fieldErrors`, optional `details`; status 0 for network or
-non-JSON answers) or the platform `AbortError`; it never retries. 401 means
+`message`, `fieldErrors`, optional `details`; status 0 for a network
+failure or a 2xx answer without JSON; an error answer keeps its HTTP status) or the platform `AbortError`; it never retries. 401 means
 the session ended; the shell's behaviour for it is unchanged. Event handlers
 that throw are logged and do not stop other handlers; emitting a framework
 event name (with `:`) throws.
 
 <a id="registries"></a>
 
-### Registries (planned — P2 K-F3; presentations, field types, commands P3 C-5)
+### Registries (built-in presentations, field types and commands on them: planned — P3 C-5)
 
 `Registry<T>`: `register(name, entry, {replace?})`, `get`, `has`, `names`.
 Names are `[a-z][a-z0-9_.-]*`; built-in names have no dot, project names must
@@ -223,7 +223,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 
 <a id="views"></a>
 
-## Views (planned — P2 K-S1)
+## Views
 
 A view has its own identity: `id` (`[a-z][a-z0-9_.-]*`, unique per
 application), independent of `resource`, so a resource can have several views,
@@ -314,7 +314,7 @@ changes and all texts stay server-translated.
 
 <a id="routing"></a>
 
-### Routing (planned — P2 K-F4)
+### Routing
 
 - Canonical address: `#view=<id>[&record=<id>][&filter.<field>=<value>]`.
   Filter presets apply once and leave the address, as today.
@@ -331,7 +331,7 @@ changes and all texts stay server-translated.
 
 <a id="record-views"></a>
 
-## Record views (planned — P2 K-S3, K-F4/K-F5)
+## Record views
 
 A view with `record: <resource>` opens for one record. The shell passes the
 id to the server, which resolves the row through that resource's `get` action
@@ -347,7 +347,7 @@ without a record id opens nothing.
 
 <a id="activation-map"></a>
 
-## Activation map (planned — P2 K-S3, P3 C-1)
+## Activation map (client per-row choice: planned — P3 C-1)
 
 ```php
 $source->register($registry, 'Médiatár', tiles: true,
@@ -497,7 +497,14 @@ feedback reference; once the transition closes, changes follow
 
 | Date | Change | Reason | Feedback |
 | --- | --- | --- | --- |
-| — | — | — | — |
+| 2026-10-29 | `ServerFailure.status` is 0 only for a network failure or a 2xx answer without JSON; an error answer without JSON keeps its HTTP status. | Keeps the live channel's 401/403/5xx handling unchanged. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | `preferences.scope(name)` keys are `blade-ui:1:[path, user, "scope:<name>"]`; the name must contain a dot. | Cannot collide with a dotted list view id. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | `app.components` is an empty frozen object until P3. | Components are P3 work. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | `ViewKindProvider::metadata()` returns `{actions, options}` or null instead of the options alone; shared helpers in `ViewMetadata`; generic action shape `{name,label,icon,write,bulk,get,confirm,fields,…}`. | Built-in kinds emit different action shapes today. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | Signed-in bootstrap key `modules` (page-relative, versioned paths), present only when modules are declared; stylesheets are only `<link>`s after `admin.css` and skins. | The contract named no key. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | JSON `views.<id>` accepts project (dotted) kinds only; a duplicate id inside JSON fails like other JSON duplicates (the PHP replace rule is unchanged). | Built-in kinds keep their resource-based JSON. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | A `subview()` child view of the same resource is normalised to a hierarchy of the parent view. | Matches the per-resource counting of `ListSource`. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | Added `View::with()`, `Registry::provider()`, `Registry::embedded()`, `Registry::checkViews()`, `ApplicationDefinition::versioned()`; a broken `view:` target throws at definition and bootstrap; `View` requires a non-empty title and id-shaped resource and action names for every builder. | Needed by the builders and validation. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>
 

@@ -55,8 +55,12 @@ general capability is requested from 61ade without blocking the project; see
 [project rules](development.md#mandatory-framework-development-rules),
 [ADR-0004](decisions/0004-project-domain-freedom.md) and
 [ADR-0002](decisions/0002-framework-first.md).
-The planned public API for project modules ([ADR-0005](decisions/0005-toolkit.md))
-is specified, not yet implemented, in the [toolkit reference](toolkit.md).
+The public API for project modules ([ADR-0005](decisions/0005-toolkit.md)) is
+specified in the [toolkit reference](toolkit.md). Implemented (P2): project
+modules and stylesheets (`ApplicationDefinition` `modules`/`stylesheets`, JSON
+`application.modules/stylesheets`), the `app` services, registries and view
+kinds, view ids, record views and the activation map; the public components
+follow in P3.
 
 <a id="elfogadott-termékirány--2026-10-21"></a>
 
@@ -274,9 +278,10 @@ tiles: `details`, `subview` (the record's full child list, also when empty),
 view's record actions, as its toolbar command runs it; an
 activation the actor or record is not offered opens the details. Custom
 server behavior is a registered action handler; a project's own browser UI is
-allowed by [ADR-0004](decisions/0004-project-domain-freedom.md), but 61ade has
-no shell extension point for it yet; the [toolkit plan](toolkit-plan.md)
-([ADR-0005](decisions/0005-toolkit.md)) adds project modules and a public API.
+allowed by [ADR-0004](decisions/0004-project-domain-freedom.md), and it is mounted
+through a project module and view kind ([toolkit](toolkit.md),
+[ADR-0005](decisions/0005-toolkit.md)); `activate` may also be a `view:<id>`
+record view or a map keyed by a column value.
 
 Any view (list, singleton or file manager) can request the generic
 `desktopOnly` option (JSON `desktop_only`): below 768 px the shell shows a
@@ -376,7 +381,9 @@ describe the public presentation contract, with evidence in
 
 ## URLs and local UI preferences
 
-The shell uses #feature=items to restore active views on reload and Back/Forward.
+The shell uses `#view=<view id>` (record views `&record=<id>`) to restore active
+views on reload and Back/Forward; the legacy `#feature=<resource>` is still read
+and rewritten ([shell](shell.md#url-és-helyi-felületbeállítások)).
 [Local preferences](shell.md#url-és-helyi-felületbeállítások) automatically retain
 grid/workspace display settings. [Compact login windows](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok)
 fit rendered forms with consistent lower space. List shadows appear under grid

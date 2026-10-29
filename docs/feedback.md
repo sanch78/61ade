@@ -2463,8 +2463,27 @@ that exactly equals an option label lists every option. The managed
   tenant demo stay declarative.
 - **Plan:** [toolkit plan](toolkit-plan.md), to be executed in a separate
   agent thread with owner gates G1–G5.
-- **Verification:** documentation only; no runtime change.
-- **Status:** accepted/planned.
+- **Progress (2026-10-29):**
+  - P0: consumer inventory (StoryBloX, allflow), O9 confirmed, browser
+    baseline repaired ([FB-0082](#fb-0082)).
+  - P1/G1: contract in the [toolkit reference](toolkit.md), accepted by the
+    owner with the recommended decisions.
+  - P2 kernel: server `View` objects and kind providers, view ids, record
+    views, activation map, `modules`/`stylesheets`; frontend one `Server`
+    transport, `app` services, registries, module loader, `#view=` routing
+    with the `#feature=` alias, built-in kinds through the registry. Contract
+    deviations are logged in [toolkit changes](toolkit.md#changes).
+- **Verification (P2):** all PHP checks including the new `toolkit.php`;
+  `node tests/shell/toolkit-kernel.mjs`, `ui-preferences.mjs`,
+  `live-protocol.mjs`; `npm run typecheck`, `npm run build`. Full browser
+  suite twice at gate G2 (managed URL): 111 and 119 of 136 passed. Every
+  failing test passed in isolated re-runs (`files` and `uploader` alone and
+  together, `preferences` 3×, `subview`, `mobile-grid`). The failures were
+  timeouts, `spawnSync php8.4 EAGAIN` (guard task limit) and closed browser
+  pages under host load, so no deterministic regression was found.
+  `preferences.spec.cjs:19` failed in both full runs (mobile↔desktop reloads)
+  and needs watching.
+- **Status:** in progress (P3 components next).
 
 <a id="fb-0082"></a>
 
