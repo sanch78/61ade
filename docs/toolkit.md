@@ -7,9 +7,9 @@ is unchanged) and the PHP value objects `Blade\Feature\View` and
 `Blade\Feature\ViewKindProvider` exist without callers. Every member is marked
 with the phase that implements it: **planned — P2** (kernel, lanes K-F/K-S) or
 **planned — P3** (components, lanes C-1 … C-6) of the
-[toolkit plan](toolkit-plan.md#8-work-breakdown). The owner reviews this
-contract at gate G1; afterwards changes need a recorded reason in
-[changes](#changes).
+[toolkit plan](toolkit-plan.md#8-work-breakdown). The owner accepted this
+contract at gate G1 on 2026-10-29 ([decisions](#decisions-at-gate-g1)); changes
+need a recorded reason in [changes](#changes).
 
 ## Purpose, scope and ownership
 
@@ -297,7 +297,7 @@ relies on it). The replacement keeps the first declaration's menu position (PHP
 array order, unchanged behaviour) and replaces the whole earlier view,
 including a sub-view attached before it, so attach sub-views after the final
 declaration. Registering a client view **kind** twice is an error unless
-`{replace: true}`; `Registry::kind()` has no replace. Open point for G1.
+`{replace: true}`; `Registry::kind()` has no replace. Accepted at G1.
 
 **Bootstrap shape:** today's top-level keys map as follows; nothing else
 changes and all texts stay server-translated.
@@ -516,28 +516,32 @@ resolved with the recommended defaults and the P0 consumer inventory.
 | O6 | Static `dist/sandbox.html` + `sandbox.js` with a meta CSP in `<iframe sandbox="allow-scripts">`; data and code by `postMessage`; `.deploy.json` grows by these files for `SandboxFrame` users. | Opaque origin: no cookies or CSRF; the shell CSP stays strict. |
 | O7 | Untrusted code may run inside the opaque-origin frame only (`blob:` script). R8's "no eval/executable configuration strings" applies to configuration and the admin origin. | Agent-written scenes are project data, not configuration. |
 | O8 | `stylesheets` list beside `modules`, same path rules, signed-in pages only, linked after framework CSS and skins. | Replaces StoryBloX's output-buffer injection in `public/admin/index.php`. |
-| O9 | No transport change: the bootstrap `i18n.messages` already carries the merged catalog (`Translator::configure`: framework < project per locale, default locale as fallback), fed by `Blade\I18n\Settings::$catalogues` / JSON `i18n.catalogues`; `app.i18n` wraps `t`/`locale`. Framework keys are Hungarian source text in one flat namespace and a project key equal to a framework key overrides it. | Confirmed in P0.4; project modules use the same catalogues. Key convention: open for G1. |
+| O9 | No transport change: the bootstrap `i18n.messages` already carries the merged catalog (`Translator::configure`: framework < project per locale, default locale as fallback), fed by `Blade\I18n\Settings::$catalogues` / JSON `i18n.catalogues`; `app.i18n` wraps `t`/`locale`. Framework keys are Hungarian source text in one flat namespace and a project key equal to a framework key overrides it. | Confirmed in P0.4; project modules use the same catalogues. Key convention: accepted at G1 (source text or project prefix). |
 | O10 | `app.dhx` is the Suite namespace the shell uses (Standard 9.3.12, GPL obligations per [component matrix](component-matrix.md#licencek-és-lejárat)); Scheduler only through `Calendar`. | One instance shares theme and locale; one Scheduler per page in Standard. |
 | O11 | `app.apiVersion = 1`; until the transition closes breaking changes need a [changes](#changes) entry with a feedback reference, afterwards [breaking changes](development.md#breaking-changes). | Freezes the contract at G1 without blocking P2/P3 corrections. |
 
 <a id="open-points"></a>
 
-## Open points for gate G1
+## Decisions at gate G1
 
-1. **Duplicate view ids:** keep "later declaration replaces, first position
-   kept" ([rule](#view-id-rule)). Recommended: keep (allflow depends on it).
-2. **Translation keys of project modules (O9):** recommended: Hungarian source
-   text like the framework, or a project prefix (`storyblox.player.play`) for
-   texts without a natural source; overriding framework keys stays allowed and
-   documented.
-3. **Project name prefix:** recommended: project kinds, presentations, field
-   types, commands, event names and preference scopes must contain a dot.
-4. **JSON placement of extra views:** recommended: a module-level `views`
-   section; `resources.<name>.view` gains only `id` and the activation map.
-5. **Module timeout and failure policy:** recommended: 5 s per module, report
-   and continue.
+Accepted by the owner on 2026-10-29 as recommended:
+
+1. **Duplicate view ids:** a later declaration with the same id replaces the
+   earlier one and keeps its menu position ([rule](#view-id-rule)); a client
+   view kind registered twice is an error unless `{replace: true}`.
+2. **Translation keys of project modules (O9):** Hungarian source text like the
+   framework, or a project prefix (`storyblox.player.play`) for texts without a
+   natural source; overriding framework keys stays allowed and documented.
+3. **Project name prefix:** project kinds, presentations, field types,
+   commands, event names and preference scopes must contain a dot.
+4. **JSON placement of extra views:** a module-level `views` section;
+   `resources.<name>.view` gains only `id` and the activation map.
+5. **Module timeout and failure policy:** 5 s per module, report and continue.
 6. **`modules` naming:** `application.modules` (browser) beside
-   `workspace.modules` (JSON files). Recommended: keep, as the plan names it.
+   `workspace.modules` (JSON files) stays, explained in this guide.
+7. **Proposed limits** (sandbox code 1 MiB, files 32 MiB, `ready` within 10 s,
+   project-kind options 64 KiB) stand until P3 C-4/K-S1 verify them; a change
+   is logged in [changes](#changes).
 
 ## Related
 
