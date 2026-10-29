@@ -4,7 +4,9 @@ declare(strict_types=1);
 /*
  * Tenant demo (/tenants/): the starter admin with multi-tenancy on. Two synthetic tenants, accounts with zero, one
  * and two memberships, tenant-scoped projects and tasks (the task's project choice is a tenant-scoped lookup) and a
- * global notice board next to them.
+ * global notice board next to them. Sub-views: a project expands to its tasks (the task list keeps its own menu
+ * entry), a task to its subtasks (a hierarchy: the toolbar acts on a selected subtask), and in the administration
+ * a tenant to its members.
  */
 
 use Blade\Admin\{Accounts, Administration};
@@ -30,9 +32,13 @@ $projects->registerDelete($workspace->registry);
 $tasks = new SqlResource('tenant_tasks', 'tenant_tasks', 'id', [
     new Field('title', 'Feladat', required: true, max: 200),
     new Field('project_id', 'Projekt', 'select', required: true, max: 20, options: (new Lookup('tenant_projects', 'tenant_projects', 'id', 'title', tenantColumn: 'tenant_id'))->options(...)),
+    new Field('parent_id', 'Szülőfeladat', 'select', max: 20, options: (new Lookup('tenant_tasks', 'tenant_tasks', 'id', 'title', extra: ['' => 'Nincs (fő feladat)'], tenantColumn: 'tenant_id'))->options(...), column: ['secondary' => true]),
+    new Field('done', 'Kész', 'checkbox', defaultValue: '0', column: ['editable' => true, 'align' => 'center', 'width' => 90]),
 ], tenantColumn: 'tenant_id');
 $tasks->register($workspace->registry, 'Feladatok', group: 'Tenant demó');
 $tasks->registerDelete($workspace->registry);
+$workspace->registry->subview('tenant_projects', 'tenant_tasks', 'project_id', embed: false);
+$workspace->registry->subview('tenant_tasks', 'tenant_tasks', 'parent_id');
 (new SqlResource('tenant_notices', 'tenant_notices', 'id', [
     new Field('title', 'Közlemény', required: true, max: 200),
 ]))->register($workspace->registry, 'Közös hirdetőtábla', group: 'Tenant demó');

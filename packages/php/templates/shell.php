@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $escape(\Blade\I18n\Translator::text($definition->title)) ?></title>
     <link rel="stylesheet" href="<?= $escape($definition->assets) ?>/admin.css?v=30">
+<?php foreach ($skins as $skin): ?>
+    <link rel="stylesheet" href="<?= $escape($skin->stylesheet) ?>">
+<?php endforeach; ?>
 <?php if ($bootstrap['oauth'] ?? false): $auth = rtrim($definition->oauth->assets, '/'); ?>
     <link rel="stylesheet" href="<?= $escape($auth) ?>/AuthHandler.css">
     <script src="<?= $escape($auth) ?>/AuthHandler.js"></script>

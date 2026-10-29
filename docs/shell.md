@@ -172,6 +172,74 @@ without recreating the entire legacy image/gradient skin. `setTheme` applies
 to the document root and all controls. No legacy CSS or application skin layer.
 `browser.spec.cjs` checks the default, actual toolbar color, switching and reload persistence.
 
+<a id="application-skins"></a>
+
+### Application skins (optional)
+
+An application may give selected signed-in users its own appearance (skin)
+instead of the factory themes ([FB-0072](feedback.md#fb-0072)). A skin refines
+a factory base theme (`light`, `dark` or `skyblue`): the shell applies the base
+with `setTheme` and marks the root with `data-blade-skin="<id>"`; the
+application's stylesheet overrides documented Suite `--dhx-*` variables on that
+selector ([custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/)).
+Everything keyed to the base keeps working unchanged: the Suite dark variables,
+the framework's dark and Skyblue rules, and the calendar's dark Scheduler skin.
+A skin only states what differs. Controls stay native; 61ade ships no
+application CSS.
+
+```php
+use Blade\Shell\{ApplicationDefinition, Identity, Skin};
+
+$brand = new Skin('brand', 'Márka', 'skins/brand.css');              // light base
+$night = new Skin('brand-night', 'Márka éjjel', 'skins/night.css', base: 'dark');
+return new ApplicationDefinition(
+    // ...
+    skins: static fn(Identity $actor): array => $actor->attributes['editor'] ? [$brand, $night] : [],
+);
+```
+
+```css
+/* skins/brand.css — only what differs from the base; Skyblue lists more variables. */
+[data-blade-skin="brand"] {
+  --dhx-h-primary: 210; --dhx-s-primary: 16%; --dhx-l-primary: 36%;
+  --dhx-background-secondary: #e4e7eb;
+  --dhx-s-toolbar-background: #e4e7eb;
+  --dhx-s-grid-header-background: #cbd2d9;
+}
+```
+
+- `Skin(id, label, stylesheet, base = 'light')`: `id` is lowercase
+  `[a-z][a-z0-9-]*` and must not be a factory theme (`skyblue`, `light`,
+  `dark`, `contrast-light`, `contrast-dark`); `label` is localized like other
+  texts; `stylesheet` is a `.css` path relative to the page, checked like
+  `assets`, with an optional `?v=…` cache key. Same-origin paths only, so CSP
+  `style-src 'self'` holds. `base` is `light`, `dark` or `skyblue`.
+- Skin stylesheets load after the framework CSS, so a `[data-blade-skin]`
+  variable wins over the same base variable at equal specificity. Keep to
+  `--dhx-*` variables; selectors on framework or Suite classes are not a
+  supported contract.
+- The closure runs on the server for the authenticated identity only. The
+  sign-in, confirmation and password-change pages never load skins. Its result
+  goes into the bootstrap `skins` list (id and label) and the shell links the
+  stylesheets. No closure or an empty list: unchanged factory behavior.
+- With skins the factory themes are not offered. One skin is applied with
+  `setTheme` and the theme selector is hidden; several skins fill the selector
+  with only those skins.
+- The choice among several skins is stored in `blade-skin` in localStorage; an
+  unknown value falls back to the first skin. `blade-theme` is never written
+  while skins apply, so a user who loses the skins (for example after a role
+  change) gets the previous factory theme back, and the sign-in page keeps it.
+- Presentation only: a skin grants or limits nothing. Endpoint policy, ACL and
+  menu policy stay the access control.
+- New framework rules for one theme keep targeting `data-dhx-theme`, never a
+  skin id, so they reach every skin built on that base.
+
+The feature demo grants the synthetic neutral `demo-slate` skin (light base) to
+`skin@example.test`, and `demo-slate` plus `demo-ink` (dark base) to
+`skins@example.test`; other accounts keep the factory themes. `skins.spec.cjs`
+checks both cases including the dark base, the unskinned user, the sign-in page
+and that `blade-theme` stays untouched.
+
 Workspace switching detaches/disposes the previous DHTMLX layout, waits for
 redraw and attaches the new view. Only the latest rapid switch mounts.
 `workspace.spec.cjs` checks repeated switching.

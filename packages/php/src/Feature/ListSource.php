@@ -8,8 +8,10 @@ final readonly class ListSource
     /**
      * $search: declared name-search fields (non-secret text/textarea); $registry resolves `column.media` sources.
      * $tenant: tenant column; every read, count and watch is limited to the Context's tenant and fails closed without one.
+     * $countWhere: trusted developer SQL that a parent's sub-view count (countBy) adds to the listing scope, for a
+     * list that shows more rows than it counts (an access list counts only the accounts with access).
      */
-    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null, private array $search = [], private ?Registry $registry = null, private ?string $tenant = null)
+    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null, private array $search = [], private ?Registry $registry = null, private ?string $tenant = null, private string $countWhere = '1=1')
     {
         if($tenant!==null&&!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$tenant))throw new \InvalidArgumentException('Invalid tenant column.');
         $known=array_column($fields,null,'name');
@@ -183,9 +185,45 @@ final readonly class ListSource
             $rank=$ctx->db->prepare("SELECT COUNT(*) FROM $from WHERE ".implode(' AND ',[...$baseTerms,$before]));$rank->execute($baseParams);
             $offset=(int)$rank->fetchColumn();
         }
-        $items=$this->media($ctx,array_map(fn($row)=>($this->project)($ctx,$row),$rows));
+        $items=$this->subviews($ctx,$this->media($ctx,array_map(fn($row)=>($this->project)($ctx,$row),$rows)));
         return ['total'=>$total,'matched'=>$matched,'items'=>array_map(fn($item,$row,$index)=>[...$item,'_position'=>$position($row),...($numbered?['_number'=>$offset+$index+1]:[])],$items,$rows,array_keys($rows)),
             'previous'=>$first!==null&&($direction==='previous'?$more:$hasCursor)?$this->cursor($first,'previous'):null,
             'next'=>$last!==null&&($direction==='previous'?$hasCursor:$more)?$this->cursor($last,'next'):null];
+    }
+    /**
+     * Adds `_subview` (int) to projected items of a resource whose view has a sub-view: the number of child records
+     * the same actor, channel and tenant could list with the filter {field: id} (child ACL, `where`, tenant scope),
+     * one grouped COUNT per page (with the child's $countWhere). Left out when the child has no SQL list source or cannot be read with that filter.
+     */
+    public function subviews(Context $ctx,array $items):array
+    {
+        $subview=$this->registry?->subviewOf($this->resource);
+        if(!$subview||!$items)return $items;
+        try{$child=$this->registry->get($subview['child'],'list')->listSource;}catch(Failure){return $items;}
+        $counts=$child?->countBy($ctx,$subview['field'],array_map(static fn($item)=>(string)$item['id'],$items));
+        if($counts===null)return $items;
+        // A child that counts only part of its rows ($countWhere) is listed even at 0: such a record always expands (`_subview_open`).
+        $open=$child->countWhere!=='1=1';
+        foreach($items as &$item){$item['_subview']=$counts[(string)$item['id']]??0;if($open)$item['_subview_open']=true;}
+        unset($item);
+        return $items;
+    }
+    /** Listable records per $field value among $values (string keys); null when $field is not queryable here. */
+    public function countBy(Context $ctx,string $field,array $values):?array
+    {
+        $known=array_column($this->fields,null,'name')[$field]??null;
+        if(!$known||$known->secret||!$this->queryable($ctx,$field)||($this->tenant!==null&&$ctx->tenant===null))return null;
+        [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
+        $terms=["($scope)","({$this->where})","({$this->countWhere})"];
+        if($this->tenant!==null){$terms[]="{$this->tenant} = :blade_tenant";$params['blade_tenant']=$ctx->tenant;}
+        // A hierarchy child lists its top-level records only (as its view does), so only those are counted.
+        $own=$this->registry?->subviewOf($this->resource);
+        if($own&&$own['child']===$this->resource&&$own['field']!==$field)$terms[]="COALESCE(CAST({$own['field']} AS CHAR),'') = ''";
+        $in=[];foreach(array_values(array_unique($values)) as $i=>$value){$in[]=":blade_sv$i";$params["blade_sv$i"]=$value;}
+        $from=$this->source?($this->source)($ctx):$this->table;
+        $q=$ctx->db->prepare("SELECT CAST($field AS CHAR) AS blade_parent, COUNT(*) AS blade_count FROM $from WHERE ".implode(' AND ',$terms)." AND CAST($field AS CHAR) IN (".implode(',',$in).") GROUP BY CAST($field AS CHAR)");
+        $q->execute($params);
+        $out=[];foreach($q->fetchAll(\PDO::FETCH_ASSOC) as $row)$out[(string)$row['blade_parent']]=(int)$row['blade_count'];
+        return $out;
     }
 }

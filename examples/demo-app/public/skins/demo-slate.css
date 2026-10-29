@@ -1,0 +1,14 @@
+/* Synthetic demo skin: a neutral slate palette over the light base: Suite --dhx-* variables only. */
+[data-blade-skin="demo-slate"] {
+  --dhx-font-color-primary: #1f2933;
+  --dhx-font-color-secondary: #3e4c59;
+  --dhx-border-color: #9aa5b1;
+  --dhx-h-primary: 210;
+  --dhx-s-primary: 16%;
+  --dhx-l-primary: 36%;
+  --dhx-background-primary: #ffffff;
+  --dhx-background-secondary: #e4e7eb;
+  --dhx-background-additional: #cbd2d9;
+  --dhx-s-toolbar-background: #e4e7eb;
+  --dhx-s-grid-header-background: #cbd2d9;
+}

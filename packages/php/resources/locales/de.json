@@ -66,6 +66,10 @@
   "Ellenőrizd a mezőt": "Feld überprüfen",
   "Jelölés": "Auswählen",
   "Sor jelölése: {id}": "Zeile auswählen: {id}",
+  "Részletek megjelenítése: {id}": "Details anzeigen: {id}",
+  "Részletek elrejtése: {id}": "Details ausblenden: {id}",
+  "A kijelölt rekord kapcsolódó listája ablakban": "Die zugehörige Liste des ausgewählten Datensatzes in einem Fenster",
+  "Alelemek": "Unterelemente",
   "{field} — szerkesztés": "{field} — bearbeiten",
   " — Szerkeszthető kattintással": " — Zum Bearbeiten anklicken",
   " — Szerkeszthető dupla kattintással": " — Zum Bearbeiten doppelklicken",
@@ -684,5 +688,7 @@
   "Nincs hozzárendelt tenant": "Kein Mandant zugewiesen",
   "Aktív tenant": "Aktiver Mandant",
   "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.": "Kein Mandant zugewiesen; mandantengebundene Ansichten sind nicht verfügbar.",
-  "Tenant váltása": "Mandant wechseln"
+  "Tenant váltása": "Mandant wechseln",
+  "Hozzáférés": "Zugriff",
+  "Hozzáférések": "Zugriffe"
 }

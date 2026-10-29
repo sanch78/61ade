@@ -159,7 +159,7 @@ final class SqlResource
         if(($tenant=$this->tenant($ctx))!==null){$where="($where) AND {$this->tenantColumn} = :blade_tenant";$params['blade_tenant']=$tenant;}
         $from=$this->source($ctx);
         $q=$ctx->db->prepare("SELECT * FROM $from WHERE ($where) AND ({$this->where}) ORDER BY {$this->key} DESC LIMIT 200 OFFSET $offset");$q->execute($params);
-        return $this->list->media($ctx,array_map(fn($row)=>$this->project($ctx,$row,'list'),$q->fetchAll(\PDO::FETCH_ASSOC)));
+        return $this->list->subviews($ctx,$this->list->media($ctx,array_map(fn($row)=>$this->project($ctx,$row,'list'),$q->fetchAll(\PDO::FETCH_ASSOC))));
     }
     public function project(Context $ctx,array $row,string $action): array
     {

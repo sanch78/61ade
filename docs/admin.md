@@ -183,10 +183,13 @@ Browser coverage: demo.spec.cjs.
 ## Tenants (with tenancy)
 
 Only when the workspace has [tenancy](tenancy.md): Administration → `Tenantok`
-(`blade_tenants`: name, `Aktív` switch, `Tagok`; no delete), a `Tenantok`
-multiselect on the Users form and grid, and a `Tenant` field on API keys
+(`blade_tenants`: name, `Aktív` switch; no delete; each tenant expands to its
+access list: every account the actor may list, with one `Hozzáférés` switch
+(an active membership; rows are not selectable and open no form), and the
+`Hozzáférések` command opens the same list in a window, see [tenancy](tenancy.md#memberships-and-administration)),
+a `Tenantok` multiselect on the Users form and grid, and a `Tenant` field on API keys
 (one of the owner's tenants, or global). The field is fixed after issue.
-`grantAdministration` grants the Tenants actions to the protected role. Without
+`grantAdministration` grants the Tenants and access-list actions to the protected role. Without
 tenancy none of these exist.
 
 <a id="korlátok"></a>

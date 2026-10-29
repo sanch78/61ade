@@ -106,7 +106,9 @@ final class Application
             $pending = $_SESSION['pendingLogin'];
             $bootstrap['confirmation'] = ['email' => $pending['email'], 'expires' => $pending['expires']];
         }
+        $skins = $identity ? $this->skins($identity) : [];
         if ($identity) {
+            if ($skins) $bootstrap['skins'] = array_map(static fn(Skin $skin) => ['id' => $skin->id, 'label' => Translator::text($skin->label), 'base' => $skin->base], $skins);
             $bootstrap['userId'] = $identity->id;
             $bootstrap['displayName'] = $identity->displayName;
             $bootstrap['menu'] = $definition->menu->project($identity);
@@ -119,6 +121,19 @@ final class Application
         }
         session_write_close();
         require dirname(__DIR__, 2).'/templates/shell.php';
+    }
+
+    /** @return list<Skin> the application skins of the signed-in identity, unique by id. */
+    private function skins(Identity $identity): array
+    {
+        $skins = $this->definition->skins ? ($this->definition->skins)($identity) : [];
+        if (!is_array($skins) || !array_is_list($skins)) throw new \UnexpectedValueException('61ade skins must be a list.');
+        $ids = [];
+        foreach ($skins as $skin) {
+            if (!$skin instanceof Skin || isset($ids[$skin->id])) throw new \UnexpectedValueException('61ade skins must be unique Skin objects.');
+            $ids[$skin->id] = true;
+        }
+        return $skins;
     }
 
     private function headers(): void

@@ -66,6 +66,10 @@
   "Ellenőrizd a mezőt": "Check the field",
   "Jelölés": "Select",
   "Sor jelölése: {id}": "Select row: {id}",
+  "Részletek megjelenítése: {id}": "Show details: {id}",
+  "Részletek elrejtése: {id}": "Hide details: {id}",
+  "A kijelölt rekord kapcsolódó listája ablakban": "The selected record's related list in a window",
+  "Alelemek": "Child items",
   "{field} — szerkesztés": "{field} — edit",
   " — Szerkeszthető kattintással": " — Click to edit",
   " — Szerkeszthető dupla kattintással": " — Double-click to edit",
@@ -684,5 +688,7 @@
   "Nincs hozzárendelt tenant": "No tenant assigned",
   "Aktív tenant": "Active tenant",
   "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.": "No tenant assigned; tenant-scoped views are unavailable.",
-  "Tenant váltása": "Switch tenant"
+  "Tenant váltása": "Switch tenant",
+  "Hozzáférés": "Access",
+  "Hozzáférések": "Access"
 }

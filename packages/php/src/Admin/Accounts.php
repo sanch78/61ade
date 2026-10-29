@@ -74,6 +74,23 @@ final class Accounts
         return new Lookup(self::RESOURCE, $this->table, $this->idColumn, $this->emailColumn);
     }
 
+    /** SQL expression of the account name for the account id in $idSql (a computed column of a related list). */
+    public function nameSql(string $idSql): string
+    {
+        return "(SELECT {$this->nameColumn} FROM {$this->table} WHERE CAST({$this->idColumn} AS CHAR) = $idSql)";
+    }
+
+    /**
+     * Derived SQL row source of the accounts $ctx may list (the lookup's object and e-mail ACL): `actor_id`,
+     * `blade_email`, `blade_name`. Ids are bound as quoted literals, so the source can be embedded in a listing.
+     */
+    public function visibleSql(Context $ctx): string
+    {
+        $ids = array_map(static fn($id) => $ctx->db->quote((string) $id), array_keys($this->lookup()->options($ctx)));
+        return "(SELECT CAST({$this->idColumn} AS CHAR) AS actor_id, {$this->emailColumn} AS blade_email, {$this->nameColumn} AS blade_name FROM {$this->table} WHERE "
+            .($ids ? "CAST({$this->idColumn} AS CHAR) IN (".implode(',', $ids).')' : '1=0').')';
+    }
+
     /**
      * Returns account choices visible to a relation field, always including the
      * current actor so self-scoped features do not require account-admin access.

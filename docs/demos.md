@@ -38,7 +38,16 @@ Tenants `Alfa` and `Béta`; password `61ade-demo`:
 
 `Tenant demó` → `Projektek` and `Feladatok` are tenant-scoped (the task's project
 choice is a scoped lookup); `Közös hirdetőtábla` is global. The editor role is
-global, and membership decides where it applies. Setup adds the tenant demo to
+global, and membership decides where it applies.
+
+[Sub-views](workspaces.md#sub-views), one per kind:
+
+| Where | Sub-view | Shows |
+| --- | --- | --- |
+| Administration → `Tenantok` | access list (`blade_tenant_members`, embedded, `select: false`) | Every user with the editable `Hozzáférés` switch; rows are not selectable and the toolbar stays on the tenant; the toolbar's `Hozzáférések` opens the same list (switch only) in a window; on a phone the card's `Hozzáférések (n)` button (users with access) opens the window |
+| `Projektek` | the project's tasks (not embedded: `Feladatok` keeps its menu entry) | A tenant-scoped child list with the editable `Kész` switch; top-level tasks only |
+| `Feladatok` | subtasks (the same resource: a hierarchy) | Top-level tasks; a task expands to its subtasks; a selected subtask takes the toolbar over; `Alelemek` opens the hierarchy below the task in a window |
+| Feature demo → `Médiatár` | the default contents using the item (JSON `view.subview`) | A usage preview declared in [signage.json](../examples/demo-app/modules/signage.json) | Setup adds the tenant demo to
 the same `setup-workspace.php` run.
 
 <a id="alapadmin-admin"></a>
@@ -77,12 +86,14 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
 | Appearance | Skyblue/light/dark, lower information bar and mobile menu | Any view |
+| Application skins | Synthetic neutral skins over a factory base instead of the factory themes: one skin without selector, a light- and a dark-based skin in the selector ([details](shell.md#application-skins)) | `skin@example.test`, `skins@example.test` |
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
 `twofactor@example.test` (code, English default), `oauth@example.test`
 (OAuth only; random unknown password), `reader@example.test` (read-only Tasks
-without the description field; file manager browse/read only). Shared synthetic password: `61ade-demo`.
+without the description field; file manager browse/read only), `skin@example.test`
+and `skins@example.test` (application skins only). Shared synthetic password: `61ade-demo`.
 Setup adds missing synthetic accounts to an existing database without changing
 existing ones; an account added later takes the next free id.
 

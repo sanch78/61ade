@@ -379,6 +379,12 @@ A collapsed desktop `Menü` is followed by the open feature's sibling menu items
 theme background and 1 px divider. The light theme label is Világos; default
 is Skyblue and valid saved choices persist.
 
+Optional [application skins](shell.md#application-skins) (`ApplicationDefinition
+skins:` or JSON `application.skins`) give selected signed-in identities
+application-owned DHTMLX custom themes instead of the factory ones. One skin
+hides the selector; several fill it with only those skins. Presentation only;
+without the option nothing changes.
+
 <a id="többnyelvűség"></a>
 
 ## Localization

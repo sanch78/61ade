@@ -12,6 +12,7 @@ use Blade\Feature\{Failure, Field, Lookup, RelatedSet};
 final class Tenancy
 {
     public const RESOURCE = 'blade_tenants';
+    public const MEMBERS = 'blade_tenant_members';
 
     public function __construct(private \PDO $db) {}
 
@@ -22,16 +23,20 @@ final class Tenancy
         $auto = $mysql ? 'BIGINT PRIMARY KEY AUTO_INCREMENT' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
         foreach ([
             "CREATE TABLE IF NOT EXISTS blade_tenants (id $auto, name VARCHAR(200) NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1)",
-            "CREATE TABLE IF NOT EXISTS blade_tenant_members (id $auto, tenant_id VARCHAR(100) NOT NULL, actor_id VARCHAR(100) NOT NULL, UNIQUE(tenant_id, actor_id))",
+            "CREATE TABLE IF NOT EXISTS blade_tenant_members (id $auto, tenant_id VARCHAR(100) NOT NULL, actor_id VARCHAR(100) NOT NULL, active INTEGER NOT NULL DEFAULT 1, UNIQUE(tenant_id, actor_id))",
         ] as $sql) $db->exec($sql.($mysql ? ' ENGINE=InnoDB' : ''));
+        $columns = static function (string $table) use ($db, $mysql): array {
+            if (!$mysql) return array_column($db->query("PRAGMA table_info($table)")->fetchAll(\PDO::FETCH_ASSOC), 'name');
+            $q = $db->prepare('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');$q->execute([$table]);
+            return $q->fetchAll(\PDO::FETCH_COLUMN);
+        };
         foreach (['blade_audit', 'blade_tokens'] as $table) {
-            if ($mysql) {
-                $q = $db->prepare('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');$q->execute([$table]);
-                $columns = $q->fetchAll(\PDO::FETCH_COLUMN);
-            } else $columns = array_column($db->query("PRAGMA table_info($table)")->fetchAll(\PDO::FETCH_ASSOC), 'name');
-            if (!$columns) throw new \LogicException("Install the access schema before tenancy ($table is missing).");
-            if (!in_array('tenant_id', $columns, true)) $db->exec("ALTER TABLE $table ADD COLUMN tenant_id VARCHAR(100) NOT NULL DEFAULT ''");
+            $known = $columns($table);
+            if (!$known) throw new \LogicException("Install the access schema before tenancy ($table is missing).");
+            if (!in_array('tenant_id', $known, true)) $db->exec("ALTER TABLE $table ADD COLUMN tenant_id VARCHAR(100) NOT NULL DEFAULT ''");
         }
+        // A membership can be suspended (active = 0) without removing it; earlier installs gain the switch enabled.
+        if (!in_array('active', $columns('blade_tenant_members'), true)) $db->exec('ALTER TABLE blade_tenant_members ADD COLUMN active INTEGER NOT NULL DEFAULT 1');
         $index = $mysql ? 'SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=?' : null;
         if ($index) {
             $q = $db->prepare($index);$q->execute(['blade_tenant_members', 'blade_tenant_members_actor']);
@@ -59,7 +64,7 @@ final class Tenancy
     /** Active tenants of $actor, id => name, ordered by name; read fresh on every call. */
     public function memberships(string $actor): array
     {
-        $q = $this->db->prepare('SELECT t.id, t.name FROM blade_tenants t JOIN blade_tenant_members m ON m.tenant_id = CAST(t.id AS CHAR) WHERE m.actor_id = ? AND t.active = 1 ORDER BY t.name, t.id');
+        $q = $this->db->prepare('SELECT t.id, t.name FROM blade_tenants t JOIN blade_tenant_members m ON m.tenant_id = CAST(t.id AS CHAR) WHERE m.actor_id = ? AND m.active = 1 AND t.active = 1 ORDER BY t.name, t.id');
         $q->execute([$actor]);
         return array_map('strval', array_column($q->fetchAll(\PDO::FETCH_ASSOC), 'name', 'id'));
     }
@@ -67,7 +72,7 @@ final class Tenancy
     public function member(string $actor, ?string $tenant): bool
     {
         if ($tenant === null || $tenant === '') return false;
-        $q = $this->db->prepare('SELECT COUNT(*) FROM blade_tenants t JOIN blade_tenant_members m ON m.tenant_id = CAST(t.id AS CHAR) WHERE m.actor_id = ? AND m.tenant_id = ? AND t.active = 1');
+        $q = $this->db->prepare('SELECT COUNT(*) FROM blade_tenants t JOIN blade_tenant_members m ON m.tenant_id = CAST(t.id AS CHAR) WHERE m.actor_id = ? AND m.tenant_id = ? AND m.active = 1 AND t.active = 1');
         $q->execute([$actor, $tenant]);
         return (bool) $q->fetchColumn();
     }

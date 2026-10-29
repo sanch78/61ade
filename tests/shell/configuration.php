@@ -93,6 +93,15 @@ try {
     $actor = $app->identities->authenticate('synthetic', 'synthetic-password');
     verify($actor !== null, 'JSON identity adapter');
     verify($app->version === '2.3.4', 'Application release version from JSON');
+    verify($app->skins === null, 'No application skins without application.skins');
+    $skin = new Blade\Shell\Skin('brand', 'Brand', 'skins/brand.css');
+    $write([...$settings, 'application' => [...$settings['application'], 'skins' => 'app.skins']]);
+    $skinned = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active'], 'app.skins' => static fn() => [$skin]], $callbacks, $db);
+    verify(($skinned->skins)($actor) === [$skin], 'Application skins from a named identity binding');
+    rejected(static fn() => new Blade\Shell\Skin('skyblue', 'Shadow', 'skins/brand.css'), 'Skin shadowing a factory theme accepted');
+    rejected(static fn() => new Blade\Shell\Skin('brand', 'Brand', 'https://cdn.example.test/brand.css'), 'Off-page skin stylesheet accepted');
+    rejected(static fn() => new Blade\Shell\Skin('brand', 'Brand', 'skins/brand.css', 'contrast-dark'), 'Skin over an unsupported base accepted');
+    $write($settings);
     $workspace = $app->workspace;
     $context = new Context($actor, 'ui', $workspace->acl, $db);
     $created = $workspace->executor->execute($context, 'notes', 'create', null, ['title' => 'hello']);
@@ -129,7 +138,7 @@ try {
     // Tenancy is opt-in: an empty `tenancy` object enables it; `tenant_column` scopes resources and lookups.
     verify($app->workspace->tenancy === null && !in_array('blade_tenants', array_column($app->workspace->registry->views(), 'resource'), true), 'No tenancy without the tenancy section');
     file_put_contents($directory.'/tenant-module.json', json_encode(['lookups' => ['projects' => ['resource' => 'projects', 'table' => 'projects', 'key' => 'id', 'label' => 'title', 'tenant_column' => 'tenant_id']],
-        'resources' => ['projects' => ['storage' => ['table' => 'projects', 'key' => 'id', 'tenant_column' => 'tenant_id'], 'fields' => [['name' => 'title', 'label' => 'Title', 'required' => true]], 'view' => ['title' => 'Projects']],
+        'resources' => ['projects' => ['storage' => ['table' => 'projects', 'key' => 'id', 'tenant_column' => 'tenant_id'], 'fields' => [['name' => 'title', 'label' => 'Title', 'required' => true]], 'view' => ['title' => 'Projects', 'subview' => ['resource' => 'tasks', 'field' => 'project_id', 'embed' => false]]],
             'tasks' => ['storage' => ['table' => 'tasks', 'key' => 'id', 'tenant_column' => 'tenant_id'], 'fields' => [['name' => 'project_id', 'label' => 'Project', 'type' => 'select', 'options_lookup' => 'projects']], 'view' => ['title' => 'Tasks']]]], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
     $tenantDb = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     Schema::install($tenantDb);
@@ -146,6 +155,23 @@ try {
     $tenantDb->exec("INSERT INTO blade_tenants (name) VALUES ('One')");$tenantDb->exec("INSERT INTO blade_tenant_members (tenant_id, actor_id) VALUES ('1', '1')");
     $choices = $registry->fields('tasks')['project_id']->metadata($tenantApp->workspace->context(new Blade\Shell\Identity('1', 'Synthetic'), 'ui', '1'))['options'];
     verify(array_values($choices) === ['One'], 'JSON lookup tenant_column scopes choices');
+    $views = array_column($registry->views(), null, 'resource');
+    verify($views['projects']['subview'] === ['child' => 'tasks', 'field' => 'project_id'] && empty($views['tasks']['embedded']), 'JSON view subview (child kept in the menu)');
+    $broken = json_decode(file_get_contents($directory.'/tenant-module.json'), true);
+    $broken['resources']['projects']['view']['subview']['columns'] = [];
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Unknown subview key accepted');
+    $broken['resources']['projects']['view']['subview'] = ['resource' => 'tasks', 'field' => 'missing'];
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Sub-view over an unknown field accepted');
+    $broken['resources']['projects']['view']['subview'] = ['resource' => 'tasks', 'field' => 'project_id', 'select' => 'no'];
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Non-boolean subview select accepted');
+    $broken['resources']['projects']['view']['subview']['select'] = false;
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    $selectViews = array_column(WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true)->registry->views(), null, 'resource');
+    verify($selectViews['projects']['subview'] === ['child' => 'tasks', 'field' => 'project_id', 'select' => false], 'JSON view subview select: false');
+    unlink($directory.'/broken-module.json');
     $write([...$settings, 'tenancy' => ['mode' => 'x']]);
     rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Unknown tenancy key accepted');
 

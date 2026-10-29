@@ -1855,3 +1855,149 @@ that exactly equals an option label lists every option. The managed
   [renaming](renaming.md#61de--61ade-correction-2026-10-29).
 - **Usage and constraints:** [renaming](renaming.md), [development](development.md#consumer-layout),
   [agent contract](../AGENTS.md).
+
+<a id="fb-0071"></a>
+
+## FB-0071 — Sub-views: expandable rows and cards with a compact preview
+
+- **Date:** 2026-10-29.
+- **Observation (owner):** the tenant list should show its members in a sub-row.
+  The native DHTMLX Grid `subRow` is PRO-only; the GPL Standard 9.3.12 build
+  silently ignores it. The owner asked the framework to provide it ("if we cannot
+  build it, we need a new framework").
+- **Accepted instructions, in order:**
+  - The expanded area is a grid/tree/card framework component fed by a separate
+    related list through the normal API.
+  - Card view expands too.
+  - A full grid inside a card is unusable on a phone: the sub-row is a compact
+    look. It shows all related records in a grid with only sortable headers, and
+    an editable enabled switch stays.
+  - The full list opens in a window from the parent toolbar; no title bar sits in
+    the preview.
+  - A window holding one simple framework feature shows it edge to edge, with the
+    window header only (system rule).
+  - The preview scrolls only above 5–10 rows, by the viewport, never fewer than 5.
+  - The demos cover every sub-view kind, also on existing screens.
+  - The tenant member switch means a membership-level enable/disable.
+  - Follow-up: a record without related items is not expandable (server `_subview`
+    count); the bottom edge of the preview is a single frame; cards do not embed
+    the preview but carry a clear full-width button that opens the window.
+  - Follow-up: a selected child takes the parent toolbar over for the same-named
+    actions (also across resources); editing a child sends its known parent
+    instead of failing on the required, hidden parent field.
+- **Implementation:**
+  - `Registry::subview()` and JSON `view.subview`.
+  - A framework toggle column and spanned sub-row in the Standard Grid; a card
+    toggle.
+  - A compact `Workspace` scope with a measured height.
+  - Nested widgets in a fixed, clipped layer outside the parent widget's DOM.
+  - The toolbar command, and the full scoped view in a `blade-feature-window`.
+  - A hierarchy mode (same resource, top-level filter, delegated toolbar).
+  - Tenants: members sub-view (`Tenancy::MEMBERS`) and `blade_tenant_members.active`.
+  - `RelatedSet` saves by difference.
+  - Below 768 px the tenant choice moved into the main menu, because the
+    selector covered the menu button (a stage-1 defect found here).
+- **Follow-up (owner, 2026-10-29): tenant access list.** On the tenant list,
+  modifying a sub-row element is meaningless: the sub-rows must not be editable
+  through forms and must not even be selectable. List all users, and let the
+  flag mark which tenants each user can access.
+  - Framework: `Registry::subview(..., select: false)` / JSON
+    `view.subview.select`, carried in `views()` as `subview.select: false`. Such
+    rows (preview and window) have native selection and key navigation off, no
+    toolbar delegation, no double-click/Enter opening, and record actions leave
+    the window toolbar; editable switch cells still save. Default unchanged, so
+    projects→tasks and the task hierarchy keep delegation.
+  - Framework: `ListSource` `countWhere` (count-only SQL) and `_subview_open`
+    (always expandable at a partial count); `Accounts::visibleSql()` (the
+    accounts the actor may list, as a derived source).
+  - Tenants: `Tenancy::MEMBERS` is now a derived access list (tenants × visible
+    accounts, id `<tenant>:<account>`, `E-mail`, `Név`, `Hozzáférés`) with only
+    `list` and `update`; on inserts or re-enables the membership, off deletes
+    it; each change is an audited, ACL-checked `__edit`. The count is the
+    accounts with access. The `active` column stays (compatibility) but is no
+    longer shown. Toolbar/card command: `Hozzáférések`.
+  - Verification (agent, 2026-10-29): the full PHP loop of
+    [development](development.md#existing-full-smoke-and-coverage-limits) passed
+    (with new `tenancy.php` and `configuration.php` cases); `npm run typecheck`,
+    build and demo assets. Through the managed URL `subview.spec.cjs`,
+    `subview-demos.spec.cjs`, `admin.spec.cjs` and the rewritten access-list and
+    phone cases of `tenancy.spec.cjs` passed (15/16). The remaining failure,
+    `no membership`, is demo data: during the run a live UI session of
+    `demo@example.test` (not the test) switched access in Alfa, so
+    `none@example.test` now has Alfa access. It was left in place; switching
+    it off again restores the fixture. No user acceptance.
+- **Usage and constraints:** [sub-views](workspaces.md#sub-views),
+  [tenancy](tenancy.md#memberships-and-administration), [demos](demos.md#tenant-demo-tenants).
+
+<a id="fb-0072"></a>
+
+## FB-0072 — Optional application skins
+
+- **Date:** 2026-10-29.
+- **Source:** consumer request. Its administrators keep the factory look; its
+  content editors should work in an application-branded palette, and more
+  application skins may follow.
+- **Accepted instructions:** extends [FB-0005](#fb-0005--natív-dhtmlx-témaváltás)
+  and [FB-0012](#fb-0012--skyblue-alapértelmezett-megjelenés). A skin stays a
+  native DHTMLX custom theme supplied by the application; controls stay native
+  and 61ade ships no application CSS. Opt-in per identity, resolved on the
+  server; the sign-in page keeps the factory look. With skins the factory
+  themes are not offered: one skin hides the selector, several fill it. The
+  skin choice persists separately so the factory choice returns when a skin is
+  lost. Presentation only, no access semantics.
+- **Simpler route checked:** no existing route fits. The shell links only
+  `admin.css` and offers a fixed theme list, so a consumer could neither load
+  its stylesheet nor select its theme without hand-built shell markup.
+- **Follow-up (owner, same day):** the first version applied the skin id itself
+  as the DHTMLX theme, so skins were light only: Scheduler stayed light and the
+  framework's dark rules did not apply. Asked for a unified, civilized fix.
+  Decision: a skin refines a factory base (`light`, `dark`, `skyblue`). The base
+  goes to `data-dhx-theme` through `setTheme`, the skin id to `data-blade-skin`,
+  and the skin stylesheet overrides only `--dhx-*` variables there. The Suite
+  dark theme is one variable block and every framework theme rule keys off
+  `data-dhx-theme`, so all of them follow the base with no duplicated rule.
+- **Implementation:** `Blade\Shell\Skin` (with `base`), `ApplicationDefinition::$skins`
+  (`Closure(Identity): list<Skin>`), JSON `application.skins` (identity binding
+  name), bootstrap `skins`, stylesheet links in `templates/shell.php`, the
+  `AdminShell` selector with `blade-skin` storage. Feature demo:
+  `skin@example.test` / `skins@example.test` with synthetic `demo-slate` (light
+  base) and `demo-ink` (dark base) stylesheets under `public/skins/`.
+- **Verification (agent, 2026-10-29):** `php8.4 tests/shell/configuration.php`
+  and `contracts.php` passed (JSON binding, reserved id, off-page stylesheet);
+  `npm run typecheck`, build and demo assets; through the managed URL
+  `skins.spec.cjs` (one skin without selector and with its variables on the
+  root, two skins only in the selector surviving reload, unknown stored value,
+  unskinned user, sign-in page, untouched `blade-theme`) with the unchanged
+  `browser.spec.cjs` and `preferences.spec.cjs`: 13/13 passed. Re-run after the
+  base follow-up, adding the dark base (`data-dhx-theme=dark` under `demo-ink`,
+  skin variable winning, other variables from Suite dark): 13/13 passed. No user
+  acceptance.
+- **Status:** implemented and verified by tools.
+- **Limits:** no per-user server-side preference; the high-contrast Suite
+  themes are not offered as a base.
+- **Usage and constraints:** [application skins](shell.md#application-skins),
+  [configuration](configuration.md#entrypoint-and-application-sections),
+  [demos](demos.md).
+
+<a id="fb-0073"></a>
+
+## FB-0073 — Demo WebSocket refresh after the tenancy change
+
+- **Date:** 2026-10-29.
+- **Source:** owner question: should the demo refresh over WebSocket?
+- **Finding:** yes; `.env` selects `wss://61ade.sanch.hu/live` and the proxy
+  answers `101`. `workspace.spec.cjs` failed the WebSocket case for two reasons.
+  The unit had run since 2026-10-28 06:52 UTC, before
+  [FB-0069](#fb-0069) changed `live-bridge.php`, `Live/Tickets.php` and
+  `Feature/Workspace.php`, so the bridge held stale code and sent no update;
+  the owner restarted it (12:25:53 UTC). After that the update frame arrived,
+  but the spec wrote note `id=1`: the standalone case leaves a note on every
+  run, the grid sorts by id descending and renders only visible rows, so note 1
+  (row 21) was off screen and `getByText` found nothing.
+- **Fix:** the spec's external write targets the newest note, which is the top
+  row. The framework live path is unchanged.
+- **Verification (agent, 2026-10-29):** through the managed URL
+  `workspace.spec.cjs` twice: 2 passed (standalone grid, WebSocket update frame
+  shown in the grid), polling case skipped.
+- **Status:** fixed; verified by tools.
+- **Limits:** the standalone case still leaves its notes behind.

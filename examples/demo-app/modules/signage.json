@@ -127,7 +127,12 @@
                     "create",
                     "update",
                     "delete"
-                ]
+                ],
+                "subview": {
+                    "resource": "signage_defaults",
+                    "field": "asset_id",
+                    "embed": false
+                }
             }
         },
         "signage_defaults": {

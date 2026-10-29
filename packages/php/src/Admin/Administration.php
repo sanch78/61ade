@@ -25,7 +25,7 @@ final class Administration
     ): IdentityProvider {
         $accounts->register($workspace->registry, $usersTitle, $group);
         // Tenancy (optional): tenant records and members; the Users form gains the tenant memberships.
-        if ($workspace->tenancy) Tenants::register($workspace->registry, $accounts, group: $group);
+        if ($workspace->tenancy) Tenants::register($workspace->registry, $accounts, $workspace->tenancy, group: $group);
         $managed = $accounts->identities($identities);
         $permissions = new Permissions($workspace, $accounts, $managed, $protectedRole);
         $permissions->register($workspace->registry, $group);

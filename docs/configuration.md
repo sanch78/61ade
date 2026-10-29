@@ -21,7 +21,7 @@ return JsonApplication::load(
 | --- | --- |
 | `description` | Human explanation, not runtime configuration; valid on every configuration object. |
 | `environment` | Env files and the process variable selecting an alternate file. |
-| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. |
+| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. Optional `version`, and `skins` naming an identity binding `Closure(Identity): list<Skin>` ([application skins](shell.md#application-skins)). |
 | `database` | MySQL `host`, integer `port`, `name`, `charset`, `user`, `password`; password requires an env reference. |
 | `session` | `name`, `cookie_path`; the framework owns session lifecycle. |
 | `identity` | SQL account schema and named `allowed`/`password_verifier` adapters. |
@@ -101,7 +101,7 @@ Complete synthetic example: [notes.json](../tests/fixtures/configuration/notes.j
 | `operations.delete_policy` | `delete` (default) or `archive` (requires `delete: true` and consumer columns `archived_at`/`archived_by`); see [record delete policy and usages](workspaces.md#delete-usages). |
 | `storage.computed` | `{name: SQL expression}` over the base row `blade_base` (trusted developer SQL, no `;`/`?`); the name must also be a declared text/number field, which becomes read-only and sortable. |
 | `fields[].type: "file"` | With `file: {resource, mount, accept: ["image","video"], folder?}`: a file reference picked from or uploaded into a file-manager mount; see [workspaces](workspaces.md#file-field). |
-| `view` | `title`; optional `group`, `singleton`, `columns`, `actions`, `layout`, `row_numbers`, `selection`, `row_selection`, `icon`, `desktop_only`, `row_height` (32–160), `tile_min_width` (120–480), `tiles`, `search` (field names). Omitted columns/actions use the registered resource's default view. Media columns (`column.media`), icon columns (`column.presentation`), tiles and search: [workspaces](workspaces.md#media-tiles). |
+| `view` | `title`; optional `group`, `singleton`, `columns`, `actions`, `layout`, `row_numbers`, `selection`, `row_selection`, `icon`, `desktop_only`, `row_height` (32–160), `tile_min_width` (120–480), `tiles`, `search` (field names), `subview` (`resource`, `field`; optional `embed`, default true: see [sub-views](workspaces.md#sub-views)). Omitted columns/actions use the registered resource's default view. Media columns (`column.media`), icon columns (`column.presentation`), tiles and search: [workspaces](workspaces.md#media-tiles). |
 | `view.layout` | `form_mode` (`overlay`/`panel`) and optional validated `tree`; see [workspaces](workspaces.md). |
 | `actions` | Additional registered actions: `resource`, `name`, `label`, `handler`; optional `fields`, `target_resource`, `write`, `channels`, `form_values` (named initial-value binding). |
 

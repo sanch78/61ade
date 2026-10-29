@@ -47,9 +47,12 @@ final readonly class RelatedSet
     {
         $field = array_key_first($this->fields);
         if (!array_key_exists($field, $values)) return;
-        $chosen = array_values(array_filter(explode(',', (string) $values[$field]), static fn($item) => $item !== ''));
-        $this->delete($db, $id);
+        $chosen = array_values(array_unique(array_filter(explode(',', (string) $values[$field]), static fn($item) => $item !== '')));
+        // Only removed links are deleted and only new ones inserted: kept rows keep their other columns.
+        $current = array_values(array_filter(explode(',', $this->read($db, $id)[$field]), static fn($item) => $item !== ''));
+        $delete = $db->prepare("DELETE FROM {$this->table} WHERE {$this->key} = ? AND {$this->value} = ?");
+        foreach (array_diff($current, $chosen) as $item) $delete->execute([$id, $item]);
         $insert = $db->prepare("INSERT INTO {$this->table} ({$this->key}, {$this->value}) VALUES (?, ?)");
-        foreach ($chosen as $item) $insert->execute([$id, $item]);
+        foreach (array_diff($chosen, $current) as $item) $insert->execute([$id, $item]);
     }
 }

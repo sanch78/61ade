@@ -545,3 +545,85 @@ Actions that declare no input fields execute directly from the command bar; they
 not open an intermediate form containing a second Execute button. Successful
 toolbar actions, including one-time secret reveals, report through a non-blocking
 toast; only actions that declare confirmation metadata open a confirmation dialog.
+
+<a id="sub-views"></a>
+
+## Sub-views (expandable rows and card buttons)
+
+A list view can let each record expand to a compact preview of a related list
+under its row in the table. In card view (and so on a phone) a card does not
+expand: it carries a button that opens the full related list in a window.
+The preview is for a quick look, not for work. The full related list, with all
+its actions, opens in a window from the parent toolbar.
+
+```php
+// After both views are registered: each tenant expands to its access list (rows not selectable).
+$registry->subview('blade_tenants', 'blade_tenant_members', 'tenant_id', select: false);
+// The child keeps its own menu entry:
+$registry->subview('projects', 'tasks', 'project_id', embed: false);
+// The same resource: a hierarchy (parent_id is a select whose options include '').
+$registry->subview('tasks', 'tasks', 'parent_id');
+```
+
+JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "project_id", "embed": false, "select": true}}`.
+
+- **Toggle:** the table gets a first toggle column (an accessible button with
+  `aria-expanded`). Enter on the toggle cell or a click expands or collapses it.
+  Records start collapsed, and a record whose child count is 0 has no toggle.
+  Cards show a full-width button at the bottom ("Feladatok (2)"; `Alelemek (n)`
+  for a hierarchy, at least 40 px tall) only when there are children. Tiles do
+  not expand, and a preview never expands further.
+- **Preview:** the child view's columns without the parent field. Headers sort
+  only: no filters, search, toolbar, row numbers, marks or title bar. Editable
+  columns (a switch, for example) stay editable through the normal grid-edit
+  path. It is always a table. Its height fits its records up to
+  40 % of the viewport in rows (never fewer than 5 or more than 10), and only then
+  does it scroll. It updates live like any list.
+- **Child count:** every `list` item (also `__watch` snapshots) of a view with a
+  sub-view carries `_subview`: the integer number of child records the same
+  actor could list with the filter `{field: id}` (child ACL, `where` and tenant
+  scope; a hierarchy child counts its top-level records only, as it lists them),
+  from one grouped `COUNT` per page. At `0` the toggle and the card button are hidden; it is
+  left out (toggle shown) when the child has no SQL list source or the actor may
+  not filter on the field.
+- **Full view:** the toolbar command named after the child list (`Alelemek` for
+  a hierarchy) opens the child list of the record the toolbar acts on, in a
+  window, full screen below 768 px. A window holding one framework feature shows
+  it edge to edge: the window header is its only header. The open preview
+  refreshes when the window closes.
+- **Embedded child:** by default a different child view has no menu entry of
+  its own; `embed: false` keeps it. The child view must be offered to the actor,
+  otherwise the parent has no sub-view.
+- **Toolbar on a selected child:** a record selected in a preview takes the
+  parent toolbar over for the actions the child view has under the same name
+  (`update`, `delete`, `Adatok`, …), which then run on that child record; the
+  others are disabled. Selecting a parent row gives the toolbar back. Editing a
+  child keeps its parent: the parent field is hidden and sent as that record.
+- **Not selectable (`select: false`, JSON `"select": false`; default `true`):**
+  for a child list where only a flag is set. Its rows, in the preview and in
+  the full window, never become the cursor record: native Grid/DataView
+  selection and key navigation are off (no highlight), there is no toolbar
+  delegation, and double-click or Enter opens nothing. The window toolbar keeps
+  only `create` and upload actions (no `Adatok`, edit or delete). Declared
+  editable switch cells still save through `__edit`. `views()` carries
+  `subview.select: false`; it is left out at the default.
+- **Partial count (`_subview_open`):** a child `ListSource` with a
+  `countWhere` (trusted SQL added only to the count) counts part of what it
+  lists, for example the accounts with access. Its parents then also carry
+  `_subview_open: true` and expand even at a count of 0.
+- **Hierarchy:** the list shows the records with an empty parent field (also
+  when it is itself the child of another record); the toolbar command then opens
+  the selected record's own children (`Alelemek`).
+- **Security:** the preview and the window call the child resource's ordinary
+  `list`, `__edit` and actions, under its ACL, tenant scope and audit. The parent
+  field filter is a scope of the view, not an authorization. A new record in the
+  window gets the parent record as its parent field (hidden on the form, sent
+  with the request); an update does not send the parent field.
+- **Rendering:** the row only reserves a slot. The nested widget sits in a
+  fixed layer clipped to the visible data area, so its mouse and keyboard
+  handling never reaches the parent Grid or DataView. The native Grid sub-row
+  is a PRO feature that the GPL Standard edition ignores; this is the
+  framework's Standard-edition implementation (a spanned framework row).
+
+Limits: a preview loads its first 100 records (more load while scrolling); the
+toolbar command opens one record's list at a time.
