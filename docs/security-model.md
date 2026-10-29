@@ -88,6 +88,29 @@ Machine clients need revocable scoped credentials; the protocol is an M2 decisio
 Invalidate policy caches after permission changes. Organization switching clears
 the preceding data and UI context.
 
+<a id="live-channel"></a>
+
+### Live channel (implemented)
+
+A tab's live WebSocket ([protocol 2](workspaces.md#live-channel)) authenticates
+once with the `hello` ticket: a random value from `__ticket`
+(session, CSRF and UI channel checked; stored under the runtime as a hash, valid
+1 h, bound to the session and its active tenant, valid only on its own
+application's path). The server runs the full session check through the bridge
+before `ready` and keeps the ticket per connection; every bridge request of
+that connection's subscriptions carries that connection's ticket only, so one
+connection never observes with another's credential. The per-observation
+recheck is unchanged: every tick again checks the ticket, session file and idle
+timeout, credential version, login security, tenant membership and the list's
+ACL. A 401 closes the whole connection with 4401; a 403/404 refuses only that
+subscription (`denied`); a bridge 5xx is retried and never denies. Resource
+names, ids and queries are validated as before (string resource, object query,
+64 KB frames); subscriptions are capped at 64 per connection and connections at
+100 per server. Live traffic does not extend the session idle timeout (plan D3);
+a ticket refresh after its hour is an ordinary authenticated HTTP request.
+Batched polling (`__watch` with `subscriptions`) answers each entry under the
+same request's session, tenant and ACL; a 401 still fails the whole request.
+
 <a id="kötelező-tesztmátrix"></a>
 
 ## Required test matrix

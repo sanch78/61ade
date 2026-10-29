@@ -188,7 +188,9 @@ Both reload themselves: the bridge exits with 75 when a loaded PHP file changes
 and the server respawns it without closing sockets; a changed bundle makes the
 server close sockets with 1012 and exit with 1. The supervisor must therefore
 restart the service on failure (deploy-jobs `service` mode, systemd
-`Restart=on-failure`).
+`Restart=on-failure`). The server speaks live protocol 2: one connection per
+browser tab with up to 64 subscriptions, at most 100 connections per server
+([protocol](workspaces.md#live-channel)).
 
 The consumer declares it in its `.deploy-jobs.json` as a service under the
 PHP-FPM identity, so the bridge reads the sessions and runtime the web pool
@@ -246,6 +248,18 @@ configuration, template, database or frontend contract therefore needs a
 coordinated update of every affected consumer in the same session, before or
 together with the push. Run the [focused checks](#focused-task-groups) for each
 change before every push.
+
+- **Live protocol 2 (2026-10-29, [FB-0075](feedback.md#fb-0075)):** one live
+  channel per tab (`hello`/`ready`, `subscribe`/`unsubscribe` by id,
+  per-subscription `denied`) replaces one socket per list. The frontend `dist`
+  and `packages/php/bin/live-server.mjs` must ship together in the same commit
+  and release. A page loaded before the update gets 4409 from the new server
+  and reloads once. Consumers running a WebSocket service restart nothing
+  extra (the service restarts itself on a changed bundle), but a release that
+  copies only one half breaks live lists. The frontend `Workspace` constructor
+  now takes the shell's `LiveChannel` instead of a `LiveConfig`; consumers that
+  only use `AdminShell` are not affected. Batched `__watch`
+  (`values.subscriptions`) is new; the single-list form is still accepted.
 
 #### Consumer update smoke check
 
@@ -349,7 +363,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | --- | --- |
 | Documentation/entrypoints | Internal file/fragment links, skill symlinks, `git diff --check`; no artificial runtime test |
 | Shell/bootstrap/theme | `php8.4 tests/shell/contracts.php`, `configuration.php`; `npm run test:browser -- --project=shell tests/shell/browser.spec.cjs tests/shell/skins.spec.cjs` |
-| Workspace/layout/live lists | `php8.4 tests/shell/lists.php`; shell `workspace.spec.cjs`, `layout-resizer.spec.cjs`, `mobile-grid.spec.cjs`, `preferences.spec.cjs` |
+| Workspace/layout/live lists | `php8.4 tests/shell/lists.php`; `node tools/build.mjs` then `node tests/shell/live-protocol.mjs` (live protocol 2 against the bundled server on a free loopback port, own throw-away demo instance under `tmp/`; `BLADE_LIVE_SERVER` may name another bundle); shell `workspace.spec.cjs`, `layout-resizer.spec.cjs`, `mobile-grid.spec.cjs`, `preferences.spec.cjs` |
 | ACL/action/API permissions | PHP `access.php`, `permissions.php`, `api-keys.php`; shell `admin.spec.cjs` or the relevant `demo.spec.cjs` selector |
 | Accounts/admin | PHP `admin.php`, `permissions.php`; shell `admin.spec.cjs` |
 | Tenancy (tenants, scoped resources, keys) | PHP `tenancy.php`, `configuration.php`, `api-keys.php`; shell `tenancy.spec.cjs`, `admin.spec.cjs` |

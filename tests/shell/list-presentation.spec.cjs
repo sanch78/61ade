@@ -2,7 +2,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const {signIn,openView}=require('./feature-demo.cjs');
 const root=path.resolve(__dirname,'../..');
-const bundle=require('esbuild').buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+const bundle=require('esbuild').buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
 async function mount(page,options={},table=true){
  await page.route('**/list-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="blade-application"></div>'}));
  await page.goto('/list-fixture');await page.setContent('<div id="blade-application"></div>');
@@ -14,14 +14,15 @@ async function mount(page,options={},table=true){
   window.fetch=async(url,config)=>{
    const request=JSON.parse(config.body);requests.push(request);
    let data;
-   if(request.action==='list'||request.action==='__watch')data={items:rows,previous:null,next:null,version:'v1'};
+   if(request.action==='list')data={items:rows,previous:null,next:null,version:'v1'};
+   if(request.action==='__watch')data={results:request.values.subscriptions.map(s=>({id:s.id,ok:true,data:{items:rows,previous:null,next:null,version:'v1'}}))};
    if(request.action==='get')data={...rows.find(row=>row.id===request.id),description:'Details <img src=x onerror=alert(1)>'};
    if(request.action==='__form')data={fields:[],values:rows.find(row=>row.id===request.id)};
    if(request.action==='__bulk')data=request.values.items.map(item=>({id:item.id,ok:true}));
    return {ok:true,json:async()=>({ok:true,data})};
   };
   fixture.setTheme('skyblue',document.documentElement);
-  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{resource:'items',title:'Elemek',columns:[fields[0]],detailFields:fields,actions:[{name:'get',label:'Adatok',fields:[]},{name:'archive',label:'Archiválás',submitLabel:'Végrehajtás',write:true,bulk:true,fields:[]},{name:'note',label:'Megjegyzés',submitLabel:'Mentés',write:true,fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}},selection:true,...options},'csrf',{transport:'poll',endpoint:'live',interval:60000});
+  window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{resource:'items',title:'Elemek',columns:[fields[0]],detailFields:fields,actions:[{name:'get',label:'Adatok',fields:[]},{name:'archive',label:'Archiválás',submitLabel:'Végrehajtás',write:true,bulk:true,fields:[]},{name:'note',label:'Megjegyzés',submitLabel:'Mentés',write:true,fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}},selection:true,...options},'csrf',new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000},'csrf'));
  },options);
  if(!table)return;
  await expect(page.locator('.dhx_grid')).toBeVisible();

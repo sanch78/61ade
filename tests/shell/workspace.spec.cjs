@@ -42,38 +42,70 @@ test('polling observes external writes without a refresh control',async({page})=
  const value='Polling '+Date.now();writeNote(value);
  await expect(page.getByText(value,{exact:true})).toBeVisible({timeout:10000});
 });
-// Pending until Infra runs the demo live unit and the /live proxy and .env sets BLADE_DEMO_LIVE_ENDPOINT.
+// The shell opens its one live channel after sign-in (protocol 2: hello, ready, subscribe per list).
 test('WebSocket delivers external writes as update frames',async({page})=>{
+ const opened=page.waitForEvent('websocket',socket=>new URL(socket.url()).pathname==='/live');
  await signIn(page);
  test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
- const opened=page.waitForEvent('websocket',socket=>new URL(socket.url()).pathname==='/live');
- await openMenu(page,'Jegyzetek');
  const socket=await opened;
- await socket.waitForEvent('framereceived',{predicate:frame=>JSON.parse(frame.payload).type==='update',timeout:10000});
+ const first=socket.waitForEvent('framereceived',{predicate:frame=>JSON.parse(frame.payload).type==='update',timeout:10000});
+ await openMenu(page,'Jegyzetek');
+ const id=JSON.parse((await first).payload).id;
  const value='WebSocket '+Date.now();
- const update=socket.waitForEvent('framereceived',{predicate:frame=>{const m=JSON.parse(frame.payload);return m.type==='update'&&m.upserts.some(row=>row.title===value);},timeout:10000});
+ const update=socket.waitForEvent('framereceived',{predicate:frame=>{const m=JSON.parse(frame.payload);return m.type==='update'&&m.id===id&&m.upserts.some(row=>row.title===value);},timeout:10000});
  writeNote(value);
  await update;
  await expect(page.getByText(value,{exact:true})).toBeVisible();
 });
+// One channel per tab: switching views, expanding sub-view rows and opening a full sub-view window reuse it.
+test('one live WebSocket carries every list and sub-view of the tab',async({page})=>{
+ const sockets=[],subscribed=new Set(),updated=new Set(),closed=[];
+ page.on('websocket',socket=>{
+  if(!new URL(socket.url()).pathname.startsWith('/live'))return;
+  sockets.push(socket.url());socket.on('close',()=>closed.push(socket.url()));
+  socket.on('framesent',frame=>{const m=JSON.parse(frame.payload);if(m.type==='subscribe')subscribed.add(m.id);});
+  socket.on('framereceived',frame=>{const m=JSON.parse(frame.payload);if(m.type==='update')updated.add(m.id);});
+ });
+ await signIn(page,'single@example.test','/tenants/');
+ test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
+ const expand=text=>page.locator('.dhx_grid-row').filter({hasText:text}).first().locator('.blade-subrow-toggle').click();
+ const preview=page.locator('.blade-subview-host .blade-subview .dhx_grid-row');
+ await openMenu(page,'Projektek','Tenant demó');
+ await expand('Alfa kutatás');await expect(preview.first()).toBeVisible();
+ await openMenu(page,'Közös hirdetőtábla','Tenant demó');
+ await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
+ await openMenu(page,'Feladatok','Tenant demó');
+ await expand('Alfa mérés');await expect(preview).toHaveCount(2);
+ await page.locator('.dhx_grid-row').filter({hasText:'Alfa mérés'}).first().locator('[data-dhx-col-id="title"]').click();
+ await page.getByRole('button',{name:'Alelemek',exact:true}).click();
+ const full=page.getByRole('dialog',{name:'Feladatok — Alfa mérés'});
+ await expect(full.locator('.dhx_grid-row')).toHaveCount(2);
+ // Three views, two previews and the window: six subscriptions, each with its own id and update frames.
+ await expect.poll(()=>updated.size,{timeout:10000}).toBeGreaterThanOrEqual(6);
+ await full.getByRole('button',{name:'close',exact:true}).click();
+ expect(sockets).toEqual([sockets[0]]);
+ expect(new URL(sockets[0]).pathname).toBe('/live/tenants');
+ expect(closed).toEqual([]);
+ expect(subscribed.size).toBeGreaterThanOrEqual(6);
+});
 // The demo unit serves the starter admin and the tenant demo at <endpoint>/admin and <endpoint>/tenants (LiveConfig applications).
 for(const [path,menu,group,email] of [['/admin/','Felhasználók','Adminisztráció','demo@example.test'],['/tenants/','Projektek','Tenant demó','demo@example.test']]){
  test(`WebSocket serves ${path} on its own live path with its own tickets`,async({page})=>{
-  await signIn(page,email,path);
-  test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
   const live='/live/'+path.replaceAll('/','');
-  let subscribed,updated;
-  const sent=new Promise(resolve=>subscribed=resolve),received=new Promise(resolve=>updated=resolve);
+  let greeted,updated;
+  const sent=new Promise(resolve=>greeted=resolve),received=new Promise(resolve=>updated=resolve);
   page.on('websocket',socket=>{
    if(new URL(socket.url()).pathname!==live)return;
-   socket.on('framesent',frame=>{const m=JSON.parse(frame.payload);if(m.type==='subscribe')subscribed(m);});
+   socket.on('framesent',frame=>{const m=JSON.parse(frame.payload);if(m.type==='hello')greeted(m);});
    socket.on('framereceived',frame=>{if(JSON.parse(frame.payload).type==='update')updated();});
   });
+  await signIn(page,email,path);
+  test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
   await openMenu(page,menu,group);
   await expect.poll(()=>Promise.race([received.then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),250))]),{timeout:10000}).toBe(true);
   // The ticket belongs to this application's runtime: the feature demo path refuses it.
-  const {ticket,resource,query}=await sent;
-  const code=await page.evaluate(({ticket,resource,query})=>new Promise(resolve=>{const endpoint=JSON.parse(document.getElementById('blade-config').textContent).live.endpoint.replace(/\/[a-z]+$/,'');const ws=new WebSocket(endpoint);ws.onopen=()=>ws.send(JSON.stringify({type:'subscribe',ticket,resource,query,subscriptionId:1}));ws.onclose=event=>resolve(event.code);}),{ticket,resource,query});
+  const {ticket,protocol}=await sent;
+  const code=await page.evaluate(({ticket,protocol})=>new Promise(resolve=>{const endpoint=JSON.parse(document.getElementById('blade-config').textContent).live.endpoint.replace(/\/[a-z]+$/,'');const ws=new WebSocket(endpoint);ws.onopen=()=>ws.send(JSON.stringify({type:'hello',protocol,ticket}));ws.onclose=event=>resolve(event.code);}),{ticket,protocol});
   expect(code).toBe(4401);
  });
 }
