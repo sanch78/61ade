@@ -30,6 +30,8 @@ type TreeItem={id:string;parent:string;name:string;kind:"directory"|"file";mime_
 type Tree={root:string;items:TreeItem[];truncated:boolean};
 type Directory={id:string;mount:string;depth:number;path:{id:string;name:string}[]};
 type Summary={succeeded:{name:string}[];skipped:{name:string}[];failed:{name:string;error:string}[];cleared?:Record<string,number>};
+/** Notifications of the public component (`components/files/FileManager.ts`): a file shown in the viewer or editor. */
+export type FileManagerHooks={opened?:(file:{id:string;mime_type:string})=>void};
 /** "Plakátok: 2, Médiatár-elemek: 1" of usage counts. */
 const usageList=(usages:Usage[])=>usages.map(usage=>`${usage.label}: ${usage.count.toLocaleString(locale())}`).join(", ");
 type Failure=Error&{status?:number;fieldErrors?:Record<string,string>;details?:any};
@@ -108,7 +110,7 @@ export class FileManager {
   };
   private uploadComplete=()=>{if(!this.disposed&&(this.uploaded.size||this.relist.size)){clearTimeout(this.uploadTimer);void this.refreshUploaded();}};
 
-  constructor(host:HTMLElement,private view:FileViewDefinition){
+  constructor(host:HTMLElement,private view:FileViewDefinition,private hooks:FileManagerHooks={}){
     this.config=view.files;
     // Native wide group and resizer; no width or minWidth, which would make the Layout cells fixed.
     this.layout=new Layout(host,{type:"space",rows:[
@@ -408,9 +410,9 @@ export class FileManager {
     else if(id==="content_stream")await this.openPreview();
   }
 
-  /** Binary content (`text_save`) travels as multipart parts beside the JSON request. */
+  /** Binary content (`text_save`) travels as multipart parts beside the JSON request. Reads end with `destroy()`; writes complete. */
   private call(action:string,id:string|null,values:Record<string,unknown>={},parts?:Part[]):Promise<any>{
-    return server.call(this.view.resource,action,{id,values,parts});
+    return server.call(this.view.resource,action,{id,values,parts,...(this.action(action)?.write?{}:{signal:this.listeners.signal})});
   }
   private async error(error:unknown):Promise<void>{
     if(this.disposed)return;
@@ -930,6 +932,7 @@ export class FileManager {
     // An editor opens at the start of the text; Suite's setFocus would put the caret at the end.
     const text=area();
     if(text&&this.windows.has(win)){text.setSelectionRange(0,0);text.focus();sync();}
+    if(!this.disposed&&this.windows.has(win))this.hooks.opened?.({id:String(row.id),mime_type:String(row.mime_type)});
   }
 
   /**
@@ -961,7 +964,7 @@ export class FileManager {
     win.events.on("afterHide",()=>player.destroy());
     this.chrome(win,player.toolbar!,navigation,geometry);
     await awaitRedraw();
-    if(this.windows.has(win))player.focus();
+    if(this.windows.has(win)){player.focus();if(!this.disposed)this.hooks.opened?.({id:String(row.id),mime_type:String(row.mime_type)});}
     return player;
   }
 

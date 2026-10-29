@@ -1,5 +1,5 @@
 // Toolkit component lifecycle without a browser: node tests/shell/toolkit-components.mjs. Loads the facade base of the
-// public components (packages/frontend/src/components/calendar/Facade.ts) over a minimal DOM stub and checks mount
+// public components (packages/frontend/src/components/Facade.ts) over a minimal DOM stub and checks mount
 // targets, events only while mounted, idempotent destroy, signals and view references (docs/toolkit.md#components).
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -10,7 +10,7 @@ class HTMLElement{
  remove(){if(this.parent){this.parent.children.splice(this.parent.children.indexOf(this),1);this.parent=null;}}
 }
 globalThis.HTMLElement=HTMLElement;globalThis.document={createElement:()=>new HTMLElement()};
-const source=await readFile(new URL('../../packages/frontend/src/components/calendar/Facade.ts',import.meta.url),'utf8');
+const source=await readFile(new URL('../../packages/frontend/src/components/Facade.ts',import.meta.url),'utf8');
 const {code}=await transform(source,{loader:'ts',format:'esm'});
 const {Facade,resolveView}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 
