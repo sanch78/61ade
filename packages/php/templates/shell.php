@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $escape(\Blade\I18n\Translator::text($definition->title)) ?></title>
-    <link rel="stylesheet" href="<?= $escape($definition->assets) ?>/admin.css?v=30">
+    <link rel="stylesheet" href="<?= $escape($definition->assets) ?>/admin.css?v=32">
 <?php foreach ($skins as $skin): ?>
     <link rel="stylesheet" href="<?= $escape($skin->stylesheet) ?>">
 <?php endforeach; ?>
@@ -13,7 +13,7 @@
     <script src="<?= $escape($auth) ?>/AuthHandler.js"></script>
     <script src="./?blade_auth=bootstrap"></script>
 <?php endif; ?>
-    <script type="module" src="<?= $escape($definition->assets) ?>/admin.js?v=30"></script>
+    <script type="module" src="<?= $escape($definition->assets) ?>/admin.js?v=32"></script>
 </head>
 <body>
     <div id="blade-application"></div>

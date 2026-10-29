@@ -319,3 +319,11 @@
 <a id="fb-0076"></a>
 
 ## FB-0076 — Static image column for lists
+
+<a id="fb-0077"></a>
+
+## FB-0077 — Declared record activation (double-click and Enter)
+
+<a id="fb-0078"></a>
+
+## FB-0078 — Activation through SqlResource and to the child page

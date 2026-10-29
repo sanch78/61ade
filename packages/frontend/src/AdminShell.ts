@@ -76,10 +76,14 @@ export class AdminShell {
     {notice:text=>this.liveNotice(text),editing:()=>this.content instanceof Workspace||this.content instanceof DiagramEditor?this.content.editing():false});}
   /** The open view behind a DesktopOnly wrapper, asked before a live reload. */
   private content?: Workspace | FileManager | DiagramEditor | Calendar;
+  /** `#feature=<resource>`; `filter.<field>=<value>` presets that view's filters once and leaves the address. */
   private route = () => {
-    const resource = new URLSearchParams(location.hash.slice(1)).get("feature");
+    const params = new URLSearchParams(location.hash.slice(1)), resource = params.get("feature");
     const view = this.definition.views?.find(view => view.resource === resource);
-    if (view) void this.openView(view, false);
+    const preset: Record<string, string> = {};
+    params.forEach((value, key) => { if (key.startsWith("filter.")) preset[key.slice("filter.".length)] = value; });
+    if (view && Object.keys(preset).length) { const url = new URL(location.href); url.hash = new URLSearchParams({ feature: view.resource }).toString(); history.replaceState(null, "", url); }
+    if (view) void this.openView(view, false, preset);
     else {
       this.renderMenu();
       ++this.navigation;
@@ -271,7 +275,7 @@ export class AdminShell {
     });
   }
 
-  private async openView(view:ViewDefinition|FileViewDefinition|DiagramViewDefinition|CalendarViewDefinition,updateUrl=true):Promise<void>{
+  private async openView(view:ViewDefinition|FileViewDefinition|DiagramViewDefinition|CalendarViewDefinition,updateUrl=true,preset:Record<string,string>={}):Promise<void>{
     if(updateUrl){
       const url=new URL(location.href);
       url.hash=new URLSearchParams({feature:view.resource}).toString();
@@ -289,7 +293,7 @@ export class AdminShell {
       ?new DiagramEditor(document.createElement("div"),view,this.definition.csrf || "")
       :isFileView(view)
       ?new FileManager(document.createElement("div"),view,this.definition.csrf || "")
-      :new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.live,this.definition.userId??"");
+      :new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.live,this.definition.userId??"",undefined,preset);
     this.content=content;this.workspace=view.desktopOnly?new DesktopOnly(content,view.title):content;
     this.layout.getCell("workspace").attach(this.workspace.layout);
   }

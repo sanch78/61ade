@@ -69,7 +69,7 @@ final class SqlResource
         if (!$expressions && !$this->archive()) return $this->table;
         return '(SELECT blade_base.*'.($expressions ? ', '.implode(', ', $expressions) : '')." FROM {$this->table} blade_base".($this->archive() ? ' WHERE blade_base.archived_at IS NULL' : '').') blade_source';
     }
-    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false): void
+    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, ?string $activate = null): void
     {
         $this->registry=$registry;
         $registry->registerFields($this->resource,$this->fields);
@@ -96,7 +96,7 @@ final class SqlResource
             $registry->add(new Action($this->resource,'update','Mentés',[...$writable,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,editHandler:fn($c,$t,$v)=>$this->save($c,$t,$v,true),bulk:(bool) array_filter($writable,static fn($field)=>$field->bulk)));
             $actions[]='update';
         }
-        $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles);
+        $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate);
     }
     /**
      * Bulk-capable delete with the definition's policy: `delete` (default, backward compatible) removes the row and its

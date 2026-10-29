@@ -71,6 +71,7 @@
   "Részletek elrejtése: {id}": "Details ausblenden: {id}",
   "A kijelölt rekord kapcsolódó listája ablakban": "Die zugehörige Liste des ausgewählten Datensatzes in einem Fenster",
   "Alelemek": "Unterelemente",
+  "Megnyitás: {target}": "Öffnet: {target}",
   "{field} — szerkesztés": "{field} — bearbeiten",
   " — Szerkeszthető kattintással": " — Zum Bearbeiten anklicken",
   " — Szerkeszthető dupla kattintással": " — Zum Bearbeiten doppelklicken",

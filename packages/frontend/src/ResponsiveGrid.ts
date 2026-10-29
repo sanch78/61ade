@@ -21,6 +21,8 @@ export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSel
   subview?:SubViewOptions;
   /** Always the table: no cards on narrow screens (a compact preview). */
   table?:boolean;
+  /** A declared activation: double-click and Enter run `open` in cards and tiles too (not the details); the accessible description of what it runs on a card or tile. */
+  activation?:(row:Row)=>string|undefined;
   /** false: rows never become the cursor record (native selection and key navigation off, no highlight); double-click and Enter open nothing, editable switch cells still save. */
   select?:boolean};
 /** Reserved record keys (`RESERVED`) live under their alias in widget data and as Grid column ids, so editors use the alias too. */
@@ -108,17 +110,18 @@ export class ResponsiveGrid {
     // Card sub-view button: a native DHTMLX flat button with the child list title and the count when known.
     const subviewButton=(row:Row)=>{const count=(row as any)._subview,caption=options.subview!.label+(count!==undefined&&count!==null?` (${Number(count)})`:"");
       return `<div class="blade-grid-card__subview"><button type="button" class="blade-card-subview dhx_button dhx_button--view_flat dhx_button--color_primary dhx_button--size_medium dhx_button--icon-left" aria-haspopup="dialog" title="${escape(caption)}"><span class="dhx_button__icon dxi dxi-arrow-expand" aria-hidden="true"></span><span class="dhx_button__text">${escape(caption)}</span></button></div>`;};
+    const hint=(row:Row)=>{const text=pick?options.activation?.(row):undefined;return text?` aria-description="${escape(text)}"`:"";};
     const mark=(row:Row)=>options.selection&&row._markable!==false?`<input class="blade-card-mark" type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`:"";
     // Card fields: every permitted field with its column's presentation; only the first media field moves to the top slot.
     const editable=presentedFields(withDerived(options.fields??columns,columns),columns).filter(field=>!media||field.id!==media.id).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable}));
     this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:pick,keyNavigation:keys,css:"blade-grid-cards",template:(item:Row)=>{const row=unguard(item);
-      return `<article class="blade-grid-card${this.marked.has(String(row.id))?" blade-grid-card--marked":""}" data-blade-row="${escape(row.id)}">${media&&hasSlot(media,row)?`<div class="blade-grid-card__media">${recordSlot(media,row,"card")}</div>`:""}<div class="blade-grid-card__id">${mark(row)}${mark(row)?" ":""}${options.idColumn===false?"":`ID · ${escape(row.id)}`}</div>${recordFields(row,editable,true)}${options.subview&&hasSubview(row)?subviewButton(row):""}</article>`;},
+      return `<article class="blade-grid-card${this.marked.has(String(row.id))?" blade-grid-card--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}>${media&&hasSlot(media,row)?`<div class="blade-grid-card__media">${recordSlot(media,row,"card")}</div>`:""}<div class="blade-grid-card__id">${mark(row)}${mark(row)?" ":""}${options.idColumn===false?"":`ID · ${escape(row.id)}`}</div>${recordFields(row,editable,true)}${options.subview&&hasSubview(row)?subviewButton(row):""}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id)),"blade-card-subview":(event:Event,id:string|number)=>{event.stopPropagation();selected(id);options.subview?.open(String(id));}}}});
     // Tiles: media slot (or the icon column), the first text column as title and one secondary line.
     const text=columns.filter(c=>!isMedia(c)&&!isImage(c)&&!isIcon(c)&&c.type!=="checkbox"),title=text[0],detail=text[1];
     this.tiles=new DataView(document.createElement("div"),{itemsInRow:1,gap:8,selection:pick,keyNavigation:keys,css:"blade-grid-tiles",template:(item:Row)=>{const row=unguard(item);
       const caption=title?columnText(title,row):String(row.id),line=detail&&(Object.hasOwn(row,detail.id)||derivedOf(detail))?columnText(detail,row):"";
-      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"><div class="blade-grid-tile__media">${media&&(hasSlot(media,row)||!icon||!row[icon.id])?recordSlot(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`}${mark(row)}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${escape(line)}</div>`:""}</article>`;},
+      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}><div class="blade-grid-tile__media">${media&&(hasSlot(media,row)||!icon||!row[icon.id])?recordSlot(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`}${mark(row)}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${escape(line)}</div>`:""}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
     const selected=(id:string|number)=>{if(!pick)return;this.selected=this.recordId(String(id));select(this.selected);};
     const markRow=(id:string,event:MouseEvent)=>{
@@ -129,7 +132,7 @@ export class ResponsiveGrid {
       else {this.marked.clear();this.marked.add(id);this.refreshMarks();}
       this.markAnchor=id;
     };
-    const activate=(id:string)=>{selected(id);if(this.compact&&options.details)options.details(id);else open();};
+    const activate=(id:string)=>{selected(id);if(this.compact&&options.details&&!options.activation)options.details(id);else open();};
     this.grid.events.on("cellClick",(row:any,column:any)=>{
       const id=this.recordId(String(row.id));selected(id);
       if(column.id===SUBROW&&row[SUBROW]===undefined){this.toggleSubRow(id);return;}

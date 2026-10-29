@@ -355,6 +355,59 @@ owns the only frame. Toolbar fills its own height and scrolling content cannot
 overdraw it. Grid mode has a theme-colored 1 px divider above column headings.
 Filter reset and authentication secondary actions are native secondary flat buttons.
 
+<a id="activation"></a>
+
+## Record activation (double-click and Enter)
+
+A list view can declare what a double-click or Enter on a record runs, in the
+table, cards and tiles alike. The activation is a command the view already has,
+run exactly as its toolbar command runs it on that record; the consumer's own
+behavior is a registered record action, never browser code.
+
+```php
+// Each shelf opens its item list (also an empty one); each item runs its registered `stock` action.
+$registry->view('shelves', 'Shelves', $columns, ['get', 'create', 'update'], tiles: true, activate: 'subview');
+$registry->view('shelf_items', 'Items', $columns, ['get', 'create', 'update', 'delete', 'stock'], activate: 'stock');
+```
+
+JSON: `"view": {"title": "…", "activate": "subview"}`. A `SqlResource`
+passes it through `register(…, activate: 'subview')`; that view has `get`,
+`create` and `update` only, so an action added later (`registerDelete()`,
+`appendViewActions()`) cannot be named there.
+
+- **Values:** `details` (the record details), `subview` (the full window of the
+  view's [sub-view](#sub-views) for that record, also at a child count of 0, so
+  an empty list is the place to create the first item), `page` (see below) or
+  the name of a record action in the view's `actions`. `create`, `get`, upload
+  and collection actions are rejected at registration, as is a singleton view.
+- **`page`:** the child view's own page (its menu entry, so the sub-view needs
+  `embed: false`, checked at `subview()`) opens with the sub-view field filtered
+  to the record. The filter is an ordinary one: it shows in the column header
+  and the filter panel and `Alaphelyzet` removes it. The navigation is a
+  browser history entry (Back returns to the parent page); the address keeps
+  `#feature=<child>` only, so a reload shows the page unfiltered. The page
+  needs the child view offered to the actor with the field among its filters;
+  otherwise, and in a view opened in a window, the sub-view window opens; with
+  no resolved sub-view, the details.
+- **Default (absent):** unchanged; the table opens the update form when the
+  record offers `update`, otherwise the details; cards and tiles open the
+  details.
+- **Fallback:** a declared activation that is not offered opens the details:
+  the action is not in the actor's view or not in the record's `_actions`, or
+  the sub-view is not resolved (its child view is not offered to the actor).
+- **Unchanged paths:** the details stay on the toolbar `Adatok` command (and
+  the `#` cell in the table); editable cells and card fields, marks, the
+  sub-view toggle and card button keep their own handling. A `select: false`
+  list activates nothing. A compact sub-view preview keeps the default
+  (it opens no further child window).
+- **Accessibility:** with a declared activation every card and tile carries
+  `aria-description` "Megnyitás: <target>" (the child list or page title, the
+  action label, or `Adatok` on fallback), per record. A child window opened this way
+  takes the focus, so Escape closes it.
+- **Security:** nothing new runs: the action goes through the ordinary
+  executor (ACL, confirmation metadata, audit), the child window through the
+  child resource's `list`.
+
 <a id="tömeges-műveletek-és-ikonok"></a>
 
 ## Bulk actions and icons
@@ -718,6 +771,10 @@ JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "proje
   window, full screen below 768 px. A window holding one framework feature shows
   it edge to edge: the window header is its only header. The open preview
   refreshes when the window closes.
+- **Open on activation:** with the parent view's `activate: 'subview'`
+  ([record activation](#activation)) a double-click or Enter on a record opens
+  this full window from the table, cards and tiles, also at a count of 0;
+  `activate: 'page'` opens the child's own page filtered to the record instead.
 - **Embedded child:** by default a different child view has no menu entry of
   its own; `embed: false` keeps it. The child view must be offered to the actor,
   otherwise the parent has no sub-view.

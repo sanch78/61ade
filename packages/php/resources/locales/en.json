@@ -71,6 +71,7 @@
   "Részletek elrejtése: {id}": "Hide details: {id}",
   "A kijelölt rekord kapcsolódó listája ablakban": "The selected record's related list in a window",
   "Alelemek": "Child items",
+  "Megnyitás: {target}": "Opens: {target}",
   "{field} — szerkesztés": "{field} — edit",
   " — Szerkeszthető kattintással": " — Click to edit",
   " — Szerkeszthető dupla kattintással": " — Double-click to edit",

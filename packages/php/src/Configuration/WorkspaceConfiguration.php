@@ -161,7 +161,7 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'string',
         ], '$.resources.'.$name.'.view');
         Shape::check($view['subview'] ?? ['resource' => '', 'field' => ''], ['resource' => 'string', 'field' => 'string'], ['embed' => 'boolean', 'select' => 'boolean'], '$.resources.'.$name.'.view.subview');
         $related = [];
@@ -278,6 +278,7 @@ final class WorkspaceConfiguration
             rowHeight: $view['row_height'] ?? null,
             tileMinWidth: $view['tile_min_width'] ?? null,
             tiles: $view['tiles'] ?? false,
+            activate: $view['activate'] ?? null,
         );
     }
 }

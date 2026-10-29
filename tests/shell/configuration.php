@@ -179,6 +179,25 @@ try {
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
     $selectViews = array_column(WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true)->registry->views(), null, 'resource');
     verify($selectViews['projects']['subview'] === ['child' => 'tasks', 'field' => 'project_id', 'select' => false], 'JSON view subview select: false');
+    // `view.activate`: what double-click and Enter run; built-ins or a record action of the view, absent by default.
+    verify(!isset($selectViews['projects']['activate']), 'No view activation by default');
+    $broken['resources']['projects']['view']['subview']['embed'] = false;
+    foreach (['subview', 'details', 'update', 'page'] as $activate) {
+        $broken['resources']['projects']['view']['activate'] = $activate;
+        file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+        $activateViews = array_column(WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true)->registry->views(), null, 'resource');
+        verify($activateViews['projects']['activate'] === $activate, 'JSON view activate '.$activate);
+    }
+    foreach (['create', 'get', 'list', 'missing', true] as $activate) {
+        $broken['resources']['projects']['view']['activate'] = $activate;
+        file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+        rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Invalid view activate accepted: '.json_encode($activate));
+    }
+    // A page activation needs a child kept in the menu.
+    $broken['resources']['projects']['view']['activate'] = 'page';
+    $broken['resources']['projects']['view']['subview']['embed'] = true;
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Page activation over an embedded child accepted');
     unlink($directory.'/broken-module.json');
     $write([...$settings, 'tenancy' => ['mode' => 'x']]);
     rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Unknown tenancy key accepted');
