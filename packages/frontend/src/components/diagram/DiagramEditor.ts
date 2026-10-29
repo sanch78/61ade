@@ -1,6 +1,6 @@
 import type { Application, ComponentClass, DiagramEditorComponent, DiagramEditorOptions, DiagramOptions } from "../../api/types";
 import { DiagramView, type DiagramViewDefinition } from "./DiagramView";
-import { Facade, resolveView } from "../calendar/Facade";
+import { Facade, resolveView } from "../Facade";
 
 type Events = { saved: Record<string, never> };
 

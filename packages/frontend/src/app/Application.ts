@@ -11,6 +11,8 @@ import { registerBuiltins } from "./builtins";
 import { listComponents } from "../components/list";
 import { bindCalendar } from "../components/calendar/Calendar";
 import { bindDiagramEditor } from "../components/diagram/DiagramEditor";
+import { bindFileManager } from "../components/files/FileManager";
+import { filePicker } from "../components/files/FilePicker";
 import { sandboxFrameClass } from "../components/sandbox/SandboxFrame";
 import { MediaPlayer } from "../components/media/MediaPlayer";
 
@@ -57,6 +59,8 @@ export function createApplication(bridge: ShellBridge): Kernel {
       ...listComponents({ channel: bridge.channel, user: bridge.userId, app: () => app }),
       Calendar: bindCalendar(() => app),
       DiagramEditor: bindDiagramEditor(() => app),
+      FileManager: bindFileManager(() => app),
+      FilePicker: filePicker,
       SandboxFrame: sandboxFrameClass(payload => events.dispatch("sandbox:error", payload)),
       MediaPlayer,
     }) as Components,

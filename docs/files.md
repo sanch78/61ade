@@ -27,6 +27,7 @@ consumer's configured root, which must lie outside every web root.
 | Binary result | `Feature/Download.php`, `Feature/DownloadStream.php`, `Workspace::http` | A handler returns `Download` (bytes) or `DownloadStream` (a server-side path, streamed with one HTTP range, strong ETag and cache policy); the transport sends raw bytes instead of JSON. |
 | GET transport | `Action::$get`, `Workspace::http` | Field-free reads usable as `<img>`/`<video>`/`<audio>` sources; same executor, ACL and audit. |
 | `FileManager` | `packages/frontend/src/FileManager.ts` | Two panels, mount selectors, operations bar, upload window and document windows (text editor; the media player for images, videos and audio). |
+| `FileManager`, `FilePicker` components | `packages/frontend/src/components/files/` | Public toolkit facades `app.components.FileManager` (the built-in `files` kind mounts it) and `app.components.FilePicker.pick` over `FilePicker.ts` ([toolkit](toolkit.md#filemanager-and-filepicker)). |
 | `MediaPlayer` | `packages/frontend/src/components/media/` | Public toolkit component of the viewer: image stage, video and audio player ([toolkit](toolkit.md#mediaplayer)). |
 | `TreeAdapter` | `packages/frontend/src/TreeAdapter.ts` | DHTMLX Suite Standard Tree over a flat parent-linked list; folders and leaves with their own icon. |
 | `DesktopOnly` | `packages/frontend/src/DesktopOnly.ts` | Shell wrapper of the generic `desktopOnly` view option ([shell](shell.md#desktop-only-views)). |
@@ -155,6 +156,19 @@ $files->register($workspace);     // application definition and task handlers
 | `maxDepth` | Deepest directory level below a mount root (default 5). |
 | `desktopOnly` | Below 768 px show the desktop-only notice instead of the panels (default `false`). |
 | `deletePolicy` | `archive` (default, the recommendation for framework development) or `delete` (the demos). See [delete policy](#delete-policy). |
+
+**Project modules.** The registered view is also a public toolkit component:
+a project module mounts the same file manager in its own Layout cell, element
+or `app.ui.window`, and opens the `file` field picker without a form
+([toolkit](toolkit.md#filemanager-and-filepicker)):
+
+```ts
+new app.components.FileManager({ view: "files", signal: host.signal }).mount(layout.getCell("files"));
+const media = await app.components.FilePicker.pick({ field: fileField.file!, title: fileField.label });
+```
+
+Both use the view's or the field's registered actions only; the ACL and every
+rule below apply unchanged.
 
 ## Actions and authorization
 
@@ -473,6 +487,14 @@ The demo uses `deletePolicy: 'delete'`.
   format, and an audio row (a listing entry and its `content_stream` answered
   by a route with a generated WAV and single ranges, no data change). The demo
   has no audio files yet; its allowlist is unchanged.
+- `npm run test:browser -- tests/shell/toolkit-components.spec.cjs`: the
+  public `FileManager` in a project Layout cell (both panels, a mount switch,
+  the viewer and its `opened` event, the dark and Skyblue themes, `destroy()`
+  with the viewer open closing it and emptying the cell) and in an
+  `app.ui.window` destroyed by closing it; `FilePicker.pick` on the signage
+  asset field resolving the seeded `minta-fraktal.jpg` as a `MediaDescriptor`,
+  `current` preselection, and `null` on `Mégse`, Escape and an aborted signal.
+  It creates no entries.
 
 ## Limits
 
