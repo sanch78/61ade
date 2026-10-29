@@ -66,6 +66,10 @@
   "Ellenőrizd a mezőt": "Ellenőrizd a mezőt",
   "Jelölés": "Jelölés",
   "Sor jelölése: {id}": "Sor jelölése: {id}",
+  "Részletek megjelenítése: {id}": "Részletek megjelenítése: {id}",
+  "Részletek elrejtése: {id}": "Részletek elrejtése: {id}",
+  "A kijelölt rekord kapcsolódó listája ablakban": "A kijelölt rekord kapcsolódó listája ablakban",
+  "Alelemek": "Alelemek",
   "{field} — szerkesztés": "{field} — szerkesztés",
   " — Szerkeszthető kattintással": " — Szerkeszthető kattintással",
   " — Szerkeszthető dupla kattintással": " — Szerkeszthető dupla kattintással",
@@ -684,5 +688,7 @@
   "Nincs hozzárendelt tenant": "Nincs hozzárendelt tenant",
   "Aktív tenant": "Aktív tenant",
   "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.": "Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.",
-  "Tenant váltása": "Tenant váltása"
+  "Tenant váltása": "Tenant váltása",
+  "Hozzáférés": "Hozzáférés",
+  "Hozzáférések": "Hozzáférések"
 }

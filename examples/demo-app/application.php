@@ -14,7 +14,7 @@ use Blade\Feature\{Context, Failure, Field, SqlResource};
 use Blade\Live\LiveConfig;
 use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage};
 use Blade\Navigation\{Menu, MenuItem};
-use Blade\Shell\{ApplicationDefinition, Identity, SqlIdentityProvider};
+use Blade\Shell\{ApplicationDefinition, Identity, Skin, SqlIdentityProvider};
 
 require_once __DIR__.'/common.php';
 $runtime = blade_demo_runtime('features');
@@ -103,6 +103,20 @@ $oauth = new AuthHandlerLogin(
     $accounts, $identities, $workspace, $runtime.'/oauth-identities.sqlite', $site,
 );
 
+// Application skins (synthetic, neutral palettes over a light and a dark base): granted per account, everyone else
+// keeps the factory themes.
+$slate = new Skin('demo-slate', 'Pala', 'skins/demo-slate.css');
+$ink = new Skin('demo-ink', 'Tinta', 'skins/demo-ink.css', base: 'dark');
+$skins = static function (Identity $actor) use ($db, $slate, $ink): array {
+    $email = $db->prepare('SELECT email FROM accounts WHERE id = ?');
+    $email->execute([$actor->id]);
+    return match ($email->fetchColumn()) {
+        'skin@example.test' => [$slate],
+        'skins@example.test' => [$slate, $ink],
+        default => [],
+    };
+};
+
 // Live data: polling unless the Git-ignored .env names the WebSocket endpoint served by the Infra unit (docs/demos.md).
 $liveEndpoint = blade_demo_setting('BLADE_DEMO_LIVE_ENDPOINT');
 
@@ -122,5 +136,6 @@ return new ApplicationDefinition(
     languages: $languages,
     accounts: $accounts,
     oauth: $oauth,
+    skins: $skins,
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint) : new LiveConfig(),
 );

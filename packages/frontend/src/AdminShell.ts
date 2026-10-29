@@ -39,6 +39,8 @@ export type ShellDefinition = {
   live?: import("./Realtime").LiveConfig;
   /** Only with tenancy: the server-resolved active tenant (null: no membership) and the actor's memberships. */
   tenant?: { current: string | null; choices: { id: string; name: string }[] };
+  /** Only after sign-in: application skins (DHTMLX custom themes) of the identity; they replace the factory themes. */
+  skins?: { id: string; label: string; base: "light" | "dark" | "skyblue" }[];
 };
 const escape = (text: string) =>
   text.replace(
@@ -101,7 +103,7 @@ export class AdminShell {
   private renderMenu():void{
     if (!this.menu) return;
     const width=this.root.clientWidth;
-    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantSelector?180:0));
+    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0));
     const compact = width < Math.max(768,required(this.menuItems));
     const current="feature:"+(new URLSearchParams(location.hash.slice(1)).get("feature")??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -116,7 +118,7 @@ export class AdminShell {
     const state=JSON.stringify([compact,context.length?current:""]);
     if (state === this.menuState) return;
     this.menuState = state;
-    const entries=[...structuredClone(this.menuItems),
+    const entries=[...structuredClone(this.menuItems),...this.tenantMenu(),
       { id: "blade-session-separator", type: "separator" },
       { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" },
     ];
@@ -145,15 +147,25 @@ export class AdminShell {
     private definition: ShellDefinition,
   ) {
     configureLanguage(definition.i18n);
-    let theme="skyblue";
-    try { const saved=localStorage.getItem("blade-theme"); if(saved==="dark"||saved==="skyblue"||saved==="light")theme=saved; } catch {}
-    setTheme(theme,document.documentElement);
+    // Skins replace the factory themes and keep their own stored choice, so blade-theme survives a lost skin.
+    // A skin applies its factory base theme and refines it through data-blade-skin.
+    const skins=definition.skins??[];
+    const choices:{id:string;label:string;base?:string}[]=skins.length?skins.map(skin=>({id:skin.id,label:escape(skin.label),base:skin.base})):[{id:"skyblue",label:"Skyblue"},{id:"light",label:t("Világos")},{id:"dark",label:t("Éjjeli")}];
+    const storage=skins.length?"blade-skin":"blade-theme";
+    const apply=(id:string)=>{
+      const choice=choices.find(choice=>choice.id===id)!;
+      if(skins.length)document.documentElement.dataset.bladeSkin=id;
+      setTheme(choice.base??id,document.documentElement);
+    };
+    let theme=choices[0].id;
+    try { const saved=localStorage.getItem(storage); if(choices.some(choice=>choice.id===saved))theme=saved!; } catch {}
+    apply(theme);
     if (definition.protocol !== 1)
       throw new Error(t("Nem kompatibilis 61ade felületverzió."));
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantSelector?[{id:"tenant",width:180}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),{id:"theme",width:145}] },
+        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantCell?[{id:"tenant",width:180}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),...(choices.length>1?[{id:"theme",width:145}]:[])] },
         { id: "workspace", css: "blade-workspace" },
         { id: "status", height: 32, css: "blade-session-bar" },
       ],
@@ -187,20 +199,23 @@ export class AdminShell {
       this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); });
       this.releaseUploads = uploads.indicator(state => this.uploadIndicator(state));
     }
-    const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:theme==="dark"?t("Éjjeli"):theme==="skyblue"?"Skyblue":t("Világos"),items:[{id:"theme-skyblue",value:"Skyblue"},{id:"theme-light",value:t("Világos")},{id:"theme-dark",value:t("Éjjeli")}]}]});
-    themeControl.events.on("click",(id:string|number)=>{
-      if(id!=="theme-light" && id!=="theme-dark" && id!=="theme-skyblue")return;
-      const next=id==="theme-dark"?"dark":id==="theme-skyblue"?"skyblue":"light";
-      setTheme(next,document.documentElement);
-      themeControl.data.update("theme-choice",{value:next==="dark"?t("Éjjeli"):next==="skyblue"?"Skyblue":t("Világos")});
-      try{localStorage.setItem("blade-theme",next);}catch{}
-      void this.fitLogin();
-    });
-    this.layout.getCell("theme").attach(themeControl);
+    if(choices.length>1){
+      const label=(id:string)=>choices.find(choice=>choice.id===id)!.label;
+      const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:label(theme),items:choices.map(choice=>({id:"theme:"+choice.id,value:choice.label}))}]});
+      themeControl.events.on("click",(id:string|number)=>{
+        const next=String(id).slice(6);
+        if(!String(id).startsWith("theme:")||!choices.some(choice=>choice.id===next))return;
+        apply(next);
+        themeControl.data.update("theme-choice",{value:label(next)});
+        try{localStorage.setItem(storage,next);}catch{}
+        void this.fitLogin();
+      });
+      this.layout.getCell("theme").attach(themeControl);
+    }
     if(definition.i18n?.selector){
       this.layout.getCell("language").attach(this.languageControl());
     }
-    if(this.tenantSelector)this.layout.getCell("tenant").attach(this.tenantControl());
+    if(this.tenantCell)this.layout.getCell("tenant").attach(this.tenantControl());
     if (definition.authenticated) {
       const map = (items: MenuDefinition[]): object[] =>
         items.map((item) => ({
@@ -227,6 +242,7 @@ export class AdminShell {
       menu.events.on("click", (id: string | number) => {
         id=String(id).replace(/^sibling:/,"");
         if (id === "blade-logout") this.post("logout");
+        if (id.startsWith("tenant:") && id.slice(7) !== this.definition.tenant?.current) this.post("tenant", { tenant: id.slice(7) });
         const view=definition.views?.find(v=>"feature:"+v.resource===id);
         if(view)void this.openView(view);
       });
@@ -280,6 +296,15 @@ export class AdminShell {
 
   /** A selector only for several memberships; the switch is a server round trip that reloads the whole shell. */
   private get tenantSelector():boolean{ return this.definition.authenticated && (this.definition.tenant?.choices.length ?? 0) > 1; }
+  /** Below 768 px the tenant choice is a submenu of the main menu, so the navigation row keeps room for it. */
+  private readonly narrowTenant=innerWidth<768;
+  private get tenantCell():boolean{ return this.tenantSelector&&!this.narrowTenant; }
+  private tenantMenu():object[]{
+    if(!this.tenantSelector||!this.narrowTenant)return [];
+    const tenant=this.definition.tenant!,current=tenant.choices.find(choice=>choice.id===tenant.current);
+    return [{id:"blade-tenant-separator",type:"separator"},{id:"blade-tenant-menu",value:escape(t("Tenant")+": "+(current?.name??"—")),icon:"dxi dxi-view-grid",
+      items:tenant.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant.current?{icon:"dxi dxi-check"}:{})}))}];
+  }
   private tenantControl():Toolbar{
     const tenant=this.definition.tenant!;
     const current=tenant.choices.find(choice=>choice.id===tenant.current);

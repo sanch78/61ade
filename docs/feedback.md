@@ -295,3 +295,15 @@
 <a id="fb-0070"></a>
 
 ## FB-0070 — Product name corrected from 61de to 61ade
+
+<a id="fb-0071"></a>
+
+## FB-0071 — Sub-views: expandable rows and cards with a compact preview
+
+<a id="fb-0072"></a>
+
+## FB-0072 — Optional application skins
+
+<a id="fb-0073"></a>
+
+## FB-0073 — Demo WebSocket refresh after the tenancy change

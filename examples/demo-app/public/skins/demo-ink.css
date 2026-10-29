@@ -1,0 +1,11 @@
+/* Synthetic demo skin: a neutral ink palette over the dark base: Suite --dhx-* variables only. */
+[data-blade-skin="demo-ink"] {
+  --dhx-h-primary: 200;
+  --dhx-s-primary: 18%;
+  --dhx-l-primary: 62%;
+  --dhx-background-primary: #1b1f24;
+  --dhx-background-secondary: #252b32;
+  --dhx-background-additional: #2f363e;
+  --dhx-s-toolbar-background: #252b32;
+  --dhx-s-grid-header-background: #2f363e;
+}

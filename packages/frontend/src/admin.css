@@ -54,6 +54,24 @@ body,
 }
 .blade-grid-card { padding: 14px 16px; min-width: 0; }
 .blade-grid-card__id { color: var(--dhx-font-color-additional); font-size: 12px; margin-bottom: 10px; }
+/* The spanned sub-row content is the span cell; the synthetic row's own cells stay out of view and of the accessibility tree. */
+.blade-grid-subrow-row > .dhx_grid-cell { visibility: hidden; }
+.blade-subrow-toggle { width: 28px; min-width: 28px; height: 28px; padding: 0; }
+.blade-grid-subrow-span .dhx_span-cell-content { width: 100%; height: 100%; padding: 0; }
+.blade-subview-slot { height: 100%; }
+/* Card sub-view button: the full child list window, full width at the card bottom and touch friendly. */
+.blade-grid-card__subview { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--dhx-border-color); }
+.blade-card-subview { width: 100%; min-height: 40px; justify-content: flex-start; }
+/* Nested views sit in a fixed layer clipped to the visible data area, above their slot; dialogs and popups stay above it. */
+.blade-subview-layer { position: fixed; z-index: 1; overflow: hidden; pointer-events: none; }
+.blade-subview-host { position: absolute; box-sizing: border-box; pointer-events: auto; }
+.blade-subview-layer--table .blade-subview-host { padding: 6px 8px 6px 44px; }
+.blade-subview { border: var(--dhx-border); background: var(--dhx-background-primary); }
+/* One bottom edge in every theme: the preview frame. Its last row draws no line of its own (the Suite adds a row and a
+   cell line there, which read as a double border just above the frame). */
+.blade-subview .dhx_grid_data .dhx_grid-row:last-child, .blade-subview .dhx_grid_data .dhx_grid-row:last-child > .dhx_grid-cell { border-bottom-color: transparent; }
+/* A window holding one framework feature shows the feature edge to edge: the window header is its only header. */
+.blade-feature-window .dhx_window-content { padding: 0; }
 .blade-grid-card dl { margin: 0; }
 .blade-grid-card__field { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 12px; padding: 9px 0; }
 .blade-grid-card__field + .blade-grid-card__field { border-top: 1px solid var(--dhx-border-color); }

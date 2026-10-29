@@ -104,15 +104,36 @@ on they stay global and must not hold tenant data (see
 
 ## Memberships and administration
 
-- **Tenants** (`blade_tenants` resource, admin group): create, rename, deactivate
-  (the `Aktív` switch; there is no delete) and edit `Tagok` (members). Changes are
-  audited like any action.
+- **Tenants** (`blade_tenants` resource, admin group): create, rename and deactivate
+  (the `Aktív` switch; there is no delete). Each tenant expands to its **access
+  list**, a non-selectable [sub-view](workspaces.md#sub-views) (`select: false`)
+  of resource `Tenancy::MEMBERS` (`blade_tenant_members`, embedded, no menu entry
+  of its own). It lists **every account** the actor may list through the Accounts
+  lookup (object and e-mail ACL, at most 2000), with `E-mail`, `Név` and one
+  `Hozzáférés` switch. Row ids are `<tenant id>:<account id>`. The rows cannot be
+  selected and open no form; the switch is the only write. The toolbar's
+  `Hozzáférések` command (and the card button on a phone) opens the same list in
+  a window, with the switch only (no add, edit or delete).
+- **Access switch:** checked means an active membership. Switching on inserts the
+  membership, or sets `active = 1` on a suspended row; switching off deletes the
+  row. Each change is the executor's single-field edit (`__edit` / `update`) with
+  the `blade_tenant_members.update` ACL, a revision check and an audit entry
+  (`tenant_id`, `actor_id`, `access` in the detail). Without the update right the
+  request is refused (403); an unknown tenant or invisible account is not found
+  (404). The `_subview` count of a tenant is the number of accounts with access
+  (a `ListSource` `countWhere`); every tenant still expands (`_subview_open`).
+- **`active` column:** kept for compatibility (earlier installs and seeds). The UI
+  no longer shows it; a row with `active = 0` lists as no access and grants none.
+  `Tenancy::member()` and `memberships()` still require `active = 1`.
 - **Users** form: the `Tenantok` multiselect assigns tenants per user. It is stored
   in `blade_tenant_members` through `Blade\Feature\RelatedSet`, a general
   many-to-many counterpart of `RelatedStorage` that shares the form's
-  transaction, revision and audit (field names only).
+  transaction, revision and audit (field names only). A save removes deselected
+  links and adds new ones only. A deleted row (access off) is not a member, so the
+  multiselect and the access list agree.
 - `Permissions::grantAdministration()` gives the protected admin role the Tenants
-  actions too.
+  and access-list actions too (`ADMIN_RESOURCES` keeps `Tenancy::MEMBERS`; the
+  access list has only `list` and `update`).
 - Memberships and the tenant's active state are read fresh on every request.
   A change takes effect on the user's next request. A deactivated tenant drops
   out of every membership.
@@ -130,7 +151,9 @@ client parameter:
   resources fail closed until the page reloads.
 - **API keys:** the key's binding (below).
 
-Several memberships show a tenant selector in the navigation row. A switch posts
+Several memberships show a tenant selector in the navigation row; below 768 px
+it is a `Tenant: <name>` submenu of the main menu, so the row keeps room for the
+menu. A switch posts
 `action=tenant` with the CSRF token. The server checks membership, stores the
 choice, audits `session.tenant_switch` (with `from`), issues a new CSRF token
 and reloads the shell. The reload clears lists, forms, caches and
@@ -191,7 +214,7 @@ logic.
 3. Declare scope: add a non-null tenant column (string or integer) to each
    business table that belongs to a tenant, then set `tenantColumn` /
    `tenant_column` on its resource and on every lookup over it.
-4. Assign memberships in Users (or in Tenants → Tagok), or seed them with
+4. Assign memberships in Users (or with a tenant's `Hozzáférések` switches), or seed them with
    `Tenancy::join()`.
 5. Re-issue API keys that must reach tenant data as tenant-bound keys.
 
@@ -224,12 +247,18 @@ re-issued.
 - `php8.4 tests/shell/tenancy.php` covers the security-matrix rows: opt-in
   without side effects; reads, writes, filters, lookups, related IDs, watch,
   bulk and uniqueness inside and across tenants; the no-membership behavior;
-  memberships from both sides, revocation and deactivation; API keys
+  memberships from both sides; the access list (every account, the flag, on/off
+  inserts and deletes and is audited, stale revision, ACL denial, unknown pair,
+  access count, `select: false` metadata); revocation and deactivation; API keys
   (tenant-bound, global, foreign tenant, scope); and audit.
 - `tests/shell/configuration.php` covers the JSON `tenancy` section, plus
-  `tenant_column` on storage and on lookups.
+  `tenant_column` on storage and on lookups, and the JSON sub-view `select`.
 - `npm run test:browser -- tests/shell/tenancy.spec.cjs` uses the tenant demo:
   one membership shows no selector; no membership shows the notice and the API
   fails closed; with two memberships, switching removes the previous tenant's
-  rows, a foreign ID returns 404, and the old page token is refused.
+  rows, a foreign ID returns 404, and the old page token is refused; a tenant
+  expands to its access list (every user, rows not selectable, the toolbar stays
+  on the tenant, the switch persists after a reload, full list in a window); on a
+  phone the card's `Hozzáférések (n)` button opens the list full screen, and the tenant
+  choice is in the main menu.
 - Demo: https://61ade.sanch.hu/tenants/, see [demos](demos.md#tenant-demo-tenants).

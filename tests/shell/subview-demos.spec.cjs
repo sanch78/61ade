@@ -1,0 +1,105 @@
+const {test,expect}=require('../../tools/playwright-test.cjs');
+const {signIn,openMenu}=require('./feature-demo.cjs');
+// Sub-view demos: a child list that keeps its own menu entry (tenant projects → tasks), a hierarchy whose toolbar
+// acts on a selected child (tasks → subtasks), and a JSON-declared sub-view (feature demo media → default contents).
+const preview=page=>page.locator('.blade-subview-host .blade-subview');
+const expand=(page,text)=>page.locator('.dhx_grid-row').filter({hasText:text}).first().locator('.blade-subrow-toggle').click();
+
+test('a project expands to its top-level tasks with the done switch; the task list keeps its menu entry',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await signIn(page,'single@example.test','/tenants/');
+ await openMenu(page,'Projektek','Tenant demó');
+ await expand(page,'Alfa kutatás');
+ const rows=preview(page).locator('.dhx_grid-row');
+ // The project's tasks without their subtasks (those belong to the task hierarchy).
+ await expect(rows.filter({hasText:'Alfa mérés'})).toHaveCount(1);await expect(rows.filter({hasText:'Alfa jelentés'})).toHaveCount(1);
+ await expect(rows.filter({hasText:'Mérőhely előkészítése'})).toHaveCount(0);
+ const report=rows.filter({hasText:'Alfa jelentés'}),done=report.getByRole('checkbox',{name:'Kész'});
+ await expect(done).not.toBeChecked();
+ await report.locator('.blade-checkbox-edit').click();await expect(done).toBeChecked();
+ await report.locator('.blade-checkbox-edit').click();await expect(done).not.toBeChecked();
+ // A selected preview task takes the toolbar over: Módosítás edits that task; its project is known and kept.
+ await report.locator('[data-dhx-col-id="title"]').click();
+ await page.getByRole('button',{name:'Módosítás',exact:true}).click();
+ const form=page.getByRole('dialog',{name:'Feladatok — Módosítás'});
+ await expect(form.getByLabel('Feladat',{exact:true})).toHaveValue('Alfa jelentés');
+ await expect(form.getByLabel('Projekt',{exact:true})).toHaveCount(0);
+ const saved=page.waitForResponse(response=>response.url().includes('blade=1')&&response.request().postDataJSON()?.action==='update');
+ await form.getByRole('button',{name:'Mentés',exact:true}).click();
+ const result=await saved;expect(result.status()).toBe(200);
+ expect(result.request().postDataJSON()).toMatchObject({resource:'tenant_tasks',values:{project_id:expect.any(String)}});
+ await expect(form).toHaveCount(0);
+ // Selecting the project row gives the toolbar back to the project.
+ await page.locator('.dhx_grid-row').filter({hasText:'Alfa kutatás'}).first().locator('[data-dhx-col-id="title"]').click();
+ await page.getByRole('button',{name:'Módosítás',exact:true}).click();
+ await expect(page.getByRole('dialog',{name:'Projektek — Módosítás'})).toBeVisible();
+ await page.getByRole('dialog',{name:'Projektek — Módosítás'}).getByRole('button',{name:'Mégse',exact:true}).click();
+ await expand(page,'Alfa kutatás');
+ await expect(page.locator('.blade-subview-host')).toHaveCount(0);
+ await openMenu(page,'Feladatok','Tenant demó');
+ await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
+ expect(errors).toEqual([]);
+});
+
+test('a task expands to its subtasks; selecting one hands the toolbar over to it',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await signIn(page,'single@example.test','/tenants/');
+ await openMenu(page,'Feladatok','Tenant demó');
+ // The hierarchy lists the tasks without a parent; subtasks appear under their task only.
+ await expect(page.locator('.dhx_grid-row').filter({hasText:'Alfa mérés'})).toHaveCount(1);
+ await expect(page.locator('.dhx_grid-row').filter({hasText:'Adatrögzítés'})).toHaveCount(0);
+ await expand(page,'Alfa mérés');
+ const rows=preview(page).locator('.dhx_grid-row');
+ await expect(rows).toHaveCount(2);
+ await rows.filter({hasText:'Adatrögzítés'}).click();
+ await page.getByRole('button',{name:'Módosítás',exact:true}).click();
+ const form=page.getByRole('dialog',{name:'Feladatok — Módosítás'});
+ await expect(form.getByLabel('Feladat',{exact:true})).toHaveValue('Adatrögzítés');
+ await form.getByRole('button',{name:'Mégse',exact:true}).click();
+ // Selecting a top-level task gives the toolbar back to it.
+ await page.locator('.dhx_grid-row').filter({hasText:'Alfa jelentés'}).first().locator('[data-dhx-col-id="title"]').click();
+ await page.getByRole('button',{name:'Módosítás',exact:true}).click();
+ await expect(form.getByLabel('Feladat',{exact:true})).toHaveValue('Alfa jelentés');
+ await form.getByRole('button',{name:'Mégse',exact:true}).click();
+ // The full hierarchy below a task opens in a window from the toolbar ("Alelemek").
+ await page.locator('.dhx_grid-row').filter({hasText:'Alfa mérés'}).first().locator('[data-dhx-col-id="title"]').click();
+ await page.getByRole('button',{name:'Alelemek',exact:true}).click();
+ const full=page.getByRole('dialog',{name:'Feladatok — Alfa mérés'});
+ await expect(full.locator('.dhx_grid-row')).toHaveCount(2);
+ await expect(full.getByRole('button',{name:'Hozzáadás',exact:true})).toBeVisible();
+ await full.getByRole('button',{name:'close',exact:true}).click();
+ expect(errors).toEqual([]);
+});
+
+test('a JSON-declared sub-view: a media item expands to the default contents that use it',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await signIn(page);
+ await openMenu(page,'Médiatár','Digitális kijelző');
+ await expand(page,'Promóciós videó');
+ await expect(preview(page).locator('.dhx_grid-row')).toHaveCount(1);
+ await expect(preview(page).locator('.dhx_grid-row').first()).toContainText('Hétfő');
+ await expand(page,'Promóciós videó');
+ await expect(page.locator('.blade-subview-host')).toHaveCount(0);
+ expect(errors).toEqual([]);
+});
+
+test('in cards a project opens its tasks window from the card button, on a phone full screen',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.setViewportSize({width:390,height:844});
+ await signIn(page,'single@example.test','/tenants/');
+ await openMenu(page,'Projektek','Tenant demó');
+ const card=page.locator('.blade-grid-card').filter({hasText:'Alfa kutatás'}).first();
+ const button=card.getByRole('button',{name:/^Feladatok( \(\d+\))?$/});
+ await expect(button).toBeVisible();
+ expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(40);
+ await button.click();
+ const full=page.getByRole('dialog',{name:'Feladatok — Alfa kutatás'});
+ // The window lists as many top-level tasks as the button counts (owner data may add tasks beside the seeded ones).
+ const count=Number((await button.innerText()).match(/\((\d+)\)/)[1]);
+ await expect(full.locator('.dhx_grid-row, .blade-grid-card')).toHaveCount(count);
+ await expect(full.getByText('Alfa jelentés',{exact:true})).toBeVisible();
+ const area=await full.boundingBox();expect(area.width).toBeGreaterThanOrEqual(388);
+ await expect(page.locator('.blade-subview-host')).toHaveCount(0);
+ await full.getByRole('button',{name:'close',exact:true}).click();
+ expect(errors).toEqual([]);
+});

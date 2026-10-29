@@ -11,7 +11,7 @@ import { GridEditing, alias, unalias } from "./GridEditing";
 import { escape as escapeRecord, isMedia, optionText, presentedFields, recordFields, derivedOf, withDerived, mergeUsages, confirmUsages, clearedText, type MediaPart, type Usage } from "./RecordPresentation";
 import { FileFields, fileInput } from "./FilePicker";
 import { uploads, type UploadPolicy } from "./Uploader";
-import { ResponsiveGrid } from "./ResponsiveGrid";
+import { ResponsiveGrid, previewRows, hasSubview } from "./ResponsiveGrid";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 
 export type { FieldDefinition } from "./FormValidation";
@@ -27,7 +27,22 @@ const actionIcon=(action:ActionDefinition)=>action.icon??ACTION_ICONS[action.nam
 /** Protocol values a command sends itself; an action with only these fields runs without a form. */
 const technical=(field:FieldDefinition)=>field.name==="revision"||field.name==="preview"&&field.type==="checkbox";
 type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region}};
+export type ViewDefinition={resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:ViewDefinition["columns"];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;search?:{fields:string[]};columns:{id:string;header:string;type?:string;media?:string;presentation?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right"}[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
+  /** Records expand to the `resource` list filtered to `field` = record id: its own `view`, or this view when `shared`. */
+  subview?:{resource:string;field:string;shared?:boolean;view?:ViewDefinition;select?:boolean}};
+/**
+ * A nested (sub-view) instance: its list is limited to `field` = `id` and new records get that value. With
+ * `shared` it has no toolbar of its own; its cursor record is reported to the parent, whose toolbar acts on it.
+ */
+export type WorkspaceScope={field:string;id:string;
+  /** false: the rows never become the cursor record (no delegation, no record toolbar actions, double-click opens nothing). */
+  select?:boolean;shared?:(workspace:Workspace,row:Row|undefined)=>void;
+  /**
+   * A compact preview (expanded sub-row or card): a table that is always a table, sortable headers only (no filters,
+   * search, toolbar, row numbers or marks), editable columns kept. `height` receives the height its content needs.
+   * Without it the scoped view is the full child view filling a window (the window header is its only header).
+   */
+  compact?:{height:(pixels:number)=>void}};
 const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 /** Server limit of the `search` list parameter, in characters. */
 const SEARCH_MAX=100;
@@ -105,33 +120,42 @@ export class Workspace {
   private fileFields?:FileFields;
   private detailFiles?:FileFields;
   private resourceCall=(resource:string,action:string,id:string|null,values:Record<string,unknown>={})=>this.request(resource,action,id,values);
+  /** The nested same-resource view whose cursor record the toolbar currently acts on. */
+  private delegated?:Workspace;
+  /** Open compact previews by record id (refreshed when that record's full child view closes). */
+  private previews=new Map<string,Workspace>();
 
-  constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,live:LiveConfig,user=""){
-    this.preferences=new UiPreferences(user,view.resource);
+  constructor(host:HTMLElement,private view:ViewDefinition,private csrf:string,private liveConfig:LiveConfig,private user="",private scope?:WorkspaceScope){
+    // A nested view: the scope field is implied (no column, filter or input), one grid region, overlay forms.
+    if(scope)view=this.view={...view,columns:view.columns.filter(column=>column.id!==scope.field),filters:view.filters.filter(filter=>filter.name!==scope.field),sortable:(view.sortable??[]).filter(field=>field!==scope.field),layout:{formMode:"overlay",tree:{rows:[{id:"grid"}]}}};
+    if(scope?.compact)view=this.view={...view,filters:[],search:undefined,rowNumbers:false,selection:false,rowSelection:false,tiles:false,columns:view.columns.map(column=>({...column,secondary:false}))};
+    const live=liveConfig;
+    this.preferences=new UiPreferences(user,scope?view.resource+"@"+scope.field:view.resource);
     this.sort=this.preferences.sort(view.sortable??[])??this.sort;
     const secondaryColumns=view.columns.filter(column=>column.secondary);
     const tiles=view.tiles??view.columns.some(isMedia);
     const secondary=secondaryColumns.map(column=>column.id);
     this.visibleColumns=this.preferences.visibleColumns(secondary);
-    const region=(node:Region):any=>({...node,header:node.id==="grid"?escape(view.title):node.header?escape(node.header):undefined,
-      ...(node.id==="grid"?{headerIcon:"blade-list-count",css:"blade-list-panel"}:{}),
+    const region=(node:Region):any=>({...node,header:node.id==="grid"?scope?undefined:escape(view.title):node.header?escape(node.header):undefined,
+      ...(node.id==="grid"&&!scope?{headerIcon:"blade-list-count",css:"blade-list-panel"}:{}),
       ...(node.rows?{rows:node.rows.map(region)}:{}),...(node.cols?{cols:node.cols.map(region)}:{})});
-    this.layout=new Layout(host,{type:"space",...(view.singleton
+    this.layout=new Layout(host,{type:scope?"none":"space",css:scope?.compact?"blade-subview":scope?"blade-feature-fill":undefined,...(view.singleton
       ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"detail"}]}]}
-      :region(this.preferences.layoutTree(view.layout.tree)))});
-    if(!view.singleton)this.preferences.bindLayout(this.layout,view.layout.tree);
-    this.commands=new ResponsiveToolbar(undefined,{data:[...(!view.singleton?[{id:"blade-results",value:t("Adatok"),icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"blade-filter",value:t("Szűrés"),icon:"dxi dxi-filter-variant"}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")).map(a=>({id:a.name,value:escape(a.label),icon:actionIcon(a)})),...(!view.singleton?[{type:"spacer"},{id:"blade-sort",value:t("Rendezés"),hidden:true,icon:"dxi dxi-sort",items:(view.sortable??[]).flatMap(field=>["asc","desc"].map(direction=>({id:"blade-sort:"+field+":"+direction,value:escape((view.columns.find(column=>column.id===field)?.header??(field==="id"?"ID":field))+ (direction==="asc"?" ↑":" ↓")),icon:direction==="asc"?"dxi dxi-arrow-up":"dxi dxi-arrow-down"})))},...(secondaryColumns.length?[{id:"blade-columns",value:t("Oszlopok"),icon:"dxi dxi-table-check",items:secondaryColumns.map(column=>{const active=this.visibleColumns.has(column.id);return {id:"blade-column:"+column.id,value:escape(column.header),icon:active?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline",twoState:true,active};})}]:[]),{id:"blade-view",value:t("Nézet: Táblázat"),icon:"dxi dxi-table-check",items:[{id:"blade-table",value:t("Táblázat"),icon:"dxi dxi-table-check"},{id:"blade-cards",value:t("Kártyák"),icon:"dxi dxi-view-grid"},...(tiles?[{id:"blade-tiles",value:t("Csempék"),icon:"dxi dxi-border-all"}]:[])]}]:[])]});
-    this.commands.events.on("click",(id:string|number)=>{if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.openFilters();return;}if(id==="blade-results"){if(this.selected&&!((view.selection||view.rowSelection)&&(this.grid?.markedIds.length??0)>1))void this.showResults(this.selected);return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.open(action);}});
+      :region(scope?view.layout.tree:this.preferences.layoutTree(view.layout.tree)))});
+    if(!view.singleton&&!scope)this.preferences.bindLayout(this.layout,view.layout.tree);
+    this.commands=new ResponsiveToolbar(undefined,{data:[...(!view.singleton&&scope?.select!==false?[{id:"blade-results",value:t("Adatok"),icon:"dxi dxi-information-outline"}]:[]),...(!view.singleton&&this.hasRegion("filter")?[{id:"blade-filter",value:t("Szűrés"),icon:"dxi dxi-filter-variant"}]:[]),...view.actions.filter(a=>a.name!=="get"&&!(view.singleton&&a.name==="update")&&(scope?.select!==false||a.name==="create"||!!a.upload)).map(a=>({id:a.name,value:escape(a.label),icon:actionIcon(a)})),...(view.subview&&!scope?.compact&&(view.subview.shared||view.subview.view)?[{id:"blade-subview",value:escape(view.subview.view?.title??t("Alelemek")),icon:"dxi dxi-arrow-expand",tooltip:t("A kijelölt rekord kapcsolódó listája ablakban")}]:[]),...(!view.singleton?[{type:"spacer"},{id:"blade-sort",value:t("Rendezés"),hidden:true,icon:"dxi dxi-sort",items:(view.sortable??[]).flatMap(field=>["asc","desc"].map(direction=>({id:"blade-sort:"+field+":"+direction,value:escape((view.columns.find(column=>column.id===field)?.header??(field==="id"?"ID":field))+ (direction==="asc"?" ↑":" ↓")),icon:direction==="asc"?"dxi dxi-arrow-up":"dxi dxi-arrow-down"})))},...(secondaryColumns.length?[{id:"blade-columns",value:t("Oszlopok"),icon:"dxi dxi-table-check",items:secondaryColumns.map(column=>{const active=this.visibleColumns.has(column.id);return {id:"blade-column:"+column.id,value:escape(column.header),icon:active?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline",twoState:true,active};})}]:[]),{id:"blade-view",value:t("Nézet: Táblázat"),icon:"dxi dxi-table-check",items:[{id:"blade-table",value:t("Táblázat"),icon:"dxi dxi-table-check"},{id:"blade-cards",value:t("Kártyák"),icon:"dxi dxi-view-grid"},...(tiles?[{id:"blade-tiles",value:t("Csempék"),icon:"dxi dxi-border-all"}]:[])]}]:[])]});
+    this.commands.events.on("click",(id:string|number)=>{if(this.delegated&&(id==="blade-results"||view.actions.some(a=>a.name===id&&a.name!=="create"&&!a.upload)&&this.delegated.view.actions.some(a=>a.name===id))){this.delegated.command(String(id));return;}this.command(String(id));});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
       // A declared search (`view.search`) gets its own native Toolbar input: the command bar may collapse into a menu.
       const search=!!view.search?.fields?.length;
-      this.content=new Layout(document.createElement("div"),{type:"none",css:"blade-grid-content",rows:[search?{height:48,css:"blade-command-row",cols:[{id:"search",width:Math.min(280,Math.max(150,Math.round(innerWidth*.4))),css:"blade-search-cell"},{id:"commands"}]}:{id:"commands",height:48,css:"blade-command-row"},{id:"data"}]});
+      this.content=new Layout(document.createElement("div"),{type:"none",css:"blade-grid-content",rows:[scope?.compact?{id:"commands",height:0,hidden:true}:scope?.shared?{id:"commands",height:0,hidden:true}:search?{height:48,css:"blade-command-row",cols:[{id:"search",width:Math.min(280,Math.max(150,Math.round(innerWidth*.4))),css:"blade-search-cell"},{id:"commands"}]}:{id:"commands",height:48,css:"blade-command-row"},{id:"data"}]});
       this.content.getCell("commands").attach(this.commands);
       if(search)this.mountSearch();
       const dataHost=document.createElement("div");
       this.grid=new ResponsiveGrid(dataHost,view.columns,()=>this.rows,(id)=>{
-        this.selected=id;this.capabilities();
+        this.selected=id;this.delegated=undefined;this.capabilities();
+        scope?.shared?.(this,this.selectedRow());
       },()=>{
         const action=view.actions.find(a=>a.name==="update");
         if(action&&this.selectedRow()?._actions?.includes("update"))void this.open(action);
@@ -144,7 +168,7 @@ export class Workspace {
         if(mode==="cards")this.commands.disable("blade-cards");else this.commands.enable("blade-cards");
         if(mode==="table"||mobile)this.commands.disable("blade-table");else this.commands.enable("blade-table");
         if(tiles){if(mode==="tiles")this.commands.disable("blade-tiles");else this.commands.enable("blade-tiles");}
-      },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,details:id=>void this.showResults(id),marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field)});
+      },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,subview:scope?.compact?undefined:this.subviewOptions(),select:scope?.select,...(scope?.compact?{table:true,idColumn:false}:{}),details:id=>void this.showResults(id),marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field)});
       this.sortLabel();
       // Grid column ids of reserved record keys are aliases (ResponsiveGrid): headers speak in column ids, requests in fields.
       this.gridHeaders=new GridHeaders(this.grid.table,view.columns.map(column=>({...column,id:alias(column.id)})),(view.sortable??[]).map(alias),sort=>void this.changeSort({...sort,field:unalias(sort.field)}),view.filters.map(filter=>({...filter,name:alias(filter.name)})),(field,value)=>void this.changeFilter(unalias(field),value));
@@ -162,6 +186,10 @@ export class Workspace {
     window.addEventListener("resize",this.resize);this.resizeFilters();
     this.live=new Realtime(view.resource,live,this.call.bind(this),data=>void this.changed(data),()=>{},()=>this.revoke());
     this.capabilities();void this.load();
+  }
+  /** Runs a toolbar command; a parent's toolbar runs it here for this view's cursor record (shared sub-view). */
+  command(id:string):void{
+    const view=this.view;if(id==="blade-subview"){this.openSubview();return;}if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.openFilters();return;}if(id==="blade-results"){if(this.selected&&!((view.selection||view.rowSelection)&&(this.grid?.markedIds.length??0)>1))void this.showResults(this.selected);return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.open(action);}
   }
   private async saveCell(row:Row,field:string,value:unknown):Promise<void>{
     const result=await this.call("__edit",String(row.id),{field,value,revision:row.revision});
@@ -214,7 +242,59 @@ export class Workspace {
     const next=Array.from(value.trim()).slice(0,SEARCH_MAX).join("").trim();if(next===this.search||this.disposed)return;
     this.search=next;void this.load();
   }
-  private query():Record<string,unknown>{return {filters:this.filters,...(this.search?{search:this.search}:{})};}
+  // A hierarchy (same-resource sub-view) lists its records without a parent at the top, also inside another record.
+  private query():Record<string,unknown>{
+    const root=this.view.subview?.shared&&this.scope?.field!==this.view.subview.field?{[this.view.subview.field]:""}:{};
+    return {filters:{...this.filters,...root,...(this.scope?{[this.scope.field]:this.scope.id}:{})},...(this.search?{search:this.search}:{})};}
+  private fitObserver?:ResizeObserver;
+  /**
+   * A compact preview reports the height its records need: its own frame (layout borders) plus the measured table,
+   * 5–10 rows by the viewport, then it scrolls. Measured again whenever its size changes, until the table has
+   * followed its new size (the reported value is then stable).
+   */
+  private fitPreview():void{
+    const compact=this.scope?.compact,root=this.layout.getRootNode() as HTMLElement|undefined,grid=this.grid;
+    if(!compact||!root||!grid||this.disposed)return;
+    if(!this.fitObserver){this.fitObserver=new ResizeObserver(()=>void awaitRedraw().then(()=>this.fitPreview()));this.fitObserver.observe(root);}
+    const table=grid.layout.getRootNode() as HTMLElement|undefined,fit=grid.fitHeight(previewRows(grid.rowPixels));
+    if(table&&fit)compact.height(root.offsetHeight-table.offsetHeight+fit);
+  }
+  /** Reloads the list (a compact preview after its full view closed). */
+  refresh():void{if(!this.disposed)void this.load();}
+  /** The nested view of an open record: the declared child list, or this view again (shared toolbar). */
+  private subviewOptions(){
+    const sub=this.view.subview,child=sub?.shared?this.view:sub?.view;
+    if(!sub||!child)return undefined;
+    // A selected preview record takes the toolbar over for the actions it has too (same name: update, delete, …).
+    // A non-selectable child (`select: false`) never delegates: the toolbar stays on this record.
+    const shared=sub.select===false?{select:false}:{shared:(workspace:Workspace,selected:Row|undefined)=>{this.delegated=selected?workspace:this.delegated===workspace?undefined:this.delegated;this.capabilities();}};
+    return {label:sub.shared?t("Alelemek"):child.title,open:(id:string)=>this.openRecord(id),mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>{
+      const id=String(row.id),preview=new Workspace(host,child,this.csrf,this.liveConfig,this.user,{field:sub.field,id,...shared,compact:{height}});
+      this.previews.set(id,preview);
+      return {destroy:()=>{if(this.previews.get(id)===preview)this.previews.delete(id);preview.destroy();}};
+    }};
+  }
+  /** Toolbar command of a view with a sub-view: the full child list of the record the toolbar acts on. */
+  private openSubview():void{const row=this.subviewTarget();if(row)this.openRecord(String(row.id),row);}
+  /** The record whose child list the toolbar command opens: a selected child only in a hierarchy. */
+  private subviewTarget():Row|undefined{return this.view.subview?.shared?this.target():this.selectedRow();}
+  /** The full child list of one record (toolbar command, card button); nothing for a record without sub-items. */
+  private openRecord(id:string,row=this.rows.find(r=>String(r.id)===id)):void{
+    const sub=this.view.subview,child=sub?.shared?this.view:sub?.view;
+    if(!sub||!child||!row||!hasSubview(row))return;
+    this.openFull(child,sub.field,id,String(row[this.view.columns[0]?.id]??id),()=>this.previews.get(id)?.refresh());
+  }
+  /** The full child view of one record (every action) in a modal window; full screen on a phone. */
+  private openFull(child:ViewDefinition,field:string,id:string,caption:string,closed:()=>void):void{
+    const mobile=innerWidth<768;
+    const dialog=new Window({css:"blade-feature-window",title:escape(child.title+" — "+caption),ariaLabel:child.title+" — "+caption,
+      width:mobile?innerWidth:Math.min(1100,innerWidth-24),height:mobile?innerHeight:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:!mobile,movable:!mobile});
+    const full=new Workspace(document.createElement("div"),child,this.csrf,this.liveConfig,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})});
+    dialog.attach(full.layout);dialog.show();
+    dialog.events.on("afterHide",()=>{full.destroy();void awaitRedraw().then(()=>dialog.destructor());if(!this.disposed)closed();});
+  }
+  /** The record the toolbar acts on: the cursor record of a shared sub-view, otherwise this view's. */
+  private target():Row|undefined{return this.delegated?.selectedRow()??this.selectedRow();}
   private hasRegion(id:string):boolean{
     const find=(node:Region):boolean=>node.id===id||[...(node.rows??[]),...(node.cols??[])].some(find);return find(this.view.layout.tree);
   }
@@ -222,12 +302,15 @@ export class Workspace {
   private capabilities():void{
     const marked=this.grid?.markedIds??[];
     // Several marks make single-record commands ambiguous: only bulk-capable actions and create stay available.
-    const multiple=!!((this.view.selection||this.view.rowSelection)&&marked.length>1);
-    if(!this.view.singleton){if(this.selectedRow()&&!multiple)this.commands.enable("blade-results");else this.commands.disable("blade-results");}
+    // A shared sub-view's cursor record takes the toolbar over; its marks stay its own.
+    const multiple=!this.delegated&&!!((this.view.selection||this.view.rowSelection)&&marked.length>1),target=this.target();
+    if(!this.view.singleton){if(target&&!multiple)this.commands.enable("blade-results");else this.commands.disable("blade-results");}
+    const parentRow=this.subviewTarget();
+    if(this.view.subview){if(parentRow&&!multiple&&hasSubview(parentRow))this.commands.enable("blade-subview");else this.commands.disable("blade-subview");}
     for(const a of this.view.actions){if(a.name==="get"||(this.view.singleton&&a.name==="update"))continue;
-      const bulkSelected=!!(a.bulk&&(this.view.selection||this.view.rowSelection)&&marked.length);
+      const bulkSelected=!this.delegated&&!!(a.bulk&&(this.view.selection||this.view.rowSelection)&&marked.length);
       const bulkAllowed=bulkSelected&&marked.length<=100&&marked.every(id=>this.rows.find(row=>String(row.id)===id)?._actions?.includes(a.name));
-      if(a.name==="create"||a.upload||(bulkSelected?bulkAllowed:!multiple&&this.selectedRow()?._actions?.includes(a.name)))this.commands.enable(a.name);else this.commands.disable(a.name);
+      if(a.name==="create"||a.upload||(bulkSelected?bulkAllowed:!multiple&&target?._actions?.includes(a.name)))this.commands.enable(a.name);else this.commands.disable(a.name);
     }
   }
   private createFilters(onCancel?:()=>void):Form{
@@ -339,7 +422,8 @@ export class Workspace {
     this.commands.data.update("blade-sort",{value:t("Rendezés: ")+escape(this.view.columns.find(column=>column.id===this.sort.field)?.header??(this.sort.field==="id"?"ID":this.sort.field))+(this.sort.direction==="asc"?" ↑":" ↓")});
   }
   private counts(data:Snapshot):void{
-    const text=typeof data.total==="number"?t("Összes: {count}",{count:data.total.toLocaleString(locale())})+(Object.keys(this.filters).length||this.search?" / "+t("Találat: {count}",{count:(data.matched??0).toLocaleString(locale())}):""):"";
+    // The server's total ignores filters; a nested view's records are its parent record's, so it counts the scoped match.
+    const text=this.scope?typeof data.matched==="number"?t("Találat: {count}",{count:data.matched.toLocaleString(locale())}):"":typeof data.total==="number"?t("Összes: {count}",{count:data.total.toLocaleString(locale())})+(Object.keys(this.filters).length||this.search?" / "+t("Találat: {count}",{count:(data.matched??0).toLocaleString(locale())}):""):"";
     this.layout.getRootNode()?.style.setProperty("--blade-list-count",JSON.stringify(text));
   }
   private async load():Promise<boolean>{
@@ -386,6 +470,7 @@ export class Workspace {
     if(this.disposed)return;
     this.grid.restore(position,preserve,this.selected);
     this.rendering=false;
+    this.fitPreview();
   }
   private async changed(data:Snapshot):Promise<void>{
     if(this.disposed||this.busy||this.cellEditing)return;
@@ -488,7 +573,7 @@ export class Workspace {
     try{
       const schema=await this.call("__form",id??null,{operation:action.name});if(this.disposed||epoch!==this.formEpoch)return;
       const allowed=schema.fields as FieldDefinition[];
-      const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision").map(f=>input(f,f.type==="password"?"":schema.values[f.name])),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
+      const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision"&&f.name!==this.scope?.field).map(f=>input(f,f.type==="password"?"":schema.values[f.name])),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
       this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.editor=form;
       const files=this.fileFields=new FileFields(form,allowed,this.resourceCall,[schema.values,id?this.rows.find(row=>String(row.id)===id):undefined]);
       const close=()=>{
@@ -531,12 +616,14 @@ export class Workspace {
   }
   private bindSave(form:Form,action:ActionDefinition,id:string|null,current:Row,allowed:FieldDefinition[],complete:()=>void,cancel?:()=>void):void{
     let saving=false;
-    const validation=new FormValidation(form,allowed.filter(f=>f.name!=="revision"));
+    const validation=new FormValidation(form,allowed.filter(f=>f.name!=="revision"&&f.name!==this.scope?.field));
     form.events.on("click",(name:string)=>{
       if(name==="cancel"){cancel?.();return;}
       if(name!=="submit"||saving||!validation.validate())return;saving=true;form.disable();
       const raw=form.getValue() as Record<string,unknown>;const values:Record<string,unknown>={};
       for(const f of allowed)if(f.name!=="revision"&&raw[f.name]!==undefined)values[f.name]=raw[f.name];
+      // A nested view's record belongs to its parent record: known, not editable, always sent as that record.
+      if(this.scope&&allowed.some(f=>f.name===this.scope!.field)){values[this.scope.field]=this.scope.id;}
       if(allowed.some(f=>f.name==="revision"))values.revision=current.revision;
       void this.confirmed(action).then(ok=>ok?this.call(action.name,id,values):Promise.reject(DECLINED)).then(async result=>{
         await awaitRedraw();if(this.disposed)return;complete();
@@ -549,5 +636,5 @@ export class Workspace {
   destroy():void{this.commands.disposeResponsive();this.disposed=true;clearTimeout(this.searchTimer);this.fileFields?.destroy();this.detailFiles?.destroy();
     // Suite 9.3.12 reads a destroyed vnode when a focused Toolbar input blurs during unmount.
     const focused=document.activeElement;if(focused instanceof HTMLElement&&this.searchBar?.getRootNode()?.contains(focused))focused.blur();
-    this.cardEditor?.destructor();this.cardEditor=undefined;this.releaseIcons();this.resultsEpoch++;this.results?.destructor();window.removeEventListener("resize",this.resize);this.closeFilters();this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.layout.destructor();}
+    this.cardEditor?.destructor();this.cardEditor=undefined;this.releaseIcons();this.resultsEpoch++;this.results?.destructor();window.removeEventListener("resize",this.resize);this.closeFilters();this.epoch++;this.formEpoch++;this.abort?.abort();this.live.destroy();this.dialog?.destructor();this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.fitObserver?.disconnect();this.layout.destructor();}
 }

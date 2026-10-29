@@ -71,6 +71,27 @@ final class Registry
         $layout??=new ViewLayout();
         $this->views[$resource]=[...compact('resource','title','columns','actions','singleton','group','layout','rowNumbers','selection','icon','desktopOnly','rowSelection'),...array_filter(['rowHeight'=>$rowHeight,'tileMinWidth'=>$tileMinWidth,'tiles'=>$tiles?:null],static fn($v)=>$v!==null)];
     }
+    /**
+     * Sub-view: every record of the $resource list expands (grid sub-row or card) to the $child list filtered to
+     * the records whose $field holds its id, as a compact preview (the full $child view opens in a window). A
+     * different $child is embedded by default (no menu entry of its own; $embed false keeps it); the same resource
+     * is a hierarchy: its list shows the records without a parent ($field empty, so $field is a select whose
+     * options include ''), each expands to its children, and the parent's toolbar acts on a selected child. Reads
+     * and writes are ordinary, ACL-checked calls of $child; the filter is a scope of the view, not an authorization.
+     * A preview fits its records up to 5–10 rows (by the viewport height), then scrolls. $select false: the child's
+     * rows (preview and full window) never become the cursor record: no highlight or keyboard cursor, no toolbar
+     * delegation, double-click and Enter open nothing and record actions leave the child's toolbar; declared editable
+     * switch cells still save (for a list where only a flag is set, such as tenant access).
+     */
+    public function subview(string $resource, string $child, string $field, bool $embed = true, bool $select = true): void
+    {
+        $parent=$this->views[$resource]??null;$view=$this->views[$child]??null;
+        if(!$parent||!$view||isset($parent['kind'])||isset($view['kind'])||$parent['singleton']||$view['singleton'])throw new \InvalidArgumentException('Sub-views need two list views.');
+        $known=$this->fields($child)[$field]??null;
+        if(!$known||!in_array($known->type,['select','number','text'],true)||$known->secret||($child===$resource&&$known->type!=='select'))throw new \InvalidArgumentException('Invalid sub-view.');
+        $this->views[$resource]['subview']=['child'=>$child,'field'=>$field,...($select?[]:['select'=>false])];
+        if($child!==$resource&&$embed)$this->views[$child]['embedded']=true;
+    }
     /** Non-list view kind: `$files` is browser configuration only (mounts, limits); handlers stay server-side. */
     public function fileManager(string $resource, string $title, array $actions, array $files, ?string $group = null, ?string $icon = null, bool $desktopOnly = false): void
     {
@@ -93,4 +114,6 @@ final class Registry
         $this->views[$resource]=['kind'=>'calendar','resource'=>$resource,'title'=>$title,'columns'=>[],'actions'=>$actions,'singleton'=>false,'group'=>$group,'layout'=>new ViewLayout(),'rowNumbers'=>false,'selection'=>false,'icon'=>$icon,'fields'=>$fields,'calendar'=>$calendar,'desktopOnly'=>$desktopOnly];
     }
     public function views(): array { return array_values($this->views); }
+    /** The registered sub-view of $resource (`child`, `field`) or null. */
+    public function subviewOf(string $resource): ?array { return $this->views[$resource]['subview'] ?? null; }
 }

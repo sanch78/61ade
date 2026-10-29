@@ -22,6 +22,8 @@ final readonly class ApplicationDefinition
         public ?\Blade\Authentication\AuthHandlerLogin $oauth = null,
         /** Browser path of the built frontend, relative to the page (e.g. "../assets" under /admin/). */
         public string $assets = 'assets',
+        /** Optional application skins of the signed-in identity: Closure(Identity): list<Skin>; none keeps the factory themes. */
+        public ?\Closure $skins = null,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)

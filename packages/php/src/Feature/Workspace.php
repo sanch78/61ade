@@ -86,9 +86,22 @@ final class Workspace
             $view['filters']=$list->listSource?->filterDefinitions($ctx)??[];
             $view['sortable']=$list->listSource?->sortableFields($ctx)??[];
             if($search=$list->listSource?->searchMetadata($ctx))$view['search']=$search;
-            $out[]=\Blade\I18n\Translator::presentation($view);
+            $out[$view['resource']]=\Blade\I18n\Translator::presentation($view);
         }
-        return $out;
+        // A sub-view needs its child view offered to the actor; an embedded child has no menu entry of its own.
+        // Resolved depth first, so a child view carries its own (resolved) sub-view; a cycle ends at the repeat.
+        $resolved=[];
+        $resolve=function(string $key,array $path=[])use(&$resolve,&$out,&$resolved):void{
+            if(isset($resolved[$key])||!isset($out[$key]['subview']['child']))return;
+            ['child'=>$child,'field'=>$field]=$out[$key]['subview'];$select=($out[$key]['subview']['select']??true)?[]:['select'=>false];
+            if($child!==$out[$key]['resource']&&isset($out[$child])&&!in_array($child,$path,true))$resolve($child,[...$path,$key]);
+            $out[$key]['subview']=$child===$out[$key]['resource']?['resource'=>$child,'field'=>$field,'shared'=>true,...$select]
+                :(isset($out[$child])?['resource'=>$child,'field'=>$field,'view'=>$out[$child],...$select]:null);
+            if($out[$key]['subview']===null)unset($out[$key]['subview']);
+            $resolved[$key]=true;
+        };
+        foreach(array_keys($out) as $key)$resolve((string)$key);
+        return array_values(array_filter($out,static fn($view)=>empty($view['embedded'])));
     }
     /** Fields a client fills: a delete's `preview` switch is a protocol flag of the usage confirmation, not a form field. */
     private function formFields(Action $action):array

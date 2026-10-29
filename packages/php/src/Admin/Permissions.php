@@ -20,7 +20,7 @@ final class Permissions
     public const MEMBERSHIPS = 'blade_memberships';
     public const ROLE_RULES = 'blade_role_rules';
     public const USER_RULES = 'blade_user_rules';
-    public const ADMIN_RESOURCES = [Accounts::RESOURCE, self::ROLES, self::MEMBERSHIPS, self::ROLE_RULES, self::USER_RULES, ApiKeys::RESOURCE, \Blade\Tenancy\Tenancy::RESOURCE];
+    public const ADMIN_RESOURCES = [Accounts::RESOURCE, self::ROLES, self::MEMBERSHIPS, self::ROLE_RULES, self::USER_RULES, ApiKeys::RESOURCE, \Blade\Tenancy\Tenancy::RESOURCE, \Blade\Tenancy\Tenancy::MEMBERS];
 
     private Catalogue $catalogue;
 

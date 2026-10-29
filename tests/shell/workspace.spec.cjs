@@ -27,9 +27,10 @@ test('standalone registry creates a DHTMLX grid and reusable form',async({page})
  }
  expect(errors).toEqual([]);
 });
-// External write to the first note, outside the application (CLI SQLite).
+// External write to the newest note, outside the application (CLI SQLite). The grid sorts by id
+// descending and renders only visible rows, so the newest note is the one on screen.
 function writeNote(value){
- require('node:child_process').execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${process.env.BLADE_TMP_DIR || 'tmp'}/${process.env.BLADE_DEMO_INSTANCE || 'demo'}/features.sqlite');$q=$db->prepare('UPDATE notes SET title=? WHERE id=1');$q->execute([$argv[1]]);`,value]);
+ require('node:child_process').execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${process.env.BLADE_TMP_DIR || 'tmp'}/${process.env.BLADE_DEMO_INSTANCE || 'demo'}/features.sqlite');$q=$db->prepare('UPDATE notes SET title=? WHERE id=(SELECT MAX(id) FROM notes)');$q->execute([$argv[1]]);`,value]);
 }
 // LiveConfig transport of the signed-in demo: examples/demo-app/.env selects WebSocket (docs/demos.md).
 const transport=page=>page.evaluate(()=>JSON.parse(document.getElementById('blade-config').textContent).live?.transport);

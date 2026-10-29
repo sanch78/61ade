@@ -111,6 +111,9 @@ blade_demo_accounts($db, [
     [4, 'twofactor@example.test', '61ade-demo', 'Two-factor Demo', 1, 0],
     [5, 'oauth@example.test', bin2hex(random_bytes(24)), 'OAuth Demo', 1, 0],
     [null, 'reader@example.test', '61ade-demo', 'Demo Reader', 1, 0],
+    // Application skins (application.php): one skin, and a choice between two.
+    [null, 'skin@example.test', '61ade-demo', 'Skin Demo', 1, 0],
+    [null, 'skins@example.test', '61ade-demo', 'Skins Demo', 1, 0],
 ]);
 $reader = $db->query("SELECT id FROM accounts WHERE email = 'reader@example.test'")->fetchColumn();
 $db->exec("INSERT OR IGNORE INTO blade_auth_settings(actor_id,email_confirmation) VALUES ('4',1)");
@@ -165,6 +168,10 @@ Blade\Tenancy\Tenancy::install($db);
 $db->exec('CREATE TABLE IF NOT EXISTS tenant_projects(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT \'open\')');
 $db->exec('CREATE TABLE IF NOT EXISTS tenant_tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL, project_id TEXT NOT NULL)');
 $db->exec('CREATE TABLE IF NOT EXISTS tenant_notices(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL)');
+// Sub-view demo columns: a task's parent task ('' at the top) and its done switch.
+$taskColumns = array_column($db->query('PRAGMA table_info(tenant_tasks)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+if (!in_array('parent_id', $taskColumns, true)) $db->exec("ALTER TABLE tenant_tasks ADD COLUMN parent_id TEXT NOT NULL DEFAULT ''");
+if (!in_array('done', $taskColumns, true)) $db->exec('ALTER TABLE tenant_tasks ADD COLUMN done INTEGER NOT NULL DEFAULT 0');
 blade_demo_accounts($db, [
     [1, 'demo@example.test', '61ade-demo', 'Demo Admin', 1, 1],
     [2, 'single@example.test', '61ade-demo', 'Single Tenant', 1, 0],
@@ -183,13 +190,18 @@ if (!$db->query('SELECT COUNT(*) FROM tenant_projects')->fetchColumn()) {
     }
     $db->exec("INSERT INTO tenant_notices(title) VALUES ('Közös karbantartási ablak péntek este')");
 }
+if (!$db->query("SELECT COUNT(*) FROM tenant_tasks WHERE parent_id <> ''")->fetchColumn()) {
+    $parent = $db->query("SELECT id, tenant_id, project_id FROM tenant_tasks WHERE title = 'Alfa mérés'")->fetch(PDO::FETCH_ASSOC);
+    $sub = $db->prepare('INSERT INTO tenant_tasks(tenant_id,title,project_id,parent_id,done) VALUES (?,?,?,?,?)');
+    if ($parent) foreach ([['Mérőhely előkészítése', 1], ['Adatrögzítés', 0]] as [$title, $done]) $sub->execute([$parent['tenant_id'], $title, $parent['project_id'], (string) $parent['id'], $done]);
+}
 // Editors: the global role works in each member tenant; tenant membership decides where.
 $db->exec("INSERT OR IGNORE INTO blade_roles(name, role_key) VALUES ('Szerkesztő', 'editor')");
 $editor = (string) $db->query("SELECT id FROM blade_roles WHERE role_key = 'editor'")->fetchColumn();
 foreach (['1', '2', '3'] as $actor) $db->prepare('INSERT OR IGNORE INTO blade_memberships(actor_id, role_id) VALUES (?, ?)')->execute([$actor, $editor]);
 $exists = $db->prepare("SELECT COUNT(*) FROM blade_rules WHERE subject_type=? AND subject_id=? AND resource=? AND action=? AND channel=? AND field_name=''");
 $grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES (?,?,?,?,?,'allow','all','','')");
-$rules = [['role', $editor, 'tenant_projects', ['list', 'get', 'create', 'update'], 'ui'], ['role', $editor, 'tenant_tasks', ['list', 'get', 'create', 'update'], 'ui'], ['role', $editor, 'tenant_notices', ['list', 'get'], 'ui'],
+$rules = [['role', $editor, 'tenant_projects', ['list', 'get', 'create', 'update'], 'ui'], ['role', $editor, 'tenant_tasks', ['list', 'get', 'create', 'update', 'delete'], 'ui'], ['role', $editor, 'tenant_notices', ['list', 'get'], 'ui'],
     ['user', '1', 'tenant_projects', ['list', 'get', 'create'], 'api'], ['user', '1', 'tenant_notices', ['list', 'get'], 'api']];
 foreach ($rules as [$type, $subject, $resource, $actions, $channel]) foreach ($actions as $action) {
     $exists->execute([$type, $subject, $resource, $action, $channel]);

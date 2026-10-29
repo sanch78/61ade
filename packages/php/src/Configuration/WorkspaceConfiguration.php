@@ -77,6 +77,13 @@ final class WorkspaceConfiguration
                 $compiler->view($name, $definition);
             }
         }
+        // Sub-views last: both views exist by then, wherever the child is declared.
+        foreach ($modules as $module) {
+            foreach ($module['resources'] ?? [] as $name => $definition) {
+                $sub = $definition['view']['subview'] ?? null;
+                if ($sub) $workspace->registry->subview($name, $sub['resource'], $sub['field'], $sub['embed'] ?? true, $sub['select'] ?? true);
+            }
+        }
         return $workspace;
     }
 
@@ -154,8 +161,9 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array',
         ], '$.resources.'.$name.'.view');
+        Shape::check($view['subview'] ?? ['resource' => '', 'field' => ''], ['resource' => 'string', 'field' => 'string'], ['embed' => 'boolean', 'select' => 'boolean'], '$.resources.'.$name.'.view.subview');
         $related = [];
         foreach ($storage['related'] ?? [] as $relation) {
             Shape::check($relation, ['table'=>'string','key'=>'string','fields'=>'array'], ['defaults'=>'array'], '$.storage.related');
