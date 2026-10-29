@@ -1,5 +1,5 @@
 import type { Layout } from "@dhtmlx/suite";
-import type { AppWindow, Application, Component, ComponentOptions, LayoutCell, MountTarget, ViewDefinition, ViewHost, ViewReference } from "../../api/types";
+import type { AppWindow, Application, Component, ComponentOptions, LayoutCell, MountTarget, ViewDefinition, ViewHost, ViewReference } from "../api/types";
 
 /** The internal widget a facade owns: its root Layout, created into the given container, and its release. */
 export type Engine = { readonly layout: Layout; destroy(): void };

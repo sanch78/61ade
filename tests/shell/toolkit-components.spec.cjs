@@ -3,8 +3,8 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {execFileSync}=require('node:child_process');
 const {signIn,openMenu,api}=require('./feature-demo.cjs');
-// Toolkit P3 C-2 (docs/toolkit.md#components, #uploads): the public Calendar and DiagramEditor components and
-// app.uploads, driven from a project module on the managed feature demo. The module is a test fixture: the spec
+// Toolkit P3 C-2 (docs/toolkit.md#components, #uploads): the public Calendar, DiagramEditor, FileManager and
+// FilePicker components and app.uploads, driven from a project module on the managed feature demo. The module is a test fixture: the spec
 // adds it to the signed-in bootstrap `modules` and serves it itself; it only hands `app` to the page.
 // Diagrams and files created here carry the run prefix and are removed afterwards.
 const prefix='pk'+Date.now().toString(36);
@@ -44,13 +44,13 @@ async function start(page,email='demo@example.test'){
  await loaded(page);
 }
 const errors=page=>{const list=[];page.on('pageerror',error=>list.push(error.message));return list;};
-/** A project Layout over the workspace: cells `calendar` and `diagram`. */
-const layout=page=>page.evaluate(()=>{
+/** A project Layout over the workspace: by default cells `calendar` and `diagram`. */
+const layout=(page,cells=['calendar','diagram'])=>page.evaluate(cells=>{
  const app=window.__bladeApp,box=document.createElement('div');
  box.id='toolkit-fixture';Object.assign(box.style,{position:'fixed',left:'16px',right:'16px',top:'110px',bottom:'40px',zIndex:'5',background:'var(--dhx-background-primary, #fff)'});
  document.body.append(box);
- window.__fixtureLayout=new app.dhx.Layout(box,{type:'line',cols:[{id:'calendar'},{id:'diagram'}]});
-});
+ window.__fixtureLayout=new app.dhx.Layout(box,{type:'line',cols:cells.map(id=>({id}))});
+},cells);
 const inFixture=(page,selector)=>page.locator('#toolkit-fixture '+selector);
 // The fixture box is hidden (still mounted) while the shell's theme selector is used.
 const toggleTheme=async(page,name)=>{
@@ -209,5 +209,108 @@ test('app.uploads opens the shared uploader for the demo files target and report
  await page.evaluate(()=>window.__bladeApp.uploads.reopen());await expect(uploader).toBeVisible();
  await expect(uploader.locator('.blade-uploader__file',{hasText:name})).toBeVisible();
  await uploader.getByRole('button',{name:'Bezárás',exact:true}).click();
+ expect(failures).toEqual([]);
+});
+
+/** The seeded demo image in the Signage mount root (signage demo); nothing is created for the file components. */
+async function demoImage(page){
+ const root=(await api(page,'files','tree','signage')).body.data.root;
+ return String((await api(page,'files','list',root,{search:'minta-fraktal'})).body.data.items.find(item=>item.name==='minta-fraktal.jpg').id);
+}
+const fileRow=(scope,name)=>scope.locator('.dhx_grid-row').filter({has:scope.page().getByRole('gridcell',{name,exact:true})});
+const viewer=page=>page.getByRole('dialog').filter({has:page.locator('.blade-document__bar')}).last();
+
+test('FileManager mounts in a project Layout cell, reports opened, follows the theme and releases its windows on destroy',async({page})=>{
+ test.setTimeout(90000);
+ const failures=errors(page);await start(page);
+ const image=await demoImage(page);
+ await layout(page,['files']);
+ await page.evaluate(()=>{
+  const C=window.__bladeApp.components;
+  window.__files=new C.FileManager({view:'files'});window.__opened=[];
+  window.__files.on('opened',file=>window.__opened.push(file));
+  window.__files.mount(window.__fixtureLayout.getCell('files'));
+ });
+ const left=inFixture(page,'[data-cell-id="panel-0"]');
+ await expect(left.locator('.dhx_grid-row').first()).toBeVisible();
+ await expect(inFixture(page,'[data-cell-id="panel-1"] .dhx_grid-row').first()).toBeVisible();
+ // A view that is not offered is an Error, a view of another kind a TypeError.
+ expect(await page.evaluate(()=>{try{new window.__bladeApp.components.FileManager({view:'missing_view'});return 'created';}catch(error){return error.message;}})).toMatch(/not offered/);
+ expect(await page.evaluate(()=>{try{new window.__bladeApp.components.FileManager({view:'signage_schedule'});return 'created';}catch(error){return error.name;}})).toBe('TypeError');
+ // The panels work like the built-in view: another mount, the viewer on double-click, `opened` with id and type.
+ await left.locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Signage',exact:true}).click();
+ await expect(left.locator('.dhx_layout-cell-header__title').first()).toHaveText('Signage:/');
+ await fileRow(left,'minta-fraktal.jpg').dblclick();
+ await expect(viewer(page).getByRole('img',{name:'minta-fraktal.jpg'})).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>window.__opened)).toEqual([{id:image,mime_type:'image/jpeg'}]);
+ await viewer(page).getByRole('button',{name:/close/i}).click();await expect(viewer(page)).toHaveCount(0);
+ // Theme: the panels repaint with the Suite theme variables while mounted.
+ const color=()=>left.locator('.dhx_grid-cell').first().evaluate(element=>getComputedStyle(element).color);
+ const light=await color();
+ await toggleTheme(page,'Éjjeli');await expect.poll(color).not.toBe(light);
+ await toggleTheme(page,'Skyblue');await expect.poll(color).toBe(light);
+ // Destroy with the viewer open: the window goes with the component, the cell holds nothing, events stop.
+ await fileRow(left,'minta-fraktal.jpg').dblclick();await expect(viewer(page)).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>window.__opened.length)).toBe(2);
+ await page.evaluate(()=>{window.__files.destroy();window.__files.destroy();});
+ await expect(viewer(page)).toHaveCount(0);await expect(inFixture(page,'.blade-file-panels')).toHaveCount(0);
+ expect(await page.evaluate(()=>window.__fixtureLayout.getCell('files').getWidget()??null)).toBeNull();
+ expect(await page.evaluate(()=>{try{window.__files.mount(document.body);return 'mounted';}catch(error){return error.message;}})).toMatch(/destroyed/);
+ expect(await page.evaluate(()=>window.__opened.length)).toBe(2);
+ await page.evaluate(()=>{window.__fixtureLayout.destructor();document.getElementById('toolkit-fixture').remove();});
+ // In an app.ui window: closing the window destroys the component (its signal).
+ await page.evaluate(()=>{
+  const app=window.__bladeApp;
+  window.__win=app.ui.window({title:'Fájlkezelő komponens',width:1200,height:760,fit:false});
+  window.__files=new app.components.FileManager({view:'files',signal:window.__win.signal});window.__files.mount(window.__win);
+ });
+ const win=page.locator('.blade-content-window').filter({hasText:'Fájlkezelő komponens'});
+ await expect(win.locator('[data-cell-id="panel-0"] .dhx_grid-row').first()).toBeVisible();
+ await page.evaluate(()=>window.__win.close());await expect(win).toHaveCount(0);
+ expect(await page.evaluate(()=>{try{window.__files.mount(document.body);return 'mounted';}catch(error){return error.message;}})).toMatch(/destroyed/);
+ expect(failures).toEqual([]);
+});
+
+test('FilePicker.pick resolves the chosen demo image as a MediaDescriptor, and null on Cancel, Escape and abort',async({page})=>{
+ const failures=errors(page);await start(page);
+ const image=await demoImage(page);
+ // The file field of the signage asset form (Signage mount, images and videos).
+ await page.evaluate(async()=>{
+  const app=window.__bladeApp,{fields}=await app.server.form('signage_assets','create');
+  window.__field=fields.find(field=>field.type==='file');
+  window.__pick=options=>{window.__result='pending';app.components.FilePicker.pick({field:window.__field.file,title:window.__field.label,...options}).then(media=>{window.__result=media;});};
+  window.__pick({});
+ });
+ const result=()=>page.evaluate(()=>window.__result);
+ const box=page.getByRole('dialog',{name:/^Fájl kiválasztása: /});
+ await expect(box.locator('.blade-grid-tile').first()).toBeVisible();
+ const find=box.getByRole('textbox',{name:'Keresés',exact:true});await expect(find).toBeFocused();
+ await find.fill('minta-fraktal');await find.press('Enter');
+ await expect(box.locator('.blade-grid-tile')).toHaveCount(1);
+ await box.locator('.blade-grid-tile').filter({hasText:'minta-fraktal.jpg'}).dblclick();
+ await expect(box).toHaveCount(0);
+ await expect.poll(result).not.toBe('pending');
+ const media=await result();
+ expect(Object.keys(media).sort()).toEqual(['duration_ms','height','id','mime_type','name','revision','thumbnail','width']);
+ expect(media).toMatchObject({id:image,name:'minta-fraktal.jpg',mime_type:'image/jpeg',width:1600,height:1000,duration_ms:null});
+ expect(media.revision).toMatch(/^\d+$/);expect(['ready','pending','failed','none']).toContain(media.thumbnail);
+ // `current` preselects the file; Cancel resolves null.
+ await page.evaluate(id=>window.__pick({current:id}),image);
+ await expect(box.locator('.blade-grid-tile').first()).toBeVisible();
+ await expect(box.getByRole('button',{name:'Kiválasztás',exact:true})).toBeEnabled();
+ await box.getByRole('button',{name:'Mégse',exact:true}).click();await expect(box).toHaveCount(0);
+ await expect.poll(result).toBeNull();
+ // Escape resolves null.
+ await page.evaluate(()=>window.__pick({}));await expect(box.locator('.blade-grid-tile').first()).toBeVisible();
+ await expect(box.getByRole('textbox',{name:'Keresés',exact:true})).toBeFocused();
+ await page.keyboard.press('Escape');await expect(box).toHaveCount(0);await expect.poll(result).toBeNull();
+ // Aborting the signal closes the picker and resolves null; an aborted signal opens nothing.
+ await page.evaluate(()=>{window.__abort=new AbortController();window.__pick({signal:window.__abort.signal});});
+ await expect(box).toBeVisible();await page.evaluate(()=>window.__abort.abort());
+ await expect(box).toHaveCount(0);await expect.poll(result).toBeNull();
+ await page.evaluate(()=>window.__pick({signal:AbortSignal.abort()}));await expect.poll(result).toBeNull();await expect(box).toHaveCount(0);
+ // A malformed field configuration throws a TypeError before anything opens.
+ expect(await page.evaluate(()=>{try{window.__bladeApp.components.FilePicker.pick({field:{resource:'files'},title:'x'});return 'opened';}catch(error){return error.name;}})).toBe('TypeError');
+ await expect(box).toHaveCount(0);
  expect(failures).toEqual([]);
 });
