@@ -211,7 +211,7 @@ final class TaskQueue
             ignore_user_abort(true);
             $this->run();
         } catch (\Throwable $error) {
-            error_log('61de tasks: '.get_class($error));
+            error_log('61ade tasks: '.get_class($error));
         }
     }
 }

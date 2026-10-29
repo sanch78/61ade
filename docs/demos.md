@@ -28,7 +28,7 @@ has its own application instead of entering the full feature demo. The full
 demo and the starter admin keep tenancy off, which is what keeps their
 behavior, rendering and suites unchanged (the exception to the
 [continuous extension](#continuous-extension-mandatory) rule).
-Tenants `Alfa` and `Béta`; password `61de-demo`:
+Tenants `Alfa` and `Béta`; password `61ade-demo`:
 
 | Account | Memberships | Shows |
 | --- | --- | --- |
@@ -48,7 +48,7 @@ the same `setup-workspace.php` run.
 Menu: `Adminisztráció` → Users, Roles, Role memberships, Role permissions and
 Individual permissions, plus the root `API-kulcsok` item. No business modules. Hungarian/English
 selector and per-account default language. Login:
-`demo@example.test` / `61de-demo`; the first admin comes from explicit
+`demo@example.test` / `61ade-demo`; the first admin comes from explicit
 `Permissions::grantAdministration` in setup.
 
 Assembly is account mapping plus [Administration::register](admin.md#kötelező-adminmodul-egy-lépésben).
@@ -60,8 +60,8 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 
 | Area | Demonstration | Try |
 | --- | --- | --- |
-| Password login | E-mail/password, 90-day remember option | `demo@example.test` / `61de-demo` |
-| E-mail second factor | Code after password; formatted message with project text/color overrides | `twofactor@example.test` / `61de-demo`; code in [mailbox](#demó-postafiók-mailbox) |
+| Password login | E-mail/password, 90-day remember option | `demo@example.test` / `61ade-demo` |
+| E-mail second factor | Code after password; formatted message with project text/color overrides | `twofactor@example.test` / `61ade-demo`; code in [mailbox](#demó-postafiók-mailbox) |
 | OAuth (AuthHandler) | External-account button → native provider overlay; existing OAuth-enabled accounts only, no password | Native Google/Facebook buttons; missing keys show setup feedback, configured keys start the real provider flow; [setup](authentication.md#szolgáltatói-beállítás-google-facebook), HTTPS required |
 | Language | Hungarian/English selector before theme, language row in login form, account default used for login and mail | `twofactor@example.test` defaults to English |
 | User admin | Disabled, OAuth, e-mail confirmation, default language as form/grid checkbox/select | Administration → Users |
@@ -82,7 +82,7 @@ Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
 `twofactor@example.test` (code, English default), `oauth@example.test`
 (OAuth only; random unknown password), `reader@example.test` (read-only Tasks
-without the description field; file manager browse/read only). Shared synthetic password: `61de-demo`.
+without the description field; file manager browse/read only). Shared synthetic password: `61ade-demo`.
 Setup adds missing synthetic accounts to an existing database without changing
 existing ones; an account added later takes the next free id.
 
@@ -121,7 +121,7 @@ sandboxed frame.
 
 `/mailbox/` is a test double for an external recipient mail client, not an
 admin interface. Extending the framework cannot replace the external party
-being simulated. Boundary: demo/tests only, no 61de admin functionality, never
+being simulated. Boundary: demo/tests only, no 61ade admin functionality, never
 a consumer operational interface.
 
 <a id="webszerveres-futtatás-apache--php-fpm"></a>

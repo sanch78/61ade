@@ -4,15 +4,15 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dc06658316c7b0352e45aa6e6657124d",
+    "content-hash": "bde12edc30bd365923def4acf8f28c56",
     "packages": [
         {
-            "name": "sanch78/61de",
+            "name": "sanch78/61ade",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../../packages/php",
-                "reference": "185b939df1f33dfdbb0f09102dbfffc70f9e42f7"
+                "reference": "99b485bb6c2e63c1061118d08bb2af1423aad2c0"
             },
             "require": {
                 "php": "^8.4"
@@ -23,7 +23,7 @@
                     "Blade\\": "src/"
                 }
             },
-            "description": "61de admin framework — reusable login and navigation shell",
+            "description": "61ade admin framework — reusable login and navigation shell",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -34,7 +34,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "sanch78/61de": 20
+        "sanch78/61ade": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,

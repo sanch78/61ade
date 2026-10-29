@@ -4,10 +4,10 @@
 
 ## Two separate repositories
 
-- `/space/share/libs/61ade`: canonical **61de** checkout on `catalyst`. The owner renamed the repository; use its configured Git remote. [Environment contract](development.md#development-environment): development only, with no deployment or project backup workflow.
+- `/space/share/libs/61ade`: canonical **61ade** checkout on `catalyst`. The owner renamed the repository; use its configured Git remote. [Environment contract](development.md#development-environment): development only, with no deployment or project backup workflow.
 - `/space/apps/cityscreen`: the existing consumer repository; `v2/` is its planned new admin location.
 - Consumer editor symlinks are conveniences. Verify their targets in the consumer project; a historical framework path does not establish a valid link after renaming.
-- Dependency direction is CityScreen → 61de. Reverse dependencies, includes of CityScreen source and application globals accessed from 61de are forbidden.
+- Dependency direction is CityScreen → 61ade. Reverse dependencies, includes of CityScreen source and application globals accessed from 61ade are forbidden.
 
 ## Backend
 
@@ -61,7 +61,7 @@ CityScreen `v2/src/Modules` owns feature definitions, domain models, use cases,
 repository implementations, business policies and jobs. Concrete DMS, map, mail
 and content-source integrations belong in `v2/src/Integrations`. Consumer frontend
 extensions are permitted only within the documented framework-first exception;
-missing general renderer capabilities must first be added to 61de.
+missing general renderer capabilities must first be added to 61ade.
 
-Both 61de packages share a repository because they implement one protocol.
+Both 61ade packages share a repository because they implement one protocol.
 The consumer application never belongs in this repository.

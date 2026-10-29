@@ -1,7 +1,7 @@
 {
-  "name": "@61de/admin",
+  "name": "@61ade/admin",
   "private": true,
-  "description": "61de admin shell and DHTMLX navigation",
+  "description": "61ade admin shell and DHTMLX navigation",
   "type": "module",
   "exports": {
     "./admin.js": "./dist/admin.js",
@@ -16,6 +16,6 @@
     "dhtmlx-scheduler": "7.2.15"
   },
   "bin": {
-    "61de-assets": "bin/publish.mjs"
+    "61ade-assets": "bin/publish.mjs"
   }
 }

@@ -18,13 +18,13 @@ coverage requirement. The foundation is DHTMLX; capabilities grow with actual ne
 
 ## Project identity and environment
 
-**61de** lives at `/space/share/libs/61ade`. Its only environment is
+**61ade** lives at `/space/share/libs/61ade`. Its only environment is
 https://61ade.sanch.hu/, used directly for development and testing.
 There is no production, deployment, post-deployment testing or project backup
 workflow ([FB-0049](feedback.md#fb-0049), [FB-0051](feedback.md#fb-0051)).
 R1–R12 remain applicable; consumer release references apply only to consumers'
 own contracts. Naming ([FB-0050](feedback.md#fb-0050)): product/packages
-`61de`, PHP `Blade\`, env `BLADE_*`, technical prefix `blade`.
+`61ade`, PHP `Blade\`, env `BLADE_*`, technical prefix `blade`.
 [Migration](renaming.md) is explicit, never an HTTP-request side effect.
 
 <a id="1-elfogadott-termékkövetelmények"></a>
@@ -34,10 +34,10 @@ own contracts. Naming ([FB-0050](feedback.md#fb-0050)): product/packages
 | # | Requirement |
 | --- | --- |
 | R1 | **Framework/contract.** Reusable admin framework with PHP reference backend and versioned language-independent frontend JSON contract. JSON transport alone does not prove independence: documented schema, versioning and language-independent conformance checks are required. |
-| R2 | **Mandatory framework use.** Applications use 61de tools. Extend missing reusable capabilities first, then configure consumers. Only the documented logically-unextendable [framework-first exception](development.md#mandatory-framework-development-rules) is allowed; convenience is insufficient. |
-| R3 | **Frontend.** Fullscreen HTML5 using bundled DHTMLX, 61de adapters and supported extension points. Layout is foundational. Forms/layouts/grids grow to serve complex ergonomic workflows as needs arise. |
+| R2 | **Mandatory framework use.** Applications use 61ade tools. Extend missing reusable capabilities first, then configure consumers. Only the documented logically-unextendable [framework-first exception](development.md#mandatory-framework-development-rules) is allowed; convenience is insufficient. |
+| R3 | **Frontend.** Fullscreen HTML5 using bundled DHTMLX, 61ade adapters and supported extension points. Layout is foundational. Forms/layouts/grids grow to serve complex ergonomic workflows as needs arise. |
 | R4 | **Localization/themes.** Both are built in; every new capability participates. |
-| R5 | **Mandatory administration.** Every application uses framework-owned user, ACL, API-key and system/audit-log admin built from 61de declarations/tools. Consumers supply configuration, identity/storage adapters and domain rules. Supersedes application-only user admin in FB-0004/ADR-0002. |
+| R5 | **Mandatory administration.** Every application uses framework-owned user, ACL, API-key and system/audit-log admin built from 61ade declarations/tools. Consumers supply configuration, identity/storage adapters and domain rules. Supersedes application-only user admin in FB-0004/ADR-0002. |
 | R6 | **Users.** E-mail, password, full name, per-user Google/Facebook permission and configurable e-mail login verification. |
 | R7 | **Storage.** Targets: MySQL, PostgreSQL, SQLite, JSON files; demo uses SQLite. Support means meeting section 3 guarantees, not merely opening a connection. |
 | R8 | **Modular JSON.** Application structure and declarative business definitions use structured JSON; complex behavior uses explicitly registered handlers. No executable strings, eval or unrestricted scripting. |
@@ -180,7 +180,7 @@ This does not require a second backend or all four stores at once.
 4. Synthetic demo/relevant tests through public interfaces; denial/validation/concurrency checks where applicable.
 5. Update [usage](usage.md) and topic documentation in the same batch.
 6. Consumer configuration and integration verification in that consumer.
-7. Any consumer release follows its own version/compatibility/migration/recovery contract; 61de itself is developed/tested directly without deployment or backups.
+7. Any consumer release follows its own version/compatibility/migration/recovery contract; 61ade itself is developed/tested directly without deployment or backups.
 
 <a id="angol-indítóprompt-claude-számára"></a>
 
@@ -192,7 +192,7 @@ boundaries; Project URLs; Project UX; Minimal implementation; Installed
 tooling; Segmented tests and deployment gate; Implementation, validation
 and completion.
 
-Work on a bounded 61de increment. Read AGENTS.md, docs/usage.md,
+Work on a bounded 61ade increment. Read AGENTS.md, docs/usage.md,
 docs/feedback.md, docs/product-direction.md, the affected topic guide and
 actual source. First check the requested goal and proposed route against
 current evidence; explain a simpler supported alternative if warranted.
@@ -205,7 +205,7 @@ deployment, post-deployment testing or project backup process. Preserve
 existing changes and the read-only shared library and _AuthHandler.
 
 Follow R1–R12 and ADR-0003. Distinguish accepted requirements, verified
-implementation and open proposals. Build general capabilities with 61de
+implementation and open proposals. Build general capabilities with 61ade
 definitions, DHTMLX adapters and the shared authorization, validation,
 transaction and audit services. Consumers supply configuration and domain
 adapters, never replacement admin infrastructure. No external framework

@@ -163,7 +163,7 @@ final class Executor
             $this->journal->record($ctx->actor->id,$ctx->channel,substr($resource,0,100),substr($name,0,100),substr($id ?? '',0,100),$error instanceof Failure ? 'rejected' : 'error',$fields,$detail,$ctx->tenant);
             if ($error instanceof Failure) throw $error;
             // Developer errors (a misconfigured definition) reach the server log; the caller sees the generic 500.
-            if ($error instanceof \LogicException) error_log('61de: '.$resource.'.'.$name.': '.$error->getMessage());
+            if ($error instanceof \LogicException) error_log('61ade: '.$resource.'.'.$name.': '.$error->getMessage());
             if ($error instanceof \PDOException && str_starts_with((string)$error->getCode(),'23')) throw new Failure('Az adat már létezik, vagy hivatkozási feltételt sért.',409);
             throw new Failure('A művelet nem hajtható végre.',500);
         }

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Blade\Shell;
 
-/** Maps an explicitly declared account schema; no application table names in 61de. */
+/** Maps an explicitly declared account schema; no application table names in 61ade. */
 final class SqlIdentityProvider implements IdentityProvider
 {
     public function __construct(

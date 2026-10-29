@@ -10,7 +10,7 @@ use Blade\Feature\{Context, Failure, Field, Lookup, Registry, SqlResource, Works
 use Blade\Shell\IdentityProvider;
 
 /**
- * Built-in role, membership and rule administration over the 61de ACL tables.
+ * Built-in role, membership and rule administration over the 61ade ACL tables.
  * Choices come from the definition catalogue; nothing is granted automatically.
  * The protected role always keeps at least one active member and its admin rules.
  */
@@ -152,7 +152,7 @@ final class Permissions
             throw new Failure('Objektumazonosító pontosan a „Konkrét objektum” hatókörnél kell.', 400, ['object_id' => 'Objektumazonosító pontosan a „Konkrét objektum” hatókörnél kell.']);
         }
         if ($rule['effect'] === 'deny' && in_array($rule['resource'], self::ADMIN_RESOURCES, true)) {
-            throw new Failure('61de-adminerőforrásra tiltó szabály a felületen nem hozható létre.', 403);
+            throw new Failure('61ade-adminerőforrásra tiltó szabály a felületen nem hozható létre.', 403);
         }
     }
 

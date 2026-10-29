@@ -48,7 +48,7 @@ class Modal {
 const scope = window as unknown as { bootstrap?: { Modal?: unknown }; authHandler?: Handler };
 if (!scope.bootstrap?.Modal) scope.bootstrap = { ...scope.bootstrap, Modal };
 
-/** Opens AuthHandler's own provider overlay; the provider round trip returns to the 61de page. */
+/** Opens AuthHandler's own provider overlay; the provider round trip returns to the 61ade page. */
 export function openExternalSignIn(remember: boolean): boolean {
   const handler = scope.authHandler;
   if (!handler) return false;

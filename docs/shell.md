@@ -1,6 +1,6 @@
-# 61de application foundation: login, menu and workspace
+# 61ade application foundation: login, menu and workspace
 
-Mandatory direction: [61de = ADE v2](decisions/0002-framework-first.md).
+Mandatory direction: [61ade = ADE v2](decisions/0002-framework-first.md).
 The framework owns general behavior and DHTMLX controls; consumers provide
 application definitions and business adapters. The initial capability is
 DHTMLX Window/Form login, Menu, Toolbar and Layout with an empty workspace.
@@ -58,7 +58,7 @@ $menu = new Menu([
 ]);
 ```
 
-61de validates unique stable IDs across the tree, evaluates `visible`
+61ade validates unique stable IDs across the tree, evaluates `visible`
 server-side and omits empty branches. Browsers receive only `id`, `label`,
 `items`, `disabled`; never callbacks, SQL or account attributes.
 The consumer hierarchy renders recursively as native DHTMLX Menu.
@@ -95,7 +95,7 @@ npm run build
 ```
 
 Consumers prepare assets using the package's
-`61de-assets <public-assets-directory>` command. The package owns this utility;
+`61ade-assets <public-assets-directory>` command. The package owns this utility;
 consumers need no asset assembler. `assets/admin.js` and `assets/admin.css`
 are required beside the PHP entrypoint.
 
@@ -121,7 +121,7 @@ npm run test:browser -- --project=shell tests/shell/browser.spec.cjs
 ```
 
 Open https://61ade.sanch.hu/ or https://61ade.sanch.hu/admin/.
-Synthetic login: `demo@example.test` / `61de-demo`; more accounts are in
+Synthetic login: `demo@example.test` / `61ade-demo`; more accounts are in
 [demos](demos.md). `BLADE_PHP` may select a PHP 8.4+ wrapper loading PDO SQLite.
 Use existing web-instance setup only when required, as documented in demos.
 

@@ -1,27 +1,52 @@
 # Naming and migration
 
-Decision: 2026-10-21, [FB-0050](feedback.md#fb-0050). The product is **61de**.
-The owner selected **blade** wherever the leading digit cannot be used as an
+Decision: 2026-10-21, [FB-0050](feedback.md#fb-0050); name corrected
+2026-10-29, [FB-0070](feedback.md#fb-0070). The product is **61ade**, the same
+spelling as the repository, checkout and hostname. The owner selected **blade**
+(the letter reading of 61ade) wherever the leading digit cannot be used as an
 identifier. This is a breaking interface rename, with no old-name aliases.
 
 | Surface | Current spelling |
 | --- | --- |
-| Product and demo titles | `61de` |
-| PHP package / PSR-4 namespace | `sanch78/61de` / `Blade\` |
-| Frontend package / asset command | `@61de/admin` / `61de-assets` |
+| Product and demo titles | `61ade` |
+| PHP package / PSR-4 namespace | `sanch78/61ade` / `Blade\` |
+| Frontend package / asset command | `@61ade/admin` / `61ade-assets` |
 | Environment variables | `BLADE_*`, including `BLADE_TMP_DIR`, `BLADE_PHP`, `BLADE_DEMO_URL` |
 | SQL tables, built-in resources and fields | `blade_*` |
 | DOM IDs, CSS classes and custom properties | `blade-*`, `--blade-*`, `data-blade-*` |
 | UI preferences | `blade-ui:1:` local-storage namespace |
 | Workspace / OAuth bootstrap query | `?blade=1` / `?blade_auth=bootstrap` |
 | HTTP headers | `X-BLADE-CSRF`, `X-BLADE-Locale`, `X-BLADE-HTTPS`, `X-BLADE-Client-IP` |
-| Demo password | `61de-demo` (synthetic accounts only) |
+| Demo password | `61ade-demo` (synthetic accounts only) |
 | Repository, checkout, development URL | `sanch78/61ade`, `/space/share/libs/61ade`, `https://61ade.sanch.hu/` |
 
 The single development environment, direct source use and absence of deployment
 and project backup workflows remain as defined in [development](development.md#development-environment).
-The repository/path/hostname spelling is an existing assigned location, not an
-identifier to reconstruct from the package name.
+Product, packages, repository, checkout and hostname all use `61ade`.
+
+## 61de → 61ade correction (2026-10-29)
+
+The 2026-10-21 rename recorded the product as `61de`, a misspelling of the
+requested `61ade`. The correction renames only these surfaces; `Blade\`,
+`BLADE_*`, `blade_*` and every other identifier in the table stay unchanged:
+
+| Surface | Before | Now |
+| --- | --- | --- |
+| Product and demo titles | `61de` | `61ade` |
+| PHP package | `sanch78/61de` | `sanch78/61ade` |
+| Frontend package / asset command | `@61de/admin` / `61de-assets` | `@61ade/admin` / `61ade-assets` |
+| Consumer skill | `61de-consumer` | `61ade-consumer` |
+| Recommended consumer links | `lib/61de`, `public/assets/61de` | `lib/61ade`, `public/assets/61ade` |
+| Demo password | `61de-demo` | `61ade-demo` |
+
+No database, session, header, preference or file path inside the packages
+changes, so an existing consumer keeps working on its old link names. A
+consumer migrates by renaming its links and every reference to them (autoloader
+path, includes, `.deploy.json` `shared_assets` targets, asset URLs, live-server
+command), and a `sanch78/61de` Composer requirement to `sanch78/61ade`. For this
+checkout, the synthetic accounts that still used `61de-demo` in the retained
+`tmp/{web,demo}` and `tmp/contracts-demo/demo` databases were rehashed to
+`61ade-demo`; customized passwords were preserved.
 
 ## Consumers and private configuration
 
@@ -73,7 +98,7 @@ prefix (without a trailing underscore). Supply the actual previous prefix;
 `legacy` is only a synthetic example:
 
 ```php
-$migrate = require '/path/to/61de/packages/php/migrations/0001-rename-prefix.php';
+$migrate = require '/path/to/61ade/packages/php/migrations/0001-rename-prefix.php';
 $db = new PDO('sqlite:/path/to/consumer.sqlite', options: [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
@@ -94,7 +119,8 @@ historical schema needs its own reviewed migration. It does not rewrite consumer
 business data or reset consumer passwords. For this checkout only, the four
 synthetic `tmp/{web,demo}/{features,admin}.sqlite` databases were migrated;
 accounts still using the previous documented demo password were changed to
-`61de-demo`. Customized passwords were preserved.
+`61de-demo` (now `61ade-demo`, see the correction above). Customized passwords
+were preserved.
 
 ## Verification
 

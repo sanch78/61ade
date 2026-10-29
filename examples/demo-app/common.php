@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Shared synthetic demo settings. The feature demo (/) and the base admin demo (/admin/)
- * are two independent 61de applications with their own SQLite database and session.
+ * are two independent 61ade applications with their own SQLite database and session.
  */
 /**
  * Instance data directory. BLADE_DEMO_INSTANCE separates the web server copy ("web", set in

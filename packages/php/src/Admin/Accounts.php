@@ -13,7 +13,7 @@ use Blade\Shell\IdentityProvider;
 
 /**
  * Framework-owned user administration over the consumer's mapped account table.
- * 61de state (disabled, forced password change, OAuth permission, default language)
+ * 61ade state (disabled, forced password change, OAuth permission, default language)
  * lives in blade_account_state, so the consumer schema is not altered. The sign-in
  * identifier is the e-mail address. Account switches are plain checkbox fields on
  * the form and the grid; there are no single-purpose toggle actions.

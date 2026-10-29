@@ -11,7 +11,7 @@ test('framework language works before login, persists through login, translates 
  const language=page.getByRole('dialog').locator('.dhx_layout-cell.blade-language-field');await expect(language).toHaveClass(/blade-language-field--hu/);await language.locator('input').click();
  await expect(page.locator('.dhx_combobox-options .blade-language-flag--gb')).toBeVisible();await page.locator('.dhx_combobox-options').getByText('English',{exact:true}).click();
  await expect(page.getByRole('dialog',{name:'Sign in',exact:true})).toBeVisible();
- await page.getByLabel('Email',{exact:true}).fill('demo@example.test');await page.getByLabel('Password',{exact:true}).fill('61de-demo');await page.getByRole('button',{name:'Sign in',exact:true}).click();
+ await page.getByLabel('Email',{exact:true}).fill('demo@example.test');await page.getByLabel('Password',{exact:true}).fill('61ade-demo');await page.getByRole('button',{name:'Sign in',exact:true}).click();
  await openView(page,'Tasks','Feature demo');
  await expect(page.getByRole('button',{name:'Actions',exact:true})).toBeVisible();
  await expect(page.locator('[role="columnheader"][data-dhx-id="title"]').filter({hasText:'Name'}).first()).toContainText('Name');

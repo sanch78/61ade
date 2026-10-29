@@ -40,4 +40,4 @@ check($db->query('SELECT owner_id FROM records WHERE record_id='.(int)$created['
 $db->exec("CREATE TRIGGER fail_audit BEFORE INSERT ON blade_audit BEGIN SELECT RAISE(FAIL,'audit offline'); END");
 try{$call('update','1',['title'=>'Not committed','revision'=>$row['revision']]);}catch(Throwable){}
 check($db->query('SELECT title FROM records WHERE record_id=1')->fetchColumn()==='Updated','Audit failure rolls back write');
-echo "61de ACL, API scope, fields, concurrency and atomic audit tests passed.\n";
+echo "61ade ACL, API scope, fields, concurrency and atomic audit tests passed.\n";

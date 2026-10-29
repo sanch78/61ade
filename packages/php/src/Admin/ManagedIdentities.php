@@ -7,7 +7,7 @@ namespace Blade\Admin;
 use Blade\Shell\Identity;
 use Blade\Shell\IdentityProvider;
 
-/** Adds 61de account state to the consumer's identity mapping; both must allow the account. */
+/** Adds 61ade account state to the consumer's identity mapping; both must allow the account. */
 final readonly class ManagedIdentities implements IdentityProvider
 {
     public function __construct(private IdentityProvider $inner, private Accounts $accounts)

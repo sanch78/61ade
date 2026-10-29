@@ -81,7 +81,7 @@ Historically inspected synthetic images: presentation-real-cards.png,
 cityscreen-cards-skyblue.png, confirmation-skyblue.png; actual consumer dev:
 dev-login-compact.png. Historical artifact root:
 `/space/share/tmp/dev.cityscreen.hu/runtime/blade-ui/`. This records earlier
-consumer evidence, not a current 61de scratch location or permission to change it.
+consumer evidence, not a current 61ade scratch location or permission to change it.
 All recorded Playwright runs used the existing guarded system runner.
 
 <a id="fb-0024--kártyaszerkesztés-és-ablakok-2026-10-17"></a>

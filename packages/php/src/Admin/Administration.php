@@ -8,7 +8,7 @@ use Blade\Feature\Workspace;
 use Blade\Shell\IdentityProvider;
 
 /**
- * The mandatory administration every 61de application starts with: users, roles,
+ * The mandatory administration every 61ade application starts with: users, roles,
  * memberships and role/user rules, with the API-key view registered at the root. With tenancy on the
  * workspace it adds the tenant view, tenant memberships on the Users form and tenant-bound API keys.
  * Returns the managed identity provider that the application definition must use.

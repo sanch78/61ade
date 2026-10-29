@@ -172,4 +172,4 @@ try{
     }
     verify(substr_count((string)file_get_contents($log),"Delete policy 'archive' of plain needs the columns archived_at (NULL) and archived_by on plain.")===3,'Developer error names the missing columns');
 }finally{ini_set('error_log',(string)$previousLog);@unlink($log);}
-echo "61de dynamic list, scope, filters, external changes, layout, media, class filter, search, archive policy and computed column tests passed.\n";
+echo "61ade dynamic list, scope, filters, external changes, layout, media, class filter, search, archive policy and computed column tests passed.\n";

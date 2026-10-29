@@ -79,7 +79,7 @@ configuration ([placeholders and checks](authentication.md#levélküldés)):
 ```
 
 The helper accepts only `cyberspace.hu` senders by default; another domain is
-an Infra decision. Exit code 0 means local MTA acceptance only; 61de never
+an Infra decision. Exit code 0 means local MTA acceptance only; 61ade never
 retries. A manual run of the helper sends real mail, so test only with the
 owner's own address. `/usr/sbin/sendmail -t -i` reads MIME on stdin and is not
 supported by this delivery.
@@ -108,7 +108,7 @@ Complete synthetic example: [notes.json](../tests/fixtures/configuration/notes.j
 The compiler builds lookups/SQL resources, then custom actions, then views.
 Views may therefore reference actions declared later in the same or another
 module. Unknown keys, bindings, lookups, action resources and duplicate definitions
-fail. The PHP definition API remains available; JSON builds the same 61de classes.
+fail. The PHP definition API remains available; JSON builds the same 61ade classes.
 
 `workspaceBindings` is a `(Workspace, Registry): array` closure returning an
 explicit name → closure map. JSON cannot discover arbitrary PHP functions.

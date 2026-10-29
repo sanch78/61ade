@@ -1,4 +1,4 @@
-# 61de development plan
+# 61ade development plan
 
 Status: initial login/navigation shell/build after M0, 2026-10-16.
 Parts of M1/M2/M4 exist; full milestones remain open. Order indicates dependency,
@@ -178,7 +178,7 @@ dependent flows. Map old/new capabilities; do not copy known defects automatical
 Consumer acceptance includes tests/role walkthroughs/data retention/integrations,
 one designated writer and its documented recovery process. Irreversible data
 conversion needs data recovery, not merely switching application versions.
-This describes consumer responsibilities, not a 61de backup workflow.
+This describes consumer responsibilities, not a 61ade backup workflow.
 
 <a id="a3--teljes-admin-kiváltása"></a>
 

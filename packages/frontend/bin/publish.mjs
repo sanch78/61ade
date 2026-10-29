@@ -3,7 +3,7 @@ import { mkdir, copyFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const target = process.argv[2];
-if (!target) throw new Error("Usage: 61de-assets <public-assets-directory>");
+if (!target) throw new Error("Usage: 61ade-assets <public-assets-directory>");
 await mkdir(target, { recursive: true });
 for (const name of ["admin.js", "admin.css"]) {
     await copyFile(
@@ -11,4 +11,4 @@ for (const name of ["admin.js", "admin.css"]) {
         path.join(target, name),
     );
 }
-console.log(`61de assets: ${path.resolve(target)}`);
+console.log(`61ade assets: ${path.resolve(target)}`);

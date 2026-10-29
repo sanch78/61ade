@@ -64,4 +64,4 @@ $live=$w->observe($context,'records',['limit'=>10,'front'=>false,'first'=>$ancho
 verify($live['total']===count($expected)+1&&$live['matched']===count($expected)+1,'Live counts include changes outside the visible window');
 verify($live['items'][0]['_number']===$middle['items'][0]['_number']+1,'External insertion before a live window shifts its global rank');
 $db->exec('DELETE FROM records WHERE record_id=9999');
-echo "61de full-result SQL sorting, reverse cursors, nulls, live windows and ACL contracts passed.\n";
+echo "61ade full-result SQL sorting, reverse cursors, nulls, live windows and ACL contracts passed.\n";

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /*
- * Base admin demo (/admin/): exactly what a new 61de project starts with — sign-in,
+ * Base admin demo (/admin/): exactly what a new 61ade project starts with — sign-in,
  * language and theme selectors, mandatory administration (users, roles,
  * memberships, role and user rules) and the root API-key view. No business module.
  */
@@ -23,7 +23,7 @@ $identities = Administration::register($workspace, $accounts, new SqlIdentityPro
 ));
 
 return new ApplicationDefinition(
-    title: '61de alapadmin', version: '0.2.0', identities: $identities, menu: new Menu([]),
+    title: '61ade alapadmin', version: '0.2.0', identities: $identities, menu: new Menu([]),
     runtime: blade_demo_runtime('admin'),
     sessionName: 'blade_admin_demo', cookiePath: '/admin/', assets: '../assets',
     workspace: $workspace, languages: $languages, accounts: $accounts,

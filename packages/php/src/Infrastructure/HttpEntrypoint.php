@@ -22,11 +22,11 @@ final class HttpEntrypoint
             if (!$app instanceof ApplicationDefinition) throw new \InvalidArgumentException('An ApplicationDefinition is required.');
             (new Application($app))->run();
         } catch (\Throwable $error) {
-            error_log('61de unavailable: '.get_class($error));
+            error_log('61ade unavailable: '.get_class($error));
             http_response_code(503);
             header('Content-Type: text/html; charset=utf-8');
             header('Cache-Control: no-store');
-            echo '<!doctype html><html lang="'.\Blade\I18n\Translator::locale().'"><meta charset="utf-8"><title>61de</title><p role="alert">'.htmlspecialchars(\Blade\I18n\Translator::text('Az alkalmazás átmenetileg nem érhető el. Kérjük, próbáld újra később.'), ENT_QUOTES, 'UTF-8').'</p></html>';
+            echo '<!doctype html><html lang="'.\Blade\I18n\Translator::locale().'"><meta charset="utf-8"><title>61ade</title><p role="alert">'.htmlspecialchars(\Blade\I18n\Translator::text('Az alkalmazás átmenetileg nem érhető el. Kérjük, próbáld újra később.'), ENT_QUOTES, 'UTF-8').'</p></html>';
         }
     }
 }

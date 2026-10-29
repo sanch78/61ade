@@ -4,7 +4,7 @@ The Hungarian, British and German 16×11 px PNGs come from the existing ADE asse
 `images/iconset/flags/{hu,gb,de}.png`, ADE source revision
 `8f8158058a8f395b0fee5788abb4c80457837563`.
 The owner's 2026-10-17 request was a byte-identical import, without redrawing.
-61de copies live in `packages/frontend/src/flags/`.
+61ade copies live in `packages/frontend/src/flags/`.
 
 | File | SHA-256 |
 | --- | --- |

@@ -1,4 +1,4 @@
-/* DHTMLX owns widget rendering; 61de supplies host sizing and theme tokens. */
+/* DHTMLX owns widget rendering; 61ade supplies host sizing and theme tokens. */
 html,
 body,
 #blade-application {
@@ -147,7 +147,7 @@ body,
 .blade-grid-views .dhx_grid-header-cell--align_right .dhx_grid-sort-counter { left: auto; right: 18px; }
 .blade-grid-views .dhx_grid-header-cell--align_center .dhx_grid-header-cell-text { justify-content: center; }
 .blade-grid-views .dhx_grid-header-cell--align_right .dhx_grid-header-cell-text { justify-content: flex-end; }
-/* 61de's SQL sort direction is authoritative; avoid a second native arrow. */
+/* 61ade's SQL sort direction is authoritative; avoid a second native arrow. */
 .blade-grid-views :is(.blade-grid-sort-asc, .blade-grid-sort-desc) .dhx_grid-sort-icon { display: none; }
 
 /* Native Layout heading: title left, server count in its accessory slot right. */

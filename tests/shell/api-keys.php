@@ -83,4 +83,4 @@ fails(fn()=>$workspace->executor->edit($admin,ApiKeys::RESOURCE,$created['id'],'
 
 // Old JSON scope storage keeps working.
 $legacy=$tokens->issue('2','legacy',['notes.get']);check($tokens->authenticate($legacy['secret'])['scopes']===['notes.get'],'JSON scope storage');
-echo "61de API key administration (A3) tests passed.\n";
+echo "61ade API key administration (A3) tests passed.\n";

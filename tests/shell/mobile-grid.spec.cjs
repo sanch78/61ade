@@ -2,7 +2,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const {openMenu}=require('./feature-demo.cjs');
 test('native cards preserve selection, editing and live data across responsive changes',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61de-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
+ await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61ade-demo');await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  // Since FB-0062 the desktop main menu is collapsed: open the notes view through the shared step.
  await openMenu(page,'Jegyzetek','Feature demó');
  await expect(page.locator('.dhx_grid')).toBeVisible();

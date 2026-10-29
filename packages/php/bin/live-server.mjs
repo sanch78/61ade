@@ -3840,7 +3840,7 @@ wss.on("connection", (ws) => {
     epoch++;
   });
 });
-server.listen(Number(process.env.BLADE_LIVE_PORT || 8088), "127.0.0.1", () => console.log("61de live transport ready"));
+server.listen(Number(process.env.BLADE_LIVE_PORT || 8088), "127.0.0.1", () => console.log("61ade live transport ready"));
 function shutdown() {
   for (const ws of wss.clients) ws.close(1001, "Restart");
   server.close();

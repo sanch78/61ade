@@ -48,6 +48,6 @@ wss.on('connection',ws=>{
  const heartbeat=setInterval(()=>{if(!alive){ws.terminate();return;}alive=false;ws.ping();},30000);
  ws.on('close',()=>{clearInterval(timer);clearInterval(heartbeat);clearTimeout(authTimeout);epoch++;});
 });
-server.listen(Number(process.env.BLADE_LIVE_PORT || 8088),'127.0.0.1',()=>console.log('61de live transport ready'));
+server.listen(Number(process.env.BLADE_LIVE_PORT || 8088),'127.0.0.1',()=>console.log('61ade live transport ready'));
 function shutdown(){for(const ws of wss.clients)ws.close(1001,'Restart');server.close();bridge.kill();setTimeout(()=>process.exit(0),1000).unref();}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

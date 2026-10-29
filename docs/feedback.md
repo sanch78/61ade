@@ -1701,7 +1701,7 @@ that exactly equals an option label lists every option. The managed
   [update smoke check](development.md#consumer-update-smoke-check),
   [consumer browser tests](development.md#consumer-browser-tests),
   [consumer test accounts](development.md#consumer-test-accounts),
-  [61de-consumer skill](../.agents/skills/61de-consumer/SKILL.md).
+  [61de-consumer skill](../.agents/skills/61ade-consumer/SKILL.md).
 - **Verification (agent):** documentation only. Internal links and anchors
   were checked with a script, plus `git diff --check`. No runner change, so no
   browser run.
@@ -1824,3 +1824,34 @@ that exactly equals an option label lists every option. The managed
   polls). No user acceptance yet.
 - **Status:** accepted; stage 1 implemented and verified by the agent; file
   stage open.
+
+<a id="fb-0070"></a>
+
+## FB-0070 — Product name corrected from 61de to 61ade
+
+- **Date:** 2026-10-29.
+- **Observation (owner):** prompts and documents said `61de`. The 2026-10-21
+  rename request asked for `61ade`; [FB-0049](#fb-0049) recorded `61de` as the
+  owner-supplied name and [FB-0050](#fb-0050) built the dual spelling on it.
+  `blade` is the letter reading of `61ade`, so `61de` was a misspelling taken
+  literally.
+- **Accepted instruction:** use `61ade` everywhere, including package names,
+  the asset command, the consumer skill, the demo password and the recommended
+  consumer link names. The owner notifies the two consumer projects; their
+  checkouts are not edited from here.
+- **Implementation:** product/demo titles, comments, log and error texts,
+  locale keys, `sanch78/61ade`, `@61ade/admin`, `61ade-assets`,
+  `61ade-workspace`, `61ade/shell-demo`, skill `61ade-consumer` (directory and
+  Claude link), `lib/61ade` / `public/assets/61ade` in the consumer layout,
+  password `61ade-demo` in the demo seed and specs. Lockfiles regenerated with
+  `npm install` and `composer update sanch78/61ade`; tracked build rebuilt.
+  `Blade\`, `BLADE_*`, `blade_*` and all runtime identifiers are unchanged.
+  Historical feedback entries and legacy anchors keep `61de` as evidence; only
+  the moved skill link was updated.
+- **Data:** synthetic accounts still on `61de-demo` in the retained demo
+  databases were rehashed to `61ade-demo`; customized passwords were preserved.
+- **Consumers:** existing `lib/61de` and `assets/61de` links keep working,
+  because nothing inside the packages moved. Migration steps:
+  [renaming](renaming.md#61de--61ade-correction-2026-10-29).
+- **Usage and constraints:** [renaming](renaming.md), [development](development.md#consumer-layout),
+  [agent contract](../AGENTS.md).

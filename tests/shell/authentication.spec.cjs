@@ -13,7 +13,7 @@ async function password(page, remember = false) {
   // A context that already signed in this English-default account shows an English login form.
   await page.goto('/');
   await page.getByLabel(/^(E-mail|Email)$/).fill(ACCOUNT);
-  await page.getByLabel(/^(Jelszó|Password)$/).fill('61de-demo');
+  await page.getByLabel(/^(Jelszó|Password)$/).fill('61ade-demo');
   if (remember) {
     await page.getByText('Bejelentkezve maradok (90 nap)', {exact: true}).click();
     await expect(page.getByRole('checkbox', {name: /Bejelentkezve maradok \(90 nap\)/})).toBeChecked();

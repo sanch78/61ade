@@ -1,13 +1,13 @@
 # Accepted grid, tree, and card rules
 
-This ledger keeps the skill tied to observed 61de decisions without turning
+This ledger keeps the skill tied to observed 61ade decisions without turning
 feedback history into a second implementation guide. Read it when a task
 touches one of these rules; read the linked topic guide for the full public
 contract and current limitations.
 
 | Evidence | Reusable lesson | Current scope or limit |
 | --- | --- | --- |
-| [FB-0006](../../../../docs/feedback.md#fb-0006--konfigurálható-munkaterület-dinamikus-és-élő-listák) | A workspace is a validated layout tree with separate filter/results and optional panel form; list data is authorized, bounded, cursor-based, and live updates share the same window. | 61de Standard Grid uses public APIs because PRO LazyDataProxy is unavailable. |
+| [FB-0006](../../../../docs/feedback.md#fb-0006--konfigurálható-munkaterület-dinamikus-és-élő-listák) | A workspace is a validated layout tree with separate filter/results and optional panel form; list data is authorized, bounded, cursor-based, and live updates share the same window. | 61ade Standard Grid uses public APIs because PRO LazyDataProxy is unavailable. |
 | [FB-0013](../../../../docs/feedback.md#fb-0013--a-panelméretező-középre-igazítása) and [FB-0015](../../../../docs/feedback.md#fb-0015--fölösleges-keretezett-layoutburkoló) | Keep the native layout root, one outer frame, and native resizers; do not repair spacing by moving widgets or adding wrapper frames. | Suite 9.3.12 gap/grip behavior is version-sensitive; the framework centres the grip of both `space` and `wide` layouts (FB-0058). |
 | [FB-0017](../../../../docs/feedback.md#fb-0017--deklarált-mezőnkénti-gridszerkesztés) | Grid editing is field metadata intersected with row/field ACL and uses the common executor, validation, revision, and audit path. | Consumer declarations choose which fields are editable. |
 | [FB-0019](../../../../docs/feedback.md#fb-0019--listák-rekordadatok-és-vezérlők-megjelenése) and [FB-0020](../../../../docs/feedback.md#fb-0020--nézet-dropdown-és-szerkeszthető-fejléc-rendezésjelzése) | Use native DataView cards as a responsive companion, keep marks distinct from the active row, and preserve the visible record across mode changes. | Mobile forces cards; desktop restores the saved preference. |

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /*
  * Synthetic mailbox of the feature demo: shows what the configured mail command stored
- * instead of sending. It stands in for the recipient's mail client, so it is not a 61de
+ * instead of sending. It stands in for the recipient's mail client, so it is not a 61ade
  * screen (AGENTS.md rule 1 exception: external system test double, demo scope only).
  */
 
@@ -45,7 +45,7 @@ header{padding:16px;border-bottom:1px solid #dde3ea}.badge{display:inline-block;
 a{display:block;padding:12px 16px;border-bottom:1px solid #eef1f5;color:inherit;text-decoration:none}a.on{background:#e8f0fc}small{display:block;color:#5b6b80}
 iframe{flex:1;border:0;background:#fff;min-height:100vh}p.empty{padding:16px;color:#5b6b80}
 </style></head><body>
-<nav><header><span class="badge">Szimulált postafiók — nem 61de-felület</span><h1 style="font-size:18px;margin:8px 0 0">Demó postafiók</h1>
+<nav><header><span class="badge">Szimulált postafiók — nem 61ade-felület</span><h1 style="font-size:18px;margin:8px 0 0">Demó postafiók</h1>
 <small>A demó levelet nem küld: a konfigurált parancs ide menti az üzeneteket.</small></header>
 <?= $list ?: '<p class="empty">Még nincs levél. Lépj be a twofactor@example.test fiókkal.</p>' ?></nav>
 <?php if (is_file($file)): ?><iframe title="Levél" sandbox src="?m=<?= $e((string) $selected) ?>&amp;raw=1"></iframe><?php endif; ?>

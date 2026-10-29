@@ -45,7 +45,7 @@ async function createUser(page,email){
 test('admin creates a user; the temporary password forces a change before any session',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const email=`person.${Date.now()}@example.test`;
- await signIn(page,'demo@example.test','61de-demo');
+ await signIn(page,'demo@example.test','61ade-demo');
  await openUsers(page);
  const temporary=await createUser(page,email);
  await selectUser(page,email);
@@ -70,7 +70,7 @@ test('admin creates a user; the temporary password forces a change before any se
 test('disabling is a grid and form checkbox; a disabled account cannot sign in',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const email=`disabled.${Date.now()}@example.test`;
- await signIn(page,'demo@example.test','61de-demo');
+ await signIn(page,'demo@example.test','61ade-demo');
  await openUsers(page);
  const temporary=await createUser(page,email);
  await selectUser(page,email);
@@ -116,7 +116,7 @@ async function save(page,values){
 test('a role with a catalogue rule grants a module to its new member',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const stamp=Date.now(),email=`member.${stamp}@example.test`;
- await signIn(page,'demo@example.test','61de-demo');
+ await signIn(page,'demo@example.test','61ade-demo');
  await openUsers(page);
  const temporary=await createUser(page,email);
  await openAdmin(page,'Szerepkörök');

@@ -4,7 +4,7 @@
 
 Owner decisions of 2026-10-21 and 2026-10-22
 ([FB-0049](feedback.md#fb-0049), [FB-0051](feedback.md#fb-0051)):
-**61de** has one development/test environment at https://61ade.sanch.hu/;
+**61ade** has one development/test environment at https://61ade.sanch.hu/;
 the starter admin is https://61ade.sanch.hu/admin/. The canonical checkout is
 `/space/share/libs/61ade` on `catalyst`, owned by `sanch`. Its expected document
 root is `examples/demo-app/public/` in this checkout.
@@ -35,7 +35,7 @@ The ignored root `.env.test` uses `KEY=VALUE` lines, read by
 in `common.php` with process-env precedence. Preserve these loaders and private
 files; inspect only needed keys and never print or commit credentials.
 
-Product/packages use `61de`; identifiers use `Blade\`, `BLADE_*` and
+Product/packages use `61ade`; identifiers use `Blade\`, `BLADE_*` and
 `blade_*`. See [renaming](renaming.md) before reusing an earlier consumer or
 database. [Consumers](#shared-library-consumption) take this checkout directly;
 their deploys do not create a production environment here.
@@ -69,7 +69,7 @@ under the consumer's contract; an old link does not prove the current location.
 ## Shared-library consumption
 
 Owner decision of 2026-10-27 ([FB-0066](feedback.md#fb-0066), superseding
-[FB-0064](feedback.md#fb-0064)): 61de is consumed like the other shared
+[FB-0064](feedback.md#fb-0064)): 61ade is consumed like the other shared
 libraries in `/space/share/libs`. There are no versions, tags, release tool or
 Composer installation for consumers. Existing `v*` tags remain as history only.
 
@@ -108,18 +108,18 @@ and refuses to test an output that differs from the source.
 ### Consumer layout
 
 This section is the consumer contract. Consumer agents follow it through the
-[61de-consumer skill](../.agents/skills/61de-consumer/SKILL.md), which is a
+[61ade-consumer skill](../.agents/skills/61ade-consumer/SKILL.md), which is a
 checklist that links back here.
 
 Example with consumer-chosen paths. In development, the consumer links the
 shared checkout:
 
 ```sh
-ln -s /space/share/libs/61ade/packages/php lib/61de
-ln -s /space/share/libs/61ade/packages/frontend/dist public/assets/61de
+ln -s /space/share/libs/61ade/packages/php lib/61ade
+ln -s /space/share/libs/61ade/packages/frontend/dist public/assets/61ade
 ```
 
-The assets link is a dedicated subdirectory such as `public/assets/61de`, never
+The assets link is a dedicated subdirectory such as `public/assets/61ade`, never
 the consumer's whole `public/assets`. Through a whole-directory link, the
 consumer's own assets would be written into this shared `dist`. At deploy time
 the main sync hides and protects every `shared_assets` target, so the
@@ -140,12 +140,12 @@ target is a file where a directory is expected, or the reverse.) The consumer's
     "shared_assets": [
         {
             "source": "/space/share/libs/61ade/packages/php",
-            "target": "target:lib/61de"
+            "target": "target:lib/61ade"
         },
         {
             "source": "/space/share/libs/61ade/packages/frontend/dist",
             "files": ["admin.js", "admin.css"],
-            "target": "target:public/assets/61de"
+            "target": "target:public/assets/61ade"
         }
     ]
 }
@@ -154,12 +154,12 @@ target is a file where a directory is expected, or the reverse.) The consumer's
 The autoloader goes in the consumer's earliest common bootstrap, before any
 entrypoint touches a `Blade\` class. An entrypoint that runs framework code
 before the application file is loaded needs it first. Here `__DIR__` is the
-consumer directory that holds `lib/61de`:
+consumer directory that holds `lib/61ade`:
 
 ```php
 spl_autoload_register(static function (string $class): void {
     if (str_starts_with($class, 'Blade\\')) {
-        $file = __DIR__ . '/lib/61de/src/' . strtr(substr($class, 6), '\\', '/') . '.php';
+        $file = __DIR__ . '/lib/61ade/src/' . strtr(substr($class, 6), '\\', '/') . '.php';
         if (is_file($file)) {
             require $file;
         }
@@ -180,7 +180,7 @@ Committed consumer files must not depend on anything else from this checkout.
 #### Live-data service (WebSocket)
 
 Polling needs nothing beyond PHP. For `LiveConfig` transport `websocket`, the
-consumer runs `packages/php/bin/live-server.mjs` from its copied `lib/61de`:
+consumer runs `packages/php/bin/live-server.mjs` from its copied `lib/61ade`:
 a committed, self-contained bundle with the pinned `ws` inlined. A release
 needs only the system `node` (18+) and PHP 8.4; no `npm install` and nothing
 from `node_modules`. The server starts `live-bridge.php` beside itself.
@@ -193,12 +193,12 @@ absolute paths):
 ```json
 {
     "id": "live",
-    "description": "61de WebSocket live data",
+    "description": "61ade WebSocket live data",
     "host": "catalyst",
     "mode": "service",
     "run_as": "web",
     "cwd": "apps:.",
-    "command": ["/usr/bin/node", "lib/61de/bin/live-server.mjs"],
+    "command": ["/usr/bin/node", "lib/61ade/bin/live-server.mjs"],
     "environment": {
         "BLADE_LIVE_PORT": "8091",
         "BLADE_LIVE_ORIGIN": "https://admin.example.test",
@@ -544,15 +544,15 @@ only for an error or other necessary blocking information. A form remains
 appropriate when the action needs input fields; this rule does not remove a
 justified confirm or alert.
 
-**Framework first:** no custom development that bypasses 61de. Implement
-missing general capabilities in 61de, then express business logic through them.
+**Framework first:** no custom development that bypasses 61ade. Implement
+missing general capabilities in 61ade, then express business logic through them.
 A business request alone never justifies a separate flow. An exception is
 permitted if and only if the framework logically cannot be extended for the
 need. Document the concrete reason, considered extension and exception boundary
 alongside the implementation. Only that narrow exception may use a flow
 without DHTMLX. Convenience, speed or tool preference is not justification.
 
-61de is ADE v2, a reusable admin framework in a separate Git repository.
+61ade is ADE v2, a reusable admin framework in a separate Git repository.
 It owns application startup, configuration, authentication/session, permissions,
 menus, layout, windows, forms, grids, communication, errors and state management.
 UI controls use its DHTMLX adapters by default. Consumers own configuration,
@@ -570,11 +570,11 @@ demo and documented in the event catalog. No eval/executable configuration
 strings; generated ACL catalogs never grant permission.
 
 Keep CityScreen/ADE business code, table names, production data and integration
-dependencies out of 61de. Do not modify CityScreen runtime, database or old admin
+dependencies out of 61ade. Do not modify CityScreen runtime, database or old admin
 as a side effect. `_AuthHandler` at `/space/share/libs/_AuthHandler` is a separate
-library and must not be edited during 61de work. Its links are
+library and must not be edited during 61ade work. Its links are
 `lib/_AuthHandler` and `examples/demo-app/public/lib/_AuthHandler`. Fill gaps
-in the 61de adapter or a separately authorized library task (FB-0046).
+in the 61ade adapter or a separately authorized library task (FB-0046).
 
 Source locations: PHP `packages/php`, frontend `packages/frontend`, tests
 `tests`, tools `tools`. The root README is the only project README; detailed
@@ -620,6 +620,6 @@ data, secrets or complete chat copies.
 
 Feature migration requires an inventory of every relevant reference validation:
 module, local overrides, common configuration and persistence. Required fields
-alone are not parity. 61de owns general validators; consumers own concrete
+alone are not parity. 61ade owns general validators; consumers own concrete
 formats, thresholds and business exceptions. Verify client and server/UI/API
 paths. Any remaining difference requires a documented decision.

@@ -1,10 +1,10 @@
-# 61de
+# 61ade
 
 Checkout: `/space/share/libs/61ade`. The project uses a single development
 environment at https://61ade.sanch.hu/, directly from the checkout, with no
 deployment, post-deployment testing or project backups. See the
 [development contract](docs/development.md#development-environment).
-Packages: `sanch78/61de` and `@61de/admin`. Identifiers use `Blade\`,
+Packages: `sanch78/61ade` and `@61ade/admin`. Identifiers use `Blade\`,
 `BLADE_*` and `blade`; see [renaming and migration](docs/renaming.md).
 
 A reusable, configuration-driven admin application framework with a PHP
@@ -22,7 +22,7 @@ See [current usage](docs/usage.md).
 ## Goal
 
 A feature definition in PHP or modular JSON brings together object fields,
-views, actions and API exposure. 61de renders and serves them; explicitly
+views, actions and API exposure. 61ade renders and serves them; explicitly
 registered application handlers implement business logic. The fullscreen DHTMLX
 frontend includes localization and themes. Every application must use the
 framework's user, ACL, API-key and log administration (partly implemented).
@@ -31,7 +31,7 @@ or exhaustive component coverage is required. See [product direction](docs/produ
 for requirements and verified status.
 
 The first consumer is a complete rewrite of the CityScreen admin. Its business
-code, data and integrations stay in a separate repository. 61de must not depend
+code, data and integrations stay in a separate repository. 61ade must not depend
 on CityScreen or ADE.
 
 <a id="dokumentáció"></a>
@@ -52,7 +52,7 @@ recorded durably and incorporated into the relevant guide; this is mandatory.
 - [DHTMLX capabilities and licenses](docs/component-matrix.md)
 - [Development environment and verification](docs/development.md)
 - [Foundation decisions](docs/decisions/0001-foundation.md)
-- [Mandatory framework-first direction: 61de = ADE v2](docs/decisions/0002-framework-first.md)
+- [Mandatory framework-first direction: 61ade = ADE v2](docs/decisions/0002-framework-first.md)
 - [Product direction decision (ADR-0003)](docs/decisions/0003-product-direction.md)
 
 <a id="csomagok"></a>
@@ -61,8 +61,8 @@ recorded durably and incorporated into the relevant guide; this is mandatory.
 
 | Directory | Planned package | Responsibility |
 | --- | --- | --- |
-| `packages/php` | `sanch78/61de` | PHP definitions, API, policies and infrastructure |
-| `packages/frontend` | `@61de/admin` | DHTMLX adapters, renderer and admin shell |
+| `packages/php` | `sanch78/61ade` | PHP definitions, API, policies and infrastructure |
+| `packages/frontend` | `@61ade/admin` | DHTMLX adapters, renderer and admin shell |
 | `examples/demo-app` | Unpublished | Synthetic feature demo (`/`) and starter admin (`/admin/`); [demo guide](docs/demos.md) |
 | `tests` | Unpublished | Framework, contract, integration and browser tests |
 
@@ -92,7 +92,7 @@ complete runtime contract remain open. See [shell](docs/shell.md).
 
 ## Licenses
 
-The license for 61de's own code is undecided; this repository currently grants
+The license for 61ade's own code is undecided; this repository currently grants
 no separate open-source usage permission. A public GitHub repository is not a
 license. DHTMLX Suite Standard and Scheduler use GPL; Gantt 10+ Community uses
 MIT. Details and sources are in the component matrix. Never commit paid vendor

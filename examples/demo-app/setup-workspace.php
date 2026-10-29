@@ -105,12 +105,12 @@ $seedDiagrams = [
 foreach ($seedDiagrams as $name => $content) if (!$diagrams->named($name)) $diagrams->create($name, json_encode($content, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
 // Synthetic accounts: password, e-mail second factor (English default language) and OAuth-only.
 blade_demo_accounts($db, [
-    [1, 'demo@example.test', '61de-demo', 'Demo User', 1, 1],
-    [2, 'viewer@example.test', '61de-demo', 'Demo Viewer', 1, 0],
-    [3, 'blocked@example.test', '61de-demo', 'Blocked User', 0, 1],
-    [4, 'twofactor@example.test', '61de-demo', 'Two-factor Demo', 1, 0],
+    [1, 'demo@example.test', '61ade-demo', 'Demo User', 1, 1],
+    [2, 'viewer@example.test', '61ade-demo', 'Demo Viewer', 1, 0],
+    [3, 'blocked@example.test', '61ade-demo', 'Blocked User', 0, 1],
+    [4, 'twofactor@example.test', '61ade-demo', 'Two-factor Demo', 1, 0],
     [5, 'oauth@example.test', bin2hex(random_bytes(24)), 'OAuth Demo', 1, 0],
-    [null, 'reader@example.test', '61de-demo', 'Demo Reader', 1, 0],
+    [null, 'reader@example.test', '61ade-demo', 'Demo Reader', 1, 0],
 ]);
 $reader = $db->query("SELECT id FROM accounts WHERE email = 'reader@example.test'")->fetchColumn();
 $db->exec("INSERT OR IGNORE INTO blade_auth_settings(actor_id,email_confirmation) VALUES ('4',1)");
@@ -153,7 +153,7 @@ Blade\Admin\Permissions::grantAdministration($app->workspace->db, $app->workspac
 // Base admin demo: an empty project with its first administrator only.
 $db = blade_demo_db('admin');
 Blade\Access\Schema::install($db);
-blade_demo_accounts($db, [[1, 'demo@example.test', '61de-demo', 'Demo Admin', 1, 1]]);
+blade_demo_accounts($db, [[1, 'demo@example.test', '61ade-demo', 'Demo Admin', 1, 1]]);
 unset($db);
 $admin = require __DIR__.'/admin-application.php';
 Blade\Admin\Permissions::grantAdministration($admin->workspace->db, $admin->workspace->registry, '1');
@@ -166,9 +166,9 @@ $db->exec('CREATE TABLE IF NOT EXISTS tenant_projects(id INTEGER PRIMARY KEY AUT
 $db->exec('CREATE TABLE IF NOT EXISTS tenant_tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL, project_id TEXT NOT NULL)');
 $db->exec('CREATE TABLE IF NOT EXISTS tenant_notices(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL)');
 blade_demo_accounts($db, [
-    [1, 'demo@example.test', '61de-demo', 'Demo Admin', 1, 1],
-    [2, 'single@example.test', '61de-demo', 'Single Tenant', 1, 0],
-    [3, 'none@example.test', '61de-demo', 'No Tenant', 1, 0],
+    [1, 'demo@example.test', '61ade-demo', 'Demo Admin', 1, 1],
+    [2, 'single@example.test', '61ade-demo', 'Single Tenant', 1, 0],
+    [3, 'none@example.test', '61ade-demo', 'No Tenant', 1, 0],
 ]);
 $alfa = Blade\Tenancy\Tenancy::ensure($db, 'Alfa');
 $beta = Blade\Tenancy\Tenancy::ensure($db, 'Béta');

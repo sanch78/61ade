@@ -10,7 +10,7 @@ See [admin plan](admin-module-plan.md), [R5/R6](product-direction.md) and
 
 ## Purpose and scope
 
-Framework-owned admin over the application's existing account table. 61de
+Framework-owned admin over the application's existing account table. 61ade
 provides views/actions/permissions/audit, temporary passwords and forced changes.
 Consumers provide identity mapping, insertion defaults and explicit ACL.
 
@@ -102,7 +102,7 @@ and may be deleted.
 
 - `php8.4 tests/shell/admin.php`: default deny, create/normalize/unique/invalid e-mail, read-only state, forced-change rules/expiry, form/grid disable/re-enable, optional switches/effects, revocation, e-mail change, API/scope, config errors, secret-free audit.
 - `npm run test:browser -- --project=shell tests/shell/admin.spec.cjs`: demo create/once-only password/forced change, invalid/correct password, old-password denial, grid disabling with no action button, disabled login denial.
-- Manual: managed URL, demo@example.test / 61de-demo, Administration → Users; [demos](demos.md) describe / and /admin/. Do not start an ad-hoc server.
+- Manual: managed URL, demo@example.test / 61ade-demo, Administration → Users; [demos](demos.md) describe / and /admin/. Do not start an ad-hoc server.
 
 <a id="szerepkörök-és-jogosultságok-a2"></a>
 

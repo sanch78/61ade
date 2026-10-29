@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
-// JSON-lines worker for the 61de WebSocket transport, never a public HTTP endpoint.
+// JSON-lines worker for the 61ade WebSocket transport, never a public HTTP endpoint.
 require getenv('BLADE_AUTOLOAD_FILE') ?: throw new RuntimeException('BLADE_AUTOLOAD_FILE is required');
 $applicationFile=getenv('BLADE_APPLICATION_FILE') ?: throw new RuntimeException('BLADE_APPLICATION_FILE is required');
 $app=require $applicationFile;
-if(!$app instanceof Blade\Shell\ApplicationDefinition || !$app->workspace)throw new RuntimeException('A 61de workspace is required');
+if(!$app instanceof Blade\Shell\ApplicationDefinition || !$app->workspace)throw new RuntimeException('A 61ade workspace is required');
 session_name($app->sessionName);session_save_path($app->runtime.'/sessions');
 ini_set('session.use_cookies','0');ini_set('session.cache_limiter','');ini_set('session.use_strict_mode','1');
 ini_set('display_errors','stderr');

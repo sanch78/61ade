@@ -6,7 +6,7 @@ const nativeDefaults:Record<string,Record<string,string>>=Object.fromEntries(["g
 export function configureLanguage(config?:LanguageConfig):void{
   current=config?.locale??"hu";messages=config?.messages??{};
   document.documentElement.lang=current;
-  // Suite native message buttons are localized independently of 61de captions.
+  // Suite native message buttons are localized independently of 61ade captions.
   i18n.setLocale("message",{apply:t("Rendben"),reject:t("Mégse"),aria_confirm:t("Megerősítés"),aria_reject:t("Mégse"),aria_apply:t("Rendben")});
   for(const [group,values] of Object.entries(nativeDefaults))i18n.setLocale(group,Object.fromEntries(Object.entries(values).map(([key,value])=>[key,t(value)])));
   // Suite Calendar (datepicker popup) month/day names from the browser's locale data; weeks start on Sunday there.
