@@ -24,7 +24,7 @@ $languages = blade_demo_languages();
 
 // Business modules: declarative JSON with explicitly registered handlers, plus one PHP-registered resource.
 require_once __DIR__.'/signage.php';
-$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json'], static fn() => [
+$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json', __DIR__.'/modules/catalog.json'], static fn() => [
     ...blade_demo_signage_bindings(),
     'tasks.complete' => static function (Context $ctx, array $target): array {
         $ctx->db->prepare("UPDATE demo_tasks SET status = 'done' WHERE id = ?")->execute([$target['id']]);

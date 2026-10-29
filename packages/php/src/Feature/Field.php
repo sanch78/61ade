@@ -44,12 +44,14 @@ final readonly class Field
             }
         }
         foreach ($column as $property => $value) {
-            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'media', 'presentation'], true)
+            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of'], true)
                 || match ($property) {
                     'editable', 'secondary' => !is_bool($value),
                     'align' => !in_array($value, ['left', 'center', 'right'], true),
                     'media' => !is_string($value) || !preg_match('/^[a-z][a-z0-9_.-]*$/D', $value),
-                    'presentation' => $value !== 'icon',
+                    'presentation' => !in_array($value, ['icon', 'image'], true),
+                    'imageBase', 'image_base' => !is_string($value) || !preg_match('~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*/$~D', $value),
+                    'altOf', 'alt_of' => !is_string($value) || !preg_match('/^[a-z][a-z0-9_]*$/D', $value),
                     default => !is_int($value) || $value < 1 || $value > 10000,
                 }) {
                 throw new InvalidArgumentException('Invalid field column presentation.');
@@ -57,8 +59,15 @@ final readonly class Field
         }
         // `media`: the value is a file id of that registered MediaSource; `presentation: icon`: the value is a Suite icon class, options name it.
         if (isset($column['media']) && ($secret || !in_array($type, ['text', 'number', 'select'], true) || ($column['editable'] ?? false) || isset($column['presentation']))) throw new InvalidArgumentException('Media columns need a readable, non-editable text, number or select field.');
-        if (isset($column['presentation']) && ($secret || !in_array($type, ['text', 'select'], true) || ($column['editable'] ?? false))) throw new InvalidArgumentException('Icon columns need a readable, non-editable text or select field.');
-        if (isset($column['presentation']) && (!is_array($options) || !$options || array_filter(array_keys($options), static fn($class) => !is_string($class) || trim($class) === '') || array_filter($options, static fn($label) => !is_string($label) || trim($label) === ''))) throw new InvalidArgumentException('Icon columns need static options naming every icon class.');
+        $image = ($column['presentation'] ?? null) === 'image';
+        if (!$image && array_intersect_key($column, ['imageBase' => 1, 'image_base' => 1, 'altOf' => 1, 'alt_of' => 1])) throw new InvalidArgumentException('Image options need presentation image.');
+        // `presentation: image`: the value is a static image file name below the page-relative `imageBase`; no file manager, no ACL.
+        if ($image && ($secret || $type !== 'text' || ($column['editable'] ?? false) || isset($column['media']) || $options !== [] || $file !== null
+            || count(array_intersect_key($column, ['imageBase' => 1, 'image_base' => 1])) !== 1 || count(array_intersect_key($column, ['altOf' => 1, 'alt_of' => 1])) > 1)) {
+            throw new InvalidArgumentException('Image columns need a readable, non-editable text field with one imageBase and no options.');
+        }
+        if (!$image && isset($column['presentation']) && ($secret || !in_array($type, ['text', 'select'], true) || ($column['editable'] ?? false))) throw new InvalidArgumentException('Icon columns need a readable, non-editable text or select field.');
+        if (!$image && isset($column['presentation']) && (!is_array($options) || !$options || array_filter(array_keys($options), static fn($class) => !is_string($class) || trim($class) === '') || array_filter($options, static fn($label) => !is_string($label) || trim($label) === ''))) throw new InvalidArgumentException('Icon columns need static options naming every icon class.');
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
         if ($type === 'checkbox' && $defaultValue !== null && !in_array($defaultValue, ['0', '1'], true)) {
@@ -93,6 +102,9 @@ final readonly class Field
         if ($value !== '' && $this->type === 'file' && !preg_match('/^[1-9][0-9]{0,17}$/D', $value)) {
             $this->reject('A kiválasztott fájl nem érhető el.');
         }
+        if ($value !== '' && ($this->column['presentation'] ?? null) === 'image' && !self::imageFile($value)) {
+            $this->reject('Érvénytelen képfájlnév.');
+        }
         if ($value !== '' && $this->type === 'number' && !preg_match('/^\d+$/D', $value)) {
             $this->reject('Nemnegatív egész szám szükséges.');
         }
@@ -117,6 +129,19 @@ final readonly class Field
     public function media(): ?string
     {
         return $this->column['media'] ?? $this->file['resource'] ?? null;
+    }
+
+    /** Whether the field presents its text value as a static image (`column.presentation: image`). */
+    public function image(): bool
+    {
+        return ($this->column['presentation'] ?? null) === 'image';
+    }
+
+    /** A single image file name: letters, digits, `-`, `_`, `.`; no path, no `..`, no scheme, no leading dot; png, jpg, jpeg, webp, gif or svg. */
+    public static function imageFile(mixed $value): bool
+    {
+        return is_string($value) && strlen($value) <= 255 && !str_contains($value, '..')
+            && preg_match('/^[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:png|jpe?g|webp|gif|svg)$/Di', $value) === 1;
     }
 
     public function reject(string $message): never

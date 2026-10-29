@@ -24,6 +24,12 @@ $live=$w->observe($ctx,'records',['limit'=>100,'front'=>true]);$version=$live['v
 $again=$w->observe($ctx,'records',['limit'=>100,'front'=>true],$version);verify($again['version']===$version&&$count===$db->query('SELECT COUNT(*) FROM blade_audit')->fetchColumn(),'Unchanged observations do not grow audit');
 $db->exec("UPDATE records SET category='B' WHERE record_id=4999");$changed=$w->observe($ctx,'records',['limit'=>100,'front'=>true],$version);verify($changed['version']!==$version,'External writes observed');
 $db->exec('DELETE FROM records WHERE record_id=4999');$deleted=$w->observe($ctx,'records',['limit'=>100,'front'=>true],$changed['version']);verify(!in_array('4999',array_column($deleted['items'],'id'),true),'Deletion observed');
+// Batched polling (`__watch` with `subscriptions`): every entry answered on its own, a failing one never fails the others.
+$batch=$w->watch($ctx,[['id'=>'a','resource'=>'records','query'=>['limit'=>100,'front'=>true]],['id'=>7,'resource'=>'missing','query'=>[]],['id'=>'c','resource'=>'records','query'=>['limit'=>100,'front'=>true],'version'=>$deleted['version']]]);
+verify(array_column($batch,'id')===['a','7','c']&&$batch[0]['ok']&&count($batch[0]['data']['items'])===100&&$batch[0]['data']['version']===$deleted['version'],'Batched watch answers each subscription');
+verify(!$batch[1]['ok']&&$batch[1]['status']===404&&$batch[2]['ok']&&($batch[2]['data']['unchanged']??false),'An unknown list is refused alone; an unchanged one answers its version only');
+try{$w->watch($ctx,array_fill(0,Workspace::WATCH_LIMIT+1,['id'=>'x','resource'=>'records','query'=>[]]));verify(false,'Batch limit');}catch(Failure $e){verify($e->status===413,'Batch limit');}
+try{$w->watch($ctx,[['id'=>['x'],'resource'=>'records']]);verify(false,'Malformed batch entry');}catch(Failure $e){verify($e->status===400,'Malformed batch entry');}
 try{new ViewLayout('panel',['cols'=>[['id'=>'grid']]]);throw new RuntimeException('Missing form accepted');}catch(InvalidArgumentException){}
 $views=$w->views($ctx->actor);verify($views[0]['layout']['formMode']==='panel','Layout reaches consumer');
 

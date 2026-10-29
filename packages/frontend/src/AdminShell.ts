@@ -2,6 +2,7 @@ import { configureLanguage, languageIcon, type LanguageConfig, t } from "./I18n"
 import { widgetIcons } from "./WidgetIcons";
 import { externalSignInUnavailable, openExternalSignIn } from "./ExternalAuth";
 import { Workspace, type ViewDefinition } from "./Workspace";
+import { LiveChannel } from "./Realtime";
 import { FileManager, isFileView, type FileViewDefinition } from "./FileManager";
 import { DiagramEditor, isDiagramView, type DiagramViewDefinition } from "./DiagramEditor";
 import { Calendar, isCalendarView, type CalendarViewDefinition } from "./Calendar";
@@ -69,6 +70,9 @@ export class AdminShell {
   private menu?: NavigationMenu;
   private workspace?: Workspace | FileManager | DiagramEditor | Calendar | DesktopOnly;
   private navigation=0;
+  /** The tab's one live channel (signed in with a list view), shared by every list and sub-view. */
+  private channel?: LiveChannel;
+  private get live():LiveChannel{return this.channel??=new LiveChannel(this.definition.live || {transport:"poll",endpoint:"live",interval:2000},this.definition.csrf || "");}
   private route = () => {
     const resource = new URLSearchParams(location.hash.slice(1)).get("feature");
     const view = this.definition.views?.find(view => view.resource === resource);
@@ -247,6 +251,8 @@ export class AdminShell {
         if(view)void this.openView(view);
       });
       this.layout.getCell("main-menu").attach(menu);
+      // Opened once after sign-in, before the first list: every list of the page subscribes on it.
+      if((definition.views||[]).some(view=>!isCalendarView(view)&&!isDiagramView(view)&&!isFileView(view)))void this.live;
       window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});
       this.route();
     } else {
@@ -279,7 +285,7 @@ export class AdminShell {
       ?new DiagramEditor(document.createElement("div"),view,this.definition.csrf || "")
       :isFileView(view)
       ?new FileManager(document.createElement("div"),view,this.definition.csrf || "")
-      :new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.definition.live || {transport:"poll",endpoint:"live",interval:2000},this.definition.userId??"");
+      :new Workspace(document.createElement("div"),view,this.definition.csrf || "",this.live,this.definition.userId??"");
     this.workspace=view.desktopOnly?new DesktopOnly(content,view.title):content;
     this.layout.getCell("workspace").attach(this.workspace.layout);
   }
@@ -578,6 +584,7 @@ export class AdminShell {
   ): void {
     if (this.submitting) return;
     this.submitting = true;
+    if (action === "logout" || action === "tenant") this.channel?.close();
     for (const [name, value] of Object.entries({ action, ...fields })) {
       const input = document.createElement("input");
       input.type = "hidden";
@@ -599,6 +606,7 @@ export class AdminShell {
     window.removeEventListener("resize", this.resize);
     closeDialogs();
     this.workspace?.destroy();
+    this.channel?.close();
     this.loginWindow?.destructor();
     this.layout.destructor();
     this.root.replaceChildren();

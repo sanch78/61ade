@@ -1,0 +1,64 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: a fixed catalog with static application images.",
+        "covers": "static image column (presentation image): table cell, card, tile and details from a file name field; missing file placeholder; invalid values show no image."
+    },
+    "resources": {
+        "demo_catalog": {
+            "storage": {
+                "table": "demo_catalog",
+                "key": "id"
+            },
+            "operations": {
+                "create": false,
+                "update": false
+            },
+            "fields": [
+                {
+                    "name": "image",
+                    "label": "Kép",
+                    "max": 120,
+                    "column": {
+                        "presentation": "image",
+                        "image_base": "../demo-images/",
+                        "alt_of": "title"
+                    }
+                },
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 120
+                },
+                {
+                    "name": "note",
+                    "label": "Megjegyzés",
+                    "max": 120
+                }
+            ],
+            "view": {
+                "title": "Katalógus",
+                "group": "Feature demó",
+                "icon": "dxi dxi-image-outline",
+                "row_height": 56,
+                "columns": [
+                    {
+                        "id": "image",
+                        "header": "Kép"
+                    },
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "note",
+                        "header": "Megjegyzés"
+                    }
+                ],
+                "actions": [
+                    "get"
+                ]
+            }
+        }
+    }
+}

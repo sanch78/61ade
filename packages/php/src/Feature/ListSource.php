@@ -47,6 +47,9 @@ final readonly class ListSource
      */
     public function media(Context $ctx,array $items):array
     {
+        // Static image columns: a value that is not a plain image file name never reaches the browser.
+        foreach($this->fields as $field)if($field->image())foreach($items as &$item)if(isset($item[$field->name])&&!Field::imageFile($item[$field->name]))$item[$field->name]='';
+        unset($item);
         $groups=[];
         foreach($this->fields as $field)if($field->media()!==null)$groups[$field->media()][]=$field->name;
         foreach($groups as $resource=>$names){

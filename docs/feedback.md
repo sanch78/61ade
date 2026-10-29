@@ -2038,3 +2038,126 @@ that exactly equals an option label lists every option. The managed
   leftover Alfa membership of `none@example.test` (`blade_tenant_members` id
   24) hides the "no tenant" notice, unrelated to live data.
 - **Status:** implemented; verified by tools. No user acceptance.
+
+<a id="fb-0075"></a>
+
+## FB-0075 — One live channel per tab, event-driven updates
+
+- **Date:** 2026-10-29.
+- **Source:** owner, after seeing one socket per list: a signed-in client
+  should hold one open socket that carries every change; the owner's earlier
+  admin (ADE) opened one WebSocket per session.
+- **Accepted instructions:** plan first, then implement with agents. The
+  established model is one multiplexed connection per client tab; the current
+  per-list sockets and per-socket 2 s server re-query are to be replaced by a
+  shell-owned channel and change events from the framework write path.
+- **Plan:** [live channel plan](live-channel-plan.md) (L0–L6, agent execution,
+  owner decisions D1–D4).
+- **Owner decisions (same day):** plan approved; D1 one channel per tab, D2
+  bridge and server self-reload, D3 live traffic does not extend the session
+  idle timeout, D4 15 s default sweep for external writes.
+- **L0 (2026-10-29, self-reload):** `live-bridge.php` records mtime, size and
+  inode of `get_included_files()` (after `clearstatcache()`) and exits with 75
+  when one changed or vanished; it checks when idle (`stream_select` timeout
+  now 2 s) and after each answered request, never inside one (about 0.3 ms per
+  check with 70 files). `tools/live-server.mjs` respawns the bridge on 75 on
+  the child's `close` event (after every written answer was read) and re-sends
+  every unanswered request to the new bridge; requests made in between wait in
+  the pending map. Five 75 exits in a row within 3 s of start (back-off 0.5, 1,
+  2, 4 s) and any other bridge exit end the server with 1. The server polls its
+  own file (`fs.watchFile`, 2 s) and, when its content differs from the loaded
+  one, closes sockets with 1012 `Restart`, stops the bridge and exits with 1 for
+  the supervisor. Content, not mtime, because the build rewrites an unchanged
+  bundle. SIGTERM/SIGINT now exit 0 (1001), instead of 1 via the killed bridge.
+  `Realtime.ts` reconnects with backoff on every close except 4403, so 1012
+  needed no frontend change. Docs: [demos](demos.md#websocket-live-data),
+  [development](development.md#live-data-service-websocket),
+  [workspaces](workspaces.md#élő-adat-konfigurálása-és-futtatása).
+  Verification (local, scratch instance `dbg`, port 18088): `php8.4 -l
+  packages/php/bin/live-bridge.php`, `node --check tools/live-server.mjs`,
+  `node tools/build.mjs` then `node tools/build.mjs --check` pass. With one
+  client re-subscribing to `blade_users` every second and eight load clients
+  every 50 ms, two `touch examples/demo-app/common.php` gave two
+  `Live worker reloading after a PHP change 8 pending` lines and a new bridge
+  PID; all nine sockets stayed open, kept receiving `update` frames and got no
+  `error` frame or close. On a scratch copy of the bundle and bridge, `touch`
+  of the bundle changed nothing; appending a comment closed the client with
+  `1012 Restart` and the server exited with 1 within 2 s. A fake interpreter
+  that always exits 75 gave four respawns, then `Live worker keeps reloading`
+  and exit 1; `/bin/false` gave `Live worker exited 1` and exit 1.
+  `tests/shell/contracts.php` and `tests/shell/configuration.php` pass.
+  Not verified on the demo: the running unit has the old code and needs the
+  one owner restart; then a `common.php` edit must reload without `sudo`
+  (journal).
+- **L0 review fixes (same day):** an independent review found no lost,
+  duplicated or misrouted answer across a respawn, and two defects that turned
+  a transient reload error into a hard failure. (1) A respawned bridge that
+  died at startup (half-written file, exit 255) ended the service: now a bridge
+  that has not answered anything is retried like a 75 exit, every respawn waits
+  (150 ms × 2ⁿ, at most 5 s), any answer resets the counter, and the ninth
+  failure in a row, or a crash of a serving bridge, shuts down with 1012
+  instead of a bare exit. (2) A 5xx observation closed the socket with 4403,
+  which the browser treats as revoked access and never retries: 5xx now
+  closes with 1011 (reconnect). The bridge also keeps a content hash for files
+  modified within the last second, so a same-second, same-size rewrite is not
+  missed. Verified locally with stub bridges: 75 → 255 → serving kept the
+  client open and answered it; always-255 gave 8 retries, then exit 1; a 500
+  answer closed with 1011. Real bridge on scratch instance `dbg`: `touch
+  examples/demo-app/common.php` reloaded the bridge while the client kept
+  receiving `update` frames. `contracts.php`, `configuration.php`, build
+  `--check` pass. Open risks noted by the review: process-global state an
+  application sets (e.g. a session save handler) persists between
+  applications in one bridge; a file changed between its first include and the
+  post-request check within one second can be missed.
+- **L0 demo verification:** after the owner's last restart (14:24:01 UTC),
+  `touch examples/demo-app/common.php` logged `Live worker reloading after a PHP
+  change` in the unit journal without `sudo`; `workspace.spec.cjs` through the
+  managed URL: 4 passed, polling case skipped.
+- **Status:** approved plan; L0 implemented and verified on the demo; L1–L2
+  next.
+
+<a id="fb-0076"></a>
+
+## FB-0076 — Static image column for lists
+
+- **Date:** 2026-10-29.
+- **Demand (consumer):** a fixed, application-owned catalog whose rows each have
+  an illustration shipped with the application's static assets. Tiles are the
+  right presentation, but the media slot existed only for `media` columns,
+  which need a file manager file id, content store and thumbnails. Application
+  artwork is a deployment asset, so it must not enter a file space.
+- **Simpler routes considered:** a `media` column over a read-only MediaSource
+  would need mounts, rights and installation for a deployment asset; an
+  `icon` column only takes Suite icon classes. A column presentation over
+  the existing media slots is the smallest change. User-uploaded or versioned
+  images keep using `media` and the file manager.
+- **Implemented:** `column.presentation: "image"` + `imageBase` (+ `altOf`),
+  server value rules, table cell, card, tile and detail rendering, tiles by
+  default, placeholder on load error. See
+  [workspaces](workspaces.md#media-tiles) and
+  [field presentation](field-presentation.md). No new endpoint or right.
+- **Consumer section:**
+  - Put the images in the application's public directory (for example
+    `public/images/catalog/`) and declare `image_base` relative to the page
+    (`../images/catalog/` from `/admin/`), ending in `/`.
+  - The row value is a file name only (`name.png`); letters, digits, `-`, `_`,
+    `.`; extensions png, jpg, jpeg, webp, gif, svg. Anything else shows no image.
+  - Give `alt_of` the text field that names the picture if the image carries
+    meaning not already in the title; otherwise it is decorative.
+  - **No ACL applies.** The web server serves the file to anyone who knows its
+    URL. Do not put protected or personal data behind this column.
+  - Square artwork is not cropped (`object-fit: contain`); the slot is square.
+- **Verification (managed URL, 2026-10-29):** `php8.4 tests/shell/list-presentation.php`
+  (option validation, value rules, wire options, server blanking),
+  `configuration`, `lists`, `validation`, `i18n`, `contracts`, `files`,
+  `sorting`, `grid-edit`, `related-fields`, `tenancy` pass; `npm run typecheck`,
+  `node tools/build.mjs --check` pass. Browser `list-presentation.spec.cjs`
+  (table, tiles, cards and details in Skyblue, light and dark; mobile tile
+  count equal to media tiles; the managed `Katalógus` demo) and
+  `workspace.spec.cjs` pass. `files`, `mobile-grid`, `list-integration` and
+  `subview` specs passed; one `files.spec.cjs` upload test failed once in the
+  combined run and passed alone, with no relation to this change.
+- **Status:** implemented on the working tree, not committed. Limits: the file
+  name check is the same regex on both sides; the existence of `alt_of`'s field
+  is not validated (an unknown or hidden field gives an empty `alt`); no
+  responsive image sizes or `srcset`.

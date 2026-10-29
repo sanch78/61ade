@@ -25,6 +25,13 @@ if (!$db->query('SELECT COUNT(*) FROM demo_readings')->fetchColumn()) {
     for ($i = 1; $i <= 1801; $i++) $reading->execute([sprintf('Mérés %04d', ($i * 127) % 1801 + 1), sprintf('%.1f', ($i * 37) % 1000 / 10)]);
     $db->commit();
 }
+// Fixed catalog with static images (column presentation image): three images, a missing file and four values that are not plain image file names.
+$db->exec('CREATE TABLE IF NOT EXISTS demo_catalog(id INTEGER PRIMARY KEY AUTOINCREMENT,image TEXT NOT NULL,title TEXT NOT NULL,note TEXT NOT NULL)');
+if (!$db->query('SELECT COUNT(*) FROM demo_catalog')->fetchColumn()) {
+    $item = $db->prepare('INSERT INTO demo_catalog(image,title,note) VALUES (?,?,?)');
+    foreach ([['circle.svg', 'Kör', 'Négyzetes kép'], ['square.svg', 'Négyzet', 'Négyzetes kép'], ['triangle.svg', 'Háromszög', 'Négyzetes kép'], ['wide.svg', 'Széles', 'Fekvő kép, nincs vágás'], ['missing.png', 'Hiányzó fájl', 'Helykitöltő jelenik meg'],
+        ['../secret.png', 'Szülő könyvtár', 'Nem jelenik meg'], ['dir/circle.svg', 'Könyvtár', 'Nem jelenik meg'], ['https://example.test/a.png', 'Séma', 'Nem jelenik meg'], ['circle.exe', 'Kiterjesztés', 'Nem jelenik meg']] as $row) $item->execute($row);
+}
 // Virtual file manager: framework tables, one root per mount and a synthetic tree, seeded once per mount.
 // Earlier BLOB content moves to the content store first (migration 0002); verification must pass.
 $files = blade_demo_files();
@@ -121,7 +128,7 @@ $db->exec("INSERT OR IGNORE INTO blade_account_state(actor_id,locale) VALUES ('4
 $db->exec("INSERT OR IGNORE INTO blade_account_state(actor_id,oauth_allowed) VALUES ('5',1)");
 $exists = $db->prepare("SELECT COUNT(*) FROM blade_rules WHERE subject_type='user' AND subject_id=? AND resource=? AND action=? AND channel='ui' AND effect=? AND field_name=?");
 $grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,?,?,'ui',?,'all','',?)");
-$rules = [['1', 'files', ['tree', 'list', 'create_directory', 'upload', 'copy', 'move', 'text_get', 'text_save', 'content_get', 'content_stream', 'thumbnail_get', 'delete', 'rename', 'download', 'zip_prepare', 'zip_get']], ['1', 'notes', ['list', 'get', 'create', 'update', 'delete']], ['1', 'demo_tasks', ['list', 'get', 'create', 'update', 'delete', 'complete', 'dialog_neutral', 'dialog_warning', 'dialog_danger']], ['1', 'demo_readings', ['list', 'get']], ['1', 'topology', ['list', 'get', 'create', 'save', 'delete', 'type_create', 'type_delete']]];
+$rules = [['1', 'files', ['tree', 'list', 'create_directory', 'upload', 'copy', 'move', 'text_get', 'text_save', 'content_get', 'content_stream', 'thumbnail_get', 'delete', 'rename', 'download', 'zip_prepare', 'zip_get']], ['1', 'notes', ['list', 'get', 'create', 'update', 'delete']], ['1', 'demo_catalog', ['list', 'get']], ['1', 'demo_tasks', ['list', 'get', 'create', 'update', 'delete', 'complete', 'dialog_neutral', 'dialog_warning', 'dialog_danger']], ['1', 'demo_readings', ['list', 'get']], ['1', 'topology', ['list', 'get', 'create', 'save', 'delete', 'type_create', 'type_delete']]];
 foreach (['4', '5'] as $actor) $rules[] = [$actor, 'notes', ['list', 'get']];
 // Read-only reader: tasks without the description field (field-level deny).
 $rules[] = [(string) $reader, 'demo_tasks', ['list', 'get']];

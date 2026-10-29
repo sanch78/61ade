@@ -76,9 +76,9 @@ var require_buffer_util = __commonJS({
       }
       return target;
     }
-    function _mask(source, mask, output, offset, length) {
+    function _mask(source2, mask, output, offset, length) {
       for (let i = 0; i < length; i++) {
-        output[offset + i] = source[i] ^ mask[i & 3];
+        output[offset + i] = source2[i] ^ mask[i & 3];
       }
     }
     function _unmask(buffer, mask) {
@@ -116,9 +116,9 @@ var require_buffer_util = __commonJS({
     if (false) {
       try {
         const bufferUtil = null;
-        module.exports.mask = function(source, mask, output, offset, length) {
-          if (length < 48) _mask(source, mask, output, offset, length);
-          else bufferUtil.mask(source, mask, output, offset, length);
+        module.exports.mask = function(source2, mask, output, offset, length) {
+          if (length < 48) _mask(source2, mask, output, offset, length);
+          else bufferUtil.mask(source2, mask, output, offset, length);
         };
         module.exports.unmask = function(buffer, mask) {
           if (buffer.length < 32) _unmask(buffer, mask);
@@ -3719,6 +3719,7 @@ var require_websocket_server = __commonJS({
 import http from "node:http";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+import { readFileSync, watchFile, unwatchFile } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // node_modules/ws/wrapper.mjs
@@ -3735,35 +3736,63 @@ var import_websocket_server = __toESM(require_websocket_server(), 1);
 var origin = process.env.BLADE_LIVE_ORIGIN;
 if (!origin) throw new Error("BLADE_LIVE_ORIGIN is required");
 var interval = Math.max(500, Number(process.env.BLADE_LIVE_INTERVAL || 2e3));
-var bridge = spawn(process.env.BLADE_PHP || "php8.4", [fileURLToPath(new URL("live-bridge.php", import.meta.url))], { stdio: ["pipe", "pipe", "inherit"] });
 var pending = /* @__PURE__ */ new Map();
 var requestId = 0;
-createInterface({ input: bridge.stdout }).on("line", (line) => {
-  try {
-    const r = JSON.parse(line), p = pending.get(r.id);
-    if (p) {
-      pending.delete(r.id);
-      clearTimeout(p.timeout);
-      p.resolve(r);
+var bridge = null;
+var quick = 0;
+var stopping = false;
+function startBridge() {
+  const child = spawn(process.env.BLADE_PHP || "php8.4", [fileURLToPath(new URL("live-bridge.php", import.meta.url))], { stdio: ["pipe", "pipe", "inherit"] });
+  let served = false;
+  bridge = child;
+  child.stdin.on("error", () => {
+  });
+  createInterface({ input: child.stdout }).on("line", (line) => {
+    served = true;
+    quick = 0;
+    try {
+      const r = JSON.parse(line), p = pending.get(r.id);
+      if (p) {
+        pending.delete(r.id);
+        clearTimeout(p.timeout);
+        p.resolve(r);
+      }
+    } catch {
+      console.error("Invalid live worker response");
     }
-  } catch {
-    console.error("Invalid live worker response");
-  }
-});
-bridge.on("exit", (code, signal) => {
-  console.error("Live worker exited", code, signal);
-  process.exit(1);
-});
+  });
+  child.on("close", (code, signal) => {
+    bridge = null;
+    if (stopping) return;
+    if (code !== 75 && served) {
+      console.error("Live worker exited", code, signal);
+      shutdown(1);
+      return;
+    }
+    if (++quick > 8) {
+      console.error("Live worker keeps failing", code, signal);
+      shutdown(1);
+      return;
+    }
+    console.error(code === 75 ? "Live worker reloading after a PHP change" : "Live worker failed to start, retrying", code, pending.size, "pending");
+    setTimeout(() => {
+      if (stopping) return;
+      startBridge();
+      for (const p of pending.values()) bridge.stdin.write(p.line);
+    }, Math.min(5e3, 150 * 2 ** quick));
+  });
+}
+startBridge();
 function read(request) {
   if (pending.size > 100) return Promise.reject(new Error("Live worker busy"));
   return new Promise((resolve, reject) => {
-    const id = ++requestId;
+    const id = ++requestId, line = JSON.stringify({ ...request, id }) + "\n";
     const timeout = setTimeout(() => {
       pending.delete(id);
       reject(new Error("Live worker timeout"));
     }, 1e4);
-    pending.set(id, { resolve, reject, timeout });
-    bridge.stdin.write(JSON.stringify({ ...request, id }) + "\n");
+    pending.set(id, { resolve, reject, timeout, line });
+    bridge?.stdin.write(line);
   });
 }
 var server = http.createServer((req, res) => {
@@ -3779,49 +3808,109 @@ server.on("upgrade", (req, socket, head) => {
   }
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
 });
+var PROTOCOL = 2;
+var SUBSCRIPTIONS = 64;
 wss.on("connection", (ws, req) => {
   const path = new URL(req.url, "http://localhost").pathname;
-  let subscription = null, previous = null, busy = false, alive = true, epoch = 0;
-  const tick = async () => {
-    if (!subscription || busy || ws.readyState !== import_websocket.default.OPEN) return;
-    busy = true;
-    const generation = epoch;
+  let ticket = null, ready = false, alive = true;
+  const subscriptions = /* @__PURE__ */ new Map();
+  const send = (message) => {
+    if (ws.readyState === import_websocket.default.OPEN) ws.send(JSON.stringify(message));
+  };
+  const tick = async (s) => {
+    if (!ready || s.busy || s.retry > Date.now() || ws.readyState !== import_websocket.default.OPEN) return;
+    s.busy = true;
     try {
-      const r = await read({ ...subscription, path, version: previous?.version || "" });
-      if (generation !== epoch || ws.readyState !== import_websocket.default.OPEN) return;
+      const r = await read({ path, ticket, resource: s.resource, query: s.query, version: s.previous?.version || "" });
+      if (subscriptions.get(s.id) !== s || ws.readyState !== import_websocket.default.OPEN) return;
       if (!r.ok) {
-        ws.send(JSON.stringify({ type: "error", error: r.error, status: r.status }));
-        ws.close(r.status === 401 ? 4401 : 4403);
+        if (r.status === 401) {
+          ws.close(4401, "Session expired");
+          return;
+        }
+        if (!(r.status < 500)) throw new Error(r.error);
+        subscriptions.delete(s.id);
+        send({ type: "denied", id: s.id, status: r.status, error: r.error });
         return;
       }
+      s.failures = 0;
       const data = r.data;
-      if (data.version !== previous?.version) {
-        const old = new Map((previous?.items || []).map((row) => [String(row.id), JSON.stringify(row)]));
-        const order = data.items.map((row) => String(row.id));
-        ws.send(JSON.stringify({ type: "update", subscriptionId: subscription.subscriptionId, version: data.version, order, upserts: data.items.filter((row) => old.get(String(row.id)) !== JSON.stringify(row)), removed: [...old.keys()].filter((id) => !order.includes(id)), previous: data.previous, next: data.next, total: data.total, matched: data.matched }));
-        previous = data;
+      if (data.version !== s.previous?.version) {
+        const old = new Map((s.previous?.items || []).map((row) => [String(row.id), JSON.stringify(row)]));
+        const order = data.items.map((row) => String(row.id)), visible = new Set(order);
+        send({ type: "update", id: s.id, version: data.version, order, upserts: data.items.filter((row) => old.get(String(row.id)) !== JSON.stringify(row)), removed: [...old.keys()].filter((id) => !visible.has(id)), previous: data.previous, next: data.next, total: data.total, matched: data.matched });
+        s.previous = data;
       }
     } catch {
-      if (ws.readyState === import_websocket.default.OPEN) ws.close(1011, "Live service unavailable");
+      s.retry = Date.now() + Math.min(3e4, interval * 2 ** s.failures++);
     } finally {
-      busy = false;
+      s.busy = false;
     }
   };
-  ws.on("message", (raw) => {
-    try {
-      const msg = JSON.parse(raw.toString());
-      if (msg.type !== "subscribe" || typeof msg.ticket !== "string" || typeof msg.resource !== "string" || !msg.query || typeof msg.query !== "object") throw Error();
-      subscription = { ticket: msg.ticket, resource: msg.resource, query: msg.query, subscriptionId: msg.subscriptionId };
-      previous = null;
-      epoch++;
-      void tick();
-    } catch {
-      ws.close(1008, "Invalid subscription");
+  const hello = (msg) => {
+    if (msg.type !== "hello" || msg.protocol !== PROTOCOL) {
+      ws.close(4409, "Protocol " + PROTOCOL + " required");
+      return;
     }
+    if (typeof msg.ticket !== "string" || msg.ticket.length > 128) {
+      ws.close(4401, "Authentication required");
+      return;
+    }
+    ticket = msg.ticket;
+    clearTimeout(authTimeout);
+    read({ path, ticket, check: true }).then((r) => {
+      if (ws.readyState !== import_websocket.default.OPEN) return;
+      if (r.ok) {
+        ready = true;
+        send({ type: "ready", protocol: PROTOCOL });
+        return;
+      }
+      ws.close(r.status >= 500 ? 1011 : 4401, r.status >= 500 ? "Live service unavailable" : "Authentication failed");
+    }, () => {
+      if (ws.readyState === import_websocket.default.OPEN) ws.close(1011, "Live service unavailable");
+    });
+  };
+  ws.on("message", (raw) => {
+    let msg;
+    try {
+      msg = JSON.parse(raw.toString());
+    } catch {
+      msg = null;
+    }
+    if (!msg || typeof msg !== "object" || Array.isArray(msg)) {
+      ws.close(1008, "Invalid message");
+      return;
+    }
+    if (ticket === null) {
+      hello(msg);
+      return;
+    }
+    const id = typeof msg.id === "string" || Number.isSafeInteger(msg.id) ? String(msg.id) : "";
+    if (!ready || !id || id.length > 64) {
+      ws.close(1008, ready ? "Invalid subscription id" : "Not ready");
+      return;
+    }
+    if (msg.type === "unsubscribe") {
+      subscriptions.delete(id);
+      return;
+    }
+    if (msg.type !== "subscribe" || typeof msg.resource !== "string" || msg.resource.length > 128 || !msg.query || typeof msg.query !== "object" || Array.isArray(msg.query)) {
+      ws.close(1008, "Invalid subscription");
+      return;
+    }
+    if (!subscriptions.has(id) && subscriptions.size >= SUBSCRIPTIONS) {
+      send({ type: "denied", id, status: 429, error: "Too many subscriptions" });
+      return;
+    }
+    const s = { id, resource: msg.resource, query: msg.query, previous: null, busy: false, failures: 0, retry: 0 };
+    subscriptions.set(id, s);
+    void tick(s);
   });
-  const timer = setInterval(() => void tick(), interval);
+  const timer = setInterval(() => {
+    for (const s of subscriptions.values()) void tick(s);
+  }, interval);
   const authTimeout = setTimeout(() => {
-    if (!subscription) ws.close(4401, "Authentication required");
+    if (ticket === null) ws.close(4401, "Authentication required");
   }, 1e4);
   ws.on("pong", () => {
     alive = true;
@@ -3838,16 +3927,34 @@ wss.on("connection", (ws, req) => {
     clearInterval(timer);
     clearInterval(heartbeat);
     clearTimeout(authTimeout);
-    epoch++;
+    subscriptions.clear();
   });
 });
 server.listen(Number(process.env.BLADE_LIVE_PORT || 8088), "127.0.0.1", () => console.log("61ade live transport ready"));
-function shutdown() {
-  for (const ws of wss.clients) ws.close(1001, "Restart");
+function shutdown(code = 0) {
+  if (stopping) return;
+  stopping = true;
+  process.exitCode = code;
+  unwatchFile(self);
+  for (const ws of wss.clients) ws.close(code ? 1012 : 1001, "Restart");
   server.close();
-  bridge.kill();
-  setTimeout(() => process.exit(0), 1e3).unref();
+  bridge?.kill();
+  setTimeout(() => process.exit(code), 1e3).unref();
 }
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+process.on("SIGTERM", () => shutdown());
+process.on("SIGINT", () => shutdown());
+var self = fileURLToPath(import.meta.url);
+var source = readFileSync(self, "utf8");
+watchFile(self, { interval: 2e3 }, () => {
+  let now;
+  try {
+    now = readFileSync(self, "utf8");
+  } catch {
+    return;
+  }
+  if (now !== source) {
+    console.error("Live server bundle changed, exiting for restart");
+    shutdown(1);
+  }
+});
 // Bundled ws: MIT License, Copyright (c) 2011 Einar Otto Stangvik and contributors, https://github.com/websockets/ws
