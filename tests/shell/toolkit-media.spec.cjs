@@ -124,7 +124,10 @@ test('file manager viewer runs on MediaPlayer: image and video unchanged, audio 
  const signage=(await api(page,'files','tree','signage')).body.data.root;
  const logo=(await api(page,'files','list',signage,{limit:200})).body.data.items.find(item=>item.name==='logo.png');
  // The listing reports logo.png as an audio file and its stream answers with a synthetic WAV (route only, no data change).
- const match=url=>url.search.includes('blade=1'),bytes=wav(3);
+ // Only the JSON action endpoint and the relabelled file's stream are routed: an intercepted (continued) media stream
+ // of the real video never reaches `loadedmetadata` in Chromium, so the video's GET requests stay unrouted.
+ const audioStream=`action=content_stream&id=${logo.id}&`,bytes=wav(3);
+ const match=url=>url.search==='?blade=1'||(url.search.startsWith('?blade=1&')&&url.search.includes(audioStream));
  const handler=async route=>{
   const request=route.request(),query=new URL(request.url()).searchParams;
   if(request.method()==='GET'&&query.get('action')==='content_stream'&&query.get('id')===String(logo.id)){
