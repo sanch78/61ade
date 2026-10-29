@@ -311,6 +311,7 @@
   "Ismétlés": "Wiederholen",
   "Sebesség: {speed}": "Geschwindigkeit: {speed}",
   "A videó nem játszható le ebben a böngészőben.": "Dieser Browser kann das Video nicht abspielen.",
+  "A hangfájl nem játszható le ebben a böngészőben.": "Dieser Browser kann die Audiodatei nicht abspielen.",
   "Ez a fájltípus nem tekinthető meg.": "Dieser Dateityp kann nicht angezeigt werden.",
   "Médiatartalom": "Medieninhalt",
   "Bélyegkép": "Vorschaubild",

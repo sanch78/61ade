@@ -11,6 +11,7 @@ import { escape, clearedText, mergeUsages, type Usage } from "./RecordPresentati
 import { actionUrl } from "./ActionUrl";
 import { server } from "./api/Server";
 import { uploads, type UploadEvents, type UploadFileInfo, type UploadPolicy } from "./Uploader";
+import { MediaPlayer } from "./components/media/MediaPlayer";
 import type { Row } from "./Realtime";
 import type { ActionConfirmation, ViewDefinition } from "./Workspace";
 
@@ -23,7 +24,7 @@ type TypeFilter=""|"directory"|"image"|"video"|"text"|"other";
 /** Server-side listing query of one panel (`list` values); paging continues it through `next`. */
 type Query={sort:Sort;direction:"asc"|"desc";search:string;type:TypeFilter};
 type Geometry={left:number;top:number;width:number;height:number;full:boolean};
-/** Previous/next across the images and videos of the panel's loaded rows. */
+/** Previous/next across the previewable files (images, videos, audio) of the panel's loaded rows. */
 type Navigation={index:number;count:number;go:(win:Window,step:1|-1)=>void};
 type TreeItem={id:string;parent:string;name:string;kind:"directory"|"file";mime_type:string};
 type Tree={root:string;items:TreeItem[];truncated:boolean};
@@ -340,7 +341,7 @@ export class FileManager {
     else if(panel.directory?.id!==folder)await this.open(panel,folder);
     else this.capabilities();
   }
-  /** Opens the file in the window its type has: text editor, image viewer or video player. */
+  /** Opens the file in the window its type has: text editor, or the media player for images, videos and audio. */
   private async launch(panel:Panel):Promise<void>{
     const row=this.target(panel);
     if(this.editable(row)&&this.can("text_get")){this.activate(panel.index);await this.openEditor();}
@@ -828,28 +829,37 @@ export class FileManager {
   private documentWindow(title:string,css:string,items:any[],navigation?:Navigation,geometry?:Geometry):{win:Window;bar:Toolbar;body:ReturnType<Layout["getCell"]>}{
     const win=this.window(title,960,680,true,"blade-document-window");
     const layout=new Layout(document.createElement("div"),{type:"none",css:"blade-document "+css,rows:[{id:"bar",height:48,css:"blade-command-row"},{id:"body",css:"blade-document__body"}]});
-    const steps=navigation&&navigation.count>1?[
+    const bar=new Toolbar(undefined,{css:"blade-document__bar",data:[...FileManager.steps(navigation),...items,FileManager.fullSize()]});
+    layout.getCell("bar").attach(bar);win.attach(layout);win.show();
+    this.chrome(win,bar,navigation,geometry);
+    return {win,bar,body:layout.getCell("body")};
+  }
+  /** Previous, `n / m` and next before a viewer's own toolbar items. */
+  private static steps(navigation?:Navigation):any[]{
+    return navigation&&navigation.count>1?[
       {id:"previous",icon:"dxi dxi-chevron-left",tooltip:t("Előző"),disabled:navigation.index<=0},
       {id:"index",type:"text",value:`${navigation.index+1} / ${navigation.count}`},
       {id:"next",icon:"dxi dxi-chevron-right",tooltip:t("Következő"),disabled:navigation.index>=navigation.count-1},
       {type:"separator"},
     ]:[];
-    const bar=new Toolbar(undefined,{css:"blade-document__bar",data:[...steps,...items,{id:"fullscreen",icon:"dxi dxi-arrow-expand",tooltip:t("Teljes méret")}]});
+  }
+  private static fullSize():any{return {id:"fullscreen",icon:"dxi dxi-arrow-expand",tooltip:t("Teljes méret")};}
+  /** Full size toggle, previous/next (toolbar, PageUp/PageDown) and the previous window's geometry of a shown document window. */
+  private chrome(win:Window,bar:Toolbar,navigation?:Navigation,geometry?:Geometry):void{
+    const steps=!!navigation&&navigation.count>1;
     const full=(on:boolean)=>{
       if(on)win.setFullScreen();else win.unsetFullScreen();
       bar.data.update("fullscreen",{icon:on?"dxi dxi-arrow-collapse":"dxi dxi-arrow-expand",tooltip:t(on?"Eredeti méret":"Teljes méret")});
     };
     bar.events.on("click",(id:string|number)=>{
       if(id==="fullscreen")full(!win.isFullScreen());
-      else if(steps.length&&(id==="previous"||id==="next"))navigation!.go(win,id==="next"?1:-1);
+      else if(steps&&(id==="previous"||id==="next"))navigation!.go(win,id==="next"?1:-1);
     });
-    layout.getCell("bar").attach(bar);win.attach(layout);win.show();
     if(geometry){if(geometry.full)full(true);else{win.setSize(geometry.width,geometry.height);win.setPosition(geometry.left,geometry.top);}}
-    if(steps.length)win.getContainer().addEventListener("keydown",event=>{
+    if(steps)win.getContainer().addEventListener("keydown",event=>{
       if(event.key!=="PageUp"&&event.key!=="PageDown"||event.altKey||event.ctrlKey||event.metaKey)return;
       event.preventDefault();event.stopPropagation();navigation!.go(win,event.key==="PageDown"?1:-1);
     });
-    return {win,bar,body:layout.getCell("body")};
   }
   /** Updates a toolbar text only when it changed, so typing does not repaint the bar. */
   private static label(bar:Toolbar,id:string,value:string):void{if(bar.data.getItem(id)?.value!==value)bar.data.update(id,{value});}
@@ -923,11 +933,11 @@ export class FileManager {
   }
 
   /**
-   * Image viewer or video player over the GET `content_stream` URL: the browser loads only what it
-   * shows and a video seeks with HTTP Range requests; the server checks the ACL on every request.
-   * Previous/next walk the images and videos of the panel's loaded rows in their order.
+   * Image viewer, video and audio player (MediaPlayer) over the GET `content_stream` URL: the browser loads only
+   * what it shows and media seek with HTTP Range requests; the server checks the ACL on every request.
+   * Previous/next walk the images, videos and audio files of the panel's loaded rows in their order.
    */
-  private async openPreview(panel=this.current,row=this.target(panel),geometry?:Geometry):Promise<Window|undefined>{
+  private async openPreview(panel=this.current,row=this.target(panel),geometry?:Geometry):Promise<MediaPlayer|undefined>{
     if(!row||!this.previewable(row)||this.busy)return undefined;
     const sequence=()=>panel.rows.filter(other=>this.previewable(other));
     const list=sequence();
@@ -940,96 +950,19 @@ export class FileManager {
       panel.selected=String(next.id);panel.grid.restore(panel.grid.capture(),true,panel.selected);
       const position=win.getPosition(),size=win.getSize();
       void this.openPreview(panel,next,{left:position.left,top:position.top,width:size.width,height:size.height,full:win.isFullScreen()}).then(opened=>{
-        win.hide();
-        (opened?.getContainer().querySelector<HTMLElement>(".blade-image-stage, video"))?.focus();
+        win.hide();opened?.focus();
       });
     }};
-    const url=actionUrl(this.view.resource,"content_stream",String(row.id),String(row.revision)),name=String(row.name),size=String(row.size_label);
-    return String(row.mime_type).startsWith("video/")?this.openVideo(name,url,size,navigation,geometry):this.openImage(name,url,size,navigation,geometry);
-  }
-
-  /** Fitted to the window (never enlarged) by default; zoom steps, 100 %, rotation, and scrolling when larger. */
-  private async openImage(name:string,url:string,size:string,navigation?:Navigation,geometry?:Geometry):Promise<Window>{
-    const percent=(scale:number)=>new Intl.NumberFormat(locale(),{style:"percent",maximumFractionDigits:0}).format(scale);
-    const {win,bar,body}=this.documentWindow(name,"blade-document--image",[
-      {id:"zoom-out",icon:"dxi dxi-minus",tooltip:t("Kicsinyítés")},
-      {id:"zoom",value:t("Illesztés"),items:[{id:"zoom:fit",value:t("Illesztés")},...[0.5,1,2].map(level=>({id:"zoom:"+level,value:percent(level)}))]},
-      {id:"zoom-in",icon:"dxi dxi-plus",tooltip:t("Nagyítás")},
-      {type:"separator"},
-      {id:"rotate",icon:"dxi dxi-rotate-right",tooltip:t("Forgatás jobbra")},
-      {type:"spacer"},
-      {id:"info",type:"text",value:size},
-    ],navigation,geometry);
-    body.attachHTML(`<div class="blade-image-stage" tabindex="0" role="group" aria-label="${escape(name)}"><div class="blade-image-frame"><img src="${escape(url)}" alt="${escape(name)}"></div></div>`);
+    const name=String(row.name),win=this.window(name,960,680,true,"blade-document-window");
+    // Image: fit, zoom steps, 100 %, rotation; video/audio: native controls, loop and speed; dimensions, length, format and size beside them.
+    const player=new MediaPlayer({source:{resource:this.view.resource,action:"content_stream",id:String(row.id),version:String(row.revision)},mime:String(row.mime_type),name,info:String(row.size_label)},
+      {before:FileManager.steps(navigation),after:[FileManager.fullSize()]});
+    player.mount(win);win.show();
+    win.events.on("afterHide",()=>player.destroy());
+    this.chrome(win,player.toolbar!,navigation,geometry);
     await awaitRedraw();
-    const stage=win.getContainer().querySelector<HTMLElement>(".blade-image-stage"),image=stage?.querySelector("img");
-    if(!stage||!image)return win;
-    const levels=[0.1,0.25,0.5,0.75,1,1.5,2,3,4,6,8];
-    let zoom:number|null=null,turn=0;
-    const fit=()=>{
-      const sideways=turn%180!==0,width=sideways?image.naturalHeight:image.naturalWidth,height=sideways?image.naturalWidth:image.naturalHeight;
-      return Math.min(1,(stage.clientWidth-32)/width,(stage.clientHeight-32)/height);
-    };
-    const paint=()=>{
-      if(!image.naturalWidth)return;
-      const scale=zoom??fit(),width=image.naturalWidth*scale,height=image.naturalHeight*scale,sideways=turn%180!==0;
-      const frame=image.parentElement!;
-      frame.style.width=(sideways?height:width)+"px";frame.style.height=(sideways?width:height)+"px";
-      image.style.width=width+"px";image.style.height=height+"px";image.style.setProperty("--blade-turn",turn+"deg");
-      FileManager.label(bar,"zoom",zoom===null?t("Illesztés ({value})",{value:percent(scale)}):percent(scale));
-    };
-    const step=(direction:1|-1)=>{
-      const current=zoom??fit();
-      zoom=direction>0?levels.find(level=>level>current*1.01)??levels[levels.length-1]:[...levels].reverse().find(level=>level<current*0.99)??levels[0];
-      paint();
-    };
-    bar.events.on("click",(id:string|number)=>{
-      const value=String(id);
-      if(value==="zoom-in"||value==="zoom-out")step(value==="zoom-in"?1:-1);
-      else if(value==="rotate"){turn=(turn+90)%360;paint();}
-      else if(value.startsWith("zoom:")){zoom=value==="zoom:fit"?null:Number(value.slice(5));paint();}
-    });
-    stage.addEventListener("keydown",event=>{
-      if(event.key==="+"||event.key==="=")step(1);else if(event.key==="-")step(-1);else if(event.key==="0"){zoom=null;paint();}else return;
-      event.preventDefault();
-    });
-    image.addEventListener("dblclick",()=>{zoom=zoom===null?1:null;paint();});
-    const shown=()=>{FileManager.label(bar,"info",`${image.naturalWidth} × ${image.naturalHeight} px · ${size}`);paint();};
-    if(image.complete&&image.naturalWidth)shown();else image.addEventListener("load",shown);
-    image.addEventListener("error",()=>FileManager.label(bar,"info",t("A kép nem jeleníthető meg.")));
-    // Fitting follows the window, including full size and manual resizing.
-    const observer=new ResizeObserver(()=>{if(zoom===null)paint();});
-    observer.observe(stage);win.events.on("afterHide",()=>observer.disconnect());
-    stage.focus();
-    return win;
-  }
-
-  /** The browser's native player controls; loop and playback speed in the toolbar, format and length beside them. */
-  private async openVideo(name:string,url:string,size:string,navigation?:Navigation,geometry?:Geometry):Promise<Window>{
-    const speeds=[0.5,1,1.5,2],rate=(speed:number)=>new Intl.NumberFormat(locale(),{maximumFractionDigits:1}).format(speed)+"×";
-    const {win,bar,body}=this.documentWindow(name,"blade-document--video",[
-      {id:"loop",value:t("Ismétlés"),twoState:true,active:false},
-      {id:"speed",value:t("Sebesség: {speed}",{speed:rate(1)}),items:speeds.map(speed=>({id:"speed:"+speed,value:rate(speed)}))},
-      {type:"spacer"},
-      {id:"info",type:"text",value:size},
-    ],navigation,geometry);
-    body.attachHTML(`<div class="blade-video-stage"><video src="${escape(url)}" controls preload="metadata" aria-label="${escape(name)}"></video></div>`);
-    await awaitRedraw();
-    const video=win.getContainer().querySelector("video");
-    if(!video)return win;
-    bar.events.on("click",(id:string|number)=>{
-      const value=String(id);
-      if(value==="loop")video.loop=!!bar.getState("loop");
-      else if(value.startsWith("speed:")){video.playbackRate=Number(value.slice(6));FileManager.label(bar,"speed",t("Sebesség: {speed}",{speed:rate(video.playbackRate)}));}
-    });
-    video.addEventListener("loadedmetadata",()=>{
-      const seconds=Math.round(video.duration),length=Number.isFinite(seconds)?`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")}`:"";
-      FileManager.label(bar,"info",[`${video.videoWidth} × ${video.videoHeight} px`,length,size].filter(Boolean).join(" · "));
-    });
-    video.addEventListener("error",()=>FileManager.label(bar,"info",t("A videó nem játszható le ebben a böngészőben.")));
-    win.events.on("afterHide",()=>video.pause());
-    video.focus();
-    return win;
+    if(this.windows.has(win))player.focus();
+    return player;
   }
 
   destroy():void{
