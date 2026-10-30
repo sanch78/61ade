@@ -78,6 +78,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | API keys | Once-only secret, multiselect action scope, revocation checkbox | Root menu → API keys |
 | Workspace | Filters, sorting, panel forms, cards, inline text/select/checkbox edits, related storage, pattern validation, multiselect, delete, marks and bulk business action | Feature demo → Tasks; Notes |
 | Business rule hook | `after_save` rule across main and related storage: an in-progress task cannot turn notifications off; the field error rolls the save back (form and inline edit) | Tasks → set `Folyamatban` with `Értesítés` off |
+| Project field type and command (toolkit D4) | The demo module's `demo.rating` editor/display on `Prioritás` (forms, table cell and card edit windows, details) and the `Másolás szövegként` record command ([D4](#toolkit-d4-tasks)) | Tasks → `Prioritás` stars; select or mark tasks → `Másolás szövegként` |
 | Large list | 1801 read-only rows: server-side sorting/filtering, virtual scrolling with a bounded client window | Feature demo → Mérések |
 | Field-level ACL | Read-only account; the description field is denied on list/get, so details, cards and responses never contain it | `reader@example.test` → Tasks |
 | File manager | Two panels with independent Drive A/B/C mounts and a draggable divider, each switchable between file listing (row marking, MIME icons) and a folder tree with files, new folder (depth ≤ 5), copy/move to the opposite panel with the conflict dialog, the framework [uploader](uploader.md) (txt, md, csv, json, png, jpg, mp4, webm; 5 MB, 20 files; chunked and resumable, folders, paste, background with a shell indicator), TXT editor with revision conflicts; listing/tiles/tree per panel with server search, type filter, sort and paging; rename (F2), delete (Del, real delete policy), single-file and streamed ZIP download; drop/paste onto a panel; image viewer and video player streamed with HTTP Range, 320 px WebP thumbnails from background tasks, content in a disk store; desktop only (`desktopOnly`), narrower windows show a notice; [details](files.md) | Feature demo → Fájlkezelő; `reader@example.test` browses and reads only; below 768 px |
@@ -128,8 +129,43 @@ starter admin and the tenant demo stay declarative and load no project module.
 | D1 | Signage `Médiatár` asset viewer | `assets.ts` | Planned |
 | D2 | Signage `Napi műsor` playlist preview | `playlist.ts` | Planned |
 | D3 | `Mérések` dashboard | `readings.ts` | Planned |
-| D4 | `Tasks` field type and command | `tasks.ts` | Planned |
+| D4 | `Tasks` field type and command | `tasks.ts` | Implemented: field type `demo.rating` on `Prioritás` and record command `demo.copy-text` ([below](#toolkit-d4-tasks)) |
 | D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` on the feature demo |
+
+<a id="toolkit-d4-tasks"></a>
+
+**D4 `Feladatok`** ([tasks.ts](../examples/demo-app/frontend/src/tasks.ts),
+declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
+
+- **Field type `demo.rating`** on the `Prioritás` field (`type: number`,
+  `editor: demo.rating`, pattern `^[0-5]$`, default 0, editable column). The
+  editor is a Suite number input (the labelled, keyboard control: arrow keys
+  step within 0–5) plus a star strip in a Form `container` item that `bind`
+  attaches and releases with the form's `signal` (a pointer shortcut, hidden
+  from assistive technology and the tab order; clicking the current star clears
+  to 0). `display` renders ★/☆ with one accessible name (`3 / 5 csillag`) in
+  the table, cards and record details, taking the theme's text colour. Used by
+  the create and update forms (panel), the table cell's edit button and the
+  card field's edit window; every save goes through the framework (`create`,
+  `update`, `__edit`), and the server validation by the storage type and
+  pattern stays authoritative. Not a bulk field: the bulk form sends every
+  field it shows.
+- **Record command `demo.copy-text`** (`Másolás szövegként`) after the view's
+  actions on the toolbar (in `Műveletek` when narrow): it reads the cursor
+  record, or every marked task (at most 50; its own `enabled` rule accepts
+  marks), through `get` and writes `label: value` lines with option labels to
+  the clipboard, then shows a toast. Disabled without a cursor record and
+  marks. A missing or refused clipboard goes to the shared error dialog, which
+  carries the text for copying by hand.
+- **Try:** Feature demó → Feladatok: the `Prioritás` column's stars, its edit
+  button (Enter or click), the update and create forms, `Kártyák`; select a
+  task (or mark several) and run `Másolás szövegként`; at 390 px through
+  `Műveletek`. English texts are in the demo catalogue; the demo offers only
+  Hungarian and English.
+- **Data:** setup adds the `priority` column to an existing `demo_tasks` table
+  (synthetic tasks get `n mod 6`); the managed demo needs
+  `BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`
+  once before the new `tasks.json` is served.
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
@@ -249,6 +285,7 @@ See [project rules](development.md#mandatory-framework-development-rules).
 
 - `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes; the starter admin and the tenant demo declare no modules or stylesheets, the feature demo exactly its versioned `app/demo.js` ([toolkit consumer](#toolkit-consumer)).
 - `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<version>` once (bootstrap `modules` and the network agree) and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules` and request no script outside `assets/`.
+- `npm run test:browser -- tests/shell/toolkit-demo-tasks.spec.cjs` ([D4](#toolkit-d4-tasks)): `Prioritás` edited through the table cell's edit button, the update and create panel forms and the card editor (pointer and keyboard), saved through `__edit`/`update`/`create` and re-rendered (also in `Adatok`); a value rewritten in transit is refused by the server with the field error in the editor; `Másolás szövegként` disabled without a record, copying the cursor record and the marks (stubbed clipboard, exact text), a refused clipboard in the error dialog, from `Műveletek` at 390 px; the stars follow light/dark/Skyblue. Tasks carry a run prefix and are deleted.
 - Ignored `.env.test` supplies `BLADE_DEMO_URL` and `BLADE_DEMO_INSTANCE=web`; every browser spec runs against the managed server and none starts a local server ([development](development.md#unified-playwright-configuration)).
 - `npm run test:browser -- --project=shell tests/shell/demo.spec.cjs`: login modes/language row, provider overlay/start, mailbox code/English default, account columns, API issue/use/revoke, starter menu and Tasks. Real provider completion remains unverified; FB-0050 records Google's callback mismatch.
 - `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs`: six combinations on desktop/320×480, keys/focus and invalid-login caller.
