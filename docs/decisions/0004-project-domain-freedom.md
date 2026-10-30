@@ -3,13 +3,22 @@
 Date: 2026-10-29. Accepted owner decision ([FB-0080](../feedback.md#fb-0080)).
 
 > Extended the same day by [ADR-0005](0005-toolkit.md): 61ade becomes a toolkit;
-> the planned custom view below is absorbed into the [toolkit plan](../toolkit-plan.md).
+> the planned custom view below is absorbed into the [toolkit plan](../toolkit-plan.md)
+> and implemented: project modules and view kinds for trusted code,
+> `SandboxFrame` for untrusted code ([toolkit](../toolkit.md)). The interim
+> "own pages from its own webroot" route of the consequences is no longer
+> needed.
 Supersedes the narrow "logically unextendable" exception of
 [ADR-0002](0002-framework-first.md) and R2 in
 [product direction](../product-direction.md) for consumer projects. Inside
 61ade itself, framework-first and DHTMLX remain unchanged.
 
 ## Context
+
+ADR-0002 allowed a consumer to leave the framework only if 61ade "logically
+cannot be extended" for the need. Almost anything can be extended, so the
+exception never applied, and the framework had no point where a project could
+attach its own browser code. This could block project-owned domain UI.
 
 The intent of ADR-0002 was narrower: projects must not rebuild admin
 infrastructure in parallel. It was never meant to place the project's own
@@ -48,3 +57,16 @@ admin session's origin: it runs in a sandboxed `<iframe>` with
 data never reach the browser.
 
 ## Consequences
+
+- Planned 61ade work: a project UI extension point (custom view) in two modes,
+  a trusted ES module from the project's own assets mounted into a shell
+  cell or window, and a sandboxed iframe for untrusted code; then a synthetic
+  example in the feature demo. Until it exists, a project may serve its own
+  pages from its own webroot.
+- A general gap a project reports follows the normal demand-driven path in
+  61ade, without blocking the project.
+- Active guidance in [development](../development.md#mandatory-framework-development-rules),
+  [usage](../usage.md#kötelező-fejlesztési-irány),
+  [product direction](../product-direction.md), [concept](../concept.md),
+  [repository layout](../repository-layout.md#fogyasztó-alkalmazás) and the
+  `61ade-consumer` skill follows this decision.

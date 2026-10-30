@@ -5,6 +5,10 @@ Date: 2026-10-16. Accepted mandatory owner instruction.
 > Superseded in part on 2026-10-29 by [ADR-0004](0004-project-domain-freedom.md):
 > framework-first covers shared infrastructure; the "logically cannot be
 > extended" exception no longer limits a consumer's own domain, data or UI.
+> Further superseded on 2026-10-29 by [ADR-0005](0005-toolkit.md): 61ade is a
+> toolkit; consumers write their own browser modules with its public API, and
+> "framework first" inside 61ade means building the reusable tool. The
+> exception wording in section 1 below is historical.
 
 61ade succeeds ADE as a DHTMLX admin framework. All general capabilities belong
 in the framework. Consumers declare application/menu/features and concrete
@@ -19,6 +23,11 @@ direction. Replacing widgets is insufficient: implement framework contracts and
 responsibilities. The initial shell is DHTMLX Window/Form login, Menu and Layout
 with an empty workspace. Application definitions supply menu hierarchy; the
 framework does not invent information architecture.
+
+ADE v2 means architectural/usage continuity, without copying old ADE code or
+embedding consumer business concepts. Modern PHP, TypeScript and DHTMLX remain
+the baseline. The full framework and migration span multiple milestones;
+login/menu completion proves only the first capability.
 
 <a id="pontosítás--2026-10-16"></a>
 
