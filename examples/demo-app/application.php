@@ -147,6 +147,8 @@ return new ApplicationDefinition(
     skins: $skins,
     // Toolkit consumer (docs/demos.md#toolkit-consumer): the project module built from frontend/src by tools/build.mjs.
     modules: ['app/demo.js'],
+    // Its stylesheet, built from the CSS the module's sources import; linked on signed-in pages after admin.css and skins.
+    stylesheets: ['app/demo.css'],
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [
         'admin' => __DIR__.'/admin-application.php',
         'tenants' => __DIR__.'/tenant-application.php',

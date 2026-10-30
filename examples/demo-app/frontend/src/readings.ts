@@ -1,7 +1,9 @@
 // D3 Mérések (docs/demos.md#toolkit-consumer): the `demo.reading-bar` column presentation of the readings list and
 // the `demo.readings-dashboard` view kind, a page composed of the framework ListView, a Suite Chart from `app.dhx`
 // and an own summary, linked by the list's cursor record and filters. Types only from 61ade; everything else is `app`.
-import type { Application, ApplicationModule, ColumnPresentation, ListView, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
+import type { Application, ApplicationModule, ColumnPresentation, ListOptions, ListView, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
+// The presentation's and the summary's rules; tools/build.mjs emits them into public/app/demo.css (`stylesheets`).
+import "./readings.css";
 
 /** `options` of a `demo.readings-dashboard` view (readings.json `views`), checked when the view opens. */
 interface DashboardOptions {
@@ -39,30 +41,6 @@ const numeric = (value: unknown): number | null => {
 const formatter = (locale: string, options: Intl.NumberFormatOptions) => {
   try { return new Intl.NumberFormat(locale, options); } catch { return new Intl.NumberFormat(undefined, options); }
 };
-
-// Presentation and summary styles; colours are Suite theme variables, so Skyblue, light, dark and skins apply.
-const STYLES = `
-.demo-reading-bar{display:flex;align-items:center;gap:8px;width:100%;min-width:0}
-.demo-reading-bar__track{flex:1 1 auto;min-width:32px;max-width:160px;height:6px;border-radius:3px;background:var(--dhx-background-additional);overflow:hidden}
-.demo-reading-bar__fill{display:block;height:100%;border-radius:3px;background:var(--dhx-color-primary)}
-.demo-reading-bar__value{flex:none;min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
-.demo-reading-bar--card .demo-reading-bar__track{max-width:240px;height:8px;border-radius:4px}
-.demo-reading-bar--tile{gap:6px}.demo-reading-bar--tile .demo-reading-bar__track{height:4px}
-.demo-readings-summary{box-sizing:border-box;height:100%;padding:8px 12px;overflow:auto;color:var(--dhx-font-color-primary);font-family:var(--dhx-font-family)}
-.demo-readings-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;margin:0}
-.demo-readings-summary--narrow .demo-readings-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 8px}
-.demo-readings-stat{min-width:0}.demo-readings-stat--wide{grid-column:1/-1}
-.demo-readings-stat dt{font-size:12px;line-height:16px;color:var(--dhx-font-color-secondary)}
-.demo-readings-stat dd{margin:0;font-size:16px;line-height:22px;font-weight:var(--dhx-font-weight-medium);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.demo-readings-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-`;
-function installStyles(): void {
-  if (document.getElementById("demo-readings-style")) return;
-  const style = document.createElement("style");
-  style.id = "demo-readings-style";
-  style.textContent = STYLES;
-  document.head.append(style);
-}
 
 /**
  * `demo.reading-bar`: an inline bar of a 0–100 reading with its number beside it (the visible text alternative; the
@@ -139,7 +117,13 @@ function themeColor(variable: string, fallback: string): string {
  */
 function dashboard(app: Application, host: ViewHost, view: ViewDefinition<DashboardOptions>): ViewInstance {
   const options = dashboardOptions(view);
-  const t = (key: string, params?: Record<string, unknown>) => app.i18n.t(key, params), locale = app.i18n.locale();
+  // The dashboard's list keeps its own mode, sort, columns and filters: a ListView keys its preferences by the id of
+  // the definition it is given, so it gets the offered list view under the dashboard's view id. Filtering here never
+  // changes the plain `Mérések` page (its preferences stay under `demo_readings`); the server still checks every call.
+  const source = app.viewDefinition(options.list) as ViewDefinition<ListOptions> | undefined;
+  if (!source || source.kind !== "list") throw new TypeError(`61ade feature demo: "${options.list}" is not an offered list view.`);
+  const listView: ViewDefinition<ListOptions> = { ...source, id: view.id };
+  const t =(key: string, params?: Record<string, unknown>) => app.i18n.t(key, params), locale = app.i18n.locale();
   const decimal = formatter(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const whole = formatter(locale, { maximumFractionDigits: 0 });
   const signed = formatter(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: "exceptZero" });
@@ -209,7 +193,7 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
       layout.destructor();
       if (list === current) list = undefined;
     }, { once: true });
-    current = list = new app.components.ListView({ view: options.list, filters: presets, signal });
+    current = list = new app.components.ListView({ view: listView, filters: presets, signal });
     presets = {};
     current.on("changed", event => { rows = event.rows; matched = event.matched; if (selected && !rows.some(row => String(row.id) === String(selected!.id))) selected = undefined; render(); });
     current.on("select", ({ row }) => { selected = row; render(); });
@@ -226,7 +210,6 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
 }
 
 const readings: ApplicationModule = app => {
-  installStyles();
   app.presentations.register(BAR, readingBar(app));
   app.views.register(KIND, { create: (host, view: ViewDefinition<DashboardOptions>) => dashboard(app, host, view) });
 };

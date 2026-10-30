@@ -150,10 +150,14 @@ test('navigating away destroys the dashboard: no chart, summary, listener or ext
  test.setTimeout(60000);const seen=watch(page);
  await page.setViewportSize({width:1280,height:900});
  await signIn(page);await openDashboard(page);
+ // The dashboard's list has its own preferences: its filter does not reach the plain Mérések page.
+ const filter=()=>page.getByRole('grid').locator('[data-dhx-id="title"] input');
+ await filter().fill('Mérés 000');await expect(stat(page,'count')).toHaveText(/^(\d+) \/ \1$/);
  await openView(page,'Mérések');
  await expect(page).toHaveURL(/#view=demo_readings/);
  await expect(chart(page)).toHaveCount(0);await expect(summary(page)).toHaveCount(0);
  await expect(page.getByRole('grid')).toHaveCount(1);
+ await expect(filter()).toHaveValue('');
  // A theme switch and a breakpoint crossing reach no listener of the closed dashboard (it would rebuild or throw).
  const after=seen.watches.length;
  await theme(page,'Éjjeli');await expect(page.locator('html')).toHaveAttribute('data-dhx-theme','dark');
@@ -162,5 +166,8 @@ test('navigating away destroys the dashboard: no chart, summary, listener or ext
  await expect(chart(page)).toHaveCount(0);await expect(summary(page)).toHaveCount(0);
  for(const subscriptions of seen.watches.slice(after))expect(subscriptions.filter(item=>item.resource==='demo_readings').length).toBeLessThanOrEqual(1);
  await theme(page,'Skyblue');
+ // Reopened, the dashboard's list comes back with its own saved filter.
+ await openDashboard(page);
+ await expect(filter()).toHaveValue('Mérés 000');await expect(stat(page,'count')).toHaveText(/^(\d+) \/ \1$/);
  expect(seen.errors).toEqual([]);expect(seen.console.filter(text=>text.includes('61ade'))).toEqual([]);
 });
