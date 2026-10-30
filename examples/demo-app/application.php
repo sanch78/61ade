@@ -14,7 +14,7 @@ use Blade\Feature\{Context, Failure, Field, SqlResource};
 use Blade\Live\LiveConfig;
 use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage};
 use Blade\Navigation\{Menu, MenuItem};
-use Blade\Shell\{ApplicationDefinition, Identity, Logo, SignIn, SignInLink, Skin, SqlIdentityProvider};
+use Blade\Shell\{ApplicationDefinition, Identity, Logo, SignIn, Skin, SqlIdentityProvider};
 
 require_once __DIR__.'/common.php';
 $runtime = blade_demo_runtime('features');
@@ -150,11 +150,11 @@ return new ApplicationDefinition(
     // Its stylesheet, built from the CSS the module's sources import; linked on signed-in pages after admin.css and skins.
     stylesheets: ['app/demo.css'],
     // Sign-in customization (docs/shell.md#sign-in-branding): the framework's product logo (docs/brand.md) in the window
-    // and the top row (the window's copy is the named one), a sign-in stylesheet on the supported hooks, a notice with a
-    // link to the demo mailbox, and a sign-in module filling the window's footer slot.
+    // and the top row (the window's copy is the named one), a sign-in stylesheet on the supported hooks, a notice and
+    // a sign-in module filling the window's footer slot.
     logo: new Logo(placement: 'both'),
     signInStylesheets: ['branding/sign-in.css'],
-    signIn: new SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.', [new SignInLink('Demó postafiók', 'mailbox/')]),
+    signIn: new SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.'),
     signInModules: ['branding/sign-in.js'],
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [
         'admin' => __DIR__.'/admin-application.php',

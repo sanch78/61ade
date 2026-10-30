@@ -403,3 +403,7 @@
 <a id="fb-0097"></a>
 
 ## FB-0097 — Roll back login suppression and identify the writer
+
+<a id="fb-0098"></a>
+
+## FB-0098 — Remove the mailbox link from the sign-in window

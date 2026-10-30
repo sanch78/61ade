@@ -96,7 +96,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
 | Appearance | Skyblue/light/dark, lower information bar and mobile menu | Any view |
 | Application skins | Synthetic neutral skins over a factory base instead of the factory themes: one skin without selector, a light- and a dark-based skin in the selector ([details](shell.md#application-skins)) | `skin@example.test`, `skins@example.test` |
-| Sign-in customization | The framework's [product logo](brand.md) kept with `new Logo(placement: 'both')` (inline SVG named `blade`: above the sign-in, e-mail confirmation and password-change forms, and a hidden-from-screen-readers copy at the end of the top row; after sign-in at the end of the top menu row), light or dark variant by the applied theme; the starter admin and the tenant demo show it by default (window placement); `branding/sign-in.css` on the signed-out pages only, through the supported hooks (smaller window logo, a green primary hue before sign-in); a notice and a `Demó postafiók` link below the form; the sign-in module `branding/sign-in.js` writing a theme line into the footer slot ([details](shell.md#sign-in-branding)) | Sign-in page in Skyblue and `Éjjeli` (reload); Tab to `Demó postafiók`; sign in and switch the theme; `skins@example.test` → `Tinta`; `twofactor@example.test` for the confirmation window; narrow to 390 px (the top row leaves the logo out) |
+| Sign-in customization | The framework's [product logo](brand.md) kept with `new Logo(placement: 'both')` (inline SVG named `blade`: above the sign-in, e-mail confirmation and password-change forms, and a hidden-from-screen-readers copy at the end of the top row; after sign-in at the end of the top menu row), light or dark variant by the applied theme; the starter admin and the tenant demo show it by default (window placement); `branding/sign-in.css` on the signed-out pages only, through the supported hooks (smaller window logo, a green primary hue before sign-in); a notice below the form; the sign-in module `branding/sign-in.js` writing a theme line into the footer slot ([details](shell.md#sign-in-branding)) | Sign-in page in Skyblue and `Éjjeli` (reload); sign in and switch the theme; `skins@example.test` → `Tinta`; `twofactor@example.test` for the confirmation window; narrow to 390 px (the top row leaves the logo out) |
 
 <a id="toolkit-consumer"></a>
 
@@ -419,6 +419,9 @@ No simulated provider or mockup page remains (FB-0047).
 <a id="demó-postafiók-mailbox"></a>
 
 ### Demo mailbox (`/mailbox/`)
+
+The sign-in window does not link to the mailbox ([FB-0098](feedback.md#fb-0098)).
+Open `/mailbox/` directly when testing synthetic e-mail confirmation.
 
 The demo does not send mail. It uses [command delivery](authentication.md#levélküldés)
 with [bin/outbox.php](../examples/demo-app/bin/outbox.php): it takes the
