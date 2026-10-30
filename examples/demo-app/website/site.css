@@ -111,10 +111,8 @@ a:hover > .arrow { transform: translate(2px, -2px); }
 .section > .wrap { padding-block: clamp(80px, 10vw, 136px); }
 .section > .wrap::before, .section > .wrap::after, .closing > .wrap::before, .closing > .wrap::after { content: ""; position: absolute; top: -4px; width: 7px; height: 7px; border: 1px solid var(--line-strong); background: var(--paper); }
 .section > .wrap::before, .closing > .wrap::before { left: -4px; }
-/* The hero guides stop above the stage; a node closes each one. */
-.hero-copy::before, .hero-copy::after { content: ""; position: absolute; bottom: -4px; width: 7px; height: 7px; border: 1px solid var(--line-strong); background: var(--paper); }
-.hero-copy::before { left: -4px; }
-.hero-copy::after { right: -4px; }
+/* The hero guides run on behind the screenshots down to the navy grid. */
+.stage::after { content: ""; position: absolute; top: 0; left: 50%; z-index: -1; width: min(var(--wrap), 100% - 2 * var(--gutter)); height: 42%; border-inline: 1px solid var(--line); transform: translateX(-50%); }
 .section > .wrap::after, .closing > .wrap::after { right: -4px; }
 .section--tint { background: var(--tint); }
 .section--tint > .wrap::before, .section--tint > .wrap::after { background: var(--tint); }
@@ -306,7 +304,7 @@ body:has(.image-dialog[open]) { overflow: hidden; }
   :root { --gutter: 20px; --inset: 0px; }
   .header-inner, .section > .wrap, .closing > .wrap, .hero-copy, .footer-inner { border-inline: 0; }
   .header-inner { padding-inline: 0; }
-  .section > .wrap::before, .section > .wrap::after, .closing > .wrap::before, .closing > .wrap::after, .hero-copy::before, .hero-copy::after { display: none; }
+  .section > .wrap::before, .section > .wrap::after, .closing > .wrap::before, .closing > .wrap::after, .stage::after { display: none; }
   .brand img { width: 100px; }
   .header-actions { gap: 10px; }
   .header-actions > .button--small { display: none; }
