@@ -198,9 +198,11 @@ final class Workspace
             if($data['action']==='__watch'){
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
                 $ctx=new Context($actor,'ui',$this->acl,$this->db,owner:$owner,tenant:$tenant);
-                $list=$data['values']['subscriptions']??null;
-                $result=is_array($list)?['results'=>$this->watch($ctx,$list)]:$this->observe($ctx,$data['resource'],$data['values']['query']??[],$data['values']['version']??'');
-                echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
+                // Only the batched form: `values` is `{subscriptions: [{id, resource, query, version}, …]}`.
+                $values=$data['values']??[];
+                if(!is_array($values['subscriptions']??null)||array_diff(array_keys($values),['subscriptions']))throw new Failure('Hibás feliratkozás.');
+                $list=$values['subscriptions'];
+                echo json_encode(['ok'=>true,'data'=>['results'=>$this->watch($ctx,$list)]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             if($data['action']==='__bulk'){
                 $values=$data['values'];
