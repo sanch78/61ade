@@ -2626,3 +2626,33 @@ that exactly equals an option label lists every option. The managed
     and against a fresh sample project; use the `skill-creator` evals and the
     `claude-prompting` guidance for the wording.
 - **Status:** open, not started.
+
+<a id="fb-0085"></a>
+
+## FB-0085 — Browser cache keys from the served file
+
+- **Date:** 2026-10-30.
+- **Observation:** a project module only got the application `version` as its
+  cache key, and 61ade's own `admin.js`/`admin.css` a hand-bumped `?v=32`; a
+  rebuilt file could stay cached until someone bumped a number.
+- **Decision (owner):** one rule for every shell asset: the key comes from the
+  file itself, so a rebuilt file reaches the browser at once, without a commit
+  or `.git`, the same in 61ade and in consumers. A git-commit-based library
+  version was considered and rejected: a project module is not the library's,
+  nothing changes before a commit, and deploys often have no `.git`.
+- **Implemented:** `?v=<base36 mtime>-<base36 size>` for `admin.js`,
+  `admin.css`, skins, project `modules` (also in the bootstrap) and
+  `stylesheets`, and the sign-in page's AuthHandler assets (URLs only). Paths
+  resolve with `realpath` inside the document root (optional
+  `ApplicationDefinition` `documentRoot`, JSON `application.document_root`,
+  default `DOCUMENT_ROOT`); own `?…` keys are kept; an unresolvable file
+  falls back to `versioned()` (the application `version`). 61ade's assets
+  outside the root use the package build's file. Limit: a rewrite of the same
+  size within one second keeps the key. Contract: [toolkit changes](toolkit.md#changes) (M9).
+- **Consumer impact:** nothing to bump any more; browser specs asserting
+  `?v=32` or `?v=<version>` must accept the new key
+  ([breaking changes](development.md#breaking-changes)).
+- **Verification (managed URL, 2026-10-30):** all PHP checks; browser
+  `toolkit-demo`, `browser`, `authentication`, `demo`, `toolkit-sandbox`,
+  `tenancy` pass (27).
+- **Status:** implemented and committed.
