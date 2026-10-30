@@ -1,7 +1,22 @@
-// SandboxFrame protocol without a browser: node tests/shell/toolkit-sandbox.mjs (envelope, limits, both protocol sides
-// with fake windows). The CSP, the opaque origin and real frames are covered by toolkit-sandbox.spec.cjs in Chromium.
+// SandboxFrame protocol without a browser: node tests/shell/toolkit-sandbox.mjs (the built sandbox.html, envelope, limits,
+// both protocol sides with fake windows). The CSP's effect, the opaque origin and real frames are covered by
+// toolkit-sandbox.spec.cjs in Chromium.
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {build} from 'esbuild';
+
+// The built dist/sandbox.html (run `node tools/build.mjs` first): one inline bootstrap without attributes, admitted by
+// its hash; no script-src 'self', so the untrusted code can load no same-origin script; the rest of the CSP unchanged.
+{
+ const html=readFileSync(new URL('../../packages/frontend/dist/sandbox.html',import.meta.url),'utf8');
+ const scripts=[...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)];
+ assert.equal(scripts.length,1,'one script element');assert.equal(scripts[0][1],'','an inline script, no src');
+ const hash='sha256-'+createHash('sha256').update(scripts[0][2],'utf8').digest('base64');
+ assert.equal(html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/)?.[1],
+  `default-src 'none'; script-src '${hash}' blob:; style-src 'unsafe-inline' blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'`);
+ assert.match(scripts[0][2],/__bladeSandboxStart/,'the bootstrap is the protocol runtime');
+}
 const src=new URL('../../packages/frontend/src/',import.meta.url).pathname;
 const stubs={
  '@dhtmlx/suite':'export class Layout{constructor(root,config){this.root=root;this.config=config;this.destroyed=false;}getCell(){return {};}destructor(){this.destroyed=true;}}',

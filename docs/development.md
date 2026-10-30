@@ -84,9 +84,8 @@ Consumers use exactly these runtime paths:
 - `packages/php` as one directory (`src`, `resources`, `templates`,
   `migrations` and the rest). The consumer loads `Blade\` with its own small
   PSR-4 autoloader over `packages/php/src`.
-- `packages/frontend/dist/admin.js` and `admin.css`; `sandbox.html` and
-  `sandbox.js` beside them only for a project that uses
-  [`SandboxFrame`](toolkit.md#packaging).
+- `packages/frontend/dist/admin.js` and `admin.css`; `sandbox.html` beside
+  them only for a project that uses [`SandboxFrame`](toolkit.md#packaging).
 
 `packages/php/composer.json` remains only for the demo's path repository.
 
@@ -102,9 +101,9 @@ change. Every consumer would need a coordinated update, as described in
 
 `packages/frontend/dist` and `packages/php/bin/live-server.mjs` (built from
 `tools/live-server.mjs`) are tracked on `main`. `dist` holds `admin.js` and
-`admin.css` (one ESM bundle and its stylesheet), `sandbox.html` and
-`sandbox.js` (the [sandbox document](toolkit.md#sandbox-protocol), from
-`src/sandbox/`) and `admin.d.ts` (toolkit API declarations from
+`admin.css` (one ESM bundle and its stylesheet), `sandbox.html` (the
+[sandbox document](toolkit.md#sandbox-protocol) with its bootstrap inline,
+from `src/sandbox/`) and `admin.d.ts` (toolkit API declarations from
 `src/api/index.ts`, development use only). The same build writes the feature
 demo's project module `examples/demo-app/public/app/demo.js` and its
 stylesheet `demo.css` (the CSS its sources import) from
@@ -178,7 +177,7 @@ checkout's `dist` build, which is the same file. A host whose
 (JSON `application.document_root`).
 
 A project that uses `SandboxFrame` lists
-`["admin.js", "admin.css", "sandbox.html", "sandbox.js"]` instead; the frame
+`["admin.js", "admin.css", "sandbox.html"]` instead; the frame
 loads `sandbox.html` from the directory of `admin.js`. `admin.d.ts` is never
 deployed: the development link already exposes it for the
 [TypeScript recipe](toolkit.md#typescript-recipe).

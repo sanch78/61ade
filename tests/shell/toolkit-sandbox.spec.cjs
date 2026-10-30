@@ -1,4 +1,4 @@
-// SandboxFrame in Chromium (toolkit C-4): the real dist/sandbox.html and sandbox.js from the managed URL (run
+// SandboxFrame in Chromium (toolkit C-4): the real dist/sandbox.html (its bootstrap inline) from the managed URL (run
 // `npm run build` and `npm run demo:assets` first) inside a fixture page that carries the shell's own CSP header.
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');const {buildSync}=require('esbuild');
@@ -53,7 +53,7 @@ test('sandbox frame: opaque origin, no cookies, storage or parent access, CSP bl
    try{const frame=document.createElement('iframe');frame.src=${JSON.stringify(base)}+'/sandbox-probe?frame';document.body.append(frame);}catch(error){}
    try{const form=document.createElement('form');form.action=${JSON.stringify(base)}+'/sandbox-probe?form';document.body.append(form);form.submit();}catch(error){}
    result.popup=String(window.open(${JSON.stringify(base)}+'/sandbox-probe?popup'));
-   // 'self' (the URL origin) admits scripts of the admin origin, but the opaque origin sends no cookies with them.
+   // The CSP admits only the inline bootstrap (by hash) and blob: scripts: a same-origin classic script is refused too.
    await new Promise(done=>{const script=document.createElement('script');script.onload=script.onerror=done;script.src=${JSON.stringify(base)}+'/sandbox-probe?script';document.head.append(script);});
    await new Promise(done=>setTimeout(done,500));
    blade.post('probe.result',result);
@@ -66,16 +66,14 @@ test('sandbox frame: opaque origin, no cookies, storage or parent access, CSP bl
  expect(result.parent).toMatch(/^blocked:/);expect(result.storage).toMatch(/^blocked:/);expect(result.session).toMatch(/^blocked:/);
  expect(result.fetch).toBe('blocked');expect(result.popup).toBe('null');
  const directives=result.violations.map(violation=>violation.directive);
- expect(directives).toEqual(expect.arrayContaining(['connect-src','img-src','frame-src']));
+ expect(directives).toEqual(expect.arrayContaining(['connect-src','img-src','frame-src','script-src-elem']));
  expect(directives.filter(directive=>directive==='connect-src').length).toBeGreaterThanOrEqual(3);   // fetch, XHR, EventSource at least
  // Evidence for the P7 review: every probe Playwright saw, whether it got a response and how it failed.
  const evidence=await Promise.all(probes.map(async request=>({probe:new URL(request.url()).search,response:!!(await request.response()),failure:request.failure()?.errorText??null})));
  test.info().annotations.push({type:'sandbox-probes',description:JSON.stringify({routed,evidence,violations:result.violations})});
- // Only the 'self' script left the renderer; every other probe was blocked by the meta CSP or the sandbox flags.
- expect(routed).toEqual(['?script']);
- for(const item of evidence.filter(item=>item.probe!=='?script'))expect(item.response,JSON.stringify(item)).toBe(false);
- const script=probes.find(request=>new URL(request.url()).search==='?script');
- expect((await script.allHeaders()).cookie ?? '').not.toContain('blade-sandbox-probe');
+ // Nothing left the renderer, the same-origin script included: every probe was blocked by the meta CSP or the sandbox flags.
+ expect(routed).toEqual([]);
+ for(const item of evidence)expect(item.response,JSON.stringify(item)).toBe(false);
  expect(errors).toEqual([]);
 });
 
@@ -102,6 +100,10 @@ test('sandbox frame: sandbox.html headers, load/ready, files and project message
  },PIXEL);
  const response=documents[0];
  expect(response.status()).toBe(200);expect(response.headers()['content-type']).toContain('text/html');
+ // The meta CSP admits the inline bootstrap by its hash and blob: scripts only (no 'self'); the rest is unchanged.
+ const markup=await response.text();
+ expect(markup.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/)?.[1]).toMatch(/^default-src 'none'; script-src 'sha256-[A-Za-z0-9+\/]{43}=' blob:; style-src 'unsafe-inline' blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'$/);
+ expect(markup).not.toMatch(/<script[^>]*\bsrc=/);
  expect(result.sandbox).toBe('allow-scripts');expect(result.title).toBe('Jelenet');expect(result.src).toBe(baseURL+'/assets/sandbox.html?v=sandbox-spec');
  expect(result.ready).toEqual([{}]);
  expect(result.messages).toEqual([{type:'demo.pong',payload:{payload:{n:1},width:1,text:'Szia',url:'blob:null/'}}]);

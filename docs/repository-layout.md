@@ -34,8 +34,8 @@ Under `packages/frontend/src`: `api` holds the public toolkit API (`types.ts`,
 the source of `dist/admin.d.ts`, the `Server` transport, services and the
 event bus); `app` the `Application`, registries, built-in kinds and routes;
 `components` the public components (`list`, `files`, `calendar`, `diagram`,
-`media`, `sandbox`) and DHTMLX adapters; `sandbox` the frame bootstrap built
-into `dist/sandbox.js`. Older top-level modules (`AdminShell.ts`,
+`media`, `sandbox`) and DHTMLX adapters; `sandbox` the frame bootstrap and document,
+built into `dist/sandbox.html` (the bootstrap inline). Older top-level modules (`AdminShell.ts`,
 `Uploader.ts`, `FileManager.ts`, …) are internals behind them
 ([toolkit](toolkit.md)). Planned responsibilities: `shell`, `renderer`,
 `actions`, `state`, `contracts`, `i18n` and `styles`.

@@ -41,8 +41,8 @@ supported; the starter admin and tenant demo stay declarative.
   directory (CSP `script-src 'self'`, `style-src 'self' 'unsafe-inline'` unchanged).
 - Optional for TypeScript: `dist/admin.d.ts` and the `@dhtmlx/suite` 9.3.12
   types it references ([recipe](#typescript-recipe)).
-- `SandboxFrame` additionally needs `dist/sandbox.html` and `dist/sandbox.js`
-  deployed beside `admin.js` ([packaging](#packaging)).
+- `SandboxFrame` additionally needs `dist/sandbox.html` deployed beside
+  `admin.js` ([packaging](#packaging)).
 
 <a id="module-loading"></a>
 
@@ -930,7 +930,7 @@ The feature demo keys `Médiatár` on its `file` field instead
 src="<admin.js directory>/sandbox.html?<admin.js cache key>">`: an opaque origin
 with no cookies, storage, session, CSRF token or same-origin access. The
 document's address is derived from `admin.js` (`import.meta.url`) on the
-first `load()`, so the two sandbox files must sit beside it. Without a usable
+first `load()`, so `sandbox.html` must sit beside it. Without a usable
 `import.meta.url` (a bundle that is not an ES module) creating the application
 or the component still works and `load()` rejects with a clear error. Messages use `postMessage` with the
 envelope `{blade: 1, id, type, payload}` (`SandboxMessage`; `id` 1–64
@@ -970,8 +970,8 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   `protocol`); later ones raise no `error`, `sandbox:error` or console line.
   Project messages are delivered while the document lives, also before
   `ready` and after an error.
-- **Frame checks** (`dist/sandbox.js`, a classic script built from
-  `src/sandbox/bootstrap.ts`): only messages whose `source` is `window.parent`;
+- **Frame checks** (the frame bootstrap, a classic script built from
+  `src/sandbox/bootstrap.ts` and inlined into `sandbox.html`): only messages whose `source` is `window.parent`;
   one `load` per document; `ready`/`error` from the parent are protocol errors.
   The frame reports its own violations as an `error` message (`Protocol: …`),
   so they reach the parent with code `error`; code `protocol` always means a
@@ -1003,16 +1003,16 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   `destroy()` removes the frame at once (kill switch), rejects a pending load
   and releases the Layout and listeners; `signal` and a closing window or view
   host call it; mounting follows the [common rules](#components).
-- **Meta CSP of `sandbox.html`** (exact text):
-  `default-src 'none'; script-src 'self' blob:; style-src 'unsafe-inline' blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'`.
-  `'self'` is the URL origin of `sandbox.html` (needed for `sandbox.js`); the
-  opaque origin sends no cookies with such script requests (SameSite=Lax
-  session cookie, `credentialless` in Chromium). It also lets the code load
-  any same-origin classic script, without cookies: an accepted deviation from
-  the plan's "only `blob:`/inline execution"
-  ([plan 4.4](toolkit-plan.md#44-sandbox-frame)). `fetch`, XHR, WebSocket,
-  EventSource, beacons, images and frames to any host are blocked; forms and
-  pop-ups are blocked by the sandbox flags.
+- **Meta CSP of `sandbox.html`** (exact text; `<hash>` is the SHA-256 of the
+  inline bootstrap, base64):
+  `default-src 'none'; script-src 'sha256-<hash>' blob:; style-src 'unsafe-inline' blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'`.
+  The bootstrap is inlined into the document and admitted by its hash, which
+  `tools/build.mjs` computes (`--check` fails on a stale one); `blob:` admits
+  the delivered code. There is no `'self'`: the code cannot load any
+  same-origin classic script, which keeps the plan's "only `blob:`/inline
+  execution" ([plan 4.4](toolkit-plan.md#44-sandbox-frame)). `fetch`, XHR,
+  WebSocket, EventSource, beacons, images, scripts and frames to any host are
+  blocked; forms and pop-ups are blocked by the sandbox flags.
 - **Shell CSP:** `Shell/Application.php::headers` sends `object-src 'none'` and no
   `frame-src`/`child-src`, so `default-src 'self'` already admits the
   same-origin `sandbox.html`; no PHP change. The managed host serves static
@@ -1029,8 +1029,9 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   was given: never pass it data the actor
   may not see. Where the browser keeps a sandboxed frame in the parent's process,
   a busy loop in the code also blocks the page; the timeout cannot interrupt it.
-- **Verification:** `node tests/shell/toolkit-sandbox.mjs` (envelope, limits,
-  both protocol sides with fake windows) and `npm run test:browser --
+- **Verification:** `node tests/shell/toolkit-sandbox.mjs` (the built
+  document's single inline script, its hash and the exact CSP; envelope,
+  limits, both protocol sides with fake windows) and `npm run test:browser --
   tests/shell/toolkit-sandbox.spec.cjs` in Chromium on the managed URL (opaque
   origin, no cookie, storage or parent access, CSP-blocked network, round
   trip, forged messages, error, timeout, navigation, destroy) pass, the spec
@@ -1048,13 +1049,14 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
 | --- | --- | --- |
 | `dist/admin.js`, `dist/admin.css` | yes (unchanged) | one ESM bundle, no chunks; linked with their [file key](#cache-keys) |
 | `dist/admin.d.ts` | no | development only; declarations of `src/api/index.ts` (`tsc --emitDeclarationOnly` through the TypeScript API), joined with `./types` into one file |
-| `dist/sandbox.html`, `dist/sandbox.js` | only when `SandboxFrame` is used | add to `.deploy.json` `shared_assets.files` beside `admin.js` |
+| `dist/sandbox.html` | only when `SandboxFrame` is used | add to `.deploy.json` `shared_assets.files` beside `admin.js`; one file, the frame bootstrap inline |
 
-`npm run build` (`tools/build.mjs`) writes all five files and
+`npm run build` (`tools/build.mjs`) writes all four files and
 `packages/php/bin/live-server.mjs`; `node tools/build.mjs --check` builds them in
-memory and fails on any difference. `packages/frontend/package.json` exports
-`./admin.js`, `./admin.css`, `./admin.d.ts`, `./sandbox.html` and
-`./sandbox.js`; `npm run demo:assets` copies the four runtime files. The same
+memory and fails on any difference (and on a left-over `dist/sandbox.js`,
+which the build removes). `packages/frontend/package.json` exports
+`./admin.js`, `./admin.css`, `./admin.d.ts` and `./sandbox.html`;
+`npm run demo:assets` copies the three runtime files. The same
 build writes and checks the feature demo's own module
 `examples/demo-app/public/app/demo.js` and its stylesheet `demo.css`
 ([worked example](#typescript-recipe));
@@ -1064,7 +1066,7 @@ consumer that uses `SandboxFrame`:
 ```json
 {
     "source": "/space/share/libs/61ade/packages/frontend/dist",
-    "files": ["admin.js", "admin.css", "sandbox.html", "sandbox.js"],
+    "files": ["admin.js", "admin.css", "sandbox.html"],
     "target": "target:public/assets/61ade"
 }
 ```
@@ -1644,7 +1646,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M4 | `Registry::view/fileManager/diagram/calendar` and `SqlResource::register` return `View` and take an optional `id` (`view`/`register` also `activate`, `commands`); `Registry::views()` returns `list<View>` objects instead of arrays; a later declaration with the same id replaces the earlier one ([rule](#view-id-rule)) | P2 | if used: PHP that reads `$registry->views()` as arrays | `register(…)` calls unchanged | three `Registry::view()` after `register()` unchanged; replacement kept |
 | M5 | `Registry::subview/appendViewActions` take view ids (default = resource) | P2 | info | `subview(…, embed: false)` unchanged | — |
 | M6 | Project `stylesheets` ([module loading](#module-loading)) replace stylesheet injection; linked on signed-in pages only, after `admin.css` and skins | P2, O8 | if used: a consumer that injects its own CSS | output buffer in `public/admin/index.php`; its sign-in logo needs a decision (handoff) | — |
-| M7 | `.deploy.json` `shared_assets.files` adds `sandbox.html`, `sandbox.js` beside `admin.js` ([packaging](#packaging)); `admin.d.ts` is never deployed | P3, O6 | if used: `SandboxFrame` users | needed with the scene stage | not needed |
+| M7 | `.deploy.json` `shared_assets.files` adds `sandbox.html` beside `admin.js` ([packaging](#packaging)); `admin.d.ts` is never deployed | P3, O6 | if used: `SandboxFrame` users | needed with the scene stage | not needed |
 | M8 | Frontend internals (`Workspace` constructor, which now takes the shell's `LiveChannel`, private classes) are not a contract; use `app` and [components](#components) | P3 | info | — | — |
 | M9 | [Cache keys](#cache-keys) from the served file `?v=<base36 mtime>-<base36 size>`: `admin.js`/`admin.css` (released build `?v=30`, dev URL `?v=32` from `02a64d6` to `edbc90f`), project `modules`/`stylesheets` (formerly `?v=<version>`, still the fallback), skin stylesheets and AuthHandler files (formerly unkeyed); an own `?…` key stays as written | P4, FB-0085 | if used: specs that assert `?v=30`, `?v=32` or `?v=<version>` on these URLs must accept the file key | specs request the files without a key; own `editor.css?v=1`, `app.css?v=3` stay hand-kept until dropped | specs assert no key; release keys see the handoff |
 | M10 | Record commands only in the list toolbar; the record context menu is gone: a right click, the context-menu key or Shift+F10 on a row, card or tile keeps the browser's own behaviour ([registries](#registries)). `Adatok` is the `details` record command: toolbar id `blade-results` → `blade-command:details`, disabled without a cursor record or with several marks | P3 C-5b | if used: specs that open a row context menu (use the toolbar or `Műveletek`) or address `blade-results` | none | none: `command()` clicks toolbar items by name |
@@ -1757,7 +1759,7 @@ resolved with the recommended defaults and the P0 consumer inventory.
 | O3 | View `id` (`[a-z][a-z0-9_.-]*`, unique) independent of `resource`, default = resource. `#view=` is canonical; `#feature=<resource>` stays a legacy alias rewritten with `replaceState`; menu ids `view:<id>`; later same-id declarations replace earlier ones. | allflow has delivered e-mails with `/admin/#feature=…` and relies on `Registry::view()` replacing the `SqlResource` view; default ids keep preference keys valid. |
 | O4 | `record: <resource>` record views; row resolved by that resource's `get`; opened by activation, record action, `navigate` or URL; `open: page \| window`. | Server-side ACL, field ACL and tenant scope stay the only authority. |
 | O5 | `activate` also accepts `{field, map}` with `*` default and the new `view:<id>` target; validated on the server, chosen per row on the client. | StoryBloX audio/scene records open different viewers; existing values keep working. |
-| O6 | Static `dist/sandbox.html` + `sandbox.js` with a meta CSP in `<iframe sandbox="allow-scripts">`; data and code by `postMessage`; `.deploy.json` grows by these files for `SandboxFrame` users. | Opaque origin: no cookies or CSRF; the shell CSP stays strict. |
+| O6 | Static `dist/sandbox.html` (its bootstrap inline since 2026-10-30, [changes](#changes)) with a meta CSP in `<iframe sandbox="allow-scripts">`; data and code by `postMessage`; `.deploy.json` grows by these files for `SandboxFrame` users. | Opaque origin: no cookies or CSRF; the shell CSP stays strict. |
 | O7 | Untrusted code may run inside the opaque-origin frame only (`blob:` script). R8's "no eval/executable configuration strings" applies to configuration and the admin origin. | Agent-written scenes are project data, not configuration. |
 | O8 | `stylesheets` list beside `modules`, same path rules, signed-in pages only, linked after framework CSS and skins. | Replaces StoryBloX's output-buffer injection in `public/admin/index.php`. |
 | O9 | No transport change: the bootstrap `i18n.messages` already carries the merged catalog (`Translator::configure`: framework < project per locale, default locale as fallback), fed by `Blade\I18n\Settings::$catalogues` / JSON `i18n.catalogues`; `app.i18n` wraps `t`/`locale`. Framework keys are Hungarian source text in one flat namespace and a project key equal to a framework key overrides it. | Confirmed in P0.4; project modules use the same catalogues. Key convention: accepted at G1 (source text or project prefix). |
