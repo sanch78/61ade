@@ -6,7 +6,7 @@ const text = (value: unknown): value is string => typeof value === "string" && v
 
 /**
  * `FilePicker.pick` (`app.components.FilePicker`): the modal tiles picker of `file` fields over the field's folder
- * (`folder_id`, otherwise the mount root), limited to the field's accepted MIME classes. Resolves the chosen file's
+ * (`folderId`, otherwise the mount root), limited to the field's accepted MIME classes. Resolves the chosen file's
  * descriptor, or `null` on Cancel, Escape or when `signal` aborts; its requests end with it. The server checks `list`
  * on the mount for every request.
  */

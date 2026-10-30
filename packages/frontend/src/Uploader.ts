@@ -7,12 +7,12 @@ import { post } from "./api/Server";
 /** Browser part of a server `UploadPolicy` (`UploadPolicy::metadata()`); never contains server paths. */
 export type UploadPolicy = {
   extensions: string[];
-  max_size_bytes: number;
-  max_files: number;
-  chunk_bytes: number;
+  maxSizeBytes: number;
+  maxFiles: number;
+  chunkBytes: number;
   folders: boolean;
-  max_depth: number;
-  duplicate_policy: "ask" | "overwrite" | "rename" | "skip" | "reject";
+  maxDepth: number;
+  duplicatePolicy: "ask" | "overwrite" | "rename" | "skip" | "reject";
 };
 /** Per-file outcome of the target action, the shape the file manager's `upload` returns. */
 export type UploadResult = {
@@ -338,8 +338,8 @@ class UploadService {
     const context = this.context!, policy = context.policy;
     const folders = policy.folders && "webkitdirectory" in HTMLInputElement.prototype;
     const rules = [
-      t("Engedélyezett típusok: {types}. Legfeljebb {size} fájlonként.", { types: policy.extensions.join(", "), size: sizeLabel(policy.max_size_bytes) }),
-      t("Egyszerre legfeljebb {count} fájl tölthető fel.", { count: policy.max_files }),
+      t("Engedélyezett típusok: {types}. Legfeljebb {size} fájlonként.", { types: policy.extensions.join(", "), size: sizeLabel(policy.maxSizeBytes) }),
+      t("Egyszerre legfeljebb {count} fájl tölthető fel.", { count: policy.maxFiles }),
       ...(policy.folders ? [t("Mappák is feltölthetők.")] : []),
     ].join(" ");
     const accept = policy.extensions.map(extension => "." + extension).join(",");
@@ -508,7 +508,7 @@ class UploadService {
       else if (entry.isFile) {
         const file = await fileOf(entry as FileSystemFileEntry), path = entry.fullPath.replace(/^\/+/, "");
         collected.push({ file, relativePath: path.includes("/") ? path : "" });
-      } else if (entry.isDirectory && depth <= (policy?.max_depth ?? 5)) {
+      } else if (entry.isDirectory && depth <= (policy?.maxDepth ?? 5)) {
         for (const child of await children(entry as FileSystemDirectoryEntry)) await walk(child, depth + 1);
       }
     };
@@ -526,7 +526,7 @@ class UploadService {
   }
 
   /** Files of one drop or folder choice taken into the queue; the rest of a huge folder is only counted. */
-  private limit(): number { return (this.context?.policy.max_files ?? 20) + 100; }
+  private limit(): number { return (this.context?.policy.maxFiles ?? 20) + 100; }
   private omitted(count: number): void {
     const text = t("{count} további fájl nem került a feltöltési sorba.", { count });
     message({ text, css: "blade-toast blade-uploader-toast--failed", expire: 8000 });
@@ -554,7 +554,7 @@ class UploadService {
       // The same file already in flight to the same target would share its server transfer.
       if ([...this.items.values()].some(item => same(item) && item.target === context.target && ACTIVE.includes(item.state))) { ignored++; continue; }
       const item = this.create(added, fingerprint, context, batch);
-      if (fresh.length >= context.policy.max_files) this.fail(item, "quota", t("Egyszerre legfeljebb {count} fájl tölthető fel.", { count: context.policy.max_files }), false);
+      if (fresh.length >= context.policy.maxFiles) this.fail(item, "quota", t("Egyszerre legfeljebb {count} fájl tölthető fel.", { count: context.policy.maxFiles }), false);
       else fresh.push(item);
     }
     if (ignored) this.announce(t("{count} fájl már a sorban van.", { count: ignored }));
@@ -573,7 +573,7 @@ class UploadService {
         if (item.state !== "checking") return;
         const answer = answers.get(index);
         // A name conflict is decided when the file is finished (dialog or the fixed policy), unless the policy rejects it.
-        if (!answer || answer.ok || (answer.code === "conflict" && context.policy.duplicate_policy !== "reject")) this.enqueue(item);
+        if (!answer || answer.ok || (answer.code === "conflict" && context.policy.duplicatePolicy !== "reject")) this.enqueue(item);
         else this.fail(item, String(answer.code ?? ""), String(answer.message ?? t("Sikertelen művelet.")), false);
       });
     } catch (error) {
@@ -664,7 +664,7 @@ class UploadService {
         if (item.controller === controller) this.releaseTransfer(item, transfer);
         return;
       }
-      const chunkBytes = Math.max(1, Number(begin.chunk_bytes) || this.context?.policy.chunk_bytes || 4194304);
+      const chunkBytes = Math.max(1, Number(begin.chunk_bytes) || this.context?.policy.chunkBytes || 4194304);
       item.transfer = transfer;
       item.received = Math.min(item.size, Math.max(0, Number(begin.received) || 0));
       this.persist();

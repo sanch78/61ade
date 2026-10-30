@@ -253,12 +253,12 @@ export interface Ui {
 /** Browser part of a server `UploadPolicy` (`UploadPolicy::metadata()`); never contains server paths. */
 export interface UploadPolicy {
   extensions: string[];
-  max_size_bytes: number;
-  max_files: number;
-  chunk_bytes: number;
+  maxSizeBytes: number;
+  maxFiles: number;
+  chunkBytes: number;
   folders: boolean;
-  max_depth: number;
-  duplicate_policy: "ask" | "overwrite" | "rename" | "skip" | "reject";
+  maxDepth: number;
+  duplicatePolicy: "ask" | "overwrite" | "rename" | "skip" | "reject";
 }
 
 /** Per-file outcome of an upload target action (the file manager's `upload` shape). */
@@ -584,9 +584,11 @@ export type BuiltinFieldType = "text" | "password" | "number" | "select" | "mult
 
 /** Client-side validation hints mirroring the server rules (docs/validation.md); the server stays authoritative. */
 export interface ValidationRules {
-  min_length?: number;
+  /** Configuration `min_length`. */
+  minLength?: number;
   pattern?: { expression: string; flags?: string; message?: string };
-  matches_field?: string;
+  /** Configuration `matches_field`. */
+  matchesField?: string;
   unique?: boolean;
 }
 
@@ -594,12 +596,14 @@ export interface ValidationRules {
 export interface FileFieldConfig {
   resource: string;
   mount: string;
-  folder_id?: string | null;
+  /** The resolved folder of the field; `null` when it does not exist (no upload target). */
+  folderId?: string | null;
   accept?: string[];
   policy?: UploadPolicy | null;
-  can_upload?: boolean;
+  /** The actor may upload into the field's folder. */
+  canUpload?: boolean;
   /** The actor may browse the field's folder (`list` on the mount). */
-  can_choose?: boolean;
+  canChoose?: boolean;
 }
 
 /** One form field (`Field::metadata()`; `FormValidation.ts` `FieldDefinition`). */
@@ -744,20 +748,25 @@ export interface ListKindOptions {
   commands?: string[];
 }
 
-/** `options` of kind `files`: today's `files` key (`FileManager.ts` `FileManagerConfig`). */
+/** `options` of kind `files` (`FileManagerDefinition::metadata()` in camelCase; `FileManager.ts` `FileManagerConfig`). */
 export interface FilesKindOptions {
   mounts: { id: string; label: string }[];
   upload: {
-    allowed_extensions: string[];
-    max_size_bytes: number;
+    allowedExtensions: string[];
+    maxSizeBytes: number;
     multiple: boolean;
-    max_files?: number;
-    duplicate_policy: string;
+    maxFiles?: number;
+    duplicatePolicy: string;
     policy: UploadPolicy;
   };
-  text: { extension: string; max_bytes: number };
+  text: { extension: string; maxBytes: number };
+  /** MIME types the viewer shows. */
   preview: string[];
-  max_depth: number;
+  /** MIME types that get thumbnails (empty without the thumbnail service). */
+  thumbnails?: string[];
+  maxDepth: number;
+  /** `archive` or `delete` (`FileManagerDefinition` `deletePolicy`). */
+  deletePolicy?: string;
 }
 
 /** `options` of kind `diagram`: today's `diagram` key (`DiagramView.ts` `DiagramConfig`). */
@@ -772,14 +781,15 @@ export interface DiagramKindOptions {
   maxLinks: number;
 }
 
-/** `options` of kind `calendar`: today's `calendar` key (`CalendarView.ts` `CalendarConfig`). */
+/** `options` of kind `calendar` (`CalendarDefinition::metadata()` in camelCase; `CalendarView.ts` `CalendarConfig`). */
 export interface CalendarKindOptions {
   views: ("day" | "week" | "month")[];
-  default_view: string;
-  first_hour: number;
-  last_hour: number;
-  max_range_days: number;
-  day_action: { resource: string; action: string; label: string } | null;
+  defaultView: string;
+  firstHour: number;
+  lastHour: number;
+  maxRangeDays: number;
+  /** The day action, only when offered to the actor. */
+  dayAction: { resource: string; action: string; label: string } | null;
   fields: FieldMetadata[];
 }
 
@@ -1006,7 +1016,8 @@ export interface RecordFormOptions extends ComponentOptions {
 export interface RecordFormEvents {
   /** The action succeeded: `action` is the submitted action's name, `result` its `data` (what `submit()` resolves). */
   saved: { action: string; result: unknown };
-  cancel: Record<string, never>;
+  /** Cancel was pressed (the creator closes the form's window). */
+  cancelled: Record<string, never>;
   /** A field value changed (dirty tracking). */
   changed: { field: string; value: unknown };
 }
@@ -1058,7 +1069,7 @@ export interface FileManager extends Component<FileManagerEvents> {
 /** Events of `FileManager`. */
 export interface FileManagerEvents {
   /** The viewer or the text editor showed a file (also on previous/next). */
-  opened: { id: string; mime_type: string };
+  opened: { id: string; mimeType: string };
 }
 
 /** Options of `FilePicker.pick`. */
@@ -1075,7 +1086,7 @@ export interface FilePickerOptions {
 /** The modal tiles picker of `file` fields (`FilePicker.ts`; implemented P3 C-2 as `components/files/FilePicker.ts`). */
 export interface FilePicker {
   /**
-   * Opens the picker over the field's folder (`folder_id`, otherwise the mount root), limited to its accepted MIME
+   * Opens the picker over the field's folder (`folderId`, otherwise the mount root), limited to its accepted MIME
    * classes. Resolves the chosen file or `null` (Cancel, Escape, abort; an already aborted signal opens nothing).
    * Malformed options throw `TypeError` before anything opens.
    */

@@ -53,7 +53,10 @@ $registry->add(new Action('attachments', 'upload', 'Feltöltés',
 
 The file manager builds its policy from its own options
 (`FileManagerDefinition::uploadPolicy()`, `tempRoot`) and exposes it as
-`files.upload.policy` metadata ([files](files.md#behavior)). Its allowlist may
+`options.upload.policy` metadata of the files view ([files](files.md#behavior));
+the browser part (`UploadPolicy::metadata()`) uses the option names above
+(`maxSizeBytes`, `maxFiles`, `chunkBytes`, `maxDepth`, `duplicatePolicy`), never
+`tempRoot`, `ttlSeconds` or `preflight`. Its allowlist may
 include audio (`mp3`, `wav`, `m4a`): at finish the bytes must be detected as
 the matching audio type (otherwise `content_mismatch`), the stored file gets its
 length from `ffprobe` and opens in the [media player](files.md#media-player). A

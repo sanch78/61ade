@@ -15,7 +15,7 @@ import { MediaPlayer } from "./components/media/MediaPlayer";
 import type { Row } from "./Realtime";
 import type { ActionConfirmation, ViewDefinition } from "./Workspace";
 
-export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{allowed_extensions:string[];max_size_bytes:number;multiple:boolean;max_files?:number;duplicate_policy:string;policy:UploadPolicy};text:{extension:string;max_bytes:number};preview:string[];max_depth:number};
+export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{allowedExtensions:string[];maxSizeBytes:number;multiple:boolean;maxFiles?:number;duplicatePolicy:string;policy:UploadPolicy};text:{extension:string;maxBytes:number};preview:string[];thumbnails?:string[];maxDepth:number;deletePolicy?:string};
 export type FileViewDefinition={kind:"files";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean;get?:boolean;confirm?:ActionConfirmation;usages?:boolean;fields:FieldDefinition[]}[];files:FileManagerConfig};
 type Entry={id:string;name:string;kind:"directory"|"file";extension:string;mime_type:string;size:number;modified_at:string;revision:string;width?:number|null;height?:number|null;duration_ms?:number|null;orientation?:string;thumbnail?:"ready"|"pending"|"failed"|"none"};
 type Listing={directory:Directory;items:Entry[];next?:string|null;total?:number;matched?:number};
@@ -31,7 +31,7 @@ type Tree={root:string;items:TreeItem[];truncated:boolean};
 type Directory={id:string;mount:string;depth:number;path:{id:string;name:string}[]};
 type Summary={succeeded:{name:string}[];skipped:{name:string}[];failed:{name:string;error:string}[];cleared?:Record<string,number>};
 /** Notifications of the public component (`components/files/FileManager.ts`): a file shown in the viewer or editor. */
-export type FileManagerHooks={opened?:(file:{id:string;mime_type:string})=>void};
+export type FileManagerHooks={opened?:(file:{id:string;mimeType:string})=>void};
 /** "Plakátok: 2, Médiatár-elemek: 1" of usage counts. */
 const usageList=(usages:Usage[])=>usages.map(usage=>`${usage.label}: ${usage.count.toLocaleString(locale())}`).join(", ");
 type Failure=Error&{status?:number;fieldErrors?:Record<string,string>;details?:any};
@@ -373,7 +373,7 @@ export class FileManager {
     if(this.busy||!this.panels.length)return false;
     const panel=this.current,other=this.other,chosen=this.selection(panel);
     switch(id){
-      case "create_directory":return this.can(id)&&!!panel.directory&&panel.directory.depth<this.config.max_depth;
+      case "create_directory":return this.can(id)&&!!panel.directory&&panel.directory.depth<this.config.maxDepth;
       case "upload":return this.can(id)&&!!panel.directory;
       case "copy":case "move":return this.can(id)&&!!chosen.length&&!!other.directory;
       case "rename":return this.can(id)&&chosen.length===1;
@@ -939,7 +939,7 @@ export class FileManager {
     // An editor opens at the start of the text; Suite's setFocus would put the caret at the end.
     const text=area();
     if(text&&this.windows.has(win)){text.setSelectionRange(0,0);text.focus();sync();}
-    if(!this.disposed&&this.windows.has(win))this.hooks.opened?.({id:String(row.id),mime_type:String(row.mime_type)});
+    if(!this.disposed&&this.windows.has(win))this.hooks.opened?.({id:String(row.id),mimeType:String(row.mime_type)});
   }
 
   /**
@@ -971,7 +971,7 @@ export class FileManager {
     win.events.on("afterHide",()=>player.destroy());
     this.chrome(win,player.toolbar!,navigation,geometry);
     await awaitRedraw();
-    if(this.windows.has(win)){player.focus();if(!this.disposed)this.hooks.opened?.({id:String(row.id),mime_type:String(row.mime_type)});}
+    if(this.windows.has(win)){player.focus();if(!this.disposed)this.hooks.opened?.({id:String(row.id),mimeType:String(row.mime_type)});}
     return player;
   }
 

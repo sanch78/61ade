@@ -105,7 +105,7 @@ test('RecordForm and the list forms report saved; RecordForm validates like the 
  // A RecordForm in the side cell of the same Layout.
  await page.evaluate(()=>{
   window.form=new app.components.RecordForm({resource:'assets',action:'update',id:'1'});
-  window.formEvents=[];for(const name of ['saved','cancel','changed'])form.on(name,payload=>formEvents.push([name,payload.field??payload.result?.id??null]));
+  window.formEvents=[];for(const name of ['saved','cancelled','changed'])form.on(name,payload=>formEvents.push([name,payload.field??payload.result?.id??null]));
   form.mount(layout.getCell('side'));
  });
  const side=page.locator('[data-cell-id="side"]');
@@ -125,7 +125,7 @@ test('RecordForm and the list forms report saved; RecordForm validates like the 
  await expect(page.locator('.blade-toast').filter({hasText:'A művelet sikerült.'}).first()).toBeVisible();
  expect(await page.evaluate(()=>form.dirty())).toBe(false);
  await side.getByRole('button',{name:'Mégse',exact:true}).click();
- expect(await page.evaluate(()=>formEvents.some(([name])=>name==='cancel'))).toBe(true);
+ expect(await page.evaluate(()=>formEvents.some(([name])=>name==='cancelled'))).toBe(true);
  await page.evaluate(()=>{form.destroy();form.destroy();list.destroy();});
  await expect(side.locator('input')).toHaveCount(0);
  expect(errors).toEqual([]);

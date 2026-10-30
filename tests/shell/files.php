@@ -34,8 +34,8 @@ check($view('3')===[],'No file view without rules');
 check($view('1')[0]['desktopOnly']===false,'desktopOnly is opt-in');
 $narrow=new Registry();(new FileManagerDefinition('files','Files','test',['a'=>'Drive A'],desktopOnly:true,contentRoot:$root))->register(new Workspace($narrow,$db));
 check($narrow->views()[0]->desktopOnly===true,'desktopOnly view option');
-check($view('1')[0]['options']['upload']["max_size_bytes"]===100&&!isset($view('1')[0]['options']['space']),'Browser metadata only');
-check($view('1')[0]['options']['upload']['max_files']===20&&$view('1')[0]['options']['upload']['multiple']===true,'Upload file count in metadata');
+check($view('1')[0]['options']['upload']['maxSizeBytes']===100&&!isset($view('1')[0]['options']['upload']['max_size_bytes'])&&!isset($view('1')[0]['options']['space']),'Browser metadata only');
+check($view('1')[0]['options']['upload']['maxFiles']===20&&$view('1')[0]['options']['upload']['multiple']===true,'Upload file count in metadata');
 foreach([fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A']),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:'relative/files'),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root.'/../x'),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,maxFiles:21),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,maxFiles:0),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,maxSizeBytes:104857601),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,ffmpegPath:'ffmpeg'),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,ffprobePath:'/usr/../bin/ffprobe')] as $invalid){try{$invalid();throw new RuntimeException('Invalid file manager definition accepted');}catch(InvalidArgumentException){}}
 $single=new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,maxFiles:1);
 check($single->metadata()['upload']['multiple']===false&&$single->metadata()['upload']['max_files']===1&&$single->temporaryRoot()===$root.'/.transfers','Single-file limit and default transfer root');
@@ -397,7 +397,7 @@ if(isset($limits['upload_max_filesize'])&&$limits['upload_max_filesize']+65536<=
     if($limits['upload_max_filesize']>=262144)check((new UploadPolicy(['txt'],10,chunkBytes:$limits['upload_max_filesize']))->chunkBytes===$limits['upload_max_filesize'],'Explicit chunk equal to upload_max_filesize accepted');
 }
 if(isset($limits['post_max_size'])&&$limits['post_max_size']<=8388608){try{new UploadPolicy(['txt'],10,chunkBytes:$limits['post_max_size']);throw new RuntimeException('Chunk above post_max_size accepted');}catch(InvalidArgumentException $e){check(str_contains($e->getMessage(),'_max_'),'Explicit chunk above post_max_size rejected');}}
-check($view('1')[0]['options']['upload']['policy']===['extensions'=>['txt','png'],'max_size_bytes'=>100,'max_files'=>20,'chunk_bytes'=>$defaultChunk,'folders'=>true,'max_depth'=>5,'duplicate_policy'=>'ask']&&!str_contains(json_encode($view('1')),'.transfers'),'Upload policy metadata without the transfer root');
+check($view('1')[0]['options']['upload']['policy']===['extensions'=>['txt','png'],'maxSizeBytes'=>100,'maxFiles'=>20,'chunkBytes'=>$defaultChunk,'folders'=>true,'maxDepth'=>5,'duplicatePolicy'=>'ask']&&!str_contains(json_encode($view('1')),'.transfers'),'Upload policy metadata without the transfer root');
 check($registry->get('files','upload')->upload instanceof UploadPolicy&&$registry->get('files','upload')->upload->requestBytes()===2000&&is_int($registry->get('files','text_save')->upload),'Upload action declares a policy; text_save keeps its byte limit');
 foreach([fn()=>new UploadPolicy([],10),fn()=>new UploadPolicy(['TXT'],10),fn()=>new UploadPolicy(['txt','txt'],10),fn()=>new UploadPolicy(['txt'],0),fn()=>new UploadPolicy(['txt'],104857601),fn()=>new UploadPolicy(['txt'],10,21),fn()=>new UploadPolicy(['txt'],10,chunkBytes:1000),fn()=>new UploadPolicy(['txt'],10,chunkBytes:8388609),fn()=>new UploadPolicy(['txt'],10,duplicatePolicy:'merge'),fn()=>new UploadPolicy(['txt'],10,tempRoot:'relative'),fn()=>new UploadPolicy(['txt'],10,tempRoot:'/a/../b'),fn()=>new UploadPolicy(['txt'],10,ttlSeconds:60),fn()=>new UploadPolicy(['txt'],10,maxDepth:0)] as $invalid){try{$invalid();throw new RuntimeException('Invalid upload policy accepted');}catch(InvalidArgumentException){}}
 // A synthetic second consumer (not the file manager) with its own policy and the same transfer root.
@@ -586,7 +586,7 @@ $session1=Transfers::owner('session-1');
 $octx=fn(string $actor='1',?string $owner=null,string $channel='ui',array $scopes=[])=>new Context(new Identity($actor,'Actor '.$actor),$channel,$workspace->acl,$db,$scopes,[],$owner??$session1);
 check($registry->get('files','download')->get&&$registry->get('files','zip_get')->get&&!$registry->get('files','zip_prepare')->get&&!$registry->get('files','delete')->get,'download and zip_get are GET-capable');
 $workspace->acl->invalidate();$filesView=$view('1')[0];$byName=array_column($filesView['actions'],null,'name');
-check($byName['delete']['confirm']['severity']==='danger'&&$byName['delete']['confirm']['title']==='Törlés'&&str_contains($byName['delete']['confirm']['message'],'{count}')&&str_contains($byName['delete']['confirm']['message'],'archiválódik')&&$filesView['options']['delete_policy']==='archive','Delete confirmation and policy in the file view metadata');
+check($byName['delete']['confirm']['severity']==='danger'&&$byName['delete']['confirm']['title']==='Törlés'&&str_contains($byName['delete']['confirm']['message'],'{count}')&&str_contains($byName['delete']['confirm']['message'],'archiválódik')&&$filesView['options']['deletePolicy']==='archive','Delete confirmation and policy in the file view metadata');
 check($byName['download']['get']===true&&$byName['zip_get']['get']===true&&$byName['rename']['fields'][0]['name']==='name','GET flags and rename field in metadata');
 try{new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,deletePolicy:'purge');throw new RuntimeException('Invalid delete policy accepted');}catch(InvalidArgumentException){}
 // Paged listing: 300 entries with ties in every key; every sort and direction against an independent ordering.
@@ -676,7 +676,7 @@ $delRegistry=new Registry();$delWs=new Workspace($delRegistry,$db);$delDef->regi
 $delRule=$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,'del',?,'ui','allow',?,?,'')");
 foreach(['list','tree','copy','move','download','delete','rename','upload','create_directory'] as $a)$delRule->execute(['1',$a,'all','']);
 $dcall=fn(string $action,?string $id,array $values=[],string $actor='1')=>$delWs->executor->execute(new Context(new Identity($actor,'A'),'ui',$delWs->acl,$db,[],[],$session1),'del',$action,$id,$values);
-check(array_values(array_filter($delWs->views(new Identity('1','x')),fn($v)=>$v['resource']==='del'))[0]['options']['delete_policy']==='delete','Delete policy in metadata');
+check(array_values(array_filter($delWs->views(new Identity('1','x')),fn($v)=>$v['resource']==='del'))[0]['options']['deletePolicy']==='delete','Delete policy in metadata');
 $dRootA=$delStorage->root('a');$dRootB=$delStorage->root('b');
 $dDir=$delStorage->entry($delStorage->createDirectory($dRootA,'Törlendő'));$dSub=$delStorage->entry($delStorage->createDirectory($dDir,'Al'));
 $dLeaf=$delStorage->createFile($dSub,'leaf.txt','text/plain',$src("delete me\n"));$dPng=$delStorage->createFile($dDir,'kép.png','image/png',$tmp.'/wide.png');
@@ -755,13 +755,13 @@ foreach(['archive','delete'] as $policy){
     // `file` field: metadata resolves the folder once it exists; no paths; validation against mount, class, liveness and the thumbnail right.
     $field=$uRegistry->fields('posters_'.$policy)['file_id'];
     $meta=$uWs->fieldMetadata(new Context(new Identity('1','A'),'ui',$uWs->acl,$db),$field);
-    check($meta['type']==='file'&&$meta['file']['folder_id']===null&&$meta['file']['can_upload']===false&&!isset($meta['file']['folder']),'Missing field folder: no target, no upload ('.$policy.')');
+    check($meta['type']==='file'&&$meta['file']['folderId']===null&&$meta['file']['canUpload']===false&&!isset($meta['file']['folder']),'Missing field folder: no target, no upload ('.$policy.')');
     $files=$uDef->files($db,$uWs->tasks);
     $folder=$files->folder('m','Képek/Plakát',true);
     check($files->folder('m','Képek/Plakát')['id']===$folder['id']&&$files->folder('m','Nincs')===null&&$files->folder('m')['id']===$m['id'],'Storage API finds and creates folders');
     $meta=$uWs->fieldMetadata(new Context(new Identity('1','A'),'ui',$uWs->acl,$db),$field);
-    check($meta['file']===['resource'=>$res,'mount'=>'m','accept'=>['image'],'folder_id'=>(string)$folder['id'],'policy'=>[...$uDef->uploadPolicy()->metadata(),'extensions'=>['png'],'folders'=>false],'can_upload'=>true,'can_choose'=>true],'File field metadata ('.$policy.')');
-    check($uWs->fieldMetadata(new Context(new Identity('2','B'),'ui',$uWs->acl,$db),$field)['file']['can_upload']===false&&$uWs->fieldMetadata(new Context(new Identity('2','B'),'ui',$uWs->acl,$db),$field)['file']['can_choose']===false&&!str_contains(json_encode($meta),$root),'Upload right per actor; no paths');
+    check($meta['file']===['resource'=>$res,'mount'=>'m','accept'=>['image'],'folderId'=>(string)$folder['id'],'policy'=>[...$uDef->uploadPolicy()->metadata(),'extensions'=>['png'],'folders'=>false],'canUpload'=>true,'canChoose'=>true],'File field metadata ('.$policy.')');
+    check($uWs->fieldMetadata(new Context(new Identity('2','B'),'ui',$uWs->acl,$db),$field)['file']['canUpload']===false&&$uWs->fieldMetadata(new Context(new Identity('2','B'),'ui',$uWs->acl,$db),$field)['file']['canChoose']===false&&!str_contains(json_encode($meta),$root),'Upload right per actor; no paths');
     $created=$ucall('posters_'.$policy,'create',null,['title'=>'ok','file_id'=>$keep]);
     check($db->query('SELECT file_id FROM posters WHERE id='.(int)$created['id'])->fetchColumn()===$keep,'A live readable image of the mount is accepted');
     foreach([[$onN,'1','other mount'],[$txt,'1','wrong class'],[$img1,'1',$policy==='archive'?'archived file':'deleted file'],[(string)$box['id'],'1','folder'],[$keep,'2','no thumbnail right'],['12x','1','malformed']] as [$value,$actor,$case]){
