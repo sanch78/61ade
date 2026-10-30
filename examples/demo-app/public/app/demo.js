@@ -283,7 +283,10 @@ var readings_default = readings;
 // examples/demo-app/frontend/src/tasks.ts
 var TOP = 5;
 var COPY_LIMIT = 50;
-var strip = (name) => name + "__stars";
+var starId = (n) => "star" + n;
+var pressed = (n) => Object.fromEntries(Array.from({ length: TOP }, (_, index) => [starId(index + 1), index < n]));
+var translate = (key) => key;
+var stripName = (field) => translate("{field} \u2014 csillagok", { field: field.label });
 function level(value) {
   const text = String(value ?? "").trim();
   if (text === "") return 0;
@@ -295,51 +298,43 @@ function stars(app, value, size, escape2) {
   const label = escape2(app.i18n.t("{value} / {max} csillag", { value: n, max: TOP }));
   return `<span class="demo-rating demo-rating--${escape2(size)}" role="img" aria-label="${label}" title="${label}" style="letter-spacing:1px;white-space:nowrap">${"\u2605".repeat(n)}<span style="opacity:.4">${"\u2606".repeat(TOP - n)}</span></span>`;
 }
-function bindStars({ app, form, field, readOnly, signal }) {
+function bindStars({ form, field, signal }) {
   const input = form.getItem(field.name);
-  const box = form.getItem(strip(field.name));
-  if (!input || !box) return;
-  const root = document.createElement("div");
-  root.className = "demo-rating-stars";
-  root.setAttribute("aria-hidden", "true");
-  root.style.cssText = "display:flex;gap:2px;align-items:center;height:100%";
-  const buttons = Array.from({ length: TOP }, (_, index) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.tabIndex = -1;
-    button.disabled = readOnly;
-    button.dataset.value = String(index + 1);
-    button.title = app.i18n.t("{value} / {max} csillag", { value: index + 1, max: TOP });
-    button.style.cssText = "border:0;background:none;color:inherit;font:inherit;font-size:22px;line-height:1;padding:0 2px;cursor:pointer";
-    root.append(button);
-    return button;
-  });
+  const group = form.getItem(stripName(field));
+  if (typeof input?.setValue !== "function" || typeof group?.isSelected !== "function") return;
+  let rating = level(input.getValue()) ?? 0, painting = false;
   const paint = (value) => {
-    const n = level(value) ?? 0;
-    buttons.forEach((button, index) => {
-      button.textContent = index < n ? "\u2605" : "\u2606";
-      button.style.opacity = index < n ? "1" : ".55";
+    rating = level(value) ?? 0;
+    painting = true;
+    try {
+      group.setValue(pressed(rating));
+    } finally {
+      painting = false;
+    }
+  };
+  const chosen = () => {
+    if (painting) return;
+    const state = group.isSelected();
+    const star = Array.from({ length: TOP }, (_, index) => index + 1).find((n) => !!state[starId(n)] !== n <= rating);
+    if (star === void 0) return;
+    const next = String(star === rating ? 0 : star);
+    input.setValue(next);
+    input.setValue(next);
+    rating = Number(next);
+    queueMicrotask(() => {
+      if (!signal.aborted) paint(next);
     });
   };
-  root.addEventListener("click", (event) => {
-    const button = event.target.closest("button");
-    if (!button || readOnly) return;
-    const chosen = Number(button.dataset.value);
-    const next = String(level(input.getValue()) === chosen ? 0 : chosen);
-    input.setValue(next);
-    input.setValue(next);
-    paint(next);
-  }, { signal });
   const owner = {};
   input.events.on("input", paint, owner);
   input.events.on("change", paint, owner);
+  group.events.on("change", chosen, owner);
   signal.addEventListener("abort", () => {
     input.events.detach("input", owner);
     input.events.detach("change", owner);
-    root.remove();
+    group.events.detach("change", owner);
   }, { once: true });
   paint(input.getValue());
-  box.attach(root);
 }
 function valueText(column, value) {
   if (value === null || value === void 0 || value === "") return "\u2014";
@@ -358,6 +353,7 @@ function recordText(view, row) {
   return known.filter((column) => Object.hasOwn(row, column.id)).map((column) => `${column.header}: ${valueText(column, row[column.id])}`).join("\n");
 }
 var tasks = (app) => {
+  translate = (key, params) => app.i18n.t(key, params);
   app.fieldTypes.register("demo.rating", {
     input: (field, value, readOnly) => ({
       css: "demo-rating-field",
@@ -375,7 +371,16 @@ var tasks = (app) => {
           readOnly,
           value: String(value ?? field.defaultValue ?? "")
         },
-        { type: "container", name: strip(field.name), height: 32, hidden: readOnly }
+        {
+          type: "togglegroup",
+          name: stripName(field),
+          css: "demo-rating-stars",
+          multiselection: true,
+          gap: 4,
+          hidden: readOnly,
+          options: Array.from({ length: TOP }, (_, index) => ({ id: starId(index + 1), text: "\u2605", offText: "\u2606" })),
+          value: pressed(level(value ?? field.defaultValue) ?? 0)
+        }
       ]
     }),
     bind: bindStars,
