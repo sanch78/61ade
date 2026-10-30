@@ -51,6 +51,15 @@ final readonly class ApplicationDefinition
          * @var list<string>
          */
         public array $signInStylesheets = [],
+        /** Optional notice and links of the sign-in windows (docs/shell.md#sign-in-content). */
+        public ?SignIn $signIn = null,
+        /**
+         * Project ES modules (`.js`/`.mjs`) of the signed-out pages only, paths and keys like `modules`; each default
+         * export gets the restricted `SignInApplication` (docs/shell.md#sign-in-modules). Trusted project code: the page
+         * holds the password field.
+         * @var list<string>
+         */
+        public array $signInModules = [],
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -60,6 +69,7 @@ final readonly class ApplicationDefinition
             throw new \InvalidArgumentException('Invalid 61ade application definition.');
         }
         if (!self::paths($signInStylesheets, 'css')) throw new \InvalidArgumentException('Invalid 61ade sign-in stylesheets.');
+        if (!self::paths($signInModules, 'm?js')) throw new \InvalidArgumentException('Invalid 61ade sign-in modules.');
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();
     }
