@@ -289,7 +289,7 @@ the sign-in form or its flows:
 
 1. **Look, declarative:** an application [logo](#sign-in-logo) and
    `signInStylesheets`, styled through the [supported CSS hooks](#sign-in-css-hooks).
-2. **Content, declarative:** a [notice and links](#sign-in-content) below the form.
+2. **Content, declarative:** a [notice and links](#sign-in-content) above the form's actions.
 3. **Extension:** [sign-in modules](#sign-in-modules), project ES modules with a
    restricted API and two slots in the window.
 
@@ -328,14 +328,14 @@ return new ApplicationDefinition(
   refused. Same-origin images keep the CSP `img-src 'self' data: blob:`.
 - **Signed in:** always the last cell of the top menu row, after the tenant,
   language and theme selectors, behind a 1 px line in the theme border colour
-  (24 px high, at most 160 px wide). It is not a menu item: when the menu
-  collapses into `Menü` the logo stays, and its width counts in the menu's
-  width estimate, so the menu collapses (and the
-  [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) drop) before
-  anything overlaps. When the row has no room for `Menü`, the selectors and the
-  logo (for example the feature demo at 390 px, with a language and a theme
-  selector), the row leaves the logo out; widening brings it back. The width
-  is measured again when an image loads and after a theme switch.
+  (24 px high, at most 160 px wide). It is not a menu item and the menu never
+  yields to it: the menu, `Menü` and its
+  [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) fit exactly as
+  without a logo, and the logo shows only when its rendered width fits in the
+  room they and the selectors leave by the same width estimate (for example
+  not beside the feature demo's full menu at 1600 px or its four signage
+  siblings at 1366 px, nor at 390 px). Widening brings it back. The width is
+  measured again when an image loads and after a theme switch.
 - **Signed out, `placement`:** `window` (default) centres it above the form in
   the window (48 px high, at most the window width); `top` puts it at the end
   of the top row as in the shell (no menu there, so it only yields to the
@@ -367,8 +367,9 @@ return new ApplicationDefinition(
 #### Notice and links
 
 `SignIn(notice = null, links = [])` (JSON `application.sign_in`
-`{notice, links: [{label, href}]}`) adds a box below the form of all three
-windows: the notice as plain text (line breaks kept), then the links as a
+`{notice, links: [{label, href}]}`) adds a box to all three windows, below
+the fields and above the actions (the actions stay at the window bottom, 24 px
+above its edge, as in every framework window): the notice as plain text (line breaks kept), then the links as a
 labelled list (`nav` named `Hivatkozások`) of ordinary `<a>` elements in the
 Suite primary colour, reachable with Tab and opened with Enter, with a
 visible focus ring in every theme. The window grows to hold the box.
@@ -405,7 +406,7 @@ declaration order with a frozen `SignInApplication` (types in
 | `i18n.t(key, params)`, `i18n.locale()` | The page's catalog (framework and project texts); plain text. |
 | `theme.current()`, `theme.onChange(listener, {signal})` | The applied factory theme; the listener runs after each switch until `signal` aborts. |
 | `dhx` | The DHTMLX Suite namespace the shell uses. |
-| `slots.header`, `slots.footer` | Empty elements in the window above and below the form (`[data-blade-slot]`); the window refits when their content changes size. |
+| `slots.header`, `slots.footer` | Empty elements in the window (`[data-blade-slot]`): `header` above the form, `footer` below its fields and the notice, above its actions; the window refits when their content changes size. |
 
 ```js
 // public/branding/sign-in.js: the feature demo's module.

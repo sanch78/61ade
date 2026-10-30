@@ -133,10 +133,10 @@ export class AdminShell {
 
   /** Top menu, or on narrow space one `Menü` button followed, on desktop, by the open feature's sibling items. */
   private renderMenu():void{
-    if (!this.menu) { this.logoWidth(this.root.clientWidth); return; }
-    const width=this.root.clientWidth;
-    const logo=this.logoWidth(width);
-    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0)+logo);
+    const width=this.root.clientWidth,controls=(this.tenantCell?180:0)+(this.definition.i18n?.selector?130:0)+(this.definition.skins?.length===1?0:145);
+    // Signed out there is no menu: the top-row logo only yields to the selectors.
+    if (!this.menu) { this.placeLogo(width-controls); return; }
+    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0));
     const compact = width < Math.max(768,required(this.menuItems));
     const current="view:"+(parseRoute(location.hash).view??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -148,6 +148,8 @@ export class AdminShell {
     };
     let context=compact&&width>=768?siblings(this.menuItems)??[]:[];
     if(required([{value:t("Menü")},...context])>width)context=[];
+    // The menu never yields to the logo: it shows only in the room the menu, siblings and selectors leave.
+    this.placeLogo(width-(compact?required([{value:t("Menü")},...context]):required(this.menuItems)));
     const state=JSON.stringify([compact,context.length?current:""]);
     if (state === this.menuState) return;
     this.menuState = state;
@@ -161,16 +163,14 @@ export class AdminShell {
   }
 
   /**
-   * The top-row logo shows while the row keeps room for `Menü` and the selectors; its rendered width (the image at its
-   * CSS height) then counts in the menu estimate.
+   * The top-row logo shows only when its rendered width (the image at its CSS height) fits in `free`, the room the
+   * row's other content leaves; it never changes how the menu fits.
    */
-  private logoWidth(width:number):number{
+  private placeLogo(free:number):void{
     const box=this.root.querySelector<HTMLElement>(".blade-navigation-row .blade-logo");
-    if(!box)return 0;
+    if(!box)return;
     box.hidden=false;
-    const reserved=Math.ceil(box.getBoundingClientRect().width);
-    box.hidden=width-(this.tenantCell?180:0)-(this.definition.i18n?.selector?130:0)-(this.definition.skins?.length===1?0:145)-(this.menu?128:0)<reserved;
-    return box.hidden?0:reserved;
+    box.hidden=free<Math.ceil(box.getBoundingClientRect().width);
   }
 
   /**
@@ -187,13 +187,22 @@ export class AdminShell {
   private get windowLogo():boolean{ return !this.definition.authenticated&&!!this.definition.logo&&(this.definition.logo.placement??"window")!=="top"; }
   private get topLogo():boolean{ return !!this.definition.logo&&(this.definition.authenticated||(this.definition.logo.placement??"window")!=="window"); }
 
-  /** The windows' notice and links below the form: plain text, native links in a labelled list. */
+  /** The windows' notice and links above the actions: plain text, native links in a labelled list. */
   private signInInfo():string{
     const info=this.definition.signIn;
     if(!info?.notice&&!info?.links?.length)return "";
     const notice=info.notice?`<p class="blade-sign-in__notice">${escape(info.notice)}</p>`:"";
     const links=info.links?.length?`<nav class="blade-sign-in__links" aria-label="${escape(t("Hivatkozások"))}"><ul>${info.links.map(link=>`<li><a href="${escape(link.href)}">${escape(link.label)}</a></li>`).join("")}</ul></nav>`:"";
-    return `<div class="blade-sign-in-info" data-blade-after-form>${notice}${links}</div>`;
+    return `<div class="blade-sign-in-info">${notice}${links}</div>`;
+  }
+
+  /**
+   * Form rows placed right before a sign-in form's actions, so the actions stay at the window bottom: the declared
+   * notice and links, and the sign-in modules' footer slot.
+   */
+  private signInRows():object[]{
+    const info=this.signInInfo();
+    return [...(info?[{type:"container",name:"blade_sign_in_info",html:info}]:[]),...(this.definition.signInModules?.length?[{type:"container",name:"blade_sign_in_footer"}]:[])];
   }
 
   private async fitLogin():Promise<void>{
@@ -201,13 +210,11 @@ export class AdminShell {
     const win=this.loginWindow;
     if(!win||this.listeners.signal.aborted)return;
     const container=win.getContainer();
-    const buttons=Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(button=>button.getBoundingClientRect().height>0&&!button.closest("[data-blade-after-form]"));
+    const buttons=Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(button=>button.getBoundingClientRect().height>0);
     if(!buttons.length)return;
     const outer=(container.closest<HTMLElement>('[role="dialog"]')??container).getBoundingClientRect();
     const bottom=Math.max(...buttons.map(button=>button.getBoundingClientRect().bottom));
-    // Content below the form (notice, links, footer slot) keeps its own height; the form cell takes the rest.
-    const after=Array.from(container.querySelectorAll<HTMLElement>("[data-blade-after-form]")).reduce((sum,element)=>sum+element.getBoundingClientRect().height,0);
-    const height=Math.min(innerHeight-24,Math.ceil(bottom-outer.top+(after?8:24)+after));
+    const height=Math.min(innerHeight-24,Math.ceil(bottom-outer.top+24));
     win.setSize(outer.width,height);
     win.setPosition(Math.max(12,(innerWidth-outer.width)/2),Math.max(12,(innerHeight-height)/2));
   }
@@ -540,32 +547,33 @@ export class AdminShell {
       const value=String(form.getItem("blade_language")?.getValue()??"");
       if(value&&Object.hasOwn(this.definition.i18n?.languages??{},value)&&value!==this.definition.i18n?.locale)this.post("language",{locale:value});
     });
-    const logo=this.windowLogo?this.logoHtml():"",info=this.signInInfo(),modules=this.definition.signInModules??[];
-    if(!logo&&!info&&!modules.length){this.loginWindow!.attach(form);return;}
-    // A native in-window Layout: logo, header slot, the form, notice and links, footer slot.
+    const logo=this.windowLogo?this.logoHtml():"",modules=this.definition.signInModules??[];
+    if(!logo&&!modules.length){this.loginWindow!.attach(form);return;}
+    // A native in-window Layout above the form: logo and header slot; the notice, links and footer slot are form rows.
     const layout=new Layout(undefined,{type:"none",rows:[
       ...(logo?[{id:"logo",height:"content",css:"blade-auth-logo",html:logo}]:[]),
       ...(modules.length?[{id:"header",height:"content"}]:[]),
       {id:"form"},
-      ...(info?[{id:"info",height:"content",html:info}]:[]),
-      ...(modules.length?[{id:"footer",height:"content"}]:[]),
     ]});
     layout.getCell("form").attach(form);
     this.loginWindow!.attach(layout);
-    if(modules.length)this.startSignInModules(layout,modules);
+    if(modules.length)this.startSignInModules(form,layout,modules);
   }
 
-  /** Empty header and footer slots for the sign-in modules; the window refits whenever their content changes size. */
-  private startSignInModules(layout:Layout,modules:string[]):void{
-    const slot=(name:string)=>{
+  /**
+   * Empty slots for the sign-in modules: `header` above the form, `footer` below its fields and above its actions; the
+   * window refits whenever their content changes size.
+   */
+  private startSignInModules(form:Form,layout:Layout,modules:string[]):void{
+    type Target={attach(content:unknown):unknown;attachHTML(html:string):void};
+    const slot=(name:string,target:Target)=>{
       const element=document.createElement("div");
       element.className="blade-sign-in-slot blade-sign-in-slot--"+name;
       element.dataset.bladeSlot=name;
-      if(name==="footer")element.dataset.bladeAfterForm="";
-      attachContent(layout.getCell(name),element,this.listeners.signal);
+      attachContent(target,element,this.listeners.signal);
       return element;
     };
-    const header=slot("header"),footer=slot("footer");
+    const header=slot("header",layout.getCell("header")),footer=slot("footer",form.getItem("blade_sign_in_footer") as unknown as Target);
     const observer=new ResizeObserver(()=>{void this.fitLogin();});
     observer.observe(header);observer.observe(footer);
     this.listeners.signal.addEventListener("abort",()=>observer.disconnect(),{once:true});
@@ -619,6 +627,7 @@ export class AdminShell {
           text: t("Bejelentkezve maradok ({days} nap)",{days:definition.rememberDays??90}),
           checked: false,
         }] : []),
+        ...this.signInRows(),
         {
           align: "end",
           cols: [
@@ -721,6 +730,7 @@ export class AdminShell {
         { type: "text", name: "recipient", label: t("Megerősítő levelet küldtünk"), value: escape(confirmation.email) },
         { type: "input", name: "code", label: t("Megerősítő kód"), labelPosition: "top", required: true, maxlength: 6,
           validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: t("A levélben kapott 6 számjegyű kód szükséges.") },
+        ...this.signInRows(),
         { type: "button", name: "verify", text: t("Belépés megerősítése"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-check", color: "primary" },
         { rows: [
           { type: "button", name: "resend", text: t("Új kód küldése"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-email", view: "flat", color:"secondary" },
@@ -776,6 +786,7 @@ export class AdminShell {
           validation: length, errorMessage: t("Az új jelszó 12–128 karakter legyen.") },
         { type: "input", inputType: "password", name: "confirm_password", label: t("Új jelszó ismét"), labelPosition: "top", required: true, maxlength: 128,
           validation: (value: string | number): boolean => String(value) === String(form.getValue().new_password ?? ""), errorMessage: t("A két új jelszó eltér.") },
+        ...this.signInRows(),
         { type: "button", name: "save", text: t("Jelszó mentése és belépés"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-key", color: "primary" },
         { type: "button", name: "cancel", text: t("Vissza a belépéshez"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-arrow-left", view: "flat", color:"secondary" },
       ],

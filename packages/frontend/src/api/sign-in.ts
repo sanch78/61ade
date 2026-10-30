@@ -30,7 +30,10 @@ export interface SignInApplication {
   readonly theme: SignInTheme;
   /** The DHTMLX Suite namespace the shell uses (same instances and theme state); never bundle a second Suite. */
   readonly dhx: typeof import("@dhtmlx/suite");
-  /** Empty elements inside the window, above (`header`) and below (`footer`) the form; the window refits to them. */
+  /**
+   * Empty elements inside the window: `header` above the form, `footer` below its fields (and the declared notice and
+   * links) and above its actions, which stay at the window bottom. The window refits to their content.
+   */
   readonly slots: SignInSlots;
 }
 
