@@ -4,7 +4,7 @@ namespace Blade\Feature;
 final class Registry
 {
     private array $actions = [];
-    /** @var array<string, View> by view id, in first-declaration order (a replacement keeps the position) */
+    /** @var array<string, View> by view id, in declaration order */
     private array $views = [];
     /** @var array<string, string> embedded child view id => parent view id (no menu entry of its own) */
     private array $embedded = [];
@@ -53,20 +53,48 @@ final class Registry
     /** @return list<UsageProvider> */
     public function usageProviders(string $resource): array { return $this->usages[$resource] ?? []; }
     /**
-     * Adds $view (docs/toolkit.md#views). A later view with the same id replaces the earlier one entirely (including a
-     * sub-view attached to it) and keeps its menu position. Checks the actions of its resource, the record resource's
-     * `get` (record views: project kinds only) and the kind provider's validation.
+     * Adds $view (docs/toolkit.md#views). Checks the actions of its resource, the record resource's `get` (record views:
+     * project kinds only) and the kind provider's validation. A second declaration of the same id throws: give the
+     * other view its own `id`, or change the declared one with updateView().
      */
     public function addView(View $view): View
+    {
+        $this->check($view);
+        if(isset($this->views[$view->id]))throw new \InvalidArgumentException('Duplicate view id: '.$view->id);
+        $this->views[$view->id]=$view;
+        return $view;
+    }
+    /**
+     * Changes the declared view of the same id to $view, for example `updateView($registry->viewById('x')->with(icon:
+     * 'dxi dxi-key'))` after SqlResource::register(). The id must exist, kind and resource stay, and the result is
+     * validated like a declaration. The menu position, the sub-view attached with subview() and the embedded state stay
+     * (a `subview` option of $view is ignored).
+     */
+    public function updateView(View $view): View
+    {
+        $current=$this->views[$view->id]??throw new \InvalidArgumentException('Unknown view: '.$view->id);
+        if($view->kind!==$current->kind||$view->resource!==$current->resource)throw new \InvalidArgumentException('A view update keeps the kind and resource: '.$view->id);
+        $options=$view->options;unset($options['subview']);
+        $this->check($view=$view->with(options:$options));
+        $subview=$current->options['subview']??null;
+        if($subview!==null){
+            if($options['singleton']??false)throw new \InvalidArgumentException('Sub-views need two list views.');
+            $view=$view->with(options:[...$options,'subview'=>$subview]);
+            $this->pageActivation($view,$subview['child']===$view->id||isset($this->embedded[$subview['child']]));
+        }
+        return $this->views[$view->id]=$view;
+    }
+    private function check(View $view): void
     {
         $provider=$this->provider($view->kind);
         foreach($view->actions as $action)$this->get((string)$view->resource,$action);
         if($view->record!==null&&(in_array($view->kind,View::BUILTIN_KINDS,true)||!isset($this->actions[$view->record.'.get'])))throw new \InvalidArgumentException('A record view needs a project kind and the get action of its record resource: '.$view->id);
         $provider->validate($this,$view);
-        $this->views[$view->id]=$view;
-        unset($this->embedded[$view->id]);
-        foreach(array_keys($this->embedded,$view->id,true) as $child)unset($this->embedded[$child]);
-        return $view;
+    }
+    /** `activate: 'page'` needs a child view with its own page: another resource's view kept in the menu. */
+    private function pageActivation(View $parent,bool $withoutPage): void
+    {
+        if($withoutPage&&in_array('page',ListViewKind::targets($parent->options['activate']??null),true))throw new \InvalidArgumentException('A page activation needs a sub-view with embed: false.');
     }
     /** Server side of the project kind $kind (dotted); a kind without one uses GenericViewKind. Register it before its views. */
     public function kind(string $kind, ViewKindProvider $provider): void
@@ -107,7 +135,7 @@ final class Registry
         $this->views[$view]=$current->with(actions:array_values(array_unique([...$current->actions,...$actions])));
     }
     /**
-     * List view of $resource (kind `list`, id $id, default the resource); returns the View.
+     * Adds the list view of $resource (kind `list`, id $id, default the resource; built by View::list()) and returns it.
      * $rowHeight (32–160 px, default 40), $tileMinWidth (120–480 px) and $tiles are list presentation only; absent keys keep the client defaults.
      * $activate: what double-click and Enter on a record run, as the toolbar command of that name does: `details`,
      * `subview` (the full child list of that record, also at a count of 0), `page` (the child view's own page, kept by
@@ -121,9 +149,7 @@ final class Registry
      */
     public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = []): View
     {
-        $options=['columns'=>$columns,'singleton'=>$singleton,'layout'=>$layout??new ViewLayout(),'rowNumbers'=>$rowNumbers,'selection'=>$selection,'rowSelection'=>$rowSelection,
-            ...array_filter(['rowHeight'=>$rowHeight,'tileMinWidth'=>$tileMinWidth,'tiles'=>$tiles?:null,'activate'=>$activate,'commands'=>$commands?:null],static fn($v)=>$v!==null)];
-        return $this->addView(new View($id??$resource,'list',$title,$resource,actions:$actions,options:$options,group:$group,icon:$icon,desktopOnly:$desktopOnly));
+        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands));
     }
     /**
      * Sub-view: every record of the $view list expands (grid sub-row or card) to the $child list filtered to
@@ -137,7 +163,7 @@ final class Registry
      * scrolls. $select false: the child's rows (preview and full window) never become the cursor record: no highlight
      * or keyboard cursor, no toolbar delegation, double-click and Enter open nothing and record actions leave the
      * child's toolbar; declared editable switch cells still save (for a list where only a flag is set, such as tenant
-     * access). Attach it after the final declaration of both views: a replaced view loses its sub-view.
+     * access). Declare both views first.
      */
     public function subview(string $view, string $child, string $field, bool $embed = true, bool $select = true): void
     {
@@ -146,8 +172,7 @@ final class Registry
         $same=$sub->resource===$parent->resource;
         $known=$this->fields((string)$sub->resource)[$field]??null;
         if(!$known||!in_array($known->type,['select','number','text'],true)||$known->secret||($same&&$known->type!=='select'))throw new \InvalidArgumentException('Invalid sub-view.');
-        // `activate: 'page'` needs a child view with its own page: another resource's view kept in the menu.
-        if(in_array('page',ListViewKind::targets($parent->options['activate']??null),true)&&($same||$embed))throw new \InvalidArgumentException('A page activation needs a sub-view with embed: false.');
+        $this->pageActivation($parent,$same||$embed);
         $this->views[$view]=$parent->with(options:[...$parent->options,'subview'=>['child'=>$same?$view:$child,'field'=>$field,...($select?[]:['select'=>false])]]);
         if(!$same&&$embed)$this->embedded[$child]=$view;
     }

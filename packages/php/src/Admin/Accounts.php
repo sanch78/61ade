@@ -216,7 +216,7 @@ final class Accounts
             if ($target['id'] === $ctx->actor->id) throw new Failure('A saját jelszavadat a jelszócsere művelettel módosítsd.', 403);
             return $this->issueTemporary($ctx, $target['id']);
         }, resolve: $resolve, write: true, icon: 'dxi dxi-key'));
-        $registry->addView($view->with(actions: [...$view->actions, 'temporary_password'], icon: 'dxi dxi-person'));
+        $registry->updateView($view->with(actions: [...$view->actions, 'temporary_password'], icon: 'dxi dxi-person'));
     }
 
     /** Completes the forced change after a successful temporary-password sign-in. */
