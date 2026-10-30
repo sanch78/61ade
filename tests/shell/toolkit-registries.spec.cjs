@@ -3,8 +3,8 @@ const path=require('node:path');
 const {view}=require('./feature-demo.cjs');
 const {root,lazyBundle}=require('./fixture.cjs');
 // Presentation, field-type and command registries (toolkit P3 C-5, docs/toolkit.md#registries) of a real `Application`
-// (createApplication, no shell): a project presentation, a project field type in form, grid and card, project toolbar
-// and record-menu commands, the built-in `details` command and `image` presentation, and the fallback of unknown names.
+// (createApplication, no shell): a project presentation, a project field type in form, grid and card, project view
+// and record commands in the toolbar (no record menu), the built-in `details` command and `image` presentation, and the fallback of unknown names.
 // Synthetic resource answered by a fetch stub; the CSS is the tracked dist/admin.css (bundling as toolkit-list.spec.cjs).
 // A 1×1 PNG: the static images load (a failing one would be replaced by the placeholder icon).
 const pixel=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=','base64');
@@ -141,45 +141,69 @@ test('field types: the project editor in the update form, the grid cell and the 
  expect(errors).toEqual([]);
 });
 
-test('client commands: toolbar and record menu by placement, enabled rules, marks, server calls and errors',async({page})=>{
+test('client commands: every placement in the toolbar after the actions, record commands on the cursor record, marks, no context menu, errors',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.setViewportSize({width:1280,height:820});await mount(page);
  const button=name=>page.getByRole('button',{name,exact:true});
- // Toolbar: `toolbar` and `both` commands after the actions, `record` ones only in the record menu, an unknown one skipped.
- await expect(button('Másolás')).toBeVisible();await expect(button('Számlálás')).toBeVisible();
- await expect(button('Megnyitás')).toHaveCount(0);await expect(button('Adatok')).toBeDisabled();
- await expect(button('Másolás')).toBeDisabled();
+ // A right click (the context menu key and Shift+F10 fire the same event) keeps the browser's own menu: no record menu.
+ const noRecordMenu=async target=>{
+  await page.evaluate(()=>{window.prevented=undefined;document.addEventListener('contextmenu',event=>{window.prevented=event.defaultPrevented;event.preventDefault();},{once:true});});
+  await target.click({button:'right'});
+  await expect.poll(()=>page.evaluate(()=>window.prevented)).toBe(false);
+  await expect(page.getByRole('menuitem',{name:/^(Adatok|Másolás|Számlálás|Megnyitás|Hibás)$/})).toHaveCount(0);
+ };
+ // Toolbar: the built-in Adatok first, the declared commands after the view's actions in declaration order
+ // (`both`, `toolbar`, `record`, `toolbar`), an unknown one skipped.
+ const labels=await page.locator('.blade-command-row .dhx_toolbar').first().getByRole('button').allInnerTexts();
+ expect(labels.map(label=>label.trim()).filter(label=>['Adatok','Módosítás','Másolás','Számlálás','Megnyitás','Hibás'].includes(label)))
+  .toEqual(['Adatok','Módosítás','Másolás','Számlálás','Megnyitás','Hibás']);
+ // Without a cursor record the record commands are disabled like the built-in record actions; view commands run.
+ for(const name of ['Adatok','Módosítás','Másolás','Megnyitás'])await expect(button(name)).toBeDisabled();
+ await expect(button('Számlálás')).toBeEnabled();
  await button('Számlálás').click();
+ // With one they run on it; a server effect is an ordinary action call.
  await cellOf(page,'Második','title').click();
- await expect(button('Másolás')).toBeEnabled();await expect(button('Adatok')).toBeEnabled();
+ for(const name of ['Adatok','Másolás','Megnyitás'])await expect(button(name)).toBeEnabled();
  await button('Másolás').click();
+ await button('Megnyitás').click();
  await expect.poll(()=>page.evaluate(()=>runs)).toEqual([
-  {name:'demo.count',rows:0,view:'tasks',signal:true},{name:'demo.copy',row:'2',rows:0,view:'tasks',signal:true}]);
- // Marks: several marks disable the built-in details; the context carries the marked rows.
+  {name:'demo.count',rows:0,view:'tasks',signal:true},{name:'demo.copy',row:'2',rows:0,view:'tasks',signal:true},{name:'demo.open',row:'2',rows:0,view:'tasks',signal:true}]);
+ expect(await page.evaluate(()=>requests.filter(request=>request.action==='get').map(request=>request.id))).toEqual(['2']);
+ // Marks: several disable the default record rule (Adatok, Megnyitás) like Módosítás; a command whose own rule
+ // accepts them (Másolás) and view commands receive the marked rows.
  for(const title of ['Első','Második'])await gridRow(page,title).locator('[data-dhx-col-id="_mark"]').click();
  await expect(gridRow(page,'Második').locator('[data-dhx-col-id="_mark"] input')).toBeChecked();
- await expect(button('Adatok')).toBeDisabled();
+ for(const name of ['Adatok','Módosítás','Megnyitás'])await expect(button(name)).toBeDisabled();
+ await expect(button('Másolás')).toBeEnabled();
+ await button('Másolás').click();
+ await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toMatchObject({name:'demo.copy',row:'2',rows:2});
  await button('Számlálás').click();
- await expect.poll(()=>page.evaluate(()=>runs.at(-1).rows)).toBe(2);
- // Record menu: the native context menu of the record (it becomes the cursor), `record` and `both` commands.
- await cellOf(page,'Harmadik','title').click({button:'right'});
- await expect(page.getByRole('menuitem',{name:'Megnyitás'})).toBeVisible();
- await expect(page.getByRole('menuitem',{name:'Másolás'})).toBeVisible();
- await expect(page.getByRole('menuitem',{name:'Számlálás'})).toHaveCount(0);
- await page.getByRole('menuitem',{name:'Megnyitás'}).click();
- await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toMatchObject({name:'demo.open',row:'3'});
- expect(await page.evaluate(()=>[requests.filter(request=>request.action==='get').map(request=>request.id),list.selected()?.id])).toEqual([['3'],'3']);
- // Cards: the same record menu.
+ await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toMatchObject({name:'demo.count',rows:2});
+ for(const title of ['Első','Második'])await gridRow(page,title).locator('[data-dhx-col-id="_mark"]').click();
+ await expect(button('Megnyitás')).toBeEnabled();
+ // No record menu on a row.
+ await noRecordMenu(cellOf(page,'Harmadik','title'));
+ // Cards and tiles: the toolbar commands act on the card's cursor record; no record menu there either.
  await view(page,'Kártyák');
- await page.locator('.blade-grid-card').filter({hasText:'Első'}).first().getByText('Első',{exact:true}).click({button:'right'});
- await page.getByRole('menuitem',{name:'Másolás'}).click();
- await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toMatchObject({name:'demo.copy',row:'1'});
+ const card=page.locator('.blade-grid-card').filter({hasText:'Első'}).first();
+ await card.getByText('Első',{exact:true}).click();
+ await button('Megnyitás').click();
+ await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toMatchObject({name:'demo.open',row:'1'});
+ await noRecordMenu(card.getByText('Első',{exact:true}));
+ await view(page,'Csempék');
+ await noRecordMenu(page.locator('.blade-grid-tile').filter({hasText:'Harmadik'}).first());
  await view(page,'Táblázat');
  // A failing command shows the shared error dialog; the list keeps working.
  await button('Hibás').click();
  const failure=page.getByRole('alertdialog').filter({hasText:'A parancs nem sikerült.'});
  await expect(failure).toBeVisible();
  await page.keyboard.press('Escape');await expect(failure).toHaveCount(0);
+ // Narrow: the record commands move into the Műveletek menu with the other toolbar items and run on the cursor record.
+ await page.setViewportSize({width:390,height:844});
+ const menu=button('Műveletek');await expect(menu).toBeVisible();
+ await page.locator('.blade-grid-card').filter({hasText:'Második'}).first().getByText('Második',{exact:true}).click();
+ await menu.click();await page.getByRole('menuitem',{name:'Megnyitás',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toMatchObject({name:'demo.open',row:'2'});
  // The context signal ends with the list.
  expect(await page.evaluate(()=>{list.destroy();return document.querySelectorAll('.dhx_grid-row').length;})).toBe(0);
  expect(errors).toEqual([]);

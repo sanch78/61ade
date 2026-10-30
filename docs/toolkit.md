@@ -228,8 +228,7 @@ app.fieldTypes.register("demo.rating", {
   display: (value, row, field, size, escape) => `<span aria-label="${escape(value)}/5">${"★".repeat(Number(value) || 0)}</span>`,
 });
 app.commands.register("demo.copy-text", {
-  label: "Másolás szövegként", icon: "dxi dxi-content-copy", placement: "both",
-  enabled: ({ row }) => !!row,
+  label: "Másolás szövegként", icon: "dxi dxi-content-copy", placement: "record",
   // Reads go through an action too: the server's ACL and field ACL decide what the text contains.
   run: async ({ app, row, signal }) => {
     const fresh = await app.server.call<Row>("demo_tasks", "get", { id: row!.id, signal });
@@ -269,18 +268,25 @@ app.commands.register("demo.count-marked", {
   forms take the `input` item only (no `bind`). The server keeps validating the
   value by the storage `type`.
 - **Client command** (`ListOptions.commands`): `label` (source text,
-  translated), `icon`, `placement`, `enabled`, `run`. `toolbar` commands sit in
-  the list's command bar after the view's actions (and move into the
-  `Műveletek` menu like them); `record` commands form the **record menu**, the
-  native Suite context menu of a row, card or tile (right click, the context
-  menu key or Shift+F10; the record becomes the cursor first); `both` is in
-  each, the choice for anything that must be reachable on touch devices.
-  The context has `app`, `view` (as the server sent it), `row` (the record of
-  the menu, or the toolbar's record), `rows` (the marks) and `signal` (aborted
-  when the list closes). `enabled` is evaluated whenever the toolbar record,
-  marks or rows change and when the record menu opens; default: always on the
-  toolbar, with a record in the record menu; a throw disables the command. A
-  disabled command does not run. A throw or rejection of `run` shows the error
+  translated), `icon`, `placement`, `enabled`, `run`. Every command sits in the
+  list's command bar: the declared ones after the view's actions, in
+  declaration order whatever their placement, and they move into the
+  `Műveletek` menu like the other toolbar items. There is no record context
+  menu: a right click, the context menu key or Shift+F10 on a row, card or
+  tile keeps the browser's own behaviour. `placement` says what the command
+  acts on: `toolbar` the view (no record needed), `record` the toolbar's
+  cursor record, like the built-in record actions (`Adatok`, `Szerkesztés`,
+  `Törlés`); `both` is accepted as `record`. The context has `app`, `view` (as
+  the server sent it), `row` (the toolbar's cursor record: a shared sub-view's
+  while it holds the toolbar; absent without one), `rows` (the marks) and
+  `signal` (aborted when the list closes). `enabled` is evaluated whenever the
+  toolbar record, marks or rows change; default: a `toolbar` command is always
+  enabled, a `record` command with a cursor record and at most one marked row
+  (disabled without a cursor record and with several marks, like a
+  single-record action); a command that acts on the marks declares its own
+  rule (for example `({ row, rows }) => !!row || rows.length > 0`), which then
+  decides alone; a throw disables the command. A disabled command does not
+  run. A throw or rejection of `run` shows the error
   dialog (an `AbortError` stays silent). A client command never bypasses
   server authorization: anything it reads or changes goes through
   `app.server.call`. Compact sub-view previews show no project commands; a
@@ -293,7 +299,7 @@ app.commands.register("demo.count-marked", {
   `input` throws or returns an item without the field's name falls back to the
   built-in input (logged).
 - Dogfooding: `builtins.ts` registers the `image` presentation and the
-  `details` command; the list renders and enables them through the registries
+  `details` command (a `record` command with the default rule); the list renders and enables them through the registries
   exactly like project entries (`src/app/registries.ts`). Checks:
   `node tests/shell/toolkit-registries.mjs`, `php8.4 tests/shell/toolkit.php`,
   `tests/shell/toolkit-registries.spec.cjs`.
@@ -991,7 +997,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-29 | `MediaSource` gains `{blob}`; `MediaPlayerOptions` gains `name`, `info`, `toolbar`; `MediaPlayer.focus()`; `position` also fires on pause; a non-media MIME throws `TypeError`. | Object URL ownership, accessible name, keyboard. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `SandboxFrameOptions.title`; code runs as the body of an async function; a second iframe `load` (navigation, reload, DOM move) and a timeout remove the frame; `post()` throws before `ready`; `load()` rejects with `Error{code}` or `AbortError`; envelope `id` 1–64, `type` ≤ 128, error text ≤ 1000 characters; `credentialless`; the sandbox document URL is resolved on the first `load()`. | Kill switch and bounded protocol; non-ESM bundles must not fail at app creation. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `FilePicker.pick` throws `TypeError` synchronously for malformed options; `FileManager` `opened` fires for every file the viewer or text editor shows (also previous/next); `FileManager.destroy()` aborts pending reads, sent writes complete. | Same pattern as `uploads.open`; no stale reads after close. | [FB-0081](feedback.md#fb-0081) |
-| 2026-10-29 | Commands: `record` placement is a native record menu (context menu on a row, card or tile; right click, menu key, Shift+F10), `toolbar` after the view's actions, `both` in each; `ListOptions.commands` is a server declaration (≤ 20 dotted names); the built-in Adatok is the `details` command (toolbar id `blade-command:details`). iOS Safari fires no `contextmenu`, so touch-relevant commands use `both`. | New list UI needed for record commands; to be confirmed by the owner. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | Commands: every declared command is a list toolbar item after the view's actions, in declaration order (in the `Műveletek` menu when narrow); there is no record context menu. `placement: "toolbar"` acts on the view, `"record"` on the toolbar's cursor record like the built-in record actions (default enabled with a cursor record and at most one mark; an own `enabled` may accept the marks); `"both"` is accepted as `"record"`. `ListOptions.commands` is a server declaration (≤ 20 dotted names); the built-in Adatok is the `details` record command (toolbar id `blade-command:details`). | Owner decision at G3: one place for record actions, works on touch. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | Server validation keeps the storage type. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>

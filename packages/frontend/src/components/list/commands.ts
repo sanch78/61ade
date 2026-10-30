@@ -7,10 +7,10 @@ export type ListCommandContext=CommandContext&{readonly [LIST]?:{details(row:Row
 /**
  * The lists' built-in client commands (dogfooding: registered on `app.commands` by builtins.ts, rendered, enabled and
  * run through the registry like a project command). `details` is the `Adatok` command of every non-singleton list
- * whose rows can be selected: the details of the toolbar's record, not while several rows are marked.
+ * whose rows can be selected: a `record` command (the details of the toolbar's record, not while several rows are
+ * marked: the default rule).
  */
 export const builtinCommands:Record<string,ClientCommand>={
-  details:{label:"Adatok",icon:"dxi dxi-information-outline",placement:"toolbar",
-    enabled:({row,rows})=>!!row&&rows.length<=1,
+  details:{label:"Adatok",icon:"dxi dxi-information-outline",placement:"record",
     run:context=>{if(context.row)(context as ListCommandContext)[LIST]?.details(context.row);}},
 };

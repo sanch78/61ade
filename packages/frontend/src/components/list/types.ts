@@ -24,7 +24,7 @@ export type ViewDefinition={id:string;resource:string;title:string;icon?:string;
   activate?:Activation;search?:{fields:string[]};columns:Column[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
   /** Records expand to the `resource` list filtered to `field` = record id: its own `view`, or this view when `shared`. */
   subview?:{resource:string;field:string;shared?:boolean;view?:ViewDefinition;select?:boolean;page?:boolean};
-  /** Declared project client commands (`app.commands` names) of the toolbar and the record menu. */
+  /** Declared project client commands (`app.commands` names) of the toolbar. */
   commands?:string[]};
 /**
  * A nested (sub-view) instance: its list is limited to `field` = `id` and new records get that value. With

@@ -85,11 +85,13 @@ project module registers its behaviour:
   window (same `__edit` save, revision, validation and ACL). Filters keep the
   storage type's input; the server validates by the storage type.
 - **Client commands:** `commands: ['demo.copy-text']` on `Registry::view` or
-  `SqlResource::register` (JSON `view.commands`, at most 20 dotted names). A
-  `toolbar` command follows the view's actions in the command bar; a `record`
-  command appears in the record menu, the native context menu of a row, card
-  or tile (right click, context menu key, Shift+F10); `both` in each. The
-  built-in `Adatok` command is the registry's `details` entry. Commands run in
+  `SqlResource::register` (JSON `view.commands`, at most 20 dotted names). The
+  commands follow the view's actions in the command bar in declaration order
+  and move into `Műveletek` like them; there is no record context menu. A
+  `record` command (also `both`) acts on the cursor record like the built-in
+  record actions: disabled without one and, unless its own rule accepts them,
+  with several marks; a `toolbar` command needs no record. The built-in
+  `Adatok` command is the registry's `details` record command. Commands run in
   the browser; every server effect is an ordinary ACL-checked action call.
 - An unknown name never breaks a list: the plain value, the built-in input or
   no command, with one console warning per name.
