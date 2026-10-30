@@ -277,10 +277,20 @@ app.commands.register("demo.count-marked", {
   acts on: `toolbar` the view (no record needed), `record` the toolbar's
   cursor record, like the built-in record actions (`Adatok`, `Szerkesztés`,
   `Törlés`); `both` is accepted as `record`. The context has `app`, `view` (as
-  the server sent it), `row` (the toolbar's cursor record: a shared sub-view's
-  while it holds the toolbar; absent without one), `rows` (the marks) and
-  `signal` (aborted when the list closes). `enabled` is evaluated whenever the
-  toolbar record, marks or rows change; default: a `toolbar` command is always
+  the server sent it), `row` (the cursor record of that view; absent without
+  one), `rows` (its marks) and `signal` (aborted when the list closes).
+  **Sub-view delegation:** while a selected sub-view (preview) record holds
+  the toolbar, a command follows the same rule as the built-in actions: a
+  command the sub-view's list has too (the built-in `details`, or a name its
+  own view declares in `commands`) runs in the sub-view's context (`view` the
+  sub-view's view, `row` its cursor record, `rows` its marks, none in a compact
+  preview); any other command stays on the list's own cursor record and marks
+  (a `record` command without one is disabled by the default rule). `view` and
+  `row` therefore always belong to one resource. A `shared` sub-view is the
+  same view, so every command follows its cursor record. Collapsing the
+  preview or its record leaving it gives the toolbar back to the list.
+  `enabled` is evaluated whenever the toolbar record, marks or rows change
+  (also the delegated preview's); default: a `toolbar` command is always
   enabled, a `record` command with a cursor record and at most one marked row
   (disabled without a cursor record and with several marks, like a
   single-record action); a command that acts on the marks declares its own
@@ -998,6 +1008,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-29 | `SandboxFrameOptions.title`; code runs as the body of an async function; a second iframe `load` (navigation, reload, DOM move) and a timeout remove the frame; `post()` throws before `ready`; `load()` rejects with `Error{code}` or `AbortError`; envelope `id` 1–64, `type` ≤ 128, error text ≤ 1000 characters; `credentialless`; the sandbox document URL is resolved on the first `load()`. | Kill switch and bounded protocol; non-ESM bundles must not fail at app creation. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `FilePicker.pick` throws `TypeError` synchronously for malformed options; `FileManager` `opened` fires for every file the viewer or text editor shows (also previous/next); `FileManager.destroy()` aborts pending reads, sent writes complete. | Same pattern as `uploads.open`; no stale reads after close. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Commands: every declared command is a list toolbar item after the view's actions, in declaration order (in the `Műveletek` menu when narrow); there is no record context menu. `placement: "toolbar"` acts on the view, `"record"` on the toolbar's cursor record like the built-in record actions (default enabled with a cursor record and at most one mark; an own `enabled` may accept the marks); `"both"` is accepted as `"record"`. `ListOptions.commands` is a server declaration (≤ 20 dotted names); the built-in Adatok is the `details` record command (toolbar id `blade-command:details`). | Owner decision at G3: one place for record actions, works on touch. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | Commands while a sub-view record holds the toolbar: a command the sub-view's list has too (built-in `details`, a name its view declares; every command of a `shared` sub-view) gets the sub-view's context (`view`, `row` = its cursor record, `rows` = its marks); any other command stays on the list's own cursor record and marks. Previously every command saw the delegated record only for a `shared` sub-view and never saw marks while delegated. | Owner decision after G3: `view` and `row` of a command belong to one resource, like the built-in actions. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | Server validation keeps the storage type. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>

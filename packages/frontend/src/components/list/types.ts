@@ -32,7 +32,9 @@ export type ViewDefinition={id:string;resource:string;title:string;icon?:string;
  */
 export type WorkspaceScope={field:string;id:string;
   /** false: the rows never become the cursor record (no delegation, no record toolbar actions, double-click opens nothing). */
-  select?:boolean;shared?:(workspace:Workspace,row:Row|undefined)=>void;
+  select?:boolean;
+  /** Reports the cursor record to the parent; `refresh`: a re-render, honoured only while this view holds the toolbar. */
+  shared?:(workspace:Workspace,row:Row|undefined,refresh?:boolean)=>void;
   /**
    * A compact preview (expanded sub-row or card): a table that is always a table, sortable headers only (no filters,
    * search, toolbar, row numbers or marks), editable columns kept. `height` receives the height its content needs.

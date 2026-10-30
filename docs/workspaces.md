@@ -91,7 +91,12 @@ project module registers its behaviour:
   `record` command (also `both`) acts on the cursor record like the built-in
   record actions: disabled without one and, unless its own rule accepts them,
   with several marks; a `toolbar` command needs no record. The built-in
-  `Adatok` command is the registry's `details` record command. Commands run in
+  `Adatok` command is the registry's `details` record command. While a
+  selected [sub-view](#sub-views) record holds the toolbar, a command the
+  child view has too (`details`, or a name the child view declares) runs on
+  that child record with the child view; any other command stays on the
+  parent's own cursor record, so `view` and `row` always belong to one
+  resource (a hierarchy shares every command). Commands run in
   the browser; every server effect is an ordinary ACL-checked action call.
 - An unknown name never breaks a list: the plain value, the built-in input or
   no command, with one console warning per name.
@@ -900,8 +905,13 @@ JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "proje
 - **Toolbar on a selected child:** a record selected in a preview takes the
   parent toolbar over for the actions the child view has under the same name
   (`update`, `delete`, `Adatok`, …), which then run on that child record; the
-  others are disabled. Selecting a parent row gives the toolbar back. Editing a
-  child keeps its parent: the parent field is hidden and sent as that record.
+  other actions are disabled. Client commands follow the same rule: one the
+  child view declares too runs on the child record with the child view, any
+  other stays on the parent's own cursor record and marks
+  ([client commands](toolkit.md#registries)); in a hierarchy every command
+  follows the child record. Selecting a parent row, collapsing the preview or
+  the child record leaving it gives the toolbar back. Editing a child keeps its
+  parent: the parent field is hidden and sent as that record.
 - **Not selectable (`select: false`, JSON `"select": false`; default `true`):**
   for a child list where only a flag is set. Its rows, in the preview and in
   the full window, never become the cursor record: native Grid/DataView
