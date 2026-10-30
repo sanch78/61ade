@@ -173,7 +173,7 @@ shared danger confirmation.
 
 The feature demo configures it as a digital signage (DMS) scheduler in the
 `Digitális kijelző` group ([demos](demos.md#teljes-feature-demó-)):
-`Médiatár` (image/video assets referencing file-manager media),
+`Médiatár` (image, video and audio assets referencing file-manager media),
 `Alapértelmezett tartalom` (default asset per weekday or per date) and
 `Műsorterv` (this calendar, with the asset as the extra field). The consumer
 action `signage_playlist.day` answers what plays on a date: the day's

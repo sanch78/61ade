@@ -792,12 +792,19 @@ $source->register($registry, 'Médiatár', tiles: true,
 ```
 
 JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.asset-viewer", "*": "details"}}`.
+The feature demo keys `Médiatár` on its `file` field instead
+([D1](demos.md#d1-asset-viewer)):
+`"activate": {"field": "file_id", "map": {"audio": "view:demo.asset-viewer", "video": "view:demo.asset-viewer", "*": "details"}}`.
 
 - Values per entry: the existing `details`, `subview`, `page`, a record action
   of the view, or the new `view:<id>` (a record view whose `record` is the
   list's resource). A plain string keeps today's meaning.
 - The client chooses per row by the string value of `field`; `*` is the
-  default; no match and no `*` keeps the default behaviour.
+  default; no match and no `*` keeps the default behaviour. A media field (a
+  `file` field or a `column.media` field, whose row carries `_media[field]`)
+  is keyed by its file's MIME class (`image`, `video`, `audio`, …), not by the
+  file id; a row without a file, or with one the actor may not see
+  (`_media[field]` is `null`), takes `*`.
 - The server validates at definition time: `field` is a readable, non-secret
   field of the resource carried in list rows, every target as today, and
   `view:` targets exist once all views are declared (checked at the end of
@@ -1073,6 +1080,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-30 | Commands while a sub-view record holds the toolbar: a command the sub-view's list has too (built-in `details`, a name its view declares; every command of a `shared` sub-view) gets the sub-view's context (`view`, `row` = its cursor record, `rows` = its marks); any other command stays on the list's own cursor record and marks. Previously every command saw the delegated record only for a `shared` sub-view and never saw marks while delegated. | Owner decision after G3: `view` and `row` of a command belong to one resource, like the built-in actions. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | Server validation keeps the storage type. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | [Cache keys](#cache-keys) of every shell asset (`admin.js`, `admin.css`, skin stylesheets, `modules`, `stylesheets`, AuthHandler files) are `?v=<base36 mtime>-<base36 size>` of the served file inside the document root; own `?…` keys stay; fallback `?v=<version>` (61ade's files: the package build's key first); the hand-bumped `?v=32` is gone. New optional `ApplicationDefinition::$documentRoot` / JSON `application.document_root` (default `DOCUMENT_ROOT`); bootstrap `modules` carry these keys. `versioned()` remains as the fallback rule. | Owner decision: cache keys from the file, so a rebuilt file reaches the browser at once. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | Activation map on a media field (`file` or `column.media`): the client keys the row by the MIME class of `_media[field]` (`image`, `video`, `audio`, …) instead of the file id; no or a hidden file takes `*`. Server validation unchanged. | Toolkit P4 D1: `Médiatár` opens audio and video in a record view by the file's type; keying on the file id was useless, and a stored or computed type column would bypass the media source's ACL. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | The [recipe](#typescript-recipe) names the feature demo (`examples/demo-app/frontend`, built to `public/app/demo.js`) as its worked example; no API change. | Toolkit P4 D0: the first real consumer of the recipe. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>
