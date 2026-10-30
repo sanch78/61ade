@@ -276,7 +276,19 @@ export class ResponsiveGrid {
     // Suite draws row borders inside a 1 px taller row after the first: a view that fits all its records keeps 2 px
     // spare so that no scrollbar appears for a pixel; a longer one shows exactly `rows` rows and scrolls.
     const count=Math.max(1,this.data.length),fits=count<=rows;
-    return root.offsetHeight-body.clientHeight+header+Math.min(rows,count)*this.rowHeight+(fits?2:0);
+    return root.offsetHeight-body.clientHeight-this.bodyLag(body)+header+Math.min(rows,count)*this.rowHeight+(fits?2:0);
+  }
+  /**
+   * Pixels by which the Grid body is still to follow its container: Suite draws the body at the content size it
+   * cached on its last paint, which lags a resize by a frame or more. A height measured against the lagging body
+   * would answer one resize late and never settle (each answer resizes the view again).
+   */
+  private bodyLag(body:HTMLElement):number{
+    const content=body.closest<HTMLElement>(".dhx_grid-content"),container=content?.closest<HTMLElement>(".dhx_grid")?.parentElement;
+    const drawn=Number.parseFloat(content?.style.height??"");
+    if(!container?.clientWidth||!Number.isFinite(drawn))return 0;
+    const style=getComputedStyle(container);
+    return container.clientHeight-(Number.parseFloat(style.paddingTop)||0)-(Number.parseFloat(style.paddingBottom)||0)-drawn;
   }
   get rowPixels():number{return this.rowHeight;}
   private unmount(id:string):void{const entry=this.mounted.get(id);if(!entry)return;this.mounted.delete(id);entry.view.destroy();entry.host.remove();}
