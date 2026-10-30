@@ -85,7 +85,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Network topology builder | Visual diagram editor: drag network elements from the palette, move them, connect them by the element handle with Ethernet/fibre/Wi-Fi/VPN/WAN connections, edit captions and details in the property form, save with revision check; define new element types (name, glyph, shape, colour) at runtime; two synthetic topologies; desktop only; [details](diagrams.md) | Feature demo → Hálózati topológia; `reader@example.test` views only |
 | Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Üres polc`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `C zóna` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
-| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content (asset) select and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter opening audio and video in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)) and images in their details, delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date; `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; [details](calendar.md) | `Digitális kijelző` → Műsorterv; API key with scope `signage_playlist.day`; `reader@example.test` views only |
+| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content (asset) select and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter opening audio and video in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)) and images in their details, delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date; `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor` previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
 | Appearance | Skyblue/light/dark, lower information bar and mobile menu | Any view |
@@ -132,7 +132,7 @@ starter admin and the tenant demo stay declarative and load no project module.
 | --- | --- | --- | --- |
 | D0 | Build, declaration, empty module | `index.ts` | Implemented; registers nothing visible |
 | D1 | Signage `Médiatár` asset viewer | `assets.ts` | Implemented ([below](#d1-asset-viewer)) |
-| D2 | Signage `Napi műsor` playlist preview | `playlist.ts` | Planned |
+| D2 | Signage `Napi műsor` playlist preview | `playlist.ts` | Implemented ([below](#toolkit-d2-playlist)); browser spec written, not yet run |
 | D3 | `Mérések` dashboard | `readings.ts` | Implemented ([below](#readings-dashboard)); browser spec written, not yet run |
 | D4 | `Tasks` field type and command | `tasks.ts` | Implemented: field type `demo.rating` on `Prioritás` and record command `demo.copy-text` ([below](#toolkit-d4-tasks)) |
 | D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` and `app/demo.css` on the feature demo |
@@ -280,6 +280,104 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   Hungarian source keys with English in `resources/locales/en.json`; the demo
   offers no German ([FB-0052](feedback.md#fb-0052)), so German exists only in
   the framework catalogue (`Hang`).
+
+<a id="toolkit-d2-playlist"></a>
+
+#### D2: `Napi műsor` playlist preview (`demo.playlist-preview`)
+
+- **Declaration** (`signage.php`, after the `signage_playlist.day` action):
+  the view `demo.playlist-preview` (kind of the same name, generic project
+  provider) titled `Napi műsor` in `Digitális kijelző`, resource
+  `signage_playlist`, actions `day` and `scene`, options `{"media": "files"}`
+  (the resource whose `content_stream` plays the media). It is offered with
+  `signage_playlist.day`; without `scene` a scene entry shows a notice.
+- **Scene asset:** a synthetic asset type, a canvas animation whose code is
+  the file `examples/demo-app/resources/files/minta-jelenet.js` (stored type
+  `text/javascript`). The file is the body of a function returning
+  `{load(canvas), duration(), renderAt(seconds), play(), pause(), seek(seconds)}`;
+  `renderAt` is deterministic, so a seek shows that moment. The playlist
+  answer gives such an asset the type `scene`. `blade_demo_signage_scene()`
+  (run by every `setup-workspace.php`) stores a missing fixture in the
+  `Signage` mount root, creates `Animált jelenet` (12 s) for a file no asset
+  references, and adds the daily programme event `Esti jelenet` 20:00–21:00
+  when no live event references that asset; it never changes or deletes other
+  data. Scenes are seeded only: the asset form and `Feltöltés` accept image,
+  video and audio, and the file manager neither uploads nor previews scripts.
+- **Code delivery:** `signage_playlist.scene` (`values.asset`, label
+  `Jelenet kódja`) answers `{asset, title, name, bytes, code}` for a scene
+  asset's live file of at most 256 KiB UTF-8 (404 unknown or without a file,
+  415 not a scene, 413 larger). Who may preview the day (whose answer names
+  every asset and file) may read its scenes; setup grants both actions to
+  `demo@example.test` and `reader@example.test`. The page fetches the code
+  through the action, never as a static file: the frame has
+  `connect-src 'none'`.
+- **Kind** ([playlist.ts](../examples/demo-app/frontend/src/playlist.ts)): an
+  `app.dhx.Layout` with a Suite Form `datepicker` `Nap` (today by default,
+  `#view=demo.playlist-preview&filter.date=YYYY-MM-DD` presets it), the 61ade
+  `CommandBar` (`Előző nap`, `Ma`, `Következő nap`, `Lejátszás`, `Szünet`,
+  `Elejére`, `Előző elem`, `Következő elem`, `Pozíció: m:ss / m:ss`), the
+  timeline strip, a Suite `Slider` (`Lejátszási pozíció`, 0.1 s steps) for
+  scrubbing, the stage (a caption and the screen) and the collapsible
+  `API-kérés és válasz` panel with the day's request and answer as the earlier
+  calendar window showed them. The preview plays every timeline entry once,
+  in order, for the asset's play time (`Lejátszási idő`, 1–3600 s); an entry
+  without content takes 3 s. The strip shows each entry (time range, title,
+  type, seconds; width by play time) with a playhead; a click (Enter, Space)
+  seeks to its start. Image, video and audio entries play in the
+  `MediaPlayer` (no toolbar or native controls, media looped within the
+  entry, resynchronised when more than 1 s off); a scene runs in a
+  `SandboxFrame` (`readyTimeout` 5 s, the frame's 1 MiB code limit). The run
+  stops at its end; a day change fetches the day again and starts at 0,
+  paused.
+- **Module ↔ frame protocol** (project messages of the documented
+  `SandboxFrame` envelope): the module sends the delivered code wrapped in its
+  scene runtime (canvas, scene clock, method check) through `load`;
+  parent → frame `scene.play`, `scene.pause` and `scene.seek` with
+  `{at}` (seconds into the entry; the scene loops by its own duration),
+  frame → parent `scene.state` `{time, local, duration, playing, frames}`
+  after every command and twice a second while playing. The playhead drives
+  the scene: play and pause with the run, `scene.seek` on every scrub or jump.
+  The caption shows the reported state (`Jelenet: 3,2 / 12,0 mp`) and keeps
+  it as `data-demo-scene-*` attributes; a frame error arrives through the
+  page's `sandbox:error` event (`A jelenet hibát jelzett: …`) and leaves the
+  rest of the page working.
+- **Lifecycle:** each build owns an `AbortController` that the host's signal
+  aborts; each stage (one entry) owns another, aborted when the playhead
+  leaves the entry, on a day change and on close. They destroy the command
+  bar, form, slider, `MediaPlayer` or `SandboxFrame` (the iframe is removed),
+  the `sandbox:error` subscription, the click and pointer listeners, the
+  playback interval and the animation frame. New content is mounted before
+  the old is released.
+- **Responsive and themes:** from 768 px the day picker and commands share a
+  row and the API panel is a 420 px column beside the stage; below it
+  everything stacks, the commands collapse into `Műveletek`, the strip
+  scrolls sideways and the API panel starts collapsed. Crossing 768 px
+  rebuilds the page with the same day, position and playback. Colours are
+  Suite variables in `frontend/src/playlist.css` (Skyblue, light, dark,
+  skins); the scene draws its own content colours.
+- **Limits:** the Suite Slider thumb has no ARIA role or value, so the
+  position is also the command bar's `Pozíció` text and the strip items and
+  commands are the keyboard route. The strip is HTML in a Layout cell
+  (`attachHTML`); its clicks are handled on the document for that build only.
+  `sandbox:error` names no frame, so the stage counts it only while its scene
+  frame is the stage. The preview plays entries once each; it does not
+  simulate wall-clock time of day.
+- **Data step** for an existing demo database (the managed URL):
+  `BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`
+  adds the scene file, asset and event and the `signage_playlist.scene`
+  rights.
+- **Try:** `Digitális kijelző` → `Napi műsor` (today, with `Esti jelenet` in
+  the evening): `Lejátszás`, click an entry, drag the slider while the scene
+  is on the stage, `Következő nap`, open the API panel, switch the theme and
+  narrow the window below 768 px. English texts are in
+  `resources/locales/en.json`.
+- **Checks:** `php8.4 tests/shell/signage.php` (fixture, event, idempotence,
+  `scene` type, code action, limits, rights, view metadata),
+  `php8.4 tests/shell/contracts.php` (the view after the real setup);
+  `npm run test:browser -- tests/shell/toolkit-demo-playlist.spec.cjs`
+  (written, not yet run). `calendar.spec.cjs` (Friday timeline) and
+  `browser.spec.cjs` (five `Digitális kijelző` siblings at 1366 px) follow
+  the new data and menu entry.
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
