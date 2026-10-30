@@ -121,7 +121,12 @@ try {
     $write([...$settings, 'application' => [...$settings['application'], 'logo' => ['image' => 'branding/logo.png']]]);
     $plain = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->logo;
     verify($plain->image === 'branding/logo.png' && $plain->darkImage === null && $plain->label === null && $plain->placement === 'window', 'JSON logo without dark image and text, window placement by default');
-    foreach ([['logo' => 'branding/logo.svg'], ['logo' => []], ['logo' => ['dark_image' => 'b/dark.svg']], ['logo' => ['image' => 'b/logo.svg', 'alt' => 'x']], ['logo' => ['image' => 'b/logo.gif']],
+    // The 61ade product logo (docs/brand.md): `false` opts out, an object without `image` keeps it with a placement.
+    $write([...$settings, 'application' => [...$settings['application'], 'logo' => false]]);
+    verify(JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->logo == Blade\Shell\Logo::none(), 'JSON logo false: Logo::none()');
+    $write([...$settings, 'application' => [...$settings['application'], 'logo' => ['placement' => 'both']]]);
+    verify(JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->logo == new Blade\Shell\Logo(placement: 'both'), 'JSON logo without image: the product logo with a placement');
+    foreach ([['logo' => 'branding/logo.svg'], ['logo' => true], ['logo' => 7], ['logo' => ['b/logo.svg']], ['logo' => ['dark_image' => 'b/dark.svg']], ['logo' => ['image' => 'b/logo.svg', 'alt' => 'x']], ['logo' => ['image' => 'b/logo.gif']],
         ['logo' => ['image' => 'https://cdn.example.test/logo.svg']], ['logo' => ['image' => 'b/logo.svg', 'label' => '']], ['logo' => ['image' => 'b/logo.svg', 'dark_image' => 7]],
         ['sign_in_stylesheets' => 'b/sign-in.css'], ['sign_in_stylesheets' => ['b/sign-in.js']], ['sign_in_stylesheets' => ['//cdn.example.test/x.css']], ['sign_in_stylesheets' => ['b/x.css', 'b/x.css']],
         ['logo' => ['image' => 'b/logo.svg', 'placement' => 'menu']], ['sign_in' => 'x'], ['sign_in' => ['notice' => 7]], ['sign_in' => ['notice' => ' ']], ['sign_in' => ['footer' => 'x']], ['sign_in' => ['links' => 'x']],
