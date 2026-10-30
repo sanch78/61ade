@@ -26,7 +26,7 @@
   // packages/frontend/src/sandbox/runtime.ts
   var START = "__bladeSandboxStart";
   function startSandbox(host) {
-    if (host.parent === host.self) return;
+    if (host.parent === host.self || host.origin !== "null") return;
     let sequence = 0, loaded = false;
     const handlers = /* @__PURE__ */ new Map();
     const files = {};
@@ -89,6 +89,7 @@ ${code}
   // packages/frontend/src/sandbox/bootstrap.ts
   startSandbox({
     self: window,
+    origin: self.origin,
     parent: window.parent,
     global: window,
     on: (type, handler) => window.addEventListener(type, handler),
