@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
 // Signage demo on shared files (U5): Signage mount, file field, derived media columns, usage counts, upload as
-// asset, usage warnings and clearing on file and asset deletes, playlist and reader rights. An in-memory database
+// asset, usage warnings and clearing on file and asset deletes, playlist, the scene fixture and its code action (toolkit D2)
+// and reader rights. An in-memory database
 // is built like the demo setup; runtime files live in a private BLADE_TMP_DIR, never in tmp/web or tmp/demo.
 $tmp = (getenv('BLADE_TMP_DIR') ?: dirname(__DIR__, 2).'/tmp').'/signage-check-'.bin2hex(random_bytes(4));
 mkdir($tmp, 0700, true);
@@ -44,7 +45,7 @@ try {
     foreach ([$logo, $photo, $fractal, $video] as $id) { $row = $storage->entry($id); check($row['mount_id'] === 'signage' && (int) $row['parent_id'] === (int) $signage['id'], 'Seeded asset file moved into Signage/ keeping its id'); }
     check($storage->entry($other)['mount_id'] === 'b' && $storage->child((int) $pictures['id'], 'logo.png') === null, 'Other files untouched; moved files leave their folder');
     $assets = $db->query('SELECT title, file_id FROM signage_assets ORDER BY id')->fetchAll(PDO::FETCH_KEY_PAIR);
-    check(count($assets) === 7 && $assets['Arculati háttérkép'] === (string) $fractal && $assets['Logó állókép'] === (string) $logo && $assets['Fotó plakát'] === (string) $photo && $assets['Promóciós videó'] === (string) $video, 'Assets keep their file references (idempotent setup)');
+    check(count($assets) === 8 && $assets['Arculati háttérkép'] === (string) $fractal && $assets['Logó állókép'] === (string) $logo && $assets['Fotó plakát'] === (string) $photo && $assets['Promóciós videó'] === (string) $video, 'Assets keep their file references (idempotent setup)');
     // A legacy reference outside the Signage mount is reported by setup (one line each) and left in place.
     $db->prepare("INSERT INTO signage_assets(title,file_id,duration) VALUES ('Régi elem',?,'5')")->execute([(string) $other]);
     $legacy = (string) $db->lastInsertId();
@@ -64,9 +65,25 @@ try {
     $db->exec("DELETE FROM signage_assets WHERE title = 'Szinuszhang 660 Hz (MP3)'");
     blade_demo_signage_audio($db, $storage);
     blade_demo_signage_audio($db, $storage);
-    check((int) $db->query("SELECT COUNT(*) FROM blade_files WHERE name LIKE 'minta-hang.%' AND archived_at IS NULL")->fetchColumn() === 3 && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 7
+    check((int) $db->query("SELECT COUNT(*) FROM blade_files WHERE name LIKE 'minta-hang.%' AND archived_at IS NULL")->fetchColumn() === 3 && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 8
         && (int) $db->query("SELECT COUNT(*) FROM signage_assets WHERE title = 'Szinuszhang 660 Hz (MP3)'")->fetchColumn() === 1, 'The audio step restores only a missing asset and is idempotent');
     $ids = array_map('strval', $db->query('SELECT title, id FROM signage_assets')->fetchAll(PDO::FETCH_KEY_PAIR));
+    // Scene fixture (D2): one script file in the Signage root, its asset and a daily evening event; a rerun adds only
+    // what is missing (a removed event comes back), and nothing else changes.
+    $scene = $db->query("SELECT a.id, a.title, a.duration, f.id AS file, f.mime_type, f.mount_id, f.parent_id FROM signage_assets a JOIN blade_files f ON f.id = a.file_id WHERE f.name = 'minta-jelenet.js'")->fetchAll(PDO::FETCH_ASSOC);
+    check(count($scene) === 1 && $scene[0]['title'] === 'Animált jelenet' && $scene[0]['duration'] === '12' && $scene[0]['mime_type'] === 'text/javascript'
+        && $scene[0]['mount_id'] === 'signage' && (int) $scene[0]['parent_id'] === (int) $signage['id'], 'Scene fixture: Signage root, script type, one asset');
+    $sceneId = (string) $scene[0]['id'];
+    $slot = $db->prepare("SELECT text, start_at, rrule, duration FROM blade_calendar_events WHERE space = 'signage' AND json_extract(data, '$.asset_id') = ?");
+    $slot->execute([$sceneId]);
+    $slots = $slot->fetchAll(PDO::FETCH_ASSOC);
+    check(count($slots) === 1 && $slots[0]['text'] === 'Esti jelenet' && str_ends_with($slots[0]['start_at'], ' 20:00:00') && $slots[0]['rrule'] === 'FREQ=DAILY;INTERVAL=1' && (int) $slots[0]['duration'] === 3600, 'Scene fixture: daily 20:00–21:00 event');
+    $db->prepare("DELETE FROM blade_calendar_events WHERE space = 'signage' AND json_extract(data, '$.asset_id') = ?")->execute([$sceneId]);
+    blade_demo_signage_scene($db, $storage);
+    blade_demo_signage_scene($db, $storage);
+    $slot->execute([$sceneId]);
+    check(count($slot->fetchAll()) === 1 && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 8
+        && (int) $db->query("SELECT COUNT(*) FROM blade_files WHERE name = 'minta-jelenet.js' AND archived_at IS NULL")->fetchColumn() === 1, 'The scene step restores only a missing event and is idempotent');
 
     $workspace = WorkspaceConfiguration::build($db, [dirname(__DIR__, 2).'/examples/demo-app/modules/signage.json'], static fn() => blade_demo_signage_bindings());
     $files->register($workspace);
@@ -79,6 +96,8 @@ try {
     foreach (['list', 'get', 'create', 'update', 'delete'] as $action) $rule->execute(['1', 'signage_defaults', $action]);
     foreach (['events', 'occurrences', 'create', 'update', 'delete'] as $action) $rule->execute(['1', 'signage_schedule', $action]);
     $rule->execute(['1', 'signage_playlist', 'day']);
+    $rule->execute(['1', 'signage_playlist', 'scene']);
+    $rule->execute([$reader, 'signage_playlist', 'scene']);
     foreach (['list', 'get'] as $action) { $rule->execute([$reader, 'signage_assets', $action]); $rule->execute([$reader, 'signage_defaults', $action]); }
     $ctx = static fn(string $actor = '1', array $uploads = []) => new Context(new Identity($actor, 'Actor '.$actor), 'ui', $workspace->acl, $db, [], $uploads);
     $call = static fn(string $resource, string $action, ?string $id, array $values = [], ?Context $c = null) => $workspace->executor->execute($c ?? $ctx(), $resource, $action, $id, $values);
@@ -122,7 +141,7 @@ try {
     check($items['Promóciós videó']['_media']['file_id']['mime_type'] === 'video/webm' && $items['Logó állókép']['_media']['file_id']['width'] === 1 && $items['Promóciós videó']['_media']['file_id']['name'] === 'minta-video.webm', 'Media descriptors in rows');
     check($call('signage_assets', 'list', null, ['filters' => ['file_id' => 'video']])['matched'] === 1, 'Type filter over the file');
     $readerList = $call('signage_assets', 'list', null, ['limit' => 10], $ctx($reader));
-    check($readerList['total'] === 7 && is_array($readerList['items'][0]['_media']['file_id'] ?? null), 'Reader lists assets with media');
+    check($readerList['total'] === 8 && is_array($readerList['items'][0]['_media']['file_id'] ?? null), 'Reader lists assets with media');
 
     // Upload as asset: each file lands in Signage/ through the file manager's storage API and becomes an asset.
     $part = static function (string $name, string $content) use ($tmp): Upload { $path = $tmp.'/up-'.bin2hex(random_bytes(6)); file_put_contents($path, $content); return new Upload('files', $name, $path, strlen($content), UPLOAD_ERR_OK); };
@@ -134,7 +153,7 @@ try {
     check($storage->entry((int) $created[1]['file_id'])['name'] === 'logo (2).png' && $created[1]['title'] === 'logo (2)', 'A taken name gets a free one');
     fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('notes.txt', 'text')])), 400, 'Non-media upload rejected by the policy');
     $mismatch = fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('fake.png', 'not an image')])), 400, 'Content mismatch rejected');
-    check(($mismatch->details['code'] ?? null) === 'content_mismatch' && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 9, 'Failed upload creates no asset');
+    check(($mismatch->details['code'] ?? null) === 'content_mismatch' && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 10, 'Failed upload creates no asset');
     // Audio uploads as an asset too; the stored file keeps the detected audio type and its length reaches the row.
     $tone = $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('Hangpróba.wav', (string) file_get_contents(dirname(__DIR__, 2).'/examples/demo-app/resources/files/minta-hang.wav'))]));
     $toneRow = $call('signage_assets', 'get', $tone['assets'][0]);
@@ -173,7 +192,7 @@ try {
     $revision = $call('signage_assets', 'get', $poster)['revision'];
     $bulk = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision, 'preview' => '1']], ['id' => $ids['Logó állókép'], 'values' => ['revision' => $call('signage_assets', 'get', $ids['Logó állókép'])['revision'], 'preview' => '1']]]);
     check($bulk[0]['ok'] && $bulk[0]['data']['count'] === 1 && $bulk[0]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1], ['label' => 'Alapértelmezett tartalmak', 'count' => 2]] && !isset($bulk[0]['data']['audit']), 'Bulk preview carries the usages');
-    check($bulk[1]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && (int) $db->query("SELECT COUNT(*) FROM signage_assets")->fetchColumn() === 9, 'Preview changes nothing');
+    check($bulk[1]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && (int) $db->query("SELECT COUNT(*) FROM signage_assets")->fetchColumn() === 10, 'Preview changes nothing');
     check(!isset($bulk[0]['data']['audit_action']) && $db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete_preview' AND outcome = 'success' AND object_id IN (".$db->quote($poster).','.$db->quote($ids['Logó állókép']).')')->fetchColumn() == 2
         && !$db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete' AND object_id = ".$db->quote($poster))->fetchColumn(), 'Previews journaled as delete_preview');
     $applied = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision]]]);
@@ -197,12 +216,34 @@ try {
     }
     $tuesday = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+1 day')->format('Y-m-d'));
     check($tuesday['scheduled'][0]['asset']['kind'] === 'video' && $tuesday['scheduled'][0]['title'] === 'Reggeli promó', 'Type derived from the file');
+    $evening = array_values(array_filter($tuesday['timeline'], static fn($slot) => $slot['title'] === 'Esti jelenet'));
+    check(count($evening) === 1 && $evening[0]['start'] === '20:00' && $evening[0]['end'] === '21:00' && $evening[0]['asset']['kind'] === 'scene' && $evening[0]['asset']['id'] === $sceneId, 'A scene file plays as the type `scene`');
+
+    // Scene code (D2): only a scene asset's live file, as text; the browser runs it in the SandboxFrame only.
+    $code = $call('signage_playlist', 'scene', null, ['asset' => $sceneId]);
+    check($code['asset'] === $sceneId && $code['title'] === 'Animált jelenet' && $code['name'] === 'minta-jelenet.js' && $code['code'] === file_get_contents(dirname(__DIR__, 2).'/examples/demo-app/resources/files/minta-jelenet.js')
+        && $code['bytes'] === strlen($code['code']) && str_contains($code['code'], 'renderAt('), 'Scene code delivered');
+    check($call('signage_playlist', 'scene', null, ['asset' => $sceneId], $ctx($reader))['asset'] === $sceneId, 'Reader may preview scenes');
+    fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $ids['Promóciós videó']]), 415, 'A media asset is no scene');
+    fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => '999999']), 404, 'Unknown scene');
+    fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $ids['Arculati háttérkép']]), 404, 'Scene asset without a file');
+    check(isset(fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => 'x']), 400, 'Malformed scene id')->fieldErrors['asset']), 'Malformed scene id is a field error');
+    fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $sceneId], $ctx('77')), 403, 'Scene code needs signage_playlist.scene');
+    $large = $storage->createFile($signage, 'nagy-jelenet.js', 'text/javascript', $source(str_repeat('/', BLADE_DEMO_SIGNAGE_SCENE_BYTES + 1)));
+    $db->prepare("INSERT INTO signage_assets(title,file_id,duration) VALUES ('Nagy jelenet',?,'5')")->execute([(string) $large]);
+    fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => (string) $db->lastInsertId()]), 413, 'Scene over the size limit');
+    // The preview view: the generic project kind, offered with the playlist actions, never to an actor without them.
+    $previews = array_column($workspace->views(new Identity('1', 'Demo')), null, 'id');
+    $preview = $previews['demo.playlist-preview'] ?? null;
+    check($preview !== null && $preview['kind'] === 'demo.playlist-preview' && $preview['resource'] === 'signage_playlist' && $preview['group'] === 'Digitális kijelző'
+        && array_column($preview['actions'], 'name') === ['day', 'scene'] && $preview['options'] === ['media' => 'files'] && !isset($preview['record']), 'Playlist preview view');
+    check(isset(array_column($workspace->views(new Identity($reader, 'Reader')), null, 'id')['demo.playlist-preview']) && !isset(array_column($workspace->views(new Identity('77', 'Nobody')), null, 'id')['demo.playlist-preview']), 'The preview follows the playlist actions');
 
     // Reader: no write channel.
     fails(fn() => $call('signage_assets', 'delete', $ids['Promóciós videó'], ['revision' => 'x'], $ctx($reader)), 403, 'Reader cannot delete assets');
     fails(fn() => $call('files', 'delete', (string) $signage['id'], ['sources' => (string) $video, 'preview' => '1'], $ctx($reader)), 403, 'Reader cannot preview file deletes');
     fails(fn() => $call('signage_assets', 'create', null, ['title' => 'R', 'file_id' => (string) $video, 'duration' => '5'], $ctx($reader)), 403, 'Reader cannot create assets');
-    echo "Signage demo on shared files: mount, file field, media columns, usage, upload, delete warnings and playlist passed.\n";
+    echo "Signage demo on shared files: mount, file field, media columns, usage, upload, delete warnings, playlist and scenes passed.\n";
 } finally {
     exec('rm -rf '.escapeshellarg($tmp));
 }
