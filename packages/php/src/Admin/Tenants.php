@@ -40,7 +40,8 @@ final class Tenants
             new Field('blade_name', 'Név', max: 200),
             new Field('access', 'Hozzáférés', 'checkbox', column: ['editable' => true, 'align' => 'center', 'width' => 130]),
         ];
-        $source = static function (Context $ctx) use ($accounts): string {
+        $source = static function (Context $ctx) use ($accounts, $tenancy): string {
+            $tenancy->requireMigrated();
             $key = $ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? "CONCAT(CAST(t.id AS CHAR), ':', a.actor_id)" : "CAST(t.id AS CHAR) || ':' || a.actor_id";
             return "(SELECT $key AS blade_key, CAST(t.id AS CHAR) AS tenant_id, a.actor_id, a.blade_email, a.blade_name, CASE WHEN m.id IS NULL THEN '0' ELSE '1' END AS access"
                 ." FROM blade_tenants t CROSS JOIN {$accounts->visibleSql($ctx)} a LEFT JOIN blade_tenant_members m ON m.tenant_id = CAST(t.id AS CHAR) AND m.actor_id = a.actor_id) blade_access";
@@ -59,6 +60,7 @@ final class Tenants
         $registry->add(new Action(Tenancy::MEMBERS, 'list', 'Lista', [], static fn(Context $c, $t, array $values) => $list->read($c, $values), collection: true, listSource: $list));
         // The target is a tenant the actor may list and an account of the visible set; the row is the membership state.
         $resolve = static function (Context $ctx, ?string $id) use ($accounts, $tenancy): array {
+            $tenancy->requireMigrated();
             if ($id === null || !preg_match('/^([0-9]{1,20}):([a-zA-Z0-9_.:-]{1,79})$/D', $id, $match)) throw new Failure('Nem található objektum.', 404);
             [, $tenant, $actor] = $match;
             // Without the update right the executor refuses it (403) before anything about the pair is looked up.

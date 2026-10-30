@@ -50,7 +50,7 @@ copies anyway (M15).
 | M10 toolbar commands | D-017 keeps the details on the toolbar `Adatok` command | No change; there is no record context menu, and no spec opens one. |
 | M12 name | `lib/61ade`, `public/assets/61ade`, `common.php` line 7, `.deploy.json` targets | Already on `61ade`. |
 | CSS hooks | `app.css` `.blade-navigation-row::after`; `editor.css` `[data-blade-skin="storyblox-studio"]` with `--dhx-*` | The skin selector and variables are contract. Only the [documented hooks](../shell.md#sign-in-css-hooks) are supported; replace the `.blade-navigation-row::after` logo with the application `logo` (M23). |
-| M28 tenancy `active` | Tenancy (`application.php` line 14): an existing `blade_tenant_members` table still has the removed `active` column | Required with the update: run `packages/php/migrations/0003-tenant-member-active.php` once before `Tenancy::install()` in setup ([tenancy](../tenancy.md#enabling-tenancy)); `Tenancy::install()` refuses the old table. Until then a suspended (`active = 0`) row would grant access. |
+| M28 tenancy `active` | Tenancy (`application.php` line 14): an existing `blade_tenant_members` table still has the removed `active` column | Required with the update: run `packages/php/migrations/0003-tenant-member-active.php` once before `Tenancy::install()` in setup ([tenancy](../tenancy.md#enabling-tenancy)); `Tenancy::install()` refuses the old table, and the application fails closed until 0003 has run: every membership read throws a `LogicException` naming the migration and grants nothing. |
 
 Not applicable: M2 (no menu ids in specs), M3 (no bootstrap reads), M8 (no own
 admin JavaScript), M11 (no WebSocket service; lists poll), M13 (no checkbox
