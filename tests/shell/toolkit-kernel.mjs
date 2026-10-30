@@ -49,9 +49,11 @@ try{
  const off=bus.on('demo.loaded',payload=>seen.push(['c',payload]));
  bus.emit('demo.loaded',1);off();bus.emit('demo.loaded',2);
  assert.deepEqual(seen,[['a',1],['c',1],['a',2]]);assert.equal(logged,2);
- const controller=new AbortController();bus.on('demo.signal',()=>seen.push('signal'),controller.signal);controller.abort();bus.emit('demo.signal',null);
- const aborted=new AbortController();aborted.abort();bus.on('demo.signal',()=>seen.push('late'),aborted.signal);bus.emit('demo.signal',null);
+ const controller=new AbortController();bus.on('demo.signal',()=>seen.push('signal'),{signal:controller.signal});controller.abort();bus.emit('demo.signal',null);
+ const aborted=new AbortController();aborted.abort();bus.on('demo.signal',()=>seen.push('late'),{signal:aborted.signal});bus.emit('demo.signal',null);
  assert.equal(seen.includes('signal')||seen.includes('late'),false);
+ // The positional form is gone: a bare signal, a non-object or a non-signal option throws.
+ for(const bad of [controller.signal,'x',null,{signal:'x'}])assert.throws(()=>bus.on('demo.signal',()=>{},bad),TypeError);
  assert.throws(()=>bus.emit('upload:complete',{}),/framework event/);assert.throws(()=>bus.emit('loaded',{}),TypeError);
  const framework=[];bus.on('module:error',payload=>framework.push(payload));bus.dispatch('module:error',{module:'app/main.js',reason:'init'});
  assert.deepEqual(framework,[{module:'app/main.js',reason:'init'}]);

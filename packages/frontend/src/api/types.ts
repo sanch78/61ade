@@ -107,6 +107,15 @@ export interface NavigationTarget {
 // Kernel services
 // ---------------------------------------------------------------------------------------------------------------
 
+/**
+ * The `options` argument of every subscription and of `Server.form`: `signal` ends the subscription (or aborts the
+ * request) when it aborts; an already aborted signal subscribes nothing. Anything but an object, or a `signal` that
+ * is not an `AbortSignal`, throws `TypeError` (also a bare `AbortSignal` in place of the object).
+ */
+export interface SignalOptions {
+  signal?: AbortSignal;
+}
+
 /** Options of one action call. */
 export interface CallOptions {
   /** Target id passed to the action's resolver; `null` for collection and create actions. */
@@ -153,9 +162,9 @@ export interface Server {
   request(resource: string, action: string, options?: CallOptions): Promise<Response>;
   /**
    * Field metadata and initial values of an action form: the `__form` pseudo-action (`values.operation`), with the
-   * actor's field ACL applied. `id` selects the target record (update forms).
+   * actor's field ACL applied. `id` selects the target record (update forms); `signal` aborts the request.
    */
-  form(resource: string, operation: string, id?: string | null, signal?: AbortSignal): Promise<FormDescription>;
+  form(resource: string, operation: string, id?: string | null, options?: SignalOptions): Promise<FormDescription>;
   /**
    * Same-origin GET URL of a field-free `get: true` action (`content_stream`, `thumbnail_get`, project media
    * actions) for `<img>`, `<video>`, `<audio>` sources. `version` only keys the browser cache. Wraps `actionUrl`.
@@ -328,8 +337,8 @@ export interface Theme {
   current(): string;
   /** The applied application skin id (`data-blade-skin`), or `null` with a factory theme. */
   skin(): string | null;
-  /** Called after every theme or skin change; returns the unsubscribe function. */
-  onChange(listener: (theme: string, skin: string | null) => void): () => void;
+  /** Called after every theme or skin change; returns the unsubscribe function. With `signal`, unsubscribes when it aborts. */
+  onChange(listener: (theme: string, skin: string | null) => void, options?: SignalOptions): () => void;
 }
 
 /**
@@ -404,9 +413,9 @@ export interface LiveSubscription {
 export interface Live {
   /**
    * Subscribes to `resource`'s `list` window; the server re-authorizes on every read. Ends with `destroy()` or when
-   * `signal` aborts (pass `host.signal` so a closed view never leaks a subscription).
+   * `options.signal` aborts (pass `{ signal: host.signal }` so a closed view never leaks a subscription).
    */
-  subscribe(resource: string, query: ListQuery, handlers: LiveHandlers, signal?: AbortSignal): LiveSubscription;
+  subscribe(resource: string, query: ListQuery, handlers: LiveHandlers, options?: SignalOptions): LiveSubscription;
 }
 
 /**
@@ -437,8 +446,8 @@ export interface AppEvents {
  * registration order; a throwing handler is logged and does not stop the others.
  */
 export interface EventBus {
-  /** Subscribes; returns the unsubscribe function. With `signal`, unsubscribes when it aborts. */
-  on<K extends keyof AppEvents>(event: K, handler: (payload: AppEvents[K]) => void, signal?: AbortSignal): () => void;
+  /** Subscribes; returns the unsubscribe function. With `options.signal`, unsubscribes when it aborts. */
+  on<K extends keyof AppEvents>(event: K, handler: (payload: AppEvents[K]) => void, options?: SignalOptions): () => void;
   off<K extends keyof AppEvents>(event: K, handler: (payload: AppEvents[K]) => void): void;
   /**
    * Emits a project event. Framework names (with a `:`) are emitted by 61ade only; emitting one throws.
@@ -916,8 +925,11 @@ export interface Component<Events extends object = object> {
   mount(target: MountTarget): void;
   /** Idempotent; detaches the root Layout from its Layout cell (an open window or host is emptied). */
   destroy(): void;
-  /** Subscribes to a component event (`TypeError` for a non-function); returns the unsubscribe function. */
-  on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void): () => void;
+  /**
+   * Subscribes to a component event (`TypeError` for a non-function); returns the unsubscribe function. With
+   * `options.signal`, unsubscribes when it aborts; `destroy()` releases every handler anyway.
+   */
+  on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void, options?: SignalOptions): () => void;
 }
 
 /** Common constructor options. */

@@ -182,11 +182,11 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
         + `<p class="demo-readings-hidden" data-demo-distribution data-demo-selected-bin="${markBin}">${escape(distribution)}</p></div>`);
     };
 
-    const stopTheme = app.theme.onChange(() => { if (!signal.aborted) { chart.setConfig(chartConfig(colors())); render(); } });
+    // Unsubscribed by the build's signal, before the cleanup below (registered earlier, so it runs first).
+    app.theme.onChange(() => { chart.setConfig(chartConfig(colors())); render(); }, { signal });
     let current: ListView | undefined;
     // Registered before the ListView exists, so a failing constructor still releases the chart and the layout.
     signal.addEventListener("abort", () => {
-      stopTheme();
       current?.destroy();
       layout.getCell("chart").detach();
       chart.destructor();

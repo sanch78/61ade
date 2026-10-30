@@ -36,6 +36,16 @@ assert.equal(element.children.length,1);assert.throws(()=>probe.mount(element),/
 probe.destroy();probe.destroy();assert.equal(destroyed,1);assert.equal(element.children.length,0);
 probe.fire(3);assert.deepEqual(seen,[2]);assert.throws(()=>probe.mount(element),/destroyed/);
 
+// `on(event, handler, {signal})`: the handler leaves when the signal aborts; an aborted one subscribes nothing.
+{
+ const signalled=new Probe({}),got=[],stop=new AbortController(),gone=new AbortController();gone.abort();
+ signalled.on('x',payload=>got.push(['a',payload]),{signal:stop.signal});signalled.on('x',payload=>got.push(['b',payload]),{signal:gone.signal});
+ signalled.mount(new HTMLElement());signalled.fire(1);stop.abort();signalled.fire(2);
+ assert.deepEqual(got,[['a',1]]);
+ for(const bad of [stop.signal,'x',{signal:{}}])assert.throws(()=>signalled.on('x',()=>{},bad),TypeError,'the options take {signal} only');
+ // Left mounted: the destroy counter below counts the other probes.
+}
+
 // Options signal: aborting destroys; an already aborted signal destroys at once.
 const controller=new AbortController();new Probe({signal:controller.signal});controller.abort();assert.equal(destroyed,2);
 const aborted=new AbortController();aborted.abort();new Probe({signal:aborted.signal});assert.equal(destroyed,3);

@@ -74,7 +74,7 @@ options checked (`TypeError`) before the window opens.
 app.uploads.open({resource: "attachments", action: "upload", target: recordId,
   targetLabel: title, policy: action.upload,               // ActionMetadata.upload of the view's action
   onUploaded: result => refresh(result)});
-app.events.on("upload:complete", ({succeeded, failed}) => …, host.signal);
+app.events.on("upload:complete", ({succeeded, failed}) => …, {signal: host.signal});
 ```
 
 Framework code inside 61ade imports the service directly:

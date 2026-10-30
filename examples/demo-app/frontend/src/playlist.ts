@@ -234,7 +234,7 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
       stage.status = "error";
       stage.message = message;
       caption(stage);
-    }, signal);
+    }, { signal });
     try {
       const code = await sceneCode(item.slot.asset!.id);
       if (signal.aborted) return;
