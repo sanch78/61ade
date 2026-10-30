@@ -1652,6 +1652,13 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M13 | A form checkbox's accessible name is its field label again (`Archivált`); the released build exposed `checkbox Archivált` ([FB-0082](feedback.md#fb-0082)) | before P2 | if used: specs that matched the doubled name |
 | M14 | Menu pages keep their header and panel filter values in browser storage per path, user and view; `Alaphelyzet` clears them ([FB-0079](feedback.md#fb-0079)) | before P0 | info: a spec that reuses a storage state may start filtered |
 | M15 | New optional capabilities, nothing changes until used: tenancy ([FB-0069](feedback.md#fb-0069); `blade_tokens.tenant_id`, `blade_audit.tenant_id` and the tenant tables only after `Tenancy::install`), sub-views (FB-0071), skins (FB-0072), one live server for several applications (FB-0074), static image column (FB-0076), declared activation incl. `page` (FB-0077, FB-0078), and the toolkit: modules, `app` services, registries, record views, [activation map](#activation-map), components, `SandboxFrame`, `documentRoot` | all | info |
+| M16 | `app.views` → `app.kinds` (the view-kind registry; views stay `viewDefinitions()`) | close-out | if used: project modules |
+| M17 | `admin.d.ts` type names: instance = class name, `<Class>Options`, `<Class>Events`, `<Kind>KindOptions` (`FileManagerComponent`→`FileManager`, `CalendarComponent`→`Calendar`, `DiagramEditorComponent`→`DiagramEditor`, `FilePickerApi`→`FilePicker`, `ListOptions`→`ListKindOptions`, `FileManagerOptions`→`FilesKindOptions`, `DiagramOptions`→`DiagramKindOptions`, `CalendarOptions`→`CalendarKindOptions`); new `CommandButton`/`CommandSpacer`/`SignalOptions`; `apiVersion` is type-only (`ApiVersion`, runtime `app.apiVersion`) | close-out | if used: TypeScript modules |
+| M18 | `{signal}` options on `events.on`, `live.subscribe`, `theme.onChange`, `server.form` and every component `on`; a positional signal throws `TypeError` | close-out | if used |
+| M19 | Browser metadata is camelCase: columns (`imageBase`, `altOf`, `mediaOf`), files and calendar view options, `UploadPolicy`, field `file`/`validation` in views and `__form`; a files view's `options.upload` is `{policy}` only. Record data (rows, `_media`, `MediaDescriptor`) keeps server names. PHP/JSON configuration unchanged | close-out | if used: code or specs reading view or `__form` metadata |
+| M20 | `RecordForm` `cancel` → `cancelled`; `FileManager` `opened` `{id, mimeType}`; toolbar spacers `{type: "spacer"}` without id | close-out | if used |
+| M21 | `dist/sandbox.js` removed: the bootstrap is inline in `sandbox.html`, allowed by a CSP hash (no `script-src 'self'`) | close-out | if used: `SandboxFrame` |
+| M22 | Escape closes the `Műveletek` menu; an open file-manager or calendar form now counts as editing (blocks the live reload, gets the ended-session modal) | close-out | info |
 
 ### Steps for a consumer session
 
@@ -1695,6 +1702,14 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | 2026-10-30 | `sandbox.html` runs code only when `self.origin === "null"`; a frame document reports only the first failure its messages cause; project messages also arrive before `ready` and after an error. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | The shell CSP adds `object-src 'none'`; the demo's `signage_playlist.scene` also needs `files.content_stream` on the scene file's mount (else 404). | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | A `load()` refused for size no longer rejects a still pending earlier load (that frame can still become ready); `navigate` writes only `#view=<id>[&record=…]` (filters are applied, not written). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `app.views` → `app.kinds`; one type-name scheme (instance = class, `<Class>Options`, `<Class>Events`, `<Kind>KindOptions`). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `apiVersion` is type-only in `admin.d.ts` (`ApiVersion`); the value is `app.apiVersion`. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | One `ColumnMetadata` spelling (camelCase `imageBase`, `altOf`, `mediaOf`); `ListViewKind` normalises declared columns. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `{signal}` options (`SignalOptions`) on `events.on`, `live.subscribe`, `theme.onChange`, `server.form` and component `on`; positional signals removed. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `CommandItem` = `CommandButton \| CommandSpacer` (spacers need no id); Escape closes the `Műveletek` menu and focuses its toggle. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `FileManager.editing()` and `Calendar.editing()`; the built-in kinds report them. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | Sandbox bootstrap inline in `sandbox.html`, allowed by `script-src 'sha256-…' blob:`; `dist/sandbox.js` removed. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | Event naming rule ([conventions](#conventions)): `RecordForm` `cancelled`, `FileManager` `opened` `{id, mimeType}`; browser metadata camelCase (files/calendar options, `UploadPolicy`, field `file`/`validation`); `FilesKindOptions.upload` is `{policy}` only (the upload rules were sent twice). | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>
 
