@@ -10,8 +10,8 @@ declare(strict_types=1);
  */
 
 use Blade\Calendar\CalendarDefinition;
-use Blade\Feature\{Action, Context, Failure, Field, Lookup, UploadPolicy, UsageProvider, View, Workspace};
-use Blade\Files\{FileManagerDefinition, FileStorage, MountStorage};
+use Blade\Feature\{Action, Context, Failure, Field, FileSource, Lookup, UploadPolicy, UsageProvider, View, Workspace};
+use Blade\Files\{FileManagerDefinition, FileMedia, FileStorage, MountStorage};
 
 const BLADE_DEMO_SIGNAGE_WEEKDAYS = [1 => 'Hétfő', 2 => 'Kedd', 3 => 'Szerda', 4 => 'Csütörtök', 5 => 'Péntek', 6 => 'Szombat', 7 => 'Vasárnap'];
 /** Stored type of a scene asset's file: script source run only inside the 61ade SandboxFrame (toolkit D2). */
@@ -105,11 +105,14 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
     $workspace->registry->add(new Action('signage_playlist', 'day', 'Napi műsor', [
         new Field('date', 'Dátum', required: true, max: 10, validation: ['pattern' => ['expression' => '^[0-9]{4}-[0-9]{2}-[0-9]{2}$', 'message' => 'Formátum: ÉÉÉÉ-HH-NN.']]),
     ], static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_playlist($ctx, $calendar, $values['date']), resolve: static fn() => ['id' => null, 'owner' => null]));
-    // Toolkit D2: the code of a scene asset for the playlist preview, which runs it in a SandboxFrame. Who may preview
-    // the day's playlist (which names every asset and file) may read the scenes in it; nothing else is served.
+    // Toolkit D2: the code of a scene asset for the playlist preview, which runs it in a SandboxFrame. Only a scene file the
+    // actor could also read through the file manager (`content_stream` on its mount) is served; nothing else.
     $workspace->registry->add(new Action('signage_playlist', 'scene', 'Jelenet kódja', [
         new Field('asset', 'Tartalom', required: true, max: 18, validation: ['pattern' => ['expression' => '^[1-9][0-9]{0,17}$', 'message' => 'Érvénytelen azonosító.']]),
-    ], static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_scene_code($ctx, $files->storage($ctx->db, $workspace->tasks), $values['asset']), resolve: static fn() => ['id' => null, 'owner' => null]));
+    ], static function (Context $ctx, array $target, array $values) use ($files, $workspace): array {
+        $storage = $files->storage($ctx->db, $workspace->tasks);
+        return blade_demo_signage_scene_code($ctx, $storage, new FileMedia($files, $storage), $values['asset']);
+    }, resolve: static fn() => ['id' => null, 'owner' => null]));
     $workspace->registry->addView(new View('demo.playlist-preview', 'demo.playlist-preview', 'Napi műsor', resource: 'signage_playlist',
         actions: ['day', 'scene'], options: ['media' => 'files'], group: 'Digitális kijelző', icon: 'dxi dxi-menu-right'));
     // Usage warnings: deleting a used file (file manager) or asset (Médiatár) shows the counts and clears the references.
@@ -194,16 +197,18 @@ function blade_demo_signage_playlist(Context $ctx, CalendarDefinition $calendar,
 }
 
 /**
- * The code of the scene asset $asset (toolkit D2): its live file must be a scene (BLADE_DEMO_SIGNAGE_SCENE_TYPE) of at most
- * BLADE_DEMO_SIGNAGE_SCENE_BYTES UTF-8 bytes. The browser runs it only in the SandboxFrame, never in the admin origin.
+ * The code of the scene asset $asset (toolkit D2): its live file must be one the actor may read through the file manager
+ * (`content_stream` on the file's mount, as that action resolves and checks it; otherwise 404, revealing nothing), a scene
+ * (BLADE_DEMO_SIGNAGE_SCENE_TYPE) of at most BLADE_DEMO_SIGNAGE_SCENE_BYTES UTF-8 bytes. The browser runs it only in the
+ * SandboxFrame, never in the admin origin.
  */
-function blade_demo_signage_scene_code(Context $ctx, FileStorage $storage, string $asset): array
+function blade_demo_signage_scene_code(Context $ctx, FileStorage $storage, FileSource $files, string $asset): array
 {
     $q = $ctx->db->prepare('SELECT id, title, file_id FROM signage_assets WHERE id = ?');
     $q->execute([$asset]);
     $row = $q->fetch(PDO::FETCH_ASSOC) ?: throw new Failure('A jelenet nem található.', 404);
     $file = preg_match('/^[1-9][0-9]{0,17}$/D', (string) $row['file_id']) ? $storage->entry((int) $row['file_id']) : null;
-    if (!$file || $file['kind'] !== 'file') throw new Failure('A jelenet nem található.', 404);
+    if (!$file || $file['kind'] !== 'file' || !$files->allows($ctx, 'content_stream', (string) $file['mount_id'])) throw new Failure('A jelenet nem található.', 404);
     if ($file['mime_type'] !== BLADE_DEMO_SIGNAGE_SCENE_TYPE) throw new Failure('Ez a tartalom nem jelenet.', 415);
     if ((int) $file['size'] > BLADE_DEMO_SIGNAGE_SCENE_BYTES) throw new Failure('A jelenet túl nagy.', 413);
     $code = $storage->content((int) $file['id'], BLADE_DEMO_SIGNAGE_SCENE_BYTES);
