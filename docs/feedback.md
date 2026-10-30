@@ -2528,8 +2528,15 @@ that exactly equals an option label lists every option. The managed
   examples/demo-app/setup-workspace.php` (idempotent: the `priority` column
   and the audio assets). Full suite on the integration branch: 167 passed,
   2 failed; `grid-edit:51` needed a wider viewport for the new column (fixed),
-  `uploader-reopen` passed in isolation.
-- **Status:** in progress (P4 D2 next, then gate G4).
+  `uploader-reopen` passed in isolation. D2 (`Napi műsor` preview,
+  `demo.playlist-preview`: timeline, playhead, MediaPlayer stage and a
+  `SandboxFrame` scene delivered by the `signage_playlist.scene` action) is
+  implemented; its stage first rendered empty because a Suite Layout cell that
+  showed `attachHTML` text loses a widget attached afterwards (fixed with a
+  fresh box Layout per stage). Second full run: 175 passed, 2 failed;
+  `subview-demos:74` found its row by the header filter once the library grew
+  (fixed), `grid-sort:36` passed in isolation (FB-0083).
+- **Status:** in progress (gate G4: the owner tries D1–D4).
 
 <a id="fb-0082"></a>
 
@@ -2597,6 +2604,9 @@ that exactly equals an option label lists every option. The managed
   `uploader-reopen.spec.cjs` (the drop zone not shown after reopening) failed
   once more in the P4 full run (also in the first, unstable run) and passed in
   isolation; watch it too.
+  `grid-sort.spec.cjs:36` (the second select header filter request) failed
+  once in the second P4 full run (175 passed) and passed in isolation. No
+  failure has repeated across six full runs so far; a repeat gets a fix.
 - **Status:** implemented and committed.
 
 <a id="fb-0084"></a>
