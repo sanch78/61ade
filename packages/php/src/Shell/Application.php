@@ -108,6 +108,13 @@ final class Application
             $pending = $_SESSION['pendingLogin'];
             $bootstrap['confirmation'] = ['email' => $pending['email'], 'expires' => $pending['expires']];
         }
+        // Page kind for project CSS (`data-blade-page` on <html>), in the order the shell picks its window.
+        $page = $identity ? 'shell' : (isset($bootstrap['passwordChange']) ? 'password-change' : (isset($bootstrap['confirmation']) ? 'confirmation' : 'sign-in'));
+        // The application logo (top menu row, sign-in windows): keyed image URLs and its accessible text.
+        if ($logo = $definition->logo) {
+            $bootstrap['logo'] = ['image' => $keys->url($logo->image), 'label' => Translator::text($logo->label ?? $definition->title)];
+            if ($logo->darkImage !== null) $bootstrap['logo']['dark'] = $keys->url($logo->darkImage);
+        }
         $skins = $identity ? $this->skins($identity) : [];
         if ($identity) {
             if ($skins) $bootstrap['skins'] = array_map(static fn(Skin $skin) => ['id' => $skin->id, 'label' => Translator::text($skin->label), 'base' => $skin->base], $skins);

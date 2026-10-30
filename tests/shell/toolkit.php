@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 // Toolkit kernel, server side (docs/toolkit.md): View builders and kind providers, the view-id rule, record views,
-// the activation map and project modules/stylesheets.
+// the activation map, project modules/stylesheets and the sign-in branding.
 require dirname(__DIR__,2).'/examples/demo-app/vendor/autoload.php';
 use Blade\Feature\{Context,Failure,Field,GenericViewKind,Registry,SqlResource,View,ViewKindProvider,ViewLayout,Workspace};
 use Blade\Navigation\Menu;
@@ -188,6 +188,48 @@ $name=$_SERVER['SCRIPT_NAME'];$_SERVER['SCRIPT_FILENAME']='proxy:fcgi://127.0.0.
 check($bootstrap($render($keyed($public)))['modules'][0]===$changed,'Without a usable SCRIPT_FILENAME the page directory is the root plus the SCRIPT_NAME directory');
 $_SERVER['SCRIPT_FILENAME']=$script;$_SERVER['SCRIPT_NAME']=$name;
 foreach(['',"tmp\0x"] as $bad)rejects(fn()=>$keyed($bad),'Invalid document root accepted: '.json_encode($bad));
+array_map('unlink',glob($runtime.'/sessions/*')?:[]);
+
+// Sign-in branding (docs/shell.md#sign-in-branding): the logo and the sign-in stylesheets, keyed like the other assets;
+// `data-blade-page` names the page kind; signed-out pages link only the sign-in stylesheets, the shell only `stylesheets`.
+foreach(['branding/logo.svg'=>'<svg xmlns="http://www.w3.org/2000/svg"/>','branding/logo-dark.svg'=>'<svg xmlns="http://www.w3.org/2000/svg"></svg>','branding/sign-in.css'=>'d{}'] as $file=>$content){
+    if(!is_dir(dirname($public.'/'.$file)))mkdir(dirname($public.'/'.$file),0777,true);
+    file_put_contents($public.'/'.$file,$content);
+}
+$branded=fn(?\Blade\Shell\Logo $logo=new \Blade\Shell\Logo('../branding/logo.svg','../branding/logo-dark.svg'),array $signIn=['../branding/sign-in.css'])=>new ApplicationDefinition('Toolkit',$identities,new Menu([]),$runtime,
+    sessionName:'blade_toolkit',version:'1.4.0',assets:'../assets',modules:['../app/main.js'],stylesheets:['../app/main.css'],documentRoot:$public,logo:$logo,signInStylesheets:$signIn);
+$session=function(array $values):void{session_start();$_SESSION=$values;$_COOKIE['blade_toolkit']=session_id();session_write_close();};
+$_SERVER['SCRIPT_FILENAME']=$public.'/admin/index.php';
+$signInCss='href="../branding/sign-in.css?v='.$fileKey($public.'/branding/sign-in.css').'"';
+$logo=['image'=>'../branding/logo.svg?v='.$fileKey($public.'/branding/logo.svg'),'label'=>'Toolkit','dark'=>'../branding/logo-dark.svg?v='.$fileKey($public.'/branding/logo-dark.svg')];
+$session([]);
+$page=$render($branded());$link=strpos($page,$signInCss);
+check(preg_match('~<html lang="[a-z]+" data-blade-page="sign-in">~',$page)===1,'Sign-in page kind on <html>');
+check($link!==false&&$link>strpos($page,'admin.css')&&!str_contains($page,'app/main.css')&&!isset($bootstrap($page)['modules']),'Sign-in page links the keyed sign-in stylesheet after admin.css, no project stylesheet or module');
+check($bootstrap($page)['logo']===$logo,'Logo in the sign-in bootstrap: keyed light and dark images, the title as its text');
+$session(['pendingLogin'=>['email'=>'a@example.test','expires'=>time()+600]]);
+$page=$render($branded());
+check(str_contains($page,'data-blade-page="confirmation"')&&str_contains($page,$signInCss)&&!str_contains($page,'app/main.css')&&$bootstrap($page)['logo']===$logo,'E-mail confirmation page: kind, sign-in stylesheet, logo');
+$session(['pendingLogin'=>['email'=>'a@example.test','expires'=>time()+600],'pendingPasswordChange'=>['expires'=>time()+600]]);
+$page=$render($branded());
+check(str_contains($page,'data-blade-page="password-change"')&&str_contains($page,$signInCss)&&!str_contains($page,'app/main.css')&&$bootstrap($page)['logo']===$logo,'Password-change page (it wins over a pending confirmation, as in the shell): kind, sign-in stylesheet, logo');
+$session(['identity'=>'1']);
+$page=$render($branded());
+check(str_contains($page,'data-blade-page="shell"')&&str_contains($page,'href="../app/main.css?v=')&&!str_contains($page,'sign-in.css')&&$bootstrap($page)['authenticated']===true&&$bootstrap($page)['logo']===$logo,'Signed-in shell: kind, project stylesheet only, logo');
+$page=$render($branded(new \Blade\Shell\Logo('/branding/logo.svg?v=3',label:'Márka'),[]));
+check($bootstrap($page)['logo']===['image'=>'/branding/logo.svg?v=3','label'=>'Márka'],'Own logo key and text; no dark key without a dark image');
+$page=$render($branded(null,[]));
+check(!isset($bootstrap($page)['logo'])&&!str_contains($page,'branding/'),'No logo key or branding link without them');
+$session([]);
+$page=$render($branded(null,[]));
+check(!isset($bootstrap($page)['logo'])&&!str_contains($page,'branding/')&&str_contains($page,'data-blade-page="sign-in"'),'Signed out without branding: nothing linked, the page kind stays');
+foreach(['https://cdn.example.test/logo.svg','//cdn.example.test/logo.svg','logo.gif','logo.jpg','x/../logo.svg','data:image/svg+xml,<svg/>','logo.svg?v=<x>','','lo go.png','logo.svg.js'] as $bad)
+    rejects(fn()=>new \Blade\Shell\Logo($bad),'Invalid logo image accepted: '.$bad);
+rejects(fn()=>new \Blade\Shell\Logo('logo.svg','https://cdn.example.test/dark.svg'),'Off-origin dark logo accepted');
+rejects(fn()=>new \Blade\Shell\Logo('logo.svg',label:' '),'Blank logo text accepted');
+check((new \Blade\Shell\Logo('/b/logo.png?v=3','../b/logo-dark.webp'))->darkImage==='../b/logo-dark.webp','png/webp, root-absolute and parent paths accepted');
+foreach([['x.js'],['https://cdn.example.test/x.css'],['x.css','x.css'],['a'=>'x.css'],[7]] as $bad)rejects(fn()=>$branded(null,$bad),'Invalid sign-in stylesheet accepted: '.json_encode($bad));
+$_SERVER['SCRIPT_FILENAME']=$script;
 array_map('unlink',glob($runtime.'/sessions/*')?:[]);
 
 // Registries (P3 C-5): project presentations and field types are dotted names the server accepts by shape only; the

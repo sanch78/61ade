@@ -30,7 +30,9 @@ final class JsonApplication
         $session = $config->section('session');
         $live = $config->section('live');
         $workspace = $config->section('workspace');
-        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string'], '$.application');
+        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'array', 'sign_in_stylesheets' => 'array'], '$.application');
+        $logo = $application['logo'] ?? null;
+        if ($logo !== null) Shape::check($logo, ['image' => 'string'], ['dark_image' => 'string', 'label' => 'string'], '$.application.logo');
         Shape::check($session, ['name' => 'string', 'cookie_path' => 'string'], [], '$.session');
         Shape::check($live, [
             'transport' => 'string',
@@ -92,6 +94,9 @@ final class JsonApplication
             modules: $application['modules'] ?? [],
             stylesheets: $application['stylesheets'] ?? [],
             // Optional directory served at `/` (relative to the JSON directory) for the assets' cache keys.
+            // Sign-in branding (docs/shell.md#sign-in-branding): browser paths like `stylesheets`.
+            logo: $logo === null ? null : new \Blade\Shell\Logo($logo['image'], $logo['dark_image'] ?? null, $logo['label'] ?? null),
+            signInStylesheets: $application['sign_in_stylesheets'] ?? [],
             documentRoot: match ($application['document_root'] ?? null) { null => null, '' => '', default => $config->path($application['document_root']) },
         );
     }

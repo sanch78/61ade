@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="<?= $escape(\Blade\I18n\Translator::locale()) ?>">
+<html lang="<?= $escape(\Blade\I18n\Translator::locale()) ?>" data-blade-page="<?= $escape($page) ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,9 +8,9 @@
 <?php foreach ($skins as $skin): ?>
     <link rel="stylesheet" href="<?= $escape($keys->url($skin->stylesheet)) ?>">
 <?php endforeach; ?>
-<?php if ($bootstrap['authenticated']): foreach ($definition->stylesheets as $stylesheet): ?>
+<?php foreach ($bootstrap['authenticated'] ? $definition->stylesheets : $definition->signInStylesheets as $stylesheet): ?>
     <link rel="stylesheet" href="<?= $escape($keys->url($stylesheet)) ?>">
-<?php endforeach; endif; ?>
+<?php endforeach; ?>
 <?php if ($bootstrap['oauth'] ?? false): $auth = rtrim($definition->oauth->assets, '/'); ?>
     <link rel="stylesheet" href="<?= $escape($keys->url($auth.'/AuthHandler.css')) ?>">
     <script src="<?= $escape($keys->url($auth.'/AuthHandler.js')) ?>"></script>

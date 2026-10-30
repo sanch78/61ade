@@ -111,6 +111,20 @@ try {
         $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
         rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid application module path accepted: '.json_encode($bad));
     }
+    // Sign-in branding (docs/shell.md#sign-in-branding): application.logo and application.sign_in_stylesheets.
+    verify($app->logo === null && $app->signInStylesheets === [], 'No logo or sign-in stylesheets by default');
+    $write([...$settings, 'application' => [...$settings['application'], 'logo' => ['image' => 'branding/logo.svg', 'dark_image' => 'branding/logo-dark.svg', 'label' => 'Márka'], 'sign_in_stylesheets' => ['branding/sign-in.css']]]);
+    $branded = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
+    verify($branded->logo == new Blade\Shell\Logo('branding/logo.svg', 'branding/logo-dark.svg', 'Márka') && $branded->signInStylesheets === ['branding/sign-in.css'] && $branded->stylesheets === [], 'JSON application.logo and sign_in_stylesheets');
+    $write([...$settings, 'application' => [...$settings['application'], 'logo' => ['image' => 'branding/logo.png']]]);
+    $plain = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->logo;
+    verify($plain->image === 'branding/logo.png' && $plain->darkImage === null && $plain->label === null, 'JSON logo without dark image and text');
+    foreach ([['logo' => 'branding/logo.svg'], ['logo' => []], ['logo' => ['dark_image' => 'b/dark.svg']], ['logo' => ['image' => 'b/logo.svg', 'alt' => 'x']], ['logo' => ['image' => 'b/logo.gif']],
+        ['logo' => ['image' => 'https://cdn.example.test/logo.svg']], ['logo' => ['image' => 'b/logo.svg', 'label' => '']], ['logo' => ['image' => 'b/logo.svg', 'dark_image' => 7]],
+        ['sign_in_stylesheets' => 'b/sign-in.css'], ['sign_in_stylesheets' => ['b/sign-in.js']], ['sign_in_stylesheets' => ['//cdn.example.test/x.css']], ['sign_in_stylesheets' => ['b/x.css', 'b/x.css']]] as $bad) {
+        $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
+        rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid sign-in branding accepted: '.json_encode($bad));
+    }
     rejected(static fn() => new Blade\Shell\Skin('skyblue', 'Shadow', 'skins/brand.css'), 'Skin shadowing a factory theme accepted');
     verify($app->live->applications === [] && $app->live->route('/live/admin') === null, 'No further live applications without live.applications');
     $write([...$settings, 'live' => [...$settings['live'], 'transport' => 'websocket', 'applications' => ['admin' => 'admin.php', 'tenants' => '/srv/tenants.php']]]);
