@@ -79,8 +79,9 @@ class="blade-logo__image blade-logo__image--light|dark">` inside the
 | `.blade-logo__glyph`, `.blade-logo__glyph--b`, `--l`, `--a`, `--d`, `--e` | One letter each: per-letter reveal. |
 
 Gradient ids (`blade-t1`, `blade-t2`, `blade-t3`, `blade-asc` in the files)
-are renamed per inlined copy (`blade-<n>-t1`, …), so several copies on one
-page never share a gradient; animate the classes, not the ids. Respect
+are renamed per inlined copy and variant (`blade-<n>-light-t1`,
+`blade-<n>-dark-t1`, …): both variants of a copy are in the page, so neither
+copies nor variants ever share a gradient; animate the classes, not the ids. Respect
 `prefers-reduced-motion` in any animation.
 
 <a id="usage"></a>
