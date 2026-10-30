@@ -27,8 +27,8 @@ final class Tenants
 
     /**
      * Tenant access list (resource Tenancy::MEMBERS): one row per tenant and account the actor may list (Accounts
-     * lookup ACL), id "<tenant>:<actor>", with the single flag `access` = an active membership. Switching it on
-     * inserts the membership (or re-enables a suspended one), off deletes the row. The only write is the audited,
+     * lookup ACL), id "<tenant>:<actor>", with the single flag `access` = a membership row. Switching it on
+     * inserts the membership, off deletes the row. The only write is the audited,
      * ACL-checked single-field edit (`__edit` / update); there is no create, form or delete. The sub-view count is the
      * number of accounts with access.
      */
@@ -42,7 +42,7 @@ final class Tenants
         ];
         $source = static function (Context $ctx) use ($accounts): string {
             $key = $ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? "CONCAT(CAST(t.id AS CHAR), ':', a.actor_id)" : "CAST(t.id AS CHAR) || ':' || a.actor_id";
-            return "(SELECT $key AS blade_key, CAST(t.id AS CHAR) AS tenant_id, a.actor_id, a.blade_email, a.blade_name, CASE WHEN m.active = 1 THEN '1' ELSE '0' END AS access"
+            return "(SELECT $key AS blade_key, CAST(t.id AS CHAR) AS tenant_id, a.actor_id, a.blade_email, a.blade_name, CASE WHEN m.id IS NULL THEN '0' ELSE '1' END AS access"
                 ." FROM blade_tenants t CROSS JOIN {$accounts->visibleSql($ctx)} a LEFT JOIN blade_tenant_members m ON m.tenant_id = CAST(t.id AS CHAR) AND m.actor_id = a.actor_id) blade_access";
         };
         $revision = static fn(array $row): string => hash('sha256', $row['tenant_id'].':'.$row['actor_id'].':'.$row['access']);
@@ -64,10 +64,10 @@ final class Tenants
             // Without the update right the executor refuses it (403) before anything about the pair is looked up.
             if (!$ctx->acl->allows($ctx->actor->id, Tenancy::MEMBERS, 'update', $ctx->channel, $id, null)) return ['id' => $id, 'owner' => null];
             if (!isset($tenancy->lookup()->options($ctx)[$tenant]) || !isset($accounts->lookup()->options($ctx)[$actor])) throw new Failure('Nem található objektum.', 404);
-            $q = $ctx->db->prepare('SELECT id, active FROM blade_tenant_members WHERE tenant_id = ? AND actor_id = ?');
+            $q = $ctx->db->prepare('SELECT id FROM blade_tenant_members WHERE tenant_id = ? AND actor_id = ?');
             $q->execute([$tenant, $actor]);
             $member = $q->fetch(\PDO::FETCH_ASSOC) ?: null;
-            return ['id' => $id, 'owner' => null, 'row' => ['tenant_id' => $tenant, 'actor_id' => $actor, 'access' => $member && (string) $member['active'] === '1' ? '1' : '0', 'member' => $member], 'audit' => ['tenant_id' => $tenant, 'actor_id' => $actor]];
+            return ['id' => $id, 'owner' => null, 'row' => ['tenant_id' => $tenant, 'actor_id' => $actor, 'access' => $member ? '1' : '0', 'member' => $member], 'audit' => ['tenant_id' => $tenant, 'actor_id' => $actor]];
         };
         $save = static function (Context $ctx, array $target, array $values) use ($revision): array {
             $row = $target['row'];
@@ -75,8 +75,7 @@ final class Tenants
             if (!array_key_exists('access', $values)) throw new Failure('Nincs módosítás.');
             $access = (string) $values['access'] === '1' ? '1' : '0';
             if ($access === '1') {
-                if ($row['member'] === null) $ctx->db->prepare('INSERT INTO blade_tenant_members (tenant_id, actor_id, active) VALUES (?, ?, 1)')->execute([$row['tenant_id'], $row['actor_id']]);
-                else $ctx->db->prepare('UPDATE blade_tenant_members SET active = 1 WHERE id = ?')->execute([$row['member']['id']]);
+                if ($row['member'] === null) $ctx->db->prepare('INSERT INTO blade_tenant_members (tenant_id, actor_id) VALUES (?, ?)')->execute([$row['tenant_id'], $row['actor_id']]);
             } else $ctx->db->prepare('DELETE FROM blade_tenant_members WHERE tenant_id = ? AND actor_id = ?')->execute([$row['tenant_id'], $row['actor_id']]);
             $ctx->acl->invalidate();
             return ['id' => $target['id'], 'revision' => $revision([...$row, 'access' => $access]), 'values' => ['access' => $access], 'audit' => ['access' => $access]];
