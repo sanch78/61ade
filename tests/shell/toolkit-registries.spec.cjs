@@ -60,6 +60,44 @@ async function mount(page){
  });
  await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
 }
+// A parent list whose sub-view is a different resource with its own child view (`project-tasks`): the child view
+// declares `demo.copy` but not `demo.open`. The fetch stub answers by `request.resource`.
+async function mountSubview(page){
+ await page.route('**/toolkit-registries-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="blade-application"></div>'}));
+ await page.goto('/toolkit-registries-fixture');await page.setContent('<div id="blade-application" style="height:760px"></div>');
+ await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle()});
+ await page.evaluate(()=>{
+  const data={projects:[{id:'1',title:'Projekt 1',_subview:2,revision:'p1',_actions:['get']},{id:'2',title:'Projekt 2',_subview:0,revision:'p2',_actions:['get']}],
+   tasks:[{id:'11',title:'Feladat 11',project_id:'1',revision:'t11',_actions:['get']},{id:'12',title:'Feladat 12',project_id:'1',revision:'t12',_actions:['get']}]};
+  window.requests=[];window.runs=[];
+  const list=(resource,query)=>{const parent=query?.filters?.project_id,items=data[resource].filter(row=>parent===undefined||row.project_id===parent);
+   return {items,previous:null,next:null,version:'v1',total:items.length,matched:items.length};};
+  window.fetch=async(_url,config)=>{
+   const request=JSON.parse(config.body);requests.push(request);
+   let answer;
+   if(request.action==='list')answer=list(request.resource,request.values);
+   if(request.action==='__watch')answer={results:request.values.subscriptions.map(s=>({id:s.id,ok:true,data:list(s.resource,s.query)}))};
+   if(request.action==='get')answer=data[request.resource]?.find(item=>item.id===request.id);
+   return {ok:true,json:async()=>({ok:true,data:answer})};
+  };
+  fixture.setTheme('skyblue',document.documentElement);
+  const get={name:'get',label:'Adatok',write:false,fields:[]};
+  const options=(columns,commands)=>({singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{rows:[{id:'grid'}]}},columns,commands});
+  const child={id:'project-tasks',kind:'list',title:'Feladatok',resource:'tasks',actions:[get],
+   options:options([{id:'title',header:'Cím',type:'text'},{id:'project_id',header:'Projekt',type:'text'}],['demo.copy'])};
+  const projects={id:'projects',kind:'list',title:'Projektek',resource:'projects',actions:[get],
+   options:{...options([{id:'title',header:'Cím',type:'text'}],['demo.copy','demo.open']),subview:{resource:'tasks',field:'project_id',view:child}}};
+  window.channel=new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000});
+  window.app=fixture.createApplication({channel:()=>channel,userId:'toolkit-registries-subview',displayName:'Teszt',tenant:null,views:[projects],navigate:()=>true}).app;
+  const record=name=>context=>runs.push({name,row:context.row?.id,rows:context.rows.length,view:context.view.id});
+  app.commands.register('demo.copy',{label:'Másolás',placement:'record',run:record('demo.copy')});
+  // Reads its row through the action of the context's own view: `view` and `row` must belong to one resource.
+  app.commands.register('demo.open',{label:'Megnyitás',placement:'record',run:async context=>{await context.app.server.call(context.view.resource,'get',{id:context.row.id});record('demo.open')(context);}});
+  window.layout=new fixture.Layout(document.getElementById('blade-application'),{type:'space',rows:[{id:'list'}]});
+  window.list=new app.components.ListView({view:'projects'});list.mount(layout.getCell('list'));
+ });
+ await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
+}
 const gridRow=(page,title)=>page.locator('.dhx_grid-row').filter({hasText:title}).first();
 const cellOf=(page,title,column)=>gridRow(page,title).locator(`[data-dhx-col-id="${column}"]`);
 
@@ -206,5 +244,37 @@ test('client commands: every placement in the toolbar after the actions, record 
  await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toMatchObject({name:'demo.open',row:'2'});
  // The context signal ends with the list.
  expect(await page.evaluate(()=>{list.destroy();return document.querySelectorAll('.dhx_grid-row').length;})).toBe(0);
+ expect(errors).toEqual([]);
+});
+
+test('client commands while a sub-view record holds the toolbar: a command the child view declares runs on the child record, any other stays on the parent',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.setViewportSize({width:1280,height:820});await mountSubview(page);
+ const toolbar=page.locator('.blade-command-row .dhx_toolbar').first();
+ const button=name=>toolbar.getByRole('button',{name,exact:true});
+ // Expanding a project makes it the parent's cursor record.
+ await gridRow(page,'Projekt 1').locator('.blade-subrow-toggle').click();
+ const nested=page.locator('.blade-subview-host .blade-subview');
+ await expect(nested.locator('.dhx_grid-row')).toHaveCount(2);
+ await nested.locator('.dhx_grid-row').filter({hasText:'Feladat 11'}).click();
+ for(const name of ['Adatok','Másolás','Megnyitás'])await expect(button(name)).toBeEnabled();
+ // Declared by the child view: the child's view and cursor record.
+ await button('Másolás').click();
+ await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toEqual({name:'demo.copy',row:'11',rows:0,view:'project-tasks'});
+ // Not declared by the child view: the parent's view and its own cursor record, never the child row.
+ await button('Megnyitás').click();
+ await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toEqual({name:'demo.open',row:'1',rows:0,view:'projects'});
+ expect(await page.evaluate(()=>requests.filter(request=>request.action==='get').map(request=>[request.resource,request.id]))).toEqual([['projects','1']]);
+ // The built-in Adatok still opens the child record's details.
+ await button('Adatok').click();
+ const details=page.getByRole('dialog',{name:'Rekordadatok'});
+ await expect(details).toContainText('Feladat 11');
+ expect(await page.evaluate(()=>requests.filter(request=>request.action==='get').map(request=>[request.resource,request.id]))).toEqual([['projects','1'],['tasks','11']]);
+ await page.keyboard.press('Escape');await expect(details).toHaveCount(0);
+ // Selecting a parent row gives the toolbar back: every command runs on the parent record again.
+ await cellOf(page,'Projekt 2','title').click();
+ await button('Másolás').click();
+ await expect.poll(()=>page.evaluate(()=>runs.at(-1))).toEqual({name:'demo.copy',row:'2',rows:0,view:'projects'});
+ await page.evaluate(()=>list.destroy());
  expect(errors).toEqual([]);
 });

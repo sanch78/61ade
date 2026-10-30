@@ -70,7 +70,7 @@ export class Workspace implements ActionHost {
   /** Last counts of the server (the `changed` event). */
   private counted:{total?:number;matched?:number}={};
   readonly resourceCall=(resource:string,action:string,id:string|null,values:Record<string,unknown>={})=>this.request(resource,action,id,values);
-  /** The nested same-resource view whose cursor record the toolbar currently acts on. */
+  /** The selected sub-view preview whose cursor record holds the toolbar (its actions and commands of the same name). */
   private delegated?:Workspace;
   /** Open compact previews by record id (refreshed when that record's full child view closes). */
   private previews=new Map<string,Workspace>();
@@ -167,21 +167,25 @@ export class Workspace implements ActionHost {
     const view=this.view;if(id.startsWith("blade-command:")){this.runCommand(id.slice("blade-command:".length));return;}if(id==="blade-subview"){this.openSubview();return;}if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.filterPanel?.open();return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.actions.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.actions.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.actions.open(action);}
   }
   /**
-   * What a client command sees: the application, the view as the server sent it, the toolbar's record (a shared
-   * sub-view's cursor record while it holds the toolbar), the marked rows (none while a sub-view holds the toolbar)
-   * and the list's lifetime signal.
+   * What client command $name sees: the application, the view as the server sent it, the toolbar's record, the marked
+   * rows and the list's lifetime signal. While a sub-view record holds the toolbar, a command its view has too (the
+   * built-in `details`, a declared name; every command of a shared sub-view) gets the sub-view's context, like the
+   * built-in actions; any other stays on this list's own record and marks, so `view` and `row` share one resource.
    */
-  private commandContext():ListCommandContext{
-    const row=this.target();
-    const marked=this.delegated?[]:(this.grid?.markedIds??[]).map(id=>this.rows.find(item=>String(item.id)===id)).filter((item):item is Row=>!!item);
+  private commandContext(name:string):ListCommandContext{
+    if(this.delegated?.hasCommand(name))return this.delegated.commandContext(name);
+    const row=this.selectedRow();
+    const marked=(this.grid?.markedIds??[]).map(id=>this.rows.find(item=>String(item.id)===id)).filter((item):item is Row=>!!item);
     const view=this.hooks.view??{id:this.view.id,kind:"list",title:this.view.title,resource:this.view.resource,actions:this.view.actions as any,options:{} as any};
     return Object.freeze({app:extensions.app as Application,view,row,rows:Object.freeze(marked),signal:this.closed.signal,[LIST]:{details:(record:Row)=>void this.showResults(String(record.id))}});
   }
+  /** Whether client command $name belongs to this list: resolved here or declared by its view. */
+  private hasCommand(name:string):boolean{return this.clientCommands.some(command=>command.name===name)||!!this.view.commands?.includes(name);}
   /** Runs an enabled client command; a throw or rejection shows the error dialog (an abort stays silent). */
   private runCommand(name:string):void{
     const command=this.clientCommands.find(item=>item.name===name);
     if(!command||this.disposed)return;
-    const context=this.commandContext();
+    const context=this.commandContext(name);
     if(!commandEnabled(command.entry,context))return;
     const failed=(error:unknown)=>{if(!(error instanceof DOMException&&error.name==="AbortError"))void this.error(error);};
     try{void Promise.resolve(command.entry.run(context)).catch(failed);}catch(error){failed(error);}
@@ -261,11 +265,13 @@ export class Workspace implements ActionHost {
     if(!sub||!child)return undefined;
     // A selected preview record takes the toolbar over for the actions it has too (same name: update, delete, …).
     // A non-selectable child (`select: false`) never delegates: the toolbar stays on this record.
-    const shared=sub.select===false?{select:false}:{shared:(workspace:Workspace,selected:Row|undefined)=>{this.delegated=selected?workspace:this.delegated===workspace?undefined:this.delegated;this.capabilities();}};
+    // A re-render of the preview ($refresh) only re-evaluates the toolbar while that preview holds it.
+    const shared=sub.select===false?{select:false}:{shared:(workspace:Workspace,selected:Row|undefined,refresh?:boolean)=>{if(this.disposed||refresh&&this.delegated!==workspace)return;this.delegated=selected?workspace:this.delegated===workspace?undefined:this.delegated;this.capabilities();}};
     return {label:sub.shared?t("Alelemek"):child.title,open:(id:string)=>this.openRecord(id),mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>{
       const id=String(row.id),preview=new Workspace(host,child,this.channel,this.user,{field:sub.field,id,...shared,compact:{height}},{},{app:this.hooks.app,view:this.childView()});
       this.previews.set(id,preview);
-      return {destroy:()=>{if(this.previews.get(id)===preview)this.previews.delete(id);preview.destroy();}};
+      // A collapsed preview gives the toolbar back to this list.
+      return {destroy:()=>{if(this.previews.get(id)===preview)this.previews.delete(id);preview.destroy();if(this.delegated===preview){this.delegated=undefined;if(!this.disposed)this.capabilities();}}};
     }};
   }
   /**
@@ -319,7 +325,7 @@ export class Workspace implements ActionHost {
   }
   /** The public definition of the sub-view's child (this view's own for a hierarchy). */
   private childView(){return this.view.subview?.shared?this.hooks.view:this.hooks.view?.options.subview?.view;}
-  /** The record the toolbar acts on: the cursor record of a shared sub-view, otherwise this view's. */
+  /** The record the toolbar's built-in actions act on: a delegated preview's cursor record, otherwise this view's. */
   private target():Row|undefined{return this.delegated?.selectedRow()??this.selectedRow();}
   private hasRegion(id:string):boolean{
     const find=(node:Region):boolean=>node.id===id||[...(node.rows??[]),...(node.cols??[])].some(find);return find(this.view.layout.tree);
@@ -329,11 +335,10 @@ export class Workspace implements ActionHost {
   private capabilities():void{
     const marked=this.grid?.markedIds??[];
     // Several marks make single-record commands ambiguous: only bulk-capable actions and create stay available.
-    // A shared sub-view's cursor record takes the toolbar over; its marks stay its own.
+    // A selected preview record takes the toolbar over; its marks stay its own.
     const multiple=!this.delegated&&!!((this.view.selection||this.view.rowSelection)&&marked.length>1),target=this.target();
-    // Client commands (the built-in `details` included) follow their `enabled` rule for the toolbar's record and marks.
-    const context=this.commandContext();
-    for(const command of this.clientCommands){if(commandEnabled(command.entry,context))this.commands.enable(command.id);else this.commands.disable(command.id);}
+    // Client commands (the built-in `details` included) follow their `enabled` rule in their own context (commandContext).
+    for(const command of this.clientCommands){if(commandEnabled(command.entry,this.commandContext(command.name)))this.commands.enable(command.id);else this.commands.disable(command.id);}
     const parentRow=this.subviewTarget();
     if(this.view.subview){if(parentRow&&!multiple&&hasSubview(parentRow))this.commands.enable("blade-subview");else this.commands.disable("blade-subview");}
     for(const a of this.view.actions){if(a.name==="get"||(this.view.singleton&&a.name==="update"))continue;
@@ -421,7 +426,8 @@ export class Workspace implements ActionHost {
     this.rows=rows;
     const left=!!this.selected&&!this.selectedRow();
     if(left)this.selected=undefined;
-    this.capabilities();await awaitRedraw();
+    // A preview holding the parent's toolbar reports its refreshed (or vanished) cursor record.
+    this.capabilities();this.scope?.shared?.(this,this.selectedRow(),true);await awaitRedraw();
     this.headerFilters();
     if(this.disposed)return;
     this.grid.restore(position,preserve,this.selected);
