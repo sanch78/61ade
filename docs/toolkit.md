@@ -254,8 +254,8 @@ app.uploads.reopen();                                                           
 
 `Registry<T>`: `register(name, entry, {replace?})`, `get`, `has`, `names`.
 Names are `[a-z][a-z0-9_.-]*`; built-in names have no dot, project names must
-contain one (`demo.player`). A duplicate name throws unless `replace: true`,
-which is also how a project deliberately overrides a built-in. Register during
+contain one (`demo.player`). A taken name (a built-in one too) throws `Error` unless `replace: true`
+(a new name without a dot throws `TypeError`), which is also how a project deliberately overrides a built-in. Register during
 module initialization (modules run before the first view opens). A list,
 record details or form reads the registries when it is created, so a later
 registration affects only surfaces created after it.
@@ -431,7 +431,11 @@ offered as
 (the other components have their own subsections). Common rules: `mount(target)`
 takes an element (filled at 100 %), a Layout cell, an `AppWindow` or a
 `ViewHost`; a window or view host destroys the component when it closes, and
-the `signal` option does the same. `destroy()` is idempotent, detaches the
+the `signal` option does the same. Mounting twice or after `destroy()` throws
+`Error`; an already closed window or host destroys the component at once;
+`on` with a non-function and a `signal` that is not an `AbortSignal` throw
+`TypeError`. A view id that is not offered throws `Error`, a view of the wrong
+kind or shape `TypeError`. `destroy()` is idempotent, detaches the
 component from the cell it was mounted in and releases its widgets, the
 windows it opened, its requests and its live subscription. Handlers registered
 with `on` run in registration order (a throwing one is logged); events are
@@ -455,8 +459,8 @@ current.on("select", ({ row }) => { selected = row; render(); });
 current.mount(layout.getCell("list"));
 ```
 
-- `view`: an offered view id or a `ViewDefinition` of kind `list`; anything
-  else throws `TypeError`. `filters` replaces the saved filter values once
+- `view`: an offered view id or a `ViewDefinition` of kind `list`; an id that
+  is not offered throws `Error`, any other view or value `TypeError`. `filters` replaces the saved filter values once
   (declared filters only); `scope` and `compact` give the nested list of a
   record (`compact` needs `scope`).
 - Events: `select` (cursor record, `undefined` when it leaves the window),
@@ -501,7 +505,8 @@ form.on("cancel", () => win.close());
 form.mount(win);
 ```
 
-- `submit()` resolves the action's result. A client validation failure sends
+- `submit()` resolves the action's result; `saved` carries `{action, result}`
+  with the same result. A client validation failure sends
   nothing and rejects with a `ServerFailure` of status 400 with the field
   errors (the server's own shape); a server failure shows its field errors (or
   the error dialog) and rejects with it; a declined confirmation rejects with
@@ -709,11 +714,12 @@ if (current) {
   repeats and fires none. There is no playback-state (playing/paused) event: a
   project derives the state from its own `play()`/`pause()` calls and
   `position`/`ended` ([limits](#limits)).
-- **Lifecycle.** `mount(target)` takes an element, a Layout cell, a Suite
-  Window, an `AppWindow` or a `ViewHost`. The last two, and `signal`, destroy
+- **Lifecycle.** `mount(target)` takes an element, a Layout cell, an
+  `AppWindow` or a `ViewHost`. The last two, and `signal`, destroy
   the player when they close. Mounting twice or after `destroy()` throws.
   `destroy()` is idempotent: it pauses, empties the element, revokes its
-  object URL, removes its listeners and observers, and destructs its widgets.
+  object URL, removes its listeners and observers, and destructs its widgets after
+  detaching from its Layout cell.
 - **Limits.** Codec support is the browser's: WebM, MP3, WAV and AAC/M4A play
   in Chromium. While the tab is hidden the browser throttles the position
   timer. There is no playlist, waveform or subtitle support, and the image zoom
@@ -938,11 +944,17 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   ignored. A malformed envelope, a `load` from the frame or a non-dotted type is
   a `protocol` error. Everything the frame sends, `ready` and `error` included,
   is untrusted input. The parent never sends the CSRF token, the session or
-  anything else except what the project passes to `load` and `post`.
+  anything else except what the project passes to `load` and `post`. A frame
+  document reports only the first failure its messages cause (`error`, or
+  `protocol`); later ones raise no `error`, `sandbox:error` or console line.
+  Project messages are delivered while the document lives, also before
+  `ready` and after an error.
 - **Frame checks** (`dist/sandbox.js`, a classic script built from
   `src/sandbox/bootstrap.ts`): only messages whose `source` is `window.parent`;
   one `load` per document; `ready`/`error` from the parent are protocol errors.
-  Opened directly (not framed) the document stays inert. The code runs from a
+  Opened directly, or framed with a real origin (no `sandbox`, or
+  `allow-same-origin`: `self.origin !== "null"`), the document stays inert and
+  runs no code. The code runs from a
   `blob:` classic script of the frame only ([O7](#resolved-decisions)) as the
   body of an async function; `blade.on(type, handler)`, `blade.post(type,
   payload)` and `blade.files` (name → `blob:` URL or string, frozen) are its API.
@@ -950,20 +962,22 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   32 MiB in total (`maxFileBytes`, Blob sizes plus UTF-8 string sizes),
   `ready` within 10 s of `load()` (`readyTimeout`). A size violation rejects
   before anything is sent and keeps the current frame; a timeout removes the
-  frame. Both raise `error` (`size`, `timeout`) and `sandbox:error`.
+  frame. Both raise `sandbox:error`, and `error` (`size`, `timeout`) while
+  mounted.
 - **Errors on the page:** every `error` of every frame is also the page event
   `sandbox:error` (`{message, code}`, logged with `console.warn`; no toast).
   The payload names no frame: a page with several frames, or one that replaces
   its frame, uses the component's own `error` event or checks which frame is
   current ([pitfalls](#pitfalls)). Nothing is logged on the server.
-- **Lifecycle:** `load()` resolves on `ready` and rejects with an `Error` whose
-  `code` is the event code, or with an `AbortError` when a later `load()` or
+- **Lifecycle:** `load()` resolves on `ready` and rejects with a `SandboxError`
+  (`code` = the event code), or with an `AbortError` when a later `load()` or
   `destroy()` replaces it; each `load()` creates a fresh frame document.
   `post()` throws before `ready` and does nothing after `destroy()`. A second
   `load` event of the iframe (the code navigated or reloaded the frame, or the
   frame was moved in the DOM) is a `protocol` error and removes the frame.
   `destroy()` removes the frame at once (kill switch), rejects a pending load
-  and releases the Layout and listeners; `signal` calls it.
+  and releases the Layout and listeners; `signal` and a closing window or view
+  host call it; mounting follows the [common rules](#components).
 - **Meta CSP of `sandbox.html`** (exact text):
   `default-src 'none'; script-src 'self' blob:; style-src 'unsafe-inline' blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'`.
   `'self'` is the URL origin of `sandbox.html` (needed for `sandbox.js`); the
@@ -974,7 +988,7 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   ([plan 4.4](toolkit-plan.md#44-sandbox-frame)). `fetch`, XHR, WebSocket,
   EventSource, beacons, images and frames to any host are blocked; forms and
   pop-ups are blocked by the sandbox flags.
-- **Shell CSP unchanged:** `Shell/Application.php::headers` sends no
+- **Shell CSP:** `Shell/Application.php::headers` sends `object-src 'none'` and no
   `frame-src`/`child-src`, so `default-src 'self'` already admits the
   same-origin `sandbox.html`; no PHP change. The managed host serves static
   files with `X-Frame-Options: SAMEORIGIN`, which permits this same-origin
@@ -1171,7 +1185,7 @@ mounted, never after `destroy()`):
 | | `activate` | `{row, target}` | double-click or Enter resolved to `target` (after the activation map and its fallbacks), before it runs; `details` also for a card or tile without a target and for the `#` cell |
 | | `saved` | `{action, row}` | a form of the list (create, update, record action with fields, singleton Save) or an inline cell or card edit (`action` `update`) saved; `row` is the server's answer |
 | | `changed` | `{rows, total?, matched?}` | the loaded window changed (load, scroll window, filter, live update, delete, revocation) |
-| `RecordForm` | `saved` | `{result}` | `submit` (or the submit button) succeeded |
+| `RecordForm` | `saved` | `{action, result}` | `submit` (or the submit button) succeeded |
 | | `cancel` | `{}` | Cancel was pressed |
 | | `changed` | `{field, value}` | a field value was committed (on leaving the field) |
 | `CommandBar` | `click` | `{id}` | an item was clicked, also from the collapsed `Műveletek` menu |
@@ -1697,6 +1711,12 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-30 | Recorded: `Calendar`, `DiagramEditor` and `FileManager` accept a held `ViewDefinition` of any kind with the expected `resource`, `actions` and options shape, not only their own kind (82adbd3, c68e390). | A project may reuse a definition under its own view. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Recorded: `ListView` `activate` reports `details` also for the `#` cell (8aeeed3). | The `#` cell always opens the details. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Guide completed (toolkit P5): [event catalog](#event-catalog), [Layout recipe and pitfalls](#layout-recipe), [naming conventions](#conventions), [limits](#limits) with the owner decisions of G4 (no `ListView` `marked` event, no `MediaPlayer` playback-state event, no audio class in the type filter and picker, marks never persisted), [worked examples](#worked-examples) from the feature demo, the real verification list; the recipe's `@dhtmlx/suite` advice is a devDependency. No API change. | Toolkit P5: documentation of the implemented state. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | One lifecycle helper (`components/Lifecycle.ts`) for every component: `SandboxFrame` follows a closing window or view host, refuses a second mount, detaches its cell and emits only while mounted (`sandbox:error` always); `MediaPlayer` detaches its cell before destructing; an already closed host destroys; `on` with a non-function and a `signal` that is not an `AbortSignal` throw `TypeError`; the list components throw on a second mount or a mount after `destroy()`. | P7 API review H1: the documented rule held only for the facade components. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | A view id that is not offered throws `Error`, a view of the wrong kind or shape `TypeError`, also for `ListView` and `RecordDetails` (before: `TypeError`). | P7 API review M1: one error rule for every component. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `RecordForm` `saved` is `{action, result}`; new `SandboxErrorCode` and `SandboxError` (the `load()` rejection). | P7 API review M2, M6. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `register` of a taken name (a built-in one too, without `replace`) throws the duplicate `Error` before the project-prefix `TypeError`. | P7 API review: the documented duplicate error. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `sandbox.html` runs code only when `self.origin === "null"`; a frame document reports only the first failure its messages cause; project messages also arrive before `ready` and after an error. | P7 security review M1 (framed without `sandbox` it ran code at the host origin), L3 (error flood). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | The shell CSP adds `object-src 'none'`; the demo's `signage_playlist.scene` also needs `files.content_stream` on the scene file's mount (else 404). | P7 security review: hardening; the scene action skipped the file's object ACL. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>
 
