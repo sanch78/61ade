@@ -287,8 +287,9 @@ confirmation, password change) must be customizable and extensible
 ([FB-0087](feedback.md#fb-0087)). Three layers, each optional, none touching
 the sign-in form or its flows:
 
-1. **Look, declarative:** an application [logo](#sign-in-logo) and
-   `signInStylesheets`, styled through the [supported CSS hooks](#sign-in-css-hooks).
+1. **Look, declarative:** a [logo](#sign-in-logo) (by default the 61ade
+   [product logo](brand.md)) and `signInStylesheets`, styled through the
+   [supported CSS hooks](#sign-in-css-hooks).
 2. **Content, declarative:** a [notice and links](#sign-in-content) below the form.
 3. **Extension:** [sign-in modules](#sign-in-modules), project ES modules with a
    restricted API and two slots in the window.
@@ -317,15 +318,26 @@ return new ApplicationDefinition(
 
 #### Application logo and sign-in stylesheets
 
-- **`Logo(image, darkImage = null, label = null, placement = 'window')`:**
+- **Default and opt-out ([FB-0088](feedback.md#fb-0088)):** an application
+  without `logo` shows the 61ade product logo ([brand](brand.md)) with
+  placement `window`: inline SVG bundled in `admin.js` (no file to deploy),
+  both variants in the page with gradient ids unique per copy, accessible name
+  `blade` (the visible wordmark; "61ade" would be read as a number), every
+  part addressable by class for a later animation. `new Logo(placement:
+  'both')` (JSON `"logo": {"placement": "both"}`) keeps the product logo with
+  another placement, `new Logo(label: …)` with another accessible text;
+  `Logo::none()` (JSON `"logo": false`) shows no logo anywhere. A declared
+  `image` replaces it. Do not restyle the product logo per application; an own
+  brand is an own `Logo`.
+- **`Logo(image = null, darkImage = null, label = null, placement = 'window')`:**
   `image` and `darkImage` are browser paths checked like `stylesheets`
   (relative to the page or root-absolute, same-origin, `[A-Za-z0-9_-]`
   segments, an optional own `?…` key) with the extension `.svg`, `.png` or
   `.webp`; without an own key each gets its file's
   [cache key](toolkit.md#cache-keys). Anything else fails at definition time
-  (`Invalid 61ade logo image`). `label` is the accessible text, localized like
-  other texts; it defaults to the application `title`, and a blank one is
-  refused. Same-origin images keep the CSP `img-src 'self' data: blob:`.
+  (`Invalid 61ade logo image`); `darkImage` needs `image`. `label` is the
+  accessible text, localized like other texts; it defaults to the application
+  `title` (`blade` for the product logo), and a blank one is refused. Same-origin images keep the CSP `img-src 'self' data: blob:`.
 - **Signed in:** always the last cell of the top menu row, after the tenant,
   language and theme selectors, behind a 1 px line in the theme border colour
   (24 px high, at most 160 px wide). It is not a menu item and the menu never
@@ -343,7 +355,7 @@ return new ApplicationDefinition(
   the page's one focus (the modal dims the row behind it) and a window logo
   never competes with the selectors for room on a phone. Anything else fails
   (`Invalid 61ade logo placement`).
-- **Themes:** with `darkImage`, the light image shows under Skyblue, light and
+- **Themes:** the product logo always switches; with `darkImage`, the light image shows under Skyblue, light and
   light-based [skins](#application-skins), the dark image under dark and
   dark-based skins (the applied base, `data-dhx-theme="dark"`). A theme switch
   repaints at once through CSS. Without `darkImage` the light image shows in
@@ -358,9 +370,10 @@ return new ApplicationDefinition(
   password-change pages, after `admin.css` (those pages load no skins). The
   signed-in shell links `stylesheets` instead and never the sign-in ones; the
   sign-in pages never link `stylesheets` and never import `modules`.
-- **Bootstrap:** `logo` = `{image, dark?, label, placement}` (keyed URLs) on
-  every page when a logo is declared; `signIn` and `signInModules` (below) on
-  the signed-out pages only. Each key is absent when not declared.
+- **Bootstrap:** `logo` = `{image?, dark?, label, placement}` (keyed URLs; no
+  `image`: the product logo) on every page, absent only with `Logo::none()`;
+  `signIn` and `signInModules` (below) on the signed-out pages only, absent
+  when not declared.
 
 <a id="sign-in-content"></a>
 
@@ -474,11 +487,11 @@ differ per theme with `[data-dhx-theme="dark"]` as well.
 .demo-sign-in-footer { margin: 0; text-align: center; font-size: 12px; color: var(--dhx-font-color-secondary); }
 ```
 
-The feature demo uses every layer: the synthetic wordmark `branding/logo.svg`
-and `branding/logo-dark.svg` with `placement: 'both'`, this stylesheet, a
-notice with a link to the [demo mailbox](demos.md#demó-postafiók-mailbox) and
-the module above ([demos](demos.md#teljes-feature-demó-)); the starter admin
-and the tenant demo declare none of them. `toolkit.php` renders every page
+The feature demo uses every layer: the product logo with `placement: 'both'`,
+this stylesheet, a notice with a link to the
+[demo mailbox](demos.md#demó-postafiók-mailbox) and the module above
+([demos](demos.md#teljes-feature-demó-)); the starter admin and the tenant
+demo declare none of them and show the product logo by default. `toolkit.php` renders every page
 kind (kind, links, keys, bootstrap keys per page, rejected paths, hrefs,
 texts and placements), `configuration.php` the JSON keys and `contracts.php`
 the demos' declarations; `sign-in-branding.spec.cjs` covers the windows,

@@ -363,3 +363,7 @@
 <a id="fb-0087"></a>
 
 ## FB-0087 — Customizable sign-in: application logo and sign-in stylesheets
+
+<a id="fb-0088"></a>
+
+## FB-0088 — 61ade product logo and brand sources
