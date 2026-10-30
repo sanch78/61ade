@@ -164,6 +164,18 @@ target is a file where a directory is expected, or the reverse.) The consumer's
 }
 ```
 
+Cache keys need no consumer action: the shell keys `admin.js`, `admin.css`,
+skin stylesheets and the project's own `modules` and `stylesheets` by the
+served file's modification time and size
+([cache keys](toolkit.md#cache-keys)), so a new 61ade commit, a deploy copy or
+a rebuilt project module reaches browsers on the next page load. Consumers bump
+no asset version and edit no template; `version` only labels the release in the
+lower bar and is the fallback key. The development link above leaves the
+consumer's document root, so `admin.js`/`admin.css` there take the key of this
+checkout's `dist` build, which is the same file. A host whose
+`DOCUMENT_ROOT` is not the directory served at `/` sets `documentRoot`
+(JSON `application.document_root`).
+
 A project that uses `SandboxFrame` lists
 `["admin.js", "admin.css", "sandbox.html", "sandbox.js"]` instead; the frame
 loads `sandbox.html` from the directory of `admin.js`. `admin.d.ts` is never
@@ -279,6 +291,15 @@ change before every push.
   now takes the shell's `LiveChannel` instead of a `LiveConfig`; consumers that
   only use `AdminShell` are not affected. Batched `__watch`
   (`values.subscriptions`) is new; the single-list form is still accepted.
+
+- **File-derived cache keys (2026-10-30, [FB-0081](feedback.md#fb-0081)):**
+  `admin.js`/`admin.css` are linked with `?v=<base36 mtime>-<base36 size>` of
+  the served file instead of the hand-bumped `?v=32`; project `modules` and
+  `stylesheets` get the same key instead of `?v=<version>` (still the
+  fallback), and skin stylesheets and AuthHandler files gain one
+  ([cache keys](toolkit.md#cache-keys)). Runtime needs no consumer change.
+  Consumer browser specs that assert `?v=32` or `?v=<version>` on these URLs
+  must accept the file key.
 
 #### Consumer update smoke check
 

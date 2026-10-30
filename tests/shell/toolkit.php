@@ -153,6 +153,41 @@ $css=strpos($page,'href="app/main.css?v=1.4.0"');
 check($bootstrap($page)['authenticated']===true&&$css!==false&&$css>strpos($page,'admin.css')&&$css>strpos($page,'skins/brand.css'),'Signed-in page links the project stylesheet after framework CSS and skins');
 check($bootstrap($page)['modules']===['app/main.js?v=1.4.0','../app/up.js?v=2'],'Signed-in bootstrap lists the versioned modules');
 check(!isset($bootstrap($render($definition(runtime:$runtime)))['modules']),'No modules key without declared modules');
+// Cache keys from the files (docs/toolkit.md#cache-keys): `?v=<base36 mtime>-<base36 size>` of the served file below
+// the document root, page-relative paths from the front controller's directory; own keys stay; a missing file, a path
+// outside the root (also through a symlink) or no resolvable root falls back to the version; 61ade's assets then use
+// the package build's key. The old hand-bumped `?v=32` is gone.
+$fileKey=static function(string $file):string{clearstatcache();return base_convert((string)filemtime($file),10,36).'-'.base_convert((string)filesize($file),10,36);};
+$dist=dirname(__DIR__,2).'/packages/frontend/dist';
+check(!str_contains($page,'v=32')&&str_contains($page,'src="assets/admin.js?v='.$fileKey($dist.'/admin.js').'"')&&str_contains($page,'href="assets/admin.css?v='.$fileKey($dist.'/admin.css').'"'),'Without a resolvable document root 61ade assets carry the package build key, not ?v=32');
+check(str_contains($page,'href="skins/brand.css?v=1.4.0"'),'An unresolvable skin stylesheet falls back to the version');
+$public=$runtime.'/public';
+foreach(['admin','assets','app','skins'] as $directory)if(!is_dir($public.'/'.$directory))mkdir($public.'/'.$directory,0777,true);
+foreach(['assets/admin.js'=>'export{};','assets/admin.css'=>'a{}','app/main.js'=>'export default()=>{};','app/main.css'=>'b{}','skins/brand.css'=>'c{}'] as $file=>$content)file_put_contents($public.'/'.$file,$content);
+file_put_contents($runtime.'/outside.js','export default()=>{};');
+if(!is_link($public.'/app/linked.js'))symlink($runtime.'/outside.js',$public.'/app/linked.js');
+$keyed=fn(?string $root,string $version='1.4.0')=>new ApplicationDefinition('Toolkit',$identities,new Menu([]),$runtime,sessionName:'blade_toolkit',version:$version,assets:'../assets',
+    modules:['../app/main.js','/app/main.js','../app/missing.js','../../outside.js','../app/linked.js','../app/up.js?v=2'],stylesheets:['../app/main.css'],
+    skins:static fn()=>[new Skin('brand','Brand','../skins/brand.css')],documentRoot:$root);
+$script=$_SERVER['SCRIPT_FILENAME'];$_SERVER['SCRIPT_FILENAME']=$public.'/admin/index.php';
+$page=$render($keyed($public));$main=$fileKey($public.'/app/main.js');
+check($bootstrap($page)['modules']===['../app/main.js?v='.$main,'/app/main.js?v='.$main,'../app/missing.js?v=1.4.0','../../outside.js?v=1.4.0','../app/linked.js?v=1.4.0','../app/up.js?v=2'],'Module keys from the file; own key kept; missing, outside and escaping symlink fall back to the version');
+check(str_contains($page,'src="../assets/admin.js?v='.$fileKey($public.'/assets/admin.js').'"')&&str_contains($page,'href="../assets/admin.css?v='.$fileKey($public.'/assets/admin.css').'"')
+    &&str_contains($page,'href="../app/main.css?v='.$fileKey($public.'/app/main.css').'"')&&str_contains($page,'href="../skins/brand.css?v='.$fileKey($public.'/skins/brand.css').'"'),'admin.js, admin.css, project and skin stylesheets carry their served file keys');
+check(!str_contains($page,$runtime)&&!str_contains($page,dirname(__DIR__,2)),'No filesystem path in the page');
+$before=$fileKey($public.'/app/main.js');
+file_put_contents($public.'/app/main.js','export default()=>{console.log(1);};');touch($public.'/app/main.js',time()+60);
+$changed=$bootstrap($render($keyed($public)))['modules'][0];
+check($changed==='../app/main.js?v='.$fileKey($public.'/app/main.js')&&$changed!=='../app/main.js?v='.$before,'A rebuilt file gets a new key at once');
+$_SERVER['DOCUMENT_ROOT']=$public;
+check($bootstrap($render($keyed(null)))['modules'][0]===$changed,'The document root defaults to the request DOCUMENT_ROOT');
+$_SERVER['DOCUMENT_ROOT']='';
+check($bootstrap($render($keyed(null,'')))['modules']===['../app/main.js','/app/main.js','../app/missing.js','../../outside.js','../app/linked.js','../app/up.js?v=2'],'No root and no version: no key');
+check($bootstrap($render($keyed($public.'/app')))['modules'][0]==='../app/main.js?v=1.4.0','A page outside the document root resolves nothing');
+$name=$_SERVER['SCRIPT_NAME'];$_SERVER['SCRIPT_FILENAME']='proxy:fcgi://127.0.0.1/index.php';$_SERVER['SCRIPT_NAME']='/admin/index.php';
+check($bootstrap($render($keyed($public)))['modules'][0]===$changed,'Without a usable SCRIPT_FILENAME the page directory is the root plus the SCRIPT_NAME directory');
+$_SERVER['SCRIPT_FILENAME']=$script;$_SERVER['SCRIPT_NAME']=$name;
+foreach(['',"tmp\0x"] as $bad)rejects(fn()=>$keyed($bad),'Invalid document root accepted: '.json_encode($bad));
 array_map('unlink',glob($runtime.'/sessions/*')?:[]);
 
 // Registries (P3 C-5): project presentations and field types are dotted names the server accepts by shape only; the
