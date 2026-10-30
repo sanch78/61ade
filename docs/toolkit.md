@@ -1692,6 +1692,15 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M21 | `dist/sandbox.js` removed: the bootstrap is inline in `sandbox.html`, allowed by a CSP hash (no `script-src 'self'`) | close-out | if used: `SandboxFrame` |
 | M22 | Escape closes the `Műveletek` menu; an open file-manager or calendar form now counts as editing (blocks the live reload, gets the ended-session modal) | close-out | info |
 | M23 | Sign-in customization ([shell](shell.md#sign-in-branding)): optional `logo` (placement `window`/`top`/`both`), `signInStylesheets`, `signIn` notice and links, `signInModules` (restricted `SignInApplication`, trusted code only); `data-blade-page` on `<html>`; only the [documented hooks](shell.md#sign-in-css-hooks) are supported | [FB-0087](feedback.md#fb-0087) | if used: a consumer that injects CSS or markup for its sign-in look or logo |
+| M24 | `#feature=<resource>` removed: only `#view=` names a view; any other address gives the empty workspace | [FB-0081](feedback.md#fb-0081) | if used: mail links, specs |
+| M25 | `ClientCommand.placement` `both` removed; a placement other than `toolbar` or `record` is skipped with a warning | [FB-0081](feedback.md#fb-0081) | if used |
+| M26 | `__watch` accepts only `values.subscriptions` (otherwise 400) | [FB-0081](feedback.md#fb-0081) | if used: own polling |
+| M27 | `list` without parameters returns the first cursor window `{items, …}`; the offset/plain-array answer and a list id (400) are removed | [FB-0081](feedback.md#fb-0081) | if used: API clients, specs reading a plain array |
+| M28 | `blade_tenant_members.active` is dropped: run migration `0003-tenant-member-active` before `Tenancy::install()`, which refuses the old table. Until it has run the application fails closed: every membership read throws a `LogicException` naming the migration and grants nothing | [FB-0081](feedback.md#fb-0081) | if tenancy |
+| M29 | `MessageDialog` `alert()`/`confirm()` wrappers removed; use `acknowledge`, `requestConfirmation` or `app.ui.dialog` | [FB-0081](feedback.md#fb-0081) | if used |
+| M30 | A duplicate view id throws at definition time; `Registry::updateView()` and `View::list()` change a declared view explicitly | [FB-0081](feedback.md#fb-0081) | if used: redeclared views |
+| M31 | The file manager's `list` answer drops `truncated` | [FB-0081](feedback.md#fb-0081) | if used |
+| M32 | Applications without `logo` show the 61ade product logo ([brand](brand.md)) in the top row (only where the menu leaves room) and above the sign-in form, accessible name `blade`; `Logo::none()` / JSON `"logo": false` turns it off | [FB-0088](feedback.md#fb-0088) | info; if a consumer wants no logo |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -1754,6 +1763,15 @@ markup may change without notice.
 | 2026-10-30 | Sandbox bootstrap inline in `sandbox.html`, allowed by `script-src 'sha256-…' blob:`; `dist/sandbox.js` removed. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Event naming rule ([conventions](#conventions)): `RecordForm` `cancelled`, `FileManager` `opened` `{id, mimeType}`; browser metadata camelCase (files/calendar options, `UploadPolicy`, field `file`/`validation`); `FilesKindOptions.upload` is `{policy}` only (the upload rules were sent twice). | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Sign-in customization: `ApplicationDefinition` `logo` (`Logo(image, darkImage, label, placement)`), `signInStylesheets`, `signIn` (`SignIn(notice, links)`), `signInModules` with the restricted `SignInApplication`/`SignInModule` (`src/api/sign-in.ts`, in `admin.d.ts`); JSON `application.logo`, `sign_in_stylesheets`, `sign_in`, `sign_in_modules`; bootstrap `logo`, `signIn`, `signInModules`; `data-blade-page` on `<html>`; supported CSS hooks ([sign-in customization](shell.md#sign-in-branding)). | [FB-0087](feedback.md#fb-0087) |
+| 2026-10-30 | `#feature=` alias removed (M24). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | Command `placement: "both"` removed (M25). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `__watch` only with `values.subscriptions` (M26). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | The `list` offset API removed; no parameters give the first cursor window (M27). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | Tenancy `active` column dropped by migration 0003; tenancy fails closed until it has run (M28). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | `MessageDialog` `alert`/`confirm` compatibility wrappers removed (M29). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | A duplicate view id throws; `Registry::updateView()` and `View::list()` added; [G1 decision 1](#decisions-at-gate-g1) and O3's replacement rule are superseded (M30). | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | File `list` answer without `truncated` (M31); the internal `src/Workspace.ts` re-export removed. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | The 61ade product logo ("blade", [brand](brand.md)) is the default logo: inline in `admin.js`, bootstrap `logo` without `image`; `Logo::$image` optional (`new Logo(placement: …)` keeps the product logo), `Logo::none()` / JSON `"logo": false` opts out; accessible name `blade`. | [FB-0088](feedback.md#fb-0088) |
 
 <a id="resolved-decisions"></a>
 
