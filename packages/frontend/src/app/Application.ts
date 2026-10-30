@@ -89,7 +89,8 @@ const limited = <T>(promise: Promise<T>): Promise<T | typeof TIMEOUT> => {
  * Module loader (O1): `import()`s every declared module in parallel, then calls the default exports one by one in
  * declaration order with `app`. A failed import, a missing default export, a throw, a rejection or more than 5 s is
  * reported (toast, `module:error`, console) and skipped; registrations made before a failure stay. Never rejects.
- * A path without its own `?` cache key gets `?v=<version>`.
+ * The server sends each path with its cache key (`?v=<base36 mtime>-<base36 size>` of the served file, or a key of its
+ * own; docs/toolkit.md#cache-keys); only a path that arrives without any `?` gets `?v=<version>` here as a fallback.
  */
 export async function loadModules(kernel: Kernel, modules: readonly string[], version = ""): Promise<void> {
   const report = (module: string, reason: "load" | "init" | "timeout", error: unknown) => {

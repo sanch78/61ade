@@ -33,7 +33,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
   /** The action's offered metadata (label, icon, confirmation) from any view of the resource, if any. */
   private action?:ActionMetadata;
   constructor(private context:ListContext,private options:RecordFormOptions){
-    super();
+    super(options);
     if(typeof options?.resource!=="string"||typeof options.action!=="string")throw new TypeError("61ade: RecordForm needs a resource and an action.");
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"form"}]});
     this.action=context.app().viewDefinitions().filter(view=>view.resource===options.resource).flatMap(view=>view.actions).find(action=>action.name===options.action);
@@ -106,7 +106,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
         if(this.destroyed)return result;
         this.changedFields=false;
         resultNotice(result);
-        this.emit("saved",{result});
+        this.emit("saved",{action:this.options.action,result});
         if(result?.reauthenticate)location.reload();
         return result;
       }catch(error){

@@ -14,6 +14,8 @@ export interface SandboxScope {
 export interface FrameHost {
   /** The frame's own window and its parent; equal when the document is not framed. */
   readonly self: unknown;
+  /** The document's origin (`self.origin`): `"null"` only in an opaque-origin (sandboxed, no same-origin) frame. */
+  readonly origin: string;
   readonly parent: { postMessage(message: unknown, targetOrigin: string): void };
   /** Where `blade` and the one-shot start hook are defined (the frame's global object). */
   readonly global: Record<string, unknown>;
@@ -27,13 +29,14 @@ export interface FrameHost {
 export const START = "__bladeSandboxStart";
 
 /**
- * The frame side of the protocol. Accepts messages only from the parent window; runs the code of the first `load`
+ * The frame side of the protocol, active only in a framed opaque-origin document. Accepts messages only from the parent window; runs the code of the first `load`
  * wrapped in an async function (`blade` in scope, top-level `await` and `return` allowed) and answers `ready` once
  * it settled, or `error` for a throw, a rejection, a later uncaught error and every protocol violation.
  */
 export function startSandbox(host: FrameHost): void {
-  // Opened directly instead of inside a SandboxFrame: posting to itself would answer its own messages.
-  if (host.parent === host.self) return;
+  // Opened directly instead of inside a SandboxFrame: posting to itself would answer its own messages. Framed without
+  // `sandbox` or with `allow-same-origin` the document has a real origin and would run code in it: stay inert too.
+  if (host.parent === host.self || host.origin !== "null") return;
   let sequence = 0, loaded = false;
   const handlers = new Map<string, Set<(payload: unknown) => void>>();
   const files: Record<string, string> = {};
