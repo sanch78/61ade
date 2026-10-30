@@ -2,10 +2,10 @@ import { Layout, Toolbar } from "@dhtmlx/suite";
 import { locale, t } from "../../I18n";
 import { server } from "../../api/Server";
 import type { MediaPlayer as MediaPlayerContract, MediaPlayerEvents, MediaPlayerOptions, MountTarget } from "../../api/types";
+import { Lifecycle, optionSignal } from "../Lifecycle";
 import "./media.css";
 
 type Kind = "image" | "video" | "audio";
-type Handler = (payload: any) => void;
 /** Framework-internal toolbar items around the player's own (the file manager's previous/next and full size). */
 export type MediaChrome = { before?: any[]; after?: any[] };
 
@@ -41,7 +41,7 @@ export class MediaPlayer implements MediaPlayerContract {
   private readonly stage: HTMLElement;
   private readonly media?: HTMLMediaElement;
   private readonly image?: HTMLImageElement;
-  private readonly handlers = new Map<keyof MediaPlayerEvents, Set<Handler>>();
+  private readonly life = new Lifecycle<MediaPlayerEvents>(() => this.destroy());
   private readonly listeners = new AbortController();
   private readonly name: string;
   private readonly info: string;
@@ -51,10 +51,9 @@ export class MediaPlayer implements MediaPlayerContract {
   private resize?: ResizeObserver;
   private ticker?: ReturnType<typeof setInterval>;
   private release?: () => void;
-  private mounted = false;
-  private destroyed = false;
 
   constructor(options: MediaPlayerOptions, chrome: MediaChrome = {}) {
+    const bound = optionSignal(options);
     const mime = String(options.mime ?? "");
     const kind = mime.startsWith("image/") ? "image" : mime.startsWith("video/") ? "video" : mime.startsWith("audio/") ? "audio" : null;
     if (!kind) throw new TypeError(`61ade: MediaPlayer cannot show "${mime}" (image/*, video/* or audio/* expected).`);
@@ -116,8 +115,7 @@ export class MediaPlayer implements MediaPlayerContract {
       this.playable(media, format, signal);
       media.src = url;
     }
-    if (options.signal?.aborted) this.destroy();
-    else options.signal?.addEventListener("abort", () => this.destroy(), { once: true, signal });
+    this.life.bind(bound);
   }
 
   /** The kind's own toolbar items: zoom and rotation for images, loop and speed for video and audio. */
@@ -214,42 +212,29 @@ export class MediaPlayer implements MediaPlayerContract {
       if (event.key === " " || event.key === "k") { event.preventDefault(); run = () => { if (paused) void this.play().catch(() => undefined); else this.pause(); }; }
       else if (event.key === "ArrowLeft" || event.key === "ArrowRight") run = () => this.seek(time + (event.key === "ArrowRight" ? 5 : -5));
       else if (event.key === "Home" || event.key === "End") { event.preventDefault(); run = () => this.seek(event.key === "Home" ? 0 : this.duration()); }
-      if (run) setTimeout(() => { if (!this.destroyed && unhandled()) run!(); });
+      if (run) setTimeout(() => { if (!this.life.destroyed && unhandled()) run!(); });
     }, { signal });
   }
 
-  private emit<K extends keyof MediaPlayerEvents>(event: K, payload: MediaPlayerEvents[K]): void {
-    if (!this.mounted || this.destroyed) return;
-    for (const handler of [...(this.handlers.get(event) ?? [])]) { try { handler(payload); } catch (error) { console.error(error); } }
-  }
+  private emit<K extends keyof MediaPlayerEvents>(event: K, payload: MediaPlayerEvents[K]): void { this.life.emit(event, payload); }
 
-  on<K extends keyof MediaPlayerEvents>(event: K, handler: (payload: MediaPlayerEvents[K]) => void): () => void {
-    let set = this.handlers.get(event);
-    if (!set) this.handlers.set(event, set = new Set());
-    set.add(handler);
-    return () => { set.delete(handler); };
-  }
+  on<K extends keyof MediaPlayerEvents>(event: K, handler: (payload: MediaPlayerEvents[K]) => void): () => void { return this.life.on(event, handler); }
 
   /**
-   * Attaches the player to an element, a Layout cell, a Suite or framework window or a view host. A window or view
-   * host destroys the player when it closes.
+   * Attaches the player (once) to an element, a Layout cell, an `AppWindow` or a `ViewHost` (framework-internal also a
+   * Suite Window: the file manager's viewer). A window or view host destroys the player when it closes.
    */
   mount(target: MountTarget): void {
-    if (this.destroyed) throw new Error("61ade: MediaPlayer is destroyed.");
-    if (this.mounted) throw new Error("61ade: MediaPlayer is already mounted.");
-    this.mounted = true;
-    if (target instanceof HTMLElement) {
+    const placed = this.life.mount(target, this.layout, element => {
       // An own box filling the element, so destroy() removes exactly what mount() added.
       const box = document.createElement("div");
       box.className = "blade-player__host";
-      target.append(box);
+      element.append(box);
       const host = new Layout(box, { type: "none", rows: [{ id: "player" }] });
       host.getCell("player").attach(this.layout);
       this.release = () => { host.destructor(); box.remove(); };
-    } else if ("signal" in target) {
-      target.attach(this);
-      target.signal.addEventListener("abort", () => this.destroy(), { once: true, signal: this.listeners.signal });
-    } else (target as { attach(content: unknown): void }).attach(this.layout);
+    });
+    if (!placed) return;
     // The stage element lives in a slot of the cell's HTML and is put back whenever a repaint replaces the slot.
     this.layout.getCell("stage").attachHTML(`<div class="blade-view-slot blade-player__slot" id="${this.slot}"></div>`);
     this.observer = new MutationObserver(() => this.place());
@@ -264,11 +249,11 @@ export class MediaPlayer implements MediaPlayerContract {
   /** Moves the keyboard focus to the player (the media element or the image stage). */
   focus(): void { this.place(); (this.media ?? this.stage).focus(); }
 
-  play(): Promise<void> { return this.media && !this.destroyed ? this.media.play() : Promise.resolve(); }
+  play(): Promise<void> { return this.media && !this.life.destroyed ? this.media.play() : Promise.resolve(); }
   pause(): void { this.media?.pause(); }
   seek(seconds: number): void {
     const media = this.media;
-    if (!media || this.destroyed || !Number.isFinite(seconds)) return;
+    if (!media || this.life.destroyed || !Number.isFinite(seconds)) return;
     const end = this.duration();
     media.currentTime = Math.max(0, end ? Math.min(seconds, end) : seconds);
   }
@@ -277,8 +262,8 @@ export class MediaPlayer implements MediaPlayerContract {
 
   /** Idempotent: stops playback, releases listeners, observers, the object URL of a Blob source and the widgets. */
   destroy(): void {
-    if (this.destroyed) return;
-    this.destroyed = true;
+    // Detaches the player's Layout from its cell before the Layout is destructed.
+    if (!this.life.end(this.layout)) return;
     clearInterval(this.ticker);
     this.listeners.abort();
     this.observer?.disconnect();
@@ -287,7 +272,6 @@ export class MediaPlayer implements MediaPlayerContract {
     if (this.image) this.image.removeAttribute("src");
     this.stage.remove();
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
-    this.handlers.clear();
     this.toolbar?.destructor();
     this.layout.destructor();
     this.release?.();
