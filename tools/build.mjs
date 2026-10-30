@@ -25,7 +25,7 @@ for (const [name, { url, sha256 }] of Object.entries(assets)) {
         throw new Error(`Vendor asset integrity mismatch: ${name}`);
     await writeFile(path.join(cache, name), bytes);
 }
-// dist is tracked; --check fails when it does not match a fresh build of src.
+// dist and the demo module are tracked; --check fails when they do not match a fresh build of their sources.
 const check = process.argv.includes("--check");
 const dist = "packages/frontend/dist";
 const result = await build({
@@ -65,6 +65,29 @@ const sandbox = await build({
     outfile: `${dist}/sandbox.js`,
     legalComments: "eof",
 });
+// The feature demo's project module (docs/demos.md#toolkit-consumer), built like a consumer's (docs/toolkit.md#typescript-recipe):
+// 61ade arrives only as types (`import type` from admin.d.ts) and `app`, so only the demo's own sources may be bundled.
+const demoSource = path.resolve("examples/demo-app/frontend/src");
+const demo = await build({
+    write: false,
+    entryPoints: [path.join(demoSource, "index.ts")],
+    bundle: true,
+    format: "esm",
+    target: "es2022",
+    outfile: "examples/demo-app/public/app/demo.js",
+    legalComments: "eof",
+    plugins: [
+        {
+            name: "demo-boundary",
+            setup(build) {
+                build.onResolve({ filter: /.*/ }, (args) => args.kind === "entry-point"
+                    || (/^\.\.?\//.test(args.path) && path.resolve(args.resolveDir, args.path).startsWith(demoSource + path.sep))
+                    ? undefined
+                    : { errors: [{ text: `demo.js may bundle only examples/demo-app/frontend/src (use app.* and import type): ${args.path}` }] });
+            },
+        },
+    ],
+});
 // The WebSocket live server ships inside packages/php with ws inlined, so a consumer release
 // that copies packages/php runs it with the system node and nothing from node_modules.
 const live = await build({
@@ -99,7 +122,7 @@ const index = (declarations["index.d.ts"] ?? "").split("\n").filter((line) => !/
 if (!declarations["types.d.ts"] || index.some((line) => /from "\.\//.test(line)))
     throw new Error("admin.d.ts: src/api/index.ts may only re-export ./types");
 const outputs = [
-    ...[...result.outputFiles, ...sandbox.outputFiles, ...live.outputFiles].map((file) => [file.path, Buffer.from(file.contents)]),
+    ...[...result.outputFiles, ...sandbox.outputFiles, ...demo.outputFiles, ...live.outputFiles].map((file) => [file.path, Buffer.from(file.contents)]),
     [path.resolve(dist, "sandbox.html"), await readFile("packages/frontend/src/sandbox/sandbox.html")],
     [path.resolve(dist, "admin.d.ts"), Buffer.from(
         "// 61ade toolkit API types (docs/toolkit.md), generated from packages/frontend/src/api; development use only.\n"
@@ -117,6 +140,6 @@ if (check) {
         await mkdir(path.dirname(file), { recursive: true });
         await writeFile(file, contents);
     }
-    if (execFileSync("git", ["status", "--porcelain", "packages/frontend/dist", "packages/php/bin/live-server.mjs"], { encoding: "utf8" }))
-        console.log("Build output changed: commit packages/frontend/dist and packages/php/bin/live-server.mjs together with their source.");
+    if (execFileSync("git", ["status", "--porcelain", "packages/frontend/dist", "packages/php/bin/live-server.mjs", "examples/demo-app/public/app"], { encoding: "utf8" }))
+        console.log("Build output changed: commit packages/frontend/dist, packages/php/bin/live-server.mjs and examples/demo-app/public/app/demo.js together with their source.");
 }

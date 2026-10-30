@@ -860,7 +860,10 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
 `packages/php/bin/live-server.mjs`; `node tools/build.mjs --check` builds them in
 memory and fails on any difference. `packages/frontend/package.json` exports
 `./admin.js`, `./admin.css`, `./admin.d.ts`, `./sandbox.html` and
-`./sandbox.js`; `npm run demo:assets` copies the four runtime files. A
+`./sandbox.js`; `npm run demo:assets` copies the four runtime files. The same
+build writes and checks the feature demo's own module
+`examples/demo-app/public/app/demo.js` ([worked example](#typescript-recipe));
+it is demo output, not part of the package. A
 consumer that uses `SandboxFrame`:
 
 ```json
@@ -924,6 +927,18 @@ export default main;
 tsc -p tsconfig.json
 esbuild frontend/src/main.ts --bundle --format=esm --target=es2022 --outfile=public/app/main.js
 ```
+
+**Worked example:** the feature demo follows this recipe
+([toolkit consumer](demos.md#toolkit-consumer)). Its sources are
+`examples/demo-app/frontend/src` (`index.ts` and one file per demo area), its
+[`tsconfig.json`](../examples/demo-app/frontend/tsconfig.json) maps
+`@61ade/admin` straight to `packages/frontend/dist/admin.d.ts` because it lives
+in this repository (a consumer uses its `public/assets/61ade` link), `npm run
+typecheck` runs it as `tsc -p examples/demo-app/frontend`, and
+`tools/build.mjs` bundles it with the esbuild options above into
+`examples/demo-app/public/app/demo.js`, declared in `application.php` as
+`modules: ['app/demo.js']`. Its build refuses any import outside its own
+sources, which enforces the types-only rule below.
 
 Import 61ade and Suite **types only** (`import type`): the bundle above
 contains no import at all. A runtime import of `@dhtmlx/suite` or `admin.js`
@@ -993,6 +1008,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-29 | `FilePicker.pick` throws `TypeError` synchronously for malformed options; `FileManager` `opened` fires for every file the viewer or text editor shows (also previous/next); `FileManager.destroy()` aborts pending reads, sent writes complete. | Same pattern as `uploads.open`; no stale reads after close. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | Commands: `record` placement is a native record menu (context menu on a row, card or tile; right click, menu key, Shift+F10), `toolbar` after the view's actions, `both` in each; `ListOptions.commands` is a server declaration (≤ 20 dotted names); the built-in Adatok is the `details` command (toolbar id `blade-command:details`). iOS Safari fires no `contextmenu`, so touch-relevant commands use `both`. | New list UI needed for record commands; to be confirmed by the owner. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | Server validation keeps the storage type. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | The [recipe](#typescript-recipe) names the feature demo (`examples/demo-app/frontend`, built to `public/app/demo.js`) as its worked example; no API change. | Toolkit P4 D0: the first real consumer of the recipe. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>
 
