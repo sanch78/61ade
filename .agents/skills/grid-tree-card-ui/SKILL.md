@@ -104,6 +104,10 @@ tree as decoration for a flat list.
 - Keep each action in the toolbar once, with a native icon and its original
   label. A bulk-capable action applies to marks; do not add a second “selected
   rows” command. A field-free action runs directly; a form is for input.
+- Put record actions, built-in or project commands, in the same toolbar, acting
+  on the cursor record and disabled without one; offer no record context menu.
+  Right click, the menu key and Shift+F10 keep the browser's behaviour. One
+  place works on touch and keyboard alike (owner decision, toolkit G3).
 - Treat `secondary` columns as optional grid presentation only. Toggle them with
   the native show/hide API and persist each user's choice; cards/details still
   show every permitted readable field.

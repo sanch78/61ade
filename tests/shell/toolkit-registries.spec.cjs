@@ -70,13 +70,13 @@ async function mountSubview(page){
   const data={projects:[{id:'1',title:'Projekt 1',_subview:2,revision:'p1',_actions:['get']},{id:'2',title:'Projekt 2',_subview:0,revision:'p2',_actions:['get']}],
    tasks:[{id:'11',title:'Feladat 11',project_id:'1',revision:'t11',_actions:['get']},{id:'12',title:'Feladat 12',project_id:'1',revision:'t12',_actions:['get']}]};
   window.requests=[];window.runs=[];
-  const list=(resource,query)=>{const parent=query?.filters?.project_id,items=data[resource].filter(row=>parent===undefined||row.project_id===parent);
+  const listOf=(resource,query)=>{const parent=query?.filters?.project_id,items=data[resource].filter(row=>parent===undefined||row.project_id===parent);
    return {items,previous:null,next:null,version:'v1',total:items.length,matched:items.length};};
   window.fetch=async(_url,config)=>{
    const request=JSON.parse(config.body);requests.push(request);
    let answer;
-   if(request.action==='list')answer=list(request.resource,request.values);
-   if(request.action==='__watch')answer={results:request.values.subscriptions.map(s=>({id:s.id,ok:true,data:list(s.resource,s.query)}))};
+   if(request.action==='list')answer=listOf(request.resource,request.values);
+   if(request.action==='__watch')answer={results:request.values.subscriptions.map(s=>({id:s.id,ok:true,data:listOf(s.resource,s.query)}))};
    if(request.action==='get')answer=data[request.resource]?.find(item=>item.id===request.id);
    return {ok:true,json:async()=>({ok:true,data:answer})};
   };
