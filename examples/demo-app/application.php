@@ -145,6 +145,8 @@ return new ApplicationDefinition(
     accounts: $accounts,
     oauth: $oauth,
     skins: $skins,
+    // Toolkit consumer (docs/demos.md#toolkit-consumer): the project module built from frontend/src by tools/build.mjs.
+    modules: ['app/demo.js'],
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [
         'admin' => __DIR__.'/admin-application.php',
         'tenants' => __DIR__.'/tenant-application.php',
