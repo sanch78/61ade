@@ -25,11 +25,15 @@ migrates automatically.
 
 ## Frontend
 
-Planned responsibilities under `packages/frontend/src`: `app` for initialization
-and services; `shell` for layout/navigation; `renderer` for schema-based component
-construction; `components` for DHTMLX adapters; `actions` for action dispatch;
-`api` for transport; `state` for workspace/view state; `contracts` for
-server/client contracts; `i18n` and `styles` for shared translation and styling.
+Under `packages/frontend/src`: `api` holds the public toolkit API (`types.ts`,
+the source of `dist/admin.d.ts`, the `Server` transport, services and the
+event bus); `app` the `Application`, registries, built-in kinds and routes;
+`components` the public components (`list`, `files`, `calendar`, `diagram`,
+`media`, `sandbox`) and DHTMLX adapters; `sandbox` the frame bootstrap built
+into `dist/sandbox.js`. Older top-level modules (`AdminShell.ts`,
+`Uploader.ts`, `FileManager.ts`, …) are internals behind them
+([toolkit](toolkit.md)). Planned responsibilities: `shell`, `renderer`,
+`actions`, `state`, `contracts`, `i18n` and `styles`.
 
 An empty adapter directory indicates planned scope, not an installed or licensed component.
 
