@@ -3386,5 +3386,24 @@ that exactly equals an option label lists every option. The managed
   whitespace checks passed. The restored source, matching frontend outputs,
   PHP application and dialog spec have no diff against `e81d811`. Temporary
   diagnostic source, browser profile, screenshot and test artifacts were removed.
-- **Status:** rollback implemented; source isolated in controlled Chromium;
-  owner-profile entry/removal requires local confirmation.
+- **Owner follow-up:** reported success after the Chrome source diagnosis and
+  rollback; then requested the separate mailbox-link removal in FB-0098.
+- **Status:** rollback and source resolution confirmed by the owner.
+
+<a id="fb-0098"></a>
+
+## FB-0098 — Remove the mailbox link from the sign-in window
+
+- **Date:** 2026-10-30.
+- **Request:** remove the visible "Demo mailbox" link below the sign-in form.
+- **Implemented:** removed the feature demo's `SignInLink` declaration and its
+  unused import. The declarative notice remains; the mailbox is still directly
+  available at `/mailbox/` for synthetic e-mail confirmation checks.
+- **Scope:** demo configuration only. Framework link support, localization and
+  authentication flows are unchanged. Guides: [demo mailbox](demos.md#demó-postafiók-mailbox),
+  [sign-in customization](shell.md#sign-in-branding).
+- **Verification:** PHP syntax and existing shell declaration contracts passed.
+  All six existing sign-in branding browser cases passed through the guarded
+  managed-URL wrapper, including the assertion that the mailbox link is absent.
+  Diff whitespace checks passed; task browser artifacts were removed.
+- **Status:** implemented and verified on the managed URL.

@@ -59,7 +59,7 @@ verify($demoKeys->url('app/demo.css') === 'app/demo.css?v='.Blade\Shell\AssetKey
 foreach ([$base, $tenantDemo] as $plain) verify($plain->logo === null && $plain->signInStylesheets === [] && $plain->signIn === null && $plain->signInModules === [], 'Starter admin and tenant demo declare no logo (the product default), sign-in stylesheets, content or modules');
 verify($app->logo == new Blade\Shell\Logo(placement: 'both') && $app->logo->image === null && $app->signInStylesheets === ['branding/sign-in.css'], 'Feature demo keeps the product logo (window and top row) and declares its sign-in stylesheet');
 verify(!file_exists($public.'/branding/logo.svg') && !file_exists($public.'/branding/logo-dark.svg'), 'Feature demo ships no own logo file');
-verify($app->signIn == new Blade\Shell\SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.', [new Blade\Shell\SignInLink('Demó postafiók', 'mailbox/')]) && $app->signInModules === ['branding/sign-in.js'], 'Feature demo declares its sign-in notice, mailbox link and sign-in module');
+verify($app->signIn == new Blade\Shell\SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.') && $app->signInModules === ['branding/sign-in.js'], 'Feature demo declares its sign-in notice and sign-in module without a mailbox link');
 foreach (['branding/sign-in.css', 'branding/sign-in.js'] as $asset) {
     verify(Blade\Shell\AssetKeys::key($public.'/'.$asset) !== null && $demoKeys->url($asset) === $asset.'?v='.Blade\Shell\AssetKeys::key($public.'/'.$asset), 'Feature demo branding keyed by its file: '.$asset);
 }

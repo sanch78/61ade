@@ -494,14 +494,13 @@ differ per theme with `[data-dhx-theme="dark"]` as well.
 ```
 
 The feature demo uses every layer: the product logo with `placement: 'both'`,
-this stylesheet, a notice with a link to the
-[demo mailbox](demos.md#demó-postafiók-mailbox) and the module above
+this stylesheet, a notice and the module above
 ([demos](demos.md#teljes-feature-demó-)); the starter admin and the tenant
 demo declare none of them and show the product logo by default. `toolkit.php` renders every page
 kind (kind, links, keys, bootstrap keys per page, rejected paths, hrefs,
 texts and placements), `configuration.php` the JSON keys and `contracts.php`
 the demos' declarations; `sign-in-branding.spec.cjs` covers the windows,
-placement, notice and link (keyboard), the module's slot and a failing
+placement, notice, the absence of a mailbox link, the module's slot and a failing
 module, themes, a dark-based skin, the top row, phone width and the starter
 admin.
 

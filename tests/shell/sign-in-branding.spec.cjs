@@ -2,7 +2,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const {signIn}=require('./feature-demo.cjs');
 // Sign-in branding (FB-0087, FB-0088, docs/shell.md#sign-in-branding): the 61ade product logo (docs/brand.md) inlined
 // by the shell in all three demos; the feature demo keeps it with placement "both" and adds its sign-in stylesheet,
-// notice and mailbox link, and its sign-in module in the footer slot; the starter admin and the tenant demo declare
+// notice and its sign-in module in the footer slot; the starter admin and the tenant demo declare
 // nothing. Logo::none() and a declared logo are covered by tests/shell/toolkit.php.
 const WIDE={width:1280,height:900};
 const logo=scope=>scope.getByRole('img',{name:'blade',exact:true});
@@ -49,12 +49,11 @@ test('the sign-in window shows the logo once with the sign-in stylesheet, per th
  // The form stays whole below the logo: the button fits inside the window.
  const windowBox=await dialog.boundingBox(),button=await dialog.getByRole('button',{name:'Bejelentkezés',exact:true}).boundingBox();
  expect(button.y+button.height).toBeLessThanOrEqual(windowBox.y+windowBox.height);
- // Notice and link below the form, inside the window; the sign-in module's line in the footer slot.
+ // Notice below the form, inside the window; the sign-in module's line in the footer slot.
  await expect(dialog.getByText(NOTICE,{exact:true})).toBeVisible();
- const link=dialog.getByRole('navigation',{name:'Hivatkozások'}).getByRole('link',{name:'Demó postafiók',exact:true});
- await expect(link).toHaveAttribute('href','mailbox/');
+ await expect(dialog.locator('a[href="mailbox/"]')).toHaveCount(0);
  await expect(footer(dialog)).toHaveText('Demó bejelentkezési modul · téma: skyblue');
- for(const element of [dialog.getByText(NOTICE,{exact:true}),link,footer(dialog)]){
+ for(const element of [dialog.getByText(NOTICE,{exact:true}),footer(dialog)]){
   const box=await element.boundingBox();
   expect(box.y).toBeGreaterThanOrEqual(button.y+button.height);
   expect(box.y+box.height).toBeLessThanOrEqual(windowBox.y+windowBox.height);
@@ -62,13 +61,6 @@ test('the sign-in window shows the logo once with the sign-in stylesheet, per th
  // The restricted API: no transport, CSRF token or identity reaches the module (it only sees what it is given).
  await expect(page.locator('script[src*="branding/sign-in.js"]')).toHaveCount(0);
  expect(await page.locator('#blade-config').evaluate(element=>{const config=JSON.parse(element.textContent);return [config.signInModules?.length,config.modules,config.csrf];})).toEqual([1,undefined,undefined]);
- // The link is keyboard reachable and opens the demo mailbox.
- await link.focus();
- await expect(link).toBeFocused();
- await page.keyboard.press('Enter');
- await expect(page).toHaveURL(/\/mailbox\/$/);
- await page.goBack();
- await expect(logo(dialog)).toBeVisible();
  // The dark theme shows the dark image; the module reads the theme.
  await page.evaluate(()=>localStorage.setItem('blade-theme','dark'));
  await page.reload();
