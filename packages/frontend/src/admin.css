@@ -211,12 +211,12 @@ body,
 .blade-logo[hidden] { display: none; }
 .blade-logo__image { display: block; width: auto; object-fit: contain; }
 /* The inlined product logo (docs/brand.md): its viewBox ratio, so the width follows the height like an image. */
-.blade-logo--brand .blade-logo__image { aspect-ratio: 1370 / 395; }
+.blade-logo--brand .blade-logo__image { aspect-ratio: 1795 / 395; }
 .blade-logo--themed .blade-logo__image--dark,
 [data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--light { display: none; }
 [data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--dark { display: block; }
-/* End of the top menu row, after a 1px rule in the theme border colour. */
-.blade-navigation-row .blade-logo { padding: 0 12px; border-left: 1px solid var(--dhx-border-color); }
+/* End of the top menu row; the rule before it is the previous layout cell's own right border (a border here doubled it). */
+.blade-navigation-row .blade-logo { padding: 0 12px; }
 .blade-navigation-row .blade-logo__image { height: var(--blade-logo-height, 24px); max-width: var(--blade-logo-max-width, 160px); }
 /* Top of the sign-in, e-mail confirmation and password-change windows, centred above the form. */
 .blade-auth-logo .blade-logo { display: flex; justify-content: center; height: auto; padding: 16px 16px 0; }
