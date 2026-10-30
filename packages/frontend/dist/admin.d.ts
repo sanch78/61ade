@@ -23,7 +23,7 @@ import type * as Suite from "@dhtmlx/suite";
  * it receives everything through `app` and imports only types (`import type`, from `admin.d.ts`).
  */
 export type ApplicationModule = (app: Application) => void | Promise<void>;
-/** API generation of this contract; `Application.apiVersion` carries it at run time. */
+/** API generation of this contract, a type only: the run-time value is `Application.apiVersion` (nothing to import). */
 export type ApiVersion = 1;
 /**
  * The page's application API, created once by the shell after sign-in and handed to every module.
@@ -56,13 +56,16 @@ export interface Application {
     readonly events: EventBus;
     /** The signed-in identity (presentation data only; never a permission source). */
     readonly identity: Identity;
-    /** View kinds: kind name → factory. Built-ins `list`, `files`, `diagram`, `calendar` are registered by 61ade. */
-    readonly views: Registry<ViewKind<any>>;
+    /**
+     * View kinds: kind name → factory (`ViewDefinition.kind`). Built-ins `list`, `files`, `diagram`, `calendar` are
+     * registered by 61ade. The views themselves are `viewDefinitions()`/`viewDefinition(id)`.
+     */
+    readonly kinds: Registry<ViewKind<any>>;
     /** Column/value presentations: name → renderer (`column.presentation`). Built-in `image` (`icon` stays framework-internal). */
     readonly presentations: Registry<ColumnPresentation>;
     /** Field editors: name → form item factory and display renderer (`field.editor`); no built-in entries. */
     readonly fieldTypes: Registry<FieldType>;
-    /** Client-side commands: name → handler, placed on list toolbars (`ListOptions.commands`). Built-in `details`. */
+    /** Client-side commands: name → handler, placed on list toolbars (`ListKindOptions.commands`). Built-in `details`. */
     readonly commands: Registry<ClientCommand>;
     /**
      * Public component classes, bound to this application: `ListView`, `RecordForm`, `RecordDetails`, `FileManager`,
@@ -75,7 +78,7 @@ export interface Application {
     viewDefinition(id: string): ViewDefinition | undefined;
     /**
      * Opens a view like a menu click or an address change: writes `#view=<id>[&record=…]` as a history entry
-     * (page views only; `filters` are applied once and not written to the address) and mounts it through the `views` registry. Returns `false` (and changes nothing) when the view is
+     * (page views only; `filters` are applied once and not written to the address) and mounts it through the `kinds` registry. Returns `false` (and changes nothing) when the view is
      * not offered to the actor, needs a record that was not given, or its kind is not registered. Record resolution
      * failures (403/404 from the record resource's `get`) show the shared error dialog and keep the current view.
      */
@@ -91,6 +94,14 @@ export interface NavigationTarget {
     filters?: Record<string, string>;
     /** Overrides `ViewDefinition.open` for this navigation. `window` creates no history entry. */
     open?: ViewOpenMode;
+}
+/**
+ * The `options` argument of every subscription and of `Server.form`: `signal` ends the subscription (or aborts the
+ * request) when it aborts; an already aborted signal subscribes nothing. Anything but an object, or a `signal` that
+ * is not an `AbortSignal`, throws `TypeError` (also a bare `AbortSignal` in place of the object).
+ */
+export interface SignalOptions {
+    signal?: AbortSignal;
 }
 /** Options of one action call. */
 export interface CallOptions {
@@ -140,9 +151,9 @@ export interface Server {
     request(resource: string, action: string, options?: CallOptions): Promise<Response>;
     /**
      * Field metadata and initial values of an action form: the `__form` pseudo-action (`values.operation`), with the
-     * actor's field ACL applied. `id` selects the target record (update forms).
+     * actor's field ACL applied. `id` selects the target record (update forms); `signal` aborts the request.
      */
-    form(resource: string, operation: string, id?: string | null, signal?: AbortSignal): Promise<FormDescription>;
+    form(resource: string, operation: string, id?: string | null, options?: SignalOptions): Promise<FormDescription>;
     /**
      * Same-origin GET URL of a field-free `get: true` action (`content_stream`, `thumbnail_get`, project media
      * actions) for `<img>`, `<video>`, `<audio>` sources. `version` only keys the browser cache. Wraps `actionUrl`.
@@ -226,12 +237,12 @@ export interface Ui {
 /** Browser part of a server `UploadPolicy` (`UploadPolicy::metadata()`); never contains server paths. */
 export interface UploadPolicy {
     extensions: string[];
-    max_size_bytes: number;
-    max_files: number;
-    chunk_bytes: number;
+    maxSizeBytes: number;
+    maxFiles: number;
+    chunkBytes: number;
     folders: boolean;
-    max_depth: number;
-    duplicate_policy: "ask" | "overwrite" | "rename" | "skip" | "reject";
+    maxDepth: number;
+    duplicatePolicy: "ask" | "overwrite" | "rename" | "skip" | "reject";
 }
 /** Per-file outcome of an upload target action (the file manager's `upload` shape). */
 export interface UploadResult {
@@ -263,7 +274,7 @@ export interface UploadFileInfo {
 }
 /**
  * Options of `Uploads.open` (the same shape as `UploadOpenOptions` in `Uploader.ts`). The policy is the target
- * action's `ActionMetadata.upload` (list views) or a files view's `FileManagerOptions.upload.policy`.
+ * action's `ActionMetadata.upload` (list views) or a files view's `FilesKindOptions.upload.policy`.
  */
 export interface UploadOpenOptions {
     /** ACL resource and registered action that receives the files (an action with an `upload` policy). */
@@ -315,8 +326,8 @@ export interface Theme {
     current(): string;
     /** The applied application skin id (`data-blade-skin`), or `null` with a factory theme. */
     skin(): string | null;
-    /** Called after every theme or skin change; returns the unsubscribe function. */
-    onChange(listener: (theme: string, skin: string | null) => void): () => void;
+    /** Called after every theme or skin change; returns the unsubscribe function. With `signal`, unsubscribes when it aborts. */
+    onChange(listener: (theme: string, skin: string | null) => void, options?: SignalOptions): () => void;
 }
 /**
  * Browser-local preference store of one scope (over `UiPreferences.ts`). Keys live under the versioned
@@ -386,9 +397,9 @@ export interface LiveSubscription {
 export interface Live {
     /**
      * Subscribes to `resource`'s `list` window; the server re-authorizes on every read. Ends with `destroy()` or when
-     * `signal` aborts (pass `host.signal` so a closed view never leaks a subscription).
+     * `options.signal` aborts (pass `{ signal: host.signal }` so a closed view never leaks a subscription).
      */
-    subscribe(resource: string, query: ListQuery, handlers: LiveHandlers, signal?: AbortSignal): LiveSubscription;
+    subscribe(resource: string, query: ListQuery, handlers: LiveHandlers, options?: SignalOptions): LiveSubscription;
 }
 /**
  * Framework events. Projects add their own names (with a project prefix and a dot, e.g. `demo.scene-loaded`) by
@@ -451,8 +462,8 @@ export interface AppEvents {
  * registration order; a throwing handler is logged and does not stop the others.
  */
 export interface EventBus {
-    /** Subscribes; returns the unsubscribe function. With `signal`, unsubscribes when it aborts. */
-    on<K extends keyof AppEvents>(event: K, handler: (payload: AppEvents[K]) => void, signal?: AbortSignal): () => void;
+    /** Subscribes; returns the unsubscribe function. With `options.signal`, unsubscribes when it aborts. */
+    on<K extends keyof AppEvents>(event: K, handler: (payload: AppEvents[K]) => void, options?: SignalOptions): () => void;
     off<K extends keyof AppEvents>(event: K, handler: (payload: AppEvents[K]) => void): void;
     /**
      * Emits a project event. Framework names (with a `:`) are emitted by 61ade only; emitting one throws.
@@ -527,15 +538,18 @@ export interface ViewHost {
 export interface ViewInstance {
     /** Releases widgets, windows, listeners and subscriptions not already tied to `host.signal`. */
     destroy(): void;
-    /** `true` while the view holds unsaved input (the live channel never reloads the page over it). */
+    /**
+     * `true` while the view holds input a reload would discard: the live channel never reloads the page over it and an
+     * ended session shows its modal first. The built-in kinds report their component's `editing()`.
+     */
     editing?(): boolean;
     /** Reloads the content (a parent's preview after its window closed). */
     refresh?(): void;
 }
 /**
  * One view as the server sends it (bootstrap `views`). The shared
- * keys stay at the top level; every kind-specific key moves verbatim into `options` (see `ListOptions`,
- * `FileManagerOptions`, `DiagramOptions`, `CalendarOptions`). All texts are already translated by the server.
+ * keys stay at the top level; every kind-specific key moves verbatim into `options` (see `ListKindOptions`,
+ * `FilesKindOptions`, `DiagramKindOptions`, `CalendarKindOptions`). All texts are already translated by the server.
  */
 export interface ViewDefinition<Options = unknown> {
     /** Unique per application (`[a-z][a-z0-9_.-]*`); defaults to the resource for the built-in builders. */
@@ -561,38 +575,42 @@ export interface ViewDefinition<Options = unknown> {
     open?: ViewOpenMode;
 }
 /** The built-in kinds' definitions as a discriminated union. */
-export type BuiltinViewDefinition = (ViewDefinition<ListOptions> & {
+export type BuiltinViewDefinition = (ViewDefinition<ListKindOptions> & {
     kind: "list";
-}) | (ViewDefinition<FileManagerOptions> & {
+}) | (ViewDefinition<FilesKindOptions> & {
     kind: "files";
-}) | (ViewDefinition<DiagramOptions> & {
+}) | (ViewDefinition<DiagramKindOptions> & {
     kind: "diagram";
-}) | (ViewDefinition<CalendarOptions> & {
+}) | (ViewDefinition<CalendarKindOptions> & {
     kind: "calendar";
 });
 /** Built-in field storage types (`Blade\Feature\Field` allowlist). */
 export type BuiltinFieldType = "text" | "password" | "number" | "select" | "multiselect" | "textarea" | "checkbox" | "file";
 /** Client-side validation hints mirroring the server rules (docs/validation.md); the server stays authoritative. */
 export interface ValidationRules {
-    min_length?: number;
+    /** Configuration `min_length`. */
+    minLength?: number;
     pattern?: {
         expression: string;
         flags?: string;
         message?: string;
     };
-    matches_field?: string;
+    /** Configuration `matches_field`. */
+    matchesField?: string;
     unique?: boolean;
 }
 /** Browser metadata of a `file` field (`Workspace::fieldMetadata`). The field value is the file id. */
 export interface FileFieldConfig {
     resource: string;
     mount: string;
-    folder_id?: string | null;
+    /** The resolved folder of the field; `null` when it does not exist (no upload target). */
+    folderId?: string | null;
     accept?: string[];
     policy?: UploadPolicy | null;
-    can_upload?: boolean;
+    /** The actor may upload into the field's folder. */
+    canUpload?: boolean;
     /** The actor may browse the field's folder (`list` on the mount). */
-    can_choose?: boolean;
+    canChoose?: boolean;
 }
 /** One form field (`Field::metadata()`; `FormValidation.ts` `FieldDefinition`). */
 export interface FieldMetadata {
@@ -651,12 +669,15 @@ export interface ColumnMetadata {
     presentation?: string;
     /** The field's `editor` (a `fieldTypes` name): its `display` renders the value unless a presentation does. */
     editor?: string;
+    /**
+     * Static image column (`presentation: "image"`): page-relative directory of the image files (configuration also
+     * accepts `image_base`; the server always sends `imageBase`).
+     */
     imageBase?: string;
-    image_base?: string;
+    /** Static image column: the row field holding the image's accessible name (configuration `alt_of` too). */
     altOf?: string;
-    alt_of?: string;
+    /** Derived media column: the media field whose `_media` it presents (configuration `media_of`); with `part`. */
     mediaOf?: string;
-    media_of?: string;
     part?: MediaPart;
     options?: Record<string, string>;
     width?: number;
@@ -698,7 +719,7 @@ export interface SubviewMetadata {
     /** The same resource (a hierarchy): the parent toolbar acts on a selected child. */
     shared?: boolean;
     /** The child view (its id, title, actions and list options). */
-    view?: ViewDefinition<ListOptions> & {
+    view?: ViewDefinition<ListKindOptions> & {
         kind: "list";
     };
     select?: boolean;
@@ -706,7 +727,7 @@ export interface SubviewMetadata {
     page?: boolean;
 }
 /** `options` of kind `list`: today's list-specific top-level keys of `Workspace.ts` `ViewDefinition`, unchanged. */
-export interface ListOptions {
+export interface ListKindOptions {
     singleton: boolean;
     columns: ColumnMetadata[];
     detailFields?: ColumnMetadata[];
@@ -733,29 +754,30 @@ export interface ListOptions {
      */
     commands?: string[];
 }
-/** `options` of kind `files`: today's `files` key (`FileManager.ts` `FileManagerConfig`). */
-export interface FileManagerOptions {
+/** `options` of kind `files` (`FileManagerDefinition::metadata()` in camelCase; `FileManager.ts` `FileManagerConfig`). */
+export interface FilesKindOptions {
     mounts: {
         id: string;
         label: string;
     }[];
+    /** The `upload` action's rules, once: its policy (pass it to `app.uploads.open`). */
     upload: {
-        allowed_extensions: string[];
-        max_size_bytes: number;
-        multiple: boolean;
-        max_files?: number;
-        duplicate_policy: string;
         policy: UploadPolicy;
     };
     text: {
         extension: string;
-        max_bytes: number;
+        maxBytes: number;
     };
+    /** MIME types the viewer shows. */
     preview: string[];
-    max_depth: number;
+    /** MIME types that get thumbnails (empty without the thumbnail service). */
+    thumbnails?: string[];
+    maxDepth: number;
+    /** `archive` or `delete` (`FileManagerDefinition` `deletePolicy`). */
+    deletePolicy?: string;
 }
 /** `options` of kind `diagram`: today's `diagram` key (`DiagramView.ts` `DiagramConfig`). */
-export interface DiagramOptions {
+export interface DiagramKindOptions {
     nodeTypes: {
         id: string;
         label: string;
@@ -778,14 +800,15 @@ export interface DiagramOptions {
     maxNodes: number;
     maxLinks: number;
 }
-/** `options` of kind `calendar`: today's `calendar` key (`CalendarView.ts` `CalendarConfig`). */
-export interface CalendarOptions {
+/** `options` of kind `calendar` (`CalendarDefinition::metadata()` in camelCase; `CalendarView.ts` `CalendarConfig`). */
+export interface CalendarKindOptions {
     views: ("day" | "week" | "month")[];
-    default_view: string;
-    first_hour: number;
-    last_hour: number;
-    max_range_days: number;
-    day_action: {
+    defaultView: string;
+    firstHour: number;
+    lastHour: number;
+    maxRangeDays: number;
+    /** The day action, only when offered to the actor. */
+    dayAction: {
         resource: string;
         action: string;
         label: string;
@@ -908,8 +931,11 @@ export interface Component<Events extends object = object> {
     mount(target: MountTarget): void;
     /** Idempotent; detaches the root Layout from its Layout cell (an open window or host is emptied). */
     destroy(): void;
-    /** Subscribes to a component event (`TypeError` for a non-function); returns the unsubscribe function. */
-    on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void): () => void;
+    /**
+     * Subscribes to a component event (`TypeError` for a non-function); returns the unsubscribe function. With
+     * `options.signal`, unsubscribes when it aborts; `destroy()` releases every handler anyway.
+     */
+    on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void, options?: SignalOptions): () => void;
 }
 /** Common constructor options. */
 export interface ComponentOptions {
@@ -926,7 +952,7 @@ export type ViewReference<Options> = string | ViewDefinition<Options>;
  * id that is not offered throws `Error`, any other view `TypeError`, as does `compact` without `scope`.
  */
 export interface ListViewOptions extends ComponentOptions {
-    view: ViewReference<ListOptions>;
+    view: ViewReference<ListKindOptions>;
     /** Nested list limited to `field` = `id` (today's `WorkspaceScope`). */
     scope?: {
         field: string;
@@ -997,7 +1023,8 @@ export interface RecordFormEvents {
         action: string;
         result: unknown;
     };
-    cancel: Record<string, never>;
+    /** Cancel was pressed (the creator closes the form's window). */
+    cancelled: Record<string, never>;
     /** A field value changed (dirty tracking). */
     changed: {
         field: string;
@@ -1017,7 +1044,7 @@ export interface RecordForm extends Component<RecordFormEvents> {
 }
 /** Options of `RecordDetails`. */
 export interface RecordDetailsOptions extends ComponentOptions {
-    view: ViewReference<ListOptions>;
+    view: ViewReference<ListKindOptions>;
     /** The row to show, or a record id (loaded through the view's `get`). */
     record: Row | string;
 }
@@ -1027,24 +1054,29 @@ export interface RecordDetails extends Component<Record<string, never>> {
     show(record: Row | string): Promise<void>;
 }
 /** Options of `FileManager` (implemented P3 C-2). */
-export interface FileManagerComponentOptions extends ComponentOptions {
+export interface FileManagerOptions extends ComponentOptions {
     /**
      * A files view: an offered view id or a held definition of any kind with a `resource`, its `actions` and
-     * `FileManagerOptions` (at least one mount). A string that is not offered throws `Error`; a wrong shape `TypeError`.
+     * `FilesKindOptions` (at least one mount). A string that is not offered throws `Error`; a wrong shape `TypeError`.
      */
-    view: ViewReference<FileManagerOptions>;
+    view: ViewReference<FilesKindOptions>;
 }
 /**
  * Two-panel virtual file manager (`components/files/FileManager.ts` over `FileManager.ts`), the same class as the
  * built-in `files` kind; what it offers follows the view's `actions`. `opened` fires each time the viewer or the text
  * editor shows a file (also on previous/next). `destroy()` also closes its windows and aborts its pending reads.
  */
-export interface FileManagerComponent extends Component<{
+export interface FileManager extends Component<FileManagerEvents> {
+    /** `true` while a rename or new-folder form is open or the text editor holds unsaved text. */
+    editing(): boolean;
+}
+/** Events of `FileManager`. */
+export interface FileManagerEvents {
+    /** The viewer or the text editor showed a file (also on previous/next). */
     opened: {
         id: string;
-        mime_type: string;
+        mimeType: string;
     };
-}> {
 }
 /** Options of `FilePicker.pick`. */
 export interface FilePickerOptions {
@@ -1057,21 +1089,21 @@ export interface FilePickerOptions {
     signal?: AbortSignal;
 }
 /** The modal tiles picker of `file` fields (`FilePicker.ts`; implemented P3 C-2 as `components/files/FilePicker.ts`). */
-export interface FilePickerApi {
+export interface FilePicker {
     /**
-     * Opens the picker over the field's folder (`folder_id`, otherwise the mount root), limited to its accepted MIME
+     * Opens the picker over the field's folder (`folderId`, otherwise the mount root), limited to its accepted MIME
      * classes. Resolves the chosen file or `null` (Cancel, Escape, abort; an already aborted signal opens nothing).
      * Malformed options throw `TypeError` before anything opens.
      */
     pick(options: FilePickerOptions): Promise<MediaDescriptor | null>;
 }
 /** Options of `Calendar` (implemented P3 C-2). */
-export interface CalendarComponentOptions extends ComponentOptions {
+export interface CalendarOptions extends ComponentOptions {
     /**
      * A calendar view: an offered view id or a held definition of any kind with a `resource`, its `actions` and
-     * `CalendarOptions`. A string that is not offered throws `Error`; a wrong shape throws `TypeError`.
+     * `CalendarKindOptions`. A string that is not offered throws `Error`; a wrong shape throws `TypeError`.
      */
-    view: ViewReference<CalendarOptions>;
+    view: ViewReference<CalendarKindOptions>;
 }
 /**
  * Event calendar over Scheduler Standard (`components/calendar/Calendar.ts` over `CalendarView.ts`), the same class
@@ -1079,22 +1111,27 @@ export interface CalendarComponentOptions extends ComponentOptions {
  * neither `create` nor `update` is offered. One instance per page: constructing a second Calendar before the first
  * is destroyed throws `Error`.
  */
-export interface CalendarComponent extends Component<Record<string, never>> {
+export interface Calendar extends Component<Record<string, never>> {
+    /** `true` while the event form is open. */
+    editing(): boolean;
 }
 /** Options of `DiagramEditor` (implemented P3 C-2). */
 export interface DiagramEditorOptions extends ComponentOptions {
-    /** A diagram view: an offered view id or a held definition with a `resource`, `actions` and `DiagramOptions`. */
-    view: ViewReference<DiagramOptions>;
+    /** A diagram view: an offered view id or a held definition with a `resource`, `actions` and `DiagramKindOptions`. */
+    view: ViewReference<DiagramKindOptions>;
 }
 /**
  * Visual diagram editor (`components/diagram/DiagramEditor.ts` over `DiagramView.ts`), the same class as the
  * built-in `diagram` kind. `saved` fires after the open diagram's content was saved; read-only without `save`.
  */
-export interface DiagramEditorComponent extends Component<{
-    saved: Record<string, never>;
-}> {
+export interface DiagramEditor extends Component<DiagramEditorEvents> {
     /** `true` while the open diagram has unsaved changes. */
     editing(): boolean;
+}
+/** Events of `DiagramEditor`. */
+export interface DiagramEditorEvents {
+    /** The open diagram's content was saved (`Mentés`, Ctrl+S). */
+    saved: Record<string, never>;
 }
 /**
  * Media source of `MediaPlayer`: a GET-capable action (`app.server.url`, fetched by the element with the session cookie
@@ -1240,29 +1277,40 @@ export interface SandboxFrame extends Component<SandboxFrameEvents> {
     /** Sends a project message (dotted type); throws before `ready`, does nothing after `destroy()`. */
     post(type: string, payload?: unknown): void;
 }
-/** One command bar item. */
-export interface CommandItem {
+/** One command bar item: a button (`type` omitted or `button`) or a spacer, which needs no id. */
+export type CommandItem = CommandButton | CommandSpacer;
+/** A command bar button; its `id` is what `click` reports and `update` addresses. */
+export interface CommandButton {
+    type?: "button";
     id: string;
     /** Plain text (escaped). */
     label: string;
     icon?: string;
     disabled?: boolean;
     hidden?: boolean;
-    /** `spacer` pushes the following items to the right. */
-    type?: "button" | "spacer";
 }
-/** Options of `CommandBar`. Ids are `[A-Za-z0-9_.:-]+` and unique (`blade-command-menu` is reserved); otherwise `TypeError`. */
+/** Pushes the following items to the right (left out of the collapsed `Műveletek` menu). */
+export interface CommandSpacer {
+    type: "spacer";
+}
+/** Options of `CommandBar`. Button ids are `[A-Za-z0-9_.:-]+` and unique (`blade-command-menu` is reserved); otherwise `TypeError`. */
 export interface CommandBarOptions extends ComponentOptions {
     items: CommandItem[];
 }
-/** The framework's responsive toolbar (`ResponsiveToolbar.ts`): collapses into `Műveletek` when it does not fit or below 768 px. */
-export interface CommandBar extends Component<{
+/**
+ * The framework's responsive toolbar (`ResponsiveToolbar.ts`): collapses into `Műveletek` when it does not fit or below
+ * 768 px. Escape closes an open menu (also one opened with the mouse) and returns the focus to its toggle.
+ */
+export interface CommandBar extends Component<CommandBarEvents> {
+    readonly toolbar: Suite.Toolbar;
+    update(id: string, changes: Partial<Omit<CommandButton, "id" | "type">>): void;
+}
+/** Events of `CommandBar`. */
+export interface CommandBarEvents {
+    /** An item was clicked, also from the collapsed `Műveletek` menu. */
     click: {
         id: string;
     };
-}> {
-    readonly toolbar: Suite.Toolbar;
-    update(id: string, changes: Partial<Omit<CommandItem, "id" | "type">>): void;
 }
 /** A component class bound to the application. */
 export type ComponentClass<Options, Instance> = new (options: Options) => Instance;
@@ -1271,18 +1319,68 @@ export interface Components {
     readonly ListView: ComponentClass<ListViewOptions, ListView>;
     readonly RecordForm: ComponentClass<RecordFormOptions, RecordForm>;
     readonly RecordDetails: ComponentClass<RecordDetailsOptions, RecordDetails>;
-    readonly FileManager: ComponentClass<FileManagerComponentOptions, FileManagerComponent>;
-    readonly FilePicker: FilePickerApi;
-    readonly Calendar: ComponentClass<CalendarComponentOptions, CalendarComponent>;
-    readonly DiagramEditor: ComponentClass<DiagramEditorOptions, DiagramEditorComponent>;
+    readonly FileManager: ComponentClass<FileManagerOptions, FileManager>;
+    readonly FilePicker: FilePicker;
+    readonly Calendar: ComponentClass<CalendarOptions, Calendar>;
+    readonly DiagramEditor: ComponentClass<DiagramEditorOptions, DiagramEditor>;
     readonly MediaPlayer: ComponentClass<MediaPlayerOptions, MediaPlayer>;
     readonly SandboxFrame: ComponentClass<SandboxFrameOptions, SandboxFrame>;
     readonly CommandBar: ComponentClass<CommandBarOptions, CommandBar>;
 }
 /**
- * Public type entry of the 61ade toolkit API (docs/toolkit.md). The runtime is the `Application` the shell hands to
- * every module (`src/app/Application.ts`). `tools/build.mjs` emits `dist/admin.d.ts` from this file for project
- * modules (development use only); it may only re-export `./types`.
+ * Sign-in extension point (docs/shell.md#sign-in-modules): the restricted API a project's sign-in module receives on
+ * the sign-in, e-mail confirmation and password-change pages. Runtime: `src/SignIn.ts`.
+ *
+ * Trust: a sign-in module is trusted project code like `modules`, on a page that holds the password field. The
+ * restriction is the contract (no transport, identity, registries, CSRF token or form values), not isolation;
+ * untrusted code never runs here (it belongs in `SandboxFrame`, and not on the sign-in pages).
  */
-/** Contract generation of this API; equals `Application.apiVersion`. */
-export declare const apiVersion: ApiVersion;
+/** The signed-out page kind, equal to `data-blade-page` on `<html>`. */
+export type SignInPage = "sign-in" | "confirmation" | "password-change";
+/**
+ * Default export of a sign-in module (`ApplicationDefinition::$signInModules`, JSON `application.sign_in_modules`).
+ * The shell mounts the window first, then imports every declared module in parallel and calls the exports in
+ * declaration order. A failed import, a missing default export, a throw, a rejection or more than 5 s (per import
+ * and per call) is reported on the console and skipped; the sign-in always works.
+ */
+export type SignInModule = (app: SignInApplication) => void | Promise<void>;
+/** The restricted application object of a signed-out page; one per page load (each page kind is its own load). */
+export interface SignInApplication {
+    /** Contract generation; the same value as `Application.apiVersion`. */
+    readonly apiVersion: 1;
+    /** Which signed-out page this is. */
+    readonly page: SignInPage;
+    /** The page's server-provided catalog (framework and project texts of the locale). */
+    readonly i18n: SignInI18n;
+    /** The applied factory theme (the signed-out pages never use skins). */
+    readonly theme: SignInTheme;
+    /** The DHTMLX Suite namespace the shell uses (same instances and theme state); never bundle a second Suite. */
+    readonly dhx: typeof import("@dhtmlx/suite");
+    /** Empty elements inside the window, above (`header`) and below (`footer`) the form; the window refits to them. */
+    readonly slots: SignInSlots;
+}
+export interface SignInI18n {
+    /** Message for `key`, `{name}` placeholders from `params`; the key itself when no catalog has it. Plain text. */
+    t(key: string, params?: Record<string, unknown>): string;
+    /** Active locale code. A language switch reloads the page. */
+    locale(): string;
+}
+export interface SignInTheme {
+    /** `skyblue`, `light` or `dark`. */
+    current(): string;
+    /** Called after each theme switch until `signal` aborts. */
+    onChange(listener: (theme: string) => void, options?: {
+        signal?: AbortSignal;
+    }): void;
+}
+export interface SignInSlots {
+    readonly header: HTMLElement;
+    readonly footer: HTMLElement;
+}
+/**
+ * Public type entry of the 61ade toolkit API (docs/toolkit.md). The runtime is the `Application` the shell hands to
+ * every module (`src/app/Application.ts`); its contract generation is `Application.apiVersion` (type `ApiVersion`).
+ * `tools/build.mjs` emits `dist/admin.d.ts` from this file for project modules (development use only); it may only
+ * re-export `./types` and the import-free `./sign-in`, so `admin.d.ts` declares no run-time value a module could try
+ * to import.
+ */
