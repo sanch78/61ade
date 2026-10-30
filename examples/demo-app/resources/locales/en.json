@@ -145,5 +145,6 @@
   "Kiválasztott sor: {range}": "Selected row: {range}",
   "Szintetikus demó: a fiókok és az adatok kitaláltak.": "Synthetic demo: the accounts and data are made up.",
   "Demó postafiók": "Demo mailbox",
+  "Nyilvános demófiók": "Public demo account",
   "Demó bejelentkezési modul · téma: {theme}": "Demo sign-in module · theme: {theme}"
 }

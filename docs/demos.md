@@ -19,6 +19,12 @@ there; there is no deployment, post-deployment testing or project backup workflo
 CLI fixture tools do not establish a second environment.
 See [development](development.md#development-environment) for build/asset preparation.
 
+The [bilingual product website](website.md) is available at `/website/` (English)
+and `/website/hu/` (Hungarian), with links back to the feature demo. Its shared
+demo credentials are also shown in the feature demo's sign-in footer; the
+input fields remain empty. Website screenshots are retained presentation
+assets captured from synthetic demo records through the managed URL.
+
 <a id="tenant-demo-tenants"></a>
 
 ## Tenant demo (`/tenants/`)

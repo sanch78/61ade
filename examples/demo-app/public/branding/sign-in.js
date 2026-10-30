@@ -3,6 +3,17 @@
 // restricted SignInApplication (no server, identity, CSRF token or form values).
 /** @type {import("@61ade/admin").SignInModule} */
 export default (app) => {
+  const credentials = document.createElement("p");
+  credentials.className = "demo-sign-in-credentials";
+  const caption = document.createElement("span");
+  caption.textContent = app.i18n.t("Nyilvános demófiók");
+  credentials.append(caption);
+  for (const value of ["demo@example.test", "61ade-demo"]) {
+    const code = document.createElement("code");
+    code.textContent = value;
+    credentials.append(code);
+  }
+  app.slots.footer.append(credentials);
   const line = document.createElement("p");
   line.className = "demo-sign-in-footer";
   const paint = (theme) => { line.textContent = app.i18n.t("Demó bejelentkezési modul · téma: {theme}", { theme }); };

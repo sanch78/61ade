@@ -20,15 +20,7 @@
     <script type="module" src="<?= $escape($keys->url($definition->assets.'/admin.js', 'admin.js')) ?>"></script>
 </head>
 <body>
-    <?php /* The 61ade trademark loading screen (docs/brand.md#splash): once per browser window or tab (the head
-        gate hides it on later pages), not configurable; the frontend fades it into the application. */ ?>
-    <div id="blade-splash" class="blade-splash" aria-hidden="true">
-        <div class="blade-splash__brand">
-            <div class="blade-splash__logo"><?= file_get_contents(dirname(__DIR__).'/resources/brand/splash-logo.svg') ?><span class="blade-splash__spark"></span></div>
-            <p class="blade-splash__credit">made with <b>61ade</b> framework</p>
-        </div>
-    </div>
-    <noscript><style>.blade-splash { display: none; }</style></noscript>
+    <?php require __DIR__.'/splash.php'; ?>
     <div id="blade-application"></div>
     <form id="blade-command" method="post" action="./" hidden>
         <input type="hidden" name="csrf" value="<?= $escape($csrf) ?>">
