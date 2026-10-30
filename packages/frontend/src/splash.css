@@ -1,0 +1,182 @@
+/* The 61ade trademark loading screen (docs/brand.md#splash): server-rendered by the shell template, so it plays while
+   admin.js loads. Tiles turn like pages from the spine, letters bounce in from behind the mark, a blade glint sweeps the
+   finished logo and sparks on the tip of the 1; Splash.ts then fades the black screen into the application. Not a
+   project CSS hook. */
+.blade-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: #000;
+  color: #eef4f9;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  user-select: none;
+  /* Safety net when admin.js never releases it (failed load): the page behind shows its own error state. */
+  animation: blade-splash-timeout 0.5s 12s forwards;
+}
+/* Already played in this tab (the head gate in shell.php). */
+[data-blade-splash="seen"] .blade-splash { display: none; }
+.blade-splash--leaving {
+  animation: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.55s ease, visibility 0s 0.55s;
+}
+.blade-splash__brand {
+  display: grid;
+  justify-items: center;
+  gap: clamp(14px, 3.5vmin, 28px);
+  width: min(76vw, 560px);
+}
+.blade-splash--leaving .blade-splash__brand {
+  transform: scale(1.04);
+  transition: transform 0.55s ease;
+}
+.blade-splash__logo {
+  position: relative;
+  width: 100%;
+}
+.blade-splash__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+/* The glint: a white band in overlay blend brightens the tiles and ascenders and leaves the black untouched (so it needs
+   no clipping); the near-white ink cannot brighten, the spark carries the glint there. */
+.blade-splash__logo::after {
+  content: "";
+  position: absolute;
+  inset: 0 -60%;
+  background: linear-gradient(104deg, transparent 43%, rgba(255, 255, 255, 0.9) 50%, transparent 57%);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  transform: translateX(-32%);
+  animation: blade-splash-glint 0.9s linear 1.85s both,
+    blade-splash-glint-idle 3s linear 4.6s infinite;
+}
+/* A blend over the fading (isolated) group would paint the band itself. */
+.blade-splash--leaving .blade-splash__logo::after { display: none; }
+/* Four-pointed spark on the tip of the 1 (653,3 in the viewBox -19 -46 1370 395), as the glint passes it. */
+.blade-splash__spark {
+  position: absolute;
+  left: 49.05%;
+  top: 12.4%;
+  width: 7%;
+  aspect-ratio: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0);
+  filter: drop-shadow(0 0 4px rgba(120, 240, 230, 0.9));
+  animation: blade-splash-spark 0.55s ease-out 2.2s both;
+}
+.blade-splash__spark::before,
+.blade-splash__spark::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+}
+.blade-splash__spark::before {
+  inset: 46% 0;
+  background: linear-gradient(90deg, transparent, #fff, transparent);
+}
+.blade-splash__spark::after {
+  inset: 0 46%;
+  background: linear-gradient(transparent, #fff, transparent);
+}
+.blade-splash .blade-logo__tile {
+  transform-box: fill-box;
+  animation: blade-splash-turn 0.7s cubic-bezier(0.45, 0, 0.25, 1) both;
+  transform-origin: left center;
+}
+/* The left page unfolds from the spine; the right pages turn over it onto their place. */
+.blade-splash .blade-logo__tile--1 {
+  transform-origin: right center;
+  animation: blade-splash-unfold 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) 0.1s both;
+}
+.blade-splash .blade-logo__tile--2 { animation-delay: 0.35s; }
+.blade-splash .blade-logo__tile--3 { animation-delay: 0.6s; }
+.blade-splash .blade-logo__glyph {
+  animation: blade-splash-bounce 0.7s cubic-bezier(0.25, 0.6, 0.35, 1) both;
+}
+.blade-splash .blade-logo__glyph--b { animation-delay: 1s; }
+.blade-splash .blade-logo__glyph--l { animation-delay: 1.07s; }
+.blade-splash .blade-logo__glyph--a { animation-delay: 1.14s; }
+.blade-splash .blade-logo__glyph--d { animation-delay: 1.21s; }
+.blade-splash .blade-logo__glyph--e { animation-delay: 1.28s; }
+.blade-splash__credit {
+  margin: 0;
+  font-size: clamp(11px, 3.1vw, 15px);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  text-align: center;
+  color: #8193a6;
+  animation: blade-splash-credit 0.6s ease-out 1.5s both;
+}
+.blade-splash__credit b {
+  font-weight: 600;
+  color: #eef4f9;
+}
+
+@keyframes blade-splash-unfold {
+  from { transform: scaleX(0); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+/* scaleX through 0 is a page turn seen head-on; the mirrored half shows the darker back of the page. */
+@keyframes blade-splash-turn {
+  0% { transform: scaleX(-1); opacity: 0; }
+  10% { opacity: 0.7; }
+  48% { opacity: 0.7; }
+  50% { transform: scale(0, 1.05); }
+  52% { opacity: 1; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+@keyframes blade-splash-bounce {
+  0% { transform: translateX(-150px); opacity: 0; }
+  10% { opacity: 0; }
+  35% { opacity: 1; }
+  55% { transform: translateX(16px); }
+  75% { transform: translateX(-6px); }
+  90% { transform: translateX(2px); }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes blade-splash-credit {
+  from { opacity: 0; transform: translateY(6px); letter-spacing: 0.4em; }
+  to { opacity: 1; transform: none; letter-spacing: 0.14em; }
+}
+@keyframes blade-splash-glint {
+  from { transform: translateX(-32%); }
+  to { transform: translateX(32%); }
+}
+@keyframes blade-splash-glint-idle {
+  0% { transform: translateX(-32%); }
+  30%, 100% { transform: translateX(32%); }
+}
+@keyframes blade-splash-spark {
+  0% { transform: translate(-50%, -50%) scale(0) rotate(-45deg); opacity: 0; }
+  40% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0) rotate(45deg); opacity: 0; }
+}
+@keyframes blade-splash-timeout {
+  to { opacity: 0; visibility: hidden; pointer-events: none; }
+}
+
+/* Still the trademark screen, without movement: the logo as drawn, the credit fades in. */
+@media (prefers-reduced-motion: reduce) {
+  .blade-splash .blade-logo__tile,
+  .blade-splash .blade-logo__glyph,
+  .blade-splash__logo::after {
+    animation: none;
+  }
+  .blade-splash__logo::after,
+  .blade-splash__spark { display: none; }
+  .blade-splash__credit { animation: blade-splash-fade 0.6s ease-out 0.3s both; }
+  .blade-splash--leaving .blade-splash__brand { transform: none; }
+}
+@keyframes blade-splash-fade {
+  from { opacity: 0; }
+}

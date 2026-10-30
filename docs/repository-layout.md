@@ -4,6 +4,10 @@
 
 ## Two separate repositories
 
+- `/space/share/libs/61ade`: canonical **61ade** checkout on `catalyst`. The owner renamed the repository; use its configured Git remote. [Environment contract](development.md#development-environment): development only, with no deployment or project backup workflow.
+- Consumer applications use separate repositories. Editor symlinks are local conveniences whose targets are verified in the owning project.
+- Dependency direction is consumer → 61ade. Reverse dependencies, includes of consumer source and application globals accessed from 61ade are forbidden.
+
 ## Backend
 
 `packages/php/src/Contracts`: extension interfaces binding concrete application
@@ -33,7 +37,9 @@ event bus); `app` the `Application`, registries, built-in kinds and routes;
 built into `dist/sandbox.html` (the bootstrap inline). Older top-level modules (`AdminShell.ts`,
 `Uploader.ts`, `FileManager.ts`, …) are internals behind them
 ([toolkit](toolkit.md)). `packages/frontend/brand` holds the 61ade product
-logo's SVGs and their generator `logo.mjs`, bundled into `admin.js`
+logo's SVGs and their generator `logo.mjs`, bundled into `admin.js`; the
+generator also writes `packages/php/resources/brand/splash-logo.svg`, the
+[trademark screen's](brand.md#splash) copy inlined by `shell.php`
 ([brand](brand.md)). Planned responsibilities: `shell`, `renderer`,
 `actions`, `state`, `contracts`, `i18n` and `styles`.
 
@@ -43,12 +49,34 @@ An empty adapter directory indicates planned scope, not an installed or licensed
 
 ## Example application and tests
 
+`examples/demo-app` consumes both packages independently, using synthetic
+organizations, projects, tasks and documents.
+Its project module sources are `examples/demo-app/frontend/src`, built into
+`examples/demo-app/public/app/demo.js` and `demo.css`
+([toolkit consumer](demos.md#toolkit-consumer)).
+
+The planned test layers are `tests/php`, `tests/frontend`, `tests/contracts`,
+`tests/e2e`, `tests/performance` and `tests/fixtures`; current runnable scripts
+and selectors are documented in [development](development.md). Consumer business
+tests belong in their own repositories.
+
 `tools` contains development utilities; ignored `tmp` holds runtime files.
 `docs/decisions` records accepted and proposed decisions with status.
 
 <a id="fogyasztó-alkalmazás"></a>
 
 ## Consumer application
+
+Consumer applications own feature definitions, domain models, use cases,
+repository implementations, business policies, jobs and integrations. Consumer
+domain UI and browser code belong to the consumer
+([ADR-0004](decisions/0004-project-domain-freedom.md)); a missing general
+renderer capability is requested from 61ade without blocking the consumer.
+The consumer keeps its module sources in its own repository (for example
+`frontend/src`), builds them into its public directory (for example
+`public/app/main.js`) and declares them in `modules`
+([toolkit packaging](toolkit.md#packaging),
+[recipe](toolkit.md#typescript-recipe)).
 
 Both 61ade packages share a repository because they implement one protocol.
 The consumer application never belongs in this repository.

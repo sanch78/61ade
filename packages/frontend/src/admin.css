@@ -211,7 +211,7 @@ body,
 .blade-logo[hidden] { display: none; }
 .blade-logo__image { display: block; width: auto; object-fit: contain; }
 /* The inlined product logo (docs/brand.md): its viewBox ratio, so the width follows the height like an image. */
-.blade-logo--brand .blade-logo__image { aspect-ratio: 1405 / 370; }
+.blade-logo--brand .blade-logo__image { aspect-ratio: 1370 / 395; }
 .blade-logo--themed .blade-logo__image--dark,
 [data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--light { display: none; }
 [data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--dark { display: block; }

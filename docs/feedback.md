@@ -367,3 +367,11 @@
 <a id="fb-0088"></a>
 
 ## FB-0088 — 61ade product logo and brand sources
+
+<a id="fb-0089"></a>
+
+## FB-0089 — Animated 61ade trademark screen
+
+<a id="fb-0090"></a>
+
+## FB-0090 — The logo's b is the 6 of the source drawing

@@ -1,13 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" class="blade-logo blade-logo--mark" viewBox="-19.5 12 334 334" role="img" aria-label="blade">
+<svg xmlns="http://www.w3.org/2000/svg" class="blade-logo blade-logo--mark" viewBox="-45 -34 371 371" role="img" aria-label="blade">
   <!-- Geometry and parts: docs/brand.md -->
   <defs>
-    <linearGradient id="blade-t1" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="346"><stop offset="0" stop-color="#1384C6"/><stop offset="1" stop-color="#0B2747"/></linearGradient>
-    <linearGradient id="blade-t2" gradientUnits="userSpaceOnUse" x1="150" y1="12" x2="295" y2="186"><stop offset="0" stop-color="#33CFC0"/><stop offset="1" stop-color="#0AA3A3"/></linearGradient>
-    <linearGradient id="blade-t3" gradientUnits="userSpaceOnUse" x1="150" y1="152" x2="295" y2="326"><stop offset="0" stop-color="#B4CBE0"/><stop offset="1" stop-color="#9DB6CF"/></linearGradient>
+    <linearGradient id="blade-t1" gradientUnits="userSpaceOnUse" x1="126" y1="-34" x2="0" y2="300"><stop offset="0" stop-color="#0880BC"/><stop offset="1" stop-color="#011F3C"/></linearGradient>
+    <radialGradient id="blade-rim" gradientUnits="userSpaceOnUse" cx="177" cy="265" r="300"><stop offset="0.62" stop-color="#fff" stop-opacity="0"/><stop offset="0.623" stop-color="#fff" stop-opacity="0.09"/><stop offset="0.74" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="blade-t2" gradientUnits="userSpaceOnUse" x1="144" y1="-13" x2="288" y2="180"><stop offset="0" stop-color="#2CCBBD"/><stop offset="1" stop-color="#049FA4"/></linearGradient>
+    <linearGradient id="blade-t3" gradientUnits="userSpaceOnUse" x1="144" y1="140" x2="288" y2="330"><stop offset="0" stop-color="#B1C9DD"/><stop offset="1" stop-color="#A2BBCF"/></linearGradient>
   </defs>
   <g class="blade-logo__mark">
-    <polygon class="blade-logo__tile blade-logo__tile--1" points="12,72 118,24 118,286 12,334" fill="url(#blade-t1)" stroke="url(#blade-t1)" stroke-width="24" stroke-linejoin="round"/>
-    <polygon class="blade-logo__tile blade-logo__tile--2" points="162,24 283,78 283,174 162,120" fill="url(#blade-t2)" stroke="url(#blade-t2)" stroke-width="24" stroke-linejoin="round"/>
-    <polygon class="blade-logo__tile blade-logo__tile--3" points="162,164 283,218 283,314 162,260" fill="url(#blade-t3)" stroke="url(#blade-t3)" stroke-width="24" stroke-linejoin="round"/>
+    <g class="blade-logo__tile blade-logo__tile--1"><path d="M-1.2,42.5L107.8,-22.9A12,12 0 0 1 126,-12.6L126,-12.6L126,267.9A12,12 0 0 1 119,278.8L119,278.8L10,329A12,12 0 0 1 -7,318.1L-7,318.1L-7,52.8A12,12 0 0 1 -1.2,42.5Z" fill="url(#blade-t1)"/><path d="M-1.2,42.5L107.8,-22.9A12,12 0 0 1 126,-12.6L126,-12.6L126,267.9A12,12 0 0 1 119,278.8L119,278.8L10,329A12,12 0 0 1 -7,318.1L-7,318.1L-7,52.8A12,12 0 0 1 -1.2,42.5Z" fill="url(#blade-rim)"/></g>
+    <path class="blade-logo__tile blade-logo__tile--2" d="M161,-5.2L281,50A12,12 0 0 1 288,60.9L288,60.9L288,163.5A12,12 0 0 1 271,174.4L271,174.4L151,119.2A12,12 0 0 1 144,108.3L144,108.3L144,5.7A12,12 0 0 1 161,-5.2Z" fill="url(#blade-t2)"/>
+    <path class="blade-logo__tile blade-logo__tile--3" d="M161,145.8L281,201A12,12 0 0 1 288,211.9L288,211.9L288,314.5A12,12 0 0 1 271,325.4L271,325.4L151,270.2A12,12 0 0 1 144,259.3L144,259.3L144,156.7A12,12 0 0 1 161,145.8Z" fill="url(#blade-t3)"/>
   </g>
 </svg>
