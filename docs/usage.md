@@ -223,9 +223,9 @@ for managed values rather than single-purpose toggle actions.
 
 ## Login modes: password, e-mail code, OAuth
 
-Both login fields start empty, including after an error or logout. The shell
-clears native browser autofill before manual input begins; saved credentials
-and deliberate password-manager selection remain available
+The application supplies no demo credentials to the login fields. Browser
+password managers can fill saved credentials; remove the site's saved entry
+there to stop that filling. After a failed submission the identifier is retained
 ([login flow](authentication.md#belépési-folyamat)).
 
 [Authentication](authentication.md) supports password, password plus per-user code,

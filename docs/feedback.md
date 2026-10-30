@@ -3248,7 +3248,8 @@ that exactly equals an option label lists every option. The managed
   profile.
 - **Status:** insufficient: the owner's follow-up showed both fields still
   filled. The fresh-profile checks did not cover saved browser credentials;
-  corrected by [FB-0095](feedback.md#fb-0095).
+  followed by FB-0095. Both changes were subsequently withdrawn by the owner
+  and rolled back in [FB-0097](feedback.md#fb-0097).
 
 <a id="fb-0095"></a>
 
@@ -3290,8 +3291,10 @@ that exactly equals an option label lists every option. The managed
   browser active. Typecheck, build, demo asset preparation and diff whitespace
   checks passed. Temporary verification sources, profile, screenshots and
   other task artifacts were removed.
-- **Status:** implemented and verified with saved Chromium credentials;
-  extensions and other browser engines were not tested.
+- **Status:** rejected and rolled back at the owner's request
+  ([FB-0097](feedback.md#fb-0097)). The controlled tests verified suppression,
+  but suppression was the wrong solution; the source must be identified and
+  addressed instead.
 
 <a id="fb-0096"></a>
 
@@ -3344,3 +3347,44 @@ that exactly equals an option label lists every option. The managed
   the twelve website JPEGs are retained deliverables.
 - **Status:** implemented and verified on the managed URL; owner acceptance
   and the separate canonical-domain connection are not claimed.
+
+<a id="fb-0097"></a>
+
+## FB-0097 — Roll back login suppression and identify the writer
+
+- **Date:** 2026-10-30.
+- **Owner correction:** reject the login autofill workaround, roll it back,
+  identify what writes the values and address that source. The owner uses
+  Chrome without a password-manager extension.
+- **Rollback:** restored the framework source, PHP bootstrap and existing
+  error-dialog focus expectation to `e81d811`, before both login changes
+  (`71a200d` and `82be28e`), and rebuilt the frontend. This removes the
+  autocomplete disabling, native-autofill animation/listeners, value clearing
+  and related focus/bootstrap changes. Website/demo informational content
+  and unrelated work are preserved.
+- **Source audit:** the PHP password is read only from POST and is never
+  supplied as an input value. A fresh GET has an empty bootstrap identifier.
+  The frontend uses that identifier, retaining a submitted one on failure.
+  Demo constants occur in account seeds and informational text, not in field
+  assignment. Source: `Shell/Application.php`, `AdminShell.mountLogin()` and
+  the demo's `branding/sign-in.js`.
+- **Controlled diagnosis:** the restored application has two empty inputs in
+  a fresh full Chromium profile. Saving the synthetic demo credential through
+  Chrome's own Password Manager makes both inputs match native `:autofill`.
+  The same profile fills an empty static form with JavaScript disabled and
+  empty HTML `value` attributes. This isolates Chrome's saved credentials as
+  a writer independent of application JavaScript; it does not inspect the
+  owner's personal browser profile.
+- **Source-level resolution:** inspect/remove the affected site's demo entry
+  in Chrome Password Manager, rather than add application code that fights
+  the browser. [Chrome's instructions](https://support.google.com/chrome/answer/95606?hl=en)
+  explain site-specific removal. No access to the owner's Chrome profile is
+  available, so its saved entry and removal are not claimed as verified.
+- **Verification:** managed-URL source diagnostic passed, as did the existing
+  login/menu, failed-login and error-dialog browser checks (three cases).
+  Typecheck, frontend build, demo asset preparation, PHP syntax and diff
+  whitespace checks passed. The restored source, matching frontend outputs,
+  PHP application and dialog spec have no diff against `e81d811`. Temporary
+  diagnostic source, browser profile, screenshot and test artifacts were removed.
+- **Status:** rollback implemented; source isolated in controlled Chromium;
+  owner-profile entry/removal requires local confirmation.
