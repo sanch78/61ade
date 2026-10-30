@@ -2546,6 +2546,8 @@ that exactly equals an option label lists every option. The managed
   grid Space toggle and passed in two isolated re-runs: flaky).
 - **Status:** implemented and committed.
 
+<a id="fb-0083"></a>
+
 ## FB-0083 — Stable full browser suite under the guard
 
 - **Date:** 2026-10-30.
@@ -2578,6 +2580,8 @@ that exactly equals an option label lists every option. The managed
   repeats; the trace was overwritten before it was read. Watch it in the
   next full runs; a repeat means a real race, not load.
 - **Status:** implemented and committed.
+
+<a id="fb-0084"></a>
 
 ## FB-0084 — Shared skill for adopting and building on 61ade
 
