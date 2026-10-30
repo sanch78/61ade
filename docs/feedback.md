@@ -2733,7 +2733,56 @@ that exactly equals an option label lists every option. The managed
   - *Validation:* run it against the P6 migrations of StoryBloX and allflow
     and against a fresh sample project; use the `skill-creator` evals and the
     `claude-prompting` guidance for the wording.
-- **Status:** open, not started.
+- **Decision (owner, 2026-10-30):** write the full content now inside 61ade.
+  A later session that owns the shared library moves it there.
+- **Split:** the new skill sits beside `61ade-consumer` and does not replace
+  it. `61ade-consumer` stays the operational checklist: links, deploy files,
+  autoloader, guarded browser tests, accounts, migration and the update smoke
+  check. The new project skill
+  [`61ade-application`](../.agents/skills/61ade-application/SKILL.md) covers
+  building the application. It gives the ownership test, declarations first
+  (views as public addresses, record views, activation maps, catalogue keys,
+  sign-in customization), modules on `app` (registration before the first
+  view, the 5 s limit, dotted names, no run-time import of `admin.js` or Suite,
+  `{signal}`), a table of extension points (`GenericViewKind` offering,
+  `Registry::kind()` before its views), the Layout and sandbox pitfalls,
+  TypeScript and cache keys, the guard's task budget, updates and boundaries.
+  It links every contract and copies none. The two skills point at each
+  other. Only one line of `61ade-consumer` changed, so its "What the project
+  owns" and "Add project browser code" sections still overlap with the new
+  skill. Shrinking them to a pointer is left for after the shared copy is
+  published.
+- **Written:** `.agents/skills/61ade-application/` (`SKILL.md`,
+  `agents/openai.yaml`, discovery link in `.claude/skills/`); one line in
+  `61ade-consumer` and in [usage](usage.md#toolkit-and-project-modules); the
+  handoff for the shared-library session,
+  [shared-skill-61ade-application](handoff/shared-skill-61ade-application.md).
+  The handoff says what to publish, how to replace the 61ade links with
+  heading references resolved against the checkout the consumer declares, what
+  to drop, and the open question of a library-specific shared skill.
+- **Validation (2026-10-30, by reading only):** the steps were walked through
+  for three cases. Each case either found its route or led to a fix in the
+  skill.
+  - (a) A fresh synthetic project with an inventory list, a status badge, a
+    camera scanner page, a chart and agent-written label previews. Fixes:
+    modules use `app.i18n.t` with the project catalogues, and a project view
+    kind without declared actions is offered to everyone.
+  - (b) The [StoryBloX note](handoff/storyblox.md): the injected stylesheet
+    and the sign-in logo now use the [FB-0087](#fb-0087) options; the asset
+    viewer uses a record view, kind, components and `SandboxFrame` with
+    `sandbox.html`; the activation map without `*`; audio through a
+    `DownloadStream` action; a dotted preference scope. Fix: declare a view
+    after its actions.
+  - (c) The [allflow note](handoff/allflow.md): `#feature=` mail links with
+    stable view ids, the same-id replacement, the cache-key fallback outside
+    the document root, and toolbar commands by name. Its spec loader is
+    covered by `61ade-consumer`.
+
+  The `skill-creator` evals were not run, because 61ade has no eval
+  infrastructure. Links, anchors and frontmatter were checked by script, and
+  `git diff --check` is clean.
+- **Status:** content written. Publication in the shared library is pending,
+  in a separate session that owns `/space/share/libs/agents`.
 
 <a id="fb-0085"></a>
 
