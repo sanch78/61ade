@@ -50,7 +50,7 @@ your own browser code are yours; they need no justification against 61ade.
    `public/assets/61ade` → `dist` ([layout](../../../docs/development.md#consumer-layout)).
 3. Add the two `shared_assets` entries to `.deploy.json` with the same targets
    as the links. The assets entry uses `files: ["admin.js", "admin.css"]`; add
-   `"sandbox.html", "sandbox.js"` only if you use `SandboxFrame`
+   `"sandbox.html"` only if you use `SandboxFrame`
    ([packaging](../../../docs/toolkit.md#packaging)). Never list `admin.d.ts`.
 4. Register the `Blade\` autoloader in the earliest common bootstrap, before
    any entrypoint uses a `Blade\` class. If you run the live WebSocket bridge,
