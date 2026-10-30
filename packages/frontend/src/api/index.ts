@@ -4,6 +4,7 @@
  * modules (development use only); it may only re-export `./types`.
  */
 export type * from "./types";
+export type * from "./sign-in";
 import type { ApiVersion } from "./types";
 
 /** Contract generation of this API; equals `Application.apiVersion`. */

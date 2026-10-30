@@ -112,16 +112,22 @@ try {
         rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid application module path accepted: '.json_encode($bad));
     }
     // Sign-in branding (docs/shell.md#sign-in-branding): application.logo and application.sign_in_stylesheets.
-    verify($app->logo === null && $app->signInStylesheets === [], 'No logo or sign-in stylesheets by default');
-    $write([...$settings, 'application' => [...$settings['application'], 'logo' => ['image' => 'branding/logo.svg', 'dark_image' => 'branding/logo-dark.svg', 'label' => 'Márka'], 'sign_in_stylesheets' => ['branding/sign-in.css']]]);
+    verify($app->logo === null && $app->signInStylesheets === [] && $app->signIn === null && $app->signInModules === [], 'No logo, sign-in stylesheets, content or modules by default');
+    $write([...$settings, 'application' => [...$settings['application'], 'logo' => ['image' => 'branding/logo.svg', 'dark_image' => 'branding/logo-dark.svg', 'label' => 'Márka', 'placement' => 'both'], 'sign_in_stylesheets' => ['branding/sign-in.css'],
+        'sign_in' => ['description' => 'Below the form.', 'notice' => 'Szintetikus fiókok.', 'links' => [['label' => 'Súgó', 'href' => '/help/'], ['label' => 'Impresszum', 'href' => 'https://example.test/imprint']]], 'sign_in_modules' => ['branding/sign-in.js']]]);
     $branded = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
-    verify($branded->logo == new Blade\Shell\Logo('branding/logo.svg', 'branding/logo-dark.svg', 'Márka') && $branded->signInStylesheets === ['branding/sign-in.css'] && $branded->stylesheets === [], 'JSON application.logo and sign_in_stylesheets');
+    verify($branded->logo == new Blade\Shell\Logo('branding/logo.svg', 'branding/logo-dark.svg', 'Márka', 'both') && $branded->signInStylesheets === ['branding/sign-in.css'] && $branded->stylesheets === [], 'JSON application.logo and sign_in_stylesheets');
+    verify($branded->signIn == new Blade\Shell\SignIn('Szintetikus fiókok.', [new Blade\Shell\SignInLink('Súgó', '/help/'), new Blade\Shell\SignInLink('Impresszum', 'https://example.test/imprint')]) && $branded->signInModules === ['branding/sign-in.js'] && $branded->modules === [], 'JSON application.sign_in and sign_in_modules');
     $write([...$settings, 'application' => [...$settings['application'], 'logo' => ['image' => 'branding/logo.png']]]);
     $plain = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->logo;
-    verify($plain->image === 'branding/logo.png' && $plain->darkImage === null && $plain->label === null, 'JSON logo without dark image and text');
+    verify($plain->image === 'branding/logo.png' && $plain->darkImage === null && $plain->label === null && $plain->placement === 'window', 'JSON logo without dark image and text, window placement by default');
     foreach ([['logo' => 'branding/logo.svg'], ['logo' => []], ['logo' => ['dark_image' => 'b/dark.svg']], ['logo' => ['image' => 'b/logo.svg', 'alt' => 'x']], ['logo' => ['image' => 'b/logo.gif']],
         ['logo' => ['image' => 'https://cdn.example.test/logo.svg']], ['logo' => ['image' => 'b/logo.svg', 'label' => '']], ['logo' => ['image' => 'b/logo.svg', 'dark_image' => 7]],
-        ['sign_in_stylesheets' => 'b/sign-in.css'], ['sign_in_stylesheets' => ['b/sign-in.js']], ['sign_in_stylesheets' => ['//cdn.example.test/x.css']], ['sign_in_stylesheets' => ['b/x.css', 'b/x.css']]] as $bad) {
+        ['sign_in_stylesheets' => 'b/sign-in.css'], ['sign_in_stylesheets' => ['b/sign-in.js']], ['sign_in_stylesheets' => ['//cdn.example.test/x.css']], ['sign_in_stylesheets' => ['b/x.css', 'b/x.css']],
+        ['logo' => ['image' => 'b/logo.svg', 'placement' => 'menu']], ['sign_in' => 'x'], ['sign_in' => ['notice' => 7]], ['sign_in' => ['notice' => ' ']], ['sign_in' => ['footer' => 'x']], ['sign_in' => ['links' => 'x']],
+        ['sign_in' => ['links' => ['a' => ['label' => 'L', 'href' => '/x']]]], ['sign_in' => ['links' => ['/x']]], ['sign_in' => ['links' => [['label' => 'L']]]], ['sign_in' => ['links' => [['label' => 'L', 'href' => '/x', 'target' => '_blank']]]],
+        ['sign_in' => ['links' => [['label' => 'L', 'href' => 'javascript:alert(1)']]]], ['sign_in' => ['links' => [['label' => 'L', 'href' => '//evil.test/']]]],
+        ['sign_in_modules' => 'b/sign-in.js'], ['sign_in_modules' => ['b/sign-in.css']], ['sign_in_modules' => ['https://cdn.example.test/x.js']]] as $bad) {
         $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
         rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid sign-in branding accepted: '.json_encode($bad));
     }
