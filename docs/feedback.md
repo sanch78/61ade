@@ -2535,3 +2535,80 @@ that exactly equals an option label lists every option. The managed
   `uploader`, `files`, `subview-demos` pass (`grid-edit` failed once on the
   grid Space toggle and passed in two isolated re-runs: flaky).
 - **Status:** implemented and committed.
+
+## FB-0083 — Stable full browser suite under the guard
+
+- **Date:** 2026-10-30.
+- **Observation:** full guarded runs failed 4–8 unrelated tests at random
+  (timeouts, "Target page, context or browser has been closed",
+  `spawnSync php8.4 EAGAIN`); every failure passed in isolation. A per-second
+  cgroup sample of the guard scope (P3, 2026-10-30) showed the 128-task limit
+  reached for about 100 s in total, with 6 refused forks, and 220 000
+  `memory.high` throttling events at the 700 MiB limit. The scope held two
+  resident `esbuild --service` processes (about 31 threads together) from
+  `buildSync` calls at the top level of five spec files. Playwright runs them
+  in the runner while it lists the tests, and in the worker.
+- **Decision (owner, after G3):** the suite must be stable; the guard limits
+  stay as they are and the specs use less.
+- **Implemented:**
+  - `tests/shell/fixture.cjs` `lazyBundle()`: a spec fixture bundle is built on
+    first use and shared by the specs of a worker. `layout-resizer`,
+    `list-presentation`, `subview`, `toolkit-list` and `toolkit-registries`
+    use it; the last two share one bundle.
+  - `tests/browser/config.cjs` sets `ESBUILD_WORKER_THREADS=0` and, unless
+    set, `GOMAXPROCS=2`: every `buildSync` runs esbuild as a short-lived child.
+  - The rule is in [development](development.md#browser-tests-on-the-shared-development-host).
+- **Verification (managed URL, 2026-10-30):** full `npm run test:browser`
+  with the same sampling: 153 passed (12.1 min, before 14.3 min); peak 115
+  tasks, no refused fork, about 19 000 `memory.high` events, none at
+  `memory.max`. Memory is now mostly Chromium's (anon up to about 580 MiB late
+  in the run), the next limit to watch.
+- **Status:** implemented and committed.
+
+## FB-0084 — Shared skill for adopting and building on 61ade
+
+- **Date:** 2026-10-30.
+- **Request (owner):** a very good shared skill for introducing 61ade into a
+  project and building the project on it. Recorded as a task, to be done in a
+  separate session, not during the toolkit plan run.
+- **Notes for the work:**
+  - *Placement:* shared skills live in `/space/share/libs/agents/skills/` and
+    projects link them into `.agents/skills/` (as `claude-prompting`,
+    `project-bootstrap`). The shared library is read-only from 61ade sessions,
+    so the skill is written or published in a session that owns that library.
+    61ade supplies the content and the contract it links to.
+  - *Relation to `61ade-consumer`:* the existing project skill
+    (`.agents/skills/61ade-consumer/SKILL.md`) is an 86-line checklist for
+    links, deploy `shared_assets`, autoloader, browser tests, test accounts and
+    the update smoke check. Decide whether the new skill replaces it or sits
+    beside it, for example one skill for adoption and update and one for
+    building on the toolkit. Toolkit plan P6 already extends `61ade-consumer`
+    with module setup, the `.deploy.json` file list (sandbox files,
+    `admin.d.ts`), typings and migration steps; do that P6 work first or merge
+    it in.
+  - *Timing:* write it after the toolkit contract settles (G5), so it does not
+    encode a moving API. Until then, only collect the pitfalls.
+  - *Source of truth:* the skill gives order, decisions and pitfalls and links
+    to [development](development.md#consumer-layout),
+    [toolkit](toolkit.md), [configuration](configuration.md) and
+    [usage](usage.md); it does not copy contracts.
+  - *Content to cover:*
+    - the ownership split of ADR-0004/0005 (61ade owns shared admin
+      infrastructure; the project owns its domain) and when to ask 61ade for a
+      framework extension instead of building it in the project;
+    - declarative first (resources, views, activation map, i18n catalogues
+      with the Hungarian source text as key), then project modules through the
+      public `Application` API, components, registries and the sandbox;
+    - routing (`#view=`, the legacy `#feature=` alias), the view-id
+      replacement rule, the module load timeout and error isolation;
+    - TypeScript against `admin.d.ts`, the project build, stylesheets;
+    - consumer browser tests on the host guard and its task budget
+      ([FB-0083](#fb-0083)), test accounts;
+    - updates: lib-sync pushes every 61ade `main` commit to the consumers'
+      development URLs, the breaking-change procedure and the smoke check;
+    - the boundaries: no 61ade edits from consumer sessions, no consumer edits
+      from 61ade sessions, one development environment per project contract.
+  - *Validation:* run it against the P6 migrations of StoryBloX and allflow
+    and against a fresh sample project; use the `skill-creator` evals and the
+    `claude-prompting` guidance for the wording.
+- **Status:** open, not started.

@@ -472,6 +472,19 @@ nonblocking `tmp/dev-check.lock`, at least 1280 MiB initial MemAvailable,
 threads. On resource refusal, wait or free memory; never bypass the guard or
 start concurrent retries.
 
+The task budget is tight: Chromium and the two Playwright processes need about
+90 tasks, so a spec must not add long-lived processes or threads. Spec fixture
+bundles come from `lazyBundle` in `tests/shell/fixture.cjs`, built on first
+use, never at the top level of a spec file. Playwright loads every spec file in
+the runner to list the tests, so a top-level build bundles the frontend once
+per file before any test runs. The configuration sets
+`ESBUILD_WORKER_THREADS=0` (and `GOMAXPROCS=2` unless set), so esbuild runs as
+a short-lived child per build instead of a resident service in the runner and
+the worker. The resident services held about 31 tasks for the whole run. With
+them the suite reached the 128-task limit (failed forks: page crashes,
+`spawnSync php8.4 EAGAIN`) and the 700 MiB throttle, so unrelated tests failed
+at random ([FB-0083](feedback.md#fb-0083)).
+
 This checkout keeps its own guard instead of the host's
 `/space/share/bin/guarded-playwright` ([FB-0067](feedback.md#fb-0067)). That
 runner refuses to start outside `/space/share/dev/<project>` or

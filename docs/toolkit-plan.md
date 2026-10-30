@@ -290,6 +290,7 @@ parallel with other lanes of the same phase.
 ### P6 — Consumer handoff
 
 - Migration guide, per-consumer handoff notes (Hungarian summary for the owner, English technical body), consumer skill update. No consumer edits from 61ade sessions.
+- Follow-up after G5 (separate session): a shared skill for adopting and building on 61ade, [FB-0084](feedback.md#fb-0084).
 
 ### P7 — Final verification and review
 

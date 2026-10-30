@@ -1,21 +1,20 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const {view}=require('./feature-demo.cjs');
-const root=path.resolve(__dirname,'../..');
+const {root,lazyBundle}=require('./fixture.cjs');
 // Public list components (toolkit P3 C-1) of a real `Application` (createApplication, no shell): ListView, RecordForm,
 // RecordDetails and CommandBar mounted in a project Layout, a framework window and destroyed again. Synthetic resource,
 // answered by a fetch stub; the CSS is the tracked dist/admin.css. The bundle carries the built-in kinds, so it needs an
 // outdir for their imported CSS (not written; only the script is used).
-const bundle=require('esbuild').buildSync({stdin:{contents:'export {createApplication} from "./packages/frontend/src/app/Application"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {Layout,setTheme} from "@dhtmlx/suite";',resolveDir:root},
- bundle:true,format:'iife',globalName:'fixture',write:false,outdir:path.join(root,'tmp','toolkit-list-fixture'),
- loader:{'.woff':'dataurl','.woff2':'dataurl','.png':'dataurl','.svg':'dataurl','.gif':'dataurl','.ttf':'dataurl','.eot':'dataurl'}}).outputFiles.find(file=>file.path.endsWith('.js')).text;
+const bundle=lazyBundle('export {createApplication} from "./packages/frontend/src/app/Application"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {Layout,setTheme} from "@dhtmlx/suite";',{outdir:path.join(root,'tmp','toolkit-fixture'),
+ loader:{'.woff':'dataurl','.woff2':'dataurl','.png':'dataurl','.svg':'dataurl','.gif':'dataurl','.ttf':'dataurl','.eot':'dataurl'}});
 
 // Assets: audio opens the record view `demo.player` (offered), video names `demo.missing` (not offered to this actor),
 // everything else the details (`*`). Record 4 is audio but does not offer `get`: its activation falls back to the details.
 async function mount(page){
  await page.route('**/toolkit-list-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="blade-application"></div>'}));
  await page.goto('/toolkit-list-fixture');await page.setContent('<div id="blade-application" style="height:760px"></div>');
- await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
+ await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle()});
  await page.evaluate(()=>{
   const row=(id,title,kind,actions=['get','update'])=>({id,title,kind,revision:'r'+id,_actions:actions});
   window.rows=[row('1','Hang 1','audio'),row('2','Videó 2','video'),row('3','Kép 3','image'),row('4','Hang 4','audio',['update'])];

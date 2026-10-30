@@ -14,6 +14,10 @@ if (!process.env.BLADE_DEMO_URL) throw new Error('Set BLADE_DEMO_URL (e.g. in .e
 const demoUrl = process.env.BLADE_DEMO_URL.replace(/\/+$/, '');
 const runtime = path.resolve(root, process.env.BLADE_TMP_DIR || 'tmp');
 process.env.BLADE_TMP_DIR = runtime;
+// Spec fixture bundles (tests/shell/fixture.cjs) run esbuild as a short-lived child per build, not as a resident
+// service with a worker thread in the runner and the worker: the guard allows 128 tasks including threads.
+process.env.ESBUILD_WORKER_THREADS = '0';
+process.env.GOMAXPROCS ??= '2';
 
 module.exports = defineConfig({
     testDir: path.join(root, 'tests/shell'),
