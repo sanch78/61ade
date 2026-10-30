@@ -27,6 +27,8 @@ export class CalendarFacade extends Facade<Record<string, never>, CalendarView> 
     if (!this.isDestroyed) active = this;
   }
 
+  editing(): boolean { return !this.isDestroyed && this.engine.editing(); }
+
   override destroy(): void {
     if (active === this) active = undefined;
     super.destroy();

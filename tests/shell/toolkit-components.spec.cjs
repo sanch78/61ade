@@ -77,6 +77,8 @@ test('Calendar and DiagramEditor mount in a project Layout cell, follow the them
   await expect(inFixture(page,'.blade-calendar .dhx_cal_data')).toBeVisible();
   await expect(inFixture(page,'.dhx_cal_event').filter({hasText:'Reggeli promó'}).first()).toBeVisible();
   await expect(inFixture(page,'.blade-diagram-surface')).toBeVisible();
+  // No event form is open: the calendar holds no input (its editing() is what the built-in kind reports).
+  expect(await page.evaluate(()=>window.__calendar.editing())).toBe(false);
   // One Scheduler per page (Standard edition): a second Calendar is refused while the first exists.
   expect(await page.evaluate(()=>{try{new window.__bladeApp.components.Calendar({view:'signage_schedule'});return 'created';}catch(error){return error.message;}})).toMatch(/only one Calendar/);
   expect(await page.evaluate(()=>{try{new window.__bladeApp.components.DiagramEditor({view:'missing_view'});return 'created';}catch(error){return error.message;}})).toMatch(/not offered/);
@@ -244,6 +246,13 @@ test('FileManager mounts in a project Layout cell, reports opened, follows the t
  await expect(viewer(page).getByRole('img',{name:'minta-fraktal.jpg'})).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>window.__opened)).toEqual([{id:image,mime_type:'image/jpeg'}]);
  await viewer(page).getByRole('button',{name:/close/i}).click();await expect(viewer(page)).toHaveCount(0);
+ // editing(): the viewer holds no input; an open rename form (F2) does until it closes.
+ expect(await page.evaluate(()=>window.__files.editing())).toBe(false);
+ await fileRow(left,'minta-fraktal.jpg').click();await page.keyboard.press('F2');
+ const rename=page.getByRole('dialog',{name:'Átnevezés'});await expect(rename).toBeVisible();
+ expect(await page.evaluate(()=>window.__files.editing())).toBe(true);
+ await rename.getByRole('button',{name:'Mégse',exact:true}).click();await expect(rename).toHaveCount(0);
+ expect(await page.evaluate(()=>window.__files.editing())).toBe(false);
  // Theme: the panels repaint with the Suite theme variables while mounted.
  const color=()=>left.locator('.dhx_grid-cell').first().evaluate(element=>getComputedStyle(element).color);
  const light=await color();

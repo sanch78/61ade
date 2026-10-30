@@ -67,6 +67,8 @@ export class FileManager {
   private active=0;
   private commands:ResponsiveToolbar;
   private windows=new Set<Window>();
+  /** Input a page reload would discard, per open window: a name form while open, the text editor while its text is unsaved. */
+  private inputs=new Map<Window,()=>boolean>();
   private listeners=new AbortController();
   private mobile?:boolean;
   private busy=false;
@@ -631,9 +633,11 @@ export class FileManager {
   private window(title:string,width:number,height:number,resizable=false,css=""):Window{
     const win=new Window({css:"blade-content-window "+css,title:escape(title),ariaLabel:title,width:Math.min(width,innerWidth-24),height:Math.min(height,innerHeight-24),modal:true,closable:true,resizable});
     this.windows.add(win);
-    win.events.on("afterHide",()=>{this.windows.delete(win);void awaitRedraw().then(()=>win.destructor());});
+    win.events.on("afterHide",()=>{this.windows.delete(win);this.inputs.delete(win);void awaitRedraw().then(()=>win.destructor());});
     return win;
   }
+  /** An open rename or new-folder form, or a text editor with unsaved text (`ViewInstance.editing`). */
+  editing():boolean{return !this.disposed&&[...this.inputs.values()].some(unsaved=>unsaved());}
 
   /** One decision applies to every conflicting name; Cancel leaves the data unchanged. */
   private async resolving(run:(decision:string)=>Promise<Summary>):Promise<Summary|null>{
@@ -725,6 +729,7 @@ export class FileManager {
     if(ids.length!==1||!field)return;
     const id=ids[0],name=this.nameOf(panel,id),mount=panel.mount;
     const win=this.window(t("Átnevezés"),420,260);
+    this.inputs.set(win,()=>true);
     const form=new Form(document.createElement("div"),{padding:20,rows:[
       {type:"input",name:"name",label:field.label,labelPosition:"top",required:true,maxlength:field.max,value:name},
       formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save"}),
@@ -796,6 +801,7 @@ export class FileManager {
     const panel=this.current,directory=panel.directory,field=this.field("create_directory","name");
     if(!directory||!field)return;
     const win=this.window(t("Új mappa"),420,260);
+    this.inputs.set(win,()=>true);
     const form=new Form(document.createElement("div"),{padding:20,rows:[
       {type:"input",name:"name",label:field.label,labelPosition:"top",required:true,maxlength:field.max},
       formActions({name:"submit",text:t("Létrehozás"),icon:"dxi dxi-plus"}),
@@ -889,6 +895,7 @@ export class FileManager {
     // The DOM value is current while typing; Ctrl+S must not save a value Suite has not synced yet.
     const area=()=>win.getContainer().querySelector<HTMLTextAreaElement>("textarea");
     const value=()=>area()?.value??saved;
+    this.inputs.set(win,()=>writable&&value()!==saved);
     const sync=()=>{
       const text=area();if(!text)return;
       const before=text.value.slice(0,text.selectionStart);

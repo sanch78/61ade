@@ -95,7 +95,8 @@ export class CalendarView {
   private mounter=new MutationObserver(()=>this.mount());
   private resizer=new ResizeObserver(()=>{if(this.host.isConnected)this.scheduler.setCurrentView();});
   private theme=new MutationObserver(()=>this.skin());
-  private editing?:Window;
+  /** The open event form (one at a time). */
+  private eventForm?:Window;
   private restoreVendor=()=>{};
 
   constructor(container:HTMLElement,private view:CalendarViewDefinition){
@@ -199,7 +200,7 @@ export class CalendarView {
    */
   private edit(id:string|number):void{
     const s=this.scheduler as any;
-    if(this.editing||!s.callEvent("onBeforeLightbox",[id])){
+    if(this.eventForm||!s.callEvent("onBeforeLightbox",[id])){
       if(s._new_event){s._new_event=null;delete s.getEvent(id)?.$new;}
       return;
     }
@@ -248,10 +249,10 @@ export class CalendarView {
     ]} as any);
     const win=new Window({css:"blade-content-window blade-calendar-editor",title:escape(isNew?t("Új esemény"):event.text),ariaLabel:isNew?t("Új esemény"):event.text,
       width:Math.min(560,innerWidth-24),height:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:true});
-    this.editing=win;this.windows.add(win);
+    this.eventForm=win;this.windows.add(win);
     let done=false;
     win.events.on("afterHide",()=>{
-      this.windows.delete(win);if(this.editing===win)this.editing=undefined;
+      this.windows.delete(win);if(this.eventForm===win)this.eventForm=undefined;
       win.destructor();
       if(!done){done=true;s.cancel_lightbox();}
     });
@@ -438,6 +439,9 @@ export class CalendarView {
     win.events.on("afterHide",()=>{this.windows.delete(win);win.destructor();});
     win.show();
   }
+
+  /** An open event form: input a page reload would discard (`ViewInstance.editing`). */
+  editing():boolean{return !this.disposed&&!!this.eventForm;}
 
   private call(resource:string,action:string,id:string|null,values:Record<string,unknown>):Promise<any>{return server.call(resource,action,{id,values});}
 

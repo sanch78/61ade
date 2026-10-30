@@ -23,6 +23,8 @@ export class FileManagerFacade extends Facade<FileManagerEvents, FileManager> im
       actions: view.actions.map(action => ({ ...action, fields: action.fields ?? [] })), files: view.options,
     } as unknown as FileViewDefinition, { opened: file => emit("opened", file) }));
   }
+
+  editing(): boolean { return !this.isDestroyed && this.engine.editing(); }
 }
 
 /** The `FileManager` class bound to one application (resolves view ids through it). */
