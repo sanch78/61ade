@@ -3180,3 +3180,42 @@ that exactly equals an option label lists every option. The managed
   removed. `npm run typecheck`, `npm run build`, `npm run demo:assets`, PHP
   `contracts.php` and `configuration.php` passed; `git diff --check` passed.
 - **Status:** implemented and verified on the managed development URL.
+
+<a id="fb-0093"></a>
+
+## FB-0093 — Private runtime directories that project owners can clean
+
+- **Date:** 2026-10-30.
+- **Request:** runtime directories created by PHP-FPM with `0700` mask inherited
+  default POSIX ACL grants, preventing a project owner from listing/deleting
+  session files during temporary-account cleanup. The fix belongs to the
+  framework because every consumer with this runtime layout is affected.
+- **Implemented:** `Application::startSession()` creates missing runtime,
+  `sessions/` and `login/` directories recursively with `0770`, preserving
+  inherited ACL grants and excluding other users. `PasswordAttempts` sets
+  each opened counter file to `0600` before reading/writing it; inability to
+  restrict the file stops authentication. PHP's `files` session handler still
+  creates `0600` session files. No configuration or consumer workaround is
+  required for new directories.
+- **Limits:** existing directory modes/ACLs are unchanged; their owner or host
+  operator must restore intended access once. Without a default ACL, directory
+  access follows the process umask and owning group. Directory writers must be
+  trusted maintainers. No consumer runtime or host configuration was changed.
+  Guide: [runtime permissions](authentication.md#runtime-permissions),
+  [usage](usage.md#belépési-módok-jelszó-e-mailes-kétfaktor-oauth).
+- **Verification:** temporary synthetic fixture on the managed URL ran as
+  PHP-FPM `www-data` (UID 33), recursively created runtime directories under a
+  parent default ACL, and kept the project owner's `rwx` grant effective.
+  The owner listed/deleted runtime-owned session and counter files but reads
+  were denied; both file modes were `0600`. After removing the fixture's runtime
+  tree, recreation passed under umask `0077` (first run: `0000`). With no
+  default ACL, CLI directory creation passed with umasks `0077` and `0000`;
+  counter files remained `0600` under `0000`, including an existing permissive
+  counter. Failed-login accumulation, success reset and the five-failure limit
+  passed. An openable counter owned by another identity could not be chmodded;
+  authentication stopped before processing it. PHP `authentication`, `oauth`
+  and `mail`, syntax checks and `git diff --check` passed. Guarded browser
+  checks of password login, code confirmation, remember rotation/sign-out and
+  login without remember passed (3 tests, managed URL). Temporary verification
+  sources and artifacts were removed.
+- **Status:** implemented and verified.
