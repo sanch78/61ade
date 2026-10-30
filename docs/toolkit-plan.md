@@ -3,7 +3,7 @@
 Status: accepted direction ([ADR-0005](decisions/0005-toolkit.md),
 [FB-0081](feedback.md#fb-0081)); P0 done, P1 contract accepted at gate G1 (2026-10-29) in the
 [toolkit reference](toolkit.md); P2 (G2), P3 (G3) and P4 feature demo done, gate G4 passed (2026-10-30);
-P5 documentation, P6 consumer handoff and P7 verification and reviews done (2026-10-30); gate G5 open. Written 2026-10-29 for execution
+P5 documentation, P6 consumer handoff and P7 verification and reviews done; gate G5 accepted and the close-out done (2026-10-30, [FB-0081](feedback.md#fb-0081)). The plan is complete. Written 2026-10-29 for execution
 by a coordinating agent with sub-agents in a new thread. Breaking changes are
 accepted; consumers adapt themselves.
 

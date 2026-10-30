@@ -2607,7 +2607,35 @@ that exactly equals an option label lists every option. The managed
   sort both ways 258 ms, scroll step 178 ms (max 224), `list` response
   32 ms, at most 600 loaded and 13 rendered rows, 17 MB heap; the dashboard
   with the same list 1245/300/213 ms. The large list stays bounded.
-- **Status:** in progress (gate G5: owner acceptance).
+- **Gate G5 (2026-10-30):** accepted by the owner, with the request to close
+  every open item before consumer work instead of recording conventions or
+  limits.
+- **Close-out (2026-10-30):** the review conventions became changes:
+  `app.kinds`, one type-name scheme, type-only `apiVersion`, camelCase browser
+  metadata (`ColumnMetadata`, files/calendar options, `UploadPolicy`, field
+  `file`/`validation`; files `options.upload` is `{policy}`), `{signal}`
+  options everywhere, `CommandItem` union, `FileManager`/`Calendar`
+  `editing()`, Escape closes `Műveletek`, the sandbox bootstrap inline by CSP
+  hash (`dist/sandbox.js` gone), one event naming rule. Every legacy or
+  compatibility procedure for consumers and old clients is removed:
+  `#feature=`, command `placement: "both"`, single-list `__watch`, the `list`
+  offset API, the tenancy `active` column (migration 0003; fails closed until
+  it has run), `MessageDialog` compatibility wrappers, silent duplicate view
+  ids (`Registry::updateView()`, `View::list()`), the file `list`
+  `truncated` flag, the internal `src/Workspace.ts` re-export. Sign-in
+  customization ([FB-0087](#fb-0087)), the product logo
+  ([FB-0088](#fb-0088)) and the `61ade-application` skill content
+  ([FB-0084](#fb-0084)) are part of it. Migration rows M16–M32, change log
+  in [toolkit changes](toolkit.md#changes).
+- **Verification (close-out, managed URL):** all 22 PHP checks, typecheck,
+  `node tools/build.mjs --check`, the 7 node checks; full `npm run
+  test:browser`: 184 passed, 1 failed (`demo.spec.cjs:70`: the
+  `twofactor@example.test` code-send limit after repeated sign-in runs,
+  "Too many attempts"), which passed when re-run after the limit window.
+  Demo data: `setup-workspace.php` applied migration 0003 to the web
+  instance; the hand-edited `Reggeli promó` series was restored to its seed.
+- **Status:** closed. Consumers migrate in their own sessions
+  ([migration](toolkit.md#migration)).
 
 <a id="fb-0082"></a>
 
@@ -2689,7 +2717,11 @@ that exactly equals an option label lists every option. The managed
   cached on its last paint. When the body had not yet followed a resize, the
   preview answered one resize late and its height oscillated without
   settling. The measure now adds the body's lag behind its container.
-- **Status:** implemented and committed.
+  Verified: 30 of 30 isolated repeats, `subview`, `subview-demos` and
+  `list-presentation` twice (44 passed) and the close-out full run.
+- **Status:** closed. The standing rule (a failure that repeats gets a fix;
+  one-off failures are re-run in isolation) is in
+  [development](development.md#browser-tests-on-the-shared-development-host).
 
 <a id="fb-0084"></a>
 
@@ -3002,4 +3034,4 @@ that exactly equals an option label lists every option. The managed
   menu estimate, less than the 116 px logo; the fit rule is right, so the spec
   checks the logo at 1600 px and, at 1280 px, that the menu stays whole and the
   logo yields.
-- **Status:** implemented; the fix awaits the `sign-in-branding` re-run.
+- **Status:** implemented and verified (`sign-in-branding.spec.cjs` 6 passed; full close-out run).

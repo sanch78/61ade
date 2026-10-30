@@ -529,6 +529,10 @@ them the suite reached the 128-task limit (failed forks: page crashes,
 `spawnSync php8.4 EAGAIN`) and the 700 MiB throttle, so unrelated tests failed
 at random ([FB-0083](feedback.md#fb-0083)).
 
+A failure in a full run is re-run in isolation; one that passes there is
+recorded in the feedback entry of the run. A failure that repeats (in a later
+full run or under `--repeat-each`) is a defect and gets a fix, never a retry.
+
 This checkout keeps its own guard instead of the host's
 `/space/share/bin/guarded-playwright` ([FB-0067](feedback.md#fb-0067)). That
 runner refuses to start outside `/space/share/dev/<project>` or
