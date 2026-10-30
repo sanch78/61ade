@@ -160,6 +160,8 @@ try{
  await assert.rejects(small.load('',{a:new Blob(['123456'])}),{code:'size'});await assert.rejects(small.load('',{a:5}),TypeError);
  assert.equal(frames.length,before);assert.equal(current.removed,false);
  await assert.rejects(sandbox.load('x'.repeat(SANDBOX_LIMITS.code+1)),{code:'size'});assert.equal(current.removed,false);
+ // A refused oversized load leaves a pending earlier load alone: it still becomes ready.
+ const kept=sandbox.load('');await assert.rejects(sandbox.load('x'.repeat(SANDBOX_LIMITS.code+1)),{code:'size'});frames.at(-1).fire();await kept;
  small.destroy();
 
  // Timeout: no ready in time removes the frame.
