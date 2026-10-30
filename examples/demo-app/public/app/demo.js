@@ -46,7 +46,7 @@ function viewer(app, host, view) {
       { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-left", disabled: true, hidden: !timed },
       { id: "forward", label: t("El\u0151re {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-right", disabled: true, hidden: !timed },
       { id: "loop", label: loop ? t("Ism\xE9tl\xE9s: be") : t("Ism\xE9tl\xE9s: ki"), icon: "dxi dxi-redo", disabled: true, hidden: !timed },
-      { id: "gap", label: "", type: "spacer" },
+      { type: "spacer" },
       { id: "position", label: status, disabled: true, hidden: status === "" }
     ] });
     bar.mount(layout.getCell("commands"));
@@ -108,7 +108,7 @@ function viewer(app, host, view) {
   } };
 }
 var assets = (app) => {
-  app.views.register(KIND, { create: (host, view) => viewer(app, host, view) });
+  app.kinds.register(KIND, { create: (host, view) => viewer(app, host, view) });
 };
 var assets_default = assets;
 
@@ -274,7 +274,7 @@ function preview(app, host, view) {
       stage.status = "error";
       stage.message = message2;
       caption(stage);
-    }, signal);
+    }, { signal });
     try {
       const code = await sceneCode(item.slot.asset.id);
       if (signal.aborted) return;
@@ -519,7 +519,7 @@ ${escape(request)}</pre><p class="demo-playlist-api__label">${escape(t("V\xE1las
       { id: "rewind", label: t("Elej\xE9re"), icon: "dxi dxi-chevron-double-left", disabled: true },
       { id: "previous", label: t("El\u0151z\u0151 elem"), icon: "dxi dxi-chevron-left", disabled: true },
       { id: "next", label: t("K\xF6vetkez\u0151 elem"), icon: "dxi dxi-chevron-right", disabled: true },
-      { id: "gap", label: "", type: "spacer" },
+      { type: "spacer" },
       { id: "position", label: positionText(), disabled: true }
     ] });
     bar.mount(layout.getCell("commands"));
@@ -613,7 +613,7 @@ ${escape(request)}</pre><p class="demo-playlist-api__label">${escape(t("V\xE1las
   return { destroy: close };
 }
 var playlist = (app) => {
-  app.views.register(KIND2, { create: (host, view) => preview(app, host, view) });
+  app.kinds.register(KIND2, { create: (host, view) => preview(app, host, view) });
 };
 var playlist_default = playlist;
 
@@ -732,15 +732,12 @@ function dashboard(app, host, view) {
       const distribution = t("\xC9rt\xE9keloszl\xE1s: {bins}", { bins: ranges.map((range, index) => t("{range}: {count} sor", { range, count: summary.bins[index] })).join("; ") }) + (markBin < 0 ? "" : ". " + t("Kiv\xE1lasztott sor: {range}", { range: ranges[markBin] }));
       layout.getCell("summary").attachHTML(`<div class="demo-readings-summary${compact ? " demo-readings-summary--narrow" : ""}" data-demo-readings="summary"><dl class="demo-readings-stats">${stat("count", t("Bet\xF6lt\xF6tt sorok"), count)}${stat("min", t("Minimum"), value(summary.min))}${stat("max", t("Maximum"), value(summary.max))}${stat("average", t("\xC1tlag"), value(summary.average))}${stat("selected", t("Kiv\xE1lasztott"), choice, true)}</dl><p class="demo-readings-hidden" data-demo-distribution data-demo-selected-bin="${markBin}">${escape2(distribution)}</p></div>`);
     };
-    const stopTheme = app.theme.onChange(() => {
-      if (!signal.aborted) {
-        chart.setConfig(chartConfig(colors()));
-        render();
-      }
-    });
+    app.theme.onChange(() => {
+      chart.setConfig(chartConfig(colors()));
+      render();
+    }, { signal });
     let current;
     signal.addEventListener("abort", () => {
-      stopTheme();
       current?.destroy();
       layout.getCell("chart").detach();
       chart.destructor();
@@ -781,7 +778,7 @@ function dashboard(app, host, view) {
 }
 var readings = (app) => {
   app.presentations.register(BAR, readingBar(app));
-  app.views.register(KIND3, { create: (host, view) => dashboard(app, host, view) });
+  app.kinds.register(KIND3, { create: (host, view) => dashboard(app, host, view) });
 };
 var readings_default = readings;
 
