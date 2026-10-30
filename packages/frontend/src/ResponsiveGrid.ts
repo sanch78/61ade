@@ -1,6 +1,6 @@
 import { t } from "./I18n";
 import { DataView, Grid, Layout, awaitRedraw } from "@dhtmlx/suite";
-import type { ViewDefinition } from "./Workspace";
+import type { ViewDefinition } from "./components/list/types";
 import { gridHeader } from "./GridHeaders";
 import { RESERVED, alias, gridEditor, unalias } from "./GridEditing";
 import type { Row } from "./Realtime";

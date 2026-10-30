@@ -63,9 +63,8 @@ The implementation lives in `packages/frontend/src/components/list`
 (`Workspace.ts` list core; `toolbar.ts`, `filters.ts`, `search.ts`,
 `actions.ts` forms and commands, `details.ts`, `activation.ts`, `fields.ts`
 form items, `ListView.ts`, `RecordForm.ts`, `RecordDetails.ts`,
-`CommandBar.ts`). `src/Workspace.ts` only re-exports the internals for the
-existing fixtures; its constructor is not a contract
-([migration M8](toolkit.md#migration)).
+`CommandBar.ts`). Fixtures import the internals from there; the internal
+`Workspace` constructor is not a contract ([migration M8](toolkit.md#migration)).
 
 <a id="list-extensions"></a>
 

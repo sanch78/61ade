@@ -246,7 +246,7 @@ test('an editable reserved-key column edits its alias and keeps the row height',
 test('details and cards render every media field and name an icon without options',async({page})=>{
  const path=require('node:path');const {buildSync}=require('esbuild');
  const root=path.resolve(__dirname,'../..');
- const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+ const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/components/list/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/details-fixture',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><div id="blade-application"></div>'}));
  await page.setViewportSize({width:1280,height:800});await page.goto('/details-fixture');
@@ -293,7 +293,7 @@ test('details and cards render every media field and name an icon without option
 test('synthetic file field, derived media columns and usage-aware delete',async({page})=>{
  const path=require('node:path');const {buildSync}=require('esbuild');
  const root=path.resolve(__dirname,'../..');
- const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+ const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/components/list/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/file-field-fixture',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><div id="blade-application"></div>'}));
  await page.setViewportSize({width:1280,height:800});await page.goto('/file-field-fixture');

@@ -8,7 +8,7 @@ import { widgetIcons } from "../../WidgetIcons";
 import { acknowledge, requestChoice, showDialog } from "../../MessageDialog";
 import { escape } from "../../RecordPresentation";
 import { FormValidation, type FieldDefinition } from "../../FormValidation";
-import { formActions, input } from "../../Workspace";
+import { formActions, input } from "../list/fields";
 import { fitWindow } from "../../WindowSizing";
 import { server } from "../../api/Server";
 

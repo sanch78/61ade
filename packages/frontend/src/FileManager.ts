@@ -13,7 +13,7 @@ import { server } from "./api/Server";
 import { uploads, type UploadEvents, type UploadFileInfo, type UploadPolicy } from "./Uploader";
 import { MediaPlayer } from "./components/media/MediaPlayer";
 import type { Row } from "./Realtime";
-import type { ActionConfirmation, ViewDefinition } from "./Workspace";
+import type { ActionConfirmation, ViewDefinition } from "./components/list/types";
 
 export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{policy:UploadPolicy};text:{extension:string;maxBytes:number};preview:string[];thumbnails?:string[];maxDepth:number;deletePolicy?:string};
 export type FileViewDefinition={kind:"files";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean;get?:boolean;confirm?:ActionConfirmation;usages?:boolean;fields:FieldDefinition[]}[];files:FileManagerConfig};
