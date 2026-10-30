@@ -75,6 +75,9 @@ test('a JSON-declared sub-view: a media item expands to the default contents tha
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await signIn(page);
  await openMenu(page,'Médiatár','Digitális kijelző');
+ // The library grows (audio, scene assets); the header filter keeps the video in the rendered rows.
+ await page.getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true}).fill('Promóciós videó');
+ await expect(page.locator('.dhx_grid-row').filter({hasText:'Promóciós videó'})).toHaveCount(1);
  await expand(page,'Promóciós videó');
  await expect(preview(page).locator('.dhx_grid-row')).toHaveCount(1);
  await expect(preview(page).locator('.dhx_grid-row').first()).toContainText('Hétfő');
