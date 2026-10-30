@@ -3246,4 +3246,49 @@ that exactly equals an option label lists every option. The managed
   reload, failed login and logout. Temporary verification source and artifacts
   were removed. Saved-credential autofill was not tested with a personal browser
   profile.
-- **Status:** implemented and verified within the stated browser limitation.
+- **Status:** insufficient: the owner's follow-up showed both fields still
+  filled. The fresh-profile checks did not cover saved browser credentials;
+  corrected by [FB-0095](feedback.md#fb-0095).
+
+<a id="fb-0095"></a>
+
+## FB-0095 — Verify and clear real saved-credential autofill
+
+- **Date:** 2026-10-30.
+- **Observation:** after FB-0094, the owner still saw both fields filled. Its
+  fresh-profile browser checks established empty defaults, not the requested
+  behavior with saved credentials. Chromium ignores the autocomplete hint on
+  login forms ([browser policy](https://chromium.googlesource.com/chromium/src/+/main/docs/security/faq.md)).
+- **Implemented:** a sign-in-only native `:autofill` CSS animation notifies the
+  login adapter, which clears both DOM inputs and DHTMLX values until manual
+  interaction begins. Native autofill emits trusted keyless events; these do
+  not count as keyboard input. Real pointer, keyboard and paste input stops
+  automatic clearing, preserving intentional entry/selection. Listeners use
+  the shell's existing abort lifecycle. Clearing also resets native-fill
+  validation state so the untouched empty form shows no password error.
+  No polling, timers, read-only fields, renamed inputs or fake password fields
+  are introduced.
+- **Scope/limits:** native browser autofill, including delayed painting before
+  values are exposed to JavaScript. Extensions injecting values without
+  native autofill state are not covered. No browser credentials, consumer
+  configuration, authentication flow or runtime data is changed.
+  Guide: [login flow](authentication.md#belépési-folyamat),
+  [usage](usage.md#belépési-módok-jelszó-e-mailes-kétfaktor-oauth).
+- **Verification:** an isolated full Chromium profile with automation mode
+  removed and a synthetic credential saved through its own Password Manager
+  reproduced both filled fields with commit `71a200d`'s assets. With the fix,
+  real native autofill was detected and both fields remained empty on the
+  managed URL in Skyblue/light/dark, after reload, at 390 px with reduced
+  motion, and after logout. Keyboard entry/Enter and clipboard paste/button
+  submission both signed in successfully. The final dark-theme screenshot was
+  visually checked for empty fields and no validation highlight.
+  This uses real native autofill, not DOM injection. The focused existing
+  login/menu, invalid-login and
+  error-dialog browser checks also passed (three cases). The saved-profile
+  case passed separately: launching it after the default browser in the same
+  worker hit the guard's thread limit, so the isolated run keeps only one
+  browser active. Typecheck, build, demo asset preparation and diff whitespace
+  checks passed. Temporary verification sources, profile, screenshots and
+  other task artifacts were removed.
+- **Status:** implemented and verified with saved Chromium credentials;
+  extensions and other browser engines were not tested.

@@ -106,10 +106,17 @@ then ApplicationDefinition.authentication. Custom providers implement Delivery;
 
 The identifier and password fields start empty on every sign-in page, including
 after a failed attempt and logout. The shell does not restore a submitted
-identifier and sets both inputs to `autocomplete="off"`. Browsers and password
-manager extensions may override that hint; their saved credentials remain under
-the user's control. The identifier receives focus, including after dismissing a
-login error. No consumer setting is needed ([FB-0094](feedback.md#fb-0094)).
+identifier and sets both inputs to `autocomplete="off"`. Because browsers can
+ignore that hint, the login adapter also clears native `:autofill` when it
+appears before the user starts editing. A scoped CSS animation reports that
+state even when Chromium paints a saved value before exposing it to JavaScript.
+Autofill's keyless events do not count as editing; actual pointer, keyboard and
+paste input does, so manual entry and deliberate password-manager selection
+remain available. Saved browser credentials are unchanged. Extensions that
+inject values without native autofill state are outside this detection.
+The identifier receives focus, including after dismissing a login error. No
+consumer setting is needed ([FB-0094](feedback.md#fb-0094),
+[FB-0095](feedback.md#fb-0095)).
 
 After a correct password there is no authenticated session/menu/API/UI data/
 WebSocket ticket until a six-digit code succeeds. The code is single-use,

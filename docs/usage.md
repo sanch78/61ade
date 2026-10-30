@@ -223,8 +223,9 @@ for managed values rather than single-purpose toggle actions.
 
 ## Login modes: password, e-mail code, OAuth
 
-Both login fields start empty, including after an error or logout; browser
-autocomplete is disabled by a hint that password managers may override
+Both login fields start empty, including after an error or logout. The shell
+clears native browser autofill before manual input begins; saved credentials
+and deliberate password-manager selection remain available
 ([login flow](authentication.md#belépési-folyamat)).
 
 [Authentication](authentication.md) supports password, password plus per-user code,
