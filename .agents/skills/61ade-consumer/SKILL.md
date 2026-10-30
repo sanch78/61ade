@@ -13,32 +13,14 @@ for project browser code. This checklist only gives the order and the
 pitfalls; when it and the contract disagree, follow the contract. The 61ade
 checkout is read-only for a consumer session. Report a framework gap to the
 61ade owner instead of patching it.
+To design and build features on the toolkit itself, use [61ade-application](../61ade-application/SKILL.md).
 
 ## What the project owns
 
-Framework-first covers 61ade's shared infrastructure, not your domain
-([ADR-0004](../../../docs/decisions/0004-project-domain-freedom.md),
-[ADR-0005](../../../docs/decisions/0005-toolkit.md)). Use 61ade for login,
-users/ACL/API keys/logs, menu/shell/layout/windows, generic
-forms/grids/trees/cards, dialogs, uploads, the file manager, the media player,
-actions, audit and live data, and never build a parallel version of one of
-these. Your domain data and storage (including your own files and assets),
-business logic and domain UI (players, editors, canvas/SVG/WebGL views) with
-your own browser code are yours; they need no justification against 61ade.
-
-- Ask "would another project need this in the same form?" If not, build it.
-  If so and 61ade lacks it, send the request and do not wait: build an interim
-  local version, note the request in your documentation, migrate later.
-- Declarative first (resources, views, activation, i18n catalogues); add
-  browser code as project modules on the public `app` API, its
-  [components](../../../docs/toolkit.md#components) and
-  [registries](../../../docs/toolkit.md#registries) where you need more.
-- Your own files can be served by your own GET action handler returning
-  `DownloadStream` (any MIME type, HTTP Range, ACL, audit); the file manager is
-  not required for them.
-- Agent-written or untrusted code runs only in
-  [`SandboxFrame`](../../../docs/toolkit.md#sandbox-protocol), never in the
-  admin origin.
+Ownership, the "would another project need this in the same form?" test and
+the order declarative → project modules → sandbox are in the
+[61ade-application](../61ade-application/SKILL.md) skill. This checklist only
+sets the project up and keeps it updated.
 
 ## Adopt
 
@@ -68,27 +50,10 @@ your own browser code are yours; they need no justification against 61ade.
 
 ## Add project browser code (optional)
 
-1. Declare `modules` (browser ES modules) and `stylesheets` in the
-   `ApplicationDefinition` (JSON `application.modules`/`stylesheets`); follow
-   the [path rules](../../../docs/toolkit.md#module-loading): same-origin files
-   below your public directory, relative to the page or root-absolute,
-   `.js`/`.mjs` or `.css`. Both load on signed-in pages only.
-2. Leave the `?v=` off: the shell keys every linked file by its modification
-   time and size ([cache keys](../../../docs/toolkit.md#cache-keys)), so a
-   rebuild needs no version bump. An own `?…` key is kept as written.
-3. Write the module's default export `(app) => …`; register kinds,
-   presentations, field types and commands with dotted names, and declare them
-   on the server ([registries](../../../docs/toolkit.md#registries),
-   [views](../../../docs/toolkit.md#views),
-   [record views](../../../docs/toolkit.md#record-views),
-   [activation map](../../../docs/toolkit.md#activation-map)).
-4. With TypeScript, follow the
-   [recipe](../../../docs/toolkit.md#typescript-recipe): map `@61ade/admin` to
-   `admin.d.ts` through your development assets link (it is never deployed),
-   import 61ade and Suite **types only**, use Suite widgets through `app.dhx`,
-   build one bundle with esbuild into your public directory.
-5. Use the feature demo as the worked example
-   ([toolkit consumer](../../../docs/demos.md#toolkit-consumer)).
+Follow the [61ade-application](../61ade-application/SKILL.md) skill. The
+setup parts are here: deploy `sandbox.html` only for `SandboxFrame` (step 3
+above); `admin.d.ts` comes through the development assets link and is never
+deployed.
 
 ## Update or smoke-check a 61ade commit
 
