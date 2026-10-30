@@ -328,14 +328,14 @@ return new ApplicationDefinition(
   refused. Same-origin images keep the CSP `img-src 'self' data: blob:`.
 - **Signed in:** always the last cell of the top menu row, after the tenant,
   language and theme selectors, behind a 1 px line in the theme border colour
-  (24 px high, at most 160 px wide). It is not a menu item: when the menu
-  collapses into `Menü` the logo stays, and its width counts in the menu's
-  width estimate, so the menu collapses (and the
-  [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) drop) before
-  anything overlaps. When the row has no room for `Menü`, the selectors and the
-  logo (for example the feature demo at 390 px, with a language and a theme
-  selector), the row leaves the logo out; widening brings it back. The width
-  is measured again when an image loads and after a theme switch.
+  (24 px high, at most 160 px wide). It is not a menu item and the menu never
+  yields to it: the menu, `Menü` and its
+  [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) fit exactly as
+  without a logo, and the logo shows only when its rendered width fits in the
+  room they and the selectors leave by the same width estimate (for example
+  not beside the feature demo's full menu at 1600 px or its four signage
+  siblings at 1366 px, nor at 390 px). Widening brings it back. The width is
+  measured again when an image loads and after a theme switch.
 - **Signed out, `placement`:** `window` (default) centres it above the form in
   the window (48 px high, at most the window width); `top` puts it at the end
   of the top row as in the shell (no menu there, so it only yields to the
@@ -371,7 +371,9 @@ return new ApplicationDefinition(
 windows: the notice as plain text (line breaks kept), then the links as a
 labelled list (`nav` named `Hivatkozások`) of ordinary `<a>` elements in the
 Suite primary colour, reachable with Tab and opened with Enter, with a
-visible focus ring in every theme. The window grows to hold the box.
+visible focus ring in every theme. The box is its own row below the form's
+actions (Suite Standard has no Form `container`); the window grows to hold it,
+so the box ends at the window's bottom edge with its own 16 px padding.
 
 - `notice` and each link `label` are catalogue keys translated on the server
   (`Translator::text`) and escaped in the browser; no HTML. A blank notice or
