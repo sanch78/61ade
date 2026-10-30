@@ -101,11 +101,9 @@ export class AdminShell {
   private signedOut=false;
   /**
    * `#view=<id>[&record=<id>]`; `filter.<field>=<value>` presets that view's filters once and leaves the address.
-   * The legacy `#feature=<resource>` is the view whose id is that resource; the address is rewritten in place.
    */
   private route = () => {
     const route = parseRoute(location.hash);
-    if (route.legacy) { const url = new URL(location.href); url.hash = route.canonical; history.replaceState(null, "", url); }
     const view = route.view === undefined ? undefined : this.offered(route.view);
     const record = view?.record ? route.record : undefined;
     if (view && Object.keys(route.filters).length) { const url = new URL(location.href); url.hash = routeHash({ view: view.id, record }); history.replaceState(null, "", url); }
