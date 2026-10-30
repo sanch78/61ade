@@ -11,6 +11,8 @@ import { attachContent, openWindow, themeApplied } from "./api/services";
 import type { AppWindow, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
 import { createApplication, loadModules, type Kernel } from "./app/Application";
 import { parseRoute, routeHash } from "./app/routes";
+import { loadSignInModules, signInApplication, signInThemeApplied } from "./SignIn";
+import type { SignInPage } from "./api/sign-in";
 
 /** One open view: the workspace page or a document window, with the signal its host aborts on close. */
 type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow };
@@ -49,6 +51,12 @@ export type ShellDefinition = {
   tenant?: { current: string | null; choices: { id: string; name: string }[] };
   /** Only after sign-in: application skins (DHTMLX custom themes) of the identity; they replace the factory themes. */
   skins?: { id: string; label: string; base: "light" | "dark" | "skyblue" }[];
+  /** Optional application logo (`ApplicationDefinition::$logo`): keyed image URLs, its accessible text and placement. */
+  logo?: { image: string; dark?: string; label: string; placement?: "window" | "top" | "both" };
+  /** Signed out only: the windows' notice and links (`ApplicationDefinition::$signIn`), server-translated plain text. */
+  signIn?: { notice?: string; links?: { label: string; href: string }[] };
+  /** Signed out only: the sign-in modules (`ApplicationDefinition::$signInModules`), page-relative keyed paths. */
+  signInModules?: string[];
 };
 const escape = (text: string) =>
   text.replace(
@@ -114,7 +122,7 @@ export class AdminShell {
     this.renderMenu();
     if (!this.loginWindow) return;
     const width = this.definition.confirmation || this.definition.passwordChange ? 460 : 420;
-    const height = (this.definition.confirmation || this.definition.passwordChange ? 420 : this.definition.rememberAvailable ? 340 : 290) + (this.definition.confirmation || this.definition.passwordChange || !this.definition.oauth ? 0 : 48);
+    const height = (this.definition.confirmation || this.definition.passwordChange ? 420 : this.definition.rememberAvailable ? 340 : 290) + (this.definition.confirmation || this.definition.passwordChange || !this.definition.oauth ? 0 : 48) + (this.windowLogo ? 64 : 0) + (this.definition.signIn ? 64 : 0);
     this.loginWindow.setSize(
       Math.min(width, innerWidth - 24),
       Math.min(height, innerHeight - 24),
@@ -125,9 +133,10 @@ export class AdminShell {
 
   /** Top menu, or on narrow space one `Menü` button followed, on desktop, by the open feature's sibling items. */
   private renderMenu():void{
-    if (!this.menu) return;
+    if (!this.menu) { this.logoWidth(this.root.clientWidth); return; }
     const width=this.root.clientWidth;
-    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0));
+    const logo=this.logoWidth(width);
+    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0)+logo);
     const compact = width < Math.max(768,required(this.menuItems));
     const current="view:"+(parseRoute(location.hash).view??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -151,16 +160,54 @@ export class AdminShell {
       ...(context.length?[{id:"blade-context-separator",type:"separator"},...prefixed(context)]:[])]:entries);
   }
 
+  /**
+   * The top-row logo shows while the row keeps room for `Menü` and the selectors; its rendered width (the image at its
+   * CSS height) then counts in the menu estimate.
+   */
+  private logoWidth(width:number):number{
+    const box=this.root.querySelector<HTMLElement>(".blade-navigation-row .blade-logo");
+    if(!box)return 0;
+    box.hidden=false;
+    const reserved=Math.ceil(box.getBoundingClientRect().width);
+    box.hidden=width-(this.tenantCell?180:0)-(this.definition.i18n?.selector?130:0)-(this.definition.skins?.length===1?0:145)-(this.menu?128:0)<reserved;
+    return box.hidden?0:reserved;
+  }
+
+  /**
+   * The logo's markup: one accessible image (or, for the top-row copy beside a window logo, one hidden from assistive
+   * technology); with a dark image, CSS shows the one of the applied base theme.
+   */
+  private logoHtml(hidden=false):string{
+    const logo=this.definition.logo;
+    if(!logo)return "";
+    const image=(src:string,kind:string)=>`<img class="blade-logo__image blade-logo__image--${kind}" src="${escape(src)}" alt="">`;
+    return `<span class="blade-logo${logo.dark?" blade-logo--themed":""}" ${hidden?'aria-hidden="true"':`role="img" aria-label="${escape(logo.label)}"`}>${image(logo.image,"light")}${logo.dark?image(logo.dark,"dark"):""}</span>`;
+  }
+  /** Signed out, `placement` decides; the signed-in shell always shows the logo in the top row. */
+  private get windowLogo():boolean{ return !this.definition.authenticated&&!!this.definition.logo&&(this.definition.logo.placement??"window")!=="top"; }
+  private get topLogo():boolean{ return !!this.definition.logo&&(this.definition.authenticated||(this.definition.logo.placement??"window")!=="window"); }
+
+  /** The windows' notice and links below the form: plain text, native links in a labelled list. */
+  private signInInfo():string{
+    const info=this.definition.signIn;
+    if(!info?.notice&&!info?.links?.length)return "";
+    const notice=info.notice?`<p class="blade-sign-in__notice">${escape(info.notice)}</p>`:"";
+    const links=info.links?.length?`<nav class="blade-sign-in__links" aria-label="${escape(t("Hivatkozások"))}"><ul>${info.links.map(link=>`<li><a href="${escape(link.href)}">${escape(link.label)}</a></li>`).join("")}</ul></nav>`:"";
+    return `<div class="blade-sign-in-info" data-blade-after-form>${notice}${links}</div>`;
+  }
+
   private async fitLogin():Promise<void>{
     await awaitRedraw();
     const win=this.loginWindow;
     if(!win||this.listeners.signal.aborted)return;
     const container=win.getContainer();
-    const buttons=Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(button=>button.getBoundingClientRect().height>0);
+    const buttons=Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(button=>button.getBoundingClientRect().height>0&&!button.closest("[data-blade-after-form]"));
     if(!buttons.length)return;
     const outer=(container.closest<HTMLElement>('[role="dialog"]')??container).getBoundingClientRect();
     const bottom=Math.max(...buttons.map(button=>button.getBoundingClientRect().bottom));
-    const height=Math.min(innerHeight-24,Math.ceil(bottom-outer.top+24));
+    // Content below the form (notice, links, footer slot) keeps its own height; the form cell takes the rest.
+    const after=Array.from(container.querySelectorAll<HTMLElement>("[data-blade-after-form]")).reduce((sum,element)=>sum+element.getBoundingClientRect().height,0);
+    const height=Math.min(innerHeight-24,Math.ceil(bottom-outer.top+(after?8:24)+after));
     win.setSize(outer.width,height);
     win.setPosition(Math.max(12,(innerWidth-outer.width)/2),Math.max(12,(innerHeight-height)/2));
   }
@@ -181,6 +228,7 @@ export class AdminShell {
       if(skins.length)document.documentElement.dataset.bladeSkin=id;
       setTheme(choice.base??id,document.documentElement);
       themeApplied(choice.base??id,skins.length?id:null);
+      if(!definition.authenticated)signInThemeApplied(choice.base??id);
     };
     configureServer(definition.csrf || "", definition.authenticated ? () => this.sessionEnded() : undefined);
     let theme=choices[0].id;
@@ -191,7 +239,8 @@ export class AdminShell {
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantCell?[{id:"tenant",width:180}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),...(choices.length>1?[{id:"theme",width:145}]:[])] },
+        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantCell?[{id:"tenant",width:180}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),...(choices.length>1?[{id:"theme",width:145}]:[]),
+          ...(this.topLogo?[{id:"logo",width:"content",css:"blade-logo-cell",html:this.logoHtml(this.windowLogo)}]:[])] },
         { id: "workspace", css: "blade-workspace" },
         { id: "status", height: 32, css: "blade-session-bar" },
       ],
@@ -221,6 +270,8 @@ export class AdminShell {
       ],
     });
     this.layout.getCell("status").attach(this.status);
+    // The top-row logo's width is known once its image loads (load does not bubble: capture).
+    if(this.topLogo)root.addEventListener("load",event=>{if((event.target as Element).closest?.(".blade-navigation-row .blade-logo"))this.renderMenu();},{capture:true,signal:this.listeners.signal});
     if (definition.authenticated) {
       uploads.configure({ userId: definition.userId });
       this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); });
@@ -235,6 +286,8 @@ export class AdminShell {
         apply(next);
         themeControl.data.update("theme-choice",{value:label(next)});
         try{localStorage.setItem(storage,next);}catch{}
+        // The other logo image may have another width.
+        this.renderMenu();
         void this.fitLogin();
       });
       this.layout.getCell("theme").attach(themeControl);
@@ -487,7 +540,39 @@ export class AdminShell {
       const value=String(form.getItem("blade_language")?.getValue()??"");
       if(value&&Object.hasOwn(this.definition.i18n?.languages??{},value)&&value!==this.definition.i18n?.locale)this.post("language",{locale:value});
     });
-    this.loginWindow!.attach(form);
+    const logo=this.windowLogo?this.logoHtml():"",info=this.signInInfo(),modules=this.definition.signInModules??[];
+    if(!logo&&!info&&!modules.length){this.loginWindow!.attach(form);return;}
+    // A native in-window Layout: logo, header slot, the form, notice and links, footer slot.
+    const layout=new Layout(undefined,{type:"none",rows:[
+      ...(logo?[{id:"logo",height:"content",css:"blade-auth-logo",html:logo}]:[]),
+      ...(modules.length?[{id:"header",height:"content"}]:[]),
+      {id:"form"},
+      ...(info?[{id:"info",height:"content",html:info}]:[]),
+      ...(modules.length?[{id:"footer",height:"content"}]:[]),
+    ]});
+    layout.getCell("form").attach(form);
+    this.loginWindow!.attach(layout);
+    if(modules.length)this.startSignInModules(layout,modules);
+  }
+
+  /** Empty header and footer slots for the sign-in modules; the window refits whenever their content changes size. */
+  private startSignInModules(layout:Layout,modules:string[]):void{
+    const slot=(name:string)=>{
+      const element=document.createElement("div");
+      element.className="blade-sign-in-slot blade-sign-in-slot--"+name;
+      element.dataset.bladeSlot=name;
+      if(name==="footer")element.dataset.bladeAfterForm="";
+      attachContent(layout.getCell(name),element,this.listeners.signal);
+      return element;
+    };
+    const header=slot("header"),footer=slot("footer");
+    const observer=new ResizeObserver(()=>{void this.fitLogin();});
+    observer.observe(header);observer.observe(footer);
+    this.listeners.signal.addEventListener("abort",()=>observer.disconnect(),{once:true});
+    const kinds:SignInPage[]=["sign-in","confirmation","password-change"];
+    const kind=document.documentElement.dataset.bladePage as SignInPage;
+    const page=kinds.includes(kind)?kind:this.definition.passwordChange?"password-change":this.definition.confirmation?"confirmation":"sign-in";
+    void loadSignInModules(signInApplication(page,this.definition.i18n?.locale??document.documentElement.lang,{header,footer}),modules);
   }
   private mountLogin(): void {
     const definition = this.definition;

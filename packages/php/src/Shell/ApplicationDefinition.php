@@ -6,8 +6,11 @@ use Blade\Navigation\Menu;
 
 final readonly class ApplicationDefinition
 {
-    /** Same-origin browser path relative to the page or root-absolute, `[A-Za-z0-9_-]` segments, optional `?…` cache key. */
-    private const PATH = '~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\.(%s)(?:\?[A-Za-z0-9_.=-]+)?$~D';
+    /**
+     * Same-origin browser path relative to the page or root-absolute, `[A-Za-z0-9_-]` segments, optional `?…` cache key;
+     * `%s` is the extension alternation.
+     */
+    public const PATH = '~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\.(%s)(?:\?[A-Za-z0-9_.=-]+)?$~D';
 
     public function __construct(
         public string $title,
@@ -40,6 +43,23 @@ final readonly class ApplicationDefinition
          * below it (docs/toolkit.md#cache-keys). Null: the request's `DOCUMENT_ROOT`.
          */
         public ?string $documentRoot = null,
+        /** Optional application logo of the top menu row and the sign-in windows (docs/shell.md#sign-in-branding). */
+        public ?Logo $logo = null,
+        /**
+         * Project stylesheets (`.css`) of the sign-in, e-mail confirmation and password-change pages, linked there after
+         * the framework CSS; the signed-in shell uses `stylesheets` instead. No project JavaScript runs before sign-in.
+         * @var list<string>
+         */
+        public array $signInStylesheets = [],
+        /** Optional notice and links of the sign-in windows (docs/shell.md#sign-in-content). */
+        public ?SignIn $signIn = null,
+        /**
+         * Project ES modules (`.js`/`.mjs`) of the signed-out pages only, paths and keys like `modules`; each default
+         * export gets the restricted `SignInApplication` (docs/shell.md#sign-in-modules). Trusted project code: the page
+         * holds the password field.
+         * @var list<string>
+         */
+        public array $signInModules = [],
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -48,6 +68,8 @@ final readonly class ApplicationDefinition
             || ($documentRoot !== null && ($documentRoot === '' || str_contains($documentRoot, "\0")))) {
             throw new \InvalidArgumentException('Invalid 61ade application definition.');
         }
+        if (!self::paths($signInStylesheets, 'css')) throw new \InvalidArgumentException('Invalid 61ade sign-in stylesheets.');
+        if (!self::paths($signInModules, 'm?js')) throw new \InvalidArgumentException('Invalid 61ade sign-in modules.');
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();
     }

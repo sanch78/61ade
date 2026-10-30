@@ -30,7 +30,18 @@ final class JsonApplication
         $session = $config->section('session');
         $live = $config->section('live');
         $workspace = $config->section('workspace');
-        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string'], '$.application');
+        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'array', 'sign_in_stylesheets' => 'array', 'sign_in' => 'array', 'sign_in_modules' => 'array'], '$.application');
+        $logo = $application['logo'] ?? null;
+        if ($logo !== null) Shape::check($logo, ['image' => 'string'], ['dark_image' => 'string', 'label' => 'string', 'placement' => 'string'], '$.application.logo');
+        $signIn = $application['sign_in'] ?? null;
+        if ($signIn !== null) {
+            Shape::check($signIn, [], ['notice' => 'string', 'links' => 'array'], '$.application.sign_in');
+            if (!array_is_list($signIn['links'] ?? [])) throw new \InvalidArgumentException('Invalid configuration type: $.application.sign_in.links');
+            foreach ($signIn['links'] ?? [] as $index => $link) {
+                if (!is_array($link)) throw new \InvalidArgumentException('Invalid configuration type: $.application.sign_in.links.'.$index);
+                Shape::check($link, ['label' => 'string', 'href' => 'string'], [], '$.application.sign_in.links.'.$index);
+            }
+        }
         Shape::check($session, ['name' => 'string', 'cookie_path' => 'string'], [], '$.session');
         Shape::check($live, [
             'transport' => 'string',
@@ -92,6 +103,11 @@ final class JsonApplication
             modules: $application['modules'] ?? [],
             stylesheets: $application['stylesheets'] ?? [],
             // Optional directory served at `/` (relative to the JSON directory) for the assets' cache keys.
+            // Sign-in branding (docs/shell.md#sign-in-branding): browser paths like `stylesheets`.
+            logo: $logo === null ? null : new \Blade\Shell\Logo($logo['image'], $logo['dark_image'] ?? null, $logo['label'] ?? null, $logo['placement'] ?? 'window'),
+            signInStylesheets: $application['sign_in_stylesheets'] ?? [],
+            signIn: $signIn === null ? null : new \Blade\Shell\SignIn($signIn['notice'] ?? null, array_map(static fn(array $link) => new \Blade\Shell\SignInLink($link['label'], $link['href']), $signIn['links'] ?? [])),
+            signInModules: $application['sign_in_modules'] ?? [],
             documentRoot: match ($application['document_root'] ?? null) { null => null, '' => '', default => $config->path($application['document_root']) },
         );
     }

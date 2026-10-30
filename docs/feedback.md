@@ -359,3 +359,7 @@
 <a id="fb-0086"></a>
 
 ## FB-0086 — An ended session leads to the sign-in page
+
+<a id="fb-0087"></a>
+
+## FB-0087 — Customizable sign-in: application logo and sign-in stylesheets
