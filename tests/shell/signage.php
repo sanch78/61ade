@@ -44,7 +44,7 @@ try {
     foreach ([$logo, $photo, $fractal, $video] as $id) { $row = $storage->entry($id); check($row['mount_id'] === 'signage' && (int) $row['parent_id'] === (int) $signage['id'], 'Seeded asset file moved into Signage/ keeping its id'); }
     check($storage->entry($other)['mount_id'] === 'b' && $storage->child((int) $pictures['id'], 'logo.png') === null, 'Other files untouched; moved files leave their folder');
     $assets = $db->query('SELECT title, file_id FROM signage_assets ORDER BY id')->fetchAll(PDO::FETCH_KEY_PAIR);
-    check(count($assets) === 4 && $assets['Arculati háttérkép'] === (string) $fractal && $assets['Logó állókép'] === (string) $logo && $assets['Fotó plakát'] === (string) $photo && $assets['Promóciós videó'] === (string) $video, 'Assets keep their file references (idempotent setup)');
+    check(count($assets) === 7 && $assets['Arculati háttérkép'] === (string) $fractal && $assets['Logó állókép'] === (string) $logo && $assets['Fotó plakát'] === (string) $photo && $assets['Promóciós videó'] === (string) $video, 'Assets keep their file references (idempotent setup)');
     // A legacy reference outside the Signage mount is reported by setup (one line each) and left in place.
     $db->prepare("INSERT INTO signage_assets(title,file_id,duration) VALUES ('Régi elem',?,'5')")->execute([(string) $other]);
     $legacy = (string) $db->lastInsertId();
@@ -53,6 +53,19 @@ try {
     check($lines === ['Signage: asset #'.$legacy.' (Régi elem) references file #'.$other.' in mount "b", outside the Signage mount; left in place.'] && $storage->entry($other)['mount_id'] === 'b', 'Setup reports legacy references outside the Signage mount without moving them');
     $db->exec('DELETE FROM signage_assets WHERE id = '.(int) $legacy);
     check(blade_demo_signage_outside($db) === [], 'No other reference outside the mount');
+    $ids = array_map('strval', $db->query('SELECT title, id FROM signage_assets')->fetchAll(PDO::FETCH_KEY_PAIR));
+    // Audio fixtures (D1): stored once in the Signage root with their probed length, one asset each; a rerun adds nothing,
+    // and an existing database without them gains exactly the missing ones.
+    $audio = $db->query("SELECT a.title, f.name, f.mime_type, f.duration_ms, f.mount_id, f.parent_id FROM signage_assets a JOIN blade_files f ON f.id = a.file_id WHERE f.name LIKE 'minta-hang.%' ORDER BY a.id")->fetchAll(PDO::FETCH_ASSOC);
+    check(array_column($audio, 'mime_type', 'name') === ['minta-hang.wav' => 'audio/wav', 'minta-hang.mp3' => 'audio/mpeg', 'minta-hang.m4a' => 'audio/mp4']
+        && array_column($audio, 'title') === ['Szinuszhang 440 Hz (WAV)', 'Szinuszhang 660 Hz (MP3)', 'Szinuszhang 880 Hz (M4A)']
+        && !array_filter($audio, static fn($row) => $row['mount_id'] !== 'signage' || (int) $row['parent_id'] !== (int) $signage['id'])
+        && abs((int) $audio[0]['duration_ms'] - 3000) <= 150 && abs((int) $audio[1]['duration_ms'] - 4000) <= 150 && abs((int) $audio[2]['duration_ms'] - 5000) <= 150, 'Audio fixtures: Signage root, stored type and length, one asset each');
+    $db->exec("DELETE FROM signage_assets WHERE title = 'Szinuszhang 660 Hz (MP3)'");
+    blade_demo_signage_audio($db, $storage);
+    blade_demo_signage_audio($db, $storage);
+    check((int) $db->query("SELECT COUNT(*) FROM blade_files WHERE name LIKE 'minta-hang.%' AND archived_at IS NULL")->fetchColumn() === 3 && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 7
+        && (int) $db->query("SELECT COUNT(*) FROM signage_assets WHERE title = 'Szinuszhang 660 Hz (MP3)'")->fetchColumn() === 1, 'The audio step restores only a missing asset and is idempotent');
     $ids = array_map('strval', $db->query('SELECT title, id FROM signage_assets')->fetchAll(PDO::FETCH_KEY_PAIR));
 
     $workspace = WorkspaceConfiguration::build($db, [dirname(__DIR__, 2).'/examples/demo-app/modules/signage.json'], static fn() => blade_demo_signage_bindings());
@@ -71,7 +84,7 @@ try {
     $call = static fn(string $resource, string $action, ?string $id, array $values = [], ?Context $c = null) => $workspace->executor->execute($c ?? $ctx(), $resource, $action, $id, $values);
 
     // Metadata: the file field is a media column with the resolved folder and the upload policy, never a path.
-    $views = array_column($workspace->views(new Identity('1', 'Demo')), null, 'resource');
+    $views = array_column($workspace->views(new Identity('1', 'Demo')), null, 'id');
     $view = $views['signage_assets'];
     $columns = array_column($view['options']['columns'], null, 'id');
     check(array_keys($columns) === ['file_id', 'title', 'media_type', 'media_resolution', 'media_length', 'duration', 'usage'], 'Asset columns: thumbnail, title, derived type/resolution/length, play time, usage');
@@ -79,16 +92,22 @@ try {
     check(!in_array('media_type', $view['options']['sortable'], true) && in_array('usage', $view['options']['sortable'], true) && !in_array('kind', array_column($view['options']['filters'], 'name'), true), 'Derived columns not sortable; usage sortable; no kind field');
     check(($filters = array_column($view['options']['filters'], null, 'name')) && $filters['file_id']['type'] === 'select' && array_keys($filters['file_id']['options']) === ['image', 'video'], 'Type filter from the file field');
     $actions = array_column($view['actions'], null, 'name');
-    check(isset($actions['upload_asset']) && $actions['upload_asset']['upload']['extensions'] === ['png', 'jpg', 'mp4', 'webm'] && $actions['upload_asset']['upload']['folders'] === false && $actions['upload_asset']['fields'] === [], 'Upload as asset offered with its upload policy');
+    check(isset($actions['upload_asset']) && $actions['upload_asset']['upload']['extensions'] === ['png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'] && $actions['upload_asset']['upload']['folders'] === false && $actions['upload_asset']['fields'] === [], 'Upload as asset offered with its upload policy');
     check(($actions['delete']['usages'] ?? false) === true && array_column($actions['delete']['fields'], 'name') === ['revision'], 'Asset delete announces usages; preview is no form field');
     $fileField = array_column($actions['create']['fields'], null, 'name')['file_id'];
     check(!in_array('usage', array_column($actions['create']['fields'], 'name'), true), 'Computed usage is never writable');
-    check($fileField['type'] === 'file' && $fileField['file']['resource'] === 'files' && $fileField['file']['mount'] === 'signage' && $fileField['file']['accept'] === ['image', 'video']
-        && $fileField['file']['folder_id'] === (string) $signage['id'] && $fileField['file']['can_upload'] === true && $fileField['file']['can_choose'] === true && $fileField['file']['policy']['extensions'] === ['png', 'jpg', 'mp4', 'webm'] && !isset($fileField['file']['folder']), 'File field metadata');
+    check($fileField['type'] === 'file' && $fileField['file']['resource'] === 'files' && $fileField['file']['mount'] === 'signage' && $fileField['file']['accept'] === ['image', 'video', 'audio']
+        && $fileField['file']['folder_id'] === (string) $signage['id'] && $fileField['file']['can_upload'] === true && $fileField['file']['can_choose'] === true && $fileField['file']['policy']['extensions'] === ['png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'] && !isset($fileField['file']['folder']), 'File field metadata');
     check(!str_contains(json_encode($view, JSON_THROW_ON_ERROR), $tmp), 'No storage path in metadata');
+    // Activation by the file's media class: audio and video open the record view demo.asset-viewer, the rest the details.
+    check(json_encode($view['options']['activate'], JSON_THROW_ON_ERROR) === '{"field":"file_id","map":{"audio":"view:demo.asset-viewer","video":"view:demo.asset-viewer","*":"details"}}', 'Activation map on the file field');
+    $viewer = array_column($workspace->views(new Identity('1', 'Demo')), null, 'id')['demo.asset-viewer'] ?? null;
+    check($viewer !== null && $viewer['kind'] === 'demo.asset-viewer' && $viewer['record'] === 'signage_assets' && $viewer['resource'] === 'signage_assets' && ($viewer['open'] ?? 'page') === 'page'
+        && array_column($viewer['actions'], 'name') === ['get'] && $viewer['options'] === ['loop' => false, 'details' => 'signage_assets'], 'Record view demo.asset-viewer offered with its options');
+    check(isset(array_column($workspace->views(new Identity('9', 'Reader')), null, 'id')['demo.asset-viewer']) && !isset(array_column($workspace->views(new Identity('77', 'Nobody')), null, 'id')['demo.asset-viewer']), 'The record view follows signage_assets.get');
     $fileActions = array_column($views['files']['actions'], null, 'name');
     check(($fileActions['delete']['usages'] ?? false) === true && array_column($fileActions['delete']['fields'], 'name') === ['sources'] && in_array('signage', array_column($views['files']['options']['mounts'], 'id'), true), 'File manager delete announces usages; Signage mount shown');
-    $readerViews = array_column($workspace->views(new Identity($reader, 'Reader')), null, 'resource');
+    $readerViews = array_column($workspace->views(new Identity($reader, 'Reader')), null, 'id');
     check(array_column($readerViews['signage_assets']['actions'], 'name') === ['get'] && in_array('signage', array_column($readerViews['files']['options']['mounts'], 'id'), true), 'Reader views assets and the Signage mount read-only');
     $readerField = $workspace->fieldMetadata($ctx($reader), $workspace->registry->fields('signage_assets')['file_id']);
     check($readerField['file']['can_upload'] === false && $readerField['file']['can_choose'] === true && $readerField['file']['folder_id'] === (string) $signage['id'], 'Reader may not upload into the field folder, but may browse it');
@@ -103,7 +122,7 @@ try {
     check($items['Promóciós videó']['_media']['file_id']['mime_type'] === 'video/webm' && $items['Logó állókép']['_media']['file_id']['width'] === 1 && $items['Promóciós videó']['_media']['file_id']['name'] === 'minta-video.webm', 'Media descriptors in rows');
     check($call('signage_assets', 'list', null, ['filters' => ['file_id' => 'video']])['matched'] === 1, 'Type filter over the file');
     $readerList = $call('signage_assets', 'list', null, ['limit' => 10], $ctx($reader));
-    check($readerList['total'] === 4 && is_array($readerList['items'][0]['_media']['file_id'] ?? null), 'Reader lists assets with media');
+    check($readerList['total'] === 7 && is_array($readerList['items'][0]['_media']['file_id'] ?? null), 'Reader lists assets with media');
 
     // Upload as asset: each file lands in Signage/ through the file manager's storage API and becomes an asset.
     $part = static function (string $name, string $content) use ($tmp): Upload { $path = $tmp.'/up-'.bin2hex(random_bytes(6)); file_put_contents($path, $content); return new Upload('files', $name, $path, strlen($content), UPLOAD_ERR_OK); };
@@ -115,7 +134,12 @@ try {
     check($storage->entry((int) $created[1]['file_id'])['name'] === 'logo (2).png' && $created[1]['title'] === 'logo (2)', 'A taken name gets a free one');
     fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('notes.txt', 'text')])), 400, 'Non-media upload rejected by the policy');
     $mismatch = fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('fake.png', 'not an image')])), 400, 'Content mismatch rejected');
-    check(($mismatch->details['code'] ?? null) === 'content_mismatch' && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 6, 'Failed upload creates no asset');
+    check(($mismatch->details['code'] ?? null) === 'content_mismatch' && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 9, 'Failed upload creates no asset');
+    // Audio uploads as an asset too; the stored file keeps the detected audio type and its length reaches the row.
+    $tone = $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('Hangpróba.wav', (string) file_get_contents(dirname(__DIR__, 2).'/examples/demo-app/resources/files/minta-hang.wav'))]));
+    $toneRow = $call('signage_assets', 'get', $tone['assets'][0]);
+    check($toneRow['title'] === 'Hangpróba' && $toneRow['_media']['file_id']['mime_type'] === 'audio/wav' && abs((int) $toneRow['_media']['file_id']['duration_ms'] - 3000) <= 150 && $toneRow['_media']['file_id']['thumbnail'] === 'none', 'Audio upload as asset: type and length');
+    $call('signage_assets', 'delete', $tone['assets'][0], ['revision' => $toneRow['revision']]);
     fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx($reader, [$part('r.png', $png)])), 403, 'Reader cannot upload');
 
     // File field rules: another mount, a non-media file and an unknown id are field errors.
@@ -149,7 +173,7 @@ try {
     $revision = $call('signage_assets', 'get', $poster)['revision'];
     $bulk = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision, 'preview' => '1']], ['id' => $ids['Logó állókép'], 'values' => ['revision' => $call('signage_assets', 'get', $ids['Logó állókép'])['revision'], 'preview' => '1']]]);
     check($bulk[0]['ok'] && $bulk[0]['data']['count'] === 1 && $bulk[0]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1], ['label' => 'Alapértelmezett tartalmak', 'count' => 2]] && !isset($bulk[0]['data']['audit']), 'Bulk preview carries the usages');
-    check($bulk[1]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && (int) $db->query("SELECT COUNT(*) FROM signage_assets")->fetchColumn() === 6, 'Preview changes nothing');
+    check($bulk[1]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && (int) $db->query("SELECT COUNT(*) FROM signage_assets")->fetchColumn() === 9, 'Preview changes nothing');
     check(!isset($bulk[0]['data']['audit_action']) && $db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete_preview' AND outcome = 'success' AND object_id IN (".$db->quote($poster).','.$db->quote($ids['Logó állókép']).')')->fetchColumn() == 2
         && !$db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete' AND object_id = ".$db->quote($poster))->fetchColumn(), 'Previews journaled as delete_preview');
     $applied = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision]]]);

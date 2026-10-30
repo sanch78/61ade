@@ -17,6 +17,13 @@ assert.equal(declaredTarget(map,{id:'1',kind:true}),'archive','a checkbox true i
 assert.equal(declaredTarget(map,{id:'1'}),'details','an unreadable (absent) field takes the default entry');
 assert.equal(declaredTarget({field:'kind',map:{audio:'details'}},{id:'1',kind:'video'}),undefined,'no entry and no "*": the default behaviour');
 assert.equal(declaredTarget({field:'kind',map:{audio:'details'}},{id:'1',kind:null}),undefined);
+// A media field is keyed by its file's MIME class, not by the file id; no (visible) file is the empty value.
+const media={field:'file_id',map:{audio:'view:demo.player',video:'view:demo.player','*':'details'}};
+assert.equal(declaredTarget(media,{id:'1',file_id:'12',_media:{file_id:{id:'12',mime_type:'audio/mpeg'}}}),'view:demo.player');
+assert.equal(declaredTarget(media,{id:'1',file_id:'13',_media:{file_id:{id:'13',mime_type:'image/png'}}}),'details');
+assert.equal(declaredTarget(media,{id:'1',file_id:'14',_media:{file_id:null}}),'details','a hidden or missing file takes the default entry');
+assert.equal(declaredTarget({field:'file_id',map:{'14':'details'}},{id:'1',file_id:'14',_media:{file_id:null}}),undefined,'the file id is not the key of a media field');
+assert.equal(declaredTarget({field:'file_id',map:{'12':'details'}},{id:'1',file_id:'12',_media:{other:{id:'1',mime_type:'audio/wav'}}}),'details','a field without a media slot keeps its value');
 for(const invalid of [null,1,{},{field:'kind'},{map:{}}])assert.equal(declaredTarget(invalid,{id:'1',kind:'audio'}),undefined);
 
 const player={id:'demo.player',title:'Lejátszó',record:'assets'};
