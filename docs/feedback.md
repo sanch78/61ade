@@ -2567,7 +2567,47 @@ that exactly equals an option label lists every option. The managed
   component matrix, repository layout, demos, ADR-0002/0004 notes and the
   `grid-tree-card-ui` skill. Checks: internal links and anchors of the
   changed files, `git diff --check`.
-- **Status:** in progress (P6, P7 and gate G5 open).
+- **P6 (2026-10-30):** the [migration guide](toolkit.md#migration) lists
+  M1–M15 since the consumers' last released library commit `131263a`, with
+  steps; per-consumer handoff notes [StoryBloX](handoff/storyblox.md) and
+  [allflow](handoff/allflow.md) (Hungarian summary, English body; neither
+  needs a code change); the `61ade-consumer` skill covers modules,
+  stylesheets, sandbox files, `admin.d.ts` and the migration. Consumers
+  migrate in their own sessions. Open for the owner: `stylesheets` load only
+  on signed-in pages, so StoryBloX's sign-in logo (its D-014) needs a
+  decision (accept, keep its own injection, or a 61ade sign-in stylesheet
+  option).
+- **P7 (2026-10-30):** independent security, API-consistency and
+  documentation-accuracy reviews. Fixed: `sandbox.html` runs code only in an
+  opaque origin (framed without `sandbox` it ran code at the host origin; the
+  managed host's `X-Frame-Options: SAMEORIGIN` blocked the cross-site case);
+  a frame document reports its first failure only; a refused oversized
+  `load()` keeps a pending one; the shell CSP adds `object-src 'none'`; the
+  demo's `signage_playlist.scene` also needs `files.content_stream` on the
+  file's mount; one component lifecycle (`components/Lifecycle.ts`) for every
+  component; not offered → `Error`, wrong shape → `TypeError`; `RecordForm`
+  `saved` `{action, result}`; `SandboxError`; duplicate registry names before
+  the prefix check; stale comments and guide statements
+  ([changes](toolkit.md#changes)). Left as recorded conventions, not changed
+  (renames would break): `app.views` holds view kinds, `ColumnMetadata` keeps
+  both spellings of `imageBase`/`altOf`/`mediaOf`, `signal` is positional in
+  `server.form`, `live.subscribe` and `events.on`, mixed event tense
+  ([conventions](toolkit.md#conventions)); the sandbox CSP keeps
+  `script-src 'self'` (accepted deviation, documented).
+- **Verification (P7, managed URL, `65129a7`):** all 22 PHP checks,
+  `npm run typecheck`, `node tools/build.mjs --check`, node checks
+  `toolkit-kernel`, `-list`, `-components`, `-registries`, `-sandbox`,
+  `ui-preferences`, `live-protocol` pass. Full `npm run test:browser`:
+  172 passed, 3 failed, 4 not run (serial follow-ups), 14.6 min, peak 114
+  tasks and 699 MiB, no refused fork or OOM; the three
+  (`authentication:67`, `calendar:71`, `subview:37`) passed in isolated
+  re-runs ([FB-0083](#fb-0083)). An earlier attempt was void: the host's
+  resolver stopped resolving `61ade.sanch.hu` for about two minutes.
+  `Mérések` performance (temporary probe, 3 runs, medians): open 1142 ms,
+  sort both ways 258 ms, scroll step 178 ms (max 224), `list` response
+  32 ms, at most 600 loaded and 13 rendered rows, 17 MB heap; the dashboard
+  with the same list 1245/300/213 ms. The large list stays bounded.
+- **Status:** in progress (gate G5: owner acceptance).
 
 <a id="fb-0082"></a>
 
@@ -2638,6 +2678,11 @@ that exactly equals an option label lists every option. The managed
   `grid-sort.spec.cjs:36` (the second select header filter request) failed
   once in the second P4 full run (175 passed) and passed in isolation. No
   failure has repeated across six full runs so far; a repeat gets a fix.
+  P7 full run (172 passed): `authentication:67` (the confirmation dialog did
+  not appear; the run followed another within ten minutes, near the
+  per-account code limit), `calendar:71` (create response timeout) and
+  `subview:37` (preview row count 5 instead of 8) failed once and passed in
+  isolation; none of the earlier ones repeated.
 - **Status:** implemented and committed.
 
 <a id="fb-0084"></a>
