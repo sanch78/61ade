@@ -3431,7 +3431,7 @@ that exactly equals an option label lists every option. The managed
   screen fades; sections reveal once; reduced motion skips all of it.
   Details: [product website](website.md#design).
 - **Content limits:** FB-0096 copy and its limits are kept; the files/media
-  text was split per screenshot, and the four facts (hu/en/de, three themes,
+  text was split per screenshot, and the four facts (hu/en/de, several built-in, fully customizable themes,
   object/field permissions, transactional audit) come from implemented
   evidence in [product direction](product-direction.md). The existing twelve
   screenshots, shared trademark screen, metadata and demo account are reused

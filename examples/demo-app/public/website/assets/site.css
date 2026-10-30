@@ -910,6 +910,22 @@ a:hover > .arrow {
 .closing > .wrap::before {
   left: -4px;
 }
+.hero-copy::before,
+.hero-copy::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+}
+.hero-copy::before {
+  left: -4px;
+}
+.hero-copy::after {
+  right: -4px;
+}
 .section > .wrap::after,
 .closing > .wrap::after {
   right: -4px;
@@ -1804,7 +1820,9 @@ body:has(.image-dialog[open]) {
   .section > .wrap::before,
   .section > .wrap::after,
   .closing > .wrap::before,
-  .closing > .wrap::after {
+  .closing > .wrap::after,
+  .hero-copy::before,
+  .hero-copy::after {
     display: none;
   }
   .brand img {

@@ -16,7 +16,7 @@ return [
         'mobileAlt' => 'The same task list displayed as responsive cards on a phone.',
         'facts' => [
             ['Languages', 'hu · en · de'],
-            ['Themes', 'Skyblue, light, dark'],
+            ['Themes', 'Several built in, fully customizable'],
             ['Permissions', 'Object and field level'],
             ['Audit', 'Transactional journal'],
         ],
@@ -82,7 +82,7 @@ return [
         'mobileAlt' => 'Ugyanaz a feladatlista mobiltelefonon, reszponzív kártyákkal.',
         'facts' => [
             ['Nyelvek', 'hu · en · de'],
-            ['Témák', 'Skyblue, világos, sötét'],
+            ['Témák', 'Több beépített, teljesen testreszabható'],
             ['Jogosultság', 'Objektum- és mezőszinten'],
             ['Audit', 'Tranzakciós napló'],
         ],
