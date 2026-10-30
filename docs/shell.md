@@ -26,7 +26,8 @@ default `assets`; e.g. `../assets` for the [starter admin](demos.md) at `/admin/
 `DOCUMENT_ROOT`; the shell keys `admin.js`, `admin.css` and every other linked
 asset by its file below it, see [cache keys](toolkit.md#cache-keys)).
 Other options include `authentication`, `languages`, `accounts`, `oauth`;
-see [authentication](authentication.md). JSON uses `application.version`, e.g.
+see [authentication](authentication.md); `logo` and `signInStylesheets` brand
+the sign-in ([sign-in branding](#sign-in-branding)). JSON uses `application.version`, e.g.
 `"title":"Minta admin","version":"0.1.0"`. Startup, errors, sessions, CSRF,
 login/logout, metadata and UI rendering belong to the framework.
 
@@ -276,11 +277,114 @@ Workspace switching detaches/disposes the previous DHTMLX layout, waits for
 redraw and attaches the new view. Only the latest rapid switch mounts.
 `workspace.spec.cjs` checks repeated switching.
 
+<a id="sign-in-branding"></a>
+
+### Sign-in branding: application logo and sign-in stylesheets (optional)
+
+Owner decision of 2026-10-30: the sign-in must be customizable
+([FB-0087](feedback.md#fb-0087)). It is declarative: an application logo and
+project stylesheets for the signed-out pages, styled through a small supported
+hook contract. No project JavaScript runs before sign-in.
+
+```php
+use Blade\Shell\{ApplicationDefinition, Logo};
+
+return new ApplicationDefinition(
+    // ...
+    logo: new Logo('branding/logo.svg', darkImage: 'branding/logo-dark.svg', label: 'Példa admin'),
+    signInStylesheets: ['branding/sign-in.css'],
+);
+```
+
+```json
+{"application": {"title": "…", "runtime": "…",
+  "logo": {"image": "branding/logo.svg", "dark_image": "branding/logo-dark.svg", "label": "Példa admin"},
+  "sign_in_stylesheets": ["branding/sign-in.css"]}}
+```
+
+- **`Logo(image, darkImage = null, label = null)`:** `image` and `darkImage`
+  are browser paths checked like `stylesheets` (relative to the page or
+  root-absolute, same-origin, `[A-Za-z0-9_-]` segments, an optional own `?…`
+  key) with the extension `.svg`, `.png` or `.webp`; without an own key each
+  gets its file's [cache key](toolkit.md#cache-keys). Anything else fails at
+  definition time (`Invalid 61ade logo image`). `label` is the accessible text,
+  localized like other texts; it defaults to the application `title`, and a
+  blank one is refused. Same-origin images keep the CSP `img-src 'self' data: blob:`.
+- **Where:** on signed-in pages the logo is the last cell of the top menu row,
+  after the tenant, language and theme selectors, behind a 1 px line in the
+  theme border colour (24 px high, at most 160 px wide). It is not a menu item:
+  when the menu collapses into `Menü` the logo stays, and its width counts in
+  the menu's width estimate, so the menu collapses (and the
+  [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) drop) before
+  anything overlaps. When the row has no room for `Menü`, the selectors and the
+  logo (for example the feature demo at 390 px, with a language and a theme
+  selector), the row leaves the logo out; widening brings it back. On the
+  sign-in, e-mail confirmation and password-change pages it is centred above
+  the form in the window (48 px high, at most the window width), and the top
+  row has none, so each page shows it once.
+- **Themes:** with `darkImage`, the light image shows under Skyblue, light and
+  light-based [skins](#application-skins), the dark image under dark and
+  dark-based skins (the applied base, `data-dhx-theme="dark"`). A theme switch
+  repaints at once through CSS. Give both images the same aspect ratio. Without
+  `darkImage` the light image shows in every theme.
+- **Accessibility:** one element with `role="img"` and the label as its
+  accessible name; the images inside have an empty `alt`, so the hidden theme
+  variant is never announced and nothing is announced twice.
+- **Sign-in stylesheets:** `signInStylesheets` (`.css`, same path rules and
+  keys) are linked only on the sign-in, e-mail confirmation and
+  password-change pages, after `admin.css` (those pages load no skins). The
+  signed-in shell links `stylesheets` instead and never the sign-in ones; the
+  sign-in pages never link `stylesheets` and never import `modules`.
+- **Bootstrap:** `logo` = `{image, dark?, label}` (keyed URLs) on every page
+  when a logo is declared, absent otherwise. Nothing else is added.
+
+<a id="sign-in-css-hooks"></a>
+
+#### Supported CSS hooks
+
+Both kinds of project stylesheet (`stylesheets` and `signInStylesheets`) may
+rely on these hooks only:
+
+| Hook | Meaning |
+| --- | --- |
+| `data-blade-page` on `<html>` | Page kind, set by the server before any script runs: `sign-in`, `confirmation` (e-mail code), `password-change` (forced temporary password replacement), `shell` (signed in). |
+| `data-dhx-theme` on `<html>` | Applied base theme (`skyblue`, `light`, `dark`), set by the shell; read it, never set it. |
+| `data-blade-skin` on `<html>` | Active [skin](#application-skins) id (signed in, with skins only). |
+| `.blade-logo`, `.blade-logo__image` | The logo element (`role="img"`) and its images. |
+| `--blade-logo-height` (24px), `--blade-logo-max-width` (160px) | Size of the top-row logo; the row measures the rendered logo. |
+| `--blade-sign-in-logo-height` (48px) | Height of the logo in the sign-in windows. |
+| Suite `--dhx-*` variables | The [custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/), as for skins. |
+
+Everything else (framework classes such as `.blade-navigation-row` or
+`.blade-auth-window`, Suite `.dhx_*` classes, the DOM structure) is not a
+supported contract and may change in any release. A rule on
+`[data-blade-page="…"]` sits on the same element as the theme variables, so
+being linked later it wins over every theme's value; scope a value that must
+differ per theme with `[data-dhx-theme="dark"]` as well.
+
+```css
+/* branding/sign-in.css (the feature demo's): only supported hooks. */
+[data-blade-page="sign-in"], [data-blade-page="confirmation"], [data-blade-page="password-change"] {
+  --blade-sign-in-logo-height: 40px;
+  --dhx-h-primary: 160; /* hue only: lightness and saturation stay the theme's */
+}
+```
+
+The feature demo declares the synthetic wordmark `branding/logo.svg` and
+`branding/logo-dark.svg` and this stylesheet
+([demos](demos.md#teljes-feature-demó-)); the starter admin and the tenant
+demo declare neither. `toolkit.php` renders every page kind (kind, links,
+keys, bootstrap, rejected paths), `configuration.php` the JSON keys and
+`contracts.php` the demos' declarations; `sign-in-branding.spec.cjs` covers
+the windows, themes, a dark-based skin, the top row, phone width and the
+starter admin.
+
 <a id="egységes-alsó-információs-sáv"></a>
 
 ## Unified lower information bar
 
-The top row contains the menu/theme selector, without a separate application
+The top row contains the menu/theme selector and the optional
+[application logo](#sign-in-branding) at its end, without a separate application
 header. One 32 px DHTMLX Toolbar closes the page. Its intrinsic height fits the
 cell to avoid clipped text. Left: authenticated `displayName`, or
 `Nincs bejelentkezve` before login. Right: configured application title and
@@ -407,6 +511,9 @@ a duplicate throws unless `{replace: true}`.
   pages after `admin.css` and the skins, keyed like the modules
   ([module loading](toolkit.md#module-loading)); with
   [skins](#application-skins) they are the supported way to add project CSS.
+  The signed-out pages link `signInStylesheets` instead
+  ([sign-in branding](#sign-in-branding)); both kinds rely only on the
+  [supported hooks](#sign-in-css-hooks).
 - **View host:** each opening gets a `ViewHost` (`signal`, `open`, `record`,
   `filters`, `attach`, `setTitle`, `close`). The signal aborts when the view
   closes (navigation, window close, sign-out, page unload) before the

@@ -3,7 +3,9 @@
 The complete flow belongs to 61ade: DHTMLX login/code forms, verification,
 OAuth through the independent AuthHandler library, sessions, remembered login,
 mail layout and audit. Consumers declare account source/e-mail attribute,
-delivery method/text, OAuth client settings and admin ACL.
+delivery method/text, OAuth client settings and admin ACL, and optionally the
+pages' look: an application logo and sign-in stylesheets
+([sign-in branding](shell.md#sign-in-branding)); no project code runs on them.
 
 <a id="belépési-módok"></a>
 

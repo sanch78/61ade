@@ -459,6 +459,11 @@ application-owned DHTMLX custom themes instead of the factory ones. One skin
 hides the selector; several fill it with only those skins. Presentation only;
 without the option nothing changes.
 
+Optional [sign-in branding](shell.md#sign-in-branding) (`logo`, `signInStylesheets`;
+JSON `application.logo`, `application.sign_in_stylesheets`) shows an application
+logo in the top row and the sign-in windows and styles the signed-out pages
+through the [supported CSS hooks](shell.md#sign-in-css-hooks); no project code runs before sign-in.
+
 <a id="többnyelvűség"></a>
 
 ## Localization

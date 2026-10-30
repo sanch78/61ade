@@ -2793,3 +2793,59 @@ that exactly equals an option label lists every option. The managed
   the cookie is gone, open form Cancel/sign-in, 4401 reload then modal),
   `browser`, `dialogs` (15 passed).
 - **Status:** implemented, not committed.
+
+<a id="fb-0087"></a>
+
+## FB-0087 — Customizable sign-in: application logo and sign-in stylesheets
+
+- **Date:** 2026-10-30.
+- **Demand (owner):** "the sign-in must be customizable". Project
+  `stylesheets` and skins load only on signed-in pages, so a consumer that
+  wants its wordmark in the top row and on the sign-in page injected its own
+  CSS through an output buffer and styled `.blade-navigation-row`, which is
+  not a contract (open point of [FB-0081](feedback.md#fb-0081) P6).
+- **Decision (owner):** declarative, no project JavaScript before sign-in: an
+  application logo (light and optional dark image, accessible text) and
+  sign-in stylesheets, styled through a small documented hook contract.
+- **Implemented:** `Blade\Shell\Logo(image, darkImage, label)` as
+  `ApplicationDefinition` `logo` (JSON `application.logo`
+  `{image, dark_image, label}`), `.svg`/`.png`/`.webp` paths with the
+  stylesheet rules and [file cache keys](toolkit.md#cache-keys); bootstrap
+  `logo` `{image, dark?, label}`. The shell shows it as the last cell of the
+  signed-in top row (counted in the menu width estimate, left out when the row
+  has no room for `Menü` and the selectors) and centred above the form of the
+  sign-in, e-mail confirmation and password-change windows (in-window Layout);
+  one `role="img"` element named by the label (default the title); CSS shows
+  the dark image under the dark base theme, so dark-based skins get it too.
+  `signInStylesheets` (JSON `application.sign_in_stylesheets`) are linked
+  only on those three pages after `admin.css`; signed-in `stylesheets` are
+  unchanged. `data-blade-page` on `<html>` (`sign-in`, `confirmation`,
+  `password-change`, `shell`) is set by the server. Supported hooks:
+  `data-blade-page`, `data-dhx-theme`, `data-blade-skin`, `.blade-logo`,
+  `.blade-logo__image`, `--blade-logo-height`, `--blade-logo-max-width`,
+  `--blade-sign-in-logo-height` and Suite `--dhx-*`; other classes stay
+  unsupported. The feature demo has a synthetic `61ade demo` wordmark and a
+  sign-in stylesheet; the starter admin and the tenant demo have neither.
+  Guide: [sign-in branding](shell.md#sign-in-branding),
+  [hooks](shell.md#sign-in-css-hooks); keys in
+  [configuration](configuration.md#belépés-és-alkalmazásszekciók).
+- **Consumer impact:** none without the options. A consumer that injects CSS
+  for its logo (StoryBloX D-014: an output buffer in `public/admin/index.php`
+  adding `app.css`, which draws `logo.svg`/`logo-dark.svg` as a
+  `.blade-navigation-row::after` background) replaces it: declare
+  `logo: new Logo('../assets/storyblox/logo.svg', '../assets/storyblox/logo-dark.svg')`
+  (label default: the title), drop the `ob_start()` and the `::after` rules,
+  and, if it still wants sign-in CSS, list it in `signInStylesheets` using
+  only the hooks (for example `--blade-logo-height`). The animated SVG keeps
+  its own CSS motion inside an `<img>`. Its logo then shows in the sign-in
+  windows instead of the sign-in page's top row. The consumer adapts in its
+  own session.
+- **Verification (worktree, 2026-10-30):** `npm run typecheck`;
+  `node tools/build.mjs` (outputs restored, not committed); PHP `toolkit`
+  (every page kind: `data-blade-page`, links and their order, keys, bootstrap
+  `logo`, no module or project stylesheet before sign-in, rejected paths),
+  `configuration` (JSON keys accepted and rejected), `contracts` (demo
+  declarations, D6 starter admin and tenant demo without branding, file keys),
+  `authentication`, `i18n`, `admin`, `tenancy`, `oauth` pass. Written, not
+  run: `tests/shell/sign-in-branding.spec.cjs`.
+- **Status:** implemented on branch; browser spec not yet run.

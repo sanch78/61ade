@@ -24,7 +24,7 @@ return JsonApplication::load(
 | --- | --- |
 | `description` | Human explanation, not runtime configuration; valid on every configuration object. |
 | `environment` | Env files and the process variable selecting an alternate file. |
-| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. Optional `version`, `skins` naming an identity binding `Closure(Identity): list<Skin>` ([application skins](shell.md#application-skins)), and `modules` / `stylesheets`: browser paths of the project's ES modules and CSS ([module loading](toolkit.md#module-loading)). Optional `document_root`: the directory served at `/`, relative to the JSON directory, default the request's `DOCUMENT_ROOT` ([cache keys](toolkit.md#cache-keys)). |
+| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. Optional `version`, `skins` naming an identity binding `Closure(Identity): list<Skin>` ([application skins](shell.md#application-skins)), and `modules` / `stylesheets`: browser paths of the project's ES modules and CSS ([module loading](toolkit.md#module-loading)). Optional `document_root`: the directory served at `/`, relative to the JSON directory, default the request's `DOCUMENT_ROOT` ([cache keys](toolkit.md#cache-keys)). Optional sign-in branding ([shell](shell.md#sign-in-branding)): `logo` `{image, dark_image?, label?}` and `sign_in_stylesheets`. |
 | `database` | MySQL `host`, integer `port`, `name`, `charset`, `user`, `password`; password requires an env reference. |
 | `session` | `name`, `cookie_path`; the framework owns session lifecycle. |
 | `identity` | SQL account schema and named `allowed`/`password_verifier` adapters. |
@@ -130,7 +130,8 @@ and callback names stay server-side; only permitted view/field metadata reaches 
 `tests/shell/configuration.php` covers process/file/default precedence, type and
 missing-value errors, invalid JSON, a complete synthetic application, bindings,
 CRUD, layout, ACL and audit, plus `view.id`, activation maps, module-level
-`views` and `application.modules`/`stylesheets`; `tests/shell/toolkit.php`
+`views`, `application.modules`/`stylesheets` and the sign-in branding
+(`application.logo`, `sign_in_stylesheets`); `tests/shell/toolkit.php`
 covers the PHP view, kind-provider and module contracts behind them. The optional fourth PDO argument of
 `JsonApplication::load` injects an existing connection/isolated fixture;
 otherwise it opens the declared MySQL connection.
@@ -155,6 +156,15 @@ request's `DOCUMENT_ROOT`; see [cache keys](toolkit.md#cache-keys)). Only signed
 the stylesheets (after the framework CSS and skins) and list the modules in the
 bootstrap `modules` key; the sign-in, e-mail confirmation and password-change
 pages load neither ([module loading](toolkit.md#module-loading)).
+
+`application.logo` is an object with the required `image` and the optional
+`dark_image` (`.svg`/`.png`/`.webp` browser paths, the same path rules and
+keys) and `label` (accessible text, default `application.title`); another key,
+a non-object, a missing `image`, another extension or a blank `label` fails at
+load. `application.sign_in_stylesheets` (`.css`, the same rules as
+`stylesheets`) are linked only on the sign-in, e-mail confirmation and
+password-change pages; they and the signed-in `stylesheets` may rely only on
+the [supported CSS hooks](shell.md#sign-in-css-hooks).
 
 `storage.related` declares a validated one-to-one mapping: `table`, `key`,
 `fields`, optional `defaults`. Saving shares the main form's transaction,
