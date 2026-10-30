@@ -347,3 +347,7 @@
 ## FB-0083 — Stable full browser suite under the guard
 
 ## FB-0084 — Shared skill for adopting and building on 61ade
+
+<a id="fb-0085"></a>
+
+## FB-0085 — Browser cache keys from the served file
