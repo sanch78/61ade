@@ -391,3 +391,7 @@
 <a id="fb-0094"></a>
 
 ## FB-0094 — Empty sign-in fields
+
+<a id="fb-0095"></a>
+
+## FB-0095 — Verify and clear real saved-credential autofill

@@ -668,6 +668,27 @@ export class AdminShell {
         void acknowledge({ title: t("Hiba"), message: externalSignInUnavailable(), severity: "warning" });
     });
 
+    // Password managers may ignore autocomplete=off. Clear automatic filling until the user starts editing.
+    let editing = false;
+    const loginInput = (target: EventTarget | null): target is HTMLInputElement =>
+      target instanceof HTMLInputElement && ["username", "password"].includes(target.name) &&
+      !!this.loginWindow?.getContainer().contains(target);
+    const startEditing = (event: Event) => {
+      if (!event.isTrusted || !loginInput(event.target)) return;
+      // Native autofill emits trusted key events with no actual key.
+      if (event.type === "keydown" && (!(event instanceof KeyboardEvent) || !event.key || event.key === "Unidentified")) return;
+      editing = true;
+    };
+    for (const type of ["pointerdown", "keydown", "paste"]) document.addEventListener(type, startEditing, {capture:true,signal:this.listeners.signal});
+    document.addEventListener("animationstart", (event: AnimationEvent) => {
+      if (editing || event.animationName !== "blade-login-autofill" || !loginInput(event.target)) return;
+      // Chromium can paint a saved value before exposing it to JavaScript; assign even when .value is empty.
+      this.loginWindow?.getContainer().querySelectorAll<HTMLInputElement>('input[name="username"], input[name="password"]')
+        .forEach(input => { input.value = ""; });
+      form.setValue({username:"",password:""});
+      for (const name of ["username", "password"]) form.getItem(name).clearValidate();
+    }, {capture:true,signal:this.listeners.signal});
+
     this.attachLoginForm(form);
     this.resize();
     // DHTMLX can consume Enter before it bubbles; handle it at the adapter boundary.
