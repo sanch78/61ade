@@ -1,7 +1,7 @@
 import { startSandbox } from "./runtime";
 
 /**
- * `dist/sandbox.js`, the classic script of `dist/sandbox.html` inside `<iframe sandbox="allow-scripts">`. The delivered
+ * The classic script inlined into `dist/sandbox.html` (admitted by its CSP hash) inside `<iframe sandbox="allow-scripts">`. The delivered
  * code runs from a `blob:` script of this opaque-origin document only (toolkit O7).
  */
 startSandbox({

@@ -298,9 +298,9 @@ export class AdminShell {
   /** An offered view by id (the bootstrap `views` are already filtered by the server). */
   private offered(id:string):ViewDefinition|undefined{return this.definition.views?.find(view=>view.id===id);}
   /** Its kind is registered, and a record view has its record id. */
-  private openable(view:ViewDefinition,record?:string):boolean{return !!this.kernel?.views.has(view.kind)&&(!view.record||!!record);}
+  private openable(view:ViewDefinition,record?:string):boolean{return !!this.kernel?.kinds.has(view.kind)&&(!view.record||!!record);}
 
-  /** `Application.navigate`: like a menu click or an address, through the `views` registry. */
+  /** `Application.navigate`: like a menu click or an address, through the `kinds` registry. */
   private navigate(target:NavigationTarget):boolean{
     const view=typeof target?.view==="string"?this.offered(target.view):undefined,record=view?.record?target.record:undefined;
     if(!view||!this.openable(view,record))return false;
@@ -322,7 +322,7 @@ export class AdminShell {
    * record resource's `get`; its failure shows the error dialog and keeps the current view.
    */
   private async openView(view:ViewDefinition,options:{record?:string;filters?:Record<string,string>;open?:ViewOpenMode;push?:boolean}={}):Promise<void>{
-    const open=options.open??view.open??"page",kind=this.kernel!.views.get(view.kind)!;
+    const open=options.open??view.open??"page",kind=this.kernel!.kinds.get(view.kind)!;
     const navigation=open==="page"?++this.navigation:this.navigation;
     let record:ViewHost["record"];
     if(view.record&&options.record!==undefined){

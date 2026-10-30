@@ -12,7 +12,7 @@ import { formActions, input } from "../../Workspace";
 import { fitWindow } from "../../WindowSizing";
 import { server } from "../../api/Server";
 
-export type CalendarConfig={views:("day"|"week"|"month")[];default_view:string;first_hour:number;last_hour:number;max_range_days:number;day_action:{resource:string;action:string;label:string}|null;fields:FieldDefinition[]};
+export type CalendarConfig={views:("day"|"week"|"month")[];defaultView:string;firstHour:number;lastHour:number;maxRangeDays:number;dayAction:{resource:string;action:string;label:string}|null;fields:FieldDefinition[]};
 export type CalendarViewDefinition={kind:"calendar";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean}[];calendar:CalendarConfig};
 type Failure=Error&{status?:number;fieldErrors?:Record<string,string>};
 type SchedulerEvent={id:string|number;text:string;start_date:Date;end_date:Date;rrule?:string;duration?:number;recurring_event_id?:string|number;original_start?:Date|string;deleted?:boolean;_end_date?:Date;[field:string]:unknown};
@@ -95,7 +95,8 @@ export class CalendarView {
   private mounter=new MutationObserver(()=>this.mount());
   private resizer=new ResizeObserver(()=>{if(this.host.isConnected)this.scheduler.setCurrentView();});
   private theme=new MutationObserver(()=>this.skin());
-  private editing?:Window;
+  /** The open event form (one at a time). */
+  private eventForm?:Window;
   private restoreVendor=()=>{};
 
   constructor(container:HTMLElement,private view:CalendarViewDefinition){
@@ -104,7 +105,7 @@ export class CalendarView {
       {id:"commands",height:48,css:"blade-command-row"},
       {id:"calendar",css:"blade-calendar-cell"},
     ]}]});
-    const day=this.config.day_action;
+    const day=this.config.dayAction;
     this.commands=new ResponsiveToolbar(undefined,{data:[
       ...(this.can("create")?[{id:"create",value:t("Új esemény"),icon:"dxi dxi-plus"}]:[]),
       {type:"spacer"},
@@ -121,7 +122,7 @@ export class CalendarView {
       const root=this.layout.getRootNode();
       if(this.disposed||!root)return;
       this.mounter.observe(root,{childList:true,subtree:true});this.mount();
-      this.scheduler.init(this.host,new Date(),this.config.default_view);
+      this.scheduler.init(this.host,new Date(),this.config.defaultView);
       this.resizer.observe(this.host);
     });
     this.theme.observe(document.documentElement,{attributes:true,attributeFilter:["data-dhx-theme"]});
@@ -153,7 +154,7 @@ export class CalendarView {
     s.skin=document.documentElement.getAttribute("data-dhx-theme")==="dark"?"dark":"terrace";
     Object.assign(s.config,{
       header:[...this.config.views,"date","prev","today","next"],
-      date_format:"%Y-%m-%d %H:%i",first_hour:this.config.first_hour,last_hour:this.config.last_hour,
+      date_format:"%Y-%m-%d %H:%i",first_hour:this.config.firstHour,last_hour:this.config.lastHour,
       details_on_create:true,details_on_dblclick:true,quick_info_detached:false,
       readonly:!this.can("update")&&!this.can("create"),drag_create:this.can("create"),
       drag_move:this.can("update"),drag_resize:this.can("update"),
@@ -199,7 +200,7 @@ export class CalendarView {
    */
   private edit(id:string|number):void{
     const s=this.scheduler as any;
-    if(this.editing||!s.callEvent("onBeforeLightbox",[id])){
+    if(this.eventForm||!s.callEvent("onBeforeLightbox",[id])){
       if(s._new_event){s._new_event=null;delete s.getEvent(id)?.$new;}
       return;
     }
@@ -248,10 +249,10 @@ export class CalendarView {
     ]} as any);
     const win=new Window({css:"blade-content-window blade-calendar-editor",title:escape(isNew?t("Új esemény"):event.text),ariaLabel:isNew?t("Új esemény"):event.text,
       width:Math.min(560,innerWidth-24),height:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:true});
-    this.editing=win;this.windows.add(win);
+    this.eventForm=win;this.windows.add(win);
     let done=false;
     win.events.on("afterHide",()=>{
-      this.windows.delete(win);if(this.editing===win)this.editing=undefined;
+      this.windows.delete(win);if(this.eventForm===win)this.eventForm=undefined;
       win.destructor();
       if(!done){done=true;s.cancel_lightbox();}
     });
@@ -412,7 +413,7 @@ export class CalendarView {
       const start=new Date(this.selected??s.getState().date);
       // Without a chosen slot the new event starts at the next full hour.
       if(!this.selected)start.setHours(start.getHours()+1,0,0,0);
-      if(start.getHours()<this.config.first_hour)start.setHours(Math.max(this.config.first_hour,8),0,0,0);
+      if(start.getHours()<this.config.firstHour)start.setHours(Math.max(this.config.firstHour,8),0,0,0);
       s.addEventNow({start_date:start,end_date:new Date(start.getTime()+3600000),text:t("Új esemény")});
       return;
     }
@@ -421,7 +422,7 @@ export class CalendarView {
 
   /** Day action: the registered action's answer for one date, read-only, with the matching API request. */
   private async openDay(date:Date):Promise<void>{
-    const action=this.config.day_action!;
+    const action=this.config.dayAction!;
     const values={date:day(date)};
     let result:unknown;
     try{result=await this.call(action.resource,action.action,null,values);}catch(error){await this.error(error);return;}
@@ -438,6 +439,9 @@ export class CalendarView {
     win.events.on("afterHide",()=>{this.windows.delete(win);win.destructor();});
     win.show();
   }
+
+  /** An open event form: input a page reload would discard (`ViewInstance.editing`). */
+  editing():boolean{return !this.disposed&&!!this.eventForm;}
 
   private call(resource:string,action:string,id:string|null,values:Record<string,unknown>):Promise<any>{return server.call(resource,action,{id,values});}
 

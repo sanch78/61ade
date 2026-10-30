@@ -34,6 +34,10 @@ The example retains Hungarian product labels/messages.
 | `validation.unique` | `SqlResource` checks the concrete table, excluding the current object on update. Server-only, without a separate client data query. |
 | `type: number/select` | Nonnegative integer or a member of the ACL-filtered choices. |
 
+The browser's field metadata carries the same rules in camelCase
+(`minLength`, `matchesField`, [conventions](toolkit.md#conventions)); the
+declaration keeps the keys above.
+
 Text is trimmed; spaces remain significant in `secret` fields. Password
 confirmation checks the submitted pair. Patterns are trusted developer
 configuration, not user-supplied regexes. Invalid definitions and unsupported

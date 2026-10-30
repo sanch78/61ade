@@ -11,6 +11,12 @@ test('native cards preserve selection, editing and live data across responsive c
  await expect(page.getByRole('button',{name:'Műveletek',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Műveletek',exact:true}).click();
  await expect(page.getByText('Nézet: Kártyák',{exact:true})).toBeVisible();
+ // Escape closes the menu opened with the mouse and returns the focus to its toggle; it opens again.
+ await page.keyboard.press('Escape');
+ await expect(page.getByText('Nézet: Kártyák',{exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Műveletek',exact:true})).toBeFocused();
+ await page.getByRole('button',{name:'Műveletek',exact:true}).click();
+ await expect(page.getByText('Nézet: Kártyák',{exact:true})).toBeVisible();
  expect((await page.locator('.blade-grid-cards').boundingBox()).width).toBeGreaterThan(340);
  await page.getByText('Szűrés',{exact:true}).click();
  await expect(page.getByRole('dialog').getByLabel('Cím',{exact:true})).toBeVisible();
@@ -281,7 +287,7 @@ test('details and cards render every media field and name an icon without option
  await expect(card).toContainText('image outline');await expect(card).not.toContainText('f2');
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });
-// Independent synthetic consumer of phase U5 (no server): derived media columns (`media_of`/`part`) in
+// Independent synthetic consumer of phase U5 (no server): derived media columns (`mediaOf`/`part`) in
 // table, cards, tiles and details; the `file` field with its tiles picker and clearing; the usage-aware
 // delete confirmation (single `preview`, bulk `__bulk` preview) and the toast of cleared references.
 test('synthetic file field, derived media columns and usage-aware delete',async({page})=>{
@@ -294,7 +300,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
  await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
  await page.evaluate(()=>{
   const media=(id,name,mime_type,duration_ms,width,height)=>({id,name,mime_type,revision:'r'+id,duration_ms,width,height,thumbnail:'none'});
-  const file={resource:'files',mount:'signage',folder_id:'20',accept:['image','video'],can_upload:false,can_choose:true};
+  const file={resource:'files',mount:'signage',folderId:'20',accept:['image','video'],canUpload:false,canChoose:true};
   const fields=[{name:'title',label:'Cím',type:'text',required:true,max:120,options:{}},{name:'file_id',label:'Médiafájl',type:'file',required:false,max:20,options:{},file}];
   window.rows=[
    {id:'1',title:'Videós',file_id:'31',revision:'a',_actions:['get','update','delete'],_media:{file_id:media('31','clip.webm','video/webm',6000,640,360)}},
@@ -326,7 +332,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
   };
   fixture.setTheme('skyblue',document.documentElement);
   window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'assets',resource:'assets',title:'Médiatár',selection:true,
-   columns:[{id:'file_id',header:'Médiafájl',type:'file',media:'files'},{id:'title',header:'Cím'},{id:'media_type',header:'Típus',media_of:'file_id',part:'type'},{id:'resolution',header:'Felbontás',media_of:'file_id',part:'resolution'},{id:'length',header:'Hossz',media_of:'file_id',part:'duration'}],
+   columns:[{id:'file_id',header:'Médiafájl',type:'file',media:'files'},{id:'title',header:'Cím'},{id:'media_type',header:'Típus',mediaOf:'file_id',part:'type'},{id:'resolution',header:'Felbontás',mediaOf:'file_id',part:'resolution'},{id:'length',header:'Hossz',mediaOf:'file_id',part:'duration'}],
    detailFields:[{id:'title',header:'Cím',type:'text'},{id:'file_id',header:'Médiafájl',type:'file',media:'files'}],
    actions:[{name:'get',label:'Adatok',fields:[]},{name:'update',label:'Módosítás',submitLabel:'Mentés',write:true,fields},{name:'delete',label:'Törlés',submitLabel:'Törlés',write:true,bulk:true,usages:true,fields:[{name:'revision',label:'Verzió',type:'text',required:true,max:64,options:{}}]}],
    singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000}));

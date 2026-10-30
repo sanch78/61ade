@@ -1,5 +1,5 @@
 import type { Layout } from "@dhtmlx/suite";
-import type { Application, Component, ComponentOptions, MountTarget, ViewDefinition, ViewReference } from "../api/types";
+import type { Application, Component, ComponentOptions, MountTarget, SignalOptions, ViewDefinition, ViewReference } from "../api/types";
 import { Lifecycle, optionSignal } from "./Lifecycle";
 
 /** The internal widget a facade owns: its root Layout, created into the given container, and its release. */
@@ -47,7 +47,7 @@ export abstract class Facade<Events extends object, E extends Engine> implements
 
   mount(target: MountTarget): void { this.life.mount(target, this.layout, element => element.append(this.container)); }
 
-  on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void): () => void { return this.life.on(event, handler); }
+  on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void, options?: SignalOptions): () => void { return this.life.on(event, handler, options); }
 
   destroy(): void {
     if (!this.life.end(this.layout)) return;

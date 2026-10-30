@@ -1,5 +1,5 @@
 import type { Layout } from "@dhtmlx/suite";
-import type { ComponentOptions, MountTarget } from "../../api/types";
+import type { ComponentOptions, MountTarget, SignalOptions } from "../../api/types";
 import { Lifecycle, optionSignal } from "../Lifecycle";
 
 /**
@@ -25,7 +25,7 @@ export abstract class Component<Events extends object>{
       element.append(this.host);this.layout.paint();
     });
   }
-  on<K extends keyof Events>(event:K,handler:(payload:Events[K])=>void):()=>void{return this.life.on(event,handler);}
+  on<K extends keyof Events>(event:K,handler:(payload:Events[K])=>void,options?:SignalOptions):()=>void{return this.life.on(event,handler,options);}
   /** Calls the handlers in registration order; a throwing handler is logged and the others still run. */
   protected emit<K extends keyof Events>(event:K,payload:Events[K]):void{this.life.emit(event,payload);}
   destroy():void{

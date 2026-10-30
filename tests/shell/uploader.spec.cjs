@@ -97,8 +97,8 @@ test('20 mixed files give per-file results without re-sends',async({page})=>{
  test.setTimeout(90000); // 20 files incl. a 5 MB one through preflight, chunks and finish
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await start(page);
- const rules=await policy(page),chunk=rules.chunk_bytes;
- expect(rules).toMatchObject({max_files:20,folders:true});
+ const rules=await policy(page),chunk=rules.chunkBytes;
+ expect(rules).toMatchObject({maxFiles:20,folders:true});
  const target=await folder(page,prefix+'-batch');
  const ops=await record(page);
  await openUploader(page);
@@ -106,10 +106,10 @@ test('20 mixed files give per-file results without re-sends',async({page})=>{
  await expect(uploader(page)).toContainText('Engedélyezett típusok:');
  await expect(uploader(page)).toContainText('Egyszerre legfeljebb 20 fájl tölthető fel.');
  // Rejected files first, so their rows stay in the visible part of the virtual grid.
- const bigSize=Math.min(rules.max_size_bytes,chunk+4096);
+ const bigSize=Math.min(rules.maxSizeBytes,chunk+4096);
  const files=[
   {name:prefix+'-x.exe',mimeType:'application/octet-stream',buffer:Buffer.from('MZ')},
-  {name:prefix+'-large.txt',mimeType:'text/plain',buffer:Buffer.alloc(rules.max_size_bytes+1,97)},
+  {name:prefix+'-large.txt',mimeType:'text/plain',buffer:Buffer.alloc(rules.maxSizeBytes+1,97)},
   {name:prefix+'-fake.png',mimeType:'image/png',buffer:Buffer.from('ez nem kép, hanem szöveg\n')},
   {name:prefix+'-k1.png',mimeType:'image/png',buffer:png},
   {name:prefix+'-big.txt',mimeType:'text/plain',buffer:Buffer.alloc(bigSize,98)},
@@ -193,7 +193,7 @@ test('cancel and retry a transfer',async({page})=>{
  const release=await holdChunks(page,0);
  await openUploader(page);
  const begun=page.waitForResponse(response=>{try{return response.request().postDataJSON()?.values?.operation==='upload_begin';}catch{return false;}});
- await filesInput(page).setInputFiles([{name,mimeType:'text/plain',buffer:Buffer.alloc(rules.chunk_bytes+100,99)}]);
+ await filesInput(page).setInputFiles([{name,mimeType:'text/plain',buffer:Buffer.alloc(rules.chunkBytes+100,99)}]);
  await begun;
  await expect(state(page,name)).toHaveText('Feltöltés…');
  const cancel=queueRow(page,name).getByRole('button',{name:'Megszakítás: '+name,exact:true});
@@ -253,7 +253,7 @@ test('closing the window keeps uploading: shell indicator, then a toast',async({
  const release=await holdChunks(page,1);
  await openUploader(page);
  const first=firstChunk(page);
- await filesInput(page).setInputFiles([{name,mimeType:'text/plain',buffer:Buffer.alloc(rules.chunk_bytes+100,100)}]);
+ await filesInput(page).setInputFiles([{name,mimeType:'text/plain',buffer:Buffer.alloc(rules.chunkBytes+100,100)}]);
  await first;
  await uploader(page).getByRole('button',{name:'Bezárás',exact:true}).click();
  await expect(uploader(page)).toBeHidden();
@@ -275,9 +275,9 @@ test('closing the window keeps uploading: shell indicator, then a toast',async({
 
 test('an interrupted upload resumes after reload from the server offset',async({page})=>{
  await start(page);
- const rules=await policy(page),chunk=rules.chunk_bytes;
+ const rules=await policy(page),chunk=rules.chunkBytes;
  const target=await folder(page,prefix+'-resume');
- const name=prefix+'-resume.txt',file=path.join(scratch,name),size=Math.min(rules.max_size_bytes,chunk+8192);
+ const name=prefix+'-resume.txt',file=path.join(scratch,name),size=Math.min(rules.maxSizeBytes,chunk+8192);
  fs.writeFileSync(file,Buffer.alloc(size,101));
  await holdChunks(page,1);
  await openUploader(page);
@@ -310,10 +310,10 @@ test('an interrupted upload resumes after reload from the server offset',async({
 
 test('an interrupted file added for another target is queued afresh',async({page})=>{
  await start(page);
- const rules=await policy(page),chunk=rules.chunk_bytes;
+ const rules=await policy(page),chunk=rules.chunkBytes;
  const other=await api(page,'files','create_directory',await rootOf(page,'a'),{name:prefix+'-elsewhere'});expect(other.status).toBe(200);
  const elsewhere=String(other.body.data.id),origin=await folder(page,prefix+'-origin');
- const name=prefix+'-moved.txt',file=path.join(scratch,name),size=Math.min(rules.max_size_bytes,chunk+8192);
+ const name=prefix+'-moved.txt',file=path.join(scratch,name),size=Math.min(rules.maxSizeBytes,chunk+8192);
  fs.writeFileSync(file,Buffer.alloc(size,102));
  await holdChunks(page,1);
  await openUploader(page);
@@ -363,7 +363,7 @@ test('a retry while the cancelled begin is pending keeps its own controller and 
   try{await route.continue();}catch{}
  });
  await openUploader(page);
- await filesInput(page).setInputFiles([{name,mimeType:'text/plain',buffer:Buffer.alloc(rules.chunk_bytes+100,103)}]);
+ await filesInput(page).setInputFiles([{name,mimeType:'text/plain',buffer:Buffer.alloc(rules.chunkBytes+100,103)}]);
  await expect.poll(()=>begins).toBe(1);
  await expect(state(page,name)).toHaveText('Feltöltés…');
  await queueRow(page,name).getByRole('button',{name:'Megszakítás: '+name,exact:true}).click();

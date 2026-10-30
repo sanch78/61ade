@@ -14,8 +14,8 @@ export type Directory={id:string;mount:string;depth:number;path:{id:string;name:
 type Entry={id:string;name:string;kind:"directory"|"file";mime_type:string;revision:string;width?:number|null;height?:number|null;duration_ms?:number|null;thumbnail?:MediaDescriptor["thumbnail"]};
 type Listing={directory:Directory;items:Entry[];next?:string|null;total?:number;matched?:number};
 type Kind="image"|"video"|"text"|"other";
-/** `can_choose`: the actor may browse the field's folder (`list` on the mount); without it `Kiválasztás…` is not offered. */
-type PickerConfig=FileFieldConfig&{can_choose?:boolean};
+/** `canChoose`: the actor may browse the field's folder (`list` on the mount); without it `Kiválasztás…` is not offered. */
+type PickerConfig=FileFieldConfig;
 
 /** Rows of one picker request (the file manager's `list` maximum) and the most rows the picker keeps. */
 const PAGE=200,MAX_ROWS=3000,SEARCH_MAX=100;
@@ -33,9 +33,9 @@ const accepted=(config:FileFieldConfig):Kind[]=>{
 const offered=(config:FileFieldConfig,mime:string)=>!config.accept?.length||config.accept.some(kind=>kind!=="other"&&KINDS.some(([key])=>key===kind)&&mime.startsWith(kind+"/"));
 const descriptor=(entry:Partial<Entry>&{id:string;name:string}):MediaDescriptor=>({id:String(entry.id),name:String(entry.name),mime_type:String(entry.mime_type??""),revision:String(entry.revision??""),
   duration_ms:typeof entry.duration_ms==="number"?entry.duration_ms:null,width:typeof entry.width==="number"?entry.width:null,height:typeof entry.height==="number"?entry.height:null,thumbnail:entry.thumbnail??"none"});
-/** The field's declared folder (`folder_id`) or its mount root, with its path (for the upload target label). */
+/** The field's declared folder (`folderId`) or its mount root, with its path (for the upload target label). */
 export async function fieldFolder(config:FileFieldConfig,call:ResourceCall):Promise<Directory>{
-  const id=config.folder_id||String((await call(config.resource,"tree",config.mount)).root);
+  const id=config.folderId||String((await call(config.resource,"tree",config.mount)).root);
   return (await call(config.resource,"list",id,{limit:1}) as Listing).directory;
 }
 /** "Signage:/Képek", as the file manager's panel header. */
@@ -56,7 +56,7 @@ const actions=(submit:{name:string;text:string;icon:string}):any=>({css:"blade-f
  * validation and saving treat it like any other field. {@link FileFields} brings the items to life.
  */
 export function fileInput(field:FieldDefinition,value:unknown,readOnly=false):any{
-  const config=field.file as PickerConfig|undefined,upload=!readOnly&&!!config?.can_upload&&!!config.policy,choose=!readOnly&&!!config?.can_choose;
+  const config=field.file as PickerConfig|undefined,upload=!readOnly&&!!config?.canUpload&&!!config.policy,choose=!readOnly&&!!config?.canChoose;
   return {css:"blade-file-field",rows:[
     {type:"input",name:field.name,hidden:true,value:String(value??"")},
     {css:"blade-file-field__row",cols:[
@@ -91,7 +91,7 @@ class FileField{
     });
     // The file name is a read-only text box: Enter or Space on it opens the picker, as the button (when offered).
     form.getItem(fileDisplay(field.name))?.events.on("keydown",(event:KeyboardEvent)=>{
-      if((event.key!=="Enter"&&event.key!==" ")||!config.can_choose)return;
+      if((event.key!=="Enter"&&event.key!==" ")||!config.canChoose)return;
       event.preventDefault();void this.choose();
     });
   }
@@ -118,12 +118,12 @@ class FileField{
     this.form.getItem(fileDisplay(this.field.name))?.clearValidate();
     this.paint();
   }
-  /** The declared folder (`folder_id`) or the mount root, with its path for the upload target label. */
+  /** The declared folder (`folderId`) or the mount root, with its path for the upload target label. */
   private directory():Promise<Directory>{
     return this.folder??=fieldFolder(this.config,this.call).catch(error=>{this.folder=undefined;throw error;});
   }
   private async choose():Promise<void>{
-    if(this.picker||this.disposed||!this.config.can_choose)return;
+    if(this.picker||this.disposed||!this.config.canChoose)return;
     this.picker=new FilePicker(this.config,this.field.label,this.call,()=>this.directory(),this.value);
     try{const media=await this.picker.result;if(media)this.set(media);}
     finally{

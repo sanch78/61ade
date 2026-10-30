@@ -4,7 +4,7 @@ namespace Blade\Feature;
 
 /**
  * Built-in kind `calendar` (`Registry::calendar`): options are `CalendarDefinition::metadata()` plus `fields` (the
- * extra event Fields). Offered with `events` offered; the browser gets the readable fields only and `day_action` only
+ * extra event Fields). Offered with `events` offered; the browser gets the readable fields only and `dayAction` only
  * when offered; `space` stays server-side.
  */
 final class CalendarViewKind implements ViewKindProvider
@@ -29,6 +29,7 @@ final class CalendarViewKind implements ViewKindProvider
         $fields=array_values(array_filter($o['fields'],fn($f)=>$ctx->acl->fieldAllowed($ctx->actor->id,$view->resource,'events','ui',$o['space'],null,$f->name)));
         $day=$o['day_action'];
         if($day&&!$this->meta->offered($ctx,$day['resource'],$day['action']))$day=null;
-        return ['actions'=>$actions,'options'=>[...array_diff_key($o,['space'=>1,'fields'=>1]),'day_action'=>$day,'fields'=>array_map(fn($f)=>$this->meta->field($ctx,$f),$fields)]];
+        // camelCase for the browser (`defaultView`, `firstHour`, `dayAction`, …); the declared options keep their keys.
+        return ['actions'=>$actions,'options'=>ViewMetadata::camel([...array_diff_key($o,['space'=>1,'fields'=>1]),'day_action'=>$day,'fields'=>array_map(fn($f)=>$this->meta->field($ctx,$f),$fields)])];
     }
 }

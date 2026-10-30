@@ -2,7 +2,7 @@
 // `demo.copy-text` ("Másolás szövegként") of the Feladatok list (modules/tasks.json: field `priority` with
 // `editor`, view `commands`). The server keeps validating the priority (number, pattern 0–5) and every read goes
 // through the `get` action, so ACL and field ACL decide what is shown and copied.
-import type { Application, ApplicationModule, ColumnMetadata, FieldMetadata, FieldTypeContext, ListOptions, Row } from "@61ade/admin";
+import type { Application, ApplicationModule, ColumnMetadata, FieldMetadata, FieldTypeContext, ListKindOptions, Row } from "@61ade/admin";
 
 /** Highest rating; modules/tasks.json allows 0–5 (`validation.pattern`). */
 const TOP = 5;
@@ -84,7 +84,7 @@ function valueText(column: ColumnMetadata, value: unknown): string {
 
 /** "Label: value" lines of a record in the view's field order; only the fields the `get` answer contains. */
 function recordText(view: { options: unknown }, row: Row): string {
-  const options = (view.options ?? {}) as Partial<ListOptions>;
+  const options = (view.options ?? {}) as Partial<ListKindOptions>;
   const columns = options.detailFields?.length ? options.detailFields : options.columns ?? [];
   const known = columns.length ? columns : Object.keys(row).filter(key => !key.startsWith("_") && key !== "revision").map(id => ({ id, header: id }));
   return known.filter(column => Object.hasOwn(row, column.id)).map(column => `${column.header}: ${valueText(column, row[column.id])}`).join("\n");
