@@ -656,7 +656,7 @@ export interface ActionMetadata {
 /** Derived media column parts (`RecordPresentation.ts` `MediaPart`). */
 export type MediaPart = "type" | "resolution" | "duration";
 
-/** One grid/card column (`Workspace.ts` `ViewDefinition["columns"]`, merged with its field by the server). */
+/** One grid/card column (`components/list/types.ts` `ViewDefinition["columns"]`, merged with its field by the server). */
 export interface ColumnMetadata {
   id: string;
   header: string;
@@ -724,7 +724,7 @@ export interface SubviewMetadata {
   page?: boolean;
 }
 
-/** `options` of kind `list`: today's list-specific top-level keys of `Workspace.ts` `ViewDefinition`, unchanged. */
+/** `options` of kind `list`: today's list-specific top-level keys of `components/list/types.ts` `ViewDefinition`, unchanged. */
 export interface ListKindOptions {
   singleton: boolean;
   columns: ColumnMetadata[];
