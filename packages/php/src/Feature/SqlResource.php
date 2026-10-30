@@ -6,7 +6,6 @@ namespace Blade\Feature;
 final class SqlResource
 {
     private ?Registry $registry=null;
-    private ?ListSource $list=null;
     /** Delete policy of registerDelete(): `delete` removes the row, `archive` marks it (`archived_at`, `archived_by`) and every framework read hides it. */
     private string $deletePolicy='delete';
     public const DELETE_POLICIES=['delete','archive'];
@@ -87,8 +86,9 @@ final class SqlResource
             }
         }
         if($this->tenantColumn!==null)$registry->scopeToTenant($this->resource);
-        $source=$this->list=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'),fn($c)=>$this->source($c),$this->search,$registry,$this->tenantColumn);
-        $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t,$values)=>$values ? $source->read($c,$values) : $this->listing($c,$t['id']),collection:true,listSource:$source));
+        $source=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'),fn($c)=>$this->source($c),$this->search,$registry,$this->tenantColumn);
+        // The cursor API only: a list takes no object id (the removed offset paging used one).
+        $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t,$values)=>($t['id']??'')==='' ? $source->read($c,$values) : throw new Failure('Hibás lapozás.'),collection:true,listSource:$source));
         $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$source->media($c,[$this->project($c,$t['row'],'get')])[0],resolve:fn($c,$id)=>$this->target($c,$id)));
         $actions=['get'];
         $writable=array_values(array_filter($this->fields,fn($f)=>!in_array($f->name,$this->readOnly,true)));
@@ -154,16 +154,6 @@ final class SqlResource
         }
         foreach ($this->related as $storage) $row = array_replace($row, $storage->read($ctx->db, (string)$row[$this->key]));
         return ['id'=>(string)$row[$this->key],'owner'=>$this->ownerColumn?(string)$row[$this->ownerColumn]:null,'row'=>$row];
-    }
-    private function listing(Context $ctx,?string $offset): array
-    {
-        if($offset!==null && (!ctype_digit($offset) || (int)$offset>10000000))throw new Failure('Hibás lapozás.');
-        $offset=(int)($offset ?? 0);
-        [$where,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->ownerColumn);
-        if(($tenant=$this->tenant($ctx))!==null){$where="($where) AND {$this->tenantColumn} = :blade_tenant";$params['blade_tenant']=$tenant;}
-        $from=$this->source($ctx);
-        $q=$ctx->db->prepare("SELECT * FROM $from WHERE ($where) AND ({$this->where}) ORDER BY {$this->key} DESC LIMIT 200 OFFSET $offset");$q->execute($params);
-        return $this->list->subviews($ctx,$this->list->media($ctx,array_map(fn($row)=>$this->project($ctx,$row,'list'),$q->fetchAll(\PDO::FETCH_ASSOC))));
     }
     public function project(Context $ctx,array $row,string $action): array
     {

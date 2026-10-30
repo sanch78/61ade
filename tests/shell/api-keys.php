@@ -38,7 +38,7 @@ $adminOwned=$run('create',null,['label'=>'Admin-owned','actor_id'=>'1','scopes'=
 check(preg_match('/^[a-f0-9]{64}$/D',$secret)===1,'Secret revealed once');
 $stored=$db->query('SELECT * FROM blade_tokens WHERE id='.(int)$created['id'])->fetch(PDO::FETCH_ASSOC);
 check($stored['token_hash']===hash('sha256',$secret) && $stored['scopes']==='notes.list,notes.get' && $stored['expires_at']===$future.'T23:59:59Z','Hash, scope list and end-of-day expiry stored');
-check(!str_contains(json_encode($run('list')),$secret) && !str_contains(json_encode($run('get',$created['id'])),'token_hash'),'Secret and hash never listed');
+check(!str_contains(json_encode($run('list')['items']),$secret) && !str_contains(json_encode($run('get',$created['id'])),'token_hash'),'Secret and hash never listed');
 check(!str_contains(json_encode($db->query('SELECT * FROM blade_audit')->fetchAll()),$secret),'Secret never audited');
 $tokens=new Tokens($db);
 check($tokens->authenticate($secret)===['actor_id'=>'2','scopes'=>['notes.list','notes.get']],'Issued key authenticates with its scopes');
@@ -62,7 +62,7 @@ check($userView!==null && $userView['group']===null,'Own API-key permission expo
 $runUser=fn(string $action,?string $id=null,array $values=[])=>$workspace->executor->execute($user,ApiKeys::RESOURCE,$action,$id,$values);
 $ownCreated=$runUser('create',null,['label'=>'Own','actor_id'=>'','scopes'=>'notes.get','expires_at'=>$future]);
 check((string)$db->query('SELECT actor_id FROM blade_tokens WHERE id='.(int)$ownCreated['id'])->fetchColumn()==='2','Self-scoped issue stores the current actor');
-check(count($runUser('list'))===2 && !array_filter($runUser('list'),fn($item)=>(string)$item['actor_id']!=='2'),'Self-scoped list is owner-filtered');
+check(count($runUser('list')['items'])===2 && !array_filter($runUser('list')['items'],fn($item)=>(string)$item['actor_id']!=='2'),'Self-scoped list is owner-filtered');
 fails(fn()=>$runUser('get',$adminOwned['id']),403,'Own scope hides another owner key');
 $ownRow=$runUser('get',$ownCreated['id']);
 fails(fn()=>$runUser('update',$ownCreated['id'],['label'=>'Own','actor_id'=>'1','scopes'=>'notes.get','expires_at'=>$ownRow['expires_at'],'revoked'=>'0','revision'=>$ownRow['revision']]),400,'Own scope cannot transfer a key','actor_id');

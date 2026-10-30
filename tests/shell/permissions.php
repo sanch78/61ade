@@ -29,7 +29,7 @@ $catalogue=$permissions->catalogue();
 check($catalogue->allows('notes','list','ui') && $catalogue->allows(Accounts::RESOURCE,'temporary_password','api'),'Catalogue lists registered actions');
 check(!$catalogue->allows('notes','delete','ui') && !$catalogue->allows(Permissions::ROLES,'delete','api'),'Catalogue rejects unregistered action and channel');
 check(isset($catalogue->resources()['notes']) && in_array('title',$catalogue->fields('notes'),true),'Catalogue resources and fields');
-check($rules()===0 && $run('1',Permissions::ROLES,'list')===[],'No automatic grant');
+check($rules()===0 && $run('1',Permissions::ROLES,'list')['items']===[],'No automatic grant');
 fails(fn()=>$run('1','notes','get','1'),403,'Business resource denied by default');
 
 // Explicit first-administrator step: idempotent, audited, admin resources only.
@@ -40,7 +40,7 @@ check((int)$db->query("SELECT COUNT(*) FROM blade_rules WHERE resource='notes'")
 check((int)$db->query("SELECT COUNT(*) FROM blade_rules WHERE channel<>'ui'")->fetchColumn()===0,'Grant is UI only');
 check((int)$db->query("SELECT COUNT(*) FROM blade_audit WHERE action='grant_administration'")->fetchColumn()===2,'Grant audited');
 $adminRole=(string)$db->query("SELECT id FROM blade_roles WHERE role_key='admin'")->fetchColumn();
-check(count($run('1',Permissions::ROLES,'list'))===1,'Administrator manages roles');
+check(count($run('1',Permissions::ROLES,'list')['items'])===1,'Administrator manages roles');
 
 // Roles: stable key, unique values, protected role cannot be deleted.
 $editor=$run('1',Permissions::ROLES,'create',null,['name'=>'Szerkesztő','role_key'=>'editor'])['id'];
@@ -69,11 +69,11 @@ fails(fn()=>$run('1',Permissions::ROLE_RULES,'create',null,[...$base,'effect'=>'
 $row=$run('1',Permissions::ROLE_RULES,'get',$second);
 fails(fn()=>$run('1',Permissions::ROLE_RULES,'update',$second,[...$base,'revision'=>$row['revision']]),409,'Update into duplicate rule','action');
 check($db->query("SELECT subject_type FROM blade_rules WHERE id=".(int)$rule)->fetchColumn()==='role','Role rule subject type is fixed');
-check($run('3','notes','list')===[],'No access before membership');
+check($run('3','notes','list')['items']===[],'No access before membership');
 
 // Memberships give role rules to users; duplicates conflict.
 $membership=$run('1',Permissions::MEMBERSHIPS,'create',null,['actor_id'=>'3','role_id'=>$editor])['id'];
-check(count($run('3','notes','list'))===1,'Role rule applies through membership');
+check(count($run('3','notes','list')['items'])===1,'Role rule applies through membership');
 fails(fn()=>$run('1',Permissions::MEMBERSHIPS,'create',null,['actor_id'=>'3','role_id'=>$editor]),409,'Duplicate membership','role_id');
 fails(fn()=>$run('1',Permissions::MEMBERSHIPS,'create',null,['actor_id'=>'999','role_id'=>$editor]),400,'Unknown account','actor_id');
 $row=$run('1',Permissions::ROLES,'get',$editor);
@@ -82,14 +82,14 @@ fails(fn()=>$run('1',Permissions::ROLES,'delete',$editor,['revision'=>$row['revi
 // User rules: a field-level deny for one user; the subject type stays separate from role rules.
 $run('1',Permissions::USER_RULES,'create',null,['subject_id'=>'3','resource'=>'notes','action'=>'get','channel'=>'ui','effect'=>'deny','scope'=>'all','field_name'=>'title']);
 check(!isset($run('3','notes','get','1')['title']),'User field deny applies');
-check(count($run('1',Permissions::USER_RULES,'list'))===1 && count($run('1',Permissions::ROLE_RULES,'list'))>2,'Role and user rule views are separate');
+check(count($run('1',Permissions::USER_RULES,'list')['items'])===1 && count($run('1',Permissions::ROLE_RULES,'list')['items'])>2,'Role and user rule views are separate');
 fails(fn()=>$run('1',Permissions::USER_RULES,'get',$rule),404,'Role rule not reachable as user rule');
 
 // Orphaned rules (definition removed) stay visible and grant nothing.
 $db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('role','$editor','gone','list','ui','allow','all','','')");
 $field=array_values(array_filter($registry->get(Permissions::ROLE_RULES,'create')->fields,fn($f)=>$f->name==='resource'))[0];
 check(str_contains($field->metadata($as('1'))['options']['gone']??'','nincs a katalógusban'),'Orphan resource is labelled');
-fails(fn()=>$run('3','gone','list'),404,'Orphan rule grants nothing');
+fails(fn()=>$run('3','gone','list')['items'],404,'Orphan rule grants nothing');
 
 // Protected role: its admin rules are immutable in the UI.
 $protected=(string)$db->query("SELECT id FROM blade_rules WHERE subject_type='role' AND subject_id='$adminRole' AND resource='blade_roles' AND action='list'")->fetchColumn();
