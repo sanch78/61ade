@@ -1,10 +1,13 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const {signIn,openView,view}=require('./feature-demo.cjs');
 // UI preferences (browser storage) and view URLs on the feature demo's Feladatok view.
-test('view URL restores through login/reload and browser history; #feature= is a rewritten alias',async({page})=>{
+test('view URL restores through login/reload and browser history; #feature= opens no view',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- // A delivered e-mail's legacy address survives the sign-in and becomes the canonical one in place.
+ // The view address survives the sign-in; the removed #feature= form leaves the empty workspace.
  await signIn(page,'demo@example.test','/#feature=demo_tasks');
+ await expect(page.locator('.blade-navigation-row')).toBeVisible();await expect(page.getByRole('grid')).toHaveCount(0);
+ await expect(page).toHaveURL(/#feature=demo_tasks$/);
+ await page.goto('/#view=demo_tasks');
  await expect(page.getByRole('grid')).toBeVisible();await expect(page).toHaveURL(/#view=demo_tasks$/);
  await page.reload();await expect(page.getByRole('grid')).toBeVisible();
  await page.goto('/');await expect(page.getByRole('grid')).toHaveCount(0);
