@@ -1,7 +1,7 @@
 import { Layout, type Toolbar } from "@dhtmlx/suite";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { widgetIcons } from "../../WidgetIcons";
-import type { CommandBar as CommandBarApi, CommandBarEvents, CommandBarOptions, CommandItem } from "../../api/types";
+import type { CommandBar as CommandBarApi, CommandBarEvents, CommandBarOptions, CommandButton } from "../../api/types";
 import { Component } from "./component";
 import { escape } from "./fields";
 
@@ -31,7 +31,7 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
     this.bind(options?.signal);
   }
   /** Changes one item's label, icon, disabled or hidden state (also while it sits in the collapsed menu). */
-  update(id:string,changes:Partial<Omit<CommandItem,"id"|"type">>):void{
+  update(id:string,changes:Partial<Omit<CommandButton,"id"|"type">>):void{
     if(this.destroyed||!this.ids.has(id))return;
     const values={...(changes.label!==undefined?{value:escape(changes.label)}:{}),...(changes.icon!==undefined?{icon:changes.icon}:{})};
     if(Object.keys(values).length)this.bar.data.update(id,values);

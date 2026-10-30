@@ -563,13 +563,18 @@ bar.mount(layout.getCell("commands"));
 player.on("loaded", () => bar.update("pause", { disabled: false }));
 ```
 
-Labels are plain text (escaped). Ids match `[A-Za-z0-9_.:-]+`, are unique and
+`CommandItem` is a button (`CommandButton`: `id`, `label`, `icon`,
+`disabled`, `hidden`; `type` omitted or `"button"`) or a spacer
+(`CommandSpacer`, `{ type: "spacer" }`, no id), which pushes the following
+buttons to the right and is left out of the collapsed menu. Labels are plain
+text (escaped). Button ids match `[A-Za-z0-9_.:-]+`, are unique and
 `blade-command-menu` is reserved; otherwise the constructor throws
 `TypeError`. `update(id, changes)` changes the label, icon, disabled or hidden
 state, also while the item sits in the collapsed menu. `toolbar` is the
-underlying Suite Toolbar. The collapsed menu does not close on Escape
-([pitfalls](#pitfalls)); the feature demo's viewer drives a `MediaPlayer` with
-it ([example](#example-record-view)).
+underlying Suite Toolbar. Escape closes an open menu, also one opened with the
+mouse, and returns the focus to its toggle (`Műveletek`); the key does not
+reach a window behind it. The feature demo's viewer drives a `MediaPlayer`
+with it ([example](#example-record-view)).
 
 <a id="calendar-and-diagrameditor"></a>
 
@@ -1272,9 +1277,6 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
   mode, sort, columns and filters by the id of the definition it gets; give a
   page its own state by passing the definition under the page's view id
   ([ListView](#listview)).
-- **`Műveletek` does not close on Escape.** The collapsed command menu of a
-  list or `CommandBar` is the Suite Toolbar's popup, which 61ade does not
-  close on Escape; a known limit.
 
 <a id="conventions"></a>
 

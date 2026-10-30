@@ -448,7 +448,7 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
       { id: "rewind", label: t("Elejére"), icon: "dxi dxi-chevron-double-left", disabled: true },
       { id: "previous", label: t("Előző elem"), icon: "dxi dxi-chevron-left", disabled: true },
       { id: "next", label: t("Következő elem"), icon: "dxi dxi-chevron-right", disabled: true },
-      { id: "gap", label: "", type: "spacer" },
+      { type: "spacer" },
       { id: "position", label: positionText(), disabled: true },
     ] });
     bar.mount(layout.getCell("commands"));

@@ -11,6 +11,12 @@ test('native cards preserve selection, editing and live data across responsive c
  await expect(page.getByRole('button',{name:'Műveletek',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Műveletek',exact:true}).click();
  await expect(page.getByText('Nézet: Kártyák',{exact:true})).toBeVisible();
+ // Escape closes the menu opened with the mouse and returns the focus to its toggle; it opens again.
+ await page.keyboard.press('Escape');
+ await expect(page.getByText('Nézet: Kártyák',{exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Műveletek',exact:true})).toBeFocused();
+ await page.getByRole('button',{name:'Műveletek',exact:true}).click();
+ await expect(page.getByText('Nézet: Kártyák',{exact:true})).toBeVisible();
  expect((await page.locator('.blade-grid-cards').boundingBox()).width).toBeGreaterThan(340);
  await page.getByText('Szűrés',{exact:true}).click();
  await expect(page.getByRole('dialog').getByLabel('Cím',{exact:true})).toBeVisible();
