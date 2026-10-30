@@ -1,7 +1,7 @@
 {
     "section_descriptions": {
         "purpose": "Feature demo: digital signage (DMS) content register for the event calendar.",
-        "covers": "media assets over files of the Signage mount (file field, derived type/resolution/length, usage count), default content per weekday or per date, lookup choices, a business rule hook."
+        "covers": "media assets over files of the Signage mount (file field, derived type/resolution/length, usage count), the record view demo.asset-viewer for audio and video assets (activation by the file's media class), default content per weekday or per date, lookup choices, a business rule hook."
     },
     "lookups": {
         "signage_assets": {
@@ -32,7 +32,8 @@
                         "mount": "signage",
                         "accept": [
                             "image",
-                            "video"
+                            "video",
+                            "audio"
                         ]
                     },
                     "column": {
@@ -86,6 +87,14 @@
                 "search": [
                     "title"
                 ],
+                "activate": {
+                    "field": "file_id",
+                    "map": {
+                        "audio": "view:demo.asset-viewer",
+                        "video": "view:demo.asset-viewer",
+                        "*": "details"
+                    }
+                },
                 "columns": [
                     {
                         "id": "file_id",
@@ -216,6 +225,22 @@
                     "delete"
                 ]
             }
+        }
+    },
+    "views": {
+        "demo.asset-viewer": {
+            "kind": "demo.asset-viewer",
+            "title": "Médianéző",
+            "resource": "signage_assets",
+            "record": "signage_assets",
+            "actions": [
+                "get"
+            ],
+            "options": {
+                "loop": false,
+                "details": "signage_assets"
+            },
+            "icon": "dxi dxi-menu-right"
         }
     }
 }

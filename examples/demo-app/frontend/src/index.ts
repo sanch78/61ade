@@ -10,7 +10,7 @@ const none: Part = () => {};
 // Extension slots. A D-row lane adds `src/<file>.ts` with a default-exported Part and replaces only its own slot line
 // with `import <name> from "./<file>";`; the comment lines between the slots keep parallel lane merges conflict-free.
 // D1 Signage Médiatár: record view demo.asset-viewer (assets.ts)
-const assets: Part = none;
+import assets from "./assets";
 // D2 Signage Napi műsor: view kind demo.playlist-preview (playlist.ts)
 const playlist: Part = none;
 // D3 Mérések: dashboard kind and column presentation (readings.ts)

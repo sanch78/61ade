@@ -11,14 +11,19 @@ type Row={id:string|number;_actions?:string[];[field:string]:unknown};
  * The declared target for $row: the string itself, or the map entry for the string value of the row's `field`
  * (`"*"` when the value has none). `undefined`: nothing declared, or a map without a matching entry and without
  * `"*"`, which keeps the default behaviour. A field the actor may not read is absent from the row and so has the
- * empty value (the `"*"` entry).
+ * empty value (the `"*"` entry). A media field (one with a `_media` slot in the row, such as a `file` field) is keyed
+ * by its file's MIME class (`image`, `video`, `audio`, …) instead of the file id; no file, or one the actor may not
+ * see, is the empty value.
  */
 export function declaredTarget(activate:unknown,row:Row):string|undefined{
   if(typeof activate==="string")return activate||undefined;
   if(!activate||typeof activate!=="object")return undefined;
   const {field,map}=activate as {field?:unknown;map?:unknown};
   if(typeof field!=="string"||!map||typeof map!=="object")return undefined;
-  const raw=row[field],value=raw===null||raw===undefined?"":typeof raw==="boolean"?(raw?"1":"0"):String(raw);
+  const media=row._media,slot=media&&typeof media==="object"&&Object.hasOwn(media,field)?(media as Record<string,unknown>)[field]:undefined;
+  const mime=slot&&typeof slot==="object"?(slot as {mime_type?:unknown}).mime_type:undefined;
+  const raw=slot===undefined?row[field]:typeof mime==="string"?mime.split("/")[0]:"";
+  const value=raw===null||raw===undefined?"":typeof raw==="boolean"?(raw?"1":"0"):String(raw);
   const entries=map as Record<string,unknown>,target=value!==""&&Object.hasOwn(entries,value)?entries[value]:entries["*"];
   return typeof target==="string"&&target!==""?target:undefined;
 }
