@@ -174,7 +174,8 @@ final class Application
     {
         $runtime = $this->definition->runtime;
         foreach ([$runtime, $runtime.'/sessions', $runtime.'/login'] as $directory) {
-            if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
+            // Keep inherited default ACL grants effective while excluding other users.
+            if (!is_dir($directory) && !mkdir($directory, 0770, true) && !is_dir($directory)) {
                 throw new \RuntimeException('Cannot create private runtime storage.');
             }
         }
