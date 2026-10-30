@@ -85,8 +85,12 @@ export default (app) => {
   `workspace.modules` remain the JSON definition files of
   [configuration](configuration.md#belépés-és-alkalmazásszekciók).
 - **When:** only in the signed-in shell. The sign-in, e-mail confirmation and
-  password-change pages load neither modules nor stylesheets (as with skins).
-  Stylesheets are linked after the framework CSS and skins.
+  password-change pages load neither modules nor stylesheets (as with skins);
+  they link the separate `signInStylesheets` (JSON
+  `application.sign_in_stylesheets`) instead and run no project code
+  ([sign-in branding](shell.md#sign-in-branding)). Stylesheets are linked
+  after the framework CSS and skins; both kinds rely only on the
+  [supported CSS hooks](shell.md#sign-in-css-hooks).
 - **Order:** the shell `import()`s all modules in parallel and calls their
   default exports one by one in declaration order with the page's
   `Application`, then routes. A failed import, a throw, a rejection, an
@@ -110,8 +114,9 @@ export default (app) => {
 Owner decision of 2026-10-30: browser cache keys come from the file itself,
 with one rule for every asset the shell links: 61ade's `admin.js` and
 `admin.css`, [skin](shell.md#application-skins) stylesheets, the project's
-`modules` and `stylesheets`, and AuthHandler's `AuthHandler.css`/`.js` on the
-sign-in page. Each gets `?v=<key>`: the base36 modification time (seconds) and
+`modules`, `stylesheets` and `signInStylesheets`, the
+[logo](shell.md#sign-in-branding) images, and AuthHandler's
+`AuthHandler.css`/`.js` on the sign-in page. Each gets `?v=<key>`: the base36 modification time (seconds) and
 the base36 size of the file it is served from, joined by `-` (for example
 `app/main.js?v=t3k9qz-1fk2`). A rebuilt or newly copied file gets a new key on
 the next page load, without a commit, `.git`, a version bump or a hand-edited
