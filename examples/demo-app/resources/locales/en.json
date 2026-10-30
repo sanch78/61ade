@@ -34,6 +34,7 @@
   "Prioritás": "Priority",
   "0 és 5 közötti egész szám adható meg.": "Enter a whole number from 0 to 5.",
   "{value} / {max} csillag": "{value} of {max} stars",
+  "{field} — csillagok": "{field} — stars",
   "Másolás szövegként": "Copy as text",
   "Vágólapra másolva: {count} feladat.": "Copied to the clipboard: {count} task(s).",
   "Egyszerre legfeljebb {count} feladat másolható.": "At most {count} tasks can be copied at once.",

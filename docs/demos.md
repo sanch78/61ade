@@ -198,10 +198,11 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
 - **Field type `demo.rating`** on the `Prioritás` field (`type: number`,
   `editor: demo.rating`, pattern `^[0-5]$`, default 0, editable column). The
   editor is a Suite number input (the labelled, keyboard control: arrow keys
-  step within 0–5) plus a star strip in a Form `container` item that `bind`
-  attaches and releases with the form's `signal` (a pointer shortcut, hidden
-  from assistive technology and the tab order; clicking the current star clears
-  to 0). `display` renders ★/☆ with one accessible name (`3 / 5 csillag`) in
+  step within 0–5) plus a star strip, a Suite `togglegroup` item named
+  `Prioritás — csillagok` of five toggle buttons pressed up to the rating
+  (Space/Enter or click; the current star clears to 0), kept in step with the
+  input through Suite events and released with the form's `signal` (the Form
+  `container` item is PRO-only). `display` renders ★/☆ with one accessible name (`3 / 5 csillag`) in
   the table, cards and record details, taking the theme's text colour. Used by
   the create and update forms (panel), the table cell's edit button and the
   card field's edit window; every save goes through the framework (`create`,
