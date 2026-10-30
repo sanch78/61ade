@@ -2502,8 +2502,18 @@ that exactly equals an option label lists every option. The managed
   isolated re-runs (`admin`, `files`, `toolkit-components`, `toolkit-media`,
   `uploader` 2×). The causes were timeouts, closed pages and the guard task
   limit under host load. The sandbox's CSP egress probe passes: only
-  `?script` reaches the route. The full suite's stability under the guard
-  limits is an open risk.
+  `?script` reaches the route. The full suite's instability was the guard's
+  task limit, fixed in [FB-0083](#fb-0083).
+- **After G3 (owner decisions, 2026-10-30):** record commands sit only in the
+  list toolbar, acting on the cursor record; the record context menu is gone
+  (C-5b). While a sub-view record holds the toolbar, a command the sub-view's
+  view has too runs in the sub-view's context, any other on the parent's own
+  record, so `view` and `row` share one resource (C-5c; it also fixed a
+  collapsed preview keeping the toolbar and stale enabled states after a
+  preview refresh). Verification: typecheck, build, node checks; browser
+  `toolkit-registries` (incl. a sub-view of another resource), `subview`,
+  `subview-demos`, `toolkit-list`, `workspace` pass; full suite after C-5b:
+  147 passed, 1 failed (`uploader` retry race test, see FB-0083).
 - **Status:** in progress (P4 feature demo next).
 
 <a id="fb-0082"></a>
@@ -2562,7 +2572,11 @@ that exactly equals an option label lists every option. The managed
   with the same sampling: 153 passed (12.1 min, before 14.3 min); peak 115
   tasks, no refused fork, about 19 000 `memory.high` events, none at
   `memory.max`. Memory is now mostly Chromium's (anon up to about 580 MiB late
-  in the run), the next limit to watch.
+  in the run), the next limit to watch. A third full run (after C-5b, peak
+  118 tasks, no refused fork) had one failure: `uploader.spec.cjs:347`
+  waited in vain for one aborted chunk fetch. It passed 5 of 5 isolated
+  repeats; the trace was overwritten before it was read. Watch it in the
+  next full runs; a repeat means a real race, not load.
 - **Status:** implemented and committed.
 
 ## FB-0084 — Shared skill for adopting and building on 61ade
