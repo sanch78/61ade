@@ -1,13 +1,13 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
-const root=path.resolve(__dirname,'../..');
-const bundle=require('esbuild').buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+const {root,lazyBundle}=require('./fixture.cjs');
+const bundle=lazyBundle('export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";');
 // Synthetic hierarchy of one resource: records 1–3 at the top, 11 and 12 under 1. The sub-view is the same
 // resource (`shared`), so it has no toolbar of its own and the parent's toolbar acts on its cursor record.
 async function mount(page){
  await page.route('**/subview-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="blade-application"></div>'}));
  await page.goto('/subview-fixture');await page.setContent('<div id="blade-application" style="height:700px"></div>');
- await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
+ await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle()});
  await page.evaluate(()=>{
   const record=(id,parent)=>({id,title:'Elem '+id,parent_id:parent,revision:'r'+id,_actions:['get','archive']});
   const rows=[record('1',''),record('2',''),record('3',''),record('11','1'),record('12','1'),...Array.from({length:12},(_,i)=>record(String(21+i),'2'))];

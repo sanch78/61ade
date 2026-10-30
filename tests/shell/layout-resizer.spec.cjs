@@ -1,14 +1,14 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
-const root=path.resolve(__dirname,'../..');
-const preferencesBundle=require('esbuild').buildSync({stdin:{contents:'export {UiPreferences} from "./packages/frontend/src/UiPreferences";',resolveDir:root},bundle:true,format:'iife',globalName:'preferencesFixture',write:false}).outputFiles[0].text;
+const {root,lazyBundle}=require('./fixture.cjs');
+const preferencesBundle=lazyBundle('export {UiPreferences} from "./packages/frontend/src/UiPreferences";',{globalName:'preferencesFixture'});
 
 for(const type of ['space','wide'])for(const axis of ['x','y']){
  test(`${type} layout ${axis} grip is centered and remains draggable`,async({page})=>{
   await page.setContent('<div id="blade-application"></div>');
   await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});
   await page.addScriptTag({path:path.join(root,'node_modules/@dhtmlx/suite/codebase/suite.min.js')});
-  await page.addScriptTag({content:preferencesBundle});
+  await page.addScriptTag({content:preferencesBundle()});
   await page.evaluate(([type,axis])=>{
    const tree={
     type,

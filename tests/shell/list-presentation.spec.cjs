@@ -1,12 +1,12 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const {signIn,openView}=require('./feature-demo.cjs');
-const root=path.resolve(__dirname,'../..');
-const bundle=require('esbuild').buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+const {root,lazyBundle}=require('./fixture.cjs');
+const bundle=lazyBundle('export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";');
 async function mount(page,options={},table=true){
  await page.route('**/list-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="blade-application"></div>'}));
  await page.goto('/list-fixture');await page.setContent('<div id="blade-application"></div>');
- await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
+ await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle()});
  await page.evaluate(options=>{
   const fields=[{id:'title',header:'Cím'},{id:'description',header:'Leírás',type:'textarea'},{id:'active',header:'Aktív',type:'checkbox',options:{0:'Nem',1:'Igen'}}];
   const rows=options.rows??Array.from({length:30},(_,i)=>({id:String(i+1),title:'Synthetic '+i,description:'Long description '+i,active:'1',revision:'r'+i,_actions:['get','archive','note']}));

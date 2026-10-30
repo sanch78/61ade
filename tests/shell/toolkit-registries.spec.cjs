@@ -1,23 +1,22 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const {view}=require('./feature-demo.cjs');
-const root=path.resolve(__dirname,'../..');
+const {root,lazyBundle}=require('./fixture.cjs');
 // Presentation, field-type and command registries (toolkit P3 C-5, docs/toolkit.md#registries) of a real `Application`
 // (createApplication, no shell): a project presentation, a project field type in form, grid and card, project toolbar
 // and record-menu commands, the built-in `details` command and `image` presentation, and the fallback of unknown names.
 // Synthetic resource answered by a fetch stub; the CSS is the tracked dist/admin.css (bundling as toolkit-list.spec.cjs).
 // A 1×1 PNG: the static images load (a failing one would be replaced by the placeholder icon).
 const pixel=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=','base64');
-const bundle=require('esbuild').buildSync({stdin:{contents:'export {createApplication} from "./packages/frontend/src/app/Application"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {Layout,setTheme} from "@dhtmlx/suite";',resolveDir:root},
- bundle:true,format:'iife',globalName:'fixture',write:false,outdir:path.join(root,'tmp','toolkit-registries-fixture'),
- loader:{'.woff':'dataurl','.woff2':'dataurl','.png':'dataurl','.svg':'dataurl','.gif':'dataurl','.ttf':'dataurl','.eot':'dataurl'}}).outputFiles.find(file=>file.path.endsWith('.js')).text;
+const bundle=lazyBundle('export {createApplication} from "./packages/frontend/src/app/Application"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {Layout,setTheme} from "@dhtmlx/suite";',{outdir:path.join(root,'tmp','toolkit-fixture'),
+ loader:{'.woff':'dataurl','.woff2':'dataurl','.png':'dataurl','.svg':'dataurl','.gif':'dataurl','.ttf':'dataurl','.eot':'dataurl'}});
 
 async function mount(page){
  page.warnings=[];page.on('console',message=>{if(message.type()==='warning')page.warnings.push(message.text());});
  await page.route('**/toolkit-registries-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="blade-application"></div>'}));
  await page.route('**/img/**',route=>route.fulfill({contentType:'image/png',body:pixel}));
  await page.goto('/toolkit-registries-fixture');await page.setContent('<div id="blade-application" style="height:760px"></div>');
- await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
+ await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle()});
  await page.evaluate(()=>{
   const row=(id,title,score,priority)=>({id,title,score,priority,kind:'a',image:'p'+id+'.png',revision:'r'+id,_actions:['get','update'],_editable:['priority']});
   window.rows=[row('1','Első','<b>5</b>','3'),row('2','Második','7','1'),row('3','Harmadik','2','5')];
