@@ -68,7 +68,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-left", disabled: true, hidden: !timed },
       { id: "forward", label: t("Előre {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-right", disabled: true, hidden: !timed },
       { id: "loop", label: loop ? t("Ismétlés: be") : t("Ismétlés: ki"), icon: "dxi dxi-redo", disabled: true, hidden: !timed },
-      { id: "gap", label: "", type: "spacer" },
+      { type: "spacer" },
       { id: "position", label: status, disabled: true, hidden: status === "" },
     ] });
     bar.mount(layout.getCell("commands"));

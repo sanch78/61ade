@@ -1,7 +1,10 @@
 import { t } from "./I18n";
 import {Toolbar} from "@dhtmlx/suite";
 
-/** Native Toolbar dropdowns share the same item IDs, state and click events. */
+/**
+ * Native Toolbar dropdowns share the same item IDs, state and click events. Escape closes an open menu wherever the
+ * focus is (Suite closes it only while the focus is inside the popup) and returns the focus to its toggle.
+ */
 export class ResponsiveToolbar extends Toolbar {
   private order:any[];
   private compact=false;
@@ -13,7 +16,18 @@ export class ResponsiveToolbar extends Toolbar {
     this.observer=new ResizeObserver(()=>this.reflow());
     this.observer.observe(this.getRootNode());
     window.addEventListener("resize",()=>this.reflow(),{signal:this.listeners.signal});
+    // Capture phase: the menu closes before a window or view behind it sees the Escape.
+    document.addEventListener("keydown",event=>this.escape(event),{capture:true,signal:this.listeners.signal});
     this.reflow();
+  }
+  private escape(event:KeyboardEvent):void{
+    if(event.key!=="Escape"||!this._popupActive)return;
+    const root=this.data.getRoot();
+    let opener=this._activeMenu;
+    while(opener!==undefined&&opener!==null&&this.data.getParent(opener)!==root)opener=this.data.getParent(opener);
+    event.preventDefault();event.stopPropagation();
+    this._close(event as unknown as MouseEvent);
+    if(opener!==undefined&&opener!==null)(this.getRootNode()?.querySelector(`[data-dhx-id="${CSS.escape(String(opener))}"]`) as HTMLElement|null)?.focus();
   }
   private restoreItem(original:any,current=original):any{
     const item={...current};

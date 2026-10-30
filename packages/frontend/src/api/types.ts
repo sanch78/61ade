@@ -1249,27 +1249,37 @@ export interface SandboxFrame extends Component<SandboxFrameEvents> {
   post(type: string, payload?: unknown): void;
 }
 
-/** One command bar item. */
-export interface CommandItem {
+/** One command bar item: a button (`type` omitted or `button`) or a spacer, which needs no id. */
+export type CommandItem = CommandButton | CommandSpacer;
+
+/** A command bar button; its `id` is what `click` reports and `update` addresses. */
+export interface CommandButton {
+  type?: "button";
   id: string;
   /** Plain text (escaped). */
   label: string;
   icon?: string;
   disabled?: boolean;
   hidden?: boolean;
-  /** `spacer` pushes the following items to the right. */
-  type?: "button" | "spacer";
 }
 
-/** Options of `CommandBar`. Ids are `[A-Za-z0-9_.:-]+` and unique (`blade-command-menu` is reserved); otherwise `TypeError`. */
+/** Pushes the following items to the right (left out of the collapsed `Műveletek` menu). */
+export interface CommandSpacer {
+  type: "spacer";
+}
+
+/** Options of `CommandBar`. Button ids are `[A-Za-z0-9_.:-]+` and unique (`blade-command-menu` is reserved); otherwise `TypeError`. */
 export interface CommandBarOptions extends ComponentOptions {
   items: CommandItem[];
 }
 
-/** The framework's responsive toolbar (`ResponsiveToolbar.ts`): collapses into `Műveletek` when it does not fit or below 768 px. */
+/**
+ * The framework's responsive toolbar (`ResponsiveToolbar.ts`): collapses into `Műveletek` when it does not fit or below
+ * 768 px. Escape closes an open menu (also one opened with the mouse) and returns the focus to its toggle.
+ */
 export interface CommandBar extends Component<CommandBarEvents> {
   readonly toolbar: Suite.Toolbar;
-  update(id: string, changes: Partial<Omit<CommandItem, "id" | "type">>): void;
+  update(id: string, changes: Partial<Omit<CommandButton, "id" | "type">>): void;
 }
 
 /** Events of `CommandBar`. */
