@@ -696,5 +696,7 @@
   "Tenant váltása": "Switch tenant",
   "Hozzáférés": "Access",
   "Hozzáférések": "Access",
-  "Egy alkalmazásmodul nem indult el: {module}": "An application module did not start: {module}"
+  "Egy alkalmazásmodul nem indult el: {module}": "An application module did not start: {module}",
+  "A munkamenet lejárt": "Session expired",
+  "A munkamenet lejárt, a nyitott adatok nem menthetők. Másold ki, amire még szükséged van, majd jelentkezz be újra.": "Your session has expired, so the open data cannot be saved. Copy out anything you still need, then sign in again."
 }

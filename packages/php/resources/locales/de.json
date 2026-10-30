@@ -696,5 +696,7 @@
   "Tenant váltása": "Mandant wechseln",
   "Hozzáférés": "Zugriff",
   "Hozzáférések": "Zugriffe",
-  "Egy alkalmazásmodul nem indult el: {module}": "Ein Anwendungsmodul wurde nicht gestartet: {module}"
+  "Egy alkalmazásmodul nem indult el: {module}": "Ein Anwendungsmodul wurde nicht gestartet: {module}",
+  "A munkamenet lejárt": "Sitzung abgelaufen",
+  "A munkamenet lejárt, a nyitott adatok nem menthetők. Másold ki, amire még szükséged van, majd jelentkezz be újra.": "Ihre Sitzung ist abgelaufen, die geöffneten Daten können nicht gespeichert werden. Kopieren Sie, was Sie noch benötigen, und melden Sie sich dann erneut an."
 }

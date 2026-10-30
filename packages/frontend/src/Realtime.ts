@@ -28,8 +28,11 @@ export class LiveChannel {
   private busy=false;
   private again=false;
   private listeners=new AbortController();
-  /** notice: a shell-level hint (stale page); editing: an open form may hold unsaved input, so never reload over it. */
-  constructor(private config:LiveConfig,private hooks:{notice?:(text:string)=>void;editing?:()=>boolean}={}){
+  /**
+   * notice: a shell-level hint (stale page); editing: an open form may hold unsaved input, so never reload over it;
+   * ended: the session is gone (4401, `__ticket`/`__watch` 401/403), after the lists show the revoked state.
+   */
+  constructor(private config:LiveConfig,private hooks:{notice?:(text:string)=>void;editing?:()=>boolean;ended?:()=>void}={}){
     const signal=this.listeners.signal;
     // A hidden tab ends its subscriptions but keeps the socket; showing it subscribes again with fresh windows.
     document.addEventListener("visibilitychange",()=>{if(document.hidden)this.pause();else this.resume();},{signal});
@@ -124,6 +127,7 @@ export class LiveChannel {
     this.ended=true;this.disconnect();
     for(const handle of this.handles){handle.blocked=true;handle.wire=undefined;handle.state(t("A hozzáférés megszűnt"));handle.denied();}
     this.wires.clear();
+    this.hooks.ended?.();
   }
   /**
    * 4409: this page speaks an older protocol than the server. One reload a minute at most, never a loop, and never

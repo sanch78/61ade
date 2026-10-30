@@ -355,3 +355,7 @@
 <a id="fb-0085"></a>
 
 ## FB-0085 — Browser cache keys from the served file
+
+<a id="fb-0086"></a>
+
+## FB-0086 — An ended session leads to the sign-in page

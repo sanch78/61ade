@@ -192,7 +192,8 @@ app.navigate({ view: "demo.asset-viewer", record: "42" });
 Errors: `server.*` rejects with `ServerFailure` (`status`, localized
 `message`, `fieldErrors`, optional `details`; status 0 for a network
 failure or a 2xx answer without JSON; an error answer keeps its HTTP status) or the platform `AbortError`; it never retries. 401 means
-the session ended; the shell's behaviour for it is unchanged. Event handlers
+the session ended: the shell then signs the page out ([ended session](shell.md#ended-session)),
+and the caller still gets the failure. Event handlers
 that throw are logged and do not stop other handlers; emitting a framework
 event name (with `:`) throws.
 
@@ -1055,6 +1056,7 @@ the [verification matrix](toolkit-plan.md#9-verification-matrix) per phase.
 | 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | [Cache keys](#cache-keys) of every shell asset (`admin.js`, `admin.css`, skin stylesheets, `modules`, `stylesheets`, AuthHandler files) are `?v=<base36 mtime>-<base36 size>` of the served file inside the document root; own `?…` keys stay; fallback `?v=<version>` (61ade's files: the package build's key first); the hand-bumped `?v=32` is gone. New optional `ApplicationDefinition::$documentRoot` / JSON `application.document_root` (default `DOCUMENT_ROOT`); bootstrap `modules` carry these keys. `versioned()` remains as the fallback rule. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Activation map on a media field (`file` or `column.media`): the client keys the row by the MIME class of `_media[field]` (`image`, `video`, `audio`, …) instead of the file id; no or a hidden file takes `*`. Server validation unchanged. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | A 401 of `server.*` (and the live channel's session end) signs the page out: a reload to the sign-in page, or over open input (`ViewInstance.editing()`) the "A munkamenet lejárt" modal first ([ended session](shell.md#ended-session)). The rejection itself is unchanged. | [FB-0086](feedback.md#fb-0086) |
 | 2026-10-30 | The [recipe](#typescript-recipe) names the feature demo (`examples/demo-app/frontend`, built to `public/app/demo.js`) as its worked example; no API change. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>

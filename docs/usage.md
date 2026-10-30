@@ -33,7 +33,8 @@ column header filters, dynamic lists, server sorting and polling/WebSocket live
 data over [one channel per tab](workspaces.md#live-channel) that every list and
 sub-view shares; singleton details are direct forms.
 No upper application-title header; one lower bar has user left, application/version
-right. Skyblue (default), light and dark use DHTMLX setTheme; Skyblue uses Suite 9
+right. An ended session signs the page out on its next request
+([shell](shell.md#ended-session)). Skyblue (default), light and dark use DHTMLX setTheme; Skyblue uses Suite 9
 theme variables. Synthetic and consumer integration evidence exists.
 
 Optional [multi-tenancy](tenancy.md) (organizations) has its stage 1:
