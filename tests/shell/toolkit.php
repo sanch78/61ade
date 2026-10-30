@@ -222,11 +222,19 @@ $page=$render($branded());
 check(str_contains($page,'data-blade-page="shell"')&&str_contains($page,'href="../app/main.css?v=')&&!str_contains($page,'sign-in.css')&&$bootstrap($page)['authenticated']===true&&$bootstrap($page)['logo']===$logo&&$keysOf($page)===[]&&!str_contains($page,'sign-in.js'),'Signed-in shell: kind, project stylesheet only, logo; no sign-in content or modules');
 $page=$render($branded(new \Blade\Shell\Logo('/branding/logo.svg?v=3',label:'Márka',placement:'both'),[]));
 check($bootstrap($page)['logo']===['image'=>'/branding/logo.svg?v=3','label'=>'Márka','placement'=>'both'],'Own logo key, text and placement; no dark key without a dark image');
+// Without a declared logo the shell shows the 61ade product logo (docs/brand.md): no image URL, the shell inlines it.
+$product=['label'=>'blade','placement'=>'window'];
 $page=$render($branded(null,[],null,[]));
-check(!isset($bootstrap($page)['logo'])&&!str_contains($page,'branding/'),'No logo key or branding link without them');
+check($bootstrap($page)['logo']===$product&&!str_contains($page,'branding/')&&!str_contains($page,'<img'),'Signed in without a declaration: the product logo, nothing linked');
+check(!isset($bootstrap($render($branded(\Blade\Shell\Logo::none(),[],null,[])))['logo']),'Logo::none(): no logo key on the shell');
 $session([]);
 $page=$render($branded(null,[],null,[]));
-check(!isset($bootstrap($page)['logo'])&&!str_contains($page,'branding/')&&$keysOf($page)===[]&&str_contains($page,'data-blade-page="sign-in"'),'Signed out without branding: nothing linked or listed, the page kind stays');
+check($bootstrap($page)['logo']===$product&&!str_contains($page,'branding/')&&$keysOf($page)===[]&&str_contains($page,'data-blade-page="sign-in"'),'Signed out without branding: the product logo, nothing linked or listed, the page kind stays');
+check(!isset($bootstrap($render($branded(\Blade\Shell\Logo::none(),[],null,[])))['logo']),'Logo::none(): no logo key on the sign-in page');
+check($bootstrap($render($branded(new \Blade\Shell\Logo(placement:'both'),[],null,[])))['logo']===['label'=>'blade','placement'=>'both'],'The product logo with a placement');
+check($bootstrap($render($branded(new \Blade\Shell\Logo(label:'Márka'),[],null,[])))['logo']===['label'=>'Márka','placement'=>'window'],'The product logo with an own accessible text');
+rejects(fn()=>new \Blade\Shell\Logo(darkImage:'logo-dark.svg'),'A dark image without an image accepted');
+check((\Blade\Shell\Logo::none())->shown===false,'Logo::none() is not shown');
 check($keysOf($render($branded(null,[],new \Blade\Shell\SignIn(),[])))===[],'An empty SignIn adds no bootstrap key');
 check($keysOf($render($branded(null,[],new \Blade\Shell\SignIn(links:[new \Blade\Shell\SignInLink('Súgó','/help')]),[])))===['signIn'=>['links'=>[['label'=>'Súgó','href'=>'/help']]]],'Links without a notice');
 foreach(['https://cdn.example.test/logo.svg','//cdn.example.test/logo.svg','logo.gif','logo.jpg','x/../logo.svg','data:image/svg+xml,<svg/>','logo.svg?v=<x>','','lo go.png','logo.svg.js'] as $bad)

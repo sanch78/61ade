@@ -12,6 +12,7 @@ import type { AppWindow, NavigationTarget, Row, ViewDefinition, ViewHost, ViewIn
 import { createApplication, loadModules, type Kernel } from "./app/Application";
 import { parseRoute, routeHash } from "./app/routes";
 import { loadSignInModules, signInApplication, signInThemeApplied } from "./SignIn";
+import { brandLogo } from "./BrandLogo";
 import type { SignInPage } from "./api/sign-in";
 
 /** One open view: the workspace page or a document window, with the signal its host aborts on close. */
@@ -51,8 +52,11 @@ export type ShellDefinition = {
   tenant?: { current: string | null; choices: { id: string; name: string }[] };
   /** Only after sign-in: application skins (DHTMLX custom themes) of the identity; they replace the factory themes. */
   skins?: { id: string; label: string; base: "light" | "dark" | "skyblue" }[];
-  /** Optional application logo (`ApplicationDefinition::$logo`): keyed image URLs, its accessible text and placement. */
-  logo?: { image: string; dark?: string; label: string; placement?: "window" | "top" | "both" };
+  /**
+   * The logo (`ApplicationDefinition::$logo`): keyed image URLs (none: the inlined 61ade product logo), its accessible
+   * text and placement; absent only with `Logo::none()`.
+   */
+  logo?: { image?: string; dark?: string; label: string; placement?: "window" | "top" | "both" };
   /** Signed out only: the windows' notice and links (`ApplicationDefinition::$signIn`), server-translated plain text. */
   signIn?: { notice?: string; links?: { label: string; href: string }[] };
   /** Signed out only: the sign-in modules (`ApplicationDefinition::$signInModules`), page-relative keyed paths. */
@@ -181,7 +185,10 @@ export class AdminShell {
     const logo=this.definition.logo;
     if(!logo)return "";
     const image=(src:string,kind:string)=>`<img class="blade-logo__image blade-logo__image--${kind}" src="${escape(src)}" alt="">`;
-    return `<span class="blade-logo${logo.dark?" blade-logo--themed":""}" ${hidden?'aria-hidden="true"':`role="img" aria-label="${escape(logo.label)}"`}>${image(logo.image,"light")}${logo.dark?image(logo.dark,"dark"):""}</span>`;
+    // Without an image: the product logo, inline in both variants (docs/brand.md).
+    const css=logo.image?(logo.dark?" blade-logo--themed":""):" blade-logo--themed blade-logo--brand";
+    const images=logo.image?image(logo.image,"light")+(logo.dark?image(logo.dark,"dark"):""):brandLogo();
+    return `<span class="blade-logo${css}" ${hidden?'aria-hidden="true"':`role="img" aria-label="${escape(logo.label)}"`}>${images}</span>`;
   }
   /** Signed out, `placement` decides; the signed-in shell always shows the logo in the top row. */
   private get windowLogo():boolean{ return !this.definition.authenticated&&!!this.definition.logo&&(this.definition.logo.placement??"window")!=="top"; }

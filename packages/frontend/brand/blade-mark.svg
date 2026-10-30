@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="blade-logo blade-logo--mark" viewBox="-19.5 12 334 334" role="img" aria-label="blade">
+  <!-- Geometry and parts: docs/brand.md -->
+  <defs>
+    <linearGradient id="blade-t1" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="346"><stop offset="0" stop-color="#1384C6"/><stop offset="1" stop-color="#0B2747"/></linearGradient>
+    <linearGradient id="blade-t2" gradientUnits="userSpaceOnUse" x1="150" y1="12" x2="295" y2="186"><stop offset="0" stop-color="#33CFC0"/><stop offset="1" stop-color="#0AA3A3"/></linearGradient>
+    <linearGradient id="blade-t3" gradientUnits="userSpaceOnUse" x1="150" y1="152" x2="295" y2="326"><stop offset="0" stop-color="#B4CBE0"/><stop offset="1" stop-color="#9DB6CF"/></linearGradient>
+  </defs>
+  <g class="blade-logo__mark">
+    <polygon class="blade-logo__tile blade-logo__tile--1" points="12,72 118,24 118,286 12,334" fill="url(#blade-t1)" stroke="url(#blade-t1)" stroke-width="24" stroke-linejoin="round"/>
+    <polygon class="blade-logo__tile blade-logo__tile--2" points="162,24 283,78 283,174 162,120" fill="url(#blade-t2)" stroke="url(#blade-t2)" stroke-width="24" stroke-linejoin="round"/>
+    <polygon class="blade-logo__tile blade-logo__tile--3" points="162,164 283,218 283,314 162,260" fill="url(#blade-t3)" stroke="url(#blade-t3)" stroke-width="24" stroke-linejoin="round"/>
+  </g>
+</svg>

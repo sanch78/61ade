@@ -43,7 +43,10 @@ final readonly class ApplicationDefinition
          * below it (docs/toolkit.md#cache-keys). Null: the request's `DOCUMENT_ROOT`.
          */
         public ?string $documentRoot = null,
-        /** Optional application logo of the top menu row and the sign-in windows (docs/shell.md#sign-in-branding). */
+        /**
+         * Logo of the top menu row and the sign-in windows (docs/shell.md#sign-in-logo); null: the 61ade product logo
+         * (docs/brand.md) with placement `window`; `Logo::none()`: none.
+         */
         public ?Logo $logo = null,
         /**
          * Project stylesheets (`.css`) of the sign-in, e-mail confirmation and password-change pages, linked there after
