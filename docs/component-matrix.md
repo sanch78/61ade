@@ -19,7 +19,7 @@ capabilities from real needs; unimplemented rows are candidates, not commitments
 | Tabs/popup/sidebar/ribbon/List | Suite Standard | Inventory on demand | No verified independent adapter | Shell/lifecycle |
 | Tree | Suite Standard | Advanced options need checking | `TreeAdapter` over a flat parent list, used by the [file manager](files.md); view.layout.tree remains a layout tree | Lazy children/drag moves |
 | TreeGrid | Suite PRO | PRO-only | None | Licensed adapter/capability |
-| Chart | Suite Standard | PRO types/options separate | None | Scoped aggregates/drill-down |
+| Chart | Suite Standard | PRO types/options separate | No framework adapter; projects use `app.dhx.Chart` (feature demo [readings dashboard](demos.md#readings-dashboard): bar chart in a Layout cell, theme colours on `app.theme.onChange`) | Scoped aggregates/drill-down |
 | Date/time/color picker/combo | Suite Standard | Not event calendar | Not independently qualified as a capability | Types/locale/timezone |
 | Event calendar | Scheduler Standard GPL (`dhtmlx-scheduler` 7.2.15) | Basic views/recurrence available; one instance per page | Framework [calendar](calendar.md): day/week/month, framework event form (Suite Form) with recurrence, exceptions, windowed `events`, server-side `occurrences` | Live updates, time zones, per-event ACL |
 | Timeline/Units/resources | Scheduler PRO | PRO-only | None | Resource policies/conflicts |

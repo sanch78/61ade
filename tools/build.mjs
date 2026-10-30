@@ -67,6 +67,7 @@ const sandbox = await build({
 });
 // The feature demo's project module (docs/demos.md#toolkit-consumer), built like a consumer's (docs/toolkit.md#typescript-recipe):
 // 61ade arrives only as types (`import type` from admin.d.ts) and `app`, so only the demo's own sources may be bundled.
+// The CSS its sources import becomes demo.css beside demo.js, the stylesheet application.php declares.
 const demoSource = path.resolve("examples/demo-app/frontend/src");
 const demo = await build({
     write: false,
@@ -88,6 +89,8 @@ const demo = await build({
         },
     ],
 });
+if (!demo.outputFiles.some((file) => file.path === path.resolve("examples/demo-app/public/app/demo.css")))
+    throw new Error("demo.css: the feature demo declares app/demo.css; its sources must import their CSS");
 // The WebSocket live server ships inside packages/php with ws inlined, so a consumer release
 // that copies packages/php runs it with the system node and nothing from node_modules.
 const live = await build({
@@ -141,5 +144,5 @@ if (check) {
         await writeFile(file, contents);
     }
     if (execFileSync("git", ["status", "--porcelain", "packages/frontend/dist", "packages/php/bin/live-server.mjs", "examples/demo-app/public/app"], { encoding: "utf8" }))
-        console.log("Build output changed: commit packages/frontend/dist, packages/php/bin/live-server.mjs and examples/demo-app/public/app/demo.js together with their source.");
+        console.log("Build output changed: commit packages/frontend/dist, packages/php/bin/live-server.mjs and examples/demo-app/public/app/demo.js and demo.css together with their source.");
 }

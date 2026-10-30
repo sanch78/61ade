@@ -107,9 +107,12 @@ starter admin and the tenant demo stay declarative and load no project module.
   everything else comes from `app`
   ([recipe](toolkit.md#typescript-recipe)).
 - **Build:** `tools/build.mjs` bundles `src/index.ts` (ESM, es2022) into the
-  tracked `examples/demo-app/public/app/demo.js`; `node tools/build.mjs
-  --check` refuses a stale or missing bundle exactly like `dist`, and the build
-  rejects any import outside `frontend/src`. `npm run typecheck` includes
+  tracked `examples/demo-app/public/app/demo.js`, and the CSS files the sources
+  import (`import "./readings.css";`, one file per D-row) into the tracked
+  `demo.css` beside it; `node tools/build.mjs --check` refuses a stale or
+  missing bundle or stylesheet exactly like `dist`, the build fails when no
+  source imports CSS (the stylesheet is declared), and it rejects any import
+  outside `frontend/src`. `npm run typecheck` includes
   `tsc -p examples/demo-app/frontend`; after a change to
   `packages/frontend/src/api`, run `npm run build` first so `admin.d.ts` is
   current.
@@ -117,6 +120,8 @@ starter admin and the tenant demo stay declarative and load no project module.
   imports it as `app/demo.js?v=<mtime>-<size>` after sign-in. The key comes
   from the built file ([cache keys](toolkit.md#cache-keys)), so a rebuilt
   bundle is fetched on the next page load without a version bump.
+  `stylesheets: ['app/demo.css']` links the built stylesheet on signed-in
+  pages after `admin.css` and skins, keyed the same way.
 - **Structure:** `index.ts` is the module's default export. It calls one part
   per D-row in order; a failing part does not stop the later parts, and the
   failures are rethrown together so the loader reports the module once. A
@@ -128,9 +133,62 @@ starter admin and the tenant demo stay declarative and load no project module.
 | D0 | Build, declaration, empty module | `index.ts` | Implemented; registers nothing visible |
 | D1 | Signage `Médiatár` asset viewer | `assets.ts` | Planned |
 | D2 | Signage `Napi műsor` playlist preview | `playlist.ts` | Planned |
-| D3 | `Mérések` dashboard | `readings.ts` | Planned |
+| D3 | `Mérések` dashboard | `readings.ts` | Implemented ([below](#readings-dashboard)); browser spec written, not yet run |
 | D4 | `Tasks` field type and command | `tasks.ts` | Implemented: field type `demo.rating` on `Prioritás` and record command `demo.copy-text` ([below](#toolkit-d4-tasks)) |
-| D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` on the feature demo |
+| D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` and `app/demo.css` on the feature demo |
+
+<a id="readings-dashboard"></a>
+
+**D3 `Mérések` dashboard** (`readings.ts`, declared in
+[readings.json](../examples/demo-app/modules/readings.json)):
+
+- **Presentation `demo.reading-bar`:** the `reading` field's
+  `"column": {"presentation": "demo.reading-bar"}` draws an inline bar of the
+  value on the fixed 0–100 reading scale with the escaped number beside it (the
+  visible text alternative; the bar is `aria-hidden`, the tooltip reads
+  `{value} a 100-ból`). Sizes: `cell` in the table, `card` in cards and the
+  record details, `tile` (implemented, unused: the readings list has no tiles).
+  A value that is not a number renders as escaped text. Its rules (and the
+  summary's) are `frontend/src/readings.css`, built into `app/demo.css`;
+  colours are Suite theme variables. The plain `Mérések` list keeps its declaration otherwise unchanged
+  (no marks, no tiles), so it stays the large-list performance reference.
+- **View `demo.readings-dashboard`** (`Feature demó → Mérési irányítópult`, an
+  additional menu entry beside `Mérések`): a module-level JSON `views` entry of
+  the project kind with `actions: ["list"]` (offered with the readings ACL) and
+  the options `list` (the list view shown), `value`, `name`, `max` and
+  `buckets`, checked when the view opens. The page is a Suite Layout: a
+  summary cell (loaded/matched rows, minimum, maximum, average and the selected
+  row with its distance from the average) and a Suite Chart cell
+  (`app.dhx.Chart`, a stacked bar histogram of the values in ten bins; the
+  selected row's bin is a second segment) above `app.components.ListView` of
+  `demo_readings`. The list's `changed` event (load, scroll window, filter, live
+  update) and `select` event (cursor record) update both. The figures describe
+  the **loaded window** of the list, not the full result: unfiltered that is
+  the bounded window out of 1801; with a filter such as `Mérés 000` it is the
+  whole match. A visually hidden paragraph lists every bin (and the selected
+  bin) as the chart's text alternative. The list keeps its own saved mode,
+  sort, columns and filters: a `ListView` keys them by the id of the
+  definition it gets, so the dashboard passes the offered `demo_readings`
+  definition under its own view id (`demo.readings-dashboard`), and a filter
+  set here never changes the `Mérések` page.
+- **Themes and mobile:** chart colours are read from `--dhx-color-primary` and
+  `--dhx-color-success` and repainted through `app.theme.onChange`, so Skyblue,
+  light, dark and skins apply; axis text follows the Suite CSS. Below 768 px
+  summary (compact four-column grid) and chart stack above the list, which
+  shows cards; crossing the breakpoint rebuilds the page (the list's state
+  comes back from its preferences).
+- **Lifecycle:** closing the view (navigation, sign-out) aborts its session:
+  the ListView (with its live subscription), the theme listener, the
+  breakpoint listener, the Chart and the Layout are destroyed.
+- **Limits:** the toolkit `ListView` reports the cursor record but not the
+  marked rows, so the dashboard follows selection and filters, not marks. The
+  presentation has no per-column options, so its scale is fixed at 100. The
+  feature demo offers Hungarian and English only; the English texts are in
+  `resources/locales/en.json`.
+- **What to try:** open `Mérési irányítópult`, type `Mérés 000` into the
+  `Megnevezés` header filter (summary `9 / 9`, the chart shows nine rows),
+  click a row (summary and chart mark it), switch the theme, narrow the window
+  below 768 px, then open `Mérések` and its cards and details to see the bar.
 
 <a id="toolkit-d4-tasks"></a>
 
@@ -283,9 +341,10 @@ See [project rules](development.md#mandatory-framework-development-rules).
 
 ## Verification
 
-- `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes; the starter admin and the tenant demo declare no modules or stylesheets, the feature demo exactly its `app/demo.js`, keyed by its built file ([toolkit consumer](#toolkit-consumer)), and the starter admin's `admin.js` by its file.
-- `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<file key>` once (bootstrap `modules`, the network and the file's mtime and size agree) and `admin.js` with its file key, never `?v=32`, and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules` and request no script outside `assets/`.
+- `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes; the starter admin and the tenant demo declare no modules or stylesheets, the feature demo exactly its `app/demo.js` and `app/demo.css`, each keyed by its built file ([toolkit consumer](#toolkit-consumer)), and the starter admin's `admin.js` by its file.
+- `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<file key>` once (bootstrap `modules`, the network and the file's mtime and size agree) and `admin.js` with its file key, never `?v=32`, links `app/demo.css?v=<file key>` once after `admin.css` (written, not yet run), and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules`, request no script outside `assets/` and link no `app/demo.css`.
 - `npm run test:browser -- tests/shell/toolkit-demo-tasks.spec.cjs` ([D4](#toolkit-d4-tasks)): `Prioritás` edited through the table cell's edit button, the update and create panel forms and the card editor (pointer and keyboard), saved through `__edit`/`update`/`create` and re-rendered (also in `Adatok`); a value rewritten in transit is refused by the server with the field error in the editor; `Másolás szövegként` disabled without a record, copying the cursor record and the marks (stubbed clipboard, exact text), a refused clipboard in the error dialog, from `Műveletek` at 390 px; the stars follow light/dark/Skyblue. Tasks carry a run prefix and are deleted.
+- `npm run test:browser -- tests/shell/toolkit-demo-readings.spec.cjs` (written, not yet run): the [readings dashboard](#readings-dashboard) opens from the menu, its summary and chart data follow the header filter (compared with the `list` action) and the selected row, the theme switch repaints the chart and summary, the phone layout stacks and rebuilds at the breakpoint, navigating away leaves no chart, summary or listener, and a filter set on the dashboard leaves the `Mérések` page unfiltered; the plain `Mérések` list shows `demo.reading-bar` in table, cards and details and still sorts on the server.
 - Ignored `.env.test` supplies `BLADE_DEMO_URL` and `BLADE_DEMO_INSTANCE=web`; every browser spec runs against the managed server and none starts a local server ([development](development.md#unified-playwright-configuration)).
 - `npm run test:browser -- --project=shell tests/shell/demo.spec.cjs`: login modes/language row, provider overlay/start, mailbox code/English default, account columns, API issue/use/revoke, starter menu and Tasks. Real provider completion remains unverified; FB-0050 records Google's callback mismatch.
 - `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs`: six combinations on desktop/320×480, keys/focus and invalid-login caller.

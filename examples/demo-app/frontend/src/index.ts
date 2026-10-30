@@ -14,7 +14,7 @@ const assets: Part = none;
 // D2 Signage Napi műsor: view kind demo.playlist-preview (playlist.ts)
 const playlist: Part = none;
 // D3 Mérések: dashboard kind and column presentation (readings.ts)
-const readings: Part = none;
+import readings from "./readings";
 // D4 Tasks: field type and client command (tasks.ts)
 import tasks from "./tasks";
 

@@ -41,15 +41,18 @@ verify(array_column($base->workspace->registry->views(), 'resource') === ['blade
 verify($base->cookiePath === '/admin/' && $base->assets === '../assets' && $base->sessionName !== $app->sessionName, 'Base admin is a separate application');
 verify(count($base->workspace->views($base->identities->authenticate('demo@example.test', '61ade-demo'))) === 6, 'First administrator reaches every admin view');
 // Declarative path (toolkit D6): the starter admin and the tenant demo declare no project browser modules or
-// stylesheets; the feature demo, the toolkit consumer, declares exactly its built demo module (docs/demos.md#toolkit-consumer).
+// stylesheets; the feature demo, the toolkit consumer, declares exactly its built demo module and stylesheet
+// (docs/demos.md#toolkit-consumer).
 $tenantDemo = require dirname(__DIR__, 2).'/examples/demo-app/tenant-application.php';
 verify($base->modules === [] && $base->stylesheets === [] && $tenantDemo->modules === [] && $tenantDemo->stylesheets === [], 'Starter admin and tenant demo declare no modules or stylesheets');
 verify($app->modules === ['app/demo.js'] && $app->versioned('app/demo.js') === 'app/demo.js?v='.rawurlencode($app->version) && $app->version !== '', 'Feature demo declares exactly its versioned demo module');
+verify($app->stylesheets === ['app/demo.css'], 'Feature demo declares exactly its built demo stylesheet');
 // Cache keys from the served files (docs/toolkit.md#cache-keys): the demo module under the demo's document root; the
 // starter admin's `../assets` from /admin/, or the package build's key while the demo assets are not prepared.
 $public = dirname(__DIR__, 2).'/examples/demo-app/public';
 $demoKeys = new Blade\Shell\AssetKeys($app, ['DOCUMENT_ROOT' => $public, 'SCRIPT_FILENAME' => $public.'/index.php']);
 verify($demoKeys->url('app/demo.js') === 'app/demo.js?v='.Blade\Shell\AssetKeys::key($public.'/app/demo.js') && Blade\Shell\AssetKeys::key($public.'/app/demo.js') !== null, 'Feature demo module keyed by its built file');
+verify($demoKeys->url('app/demo.css') === 'app/demo.css?v='.Blade\Shell\AssetKeys::key($public.'/app/demo.css') && Blade\Shell\AssetKeys::key($public.'/app/demo.css') !== null, 'Feature demo stylesheet keyed by its built file');
 $adminKeys = new Blade\Shell\AssetKeys($base, ['DOCUMENT_ROOT' => $public, 'SCRIPT_FILENAME' => $public.'/admin/index.php']);
 $served = is_file($public.'/assets/admin.js') ? $public.'/assets/admin.js' : dirname(__DIR__, 2).'/packages/frontend/dist/admin.js';
 verify($adminKeys->url('../assets/admin.js', 'admin.js') === '../assets/admin.js?v='.Blade\Shell\AssetKeys::key($served), 'Starter admin admin.js keyed by its file');
@@ -67,6 +70,14 @@ foreach ($demoViews as $view) {
 $demoKinds = array_column($demoViews, 'kind', 'id');
 verify($demoKinds['demo_tasks'] === 'list' && $demoKinds['files'] === 'files' && $demoKinds['topology'] === 'diagram' && $demoKinds['signage_schedule'] === 'calendar', 'Every built-in kind is named explicitly');
 verify(!array_filter($demoViews, static fn(array $view) => $view['kind'] !== 'list' && array_intersect_key($view['options'], ['columns' => 1, 'filters' => 1, 'singleton' => 1])), 'Non-list kinds carry no list placeholders');
+// Toolkit D3 (docs/demos.md#toolkit-consumer): the readings dashboard is a project kind with JSON options beside the
+// Mérések list, whose value column (table, cards and details) names the module's presentation.
+$demoById = array_column($demoViews, null, 'id');
+verify($demoKinds['demo.readings-dashboard'] === 'demo.readings-dashboard' && $demoKinds['demo_readings'] === 'list'
+    && $demoById['demo.readings-dashboard']['options'] === ['list' => 'demo_readings', 'value' => 'reading', 'name' => 'title', 'max' => 100, 'buckets' => 10]
+    && array_column($demoById['demo.readings-dashboard']['actions'], 'name') === ['list'] && $demoById['demo.readings-dashboard']['group'] === 'Feature demó'
+    && array_column($demoById['demo_readings']['options']['columns'], 'presentation', 'id') === ['reading' => 'demo.reading-bar']
+    && array_column($demoById['demo_readings']['options']['detailFields'], 'presentation', 'id') === ['reading' => 'demo.reading-bar'], 'Readings dashboard view and reading-bar presentation');
 $dialogActions = array_values(array_filter(array_merge(...array_column($demoViews, 'actions')), static fn(array $a) => str_starts_with($a['name'], 'dialog_')));
 verify(array_column(array_column($dialogActions, 'confirm'), 'severity') === ['neutral', 'warning', 'danger'], 'Dialog demo actions expose confirm severities');
 foreach ([['message' => ''], ['message' => 'x', 'severity' => 'loud'], ['message' => 'x', 'onclick' => 'y']] as $bad) {

@@ -106,9 +106,10 @@ change. Every consumer would need a coordinated update, as described in
 `sandbox.js` (the [sandbox document](toolkit.md#sandbox-protocol), from
 `src/sandbox/`) and `admin.d.ts` (toolkit API declarations from
 `src/api/index.ts`, development use only). The same build writes the feature
-demo's project module `examples/demo-app/public/app/demo.js` from
+demo's project module `examples/demo-app/public/app/demo.js` and its
+stylesheet `demo.css` (the CSS its sources import) from
 `examples/demo-app/frontend/src` ([toolkit consumer](demos.md#toolkit-consumer));
-it is tracked the same way but is demo output, never consumer runtime.
+they are tracked the same way but are demo output, never consumer runtime.
 Every commit that changes their
 source carries the matching fresh `npm run build` output; the build is
 reproducible, and `npm run build` reports when `dist` changed. `npm run
