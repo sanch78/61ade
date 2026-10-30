@@ -518,28 +518,30 @@ test('drop and paste onto a panel: in-flight rows, in-place insertion without re
  expect(errors).toEqual([]);
 });
 
-test('viewer previous and next across the images and videos of the listing',async({page})=>{
+test('viewer previous and next across the images, videos and audio of the listing',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await start(page);
- // The seeded images and videos live in the Signage mount root (signage demo, files-media-plan U5).
- const left=panel(page,0),media=(await api(page,'files','list',(await api(page,'files','tree','signage')).body.data.root,{limit:200})).body.data.items.filter(item=>['image/png','image/jpeg','video/mp4','video/webm'].includes(item.mime_type));
- const count=media.length,at=media.findIndex(item=>item.name==='minta-fraktal.jpg')+1;
- expect(media[at]?.name).toBe('minta-video.webm');
+ // The seeded images, videos and audio (D1) live in the Signage mount root (signage demo, files-media-plan U5).
+ const left=panel(page,0),media=(await api(page,'files','list',(await api(page,'files','tree','signage')).body.data.root,{limit:200})).body.data.items.filter(item=>['image/png','image/jpeg','video/mp4','video/webm','audio/mpeg','audio/wav','audio/mp4'].includes(item.mime_type));
+ const count=media.length,at=media.findIndex(item=>item.name==='minta-fraktal.jpg')+1,next=media[at]?.name;
+ expect(next).toBeTruthy();
+ // The shown file: an image by its accessible name, a video or audio element by its label.
+ const shown=name=>windowDialog(page).getByRole('img',{name,exact:true}).or(windowDialog(page).locator(`video[aria-label="${name}"], audio[aria-label="${name}"]`));
  await mount(page,left,'Signage');await row(left,'minta-fraktal.jpg').dblclick();
  const windows=page.locator('.blade-document-window');
  let bar=windowDialog(page).locator('.blade-document__bar');
  await expect(bar.locator('[data-dhx-id="index"]')).toHaveText(at+' / '+count);
  if(at===1)await expect(bar.getByRole('button',{name:'Előző',exact:true})).toBeDisabled();
  await bar.getByRole('button',{name:'Következő',exact:true}).click();
- await expect(windows).toHaveCount(1);await expect(windowDialog(page).locator('video')).toHaveAttribute('aria-label','minta-video.webm');
+ await expect(windows).toHaveCount(1);await expect(shown(next)).toBeVisible();
  bar=windowDialog(page).locator('.blade-document__bar');await expect(bar.locator('[data-dhx-id="index"]')).toHaveText((at+1)+' / '+count);
  // PageUp/PageDown inside the viewer walk the same sequence.
  await page.keyboard.press('PageUp');
  await expect(windows).toHaveCount(1);await expect(windowDialog(page).getByRole('img',{name:'minta-fraktal.jpg'})).toBeVisible();
- await page.keyboard.press('PageDown');await expect(windowDialog(page).locator('video')).toBeVisible();await expect(windows).toHaveCount(1);
+ await page.keyboard.press('PageDown');await expect(shown(next)).toBeVisible();await expect(windows).toHaveCount(1);
  // The panel cursor followed: the command reopens the shown file.
  await windowDialog(page).getByRole('button',{name:/close/i}).click();await expect(windows).toHaveCount(0);
- await command(page,'Megtekintés');await expect(windowDialog(page).locator('video')).toBeVisible();
+ await command(page,'Megtekintés');await expect(shown(next)).toBeVisible();
  await windowDialog(page).getByRole('button',{name:/close/i}).click();
  expect(errors).toEqual([]);
 });
