@@ -30,7 +30,7 @@ final class ListViewKind implements ViewKindProvider
     public function validate(Registry $registry, View $view): void
     {
         $o=$view->options;
-        if(isset($o['subview']))throw new \InvalidArgumentException('Attach sub-views with Registry::subview() after the final declaration: '.$view->id);
+        if(isset($o['subview']))throw new \InvalidArgumentException('Attach sub-views with Registry::subview(): '.$view->id);
         if($view->resource===null||array_diff(array_keys($o),self::OPTIONS)||!is_array($o['columns']??null)||!array_is_list($o['columns'])||!($o['layout']??null) instanceof ViewLayout)throw new \InvalidArgumentException('Invalid list view: '.$view->id);
         foreach(['singleton','rowNumbers','selection','rowSelection'] as $flag)if(!is_bool($o[$flag]??false))throw new \InvalidArgumentException('Invalid list view: '.$view->id);
         if(($o['tiles']??true)!==true)throw new \InvalidArgumentException('Invalid view presentation.');
