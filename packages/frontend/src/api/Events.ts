@@ -1,6 +1,26 @@
-import type { AppEvents, EventBus } from "./types";
+import type { AppEvents, EventBus, SignalOptions } from "./types";
 
 type Handler = (payload: any) => void;
+
+/**
+ * The `signal` of a `SignalOptions` argument (`member` names the caller in the error). Absent options give none; a
+ * non-object (a bare `AbortSignal` from the removed positional form too) or a `signal` that is not an `AbortSignal`
+ * throws `TypeError`.
+ */
+export function signalOf(options: SignalOptions | undefined, member: string): AbortSignal | undefined {
+  if (options === undefined) return undefined;
+  if (options === null || typeof options !== "object" || options instanceof AbortSignal) throw new TypeError(`61ade: ${member} takes its signal as an option ({ signal }).`);
+  const signal = options.signal;
+  if (signal !== undefined && !(signal instanceof AbortSignal)) throw new TypeError(`61ade: ${member} option \`signal\` must be an AbortSignal.`);
+  return signal;
+}
+
+/** Subscribes `release` to `signal`: returns false (subscribe nothing) when it already aborted. */
+export function tieTo(signal: AbortSignal | undefined, release: () => void): boolean {
+  if (signal?.aborted) return false;
+  signal?.addEventListener("abort", release, { once: true });
+  return true;
+}
 
 /** `Application.events` plus `dispatch`, the shell's own way to emit framework (`:`) events. */
 export type InternalEventBus = EventBus & { dispatch<K extends keyof AppEvents>(event: K, payload: AppEvents[K]): void };
@@ -18,13 +38,12 @@ export function createEventBus(): InternalEventBus {
   };
   const off = (event: string, handler: Handler) => { handlers.get(event)?.delete(handler); };
   return {
-    on(event, handler, signal) {
-      const name = String(event);
+    on(event, handler, options) {
+      const name = String(event), signal = signalOf(options, "events.on");
       const release = () => off(name, handler);
-      if (signal?.aborted) return release;
+      if (!tieTo(signal, release)) return release;
       if (!handlers.has(name)) handlers.set(name, new Set());
       handlers.get(name)!.add(handler);
-      signal?.addEventListener("abort", release, { once: true });
       return release;
     },
     off: (event, handler) => off(String(event), handler),

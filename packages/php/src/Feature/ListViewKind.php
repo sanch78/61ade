@@ -16,6 +16,8 @@ final class ListViewKind implements ViewKindProvider
     /** Most client commands one list declares. */
     private const COMMANDS = 20;
     private const TARGETS = ['details', 'subview', 'page'];
+    /** Column option spellings configuration accepts beside the browser's camelCase ones (`ColumnMetadata`). */
+    private const WIRE = ['image_base' => 'imageBase', 'alt_of' => 'altOf', 'media_of' => 'mediaOf'];
 
     public function __construct(private Registry $registry, private ViewMetadata $meta) {}
 
@@ -79,6 +81,14 @@ final class ListViewKind implements ViewKindProvider
         }
     }
 
+    /** A column as the browser gets it: one camelCase spelling of every option (JSON `image_base` is `imageBase`). */
+    private static function wire(array $column): array
+    {
+        $out=[];
+        foreach($column as $key=>$value)$out[self::WIRE[$key]??$key]=$value;
+        return $out;
+    }
+
     public function metadata(Context $ctx, View $view): ?array
     {
         $o=$view->options;$singleton=$o['singleton']??false;$actor=$ctx->actor;
@@ -93,10 +103,10 @@ final class ListViewKind implements ViewKindProvider
         $fields=$this->registry->fields($view->resource);
         $columns=array_map(static function($column) use ($fields,$ctx){
             $field=$fields[$column['id']]??null;
-            if(!$field)return $column;
-            return [...$field->column,...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']];
+            if(!$field)return self::wire($column);
+            return self::wire([...$field->column,...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']]);
         },$o['columns']);
-        $detailFields=array_values(array_map(static fn($field)=>['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true])],array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
+        $detailFields=array_values(array_map(static fn($field)=>self::wire(['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true])]),array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password')));
         $list=$this->registry->get($view->resource,$singleton?'get':'list');
         $activate=$o['activate']??null;
         $options=['columns'=>$columns,'detailFields'=>$detailFields,'singleton'=>$singleton,'layout'=>$o['layout']->metadata(),

@@ -3,7 +3,7 @@ import type { UploadPolicy } from "../../Uploader";
 import type { FieldDefinition } from "../../FormValidation";
 import type { MediaPart } from "../../RecordPresentation";
 import type { Row } from "../../Realtime";
-import type { Activation, Application, ListOptions, ListViewEvents, ViewDefinition as PublicDefinition } from "../../api/types";
+import type { Activation, Application, ListKindOptions, ListViewEvents, ViewDefinition as PublicDefinition } from "../../api/types";
 import type { Workspace } from "./Workspace";
 import type { Resolved } from "../../app/registries";
 
@@ -15,7 +15,7 @@ export type ActionConfirmation={message:string;title?:string;severity?:DialogSev
  */
 export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;icon?:string;bulk?:boolean;confirm?:ActionConfirmation;usages?:boolean;upload?:UploadPolicy;fields:FieldDefinition[]};
 export type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
-export type Column={id:string;header:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;mediaOf?:string;media_of?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right";
+export type Column={id:string;header:string;type?:string;media?:string;presentation?:string;imageBase?:string;altOf?:string;mediaOf?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right";
   /** A registered field type of the column's field (`app.fieldTypes`). */
   editor?:string}&Resolved;
 /** The list kind's internal shape: the view's shared keys beside its `options` (definition.ts `listDefinition`). */
@@ -49,5 +49,5 @@ export type WorkspaceHooks={
   emit?:<K extends keyof ListViewEvents>(event:K,payload:ListViewEvents[K])=>void;
   app?:Pick<Application,"navigate"|"viewDefinition">;
   /** The view as the server sent it: the `view` of client command contexts. */
-  view?:PublicDefinition<ListOptions>;
+  view?:PublicDefinition<ListKindOptions>;
 };

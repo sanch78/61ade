@@ -245,7 +245,7 @@ including sub-view previews and full sub-view windows, holds a `Realtime`
 subscription handle on that channel: `subscribe(query)` replaces the list's
 subscription, `destroy()` ends it, and the callbacks `update`, `state` and
 `denied` are unchanged. Reconnect, backoff and re-subscription live in the
-channel once. A module's `app.live.subscribe(resource, query, handlers, signal)`
+channel once. A module's `app.live.subscribe(resource, query, handlers, {signal})`
 creates the same handle on the same channel and ends it with `destroy()` or the
 signal ([toolkit](toolkit.md#api-reference)). The channel's `__ticket` and
 `__watch` calls, like every list request, go through the shared transport
@@ -635,7 +635,9 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   `editable` or `imageBase`/`altOf` without `presentation: "image"` are
   developer errors (`InvalidArgumentException`). Optional `altOf` (JSON
   `alt_of`) names a text field of the row used as the accessible name; without it
-  the image is decorative (`alt=""`) because the title is beside it.
+  the image is decorative (`alt=""`) because the title is beside it. The
+  browser always receives the camelCase `imageBase`/`altOf`
+  ([`ColumnMetadata`](toolkit.md#conventions)), whichever spelling was declared.
   **Value rules**, enforced by the server: one file name of letters, digits,
   `-`, `_` and `.`, no leading dot, no `/`, `\`, `..` or scheme, a
   case-insensitive extension of `png`, `jpg`, `jpeg`, `webp`, `gif` or `svg`,
@@ -680,7 +682,8 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
 - **Derived media columns.** A view column without a field may declare
   `media_of: <media field>` and `part: "type" | "resolution" | "duration"`;
   it is rendered from `_media` (`Kép`/`Videó`, `1920 × 1080`, `0:06`) in the
-  table, cards, tiles and details, and is never sortable or editable.
+  table, cards, tiles and details, and is never sortable or editable. The
+  browser receives it as `mediaOf`.
 
 <a id="file-field"></a>
 
@@ -690,9 +693,9 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
 `new Field(…, 'file', file: [...])`) stores a file id of a file manager's
 mount. The server validates that the id is a live file of that mount, of an
 accepted MIME class, which the actor may read (`thumbnail_get`); errors are
-field errors on every channel. Its metadata carries the resolved `folder_id`,
+field errors on every channel. Its metadata carries the resolved `folderId`,
 the accepted classes, the file manager's upload policy narrowed to them (no
-folders) and `can_upload`; list rows carry its `_media` descriptor, so the
+folders), `canUpload` and `canChoose` ([camelCase](toolkit.md#conventions)); list rows carry its `_media` descriptor, so the
 column is a media column automatically. The form control shows the thumbnail
 and name with `Kiválasztás…` (a tiles picker over the folder with search and a
 type filter; Enter or double-click chooses, Escape or `Mégse` cancels),
@@ -734,7 +737,7 @@ Contract change for consumers: `after_save` no longer runs after a delete; use
 columns on first use (a developer error otherwise); a PHP `Lookup` hides
 archived rows with `hideArchived`. File deletes say that referencing items stay
 and only their file reference is cleared. An unchanged stored file id is not
-re-validated on save; the picker is offered only with `can_choose` (`list` on
+re-validated on save; the picker is offered only with `canChoose` (`list` on
 the mount) and returns focus to the field.
 
 List actions that declare an `UploadPolicy` carry `upload` metadata and open

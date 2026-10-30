@@ -7,6 +7,17 @@ final class ViewMetadata
 {
     public function __construct(private Registry $registry) {}
 
+    /**
+     * One level of a configuration map with camelCase keys for the browser (`max_depth` → `maxDepth`); values are
+     * kept. Browser-facing metadata is camelCase; PHP/JSON configuration keeps its own spelling (docs/toolkit.md#conventions).
+     */
+    public static function camel(array $map): array
+    {
+        $out=[];
+        foreach($map as $key=>$value)$out[is_string($key)?preg_replace_callback('/_([a-z0-9])/',static fn($m)=>strtoupper($m[1]),$key):$key]=$value;
+        return $out;
+    }
+
     /** Some allow rule exists and no whole-action deny for all objects; object checks still run per request. */
     public function offered(Context $ctx, string $resource, string $name): bool
     {
@@ -20,9 +31,9 @@ final class ViewMetadata
     }
     public function fields(Context $ctx, Action $action): array { return array_map(fn($f)=>$this->field($ctx,$f),self::formFields($action)); }
     /**
-     * Field metadata; a `file` field adds the resolved folder id, the upload policy for its classes, whether the actor
-     * may upload there (`can_upload`) and choose from it (`can_choose`: `list` on the mount, the picker's read); the folder
-     * path, storage and rules stay server-side.
+     * Field metadata; a `file` field adds the resolved folder id (`folderId`), the upload policy for its classes, whether
+     * the actor may upload there (`canUpload`) and choose from it (`canChoose`: `list` on the mount, the picker's read);
+     * the folder path, storage and rules stay server-side.
      */
     public function field(Context $ctx, Field $field): array
     {
@@ -30,8 +41,8 @@ final class ViewMetadata
         if($field->file===null)return $out;
         $source=$this->registry->mediaSource($field->file['resource']);
         $folder=$source instanceof FileSource?$source->folder($field->file['mount'],$field->file['folder']??''):null;
-        return [...$out,'file'=>[...$out['file'],'folder_id'=>$folder,'policy'=>$source instanceof FileSource?$source->uploadPolicy($field->file['accept']):null,
-            'can_upload'=>$folder!==null&&$source->allows($ctx,'upload',$field->file['mount']),'can_choose'=>$folder!==null&&$source->allows($ctx,'list',$field->file['mount'])]];
+        return [...$out,'file'=>[...$out['file'],'folderId'=>$folder,'policy'=>$source instanceof FileSource?$source->uploadPolicy($field->file['accept']):null,
+            'canUpload'=>$folder!==null&&$source->allows($ctx,'upload',$field->file['mount']),'canChoose'=>$folder!==null&&$source->allows($ctx,'list',$field->file['mount'])]];
     }
     /** `usages: true` on a delete with registered UsageProviders (the client previews first); `upload`: the policy metadata of an UploadPolicy action. */
     public function extras(Action $action): array

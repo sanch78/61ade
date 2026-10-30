@@ -1,10 +1,10 @@
-import type { Application, CalendarComponent, CalendarComponentOptions, CalendarOptions, ComponentClass } from "../../api/types";
+import type { Application, Calendar as CalendarApi, CalendarKindOptions, CalendarOptions, ComponentClass } from "../../api/types";
 import { CalendarView, type CalendarViewDefinition } from "./CalendarView";
 import { Facade, resolveView } from "../Facade";
 
 const calendarOptions = (options: unknown): boolean => {
-  const value = options as Partial<CalendarOptions> | null;
-  return !!value && typeof value === "object" && Array.isArray(value.views) && Array.isArray(value.fields) && typeof value.default_view === "string";
+  const value = options as Partial<CalendarKindOptions> | null;
+  return !!value && typeof value === "object" && Array.isArray(value.views) && Array.isArray(value.fields) && typeof value.defaultView === "string";
 };
 
 /** The page's one live Calendar: DHTMLX Scheduler Standard has a single instance (O10). */
@@ -16,16 +16,18 @@ let active: CalendarFacade | undefined;
  * `create` nor `update`. Only one Calendar exists per page; constructing a second one before the first is destroyed
  * throws. The built-in `calendar` view kind uses this class too.
  */
-export class CalendarFacade extends Facade<Record<string, never>, CalendarView> implements CalendarComponent {
-  constructor(app: Application, options: CalendarComponentOptions) {
+export class CalendarFacade extends Facade<Record<string, never>, CalendarView> implements CalendarApi {
+  constructor(app: Application, options: CalendarOptions) {
     if (!options || typeof options !== "object") throw new TypeError("61ade: Calendar needs an options object.");
     if (active) throw new Error("61ade: only one Calendar can exist per page (DHTMLX Scheduler Standard); destroy the other one first.");
-    const view = resolveView<CalendarOptions>(app, options.view, "Calendar", calendarOptions);
+    const view = resolveView<CalendarKindOptions>(app, options.view, "Calendar", calendarOptions);
     super(options, container => new CalendarView(container, {
       kind: "calendar", resource: view.resource!, title: view.title, actions: view.actions, calendar: view.options,
     } as unknown as CalendarViewDefinition));
     if (!this.isDestroyed) active = this;
   }
+
+  editing(): boolean { return !this.isDestroyed && this.engine.editing(); }
 
   override destroy(): void {
     if (active === this) active = undefined;
@@ -34,8 +36,8 @@ export class CalendarFacade extends Facade<Record<string, never>, CalendarView> 
 }
 
 /** The `Calendar` class bound to one application (resolves view ids through it). */
-export function bindCalendar(app: () => Application): ComponentClass<CalendarComponentOptions, CalendarComponent> {
+export function bindCalendar(app: () => Application): ComponentClass<CalendarOptions, CalendarApi> {
   return class Calendar extends CalendarFacade {
-    constructor(options: CalendarComponentOptions) { super(app(), options); }
+    constructor(options: CalendarOptions) { super(app(), options); }
   };
 }

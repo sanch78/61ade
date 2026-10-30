@@ -2,7 +2,10 @@
 declare(strict_types=1);
 namespace Blade\Feature;
 
-/** Built-in kind `files` (`Registry::fileManager`): options are `FileManagerDefinition::metadata()`; offered with an offered action and a readable mount. */
+/**
+ * Built-in kind `files` (`Registry::fileManager`): options are `FileManagerDefinition::metadata()`, sent with camelCase
+ * keys (`maxDepth`, `deletePolicy`, `text.maxBytes`; `upload` is `{policy}` only); offered with an offered action and a readable mount.
+ */
 final class FileViewKind implements ViewKindProvider
 {
     public function __construct(private Registry $registry, private ViewMetadata $meta) {}
@@ -21,6 +24,8 @@ final class FileViewKind implements ViewKindProvider
         }
         $mounts=array_values(array_filter($view->options['mounts'],fn($m)=>$ctx->acl->allows($ctx->actor->id,$view->resource,'tree','ui',$m['id'])));
         if(!$actions||!$mounts)return null;
-        return ['actions'=>$actions,'options'=>[...$view->options,'mounts'=>$mounts]];
+        $options=ViewMetadata::camel([...$view->options,'mounts'=>$mounts]);
+        foreach(['upload','text'] as $key)if(is_array($options[$key]??null))$options[$key]=ViewMetadata::camel($options[$key]);
+        return ['actions'=>$actions,'options'=>$options];
     }
 }

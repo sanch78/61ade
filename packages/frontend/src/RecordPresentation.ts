@@ -36,24 +36,23 @@ export function recordIcon(field:{options?:Record<string,string>},value:unknown,
 }
 /** Server media descriptor of a media column (`row._media[field]`); absent or null when the actor may not see it. */
 export type MediaDescriptor={id:string;name:string;mime_type:string;revision:string;duration_ms:number|null;width:number|null;height:number|null;thumbnail:"ready"|"pending"|"failed"|"none"};
-/** Derived media part of a field-less column: `media_of` names the media field whose `_media` it reads. */
+/** Derived media part of a field-less column: `mediaOf` names the media field whose `_media` it reads. */
 export type MediaPart="type"|"resolution"|"duration";
-type Column={id:string;type?:string;media?:string;presentation?:string;imageBase?:string;image_base?:string;altOf?:string;alt_of?:string;options?:Record<string,string>;mediaOf?:string;media_of?:string;part?:MediaPart}&Resolved;
+type Column={id:string;type?:string;media?:string;presentation?:string;imageBase?:string;altOf?:string;options?:Record<string,string>;mediaOf?:string;part?:MediaPart}&Resolved;
 /** A media column is a presentation of a file-id value (`media` names the file resource), whatever its field type. */
 export const isMedia=(field:Column)=>typeof field.media==="string"&&field.media!==""||field.type==="media";
 export const isIcon=(field:Column)=>field.type==="icon"||field.presentation==="icon";
 /** Static image column: a plain file name of the application below the declared page-relative base. */
-export const isImage=(field:Column)=>field.presentation==="image"&&typeof imageBaseOf(field)==="string";
-const imageBaseOf=(field:Column)=>field.imageBase??field.image_base;
+export const isImage=(field:Column)=>field.presentation==="image"&&typeof field.imageBase==="string";
 const IMAGE_BASE=/^(?:\/|(?:\.\.\/)*)?[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*\/$/,IMAGE_FILE=/^[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:png|jpe?g|webp|gif|svg)$/i;
 /** URL of a static image value; empty unless the base and the single file name follow the server rules (never an arbitrary URL). */
 export function imageUrl(field:Column,value:unknown):string{
-  const base=imageBaseOf(field),name=typeof value==="string"?value:"";
+  const base=field.imageBase,name=typeof value==="string"?value:"";
   return typeof base==="string"&&IMAGE_BASE.test(base)&&name.length<=255&&!name.includes("..")&&IMAGE_FILE.test(name)?base+encodeURIComponent(name):"";
 }
 export const mediaOf=(field:{id:string},row:Row):MediaDescriptor|undefined=>{const media=(row._media as Record<string,MediaDescriptor|null>|undefined)?.[field.id];return media&&typeof media==="object"&&typeof media.id==="string"?media:undefined;};
-/** The media field a derived column presents (`media_of`, camel-cased or not), or undefined for an ordinary column. */
-export const derivedOf=(field:Column):string|undefined=>{const of=field.mediaOf??field.media_of;return typeof of==="string"&&of!==""&&!!field.part?of:undefined;};
+/** The media field a derived column presents (`mediaOf`), or undefined for an ordinary column. */
+export const derivedOf=(field:Column):string|undefined=>{const of=field.mediaOf;return typeof of==="string"&&of!==""&&!!field.part?of:undefined;};
 /** MIME class of a media descriptor: video, image, audio or (anything else) file. */
 const mediaKind=(media:MediaDescriptor):"video"|"image"|"audio"|"file"=>{const kind=media.mime_type.split("/")[0];return kind==="video"||kind==="image"||kind==="audio"?kind:"file";};
 const kindLabel=(kind:ReturnType<typeof mediaKind>)=>kind==="video"?t("Videó"):kind==="image"?t("Kép"):kind==="audio"?t("Hang"):t("Fájl");
@@ -67,7 +66,7 @@ export function mediaPart(media:MediaDescriptor|undefined,part:MediaPart|undefin
   if(part==="duration")return mediaLength(media);
   return "";
 }
-/** Derived column text of a row (`media_of`/`part`); null when the column is not derived. */
+/** Derived column text of a row (`mediaOf`/`part`); null when the column is not derived. */
 export function derivedText(field:Column,row:Row):string|null{
   const of=derivedOf(field);if(!of)return null;
   return mediaPart(mediaOf({id:of},row),field.part);
@@ -98,13 +97,13 @@ export function recordMedia(field:Column,row:Row,size:"cell"|"card"|"tile"="cell
 }
 /**
  * Static image column (`presentation: image`): `<img>` of `imageBase` + file name in the media slot sizes; a load
- * error shows the placeholder icon (shared with thumbnails, never retried). `alt_of` names a text field of the row,
+ * error shows the placeholder icon (shared with thumbnails, never retried). `altOf` names a text field of the row,
  * otherwise the image is decorative because the title is shown beside it.
  */
 export function recordImage(field:Column,row:Row,size:"cell"|"card"|"tile"="cell"):string{
   const url=imageUrl(field,row[field.id]);
   if(!url)return size==="cell"?"":`<span class="blade-media blade-media--${size} blade-media--image blade-media--empty" aria-hidden="true"></span>`;
-  const of=field.altOf??field.alt_of,alt=of&&row[of]!=null?escape(row[of]):"",failed=failedThumbnails.has(url);
+  const of=field.altOf,alt=of&&row[of]!=null?escape(row[of]):"",failed=failedThumbnails.has(url);
   return `<span class="blade-media blade-media--${size} blade-media--image${failed?" blade-media--failed":""}" ${alt?`role="img" aria-label="${alt}" title="${alt}"`:`aria-hidden="true"`}><span class="blade-media__icon dxi dxi-image-outline" aria-hidden="true"></span>${failed?"":`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-static-image>`}</span>`;
 }
 /**
@@ -127,11 +126,11 @@ export function presentedFields<T extends Column>(fields:T[],columns:Column[]):T
     const column=columns.find(c=>c.id===field.id);
     if(!column)return field;
     return {...field,...(field.media===undefined&&column.media!==undefined?{media:column.media}:{}),...(field.presentation===undefined&&column.presentation!==undefined?{presentation:column.presentation}:{}),
-      ...(column.presentation==="image"?{imageBase:column.imageBase??column.image_base,altOf:column.altOf??column.alt_of}:{}),
+      ...(column.presentation==="image"?{imageBase:column.imageBase,altOf:column.altOf}:{}),
       ...(!field.options&&column.options?{options:column.options}:{})};
   });
 }
-/** Fields with the derived media columns (`media_of`) of the view placed right after the media field they present. */
+/** Fields with the derived media columns (`mediaOf`) of the view placed right after the media field they present. */
 export function withDerived<T extends {id:string}>(fields:T[],columns:(Column&{header:string})[]):T[]{
   const derived=columns.filter(column=>derivedOf(column)&&!fields.some(field=>field.id===column.id));
   if(!derived.length)return fields;

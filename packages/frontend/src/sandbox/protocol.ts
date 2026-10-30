@@ -2,7 +2,7 @@ import type { SandboxMessage } from "../api/types";
 import { NAME } from "../app/registries";
 
 /**
- * The sandbox protocol shared by `SandboxFrame` (parent) and `sandbox.js` (frame), docs/toolkit.md#sandbox-protocol.
+ * The sandbox protocol shared by `SandboxFrame` (parent) and the bootstrap of `sandbox.html` (frame), docs/toolkit.md#sandbox-protocol.
  * Everything received through it is untrusted input on both sides.
  */
 

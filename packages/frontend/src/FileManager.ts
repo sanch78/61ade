@@ -15,7 +15,7 @@ import { MediaPlayer } from "./components/media/MediaPlayer";
 import type { Row } from "./Realtime";
 import type { ActionConfirmation, ViewDefinition } from "./Workspace";
 
-export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{allowed_extensions:string[];max_size_bytes:number;multiple:boolean;max_files?:number;duplicate_policy:string;policy:UploadPolicy};text:{extension:string;max_bytes:number};preview:string[];max_depth:number};
+export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{policy:UploadPolicy};text:{extension:string;maxBytes:number};preview:string[];thumbnails?:string[];maxDepth:number;deletePolicy?:string};
 export type FileViewDefinition={kind:"files";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean;get?:boolean;confirm?:ActionConfirmation;usages?:boolean;fields:FieldDefinition[]}[];files:FileManagerConfig};
 type Entry={id:string;name:string;kind:"directory"|"file";extension:string;mime_type:string;size:number;modified_at:string;revision:string;width?:number|null;height?:number|null;duration_ms?:number|null;orientation?:string;thumbnail?:"ready"|"pending"|"failed"|"none"};
 type Listing={directory:Directory;items:Entry[];next?:string|null;total?:number;matched?:number};
@@ -31,7 +31,7 @@ type Tree={root:string;items:TreeItem[];truncated:boolean};
 type Directory={id:string;mount:string;depth:number;path:{id:string;name:string}[]};
 type Summary={succeeded:{name:string}[];skipped:{name:string}[];failed:{name:string;error:string}[];cleared?:Record<string,number>};
 /** Notifications of the public component (`components/files/FileManager.ts`): a file shown in the viewer or editor. */
-export type FileManagerHooks={opened?:(file:{id:string;mime_type:string})=>void};
+export type FileManagerHooks={opened?:(file:{id:string;mimeType:string})=>void};
 /** "Plakátok: 2, Médiatár-elemek: 1" of usage counts. */
 const usageList=(usages:Usage[])=>usages.map(usage=>`${usage.label}: ${usage.count.toLocaleString(locale())}`).join(", ");
 type Failure=Error&{status?:number;fieldErrors?:Record<string,string>;details?:any};
@@ -67,6 +67,8 @@ export class FileManager {
   private active=0;
   private commands:ResponsiveToolbar;
   private windows=new Set<Window>();
+  /** Input a page reload would discard, per open window: a name form while open, the text editor while its text is unsaved. */
+  private inputs=new Map<Window,()=>boolean>();
   private listeners=new AbortController();
   private mobile?:boolean;
   private busy=false;
@@ -371,7 +373,7 @@ export class FileManager {
     if(this.busy||!this.panels.length)return false;
     const panel=this.current,other=this.other,chosen=this.selection(panel);
     switch(id){
-      case "create_directory":return this.can(id)&&!!panel.directory&&panel.directory.depth<this.config.max_depth;
+      case "create_directory":return this.can(id)&&!!panel.directory&&panel.directory.depth<this.config.maxDepth;
       case "upload":return this.can(id)&&!!panel.directory;
       case "copy":case "move":return this.can(id)&&!!chosen.length&&!!other.directory;
       case "rename":return this.can(id)&&chosen.length===1;
@@ -631,9 +633,11 @@ export class FileManager {
   private window(title:string,width:number,height:number,resizable=false,css=""):Window{
     const win=new Window({css:"blade-content-window "+css,title:escape(title),ariaLabel:title,width:Math.min(width,innerWidth-24),height:Math.min(height,innerHeight-24),modal:true,closable:true,resizable});
     this.windows.add(win);
-    win.events.on("afterHide",()=>{this.windows.delete(win);void awaitRedraw().then(()=>win.destructor());});
+    win.events.on("afterHide",()=>{this.windows.delete(win);this.inputs.delete(win);void awaitRedraw().then(()=>win.destructor());});
     return win;
   }
+  /** An open rename or new-folder form, or a text editor with unsaved text (`ViewInstance.editing`). */
+  editing():boolean{return !this.disposed&&[...this.inputs.values()].some(unsaved=>unsaved());}
 
   /** One decision applies to every conflicting name; Cancel leaves the data unchanged. */
   private async resolving(run:(decision:string)=>Promise<Summary>):Promise<Summary|null>{
@@ -725,6 +729,7 @@ export class FileManager {
     if(ids.length!==1||!field)return;
     const id=ids[0],name=this.nameOf(panel,id),mount=panel.mount;
     const win=this.window(t("Átnevezés"),420,260);
+    this.inputs.set(win,()=>true);
     const form=new Form(document.createElement("div"),{padding:20,rows:[
       {type:"input",name:"name",label:field.label,labelPosition:"top",required:true,maxlength:field.max,value:name},
       formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save"}),
@@ -796,6 +801,7 @@ export class FileManager {
     const panel=this.current,directory=panel.directory,field=this.field("create_directory","name");
     if(!directory||!field)return;
     const win=this.window(t("Új mappa"),420,260);
+    this.inputs.set(win,()=>true);
     const form=new Form(document.createElement("div"),{padding:20,rows:[
       {type:"input",name:"name",label:field.label,labelPosition:"top",required:true,maxlength:field.max},
       formActions({name:"submit",text:t("Létrehozás"),icon:"dxi dxi-plus"}),
@@ -889,6 +895,7 @@ export class FileManager {
     // The DOM value is current while typing; Ctrl+S must not save a value Suite has not synced yet.
     const area=()=>win.getContainer().querySelector<HTMLTextAreaElement>("textarea");
     const value=()=>area()?.value??saved;
+    this.inputs.set(win,()=>writable&&value()!==saved);
     const sync=()=>{
       const text=area();if(!text)return;
       const before=text.value.slice(0,text.selectionStart);
@@ -932,7 +939,7 @@ export class FileManager {
     // An editor opens at the start of the text; Suite's setFocus would put the caret at the end.
     const text=area();
     if(text&&this.windows.has(win)){text.setSelectionRange(0,0);text.focus();sync();}
-    if(!this.disposed&&this.windows.has(win))this.hooks.opened?.({id:String(row.id),mime_type:String(row.mime_type)});
+    if(!this.disposed&&this.windows.has(win))this.hooks.opened?.({id:String(row.id),mimeType:String(row.mime_type)});
   }
 
   /**
@@ -964,7 +971,7 @@ export class FileManager {
     win.events.on("afterHide",()=>player.destroy());
     this.chrome(win,player.toolbar!,navigation,geometry);
     await awaitRedraw();
-    if(this.windows.has(win)){player.focus();if(!this.disposed)this.hooks.opened?.({id:String(row.id),mime_type:String(row.mime_type)});}
+    if(this.windows.has(win)){player.focus();if(!this.disposed)this.hooks.opened?.({id:String(row.id),mimeType:String(row.mime_type)});}
     return player;
   }
 

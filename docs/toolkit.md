@@ -2,7 +2,7 @@
 
 Status: **implemented** ([FB-0081](feedback.md#fb-0081)): project modules
 and stylesheets, the `app` services and [events](#event-catalog), the
-registries, built-in view kinds through the `views` registry, view ids,
+registries, built-in view kinds through the `kinds` registry, view ids,
 `#view=` routing with the `#feature=` alias, record views, the activation map,
 the components `ListView`, `RecordForm`, `RecordDetails`, `CommandBar`,
 `FileManager`, `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer` and
@@ -41,8 +41,8 @@ supported; the starter admin and tenant demo stay declarative.
   directory (CSP `script-src 'self'`, `style-src 'self' 'unsafe-inline'` unchanged).
 - Optional for TypeScript: `dist/admin.d.ts` and the `@dhtmlx/suite` 9.3.12
   types it references ([recipe](#typescript-recipe)).
-- `SandboxFrame` additionally needs `dist/sandbox.html` and `dist/sandbox.js`
-  deployed beside `admin.js` ([packaging](#packaging)).
+- `SandboxFrame` additionally needs `dist/sandbox.html` deployed beside
+  `admin.js` ([packaging](#packaging)).
 
 <a id="module-loading"></a>
 
@@ -158,18 +158,18 @@ each member with one example.
 
 | Member | Purpose | Replaces or wraps |
 | --- | --- | --- |
-| `apiVersion` | `1` ([O11](#resolved-decisions)) | — |
+| `apiVersion` | `1` ([O11](#resolved-decisions)); a value of `app` only, `admin.d.ts` declares just its type `ApiVersion` | — |
 | `dhx` | The Suite namespace the shell uses (one instance, Standard edition) | `@dhtmlx/suite` import of the bundle |
 | `server` | Action calls, raw responses, `__form`, GET URLs | six private `fetch` transports, `ActionUrl.ts` |
 | `ui` | `dialog`, `choice`, `toast`, `window` | `MessageDialog.ts`, Suite `message`, `WindowSizing.ts` |
 | `uploads` | `open`, `reopen` of the shared uploader | `Uploader.ts` `uploads` |
 | `i18n` | `t`, `locale`, `languages` | `I18n.ts` |
-| `theme` | `current`, `skin`, `onChange` | AdminShell theme/skin handling |
+| `theme` | `current`, `skin`, `onChange(listener, {signal})` | AdminShell theme/skin handling |
 | `preferences` | `scope(name)` → `get/set/remove` (`name` must contain a dot, else `TypeError`) | `UiPreferences.ts` storage |
-| `live` | `subscribe(resource, query, handlers, signal)` | `LiveChannel`/`Realtime` |
-| `events` | Typed bus `on/off/emit` ([event catalog](#event-catalog)) | uploader `on/off` |
+| `live` | `subscribe(resource, query, handlers, {signal})` | `LiveChannel`/`Realtime` |
+| `events` | Typed bus `on(name, handler, {signal})`, `off`, `emit` ([event catalog](#event-catalog)) | uploader `on/off` |
 | `identity` | `id`, `displayName`, `tenant` | bootstrap `userId`, `displayName`, `tenant.current` |
-| `views`, `presentations`, `fieldTypes`, `commands` | [Registries](#registries) | hard-coded `AdminShell.openView`, `RecordPresentation` |
+| `kinds`, `presentations`, `fieldTypes`, `commands` | [Registries](#registries) | hard-coded `AdminShell.openView`, `RecordPresentation` |
 | `components` | [Components](#components) | `Workspace`, `FileManager`, … |
 | `viewDefinitions()`, `viewDefinition(id)` | Views offered to the actor | bootstrap `views` |
 | `navigate(target)` | Opens a view like a menu click; `false` if not offered | `AdminShell.openView` |
@@ -179,7 +179,7 @@ each member with one example.
 ```ts
 const rows = await app.server.call<Snapshot>("tasks", "list", { values: { limit: 50 }, signal: host.signal });
 const blob = await (await app.server.request("files", "content_get", { id })).blob();
-const { fields, values } = await app.server.form("tasks", "update", id);       // `__form` pseudo-action
+const { fields, values } = await app.server.form("tasks", "update", id, { signal: host.signal }); // `__form`
 audio.src = app.server.url("signage_assets", "content_stream", id, revision);  // GET action, session cookie
 if (await app.ui.dialog({ message: app.i18n.t("Biztosan?"), mode: "confirm", severity: "warning" })) { /* … */ }
 const choice = await app.ui.choice({ message: "…", choices: [{ value: "a", label: "A" }] });
@@ -187,11 +187,11 @@ app.ui.toast(app.i18n.t("Másolva."));
 const win = app.ui.window({ title: "Előnézet", width: 720, signal: host.signal }); win.attach(layout);
 app.uploads.open({ resource: "files", action: "upload", target: folderId, targetLabel: "Drive A:/", policy });
 app.i18n.t("{count} elem", { count: 3 }); app.i18n.locale();
-const stop = app.theme.onChange((theme, skin) => chart.paint());
+app.theme.onChange((theme, skin) => chart.paint(), { signal: host.signal });
 app.preferences.scope("demo.player").set("volume", 0.8);
 const sub = app.live.subscribe("measurements", { limit: 100, sort: { field: "id", direction: "desc" } },
-  { update: snapshot => render(snapshot.items) }, host.signal);
-app.events.on("upload:complete", result => refresh(), host.signal);
+  { update: snapshot => render(snapshot.items) }, { signal: host.signal });
+app.events.on("upload:complete", result => refresh(), { signal: host.signal });
 app.navigate({ view: "demo.asset-viewer", record: "42" });
 ```
 
@@ -202,6 +202,13 @@ the session ended: the shell then signs the page out ([ended session](shell.md#e
 and the caller still gets the failure. Event handlers
 that throw are logged and do not stop other handlers; emitting a framework
 event name (with `:`) throws.
+
+Every subscription takes its owner's signal the same way, as the last
+argument `{signal}` (`SignalOptions`): `events.on`, `live.subscribe`,
+`theme.onChange`, `server.form` and every component's `on`. Aborting it
+unsubscribes (or aborts the request); an already aborted signal subscribes
+nothing. A bare `AbortSignal` in place of the object, any other non-object or a
+`signal` that is not an `AbortSignal` throws `TypeError`.
 
 `ServerFailure` is an interface, not a class: there is no `instanceof`. Tell
 the two rejections apart by shape, aborts first:
@@ -226,13 +233,13 @@ manager, list upload commands and `file` fields. A project never builds another
 upload dialog.
 
 ```ts
-const policy = (app.viewDefinition("files")!.options as FileManagerOptions).upload.policy;
+const policy = (app.viewDefinition("files")!.options as FilesKindOptions).upload.policy;
 // (a list view's upload action carries its own: view.actions.find(action => action.upload)?.upload)
 const target = { resource: "files", action: "upload", target: folderId, targetLabel: "Drive A:/Képek", policy };
 app.uploads.open({ ...target, onUploaded: ({ succeeded }) => refresh(succeeded) });   // once per batch
 surface.addEventListener("drop", event => { event.preventDefault();
   app.uploads.open({ ...target, transfer: event.dataTransfer! }); });                 // synchronously in the drop handler
-app.events.on("upload:file-done", ({ file, result }) => show(file.name, result), host.signal);
+app.events.on("upload:file-done", ({ file, result }) => show(file.name, result), { signal: host.signal });
 app.uploads.reopen();                                                           // the current queue again
 ```
 
@@ -264,7 +271,7 @@ registration affects only surfaces created after it.
 
 | Registry | Built-in entries (61ade dogfoods them) | Declared on the server by |
 | --- | --- | --- |
-| `views` | `list`, `files`, `diagram`, `calendar` | the view `kind` |
+| `kinds` (view kinds) | `list`, `files`, `diagram`, `calendar` | the view `kind` |
 | `presentations` | `image` (static image column; `icon` stays framework-internal) | `Field` `column: ['presentation' => 'demo.bar']`, JSON `"column": {"presentation": "demo.bar"}` |
 | `fieldTypes` | none | `new Field(…, editor: 'demo.rating')`, JSON field `"editor": "demo.rating"` |
 | `commands` | `details` (the lists' `Adatok` command) | `Registry::view(…, commands: [...])`, `SqlResource::register(…, commands: [...])`, JSON `view.commands` |
@@ -282,7 +289,7 @@ new Field('priority', 'Prioritás', 'number', editor: 'demo.rating', column: ['e
 ```
 
 ```ts
-app.views.register("demo.asset-viewer", { create: (host, view) => mountViewer(host, view) });
+app.kinds.register("demo.asset-viewer", { create: (host, view) => mountViewer(host, view) });
 app.presentations.register("demo.bar", {
   render: (value, row, column, size, escape) =>
     `<span class="demo-bar demo-bar--${size}" style="--w:${Math.min(100, Number(value) || 0)}%">${escape(value)}</span>`,
@@ -341,7 +348,7 @@ command `demo.copy-text` ([example](#example-tasks)).
   every inline edit. Filters keep the storage type's input; calendar event
   forms take the `input` item only (no `bind`). The server keeps validating the
   value by the storage `type`.
-- **Client command** (`ListOptions.commands`): `label` (source text,
+- **Client command** (`ListKindOptions.commands`): `label` (source text,
   translated), `icon`, `placement`, `enabled`, `run`. Every command sits in the
   list's command bar: the declared ones after the view's actions, in
   declaration order whatever their placement, and they move into the
@@ -395,7 +402,7 @@ command `demo.copy-text` ([example](#example-tasks)).
 Every component has `layout` (its root Suite Layout), `mount(target)` (an
 element, a Layout cell, an `AppWindow` or a `ViewHost`), idempotent
 `destroy()` (widgets, windows it opened, listeners, live subscriptions), typed
-`on(event, handler)`, and accepts `signal` to destroy itself with its owner.
+`on(event, handler, {signal})`, and accepts `signal` to destroy itself with its owner.
 
 ```ts
 const C = app.components;
@@ -418,10 +425,10 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | Component | Wraps | Events / methods |
 | --- | --- | --- |
 | [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `activate`, `saved`, `changed`; `editing`, `refresh`, `selected`, `setFilters` |
-| [`RecordForm`](#recordform) | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancel`, `changed`; `submit`, `values`, `dirty` |
+| [`RecordForm`](#recordform) | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancelled`, `changed`; `submit`, `values`, `dirty` |
 | [`RecordDetails`](#recorddetails) | the `Adatok` details (`recordFields`) | `show(row \| id)` |
-| [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `pick()` resolves a `MediaDescriptor` or `null` |
-| [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; `editing` |
+| [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `editing`; `pick()` resolves a `MediaDescriptor` or `null` |
+| [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; both `editing` |
 | [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
 | [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
@@ -504,7 +511,7 @@ has the action, the success toast and the server's field errors in place.
 ```ts
 const form = new app.components.RecordForm({ resource: "demo_tasks", action: "update", id, signal: win.signal });
 form.on("saved", () => win.close());
-form.on("cancel", () => win.close());
+form.on("cancelled", () => win.close());
 form.mount(win);
 ```
 
@@ -556,13 +563,18 @@ bar.mount(layout.getCell("commands"));
 player.on("loaded", () => bar.update("pause", { disabled: false }));
 ```
 
-Labels are plain text (escaped). Ids match `[A-Za-z0-9_.:-]+`, are unique and
+`CommandItem` is a button (`CommandButton`: `id`, `label`, `icon`,
+`disabled`, `hidden`; `type` omitted or `"button"`) or a spacer
+(`CommandSpacer`, `{ type: "spacer" }`, no id), which pushes the following
+buttons to the right and is left out of the collapsed menu. Labels are plain
+text (escaped). Button ids match `[A-Za-z0-9_.:-]+`, are unique and
 `blade-command-menu` is reserved; otherwise the constructor throws
 `TypeError`. `update(id, changes)` changes the label, icon, disabled or hidden
 state, also while the item sits in the collapsed menu. `toolbar` is the
-underlying Suite Toolbar. The collapsed menu does not close on Escape
-([pitfalls](#pitfalls)); the feature demo's viewer drives a `MediaPlayer` with
-it ([example](#example-record-view)).
+underlying Suite Toolbar. Escape closes an open menu, also one opened with the
+mouse, and returns the focus to its toggle (`Műveletek`); the key does not
+reach a window behind it. The feature demo's viewer drives a `MediaPlayer`
+with it ([example](#example-record-view)).
 
 <a id="calendar-and-diagrameditor"></a>
 
@@ -588,7 +600,7 @@ new app.components.Calendar({ view: "signage_schedule", signal: win.signal }).mo
 
 - `view` is an offered view id (`Error` when not offered to the actor) or a
   held `ViewDefinition` of any kind with `resource`, `actions` and the
-  `CalendarOptions`/`DiagramOptions` shape (`TypeError` otherwise). What the
+  `CalendarKindOptions`/`DiagramKindOptions` shape (`TypeError` otherwise). What the
   component offers follows `actions`: read-only without `create`/`update`
   (calendar) or `save` (diagram); the server checks every call again.
 - Lifecycle as for every component: create and `mount(target)` once (an
@@ -604,7 +616,10 @@ new app.components.Calendar({ view: "signage_schedule", signal: win.signal }).mo
   calendar view; destroy it first. `app.dhx` never exposes Scheduler.
 - `DiagramEditor`: `saved` fires after the open diagram's content was saved
   (`Mentés`, Ctrl+S); `editing()` is `true` while it has unsaved changes.
-  `Calendar` has no events.
+  `Calendar` has no events; its `editing()` is `true` while the event form is
+  open. The built-in kinds report these (and `FileManager.editing()`) as
+  `ViewInstance.editing`, so the live channel never reloads the page over them
+  and an ended session asks first, as for a list form.
 - Theme and skin changes repaint live (the Scheduler switches between its
   `terrace` and `dark` skins); a language switch reloads the page, so
   components are created again in the new language.
@@ -620,7 +635,7 @@ files view; the built-in `files` kind is this class mounted in the view host.
 
 ```ts
 const files = new app.components.FileManager({ view: "files", signal: host.signal });
-files.on("opened", ({ id, mime_type }) => recent.push({ id, mime_type }));  // viewer or text editor showed a file
+files.on("opened", ({ id, mimeType }) => recent.push({ id, mimeType }));    // viewer or text editor showed a file
 files.mount(layout.getCell("files"));
 
 const { fields } = await app.server.form("signage_assets", "create");
@@ -631,13 +646,14 @@ if (media) preview.show(media);                                      // MediaDes
 
 - **FileManager.** `view` is an offered view id (`Error` when not offered) or
   a held `ViewDefinition` with `resource`, `actions` and the
-  `FileManagerOptions` shape with at least one mount (`TypeError` otherwise).
+  `FilesKindOptions` shape with at least one mount (`TypeError` otherwise).
   Panels, mounts, upload (window, drop, paste), the viewer on
   [`MediaPlayer`](#mediaplayer) with previous/next, the text editor, the
   conflict and delete dialogs behave as in the built-in view and follow the
   view's `actions`; the server checks every call. `opened` (`{id,
-  mime_type}`) fires each time the viewer or the text editor shows a file,
-  also on previous/next. The lifecycle is the common one
+  mimeType}`) fires each time the viewer or the text editor shows a file,
+  also on previous/next. `editing()` is `true` while a rename or new-folder
+  form is open or the text editor holds unsaved text. The lifecycle is the common one
   ([Calendar and DiagramEditor](#calendar-and-diagrameditor)): `destroy()`
   also closes the windows it opened, removes its document and upload
   listeners and aborts its pending reads (writes already sent complete).
@@ -645,7 +661,7 @@ if (media) preview.show(media);                                      // MediaDes
 - **FilePicker.** `field` is a `file` field's `FieldMetadata.file` (as
   `app.server.form` or a list action describes it), `title` the field label
   (`Fájl kiválasztása: {title}`), `current` a preselected file id. The picker
-  lists the field's folder (`folder_id`, otherwise the mount root) with
+  lists the field's folder (`folderId`, otherwise the mount root) with
   search and a type filter limited to the field's accepted MIME classes;
   double-click, Enter or `Kiválasztás` resolves the file's `MediaDescriptor`
   (`id`, `name`, `mime_type`, `revision`, `duration_ms`, `width`, `height`,
@@ -748,9 +764,10 @@ JSON module, a new top-level `views` section keyed by view id (snake-case keys
 as elsewhere); `resources.<name>.view` gains `id`, the
 [activation map](#activation-map) and `commands`. Exception to the snake-case rule: a field's
 nested `column` object uses the PHP option names (`minWidth`, `maxWidth`;
-`imageBase`/`altOf` are also accepted as `image_base`/`alt_of`) and reaches the
-browser verbatim, and a field's JSON `default` is `FieldMetadata.defaultValue`
-in the browser ([naming conventions](#conventions)):
+`imageBase`/`altOf` are also accepted as `image_base`/`alt_of`, a view column's
+`media_of` stays snake-case); the browser's `ColumnMetadata` always has the
+camelCase `imageBase`, `altOf` and `mediaOf`, and a field's JSON `default` is
+`FieldMetadata.defaultValue` in the browser ([naming conventions](#conventions)):
 
 ```json
 {"views": {"demo.asset-viewer": {"kind": "demo.asset-viewer", "title": "Médianéző",
@@ -826,8 +843,8 @@ server-translated.
 | `resource` | `resource`, and `id` (default) |
 | `kind` (`files`/`diagram`/`calendar`; absent = list) | `kind`, always set (`list` explicit) |
 | `title`, `group`, `icon`, `desktopOnly`, `actions` | unchanged, top level |
-| list keys `columns`, `detailFields`, `filters`, `sortable`, `layout`, `singleton`, `rowNumbers`, `selection`, `rowSelection`, `rowHeight`, `tileMinWidth`, `tiles`, `activate`, `search`, `subview` | `options.*` (`ListOptions`) |
-| `files`, `diagram`, `calendar` | `options` (`FileManagerOptions`, `DiagramOptions`, `CalendarOptions`) |
+| list keys `columns`, `detailFields`, `filters`, `sortable`, `layout`, `singleton`, `rowNumbers`, `selection`, `rowSelection`, `rowHeight`, `tileMinWidth`, `tiles`, `activate`, `search`, `subview` | `options.*` (`ListKindOptions`) |
+| `files`, `diagram`, `calendar` | `options` (`FilesKindOptions`, `DiagramKindOptions`, `CalendarKindOptions`) |
 | placeholders `columns: []`, `filters: []`, `singleton: false` of non-list kinds | dropped |
 | — | `record`, `open` (new) |
 
@@ -913,7 +930,7 @@ The feature demo keys `Médiatár` on its `file` field instead
 src="<admin.js directory>/sandbox.html?<admin.js cache key>">`: an opaque origin
 with no cookies, storage, session, CSRF token or same-origin access. The
 document's address is derived from `admin.js` (`import.meta.url`) on the
-first `load()`, so the two sandbox files must sit beside it. Without a usable
+first `load()`, so `sandbox.html` must sit beside it. Without a usable
 `import.meta.url` (a bundle that is not an ES module) creating the application
 or the component still works and `load()` rejects with a clear error. Messages use `postMessage` with the
 envelope `{blade: 1, id, type, payload}` (`SandboxMessage`; `id` 1–64
@@ -953,8 +970,8 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   `protocol`); later ones raise no `error`, `sandbox:error` or console line.
   Project messages are delivered while the document lives, also before
   `ready` and after an error.
-- **Frame checks** (`dist/sandbox.js`, a classic script built from
-  `src/sandbox/bootstrap.ts`): only messages whose `source` is `window.parent`;
+- **Frame checks** (the frame bootstrap, a classic script built from
+  `src/sandbox/bootstrap.ts` and inlined into `sandbox.html`): only messages whose `source` is `window.parent`;
   one `load` per document; `ready`/`error` from the parent are protocol errors.
   The frame reports its own violations as an `error` message (`Protocol: …`),
   so they reach the parent with code `error`; code `protocol` always means a
@@ -986,16 +1003,16 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   `destroy()` removes the frame at once (kill switch), rejects a pending load
   and releases the Layout and listeners; `signal` and a closing window or view
   host call it; mounting follows the [common rules](#components).
-- **Meta CSP of `sandbox.html`** (exact text):
-  `default-src 'none'; script-src 'self' blob:; style-src 'unsafe-inline' blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'`.
-  `'self'` is the URL origin of `sandbox.html` (needed for `sandbox.js`); the
-  opaque origin sends no cookies with such script requests (SameSite=Lax
-  session cookie, `credentialless` in Chromium). It also lets the code load
-  any same-origin classic script, without cookies: an accepted deviation from
-  the plan's "only `blob:`/inline execution"
-  ([plan 4.4](toolkit-plan.md#44-sandbox-frame)). `fetch`, XHR, WebSocket,
-  EventSource, beacons, images and frames to any host are blocked; forms and
-  pop-ups are blocked by the sandbox flags.
+- **Meta CSP of `sandbox.html`** (exact text; `<hash>` is the SHA-256 of the
+  inline bootstrap, base64):
+  `default-src 'none'; script-src 'sha256-<hash>' blob:; style-src 'unsafe-inline' blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'`.
+  The bootstrap is inlined into the document and admitted by its hash, which
+  `tools/build.mjs` computes (`--check` fails on a stale one); `blob:` admits
+  the delivered code. There is no `'self'`: the code cannot load any
+  same-origin classic script, which keeps the plan's "only `blob:`/inline
+  execution" ([plan 4.4](toolkit-plan.md#44-sandbox-frame)). `fetch`, XHR,
+  WebSocket, EventSource, beacons, images, scripts and frames to any host are
+  blocked; forms and pop-ups are blocked by the sandbox flags.
 - **Shell CSP:** `Shell/Application.php::headers` sends `object-src 'none'` and no
   `frame-src`/`child-src`, so `default-src 'self'` already admits the
   same-origin `sandbox.html`; no PHP change. The managed host serves static
@@ -1012,8 +1029,9 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
   was given: never pass it data the actor
   may not see. Where the browser keeps a sandboxed frame in the parent's process,
   a busy loop in the code also blocks the page; the timeout cannot interrupt it.
-- **Verification:** `node tests/shell/toolkit-sandbox.mjs` (envelope, limits,
-  both protocol sides with fake windows) and `npm run test:browser --
+- **Verification:** `node tests/shell/toolkit-sandbox.mjs` (the built
+  document's single inline script, its hash and the exact CSP; envelope,
+  limits, both protocol sides with fake windows) and `npm run test:browser --
   tests/shell/toolkit-sandbox.spec.cjs` in Chromium on the managed URL (opaque
   origin, no cookie, storage or parent access, CSP-blocked network, round
   trip, forged messages, error, timeout, navigation, destroy) pass, the spec
@@ -1031,13 +1049,14 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
 | --- | --- | --- |
 | `dist/admin.js`, `dist/admin.css` | yes (unchanged) | one ESM bundle, no chunks; linked with their [file key](#cache-keys) |
 | `dist/admin.d.ts` | no | development only; declarations of `src/api/index.ts` (`tsc --emitDeclarationOnly` through the TypeScript API), joined with `./types` into one file |
-| `dist/sandbox.html`, `dist/sandbox.js` | only when `SandboxFrame` is used | add to `.deploy.json` `shared_assets.files` beside `admin.js` |
+| `dist/sandbox.html` | only when `SandboxFrame` is used | add to `.deploy.json` `shared_assets.files` beside `admin.js`; one file, the frame bootstrap inline |
 
-`npm run build` (`tools/build.mjs`) writes all five files and
+`npm run build` (`tools/build.mjs`) writes all four files and
 `packages/php/bin/live-server.mjs`; `node tools/build.mjs --check` builds them in
-memory and fails on any difference. `packages/frontend/package.json` exports
-`./admin.js`, `./admin.css`, `./admin.d.ts`, `./sandbox.html` and
-`./sandbox.js`; `npm run demo:assets` copies the four runtime files. The same
+memory and fails on any difference (and on a left-over `dist/sandbox.js`,
+which the build removes). `packages/frontend/package.json` exports
+`./admin.js`, `./admin.css`, `./admin.d.ts` and `./sandbox.html`;
+`npm run demo:assets` copies the three runtime files. The same
 build writes and checks the feature demo's own module
 `examples/demo-app/public/app/demo.js` and its stylesheet `demo.css`
 ([worked example](#typescript-recipe));
@@ -1047,7 +1066,7 @@ consumer that uses `SandboxFrame`:
 ```json
 {
     "source": "/space/share/libs/61ade/packages/frontend/dist",
-    "files": ["admin.js", "admin.css", "sandbox.html", "sandbox.js"],
+    "files": ["admin.js", "admin.css", "sandbox.html"],
     "target": "target:public/assets/61ade"
 }
 ```
@@ -1107,7 +1126,7 @@ declare module "@61ade/admin" {
 }
 
 const main: ApplicationModule = app => {
-  app.views.register("demo.player", {
+  app.kinds.register("demo.player", {
     create: host => {
       const frame = new app.components.SandboxFrame({ signal: host.signal });
       frame.mount(host);
@@ -1142,8 +1161,8 @@ sources, which enforces the types-only rule below.
 Import 61ade and Suite **types only** (`import type`): the bundle above
 contains no import at all. A runtime import of `@dhtmlx/suite` or `admin.js`
 would bundle a second instance; use `app.dhx` for Suite widgets. `admin.d.ts`
-also declares `apiVersion` from `src/api/index.ts`; read it as
-`app.apiVersion` at run time.
+declares types only (no run-time value to import): the contract generation is
+the type `ApiVersion`, its value `app.apiVersion`.
 
 <a id="event-catalog"></a>
 
@@ -1151,8 +1170,8 @@ also declares `apiVersion` from `src/api/index.ts`; read it as
 
 **Page events** (`app.events`, `AppEvents` in `src/api/types.ts`). Handlers
 run synchronously in registration order; a throwing handler is logged and the
-others still run. `on(name, handler, signal?)` returns the unsubscribe
-function and unsubscribes when `signal` aborts (pass `host.signal`). Framework
+others still run. `on(name, handler, {signal}?)` returns the unsubscribe
+function and unsubscribes when `signal` aborts (pass `{signal: host.signal}`). Framework
 names contain `:` and only 61ade emits them; `emit` of such a name throws.
 
 | Event | Payload | Fires |
@@ -1185,8 +1204,8 @@ Module load failures and sandbox errors stay in the browser (toast, events,
 console); the server logs nothing for them
 ([product event catalog](product-direction.md#4-eseménynapló-lefedési-katalógus)).
 
-**Component events** (`component.on(name, handler)`, delivered only while
-mounted, never after `destroy()`):
+**Component events** (`component.on(name, handler, {signal}?)`, delivered only
+while mounted, never after `destroy()`):
 
 | Component | Event | Payload | Fires |
 | --- | --- | --- | --- |
@@ -1195,10 +1214,10 @@ mounted, never after `destroy()`):
 | | `saved` | `{action, row}` | a form of the list (create, update, record action with fields, singleton Save) or an inline cell or card edit (`action` `update`) saved; `row` is the server's answer |
 | | `changed` | `{rows, total?, matched?}` | the loaded window changed (load, scroll window, filter, live update, delete, revocation) |
 | `RecordForm` | `saved` | `{action, result}` | `submit` (or the submit button) succeeded |
-| | `cancel` | `{}` | Cancel was pressed |
+| | `cancelled` | `{}` | Cancel was pressed |
 | | `changed` | `{field, value}` | a field value was committed (on leaving the field) |
 | `CommandBar` | `click` | `{id}` | an item was clicked, also from the collapsed `Műveletek` menu |
-| `FileManager` | `opened` | `{id, mime_type}` | the viewer or text editor showed a file, also on previous/next |
+| `FileManager` | `opened` | `{id, mimeType}` | the viewer or text editor showed a file, also on previous/next |
 | `DiagramEditor` | `saved` | `{}` | the open diagram's content was saved (`Mentés`, Ctrl+S) |
 | `MediaPlayer` | `loaded` | `{duration, width?, height?}` | the metadata is known (`duration` 0 for images) |
 | | `position` | `{seconds}` | every 250 ms while playing, on pause and after a completed seek |
@@ -1264,28 +1283,49 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
   mode, sort, columns and filters by the id of the definition it gets; give a
   page its own state by passing the definition under the page's view id
   ([ListView](#listview)).
-- **`Műveletek` does not close on Escape.** The collapsed command menu of a
-  list or `CommandBar` is the Suite Toolbar's popup, which 61ade does not
-  close on Escape; a known limit.
 
 <a id="conventions"></a>
 
 ## Naming conventions
 
-Existing names stay as they are (no renames in API version 1):
+The rules of API version 1 (closed out on 2026-10-30, [changes](#changes)):
 
-- **Event tense is mixed:** `select`, `activate`, `cancel` and `click` are
-  present tense, `saved`, `changed`, `opened`, `loaded` and `ended` past
-  tense; the uploader's page event is `upload:cancelled`.
-- **View option casing follows the kind:** `ListOptions` and `DiagramOptions`
-  are camelCase (`rowHeight`, `nodeTypes`), `FileManagerOptions`,
-  `CalendarOptions` and `UploadPolicy` snake_case (`max_depth`,
-  `default_view`, `max_size_bytes`).
-- **Column keys are passed through as declared:** `ColumnMetadata` may carry
-  `imageBase` or `image_base`, `altOf` or `alt_of`, `mediaOf` or `media_of`;
-  a presentation that reads them reads both spellings.
-- **`app.views` registers view kinds**, not views; the views offered to the
-  actor are `app.viewDefinitions()` and `app.viewDefinition(id)`.
+- **Type names:** a component's instance type is its class name in
+  `app.components` (`ListView`, `RecordForm`, `RecordDetails`, `FileManager`,
+  `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer`, `SandboxFrame`,
+  `CommandBar`); its constructor options are `<Class>Options` and its events
+  `<Class>Events` (`FilePickerOptions` are the options of `pick`). The
+  options of a built-in view kind are `<Kind>KindOptions`: `ListKindOptions`,
+  `FilesKindOptions`, `DiagramKindOptions`, `CalendarKindOptions`.
+- **Registries are named after what they hold:** `app.kinds` (view kinds),
+  `presentations`, `fieldTypes`, `commands`; the views offered to the actor
+  are `app.viewDefinitions()` and `app.viewDefinition(id)`.
+- **Browser metadata is camelCase:** view `options` of every built-in kind
+  (`rowHeight`, `nodeTypes`, `maxDepth`, `defaultView`), `ColumnMetadata`
+  (`imageBase`, `altOf`, `mediaOf`), `FieldMetadata` with its `validation`
+  (`minLength`, `matchesField`) and `file` (`folderId`, `canUpload`,
+  `canChoose`), `UploadPolicy` (`maxSizeBytes`, `chunkBytes`; a files view's
+  `options.upload` is `{policy}` only), action metadata
+  and event payloads (`opened` `{id, mimeType}`). The server normalises it;
+  PHP and JSON configuration keep their own spelling (JSON snake-case, a
+  field's `column` object also as in PHP). **Record data keeps the server's
+  field names, never camel-cased:** rows, `_media` and `MediaDescriptor` (for
+  example `mime_type`, `duration_ms`: `FilePicker.pick` resolves
+  `media.mime_type`, while the framework's own `opened` payload says
+  `mimeType`), action results and protocol answers (`UploadResult`, the
+  transfer protocol's `chunk_bytes`, failure `details`).
+- **Event names:** an event reported after the fact is a past participle
+  (`saved`, `changed`, `opened`, `loaded`, `ended`, `cancelled`, `view:opened`,
+  `upload:cancelled`); a user gesture reported as it happens or before the
+  framework acts on it is the plain verb, as in the DOM (`select`, `activate`,
+  `click`); a stream or a state is a noun or adjective (`position`, `error`,
+  `message`, `ready`, `upload:progress`, `upload:complete`). Framework page
+  events are `<area>:<event>`, project events `<project>.<event>`.
+- **One way to pass the owner's signal:** the options object `{signal}`, last,
+  on every subscription and on `server.form` ([services](#services)); a
+  component's constructor options carry `signal` the same way.
+- **Discriminated unions instead of optional ids:** a `CommandItem` is a
+  `CommandButton` or a `CommandSpacer` (no id).
 
 <a id="limits"></a>
 
@@ -1355,7 +1395,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
   const t = (key: string, params?: Record<string, unknown>) => app.i18n.t(key, params);
   if (!host.record) throw new Error(t("A médianéző egy médiaelemhez nyílik meg."));
   const row = host.record.row, listId = view.options?.details ?? host.record.resource;
-  const list = app.viewDefinition(listId) as ViewDefinition<ListOptions> | undefined;
+  const list = app.viewDefinition(listId) as ViewDefinition<ListKindOptions> | undefined;
   // …
   const render = (): void => {
     if (host.signal.aborted) return;
@@ -1394,7 +1434,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
 }
 
 const assets: ApplicationModule = app => {
-  app.views.register(KIND, { create: (host, view: ViewDefinition<ViewerOptions>) => viewer(app, host, view) });
+  app.kinds.register(KIND, { create: (host, view: ViewDefinition<ViewerOptions>) => viewer(app, host, view) });
 };
 ```
 
@@ -1421,7 +1461,7 @@ const scene = async (stage: Stage, screen: Cell) => {
   app.events.on("sandbox:error", ({ message }) => {
     if (shell?.stage !== stage) return;
     // …
-  }, signal);
+  }, { signal });
   try {
     const code = await sceneCode(item.slot.asset!.id);
     if (signal.aborted) return;
@@ -1488,9 +1528,9 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
   // The dashboard's list keeps its own mode, sort, columns and filters: a ListView keys its preferences by the id of
   // the definition it is given, so it gets the offered list view under the dashboard's view id. Filtering here never
   // changes the plain `Mérések` page (its preferences stay under `demo_readings`); the server still checks every call.
-  const source = app.viewDefinition(options.list) as ViewDefinition<ListOptions> | undefined;
+  const source = app.viewDefinition(options.list) as ViewDefinition<ListKindOptions> | undefined;
   if (!source || source.kind !== "list") throw new TypeError(`61ade feature demo: "${options.list}" is not an offered list view.`);
-  const listView: ViewDefinition<ListOptions> = { ...source, id: view.id };
+  const listView: ViewDefinition<ListKindOptions> = { ...source, id: view.id };
   // …
   const build = () => {
     // …
@@ -1498,11 +1538,11 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
     const chart: Chart = new app.dhx.Chart(null as unknown as HTMLElement, chartConfig(colors()));
     layout.getCell("chart").attach(chart);
     // … render() writes the summary cell with attachHTML and the chart data
-    const stopTheme = app.theme.onChange(() => { if (!signal.aborted) { chart.setConfig(chartConfig(colors())); render(); } });
+    // Unsubscribed by the build's signal, before the cleanup below (registered earlier, so it runs first).
+    app.theme.onChange(() => { chart.setConfig(chartConfig(colors())); render(); }, { signal });
     let current: ListView | undefined;
     // Registered before the ListView exists, so a failing constructor still releases the chart and the layout.
     signal.addEventListener("abort", () => {
-      stopTheme();
       current?.destroy();
       layout.getCell("chart").detach();
       chart.destructor();
@@ -1520,7 +1560,7 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
 
 const readings: ApplicationModule = app => {
   app.presentations.register(BAR, readingBar(app));
-  app.views.register(KIND, { create: (host, view: ViewDefinition<DashboardOptions>) => dashboard(app, host, view) });
+  app.kinds.register(KIND, { create: (host, view: ViewDefinition<DashboardOptions>) => dashboard(app, host, view) });
 };
 ```
 
@@ -1630,7 +1670,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M4 | `Registry::view/fileManager/diagram/calendar` and `SqlResource::register` return `View` and take an optional `id` (`view`/`register` also `activate`, `commands`); `Registry::views()` returns `list<View>` objects instead of arrays; a later declaration with the same id replaces the earlier one ([rule](#view-id-rule)) | P2 | if used: PHP that reads `$registry->views()` as arrays | `register(…)` calls unchanged | three `Registry::view()` after `register()` unchanged; replacement kept |
 | M5 | `Registry::subview/appendViewActions` take view ids (default = resource) | P2 | info | `subview(…, embed: false)` unchanged | — |
 | M6 | Project `stylesheets` ([module loading](#module-loading)) replace stylesheet injection; linked on signed-in pages only, after `admin.css` and skins | P2, O8 | if used: a consumer that injects its own CSS | output buffer in `public/admin/index.php`; its sign-in logo needs a decision (handoff) | — |
-| M7 | `.deploy.json` `shared_assets.files` adds `sandbox.html`, `sandbox.js` beside `admin.js` ([packaging](#packaging)); `admin.d.ts` is never deployed | P3, O6 | if used: `SandboxFrame` users | needed with the scene stage | not needed |
+| M7 | `.deploy.json` `shared_assets.files` adds `sandbox.html` beside `admin.js` ([packaging](#packaging)); `admin.d.ts` is never deployed | P3, O6 | if used: `SandboxFrame` users | needed with the scene stage | not needed |
 | M8 | Frontend internals (`Workspace` constructor, which now takes the shell's `LiveChannel`, private classes) are not a contract; use `app` and [components](#components) | P3 | info | — | — |
 | M9 | [Cache keys](#cache-keys) from the served file `?v=<base36 mtime>-<base36 size>`: `admin.js`/`admin.css` (released build `?v=30`, dev URL `?v=32` from `02a64d6` to `edbc90f`), project `modules`/`stylesheets` (formerly `?v=<version>`, still the fallback), skin stylesheets and AuthHandler files (formerly unkeyed); an own `?…` key stays as written | P4, FB-0085 | if used: specs that assert `?v=30`, `?v=32` or `?v=<version>` on these URLs must accept the file key | specs request the files without a key; own `editor.css?v=1`, `app.css?v=3` stay hand-kept until dropped | specs assert no key; release keys see the handoff |
 | M10 | Record commands only in the list toolbar; the record context menu is gone: a right click, the context-menu key or Shift+F10 on a row, card or tile keeps the browser's own behaviour ([registries](#registries)). `Adatok` is the `details` record command: toolbar id `blade-results` → `blade-command:details`, disabled without a cursor record or with several marks | P3 C-5b | if used: specs that open a row context menu (use the toolbar or `Műveletek`) or address `blade-results` | none | none: `command()` clicks toolbar items by name |
@@ -1743,7 +1783,7 @@ resolved with the recommended defaults and the P0 consumer inventory.
 | O3 | View `id` (`[a-z][a-z0-9_.-]*`, unique) independent of `resource`, default = resource. `#view=` is canonical; `#feature=<resource>` stays a legacy alias rewritten with `replaceState`; menu ids `view:<id>`; later same-id declarations replace earlier ones. | allflow has delivered e-mails with `/admin/#feature=…` and relies on `Registry::view()` replacing the `SqlResource` view; default ids keep preference keys valid. |
 | O4 | `record: <resource>` record views; row resolved by that resource's `get`; opened by activation, record action, `navigate` or URL; `open: page \| window`. | Server-side ACL, field ACL and tenant scope stay the only authority. |
 | O5 | `activate` also accepts `{field, map}` with `*` default and the new `view:<id>` target; validated on the server, chosen per row on the client. | StoryBloX audio/scene records open different viewers; existing values keep working. |
-| O6 | Static `dist/sandbox.html` + `sandbox.js` with a meta CSP in `<iframe sandbox="allow-scripts">`; data and code by `postMessage`; `.deploy.json` grows by these files for `SandboxFrame` users. | Opaque origin: no cookies or CSRF; the shell CSP stays strict. |
+| O6 | Static `dist/sandbox.html` (its bootstrap inline since 2026-10-30, [changes](#changes)) with a meta CSP in `<iframe sandbox="allow-scripts">`; data and code by `postMessage`; `.deploy.json` grows by these files for `SandboxFrame` users. | Opaque origin: no cookies or CSRF; the shell CSP stays strict. |
 | O7 | Untrusted code may run inside the opaque-origin frame only (`blob:` script). R8's "no eval/executable configuration strings" applies to configuration and the admin origin. | Agent-written scenes are project data, not configuration. |
 | O8 | `stylesheets` list beside `modules`, same path rules, signed-in pages only, linked after framework CSS and skins. | Replaces StoryBloX's output-buffer injection in `public/admin/index.php`. |
 | O9 | No transport change: the bootstrap `i18n.messages` already carries the merged catalog (`Translator::configure`: framework < project per locale, default locale as fallback), fed by `Blade\I18n\Settings::$catalogues` / JSON `i18n.catalogues`; `app.i18n` wraps `t`/`locale`. Framework keys are Hungarian source text in one flat namespace and a project key equal to a framework key overrides it. | Confirmed in P0.4; project modules use the same catalogues. Key convention: accepted at G1 (source text or project prefix). |

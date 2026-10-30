@@ -50,8 +50,8 @@ final readonly class UploadPolicy
     /** Browser configuration only: never the transfer root or the preflight rules. */
     public function metadata(): array
     {
-        return ['extensions' => $this->extensions, 'max_size_bytes' => $this->maxSizeBytes, 'max_files' => $this->maxFiles, 'chunk_bytes' => $this->chunkBytes,
-            'folders' => $this->folders, 'max_depth' => $this->maxDepth, 'duplicate_policy' => $this->duplicatePolicy];
+        return ['extensions' => $this->extensions, 'maxSizeBytes' => $this->maxSizeBytes, 'maxFiles' => $this->maxFiles, 'chunkBytes' => $this->chunkBytes,
+            'folders' => $this->folders, 'maxDepth' => $this->maxDepth, 'duplicatePolicy' => $this->duplicatePolicy];
     }
 
     /** Message key of the first violated safe-name rule (file and folder names), or null. */

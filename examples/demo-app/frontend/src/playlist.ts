@@ -234,7 +234,7 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
       stage.status = "error";
       stage.message = message;
       caption(stage);
-    }, signal);
+    }, { signal });
     try {
       const code = await sceneCode(item.slot.asset!.id);
       if (signal.aborted) return;
@@ -448,7 +448,7 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
       { id: "rewind", label: t("Elejére"), icon: "dxi dxi-chevron-double-left", disabled: true },
       { id: "previous", label: t("Előző elem"), icon: "dxi dxi-chevron-left", disabled: true },
       { id: "next", label: t("Következő elem"), icon: "dxi dxi-chevron-right", disabled: true },
-      { id: "gap", label: "", type: "spacer" },
+      { type: "spacer" },
       { id: "position", label: positionText(), disabled: true },
     ] });
     bar.mount(layout.getCell("commands"));
@@ -534,6 +534,6 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
 }
 
 const playlist: ApplicationModule = app => {
-  app.views.register(KIND, { create: (host, view: ViewDefinition<PreviewOptions>) => preview(app, host, view) });
+  app.kinds.register(KIND, { create: (host, view: ViewDefinition<PreviewOptions>) => preview(app, host, view) });
 };
 export default playlist;

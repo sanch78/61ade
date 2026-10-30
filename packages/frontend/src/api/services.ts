@@ -5,6 +5,7 @@ import { fitWindow } from "../WindowSizing";
 import { uploads as uploader } from "../Uploader";
 import { Realtime, type LiveChannel } from "../Realtime";
 import { NAME } from "../app/registries";
+import { signalOf, tieTo } from "./Events";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
 
 /**
@@ -20,7 +21,11 @@ let themeBase = "skyblue", themeSkin: string | null = null;
 export const theme: Theme = {
   current: () => themeBase,
   skin: () => themeSkin,
-  onChange(listener) { themeListeners.add(listener); return () => { themeListeners.delete(listener); }; },
+  onChange(listener, options) {
+    const release = () => { themeListeners.delete(listener); };
+    if (tieTo(signalOf(options, "theme.onChange"), release)) themeListeners.add(listener);
+    return release;
+  },
 };
 /** Called by the shell after every theme or skin application. */
 export function themeApplied(base: string, skin: string | null): void {
@@ -56,7 +61,8 @@ export function preferences(user: string): Preferences {
 /** `Application.live`: a `Realtime` handle on the tab's one channel per subscription. */
 export function live(channel: () => LiveChannel): Live {
   return {
-    subscribe(resource, query, handlers, signal) {
+    subscribe(resource, query, handlers, options) {
+      const signal = signalOf(options, "live.subscribe");
       const handle = new Realtime(channel(), resource, snapshot => handlers.update(snapshot), text => handlers.state?.(text), () => handlers.denied?.());
       const subscription = { subscribe: (next: typeof query) => handle.subscribe({ ...next }), destroy: () => handle.destroy() };
       if (signal?.aborted) { handle.destroy(); return subscription; }
@@ -83,7 +89,7 @@ export const uploads: Uploads = {
     if (typeof resource !== "string" || !resource || typeof action !== "string" || !action) throw invalid("a resource and an action name");
     if (target !== null && typeof target !== "string") throw invalid("a target id string or null");
     if (typeof targetLabel !== "string") throw invalid("a targetLabel text");
-    if (!policy || typeof policy !== "object" || !Array.isArray(policy.extensions) || !(policy.max_files >= 1) || !(policy.max_size_bytes > 0))
+    if (!policy || typeof policy !== "object" || !Array.isArray(policy.extensions) || !(policy.maxFiles >= 1) || !(policy.maxSizeBytes > 0))
       throw invalid("the action's upload policy (ActionMetadata.upload or the files view's options.upload.policy)");
     const queued = files === undefined ? undefined : Array.from(files as ArrayLike<File>);
     if (queued?.some(file => !(file instanceof File))) throw invalid("File objects in `files`");

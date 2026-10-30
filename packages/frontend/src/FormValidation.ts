@@ -4,23 +4,24 @@ import { alert } from "./MessageDialog";
 import type { UploadPolicy } from "./Uploader";
 
 export type ValidationRules = {
-  min_length?: number;
+  minLength?: number;
   pattern?: { expression: string; flags?: string; message?: string };
-  matches_field?: string;
+  matchesField?: string;
   unique?: boolean;
 };
 /**
  * Browser metadata of a `file` field: the file manager resource, its mount, the resolved folder
- * (`folder_id`, the mount root when absent), accepted MIME classes, the file manager's upload policy
- * and whether the actor may upload there. The value is the file id.
+ * (`folderId`, the mount root when absent), accepted MIME classes, the file manager's upload policy
+ * and whether the actor may upload there (`canUpload`) and browse it (`canChoose`). The value is the file id.
  */
 export type FileFieldConfig = {
   resource: string;
   mount: string;
-  folder_id?: string | null;
+  folderId?: string | null;
   accept?: string[];
   policy?: UploadPolicy;
-  can_upload?: boolean;
+  canUpload?: boolean;
+  canChoose?: boolean;
 };
 export type FieldDefinition = {
   name: string;
@@ -50,11 +51,11 @@ export function fieldError(field: FieldDefinition, raw: unknown, values: Record<
   if (value.includes("\0")) return t("Hibás szöveges érték.");
   if (length > field.max) return t("Legfeljebb {count} karakter adható meg.",{count:field.max});
   const rules = field.validation ?? {};
-  if (length < (rules.min_length ?? 0)) return t("Legalább {count} karakter szükséges.",{count:rules.min_length});
+  if (length < (rules.minLength ?? 0)) return t("Legalább {count} karakter szükséges.",{count:rules.minLength});
   if (rules.pattern && !new RegExp(rules.pattern.expression, rules.pattern.flags ?? "").test(value)) {
     return t(rules.pattern.message ?? "Hibás formátum.");
   }
-  if (rules.matches_field && value !== String(values[rules.matches_field] ?? "")) return t("A két mező értéke nem egyezik.");
+  if (rules.matchesField && value !== String(values[rules.matchesField] ?? "")) return t("A két mező értéke nem egyezik.");
   if (field.type === "number" && !/^[0-9]+$/.test(value)) return t("Nemnegatív egész szám szükséges.");
   if (field.type === "select" && !Object.hasOwn(field.options, value)) return t("Válassz az engedélyezett értékekből.");
   if (field.type === "multiselect") {

@@ -1,5 +1,5 @@
 import { Layout } from "@dhtmlx/suite";
-import type { AppEvents, ComponentClass, MountTarget, SandboxError, SandboxErrorCode, SandboxFrame as SandboxFrameApi, SandboxFrameEvents, SandboxFrameOptions } from "../../api/types";
+import type { AppEvents, ComponentClass, MountTarget, SandboxError, SandboxErrorCode, SandboxFrame as SandboxFrameApi, SandboxFrameEvents, SandboxFrameOptions, SignalOptions } from "../../api/types";
 import { attachContent } from "../../api/services";
 import { Lifecycle, optionSignal } from "../Lifecycle";
 import { t } from "../../I18n";
@@ -63,7 +63,7 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
 
     mount(target: MountTarget): void { this.life.mount(target, this.layout, element => element.append(this.root)); }
 
-    on<K extends keyof SandboxFrameEvents>(event: K, handler: (payload: SandboxFrameEvents[K]) => void): () => void { return this.life.on(event, handler); }
+    on<K extends keyof SandboxFrameEvents>(event: K, handler: (payload: SandboxFrameEvents[K]) => void, options?: SignalOptions): () => void { return this.life.on(event, handler, options); }
 
     load(code: string, files: Record<string, Blob | string> = {}): Promise<void> {
       if (this.life.destroyed) return Promise.reject(aborted());

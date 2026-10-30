@@ -1,5 +1,6 @@
 import type { Layout } from "@dhtmlx/suite";
-import type { AppWindow, ComponentOptions, LayoutCell, MountTarget, ViewHost } from "../api/types";
+import type { AppWindow, ComponentOptions, LayoutCell, MountTarget, SignalOptions, ViewHost } from "../api/types";
+import { signalOf } from "../api/Events";
 
 /** An `AppWindow` or a `ViewHost`: content goes through its `attach`, and its signal ends the component. */
 const hosted = (target: MountTarget): target is AppWindow | ViewHost =>
@@ -60,13 +61,16 @@ export class Lifecycle<Events extends object> {
     return true;
   }
 
-  on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void): () => void {
+  on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void, options?: SignalOptions): () => void {
     if (typeof handler !== "function") throw new TypeError("61ade: component event handler must be a function.");
-    if (this.state === "destroyed") return () => {};
+    const signal = signalOf(options, "component.on");
+    const release = () => { this.handlers.get(event)?.delete(handler as (payload: never) => void); };
+    if (this.state === "destroyed" || signal?.aborted) return release;
     let set = this.handlers.get(event);
     if (!set) this.handlers.set(event, set = new Set());
     set.add(handler as (payload: never) => void);
-    return () => { this.handlers.get(event)?.delete(handler as (payload: never) => void); };
+    signal?.addEventListener("abort", release, { once: true, signal: this.release.signal });
+    return release;
   }
 
   /** Calls the handlers in registration order while mounted; a throwing handler is logged and the others still run. */
