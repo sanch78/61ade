@@ -219,7 +219,7 @@ return new ApplicationDefinition(
   texts; `stylesheet` is a `.css` path relative to the page, checked like
   `assets`, with an optional `?v=…` cache key; without one the shell appends the
   stylesheet file's [cache key](toolkit.md#cache-keys). Same-origin paths only, so CSP
-  `style-src 'self'` holds. `base` is `light`, `dark` or `skyblue`.
+  `style-src 'self' 'unsafe-inline'` holds. `base` is `light`, `dark` or `skyblue`.
 - Skin stylesheets load after the framework CSS, so a `[data-blade-skin]`
   variable wins over the same base variable at equal specificity. Keep to
   `--dhx-*` variables; selectors on framework or Suite classes are not a

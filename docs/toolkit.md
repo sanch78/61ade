@@ -38,7 +38,7 @@ supported; the starter admin and tenant demo stay declarative.
   [consumer layout](development.md#consumer-layout); the same `admin.js` and
   `admin.css` as a declarative application.
 - Modules and stylesheets are same-origin files below the application's public
-  directory (CSP `script-src 'self'`, `style-src 'self'` unchanged).
+  directory (CSP `script-src 'self'`, `style-src 'self' 'unsafe-inline'` unchanged).
 - Optional for TypeScript: `dist/admin.d.ts` and the `@dhtmlx/suite` 9.3.12
   types it references ([recipe](#typescript-recipe)).
 - `SandboxFrame` additionally needs `dist/sandbox.html` and `dist/sandbox.js`
@@ -89,8 +89,8 @@ export default (app) => {
   Stylesheets are linked after the framework CSS and skins.
 - **Order:** the shell `import()`s all modules in parallel and calls their
   default exports one by one in declaration order with the page's
-  `Application`, then routes. A failed import, a throw, a rejection or an
-  initialization longer than 5 s is reported (toast, `module:error` event,
+  `Application`, then routes. A failed import, a throw, a rejection, an
+  import or an initialization longer than 5 s each is reported (toast, `module:error` event,
   console) and skipped; the shell always starts. Registrations made before the
   failure stay.
 - **One instance:** a module never imports `admin.js` (the shell loads it with
@@ -165,7 +165,7 @@ each member with one example.
 | `uploads` | `open`, `reopen` of the shared uploader | `Uploader.ts` `uploads` |
 | `i18n` | `t`, `locale`, `languages` | `I18n.ts` |
 | `theme` | `current`, `skin`, `onChange` | AdminShell theme/skin handling |
-| `preferences` | `scope(name)` → `get/set/remove` | `UiPreferences.ts` storage |
+| `preferences` | `scope(name)` → `get/set/remove` (`name` must contain a dot, else `TypeError`) | `UiPreferences.ts` storage |
 | `live` | `subscribe(resource, query, handlers, signal)` | `LiveChannel`/`Realtime` |
 | `events` | Typed bus `on/off/emit` ([event catalog](#event-catalog)) | uploader `on/off` |
 | `identity` | `id`, `displayName`, `tenant` | bootstrap `userId`, `displayName`, `tenant.current` |
@@ -255,7 +255,8 @@ app.uploads.reopen();                                                           
 `Registry<T>`: `register(name, entry, {replace?})`, `get`, `has`, `names`.
 Names are `[a-z][a-z0-9_.-]*`; built-in names have no dot, project names must
 contain one (`demo.player`). A taken name (a built-in one too) throws `Error` unless `replace: true`
-(a new name without a dot throws `TypeError`), which is also how a project deliberately overrides a built-in. Register during
+(a new name without a dot, or an entry that is not an object, throws
+`TypeError`), which is also how a project deliberately overrides a built-in. Register during
 module initialization (modules run before the first view opens). A list,
 record details or form reads the registries when it is created, so a later
 registration affects only surfaces created after it.
@@ -313,7 +314,8 @@ command `demo.copy-text` ([example](#example-tasks)).
 - **View kind** `create(host, view)` returns a `ViewInstance` (`destroy`,
   optional `editing`, `refresh`). `ViewHost` gives `app`, `signal` (aborted when
   the view closes), `open` (`page`/`window`), `record` (`{resource, id, row}`
-  for record views), `filters`, `attach`, `setTitle`, `close`. A throw shows the
+  for record views), `filters`, `attach`, `setTitle` (changes a window's
+  header; does nothing for a page view), `close`. A throw shows the
   error dialog and leaves an empty workspace. `attach` replaces the whole
   content; compose a page from one Layout ([recipe](#layout-recipe)).
 - **Presentation** (`column.presentation`): a synchronous HTML renderer per
@@ -742,8 +744,8 @@ $registry->addView(new View('demo.asset-viewer', 'demo.asset-viewer', 'Médiané
 ```
 
 JSON module, a new top-level `views` section keyed by view id (snake-case keys
-as elsewhere); `resources.<name>.view` gains only `id` and the
-[activation map](#activation-map). Exception to the snake-case rule: a field's
+as elsewhere); `resources.<name>.view` gains `id`, the
+[activation map](#activation-map) and `commands`. Exception to the snake-case rule: a field's
 nested `column` object uses the PHP option names (`minWidth`, `maxWidth`;
 `imageBase`/`altOf` are also accepted as `image_base`/`alt_of`) and reaches the
 browser verbatim, and a field's JSON `default` is `FieldMetadata.defaultValue`
@@ -853,7 +855,8 @@ A view with `record: <resource>` opens for one record. The shell passes the
 id to the server, which resolves the row through that resource's `get` action
 (object ACL, field ACL, tenant scope, audit); the kind receives it as
 `host.record`. Opened from the [activation map](#activation-map) (`view:<id>`),
-a record action, `app.navigate({view, record})` or the address. A record view
+`app.navigate({view, record})` (for example from a project client command) or
+the address. A record view
 has no menu entry. `open: "page"` (default) mounts it in the workspace with an
 address and history entry; `open: "window"` opens a framework document window
 (full screen below 768 px) without an address change. The view is offered only
@@ -919,7 +922,7 @@ characters, unique per sender: `p1…` from the parent, `f1…` from the frame).
 | --- | --- | --- |
 | parent → frame | `load` | `{code, files}`: untrusted script source and named data (Blobs or strings); sent once, on the frame's first `load` event |
 | frame → parent | `ready` | `{}` after the code's top-level evaluation (and its returned promise, if any) completed |
-| frame → parent | `error` | `{message}`: a throw, rejection, later uncaught error or protocol violation (at most 1000 characters) |
+| frame → parent | `error` | `{message}`: a throw, rejection, later uncaught error or protocol violation (at most 1000 characters plus an ellipsis) |
 | both | project types | dotted registry names (`scene.seek`, at most 128 characters), any structured-clone payload |
 
 ```ts
@@ -952,6 +955,9 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
 - **Frame checks** (`dist/sandbox.js`, a classic script built from
   `src/sandbox/bootstrap.ts`): only messages whose `source` is `window.parent`;
   one `load` per document; `ready`/`error` from the parent are protocol errors.
+  The frame reports its own violations as an `error` message (`Protocol: …`),
+  so they reach the parent with code `error`; code `protocol` always means a
+  parent-side check.
   Opened directly, or framed with a real origin (no `sandbox`, or
   `allow-same-origin`: `self.origin !== "null"`), the document stays inert and
   runs no code. The code runs from a
@@ -961,7 +967,8 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
 - **Limits** (G1 values confirmed): code 1 MiB UTF-8 (`maxCodeBytes`), files
   32 MiB in total (`maxFileBytes`, Blob sizes plus UTF-8 string sizes),
   `ready` within 10 s of `load()` (`readyTimeout`). A size violation rejects
-  before anything is sent and keeps the current frame; a timeout removes the
+  before anything is sent and keeps the current frame and a still pending
+  earlier load; a timeout removes the
   frame. Both raise `sandbox:error`, and `error` (`size`, `timeout`) while
   mounted.
 - **Errors on the page:** every `error` of every frame is also the page event
@@ -1031,7 +1038,8 @@ memory and fails on any difference. `packages/frontend/package.json` exports
 `./admin.js`, `./admin.css`, `./admin.d.ts`, `./sandbox.html` and
 `./sandbox.js`; `npm run demo:assets` copies the four runtime files. The same
 build writes and checks the feature demo's own module
-`examples/demo-app/public/app/demo.js` ([worked example](#typescript-recipe));
+`examples/demo-app/public/app/demo.js` and its stylesheet `demo.css`
+([worked example](#typescript-recipe));
 it is demo output, not part of the package. A
 consumer that uses `SandboxFrame`:
 
@@ -1700,9 +1708,9 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-29 | `MediaSource` gains `{blob}`; `MediaPlayerOptions` gains `name`, `info`, `toolbar`; `MediaPlayer.focus()`; `position` also fires on pause; a non-media MIME throws `TypeError`. | Object URL ownership, accessible name, keyboard. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `SandboxFrameOptions.title`; code runs as the body of an async function; a second iframe `load` (navigation, reload, DOM move) and a timeout remove the frame; `post()` throws before `ready`; `load()` rejects with `Error{code}` or `AbortError`; envelope `id` 1–64, `type` ≤ 128, error text ≤ 1000 characters; `credentialless`; the sandbox document URL is resolved on the first `load()`. | Kill switch and bounded protocol; non-ESM bundles must not fail at app creation. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `FilePicker.pick` throws `TypeError` synchronously for malformed options; `FileManager` `opened` fires for every file the viewer or text editor shows (also previous/next); `FileManager.destroy()` aborts pending reads, sent writes complete. | Same pattern as `uploads.open`; no stale reads after close. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | Server validation keeps the storage type. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Commands: every declared command is a list toolbar item after the view's actions, in declaration order (in the `Műveletek` menu when narrow); there is no record context menu. `placement: "toolbar"` acts on the view, `"record"` on the toolbar's cursor record like the built-in record actions (default enabled with a cursor record and at most one mark; an own `enabled` may accept the marks); `"both"` is accepted as `"record"`. `ListOptions.commands` is a server declaration (≤ 20 dotted names); the built-in Adatok is the `details` record command (toolbar id `blade-command:details`). | Owner decision at G3: one place for record actions, works on touch. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Commands while a sub-view record holds the toolbar: a command the sub-view's list has too (built-in `details`, a name its view declares; every command of a `shared` sub-view) gets the sub-view's context (`view`, `row` = its cursor record, `rows` = its marks); any other command stays on the list's own cursor record and marks. Previously every command saw the delegated record only for a `shared` sub-view and never saw marks while delegated. | Owner decision after G3: `view` and `row` of a command belong to one resource, like the built-in actions. | [FB-0081](feedback.md#fb-0081) |
-| 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | Server validation keeps the storage type. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | [Cache keys](#cache-keys) of every shell asset (`admin.js`, `admin.css`, skin stylesheets, `modules`, `stylesheets`, AuthHandler files) are `?v=<base36 mtime>-<base36 size>` of the served file inside the document root; own `?…` keys stay; fallback `?v=<version>` (61ade's files: the package build's key first); the hand-bumped `?v=32` is gone. New optional `ApplicationDefinition::$documentRoot` / JSON `application.document_root` (default `DOCUMENT_ROOT`); bootstrap `modules` carry these keys. `versioned()` remains as the fallback rule. | Owner decision: cache keys from the file, so a rebuilt file reaches the browser at once. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Activation map on a media field (`file` or `column.media`): the client keys the row by the MIME class of `_media[field]` (`image`, `video`, `audio`, …) instead of the file id; no or a hidden file takes `*`. Server validation unchanged. | Toolkit P4 D1: `Médiatár` opens audio and video in a record view by the file's type; keying on the file id was useless, and a stored or computed type column would bypass the media source's ACL. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | The [recipe](#typescript-recipe) names the feature demo (`examples/demo-app/frontend`, built to `public/app/demo.js`) as its worked example; no API change. | Toolkit P4 D0: the first real consumer of the recipe. | [FB-0081](feedback.md#fb-0081) |
@@ -1717,6 +1725,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-30 | `register` of a taken name (a built-in one too, without `replace`) throws the duplicate `Error` before the project-prefix `TypeError`. | P7 API review: the documented duplicate error. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | `sandbox.html` runs code only when `self.origin === "null"`; a frame document reports only the first failure its messages cause; project messages also arrive before `ready` and after an error. | P7 security review M1 (framed without `sandbox` it ran code at the host origin), L3 (error flood). | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | The shell CSP adds `object-src 'none'`; the demo's `signage_playlist.scene` also needs `files.content_stream` on the scene file's mount (else 404). | P7 security review: hardening; the scene action skipped the file's object ACL. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | A `load()` refused for size no longer rejects a still pending earlier load (that frame can still become ready); `navigate` writes only `#view=<id>[&record=…]` (filters are applied, not written). | P7 documentation review: the earlier load was rejected while its frame stayed, so it could never become ready; the doc comment overstated the address. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>
 
@@ -1754,7 +1763,8 @@ Accepted by the owner on 2026-10-29 as recommended:
 3. **Project name prefix:** project kinds, presentations, field types,
    commands, event names and preference scopes must contain a dot.
 4. **JSON placement of extra views:** a module-level `views` section;
-   `resources.<name>.view` gains only `id` and the activation map.
+   `resources.<name>.view` gains only `id` and the activation map (later also
+   `commands`, C-5b).
 5. **Module timeout and failure policy:** 5 s per module, report and continue.
 6. **`modules` naming:** `application.modules` (browser) beside
    `workspace.modules` (JSON files) stays, explained in this guide.

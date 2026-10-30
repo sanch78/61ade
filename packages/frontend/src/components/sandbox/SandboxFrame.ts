@@ -75,9 +75,9 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
         else if (value instanceof Blob) total += value.size;
         else return Promise.reject(new TypeError(`61ade: sandbox file "${name}" must be a Blob or a string.`));
       }
-      // The current frame stays until a valid load replaces it.
-      if (byteLength(code) > this.limits.code) return Promise.reject(this.fail("size", `The sandbox code exceeds ${this.limits.code} bytes.`));
-      if (total > this.limits.files) return Promise.reject(this.fail("size", `The sandbox files exceed ${this.limits.files} bytes.`));
+      // The current frame and its pending load stay until a valid load replaces them.
+      if (byteLength(code) > this.limits.code) return Promise.reject(this.fail("size", `The sandbox code exceeds ${this.limits.code} bytes.`, false, false));
+      if (total > this.limits.files) return Promise.reject(this.fail("size", `The sandbox files exceed ${this.limits.files} bytes.`, false, false));
       try { address ??= sandboxDocument(); } catch {
         return Promise.reject(new Error("61ade: SandboxFrame cannot resolve sandbox.html beside admin.js (the bundle has no usable import.meta.url)."));
       }
@@ -175,11 +175,14 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
       this.fail(code, message);
     }
 
-    /** Reports `error` and `sandbox:error`, rejects a pending load with an `Error` carrying `code`; `kill` removes the frame. */
-    private fail(code: ErrorCode, message: string, kill = false): SandboxError {
+    /**
+     * Reports `error` and `sandbox:error`; `settle` rejects a pending load with the `SandboxError` (a refused new load
+     * leaves it alone); `kill` removes the frame.
+     */
+    private fail(code: ErrorCode, message: string, kill = false, settle = true): SandboxError {
       const error: SandboxError = Object.assign(new Error(message), { code });
-      const pending = this.pending;
-      this.pending = undefined;
+      const pending = settle ? this.pending : undefined;
+      if (pending) this.pending = undefined;
       if (pending) { clearTimeout(pending.timer); pending.reject(error); }
       if (kill) this.close();
       const payload = { message, code };

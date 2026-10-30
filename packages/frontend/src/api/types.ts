@@ -80,8 +80,8 @@ export interface Application {
   /** One offered view by id, or `undefined` when it does not exist or is not offered to the actor. */
   viewDefinition(id: string): ViewDefinition | undefined;
   /**
-   * Opens a view like a menu click or an address change: writes `#view=<id>[&record=…][&filter.<f>=<v>]` as a
-   * history entry and mounts it through the `views` registry. Returns `false` (and changes nothing) when the view is
+   * Opens a view like a menu click or an address change: writes `#view=<id>[&record=…]` as a history entry
+   * (page views only; `filters` are applied once and not written to the address) and mounts it through the `views` registry. Returns `false` (and changes nothing) when the view is
    * not offered to the actor, needs a record that was not given, or its kind is not registered. Record resolution
    * failures (403/404 from the record resource's `get`) show the shared error dialog and keep the current view.
    */
@@ -1181,7 +1181,7 @@ export interface SandboxFrameEvents {
   ready: Record<string, never>;
   /**
    * `error`: the frame reported a throw, rejection or uncaught error (`message` is the frame's untrusted text, at most
-   * 1000 characters); `timeout`: no `ready` in time; `size`: a limit was exceeded; `protocol`: an invalid or reserved
+   * 1000 characters plus an ellipsis; the frame's own protocol violations arrive here too); `timeout`: no `ready` in time; `size`: a limit was exceeded; `protocol`: an invalid or reserved
    * message, or the frame document navigated or reloaded (the frame is then removed).
    */
   error: { message: string; code: SandboxErrorCode };
