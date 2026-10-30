@@ -289,7 +289,7 @@ the sign-in form or its flows:
 
 1. **Look, declarative:** an application [logo](#sign-in-logo) and
    `signInStylesheets`, styled through the [supported CSS hooks](#sign-in-css-hooks).
-2. **Content, declarative:** a [notice and links](#sign-in-content) above the form's actions.
+2. **Content, declarative:** a [notice and links](#sign-in-content) below the form.
 3. **Extension:** [sign-in modules](#sign-in-modules), project ES modules with a
    restricted API and two slots in the window.
 
@@ -367,12 +367,13 @@ return new ApplicationDefinition(
 #### Notice and links
 
 `SignIn(notice = null, links = [])` (JSON `application.sign_in`
-`{notice, links: [{label, href}]}`) adds a box to all three windows, below
-the fields and above the actions (the actions stay at the window bottom, 24 px
-above its edge, as in every framework window): the notice as plain text (line breaks kept), then the links as a
+`{notice, links: [{label, href}]}`) adds a box below the form of all three
+windows: the notice as plain text (line breaks kept), then the links as a
 labelled list (`nav` named `Hivatkozások`) of ordinary `<a>` elements in the
 Suite primary colour, reachable with Tab and opened with Enter, with a
-visible focus ring in every theme. The window grows to hold the box.
+visible focus ring in every theme. The box is its own row below the form's
+actions (Suite Standard has no Form `container`); the window grows to hold it,
+so the box ends at the window's bottom edge with its own 16 px padding.
 
 - `notice` and each link `label` are catalogue keys translated on the server
   (`Translator::text`) and escaped in the browser; no HTML. A blank notice or
@@ -406,7 +407,7 @@ declaration order with a frozen `SignInApplication` (types in
 | `i18n.t(key, params)`, `i18n.locale()` | The page's catalog (framework and project texts); plain text. |
 | `theme.current()`, `theme.onChange(listener, {signal})` | The applied factory theme; the listener runs after each switch until `signal` aborts. |
 | `dhx` | The DHTMLX Suite namespace the shell uses. |
-| `slots.header`, `slots.footer` | Empty elements in the window (`[data-blade-slot]`): `header` above the form, `footer` below its fields and the notice, above its actions; the window refits when their content changes size. |
+| `slots.header`, `slots.footer` | Empty elements in the window above and below the form (`[data-blade-slot]`); the window refits when their content changes size. |
 
 ```js
 // public/branding/sign-in.js: the feature demo's module.

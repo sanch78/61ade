@@ -41,18 +41,15 @@ test('the sign-in window shows the logo once with the sign-in stylesheet, per th
  // The form stays whole below the logo: the button fits inside the window.
  const windowBox=await dialog.boundingBox(),button=await dialog.getByRole('button',{name:'Bejelentkezés',exact:true}).boundingBox();
  expect(button.y+button.height).toBeLessThanOrEqual(windowBox.y+windowBox.height);
- const last=await dialog.getByRole('button',{name:'Belépés külső fiókkal',exact:true}).boundingBox();
- expect(Math.abs(windowBox.y+windowBox.height-last.y-last.height-24)).toBeLessThanOrEqual(2);
- // Notice, link and the sign-in module's footer line sit below the fields and above the actions, which stay at the
- // window bottom (24 px below the last action, as authentication.spec.cjs checks for the confirmation window).
+ // Notice and link below the form, inside the window; the sign-in module's line in the footer slot.
  await expect(dialog.getByText(NOTICE,{exact:true})).toBeVisible();
  const link=dialog.getByRole('navigation',{name:'Hivatkozások'}).getByRole('link',{name:'Demó postafiók',exact:true});
  await expect(link).toHaveAttribute('href','mailbox/');
  await expect(footer(dialog)).toHaveText('Demó bejelentkezési modul · téma: skyblue');
  for(const element of [dialog.getByText(NOTICE,{exact:true}),link,footer(dialog)]){
   const box=await element.boundingBox();
-  expect(box.y).toBeGreaterThanOrEqual(windowBox.y);
-  expect(box.y+box.height).toBeLessThanOrEqual(button.y);
+  expect(box.y).toBeGreaterThanOrEqual(button.y+button.height);
+  expect(box.y+box.height).toBeLessThanOrEqual(windowBox.y+windowBox.height);
  }
  // The restricted API: no transport, CSRF token or identity reaches the module (it only sees what it is given).
  await expect(page.locator('script[src*="branding/sign-in.js"]')).toHaveCount(0);
