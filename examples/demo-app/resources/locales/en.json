@@ -142,5 +142,8 @@
   "Értékeloszlás: {bins}": "Value distribution: {bins}",
   "{range}: {count} sor": "{range}: {count} rows",
   "{value} a 100-ból": "{value} of 100",
-  "Kiválasztott sor: {range}": "Selected row: {range}"
+  "Kiválasztott sor: {range}": "Selected row: {range}",
+  "Szintetikus demó: a fiókok és az adatok kitaláltak.": "Synthetic demo: the accounts and data are made up.",
+  "Demó postafiók": "Demo mailbox",
+  "Demó bejelentkezési modul · téma: {theme}": "Demo sign-in module · theme: {theme}"
 }

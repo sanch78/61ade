@@ -26,7 +26,8 @@ default `assets`; e.g. `../assets` for the [starter admin](demos.md) at `/admin/
 `DOCUMENT_ROOT`; the shell keys `admin.js`, `admin.css` and every other linked
 asset by its file below it, see [cache keys](toolkit.md#cache-keys)).
 Other options include `authentication`, `languages`, `accounts`, `oauth`;
-see [authentication](authentication.md). JSON uses `application.version`, e.g.
+see [authentication](authentication.md); `logo`, `signInStylesheets`, `signIn`
+and `signInModules` customize the sign-in pages ([sign-in customization](#sign-in-branding)). JSON uses `application.version`, e.g.
 `"title":"Minta admin","version":"0.1.0"`. Startup, errors, sessions, CSRF,
 login/logout, metadata and UI rendering belong to the framework.
 
@@ -277,11 +278,218 @@ Workspace switching detaches/disposes the previous DHTMLX layout, waits for
 redraw and attaches the new view. Only the latest rapid switch mounts.
 `workspace.spec.cjs` checks repeated switching.
 
+<a id="sign-in-branding"></a>
+
+### Sign-in customization: logo, stylesheets, content and modules (optional)
+
+Owner decision of 2026-10-30: the sign-in pages (sign-in, e-mail
+confirmation, password change) must be customizable and extensible
+([FB-0087](feedback.md#fb-0087)). Three layers, each optional, none touching
+the sign-in form or its flows:
+
+1. **Look, declarative:** an application [logo](#sign-in-logo) and
+   `signInStylesheets`, styled through the [supported CSS hooks](#sign-in-css-hooks).
+2. **Content, declarative:** a [notice and links](#sign-in-content) below the form.
+3. **Extension:** [sign-in modules](#sign-in-modules), project ES modules with a
+   restricted API and two slots in the window.
+
+```php
+use Blade\Shell\{ApplicationDefinition, Logo, SignIn, SignInLink};
+
+return new ApplicationDefinition(
+    // ...
+    logo: new Logo('branding/logo.svg', darkImage: 'branding/logo-dark.svg', label: 'Példa admin', placement: 'window'),
+    signInStylesheets: ['branding/sign-in.css'],
+    signIn: new SignIn('Csak munkatársaknak.', [new SignInLink('Impresszum', '/impressum/'), new SignInLink('Súgó', 'https://help.example.test/')]),
+    signInModules: ['branding/sign-in.js'],
+);
+```
+
+```json
+{"application": {"title": "…", "runtime": "…",
+  "logo": {"image": "branding/logo.svg", "dark_image": "branding/logo-dark.svg", "label": "Példa admin", "placement": "window"},
+  "sign_in_stylesheets": ["branding/sign-in.css"],
+  "sign_in": {"notice": "Csak munkatársaknak.", "links": [{"label": "Impresszum", "href": "/impressum/"}]},
+  "sign_in_modules": ["branding/sign-in.js"]}}
+```
+
+<a id="sign-in-logo"></a>
+
+#### Application logo and sign-in stylesheets
+
+- **`Logo(image, darkImage = null, label = null, placement = 'window')`:**
+  `image` and `darkImage` are browser paths checked like `stylesheets`
+  (relative to the page or root-absolute, same-origin, `[A-Za-z0-9_-]`
+  segments, an optional own `?…` key) with the extension `.svg`, `.png` or
+  `.webp`; without an own key each gets its file's
+  [cache key](toolkit.md#cache-keys). Anything else fails at definition time
+  (`Invalid 61ade logo image`). `label` is the accessible text, localized like
+  other texts; it defaults to the application `title`, and a blank one is
+  refused. Same-origin images keep the CSP `img-src 'self' data: blob:`.
+- **Signed in:** always the last cell of the top menu row, after the tenant,
+  language and theme selectors, behind a 1 px line in the theme border colour
+  (24 px high, at most 160 px wide). It is not a menu item: when the menu
+  collapses into `Menü` the logo stays, and its width counts in the menu's
+  width estimate, so the menu collapses (and the
+  [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) drop) before
+  anything overlaps. When the row has no room for `Menü`, the selectors and the
+  logo (for example the feature demo at 390 px, with a language and a theme
+  selector), the row leaves the logo out; widening brings it back. The width
+  is measured again when an image loads and after a theme switch.
+- **Signed out, `placement`:** `window` (default) centres it above the form in
+  the window (48 px high, at most the window width); `top` puts it at the end
+  of the top row as in the shell (no menu there, so it only yields to the
+  selectors); `both` shows both. `window` is the default because the window is
+  the page's one focus (the modal dims the row behind it) and a window logo
+  never competes with the selectors for room on a phone. Anything else fails
+  (`Invalid 61ade logo placement`).
+- **Themes:** with `darkImage`, the light image shows under Skyblue, light and
+  light-based [skins](#application-skins), the dark image under dark and
+  dark-based skins (the applied base, `data-dhx-theme="dark"`). A theme switch
+  repaints at once through CSS. Without `darkImage` the light image shows in
+  every theme.
+- **Accessibility:** each copy is one element; the images inside have an empty
+  `alt`, so the hidden theme variant is never announced. The named copy has
+  `role="img"` and the label as its accessible name; with `both`, the window's
+  copy is named and the top row's has `aria-hidden="true"`, so every page
+  announces the logo once.
+- **Sign-in stylesheets:** `signInStylesheets` (`.css`, same path rules and
+  keys) are linked only on the sign-in, e-mail confirmation and
+  password-change pages, after `admin.css` (those pages load no skins). The
+  signed-in shell links `stylesheets` instead and never the sign-in ones; the
+  sign-in pages never link `stylesheets` and never import `modules`.
+- **Bootstrap:** `logo` = `{image, dark?, label, placement}` (keyed URLs) on
+  every page when a logo is declared; `signIn` and `signInModules` (below) on
+  the signed-out pages only. Each key is absent when not declared.
+
+<a id="sign-in-content"></a>
+
+#### Notice and links
+
+`SignIn(notice = null, links = [])` (JSON `application.sign_in`
+`{notice, links: [{label, href}]}`) adds a box below the form of all three
+windows: the notice as plain text (line breaks kept), then the links as a
+labelled list (`nav` named `Hivatkozások`) of ordinary `<a>` elements in the
+Suite primary colour, reachable with Tab and opened with Enter, with a
+visible focus ring in every theme. The window grows to hold the box.
+
+- `notice` and each link `label` are catalogue keys translated on the server
+  (`Translator::text`) and escaped in the browser; no HTML. A blank notice or
+  label, a notice over 500 characters, a label over 80 characters or more
+  than six links fails at definition time.
+- `href` is a same-origin path (page-relative such as `help/` or
+  `../privacy.html`, with `../` only as a prefix, or root-absolute such as
+  `/impressum/`, with an optional query and fragment) or an `https://` URL.
+  Other schemes (`http:`, `javascript:`, `mailto:`, `data:`), `//host`, `.` or
+  `..` segments inside the path, spaces and quotes fail. Links open in the
+  same tab.
+- The box is not shown on signed-in pages; the shell's own pages stay as they
+  are.
+
+<a id="sign-in-modules"></a>
+
+#### Sign-in modules (extension point)
+
+`signInModules` (JSON `application.sign_in_modules`) are project ES modules
+(`.js`/`.mjs`, the path rules and [cache keys](toolkit.md#cache-keys) of
+`modules`) loaded only on the three signed-out pages; signed-in pages never
+load them, and the sign-in pages never load `modules`. After the window is
+mounted the shell imports them in parallel and calls each default export in
+declaration order with a frozen `SignInApplication` (types in
+`src/api/sign-in.ts`, part of `admin.d.ts`):
+
+| Member | Meaning |
+| --- | --- |
+| `apiVersion` | `1`, as `Application.apiVersion`. |
+| `page` | `sign-in`, `confirmation` or `password-change` (the `data-blade-page` value). |
+| `i18n.t(key, params)`, `i18n.locale()` | The page's catalog (framework and project texts); plain text. |
+| `theme.current()`, `theme.onChange(listener, {signal})` | The applied factory theme; the listener runs after each switch until `signal` aborts. |
+| `dhx` | The DHTMLX Suite namespace the shell uses. |
+| `slots.header`, `slots.footer` | Empty elements in the window above and below the form (`[data-blade-slot]`); the window refits when their content changes size. |
+
+```js
+// public/branding/sign-in.js: the feature demo's module.
+/** @type {import("@61ade/admin").SignInModule} */
+export default (app) => {
+  const line = document.createElement("p");
+  line.className = "demo-sign-in-footer";
+  const paint = (theme) => { line.textContent = app.i18n.t("Demó bejelentkezési modul · téma: {theme}", { theme }); };
+  paint(app.theme.current());
+  app.theme.onChange(paint);
+  app.slots.footer.append(line);
+};
+```
+
+- **Not in the API:** no `server`, no identity, no registries, no
+  preferences, never the CSRF token or form values. Each page kind is its own
+  page load (the forms post and redirect), so slots start empty on every page
+  and a module runs again on each one.
+- **Failure isolation:** a failed import, a missing default export, a throw, a
+  rejection or more than 5 s (per import and per call) is reported on the
+  console (`61ade: sign-in module … failed`) and skipped. The window and form
+  are mounted before any module runs, so the sign-in always works; there is no
+  toast before sign-in. A module cannot be stopped once it runs (an endless
+  loop still blocks the page), as with `modules`.
+- **Trust model:** sign-in modules are trusted project code, like `modules`,
+  and they run in the admin origin on a page that holds the password field.
+  The restricted API is a contract, not isolation: same-origin code can reach
+  the DOM. Never load untrusted or agent-written code here. Untrusted code runs
+  only in [`SandboxFrame`](toolkit.md#sandbox-protocol), and not on the sign-in
+  pages. CSP `script-src 'self'` keeps the modules same-origin.
+
+<a id="sign-in-css-hooks"></a>
+
+#### Supported CSS hooks
+
+Both kinds of project stylesheet (`stylesheets` and `signInStylesheets`) may
+rely on these hooks only:
+
+| Hook | Meaning |
+| --- | --- |
+| `data-blade-page` on `<html>` | Page kind, set by the server before any script runs: `sign-in`, `confirmation` (e-mail code), `password-change` (forced temporary password replacement), `shell` (signed in). |
+| `data-dhx-theme` on `<html>` | Applied base theme (`skyblue`, `light`, `dark`), set by the shell; read it, never set it. |
+| `data-blade-skin` on `<html>` | Active [skin](#application-skins) id (signed in, with skins only). |
+| `.blade-logo`, `.blade-logo__image` | A logo copy and its images. |
+| `--blade-logo-height` (24px), `--blade-logo-max-width` (160px) | Size of the top-row logo; the row measures the rendered logo. |
+| `--blade-sign-in-logo-height` (48px) | Height of the logo in the sign-in windows. |
+| `.blade-sign-in-info` | The box of the notice and links. |
+| `[data-blade-slot="header"]`, `[data-blade-slot="footer"]` | The sign-in modules' slots; style what a module puts in them by its own classes. |
+| Suite `--dhx-*` variables | The [custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/), as for skins. |
+
+Everything else (framework classes such as `.blade-navigation-row` or
+`.blade-auth-window`, Suite `.dhx_*` classes, the DOM structure) is not a
+supported contract and may change in any release. A rule on
+`[data-blade-page="…"]` sits on the same element as the theme variables, so
+being linked later it wins over every theme's value; scope a value that must
+differ per theme with `[data-dhx-theme="dark"]` as well.
+
+```css
+/* branding/sign-in.css (the feature demo's): only supported hooks and the module's own class. */
+[data-blade-page="sign-in"], [data-blade-page="confirmation"], [data-blade-page="password-change"] {
+  --blade-sign-in-logo-height: 40px;
+  --dhx-h-primary: 160; /* hue only: lightness and saturation stay the theme's */
+}
+.demo-sign-in-footer { margin: 0; text-align: center; font-size: 12px; color: var(--dhx-font-color-secondary); }
+```
+
+The feature demo uses every layer: the synthetic wordmark `branding/logo.svg`
+and `branding/logo-dark.svg` with `placement: 'both'`, this stylesheet, a
+notice with a link to the [demo mailbox](demos.md#demó-postafiók-mailbox) and
+the module above ([demos](demos.md#teljes-feature-demó-)); the starter admin
+and the tenant demo declare none of them. `toolkit.php` renders every page
+kind (kind, links, keys, bootstrap keys per page, rejected paths, hrefs,
+texts and placements), `configuration.php` the JSON keys and `contracts.php`
+the demos' declarations; `sign-in-branding.spec.cjs` covers the windows,
+placement, notice and link (keyboard), the module's slot and a failing
+module, themes, a dark-based skin, the top row, phone width and the starter
+admin.
+
 <a id="egységes-alsó-információs-sáv"></a>
 
 ## Unified lower information bar
 
-The top row contains the menu/theme selector, without a separate application
+The top row contains the menu/theme selector and the optional
+[application logo](#sign-in-logo) at its end, without a separate application
 header. One 32 px DHTMLX Toolbar closes the page. Its intrinsic height fits the
 cell to avoid clipped text. Left: authenticated `displayName`, or
 `Nincs bejelentkezve` before login. Right: configured application title and
@@ -403,11 +611,15 @@ a duplicate throws unless `{replace: true}`.
   initialization) is reported by a danger toast (`Egy alkalmazásmodul nem
   indult el: {module}`), the `module:error` event and the console, and skipped;
   the shell always starts. Without modules the shell routes at once, as before.
-  Signed-out pages create no `Application`.
+  Signed-out pages create no `Application`; they run only the
+  [sign-in modules](#sign-in-modules) with their restricted `SignInApplication`.
 - **Stylesheets:** `application.stylesheets` are `<link>`ed on signed-in
   pages after `admin.css` and the skins, keyed like the modules
   ([module loading](toolkit.md#module-loading)); with
   [skins](#application-skins) they are the supported way to add project CSS.
+  The signed-out pages link `signInStylesheets` instead
+  ([sign-in branding](#sign-in-branding)); both kinds rely only on the
+  [supported hooks](#sign-in-css-hooks).
 - **View host:** each opening gets a `ViewHost` (`signal`, `open`, `record`,
   `filters`, `attach`, `setTitle`, `close`). The signal aborts when the view
   closes (navigation, window close, sign-out, page unload) before the

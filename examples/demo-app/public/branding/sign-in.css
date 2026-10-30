@@ -1,0 +1,12 @@
+/* Synthetic sign-in stylesheet of the feature demo (docs/shell.md#sign-in-branding): only the supported hooks, i.e.
+   data-blade-page on <html>, the logo variables and Suite --dhx-* variables. Linked on the sign-in, e-mail
+   confirmation and password-change pages only. */
+[data-blade-page="sign-in"],
+[data-blade-page="confirmation"],
+[data-blade-page="password-change"] {
+  --blade-sign-in-logo-height: 40px;
+  /* A green primary hue before sign-in only; lightness and saturation stay the theme's, so dark keeps working. */
+  --dhx-h-primary: 160;
+}
+/* The demo sign-in module's own line in the footer slot (its own class, not a framework one). */
+.demo-sign-in-footer { margin: 0; text-align: center; font-size: 12px; color: var(--dhx-font-color-secondary); }

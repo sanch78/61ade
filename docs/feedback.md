@@ -2793,3 +2793,86 @@ that exactly equals an option label lists every option. The managed
   the cookie is gone, open form Cancel/sign-in, 4401 reload then modal),
   `browser`, `dialogs` (15 passed).
 - **Status:** implemented, not committed.
+
+<a id="fb-0087"></a>
+
+## FB-0087 — Customizable sign-in: application logo and sign-in stylesheets
+
+- **Date:** 2026-10-30.
+- **Demand (owner):** "the sign-in must be customizable". Project
+  `stylesheets` and skins load only on signed-in pages, so a consumer that
+  wants its wordmark in the top row and on the sign-in page injected its own
+  CSS through an output buffer and styled `.blade-navigation-row`, which is
+  not a contract (open point of [FB-0081](feedback.md#fb-0081) P6).
+- **Decision (owner):** declarative, no project JavaScript before sign-in: an
+  application logo (light and optional dark image, accessible text) and
+  sign-in stylesheets, styled through a small documented hook contract.
+- **Clarification (owner, same day):** that consumer's wish is only an example;
+  61ade is a toolkit, so the sign-in pages must be customizable and
+  extensible, not one fixed logo placement: a configurable placement,
+  declarative content (notice, links) and an extension point with a
+  restricted API for trusted project modules. This supersedes "no project
+  JavaScript before sign-in" for declared `signInModules`; the forms and flows
+  stay the framework's.
+- **Implemented:**
+  - `Blade\Shell\Logo(image, darkImage, label, placement)` as
+    `ApplicationDefinition` `logo` (JSON `application.logo`
+    `{image, dark_image, label, placement}`), `.svg`/`.png`/`.webp` paths with
+    the stylesheet rules and [file cache keys](toolkit.md#cache-keys). Signed
+    in: the last cell of the top row (counted in the menu width estimate, left
+    out when the row has no room, re-measured on image load and theme
+    switch). Signed out: `window` (default), `top` or `both`; one copy has
+    `role="img"` and the label (default the title), the top-row copy beside a
+    window copy is `aria-hidden`. CSS shows the dark image under the dark base,
+    so dark-based skins get it too.
+  - `signInStylesheets` (JSON `application.sign_in_stylesheets`) on the three
+    signed-out pages after `admin.css`; `data-blade-page` on `<html>`
+    (`sign-in`, `confirmation`, `password-change`, `shell`) from the server.
+  - `SignIn(notice, links)` with `SignInLink(label, href)` (JSON
+    `application.sign_in`): a server-translated plain-text notice and at most
+    six links (same-origin path or `https://` URL) in a labelled `nav` below
+    the form of all three windows; new catalogue text `Hivatkozások`
+    (hu/en/de).
+  - `signInModules` (JSON `application.sign_in_modules`): ES modules imported
+    only on the signed-out pages after the window is mounted, each called with
+    a frozen `SignInApplication` (`apiVersion`, `page`, `i18n.t/locale`,
+    `theme.current/onChange(listener, {signal})`, `dhx`, `slots.header/footer`;
+    no `server`, identity, registries, CSRF token or form values); failures
+    and the 5 s limits go to the console, the sign-in always works. Types in
+    `src/api/sign-in.ts`, re-exported into `admin.d.ts` (`tools/build.mjs`
+    accepts the import-free `./sign-in`). Trust: like `modules`, never
+    untrusted code.
+  - Supported hooks: `data-blade-page`, `data-dhx-theme`, `data-blade-skin`,
+    `.blade-logo`, `.blade-logo__image`, `--blade-logo-height`,
+    `--blade-logo-max-width`, `--blade-sign-in-logo-height`,
+    `.blade-sign-in-info`, `[data-blade-slot]` and Suite `--dhx-*`; other
+    classes stay unsupported.
+  - Feature demo: wordmark with `placement: 'both'`, `branding/sign-in.css`, a
+    notice with a `Demó postafiók` link and `branding/sign-in.js` (a theme line
+    in the footer slot); the starter admin and the tenant demo have none.
+  - Guide: [sign-in customization](shell.md#sign-in-branding),
+    [logo](shell.md#sign-in-logo), [content](shell.md#sign-in-content),
+    [modules](shell.md#sign-in-modules), [hooks](shell.md#sign-in-css-hooks);
+    keys in [configuration](configuration.md#belépés-és-alkalmazásszekciók).
+- **Consumer impact:** none without the options. A consumer that injects CSS
+  for its logo (StoryBloX D-014: an output buffer in `public/admin/index.php`
+  adding `app.css`, which draws `logo.svg`/`logo-dark.svg` as a
+  `.blade-navigation-row::after` background) replaces it: declare
+  `logo: new Logo('../assets/storyblox/logo.svg', '../assets/storyblox/logo-dark.svg', placement: 'both')`
+  (`both` keeps its top-row look on the sign-in page and adds the window
+  copy; `top` keeps exactly the old placement; label default: the title),
+  drop the `ob_start()` and the `::after` rules, and put any sign-in CSS in
+  `signInStylesheets` using only the hooks (for example
+  `--blade-logo-height`). The animated SVG keeps its own CSS motion inside an
+  `<img>`. The consumer adapts in its own session.
+- **Verification (worktree, 2026-10-30):** `npm run typecheck`;
+  `node tools/build.mjs` and `--check` (outputs restored, not committed);
+  `node tests/shell/toolkit-kernel.mjs`, `ui-preferences.mjs`; PHP `toolkit`
+  (every page kind: `data-blade-page`, links and their order, keys, bootstrap
+  `logo`/`signIn`/`signInModules` per page, no module or project stylesheet
+  before sign-in, rejected paths, hrefs, texts and placements),
+  `configuration` (JSON keys accepted and rejected), `contracts` (demo
+  declarations, D6 starter admin and tenant demo without any of it, file
+  keys), `authentication`, `i18n`, `admin`, `tenancy`, `oauth` pass. Written,
+  not run: `tests/shell/sign-in-branding.spec.cjs`.
+- **Status:** implemented on branch; browser spec not yet run.

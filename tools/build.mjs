@@ -120,8 +120,8 @@ const live = await build({
         "process.env.WS_NO_UTF_8_VALIDATE": '"1"',
     },
 });
-// admin.d.ts (development only): tsc --emitDeclarationOnly of src/api/index.ts, whose only import is ./types,
-// joined into one file so a project maps "@61ade/admin" to it.
+// admin.d.ts (development only): tsc --emitDeclarationOnly of src/api/index.ts, whose only imports are ./types and
+// ./sign-in (the sign-in modules' API), joined into one file so a project maps "@61ade/admin" to it.
 const declarations = {};
 {
     const base = ts.readConfigFile("tsconfig.json", ts.sys.readFile).config.compilerOptions;
@@ -131,15 +131,15 @@ const declarations = {};
     const problems = [...ts.getPreEmitDiagnostics(program), ...emitted.diagnostics];
     if (problems.length) throw new Error(ts.formatDiagnostics(problems, { getCanonicalFileName: (name) => name, getCurrentDirectory: () => process.cwd(), getNewLine: () => "\n" }));
 }
-const index = (declarations["index.d.ts"] ?? "").split("\n").filter((line) => !/^(export type \* from|import type \{[^}]*\} from) "\.\/types";$/.test(line));
-if (!declarations["types.d.ts"] || index.some((line) => /from "\.\//.test(line)))
-    throw new Error("admin.d.ts: src/api/index.ts may only re-export ./types");
+const index = (declarations["index.d.ts"] ?? "").split("\n").filter((line) => !/^(export type \* from|import type \{[^}]*\} from) "\.\/(types|sign-in)";$/.test(line));
+if (!declarations["types.d.ts"] || !declarations["sign-in.d.ts"] || /^import /m.test(declarations["sign-in.d.ts"]) || index.some((line) => /from "\.\//.test(line)))
+    throw new Error("admin.d.ts: src/api/index.ts may only re-export ./types and the import-free ./sign-in");
 const outputs = [
     ...[...result.outputFiles, ...demo.outputFiles, ...live.outputFiles].map((file) => [file.path, Buffer.from(file.contents)]),
     [path.resolve(dist, "sandbox.html"), Buffer.from(sandboxHtml)],
     [path.resolve(dist, "admin.d.ts"), Buffer.from(
         "// 61ade toolkit API types (docs/toolkit.md), generated from packages/frontend/src/api; development use only.\n"
-        + declarations["types.d.ts"] + index.join("\n"),
+        + declarations["types.d.ts"] + declarations["sign-in.d.ts"] + index.join("\n"),
     )],
 ];
 if (check) {

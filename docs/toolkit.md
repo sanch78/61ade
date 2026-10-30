@@ -85,8 +85,17 @@ export default (app) => {
   `workspace.modules` remain the JSON definition files of
   [configuration](configuration.md#belépés-és-alkalmazásszekciók).
 - **When:** only in the signed-in shell. The sign-in, e-mail confirmation and
-  password-change pages load neither modules nor stylesheets (as with skins).
-  Stylesheets are linked after the framework CSS and skins.
+  password-change pages load neither modules nor stylesheets (as with skins);
+  they link the separate `signInStylesheets` (JSON
+  `application.sign_in_stylesheets`) instead and import only the separate
+  `signInModules` (JSON `application.sign_in_modules`; same path rules, keys,
+  parallel import, order and 5 s limits, console-only reports), whose default
+  export gets the restricted `SignInApplication` (`apiVersion`, `page`,
+  `i18n`, `theme`, `dhx`, `slots`; no `server`, identity, registries or CSRF
+  token) instead of `app`; they are trusted project code on the page with the
+  password field ([sign-in modules](shell.md#sign-in-modules)). Stylesheets are linked
+  after the framework CSS and skins; both kinds rely only on the
+  [supported CSS hooks](shell.md#sign-in-css-hooks).
 - **Order:** the shell `import()`s all modules in parallel and calls their
   default exports one by one in declaration order with the page's
   `Application`, then routes. A failed import, a throw, a rejection, an
@@ -110,8 +119,9 @@ export default (app) => {
 Owner decision of 2026-10-30: browser cache keys come from the file itself,
 with one rule for every asset the shell links: 61ade's `admin.js` and
 `admin.css`, [skin](shell.md#application-skins) stylesheets, the project's
-`modules` and `stylesheets`, and AuthHandler's `AuthHandler.css`/`.js` on the
-sign-in page. Each gets `?v=<key>`: the base36 modification time (seconds) and
+`modules`, `stylesheets`, `signInStylesheets` and `signInModules`, the
+[logo](shell.md#sign-in-branding) images, and AuthHandler's
+`AuthHandler.css`/`.js` on the sign-in page. Each gets `?v=<key>`: the base36 modification time (seconds) and
 the base36 size of the file it is served from, joined by `-` (for example
 `app/main.js?v=t3k9qz-1fk2`). A rebuilt or newly copied file gets a new key on
 the next page load, without a commit, `.git`, a version bump or a hand-edited
@@ -1686,6 +1696,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M20 | `RecordForm` `cancel` → `cancelled`; `FileManager` `opened` `{id, mimeType}`; toolbar spacers `{type: "spacer"}` without id | close-out | if used | none | none |
 | M21 | `dist/sandbox.js` removed: the bootstrap is inline in `sandbox.html`, allowed by a CSP hash (no `script-src 'self'`) | close-out | if used: `SandboxFrame` | list only `sandbox.html` | not needed |
 | M22 | Escape closes the `Műveletek` menu; an open file-manager or calendar form now counts as editing (blocks the live reload, gets the ended-session modal) | close-out | info | — | — |
+| M23 | Sign-in customization ([shell](shell.md#sign-in-branding)): optional `logo` (placement `window`/`top`/`both`), `signInStylesheets`, `signIn` notice and links, `signInModules` (restricted `SignInApplication`, trusted code only); `data-blade-page` on `<html>`; only the [documented hooks](shell.md#sign-in-css-hooks) are supported | [FB-0087](feedback.md#fb-0087) | if used: a consumer that injects CSS or markup for its sign-in look or logo | replace the output buffer in `public/admin/index.php` and the `.blade-navigation-row::after` rules with `logo: new Logo(…, placement: 'both')` (or `top`); sign-in CSS through `signInStylesheets` | — |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -1784,6 +1795,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-30 | `FileManager.editing()` and `Calendar.editing()`; the built-in kinds report them. | Owner: finished framework before consumers migrate. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Sandbox bootstrap inline in `sandbox.html`, allowed by `script-src 'sha256-…' blob:`; `dist/sandbox.js` removed. | Owner: finished framework before consumers migrate. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Event naming rule ([conventions](#conventions)): `RecordForm` `cancelled`, `FileManager` `opened` `{id, mimeType}`; browser metadata camelCase (files/calendar options, `UploadPolicy`, field `file`/`validation`); `FilesKindOptions.upload` is `{policy}` only (the upload rules were sent twice). | Owner: finished framework before consumers migrate. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | Sign-in customization: `ApplicationDefinition` `logo` (`Logo(image, darkImage, label, placement)`), `signInStylesheets`, `signIn` (`SignIn(notice, links)`), `signInModules` with the restricted `SignInApplication`/`SignInModule` (`src/api/sign-in.ts`, in `admin.d.ts`); JSON `application.logo`, `sign_in_stylesheets`, `sign_in`, `sign_in_modules`; bootstrap `logo`, `signIn`, `signInModules`; `data-blade-page` on `<html>`; supported CSS hooks ([sign-in customization](shell.md#sign-in-branding)). | Owner: the sign-in pages must be customizable and extensible; consumers injected CSS against unsupported classes. | [FB-0087](feedback.md#fb-0087) |
 
 <a id="resolved-decisions"></a>
 
