@@ -106,7 +106,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
         if(this.destroyed)return result;
         this.changedFields=false;
         resultNotice(result);
-        this.emit("saved",{result});
+        this.emit("saved",{action:this.options.action,result});
         if(result?.reauthenticate)location.reload();
         return result;
       }catch(error){
