@@ -19,10 +19,11 @@ export class NamedRegistry<T> implements Registry<T> {
   names(): string[] { return [...this.entries.keys()]; }
   private add(name: string, entry: T, options: RegisterOptions, builtin: boolean): void {
     if (typeof name !== "string" || !NAME.test(name)) throw new TypeError(`61ade: invalid ${this.label} name "${String(name)}".`);
-    // An override of a built-in entry keeps its dot-free name; any new project name needs the project prefix.
-    if (!builtin && !name.includes(".") && !(options.replace && this.entries.has(name)))
-      throw new TypeError(`61ade: ${this.label} "${name}" needs a project prefix with a dot (project.name).`);
+    // A taken name (a built-in too) is a duplicate first; only then is a new dot-free project name a missing prefix.
     if (this.entries.has(name) && !options.replace) throw new Error(`61ade: ${this.label} "${name}" is already registered.`);
+    // An override of a built-in entry keeps its dot-free name; any new project name needs the project prefix.
+    if (!builtin && !name.includes(".") && !this.entries.has(name))
+      throw new TypeError(`61ade: ${this.label} "${name}" needs a project prefix with a dot (project.name).`);
     if (entry === null || typeof entry !== "object") throw new TypeError(`61ade: ${this.label} "${name}" has no entry object.`);
     // Re-registering moves nothing: names() keeps the first registration order.
     this.entries.set(name, entry);

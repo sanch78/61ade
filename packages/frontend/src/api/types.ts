@@ -465,7 +465,7 @@ export interface RegisterOptions {
  * registration affects only views mounted afterwards.
  */
 export interface Registry<T> {
-  /** Adds `entry`. Throws `TypeError` for an invalid name and `Error` for a duplicate without `replace: true`. */
+  /** Adds `entry`. Throws `Error` for a taken name (a built-in one too) without `replace: true`, else `TypeError` for an invalid name or a new name without a dot. */
   register(name: string, entry: T, options?: RegisterOptions): void;
   get(name: string): T | undefined;
   has(name: string): boolean;
