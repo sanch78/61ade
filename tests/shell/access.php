@@ -11,17 +11,17 @@ $db->exec("INSERT INTO records(owner_id,title) VALUES ('1','Own'),('2','Other')"
 $registry=new Registry();(new SqlResource('records','records','record_id',[new Field('title','Title',required:true)],'owner_id',['owner_id'=>'1']))->register($registry,'Records');
 $workspace=new Workspace($registry,$db);$ctx=new Context(new Identity('1','One'),'ui',$workspace->acl,$db);
 $call=fn($a,$id=null,$v=[])=>$workspace->executor->execute($ctx,'records',$a,$id,$v);
-check($call('list')===[],'Default deny list');
+check($call('list')['items']===[],'Default deny list');
 try{$call('get','1');throw new RuntimeException('Default deny failed');}catch(Failure $e){check($e->status===403,'Denied get');}
 $rule=$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','records',?,'ui',?,?,?,?)");
 foreach(['list','get','update'] as $a)$rule->execute([$a,'allow','own','','']);
-check(count($call('list'))===1,'Scoped SQL list');
+check(count($call('list')['items'])===1,'Scoped SQL list');
 $row=$call('get','1');$call('update','1',['title'=>'Updated','revision'=>$row['revision']]);
 try{$call('update','1',['title'=>'Stale','revision'=>$row['revision']]);throw new RuntimeException('Stale accepted');}catch(Failure $e){check($e->status===409,'Concurrency conflict');}
 try{$call('update','2',['title'=>'Attack','revision'=>'x']);throw new RuntimeException('IDOR');}catch(Failure $e){check($e->status===403,'IDOR prevented');}
 $row=$call('get','1');
 try{$call('update','1',['title'=>'Bad','owner_id'=>'2','revision'=>$row['revision']]);throw new RuntimeException('Mass assignment');}catch(Failure){}
-$rule->execute(['list','deny','id','1','']);check($call('list')===[],'Explicit object deny SQL');
+$rule->execute(['list','deny','id','1','']);check($call('list')['items']===[],'Explicit object deny SQL');
 $rule->execute(['get','deny','all','','title']);check(!isset($call('get','1')['title']),'Field redaction');
 $api=new Context($ctx->actor,'api',$workspace->acl,$db,['records.get']);
 try{$workspace->executor->execute($api,'records','get','1',[]);throw new RuntimeException('UI grant reached API');}catch(Failure $e){check($e->status===404,'API channel isolation without object disclosure');}

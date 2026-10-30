@@ -129,7 +129,7 @@ check($galleryColumns['image']['presentation']==='image'&&$galleryColumns['image
 check($galleryDetails['image']['presentation']==='image'&&$galleryDetails['image']['imageBase']==='../demo-images/'&&$galleryDetails['image']['altOf']==='title'&&!isset($galleryDetails['image']['image_base'])&&!isset($galleryDetails['title']['presentation']),'Detail fields carry the image options in camelCase');
 $galleryCtx=new Context($actor,'ui',$galleryWorkspace->acl,$db);
 $listed=$galleryWorkspace->executor->execute($galleryCtx,'gallery','list',null,[]);
-check(array_column($listed,'image','id')==['1'=>'ok.svg','2'=>'','3'=>'','4'=>'','5'=>'','6'=>'MISSING.PNG'],'Server list blanks values that are not plain image file names');
+check(array_column($listed['items'],'image','id')==['1'=>'ok.svg','2'=>'','3'=>'','4'=>'','5'=>'','6'=>'MISSING.PNG'],'Server list blanks values that are not plain image file names');
 // Usage warnings on a SqlResource delete (U5): preview through the bulk channel, clear on apply, after_delete only.
 $db->exec("CREATE TABLE shelves(id INTEGER PRIMARY KEY,title TEXT NOT NULL); INSERT INTO shelves VALUES(1,'Used'),(2,'Free'),(3,'Guarded'); CREATE TABLE books(id INTEGER PRIMARY KEY,shelf_id TEXT NOT NULL); INSERT INTO books(shelf_id) VALUES('1'),('1'),('3')");
 $hooks=['save'=>[],'delete'=>[]];

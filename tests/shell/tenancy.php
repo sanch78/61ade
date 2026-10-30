@@ -72,7 +72,8 @@ check(array_column($run($ctxB,'projects','list','',['limit'=>50])['items'],'titl
 check(array_column($workspace->observe($ctxA,'projects',['limit'=>50])['items'],'title')===['Alfa 2','Alfa 1'],'Live watch is tenant-scoped');
 $batch=$workspace->watch($ctxNone,[['id'=>'p','resource'=>'projects','query'=>['limit'=>50]],['id'=>'n','resource'=>'notices','query'=>['limit'=>50]]]);
 check(!$batch[0]['ok']&&$batch[0]['status']===403&&$batch[1]['ok']&&array_column($batch[1]['data']['items'],'title')===['Közös'],'Batched watch: a scoped list without a tenant is refused alone, the global one beside it answers');
-check(array_column($run($ctxA,'projects','list',null,[]),'title')===['Alfa 2','Alfa 1'],'Offset listing is tenant-scoped');
+check(array_column($run($ctxA,'projects','list',null,[])['items'],'title')===['Alfa 2','Alfa 1'],'A list without parameters is the first, tenant-scoped cursor window');
+fails(fn()=>$run($ctxA,'projects','list','200',[]),400,'The removed offset paging (a list id) is refused');
 check($run($ctxA,'projects','get','1')['title']==='Alfa 1','Permitted read inside the tenant');
 fails(fn()=>$run($ctxA,'projects','get','3'),404,'Another tenant\'s object by ID is not found');
 fails(fn()=>$run($ctxA,'projects','update','3',['title'=>'X','revision'=>'r']),404,'Another tenant\'s object cannot be updated');
