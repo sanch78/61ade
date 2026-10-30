@@ -44,7 +44,10 @@ The list behind every list view is a public toolkit component
 `ListView` in the workspace. A project module composes them in its own Layout
 or `app.ui.window`; every read and write still goes through the view's
 registered, ACL-checked actions, and preferences, live updates and forms behave
-exactly as on a menu page:
+exactly as on a menu page. Preferences follow the id of the definition the
+`ListView` gets: an offered id shares that menu page's saved state, a held
+definition passed under the page's own view id keeps its own
+([ListView](toolkit.md#listview)):
 
 ```ts
 const layout = new app.dhx.Layout(null, { type: "space", cols: [{ id: "list" }, { id: "side", width: 380 }] });
@@ -434,7 +437,10 @@ it gets no mark checkbox. Checkbox
 views do not respond to row modifiers. Text selection is disabled in list
 content while form controls remain selectable. Marks differ from the
 active/editor row, survive grid/card switches and same-row live updates, and
-disappear when rows leave the data window.
+disappear when rows leave the data window. Marks and the cursor record are
+transient by design (owner decision, 2026-10-30): they are never stored in the
+UI preferences, so a reload or a new opening starts without them, and a
+toolkit `ListView` has no marks event ([toolkit limits](toolkit.md#limits)).
 
 Toolbar/view-switch internal layouts are type none; the outer results panel
 owns the only frame. Toolbar fills its own height and scrolling content cannot
@@ -447,8 +453,10 @@ Filter reset and authentication secondary actions are native secondary flat butt
 
 A list view can declare what a double-click or Enter on a record runs, in the
 table, cards and tiles alike. The activation is a command the view already has,
-run exactly as its toolbar command runs it on that record; the consumer's own
-behavior is a registered record action, never browser code.
+run exactly as its toolbar command runs it on that record. The consumer's own
+server behavior is a registered record action; its own browser UI is a
+`view:<id>` [record view](toolkit.md#record-views) of a kind its module
+registers. The declaration never carries a callback.
 
 ```php
 // Each shelf opens its item list (also an empty one); each item runs its registered `stock` action.

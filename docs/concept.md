@@ -12,13 +12,13 @@ Canonical requirements: [R1–R12](product-direction.md#1-elfogadott-termékköv
 [ADR-0003](decisions/0003-product-direction.md).
 
 - Reusable admin framework, PHP reference backend and versioned language-neutral JSON contract. JSON transport alone does not establish independence.
-- Consumers use framework tools for the shared infrastructure and request missing general capabilities from 61ade without being blocked; their domain data, logic and UI are theirs ([ADR-0004](decisions/0004-project-domain-freedom.md)).
+- Consumers use framework tools for the shared infrastructure and request missing general capabilities from 61ade without being blocked; their domain data, logic and UI are theirs ([ADR-0004](decisions/0004-project-domain-freedom.md)). 61ade is a toolkit: projects write their own browser modules with its public services, components and registries, which its built-in views use too ([ADR-0005](decisions/0005-toolkit.md), [toolkit](toolkit.md)).
 - Fullscreen HTML5/DHTMLX, framework adapters and supported extension points. Layout is foundational; forms/layouts/grids grow for real ergonomic workflow needs. No external benchmark or exhaustive coverage goal (FB-0037).
 - Localization/themes apply to every new capability.
 - Mandatory framework user/ACL/API-key/log admin; consumers supply configuration, identity/storage adapters and domain rules.
 - Users have e-mail/password/full name, per-user provider permission and configurable e-mail verification. Detailed implementation status belongs to current usage.
 - MySQL/PostgreSQL/SQLite/JSON-file targets with [guarantees](product-direction.md#3-tárolási-határ-és-szükséges-garanciák); demo SQLite.
-- Modular JSON, named handlers, no eval/executable strings/unrestricted scripting.
+- Modular JSON, named handlers, no eval/executable strings/unrestricted scripting in configuration or the admin origin; untrusted code runs only in the sandboxed frame ([O7](toolkit.md#resolved-decisions)).
 - Generated catalogs never grant rights; server checks every channel; API exposure/scopes narrow access.
 - [Event catalog](product-direction.md#4-eseménynapló-lefedési-katalógus) separates audit/security/operational events, excluding credentials/sensitive payloads.
 - Navigable synthetic kitchen sink for all implemented public capabilities.
@@ -85,7 +85,8 @@ not an initial dependency.
 ## 4. Packaging and dependency direction
 
 One repository, co-versioned PHP/frontend packages; separate consumer repository.
-Namespace Blade; frontend exports will define its public API.
+Namespace Blade; the frontend's public API is the `Application` object handed
+to project modules, typed by `dist/admin.d.ts` ([toolkit](toolkit.md)).
 
 Applications are accessed through registered contracts. Proposed names:
 FeatureProvider, QueryProvider, ActionHandler, Policy, IdentityProvider,
@@ -137,8 +138,11 @@ currently only bootstrap protocol 1 is checked. Cache keys include application/
 definition version, locale and permission context; never share another user's/
 organization's projection.
 
-No executable JS/PHP strings. Frontend handlers are registered build-time IDs.
-Custom HTML requires an explicit safely handled component.
+No executable JS/PHP strings. Frontend handlers are registered build-time IDs:
+metadata names a view kind, presentation, field type or command (dotted for a
+project) that a module registers in the browser. Custom HTML requires an
+explicit safely handled component; a project presentation escapes every
+record value.
 
 <a id="7-adatfolyam-és-tranzakciók"></a>
 

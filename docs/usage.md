@@ -55,15 +55,9 @@ general capability is requested from 61ade without blocking the project; see
 [project rules](development.md#mandatory-framework-development-rules),
 [ADR-0004](decisions/0004-project-domain-freedom.md) and
 [ADR-0002](decisions/0002-framework-first.md).
-The public API for project modules ([ADR-0005](decisions/0005-toolkit.md)) is
-specified in the [toolkit reference](toolkit.md). Implemented (P2): project
-modules and stylesheets (`ApplicationDefinition` `modules`/`stylesheets`, JSON
-`application.modules/stylesheets`), the `app` services, registries and view
-kinds, view ids, record views and the activation map; (P3) the public
-components `ListView`, `RecordForm`, `RecordDetails`, `CommandBar`,
-`FileManager`, `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer` and
-`SandboxFrame`, the presentation, field-type and command registries,
-`admin.d.ts` and the sandbox document.
+61ade is a toolkit ([ADR-0005](decisions/0005-toolkit.md)): where
+declarations are not enough, a project writes its own browser modules with the
+public API ([toolkit and project modules](#toolkit-and-project-modules)).
 
 <a id="elfogadott-termékirány--2026-10-21"></a>
 
@@ -75,7 +69,7 @@ and open questions; [ADR-0003](decisions/0003-product-direction.md).
 - Need → framework gap → smallest reusable extension → synthetic demo/relevant checks → guide → consumer integration. Consumer releases follow their own contracts; exhaustive catalogs are not prerequisites.
 - DHTMLX with framework adapters/extensions. No external framework benchmark; [FB-0037](feedback.md#fb-0037--ext-js-referencia-visszavonása-dhtmlx-alap-igényvezérelt-képességkör) withdrew the Ext JS reference.
 - Every new capability is localized/themed, enters the feature demo and [event catalog](product-direction.md#4-eseménynapló-lefedési-katalógus).
-- Modular JSON/named handlers, never eval/executable strings; [configuration](configuration.md).
+- Modular JSON/named handlers, never eval/executable strings in configuration or the admin origin; [configuration](configuration.md). Untrusted code runs only in the toolkit's sandboxed frame ([O7](toolkit.md#resolved-decisions)).
 - Generated catalogs never grant rights; API exposure/token scope only restrict.
 
 Implemented [users/permissions/API keys](admin.md) replace FB-0004's application-only
@@ -119,6 +113,46 @@ authorized list sources. Transactional outbox for external effects is not implem
 Framework source/tools/fixtures must not hardcode consumer paths. A runner may
 inject an application definition, autoloader or PHP binary: configuration, not
 a reverse dependency. Independent demos prove reuse. FB-0007.
+
+<a id="toolkit-and-project-modules"></a>
+
+## Toolkit and project modules
+
+The [toolkit reference](toolkit.md) is the canonical public contract; this is
+the route through it. 61ade owns the `Application` object, its services,
+components and registries; the project owns its modules, the names it
+registers (with a dot, `project.name`) and its domain UI
+([ownership](toolkit.md#purpose-scope-and-ownership)).
+
+1. **Declare first.** Resources, views, record views (`record: <resource>`),
+   activation maps with `view:<id>` targets and client `commands` are PHP or
+   JSON declarations ([configuration](configuration.md),
+   [views](toolkit.md#views), [activation map](toolkit.md#activation-map)).
+2. **Add a module** where the declaration is not enough:
+   `ApplicationDefinition` `modules`/`stylesheets` (JSON
+   `application.modules/stylesheets`) list same-origin ES modules and CSS;
+   the signed-in shell imports each one and calls its default export with
+   `app` before routing ([module loading](toolkit.md#module-loading)).
+3. **Register and compose:** view kinds, column presentations, field types
+   and client commands ([registries](toolkit.md#registries)); `ListView`,
+   `RecordForm`, `RecordDetails`, `CommandBar`, `FileManager`, `FilePicker`,
+   `Calendar`, `DiagramEditor`, `MediaPlayer` in a Suite Layout from
+   `app.dhx` ([components](toolkit.md#components),
+   [Layout recipe](toolkit.md#layout-recipe)); untrusted code only in
+   `SandboxFrame` ([sandbox](toolkit.md#sandbox-protocol)).
+4. **Build** TypeScript against `admin.d.ts` with types-only imports
+   ([recipe](toolkit.md#typescript-recipe)) and deploy the sandbox files when
+   used ([packaging](toolkit.md#packaging)).
+
+Every server read and write is still a registered, ACL-checked action; a
+module gains no right. A failing module is reported (toast, `module:error`,
+console) and skipped, and the shell still starts. The
+[feature demo](demos.md#toolkit-consumer) is the reference consumer
+([worked examples](toolkit.md#worked-examples)); the starter admin and the
+tenant demo stay declarative. Checks: the toolkit's
+[verification list](toolkit.md#verification). Limits, including the owner
+decisions of gate G4, are in [toolkit limits](toolkit.md#limits) and
+[pitfalls](toolkit.md#pitfalls); feedback [FB-0081](feedback.md#fb-0081).
 
 <a id="minden-elkészülő-képesség-dokumentációs-szerkezete"></a>
 
@@ -393,7 +427,8 @@ The shell uses `#view=<view id>` (record views `&record=<id>`) to restore active
 views on reload and Back/Forward; the legacy `#feature=<resource>` is still read
 and rewritten ([shell](shell.md#url-és-helyi-felületbeállítások)).
 [Local preferences](shell.md#url-és-helyi-felületbeállítások) automatically retain
-grid/workspace display settings. [Compact login windows](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok)
+grid/workspace display settings; marks and the cursor record are transient
+and never stored. [Compact login windows](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok)
 fit rendered forms with consistent lower space. List shadows appear under grid
 column headings or the card toolbar, with a separate theme divider between
 toolbar and grid headings. Shared checkbox/pencil presentation is described in
