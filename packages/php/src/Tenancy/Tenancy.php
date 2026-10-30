@@ -14,7 +14,33 @@ final class Tenancy
     public const RESOURCE = 'blade_tenants';
     public const MEMBERS = 'blade_tenant_members';
 
+    /** blade_tenant_members is migrated (no `active` column): checked until true, then cached for this instance. */
+    private bool $migrated = false;
+
     public function __construct(private \PDO $db) {}
+
+    /**
+     * Fails closed on a database from before 2026-10-30: while blade_tenant_members still has the removed `active`
+     * column, a suspended row would grant access, so every membership read throws until migration 0003 has run.
+     */
+    public function requireMigrated(): void
+    {
+        if ($this->migrated) return;
+        $this->migrated = !in_array('active', self::columns($this->db, 'blade_tenant_members'), true);
+        if (!$this->migrated) {
+            error_log('61ade tenancy: '.self::UNMIGRATED);
+            throw new \LogicException(self::UNMIGRATED);
+        }
+    }
+    private const UNMIGRATED = 'Run packages/php/migrations/0003-tenant-member-active.php: blade_tenant_members still has the removed active column; no membership is granted until then.';
+
+    /** Column names of $table (empty when it does not exist). */
+    private static function columns(\PDO $db, string $table): array
+    {
+        if ($db->getAttribute(\PDO::ATTR_DRIVER_NAME) !== 'mysql') return array_column($db->query("PRAGMA table_info($table)")->fetchAll(\PDO::FETCH_ASSOC), 'name');
+        $q = $db->prepare('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');$q->execute([$table]);
+        return $q->fetchAll(\PDO::FETCH_COLUMN);
+    }
 
     /** Explicit installer step (never a request side effect): tenant tables and the tenant columns of audit and tokens. */
     public static function install(\PDO $db): void
@@ -25,11 +51,7 @@ final class Tenancy
             "CREATE TABLE IF NOT EXISTS blade_tenants (id $auto, name VARCHAR(200) NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1)",
             "CREATE TABLE IF NOT EXISTS blade_tenant_members (id $auto, tenant_id VARCHAR(100) NOT NULL, actor_id VARCHAR(100) NOT NULL, UNIQUE(tenant_id, actor_id))",
         ] as $sql) $db->exec($sql.($mysql ? ' ENGINE=InnoDB' : ''));
-        $columns = static function (string $table) use ($db, $mysql): array {
-            if (!$mysql) return array_column($db->query("PRAGMA table_info($table)")->fetchAll(\PDO::FETCH_ASSOC), 'name');
-            $q = $db->prepare('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');$q->execute([$table]);
-            return $q->fetchAll(\PDO::FETCH_COLUMN);
-        };
+        $columns = static fn(string $table): array => self::columns($db, $table);
         foreach (['blade_audit', 'blade_tokens'] as $table) {
             $known = $columns($table);
             if (!$known) throw new \LogicException("Install the access schema before tenancy ($table is missing).");
@@ -62,9 +84,10 @@ final class Tenancy
         if (!$q->fetchColumn()) $db->prepare('INSERT INTO blade_tenant_members (tenant_id, actor_id) VALUES (?, ?)')->execute([$tenant, $actor]);
     }
 
-    /** Active tenants of $actor, id => name, ordered by name; read fresh on every call. */
+    /** Active tenants of $actor, id => name, ordered by name; read fresh on every call. Throws before migration 0003. */
     public function memberships(string $actor): array
     {
+        $this->requireMigrated();
         $q = $this->db->prepare('SELECT t.id, t.name FROM blade_tenants t JOIN blade_tenant_members m ON m.tenant_id = CAST(t.id AS CHAR) WHERE m.actor_id = ? AND t.active = 1 ORDER BY t.name, t.id');
         $q->execute([$actor]);
         return array_map('strval', array_column($q->fetchAll(\PDO::FETCH_ASSOC), 'name', 'id'));
@@ -73,6 +96,7 @@ final class Tenancy
     public function member(string $actor, ?string $tenant): bool
     {
         if ($tenant === null || $tenant === '') return false;
+        $this->requireMigrated();
         $q = $this->db->prepare('SELECT COUNT(*) FROM blade_tenants t JOIN blade_tenant_members m ON m.tenant_id = CAST(t.id AS CHAR) WHERE m.actor_id = ? AND m.tenant_id = ? AND t.active = 1');
         $q->execute([$actor, $tenant]);
         return (bool) $q->fetchColumn();

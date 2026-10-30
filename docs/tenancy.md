@@ -65,7 +65,12 @@ The installer is idempotent and additive. A database created before
 `packages/php/migrations/0003-tenant-member-active.php` has run once
 (`(require …/0003-tenant-member-active.php)($pdo)` returns `{deleted, dropped}`):
 it deletes the suspended rows (`active = 0`, which granted nothing) and drops the
-column (SQLite 3.35+ or MySQL; a no-op afterwards and without tenancy).
+column (SQLite 3.35+ or MySQL; a no-op afterwards and without tenancy). Until
+then the application fails closed: `Tenancy::member()`, `memberships()` (so the
+shell's tenant selection and `Workspace::context()`) and the access list throw
+a `LogicException` naming the migration (also written to the PHP error log)
+and grant no membership, not even an active one. The check is one
+PRAGMA/`information_schema` query per `Tenancy` instance, cached once it passes.
 `Tenancy::ensure($pdo, 'Name')` and
 `Tenancy::join($pdo, $tenantId, $actorId)` are setup helpers for seeding.
 Tenant IDs are strings in every API (`'1'`).

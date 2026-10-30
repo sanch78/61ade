@@ -49,9 +49,19 @@ $old->exec('CREATE TABLE blade_tenants (id INTEGER PRIMARY KEY AUTOINCREMENT, na
 $old->exec('CREATE TABLE blade_tenant_members (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id VARCHAR(100) NOT NULL, actor_id VARCHAR(100) NOT NULL, active INTEGER NOT NULL DEFAULT 1, UNIQUE(tenant_id, actor_id))');
 $old->exec("INSERT INTO blade_tenants(name) VALUES ('Régi')");$old->exec("INSERT INTO blade_tenant_members(tenant_id,actor_id,active) VALUES ('1','1',1),('1','2',0)");
 try{Tenancy::install($old);throw new RuntimeException('An unmigrated membership table was installed');}catch(LogicException $e){check(str_contains($e->getMessage(),'0003'),'Install names the migration');}
+// Fails closed at runtime too: no membership (not even the active row), a clear error naming the migration.
+$logged=ini_set('error_log','/dev/null');$unmigrated=new Tenancy($old);
+foreach([fn()=>$unmigrated->member('2','1'),fn()=>$unmigrated->member('1','1'),fn()=>$unmigrated->memberships('2'),fn()=>$unmigrated->select('2','1')] as $read){
+    try{$read();throw new RuntimeException('An unmigrated membership table granted or listed a membership');}catch(LogicException $e){check(str_contains($e->getMessage(),'0003'),'Unmigrated reads name the migration');}
+}
+$oldWorkspace=new Workspace(new Registry(),$old,tenancy:true);
+try{$oldWorkspace->context(new Identity('2','Two'),'ui','1');throw new RuntimeException('A suspended membership opened a tenant context');}catch(LogicException){}
+ini_set('error_log',(string)$logged);
 $migrate=require dirname(__DIR__,2).'/packages/php/migrations/0003-tenant-member-active.php';
 check($migrate($old)===['deleted'=>1,'dropped'=>true] && $migrate($old)===['deleted'=>0,'dropped'=>false],'Migration 0003 deletes suspended rows and drops the column once');
 Tenancy::install($old);
+check($unmigrated->member('1','1')&&!$unmigrated->member('2','1'),'After the migration the same instance grants the active membership only');
+unset($oldWorkspace);
 check(!in_array('active',array_column($old->query('PRAGMA table_info(blade_tenant_members)')->fetchAll(PDO::FETCH_ASSOC),'name'),true) && (new Tenancy($old))->memberships('1')===['1'=>'Régi'] && (new Tenancy($old))->memberships('2')===[],'Migrated: the active membership stays, the suspended one is gone');
 check($migrate(new PDO('sqlite::memory:'))===['deleted'=>0,'dropped'=>false],'Migration 0003 is a no-op without tenancy');
 unset($old,$migrate);
