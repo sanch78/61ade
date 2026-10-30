@@ -323,7 +323,8 @@ return new ApplicationDefinition(
   placement `window`: inline SVG bundled in `admin.js` (no file to deploy),
   both variants in the page with gradient ids unique per copy, accessible name
   `blade` (the visible wordmark; "61ade" would be read as a number), every
-  part addressable by class for a later animation. `new Logo(placement:
+  part addressable by class (the [trademark screen](brand.md#splash) uses
+  them, whatever the application's `logo`). `new Logo(placement:
   'both')` (JSON `"logo": {"placement": "both"}`) keeps the product logo with
   another placement, `new Logo(label: …)` with another accessible text;
   `Logo::none()` (JSON `"logo": false`) shows no logo anywhere. A declared

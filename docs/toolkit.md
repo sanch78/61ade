@@ -1719,6 +1719,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M30 | A duplicate view id throws at definition time; `Registry::updateView()` and `View::list()` change a declared view explicitly | [FB-0081](feedback.md#fb-0081) | if used: redeclared views | none | each `register()` + `Registry::view()` pair → `updateView(View::list(…))` |
 | M31 | The file manager's `list` answer drops `truncated` | [FB-0081](feedback.md#fb-0081) | if used | none | none |
 | M32 | Applications without `logo` show the 61ade product logo ([brand](brand.md)) in the top row (only where the menu leaves room) and above the sign-in form, accessible name `blade`; `Logo::none()` / JSON `"logo": false` turns it off | [FB-0088](feedback.md#fb-0088) | info; if a consumer wants no logo | `Logo::none()` or nothing | `Logo::none()` or nothing |
+| M33 | The first shell page of each browser window or tab opens with the 61ade [trademark screen](brand.md#splash) (about 3.3 s, not configurable); it covers the page and takes the pointer until it fades out; the shell's CSP `script-src` carries the hash of its inline gate | [FB-0089](feedback.md#fb-0089) | info: specs that screenshot or hit-test right after loading | none | none: clicks wait for it |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -1826,6 +1827,8 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-30 | A duplicate view id throws; `Registry::updateView()` and `View::list()` added; [G1 decision 1](#decisions-at-gate-g1) and O3's replacement rule are superseded (M30). | Owner: no legacy procedures for consumers or old clients. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | File `list` answer without `truncated` (M31); the internal `src/Workspace.ts` re-export removed. | Owner: no legacy procedures for consumers or old clients. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | The 61ade product logo ("blade", [brand](brand.md)) is the default logo: inline in `admin.js`, bootstrap `logo` without `image`; `Logo::$image` optional (`new Logo(placement: …)` keeps the product logo), `Logo::none()` / JSON `"logo": false` opts out; accessible name `blade`. | Owner: every application gets the product brand without a deployed file; parts addressable for a later animation. | [FB-0088](feedback.md#fb-0088) |
+| 2026-10-30 | Trademark screen once per browser window or tab (`sessionStorage` gate, inline head script allowed by CSP hash): page-turning tiles, letters bouncing in, blade glint and spark on black, then a fade into the application; no option to skip it (M33). | Owner: it is the 61ade trademark screen; applications cannot override it. | [FB-0089](feedback.md#fb-0089) |
+| 2026-10-30 | Product logo redrawn to the owner's source drawing: the first letters read 6 and 1 (only they carry the teal), `ade` ink, heavier stems, tighter spacing, taller tile 1 with its arc; viewBox `-19 -46 1370 395`. | Owner: the b of the SVG must be the 6 of the source drawing. | [FB-0090](feedback.md#fb-0090) |
 
 <a id="resolved-decisions"></a>
 

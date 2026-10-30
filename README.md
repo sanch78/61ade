@@ -71,6 +71,27 @@ build in `packages/frontend/dist`, without versions or registry publication. See
 [shared-library consumption](docs/development.md#shared-library-consumption).
 The PHP namespace is `Blade\`.
 
+<a id="agent-skills"></a>
+
+## Agent skills for consumers
+
+This checkout ships two agent skills for consumer project sessions, in
+`.agents/skills/`:
+
+| Skill | Use it for |
+| --- | --- |
+| [`61ade-consumer`](.agents/skills/61ade-consumer/SKILL.md) | Adopting and updating 61ade: links, `.deploy.json` `shared_assets`, autoloader, guarded browser tests, test accounts, migration and the update smoke check |
+| [`61ade-application`](.agents/skills/61ade-application/SKILL.md) | Building the application: ownership, declarations first, project modules on `app`, extension points, sandbox, TypeScript, tests, updates and boundaries |
+
+The skills give the order, the decisions and the pitfalls, and link to the
+contracts in `docs/`. When a skill and a contract disagree, the contract wins.
+They are not under the consumed paths (`packages/php`,
+`packages/frontend/dist`), so a consumer's agent does not find them on its own.
+A supported way to link them into a consumer's skill directories has been
+requested from Infra ([FB-0084](docs/feedback.md#fb-0084)). Until it exists,
+a consumer session opens them at their path in this checkout. The
+`grid-tree-card-ui` skill is for 61ade's own grid, tree and card work.
+
 <a id="technológiai-kiindulás"></a>
 
 ## Technology baseline

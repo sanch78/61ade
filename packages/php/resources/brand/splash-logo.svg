@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="blade-splash__image" viewBox="-19 -46 1370 395" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="blade-splash-t1" gradientUnits="userSpaceOnUse" x1="126" y1="-34" x2="0" y2="300"><stop offset="0" stop-color="#1F8FD1"/><stop offset="1" stop-color="#1A5C93"/></linearGradient>
+    <radialGradient id="blade-splash-rim" gradientUnits="userSpaceOnUse" cx="177" cy="265" r="300"><stop offset="0.62" stop-color="#fff" stop-opacity="0"/><stop offset="0.623" stop-color="#fff" stop-opacity="0.09"/><stop offset="0.74" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="blade-splash-t2" gradientUnits="userSpaceOnUse" x1="144" y1="-13" x2="288" y2="180"><stop offset="0" stop-color="#3AD6C7"/><stop offset="1" stop-color="#0FAFAD"/></linearGradient>
+    <linearGradient id="blade-splash-t3" gradientUnits="userSpaceOnUse" x1="144" y1="140" x2="288" y2="330"><stop offset="0" stop-color="#C4D6E7"/><stop offset="1" stop-color="#A9C0D6"/></linearGradient>
+    <linearGradient id="blade-splash-asc6" gradientUnits="userSpaceOnUse" x1="0" y1="-18" x2="0" y2="130"><stop offset="0" stop-color="#22D3C5"/><stop offset="1" stop-color="#EEF4F9"/></linearGradient>
+    <linearGradient id="blade-splash-asc1" gradientUnits="userSpaceOnUse" x1="0" y1="-2" x2="0" y2="192"><stop offset="0" stop-color="#22D3C5"/><stop offset="1" stop-color="#EEF4F9"/></linearGradient>
+    <radialGradient id="blade-splash-six" gradientUnits="userSpaceOnUse" cx="436.1" cy="112.5" r="120"><stop offset="0" stop-color="#22D3C5"/><stop offset="1" stop-color="#EEF4F9"/></radialGradient>
+    <clipPath id="blade-splash-bowl"><path d="M365,214A108,108 0 1 1 581,214A108,108 0 1 1 365,214ZM425,214A48,54 0 1 0 521,214A48,54 0 1 0 425,214Z"/></clipPath>
+    <linearGradient id="blade-splash-bevel" gradientUnits="userSpaceOnUse" x1="0" y1="30" x2="0" y2="85"><stop offset="0" stop-color="#0E9C93" stop-opacity="0.6"/><stop offset="1" stop-color="#0E9C93" stop-opacity="0"/></linearGradient>
+    <clipPath id="blade-splash-reveal"><rect x="330" y="-60" width="1150" height="490"/></clipPath>
+  </defs>
+  <g class="blade-logo__mark">
+    <g class="blade-logo__tile blade-logo__tile--1"><path d="M-1.2,42.5L107.8,-22.9A12,12 0 0 1 126,-12.6L126,-12.6L126,267.9A12,12 0 0 1 119,278.8L119,278.8L10,329A12,12 0 0 1 -7,318.1L-7,318.1L-7,52.8A12,12 0 0 1 -1.2,42.5Z" fill="url(#blade-splash-t1)"/><path d="M-1.2,42.5L107.8,-22.9A12,12 0 0 1 126,-12.6L126,-12.6L126,267.9A12,12 0 0 1 119,278.8L119,278.8L10,329A12,12 0 0 1 -7,318.1L-7,318.1L-7,52.8A12,12 0 0 1 -1.2,42.5Z" fill="url(#blade-splash-rim)"/></g>
+    <path class="blade-logo__tile blade-logo__tile--2" d="M161,-5.2L281,50A12,12 0 0 1 288,60.9L288,60.9L288,163.5A12,12 0 0 1 271,174.4L271,174.4L151,119.2A12,12 0 0 1 144,108.3L144,108.3L144,5.7A12,12 0 0 1 161,-5.2Z" fill="url(#blade-splash-t2)"/>
+    <path class="blade-logo__tile blade-logo__tile--3" d="M161,145.8L281,201A12,12 0 0 1 288,211.9L288,211.9L288,314.5A12,12 0 0 1 271,325.4L271,325.4L151,270.2A12,12 0 0 1 144,259.3L144,259.3L144,156.7A12,12 0 0 1 161,145.8Z" fill="url(#blade-splash-t3)"/>
+  </g>
+  <g clip-path="url(#blade-splash-reveal)"><g class="blade-logo__word">
+    <g class="blade-logo__glyph blade-logo__glyph--b"><path d="M365,214V34Q365,24 373.6,18.9L423,-10.8Q435,-18 435,-4V170Z" fill="url(#blade-splash-asc6)"/><path d="M365,214A108,108 0 1 1 581,214A108,108 0 1 1 365,214ZM425,214A48,54 0 1 0 521,214A48,54 0 1 0 425,214Z" fill="#EEF4F9"/><path d="M365.4,223.4A108,108 0 0 1 534.9,125.5A65,65 0 0 0 453,224Z" fill="url(#blade-splash-six)" clip-path="url(#blade-splash-bowl)"/></g>
+    <g class="blade-logo__glyph blade-logo__glyph--l"><path d="M594,322V46.4Q594,36.4 602.6,31.3L646,5.2Q658,-2 658,12V322Z" fill="url(#blade-splash-asc1)"/><path d="M597.5,89.9V45.9L642,11.1" fill="none" stroke="url(#blade-splash-bevel)" stroke-width="7" stroke-linejoin="round"/></g>
+    <g class="blade-logo__glyph blade-logo__glyph--a"><path d="M669,214A108,108 0 1 1 885,214A108,108 0 1 1 669,214ZM729,214A48,54 0 1 0 825,214A48,54 0 1 0 729,214Z" fill="#EEF4F9"/><path d="M825,214H885V322H825Z" fill="#EEF4F9"/></g>
+    <g class="blade-logo__glyph blade-logo__glyph--d"><path d="M896,214A108,108 0 1 1 1112,214A108,108 0 1 1 896,214ZM956,214A48,54 0 1 0 1052,214A48,54 0 1 0 956,214Z" fill="#EEF4F9"/><path d="M1052,30H1112V322H1052Z" fill="#EEF4F9"/></g>
+    <g class="blade-logo__glyph blade-logo__glyph--e"><path d="M1323.2,270.2A108,108 0 1 1 1337.1,234H1186.4A48,54 0 0 0 1270,245.4ZM1186.4,194A48,54 0 0 1 1275.6,194Z" fill="#EEF4F9" fill-rule="evenodd"/></g>
+  </g></g>
+</svg>

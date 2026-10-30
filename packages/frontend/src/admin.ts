@@ -1,21 +1,27 @@
 import { AdminShell, type ShellDefinition } from "./AdminShell";
+import { releaseSplash } from "./Splash";
 import "@dhtmlx/suite/codebase/suite.min.css";
 import "./themes/skyblue.css";
 import "./admin.css";
 import "./flags/flags.css";
 import "./uploader.css";
+import "./splash.css";
 
 const root = document.querySelector<HTMLElement>("#blade-application");
 const command = document.querySelector<HTMLFormElement>("#blade-command");
 const config = document.querySelector("#blade-config");
 if (root && command && config) {
-  const shell = new AdminShell(
-    root,
-    command,
-    JSON.parse(config.textContent || "{}") as ShellDefinition,
-  );
-  window.addEventListener("pagehide", () => shell.destroy(), { once: true });
-  window.addEventListener("pageshow", (event) => {
-    if (event.persisted) location.reload();
-  });
+  try {
+    const shell = new AdminShell(
+      root,
+      command,
+      JSON.parse(config.textContent || "{}") as ShellDefinition,
+    );
+    window.addEventListener("pagehide", () => shell.destroy(), { once: true });
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) location.reload();
+    });
+  } finally {
+    releaseSplash();
+  }
 }

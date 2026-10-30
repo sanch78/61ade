@@ -38,7 +38,9 @@ event bus); `app` the `Application`, registries, built-in kinds and routes;
 built into `dist/sandbox.html` (the bootstrap inline). Older top-level modules (`AdminShell.ts`,
 `Uploader.ts`, `FileManager.ts`, …) are internals behind them
 ([toolkit](toolkit.md)). `packages/frontend/brand` holds the 61ade product
-logo's SVGs and their generator `logo.mjs`, bundled into `admin.js`
+logo's SVGs and their generator `logo.mjs`, bundled into `admin.js`; the
+generator also writes `packages/php/resources/brand/splash-logo.svg`, the
+[trademark screen's](brand.md#splash) copy inlined by `shell.php`
 ([brand](brand.md)). Planned responsibilities: `shell`, `renderer`,
 `actions`, `state`, `contracts`, `i18n` and `styles`.
 

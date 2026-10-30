@@ -2819,8 +2819,13 @@ that exactly equals an option label lists every option. The managed
   The `skill-creator` evals were not run, because 61ade has no eval
   infrastructure. Links, anchors and frontmatter were checked by script, and
   `git diff --check` is clean.
-- **Status:** content written. Publication in the shared library is pending,
-  in a separate session that owns `/space/share/libs/agents`.
+- **Consumer discovery (2026-10-30):** the skills sit outside the consumed
+  paths, so a consumer's agent does not discover them. Neither StoryBloX nor
+  allflow links them. The owner takes a request to Infra for a supported way
+  to link skills that a shared library ships into its consumers' skill
+  directories. The [README](../README.md#agent-skills) lists the skills.
+- **Status:** content written. How consumers get the skills (an Infra link
+  operation, or publication in the shared library) is pending Infra's answer.
 
 <a id="fb-0085"></a>
 
@@ -3035,3 +3040,77 @@ that exactly equals an option label lists every option. The managed
   checks the logo at 1600 px and, at 1280 px, that the menu stays whole and the
   logo yields.
 - **Status:** implemented and verified (`sign-in-branding.spec.cjs` 6 passed; full close-out run).
+
+<a id="fb-0089"></a>
+
+## FB-0089 — Animated 61ade trademark screen
+
+- **Date:** 2026-10-30.
+- **Demand (owner):** an animated loading screen from the approved logo
+  ([FB-0088](#fb-0088)), "made with 61ade framework": the tiles turn like
+  pages into the known end state, the letters bounce in from the left, a
+  blade glint at the end; black background fading into the application.
+- **Decision (owner):** it is the 61ade trademark screen: applications cannot
+  override it, it must always be shown, and it must look good on phones.
+- **Decision (owner, later the same day):** only at start: once per browser
+  window or tab; later pages of that tab skip it, a new window shows it once
+  again. Implemented with a `sessionStorage` gate in an inline head script
+  (`Blade\Shell\Splash::GATE`, allowed by its CSP hash) that hides the screen
+  before the first paint; `splash.spec.cjs` checks sign-in, reload and a new
+  tab. The `authentication.spec.cjs` timeout raise is no longer needed.
+- **Implemented:** `logo.mjs` also writes
+  `packages/php/resources/brand/splash-logo.svg` (dark palette, ids
+  `blade-splash-*`, wordmark clipped right of the mark);
+  `templates/shell.php` renders `#blade-splash` with it and the fixed credit;
+  `src/splash.css` plays the timeline, `src/Splash.ts` fades it out once
+  `AdminShell` is built and the finite animations have played. No PHP or JSON
+  option; reduced motion keeps a still screen; 12 s self-hide if `admin.js`
+  never releases it. The glint is an overlay-blend band, so it shows on the
+  tiles and ascenders only (the near-white ink cannot brighten); a spark on
+  the `d` ascender carries it to the wordmark. Guide:
+  [trademark screen](brand.md#splash); migration row M33. The spark moved to
+  the tip of the `1` with the redrawn logo ([FB-0090](#fb-0090)).
+- **Consumer impact:** every consumer's full page loads gain the screen
+  (about 3.3 s); nothing to deploy or configure. Consumer specs that
+  screenshot or hit-test right after loading see it.
+- **Verification (2026-10-30):** `node packages/frontend/brand/logo.mjs`
+  leaves the three approved SVGs byte-identical; `npm run typecheck`,
+  `npm run build`, `npm run demo:assets`; `splash.spec.cjs` 4 passed (timeline
+  frames reviewed at 1280 × 800 and 390 × 844).
+- **Status:** implemented; owner acceptance on the development URL pending.
+
+<a id="fb-0090"></a>
+
+## FB-0090 — The logo's b is the 6 of the source drawing
+
+- **Date:** 2026-10-30.
+- **Observation (owner):** the sign-in logo looked bad, also in the top row;
+  in the source drawing the first letter of "61ade" is a 6 that reads as a b,
+  while the generated SVG ([FB-0088](#fb-0088)) drew a regular b. Asked
+  whether SVG can be perfect or a PNG is needed.
+- **Analysis:** measured from the source drawing (2172 × 724 PNG, 1 unit =
+  1.083 px): the 6 is a bowl lying over its stem, with a teal crescent on its
+  upper left whose sharp inner edge reads as the stroke turning into the loop;
+  the 1 has a bevel along its cut; only the 6 and 1 are teal, the `d` is a
+  flat-topped ink stem; stems are heavier (66, the 6's 72), bowls have oval
+  counters, spacing is tighter (11–13 instead of 24), the ascender cuts slope
+  0.6 like the tall tile's top, the tall tile is taller with a light arc, and
+  the ink is `#011F3C`. Rendered SVG at 2× matched the drawing; a PNG would
+  only fix one size and blur when scaled, so the logo stays SVG.
+- **Implemented:** `logo.mjs` redrawn on that grid ([grid](brand.md#grid),
+  [colours](brand.md#colours)); tiles are rounded paths (tile 1 a group of
+  fill and rim); viewBox `-19 -46 1407 395`, so `admin.css` uses aspect ratio
+  1407 / 395 and the 24 px top-row logo is about 85 px wide (was 91). The
+  splash spark moved to the tip of the 1. `sign-in-branding.spec.cjs`: the
+  narrower logo now fits the 390 px sign-in row; the menu-never-yields case
+  uses 1240 px (about 73 px left for a 110 px logo).
+- **Correction (owner, same day):** zoomed in, the `a` and `e` were broken:
+  the stem overhang and bar overhang measured from the drawing (render noise)
+  left square steps where the bowl meets the stem and the bar. The `a` and
+  `d` stems are now flush with their bowls (60 wide, counter 48 × 54), the
+  `e`'s bar ends on the bowl, spacing follows; viewBox `-19 -46 1370 395`
+  (aspect ratio 1370 / 395).
+- **Verification (2026-10-30):** side-by-side render against the drawing at
+  its scale (Chromium); `npm run build`, `npm run demo:assets`;
+  `sign-in-branding.spec.cjs` 6 passed, `splash.spec.cjs` 4 passed.
+- **Status:** implemented; owner acceptance on the development URL pending.
