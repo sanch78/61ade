@@ -68,7 +68,7 @@ export interface Application {
   readonly presentations: Registry<ColumnPresentation>;
   /** Field editors: name → form item factory and display renderer (`field.editor`); no built-in entries. */
   readonly fieldTypes: Registry<FieldType>;
-  /** Client-side commands: name → handler, placed on list toolbars and record menus (`ListOptions.commands`). Built-in `details`. */
+  /** Client-side commands: name → handler, placed on list toolbars (`ListOptions.commands`). Built-in `details`. */
   readonly commands: Registry<ClientCommand>;
   /** Public component classes, bound to this application (P3: `ListView`, `RecordForm`, `RecordDetails`, `CommandBar` from C-1). */
   readonly components: Components;
@@ -718,7 +718,7 @@ export interface ListOptions {
   subview?: SubviewMetadata;
   /**
    * Declared client command names (`Registry::view`/`SqlResource::register` `commands`, JSON `view.commands`; dotted,
-   * at most 20) shown on the list's toolbar and record menu by their `placement`; an unregistered name is skipped.
+   * at most 20) shown on the list's toolbar after the view's actions, in this order; an unregistered name is skipped.
    */
   commands?: string[];
 }
@@ -825,9 +825,9 @@ export interface FieldType {
 }
 
 /**
- * Where a client command appears: `toolbar` is the list's command bar (after the view's actions; the toolbar's record
- * and marks are the context), `record` the record menu (the native context menu of a row, card or tile: right click,
- * the context menu key, Shift+F10). `both` is in each; use it for a command that must be reachable on every device.
+ * What a client command acts on; every command sits in the list's command bar after the view's actions (and moves into
+ * the `Műveletek` menu like them). `toolbar`: the view (no record needed); `record`: the toolbar's cursor record, like
+ * the built-in record actions (disabled without one). `both` (accepted by `ClientCommand.placement`) means `record`.
  */
 export type CommandPlacement = "toolbar" | "record";
 
@@ -835,7 +835,7 @@ export type CommandPlacement = "toolbar" | "record";
 export interface CommandContext {
   readonly app: Application;
   readonly view: ViewDefinition;
-  /** Record menu: the record it opened for; toolbar: the toolbar's current record (absent without one). */
+  /** The toolbar's cursor record (a shared sub-view's while it holds the toolbar); absent without one. */
   readonly row?: Row;
   /** Marked rows (`selection`/`rowSelection` lists), possibly empty (also while a sub-view record holds the toolbar). */
   readonly rows: readonly Row[];
@@ -851,10 +851,12 @@ export interface ClientCommand {
   /** Source text, translated through `app.i18n.t`. */
   label: string;
   icon?: string;
+  /** `both` is the same as `record` (kept from the first P3 contract). */
   placement: CommandPlacement | "both";
   /**
-   * Enabled state for the current context, evaluated when the record, marks or rows change (toolbar) and when the
-   * record menu opens; default: always enabled (record placement: when a row exists). A throw disables it (logged).
+   * Enabled state for the current context, evaluated when the toolbar's record, marks or rows change; default:
+   * `toolbar` always, `record` with a cursor record and at most one marked row (like the built-in record actions; a
+   * command that acts on the marks declares its own rule). A throw disables it (logged).
    */
   enabled?(context: CommandContext): boolean;
   run(context: CommandContext): void | Promise<void>;

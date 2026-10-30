@@ -1,4 +1,4 @@
-import type { Application, ClientCommand, ColumnMetadata, CommandContext, CommandPlacement, ColumnPresentation, FieldMetadata, FieldType, PresentationSize, RegisterOptions, Registry, Row } from "../api/types";
+import type { Application, ClientCommand, ColumnMetadata, CommandContext, ColumnPresentation, FieldMetadata, FieldType, PresentationSize, RegisterOptions, Registry, Row } from "../api/types";
 
 /** Registry and view names: lower-case start, then `a-z 0-9 _ . -`. */
 export const NAME = /^[a-z][a-z0-9_.-]*$/;
@@ -120,15 +120,13 @@ export function resolveCommands(builtin: string[], declared: unknown, registry: 
   return out;
 }
 
-/** Whether a command belongs to $placement (`both` belongs to each). */
-export const placed = (command: ClientCommand, placement: CommandPlacement) => command.placement === placement || command.placement === "both";
-
 /**
- * Enabled state of a command in $context: its own `enabled` (a throw disables it, logged), otherwise always on the
- * toolbar and with a record in the record menu.
+ * Enabled state of a command in $context: its own `enabled` (a throw disables it, logged), otherwise always for a
+ * `toolbar` command and, like the built-in record actions, with a cursor record and at most one mark for a `record`
+ * (or `both`) command.
  */
-export function commandEnabled(command: ClientCommand, context: CommandContext, placement: CommandPlacement): boolean {
-  if (typeof command.enabled !== "function") return placement === "toolbar" || !!context.row;
+export function commandEnabled(command: ClientCommand, context: CommandContext): boolean {
+  if (typeof command.enabled !== "function") return command.placement === "toolbar" || (!!context.row && context.rows.length <= 1);
   try { return !!command.enabled(context); }
   catch (error) { console.error("61ade: a command's enabled() failed", error); return false; }
 }
