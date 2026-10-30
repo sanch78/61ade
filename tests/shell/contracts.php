@@ -41,15 +41,18 @@ verify(array_column($base->workspace->registry->views(), 'resource') === ['blade
 verify($base->cookiePath === '/admin/' && $base->assets === '../assets' && $base->sessionName !== $app->sessionName, 'Base admin is a separate application');
 verify(count($base->workspace->views($base->identities->authenticate('demo@example.test', '61ade-demo'))) === 6, 'First administrator reaches every admin view');
 // Declarative path (toolkit D6): the starter admin and the tenant demo declare no project browser modules or
-// stylesheets; the feature demo, the toolkit consumer, declares exactly its built demo module (docs/demos.md#toolkit-consumer).
+// stylesheets; the feature demo, the toolkit consumer, declares exactly its built demo module and stylesheet
+// (docs/demos.md#toolkit-consumer).
 $tenantDemo = require dirname(__DIR__, 2).'/examples/demo-app/tenant-application.php';
 verify($base->modules === [] && $base->stylesheets === [] && $tenantDemo->modules === [] && $tenantDemo->stylesheets === [], 'Starter admin and tenant demo declare no modules or stylesheets');
 verify($app->modules === ['app/demo.js'] && $app->versioned('app/demo.js') === 'app/demo.js?v='.rawurlencode($app->version) && $app->version !== '', 'Feature demo declares exactly its versioned demo module');
+verify($app->stylesheets === ['app/demo.css'], 'Feature demo declares exactly its built demo stylesheet');
 // Cache keys from the served files (docs/toolkit.md#cache-keys): the demo module under the demo's document root; the
 // starter admin's `../assets` from /admin/, or the package build's key while the demo assets are not prepared.
 $public = dirname(__DIR__, 2).'/examples/demo-app/public';
 $demoKeys = new Blade\Shell\AssetKeys($app, ['DOCUMENT_ROOT' => $public, 'SCRIPT_FILENAME' => $public.'/index.php']);
 verify($demoKeys->url('app/demo.js') === 'app/demo.js?v='.Blade\Shell\AssetKeys::key($public.'/app/demo.js') && Blade\Shell\AssetKeys::key($public.'/app/demo.js') !== null, 'Feature demo module keyed by its built file');
+verify($demoKeys->url('app/demo.css') === 'app/demo.css?v='.Blade\Shell\AssetKeys::key($public.'/app/demo.css') && Blade\Shell\AssetKeys::key($public.'/app/demo.css') !== null, 'Feature demo stylesheet keyed by its built file');
 $adminKeys = new Blade\Shell\AssetKeys($base, ['DOCUMENT_ROOT' => $public, 'SCRIPT_FILENAME' => $public.'/admin/index.php']);
 $served = is_file($public.'/assets/admin.js') ? $public.'/assets/admin.js' : dirname(__DIR__, 2).'/packages/frontend/dist/admin.js';
 verify($adminKeys->url('../assets/admin.js', 'admin.js') === '../assets/admin.js?v='.Blade\Shell\AssetKeys::key($served), 'Starter admin admin.js keyed by its file');
