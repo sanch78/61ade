@@ -1,5 +1,119 @@
+// examples/demo-app/frontend/src/assets.ts
+var KIND = "demo.asset-viewer";
+var PHONE = "(max-width: 767px)";
+var STEP = 5;
+function clock(seconds) {
+  const s = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, r = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${r}` : `${m}:${r}`;
+}
+function mediaOf(list, row) {
+  const slots = row._media && typeof row._media === "object" ? row._media : {};
+  for (const column of list?.options.columns ?? []) {
+    const media = column.media ? slots[column.id] : void 0;
+    if (column.media && media && typeof media.id === "string" && typeof media.mime_type === "string") return { source: column.media, media };
+  }
+  return void 0;
+}
+function viewer(app, host, view) {
+  const t = (key, params) => app.i18n.t(key, params);
+  if (!host.record) throw new Error(t("A m\xE9dian\xE9z\u0151 egy m\xE9diaelemhez ny\xEDlik meg."));
+  const row = host.record.row, listId = view.options?.details ?? host.record.resource;
+  const list = app.viewDefinition(listId);
+  const found = mediaOf(list, row), kind = found?.media.mime_type.split("/")[0];
+  const playable = kind === "image" || kind === "video" || kind === "audio", timed = kind === "video" || kind === "audio";
+  const preferences = app.preferences.scope(KIND), phone = matchMedia(PHONE);
+  let loop = preferences.get("loop") ?? !!view.options?.loop;
+  let build, player, resume = 0;
+  host.setTitle(`${view.title}: ${String(row.title ?? host.record.id)}`);
+  const render = () => {
+    if (host.signal.aborted) return;
+    resume = player?.position() ?? resume;
+    const previous = build, controller = build = new AbortController(), signal = controller.signal;
+    host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
+    const stage = playable ? [{ id: "stage" }] : [];
+    const layout = new app.dhx.Layout(null, { type: "none", rows: phone.matches ? [{ id: "commands", height: 48 }, ...stage.map((cell) => ({ ...cell, height: kind === "audio" ? 200 : Math.max(220, Math.round(innerHeight * 0.4)) })), { id: "details" }] : [{ id: "commands", height: 48 }, { type: "line", cols: [...stage, { id: "details", ...playable ? { width: 380 } : {} }] }] });
+    host.attach(layout);
+    previous?.abort();
+    player = void 0;
+    const position = (seconds) => t("Poz\xEDci\xF3: {position} / {length}", { position: clock(seconds), length: clock(player?.duration() ?? 0) });
+    const status = !found ? t("Ehhez az elemhez nincs megjelen\xEDthet\u0151 m\xE9diaf\xE1jl.") : !playable ? t("Ez a f\xE1jlt\xEDpus nem j\xE1tszhat\xF3 le.") : timed ? position(resume) : "";
+    const media = ["play", "pause", "rewind", "backward", "forward", "loop"];
+    const bar = new app.components.CommandBar({ signal, items: [
+      { id: "back", label: t("Vissza a list\xE1hoz"), icon: "dxi dxi-arrow-left" },
+      { id: "play", label: t("Lej\xE1tsz\xE1s"), icon: "dxi dxi-menu-right", disabled: true, hidden: !timed },
+      { id: "pause", label: t("Sz\xFCnet"), disabled: true, hidden: !timed },
+      { id: "rewind", label: t("Elej\xE9re"), icon: "dxi dxi-chevron-double-left", disabled: true, hidden: !timed },
+      { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-left", disabled: true, hidden: !timed },
+      { id: "forward", label: t("El\u0151re {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-right", disabled: true, hidden: !timed },
+      { id: "loop", label: loop ? t("Ism\xE9tl\xE9s: be") : t("Ism\xE9tl\xE9s: ki"), icon: "dxi dxi-redo", disabled: true, hidden: !timed },
+      { id: "gap", label: "", type: "spacer" },
+      { id: "position", label: status, disabled: true, hidden: status === "" }
+    ] });
+    bar.mount(layout.getCell("commands"));
+    bar.on("click", ({ id }) => {
+      if (id === "back") {
+        if (!app.navigate({ view: listId })) host.close();
+        return;
+      }
+      if (!player) return;
+      if (id === "play") void player.play().catch(() => {
+      });
+      else if (id === "pause") player.pause();
+      else if (id === "rewind") player.seek(0);
+      else if (id === "backward" || id === "forward") player.seek(player.position() + (id === "forward" ? STEP : -STEP));
+      else if (id === "loop") {
+        loop = !loop;
+        preferences.set("loop", loop);
+        bar.update("loop", { label: loop ? t("Ism\xE9tl\xE9s: be") : t("Ism\xE9tl\xE9s: ki") });
+      }
+    });
+    if (list) new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.getCell("details"));
+    if (found && playable) player = new app.components.MediaPlayer({
+      source: { resource: found.source, action: "content_stream", id: found.media.id, version: found.media.revision },
+      mime: found.media.mime_type,
+      name: String(row.title ?? found.media.name),
+      // Images keep the player's zoom toolbar; audio and video are driven by the command bar (its loop, not the player's).
+      toolbar: !timed,
+      signal
+    });
+    const current = player;
+    if (current) {
+      current.on("loaded", () => {
+        for (const id of media) bar.update(id, { disabled: false });
+        if (resume > 0) current.seek(resume);
+        bar.update("position", { label: position(resume) });
+      });
+      current.on("position", ({ seconds }) => bar.update("position", { label: position(seconds) }));
+      current.on("ended", () => {
+        if (loop) {
+          current.seek(0);
+          void current.play().catch(() => {
+          });
+        }
+      });
+      current.on("error", ({ message }) => {
+        for (const id of media) bar.update(id, { disabled: true });
+        bar.update("position", { label: message, hidden: false });
+      });
+      current.mount(layout.getCell("stage"));
+      current.focus();
+    }
+    signal.addEventListener("abort", () => layout.destructor(), { once: true });
+  };
+  render();
+  phone.addEventListener("change", render, { signal: host.signal });
+  return { destroy: () => {
+    build?.abort();
+    player = void 0;
+  } };
+}
+var assets = (app) => {
+  app.views.register(KIND, { create: (host, view) => viewer(app, host, view) });
+};
+var assets_default = assets;
+
 // examples/demo-app/frontend/src/readings.ts
-var KIND = "demo.readings-dashboard";
+var KIND2 = "demo.readings-dashboard";
 var BAR = "demo.reading-bar";
 var SCALE = 100;
 var NARROW = "(max-width: 767px)";
@@ -162,7 +276,7 @@ function dashboard(app, host, view) {
 }
 var readings = (app) => {
   app.presentations.register(BAR, readingBar(app));
-  app.views.register(KIND, { create: (host, view) => dashboard(app, host, view) });
+  app.views.register(KIND2, { create: (host, view) => dashboard(app, host, view) });
 };
 var readings_default = readings;
 
@@ -297,11 +411,10 @@ var tasks_default = tasks;
 // examples/demo-app/frontend/src/index.ts
 var none = () => {
 };
-var assets = none;
 var playlist = none;
 var demo = async (app) => {
   const failures = [];
-  for (const part of [assets, playlist, readings_default, tasks_default]) {
+  for (const part of [assets_default, playlist, readings_default, tasks_default]) {
     try {
       await part(app);
     } catch (error) {
