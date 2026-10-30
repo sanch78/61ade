@@ -6,6 +6,7 @@
   ],
   "scripts": {
     "build": "node tools/build.mjs",
+    "website:assets": "node tools/build-website.mjs",
     "typecheck": "tsc --noEmit && tsc -p examples/demo-app/frontend",
     "test:browser": "tools/playwright.sh",
     "demo:assets": "node packages/frontend/bin/publish.mjs examples/demo-app/public/assets"

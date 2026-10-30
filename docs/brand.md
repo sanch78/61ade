@@ -108,6 +108,11 @@ classes, not the ids. Respect `prefers-reduced-motion` in any animation.
 
 ## Trademark screen
 
+The shell and [product website](website.md#shared-trademark-screen) render the
+same `packages/php/templates/splash.php` partial. The product asset build uses
+the same gate, stylesheet and release code; rebuild it with
+`npm run website:assets` when these sources or brand SVGs change.
+
 Owner decisions of 2026-10-30 ([FB-0089](feedback.md#fb-0089)): the first
 shell page (sign-in, e-mail code, password change or the signed-in shell) of
 each browser window or tab opens with the 61ade trademark screen, played in

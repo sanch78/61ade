@@ -1,0 +1,115 @@
+# Product website
+
+The bilingual product presentation lives in this repository. English is the
+default; Hungarian has equivalent content, navigation and metadata.
+
+| Page | Managed development URL | Intended canonical URL |
+| --- | --- | --- |
+| English | https://61ade.sanch.hu/website/ | https://61ade.com/ |
+| Hungarian | https://61ade.sanch.hu/website/hu/ | https://61ade.com/hu/ |
+
+The canonical domain is the owner's target, not a claim that DNS, TLS or routing
+has been configured. This work adds no hosting environment, deployment or
+backup process. All browser verification uses the existing managed URL and
+`npm run test:browser -- ...`.
+
+## Sources and generated files
+
+`examples/demo-app/website/` contains the English/Hungarian content in
+`content.php`, one HTML renderer in `page.php`, and the site CSS/JavaScript.
+The renderer is used at build time only. `tools/build-website.mjs` uses the
+existing esbuild and PHP 8.4+ to prepare ordinary static files under
+`examples/demo-app/public/website/`:
+
+```sh
+npm run website:assets
+node tools/build-website.mjs --check
+```
+
+The PHP binary follows `BLADE_PHP`, defaulting to `php8.4`. Commit generated
+HTML, JavaScript, CSS and the copied brand SVGs with source changes. There is
+no npm installation, framework bootstrap, session or API request on the product
+page. Core text, native navigation and capability disclosures work without
+JavaScript; screenshot links then open their original image. With JavaScript,
+screenshots open in a native modal dialog with Escape and focus restoration.
+
+Changing a public capability requires reviewing both languages against its
+topic guide and [product direction](product-direction.md). The site distinguishes
+implemented features from future work, including storage, external sign-in,
+tenant-scoped files and searchable log administration. The owner's historical
+references belong to DDE and ADE, not to 61ade. Do not invent dates, customer
+names or testimonials.
+
+## Shared trademark screen
+
+The shell and product site use the same `packages/php/templates/splash.php`
+markup and generated trademark SVG. The website renderer inserts
+`Blade\Shell\Splash::GATE`; its asset build bundles the original
+`packages/frontend/src/Splash.ts` and `splash.css`. The ordinary logo and mark
+are copied from their canonical brand sources, without redrawing them.
+
+Thus the timing, page turns, wordmark, `.com`, glint, reflection, release and
+reduced-motion behavior follow the [brand contract](brand.md#splash). It plays
+once per tab/origin using `blade-splash` session storage. On the managed origin,
+moving from the product page to the demo in the same tab does not replay it;
+a new tab plays again. JavaScript-disabled visitors see the website directly.
+Run `npm run website:assets` after shared splash or logo changes, even when
+the marketing copy has not changed.
+
+## Public demo and retained screenshots
+
+The demo link is https://61ade.sanch.hu/. Login remains required; its existing
+shared synthetic account is intentionally public:
+
+- E-mail: `demo@example.test`
+- Password: `61ade-demo`
+
+The same details are shown on both website languages and in the feature demo's
+supported sign-in footer module, translated through its project catalogue.
+They are selectable text, not prefilled input values. Starter and tenant-demo
+sign-in pages retain their existing content. There is no guest login, new
+account, permission change, data-reset job or new public API.
+
+Twelve retained JPEGs in the website's `assets/` directory were captured on the
+managed demo, at 1440 × 900 for desktop and 390 × 844 for the mobile list:
+`workspace`, `files`, `media`, `calendar`, `diagram` and `mobile`, plus a
+`-en` version of each. Each website language uses the matching real UI language
+in the dark theme, including its social-preview image. Captions and alternative
+text are localized too. Stored record values keep their original demo text;
+capturing the English UI does not translate or modify retained demo data.
+These images are website deliverables, not disposable test evidence.
+
+When refreshing them, use the guarded browser wrapper, an isolated browser
+context, the synthetic demo account and actual supported UI navigation. Select
+only synthetic records/assets; do not publish private accounts, tokens,
+customer data or arbitrary retained uploads. Inspect the images before committing.
+Do not reset existing demo data to obtain a cleaner screenshot. Keep screenshot
+dimensions and HTML image attributes aligned. Temporary capture specs, test
+reports and review screenshots belong to task cleanup, not the product tree.
+
+## Usage policy and contact
+
+Public contact: `sanch@61ade.com`; source:
+https://github.com/sanch78/61ade. The owner's intended policy is free use in
+free projects and contact before money-making use; stars and thank-you messages
+are welcome. The site labels this as intended policy: it does not silently
+relicense the repository or grant rights for third-party code. The formal
+license of 61ade's own code remains a separate task; the README records its
+current status.
+
+DHTMLX terms are described separately, with official
+[Suite](https://github.com/DHTMLX/dhtmlx-suite-gpl) and
+[Scheduler](https://docs.dhtmlx.com/scheduler/) links. GPL versus non-GPL use is
+not determined solely by revenue. Never present the whole bundle as permissively
+licensed or assume a contact with 61ade replaces a DHTMLX license.
+
+## Verification
+
+Task verification covers both languages at desktop and phone widths, navigation,
+image loading and enlargement, public links, keyboard disclosure/modal controls,
+canonical and alternate-language metadata, JavaScript-disabled use, reduced
+motion, once-per-tab trademark behavior and the public demo login. Reuse the
+existing sign-in branding and splash suites for shared template changes. Use
+targeted checks; temporary task-only browser cases are removed after passing.
+
+Recorded results and limits: [FB-0096](feedback.md#fb-0096).
