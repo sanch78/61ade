@@ -8,7 +8,7 @@ const load=async file=>{
  const {code}=await transform(source,{loader:'ts',format:'esm'});
  return import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 };
-const {NamedRegistry,resolveColumn,fieldTypeOf,resolveCommands,commandEnabled,placed,commandId,extensions}=await load('app/registries.ts');
+const {NamedRegistry,resolveColumn,fieldTypeOf,resolveCommands,commandEnabled,commandId,extensions}=await load('app/registries.ts');
 const {builtinCommands,LIST}=await load('components/list/commands.ts');
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const plain=(column,row)=>column.options?.[String(row[column.id])]??String(row[column.id]??'');
@@ -82,21 +82,26 @@ try{
  assert.deepEqual(resolveCommands([],['demo.copy'],undefined,builtinCommands),[],'no registry: no project command');
  const replaced={label:'Saját adatok',placement:'toolbar',run(){}};commands.register('details',replaced,{replace:true});
  assert.equal(resolveCommands(['details'],[],commands)[0].entry,replaced,'a replaced built-in is used');
- assert.deepEqual(list.filter(command=>placed(command.entry,'toolbar')).map(command=>command.name),['details','demo.share','demo.copy']);
- assert.deepEqual(list.filter(command=>placed(command.entry,'record')).map(command=>command.name),['demo.copy','demo.open']);
- // Enabled rules: toolbar default on, record default with a row, own rule, a throw disables (logged).
+ // Enabled rules: `toolbar` default on; `record` (and its alias `both`) default like the built-in record actions:
+ // a cursor record and at most one mark; an own rule decides alone; a throw disables (logged).
  const context=(extra={})=>({app:{},view:{id:'v'},rows:[],signal:new AbortController().signal,...extra});
- assert.equal(commandEnabled(share,context(),'toolbar'),true);
- assert.equal(commandEnabled(open,context(),'record'),false);assert.equal(commandEnabled(open,context({row:{id:'1'}}),'record'),true);
- assert.equal(commandEnabled({...share,enabled:({row})=>row?.id==='2'},context({row:{id:'2'}}),'toolbar'),true);
+ const one={row:{id:'1'},rows:[{id:'1'}]},several={row:{id:'1'},rows:[{id:'1'},{id:'2'}]};
+ assert.equal(commandEnabled(share,context()),true);assert.equal(commandEnabled(share,context(several)),true);
+ for(const command of [open,{...copy,enabled:undefined}]){
+  assert.equal(commandEnabled(command,context()),false,command.placement+' without a cursor record');
+  assert.equal(commandEnabled(command,context({row:{id:'1'}})),true);assert.equal(commandEnabled(command,context(one)),true);
+  assert.equal(commandEnabled(command,context(several)),false,command.placement+' with several marks');
+ }
+ assert.equal(commandEnabled({...open,enabled:({rows})=>rows.length>0},context(several)),true,'an own rule may accept the marks');
+ assert.equal(commandEnabled({...share,enabled:({row})=>row?.id==='2'},context({row:{id:'2'}})),true);
  const logged=errors.length;
- assert.equal(commandEnabled({...share,enabled:()=>{throw new Error('x');}},context(),'toolbar'),false);assert.equal(errors.length,logged+1);
- // The built-in details: one record, not several marks; it reaches the list's own details through the internal hook.
+ assert.equal(commandEnabled({...share,enabled:()=>{throw new Error('x');}},context()),false);assert.equal(errors.length,logged+1);
+ // The built-in details: a `record` command with the default rule; it reaches the list's own details through the internal hook.
  const details=builtinCommands.details,shown=[];
- assert.equal(details.label,'Adatok');assert.equal(details.placement,'toolbar');
- assert.equal(commandEnabled(details,context(),'toolbar'),false);
- assert.equal(commandEnabled(details,context({row:{id:'1'},rows:[{id:'1'}]}),'toolbar'),true);
- assert.equal(commandEnabled(details,context({row:{id:'1'},rows:[{id:'1'},{id:'2'}]}),'toolbar'),false);
+ assert.equal(details.label,'Adatok');assert.equal(details.placement,'record');assert.equal(details.enabled,undefined);
+ assert.equal(commandEnabled(details,context()),false);
+ assert.equal(commandEnabled(details,context(one)),true);
+ assert.equal(commandEnabled(details,context(several)),false);
  details.run(context({row:{id:'5'},[LIST]:{details:row=>shown.push(row.id)}}));details.run(context({[LIST]:{details:row=>shown.push(row.id)}}));
  assert.deepEqual(shown,['5']);
 }finally{console.warn=warn;console.error=error;}
