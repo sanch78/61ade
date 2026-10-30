@@ -183,7 +183,8 @@ final readonly class Field
             'max' => $this->max,
             'options' => $this->options instanceof Closure ? $this->choices($context) : array_map(\Blade\I18n\Translator::text(...), $this->choices($context)),
             'secret' => $this->secret,
-            'validation' => (object) \Blade\I18n\Translator::presentation($this->validation),
+            // Browser spelling of the rules (`minLength`, `matchesField`); the server validates with the declared ones.
+            'validation' => (object) ViewMetadata::camel(\Blade\I18n\Translator::presentation($this->validation)),
             'defaultValue' => $this->defaultValue,
             'bulk' => $this->bulk,
             // Workspace adds the resolved folder, the upload policy and the actor's upload right; the folder path stays server-side.

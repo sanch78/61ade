@@ -4,7 +4,7 @@ import { Facade, resolveView } from "../Facade";
 
 const calendarOptions = (options: unknown): boolean => {
   const value = options as Partial<CalendarKindOptions> | null;
-  return !!value && typeof value === "object" && Array.isArray(value.views) && Array.isArray(value.fields) && typeof value.default_view === "string";
+  return !!value && typeof value === "object" && Array.isArray(value.views) && Array.isArray(value.fields) && typeof value.defaultView === "string";
 };
 
 /** The page's one live Calendar: DHTMLX Scheduler Standard has a single instance (O10). */

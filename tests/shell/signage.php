@@ -116,7 +116,7 @@ try {
     $fileField = array_column($actions['create']['fields'], null, 'name')['file_id'];
     check(!in_array('usage', array_column($actions['create']['fields'], 'name'), true), 'Computed usage is never writable');
     check($fileField['type'] === 'file' && $fileField['file']['resource'] === 'files' && $fileField['file']['mount'] === 'signage' && $fileField['file']['accept'] === ['image', 'video', 'audio']
-        && $fileField['file']['folder_id'] === (string) $signage['id'] && $fileField['file']['can_upload'] === true && $fileField['file']['can_choose'] === true && $fileField['file']['policy']['extensions'] === ['png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'] && !isset($fileField['file']['folder']), 'File field metadata');
+        && $fileField['file']['folderId'] === (string) $signage['id'] && $fileField['file']['canUpload'] === true && $fileField['file']['canChoose'] === true && $fileField['file']['policy']['extensions'] === ['png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'] && !isset($fileField['file']['folder']), 'File field metadata');
     check(!str_contains(json_encode($view, JSON_THROW_ON_ERROR), $tmp), 'No storage path in metadata');
     // Activation by the file's media class: audio and video open the record view demo.asset-viewer, the rest the details.
     check(json_encode($view['options']['activate'], JSON_THROW_ON_ERROR) === '{"field":"file_id","map":{"audio":"view:demo.asset-viewer","video":"view:demo.asset-viewer","*":"details"}}', 'Activation map on the file field');
@@ -129,8 +129,8 @@ try {
     $readerViews = array_column($workspace->views(new Identity($reader, 'Reader')), null, 'id');
     check(array_column($readerViews['signage_assets']['actions'], 'name') === ['get'] && in_array('signage', array_column($readerViews['files']['options']['mounts'], 'id'), true), 'Reader views assets and the Signage mount read-only');
     $readerField = $workspace->fieldMetadata($ctx($reader), $workspace->registry->fields('signage_assets')['file_id']);
-    check($readerField['file']['can_upload'] === false && $readerField['file']['can_choose'] === true && $readerField['file']['folder_id'] === (string) $signage['id'], 'Reader may not upload into the field folder, but may browse it');
-    check($workspace->fieldMetadata($ctx('77'), $workspace->registry->fields('signage_assets')['file_id'])['file']['can_choose'] === false, 'Without `list` on the mount the picker is not offered');
+    check($readerField['file']['canUpload'] === false && $readerField['file']['canChoose'] === true && $readerField['file']['folderId'] === (string) $signage['id'], 'Reader may not upload into the field folder, but may browse it');
+    check($workspace->fieldMetadata($ctx('77'), $workspace->registry->fields('signage_assets')['file_id'])['file']['canChoose'] === false, 'Without `list` on the mount the picker is not offered');
 
     // Listing: `_media` descriptors and usage counts (events and day defaults referencing the asset).
     $list = $call('signage_assets', 'list', null, ['limit' => 10, 'sort' => ['field' => 'usage', 'direction' => 'desc']]);

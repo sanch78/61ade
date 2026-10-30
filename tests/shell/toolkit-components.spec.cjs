@@ -244,7 +244,7 @@ test('FileManager mounts in a project Layout cell, reports opened, follows the t
  await expect(left.locator('.dhx_layout-cell-header__title').first()).toHaveText('Signage:/');
  await fileRow(left,'minta-fraktal.jpg').dblclick();
  await expect(viewer(page).getByRole('img',{name:'minta-fraktal.jpg'})).toBeVisible();
- await expect.poll(()=>page.evaluate(()=>window.__opened)).toEqual([{id:image,mime_type:'image/jpeg'}]);
+ await expect.poll(()=>page.evaluate(()=>window.__opened)).toEqual([{id:image,mimeType:'image/jpeg'}]);
  await viewer(page).getByRole('button',{name:/close/i}).click();await expect(viewer(page)).toHaveCount(0);
  // editing(): the viewer holds no input; an open rename form (F2) does until it closes.
  expect(await page.evaluate(()=>window.__files.editing())).toBe(false);

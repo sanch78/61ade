@@ -300,7 +300,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
  await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
  await page.evaluate(()=>{
   const media=(id,name,mime_type,duration_ms,width,height)=>({id,name,mime_type,revision:'r'+id,duration_ms,width,height,thumbnail:'none'});
-  const file={resource:'files',mount:'signage',folder_id:'20',accept:['image','video'],can_upload:false,can_choose:true};
+  const file={resource:'files',mount:'signage',folderId:'20',accept:['image','video'],canUpload:false,canChoose:true};
   const fields=[{name:'title',label:'Cím',type:'text',required:true,max:120,options:{}},{name:'file_id',label:'Médiafájl',type:'file',required:false,max:20,options:{},file}];
   window.rows=[
    {id:'1',title:'Videós',file_id:'31',revision:'a',_actions:['get','update','delete'],_media:{file_id:media('31','clip.webm','video/webm',6000,640,360)}},

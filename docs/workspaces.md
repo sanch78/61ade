@@ -693,9 +693,9 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
 `new Field(…, 'file', file: [...])`) stores a file id of a file manager's
 mount. The server validates that the id is a live file of that mount, of an
 accepted MIME class, which the actor may read (`thumbnail_get`); errors are
-field errors on every channel. Its metadata carries the resolved `folder_id`,
+field errors on every channel. Its metadata carries the resolved `folderId`,
 the accepted classes, the file manager's upload policy narrowed to them (no
-folders) and `can_upload`; list rows carry its `_media` descriptor, so the
+folders), `canUpload` and `canChoose` ([camelCase](toolkit.md#conventions)); list rows carry its `_media` descriptor, so the
 column is a media column automatically. The form control shows the thumbnail
 and name with `Kiválasztás…` (a tiles picker over the folder with search and a
 type filter; Enter or double-click chooses, Escape or `Mégse` cancels),
@@ -737,7 +737,7 @@ Contract change for consumers: `after_save` no longer runs after a delete; use
 columns on first use (a developer error otherwise); a PHP `Lookup` hides
 archived rows with `hideArchived`. File deletes say that referencing items stay
 and only their file reference is cleared. An unchanged stored file id is not
-re-validated on save; the picker is offered only with `can_choose` (`list` on
+re-validated on save; the picker is offered only with `canChoose` (`list` on
 the mount) and returns focus to the field.
 
 List actions that declare an `UploadPolicy` carry `upload` metadata and open

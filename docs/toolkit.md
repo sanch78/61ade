@@ -425,7 +425,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | Component | Wraps | Events / methods |
 | --- | --- | --- |
 | [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `activate`, `saved`, `changed`; `editing`, `refresh`, `selected`, `setFilters` |
-| [`RecordForm`](#recordform) | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancel`, `changed`; `submit`, `values`, `dirty` |
+| [`RecordForm`](#recordform) | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancelled`, `changed`; `submit`, `values`, `dirty` |
 | [`RecordDetails`](#recorddetails) | the `Adatok` details (`recordFields`) | `show(row \| id)` |
 | [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `editing`; `pick()` resolves a `MediaDescriptor` or `null` |
 | [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; both `editing` |
@@ -511,7 +511,7 @@ has the action, the success toast and the server's field errors in place.
 ```ts
 const form = new app.components.RecordForm({ resource: "demo_tasks", action: "update", id, signal: win.signal });
 form.on("saved", () => win.close());
-form.on("cancel", () => win.close());
+form.on("cancelled", () => win.close());
 form.mount(win);
 ```
 
@@ -635,7 +635,7 @@ files view; the built-in `files` kind is this class mounted in the view host.
 
 ```ts
 const files = new app.components.FileManager({ view: "files", signal: host.signal });
-files.on("opened", ({ id, mime_type }) => recent.push({ id, mime_type }));  // viewer or text editor showed a file
+files.on("opened", ({ id, mimeType }) => recent.push({ id, mimeType }));    // viewer or text editor showed a file
 files.mount(layout.getCell("files"));
 
 const { fields } = await app.server.form("signage_assets", "create");
@@ -651,7 +651,7 @@ if (media) preview.show(media);                                      // MediaDes
   [`MediaPlayer`](#mediaplayer) with previous/next, the text editor, the
   conflict and delete dialogs behave as in the built-in view and follow the
   view's `actions`; the server checks every call. `opened` (`{id,
-  mime_type}`) fires each time the viewer or the text editor shows a file,
+  mimeType}`) fires each time the viewer or the text editor shows a file,
   also on previous/next. `editing()` is `true` while a rename or new-folder
   form is open or the text editor holds unsaved text. The lifecycle is the common one
   ([Calendar and DiagramEditor](#calendar-and-diagrameditor)): `destroy()`
@@ -661,7 +661,7 @@ if (media) preview.show(media);                                      // MediaDes
 - **FilePicker.** `field` is a `file` field's `FieldMetadata.file` (as
   `app.server.form` or a list action describes it), `title` the field label
   (`Fájl kiválasztása: {title}`), `current` a preselected file id. The picker
-  lists the field's folder (`folder_id`, otherwise the mount root) with
+  lists the field's folder (`folderId`, otherwise the mount root) with
   search and a type filter limited to the field's accepted MIME classes;
   double-click, Enter or `Kiválasztás` resolves the file's `MediaDescriptor`
   (`id`, `name`, `mime_type`, `revision`, `duration_ms`, `width`, `height`,
@@ -1214,10 +1214,10 @@ while mounted, never after `destroy()`):
 | | `saved` | `{action, row}` | a form of the list (create, update, record action with fields, singleton Save) or an inline cell or card edit (`action` `update`) saved; `row` is the server's answer |
 | | `changed` | `{rows, total?, matched?}` | the loaded window changed (load, scroll window, filter, live update, delete, revocation) |
 | `RecordForm` | `saved` | `{action, result}` | `submit` (or the submit button) succeeded |
-| | `cancel` | `{}` | Cancel was pressed |
+| | `cancelled` | `{}` | Cancel was pressed |
 | | `changed` | `{field, value}` | a field value was committed (on leaving the field) |
 | `CommandBar` | `click` | `{id}` | an item was clicked, also from the collapsed `Műveletek` menu |
-| `FileManager` | `opened` | `{id, mime_type}` | the viewer or text editor showed a file, also on previous/next |
+| `FileManager` | `opened` | `{id, mimeType}` | the viewer or text editor showed a file, also on previous/next |
 | `DiagramEditor` | `saved` | `{}` | the open diagram's content was saved (`Mentés`, Ctrl+S) |
 | `MediaPlayer` | `loaded` | `{duration, width?, height?}` | the metadata is known (`duration` 0 for images) |
 | | `position` | `{seconds}` | every 250 ms while playing, on pause and after a completed seek |
@@ -1288,20 +1288,41 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
 
 ## Naming conventions
 
-Existing names stay as they are (no renames in API version 1):
+The rules of API version 1 (closed out on 2026-10-30, [changes](#changes)):
 
-- **Event tense is mixed:** `select`, `activate`, `cancel` and `click` are
-  present tense, `saved`, `changed`, `opened`, `loaded` and `ended` past
-  tense; the uploader's page event is `upload:cancelled`.
-- **View option casing follows the kind:** `ListKindOptions` and `DiagramKindOptions`
-  are camelCase (`rowHeight`, `nodeTypes`), `FilesKindOptions`,
-  `CalendarKindOptions` and `UploadPolicy` snake_case (`max_depth`,
-  `default_view`, `max_size_bytes`).
-- **Column keys are passed through as declared:** `ColumnMetadata` may carry
-  `imageBase` or `image_base`, `altOf` or `alt_of`, `mediaOf` or `media_of`;
-  a presentation that reads them reads both spellings.
-- **`app.views` registers view kinds**, not views; the views offered to the
-  actor are `app.viewDefinitions()` and `app.viewDefinition(id)`.
+- **Type names:** a component's instance type is its class name in
+  `app.components` (`ListView`, `RecordForm`, `RecordDetails`, `FileManager`,
+  `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer`, `SandboxFrame`,
+  `CommandBar`); its constructor options are `<Class>Options` and its events
+  `<Class>Events` (`FilePickerOptions` are the options of `pick`). The
+  options of a built-in view kind are `<Kind>KindOptions`: `ListKindOptions`,
+  `FilesKindOptions`, `DiagramKindOptions`, `CalendarKindOptions`.
+- **Registries are named after what they hold:** `app.kinds` (view kinds),
+  `presentations`, `fieldTypes`, `commands`; the views offered to the actor
+  are `app.viewDefinitions()` and `app.viewDefinition(id)`.
+- **Browser metadata is camelCase:** view `options` of every built-in kind
+  (`rowHeight`, `nodeTypes`, `maxDepth`, `defaultView`), `ColumnMetadata`
+  (`imageBase`, `altOf`, `mediaOf`), `FieldMetadata` with its `validation`
+  (`minLength`, `matchesField`) and `file` (`folderId`, `canUpload`,
+  `canChoose`), `UploadPolicy` (`maxSizeBytes`, `chunkBytes`), action metadata
+  and event payloads (`opened` `{id, mimeType}`). The server normalises it;
+  PHP and JSON configuration keep their own spelling (JSON snake-case, a
+  field's `column` object also as in PHP). **Record data keeps the server's
+  field names:** rows, `_media`/`MediaDescriptor` (`mime_type`,
+  `duration_ms`), action results and protocol answers (`UploadResult`, the
+  transfer protocol's `chunk_bytes`, failure `details`).
+- **Event names:** an event reported after the fact is a past participle
+  (`saved`, `changed`, `opened`, `loaded`, `ended`, `cancelled`, `view:opened`,
+  `upload:cancelled`); a user gesture reported as it happens or before the
+  framework acts on it is the plain verb, as in the DOM (`select`, `activate`,
+  `click`); a stream or a state is a noun or adjective (`position`, `error`,
+  `message`, `ready`, `upload:progress`, `upload:complete`). Framework page
+  events are `<area>:<event>`, project events `<project>.<event>`.
+- **One way to pass the owner's signal:** the options object `{signal}`, last,
+  on every subscription and on `server.form` ([services](#services)); a
+  component's constructor options carry `signal` the same way.
+- **Discriminated unions instead of optional ids:** a `CommandItem` is a
+  `CommandButton` or a `CommandSpacer` (no id).
 
 <a id="limits"></a>
 
