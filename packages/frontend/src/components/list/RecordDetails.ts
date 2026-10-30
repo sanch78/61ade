@@ -1,6 +1,6 @@
 import { t } from "../../I18n";
 import { Layout } from "@dhtmlx/suite";
-import { alert } from "../../MessageDialog";
+import { acknowledge } from "../../MessageDialog";
 import { server } from "../../api/Server";
 import type { RecordDetails as RecordDetailsApi, RecordDetailsOptions, Row } from "../../api/types";
 import { Component } from "./component";
@@ -36,7 +36,7 @@ export class RecordDetails extends Component<Record<string,never>> implements Re
       const abort=this.abort=new AbortController();
       try{row=await server.call<Row>(this.view.resource,"get",{id:String(record),signal:abort.signal});}
       catch(error){
-        if(!this.destroyed&&epoch===this.epoch&&!(error instanceof DOMException&&error.name==="AbortError"))await alert({header:t("Hiba"),severity:"danger",text:errorText(error,[])});
+        if(!this.destroyed&&epoch===this.epoch&&!(error instanceof DOMException&&error.name==="AbortError"))await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,[])});
         throw error;
       }
     }else row=record;
