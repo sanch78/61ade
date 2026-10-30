@@ -1775,6 +1775,7 @@ markup may change without notice.
 | 2026-10-30 | The 61ade product logo ("blade", [brand](brand.md)) is the default logo: inline in `admin.js`, bootstrap `logo` without `image`; `Logo::$image` optional (`new Logo(placement: …)` keeps the product logo), `Logo::none()` / JSON `"logo": false` opts out; accessible name `blade`. | [FB-0088](feedback.md#fb-0088) |
 | 2026-10-30 | Trademark screen once per browser window or tab (`sessionStorage` gate, inline head script allowed by CSP hash): page-turning tiles, letters bouncing in, blade glint and spark on black, then a fade into the application; no option to skip it (M33). | [FB-0089](feedback.md#fb-0089) |
 | 2026-10-30 | Product logo redrawn to the owner's source drawing: the first letters read 6 and 1 (only they carry the teal), `ade` ink, heavier stems, tighter spacing, taller tile 1 with its arc; viewBox `-19 -46 1370 395`. | [FB-0090](feedback.md#fb-0090) |
+| 2026-10-30 | Product logo redrawn as `b1ade` to the owner's new drawing: rounded-rectangle letters, the `b` and `1` in one blue gradient, `ade` ink, tiles recoloured; viewBox `-19 -46 1795 395`. The trademark screen adds the blue dot and `com`, silver ink, glow, floor light and reflection. | [FB-0091](feedback.md#fb-0091) |
 
 <a id="resolved-decisions"></a>
 

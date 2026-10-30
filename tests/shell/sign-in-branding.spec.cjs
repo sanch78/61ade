@@ -44,7 +44,7 @@ test('the sign-in window shows the logo once with the sign-in stylesheet, per th
  expect(await page.evaluate(()=>{const links=[...document.querySelectorAll('link[rel="stylesheet"]')].map(link=>link.getAttribute('href'));return links.findIndex(href=>href.includes('branding/sign-in.css'))>links.findIndex(href=>href.includes('admin.css'));})).toBe(true);
  expect(await hue(page)).toBe('160');
  const size=await dialog.locator('.blade-logo__image--light').evaluate(image=>{const box=image.getBoundingClientRect();return [box.height,Math.round(box.width)];});
- expect(size).toEqual([40,Math.round(40*1370/395)]);
+ expect(size).toEqual([40,Math.round(40*1795/395)]);
  await expect(page.locator('link[href*="app/demo.css"]')).toHaveCount(0);
  // The form stays whole below the logo: the button fits inside the window.
  const windowBox=await dialog.boundingBox(),button=await dialog.getByRole('button',{name:'Bejelentkezés',exact:true}).boundingBox();
@@ -134,13 +134,16 @@ test('phone width: the sign-in logo fits; the top row gives the room to Menü an
  const windowBox=await dialog.boundingBox(),logoBox=await logo(dialog).boundingBox();
  expect(logoBox.x).toBeGreaterThanOrEqual(windowBox.x);
  expect(logoBox.x+logoBox.width).toBeLessThanOrEqual(windowBox.x+windowBox.width);
- // The window fits the phone with the notice, link and footer line; beside the language and theme selectors the top
- // row still holds its copy (275 + 110 px of 390).
+ // The window fits the phone with the notice, link and footer line. Beside the language and theme selectors the top
+ // row has no room for its copy at 390 px (275 + 133 px), the window keeps its own; a 430 px phone holds both.
  await expect(footer(dialog)).toBeVisible();
  expect(windowBox.y+windowBox.height).toBeLessThanOrEqual(844);
+ await expect(topLogo(page)).toBeHidden();
+ await page.setViewportSize({width:430,height:932});
  await expect(topLogo(page)).toBeVisible();
  const topBox=await topLogo(page).boundingBox();
- expect(topBox.x+topBox.width).toBeLessThanOrEqual(390);
+ expect(topBox.x+topBox.width).toBeLessThanOrEqual(430);
+ await page.setViewportSize({width:390,height:844});
  await signedIn(page,'demo@example.test');
  // The feature demo's row holds Menü, the language and the theme selector: no room for the logo at 390 px.
  await expect(page.getByRole('menuitem',{name:'Menü',exact:true})).toBeVisible();

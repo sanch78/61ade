@@ -1,102 +1,67 @@
-// Generator of the 61ade product logo ("blade", read as "61ade"), docs/brand.md: `node packages/frontend/brand/logo.mjs`
+// Generator of the 61ade product logo (the wordmark "b1ade", read "blade"), docs/brand.md: `node packages/frontend/brand/logo.mjs`
 // rewrites blade-logo.svg (light themes), blade-logo-dark.svg (dark themes) and blade-mark.svg (the three tiles alone)
 // beside this file, and the loading screen's copy into packages/php/resources/brand/splash-logo.svg. One grid fitted to
-// the owner's source drawing: baseline 322, bowls of radius 108 round an oval counter (48 × 54), the a's and d's stems
-// flush with their bowls (60), the 1's 64 and the 6's 70,
-// ascender cuts of slope 0.6 like the tall tile's top, tile slope 0.46 and 12 px corner radius (a same-paint 24 px
-// stroke). The "6" and the "1" carry the teal; "ade" is ink. Every part has a class for the animation.
+// the owner's b1ade drawing: rounded-rectangle bowls (x-height 86 to baseline 322) round rectangular counters
+// (166–237), the a open at its foot by a slit, the e by a channel under its bar; the "b" and the "1" carry the blue
+// gradient, "ade" is ink. The three tiles keep their geometry (tile slope 0.46, 12 px corner radius). Every part has a
+// class for the animation; the screen's copy adds the blue dot and "com".
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const BASE = 322, R = 108, CY = BASE - R, RX = 48, RY = 54, ONE = 64, SIX = 70, CUT = 0.6, TILT = 0.46, CORNER = 12;
+const BASE = 322, XH = 86, CT = 166, CB = 237, ASC = -16, DT = 10, RC = 12, CUT = 0.6, TILT = 0.46, CORNER = 12;
 const f = (v) => String(Math.round(v * 10) / 10);
 const pt = (x, y) => `${f(x)},${f(y)}`;
-// Glyph positions (left edges; 13 after a bowl, 11 after a stem) and tops: the 6 is the tallest, the 1 below it, the
-// d's flat top lower still.
-const X = { b: 365, l: 594, a: 669, d: 896, e: 1123 };
-const TOP = { six: -18, one: -2, d: 30 };
-const VIEW = "-19 -46 1370 395";
+const VIEW = "-19 -46 1795 395", SPLASH_VIEW = "-19 -46 2270 395";
 
-// Bowl: outer circle clockwise, oval counter anticlockwise (nonzero fill leaves it open).
-const ring = (cx) => `M${f(cx - R)},${CY}A${R},${R} 0 1 1 ${f(cx + R)},${CY}A${R},${R} 0 1 1 ${f(cx - R)},${CY}Z`
-    + `M${f(cx - RX)},${CY}A${RX},${RY} 0 1 0 ${f(cx + RX)},${CY}A${RX},${RY} 0 1 0 ${f(cx - RX)},${CY}Z`;
-// Stem with the slanted top of slope CUT, its top corners rounded; `bottom` closes it from the right edge.
-function cutStem(x0, x1, top, bottom) {
-    const left = top + (x1 - x0) * CUT, n = Math.hypot(1, CUT), ux = 1 / n, uy = -CUT / n, a = 10, b = 14;
-    return `M${pt(x0, bottom.start)}V${f(left + a)}Q${pt(x0, left)} ${pt(x0 + a * ux, left + a * uy)}`
-        + `L${pt(x1 - b * ux, top - b * uy)}Q${pt(x1, top)} ${pt(x1, top + b)}${bottom.end}Z`;
+// Closed outline through [x, y, radius] corners, clockwise on screen; each corner is an arc tangent to its two edges,
+// a concave corner (the counters, slits and notches) bending the other way.
+function outline(points) {
+    return points.map(([x, y, r], i) => {
+        const [ax, ay] = points[(i + points.length - 1) % points.length], [bx, by] = points[(i + 1) % points.length];
+        const la = Math.hypot(ax - x, ay - y), lb = Math.hypot(bx - x, by - y);
+        const ux = (ax - x) / la, uy = (ay - y) / la, vx = (bx - x) / lb, vy = (by - y) / lb;
+        const t = r ? r / Math.tan(Math.acos(Math.max(-1, Math.min(1, ux * vx + uy * vy))) / 2) : 0;
+        const sweep = (x - ax) * (by - y) - (y - ay) * (bx - x) > 0 ? 1 : 0;
+        return `${i ? "L" : "M"}${pt(x + ux * t, y + uy * t)}` + (r ? `A${r},${r} 0 0 ${sweep} ${pt(x + vx * t, y + vy * t)}` : "");
+    }).join("") + "Z";
 }
-// The 6's stem ends in a diagonal inside the bowl that clears the counter; the bowl is drawn over it.
-const sixStem = (cx) => cutStem(X.b, X.b + SIX, TOP.six, { start: CY, end: `V${CY - 44}` });
-const oneStem = () => cutStem(X.l, X.l + ONE, TOP.one, { start: BASE, end: `V${BASE}` });
-// The a's and d's stems: from the counter's right edge to the bowl's (flush, no step where they meet).
-const stem = (cx, top) => `M${pt(cx + RX, top)}H${f(cx + R)}V${BASE}H${f(cx + RX)}Z`;
-function eGlyph(cx) {
-    const h = 20, ty = CY - h, by = CY + h; // bar 40, centred on the bowl
-    const xb = RX * Math.sqrt(1 - (h / RY) ** 2); // counter at the bar's edges
-    // Terminal cut at 25° through (cx+51, CY+37): to the counter (P) and the outer circle (Q).
-    const ux = Math.cos(25 * Math.PI / 180), uy = Math.sin(25 * Math.PI / 180), ax = 51, ay = 37;
-    const qa = (ux / RX) ** 2 + (uy / RY) ** 2, qb = 2 * (ax * ux / RX ** 2 + ay * uy / RY ** 2), qc = (ax / RX) ** 2 + (ay / RY) ** 2 - 1;
-    const tp = (-qb + Math.sqrt(qb * qb - 4 * qa * qc)) / (2 * qa), tq = -(ax * ux + ay * uy) + Math.sqrt((ax * ux + ay * uy) ** 2 - (ax * ax + ay * ay - R * R));
-    const px = cx + ax + tp * ux, py = CY + ay + tp * uy, qx = cx + ax + tq * ux, qy = CY + ay + tq * uy;
-    // The bar ends on the bowl: the outer arc runs round to the bar's lower edge.
-    const ex = cx + Math.sqrt(R * R - h * h);
-    return `M${pt(qx, qy)}A${R},${R} 0 1 1 ${pt(ex, by)}H${f(cx - xb)}`
-        + `A${RX},${RY} 0 0 0 ${pt(px, py)}Z`
-        + `M${pt(cx - xb, ty)}A${RX},${RY} 0 0 1 ${pt(cx + xb, ty)}Z`;
-}
+const box = (x0, y0, x1, y1, r) => outline([[x0, y0, r], [x1, y0, r], [x1, y1, r], [x0, y1, r]]);
 
-const polar = (cx, deg, radius) => [cx + radius * Math.cos(deg * Math.PI / 180), CY + radius * Math.sin(deg * Math.PI / 180)];
-// What makes the b a "6": the bowl's upper left, from 175° over the top to -55°, is the stroke turning into the loop,
-// its inner edge an arc from -55° through the counter's top left into the counter (a sharp fold against the ink of the
-// rest of the bowl); towards 9 o'clock the gradient has reached ink, so the closing line there does not show.
-function crescent(cx) {
-    const start = polar(cx, 175, R), p1 = polar(cx, -55, R), m = [cx - 35, CY - 40], p3 = [cx - 20, CY + 10];
-    const [ax, ay] = p1, [bx, by] = m, [qx, qy] = p3, d = 2 * (ax * (by - qy) + bx * (qy - ay) + qx * (ay - by));
-    const ox = ((ax * ax + ay * ay) * (by - qy) + (bx * bx + by * by) * (qy - ay) + (qx * qx + qy * qy) * (ay - by)) / d;
-    const oy = ((ax * ax + ay * ay) * (qx - bx) + (bx * bx + by * by) * (ax - qx) + (qx * qx + qy * qy) * (bx - ax)) / d;
-    const rho = Math.hypot(ax - ox, ay - oy);
-    // The inner arc runs from p1 back to p3 through m: its sweep follows the turn p1 → m → p3.
-    const sweep = (bx - ax) * (qy - ay) - (by - ay) * (qx - ax) > 0 ? 1 : 0;
-    return `M${pt(...start)}A${R},${R} 0 0 1 ${pt(...p1)}A${f(rho)},${f(rho)} 0 0 ${sweep} ${pt(...p3)}Z`;
-}
-// The 1's flag: a darker bevel just inside its cut and the top of its left edge.
-function bevel() {
-    const x0 = X.l + 3.5, left = TOP.one + ONE * CUT + 3.5;
-    return `M${pt(x0, left + 50)}V${f(left + 6)}L${pt(X.l + ONE - 16, TOP.one + 16 * CUT + 3.5)}`;
-}
+// The b: a stem with a slightly rising top over a bowl; the 1: a flag on the left of its rounded top, a foot flaring
+// right; the a: open at its foot by a slit under the counter's right edge; the d: a flat-topped stem flush with its
+// counter; the e: a bar with a slanted tip over a channel to the right edge, the lower terminal cut on a slant.
+const GLYPHS = {
+    b: outline([[365, 17, 30], [464, ASC, 14], [464, XH, 8], [668, XH, 66], [668, BASE, 66], [365, BASE, 62]])
+        + box(459, CT, 576, CB, RC),
+    l: outline([[636, 56, 14], [680, ASC, 10], [802, ASC, 56], [802, 246, 150], [834, BASE, 10], [700, BASE, 32], [700, 76, 12]]),
+    a: outline([[837, XH, 84], [1134, XH, 66], [1134, BASE, 6], [1044, BASE, 4], [1044, CT, RC], [928, CT, RC], [928, CB, RC],
+        [1025, CB, 4], [1025, BASE, 4], [837, BASE, 74]]),
+    d: outline([[1156, XH, 66], [1360, XH, 8], [1360, DT, 10], [1456, DT, 22], [1456, BASE, 74], [1156, BASE, 74]])
+        + box(1249, CT, 1360, CB, RC),
+    e: outline([[1477, XH, 74], [1764, XH, 86], [1764, 221, 6], [1621, 221, 4], [1606, 182, 6], [1671, 182, 6], [1671, CT, 6],
+        [1566, CT, RC], [1566, CB, RC], [1718, CB, 4], [1764, 302, 6], [1764, BASE, 14], [1477, BASE, 74]]),
+};
+// The screen's ".com": a dot in the blue of the 1's foot, then c, o and m on a 23-unit stroke (x-height 231).
+const DOT = { cx: 1819, cy: 297, r: 27 };
+const DOMAIN = [
+    outline([[1866, 231, 22], [1965, 231, 6], [1965, 254, 6], [1889, 254, 4], [1889, 299, 4], [1965, 299, 6], [1965, BASE, 6], [1866, BASE, 22]]),
+    box(1976, 231, 2089, BASE, 22) + box(1999, 254, 2066, 299, 4),
+    outline([[2100, 231, 2], [2241, 231, 22], [2241, BASE, 3], [2218, BASE, 3], [2218, 254, 4], [2180, 254, 4], [2180, BASE, 3],
+        [2157, BASE, 3], [2157, 254, 4], [2123, 254, 4], [2123, BASE, 3], [2100, BASE, 3]]),
+].join("");
 
 // Tiles by their outer corners (clockwise from top left), drawn with corners of radius CORNER.
 const T1 = [[-7, 46], [126, 46 - 133 * CUT], [126, 275.6], [-7, 275.6 + 133 * TILT]];
 const column = (y) => [[144, y], [288, y + 144 * TILT], [288, y + 144 * TILT + 129], [144, y + 129]];
-const TILES = [T1, column(-13), column(138)];
-function rounded(points) {
-    // Edges moved in by CORNER meet at the arc centres; each edge is drawn back out by CORNER between two arcs.
-    const edges = points.map((p, i) => {
-        const q = points[(i + 1) % points.length], ex = q[0] - p[0], ey = q[1] - p[1], n = Math.hypot(ex, ey);
-        return { x: p[0] - ey / n * CORNER, y: p[1] + ex / n * CORNER, ex, ey, ox: ey / n * CORNER, oy: -ex / n * CORNER };
-    });
-    const centre = edges.map((l, i) => {
-        const m = edges[(i + edges.length - 1) % edges.length];
-        const t = ((l.x - m.x) * l.ey - (l.y - m.y) * l.ex) / (m.ex * l.ey - m.ey * l.ex);
-        return [m.x + t * m.ex, m.y + t * m.ey];
-    });
-    return edges.map((l, i) => {
-        const a = centre[i], b = centre[(i + 1) % centre.length], next = edges[(i + 1) % edges.length];
-        return `${i ? "L" : "M"}${pt(a[0] + l.ox, a[1] + l.oy)}L${pt(b[0] + l.ox, b[1] + l.oy)}`
-            + `A${CORNER},${CORNER} 0 0 1 ${pt(b[0] + next.ox, b[1] + next.oy)}`;
-    }).join("") + "Z";
-}
+const TILES = [T1, column(-13), column(138)].map((points) => outline(points.map(([x, y]) => [x, y, CORNER])));
 
 const palette = (dark) => ({
-    ink: dark ? "#EEF4F9" : "#011F3C",
-    teal: dark ? "#22D3C5" : "#00BEBA",
-    six: dark ? "#22D3C5" : "#02A1A7",
-    bevel: dark ? "#0E9C93" : "#057F86",
-    t1: dark ? ["#1F8FD1", "#1A5C93"] : ["#0880BC", "#011F3C"],
-    t2: dark ? ["#3AD6C7", "#0FAFAD"] : ["#2CCBBD", "#049FA4"],
-    t3: dark ? ["#C4D6E7", "#A9C0D6"] : ["#B1C9DD", "#A2BBCF"],
+    ink: dark ? "#E6E9EE" : "#181B1E",
+    blue: dark ? ["#2BE2FF", "#0F7BFF"] : ["#08DCFC", "#0176FD"],
+    t1: dark ? ["#1EA0FF", "#0D4BB0"] : ["#0592F5", "#0A3D91"],
+    t2: dark ? ["#40E4FF", "#0AA4F7"] : ["#16D9FB", "#0398F2"],
+    t3: dark ? ["#E6EAF0", "#AEB5C0"] : ["#C9D3DF", "#A8B5C5"],
 });
 const stops = (list) => list.map(([o, c, a]) => `<stop offset="${o}" stop-color="${c}"${a === undefined ? "" : ` stop-opacity="${a}"`}/>`).join("");
 const linear = (id, [x1, y1, x2, y2], list) => `<linearGradient id="blade-${id}" gradientUnits="userSpaceOnUse" x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}">${stops(list)}</linearGradient>`;
@@ -109,7 +74,7 @@ const tileDefs = (g) => [
     linear("t3", [144, 140, 288, 330], [[0, g.t3[0]], [1, g.t3[1]]]),
 ].join("\n    ");
 const tile = (n) => {
-    const d = rounded(TILES[n - 1]), cls = `blade-logo__tile blade-logo__tile--${n}`;
+    const d = TILES[n - 1], cls = `blade-logo__tile blade-logo__tile--${n}`;
     return n === 1 ? `<g class="${cls}"><path d="${d}" fill="url(#blade-t1)"/><path d="${d}" fill="url(#blade-rim)"/></g>`
         : `<path class="${cls}" d="${d}" fill="url(#blade-t${n})"/>`;
 };
@@ -120,29 +85,33 @@ const mark = `<g class="blade-logo__mark">
   </g>`;
 
 function logo(dark, splash = false) {
-    const g = palette(dark), ink = g.ink, cb = X.b + R;
-    const peak = polar(cb, -110, R);
+    const g = palette(dark);
+    // The screen's ink is the drawing's brushed silver and its blue parts glow; the shell's copies are flat.
+    const ink = splash ? "url(#blade-ink)" : g.ink, glow = splash ? ` filter="url(#blade-glow)"` : "";
     const defs = [
         tileDefs(g),
-        linear("asc6", [0, TOP.six, 0, 130], [[0, g.teal], [1, ink]]),
-        linear("asc1", [0, TOP.one, 0, 192], [[0, g.teal], [1, ink]]),
-        `<radialGradient id="blade-six" gradientUnits="userSpaceOnUse" cx="${f(peak[0])}" cy="${f(peak[1])}" r="120">${stops([[0, g.six], [1, ink]])}</radialGradient>`,
-        `<clipPath id="blade-bowl"><path d="${ring(cb)}"/></clipPath>`,
-        linear("bevel", [0, 30, 0, 85], [[0, g.bevel, 0.6], [1, g.bevel, 0]]),
-        ...(splash ? [`<clipPath id="blade-reveal"><rect x="330" y="-60" width="1150" height="490"/></clipPath>`] : []),
+        linear("b1", [0, ASC, 0, BASE], [[0, g.blue[0]], [1, g.blue[1]]]),
+        ...(splash ? [
+            linear("ink", [0, XH, 0, BASE], [[0, "#FFFFFF"], [1, "#A7ADB7"]]),
+            `<filter id="blade-glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur in="SourceGraphic" stdDeviation="16"/>`
+                + `<feComponentTransfer><feFuncA type="linear" slope="0.75"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>`,
+            `<clipPath id="blade-reveal"><rect x="330" y="-60" width="1960" height="490"/></clipPath>`,
+        ] : []),
     ].join("\n    ");
-    const glyph = (name, inner) => `<g class="blade-logo__glyph blade-logo__glyph--${name}">${inner}</g>`;
-    const p = (d, fill) => `<path d="${d}" fill="${fill}"/>`;
-    const ca = X.a + R, cd = X.d + R;
+    const glyph = (name, fill, extra = "") => `<g class="blade-logo__glyph blade-logo__glyph--${name}"${extra}><path d="${GLYPHS[name]}" fill="${fill}" fill-rule="evenodd"/></g>`;
     const word = [
-        glyph("b", p(sixStem(cb), "url(#blade-asc6)") + p(ring(cb), ink) + `<path d="${crescent(cb)}" fill="url(#blade-six)" clip-path="url(#blade-bowl)"/>`),
-        glyph("l", p(oneStem(), "url(#blade-asc1)") + `<path d="${bevel()}" fill="none" stroke="url(#blade-bevel)" stroke-width="7" stroke-linejoin="round"/>`),
-        glyph("a", p(ring(ca), ink) + p(stem(ca, CY), ink)),
-        glyph("d", p(ring(cd), ink) + p(stem(cd, TOP.d), ink)),
-        glyph("e", `<path d="${eGlyph(X.e + R)}" fill="${ink}" fill-rule="evenodd"/>`),
+        glyph("b", "url(#blade-b1)", glow),
+        glyph("l", "url(#blade-b1)", glow),
+        glyph("a", ink),
+        glyph("d", ink),
+        glyph("e", ink),
+        ...(splash ? [
+            `<circle class="blade-logo__dot" cx="${DOT.cx}" cy="${DOT.cy}" r="${DOT.r}" fill="${g.blue[1]}"${glow}/>`,
+            `<path class="blade-logo__domain" d="${DOMAIN}" fill="${ink}" fill-rule="evenodd"/>`,
+        ] : []),
     ].join("\n    ");
     const variant = dark ? "dark" : "light";
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" class="blade-logo blade-logo--${variant}" viewBox="${VIEW}" role="img" aria-label="blade">
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" class="blade-logo blade-logo--${variant}" viewBox="${splash ? SPLASH_VIEW : VIEW}" role="img" aria-label="blade">
   <!-- Geometry and parts: docs/brand.md -->
   <defs>
     ${defs}

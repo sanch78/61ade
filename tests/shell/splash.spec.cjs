@@ -16,11 +16,11 @@ async function shown(page){
  await expect(splash(page)).toBeVisible();
  await expect(splash(page)).toHaveAttribute('aria-hidden','true');
  expect(await splash(page).evaluate(element=>getComputedStyle(element).backgroundColor)).toBe('rgb(0, 0, 0)');
- for(const [part,count] of [['.blade-logo__tile',3],['.blade-logo__glyph',5],['.blade-logo__word',1]])
+ for(const [part,count] of [['.blade-logo__tile',3],['.blade-logo__glyph',5],['.blade-logo__word',1],['.blade-logo__dot',1],['.blade-logo__domain',1]])
   await expect(splash(page).locator('svg.blade-splash__image '+part)).toHaveCount(count);
  await expect(splash(page).locator('.blade-splash__credit')).toHaveText('made with 61ade framework');
  // Its own gradient ids, distinct from every inlined shell logo.
- expect(await page.evaluate(()=>{const ids=[...document.querySelectorAll('[id^="blade-"]')].map(element=>element.id);return ids.filter(id=>id.startsWith('blade-splash-')).length===10&&new Set(ids).size===ids.length;})).toBe(true);
+ expect(await page.evaluate(()=>{const ids=[...document.querySelectorAll('[id^="blade-"]')].map(element=>element.id);return ids.filter(id=>id.startsWith('blade-splash-')).length===8&&new Set(ids).size===ids.length;})).toBe(true);
 }
 
 test('the screen plays once per tab: not after signing in or reloading, again in a new tab',async({page,context})=>{

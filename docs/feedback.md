@@ -375,3 +375,7 @@
 <a id="fb-0090"></a>
 
 ## FB-0090 — The logo's b is the 6 of the source drawing
+
+<a id="fb-0091"></a>
+
+## FB-0091 — The b1ade logo
