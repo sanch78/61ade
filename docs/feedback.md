@@ -3149,3 +3149,34 @@ that exactly equals an option label lists every option. The managed
   430 px phone holds it) 10 passed; timeline frames reviewed at 1280 × 800
   and 390 × 844.
 - **Status:** implemented; owner acceptance on the development URL pending.
+
+<a id="fb-0092"></a>
+
+## FB-0092 — Compact navigation reserved room for a hidden logout button
+
+- **Date:** 2026-10-30.
+- **Observation (owner):** a consumer could not adopt `Logo` because the
+  signed-in phone header hid it despite enough free room; the width estimate
+  still counted the logout button after it had moved inside `Menü`.
+- **Implemented:** `AdminShell.renderMenu()` reserves the standalone logout
+  width only for the full menu. Compact navigation counts `Menü`, any visible
+  desktop siblings and the actual selector cells when checking sibling and
+  logo fit. Full-menu collapse thresholds, signed-out placement, image/theme
+  handling and server authorization are unchanged. There is no fixed phone
+  cutoff for the logo; it still yields when the estimated remaining space
+  cannot hold its measured width. Contract: [logo](shell.md#sign-in-logo).
+- **Consumer impact:** existing `Logo` declarations receive the correction
+  through the shared frontend bundle; no new setting or consumer workaround.
+  Consumer migration and verification stay in the consumer's own session.
+- **Verification (2026-10-30):** reproduced the hidden product logo at 320 px
+  before the fix. After rebuilding and preparing demo assets, the guarded
+  managed-URL run of `browser.spec.cjs`, `sign-in-branding.spec.cjs`,
+  `skins.spec.cjs` and five temporary logo-fit cases passed (21/21).
+  The temporary cases checked product and declared 150 px image logos at
+  320, 390, 430, 480 and 481 px without selectors; menu/logo separation and
+  viewport bounds; logout inside `Menü` and restored on desktop; each
+  combination of language/theme selectors with both sufficient and
+  insufficient room. Temporary verification source and artifacts were
+  removed. `npm run typecheck`, `npm run build`, `npm run demo:assets`, PHP
+  `contracts.php` and `configuration.php` passed; `git diff --check` passed.
+- **Status:** implemented and verified on the managed development URL.
