@@ -108,7 +108,7 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
     $workspace->registry->add(new Action('signage_assets', 'upload_asset', 'Feltöltés', [],
         static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_upload($ctx, $files->files($ctx->db, $workspace->tasks)),
         resolve: static fn() => ['id' => null, 'owner' => null], write: true, icon: 'dxi dxi-file-import',
-        upload: new UploadPolicy(array_values(array_intersect($files->allowedExtensions, ['png', 'jpg', 'jpeg', 'mp4', 'webm'])), $files->maxSizeBytes, $files->maxFiles,
+        upload: new UploadPolicy(array_values(array_intersect($files->allowedExtensions, ['png', 'jpg', 'jpeg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'])), $files->maxSizeBytes, $files->maxFiles,
             duplicatePolicy: 'rename', tempRoot: $files->temporaryRoot())));
     $workspace->registry->appendViewActions('signage_assets', ['upload_asset']);
 }
@@ -122,7 +122,7 @@ function blade_demo_signage_upload(Context $ctx, MountStorage $storage): array
     $insert = $ctx->db->prepare("INSERT INTO signage_assets(title,file_id,duration) VALUES (?,?,'10')");
     $assets = $stored = [];
     foreach ($parts as $part) {
-        $file = $storage->store($ctx, (string) $folder['id'], $part, ['image', 'video']);
+        $file = $storage->store($ctx, (string) $folder['id'], $part, ['image', 'video', 'audio']);
         $title = trim(pathinfo($file['name'], PATHINFO_FILENAME));
         $insert->execute([mb_substr($title !== '' ? $title : $file['name'], 0, 120), $file['id']]);
         $assets[] = (string) $ctx->db->lastInsertId();
@@ -181,7 +181,8 @@ function blade_demo_signage_playlist(Context $ctx, CalendarDefinition $calendar,
 
 /**
  * Idempotent synthetic setup: tables, assets over the seeded media, weekday defaults and a sample programme; then the
- * seeded asset files move into the Signage mount root (blade_demo_signage_media()). Asset references to other files
+ * seeded asset files move into the Signage mount root (blade_demo_signage_media()) and the audio fixtures are added
+ * (blade_demo_signage_audio()). Asset references to other files
  * outside the Signage mount are reported through $report (default: one stderr line each), never moved.
  */
 function blade_demo_signage_setup(PDO $db, FileStorage $storage, ?Closure $report = null): void
@@ -192,6 +193,7 @@ function blade_demo_signage_setup(PDO $db, FileStorage $storage, ?Closure $repor
     $db->exec("CREATE TABLE IF NOT EXISTS signage_defaults(id INTEGER PRIMARY KEY AUTOINCREMENT,weekday TEXT NOT NULL DEFAULT '',date TEXT NOT NULL DEFAULT '',asset_id TEXT NOT NULL)");
     if (!$db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn()) blade_demo_signage_seed($db);
     blade_demo_signage_media($db, $storage);
+    blade_demo_signage_audio($db, $storage);
     $report ??= static function (string $line): void { fwrite(STDERR, $line."\n"); };
     foreach (blade_demo_signage_outside($db) as $row) $report(sprintf('Signage: asset #%s (%s) references file #%s in mount "%s", outside the Signage mount; left in place.', $row['asset'], $row['title'], $row['file'], $row['mount']));
 }
@@ -237,6 +239,32 @@ function blade_demo_signage_media(PDO $db, FileStorage $storage): void
     // A move keeps ready thumbnails current; one still queued for the pre-move revision (fresh setup) is queued again.
     $storage->thumbnails(array_values(array_filter(array_map($storage->entry(...), $ids))));
     $storage->tasks->flush();
+}
+
+/** Synthetic audio fixtures (generated sine tones, resources/files/minta-hang.*): file name => [asset title, stored MIME type, play time]. */
+const BLADE_DEMO_SIGNAGE_AUDIO = [
+    'minta-hang.wav' => ['Szinuszhang 440 Hz (WAV)', 'audio/wav', 3],
+    'minta-hang.mp3' => ['Szinuszhang 660 Hz (MP3)', 'audio/mpeg', 4],
+    'minta-hang.m4a' => ['Szinuszhang 880 Hz (M4A)', 'audio/mp4', 5],
+];
+
+/**
+ * Audio assets beside the seeded images and videos, also for an existing demo database (the seed runs only on an empty
+ * table): keyed by the fixture's file name in the Signage mount root, a missing file is stored and a file no asset
+ * references gets its asset. A rerun adds only what is missing; nothing else is changed or deleted.
+ */
+function blade_demo_signage_audio(PDO $db, FileStorage $storage): void
+{
+    $root = $storage->root('signage') ?? $storage->entry($storage->ensureRoot('signage'));
+    $used = $db->prepare('SELECT COUNT(*) FROM signage_assets WHERE file_id = ?');
+    $asset = $db->prepare('INSERT INTO signage_assets(title,file_id,duration) VALUES (?,?,?)');
+    foreach (BLADE_DEMO_SIGNAGE_AUDIO as $name => [$title, $mime, $seconds]) {
+        $file = $storage->child((int) $root['id'], $name);
+        if ($file && $file['kind'] !== 'file') continue;
+        $id = (string) ($file['id'] ?? $storage->createFile($root, $name, $mime, __DIR__.'/resources/files/'.$name));
+        $used->execute([$id]);
+        if (!$used->fetchColumn()) $asset->execute([$title, $id, (string) $seconds]);
+    }
 }
 
 function blade_demo_signage_seed(PDO $db): void

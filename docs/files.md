@@ -438,7 +438,10 @@ fractal JPEG (1600 × 1000) and a 6-second test-pattern WebM made with ffmpeg
 (`examples/demo-app/resources/files`, added to existing demos on the next
 setup run; the four files the signage assets use — the fractal, the video,
 `logo.png` and `foto.jpg` — are moved, with unchanged ids, into the fourth
-mount `Signage`, so `Média` and `Képek` on Drive A end up empty), `OLVASS-EL.TXT` (uppercase
+mount `Signage`, so `Média` and `Képek` on Drive A end up empty), three
+generated sine tones `minta-hang.wav`, `.mp3` and `.m4a` (3, 4 and 5 s) stored
+directly in the `Signage` root for the signage audio assets
+([D1](demos.md#d1-asset-viewer)), `OLVASS-EL.TXT` (uppercase
 extension), `Feltöltési minták` with non-uploadable `.exe`/`.pdf` samples and
 `nagy-naplo.txt` above the 64 KiB editor limit, and `jegyzet.txt` on Drive A
 and C for conflicts. `demo@example.test` has every file action;
@@ -486,7 +489,9 @@ The demo uses `deletePolicy: 'delete'`.
   types), then the demo's viewer: image and video toolbars as before plus the
   format, and an audio row (a listing entry and its `content_stream` answered
   by a route with a generated WAV and single ranges, no data change). The demo
-  has no audio files yet; its allowlist is unchanged.
+  allowlist now includes `mp3`, `wav` and `m4a`, and the `Signage` mount holds
+  the audio fixtures of [D1](demos.md#d1-asset-viewer), whose viewer
+  `tests/shell/toolkit-demo-assets.spec.cjs` checks.
 - `npm run test:browser -- tests/shell/toolkit-components.spec.cjs`: the
   public `FileManager` in a project Layout cell (both panels, a mount switch,
   the viewer and its `opened` event, the dark and Skyblue themes, `destroy()`
@@ -501,9 +506,15 @@ The demo uses `deletePolicy: 'delete'`.
 - Previews cover PNG, JPEG, MP4, WebM, MP3, WAV and M4A, thumbnails PNG,
   JPEG, MP4 and WebM; other types (Markdown, CSV, PDF) have no viewer. Audio
   files use the generic file icon (`Fájl`) in the listing, tree and media
-  columns, fall under the `Egyéb` type filter and have no media class of their
+  slots, fall under the `Egyéb` type filter and have no media class of their
   own (`file` fields may still `accept: ['audio']`), because the Suite icon
-  set has no audio icon and the listing classes are unchanged.
+  set has no audio icon and the listing classes are unchanged. A media
+  column's derived type and length, the media slot's accessible name and its
+  length badge do name audio (`Hang`, `Hang: tone.wav, 0:03`). Without an
+  audio class the list's media type filter offers no `Hang`, and the `file`
+  field picker (`Kiválasztás…`) lists no audio files (it knows the image,
+  video and text classes); an audio file reaches such a field by its upload
+  (`Fájl feltöltése…`).
 - Thumbnails appear after the background task; until then the listing reports
   `thumbnail: pending`. Post-response tasks die with a worker restart and are
   recovered on a later request or read, not by a timer.

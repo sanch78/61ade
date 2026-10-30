@@ -484,7 +484,9 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
   has no entry and no `*` keeps the default behaviour. The bootstrap always
   sends the map as a JSON object. The client chooses per row by the string
   value of the field in the list row (a field the actor may not read is absent
-  and takes `*`), the same in table, cards and tiles.
+  and takes `*`), the same in table, cards and tiles. A media field (`file`
+  field or `column.media`) is keyed by its file's MIME class (`image`, `video`,
+  `audio`, …) from the row's `_media`; no file or a hidden one takes `*`.
 - **`view:<id>`:** the client opens the record view through the shell's
   navigation (`app.navigate({view, record})`: page or window as the view
   declares, its row resolved by the record resource's `get`) when the view is

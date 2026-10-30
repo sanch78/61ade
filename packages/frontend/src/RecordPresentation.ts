@@ -54,13 +54,17 @@ export function imageUrl(field:Column,value:unknown):string{
 export const mediaOf=(field:{id:string},row:Row):MediaDescriptor|undefined=>{const media=(row._media as Record<string,MediaDescriptor|null>|undefined)?.[field.id];return media&&typeof media==="object"&&typeof media.id==="string"?media:undefined;};
 /** The media field a derived column presents (`media_of`, camel-cased or not), or undefined for an ordinary column. */
 export const derivedOf=(field:Column):string|undefined=>{const of=field.mediaOf??field.media_of;return typeof of==="string"&&of!==""&&!!field.part?of:undefined;};
-/** Text of one media part: `Kép`/`Videó`, `1920 × 1080`, `0:06`; empty when the part does not apply. */
+/** MIME class of a media descriptor: video, image, audio or (anything else) file. */
+const mediaKind=(media:MediaDescriptor):"video"|"image"|"audio"|"file"=>{const kind=media.mime_type.split("/")[0];return kind==="video"||kind==="image"||kind==="audio"?kind:"file";};
+const kindLabel=(kind:ReturnType<typeof mediaKind>)=>kind==="video"?t("Videó"):kind==="image"?t("Kép"):kind==="audio"?t("Hang"):t("Fájl");
+/** Length text of a video or audio file; empty for other media or an unknown length. */
+const mediaLength=(media:MediaDescriptor)=>{const kind=mediaKind(media);return (kind==="video"||kind==="audio")&&typeof media.duration_ms==="number"?duration(media.duration_ms):"";};
+/** Text of one media part: `Kép`/`Videó`/`Hang`, `1920 × 1080`, `0:06`; empty when the part does not apply. */
 export function mediaPart(media:MediaDescriptor|undefined,part:MediaPart|undefined):string{
   if(!media)return "";
-  const kind=media.mime_type.startsWith("video/")?"video":media.mime_type.startsWith("image/")?"image":"file";
-  if(part==="type")return kind==="video"?t("Videó"):kind==="image"?t("Kép"):t("Fájl");
+  if(part==="type")return kindLabel(mediaKind(media));
   if(part==="resolution")return typeof media.width==="number"&&typeof media.height==="number"&&media.width>0&&media.height>0?`${media.width} × ${media.height}`:"";
-  if(part==="duration")return kind==="video"&&typeof media.duration_ms==="number"?duration(media.duration_ms):"";
+  if(part==="duration")return mediaLength(media);
   return "";
 }
 /** Derived column text of a row (`media_of`/`part`); null when the column is not derived. */
@@ -80,17 +84,17 @@ export function thumbnailFailed(image:HTMLImageElement):void{
 export const duration=(ms:number)=>{const s=Math.max(0,Math.round(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s/60)%60,r=String(s%60).padStart(2,"0");return h?`${h}:${String(m).padStart(2,"0")}:${r}`:`${m}:${r}`;};
 /** Type in text for the accessible name; icon and colour only repeat it. */
 export function mediaLabel(media:MediaDescriptor):string{
-  const kind=media.mime_type.startsWith("video/")?"video":media.mime_type.startsWith("image/")?"image":"file";
-  return (kind==="video"?t("Videó"):kind==="image"?t("Kép"):t("Fájl"))+": "+media.name+(kind==="video"&&typeof media.duration_ms==="number"?", "+duration(media.duration_ms):"");
+  const length=mediaLength(media);
+  return kindLabel(mediaKind(media))+": "+media.name+(length?", "+length:"");
 }
-/** Lazy thumbnail (`thumbnail_get`) with a type-icon fallback and a video length badge; all text escaped, no inline handlers. */
+/** Lazy thumbnail (`thumbnail_get`) with a type-icon fallback and a video or audio length badge; all text escaped, no inline handlers. */
 export function recordMedia(field:Column,row:Row,size:"cell"|"card"|"tile"="cell"):string{
   const media=mediaOf(field,row);
   if(!media)return size==="cell"?"":`<span class="blade-media blade-media--${size} blade-media--empty" aria-hidden="true"></span>`;
-  const kind=media.mime_type.startsWith("video/")?"video":media.mime_type.startsWith("image/")?"image":"file";
+  const kind=mediaKind(media),length=mediaLength(media);
   const url=media.thumbnail==="ready"&&field.media?actionUrl(field.media,"thumbnail_get",media.id,media.revision):"";
   const label=escape(mediaLabel(media)),failed=!!url&&failedThumbnails.has(url);
-  return `<span class="blade-media blade-media--${size} blade-media--${kind}${failed?" blade-media--failed":""}" role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon dxi ${kind==="video"?"dxi-menu-right":kind==="image"?"dxi-image-outline":"dxi-file-outline"}" aria-hidden="true"></span>${url&&!failed?`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-thumbnail>`:""}${kind==="video"&&typeof media.duration_ms==="number"?`<span class="blade-media__duration" aria-hidden="true">${escape(duration(media.duration_ms))}</span>`:""}</span>`;
+  return `<span class="blade-media blade-media--${size} blade-media--${kind}${failed?" blade-media--failed":""}" role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon dxi ${kind==="video"?"dxi-menu-right":kind==="image"?"dxi-image-outline":"dxi-file-outline"}" aria-hidden="true"></span>${url&&!failed?`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-thumbnail>`:""}${length?`<span class="blade-media__duration" aria-hidden="true">${escape(length)}</span>`:""}</span>`;
 }
 /**
  * Static image column (`presentation: image`): `<img>` of `imageBase` + file name in the media slot sizes; a load
