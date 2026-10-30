@@ -35,18 +35,27 @@ final readonly class ApplicationDefinition
         public array $modules = [],
         /** Project stylesheets (`.css`), linked on signed-in pages after the framework CSS and skins. @var list<string> */
         public array $stylesheets = [],
+        /**
+         * Filesystem directory the site root `/` is served from; the shell derives the assets' cache keys from the files
+         * below it (docs/toolkit.md#cache-keys). Null: the request's `DOCUMENT_ROOT`.
+         */
+        public ?string $documentRoot = null,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
             || !preg_match('~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$~D', $assets)
-            || !self::paths($modules, 'm?js') || !self::paths($stylesheets, 'css')) {
+            || !self::paths($modules, 'm?js') || !self::paths($stylesheets, 'css')
+            || ($documentRoot !== null && ($documentRoot === '' || str_contains($documentRoot, "\0")))) {
             throw new \InvalidArgumentException('Invalid 61ade application definition.');
         }
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();
     }
 
-    /** $path with `?v=<version>` appended unless it has its own cache key or the version is empty. */
+    /**
+     * $path with `?v=<version>` appended unless it has its own cache key or the version is empty: the fallback key of
+     * an asset whose file the shell cannot find (docs/toolkit.md#cache-keys).
+     */
     public function versioned(string $path): string
     {
         return $this->version === '' || str_contains($path, '?') ? $path : $path.'?v='.rawurlencode($this->version);

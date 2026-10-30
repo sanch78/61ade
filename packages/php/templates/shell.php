@@ -4,19 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $escape(\Blade\I18n\Translator::text($definition->title)) ?></title>
-    <link rel="stylesheet" href="<?= $escape($definition->assets) ?>/admin.css?v=32">
+    <link rel="stylesheet" href="<?= $escape($keys->url($definition->assets.'/admin.css', 'admin.css')) ?>">
 <?php foreach ($skins as $skin): ?>
-    <link rel="stylesheet" href="<?= $escape($skin->stylesheet) ?>">
+    <link rel="stylesheet" href="<?= $escape($keys->url($skin->stylesheet)) ?>">
 <?php endforeach; ?>
 <?php if ($bootstrap['authenticated']): foreach ($definition->stylesheets as $stylesheet): ?>
-    <link rel="stylesheet" href="<?= $escape($definition->versioned($stylesheet)) ?>">
+    <link rel="stylesheet" href="<?= $escape($keys->url($stylesheet)) ?>">
 <?php endforeach; endif; ?>
 <?php if ($bootstrap['oauth'] ?? false): $auth = rtrim($definition->oauth->assets, '/'); ?>
-    <link rel="stylesheet" href="<?= $escape($auth) ?>/AuthHandler.css">
-    <script src="<?= $escape($auth) ?>/AuthHandler.js"></script>
+    <link rel="stylesheet" href="<?= $escape($keys->url($auth.'/AuthHandler.css')) ?>">
+    <script src="<?= $escape($keys->url($auth.'/AuthHandler.js')) ?>"></script>
     <script src="./?blade_auth=bootstrap"></script>
 <?php endif; ?>
-    <script type="module" src="<?= $escape($definition->assets) ?>/admin.js?v=32"></script>
+    <script type="module" src="<?= $escape($keys->url($definition->assets.'/admin.js', 'admin.js')) ?>"></script>
 </head>
 <body>
     <div id="blade-application"></div>
