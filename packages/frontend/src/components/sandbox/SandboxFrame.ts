@@ -1,5 +1,5 @@
 import { Layout } from "@dhtmlx/suite";
-import type { AppEvents, ComponentClass, MountTarget, SandboxFrame as SandboxFrameApi, SandboxFrameEvents, SandboxFrameOptions } from "../../api/types";
+import type { AppEvents, ComponentClass, MountTarget, SandboxError, SandboxErrorCode, SandboxFrame as SandboxFrameApi, SandboxFrameEvents, SandboxFrameOptions } from "../../api/types";
 import { attachContent } from "../../api/services";
 import { Lifecycle, optionSignal } from "../Lifecycle";
 import { t } from "../../I18n";
@@ -9,7 +9,7 @@ import "./sandbox.css";
 /** G1 limits, confirmed in toolkit P3 C-4: code 1 MiB, files 32 MiB, `ready` within 10 s. */
 export const SANDBOX_LIMITS = Object.freeze({ code: 1 << 20, files: 32 << 20, ready: 10_000 });
 
-type ErrorCode = SandboxFrameEvents["error"]["code"];
+type ErrorCode = SandboxErrorCode;
 type Report = (payload: AppEvents["sandbox:error"]) => void;
 type Pending = { resolve(): void; reject(error: unknown): void; timer: ReturnType<typeof setTimeout> };
 
@@ -176,8 +176,8 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
     }
 
     /** Reports `error` and `sandbox:error`, rejects a pending load with an `Error` carrying `code`; `kill` removes the frame. */
-    private fail(code: ErrorCode, message: string, kill = false): Error {
-      const error = Object.assign(new Error(message), { code });
+    private fail(code: ErrorCode, message: string, kill = false): SandboxError {
+      const error: SandboxError = Object.assign(new Error(message), { code });
       const pending = this.pending;
       this.pending = undefined;
       if (pending) { clearTimeout(pending.timer); pending.reject(error); }
