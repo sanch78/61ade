@@ -141,8 +141,6 @@ final class FileActions
             'items' => $this->items($rows),
             'next' => $more ? $this->cursor(end($rows), $directory, ...$query) : null,
             'total' => $total, 'matched' => $matched,
-            // Kept for earlier clients: windows are complete through `next`.
-            'truncated' => false,
         ];
     }
 
