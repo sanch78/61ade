@@ -2266,7 +2266,7 @@ that exactly equals an option label lists every option. The managed
   `workspace.spec.cjs` pass. `files`, `mobile-grid`, `list-integration` and
   `subview` specs passed; one `files.spec.cjs` upload test failed once in the
   combined run and passed alone, with no relation to this change.
-- **Status:** implemented on the working tree, not committed. Limits: the file
+- **Status:** implemented and committed in `76b0cf3` (2026-10-29). Limits: the file
   name check is the same regex on both sides; the existence of `alt_of`'s field
   is not validated (an unknown or hidden field gives an empty `alt`); no
   responsive image sizes or `srcset`.
@@ -2319,7 +2319,10 @@ that exactly equals an option label lists every option. The managed
   `workspace`, `list-integration`, `grid-edit` pass. `mobile-grid` (the focus
   ring style) and `tenancy.spec` (no-membership notice) failed on concurrent,
   unrelated working-tree changes and demo state, see the task report.
-- **Status:** implemented on the working tree, not committed. Limits: the
+- **Status:** implemented and committed in `02a64d6` (2026-10-29). Since
+  [FB-0081](#fb-0081) a project's own browser behaviour is also possible as a
+  `view:<id>` record view of a module-registered kind; the declaration still
+  carries no callback. Limits: the
   table row itself carries no activation description (the grid's own row
   semantics are unchanged); a compact sub-view preview keeps the default
   activation; `activate: 'subview'` without a registered sub-view is accepted
@@ -2536,7 +2539,35 @@ that exactly equals an option label lists every option. The managed
   fresh box Layout per stage). Second full run: 175 passed, 2 failed;
   `subview-demos:74` found its row by the header filter once the library grew
   (fixed), `grid-sort:36` passed in isolation (FB-0083).
-- **Status:** in progress (gate G4: the owner tries D1–D4).
+- **Gate G4 (2026-10-30):** the owner tried D1–D4 on the managed URL and
+  accepted them. Decisions, documented as stated limits rather than open
+  work: no `ListView` `marked` event (the D3 dashboard follows the cursor
+  record and filters), no `Hang` in the `Médiatár` type filter and the file
+  picker, no `MediaPlayer` playback-state event; a project that needs one
+  builds it itself. Marks and row selection are transient and never
+  persisted. The calendar's `Napi műsor (API)` day button stays; the playlist
+  preview is a separate menu entry.
+- **P5 progress (2026-10-30, branch `toolkit/P5`, documentation only):** the
+  [toolkit reference](toolkit.md) lost its phase wording and gained an
+  [event catalog](toolkit.md#event-catalog), the
+  [Layout recipe and pitfalls](toolkit.md#layout-recipe) (attachHTML→attach,
+  PRO-only Form `container`, `togglegroup`/Slider ARIA, no element-into-cell
+  API, `sandbox:error` without frame id, preference keys by the held
+  definition id, `Műveletek` and Escape), [naming conventions](toolkit.md#conventions),
+  [limits](toolkit.md#limits) with the G4 decisions,
+  [worked examples](toolkit.md#worked-examples) copied from the demo
+  sources, the recipe's `admin.d.ts` link and `@dhtmlx/suite` devDependency
+  advice, the sandbox deployment requirement, the real verification list
+  and new [changes](toolkit.md#changes) rows. Toolkit rules in
+  [development](development.md#mandatory-framework-development-rules)
+  (including the O7 reading of R8), a
+  [usage](usage.md#toolkit-and-project-modules) section, and section 5 of
+  the plan in shell, workspaces, files, uploader, configuration, concept,
+  product direction (R2/R3/R8, evidence, module and sandbox event rows),
+  component matrix, repository layout, demos, ADR-0002/0004 notes and the
+  `grid-tree-card-ui` skill. Checks: internal links and anchors of the
+  changed files, `git diff --check`.
+- **Status:** in progress (P6, P7 and gate G5 open).
 
 <a id="fb-0082"></a>
 
