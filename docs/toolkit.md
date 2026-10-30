@@ -1016,18 +1016,24 @@ the [verification matrix](toolkit-plan.md#9-verification-matrix) per phase.
 
 <a id="migration"></a>
 
-## Migration (breaking changes known so far)
+| # | Change | Source | Needs |
+| M1 | Address `#view=<id>[&record=<id>]` ([routing](#routing)); `#feature=<resource>` is a legacy alias that resolves to the view whose id equals the resource and is rewritten to `#view=` with `replaceState`; `activate: 'page'` writes `#view=<child id>` | P2, FB-0081 | if used: code or specs that read or assert the hash |
+| M2 | Menu item ids `feature:<resource>` → `view:<id>` (`sibling:view:<id>` in the collapsed menu) | P2 | if used: specs or CSS that address menu ids |
+| M3 | Bootstrap `views` shape: list keys under `options`, `id` and `kind` always set ([bootstrap shape](#views)) | P2 | if used: code reading `#blade-config` `views` |
+| M4 | `Registry::view/fileManager/diagram/calendar` and `SqlResource::register` return `View` and take an optional `id` (`view`/`register` also `activate`, `commands`); `Registry::views()` returns `list<View>` objects instead of arrays; a later declaration with the same id replaces the earlier one ([rule](#view-id-rule)) | P2 | if used: PHP that reads `$registry->views()` as arrays |
+| M5 | `Registry::subview/appendViewActions` take view ids (default = resource) | P2 | info |
+| M6 | Project `stylesheets` ([module loading](#module-loading)) replace stylesheet injection; linked on signed-in pages only, after `admin.css` and skins | P2, O8 | if used: a consumer that injects its own CSS |
+| M7 | `.deploy.json` `shared_assets.files` adds `sandbox.html`, `sandbox.js` beside `admin.js` ([packaging](#packaging)); `admin.d.ts` is never deployed | P3, O6 | if used: `SandboxFrame` users |
+| M8 | Frontend internals (`Workspace` constructor, which now takes the shell's `LiveChannel`, private classes) are not a contract; use `app` and [components](#components) | P3 | info |
+| M9 | [Cache keys](#cache-keys) from the served file `?v=<base36 mtime>-<base36 size>`: `admin.js`/`admin.css` (released build `?v=30`, dev URL `?v=32` from `02a64d6` to `edbc90f`), project `modules`/`stylesheets` (formerly `?v=<version>`, still the fallback), skin stylesheets and AuthHandler files (formerly unkeyed); an own `?…` key stays as written | P4, FB-0085 | if used: specs that assert `?v=30`, `?v=32` or `?v=<version>` on these URLs must accept the file key |
+| M10 | Record commands only in the list toolbar; the record context menu is gone: a right click, the context-menu key or Shift+F10 on a row, card or tile keeps the browser's own behaviour ([registries](#registries)). `Adatok` is the `details` record command: toolbar id `blade-results` → `blade-command:details`, disabled without a cursor record or with several marks | P3 C-5b | if used: specs that open a row context menu (use the toolbar or `Műveletek`) or address `blade-results` |
+| M11 | Live protocol 2 ([FB-0075](feedback.md#fb-0075)): one channel per tab; `dist` and `packages/php/bin/live-server.mjs` must come from the same commit; a page loaded before an update gets 4409 and reloads once | before P0 | if used: a WebSocket live service |
+| M12 | Product name `61de` → `61ade` ([FB-0070](feedback.md#fb-0070), [renaming](renaming.md#61de--61ade-correction-2026-10-29)): package names, recommended link names, product texts in logs (`61ade unavailable:`) and errors; `Blade\`, `BLADE_*`, `blade_*` unchanged; old link names keep working | before P0 | info |
+| M13 | A form checkbox's accessible name is its field label again (`Archivált`); the released build exposed `checkbox Archivált` ([FB-0082](feedback.md#fb-0082)) | before P2 | if used: specs that matched the doubled name |
+| M14 | Menu pages keep their header and panel filter values in browser storage per path, user and view; `Alaphelyzet` clears them ([FB-0079](feedback.md#fb-0079)) | before P0 | info: a spec that reuses a storage state may start filtered |
+| M15 | New optional capabilities, nothing changes until used: tenancy ([FB-0069](feedback.md#fb-0069); `blade_tokens.tenant_id`, `blade_audit.tenant_id` and the tenant tables only after `Tenancy::install`), sub-views (FB-0071), skins (FB-0072), one live server for several applications (FB-0074), static image column (FB-0076), declared activation incl. `page` (FB-0077, FB-0078), and the toolkit: modules, `app` services, registries, record views, [activation map](#activation-map), components, `SandboxFrame`, `documentRoot` | all | info |
 
-| --- | --- | --- | --- | --- |
-| M1 | Address `#view=<id>`; `#feature=<resource>` is a rewritten legacy alias | P2 | `activate:'page'` navigations now show `#view=` | delivered mails with `/admin/#feature=inquiries`, `#feature=profile_requests` keep working |
-| M2 | Menu item ids `feature:<resource>` → `view:<id>` | P2 | browser specs that address menu ids must update | same |
-| M3 | Bootstrap `views` shape (kind keys under `options`, `id`/`kind` always set) | P2 | none known | none: tests read only `#blade-config` `csrf` |
-| M4 | `Registry::view/fileManager/diagram/calendar` and `SqlResource::register` return `View`; new optional `id` | P2 | `register(… tiles, activate:'page')` unchanged | `Registry::view(resource, title, columns, actions, icon:)` ×3 unchanged; later declaration still replaces ([rule](#view-id-rule)) |
-| M5 | `Registry::subview/appendViewActions` take view ids (default = resource) | P2 | `subview(…, embed:false)` unchanged | — |
-| M6 | `stylesheets` replaces stylesheet injection | P2 | replace the output buffer in `public/admin/index.php` with `stylesheets` | — |
-| M7 | `.deploy.json` `shared_assets.files` + `sandbox.html`, `sandbox.js` | P3 | needed for the scene player | not needed |
-| M8 | Frontend internals (`Workspace` constructor etc.) are not a contract; use components | P3 | — | — |
-| M9 | [Cache keys](#cache-keys) from the files: `admin.js`/`admin.css` no longer carry `?v=32`, modules/stylesheets no longer `?v=<version>` (only as fallback), skin stylesheets and AuthHandler files gain a key | P4 | nothing to bump; browser specs that assert `?v=32` or `?v=<version>` must accept the file key | same |
+### Steps for a consumer session
 
 <a id="changes"></a>
 
