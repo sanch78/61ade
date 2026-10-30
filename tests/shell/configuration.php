@@ -330,7 +330,7 @@ try {
     verify($picture->type === 'file' && $picture->file === ['resource' => 'library', 'mount' => 'a', 'folder' => 'Képek', 'accept' => ['image']] && $picture->media() === 'library', 'JSON file field');
     verify(!in_array('items', array_column($shelfWorkspace->registry->get('shelves', 'create')->fields, 'name'), true), 'JSON computed column is read-only');
     $shelfView = array_column(array_column($shelfWorkspace->views($actor), null, 'resource')['shelves']['options']['columns'], null, 'id');
-    verify($shelfView['picture_type']['media_of'] === 'picture' && $shelfView['picture']['media'] === 'library' && $shelfView['picture']['type'] === 'file', 'JSON derived media column and file column');
+    verify($shelfView['picture_type']['mediaOf'] === 'picture' && $shelfView['picture']['media'] === 'library' && $shelfView['picture']['type'] === 'file', 'JSON derived media column and file column');
     $read = $shelfWorkspace->executor->execute($shelfContext, 'shelves', 'list', null, ['limit' => 10, 'sort' => ['field' => 'items', 'direction' => 'desc']]);
     verify($read['items'][0]['title'] === 'Kept' && (int) $read['items'][0]['items'] === 2, 'JSON computed column listed and sortable');
     $options = static fn() => $shelfWorkspace->registry->fields('shelf_items')['shelf_id']->metadata($shelfContext)['options'];

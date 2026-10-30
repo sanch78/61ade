@@ -748,9 +748,10 @@ JSON module, a new top-level `views` section keyed by view id (snake-case keys
 as elsewhere); `resources.<name>.view` gains `id`, the
 [activation map](#activation-map) and `commands`. Exception to the snake-case rule: a field's
 nested `column` object uses the PHP option names (`minWidth`, `maxWidth`;
-`imageBase`/`altOf` are also accepted as `image_base`/`alt_of`) and reaches the
-browser verbatim, and a field's JSON `default` is `FieldMetadata.defaultValue`
-in the browser ([naming conventions](#conventions)):
+`imageBase`/`altOf` are also accepted as `image_base`/`alt_of`, a view column's
+`media_of` stays snake-case); the browser's `ColumnMetadata` always has the
+camelCase `imageBase`, `altOf` and `mediaOf`, and a field's JSON `default` is
+`FieldMetadata.defaultValue` in the browser ([naming conventions](#conventions)):
 
 ```json
 {"views": {"demo.asset-viewer": {"kind": "demo.asset-viewer", "title": "Médianéző",

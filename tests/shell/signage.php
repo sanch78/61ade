@@ -107,7 +107,7 @@ try {
     $view = $views['signage_assets'];
     $columns = array_column($view['options']['columns'], null, 'id');
     check(array_keys($columns) === ['file_id', 'title', 'media_type', 'media_resolution', 'media_length', 'duration', 'usage'], 'Asset columns: thumbnail, title, derived type/resolution/length, play time, usage');
-    check($columns['file_id']['type'] === 'file' && $columns['file_id']['media'] === 'files' && $columns['media_type']['media_of'] === 'file_id' && $columns['media_type']['part'] === 'type' && $columns['media_length']['part'] === 'duration', 'File column is a media column; derived columns reach the wire');
+    check($columns['file_id']['type'] === 'file' && $columns['file_id']['media'] === 'files' && $columns['media_type']['mediaOf'] === 'file_id' && !isset($columns['media_type']['media_of']) && $columns['media_type']['part'] === 'type' && $columns['media_length']['part'] === 'duration', 'File column is a media column; derived columns reach the wire');
     check(!in_array('media_type', $view['options']['sortable'], true) && in_array('usage', $view['options']['sortable'], true) && !in_array('kind', array_column($view['options']['filters'], 'name'), true), 'Derived columns not sortable; usage sortable; no kind field');
     check(($filters = array_column($view['options']['filters'], null, 'name')) && $filters['file_id']['type'] === 'select' && array_keys($filters['file_id']['options']) === ['image', 'video'], 'Type filter from the file field');
     $actions = array_column($view['actions'], null, 'name');
