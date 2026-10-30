@@ -14,7 +14,7 @@ use Blade\Feature\{Context, Failure, Field, SqlResource};
 use Blade\Live\LiveConfig;
 use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage};
 use Blade\Navigation\{Menu, MenuItem};
-use Blade\Shell\{ApplicationDefinition, Identity, Skin, SqlIdentityProvider};
+use Blade\Shell\{ApplicationDefinition, Identity, Logo, Skin, SqlIdentityProvider};
 
 require_once __DIR__.'/common.php';
 $runtime = blade_demo_runtime('features');
@@ -149,6 +149,10 @@ return new ApplicationDefinition(
     modules: ['app/demo.js'],
     // Its stylesheet, built from the CSS the module's sources import; linked on signed-in pages after admin.css and skins.
     stylesheets: ['app/demo.css'],
+    // Sign-in branding (docs/shell.md#sign-in-branding): a synthetic wordmark with a dark-theme variant, and a sign-in
+    // stylesheet that uses only the supported hooks. The accessible text defaults to the title.
+    logo: new Logo('branding/logo.svg', 'branding/logo-dark.svg'),
+    signInStylesheets: ['branding/sign-in.css'],
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [
         'admin' => __DIR__.'/admin-application.php',
         'tenants' => __DIR__.'/tenant-application.php',

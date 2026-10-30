@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" width="200" height="48">
+  <!-- Synthetic feature-demo wordmark (dark theme and dark-based skins): light ink on a dark surface. -->
+  <rect x="2" y="6" width="36" height="36" rx="8" fill="#5fb3d0"/>
+  <path d="M11 33 L20 15 L29 33 Z" fill="none" stroke="#10181f" stroke-width="3.5" stroke-linejoin="round"/>
+  <text x="48" y="32" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="22" font-weight="700" fill="#f5f7fa">61ade<tspan font-weight="400" fill="#cbd2d9"> demo</tspan></text>
+</svg>
