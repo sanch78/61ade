@@ -658,7 +658,7 @@ export interface ActionMetadata {
 }
 /** Derived media column parts (`RecordPresentation.ts` `MediaPart`). */
 export type MediaPart = "type" | "resolution" | "duration";
-/** One grid/card column (`Workspace.ts` `ViewDefinition["columns"]`, merged with its field by the server). */
+/** One grid/card column (`components/list/types.ts` `ViewDefinition["columns"]`, merged with its field by the server). */
 export interface ColumnMetadata {
     id: string;
     header: string;
@@ -726,7 +726,7 @@ export interface SubviewMetadata {
     /** The child has its own page (`embed: false`), the target of `activate: 'page'`. */
     page?: boolean;
 }
-/** `options` of kind `list`: today's list-specific top-level keys of `Workspace.ts` `ViewDefinition`, unchanged. */
+/** `options` of kind `list`: today's list-specific top-level keys of `components/list/types.ts` `ViewDefinition`, unchanged. */
 export interface ListKindOptions {
     singleton: boolean;
     columns: ColumnMetadata[];
@@ -871,7 +871,7 @@ export interface FieldType {
 /**
  * What a client command acts on; every command sits in the list's command bar after the view's actions (and moves into
  * the `Műveletek` menu like them). `toolbar`: the view (no record needed); `record`: the toolbar's cursor record, like
- * the built-in record actions (disabled without one). `both` (accepted by `ClientCommand.placement`) means `record`.
+ * the built-in record actions (disabled without one). A command with another placement is skipped (with a warning).
  * While a selected sub-view record holds the toolbar, a command the sub-view's list has too (the built-in `details`, a
  * name its view declares; every command of a `shared` sub-view) runs in the sub-view's context; any other stays on
  * the list's own cursor record and marks (docs/toolkit.md#registries).
@@ -900,8 +900,7 @@ export interface ClientCommand {
     /** Source text, translated through `app.i18n.t`. */
     label: string;
     icon?: string;
-    /** `both` is the same as `record` (kept from the first P3 contract). */
-    placement: CommandPlacement | "both";
+    placement: CommandPlacement;
     /**
      * Enabled state for the current context, evaluated when the toolbar's record, marks or rows change; default:
      * `toolbar` always, `record` with a cursor record and at most one marked row (like the built-in record actions; a
