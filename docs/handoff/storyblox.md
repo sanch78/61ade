@@ -9,8 +9,8 @@
 - Teendő a következő kiadás előtt: frissítési füstteszt és a saját specek
   futtatása; egyik spec sem ütközik a változásokkal.
 - Ajánlott: a `public/admin/index.php` CSS-befecskendezése helyett a
-  `stylesheets` beállítás, de az csak bejelentkezés után tölt be, így a
-  bejelentkező oldali logóról (D-014) dönteni kell.
+  `stylesheets`, a logóhoz a `logo`, a bejelentkező oldalhoz a
+  `signInStylesheets` beállítás (FB-0087).
 - Az assetnéző (D-019–D-021) most már a StoryBloX-ban megépíthető a nyilvános
   API-val; mintája a feature demo D1 (médianéző) és D2 (jelenet sandboxban).
 
@@ -41,7 +41,7 @@ copies anyway (M15).
 
 | Item | StoryBloX spot | Needed |
 | --- | --- | --- |
-| M6 `stylesheets` | `public/admin/index.php` lines 4–6: an output buffer inserts `<link rel="stylesheet" href="../assets/storyblox/app.css?v=3">` before `</head>` of every HTML page, including the sign-in page | Recommended. Declare `stylesheets: ['../assets/storyblox/app.css']` in the `ApplicationDefinition` (`application.php` lines 63–67) and drop the buffer, keeping only the `HttpEntrypoint::run` line. The path passes the [path rules](../toolkit.md#module-loading). **Decision needed first:** `stylesheets` are linked on signed-in pages only, while D-014 (`docs/decisions.md` line 24) shows the logo "also on the sign-in page", and the sign-in page does render `.blade-navigation-row`. Either the owner accepts the logo after sign-in only, or the buffer stays until 61ade offers a sign-in stylesheet (a framework request to 61ade). |
+| M6 `stylesheets` | `public/admin/index.php` lines 4–6: an output buffer inserts `<link rel="stylesheet" href="../assets/storyblox/app.css?v=3">` before `</head>` of every HTML page, including the sign-in page | Recommended. Declare `stylesheets: ['../assets/storyblox/app.css']` in the `ApplicationDefinition` (`application.php` lines 63–67) and drop the buffer, keeping only the `HttpEntrypoint::run` line. The path passes the [path rules](../toolkit.md#module-loading). The sign-in look and the logo now have their own options (M23, [FB-0087](../feedback.md#fb-0087)): `logo: new Logo('../assets/storyblox/logo.svg', '../assets/storyblox/logo-dark.svg', placement: 'both')` replaces the `.blade-navigation-row::after` rules, `signInStylesheets` carries any sign-in CSS ([sign-in customization](../shell.md#sign-in-branding)). |
 | M9 cache keys | `tests/admin.spec.cjs` line 8 requests `../assets/61ade/admin.js` and `admin.css` without a key | No change. |
 | M9 own keys | `application.php` line 56 `Skin(…, '../assets/storyblox/editor.css?v=1')`; `public/admin/index.php` line 6 `app.css?v=3` | Optional: drop the hand-kept `?v=1` so the skin gets the file key ([cache keys](../toolkit.md#cache-keys)); `app.css?v=3` goes away with M6. `logo.svg?v=1` inside `app.css` (lines 10, 12) is a CSS URL, not linked by the shell, and stays hand-kept. |
 | M1 `#view=` | `activate: 'page'` on `asset_types` (`application.php` line 29) with `subview(…, embed: false)` (line 41) | No change. The drill-down now shows `#view=assets` in the address; D-017's behaviour (filter preset, Back, `Alaphelyzet`) is unchanged. No spec asserts the hash. |

@@ -123,7 +123,9 @@ The [toolkit reference](toolkit.md) is the canonical public contract; this is
 the route through it. 61ade owns the `Application` object, its services,
 components and registries; the project owns its modules, the names it
 registers (with a dot, `project.name`) and its domain UI
-([ownership](toolkit.md#purpose-scope-and-ownership)).
+([ownership](toolkit.md#purpose-scope-and-ownership)). Consumer agents
+follow this route through the
+[61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
 
 1. **Declare first.** Resources, views, record views (`record: <resource>`),
    activation maps with `view:<id>` targets and client `commands` are PHP or

@@ -1,0 +1,4 @@
+interface:
+  display_name: "61ade application"
+  short_description: "Build a project's admin application on the 61ade toolkit"
+  default_prompt: "Use $61ade-application to design or extend this project's admin features on 61ade."
