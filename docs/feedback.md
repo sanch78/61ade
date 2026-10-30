@@ -2831,8 +2831,7 @@ that exactly equals an option label lists every option. The managed
   - `SignIn(notice, links)` with `SignInLink(label, href)` (JSON
     `application.sign_in`): a server-translated plain-text notice and at most
     six links (same-origin path or `https://` URL) in a labelled `nav` below
-    the fields and above the actions of all three windows (a form row, so the
-    actions stay at the window bottom); new catalogue text `Hivatkozások`
+    the form of all three windows; new catalogue text `Hivatkozások`
     (hu/en/de).
   - `signInModules` (JSON `application.sign_in_modules`): ES modules imported
     only on the signed-out pages after the window is mounted, each called with
@@ -2879,11 +2878,16 @@ that exactly equals an option label lists every option. The managed
 - **Integration run (2026-10-30, `toolkit/int-close`):** five browser failures
   from this work. The logo's width counted in the menu estimate, so the
   feature demo's full menu collapsed at 1600 px and its signage siblings
-  vanished at 1366 px (`browser.spec.cjs` 12, 52, 69, 114); and the notice,
-  links and footer slot sat below the confirmation window's actions, 80 px
-  above its bottom (`authentication.spec.cjs` 67). Fixed: the menu never
-  yields to the logo (it shows only in the room left over), and the notice,
-  links and footer slot are Form `container` rows right before each form's
-  actions; no existing spec changed. `sign-in-branding.spec.cjs` now expects
-  them above the actions and the last action 24 px above the window bottom.
+  vanished at 1366 px (`browser.spec.cjs` 12, 52, 69, 114). Fixed: the menu
+  never yields to the logo; it shows only in the room left over. The
+  confirmation window's last action was 80 px above the window bottom
+  (`authentication.spec.cjs` 67) because the declared notice, links and footer
+  slot sit in their own row below the actions. That placement stays (a Form
+  `container` row above the actions was tried and dropped: it is Suite PRO
+  only, [pitfalls](toolkit.md#pitfalls)); the window fit adds that row and
+  keeps 24 px below the actions. The spec's expectation was obsolete for an
+  application with sign-in content: it now checks that every action lies
+  inside the window and, with content, that the content starts below the
+  last action and ends at the window bottom (within 2 px); without content
+  the 24 px rule stays.
 - **Status:** implemented; the fix awaits the browser re-run.

@@ -219,14 +219,15 @@ body,
 /* Top of the sign-in, e-mail confirmation and password-change windows, centred above the form. */
 .blade-auth-logo .blade-logo { display: flex; justify-content: center; height: auto; padding: 16px 16px 0; }
 .blade-auth-logo .blade-logo__image { height: var(--blade-sign-in-logo-height, 48px); max-width: 100%; }
-/* Declared notice and links above the form's actions (docs/shell.md#sign-in-content), and the header slot above the form. */
-.blade-sign-in-info { color: var(--dhx-font-color-secondary); font-size: var(--dhx-font-size-small); line-height: 1.5; }
+/* Declared notice and links below the form (docs/shell.md#sign-in-content), and the sign-in modules' slots. */
+.blade-sign-in-info { padding: 0 20px 16px; color: var(--dhx-font-color-secondary); font-size: var(--dhx-font-size-small); line-height: 1.5; }
 .blade-sign-in__notice { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
 .blade-sign-in__notice + .blade-sign-in__links { margin-top: 8px; }
 .blade-sign-in__links ul { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; }
 .blade-sign-in__links a { color: var(--dhx-color-primary); text-decoration: underline; overflow-wrap: anywhere; }
 .blade-sign-in__links a:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: 2px; border-radius: 2px; }
 .blade-sign-in-slot--header:not(:empty) { padding: 16px 20px 0; }
+.blade-sign-in-slot--footer:not(:empty) { padding: 0 20px 16px; }
 
 .blade-content-window .dhx_window-content { padding-bottom: 0; }
 /* Suite sizes a textarea from its Form cell: the cell takes the window height beyond the fitted
