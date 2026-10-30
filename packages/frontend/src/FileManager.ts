@@ -15,7 +15,7 @@ import { MediaPlayer } from "./components/media/MediaPlayer";
 import type { Row } from "./Realtime";
 import type { ActionConfirmation, ViewDefinition } from "./Workspace";
 
-export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{allowedExtensions:string[];maxSizeBytes:number;multiple:boolean;maxFiles?:number;duplicatePolicy:string;policy:UploadPolicy};text:{extension:string;maxBytes:number};preview:string[];thumbnails?:string[];maxDepth:number;deletePolicy?:string};
+export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{policy:UploadPolicy};text:{extension:string;maxBytes:number};preview:string[];thumbnails?:string[];maxDepth:number;deletePolicy?:string};
 export type FileViewDefinition={kind:"files";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean;get?:boolean;confirm?:ActionConfirmation;usages?:boolean;fields:FieldDefinition[]}[];files:FileManagerConfig};
 type Entry={id:string;name:string;kind:"directory"|"file";extension:string;mime_type:string;size:number;modified_at:string;revision:string;width?:number|null;height?:number|null;duration_ms?:number|null;orientation?:string;thumbnail?:"ready"|"pending"|"failed"|"none"};
 type Listing={directory:Directory;items:Entry[];next?:string|null;total?:number;matched?:number};

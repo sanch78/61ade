@@ -34,11 +34,11 @@ check($view('3')===[],'No file view without rules');
 check($view('1')[0]['desktopOnly']===false,'desktopOnly is opt-in');
 $narrow=new Registry();(new FileManagerDefinition('files','Files','test',['a'=>'Drive A'],desktopOnly:true,contentRoot:$root))->register(new Workspace($narrow,$db));
 check($narrow->views()[0]->desktopOnly===true,'desktopOnly view option');
-check($view('1')[0]['options']['upload']['maxSizeBytes']===100&&!isset($view('1')[0]['options']['upload']['max_size_bytes'])&&!isset($view('1')[0]['options']['space']),'Browser metadata only');
-check($view('1')[0]['options']['upload']['maxFiles']===20&&$view('1')[0]['options']['upload']['multiple']===true,'Upload file count in metadata');
+check(array_keys($view('1')[0]['options']['upload'])===['policy']&&$view('1')[0]['options']['upload']['policy']['maxSizeBytes']===100&&!isset($view('1')[0]['options']['space']),'Browser metadata only; upload rules once, as the policy');
+check($view('1')[0]['options']['upload']['policy']['maxFiles']===20,'Upload file count in metadata');
 foreach([fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A']),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:'relative/files'),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root.'/../x'),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,maxFiles:21),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,maxFiles:0),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,maxSizeBytes:104857601),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,ffmpegPath:'ffmpeg'),fn()=>new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,ffprobePath:'/usr/../bin/ffprobe')] as $invalid){try{$invalid();throw new RuntimeException('Invalid file manager definition accepted');}catch(InvalidArgumentException){}}
 $single=new FileManagerDefinition('files','Files','test',['a'=>'A'],contentRoot:$root,maxFiles:1);
-check($single->metadata()['upload']['multiple']===false&&$single->metadata()['upload']['max_files']===1&&$single->temporaryRoot()===$root.'/.transfers','Single-file limit and default transfer root');
+check($single->metadata()['upload']['policy']['maxFiles']===1&&$single->temporaryRoot()===$root.'/.transfers','Single-file limit and default transfer root');
 $tree=$call('tree','a');check($tree['root']===$rootA&&$tree['items'][0]['name']==='Drive A','Tree root');
 fails(fn()=>$call('tree','x'),404,'Unknown mount');
 
@@ -323,7 +323,7 @@ check((new MediaProbe())->probe($tmp.'/tone.wav','audio/wav')===['width'=>null,'
 foreach([['mp3',$tmp.'/tone.wav'],['wav',$tmp.'/tone.mp3'],['m4a',$tmp.'/tone.wav'],['wav',$tmp.'/clip.mp4'],['mp3',$tmp.'/wide.png'],['m4a',$tmp.'/clip.mp4']] as [$extension,$path])check(!FileManagerDefinition::contentMatches($extension,$path),'Audio extension refuses other bytes: '.$extension.' '.basename($path));
 check((new MediaProbe('/nonexistent/ffprobe'))->probe($tmp.'/tone.wav','audio/wav')['duration_ms']===null,'Missing probe tool gives no audio length');
 $audioDefinition=new FileManagerDefinition('files','Files','test',['a'=>'A'],allowedExtensions:['txt','wav','mp3','m4a'],contentRoot:$root);
-check($audioDefinition->metadata()['upload']['allowed_extensions']===['txt','wav','mp3','m4a']&&$audioDefinition->uploadPolicy()->metadata()['extensions']===['txt','wav','mp3','m4a'],'Audio extensions in the upload allowlist');
+check($audioDefinition->metadata()['upload']['policy']['extensions']===['txt','wav','mp3','m4a']&&$audioDefinition->uploadPolicy()->metadata()['extensions']===['txt','wav','mp3','m4a'],'Audio extensions in the upload allowlist');
 $audioDir=$storage->entry((int)$call('create_directory',$rootA,['name'=>'Audio'])['id']);$audioIds=[];
 foreach($audioTypes as $name=>[,$mime])$audioIds[$name]=(string)$storage->createFile($audioDir,$name,$mime,$tmp.'/'.$name);
 $audioListed=array_column($call('list',(string)$audioDir['id'])['items'],null,'name');

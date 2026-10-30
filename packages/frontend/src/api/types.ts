@@ -751,14 +751,8 @@ export interface ListKindOptions {
 /** `options` of kind `files` (`FileManagerDefinition::metadata()` in camelCase; `FileManager.ts` `FileManagerConfig`). */
 export interface FilesKindOptions {
   mounts: { id: string; label: string }[];
-  upload: {
-    allowedExtensions: string[];
-    maxSizeBytes: number;
-    multiple: boolean;
-    maxFiles?: number;
-    duplicatePolicy: string;
-    policy: UploadPolicy;
-  };
+  /** The `upload` action's rules, once: its policy (pass it to `app.uploads.open`). */
+  upload: { policy: UploadPolicy };
   text: { extension: string; maxBytes: number };
   /** MIME types the viewer shows. */
   preview: string[];

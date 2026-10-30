@@ -4,7 +4,7 @@ namespace Blade\Feature;
 
 /**
  * Built-in kind `files` (`Registry::fileManager`): options are `FileManagerDefinition::metadata()`, sent with camelCase
- * keys (`maxDepth`, `upload.maxSizeBytes`, `text.maxBytes`, …); offered with an offered action and a readable mount.
+ * keys (`maxDepth`, `deletePolicy`, `text.maxBytes`; `upload` is `{policy}` only); offered with an offered action and a readable mount.
  */
 final class FileViewKind implements ViewKindProvider
 {

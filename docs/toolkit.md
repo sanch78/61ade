@@ -1304,12 +1304,15 @@ The rules of API version 1 (closed out on 2026-10-30, [changes](#changes)):
   (`rowHeight`, `nodeTypes`, `maxDepth`, `defaultView`), `ColumnMetadata`
   (`imageBase`, `altOf`, `mediaOf`), `FieldMetadata` with its `validation`
   (`minLength`, `matchesField`) and `file` (`folderId`, `canUpload`,
-  `canChoose`), `UploadPolicy` (`maxSizeBytes`, `chunkBytes`), action metadata
+  `canChoose`), `UploadPolicy` (`maxSizeBytes`, `chunkBytes`; a files view's
+  `options.upload` is `{policy}` only), action metadata
   and event payloads (`opened` `{id, mimeType}`). The server normalises it;
   PHP and JSON configuration keep their own spelling (JSON snake-case, a
   field's `column` object also as in PHP). **Record data keeps the server's
-  field names:** rows, `_media`/`MediaDescriptor` (`mime_type`,
-  `duration_ms`), action results and protocol answers (`UploadResult`, the
+  field names, never camel-cased:** rows, `_media` and `MediaDescriptor` (for
+  example `mime_type`, `duration_ms`: `FilePicker.pick` resolves
+  `media.mime_type`, while the framework's own `opened` payload says
+  `mimeType`), action results and protocol answers (`UploadResult`, the
   transfer protocol's `chunk_bytes`, failure `details`).
 - **Event names:** an event reported after the fact is a past participle
   (`saved`, `changed`, `opened`, `loaded`, `ended`, `cancelled`, `view:opened`,
