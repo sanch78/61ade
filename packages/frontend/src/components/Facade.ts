@@ -1,14 +1,11 @@
 import type { Layout } from "@dhtmlx/suite";
-import type { AppWindow, Application, Component, ComponentOptions, LayoutCell, MountTarget, ViewDefinition, ViewHost, ViewReference } from "../api/types";
+import type { Application, Component, ComponentOptions, MountTarget, ViewDefinition, ViewReference } from "../api/types";
+import { Lifecycle, optionSignal } from "./Lifecycle";
 
 /** The internal widget a facade owns: its root Layout, created into the given container, and its release. */
 export type Engine = { readonly layout: Layout; destroy(): void };
 /** Emits a component event (delivered only while the component is mounted). */
 export type Emit<Events extends object> = <K extends keyof Events>(event: K, payload: Events[K]) => void;
-
-/** An `AppWindow` or a `ViewHost`: content goes through its `attach`, and its signal ends the component. */
-const hosted = (target: MountTarget): target is AppWindow | ViewHost =>
-  !(target instanceof HTMLElement) && "signal" in target && target.signal instanceof AbortSignal && typeof target.attach === "function";
 
 /**
  * A view reference of a component: an id offered to the actor (`Application.viewDefinition`) or a definition the
@@ -27,72 +24,33 @@ export function resolveView<Options>(app: Application, reference: ViewReference<
 }
 
 /**
- * Lifecycle shared by the public component facades (`Component`): the engine is created at once into a detached
- * container; `mount` places its root Layout into an element, a Layout cell, an `AppWindow` or a `ViewHost` (once);
- * `destroy` is idempotent and also runs when the options' signal or the window/host signal aborts.
+ * Lifecycle shared by the public component facades (`Component`, `Lifecycle`): the engine is created at once into a
+ * detached container; `mount` places its root Layout into an element, a Layout cell, an `AppWindow` or a `ViewHost`
+ * (once); `destroy` is idempotent and also runs when the options' signal or the window/host signal aborts.
  */
 export abstract class Facade<Events extends object, E extends Engine> implements Component<Events> {
   readonly layout: Layout;
   protected readonly engine: E;
   private readonly container = document.createElement("div");
-  private readonly handlers = new Map<keyof Events, Set<(payload: never) => void>>();
-  private readonly release = new AbortController();
-  private target?: MountTarget;
-  private destroyed = false;
+  private readonly life = new Lifecycle<Events>(() => this.destroy());
 
   protected constructor(options: ComponentOptions | undefined, create: (container: HTMLElement, emit: Emit<Events>) => E) {
-    const signal = options?.signal;
-    if (signal !== undefined && !(signal instanceof AbortSignal)) throw new TypeError("61ade: component option `signal` must be an AbortSignal.");
+    const signal = optionSignal(options);
     this.container.style.height = "100%";
-    this.engine = create(this.container, (event, payload) => this.emit(event, payload));
+    this.engine = create(this.container, (event, payload) => this.life.emit(event, payload));
     this.layout = this.engine.layout;
-    if (signal?.aborted) this.destroy();
-    else signal?.addEventListener("abort", () => this.destroy(), { once: true, signal: this.release.signal });
+    this.life.bind(signal);
   }
 
   /** True after `destroy()` (including a destroy caused by a signal). */
-  protected get isDestroyed(): boolean { return this.destroyed; }
+  protected get isDestroyed(): boolean { return this.life.destroyed; }
 
-  mount(target: MountTarget): void {
-    if (this.destroyed) throw new Error("61ade: a destroyed component cannot be mounted.");
-    if (this.target) throw new Error("61ade: the component is already mounted; create another one for a second place.");
-    if (target instanceof HTMLElement) target.append(this.container);
-    else if (target && hosted(target)) {
-      if (target.signal.aborted) { this.destroy(); return; }
-      target.attach(this.layout);
-      target.signal.addEventListener("abort", () => this.destroy(), { once: true, signal: this.release.signal });
-    } else if (target && typeof (target as LayoutCell).attach === "function") (target as LayoutCell).attach(this.layout);
-    else throw new TypeError("61ade: a component mounts into an element, a Layout cell, an AppWindow or a ViewHost.");
-    this.target = target;
-  }
+  mount(target: MountTarget): void { this.life.mount(target, this.layout, element => element.append(this.container)); }
 
-  on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void): () => void {
-    if (typeof handler !== "function") throw new TypeError("61ade: component event handler must be a function.");
-    if (this.destroyed) return () => {};
-    let set = this.handlers.get(event);
-    if (!set) this.handlers.set(event, set = new Set());
-    set.add(handler as (payload: never) => void);
-    return () => { this.handlers.get(event)?.delete(handler as (payload: never) => void); };
-  }
+  on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void): () => void { return this.life.on(event, handler); }
 
   destroy(): void {
-    if (this.destroyed) return;
-    this.destroyed = true;
-    this.release.abort();
-    this.handlers.clear();
-    const target = this.target;
-    // The owner's cell or window keeps no reference to the destroyed Layout (a closing host clears itself).
-    if (target && !(target instanceof HTMLElement)) {
-      if (hosted(target)) { if (!target.signal.aborted) target.attach(document.createElement("div")); }
-      else if ((target as LayoutCell).getWidget?.() === this.layout) (target as LayoutCell).detach();
-    }
+    if (!this.life.end(this.layout)) return;
     try { this.engine.destroy(); } finally { this.container.remove(); }
-  }
-
-  private emit<K extends keyof Events>(event: K, payload: Events[K]): void {
-    if (this.destroyed || !this.target) return;
-    for (const handler of [...(this.handlers.get(event) ?? [])]) {
-      try { (handler as (payload: Events[K]) => void)(payload); } catch (error) { console.error(error); }
-    }
   }
 }

@@ -1,9 +1,9 @@
 /**
  * 61ade toolkit API, version 1: the public type surface for project modules.
  *
- * Status: the kernel (application object, services, registries, module loader, routing, view host) is implemented in
- * toolkit P2 (lane K-F, `src/api/*`, `src/app/*`); components follow in P3, presentations, field types and client
- * commands on list surfaces are implemented (P3 C-5).
+ * Status: implemented. The kernel (application object, services, registries, module loader, routing, view host) is in
+ * `src/api/*` and `src/app/*` (toolkit P2); the components (`src/components/*`), presentations, field types and client
+ * commands on list surfaces followed in P3.
  * Each member names the internal code it wraps (FB-0081).
  * Reference and examples: docs/toolkit.md. Changes after gate G1 are recorded in docs/toolkit.md#changes.
  *
@@ -32,7 +32,7 @@ export type ApplicationModule = (app: Application) => void | Promise<void>;
 export type ApiVersion = 1;
 
 /**
- * The page's application API, created once by the shell after sign-in (planned P2 K-F3) and handed to every module.
+ * The page's application API, created once by the shell after sign-in and handed to every module.
  * It lives as long as the page; sign-out and tenant switches reload the page and create a new one.
  */
 export interface Application {
@@ -70,7 +70,10 @@ export interface Application {
   readonly fieldTypes: Registry<FieldType>;
   /** Client-side commands: name → handler, placed on list toolbars (`ListOptions.commands`). Built-in `details`. */
   readonly commands: Registry<ClientCommand>;
-  /** Public component classes, bound to this application (P3: `ListView`, `RecordForm`, `RecordDetails`, `CommandBar` from C-1). */
+  /**
+   * Public component classes, bound to this application: `ListView`, `RecordForm`, `RecordDetails`, `FileManager`,
+   * `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer`, `SandboxFrame` and `CommandBar`.
+   */
   readonly components: Components;
   /** Views offered to the actor (server-filtered bootstrap `views`), in menu order. */
   viewDefinitions(): readonly ViewDefinition[];
@@ -130,9 +133,9 @@ export interface ServerFailure extends Error {
 }
 
 /**
- * The one JSON transport (planned P2 K-F1). Replaces the six private copies (`Workspace.request`,
- * `FileManager.request/call`, `Calendar`, `DiagramEditor`, `Uploader`, `Realtime` `__watch`), all of which POST
- * `{resource, action, id, values}` to `./?blade=1` with `X-BLADE-CSRF`. No new endpoint exists for modules.
+ * The one JSON transport (`src/api/Server.ts`), also used by the list, file manager, calendar, diagram editor, uploader
+ * and live channel: it POSTs `{resource, action, id, values}` to `./?blade=1` with `X-BLADE-CSRF`. No new endpoint
+ * exists for modules.
  */
 export interface Server {
   /**
@@ -223,7 +226,7 @@ export interface AppWindow {
   close(): void;
 }
 
-/** Dialogs, toasts and windows (planned P2 K-F2 over `MessageDialog.ts`, Suite `message` and `WindowSizing.ts`). */
+/** Dialogs, toasts and windows (over `MessageDialog.ts`, Suite `message` and `WindowSizing.ts`). */
 export interface Ui {
   /** Modal alert/confirm; resolves `true` for OK/Confirm, `false` for Cancel/Escape. */
   dialog(options: DialogOptions): Promise<boolean>;
@@ -316,7 +319,7 @@ export interface I18n {
   languages(): Readonly<Record<string, string>>;
 }
 
-/** Appearance state (planned P2 K-F2 over AdminShell's `setTheme` handling and `data-blade-skin`). */
+/** Appearance state (over AdminShell's `setTheme` handling and `data-blade-skin`). */
 export interface Theme {
   /** The applied DHTMLX base theme: `skyblue`, `light` or `dark`. */
   current(): string;
@@ -327,7 +330,7 @@ export interface Theme {
 }
 
 /**
- * Browser-local preference store of one scope (planned over `UiPreferences.ts`). Keys live under the versioned
+ * Browser-local preference store of one scope (over `UiPreferences.ts`). Keys live under the versioned
  * `blade-ui:1:` localStorage prefix, separated by page path, user id and scope. Values are JSON; storage failures
  * (private mode, quota) are swallowed: `get` then returns `undefined` and `set` does nothing.
  */
@@ -394,7 +397,7 @@ export interface LiveSubscription {
   destroy(): void;
 }
 
-/** Live data on the tab's one channel (planned P2 K-F2 over `LiveChannel`/`Realtime`, protocol 2). */
+/** Live data on the tab's one channel (over `LiveChannel`/`Realtime`, protocol 2). */
 export interface Live {
   /**
    * Subscribes to `resource`'s `list` window; the server re-authorizes on every read. Ends with `destroy()` or when
@@ -423,11 +426,11 @@ export interface AppEvents {
   /** A module failed to load or initialize (`reason` `load`, `init` or `timeout`). */
   "module:error": { module: string; reason: "load" | "init" | "timeout"; error: unknown };
   /** A sandboxed frame reported an error or timed out. */
-  "sandbox:error": { message: string; code: "error" | "timeout" | "size" | "protocol" };
+  "sandbox:error": { message: string; code: SandboxErrorCode };
 }
 
 /**
- * Page-wide typed bus (planned P2 K-F2; absorbs the uploader's `on/off`). Handlers run synchronously in
+ * Page-wide typed bus (it also carries the uploader's events). Handlers run synchronously in
  * registration order; a throwing handler is logged and does not stop the others.
  */
 export interface EventBus {
@@ -459,13 +462,13 @@ export interface RegisterOptions {
 }
 
 /**
- * Name → entry map (planned P2 K-F3, `src/app/registries.ts`). Names are `[a-z][a-z0-9_.-]*`; built-in names have
+ * Name → entry map (`src/app/registries.ts`). Names are `[a-z][a-z0-9_.-]*`; built-in names have
  * no dot, project names must contain one (`<project>.<name>`), so a later built-in never collides with a project
  * entry. Registration happens normally in a module's initialization, before the first view opens; a later
  * registration affects only views mounted afterwards.
  */
 export interface Registry<T> {
-  /** Adds `entry`. Throws `TypeError` for an invalid name and `Error` for a duplicate without `replace: true`. */
+  /** Adds `entry`. Throws `Error` for a taken name (a built-in one too) without `replace: true`, else `TypeError` for an invalid name or a new name without a dot. */
   register(name: string, entry: T, options?: RegisterOptions): void;
   get(name: string): T | undefined;
   has(name: string): boolean;
@@ -476,7 +479,7 @@ export interface Registry<T> {
 /** Where a view opens: the workspace (a menu page with an address) or a framework document window. */
 export type ViewOpenMode = "page" | "window";
 
-/** Built-in view kinds, registered by 61ade through the same registry (dogfooding, planned P2 K-F5). */
+/** Built-in view kinds, registered by 61ade through the same registry (dogfooding, `src/app/builtins.ts`). */
 export type BuiltinKind = "list" | "files" | "diagram" | "calendar";
 
 /**
@@ -492,7 +495,7 @@ export interface ViewKind<Options = unknown> {
   create(host: ViewHost, view: ViewDefinition<Options>): ViewInstance | Promise<ViewInstance>;
 }
 
-/** What the shell gives a view instance (planned P2 K-F5). */
+/** What the shell gives a view instance. */
 export interface ViewHost {
   readonly app: Application;
   /** Aborted when the view closes (navigation, window close, sign-out). Tie every call and listener to it. */
@@ -522,7 +525,7 @@ export interface ViewInstance {
 }
 
 /**
- * One view as the server sends it (bootstrap `views`, planned P2 K-S1). Superset of today's metadata: the shared
+ * One view as the server sends it (bootstrap `views`). The shared
  * keys stay at the top level; every kind-specific key moves verbatim into `options` (see `ListOptions`,
  * `FileManagerOptions`, `DiagramOptions`, `CalendarOptions`). All texts are already translated by the server.
  */
@@ -870,7 +873,7 @@ export interface ClientCommand {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Components (planned P3 C-1 … C-4)
+// Components (src/components/*, docs/toolkit.md#components)
 // ---------------------------------------------------------------------------------------------------------------
 
 /** A Suite Layout cell (`layout.getCell(id)`), the usual mount target inside a project layout. */
@@ -889,7 +892,7 @@ export type Mountable =
   | Suite.Chart
   | Component<any>;
 
-/** Where a component is mounted. */
+/** Where a component is mounted: an element (filled at 100 %), a Layout cell, an `AppWindow` or a `ViewHost`. */
 export type MountTarget = HTMLElement | LayoutCell | AppWindow | ViewHost;
 
 /**
@@ -900,24 +903,32 @@ export type MountTarget = HTMLElement | LayoutCell | AppWindow | ViewHost;
 export interface Component<Events extends object = object> {
   /** The component's root Suite Layout. */
   readonly layout: Suite.Layout;
+  /**
+   * Places the component once. A second mount or one after `destroy()` throws `Error`; an `AppWindow` or `ViewHost`
+   * destroys it when it closes (an already closed one at once); any other target throws `TypeError`.
+   */
   mount(target: MountTarget): void;
+  /** Idempotent; detaches the root Layout from its Layout cell (an open window or host is emptied). */
   destroy(): void;
-  /** Subscribes to a component event; returns the unsubscribe function. */
+  /** Subscribes to a component event (`TypeError` for a non-function); returns the unsubscribe function. */
   on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void): () => void;
 }
 
 /** Common constructor options. */
 export interface ComponentOptions {
-  /** Destroys the component when aborted (pass `host.signal`). */
+  /** Destroys the component when aborted (pass `host.signal`); anything but an `AbortSignal` throws `TypeError`. */
   signal?: AbortSignal;
 }
 
-/** A view reference: an offered view id, or a definition the caller already holds. */
+/**
+ * A view reference: an offered view id, or a definition the caller already holds. Every component throws `Error` for
+ * an id that is not offered to the actor and `TypeError` for a view of the wrong kind or shape.
+ */
 export type ViewReference<Options> = string | ViewDefinition<Options>;
 
 /**
- * Options of `ListView` (the list's constructor arguments as one object). `view` must be a list view (kind `list`);
- * anything else throws `TypeError`, as does `compact` without `scope`.
+ * Options of `ListView` (the list's constructor arguments as one object). `view` must be a list view (kind `list`): an
+ * id that is not offered throws `Error`, any other view `TypeError`, as does `compact` without `scope`.
  */
 export interface ListViewOptions extends ComponentOptions {
   view: ViewReference<ListOptions>;
@@ -972,7 +983,8 @@ export interface RecordFormOptions extends ComponentOptions {
 
 /** Events of `RecordForm`. */
 export interface RecordFormEvents {
-  saved: { result: unknown };
+  /** The action succeeded: `action` is the submitted action's name, `result` its `data` (what `submit()` resolves). */
+  saved: { action: string; result: unknown };
   cancel: Record<string, never>;
   /** A field value changed (dirty tracking). */
   changed: { field: string; value: unknown };
@@ -1160,7 +1172,11 @@ export interface SandboxFrameOptions extends ComponentOptions {
   title?: string;
 }
 
-/** Events of `SandboxFrame`; every `error` is also emitted as the page's `sandbox:error` event. */
+/**
+ * Events of `SandboxFrame` (delivered while mounted). Every failure is also the page's `sandbox:error` event, mounted or
+ * not. A frame document reports only the first failure its own messages cause (`error`, or `protocol` for an invalid
+ * or reserved message); its later ones are dropped.
+ */
 export interface SandboxFrameEvents {
   ready: Record<string, never>;
   /**
@@ -1168,9 +1184,20 @@ export interface SandboxFrameEvents {
    * 1000 characters); `timeout`: no `ready` in time; `size`: a limit was exceeded; `protocol`: an invalid or reserved
    * message, or the frame document navigated or reloaded (the frame is then removed).
    */
-  error: { message: string; code: "error" | "timeout" | "size" | "protocol" };
-  /** A project message from the frame (reserved types are not delivered here). */
+  error: { message: string; code: SandboxErrorCode };
+  /**
+   * A project message from the frame (reserved types are not delivered here), while its document lives: also before
+   * `ready` and after an `error`.
+   */
   message: { type: string; payload: unknown };
+}
+
+/** Code of a `SandboxFrame` failure (`error` event, `sandbox:error`, `SandboxError`). */
+export type SandboxErrorCode = "error" | "timeout" | "size" | "protocol";
+
+/** Rejection of `SandboxFrame.load()` for a frame failure: `message` and `code` are the `error` event's. */
+export interface SandboxError extends Error {
+  readonly code: SandboxErrorCode;
 }
 
 /**
@@ -1182,8 +1209,9 @@ export interface SandboxFrameEvents {
  */
 export interface SandboxFrame extends Component<SandboxFrameEvents> {
   /**
-   * Checks the limits, replaces the frame document and sends `load`; resolves on `ready`, rejects with an `Error`
-   * whose `code` is the `error` event's code, or with an `AbortError` when a later `load` or `destroy()` replaces it.
+   * Checks the limits, replaces the frame document and sends `load`; resolves on `ready`, rejects with a `SandboxError`
+   * (its `code` is the `error` event's code), with an `AbortError` when a later `load` or `destroy()` replaces it, or
+   * with a `TypeError` for malformed arguments (a plain `Error` when `sandbox.html` cannot be located beside `admin.js`).
    * Mount the component first: the timeout runs from this call.
    */
   load(code: string, files?: Record<string, Blob | string>): Promise<void>;

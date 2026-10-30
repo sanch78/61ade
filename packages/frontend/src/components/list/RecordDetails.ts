@@ -21,7 +21,7 @@ export class RecordDetails extends Component<Record<string,never>> implements Re
   private epoch=0;
   private abort?:AbortController;
   constructor(context:ListContext,options:RecordDetailsOptions){
-    super();
+    super(options);
     this.view=listDefinition(resolveListView(context.app(),options.view));
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"details"}]});
     void this.show(options.record).catch(()=>{});
