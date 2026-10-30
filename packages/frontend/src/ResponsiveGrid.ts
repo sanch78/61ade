@@ -24,12 +24,7 @@ export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSel
   /** A declared activation: double-click and Enter run `open` in cards and tiles too (not the details); the accessible description of what it runs on a card or tile, `undefined` for a record without one. */
   activation?:(row:Row)=>string|undefined;
   /** false: rows never become the cursor record (native selection and key navigation off, no highlight); double-click and Enter open nothing, editable switch cells still save. */
-  select?:boolean;
-  /**
-   * The record menu (docs/toolkit.md#registries): a context menu on a row, card or tile (right click, the context menu
-   * key, Shift+F10) makes the record the cursor and calls this; true when a menu opened (the browser's own is then suppressed).
-   */
-  menu?:(id:string,event:MouseEvent,anchor:HTMLElement)=>boolean};
+  select?:boolean};
 /** Reserved record keys (`RESERVED`) live under their alias in widget data and as Grid column ids, so editors use the alias too. */
 const guard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,key)){copy??={...row};copy[alias(key)]=copy[key];delete copy[key];}return copy??row;};
 const unguard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,alias(key))){copy??={...row};copy[key]=copy[alias(key)];delete copy[alias(key)];}return copy??row;};
@@ -188,15 +183,6 @@ export class ResponsiveGrid {
       if(!anchor||!id)return false;
       event.preventDefault();event.stopPropagation();selected(id);options.edit?.(id,anchor.dataset.bladeField!,anchor);return true;
     };
-    on("contextmenu",(event,target)=>{
-      if(!options.menu||!pick||target.closest("input,textarea,select,[contenteditable],.dhx_grid-header,.dhx_grid-footer"))return;
-      const anchor=target.closest<HTMLElement>("[data-blade-row]")??target.closest<HTMLElement>(".dhx_grid-row"),raw=anchor?.dataset.bladeRow??anchor?.getAttribute("data-dhx-id");
-      if(!anchor||!raw||raw.startsWith(SUBROW))return;
-      const id=this.recordId(raw);
-      if(this.compact)this.list().selection.add(id);else (this.grid.selection as any).setCell(id);
-      if(this.selected!==id)selected(id);
-      if(options.menu(id,event as MouseEvent,anchor))event.preventDefault();
-    });
     on("click",(event,target)=>{
       if(edit(event)||!options.rowSelection)return;
       if(target.closest("input,textarea,select,.blade-card-edit"))return;
