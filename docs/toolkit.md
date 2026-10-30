@@ -164,10 +164,10 @@ each member with one example.
 | `ui` | `dialog`, `choice`, `toast`, `window` | `MessageDialog.ts`, Suite `message`, `WindowSizing.ts` |
 | `uploads` | `open`, `reopen` of the shared uploader | `Uploader.ts` `uploads` |
 | `i18n` | `t`, `locale`, `languages` | `I18n.ts` |
-| `theme` | `current`, `skin`, `onChange` | AdminShell theme/skin handling |
+| `theme` | `current`, `skin`, `onChange(listener, {signal})` | AdminShell theme/skin handling |
 | `preferences` | `scope(name)` → `get/set/remove` (`name` must contain a dot, else `TypeError`) | `UiPreferences.ts` storage |
-| `live` | `subscribe(resource, query, handlers, signal)` | `LiveChannel`/`Realtime` |
-| `events` | Typed bus `on/off/emit` ([event catalog](#event-catalog)) | uploader `on/off` |
+| `live` | `subscribe(resource, query, handlers, {signal})` | `LiveChannel`/`Realtime` |
+| `events` | Typed bus `on(name, handler, {signal})`, `off`, `emit` ([event catalog](#event-catalog)) | uploader `on/off` |
 | `identity` | `id`, `displayName`, `tenant` | bootstrap `userId`, `displayName`, `tenant.current` |
 | `kinds`, `presentations`, `fieldTypes`, `commands` | [Registries](#registries) | hard-coded `AdminShell.openView`, `RecordPresentation` |
 | `components` | [Components](#components) | `Workspace`, `FileManager`, … |
@@ -179,7 +179,7 @@ each member with one example.
 ```ts
 const rows = await app.server.call<Snapshot>("tasks", "list", { values: { limit: 50 }, signal: host.signal });
 const blob = await (await app.server.request("files", "content_get", { id })).blob();
-const { fields, values } = await app.server.form("tasks", "update", id);       // `__form` pseudo-action
+const { fields, values } = await app.server.form("tasks", "update", id, { signal: host.signal }); // `__form`
 audio.src = app.server.url("signage_assets", "content_stream", id, revision);  // GET action, session cookie
 if (await app.ui.dialog({ message: app.i18n.t("Biztosan?"), mode: "confirm", severity: "warning" })) { /* … */ }
 const choice = await app.ui.choice({ message: "…", choices: [{ value: "a", label: "A" }] });
@@ -187,11 +187,11 @@ app.ui.toast(app.i18n.t("Másolva."));
 const win = app.ui.window({ title: "Előnézet", width: 720, signal: host.signal }); win.attach(layout);
 app.uploads.open({ resource: "files", action: "upload", target: folderId, targetLabel: "Drive A:/", policy });
 app.i18n.t("{count} elem", { count: 3 }); app.i18n.locale();
-const stop = app.theme.onChange((theme, skin) => chart.paint());
+app.theme.onChange((theme, skin) => chart.paint(), { signal: host.signal });
 app.preferences.scope("demo.player").set("volume", 0.8);
 const sub = app.live.subscribe("measurements", { limit: 100, sort: { field: "id", direction: "desc" } },
-  { update: snapshot => render(snapshot.items) }, host.signal);
-app.events.on("upload:complete", result => refresh(), host.signal);
+  { update: snapshot => render(snapshot.items) }, { signal: host.signal });
+app.events.on("upload:complete", result => refresh(), { signal: host.signal });
 app.navigate({ view: "demo.asset-viewer", record: "42" });
 ```
 
@@ -202,6 +202,13 @@ the session ended: the shell then signs the page out ([ended session](shell.md#e
 and the caller still gets the failure. Event handlers
 that throw are logged and do not stop other handlers; emitting a framework
 event name (with `:`) throws.
+
+Every subscription takes its owner's signal the same way, as the last
+argument `{signal}` (`SignalOptions`): `events.on`, `live.subscribe`,
+`theme.onChange`, `server.form` and every component's `on`. Aborting it
+unsubscribes (or aborts the request); an already aborted signal subscribes
+nothing. A bare `AbortSignal` in place of the object, any other non-object or a
+`signal` that is not an `AbortSignal` throws `TypeError`.
 
 `ServerFailure` is an interface, not a class: there is no `instanceof`. Tell
 the two rejections apart by shape, aborts first:
@@ -232,7 +239,7 @@ const target = { resource: "files", action: "upload", target: folderId, targetLa
 app.uploads.open({ ...target, onUploaded: ({ succeeded }) => refresh(succeeded) });   // once per batch
 surface.addEventListener("drop", event => { event.preventDefault();
   app.uploads.open({ ...target, transfer: event.dataTransfer! }); });                 // synchronously in the drop handler
-app.events.on("upload:file-done", ({ file, result }) => show(file.name, result), host.signal);
+app.events.on("upload:file-done", ({ file, result }) => show(file.name, result), { signal: host.signal });
 app.uploads.reopen();                                                           // the current queue again
 ```
 
@@ -395,7 +402,7 @@ command `demo.copy-text` ([example](#example-tasks)).
 Every component has `layout` (its root Suite Layout), `mount(target)` (an
 element, a Layout cell, an `AppWindow` or a `ViewHost`), idempotent
 `destroy()` (widgets, windows it opened, listeners, live subscriptions), typed
-`on(event, handler)`, and accepts `signal` to destroy itself with its owner.
+`on(event, handler, {signal})`, and accepts `signal` to destroy itself with its owner.
 
 ```ts
 const C = app.components;
@@ -1152,8 +1159,8 @@ the type `ApiVersion`, its value `app.apiVersion`.
 
 **Page events** (`app.events`, `AppEvents` in `src/api/types.ts`). Handlers
 run synchronously in registration order; a throwing handler is logged and the
-others still run. `on(name, handler, signal?)` returns the unsubscribe
-function and unsubscribes when `signal` aborts (pass `host.signal`). Framework
+others still run. `on(name, handler, {signal}?)` returns the unsubscribe
+function and unsubscribes when `signal` aborts (pass `{signal: host.signal}`). Framework
 names contain `:` and only 61ade emits them; `emit` of such a name throws.
 
 | Event | Payload | Fires |
@@ -1186,8 +1193,8 @@ Module load failures and sandbox errors stay in the browser (toast, events,
 console); the server logs nothing for them
 ([product event catalog](product-direction.md#4-eseménynapló-lefedési-katalógus)).
 
-**Component events** (`component.on(name, handler)`, delivered only while
-mounted, never after `destroy()`):
+**Component events** (`component.on(name, handler, {signal}?)`, delivered only
+while mounted, never after `destroy()`):
 
 | Component | Event | Payload | Fires |
 | --- | --- | --- | --- |
@@ -1422,7 +1429,7 @@ const scene = async (stage: Stage, screen: Cell) => {
   app.events.on("sandbox:error", ({ message }) => {
     if (shell?.stage !== stage) return;
     // …
-  }, signal);
+  }, { signal });
   try {
     const code = await sceneCode(item.slot.asset!.id);
     if (signal.aborted) return;
@@ -1499,11 +1506,11 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
     const chart: Chart = new app.dhx.Chart(null as unknown as HTMLElement, chartConfig(colors()));
     layout.getCell("chart").attach(chart);
     // … render() writes the summary cell with attachHTML and the chart data
-    const stopTheme = app.theme.onChange(() => { if (!signal.aborted) { chart.setConfig(chartConfig(colors())); render(); } });
+    // Unsubscribed by the build's signal, before the cleanup below (registered earlier, so it runs first).
+    app.theme.onChange(() => { chart.setConfig(chartConfig(colors())); render(); }, { signal });
     let current: ListView | undefined;
     // Registered before the ListView exists, so a failing constructor still releases the chart and the layout.
     signal.addEventListener("abort", () => {
-      stopTheme();
       current?.destroy();
       layout.getCell("chart").detach();
       chart.destructor();

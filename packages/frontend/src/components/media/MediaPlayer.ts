@@ -1,7 +1,7 @@
 import { Layout, Toolbar } from "@dhtmlx/suite";
 import { locale, t } from "../../I18n";
 import { server } from "../../api/Server";
-import type { MediaPlayer as MediaPlayerContract, MediaPlayerEvents, MediaPlayerOptions, MountTarget } from "../../api/types";
+import type { MediaPlayer as MediaPlayerContract, MediaPlayerEvents, MediaPlayerOptions, MountTarget, SignalOptions } from "../../api/types";
 import { Lifecycle, optionSignal } from "../Lifecycle";
 import "./media.css";
 
@@ -218,7 +218,7 @@ export class MediaPlayer implements MediaPlayerContract {
 
   private emit<K extends keyof MediaPlayerEvents>(event: K, payload: MediaPlayerEvents[K]): void { this.life.emit(event, payload); }
 
-  on<K extends keyof MediaPlayerEvents>(event: K, handler: (payload: MediaPlayerEvents[K]) => void): () => void { return this.life.on(event, handler); }
+  on<K extends keyof MediaPlayerEvents>(event: K, handler: (payload: MediaPlayerEvents[K]) => void, options?: SignalOptions): () => void { return this.life.on(event, handler, options); }
 
   /**
    * Attaches the player (once) to an element, a Layout cell, an `AppWindow` or a `ViewHost` (framework-internal also a

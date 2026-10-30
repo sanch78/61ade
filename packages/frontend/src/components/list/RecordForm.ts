@@ -44,7 +44,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
   private async load():Promise<void>{
     const {resource,action}=this.options,id=this.options.id??null;
     try{
-      const schema=this.schema=await server.form(resource,action,id,this.abort.signal);
+      const schema=this.schema=await server.form(resource,action,id,{signal:this.abort.signal});
       if(this.destroyed)return;
       const fields=this.fields=(schema.fields as FieldDefinition[]).filter(field=>field.name!=="revision");
       const values={...schema.values,...(this.options.values??{})};

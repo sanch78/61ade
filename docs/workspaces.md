@@ -245,7 +245,7 @@ including sub-view previews and full sub-view windows, holds a `Realtime`
 subscription handle on that channel: `subscribe(query)` replaces the list's
 subscription, `destroy()` ends it, and the callbacks `update`, `state` and
 `denied` are unchanged. Reconnect, backoff and re-subscription live in the
-channel once. A module's `app.live.subscribe(resource, query, handlers, signal)`
+channel once. A module's `app.live.subscribe(resource, query, handlers, {signal})`
 creates the same handle on the same channel and ends it with `destroy()` or the
 signal ([toolkit](toolkit.md#api-reference)). The channel's `__ticket` and
 `__watch` calls, like every list request, go through the shared transport

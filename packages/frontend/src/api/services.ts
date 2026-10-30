@@ -5,6 +5,7 @@ import { fitWindow } from "../WindowSizing";
 import { uploads as uploader } from "../Uploader";
 import { Realtime, type LiveChannel } from "../Realtime";
 import { NAME } from "../app/registries";
+import { signalOf, tieTo } from "./Events";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
 
 /**
@@ -20,7 +21,11 @@ let themeBase = "skyblue", themeSkin: string | null = null;
 export const theme: Theme = {
   current: () => themeBase,
   skin: () => themeSkin,
-  onChange(listener) { themeListeners.add(listener); return () => { themeListeners.delete(listener); }; },
+  onChange(listener, options) {
+    const release = () => { themeListeners.delete(listener); };
+    if (tieTo(signalOf(options, "theme.onChange"), release)) themeListeners.add(listener);
+    return release;
+  },
 };
 /** Called by the shell after every theme or skin application. */
 export function themeApplied(base: string, skin: string | null): void {
@@ -56,7 +61,8 @@ export function preferences(user: string): Preferences {
 /** `Application.live`: a `Realtime` handle on the tab's one channel per subscription. */
 export function live(channel: () => LiveChannel): Live {
   return {
-    subscribe(resource, query, handlers, signal) {
+    subscribe(resource, query, handlers, options) {
+      const signal = signalOf(options, "live.subscribe");
       const handle = new Realtime(channel(), resource, snapshot => handlers.update(snapshot), text => handlers.state?.(text), () => handlers.denied?.());
       const subscription = { subscribe: (next: typeof query) => handle.subscribe({ ...next }), destroy: () => handle.destroy() };
       if (signal?.aborted) { handle.destroy(); return subscription; }

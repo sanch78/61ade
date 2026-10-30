@@ -1,6 +1,7 @@
 import { t } from "../I18n";
 import { actionUrl } from "../ActionUrl";
 import type { CallOptions, FormDescription, Server, ServerFailure } from "./types";
+import { signalOf } from "./Events";
 
 /**
  * The one JSON transport of the UI channel (toolkit K-F1): every component and project module POSTs
@@ -67,6 +68,6 @@ async function request(resource: string, action: string, options: CallOptions = 
 export const server: Server = {
   call,
   request,
-  form: (resource, operation, id = null, signal) => call<FormDescription>(resource, "__form", { id, values: { operation }, signal }),
+  form: (resource, operation, id = null, options) => call<FormDescription>(resource, "__form", { id, values: { operation }, signal: signalOf(options, "server.form") }),
   url: actionUrl,
 };
