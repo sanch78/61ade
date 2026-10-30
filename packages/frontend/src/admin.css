@@ -205,6 +205,21 @@ body,
 /* The Form owns auth spacing; Suite's extra 28px bottom pad would clip a fitted form. */
 .blade-auth-window .dhx_window-content { padding-bottom: 0; }
 
+/* Application logo (docs/shell.md#sign-in-branding): one accessible element; with a dark image the shown image follows
+   the applied base theme, so dark-based skins get it too. Sizes are the documented --blade-*-logo-* variables. */
+.blade-logo { display: inline-flex; align-items: center; box-sizing: border-box; height: 100%; }
+.blade-logo[hidden] { display: none; }
+.blade-logo__image { display: block; width: auto; object-fit: contain; }
+.blade-logo--themed .blade-logo__image--dark,
+[data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--light { display: none; }
+[data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--dark { display: block; }
+/* End of the top menu row, after a 1px rule in the theme border colour. */
+.blade-navigation-row .blade-logo { padding: 0 12px; border-left: 1px solid var(--dhx-border-color); }
+.blade-navigation-row .blade-logo__image { height: var(--blade-logo-height, 24px); max-width: var(--blade-logo-max-width, 160px); }
+/* Top of the sign-in, e-mail confirmation and password-change windows, centred above the form. */
+.blade-auth-logo .blade-logo { display: flex; justify-content: center; height: auto; padding: 16px 16px 0; }
+.blade-auth-logo .blade-logo__image { height: var(--blade-sign-in-logo-height, 48px); max-width: 100%; }
+
 .blade-content-window .dhx_window-content { padding-bottom: 0; }
 /* Suite sizes a textarea from its Form cell: the cell takes the window height beyond the fitted
    content, so a clamped or resized window has no gap below its actions. fitWindow pauses it. */

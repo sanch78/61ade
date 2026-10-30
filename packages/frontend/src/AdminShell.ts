@@ -49,6 +49,8 @@ export type ShellDefinition = {
   tenant?: { current: string | null; choices: { id: string; name: string }[] };
   /** Only after sign-in: application skins (DHTMLX custom themes) of the identity; they replace the factory themes. */
   skins?: { id: string; label: string; base: "light" | "dark" | "skyblue" }[];
+  /** Optional application logo (`ApplicationDefinition::$logo`): keyed image URLs and its accessible text. */
+  logo?: { image: string; dark?: string; label: string };
 };
 const escape = (text: string) =>
   text.replace(
@@ -114,7 +116,7 @@ export class AdminShell {
     this.renderMenu();
     if (!this.loginWindow) return;
     const width = this.definition.confirmation || this.definition.passwordChange ? 460 : 420;
-    const height = (this.definition.confirmation || this.definition.passwordChange ? 420 : this.definition.rememberAvailable ? 340 : 290) + (this.definition.confirmation || this.definition.passwordChange || !this.definition.oauth ? 0 : 48);
+    const height = (this.definition.confirmation || this.definition.passwordChange ? 420 : this.definition.rememberAvailable ? 340 : 290) + (this.definition.confirmation || this.definition.passwordChange || !this.definition.oauth ? 0 : 48) + (this.definition.logo ? 64 : 0);
     this.loginWindow.setSize(
       Math.min(width, innerWidth - 24),
       Math.min(height, innerHeight - 24),
@@ -127,7 +129,8 @@ export class AdminShell {
   private renderMenu():void{
     if (!this.menu) return;
     const width=this.root.clientWidth;
-    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0));
+    const logo=this.logoWidth(width);
+    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0)+logo);
     const compact = width < Math.max(768,required(this.menuItems));
     const current="view:"+(parseRoute(location.hash).view??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -149,6 +152,27 @@ export class AdminShell {
     const prefixed=(items:any[]):object[]=>items.map(item=>({...item,id:"sibling:"+item.id,active:item.id===current,...(item.items?{items:prefixed(item.items)}:{})}));
     this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),icon:"dxi dxi-view-grid",items:entries},
       ...(context.length?[{id:"blade-context-separator",type:"separator"},...prefixed(context)]:[])]:entries);
+  }
+
+  /**
+   * The top-row logo shows while the row keeps room for `Menü` and the selectors; its rendered width (the image at its
+   * CSS height) then counts in the menu estimate.
+   */
+  private logoWidth(width:number):number{
+    const box=this.root.querySelector<HTMLElement>(".blade-navigation-row .blade-logo");
+    if(!box)return 0;
+    box.hidden=false;
+    const reserved=Math.ceil(box.getBoundingClientRect().width);
+    box.hidden=width-(this.tenantCell?180:0)-(this.definition.i18n?.selector?130:0)-(this.definition.skins?.length===1?0:145)-128<reserved;
+    return box.hidden?0:reserved;
+  }
+
+  /** The logo's markup: one accessible image; with a dark image, CSS shows the one of the applied base theme. */
+  private logoHtml():string{
+    const logo=this.definition.logo;
+    if(!logo)return "";
+    const image=(src:string,kind:string)=>`<img class="blade-logo__image blade-logo__image--${kind}" src="${escape(src)}" alt="">`;
+    return `<span class="blade-logo${logo.dark?" blade-logo--themed":""}" role="img" aria-label="${escape(logo.label)}">${image(logo.image,"light")}${logo.dark?image(logo.dark,"dark"):""}</span>`;
   }
 
   private async fitLogin():Promise<void>{
@@ -191,7 +215,8 @@ export class AdminShell {
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantCell?[{id:"tenant",width:180}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),...(choices.length>1?[{id:"theme",width:145}]:[])] },
+        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantCell?[{id:"tenant",width:180}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),...(choices.length>1?[{id:"theme",width:145}]:[]),
+          ...(definition.authenticated&&definition.logo?[{id:"logo",width:"content",css:"blade-logo-cell",html:this.logoHtml()}]:[])] },
         { id: "workspace", css: "blade-workspace" },
         { id: "status", height: 32, css: "blade-session-bar" },
       ],
@@ -266,6 +291,8 @@ export class AdminShell {
       this.menuItems = [...map(definition.menu || []), ...features];
       const menu = new NavigationMenu(undefined, { navigationType: "click" });
       this.menu = menu;
+      // The logo's width is known once its image loads (load does not bubble: capture).
+      if(definition.logo)root.addEventListener("load",event=>{if((event.target as Element).closest?.(".blade-navigation-row .blade-logo"))this.renderMenu();},{capture:true,signal:this.listeners.signal});
       this.resize();
       menu.events.on("click", (id: string | number) => {
         id=String(id).replace(/^sibling:/,"");
@@ -487,7 +514,12 @@ export class AdminShell {
       const value=String(form.getItem("blade_language")?.getValue()??"");
       if(value&&Object.hasOwn(this.definition.i18n?.languages??{},value)&&value!==this.definition.i18n?.locale)this.post("language",{locale:value});
     });
-    this.loginWindow!.attach(form);
+    const logo=this.logoHtml();
+    if(!logo){this.loginWindow!.attach(form);return;}
+    // The application logo above the form, in a native in-window Layout.
+    const layout=new Layout(undefined,{type:"none",rows:[{id:"logo",height:"content",css:"blade-auth-logo",html:logo},{id:"form"}]});
+    layout.getCell("form").attach(form);
+    this.loginWindow!.attach(layout);
   }
   private mountLogin(): void {
     const definition = this.definition;
