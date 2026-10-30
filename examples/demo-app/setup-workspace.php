@@ -11,11 +11,16 @@ $db->exec('CREATE TABLE IF NOT EXISTS notes(id INTEGER PRIMARY KEY AUTOINCREMENT
 if (!$db->query('SELECT COUNT(*) FROM notes')->fetchColumn()) $db->exec("INSERT INTO notes(owner_id,title) VALUES ('1','Demo note')");
 $db->exec("CREATE TABLE IF NOT EXISTS demo_tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,owner_id TEXT,title TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'new',contact TEXT NOT NULL DEFAULT '',labels TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0,description TEXT NOT NULL DEFAULT '')");
 $db->exec('CREATE TABLE IF NOT EXISTS demo_task_settings(task_id INTEGER PRIMARY KEY,notifications INTEGER NOT NULL)');
+// The priority rating (toolkit D4, field type demo.rating) joined the tasks later; the synthetic tasks get a fixed spread 0–5.
+if (!in_array('priority', array_column($db->query('PRAGMA table_info(demo_tasks)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true)) {
+    $db->exec('ALTER TABLE demo_tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 0');
+    $db->exec("UPDATE demo_tasks SET priority = CAST(substr(title, 21) AS INTEGER) % 6 WHERE title GLOB 'Szintetikus feladat [0-9][0-9]'");
+}
 if (!$db->query('SELECT COUNT(*) FROM demo_tasks')->fetchColumn()) {
-    $task = $db->prepare('INSERT INTO demo_tasks(owner_id,title,status,contact,labels,archived,description) VALUES (?,?,?,?,?,?,?)');
+    $task = $db->prepare('INSERT INTO demo_tasks(owner_id,title,status,priority,contact,labels,archived,description) VALUES (?,?,?,?,?,?,?,?)');
     $statuses = ['new', 'progress', 'done'];
     $labels = ['urgent', 'customer', 'internal,risk', '', 'customer,urgent'];
-    for ($i = 1; $i <= 40; $i++) $task->execute(['1', sprintf('Szintetikus feladat %02d', $i), $statuses[$i % 3], $i % 4 ? '+3612345'.sprintf('%03d', $i) : '', $labels[$i % 5], (int) ($i % 7 === 0), 'Szintetikus leírás a(z) '.$i.'. feladathoz.']);
+    for ($i = 1; $i <= 40; $i++) $task->execute(['1', sprintf('Szintetikus feladat %02d', $i), $statuses[$i % 3], $i % 6, $i % 4 ? '+3612345'.sprintf('%03d', $i) : '', $labels[$i % 5], (int) ($i % 7 === 0), 'Szintetikus leírás a(z) '.$i.'. feladathoz.']);
 }
 // Large read-only list; insertion order differs from title order, so sorting is visibly server-side.
 $db->exec('CREATE TABLE IF NOT EXISTS demo_readings(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,reading TEXT NOT NULL)');
