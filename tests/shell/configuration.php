@@ -103,7 +103,11 @@ try {
     $write([...$settings, 'application' => [...$settings['application'], 'modules' => ['app/main.js'], 'stylesheets' => ['app/main.css']]]);
     $moduled = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
     verify($moduled->modules === ['app/main.js'] && $moduled->stylesheets === ['app/main.css'] && $moduled->versioned('app/main.js') === 'app/main.js?v=2.3.4', 'JSON application.modules and stylesheets');
-    foreach ([['modules' => ['https://cdn.example.test/main.js']], ['modules' => 'app/main.js'], ['stylesheets' => ['app/main.js']]] as $bad) {
+    // Document root of the assets' cache keys (docs/toolkit.md#cache-keys): relative to the JSON directory, null by default.
+    verify($app->documentRoot === null, 'No document root by default: the request DOCUMENT_ROOT');
+    $write([...$settings, 'application' => [...$settings['application'], 'document_root' => '../public']]);
+    verify(JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->documentRoot === dirname($file).'/../public', 'JSON application.document_root resolves from the JSON directory');
+    foreach ([['modules' => ['https://cdn.example.test/main.js']], ['modules' => 'app/main.js'], ['stylesheets' => ['app/main.js']], ['document_root' => ''], ['document_root' => 7]] as $bad) {
         $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
         rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid application module path accepted: '.json_encode($bad));
     }

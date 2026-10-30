@@ -21,7 +21,7 @@ return JsonApplication::load(
 | --- | --- |
 | `description` | Human explanation, not runtime configuration; valid on every configuration object. |
 | `environment` | Env files and the process variable selecting an alternate file. |
-| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. Optional `version`, `skins` naming an identity binding `Closure(Identity): list<Skin>` ([application skins](shell.md#application-skins)), and `modules` / `stylesheets`: browser paths of the project's ES modules and CSS ([module loading](toolkit.md#module-loading)). |
+| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. Optional `version`, `skins` naming an identity binding `Closure(Identity): list<Skin>` ([application skins](shell.md#application-skins)), and `modules` / `stylesheets`: browser paths of the project's ES modules and CSS ([module loading](toolkit.md#module-loading)). Optional `document_root`: the directory served at `/`, relative to the JSON directory, default the request's `DOCUMENT_ROOT` ([cache keys](toolkit.md#cache-keys)). |
 | `database` | MySQL `host`, integer `port`, `name`, `charset`, `user`, `password`; password requires an env reference. |
 | `session` | `name`, `cookie_path`; the framework owns session lifecycle. |
 | `identity` | SQL account schema and named `allowed`/`password_verifier` adapters. |
@@ -145,7 +145,10 @@ shown beside `application.title` in the lower shell bar; no automatic framework-
 browser paths relative to the page (not to the JSON directory) or root-absolute,
 with `[A-Za-z0-9_-]` segments and an optional `?…` cache key; anything else, a
 duplicate or a non-list fails at load. Without a cache key the shell appends
-`?v=<application.version>` when the version is set. Only signed-in pages link
+the served file's key `?v=<base36 mtime>-<base36 size>`, falling back to
+`?v=<application.version>` when the version is set and the file cannot be
+found below `application.document_root` (a non-empty string; default the
+request's `DOCUMENT_ROOT`; see [cache keys](toolkit.md#cache-keys)). Only signed-in pages link
 the stylesheets (after the framework CSS and skins) and list the modules in the
 bootstrap `modules` key; the sign-in, e-mail confirmation and password-change
 pages load neither ([module loading](toolkit.md#module-loading)).

@@ -86,6 +86,8 @@ final class Application
         $definition = $this->definition;
         $csrf = $_SESSION['csrf'];
         $escape = static fn(string $text): string => htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        // Cache keys of every shell asset from its file (docs/toolkit.md#cache-keys); one stat per asset and page.
+        $keys = new AssetKeys($definition, $_SERVER);
         $bootstrap = [
             'protocol' => 1,
             'i18n' => ['locale'=>Translator::locale(),'languages'=>$settings->languages,'flags'=>$settings->flags,'selector'=>$settings->selector && count($settings->languages)>1,'messages'=>Translator::messages()],
@@ -112,8 +114,8 @@ final class Application
             $bootstrap['userId'] = $identity->id;
             $bootstrap['displayName'] = $identity->displayName;
             $bootstrap['menu'] = $definition->menu->project($identity);
-            // Project ES modules (page-relative, versioned) the shell imports before the first route.
-            if ($definition->modules) $bootstrap['modules'] = array_map($definition->versioned(...), $definition->modules);
+            // Project ES modules (page-relative, with their cache keys) the shell imports before the first route.
+            if ($definition->modules) $bootstrap['modules'] = array_map(static fn(string $module): string => $keys->url($module), $definition->modules);
             if ($tenancy) $bootstrap['tenant'] = ['current' => $tenant, 'choices' => array_map(static fn($id, $name) => ['id' => (string) $id, 'name' => $name], array_keys($memberships = $tenancy->memberships($identity->id)), $memberships)];
             if ($workspace) {
                 $bootstrap['views'] = $workspace->views($identity, $tenant);

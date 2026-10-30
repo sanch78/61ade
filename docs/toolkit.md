@@ -77,8 +77,10 @@ export default (app) => {
   [skin stylesheets](shell.md#application-skins)): relative or root-absolute
   same-origin paths, `[A-Za-z0-9_-]` segments, `.js`/`.mjs` for modules and
   `.css` for stylesheets, an optional `?…` cache key; anything else fails at
-  definition time. Without an explicit cache key the shell appends
-  `?v=<version>` when `version` is not empty.
+  definition time. Without an explicit cache key the shell appends the
+  [file-derived key](#cache-keys) `?v=<mtime>-<size>` of the served file, so a
+  rebuilt module reaches the browser at once; `?v=<version>` only when that
+  file cannot be found.
 - **Naming:** `application.modules` are browser ES modules;
   `workspace.modules` remain the JSON definition files of
   [configuration](configuration.md#belépés-és-alkalmazásszekciók).
@@ -94,6 +96,49 @@ export default (app) => {
 - **One instance:** a module never imports `admin.js` (the shell loads it with
   `?v=`, so a second import would be a second bundle). It gets everything from
   `app` and imports only types.
+
+<a id="cache-keys"></a>
+
+### Cache keys
+
+Owner decision of 2026-10-30: browser cache keys come from the file itself,
+with one rule for every asset the shell links: 61ade's `admin.js` and
+`admin.css`, [skin](shell.md#application-skins) stylesheets, the project's
+`modules` and `stylesheets`, and AuthHandler's `AuthHandler.css`/`.js` on the
+sign-in page. Each gets `?v=<key>`: the base36 modification time (seconds) and
+the base36 size of the file it is served from, joined by `-` (for example
+`app/main.js?v=t3k9qz-1fk2`). A rebuilt or newly copied file gets a new key on
+the next page load, without a commit, `.git`, a version bump or a hand-edited
+template (the former `admin.js?v=32` is gone). A key derived from Git commits
+was rejected: a project module is not the library's, nothing changes before a
+commit, and deploys often have no `.git`.
+
+- **Which file:** a page-relative path resolves against the front controller's
+  directory (`SCRIPT_FILENAME`; if that is unusable, the document root plus the
+  directory of `SCRIPT_NAME`), a root-absolute path against the document root.
+  The document root is `ApplicationDefinition` `documentRoot` (JSON
+  `application.document_root`, relative to the JSON directory), by default the
+  request's `DOCUMENT_ROOT`. Set it only where `DOCUMENT_ROOT` is not the
+  directory served at `/` (an `Alias`, a CLI renderer).
+- **Containment:** a path is resolved with `realpath` and read only when it is a
+  regular file inside the real document root; `..` or a symlink leading out of
+  it, and a front controller outside it, resolve nothing. Definition-time path
+  validation is unchanged.
+- **Own key:** a path that already has `?…` keeps it unchanged.
+- **Fallback:** when no file is found (missing, outside the document root, no
+  usable root), project modules, stylesheets, skins and AuthHandler files get
+  `?v=<version>`, or no key when `version` is empty, as before. 61ade's
+  `admin.js`/`admin.css` first take the key of the package's own build
+  (`packages/frontend/dist/<file>`) when the PHP package is loaded from its
+  checkout. That covers the consumer development link
+  `public/assets/61ade -> …/packages/frontend/dist`, which leaves the
+  consumer's document root; then the version.
+- **Cost:** one `stat` per asset and page (PHP's stat cache is cleared first),
+  no cache across requests. The page never contains a filesystem path; the key
+  has only digits, lowercase letters and `-`.
+- **Limit:** the modification time has one-second resolution; a rewrite within
+  the same second with the same size keeps the key. The `sandbox.html` address
+  reuses the key of `admin.js` ([sandbox protocol](#sandbox-protocol)).
 
 <a id="api-reference"></a>
 
@@ -868,7 +913,7 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
 
 | File | Deployed by consumers | Notes |
 | --- | --- | --- |
-| `dist/admin.js`, `dist/admin.css` | yes (unchanged) | one ESM bundle, no chunks |
+| `dist/admin.js`, `dist/admin.css` | yes (unchanged) | one ESM bundle, no chunks; linked with their [file key](#cache-keys) |
 | `dist/admin.d.ts` | no | development only; declarations of `src/api/index.ts` (`tsc --emitDeclarationOnly` through the TypeScript API), joined with `./types` into one file |
 | `dist/sandbox.html`, `dist/sandbox.js` | only when `SandboxFrame` is used | add to `.deploy.json` `shared_assets.files` beside `admin.js` |
 
@@ -891,7 +936,8 @@ consumer that uses `SandboxFrame`:
 ```
 
 A project's own module files live in its public directory and are built by
-the project.
+the project; the shell keys them by the built file ([cache keys](#cache-keys)),
+so the project needs no version bump after a rebuild.
 
 <a id="typescript-recipe"></a>
 
@@ -989,6 +1035,7 @@ the file manager, diagram, calendar or `blade-ui:` keys, and both copy only
 | M6 | `stylesheets` replaces stylesheet injection | P2 | replace the output buffer in `public/admin/index.php` with `stylesheets` | — |
 | M7 | `.deploy.json` `shared_assets.files` + `sandbox.html`, `sandbox.js` | P3 | needed for the scene player | not needed |
 | M8 | Frontend internals (`Workspace` constructor etc.) are not a contract; use components | P3 | — | — |
+| M9 | [Cache keys](#cache-keys) from the files: `admin.js`/`admin.css` no longer carry `?v=32`, modules/stylesheets no longer `?v=<version>` (only as fallback), skin stylesheets and AuthHandler files gain a key | P4 | nothing to bump; browser specs that assert `?v=32` or `?v=<version>` must accept the file key | same |
 
 Unchanged: `?blade=1` action endpoint, the `__form` pseudo-action, the
 `#blade-config` `csrf` key, `Registry::add(new Action(…))`, `Skin`,
@@ -1011,7 +1058,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-29 | `preferences.scope(name)` keys are `blade-ui:1:[path, user, "scope:<name>"]`; the name must contain a dot. | Cannot collide with a dotted list view id. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `app.components` is an empty frozen object until P3. | Components are P3 work. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `ViewKindProvider::metadata()` returns `{actions, options}` or null instead of the options alone; shared helpers in `ViewMetadata`; generic action shape `{name,label,icon,write,bulk,get,confirm,fields,…}`. | Built-in kinds emit different action shapes today. | [FB-0081](feedback.md#fb-0081) |
-| 2026-10-29 | Signed-in bootstrap key `modules` (page-relative, versioned paths), present only when modules are declared; stylesheets are only `<link>`s after `admin.css` and skins. | The contract named no key. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-29 | Signed-in bootstrap key `modules` (page-relative, versioned paths; keyed by file since 2026-10-30), present only when modules are declared; stylesheets are only `<link>`s after `admin.css` and skins. | The contract named no key. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | JSON `views.<id>` accepts project (dotted) kinds only; a duplicate id inside JSON fails like other JSON duplicates (the PHP replace rule is unchanged). | Built-in kinds keep their resource-based JSON. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | A `subview()` child view of the same resource is normalised to a hierarchy of the parent view. | Matches the per-resource counting of `ListSource`. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | Added `View::with()`, `Registry::provider()`, `Registry::embedded()`, `Registry::checkViews()`, `ApplicationDefinition::versioned()`; a broken `view:` target throws at definition and bootstrap; `View` requires a non-empty title and id-shaped resource and action names for every builder. | Needed by the builders and validation. | [FB-0081](feedback.md#fb-0081) |
@@ -1025,6 +1072,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-30 | Commands: every declared command is a list toolbar item after the view's actions, in declaration order (in the `Műveletek` menu when narrow); there is no record context menu. `placement: "toolbar"` acts on the view, `"record"` on the toolbar's cursor record like the built-in record actions (default enabled with a cursor record and at most one mark; an own `enabled` may accept the marks); `"both"` is accepted as `"record"`. `ListOptions.commands` is a server declaration (≤ 20 dotted names); the built-in Adatok is the `details` record command (toolbar id `blade-command:details`). | Owner decision at G3: one place for record actions, works on touch. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Commands while a sub-view record holds the toolbar: a command the sub-view's list has too (built-in `details`, a name its view declares; every command of a `shared` sub-view) gets the sub-view's context (`view`, `row` = its cursor record, `rows` = its marks); any other command stays on the list's own cursor record and marks. Previously every command saw the delegated record only for a `shared` sub-view and never saw marks while delegated. | Owner decision after G3: `view` and `row` of a command belong to one resource, like the built-in actions. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | Server validation keeps the storage type. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | [Cache keys](#cache-keys) of every shell asset (`admin.js`, `admin.css`, skin stylesheets, `modules`, `stylesheets`, AuthHandler files) are `?v=<base36 mtime>-<base36 size>` of the served file inside the document root; own `?…` keys stay; fallback `?v=<version>` (61ade's files: the package build's key first); the hand-bumped `?v=32` is gone. New optional `ApplicationDefinition::$documentRoot` / JSON `application.document_root` (default `DOCUMENT_ROOT`); bootstrap `modules` carry these keys. `versioned()` remains as the fallback rule. | Owner decision: cache keys from the file, so a rebuilt file reaches the browser at once. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | The [recipe](#typescript-recipe) names the feature demo (`examples/demo-app/frontend`, built to `public/app/demo.js`) as its worked example; no API change. | Toolkit P4 D0: the first real consumer of the recipe. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>

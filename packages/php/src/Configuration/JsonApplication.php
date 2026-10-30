@@ -30,7 +30,7 @@ final class JsonApplication
         $session = $config->section('session');
         $live = $config->section('live');
         $workspace = $config->section('workspace');
-        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array'], '$.application');
+        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string'], '$.application');
         Shape::check($session, ['name' => 'string', 'cookie_path' => 'string'], [], '$.session');
         Shape::check($live, [
             'transport' => 'string',
@@ -91,6 +91,8 @@ final class JsonApplication
             // Browser paths relative to the page (not to the JSON directory), validated by ApplicationDefinition.
             modules: $application['modules'] ?? [],
             stylesheets: $application['stylesheets'] ?? [],
+            // Optional directory served at `/` (relative to the JSON directory) for the assets' cache keys.
+            documentRoot: match ($application['document_root'] ?? null) { null => null, '' => '', default => $config->path($application['document_root']) },
         );
     }
 }
