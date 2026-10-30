@@ -69,7 +69,16 @@ test('without remember: the confirmation actions stay inside the login window in
   const dialog = page.getByRole('dialog', {name: 'E-mailes megerősítés', exact: true}); await expect(dialog).toBeVisible();
   for (const theme of ['skyblue', 'light', 'dark']) {
     await page.evaluate(theme => {document.documentElement.setAttribute('data-dhx-theme', theme); dispatchEvent(new Event('resize'));}, theme);
-    await expect.poll(async () => {const outer = await dialog.boundingBox(), button = await dialog.getByRole('button', {name: 'Vissza a belépéshez', exact: true}).boundingBox(); return Math.abs(outer.y + outer.height - button.y - button.height - 24);}).toBeLessThanOrEqual(2);
+    // Without sign-in content the last action sits 24 px above the window bottom. With declared content (the feature
+    // demo's notice, links and footer slot, docs/shell.md#sign-in-content) that box starts below the last action and
+    // ends at the window bottom: it carries its own 16 px bottom padding and the auth window has none (2 px: rounding).
+    await expect.poll(async () => {
+      const outer = await dialog.boundingBox(), last = await dialog.getByRole('button', {name: 'Vissza a belépéshez', exact: true}).boundingBox();
+      const content = await dialog.locator('.blade-sign-in-info, [data-blade-slot="footer"]:not(:empty)').evaluateAll(elements => elements.map(element => {const box = element.getBoundingClientRect(); return [box.top, box.bottom];}));
+      if (!content.length) return Math.abs(outer.y + outer.height - last.y - last.height - 24);
+      const top = Math.min(...content.map(box => box[0])), bottom = Math.max(...content.map(box => box[1]));
+      return top >= last.y + last.height ? Math.abs(outer.y + outer.height - bottom) : Infinity;
+    }).toBeLessThanOrEqual(2);
     const outer = await dialog.boundingBox(); let previousBottom = 0;
     for (const name of ['Belépés megerősítése', 'Új kód küldése', 'Vissza a belépéshez']) {
       const button = dialog.getByRole('button', {name, exact: true}); await expect(button).toHaveClass(/dhx_button--view_flat/); await button.hover(); const bounds = await button.boundingBox();

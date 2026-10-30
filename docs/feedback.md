@@ -2819,9 +2819,9 @@ that exactly equals an option label lists every option. The managed
     `ApplicationDefinition` `logo` (JSON `application.logo`
     `{image, dark_image, label, placement}`), `.svg`/`.png`/`.webp` paths with
     the stylesheet rules and [file cache keys](toolkit.md#cache-keys). Signed
-    in: the last cell of the top row (counted in the menu width estimate, left
-    out when the row has no room, re-measured on image load and theme
-    switch). Signed out: `window` (default), `top` or `both`; one copy has
+    in: the last cell of the top row, shown only in the room the menu (full,
+    or `Menü` with its siblings) and the selectors leave, so the menu never
+    yields to it; re-measured on image load and theme switch. Signed out: `window` (default), `top` or `both`; one copy has
     `role="img"` and the label (default the title), the top-row copy beside a
     window copy is `aria-hidden`. CSS shows the dark image under the dark base,
     so dark-based skins get it too.
@@ -2875,4 +2875,19 @@ that exactly equals an option label lists every option. The managed
   declarations, D6 starter admin and tenant demo without any of it, file
   keys), `authentication`, `i18n`, `admin`, `tenancy`, `oauth` pass. Written,
   not run: `tests/shell/sign-in-branding.spec.cjs`.
-- **Status:** implemented on branch; browser spec not yet run.
+- **Integration run (2026-10-30, `toolkit/int-close`):** five browser failures
+  from this work. The logo's width counted in the menu estimate, so the
+  feature demo's full menu collapsed at 1600 px and its signage siblings
+  vanished at 1366 px (`browser.spec.cjs` 12, 52, 69, 114). Fixed: the menu
+  never yields to the logo; it shows only in the room left over. The
+  confirmation window's last action was 80 px above the window bottom
+  (`authentication.spec.cjs` 67) because the declared notice, links and footer
+  slot sit in their own row below the actions. That placement stays (a Form
+  `container` row above the actions was tried and dropped: it is Suite PRO
+  only, [pitfalls](toolkit.md#pitfalls)); the window fit adds that row and
+  keeps 24 px below the actions. The spec's expectation was obsolete for an
+  application with sign-in content: it now checks that every action lies
+  inside the window and, with content, that the content starts below the
+  last action and ends at the window bottom (within 2 px); without content
+  the 24 px rule stays.
+- **Status:** implemented; the fix awaits the browser re-run.

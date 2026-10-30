@@ -133,10 +133,10 @@ export class AdminShell {
 
   /** Top menu, or on narrow space one `Menü` button followed, on desktop, by the open feature's sibling items. */
   private renderMenu():void{
-    if (!this.menu) { this.logoWidth(this.root.clientWidth); return; }
-    const width=this.root.clientWidth;
-    const logo=this.logoWidth(width);
-    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0)+logo);
+    const width=this.root.clientWidth,controls=(this.tenantCell?180:0)+(this.definition.i18n?.selector?130:0)+(this.definition.skins?.length===1?0:145);
+    // Signed out there is no menu: the top-row logo only yields to the selectors.
+    if (!this.menu) { this.placeLogo(width-controls); return; }
+    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0));
     const compact = width < Math.max(768,required(this.menuItems));
     const current="view:"+(parseRoute(location.hash).view??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -148,6 +148,8 @@ export class AdminShell {
     };
     let context=compact&&width>=768?siblings(this.menuItems)??[]:[];
     if(required([{value:t("Menü")},...context])>width)context=[];
+    // The menu never yields to the logo: it shows only in the room the menu, siblings and selectors leave.
+    this.placeLogo(width-(compact?required([{value:t("Menü")},...context]):required(this.menuItems)));
     const state=JSON.stringify([compact,context.length?current:""]);
     if (state === this.menuState) return;
     this.menuState = state;
@@ -161,16 +163,14 @@ export class AdminShell {
   }
 
   /**
-   * The top-row logo shows while the row keeps room for `Menü` and the selectors; its rendered width (the image at its
-   * CSS height) then counts in the menu estimate.
+   * The top-row logo shows only when its rendered width (the image at its CSS height) fits in `free`, the room the
+   * row's other content leaves; it never changes how the menu fits.
    */
-  private logoWidth(width:number):number{
+  private placeLogo(free:number):void{
     const box=this.root.querySelector<HTMLElement>(".blade-navigation-row .blade-logo");
-    if(!box)return 0;
+    if(!box)return;
     box.hidden=false;
-    const reserved=Math.ceil(box.getBoundingClientRect().width);
-    box.hidden=width-(this.tenantCell?180:0)-(this.definition.i18n?.selector?130:0)-(this.definition.skins?.length===1?0:145)-(this.menu?128:0)<reserved;
-    return box.hidden?0:reserved;
+    box.hidden=free<Math.ceil(box.getBoundingClientRect().width);
   }
 
   /**
@@ -205,9 +205,10 @@ export class AdminShell {
     if(!buttons.length)return;
     const outer=(container.closest<HTMLElement>('[role="dialog"]')??container).getBoundingClientRect();
     const bottom=Math.max(...buttons.map(button=>button.getBoundingClientRect().bottom));
-    // Content below the form (notice, links, footer slot) keeps its own height; the form cell takes the rest.
+    // Content below the form (notice, links, footer slot) keeps its own height and ends at the window edge (its own
+    // 16 px bottom padding); the form cell keeps 24 px below the actions, more than the form's padding.
     const after=Array.from(container.querySelectorAll<HTMLElement>("[data-blade-after-form]")).reduce((sum,element)=>sum+element.getBoundingClientRect().height,0);
-    const height=Math.min(innerHeight-24,Math.ceil(bottom-outer.top+(after?8:24)+after));
+    const height=Math.min(innerHeight-24,Math.ceil(bottom-outer.top+24+after));
     win.setSize(outer.width,height);
     win.setPosition(Math.max(12,(innerWidth-outer.width)/2),Math.max(12,(innerHeight-height)/2));
   }
