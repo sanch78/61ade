@@ -1,7 +1,7 @@
 {
     "section_descriptions": {
-        "purpose": "Feature demo: a large read-only synthetic list.",
-        "covers": "virtual scrolling over a large SQL result, server-side sorting and filtering with a bounded client window."
+        "purpose": "Feature demo: a large read-only synthetic list and a dashboard over it.",
+        "covers": "virtual scrolling over a large SQL result, server-side sorting and filtering with a bounded client window; the toolkit column presentation demo.reading-bar and the project view kind demo.readings-dashboard (ListView, Suite Chart and summary linked by selection and filter)."
     },
     "resources": {
         "demo_readings": {
@@ -23,7 +23,10 @@
                 {
                     "name": "reading",
                     "label": "Érték",
-                    "max": 20
+                    "max": 20,
+                    "column": {
+                        "presentation": "demo.reading-bar"
+                    }
                 }
             ],
             "view": {
@@ -44,6 +47,25 @@
                     "get"
                 ]
             }
+        }
+    },
+    "views": {
+        "demo.readings-dashboard": {
+            "kind": "demo.readings-dashboard",
+            "title": "Mérési irányítópult",
+            "resource": "demo_readings",
+            "actions": [
+                "list"
+            ],
+            "options": {
+                "list": "demo_readings",
+                "value": "reading",
+                "name": "title",
+                "max": 100,
+                "buckets": 10
+            },
+            "group": "Feature demó",
+            "icon": "dxi dxi-chart-vertical"
         }
     }
 }

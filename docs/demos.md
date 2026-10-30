@@ -127,9 +127,58 @@ starter admin and the tenant demo stay declarative and load no project module.
 | D0 | Build, declaration, empty module | `index.ts` | Implemented; registers nothing visible |
 | D1 | Signage `Médiatár` asset viewer | `assets.ts` | Planned |
 | D2 | Signage `Napi műsor` playlist preview | `playlist.ts` | Planned |
-| D3 | `Mérések` dashboard | `readings.ts` | Planned |
+| D3 | `Mérések` dashboard | `readings.ts` | Implemented ([below](#readings-dashboard)); browser spec written, not yet run |
 | D4 | `Tasks` field type and command | `tasks.ts` | Planned |
 | D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` on the feature demo |
+
+<a id="readings-dashboard"></a>
+
+**D3 `Mérések` dashboard** (`readings.ts`, declared in
+[readings.json](../examples/demo-app/modules/readings.json)):
+
+- **Presentation `demo.reading-bar`:** the `reading` field's
+  `"column": {"presentation": "demo.reading-bar"}` draws an inline bar of the
+  value on the fixed 0–100 reading scale with the escaped number beside it (the
+  visible text alternative; the bar is `aria-hidden`, the tooltip reads
+  `{value} a 100-ból`). Sizes: `cell` in the table, `card` in cards and the
+  record details, `tile` (implemented, unused: the readings list has no tiles).
+  A value that is not a number renders as escaped text. Colours are Suite theme
+  variables. The plain `Mérések` list keeps its declaration otherwise unchanged
+  (no marks, no tiles), so it stays the large-list performance reference.
+- **View `demo.readings-dashboard`** (`Feature demó → Mérési irányítópult`, an
+  additional menu entry beside `Mérések`): a module-level JSON `views` entry of
+  the project kind with `actions: ["list"]` (offered with the readings ACL) and
+  the options `list` (the list view shown), `value`, `name`, `max` and
+  `buckets`, checked when the view opens. The page is a Suite Layout: a
+  summary cell (loaded/matched rows, minimum, maximum, average and the selected
+  row with its distance from the average) and a Suite Chart cell
+  (`app.dhx.Chart`, a stacked bar histogram of the values in ten bins; the
+  selected row's bin is a second segment) above `app.components.ListView` of
+  `demo_readings`. The list's `changed` event (load, scroll window, filter, live
+  update) and `select` event (cursor record) update both. The figures describe
+  the **loaded window** of the list, not the full result: unfiltered that is
+  the bounded window out of 1801; with a filter such as `Mérés 000` it is the
+  whole match. A visually hidden paragraph lists every bin (and the selected
+  bin) as the chart's text alternative. The list shares its saved mode, sort
+  and filters with the `Mérések` page (same view id).
+- **Themes and mobile:** chart colours are read from `--dhx-color-primary` and
+  `--dhx-color-success` and repainted through `app.theme.onChange`, so Skyblue,
+  light, dark and skins apply; axis text follows the Suite CSS. Below 768 px
+  summary (compact four-column grid) and chart stack above the list, which
+  shows cards; crossing the breakpoint rebuilds the page (the list's state
+  comes back from its preferences).
+- **Lifecycle:** closing the view (navigation, sign-out) aborts its session:
+  the ListView (with its live subscription), the theme listener, the
+  breakpoint listener, the Chart and the Layout are destroyed.
+- **Limits:** the toolkit `ListView` reports the cursor record but not the
+  marked rows, so the dashboard follows selection and filters, not marks. The
+  presentation has no per-column options, so its scale is fixed at 100. The
+  feature demo offers Hungarian and English only; the English texts are in
+  `resources/locales/en.json`.
+- **What to try:** open `Mérési irányítópult`, type `Mérés 000` into the
+  `Megnevezés` header filter (summary `9 / 9`, the chart shows nine rows),
+  click a row (summary and chart mark it), switch the theme, narrow the window
+  below 768 px, then open `Mérések` and its cards and details to see the bar.
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
@@ -249,6 +298,7 @@ See [project rules](development.md#mandatory-framework-development-rules).
 
 - `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes; the starter admin and the tenant demo declare no modules or stylesheets, the feature demo exactly its versioned `app/demo.js` ([toolkit consumer](#toolkit-consumer)).
 - `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<version>` once (bootstrap `modules` and the network agree) and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules` and request no script outside `assets/`.
+- `npm run test:browser -- tests/shell/toolkit-demo-readings.spec.cjs` (written, not yet run): the [readings dashboard](#readings-dashboard) opens from the menu, its summary and chart data follow the header filter (compared with the `list` action) and the selected row, the theme switch repaints the chart and summary, the phone layout stacks and rebuilds at the breakpoint, navigating away leaves no chart, summary or listener; the plain `Mérések` list shows `demo.reading-bar` in table, cards and details and still sorts on the server.
 - Ignored `.env.test` supplies `BLADE_DEMO_URL` and `BLADE_DEMO_INSTANCE=web`; every browser spec runs against the managed server and none starts a local server ([development](development.md#unified-playwright-configuration)).
 - `npm run test:browser -- --project=shell tests/shell/demo.spec.cjs`: login modes/language row, provider overlay/start, mailbox code/English default, account columns, API issue/use/revoke, starter menu and Tasks. Real provider completion remains unverified; FB-0050 records Google's callback mismatch.
 - `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs`: six combinations on desktop/320×480, keys/focus and invalid-login caller.
