@@ -149,10 +149,10 @@ return new ApplicationDefinition(
     modules: ['app/demo.js'],
     // Its stylesheet, built from the CSS the module's sources import; linked on signed-in pages after admin.css and skins.
     stylesheets: ['app/demo.css'],
-    // Sign-in branding (docs/shell.md#sign-in-branding): a synthetic wordmark with a dark-theme variant in the window and
-    // the top row (the window's copy is the named one), a sign-in stylesheet on the supported hooks, a notice with a
-    // link to the demo mailbox, and a sign-in module filling the window's footer slot. The logo text is the title.
-    logo: new Logo('branding/logo.svg', 'branding/logo-dark.svg', placement: 'both'),
+    // Sign-in customization (docs/shell.md#sign-in-branding): the framework's product logo (docs/brand.md) in the window
+    // and the top row (the window's copy is the named one), a sign-in stylesheet on the supported hooks, a notice with a
+    // link to the demo mailbox, and a sign-in module filling the window's footer slot.
+    logo: new Logo(placement: 'both'),
     signInStylesheets: ['branding/sign-in.css'],
     signIn: new SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.', [new SignInLink('Demó postafiók', 'mailbox/')]),
     signInModules: ['branding/sign-in.js'],

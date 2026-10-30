@@ -110,9 +110,13 @@ final class Application
         }
         // Page kind for project CSS (`data-blade-page` on <html>), in the order the shell picks its window.
         $page = $identity ? 'shell' : (isset($bootstrap['passwordChange']) ? 'password-change' : (isset($bootstrap['confirmation']) ? 'confirmation' : 'sign-in'));
-        // The application logo (top menu row, sign-in windows): keyed image URLs and its accessible text.
-        if ($logo = $definition->logo) {
-            $bootstrap['logo'] = ['image' => $keys->url($logo->image), 'label' => Translator::text($logo->label ?? $definition->title), 'placement' => $logo->placement];
+        // The logo (top menu row, sign-in windows): without a declaration the product logo (no image: the shell inlines
+        // it); declared images as keyed URLs; `Logo::none()` none.
+        $logo = $definition->logo ?? new Logo();
+        if ($logo->shown) {
+            $bootstrap['logo'] = $logo->image === null
+                ? ['label' => $logo->label === null ? Logo::PRODUCT_LABEL : Translator::text($logo->label), 'placement' => $logo->placement]
+                : ['image' => $keys->url($logo->image), 'label' => Translator::text($logo->label ?? $definition->title), 'placement' => $logo->placement];
             if ($logo->darkImage !== null) $bootstrap['logo']['dark'] = $keys->url($logo->darkImage);
         }
         // Signed-out pages only: the windows' notice and links (translated here, plain text) and the sign-in modules.

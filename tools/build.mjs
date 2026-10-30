@@ -37,7 +37,8 @@ const result = await build({
     outdir: dist,
     minify: true,
     legalComments: "eof",
-    loader: { ".woff": "dataurl", ".woff2": "dataurl", ".png": "dataurl" },
+    // `.svg` as text: the product logo (packages/frontend/brand) is inlined by the shell, never a deployed file.
+    loader: { ".woff": "dataurl", ".woff2": "dataurl", ".png": "dataurl", ".svg": "text" },
     plugins: [
         {
             name: "local-vendor-css",

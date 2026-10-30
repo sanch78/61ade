@@ -30,9 +30,11 @@ final class JsonApplication
         $session = $config->section('session');
         $live = $config->section('live');
         $workspace = $config->section('workspace');
-        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'array', 'sign_in_stylesheets' => 'array', 'sign_in' => 'array', 'sign_in_modules' => 'array'], '$.application');
+        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'any', 'sign_in_stylesheets' => 'array', 'sign_in' => 'array', 'sign_in_modules' => 'array'], '$.application');
+        // `false`: no logo (Logo::none()); an object, `image` optional (without it the product logo); absent: the default.
         $logo = $application['logo'] ?? null;
-        if ($logo !== null) Shape::check($logo, ['image' => 'string'], ['dark_image' => 'string', 'label' => 'string', 'placement' => 'string'], '$.application.logo');
+        if ($logo !== null && $logo !== false && !is_array($logo)) throw new \InvalidArgumentException('Invalid configuration type: $.application.logo');
+        if (is_array($logo)) Shape::check($logo, [], ['image' => 'string', 'dark_image' => 'string', 'label' => 'string', 'placement' => 'string'], '$.application.logo');
         $signIn = $application['sign_in'] ?? null;
         if ($signIn !== null) {
             Shape::check($signIn, [], ['notice' => 'string', 'links' => 'array'], '$.application.sign_in');
@@ -104,7 +106,7 @@ final class JsonApplication
             stylesheets: $application['stylesheets'] ?? [],
             // Optional directory served at `/` (relative to the JSON directory) for the assets' cache keys.
             // Sign-in branding (docs/shell.md#sign-in-branding): browser paths like `stylesheets`.
-            logo: $logo === null ? null : new \Blade\Shell\Logo($logo['image'], $logo['dark_image'] ?? null, $logo['label'] ?? null, $logo['placement'] ?? 'window'),
+            logo: match (true) { $logo === null => null, $logo === false => \Blade\Shell\Logo::none(), default => new \Blade\Shell\Logo($logo['image'] ?? null, $logo['dark_image'] ?? null, $logo['label'] ?? null, $logo['placement'] ?? 'window') },
             signInStylesheets: $application['sign_in_stylesheets'] ?? [],
             signIn: $signIn === null ? null : new \Blade\Shell\SignIn($signIn['notice'] ?? null, array_map(static fn(array $link) => new \Blade\Shell\SignInLink($link['label'], $link['href']), $signIn['links'] ?? [])),
             signInModules: $application['sign_in_modules'] ?? [],
