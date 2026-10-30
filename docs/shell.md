@@ -21,7 +21,10 @@ Blade\Infrastructure\HttpEntrypoint::run(static fn() => require '../application.
 `title`, `identities` (IdentityProvider), `menu` (Menu), `runtime` (private
 writable directory). Optional: `sessionName`, `cookiePath`, string `version`
 (default empty), `assets` (browser path to built assets relative to the page,
-default `assets`; e.g. `../assets` for the [starter admin](demos.md) at `/admin/`).
+default `assets`; e.g. `../assets` for the [starter admin](demos.md) at `/admin/`),
+`documentRoot` (the directory served at `/`, default the request's
+`DOCUMENT_ROOT`; the shell keys `admin.js`, `admin.css` and every other linked
+asset by its file below it, see [cache keys](toolkit.md#cache-keys)).
 Other options include `authentication`, `languages`, `accounts`, `oauth`;
 see [authentication](authentication.md). JSON uses `application.version`, e.g.
 `"title":"Minta admin","version":"0.1.0"`. Startup, errors, sessions, CSRF,
@@ -214,7 +217,8 @@ return new ApplicationDefinition(
   `[a-z][a-z0-9-]*` and must not be a factory theme (`skyblue`, `light`,
   `dark`, `contrast-light`, `contrast-dark`); `label` is localized like other
   texts; `stylesheet` is a `.css` path relative to the page, checked like
-  `assets`, with an optional `?v=…` cache key. Same-origin paths only, so CSP
+  `assets`, with an optional `?v=…` cache key; without one the shell appends the
+  stylesheet file's [cache key](toolkit.md#cache-keys). Same-origin paths only, so CSP
   `style-src 'self'` holds. `base` is `light`, `dark` or `skyblue`.
 - Skin stylesheets load after the framework CSS, so a `[data-blade-skin]`
   variable wins over the same base variable at equal specificity. Keep to
@@ -361,7 +365,8 @@ a duplicate throws unless `{replace: true}`.
   keys at the top and the kind's payload in `options`; a built-in kind hands
   `options` to its component unchanged.
 - **Modules:** the bootstrap `modules` list (page-relative paths of
-  `application.modules`; one without its own `?` cache key gets `?v=<version>`)
+  `application.modules`; one without its own `?` cache key gets the
+  [file-derived key](toolkit.md#cache-keys), `?v=<version>` only as fallback)
   is imported in parallel; the default exports run one by one in declaration
   order with `app`, then the shell routes. A failed import, a missing default
   export, a throw, a rejection or more than 5 s (per import and per
