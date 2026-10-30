@@ -2,7 +2,8 @@
 
 Status: accepted direction ([ADR-0005](decisions/0005-toolkit.md),
 [FB-0081](feedback.md#fb-0081)); P0 done, P1 contract accepted at gate G1 (2026-10-29) in the
-[toolkit reference](toolkit.md); P2 (G2) and P3 (G3) done; P4 feature demo in progress (2026-10-30). Written 2026-10-29 for execution
+[toolkit reference](toolkit.md); P2 (G2), P3 (G3) and P4 feature demo done, gate G4 passed (2026-10-30);
+P5 documentation done on branch `toolkit/P5`; P6, P7 and G5 open. Written 2026-10-29 for execution
 by a coordinating agent with sub-agents in a new thread. Breaking changes are
 accepted; consumers adapt themselves.
 
@@ -202,7 +203,7 @@ existing demo area; no separate showcase application.
 | --- | --- | --- | --- |
 | D0 | Build | `examples/demo-app/frontend/src/*.ts` → `examples/demo-app/public/app/demo.js` via `tools/build.mjs` (second entry, `--check` included), declared in `application.php` `modules`. | Module loading, d.ts, recipe |
 | D1 | Signage `Médiatár` | Synthetic audio assets (generated tones, WAV/MP3/M4A, committed as small fixtures); audio upload; record view `demo.asset-viewer`: Layout with 61ade `CommandBar` (play, pause, position, loop), `RecordDetails`, stage cell with `MediaPlayer` (image/video/audio); activation map: audio/video → viewer, image → details. | Record views, per-record activation, composition, MediaPlayer, audio |
-| D2 | Signage `Napi műsor` | Replace the bare API answer view with a custom kind `demo.playlist-preview`: a timeline of the day's playlist (from `signage_playlist.day`), playhead driving `MediaPlayer` for assets and a `SandboxFrame` for a synthetic "scene" asset whose code (a small canvas animation with `load/duration/renderAt(t)/play/pause/seek`) is delivered by an action. Keep showing the API request. | Sandbox, timeline/StoryBloX pattern, module ↔ frame protocol |
+| D2 | Signage `Napi műsor` | A separate menu entry beside the calendar (whose `Napi műsor (API)` day button with the bare API answer stays): the custom kind `demo.playlist-preview`, a timeline of the day's playlist (from `signage_playlist.day`), playhead driving `MediaPlayer` for assets and a `SandboxFrame` for a synthetic "scene" asset whose code (a small canvas animation with `load/duration/renderAt(t)/play/pause/seek`) is delivered by an action. Keep showing the API request. | Sandbox, timeline/StoryBloX pattern, module ↔ frame protocol |
 | D3 | `Mérések` | A dashboard page kind: `ListView` of measurements + DHTMLX Chart cell + own summary, linked by selection/filter; one custom column presentation (inline bar/sparkline) registered by the module and used in the list declaration. | Composition of framework components, presentation registry |
 | D4 | `Tasks` | A custom field type (for example a priority rating editor) used in form, grid and card; a client command (for example "Copy as text") on the list toolbar. | Field-type and command registries |
 | D5 | Built-ins | List, file manager, diagram and calendar open through the registry; no demo-visible change. | Dogfooding |
