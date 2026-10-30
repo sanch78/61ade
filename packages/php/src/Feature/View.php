@@ -8,7 +8,7 @@ namespace Blade\Feature;
  *
  * $id: unique per application, `[a-z][a-z0-9_.-]*`; the built-in builders default it to the resource.
  * $kind: `list`, `files`, `diagram`, `calendar`, or a project kind containing a dot (`demo.playlist-preview`), which
- *   a project module registers in the browser (`app.views`).
+ *   a project module registers in the browser (`app.kinds`).
  * $resource: ACL resource whose $actions the view uses; null for a view without actions.
  * $record: resource of the record a record view opens for; the client resolves the row through its `get` action (ACL,
  *   field ACL, tenant). Offered only with that `get` offered to the actor; only project kinds accept it (P2).
