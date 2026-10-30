@@ -147,7 +147,9 @@ test('phone width: the sign-in logo fits; the top row gives the room to Menü an
 });
 
 test('the starter admin and the tenant demo show the product logo without declaring it',async({page})=>{
- await page.setViewportSize(WIDE);
+ // 1600 px: at 1280 px the tenant demo's full menu and its tenant, language and theme selectors leave about 113 px by
+ // the menu estimate, less than the 116 px top-row logo, so the logo yields there (checked below), never the menu.
+ await page.setViewportSize({width:1600,height:900});
  for(const path of ['/admin/','/tenants/']){
   await page.goto(path);
   await expect(html(page)).toHaveAttribute('data-blade-page','sign-in');
@@ -166,5 +168,11 @@ test('the starter admin and the tenant demo show the product logo without declar
   await expect(topLogo(page)).toBeVisible();
   await expect(topLogo(page)).toHaveAttribute('role','img');
   await expect(logo(page)).toHaveCount(1);
+  expect(await uniqueIds(page)).toBe(true);
  }
+ // The menu never yields to the logo: at 1280 px the tenant demo keeps its full menu and leaves the logo out.
+ await page.setViewportSize(WIDE);
+ await expect(page.getByRole('menuitem',{name:'Kijelentkezés',exact:true})).toBeVisible();
+ await expect(page.getByRole('menuitem',{name:/^(Menü|Menu)$/})).toHaveCount(0);
+ await expect(topLogo(page)).toBeHidden();
 });
