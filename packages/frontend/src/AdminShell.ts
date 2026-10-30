@@ -138,7 +138,8 @@ export class AdminShell {
     const width=this.root.clientWidth,controls=(this.tenantCell?180:0)+(this.definition.i18n?.selector?130:0)+(this.definition.skins?.length===1?0:145);
     // Signed out there is no menu: the top-row logo only yields to the selectors.
     if (!this.menu) { this.placeLogo(width-controls); return; }
-    const required=(items:any[])=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,305+(this.definition.i18n?.selector?130:0)+(this.tenantCell?180:0)-(this.definition.skins?.length===1?145:0));
+    // Only the full menu reserves a separate logout button; in compact mode it is inside Menü.
+    const required=(items:any[],logout=true)=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,controls+(logout?160:0));
     const compact = width < Math.max(768,required(this.menuItems));
     const current="view:"+(parseRoute(location.hash).view??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -149,9 +150,9 @@ export class AdminShell {
       }
     };
     let context=compact&&width>=768?siblings(this.menuItems)??[]:[];
-    if(required([{value:t("Menü")},...context])>width)context=[];
+    if(required([{value:t("Menü")},...context],false)>width)context=[];
     // The menu never yields to the logo: it shows only in the room the menu, siblings and selectors leave.
-    this.placeLogo(width-(compact?required([{value:t("Menü")},...context]):required(this.menuItems)));
+    this.placeLogo(width-(compact?required([{value:t("Menü")},...context],false):required(this.menuItems)));
     const state=JSON.stringify([compact,context.length?current:""]);
     if (state === this.menuState) return;
     this.menuState = state;

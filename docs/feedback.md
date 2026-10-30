@@ -379,3 +379,7 @@
 <a id="fb-0091"></a>
 
 ## FB-0091 — The b1ade logo
+
+<a id="fb-0092"></a>
+
+## FB-0092 — Compact navigation reserved room for a hidden logout button

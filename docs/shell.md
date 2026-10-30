@@ -346,9 +346,14 @@ return new ApplicationDefinition(
   [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) fit exactly as
   without a logo, and the logo shows only when its rendered width fits in the
   room they and the selectors leave by the same width estimate (for example
-  not beside the feature demo's full menu at 1600 px or its four signage
-  siblings at 1366 px, nor at 390 px). Widening brings it back. The width is
-  measured again when an image loads and after a theme switch.
+  not beside the feature demo's full menu at 1600 px, nor at 390 px with both
+  language and theme selectors).
+  In compact mode the estimate counts only `Menü`, any visible siblings and
+  the selectors: logout is inside `Menü` and reserves no extra width. There is
+  no phone breakpoint that hides the logo; with one skin and no language
+  selector it fits at 320 px ([FB-0092](feedback.md#fb-0092)). Widening brings
+  it back. The width is measured again when an image loads and after a theme
+  switch.
 - **Signed out, `placement`:** `window` (default) centres it above the form in
   the window (48 px high, at most the window width); `top` puts it at the end
   of the top row as in the shell (no menu there, so it only yields to the
