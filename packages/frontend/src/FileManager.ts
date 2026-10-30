@@ -6,7 +6,7 @@ import { TreeAdapter } from "./TreeAdapter";
 import { widgetIcons } from "./WidgetIcons";
 import { fitWindow } from "./WindowSizing";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
-import { acknowledge, alert, requestChoice, requestConfirmation } from "./MessageDialog";
+import { acknowledge, requestChoice, requestConfirmation } from "./MessageDialog";
 import { escape, clearedText, mergeUsages, type Usage } from "./RecordPresentation";
 import { actionUrl } from "./ActionUrl";
 import { server } from "./api/Server";
@@ -420,7 +420,7 @@ export class FileManager {
     if(this.disposed)return;
     const e=error as Failure;
     const failed=(e.details?.failed??[]) as {name:string;error:string}[];
-    await alert({header:t("Hiba"),severity:"danger",text:[e instanceof Error?e.message:t("Sikertelen művelet."),...Object.values(e.fieldErrors??{}),...failed.map(item=>`${item.name}: ${item.error}`)].join("\n")});
+    await acknowledge({title:t("Hiba"),severity:"danger",message:[e instanceof Error?e.message:t("Sikertelen művelet."),...Object.values(e.fieldErrors??{}),...failed.map(item=>`${item.name}: ${item.error}`)].join("\n")});
   }
 
   private size(bytes:number):string{
@@ -915,7 +915,7 @@ export class FileManager {
     const save=()=>{
       const content=value();
       if(!writable||saving||content===saved)return;
-      if(new TextEncoder().encode(content).length>file.max_bytes){void alert({header:t("Hiba"),severity:"warning",text:t("A szöveg legfeljebb {size} bájt lehet.",{size:file.max_bytes})});return;}
+      if(new TextEncoder().encode(content).length>file.max_bytes){void acknowledge({title:t("Hiba"),severity:"warning",message:t("A szöveg legfeljebb {size} bájt lehet.",{size:file.max_bytes})});return;}
       saving=true;sync();
       void this.call("text_save",file.id,{revision},[{field:"content",blob:new Blob([content],{type:"text/plain"}),name:file.name}]).then(async result=>{
         saved=content;revision=result.revision;

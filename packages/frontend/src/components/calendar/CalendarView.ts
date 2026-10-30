@@ -5,7 +5,7 @@ import "dhtmlx-scheduler/codebase/dhtmlxscheduler.css";
 import "../../calendar.css";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { widgetIcons } from "../../WidgetIcons";
-import { alert, requestChoice, showDialog } from "../../MessageDialog";
+import { acknowledge, requestChoice, showDialog } from "../../MessageDialog";
 import { escape } from "../../RecordPresentation";
 import { FormValidation, type FieldDefinition } from "../../FormValidation";
 import { formActions, input } from "../../Workspace";
@@ -304,11 +304,11 @@ export class CalendarView {
     const interval=Number(values.interval),count=Number(values.count);
     if(!(interval>=1&&interval<=999))return validation.showServerErrors({interval:t("1 és {max} közötti szám szükséges.",{max:999})}),null;
     const days=Object.entries(values.days??{}).filter(([,on])=>on).map(([day])=>day);
-    if(freq==="WEEKLY"&&!days.length){void alert({header:t("Ellenőrizd a mezőt"),text:t("Válassz legalább egy napot."),severity:"warning"});return null;}
+    if(freq==="WEEKLY"&&!days.length){void acknowledge({title:t("Ellenőrizd a mezőt"),message:t("Válassz legalább egy napot."),severity:"warning"});return null;}
     if(values.ends==="count"&&!(count>=1&&count<=5000))return validation.showServerErrors({count:t("1 és {max} közötti szám szükséges.",{max:5000})}),null;
     const until=values.ends==="until"?local(values.until):null;
     if(values.ends==="until"&&(!until||until<new Date(start.getFullYear(),start.getMonth(),start.getDate()))){
-      void alert({header:t("Ellenőrizd a mezőt"),text:t("Az utolsó nap nem lehet a kezdés előtt."),severity:"warning"});return null;
+      void acknowledge({title:t("Ellenőrizd a mezőt"),message:t("Az utolsó nap nem lehet a kezdés előtt."),severity:"warning"});return null;
     }
     const rule=writeRule({freq:freq as Repeat["freq"],interval,days,position:values.monthly==="position",count:values.ends==="count"?count:0,until:until?day(until):""},start);
     Object.assign(data,{rrule:rule.rrule,duration:Math.round((end.getTime()-start.getTime())/1000),_start_date:null,_end_date:rule.end});
@@ -448,7 +448,7 @@ export class CalendarView {
   private async error(error:unknown):Promise<void>{
     if(this.disposed)return;
     const e=error as Failure;
-    await alert({header:t("Hiba"),severity:"danger",text:[e instanceof Error?e.message:t("Sikertelen művelet."),...Object.values(e.fieldErrors??{})].join("\n")});
+    await acknowledge({title:t("Hiba"),severity:"danger",message:[e instanceof Error?e.message:t("Sikertelen művelet."),...Object.values(e.fieldErrors??{})].join("\n")});
   }
 
   destroy():void{

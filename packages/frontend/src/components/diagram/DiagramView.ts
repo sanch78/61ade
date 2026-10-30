@@ -4,7 +4,7 @@ import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { widgetIcons } from "../../WidgetIcons";
 import { fitWindow } from "../../WindowSizing";
 import { FormValidation, type FieldDefinition } from "../../FormValidation";
-import { alert, requestConfirmation } from "../../MessageDialog";
+import { acknowledge, requestConfirmation } from "../../MessageDialog";
 import { escape } from "../../RecordPresentation";
 import { server } from "../../api/Server";
 
@@ -204,7 +204,7 @@ export class DiagramView {
   private async error(error:unknown):Promise<void>{
     if(this.disposed)return;
     const e=error as Failure;
-    await alert({header:t("Hiba"),severity:"danger",text:[e instanceof Error?e.message:t("Sikertelen művelet."),...Object.values(e.fieldErrors??{})].join("\n")});
+    await acknowledge({title:t("Hiba"),severity:"danger",message:[e instanceof Error?e.message:t("Sikertelen művelet."),...Object.values(e.fieldErrors??{})].join("\n")});
   }
 
   // ---- diagrams ----------------------------------------------------------------------------
@@ -365,7 +365,7 @@ export class DiagramView {
     if(!type?.custom)return;
     // Unsaved nodes of this diagram are part of the check: the server sees only saved content.
     if(this.document?.nodes.some(node=>node.type===id)){
-      await alert({header:t("Elemtípus törlése"),severity:"warning",text:t("Az elemtípust ez a diagram használja. Előbb töröld vagy cseréld le az elemeit.")});
+      await acknowledge({title:t("Elemtípus törlése"),severity:"warning",message:t("Az elemtípust ez a diagram használja. Előbb töröld vagy cseréld le az elemeit.")});
       return;
     }
     try{
@@ -383,7 +383,7 @@ export class DiagramView {
   private add(type:string,x:number,y:number):void{
     const diagram=this.document,definition=this.types.get(type);
     if(!diagram||!this.writable||!definition)return;
-    if(diagram.nodes.length>=this.config.maxNodes){void alert({header:t("Hiba"),severity:"warning",text:t("Legfeljebb {count} elem lehet egy diagramon.",{count:this.config.maxNodes})});return;}
+    if(diagram.nodes.length>=this.config.maxNodes){void acknowledge({title:t("Hiba"),severity:"warning",message:t("Legfeljebb {count} elem lehet egy diagramon.",{count:this.config.maxNodes})});return;}
     const count=diagram.nodes.filter(node=>node.type===type).length+1;
     const node={id:this.nextId("n"),type,label:`${definition.label} ${count}`,detail:"",x:Math.round(x/GRID)*GRID,y:Math.round(y/GRID)*GRID};
     diagram.nodes.push(node);
@@ -401,7 +401,7 @@ export class DiagramView {
     const diagram=this.document;
     if(!diagram||source===target)return;
     if(diagram.links.some(link=>(link.source===source&&link.target===target)||(link.source===target&&link.target===source))){message({text:t("A két elem már össze van kötve."),css:"blade-toast",expire:3000});return;}
-    if(diagram.links.length>=this.config.maxLinks){void alert({header:t("Hiba"),severity:"warning",text:t("Legfeljebb {count} kapcsolat lehet egy diagramon.",{count:this.config.maxLinks})});return;}
+    if(diagram.links.length>=this.config.maxLinks){void acknowledge({title:t("Hiba"),severity:"warning",message:t("Legfeljebb {count} kapcsolat lehet egy diagramon.",{count:this.config.maxLinks})});return;}
     const link={id:this.nextId("l"),source,target,type:this.linkType,label:""};
     diagram.links.push(link);
     this.select({kind:"link",id:link.id});this.changed();this.render();

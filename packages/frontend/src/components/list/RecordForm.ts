@@ -1,6 +1,6 @@
 import { t } from "../../I18n";
 import { Form, Layout, awaitRedraw } from "@dhtmlx/suite";
-import { alert } from "../../MessageDialog";
+import { acknowledge } from "../../MessageDialog";
 import { FileFields } from "../../FilePicker";
 import { FormValidation, fieldError } from "../../FormValidation";
 import { failure, server } from "../../api/Server";
@@ -61,7 +61,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       this.layout.getCell("form").attach(form);
     }catch(error){
       if(this.destroyed||(error instanceof DOMException&&error.name==="AbortError"))return;
-      await alert({header:t("Hiba"),severity:"danger",text:errorText(error,[])});
+      await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,[])});
       throw error;
     }
   }
@@ -112,7 +112,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       }catch(error){
         if(error===DECLINED)throw new DOMException("The confirmation was declined.","AbortError");
         if(!this.destroyed&&!(error instanceof DOMException&&error.name==="AbortError")&&!validation.showServerErrors((error as {fieldErrors?:Record<string,string>})?.fieldErrors??{}))
-          await alert({header:t("Hiba"),severity:"danger",text:errorText(error,this.fields)});
+          await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,this.fields)});
         throw error;
       }finally{if(!this.destroyed)form.enable();}
     };
