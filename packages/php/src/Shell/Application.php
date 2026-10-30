@@ -29,6 +29,7 @@ final class Application
         $workspace = $this->definition->workspace;
         $identity = $this->currentIdentity();
         $error = '';
+        $username = '';
         if (!$identity && isset($_SESSION['loginNotice'])) {
             $error = (string) $_SESSION['loginNotice'];
             unset($_SESSION['loginNotice']);
@@ -93,7 +94,7 @@ final class Application
             'title' => Translator::text($definition->title),
             'version' => $definition->version,
             'authenticated' => $identity !== null,
-            'username' => '',
+            'username' => $username,
             'error' => $error,
             'rememberAvailable' => $definition->authentication !== null,
             'rememberDays' => $definition->authentication?->rememberDays,

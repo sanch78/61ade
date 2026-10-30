@@ -399,3 +399,7 @@
 <a id="fb-0096"></a>
 
 ## FB-0096 — Bilingual product website and public demo entry
+
+<a id="fb-0097"></a>
+
+## FB-0097 — Roll back login suppression and identify the writer

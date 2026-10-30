@@ -104,19 +104,20 @@ then ApplicationDefinition.authentication. Custom providers implement Delivery;
 
 ## Login flow
 
-The identifier and password fields start empty on every sign-in page, including
-after a failed attempt and logout. The shell does not restore a submitted
-identifier and sets both inputs to `autocomplete="off"`. Because browsers can
-ignore that hint, the login adapter also clears native `:autofill` when it
-appears before the user starts editing. A scoped CSS animation reports that
-state even when Chromium paints a saved value before exposing it to JavaScript.
-Autofill's keyless events do not count as editing; actual pointer, keyboard and
-paste input does, so manual entry and deliberate password-manager selection
-remain available. Saved browser credentials are unchanged. Extensions that
-inject values without native autofill state are outside this detection.
-The identifier receives focus, including after dismissing a login error. No
-consumer setting is needed ([FB-0094](feedback.md#fb-0094),
-[FB-0095](feedback.md#fb-0095)).
+On a fresh GET, the server supplies an empty identifier and the password input
+has no initial value. Neither field is populated with demo credentials by the
+application. After a failed submission, the identifier comes from that POST;
+the password is never returned. Standard `username` / `current-password`
+autocomplete hints let the user's browser manage saved credentials.
+
+Chrome's built-in Password Manager can fill both inputs independently of the
+application, including on an empty static form with JavaScript disabled.
+Remove the saved credential for the affected site in that password manager to
+stop that source of filling ([Chrome instructions](https://support.google.com/chrome/answer/95606?hl=en)).
+The framework does not erase browser-filled values or try to suppress the
+password manager. FB-0094 and FB-0095's application-side suppression was
+withdrawn by the owner; source diagnosis and rollback are recorded in
+[FB-0097](feedback.md#fb-0097).
 
 After a correct password there is no authenticated session/menu/API/UI data/
 WebSocket ticket until a six-digit code succeeds. The code is single-use,
