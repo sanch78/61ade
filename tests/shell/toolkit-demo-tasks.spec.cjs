@@ -57,7 +57,8 @@ test('demo.rating edits in the grid cell, the update and create forms and the ca
  const strip=starsOf(editor);
  await expect(strip).toHaveCount(5);
  await expect.poll(()=>stars(editor)).toBe('★★☆☆☆');
- await expect(strip.nth(1)).toHaveAttribute('aria-pressed','true');await expect(strip.nth(2)).toHaveAttribute('aria-pressed','false');
+ // Suite's togglegroup marks the pressed state with a class and no aria-pressed; the number input is the accessible control.
+ await expect(strip.nth(1)).toHaveClass(/dhx_toggle--selected/);await expect(strip.nth(2)).not.toHaveClass(/dhx_toggle--selected/);
  await strip.nth(3).click();await expect(spin).toHaveValue('4');await expect.poll(()=>stars(editor)).toBe('★★★★☆');
  let edited=page.waitForResponse(isAction('__edit'));
  await editor.getByRole('button',{name:'Mentés',exact:true}).click();
@@ -186,6 +187,8 @@ test('demo.copy-text copies the cursor record or the marked tasks as text, is di
  await expect(toast(page,'Vágólapra másolva: 2 feladat.')).toBeVisible();
  for(const id of created)await page.getByLabel('Sor jelölése: '+id,{exact:true}).filter({visible:true}).uncheck();
  // A refused clipboard write goes to the framework error dialog, which keeps the text for copying by hand.
+ // Marking moved the cursor; put it back on the first task.
+ await row(first).locator('[data-dhx-col-id="title"]').click();
  await page.evaluate(()=>{window.__clipboardFails=1;});
  copy=await control(page,COPY);await copy.click();
  const failure=page.getByRole('alertdialog').filter({hasText:'A vágólapra írás nem sikerült. Másold ki kézzel:'});
@@ -200,7 +203,9 @@ test('demo.copy-text copies the cursor record or the marked tasks as text, is di
  await filter.getByLabel('Megnevezés',{exact:true}).fill(prefix);await filter.getByRole('button',{name:'Szűrés',exact:true}).click();await expect(filter).toHaveCount(0);
  const card=page.locator('.blade-grid-card').filter({hasText:second}).first();await expect(card).toBeVisible();
  const menu=page.getByRole('button',{name:'Műveletek',exact:true});await expect(menu).toBeVisible();
- await menu.click();await expect(page.getByRole('menuitem',{name:COPY,exact:true})).toBeDisabled();await page.keyboard.press('Escape');
+ await menu.click();await expect(page.getByRole('menuitem',{name:COPY,exact:true})).toBeDisabled();
+ // The Suite toolbar popup does not close on Escape; the menu button toggles it.
+ await menu.click();await expect(page.getByRole('menuitem',{name:COPY,exact:true})).toBeHidden();
  await card.locator('.blade-grid-card__id').click();
  await menu.click();await page.getByRole('menuitem',{name:COPY,exact:true}).click();
  await expect.poll(copied).toBe(secondText);

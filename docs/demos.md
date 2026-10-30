@@ -202,7 +202,9 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   `Prioritás — csillagok` of five toggle buttons pressed up to the rating
   (Space/Enter or click; the current star clears to 0), kept in step with the
   input through Suite events and released with the form's `signal` (the Form
-  `container` item is PRO-only). `display` renders ★/☆ with one accessible name (`3 / 5 csillag`) in
+  `container` item is PRO-only). Suite marks a pressed toggle by class and its
+  ★/☆ name, without `aria-pressed`, so the number input stays the accessible
+  control. `display` renders ★/☆ with one accessible name (`3 / 5 csillag`) in
   the table, cards and record details, taking the theme's text colour. Used by
   the create and update forms (panel), the table cell's edit button and the
   card field's edit window; every save goes through the framework (`create`,
