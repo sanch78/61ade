@@ -303,6 +303,19 @@ change before every push.
   Consumer browser specs that assert `?v=32` or `?v=<version>` on these URLs
   must accept the file key.
 
+- **Toolkit transition (2026-10-29 to 2026-10-30, [FB-0081](feedback.md#fb-0081),
+  [ADR-0005](decisions/0005-toolkit.md)):** the owner accepted breaking changes
+  for this transition. As an exception to the rule above, the consumers migrate
+  afterwards in their own sessions; 61ade sessions do not edit them. The
+  [migration guide](toolkit.md#migration) lists every breaking and
+  consumer-relevant change since `131263a`, the 61ade commit both consumers
+  last released (M1–M15: `#view=` routing with the `#feature=` alias,
+  `view:<id>` menu ids, `View` return values, `stylesheets`, sandbox files,
+  file cache keys including the released `?v=30`, record commands in the list
+  toolbar only, and the rest), followed by the ordered steps of a consumer
+  session. Per-consumer notes: [StoryBloX](handoff/storyblox.md),
+  [allflow](handoff/allflow.md).
+
 #### Consumer update smoke check
 
 The update reaches a consumer by itself, so the check comes after the push and
