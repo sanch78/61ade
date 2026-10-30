@@ -3114,3 +3114,38 @@ that exactly equals an option label lists every option. The managed
   its scale (Chromium); `npm run build`, `npm run demo:assets`;
   `sign-in-branding.spec.cjs` 6 passed, `splash.spec.cjs` 4 passed.
 - **Status:** implemented; owner acceptance on the development URL pending.
+
+<a id="fb-0091"></a>
+
+## FB-0091 — The b1ade logo
+
+- **Date:** 2026-10-30.
+- **Demand (owner):** a better logo design, the wordmark "b1ade.com" (a blue
+  `b1`, ink `ade`, a blue dot and `.com`; light, dark and 3D renderings with
+  a blue glow and a mirror floor); the branding is to follow it.
+- **Decision (owner):** `.com` only on the trademark screen; the shell's logo
+  is `b1ade`. The three-tile mark and the page-turning animation stay, their
+  colours matched to the new palette; the blade glint stays. Flat in the
+  shell, glow and reflection on the trademark screen.
+- **Implemented:** `logo.mjs` redrawn on the drawing's grid
+  ([grid](brand.md#grid), [colours](brand.md#colours)): every glyph one
+  outline of radius-per-corner arcs (`outline()`, which also draws the
+  tiles), the `b` a real b, the `1` with flag and flaring foot, the `a` open
+  by a slit, the `e` by a channel under its slanted bar; one `blade-b1`
+  gradient replaces the 6's crescent and the 1's bevel. viewBox
+  `-19 -46 1795 395` (`admin.css` aspect ratio 1795 / 395; the 24 px top-row
+  logo is about 109 px wide, was 83). The screen's copy (`-19 -46 2270 395`)
+  adds `.blade-logo__dot` and `.blade-logo__domain`, silver ink and a glow
+  filter; `splash.css` adds the dot's pop, `com` sliding in, a blue floor
+  light and `-webkit-box-reflect` (no reflection in Firefox), the logo
+  `min(84vw, 760px)` wide, the spark on the 1's flag tip.
+- **Consumer impact:** the default logo is wider: in a top row with little
+  room it yields sooner (the fit rule is unchanged; the menu never yields).
+  Nothing to deploy or configure.
+- **Verification (2026-10-30):** Chromium render against the drawing;
+  `npm run build`, `npm run demo:assets`; `splash.spec.cjs` (dot and
+  `com` parts, 8 screen ids) and `sign-in-branding.spec.cjs` (aspect ratio;
+  at 390 px the signed-out top row has no room beside the selectors, a
+  430 px phone holds it) 10 passed; timeline frames reviewed at 1280 × 800
+  and 390 × 844.
+- **Status:** implemented; owner acceptance on the development URL pending.
