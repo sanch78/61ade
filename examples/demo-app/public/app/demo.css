@@ -1,0 +1,87 @@
+/* examples/demo-app/frontend/src/readings.css */
+.demo-reading-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.demo-reading-bar__track {
+  flex: 1 1 auto;
+  min-width: 32px;
+  max-width: 160px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--dhx-background-additional);
+  overflow: hidden;
+}
+.demo-reading-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--dhx-color-primary);
+}
+.demo-reading-bar__value {
+  flex: none;
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.demo-reading-bar--card .demo-reading-bar__track {
+  max-width: 240px;
+  height: 8px;
+  border-radius: 4px;
+}
+.demo-reading-bar--tile {
+  gap: 6px;
+}
+.demo-reading-bar--tile .demo-reading-bar__track {
+  height: 4px;
+}
+.demo-readings-summary {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 8px 12px;
+  overflow: auto;
+  color: var(--dhx-font-color-primary);
+  font-family: var(--dhx-font-family);
+}
+.demo-readings-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+.demo-readings-summary--narrow .demo-readings-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px 8px;
+}
+.demo-readings-stat {
+  min-width: 0;
+}
+.demo-readings-stat--wide {
+  grid-column: 1 / -1;
+}
+.demo-readings-stat dt {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--dhx-font-color-secondary);
+}
+.demo-readings-stat dd {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: var(--dhx-font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.demo-readings-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
