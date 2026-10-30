@@ -55,9 +55,10 @@ verify($demoKeys->url('app/demo.js') === 'app/demo.js?v='.Blade\Shell\AssetKeys:
 verify($demoKeys->url('app/demo.css') === 'app/demo.css?v='.Blade\Shell\AssetKeys::key($public.'/app/demo.css') && Blade\Shell\AssetKeys::key($public.'/app/demo.css') !== null, 'Feature demo stylesheet keyed by its built file');
 // Sign-in branding (docs/shell.md#sign-in-branding): the feature demo shows its synthetic logo and sign-in stylesheet;
 // the starter admin and the tenant demo stay without either.
-verify($base->logo === null && $base->signInStylesheets === [] && $tenantDemo->logo === null && $tenantDemo->signInStylesheets === [], 'Starter admin and tenant demo declare no logo or sign-in stylesheets');
-verify($app->logo == new Blade\Shell\Logo('branding/logo.svg', 'branding/logo-dark.svg') && $app->signInStylesheets === ['branding/sign-in.css'], 'Feature demo declares its logo and sign-in stylesheet');
-foreach (['branding/logo.svg', 'branding/logo-dark.svg', 'branding/sign-in.css'] as $asset) {
+foreach ([$base, $tenantDemo] as $plain) verify($plain->logo === null && $plain->signInStylesheets === [] && $plain->signIn === null && $plain->signInModules === [], 'Starter admin and tenant demo declare no logo, sign-in stylesheets, content or modules');
+verify($app->logo == new Blade\Shell\Logo('branding/logo.svg', 'branding/logo-dark.svg', placement: 'both') && $app->signInStylesheets === ['branding/sign-in.css'], 'Feature demo declares its logo (window and top row) and sign-in stylesheet');
+verify($app->signIn == new Blade\Shell\SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.', [new Blade\Shell\SignInLink('Demó postafiók', 'mailbox/')]) && $app->signInModules === ['branding/sign-in.js'], 'Feature demo declares its sign-in notice, mailbox link and sign-in module');
+foreach (['branding/logo.svg', 'branding/logo-dark.svg', 'branding/sign-in.css', 'branding/sign-in.js'] as $asset) {
     verify(Blade\Shell\AssetKeys::key($public.'/'.$asset) !== null && $demoKeys->url($asset) === $asset.'?v='.Blade\Shell\AssetKeys::key($public.'/'.$asset), 'Feature demo branding keyed by its file: '.$asset);
 }
 $adminKeys = new Blade\Shell\AssetKeys($base, ['DOCUMENT_ROOT' => $public, 'SCRIPT_FILENAME' => $public.'/admin/index.php']);
