@@ -16,7 +16,7 @@ const playlist: Part = none;
 // D3 Mérések: dashboard kind and column presentation (readings.ts)
 const readings: Part = none;
 // D4 Tasks: field type and client command (tasks.ts)
-const tasks: Part = none;
+import tasks from "./tasks";
 
 /**
  * Runs every part in D-row order. A failing part does not stop the later ones; the failures are rethrown together, so

@@ -1,7 +1,7 @@
 {
     "section_descriptions": {
         "purpose": "Feature demo: one synthetic module that exercises the declarative workspace capabilities.",
-        "covers": "panel form, filters, sorting, cards, inline grid editing (text, select, checkbox), related storage, pattern validation, multiple choice, delete, selection with bulk action, registered business action, business rule hook with a field error."
+        "covers": "panel form, filters, sorting, cards, inline grid editing (text, select, checkbox), related storage, pattern validation, multiple choice, delete, selection with bulk action, registered business action, business rule hook with a field error, a project field type (priority rating) and a client record command (copy as text)."
     },
     "resources": {
         "demo_tasks": {
@@ -14,7 +14,8 @@
                 "owner_column": "owner_id",
                 "defaults": {
                     "status": "new",
-                    "archived": 0
+                    "archived": 0,
+                    "priority": 0
                 },
                 "related": [
                     {
@@ -55,6 +56,23 @@
                     "column": {
                         "editable": true,
                         "width": 140
+                    }
+                },
+                {
+                    "name": "priority",
+                    "label": "Prioritás",
+                    "type": "number",
+                    "default": "0",
+                    "editor": "demo.rating",
+                    "validation": {
+                        "pattern": {
+                            "expression": "^[0-5]$",
+                            "message": "0 és 5 közötti egész szám adható meg."
+                        }
+                    },
+                    "column": {
+                        "editable": true,
+                        "width": 130
                     }
                 },
                 {
@@ -141,6 +159,10 @@
                         "header": "Állapot"
                     },
                     {
+                        "id": "priority",
+                        "header": "Prioritás"
+                    },
+                    {
                         "id": "contact",
                         "header": "Kapcsolattartó telefon"
                     },
@@ -166,6 +188,9 @@
                     "dialog_neutral",
                     "dialog_warning",
                     "dialog_danger"
+                ],
+                "commands": [
+                    "demo.copy-text"
                 ],
                 "layout": {
                     "form_mode": "panel"
