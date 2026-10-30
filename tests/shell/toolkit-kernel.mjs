@@ -31,6 +31,7 @@ const kinds=new NamedRegistry('view kind'),entry={create(){}};
 kinds.builtin('list',entry);
 assert.throws(()=>kinds.builtin('list',entry),/already registered/);
 assert.throws(()=>kinds.register('player',entry),TypeError);
+assert.throws(()=>kinds.register('list',entry),error=>!(error instanceof TypeError)&&/already registered/.test(error.message),'a taken built-in name is a duplicate, not a missing prefix');
 for(const invalid of ['','Demo.player','1demo.x','demo player','demo:x',null])assert.throws(()=>kinds.register(invalid,entry),TypeError,String(invalid));
 kinds.register('demo.player',entry);
 assert.throws(()=>kinds.register('demo.player',{create(){}}),error=>!(error instanceof TypeError)&&/already registered/.test(error.message));

@@ -6,6 +6,7 @@ import { startSandbox } from "./runtime";
  */
 startSandbox({
   self: window,
+  origin: self.origin,
   parent: window.parent,
   global: window as unknown as Record<string, unknown>,
   on: (type, handler) => window.addEventListener(type, handler),

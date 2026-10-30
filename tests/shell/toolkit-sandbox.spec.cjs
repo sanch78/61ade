@@ -4,7 +4,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');const {buildSync}=require('esbuild');
 const root=path.resolve(__dirname,'../..');
 // Shell/Application.php::headers without a live source: the parent policy is the one the admin pages send.
-const SHELL_CSP="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+const SHELL_CSP="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 const PIXEL='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
 async function fixture(page,baseURL){

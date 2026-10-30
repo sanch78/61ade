@@ -168,7 +168,8 @@ const media = await app.components.FilePicker.pick({ field: fileField.file!, tit
 ```
 
 Both use the view's or the field's registered actions only; the ACL and every
-rule below apply unchanged.
+rule below apply unchanged. Uploads from project code go through
+`app.uploads` ([uploader](uploader.md)), never a second dialog.
 
 ## Actions and authorization
 
@@ -512,9 +513,12 @@ The demo uses `deletePolicy: 'delete'`.
   column's derived type and length, the media slot's accessible name and its
   length badge do name audio (`Hang`, `Hang: tone.wav, 0:03`). Without an
   audio class the list's media type filter offers no `Hang`, and the `file`
-  field picker (`Kiválasztás…`) lists no audio files (it knows the image,
-  video and text classes); an audio file reaches such a field by its upload
-  (`Fájl feltöltése…`).
+  field picker (`Kiválasztás…`, also `app.components.FilePicker`) lists no
+  audio files (it knows the image, video and text classes); an audio file
+  reaches such a field by its upload (`Fájl feltöltése…`). This is a stated
+  limit, not planned work (owner decision of 2026-10-30): a project that needs
+  an audio filter or picker builds it in its own module
+  ([toolkit limits](toolkit.md#limits)).
 - Thumbnails appear after the background task; until then the listing reports
   `thumbnail: pending`. Post-response tasks die with a worker restart and are
   recovered on a later request or read, not by a timer.

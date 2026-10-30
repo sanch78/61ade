@@ -3,7 +3,10 @@
 Declarative configuration is server-side modular JSON. Host addresses, database
 credentials, runtime paths and public endpoints come from env. Business procedures
 remain named registered PHP callbacks. No PHP/JavaScript in JSON, eval or automatic
-class instantiation is supported.
+class instantiation is supported. Browser behaviour is a project module
+(`application.modules`) that registers the dotted names the JSON refers to
+(`kind`, `editor`, `column.presentation`, `commands`;
+[toolkit](toolkit.md#registries)).
 
 <a id="belépés-és-alkalmazásszekciók"></a>
 

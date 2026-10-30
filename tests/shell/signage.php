@@ -229,6 +229,14 @@ try {
     fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $ids['Arculati háttérkép']]), 404, 'Scene asset without a file');
     check(isset(fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => 'x']), 400, 'Malformed scene id')->fieldErrors['asset']), 'Malformed scene id is a field error');
     fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $sceneId], $ctx('77')), 403, 'Scene code needs signage_playlist.scene');
+    // The scene file must be readable through the file manager too (files.content_stream on its mount), else 404.
+    $rule->execute(['12', 'signage_playlist', 'scene']);
+    fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $sceneId], $ctx('12')), 404, 'Scene code needs files.content_stream');
+    $mountRule = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','12','files','content_stream','ui','allow','id',?,'')");
+    $mountRule->execute(['a']);
+    fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $sceneId], $ctx('12')), 404, 'Scene code needs content_stream on the scene file\'s mount');
+    $mountRule->execute(['signage']);
+    check($call('signage_playlist', 'scene', null, ['asset' => $sceneId], $ctx('12'))['asset'] === $sceneId, 'content_stream on the Signage mount reads the scene');
     $large = $storage->createFile($signage, 'nagy-jelenet.js', 'text/javascript', $source(str_repeat('/', BLADE_DEMO_SIGNAGE_SCENE_BYTES + 1)));
     $db->prepare("INSERT INTO signage_assets(title,file_id,duration) VALUES ('Nagy jelenet',?,'5')")->execute([(string) $large]);
     fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => (string) $db->lastInsertId()]), 413, 'Scene over the size limit');

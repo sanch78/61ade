@@ -147,7 +147,7 @@ final class Application
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: same-origin');
         $liveSource = $this->definition->live->connectSource();
-        header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' $liveSource; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+        header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' $liveSource; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     }
 
     private function startSession(): void
