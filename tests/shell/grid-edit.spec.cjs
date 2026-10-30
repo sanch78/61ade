@@ -50,7 +50,8 @@ test('native text/select/checkbox grid editors save without opening an object fo
 
 test('cards edit and sort, fitted windows and resize reset survive mode changes',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
- const title=await task(page,1440),dialog=page.getByRole('dialog');
+ // 1600 px keeps every Tasks column (Prioritás included, D4) rendered; Suite renders only the visible ones.
+ const title=await task(page,1600),dialog=page.getByRole('dialog');
  async function gap(selector){return dialog.evaluate((el,selector)=>{const last=el.querySelector(selector);return el.getBoundingClientRect().bottom-last.getBoundingClientRect().bottom;},selector);}
  const row=page.locator('.dhx_grid-row').filter({hasText:title});await expect(row).toBeVisible({timeout:10000});
  const number=row.locator('[data-dhx-col-id="_number"]');await number.dblclick();await expect(dialog).toBeVisible();expect(await page.evaluate(()=>getSelection().toString())).toBe('');expect(await gap('.blade-record-details')).toBeLessThan(40);await dialog.getByRole('button',{name:'Close',exact:false}).click();

@@ -2,7 +2,7 @@
 
 Status: accepted direction ([ADR-0005](decisions/0005-toolkit.md),
 [FB-0081](feedback.md#fb-0081)); P0 done, P1 contract accepted at gate G1 (2026-10-29) in the
-[toolkit reference](toolkit.md); P2 kernel in progress. Written 2026-10-29 for execution
+[toolkit reference](toolkit.md); P2 (G2) and P3 (G3) done; P4 feature demo in progress (2026-10-30). Written 2026-10-29 for execution
 by a coordinating agent with sub-agents in a new thread. Breaking changes are
 accepted; consumers adapt themselves.
 

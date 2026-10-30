@@ -2514,7 +2514,22 @@ that exactly equals an option label lists every option. The managed
   `toolkit-registries` (incl. a sub-view of another resource), `subview`,
   `subview-demos`, `toolkit-list`, `workspace` pass; full suite after C-5b:
   147 passed, 1 failed (`uploader` retry race test, see FB-0083).
-- **Status:** in progress (P4 feature demo next).
+- **P4 progress (2026-10-30):** D0 (the feature demo's module `app/demo.js`
+  and stylesheet `app/demo.css`, built and `--check`ed by `tools/build.mjs`,
+  typechecked against `admin.d.ts`), D6 (starter and tenant declare no
+  modules), D1 (audio fixtures, `demo.asset-viewer` record view, activation by
+  the file's media class), D3 (`Mérési irányítópult`: ListView, Chart,
+  summary, `demo.reading-bar` presentation) and D4 (`demo.rating` field type
+  on `Prioritás`, `demo.copy-text` command) are implemented; D2 is in
+  progress. Integration found that Suite's Form `container` item is PRO-only
+  (D4's stars are a `togglegroup`), that Suite toggles expose no
+  `aria-pressed`, and that the `Műveletek` popup does not close on Escape.
+  Managed demo data steps: `BLADE_DEMO_INSTANCE=web php8.4
+  examples/demo-app/setup-workspace.php` (idempotent: the `priority` column
+  and the audio assets). Full suite on the integration branch: 167 passed,
+  2 failed; `grid-edit:51` needed a wider viewport for the new column (fixed),
+  `uploader-reopen` passed in isolation.
+- **Status:** in progress (P4 D2 next, then gate G4).
 
 <a id="fb-0082"></a>
 
@@ -2579,6 +2594,9 @@ that exactly equals an option label lists every option. The managed
   waited in vain for one aborted chunk fetch. It passed 5 of 5 isolated
   repeats; the trace was overwritten before it was read. Watch it in the
   next full runs; a repeat means a real race, not load.
+  `uploader-reopen.spec.cjs` (the drop zone not shown after reopening) failed
+  once more in the P4 full run (also in the first, unstable run) and passed in
+  isolation; watch it too.
 - **Status:** implemented and committed.
 
 <a id="fb-0084"></a>
