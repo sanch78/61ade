@@ -351,7 +351,7 @@ export class AdminShell {
     window.addEventListener("resize", this.resize);
     if (definition.error) requestAnimationFrame(() => {
       void acknowledge({ title: t("Hiba"), message: definition.error, severity: "danger" })
-        .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus(definition.passwordChange ? "new_password" : definition.confirmation ? "code" : "password"); });
+        .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus(definition.passwordChange ? "new_password" : definition.confirmation ? "code" : "username"); });
     });
   }
 
@@ -606,8 +606,7 @@ export class AdminShell {
           labelWidth: 120,
           required: true,
           maxlength: definition.loginIdentifier === "email" ? 254 : 64,
-          value: definition.username,
-          autocomplete: true,
+          autocomplete: false,
         },
         {
           type: "input",
@@ -618,7 +617,7 @@ export class AdminShell {
           required: true,
           inputType: "password",
           maxlength: 1024,
-          autocomplete: true,
+          autocomplete: false,
         },
         ...(definition.rememberAvailable ? [{
           type: "checkbox" as const,
@@ -697,14 +696,11 @@ export class AdminShell {
       { capture: true, signal: this.listeners.signal },
     );
     requestAnimationFrame(() => {
-      form.setFocus(definition.error ? "password" : "username");
+      form.setFocus("username");
       const inputs = this.loginWindow?.getContainer().querySelectorAll("input");
       inputs?.forEach((input) => {
         if (!["username", "password"].includes(input.name)) return;
-        input.setAttribute(
-          "autocomplete",
-          input.type === "password" ? "current-password" : "username",
-        );
+        input.setAttribute("autocomplete", "off");
       });
     });
   }

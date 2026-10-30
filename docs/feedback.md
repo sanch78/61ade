@@ -3219,3 +3219,31 @@ that exactly equals an option label lists every option. The managed
   login without remember passed (3 tests, managed URL). Temporary verification
   sources and artifacts were removed.
 - **Status:** implemented and verified.
+
+<a id="fb-0094"></a>
+
+## FB-0094 — Empty sign-in fields
+
+- **Date:** 2026-10-30.
+- **Request:** neither sign-in field should arrive filled in; the owner showed
+  an identifier and masked password already present in the login window.
+- **Implemented:** the DHTMLX identifier and password inputs disable
+  autocomplete, and the shell no longer overrides them with `username` and
+  `current-password` hints. The identifier has no initial value, and the PHP
+  bootstrap keeps its existing `username` key empty after failed submissions.
+  Focus starts at the identifier, including after dismissing an error.
+- **Scope and limit:** framework-owned behavior for every consumer, with no
+  setting needed. Browsers/password managers can override `autocomplete="off"`;
+  no saved browser credentials are changed. Authentication, confirmation,
+  remembered sessions and OAuth remain available. Guide:
+  [login flow](authentication.md#belépési-folyamat),
+  [usage](usage.md#belépési-módok-jelszó-e-mailes-kétfaktor-oauth).
+- **Verification:** typecheck, build, demo asset preparation, PHP syntax and
+  `authentication.php`, `oauth.php`, `mail.php` passed. The guarded managed-URL
+  browser run passed four cases: existing login/menu and invalid-login checks,
+  the error dialog's updated focus expectation, and a temporary case checking
+  empty fields, autocomplete hints and empty bootstrap identifier on entry,
+  reload, failed login and logout. Temporary verification source and artifacts
+  were removed. Saved-credential autofill was not tested with a personal browser
+  profile.
+- **Status:** implemented and verified within the stated browser limitation.

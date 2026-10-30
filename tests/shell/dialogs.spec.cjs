@@ -80,7 +80,7 @@ test('existing caller: failed sign-in uses the shared danger dialog',async({page
  await expect(dialog(page)).toHaveClass(/blade-dialog--danger/);
  await expect(dialog(page).getByRole('heading',{name:'Hiba',exact:true})).toBeVisible();
  await page.keyboard.press('Enter');await expect(dialog(page)).toHaveCount(0);
- await expect(page.getByLabel('Jelszó',{exact:true})).toBeFocused();
+ await expect(page.getByLabel('E-mail',{exact:true})).toBeFocused();
 });
 test('choice with "apply to all": checkbox in the focus trap, Escape cancels',async({page})=>{
  // requestChoiceAll() through the uploader's name conflict: Drive C already holds jegyzet.txt.
