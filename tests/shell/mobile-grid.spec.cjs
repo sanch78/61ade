@@ -281,7 +281,7 @@ test('details and cards render every media field and name an icon without option
  await expect(card).toContainText('image outline');await expect(card).not.toContainText('f2');
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });
-// Independent synthetic consumer of phase U5 (no server): derived media columns (`media_of`/`part`) in
+// Independent synthetic consumer of phase U5 (no server): derived media columns (`mediaOf`/`part`) in
 // table, cards, tiles and details; the `file` field with its tiles picker and clearing; the usage-aware
 // delete confirmation (single `preview`, bulk `__bulk` preview) and the toast of cleared references.
 test('synthetic file field, derived media columns and usage-aware delete',async({page})=>{
@@ -326,7 +326,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
   };
   fixture.setTheme('skyblue',document.documentElement);
   window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'assets',resource:'assets',title:'Médiatár',selection:true,
-   columns:[{id:'file_id',header:'Médiafájl',type:'file',media:'files'},{id:'title',header:'Cím'},{id:'media_type',header:'Típus',media_of:'file_id',part:'type'},{id:'resolution',header:'Felbontás',media_of:'file_id',part:'resolution'},{id:'length',header:'Hossz',media_of:'file_id',part:'duration'}],
+   columns:[{id:'file_id',header:'Médiafájl',type:'file',media:'files'},{id:'title',header:'Cím'},{id:'media_type',header:'Típus',mediaOf:'file_id',part:'type'},{id:'resolution',header:'Felbontás',mediaOf:'file_id',part:'resolution'},{id:'length',header:'Hossz',mediaOf:'file_id',part:'duration'}],
    detailFields:[{id:'title',header:'Cím',type:'text'},{id:'file_id',header:'Médiafájl',type:'file',media:'files'}],
    actions:[{name:'get',label:'Adatok',fields:[]},{name:'update',label:'Módosítás',submitLabel:'Mentés',write:true,fields},{name:'delete',label:'Törlés',submitLabel:'Törlés',write:true,bulk:true,usages:true,fields:[{name:'revision',label:'Verzió',type:'text',required:true,max:64,options:{}}]}],
    singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}}},new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000}));

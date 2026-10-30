@@ -635,7 +635,9 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   `editable` or `imageBase`/`altOf` without `presentation: "image"` are
   developer errors (`InvalidArgumentException`). Optional `altOf` (JSON
   `alt_of`) names a text field of the row used as the accessible name; without it
-  the image is decorative (`alt=""`) because the title is beside it.
+  the image is decorative (`alt=""`) because the title is beside it. The
+  browser always receives the camelCase `imageBase`/`altOf`
+  ([`ColumnMetadata`](toolkit.md#conventions)), whichever spelling was declared.
   **Value rules**, enforced by the server: one file name of letters, digits,
   `-`, `_` and `.`, no leading dot, no `/`, `\`, `..` or scheme, a
   case-insensitive extension of `png`, `jpg`, `jpeg`, `webp`, `gif` or `svg`,
@@ -680,7 +682,8 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
 - **Derived media columns.** A view column without a field may declare
   `media_of: <media field>` and `part: "type" | "resolution" | "duration"`;
   it is rendered from `_media` (`Kép`/`Videó`, `1920 × 1080`, `0:06`) in the
-  table, cards, tiles and details, and is never sortable or editable.
+  table, cards, tiles and details, and is never sortable or editable. The
+  browser receives it as `mediaOf`.
 
 <a id="file-field"></a>
 

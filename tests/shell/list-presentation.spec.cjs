@@ -210,9 +210,9 @@ test('media views offer tiles, persist the mode, keep mobile forcing and search 
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });
 
-// Static image column (presentation image): a file name of the application below `image_base`.
+// Static image column (presentation image): a file name of the application below `imageBase`.
 const imageRows=['ok.svg','missing.png','../secret.png','https://example.test/a.png','photo.exe','dir/ok.svg'].map((image,i)=>({id:String(i+1),image,title:'Kép '+(i+1),description:'Leírás',revision:'r'+i,_actions:['get']}));
-const imageColumns=[{id:'image',header:'Kép',type:'text',presentation:'image',image_base:'/static-img/',alt_of:'title'},{id:'title',header:'Cím'},{id:'description',header:'Leírás'}];
+const imageColumns=[{id:'image',header:'Kép',type:'text',presentation:'image',imageBase:'/static-img/',altOf:'title'},{id:'title',header:'Cím'},{id:'description',header:'Leírás'}];
 async function imageRoutes(page){
  const loaded=[];
  await page.route('**/static-img/**',route=>{const name=new URL(route.request().url()).pathname.split('/').pop();loaded.push(name);

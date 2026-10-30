@@ -104,7 +104,7 @@ export class ResponsiveGrid {
       // Thumbnail cell: a square box of the row height minus 8 px (32 px at 40).
       ...(isMedia(c)?{htmlEnable:true,editable:false,width:c.width??Math.max(64,rh+24),minWidth:c.minWidth,autoWidth:false,template:(_:unknown,row:any)=>recordMedia(c,unguard(row),"cell")}:{}),
       ...(isImage(c)?{htmlEnable:true,editable:false,width:c.width??Math.max(64,rh+24),minWidth:c.minWidth,autoWidth:false,template:(_:unknown,row:any)=>imageSlot(c,unguard(row),"cell")}:{}),
-      // Derived media part (`media_of`/`part`): text from the row's `_media`, never sortable, filterable or editable.
+      // Derived media part (`mediaOf`/`part`): text from the row's `_media`, never sortable, filterable or editable.
       ...(derivedOf(c)?{editable:false,template:(_:unknown,row:any)=>escape(derivedText(c,unguard(row))??"")}:{}),
       // A registered presentation or field-type display renders the cell; a field type is edited in the framework edit window
       // (`edit`, the cards' editor), never by the native cell editor.

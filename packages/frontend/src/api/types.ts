@@ -651,12 +651,15 @@ export interface ColumnMetadata {
   presentation?: string;
   /** The field's `editor` (a `fieldTypes` name): its `display` renders the value unless a presentation does. */
   editor?: string;
+  /**
+   * Static image column (`presentation: "image"`): page-relative directory of the image files (configuration also
+   * accepts `image_base`; the server always sends `imageBase`).
+   */
   imageBase?: string;
-  image_base?: string;
+  /** Static image column: the row field holding the image's accessible name (configuration `alt_of` too). */
   altOf?: string;
-  alt_of?: string;
+  /** Derived media column: the media field whose `_media` it presents (configuration `media_of`); with `part`. */
   mediaOf?: string;
-  media_of?: string;
   part?: MediaPart;
   options?: Record<string, string>;
   width?: number;
