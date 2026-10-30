@@ -8,18 +8,33 @@ $t = $content[$language];
 $escape = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $rich = static fn(string $value): string => str_replace('&lt;br&gt;', '<br>', $escape($value));
 $root = $language === 'hu' ? '../' : './';
+$home = $root.($language === 'hu' ? 'hu/' : '');
 $canonical = 'https://61ade.com/'.($language === 'hu' ? 'hu/' : '');
+$demo = 'https://61ade.sanch.hu/';
 $repository = 'https://github.com/sanch78/61ade';
 $documentation = $repository.'/blob/main/docs/';
-$sections = ['introduction', 'capabilities', 'history', 'usage', 'contact'];
+$sections = ['idea', 'product', 'foundations', 'story', 'usage'];
 $checkout = dirname(__DIR__, 3);
 require_once $checkout.'/packages/php/src/Shell/Splash.php';
 $image = static function (string $file, string $alt, bool $priority = false, bool $mobile = false) use ($root, $escape, $language): void {
     if ($language === 'en') $file .= '-en'; ?>
-    <a class="screenshot<?= $mobile ? ' screenshot--mobile' : '' ?>" href="<?= $root ?>assets/<?= $escape($file) ?>.jpg" data-preview>
-        <img src="<?= $root ?>assets/<?= $escape($file) ?>.jpg" alt="<?= $escape($alt) ?>" width="<?= $mobile ? 390 : 1440 ?>" height="<?= $mobile ? 844 : 900 ?>" <?= $priority ? 'fetchpriority="high"' : 'loading="lazy"' ?> decoding="async">
-    </a>
-<?php };
+<a class="screenshot" href="<?= $root ?>assets/<?= $escape($file) ?>.jpg" data-preview><img src="<?= $root ?>assets/<?= $escape($file) ?>.jpg" alt="<?= $escape($alt) ?>" width="<?= $mobile ? 390 : 1440 ?>" height="<?= $mobile ? 844 : 900 ?>"<?= $priority ? ' fetchpriority="high"' : ($mobile ? '' : ' loading="lazy"') ?> decoding="async"></a><?php
+};
+// Line icons (24 × 24, stroked with currentColor).
+$icons = [
+    'braces' => '<path d="M9 4H7.5A2.5 2.5 0 0 0 5 6.5V10l-2 2 2 2v3.5A2.5 2.5 0 0 0 7.5 20H9M15 4h1.5A2.5 2.5 0 0 1 19 6.5V10l2 2-2 2v3.5a2.5 2.5 0 0 1-2.5 2.5H15"/>',
+    'code' => '<path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 4.5l-3 15"/>',
+    'home' => '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/>',
+    'user' => '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.6 3.9-5.5 7-5.5s5.8 1.9 7 5.5"/>',
+    'shield' => '<path d="M12 3l7 3v5.2c0 4.3-2.9 8-7 9.8-4.1-1.8-7-5.5-7-9.8V6z"/><path d="m9 12 2.2 2.2L15.5 10"/>',
+    'table' => '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9.5 9.5v10"/>',
+    'pulse' => '<path d="M3 12h4l2.5-6 5 12 2.5-6h4"/>',
+    'blocks' => '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/>',
+    'globe' => '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.5 5.1 3.5 8.5s-1.1 6.2-3.5 8.5c-2.4-2.3-3.5-5.1-3.5-8.5s1.1-6.2 3.5-8.5z"/>',
+];
+$icon = static fn(string $name): string => '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">'.$icons[$name].'</svg>';
+$arrow = '<span class="arrow" aria-hidden="true">↗</span>';
+$label = static fn(string $index, string $text): string => '<p class="label"><span>'.$index.'</span>'.$text.'</p>';
 ?>
 <!doctype html>
 <html lang="<?= $language ?>">
@@ -28,7 +43,7 @@ $image = static function (string $file, string $alt, bool $priority = false, boo
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $escape($t['title']) ?></title>
     <meta name="description" content="<?= $escape($t['description']) ?>">
-    <meta name="theme-color" content="#080c13">
+    <meta name="theme-color" content="#f4f3ef">
     <link rel="canonical" href="<?= $canonical ?>">
     <link rel="alternate" hreflang="en" href="https://61ade.com/">
     <link rel="alternate" hreflang="hu" href="https://61ade.com/hu/">
@@ -44,6 +59,8 @@ $image = static function (string $file, string $alt, bool $priority = false, boo
     <meta property="og:image:alt" content="<?= $escape($t['workspaceAlt']) ?>">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" type="image/svg+xml" href="<?= $root ?>assets/mark.svg">
+    <link rel="preload" href="<?= $root ?>assets/fonts/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="<?= $root ?>assets/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
     <script><?= \Blade\Shell\Splash::GATE ?></script>
     <link rel="stylesheet" href="<?= $root ?>assets/site.css">
     <script type="module" src="<?= $root ?>assets/site.js"></script>
@@ -53,7 +70,7 @@ $image = static function (string $file, string $alt, bool $priority = false, boo
 <a class="skip-link" href="#main"><?= $escape($t['skip']) ?></a>
 <header class="header">
     <div class="header-inner wrap">
-        <a class="brand" href="<?= $root ?><?= $language === 'hu' ? 'hu/' : '' ?>" aria-label="61ade"><img src="<?= $root ?>assets/logo.svg" alt="61ade" width="1795" height="395"></a>
+        <a class="brand" href="<?= $home ?>" aria-label="61ade"><img src="<?= $root ?>assets/logo.svg" alt="61ade" width="1795" height="395"></a>
         <nav class="desktop-nav" aria-label="<?= $escape($t['menu']) ?>">
 <?php foreach ($sections as $i => $section): ?>
             <a href="#<?= $section ?>"><?= $escape($t['nav'][$i]) ?></a>
@@ -61,10 +78,11 @@ $image = static function (string $file, string $alt, bool $priority = false, boo
         </nav>
         <div class="header-actions">
             <nav class="languages" aria-label="<?= $escape($t['language']) ?>">
-                <a href="<?= $root ?>" lang="en" hreflang="en"<?= $language === 'en' ? ' aria-current="page"' : '' ?>>EN</a><span aria-hidden="true">/</span><a href="<?= $root ?>hu/" lang="hu" hreflang="hu"<?= $language === 'hu' ? ' aria-current="page"' : '' ?>>HU</a>
+                <a href="<?= $root ?>" lang="en" hreflang="en"<?= $language === 'en' ? ' aria-current="page"' : '' ?>>EN</a><a href="<?= $root ?>hu/" lang="hu" hreflang="hu"<?= $language === 'hu' ? ' aria-current="page"' : '' ?>>HU</a>
             </nav>
+            <a class="button button--small" href="<?= $demo ?>" target="_blank" rel="noopener"><?= $escape($t['demoShort']) ?><?= $arrow ?></a>
             <details class="mobile-nav">
-                <summary><?= $escape($t['menu']) ?></summary>
+                <summary><span class="visually-hidden"><?= $escape($t['menu']) ?></span><span class="burger" aria-hidden="true"></span></summary>
                 <nav aria-label="<?= $escape($t['menu']) ?>">
 <?php foreach ($sections as $i => $section): ?>
                     <a href="#<?= $section ?>"><?= $escape($t['nav'][$i]) ?></a>
@@ -75,98 +93,159 @@ $image = static function (string $file, string $alt, bool $priority = false, boo
     </div>
 </header>
 <main id="main">
-    <section class="hero wrap" aria-labelledby="hero-title">
-        <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span><?= $escape($t['eyebrow']) ?></p>
-        <div class="hero-heading">
-            <h1 id="hero-title"><?= $escape($t['headline']) ?> <em><?= $escape($t['headlineAccent']) ?></em></h1>
-            <p class="hero-aside"><?= $rich($t['aside']) ?></p>
+    <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy wrap">
+            <p class="badge" data-enter><span class="dot" aria-hidden="true"></span><?= $escape($t['stack']) ?></p>
+            <h1 id="hero-title" data-enter><?= $escape($t['headline']) ?> <em><?= $escape($t['headlineAccent']) ?></em></h1>
+            <p class="lead" data-enter><?= $escape($t['intro']) ?></p>
+            <div class="buttons" data-enter>
+                <a class="button" href="<?= $demo ?>" target="_blank" rel="noopener"><?= $escape($t['demo']) ?><?= $arrow ?></a>
+                <a class="button button--ghost" href="<?= $repository ?>"><?= $escape($t['github']) ?><?= $arrow ?></a>
+            </div>
+            <p class="hero-login" data-enter><?= $escape($t['demoHint']) ?> <code>demo@example.test</code> <span aria-hidden="true">/</span> <code>61ade-demo</code></p>
         </div>
-        <p class="hero-description"><?= $escape($t['intro']) ?></p>
-        <div class="buttons">
-            <a class="button button--primary" href="https://61ade.sanch.hu/" target="_blank" rel="noopener"><?= $escape($t['demo']) ?><span aria-hidden="true">↗</span></a>
-            <a class="button button--secondary" href="<?= $repository ?>"><?= $escape($t['github']) ?><span aria-hidden="true">↗</span></a>
+        <div class="stage">
+            <div class="stage-inner wrap" data-enter>
+                <div class="browser">
+                    <div class="browser-bar" aria-hidden="true"><span class="browser-dots"><i></i><i></i><i></i></span><span class="browser-url">61ade.sanch.hu</span></div>
+                    <?php $image('workspace', $t['workspaceAlt'], true); ?>
+                </div>
+                <div class="phone"><?php $image('mobile', $t['mobileAlt'], false, true); ?></div>
+            </div>
+            <dl class="facts wrap">
+<?php foreach ($t['facts'] as [$name, $value]): ?>
+                <div><dt><?= $escape($name) ?></dt><dd><?= $escape($value) ?></dd></div>
+<?php endforeach; ?>
+            </dl>
         </div>
-        <div class="hero-preview">
-            <div class="screen-label"><span><span class="status-dot" aria-hidden="true"></span><?= $escape($t['live']) ?></span><span>61ade / demo</span></div>
-            <?php $image('workspace', $t['workspaceAlt'], true); ?>
-            <div class="phone-preview"><?php $image('mobile', $t['mobileAlt'], false, true); ?></div>
-        </div>
-        <p class="stack"><?= $escape($t['stack']) ?></p>
     </section>
 
-    <section class="section wrap" id="introduction" aria-labelledby="overview-title">
-        <p class="eyebrow"><?= $escape($t['overviewLabel']) ?></p>
-        <div class="section-heading">
-            <h2 id="overview-title"><?= $rich($t['overviewTitle']) ?></h2>
-            <p><?= $escape($t['overviewText']) ?></p>
-        </div>
-        <div class="principles">
+    <section class="section" id="idea" aria-labelledby="idea-title">
+        <div class="wrap">
+            <div class="section-head" data-reveal>
+                <?= $label('01', $escape($t['ideaLabel'])) ?>
+                <h2 id="idea-title"><?= $rich($t['ideaTitle']) ?></h2>
+                <p><?= $escape($t['ideaText']) ?></p>
+            </div>
+            <div class="principles">
 <?php foreach ($t['principles'] as $i => [$title, $text]): ?>
-            <article><span class="index" aria-hidden="true">0<?= $i + 1 ?></span><h3><?= $escape($title) ?></h3><p><?= $escape($text) ?></p></article>
-<?php endforeach; ?>
-        </div>
-    </section>
-
-    <section class="section wrap" id="capabilities" aria-labelledby="features-title">
-        <p class="eyebrow"><?= $escape($t['featuresLabel']) ?></p>
-        <div class="section-heading"><h2 id="features-title"><?= $rich($t['featuresTitle']) ?></h2><p><?= $escape($t['featuresText']) ?></p></div>
-        <article class="feature feature--files">
-            <div class="feature-copy"><h3><?= $escape($t['filesTitle']) ?></h3><p><?= $escape($t['filesText']) ?></p><a class="text-link" href="<?= $documentation ?>files.md"><?= $escape($t['docs']) ?> <span aria-hidden="true">↗</span></a></div>
-            <div class="file-screens">
-                <figure><?php $image('files', $t['filesAlt']); ?><figcaption><?= $escape($t['filesCaption']) ?></figcaption></figure>
-                <figure><?php $image('media', $t['mediaAlt']); ?><figcaption><?= $escape($t['mediaCaption']) ?></figcaption></figure>
-            </div>
-        </article>
-        <div class="feature-pair">
-            <article class="feature"><h3><?= $escape($t['calendarTitle']) ?></h3><p><?= $escape($t['calendarText']) ?></p><?php $image('calendar', $t['calendarAlt']); ?><a class="text-link" href="<?= $documentation ?>calendar.md"><?= $escape($t['docs']) ?> <span aria-hidden="true">↗</span></a></article>
-            <article class="feature"><h3><?= $escape($t['diagramTitle']) ?></h3><p><?= $escape($t['diagramText']) ?></p><?php $image('diagram', $t['diagramAlt']); ?><a class="text-link" href="<?= $documentation ?>diagrams.md"><?= $escape($t['docs']) ?> <span aria-hidden="true">↗</span></a></article>
-        </div>
-        <p class="image-note"><?= $escape($t['imageNote']) ?></p>
-        <div class="capability-details">
-            <h3><?= $escape($t['detailsTitle']) ?></h3>
-            <div>
-<?php foreach ($t['capabilities'] as [$title, $text, $guide]): ?>
-                <details><summary><?= $escape($title) ?><span aria-hidden="true">+</span></summary><div class="detail-content"><p><?= $escape($text) ?></p><a class="text-link" href="<?= $documentation.$guide ?>"><?= $escape($t['docs']) ?> <span aria-hidden="true">↗</span></a></div></details>
+                <article data-reveal><?= $icon(['braces', 'code', 'home'][$i]) ?><h3><?= $escape($title) ?></h3><p><?= $escape($text) ?></p></article>
 <?php endforeach; ?>
             </div>
         </div>
-        <p class="product-status"><?= $escape($t['status']) ?></p>
     </section>
 
-    <section class="history" id="history" aria-labelledby="history-title">
-        <div class="wrap section">
-            <p class="eyebrow"><?= $escape($t['historyLabel']) ?></p>
-            <div class="section-heading"><h2 id="history-title"><?= $rich($t['historyTitle']) ?></h2><p><?= $escape($t['historyLead']) ?></p></div>
-            <div class="timeline">
+    <section class="section section--tint" id="product" aria-labelledby="product-title">
+        <div class="wrap">
+            <div class="section-head" data-reveal>
+                <?= $label('02', $escape($t['productLabel'])) ?>
+                <h2 id="product-title"><?= $rich($t['productTitle']) ?></h2>
+                <p><?= $escape($t['productText']) ?></p>
+            </div>
+            <div class="showcase" data-reveal>
+<?php foreach ($t['features'] as $i => [$file, $title, $text, $alt, $guide]): ?>
+                <article class="feature" id="feature-<?= $file ?>">
+                    <div class="feature-copy">
+                        <h3><span class="feature-index" aria-hidden="true">0<?= $i + 1 ?></span><span class="feature-title"><?= $escape($title) ?></span></h3>
+                        <div class="feature-body"><p><?= $escape($text) ?></p><a class="text-link" href="<?= $documentation.$guide ?>"><?= $escape($t['docs']) ?><?= $arrow ?></a></div>
+                        <span class="feature-progress" aria-hidden="true"></span>
+                    </div>
+                    <figure class="feature-figure"><div class="browser"><div class="browser-bar" aria-hidden="true"><span class="browser-dots"><i></i><i></i><i></i></span><span class="browser-url">61ade.sanch.hu</span></div><?php $image($file, $alt); ?></div></figure>
+                </article>
+<?php endforeach; ?>
+            </div>
+            <p class="note"><?= $escape($t['imageNote']) ?></p>
+        </div>
+    </section>
+
+    <section class="section section--dark" id="foundations" aria-labelledby="foundations-title">
+        <div class="wrap">
+            <div class="section-head" data-reveal>
+                <?= $label('03', $escape($t['foundationsLabel'])) ?>
+                <h2 id="foundations-title"><?= $rich($t['foundationsTitle']) ?></h2>
+                <p><?= $escape($t['foundationsText']) ?></p>
+            </div>
+            <div class="capabilities">
+<?php foreach ($t['capabilities'] as $i => [$title, $text, $guide]): ?>
+                <article data-reveal><?= $icon(['user', 'shield', 'table', 'pulse', 'blocks', 'globe'][$i]) ?><h3><?= $escape($title) ?></h3><p><?= $escape($text) ?></p><a class="text-link" href="<?= $documentation.$guide ?>"><?= $escape($t['docs']) ?><?= $arrow ?></a></article>
+<?php endforeach; ?>
+            </div>
+            <p class="status"><span class="dot" aria-hidden="true"></span><?= $escape($t['status']) ?></p>
+        </div>
+    </section>
+
+    <section class="section" id="story" aria-labelledby="story-title">
+        <div class="wrap">
+            <div class="section-head" data-reveal>
+                <?= $label('04', $escape($t['storyLabel'])) ?>
+                <h2 id="story-title"><?= $rich($t['storyTitle']) ?></h2>
+                <p><?= $escape($t['storyLead']) ?></p>
+            </div>
+            <ol class="timeline">
 <?php foreach ($t['chapters'] as [$name, $title, $text]): ?>
-                <article><div class="timeline-name"><?= $escape($name) ?></div><div><h3><?= $escape($title) ?></h3><p><?= $escape($text) ?></p></div></article>
+                <li data-reveal><p class="timeline-name"><?= $escape($name) ?></p><h3><?= $escape($title) ?></h3><p><?= $escape($text) ?></p></li>
 <?php endforeach; ?>
+            </ol>
+            <p class="signature" data-reveal><?= $escape($t['signature']) ?></p>
+        </div>
+    </section>
+
+    <section class="section section--tint" id="usage" aria-labelledby="usage-title">
+        <div class="wrap">
+            <div class="usage">
+                <div data-reveal>
+                    <?= $label('05', $escape($t['usageLabel'])) ?>
+                    <h2 id="usage-title"><?= $rich($t['usageTitle']) ?></h2>
+                    <p class="usage-lead"><?= $escape($t['usageText']) ?></p>
+                    <p><?= $escape($t['usageThanks']) ?></p>
+                    <div class="buttons"><a class="button" href="<?= $repository ?>"><?= $escape($t['github']) ?><?= $arrow ?></a><a class="button button--ghost" href="mailto:sanch@61ade.com">sanch@61ade.com<?= $arrow ?></a></div>
+                </div>
+                <aside class="license" data-reveal>
+                    <p class="license-tag"><?= $escape($t['licenseTag']) ?></p>
+                    <h3><?= $escape($t['licenseTitle']) ?></h3>
+                    <p><?= $escape($t['licenseText']) ?></p>
+                    <p class="license-links"><a class="text-link" href="https://github.com/DHTMLX/dhtmlx-suite-gpl">DHTMLX Suite<?= $arrow ?></a><a class="text-link" href="https://docs.dhtmlx.com/scheduler/">DHTMLX Scheduler<?= $arrow ?></a></p>
+                    <p class="license-note"><?= $escape($t['licenseNote']) ?> <a href="<?= $repository ?>#licenses">GitHub<?= $arrow ?></a></p>
+                </aside>
             </div>
-            <p class="signature"><?= $escape($t['signature']) ?></p>
+            <div class="invite" data-reveal>
+                <div class="invite-copy">
+                    <h3><?= $escape($t['demoTitle']) ?></h3>
+                    <p><?= $escape($t['demoText']) ?></p>
+                </div>
+                <div class="login-card">
+                    <div class="login-card-bar" aria-hidden="true"><img src="<?= $root ?>assets/mark.svg" alt="" width="20" height="20"><span>61ade</span></div>
+                    <dl class="credentials" data-copy="<?= $escape($t['copy']) ?>" data-copied="<?= $escape($t['copied']) ?>">
+                        <div><dt><?= $escape($t['emailLabel']) ?></dt><dd><code>demo@example.test</code></dd></div>
+                        <div><dt><?= $escape($t['passwordLabel']) ?></dt><dd><code>61ade-demo</code></dd></div>
+                    </dl>
+                    <a class="button button--block" href="<?= $demo ?>" target="_blank" rel="noopener"><?= $escape($t['demo']) ?><?= $arrow ?></a>
+                </div>
+            </div>
         </div>
     </section>
 
-    <section class="section wrap" id="usage" aria-labelledby="usage-title">
-        <p class="eyebrow"><?= $escape($t['usageLabel']) ?></p>
-        <div class="usage-grid">
-            <div><h2 id="usage-title"><?= $rich($t['usageTitle']) ?></h2><p class="usage-lead"><?= $escape($t['usageText']) ?></p><p><?= $escape($t['usageThanks']) ?></p><div class="buttons"><a class="button button--primary" href="<?= $repository ?>"><?= $escape($t['github']) ?> <span aria-hidden="true">↗</span></a><a class="text-link" href="mailto:sanch@61ade.com">sanch@61ade.com <span aria-hidden="true">↗</span></a></div></div>
-            <aside class="license"><span class="license-symbol" aria-hidden="true">{ }</span><h3><?= $escape($t['licenseTitle']) ?></h3><p><?= $escape($t['licenseText']) ?></p><div class="license-links"><a class="text-link" href="https://github.com/DHTMLX/dhtmlx-suite-gpl">DHTMLX Suite ↗</a><a class="text-link" href="https://docs.dhtmlx.com/scheduler/">DHTMLX Scheduler ↗</a></div><p class="license-note"><?= $escape($t['licenseNote']) ?> <a href="<?= $repository ?>#licenses">GitHub ↗</a></p></aside>
+    <section class="closing" id="contact" aria-labelledby="contact-title">
+        <div class="wrap" data-reveal>
+            <p class="label label--center"><span>06</span><?= $escape($t['contactLabel']) ?></p>
+            <h2 id="contact-title"><?= $escape($t['contactTitle']) ?></h2>
+            <p><?= $escape($t['contactText']) ?></p>
+            <a class="contact-email" href="mailto:sanch@61ade.com">sanch@61ade.com<?= $arrow ?></a>
         </div>
-        <div class="demo-invite">
-            <div><span class="status-dot" aria-hidden="true"></span><h3><?= $escape($t['demoTitle']) ?></h3><p><?= $escape($t['demoText']) ?></p></div>
-            <dl class="credentials"><div><dt><?= $escape($t['emailLabel']) ?></dt><dd><code>demo@example.test</code></dd></div><div><dt><?= $escape($t['passwordLabel']) ?></dt><dd><code>61ade-demo</code></dd></div></dl>
-            <a class="button button--secondary" href="https://61ade.sanch.hu/" target="_blank" rel="noopener"><?= $escape($t['demo']) ?> <span aria-hidden="true">↗</span></a>
-        </div>
-    </section>
-
-    <section class="contact section wrap" id="contact" aria-labelledby="contact-title">
-        <p class="eyebrow"><?= $escape($t['contactLabel']) ?></p>
-        <h2 id="contact-title"><?= $escape($t['contactTitle']) ?></h2>
-        <p><?= $escape($t['contactText']) ?></p>
-        <a class="contact-email" href="mailto:sanch@61ade.com">sanch@61ade.com <span aria-hidden="true">↗</span></a>
     </section>
 </main>
-<footer class="footer wrap"><a class="brand" href="<?= $root ?><?= $language === 'hu' ? 'hu/' : '' ?>"><img src="<?= $root ?>assets/logo.svg" alt="61ade" width="1795" height="395"></a><p><?= $escape($t['footer']) ?></p><a href="<?= $repository ?>">GitHub ↗</a></footer>
+<footer class="footer">
+    <div class="footer-inner wrap">
+        <div class="footer-brand"><a class="brand" href="<?= $home ?>" aria-label="61ade"><img src="<?= $root ?>assets/logo-dark.svg" alt="61ade" width="1795" height="395"></a><p><?= $escape($t['footer']) ?></p></div>
+        <nav class="footer-links" aria-label="<?= $escape($t['footerNav']) ?>">
+            <a href="<?= $demo ?>" target="_blank" rel="noopener"><?= $escape($t['demoShort']) ?></a>
+            <a href="<?= $repository ?>">GitHub</a>
+            <a href="<?= $documentation ?>usage.md"><?= $escape($t['docs']) ?></a>
+            <a href="mailto:sanch@61ade.com">sanch@61ade.com</a>
+        </nav>
+        <nav class="footer-languages" aria-label="<?= $escape($t['language']) ?>"><a href="<?= $root ?>" lang="en" hreflang="en"<?= $language === 'en' ? ' aria-current="page"' : '' ?>>English</a><a href="<?= $root ?>hu/" lang="hu" hreflang="hu"<?= $language === 'hu' ? ' aria-current="page"' : '' ?>>Magyar</a></nav>
+    </div>
+</footer>
 <dialog class="image-dialog" aria-label="<?= $escape($t['screenLink']) ?>"><button class="image-close" type="button" aria-label="<?= $escape($t['close']) ?>">×</button><figure><img alt=""><figcaption></figcaption></figure></dialog>
 </body>
 </html>

@@ -3347,6 +3347,8 @@ that exactly equals an option label lists every option. The managed
   the twelve website JPEGs are retained deliverables.
 - **Status:** implemented and verified on the managed URL; owner acceptance
   and the separate canonical-domain connection are not claimed.
+  The visual design was superseded by [FB-0099](#fb-0099); its content,
+  screenshots, trademark screen and limits remain.
 
 <a id="fb-0097"></a>
 
@@ -3407,3 +3409,47 @@ that exactly equals an option label lists every option. The managed
   managed-URL wrapper, including the assertion that the mailbox link is absent.
   Diff whitespace checks passed; task browser artifacts were removed.
 - **Status:** implemented and verified on the managed URL.
+
+<a id="fb-0099"></a>
+
+## FB-0099 — Redesigned product website
+
+- **Date:** 2026-10-30.
+- **Request:** the owner found the FB-0096 website ugly and asked for a new,
+  nicer one. A third-party landing page was offered as a reference, then
+  withdrawn: "just make the page nicer"; no layout or asset was copied from it.
+- **Implemented:** a light editorial design replacing the dark one: paper tone
+  with grain, numbered sections framed by hairline guides, navy bands, the
+  brand blue as the only accent; self-hosted OFL fonts (Newsreader, Geist,
+  Geist Mono) with Latin Extended subsets; light header logo and dark footer
+  logo copied from the brand sources. New layout: hero with framed workspace
+  and phone screenshots over a blueprint band with four facts, principles,
+  an interface showcase (stacked without script or below 1080 px, otherwise a
+  list beside one stage that advances until chosen), a capability grid
+  replacing the disclosures, a timeline, a license card, a demo card with copy
+  buttons and a closing contact section. The hero enters as the trademark
+  screen fades; sections reveal once; reduced motion skips all of it.
+  Details: [product website](website.md#design).
+- **Content limits:** FB-0096 copy and its limits are kept; the files/media
+  text was split per screenshot, and the four facts (hu/en/de, three themes,
+  object/field permissions, transactional audit) come from implemented
+  evidence in [product direction](product-direction.md). The existing twelve
+  screenshots, shared trademark screen, metadata and demo account are reused
+  unchanged. No new hosting, deployment or third-party request.
+- **Verification:** PHP syntax, `npm run website:assets` and
+  `node tools/build-website.mjs --check` passed. Temporary guarded managed-URL
+  browser cases passed 5/5: the hero hidden while the trademark screen plays
+  and visible after it, fonts loaded, no horizontal overflow at 1440/768/390/
+  320 px, showcase autoplay to the second item, selection with `aria-expanded`
+  and the matching stage, keyboard-opened screenshot dialog closed by Escape
+  with focus return, copy button writing `61ade-demo` to the clipboard, every
+  image loaded and every section revealed after scrolling, no console errors,
+  the JavaScript-disabled English page (no splash, all four feature texts
+  visible, original-image links, canonical/hreflang) and reduced motion (no
+  entrance, reveal or autoplay), mobile menu open/close. One 320 px overflow
+  (the stack badge) and a scroll step of the check itself were corrected and
+  the cases rerun. Hungarian desktop and phone pages, the English no-script
+  page and the 320/390/768 px first screens were reviewed visually. Temporary
+  cases and screenshots were removed.
+- **Status:** implemented and verified on the managed URL; owner acceptance is
+  not claimed.

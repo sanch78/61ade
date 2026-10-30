@@ -16,13 +16,15 @@ const result = await build({
     outdir: path.join(output, 'assets'),
     write: false,
     legalComments: 'eof',
+    loader: { '.woff2': 'file' },
+    assetNames: 'fonts/[name]',
 });
 const files = result.outputFiles.map(file => [file.path, file.contents]);
 for (const language of ['en', 'hu']) {
     const html = execFileSync(process.env.BLADE_PHP || 'php8.4', [path.join(root, 'examples/demo-app/website/page.php'), language]);
     files.push([path.join(output, language === 'hu' ? 'hu/index.html' : 'index.html'), html]);
 }
-for (const [source, target] of [['blade-logo-dark.svg', 'logo.svg'], ['blade-mark.svg', 'mark.svg']]) {
+for (const [source, target] of [['blade-logo.svg', 'logo.svg'], ['blade-logo-dark.svg', 'logo-dark.svg'], ['blade-mark.svg', 'mark.svg']]) {
     files.push([path.join(output, 'assets', target), await readFile(path.join(root, 'packages/frontend/brand', source))]);
 }
 for (const [file, bytes] of files) {
