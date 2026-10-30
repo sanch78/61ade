@@ -315,8 +315,9 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
 - **Code delivery:** `signage_playlist.scene` (`values.asset`, label
   `Jelenet kódja`) answers `{asset, title, name, bytes, code}` for a scene
   asset's live file of at most 256 KiB UTF-8 (404 unknown or without a file,
-  415 not a scene, 413 larger). Who may preview the day (whose answer names
-  every asset and file) may read its scenes; setup grants both actions to
+  415 not a scene, 413 larger). It serves only a scene file the actor may also
+  read through the file manager (`files.content_stream` on the file's mount,
+  else 404); setup grants both actions to
   `demo@example.test` and `reader@example.test`. The page fetches the code
   through the action, never as a static file: the frame has
   `connect-src 'none'`.
