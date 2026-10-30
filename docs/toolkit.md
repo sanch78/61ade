@@ -87,8 +87,13 @@ export default (app) => {
 - **When:** only in the signed-in shell. The sign-in, e-mail confirmation and
   password-change pages load neither modules nor stylesheets (as with skins);
   they link the separate `signInStylesheets` (JSON
-  `application.sign_in_stylesheets`) instead and run no project code
-  ([sign-in branding](shell.md#sign-in-branding)). Stylesheets are linked
+  `application.sign_in_stylesheets`) instead and import only the separate
+  `signInModules` (JSON `application.sign_in_modules`; same path rules, keys,
+  parallel import, order and 5 s limits, console-only reports), whose default
+  export gets the restricted `SignInApplication` (`apiVersion`, `page`,
+  `i18n`, `theme`, `dhx`, `slots`; no `server`, identity, registries or CSRF
+  token) instead of `app`; they are trusted project code on the page with the
+  password field ([sign-in modules](shell.md#sign-in-modules)). Stylesheets are linked
   after the framework CSS and skins; both kinds rely only on the
   [supported CSS hooks](shell.md#sign-in-css-hooks).
 - **Order:** the shell `import()`s all modules in parallel and calls their
@@ -114,7 +119,7 @@ export default (app) => {
 Owner decision of 2026-10-30: browser cache keys come from the file itself,
 with one rule for every asset the shell links: 61ade's `admin.js` and
 `admin.css`, [skin](shell.md#application-skins) stylesheets, the project's
-`modules`, `stylesheets` and `signInStylesheets`, the
+`modules`, `stylesheets`, `signInStylesheets` and `signInModules`, the
 [logo](shell.md#sign-in-branding) images, and AuthHandler's
 `AuthHandler.css`/`.js` on the sign-in page. Each gets `?v=<key>`: the base36 modification time (seconds) and
 the base36 size of the file it is served from, joined by `-` (for example
