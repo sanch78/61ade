@@ -1,6 +1,7 @@
 import { Layout } from "@dhtmlx/suite";
 import type { AppEvents, ComponentClass, MountTarget, SandboxFrame as SandboxFrameApi, SandboxFrameEvents, SandboxFrameOptions } from "../../api/types";
 import { attachContent } from "../../api/services";
+import { Lifecycle, optionSignal } from "../Lifecycle";
 import { t } from "../../I18n";
 import { byteLength, describe, envelope, projectType } from "../../sandbox/protocol";
 import "./sandbox.css";
@@ -33,17 +34,19 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
     /** Holds the iframe; placed into the Layout cell. */
     private readonly host = document.createElement("div");
     private readonly controller = new AbortController();
-    private readonly listeners = new Map<keyof SandboxFrameEvents, Set<(payload: never) => void>>();
+    private readonly life = new Lifecycle<SandboxFrameEvents>(() => this.destroy());
     private readonly limits: { code: number; files: number; ready: number };
     private readonly title: string;
     private frame?: HTMLIFrameElement;
     private frameListeners?: AbortController;
     private pending?: Pending;
     private ready = false;
-    private destroyed = false;
+    /** The current frame document already reported an error caused by its messages; it reports no more (noise bound). */
+    private reported = false;
     private sequence = 0;
 
     constructor(options: SandboxFrameOptions = {}) {
+      const signal = optionSignal(options);
       this.limits = {
         code: limit(options.maxCodeBytes, SANDBOX_LIMITS.code, "maxCodeBytes"),
         files: limit(options.maxFileBytes, SANDBOX_LIMITS.files, "maxFileBytes"),
@@ -55,25 +58,15 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
       this.layout = new Layout(this.root, { rows: [{ id: "frame" }] });
       attachContent(this.layout.getCell("frame"), this.host, this.controller.signal);
       window.addEventListener("message", event => this.receive(event), { signal: this.controller.signal });
-      if (options.signal?.aborted) this.destroy();
-      else options.signal?.addEventListener("abort", () => this.destroy(), { once: true, signal: this.controller.signal });
+      this.life.bind(signal);
     }
 
-    mount(target: MountTarget): void {
-      if (this.destroyed) return;
-      if (target instanceof HTMLElement) target.append(this.root);
-      else target.attach(this.layout);
-    }
+    mount(target: MountTarget): void { this.life.mount(target, this.layout, element => element.append(this.root)); }
 
-    on<K extends keyof SandboxFrameEvents>(event: K, handler: (payload: SandboxFrameEvents[K]) => void): () => void {
-      const set = this.listeners.get(event) ?? new Set();
-      this.listeners.set(event, set);
-      set.add(handler as (payload: never) => void);
-      return () => { set.delete(handler as (payload: never) => void); };
-    }
+    on<K extends keyof SandboxFrameEvents>(event: K, handler: (payload: SandboxFrameEvents[K]) => void): () => void { return this.life.on(event, handler); }
 
     load(code: string, files: Record<string, Blob | string> = {}): Promise<void> {
-      if (this.destroyed) return Promise.reject(aborted());
+      if (this.life.destroyed) return Promise.reject(aborted());
       if (typeof code !== "string") return Promise.reject(new TypeError("61ade: SandboxFrame.load needs the code as a string."));
       if (typeof files !== "object" || files === null) return Promise.reject(new TypeError("61ade: SandboxFrame.load files must be an object."));
       let total = 0;
@@ -98,18 +91,16 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
     }
 
     post(type: string, payload?: unknown): void {
-      if (this.destroyed) return;
+      if (this.life.destroyed) return;
       if (!projectType(type)) throw new TypeError(`61ade: sandbox message type "${String(type)}" needs a project prefix with a dot.`);
       if (!this.ready || !this.frame) throw new Error("61ade: the sandbox is not ready; await load() first.");
       this.send(this.frame, type, payload);
     }
 
     destroy(): void {
-      if (this.destroyed) return;
-      this.destroyed = true;
+      if (!this.life.end(this.layout)) return;
       this.close();
       this.controller.abort();
-      this.listeners.clear();
       this.layout.destructor();
       this.root.remove();
     }
@@ -132,6 +123,7 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
       }, { signal: listeners.signal });
       this.frame = frame;
       this.frameListeners = listeners;
+      this.reported = false;
       this.host.replaceChildren(frame);
     }
 
@@ -151,12 +143,16 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
       frame.contentWindow?.postMessage({ blade: 1, id: "p" + ++this.sequence, type, payload }, "*");
     }
 
-    /** Only messages of the own frame's window from the opaque origin; all of them are untrusted input. */
+    /**
+     * Only messages of the own frame's window from the opaque origin; all of them are untrusted input. Project messages
+     * are delivered while the frame document lives, also before `ready` (code may report during its evaluation) and
+     * after an error; the first `error` or protocol violation a document's messages cause is reported, later ones are not.
+     */
     private receive(event: MessageEvent): void {
       const frame = this.frame;
       if (!frame || event.source !== frame.contentWindow || event.origin !== "null") return;
       const message = envelope(event.data);
-      if (!message) { this.fail("protocol", "The sandbox sent an invalid message."); return; }
+      if (!message) { this.noise("protocol", "The sandbox sent an invalid message."); return; }
       if (message.type === "ready") {
         const pending = this.pending;
         if (!pending || this.ready) return;
@@ -164,12 +160,19 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
         this.pending = undefined;
         clearTimeout(pending.timer);
         pending.resolve();
-        this.emit("ready", {});
+        this.life.emit("ready", {});
       } else if (message.type === "error") {
         const detail = message.payload as { message?: unknown } | null;
-        this.fail("error", describe(typeof detail === "object" && detail !== null ? detail.message : detail));
-      } else if (message.type === "load") this.fail("protocol", "The sandbox sent a reserved message type.");
-      else this.emit("message", { type: message.type, payload: message.payload });
+        this.noise("error", describe(typeof detail === "object" && detail !== null ? detail.message : detail));
+      } else if (message.type === "load") this.noise("protocol", "The sandbox sent a reserved message type.");
+      else this.life.emit("message", { type: message.type, payload: message.payload });
+    }
+
+    /** A failure the frame's own messages caused: reported once per frame document. */
+    private noise(code: ErrorCode, message: string): void {
+      if (this.reported) return;
+      this.reported = true;
+      this.fail(code, message);
     }
 
     /** Reports `error` and `sandbox:error`, rejects a pending load with an `Error` carrying `code`; `kill` removes the frame. */
@@ -181,16 +184,10 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
       if (kill) this.close();
       const payload = { message, code };
       console.warn(`61ade: sandbox ${code}: ${message}`);
-      this.emit("error", payload);
+      // The component event only while mounted; the page's `sandbox:error` for every failure.
+      this.life.emit("error", payload);
       try { report(payload); } catch (failure) { console.error(failure); }
       return error;
-    }
-
-    private emit<K extends keyof SandboxFrameEvents>(event: K, payload: SandboxFrameEvents[K]): void {
-      if (this.destroyed) return;
-      for (const handler of [...(this.listeners.get(event) ?? [])]) {
-        try { (handler as (payload: SandboxFrameEvents[K]) => void)(payload); } catch (error) { console.error(error); }
-      }
     }
   };
 }

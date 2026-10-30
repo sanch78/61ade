@@ -17,7 +17,7 @@ export class ListView extends Component<ListViewEvents> implements ListViewApi{
   readonly layout:Layout;
   private list:Workspace;
   constructor(context:ListContext,options:ListViewOptions){
-    super();
+    super(options);
     if(options.compact&&!options.scope)throw new TypeError("61ade: a compact ListView needs a scope.");
     const app=context.app(),view=listDefinition(resolveListView(app,options.view));
     const scope=options.scope?{field:String(options.scope.field),id:String(options.scope.id),...(options.scope.select===false?{select:false}:{}),...(options.compact?{compact:{height:(pixels:number)=>options.compact!.height(pixels)}}:{})}:undefined;

@@ -19,7 +19,7 @@ export class CommandBar extends Component<{click:{id:string}}> implements Comman
   private ids=new Set<string>();
   private releaseIcons=widgetIcons();
   constructor(options:CommandBarOptions){
-    super();
+    super(options);
     const items=Array.isArray(options?.items)?options.items:[];
     for(const item of items)if(item.type!=="spacer"&&(typeof item.id!=="string"||!ID.test(item.id)||item.id==="blade-command-menu"||this.ids.has(item.id)))throw new TypeError(`61ade: invalid or duplicate command id "${String(item.id)}".`);
       else if(item.type!=="spacer")this.ids.add(item.id);
