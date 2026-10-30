@@ -40,9 +40,11 @@ $base = require dirname(__DIR__, 2).'/examples/demo-app/admin-application.php';
 verify(array_column($base->workspace->registry->views(), 'resource') === ['blade_users', 'blade_roles', 'blade_memberships', 'blade_role_rules', 'blade_user_rules', 'blade_api_keys'], 'Base admin has only the mandatory administration');
 verify($base->cookiePath === '/admin/' && $base->assets === '../assets' && $base->sessionName !== $app->sessionName, 'Base admin is a separate application');
 verify(count($base->workspace->views($base->identities->authenticate('demo@example.test', '61ade-demo'))) === 6, 'First administrator reaches every admin view');
-// The starter admin and the tenant demo stay declarative: no project browser modules or stylesheets.
+// Declarative path (toolkit D6): the starter admin and the tenant demo declare no project browser modules or
+// stylesheets; the feature demo, the toolkit consumer, declares exactly its built demo module (docs/demos.md#toolkit-consumer).
 $tenantDemo = require dirname(__DIR__, 2).'/examples/demo-app/tenant-application.php';
 verify($base->modules === [] && $base->stylesheets === [] && $tenantDemo->modules === [] && $tenantDemo->stylesheets === [], 'Starter admin and tenant demo declare no modules or stylesheets');
+verify($app->modules === ['app/demo.js'] && $app->versioned('app/demo.js') === 'app/demo.js?v='.rawurlencode($app->version) && $app->version !== '', 'Feature demo declares exactly its versioned demo module');
 // Feature demo: business modules plus every sign-in method.
 verify($app->authentication !== null && $app->oauth !== null && $app->oauth->providers() === ['Google', 'Facebook'] && count($app->languages->languages) === 2, 'Feature demo shows all sign-in methods and languages');
 verify($app->identities->authenticate('twofactor@example.test', '61ade-demo') !== null && $app->authentication->needsConfirmation($app->identities->find('4')), 'E-mail second factor account');

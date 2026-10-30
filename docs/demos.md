@@ -90,6 +90,47 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Appearance | Skyblue/light/dark, lower information bar and mobile menu | Any view |
 | Application skins | Synthetic neutral skins over a factory base instead of the factory themes: one skin without selector, a light- and a dark-based skin in the selector ([details](shell.md#application-skins)) | `skin@example.test`, `skins@example.test` |
 
+<a id="toolkit-consumer"></a>
+
+### Toolkit consumer (project module)
+
+The feature demo is the reference consumer of the [toolkit](toolkit.md)
+([plan section 6](toolkit-plan.md#6-feature-demo-transformation)): it keeps its
+declarations and adds its own browser code where the toolkit is the point. The
+starter admin and the tenant demo stay declarative and load no project module.
+
+- **Sources:** `examples/demo-app/frontend/src/*.ts`, TypeScript with 61ade
+  types only (`import type` from `@61ade/admin`, mapped to
+  `packages/frontend/dist/admin.d.ts` by
+  [frontend/tsconfig.json](../examples/demo-app/frontend/tsconfig.json));
+  everything else comes from `app`
+  ([recipe](toolkit.md#typescript-recipe)).
+- **Build:** `tools/build.mjs` bundles `src/index.ts` (ESM, es2022) into the
+  tracked `examples/demo-app/public/app/demo.js`; `node tools/build.mjs
+  --check` refuses a stale or missing bundle exactly like `dist`, and the build
+  rejects any import outside `frontend/src`. `npm run typecheck` includes
+  `tsc -p examples/demo-app/frontend`; after a change to
+  `packages/frontend/src/api`, run `npm run build` first so `admin.d.ts` is
+  current.
+- **Declaration:** `application.php` `modules: ['app/demo.js']`; the shell
+  imports it as `app/demo.js?v=<version>` after sign-in. The application
+  `version` is the cache key, so a changed bundle is only refetched after a
+  revalidation or a version bump.
+- **Structure:** `index.ts` is the module's default export. It calls one part
+  per D-row in order; a failing part does not stop the later parts, and the
+  failures are rethrown together so the loader reports the module once. A
+  D-row adds `src/<file>.ts` with a default-exported `ApplicationModule` and
+  replaces only its own slot line in `index.ts` with the import.
+
+| Row | Area | File | Status |
+| --- | --- | --- | --- |
+| D0 | Build, declaration, empty module | `index.ts` | Implemented; registers nothing visible |
+| D1 | Signage `Médiatár` asset viewer | `assets.ts` | Planned |
+| D2 | Signage `Napi műsor` playlist preview | `playlist.ts` | Planned |
+| D3 | `Mérések` dashboard | `readings.ts` | Planned |
+| D4 | `Tasks` field type and command | `tasks.ts` | Planned |
+| D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` on the feature demo |
+
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
 `twofactor@example.test` (code, English default), `oauth@example.test`
@@ -206,7 +247,8 @@ See [project rules](development.md#mandatory-framework-development-rules).
 
 ## Verification
 
-- `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes.
+- `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes; the starter admin and the tenant demo declare no modules or stylesheets, the feature demo exactly its versioned `app/demo.js` ([toolkit consumer](#toolkit-consumer)).
+- `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<version>` once (bootstrap `modules` and the network agree) and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules` and request no script outside `assets/`.
 - Ignored `.env.test` supplies `BLADE_DEMO_URL` and `BLADE_DEMO_INSTANCE=web`; every browser spec runs against the managed server and none starts a local server ([development](development.md#unified-playwright-configuration)).
 - `npm run test:browser -- --project=shell tests/shell/demo.spec.cjs`: login modes/language row, provider overlay/start, mailbox code/English default, account columns, API issue/use/revoke, starter menu and Tasks. Real provider completion remains unverified; FB-0050 records Google's callback mismatch.
 - `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs`: six combinations on desktop/320×480, keys/focus and invalid-login caller.

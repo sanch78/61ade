@@ -105,12 +105,18 @@ change. Every consumer would need a coordinated update, as described in
 `admin.css` (one ESM bundle and its stylesheet), `sandbox.html` and
 `sandbox.js` (the [sandbox document](toolkit.md#sandbox-protocol), from
 `src/sandbox/`) and `admin.d.ts` (toolkit API declarations from
-`src/api/index.ts`, development use only). Every commit that changes their
+`src/api/index.ts`, development use only). The same build writes the feature
+demo's project module `examples/demo-app/public/app/demo.js` from
+`examples/demo-app/frontend/src` ([toolkit consumer](demos.md#toolkit-consumer));
+it is tracked the same way but is demo output, never consumer runtime.
+Every commit that changes their
 source carries the matching fresh `npm run build` output; the build is
 reproducible, and `npm run build` reports when `dist` changed. `npm run
 test:browser` first runs `node tools/build.mjs --check`, which builds all of
 these files in memory and refuses to test an output that differs from the
-source.
+source. `npm run typecheck` checks `packages/frontend/src` and, with
+`tsc -p examples/demo-app/frontend`, the demo module against the generated
+`dist/admin.d.ts` (build first after an API change).
 
 ### Consumer layout
 
