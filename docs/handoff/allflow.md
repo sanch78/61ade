@@ -4,8 +4,10 @@
 
 - Az allflow utoljára a 61ade `131263a` commitját adta ki (0.6-os kiadás);
   azóta a fejlesztői URL már a toolkit-verziót futtatja.
-- Kötelező kódmódosítás nincs: a kimenő levelek `#feature=` linkjei az alias
-  miatt továbbra is működnek, a specek nem ütköznek a változásokkal.
+- Kötelező kódmódosítás (2026-10-30, M24 és M30): a kimenő levelek
+  `#feature=` linkjei helyett `#view=` kell (az alias megszűnt), és a
+  `register()` utáni `Registry::view()` hívások helyett `Registry::updateView()`
+  (egy ismételt nézetazonosító definíciókor hibát dob); a specek nem ütköznek.
 - Teendő a következő kiadás előtt: frissítési füstteszt, a saját specek
   futtatása, majd `deploy-site`.
 - A következő kiadással megy ki az allflow saját, még ki nem adott 61de → 61ade
@@ -33,8 +35,8 @@ commit `14cf272`, 2026-10-27 22:38 UTC) lists it for both `packages/php` and
 
 | Item | allflow spot | Needed |
 | --- | --- | --- |
-| M1 `#feature=` alias | Outgoing mail links `ALLFLOW_BASE_URL.'/admin/#feature=inquiries'` (`admin/includes/inquiries.php` line 14) and `…#feature=profile_requests` (`admin/includes/profile.php` line 34) | No change. The alias resolves `#feature=<resource>` to the view whose id equals that resource and rewrites the address to `#view=<id>`; both views keep the default id, so delivered and new mails open the right page ([routing](../toolkit.md#routing)). Optional: new mails may use `#view=inquiries` and `#view=profile_requests`. Do not give these views another `id`, or the delivered links stop resolving. |
-| M4 view replacement | `admin/includes/admin_features.php`: `register()` at lines 45, 80 and 103 followed by `Registry::view()` for the same resource at lines 61, 81 and 121 | No change. A later declaration with the same id still replaces the earlier view and keeps its menu position ([rule](../toolkit.md#view-id-rule)); `view()` now returns a `View`, which may be ignored. |
+| M1, M24 `#feature=` removed | Outgoing mail links `ALLFLOW_BASE_URL.'/admin/#feature=inquiries'` (`admin/includes/inquiries.php` line 14) and `…#feature=profile_requests` (`admin/includes/profile.php` line 34) | Required. The alias is removed: `#feature=` opens the empty workspace. New mails use `#view=inquiries` and `#view=profile_requests` (both views keep the default id); already delivered mails open the empty workspace ([routing](../toolkit.md#routing)). |
+| M4, M30 view ids | `admin/includes/admin_features.php`: `register()` at lines 45, 80 and 103 followed by `Registry::view()` for the same resource at lines 61, 81 and 121 | Required. A second declaration of the same id throws `Duplicate view id` at definition time ([rule](../toolkit.md#view-id-rule)). Replace each such `Registry::view(…)` with `Registry::updateView(View::list(…))` (same arguments), or give it its own `id`. |
 | M9 cache keys | `admin/includes/admin_application.php` line 20 sets `version` from `.deploy-version` in production, `ALLFLOW_ENV` otherwise; no spec asserts a `?v=` key | No spec change. Release note to verify: `/admin/` reaches `admin/www` through the deploy `links` entry `public/admin` → `admin/www` (`.deploy.json` lines 84–87). The shell resolves the front controller's directory with `realpath` and keys files only inside the real document root ([cache keys](../toolkit.md#cache-keys)); if the document root is `public`, `admin/www` lies outside it, so in a release `admin.js`/`admin.css` fall back to `?v=<release version>` (a new key per release, not per file). In development they take the key of the 61ade checkout's build through the link. Check the page source on the development URL and after the release; if per-file keys are wanted there, raise it with 61ade (`documentRoot` is not meant for this layout). |
 | M10 toolbar commands | `dev/tests/admin/admin.js` lines 23–27 `command()` clicks toolbar buttons by name or opens `Műveletek`; `dev/tests/admin/profile.spec.js` lines 36–37 selects a row, then runs `Kérelem lezárása` | No change; record actions act on the toolbar's cursor record as before. `Adatok` is disabled until a row is selected. |
 | M12 name | Own unreleased commits `faec134` and `2f8c1eb`: `.deploy.json` targets `admin/lib/61ade` and `admin/www/assets/61ade` (lines 36, 44), `web_writable` `tmp:prod/61ade` (line 75), `runtime: af_tmp_dir('61ade')` (`admin_application.php` line 24) | Informational. The release still holds `admin/lib/61de` and `admin/www/assets/61de`; the next release replaces them, and the new runtime directory starts without sessions, so administrators sign in again. |
@@ -59,8 +61,8 @@ Outside this migration and unchanged by it: the specs load
    on the development URL: sign in, open `Ügyfelek`, `Megkeresések` and
    `Adatváltozási kérelmek`, one form, one synthetic save reverted; console and
    PHP error log.
-2. Open `/admin/#feature=inquiries` and `/admin/#feature=profile_requests`
-   signed in: each opens its page and the address becomes `#view=…`.
+2. Open `/admin/#view=inquiries` and `/admin/#view=profile_requests` signed
+   in (the links of new mails): each opens its page.
 3. `dev/tools/playwright.sh` with the `dev/tests/admin` specs (the write cases
    only with the project's own `ALLFLOW_TEST_WRITES=1` opt-in).
 4. `deploy-site` only after these pass; then check the release's page source

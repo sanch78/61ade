@@ -3,7 +3,9 @@
 ## Összefoglaló
 
 - A StoryBloX utoljára a 61ade `131263a` commitját adta ki; azóta a fejlesztői
-  URL már a toolkit-verziót futtatja; a kódja kötelező módosítást nem igényel.
+  URL már a toolkit-verziót futtatja. Kötelező (2026-10-30, M28): a setup
+  futtassa a `0003-tenant-member-active.php` migrációt a `Tenancy::install()`
+  előtt; a kód egyébként kötelező módosítást nem igényel.
 - Teendő a következő kiadás előtt: frissítési füstteszt és a saját specek
   futtatása; egyik spec sem ütközik a változásokkal.
 - Ajánlott: a `public/admin/index.php` CSS-befecskendezése helyett a
@@ -47,7 +49,8 @@ copies anyway (M15).
 | M7 sandbox files | `.deploy.json` `shared_assets` entry for `dist` with `files: ["admin.js", "admin.css"]` | Add `"sandbox.html"` when the scene stage (below) uses `SandboxFrame` ([packaging](../toolkit.md#packaging)); never `admin.d.ts`. |
 | M10 toolbar commands | D-017 keeps the details on the toolbar `Adatok` command | No change; there is no record context menu, and no spec opens one. |
 | M12 name | `lib/61ade`, `public/assets/61ade`, `common.php` line 7, `.deploy.json` targets | Already on `61ade`. |
-| CSS hooks | `app.css` `.blade-navigation-row::after`; `editor.css` `[data-blade-skin="storyblox-studio"]` with `--dhx-*` | No change. The skin selector and variables are contract; `.blade-navigation-row` is outside the contract but unchanged. |
+| CSS hooks | `app.css` `.blade-navigation-row::after`; `editor.css` `[data-blade-skin="storyblox-studio"]` with `--dhx-*` | The skin selector and variables are contract. Only the [documented hooks](../shell.md#sign-in-css-hooks) are supported; replace the `.blade-navigation-row::after` logo with the application `logo` (M23). |
+| M28 tenancy `active` | Tenancy (`application.php` line 14): an existing `blade_tenant_members` table still has the removed `active` column | Required with the update: run `packages/php/migrations/0003-tenant-member-active.php` once before `Tenancy::install()` in setup ([tenancy](../tenancy.md#enabling-tenancy)); `Tenancy::install()` refuses the old table. Until then a suspended (`active = 0`) row would grant access. |
 
 Not applicable: M2 (no menu ids in specs), M3 (no bootstrap reads), M8 (no own
 admin JavaScript), M11 (no WebSocket service; lists poll), M13 (no checkbox

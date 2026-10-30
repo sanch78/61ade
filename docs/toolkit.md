@@ -3,7 +3,7 @@
 Status: **implemented** ([FB-0081](feedback.md#fb-0081)): project modules
 and stylesheets, the `app` services and [events](#event-catalog), the
 registries, built-in view kinds through the `kinds` registry, view ids,
-`#view=` routing with the `#feature=` alias, record views, the activation map,
+`#view=` routing, record views, the activation map,
 the components `ListView`, `RecordForm`, `RecordDetails`, `CommandBar`,
 `FileManager`, `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer` and
 `SandboxFrame`, `admin.d.ts` and the sandbox document. The feature demo is its
@@ -367,7 +367,8 @@ command `demo.copy-text` ([example](#example-tasks)).
   tile keeps the browser's own behaviour. `placement` says what the command
   acts on: `toolbar` the view (no record needed), `record` the toolbar's
   cursor record, like the built-in record actions (`Adatok`, `Szerkesztés`,
-  `Törlés`); `both` is accepted as `record`. The context has `app`, `view` (as
+  `Törlés`); a command with any other `placement` is skipped with one console
+  warning, like an unregistered name. The context has `app`, `view` (as
   the server sent it), `row` (the cursor record of that view; absent without
   one), `rows` (its marks) and `signal` (aborted when the list closes).
   **Sub-view delegation:** while a selected sub-view (preview) record holds
@@ -796,7 +797,8 @@ PHP signatures (`packages/php/src/Feature/Registry.php`, `SqlResource.php`,
 
 ```php
 // Blade\Feature\Registry
-public function addView(View $view): View;
+public function addView(View $view): View;                              // a taken id throws
+public function updateView(View $view): View;                           // changes the declared view of that id
 public function kind(string $kind, ViewKindProvider $provider): void;   // dotted, before its views; duplicate throws
 public function view(string $resource, string $title, array $columns, array $actions, /* … */
     string|array|null $activate = null, ?string $id = null, array $commands = []): View;
@@ -807,6 +809,8 @@ public function subview(string $view, string $child, string $field, bool $embed 
 public function appendViewActions(string $view, array $actions): void;  // view id
 /** @return list<View> */ public function views(): array;
 public function viewById(string $id): ?View;
+// Blade\Feature\View
+public static function list(string $resource, string $title, array $columns, array $actions, /* as Registry::view() */): View;
 // Blade\Feature\SqlResource
 public function register(Registry $registry, string $title, /* … */ string|array|null $activate = null, ?string $id = null, array $commands = []): View;
 // Blade\Shell\ApplicationDefinition: constructor parameters
@@ -835,14 +839,24 @@ public ?string $documentRoot = null,
 
 <a id="view-id-rule"></a>
 
-**Duplicate view ids:** a later declaration with the same id replaces the
-earlier one at definition time, as `Registry::view()` did before view ids (allflow
-declares `Registry::view('customers', …)` after `SqlResource::register()` and
-relies on it). The replacement keeps the first declaration's menu position (PHP
-array order, unchanged behaviour) and replaces the whole earlier view,
-including a sub-view attached before it, so attach sub-views after the final
-declaration. Registering a client view **kind** twice is an error unless
-`{replace: true}`; `Registry::kind()` has no replace. Accepted at G1.
+**Duplicate view ids:** a view id is declared once. A second declaration with
+the same id (`Registry::view/addView`, the other builders,
+`SqlResource::register`, JSON `resources.<name>.view.id` or `views.<id>`)
+throws `InvalidArgumentException` (`Duplicate view id: <id>`) at definition
+time; the kind's own validation runs first. Give the other view its own `id`,
+or change the declared one explicitly with `Registry::updateView(View $view)`:
+the id must exist, kind and resource stay, the result is validated like a
+declaration, and the menu position, the sub-view attached with `subview()` and
+the embedded state stay (a `subview` option of the new View is ignored).
+`View::list(…)` builds a list View with `Registry::view()`'s parameters without
+registering it, for example
+`$registry->updateView(View::list('customers', 'Ügyfelek', $columns, ['get', 'update']))`
+after `SqlResource::register()`, or
+`$registry->updateView($view->with(icon: 'dxi dxi-key'))` with the View it
+returned. JSON `resources.<name>.view` is compiled this way. Registering a
+client view **kind** twice is an error unless `{replace: true}`;
+`Registry::kind()` has no replace. Replaces the replacement rule of G1
+decision 1 (2026-10-30, [FB-0081](feedback.md#fb-0081)).
 
 **Bootstrap shape:** the per-resource keys from before view ids map as
 follows ([M3](#migration)); nothing else changed and all texts stay
@@ -864,10 +878,9 @@ server-translated.
 
 - Canonical address: `#view=<id>[&record=<id>][&filter.<field>=<value>]`.
   Filter presets apply once and leave the address, as today.
-- Legacy alias: `#feature=<resource>` resolves to the view whose id equals that
-  resource and the shell rewrites the hash to `#view=<id>` with
-  `history.replaceState` (other parameters kept). Delivered e-mails such as
-  `/admin/#feature=inquiries` keep working ([O3](#resolved-decisions)).
+- `#view=` is the only form: any other address, such as the former
+  `#feature=<resource>` (removed 2026-10-30, [FB-0081](feedback.md#fb-0081)),
+  names no view and gives the empty workspace.
 - Menu ids become `view:<id>` (`sibling:view:<id>` for the collapsed-menu
   siblings); `activate: 'page'` writes `#view=<child id>`.
 - Unknown or unoffered ids give the empty workspace, as today.
@@ -1704,8 +1717,9 @@ field metadata is camelCase, M19), the
 `Registry::add(new Action(…))`, `Skin`, `[data-blade-skin]` and `--dhx-*`
 variables, `packages/php/migrations` and the `Access\Schema` tables of an
 application without tenancy (no schema step), no third-party PHP dependency.
-CSS on framework classes such as `.blade-navigation-row` (used by StoryBloX)
-remains outside the supported contract and is not renamed by the toolkit work.
+Only the documented hooks ([sign-in CSS hooks](shell.md#sign-in-css-hooks),
+`[data-blade-skin]`, `--dhx-*`) are supported; any other framework class or
+markup may change without notice.
 
 ### Steps for a consumer session
 
@@ -1718,9 +1732,7 @@ remains outside the supported contract and is not renamed by the toolkit work.
 2. **Smoke-check the development URL** (sign in, menu, one list, one form, one
    synthetic save reverted, console and PHP error log;
    [update smoke check](development.md#consumer-update-smoke-check), step 2).
-   Also check that a menu page shows `#view=<id>`, that an old
-   `#feature=<resource>` address opens the same page and is rewritten (M1), and
-   that `Adatok` and the record actions sit in the list toolbar (M10).
+   Also check that a menu page shows `#view=<id>` (M1) and that `Adatok` and the record actions sit in the list toolbar (M10).
 3. **Fix the specs** that fall under M2, M9, M10 or M13. Search the specs for
    `?v=`, `feature:`, `#feature=`, `blade-results`, `contextmenu`,
    `button: 'right'`, `Shift+F10` and `checkbox `; then run them through your
@@ -1808,7 +1820,7 @@ resolved with the recommended defaults and the P0 consumer inventory.
 | --- | --- | --- |
 | O1 | Dependency injection: the shell `import()`s declared modules and calls each default export with `Application`; no import map; types from `admin.d.ts`. | An inline import map needs a CSP hash or nonce; `admin.js` is loaded with `?v=`, so importing it by URL would create a second instance. |
 | O2 | Plain ES modules accepted; TypeScript recommended, built by the project ([recipe](#typescript-recipe)); the feature demo uses TypeScript built by `tools/build.mjs`. | No build requirement for small modules; types without a second runtime. |
-| O3 | View `id` (`[a-z][a-z0-9_.-]*`, unique) independent of `resource`, default = resource. `#view=` is canonical; `#feature=<resource>` stays a legacy alias rewritten with `replaceState`; menu ids `view:<id>`; later same-id declarations replace earlier ones. | allflow has delivered e-mails with `/admin/#feature=…` and relies on `Registry::view()` replacing the `SqlResource` view; default ids keep preference keys valid. |
+| O3 | View `id` (`[a-z][a-z0-9_.-]*`, unique) independent of `resource`, default = resource. `#view=` is canonical; menu ids `view:<id>`. Superseded on 2026-10-30 ([FB-0081](feedback.md#fb-0081)): the `#feature=<resource>` alias is removed and a duplicate id throws ([rule](#view-id-rule)). | Default ids keep preference keys valid. The alias and the replacement served delivered consumer e-mails and consumer declarations; the owner removed every compatibility procedure for consumers and old clients. |
 | O4 | `record: <resource>` record views; row resolved by that resource's `get`; opened by activation, record action, `navigate` or URL; `open: page \| window`. | Server-side ACL, field ACL and tenant scope stay the only authority. |
 | O5 | `activate` also accepts `{field, map}` with `*` default and the new `view:<id>` target; validated on the server, chosen per row on the client. | StoryBloX audio/scene records open different viewers; existing values keep working. |
 | O6 | Static `dist/sandbox.html` (its bootstrap inline since 2026-10-30, [changes](#changes)) with a meta CSP in `<iframe sandbox="allow-scripts">`; data and code by `postMessage`; `.deploy.json` grows by these files for `SandboxFrame` users. | Opaque origin: no cookies or CSRF; the shell CSP stays strict. |
@@ -1825,8 +1837,11 @@ resolved with the recommended defaults and the P0 consumer inventory.
 Accepted by the owner on 2026-10-29 as recommended:
 
 1. **Duplicate view ids:** a later declaration with the same id replaces the
-   earlier one and keeps its menu position ([rule](#view-id-rule)); a client
-   view kind registered twice is an error unless `{replace: true}`.
+   earlier one and keeps its menu position; a client view kind registered
+   twice is an error unless `{replace: true}`. *Superseded on 2026-10-30
+   ([FB-0081](feedback.md#fb-0081)): a duplicate view id throws and
+   `Registry::updateView()` changes a declared view explicitly
+   ([rule](#view-id-rule)); the client kind rule is unchanged.*
 2. **Translation keys of project modules (O9):** Hungarian source text like the
    framework, or a project prefix (`storyblox.player.play`) for texts without a
    natural source; overriding framework keys stays allowed and documented.

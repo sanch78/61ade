@@ -22,7 +22,7 @@ with severity as `aria-label`; default titles also follow severity.
 ## Frontend API
 
 ```ts
-import { showDialog, acknowledge, requestConfirmation, alert, confirm } from "./MessageDialog";
+import { showDialog, acknowledge, requestConfirmation } from "./MessageDialog";
 
 await acknowledge({ severity: "danger", message: "A mentés nem sikerült." }); // Promise<true>
 const ok = await requestConfirmation({ severity: "danger", title: "Törlés",
@@ -52,11 +52,10 @@ cycle, Space toggles it, focus still starts on Cancel. The
 [uploader](uploader.md) uses it so one decision can apply to every later
 name conflict of a batch ([FB-0063](feedback.md#fb-0063)).
 
-Compatible callers `alert({header,text,buttons,htmlEnable})` and
-`confirm({…,buttons:[apply,reject]})` are exported with optional severity.
-Migrate imports from `@dhtmlx/suite` to `./MessageDialog` and set appropriate
-severity. `htmlEnable` is ignored: content is always text. DHTMLX `message()`
-remains a toast, outside this dialog API.
+There is no DHTMLX-shaped `alert({header,text,buttons})`/`confirm()` wrapper:
+every caller uses `acknowledge`, `requestConfirmation`, `showDialog` or the
+choice dialogs with `DialogOptions` (project code: `app.ui.dialog`). Content is
+always plain text. DHTMLX `message()` remains a toast, outside this dialog API.
 
 <a id="szerver-által-deklarált-megerősítés"></a>
 
@@ -78,9 +77,8 @@ Keys: required plain-text `message` (`{count}` is affected row count), optional
 throw. Metadata contains translated text. Confirmation is client UX only;
 server ACL/executor checks every call. API calls do not ask for confirmation.
 
-An action result's `reveal` may contain `severity`
-(`neutral`/`warning`/`danger`) for compatibility; toolbar success and one-time
-reveals and bulk results are shown as non-blocking toasts. Partial bulk failures
+Toolbar success, one-time reveals (`reveal`: `label`, `value`, `note`) and
+bulk results are shown as non-blocking toasts. Partial bulk failures
 include the failed row messages in that toast.
 
 <a id="billentyűzet-és-fókusz"></a>

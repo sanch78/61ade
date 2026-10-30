@@ -65,7 +65,9 @@ own screens are built from the same building blocks.
   modules get the `Application` by injection, no import map (O1); plain ES
   modules or project-built TypeScript with `admin.d.ts` (O2); a view `id`
   independent of the resource, canonical `#view=`, with `#feature=` kept as a
-  rewritten legacy alias because delivered consumer e-mails use it (O3);
+  rewritten legacy alias because delivered consumer e-mails use it (O3;
+  superseded on 2026-10-30, [FB-0081](../feedback.md#fb-0081): the alias is
+  removed and a duplicate view id throws);
   record views resolved through the record resource's `get` (O4); per-row
   activation maps with `view:<id>` targets (O5); a static sandbox document in
   an opaque-origin frame (O6), the only place untrusted code may run (O7);
@@ -74,4 +76,6 @@ own screens are built from the same building blocks.
   (O10); `apiVersion` 1 with a recorded change log after G1 (O11).
 - A later view declaration with the same id replaces the earlier one, as
   today; the owner confirms this and the other
-  [open points](../toolkit.md#open-points) at gate G1.
+  [open points](../toolkit.md#open-points) at gate G1. Superseded on
+  2026-10-30 ([FB-0081](../feedback.md#fb-0081)): a duplicate id throws and
+  `Registry::updateView()` changes a declared view.

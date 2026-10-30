@@ -59,7 +59,14 @@ Blade\Access\Schema::install($pdo);
 Blade\Tenancy\Tenancy::install($pdo); // blade_tenants, blade_tenant_members, tenant_id on blade_audit and blade_tokens
 ```
 
-The installer is idempotent and additive. `Tenancy::ensure($pdo, 'Name')` and
+The installer is idempotent and additive. A database created before
+2026-10-30 still has the removed membership switch `blade_tenant_members.active`;
+`Tenancy::install()` refuses it until
+`packages/php/migrations/0003-tenant-member-active.php` has run once
+(`(require …/0003-tenant-member-active.php)($pdo)` returns `{deleted, dropped}`):
+it deletes the suspended rows (`active = 0`, which granted nothing) and drops the
+column (SQLite 3.35+ or MySQL; a no-op afterwards and without tenancy).
+`Tenancy::ensure($pdo, 'Name')` and
 `Tenancy::join($pdo, $tenantId, $actorId)` are setup helpers for seeding.
 Tenant IDs are strings in every API (`'1'`).
 
@@ -114,23 +121,19 @@ on they stay global and must not hold tenant data (see
   selected and open no form; the switch is the only write. The toolbar's
   `Hozzáférések` command (and the card button on a phone) opens the same list in
   a window, with the switch only (no add, edit or delete).
-- **Access switch:** checked means an active membership. Switching on inserts the
-  membership, or sets `active = 1` on a suspended row; switching off deletes the
-  row. Each change is the executor's single-field edit (`__edit` / `update`) with
+- **Access switch:** checked means a membership row. Switching on inserts the
+  membership; switching off deletes the row. Each change is the executor's single-field edit (`__edit` / `update`) with
   the `blade_tenant_members.update` ACL, a revision check and an audit entry
   (`tenant_id`, `actor_id`, `access` in the detail). Without the update right the
   request is refused (403); an unknown tenant or invisible account is not found
   (404). The `_subview` count of a tenant is the number of accounts with access
   (a `ListSource` `countWhere`); every tenant still expands (`_subview_open`).
-- **`active` column:** kept for compatibility (earlier installs and seeds). The UI
-  no longer shows it; a row with `active = 0` lists as no access and grants none.
-  `Tenancy::member()` and `memberships()` still require `active = 1`.
 - **Users** form: the `Tenantok` multiselect assigns tenants per user. It is stored
   in `blade_tenant_members` through `Blade\Feature\RelatedSet`, a general
   many-to-many counterpart of `RelatedStorage` that shares the form's
   transaction, revision and audit (field names only). A save removes deselected
-  links and adds new ones only. A deleted row (access off) is not a member, so the
-  multiselect and the access list agree.
+  links and adds new ones only. A membership is its row, so the multiselect and
+  the access list agree.
 - `Permissions::grantAdministration()` gives the protected admin role the Tenants
   and access-list actions too (`ADMIN_RESOURCES` keeps `Tenancy::MEMBERS`; the
   access list has only `list` and `update`).

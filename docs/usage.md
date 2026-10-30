@@ -244,7 +244,7 @@ provider settings; starting a provider is not completed login.
 
 All messages/confirmations use [shared dialogs](dialogs.md):
 neutral/warning/danger × acknowledgment/confirmation.
-Frontend acknowledge/requestConfirmation or compatible alert/confirm come from
+Frontend acknowledge/requestConfirmation/showDialog come from
 MessageDialog.ts; actions use confirm, while successful action results and reveal
 secrets use a non-blocking toast. Destructive dialogs
 focus Cancel; Enter activates only focused button; Escape always cancels confirmation.
@@ -425,8 +425,8 @@ describe the public presentation contract, with evidence in
 ## URLs and local UI preferences
 
 The shell uses `#view=<view id>` (record views `&record=<id>`) to restore active
-views on reload and Back/Forward; the legacy `#feature=<resource>` is still read
-and rewritten ([shell](shell.md#url-és-helyi-felületbeállítások)).
+views on reload and Back/Forward; any other address gives the empty workspace
+([shell](shell.md#url-és-helyi-felületbeállítások)).
 [Local preferences](shell.md#url-és-helyi-felületbeállítások) automatically retain
 grid/workspace display settings; marks and the cursor record are transient
 and never stored. [Compact login windows](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok)

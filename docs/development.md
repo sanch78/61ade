@@ -291,7 +291,8 @@ change before every push.
   copies only one half breaks live lists. The frontend `Workspace` constructor
   now takes the shell's `LiveChannel` instead of a `LiveConfig`; consumers that
   only use `AdminShell` are not affected. Batched `__watch`
-  (`values.subscriptions`) is new; the single-list form is still accepted.
+  (`values.subscriptions`) is new and, since 2026-10-30
+  ([FB-0081](feedback.md#fb-0081)), the only accepted form.
 
 - **File-derived cache keys (2026-10-30, [FB-0081](feedback.md#fb-0081)):**
   `admin.js`/`admin.css` are linked with `?v=<base36 mtime>-<base36 size>` of
@@ -308,7 +309,7 @@ change before every push.
   afterwards in their own sessions; 61ade sessions do not edit them. The
   [migration guide](toolkit.md#migration) lists every breaking and
   consumer-relevant change since `131263a`, the 61ade commit both consumers
-  last released (M1–M15: `#view=` routing with the `#feature=` alias,
+  last released (M1–M15: `#view=` routing,
   `view:<id>` menu ids, `View` return values, `stylesheets`, sandbox files,
   file cache keys including the released `?v=30`, record commands in the list
   toolbar only, and the rest), followed by the ordered steps of a consumer
