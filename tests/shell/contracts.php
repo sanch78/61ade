@@ -78,6 +78,9 @@ verify($demoKinds['demo.readings-dashboard'] === 'demo.readings-dashboard' && $d
     && array_column($demoById['demo.readings-dashboard']['actions'], 'name') === ['list'] && $demoById['demo.readings-dashboard']['group'] === 'Feature demó'
     && array_column($demoById['demo_readings']['options']['columns'], 'presentation', 'id') === ['reading' => 'demo.reading-bar']
     && array_column($demoById['demo_readings']['options']['detailFields'], 'presentation', 'id') === ['reading' => 'demo.reading-bar'], 'Readings dashboard view and reading-bar presentation');
+// Toolkit D2: the playlist preview is a project kind over the playlist actions (granted by setup), beside the calendar.
+verify($demoKinds['demo.playlist-preview'] === 'demo.playlist-preview' && array_column($demoById['demo.playlist-preview']['actions'], 'name') === ['day', 'scene']
+    && $demoById['demo.playlist-preview']['options'] === ['media' => 'files'] && $demoById['demo.playlist-preview']['group'] === 'Digitális kijelző', 'Playlist preview view over the playlist actions');
 $dialogActions = array_values(array_filter(array_merge(...array_column($demoViews, 'actions')), static fn(array $a) => str_starts_with($a['name'], 'dialog_')));
 verify(array_column(array_column($dialogActions, 'confirm'), 'severity') === ['neutral', 'warning', 'danger'], 'Dialog demo actions expose confirm severities');
 foreach ([['message' => ''], ['message' => 'x', 'severity' => 'loud'], ['message' => 'x', 'onclick' => 'y']] as $bad) {

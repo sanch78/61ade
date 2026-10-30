@@ -5,14 +5,19 @@ declare(strict_types=1);
  * Feature-demo digital signage (DMS) scheduler: synthetic consumer configuration of the framework
  * event calendar. Assets and per-day defaults are a JSON module (modules/signage.json); the
  * programme is a Blade\Calendar\CalendarDefinition; `signage_playlist.day` answers what plays
- * on a given date, on the UI and API channels.
+ * on a given date, on the UI and API channels. The project view `demo.playlist-preview` (toolkit D2,
+ * frontend/src/playlist.ts) previews that answer; `signage_playlist.scene` delivers a scene asset's code to it.
  */
 
 use Blade\Calendar\CalendarDefinition;
-use Blade\Feature\{Action, Context, Failure, Field, Lookup, UploadPolicy, UsageProvider, Workspace};
+use Blade\Feature\{Action, Context, Failure, Field, Lookup, UploadPolicy, UsageProvider, View, Workspace};
 use Blade\Files\{FileManagerDefinition, FileStorage, MountStorage};
 
 const BLADE_DEMO_SIGNAGE_WEEKDAYS = [1 => 'Hétfő', 2 => 'Kedd', 3 => 'Szerda', 4 => 'Csütörtök', 5 => 'Péntek', 6 => 'Szombat', 7 => 'Vasárnap'];
+/** Stored type of a scene asset's file: script source run only inside the 61ade SandboxFrame (toolkit D2). */
+const BLADE_DEMO_SIGNAGE_SCENE_TYPE = 'text/javascript';
+/** Largest scene `signage_playlist.scene` delivers; the frame's own code limit is 1 MiB (docs/toolkit.md#sandbox-protocol). */
+const BLADE_DEMO_SIGNAGE_SCENE_BYTES = 262144;
 
 /** Delete policy of `signage_assets` as declared in modules/signage.json (`delete` in the demo). */
 function blade_demo_signage_policy(): string
@@ -100,6 +105,13 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
     $workspace->registry->add(new Action('signage_playlist', 'day', 'Napi műsor', [
         new Field('date', 'Dátum', required: true, max: 10, validation: ['pattern' => ['expression' => '^[0-9]{4}-[0-9]{2}-[0-9]{2}$', 'message' => 'Formátum: ÉÉÉÉ-HH-NN.']]),
     ], static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_playlist($ctx, $calendar, $values['date']), resolve: static fn() => ['id' => null, 'owner' => null]));
+    // Toolkit D2: the code of a scene asset for the playlist preview, which runs it in a SandboxFrame. Who may preview
+    // the day's playlist (which names every asset and file) may read the scenes in it; nothing else is served.
+    $workspace->registry->add(new Action('signage_playlist', 'scene', 'Jelenet kódja', [
+        new Field('asset', 'Tartalom', required: true, max: 18, validation: ['pattern' => ['expression' => '^[1-9][0-9]{0,17}$', 'message' => 'Érvénytelen azonosító.']]),
+    ], static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_scene_code($ctx, $files->storage($ctx->db, $workspace->tasks), $values['asset']), resolve: static fn() => ['id' => null, 'owner' => null]));
+    $workspace->registry->addView(new View('demo.playlist-preview', 'demo.playlist-preview', 'Napi műsor', resource: 'signage_playlist',
+        actions: ['day', 'scene'], options: ['media' => 'files'], group: 'Digitális kijelző', icon: 'dxi dxi-menu-right'));
     // Usage warnings: deleting a used file (file manager) or asset (Médiatár) shows the counts and clears the references.
     $workspace->registry->usage('files', new BladeDemoSignageUsage('files'));
     $workspace->registry->usage('signage_assets', new BladeDemoSignageUsage('events'));
@@ -146,7 +158,9 @@ function blade_demo_signage_playlist(Context $ctx, CalendarDefinition $calendar,
     // The mount is not checked, as the list's `_media`: a referenced file moved out of the Signage mount still exists and
     // still plays; only a new choice must be a file of the Signage mount (the file field rule).
     $q = $ctx->db->query("SELECT a.id, a.title, a.duration, f.id AS file_id, f.name AS file_name, f.mime_type FROM signage_assets a JOIN blade_files f ON f.id = a.file_id AND f.space = 'demo' AND f.kind = 'file' AND f.archived_at IS NULL");
-    foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) $assets[(string) $row['id']] = ['id' => (string) $row['id'], 'title' => $row['title'], 'kind' => strtok((string) $row['mime_type'], '/'), 'duration' => (int) $row['duration'],
+    // A scene file (D2) is its own type `scene`; every other type is the MIME class.
+    foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) $assets[(string) $row['id']] = ['id' => (string) $row['id'], 'title' => $row['title'],
+        'kind' => $row['mime_type'] === BLADE_DEMO_SIGNAGE_SCENE_TYPE ? 'scene' : strtok((string) $row['mime_type'], '/'), 'duration' => (int) $row['duration'],
         'file' => ['id' => (string) $row['file_id'], 'name' => $row['file_name'], 'mime_type' => $row['mime_type']]];
     $weekday = (int) $from->format('N');
     $q = $ctx->db->prepare("SELECT asset_id, CASE WHEN date = ? THEN 'date' ELSE 'weekday' END FROM signage_defaults WHERE date = ? OR (date = '' AND weekday = ?) ORDER BY date DESC LIMIT 1");
@@ -180,9 +194,27 @@ function blade_demo_signage_playlist(Context $ctx, CalendarDefinition $calendar,
 }
 
 /**
+ * The code of the scene asset $asset (toolkit D2): its live file must be a scene (BLADE_DEMO_SIGNAGE_SCENE_TYPE) of at most
+ * BLADE_DEMO_SIGNAGE_SCENE_BYTES UTF-8 bytes. The browser runs it only in the SandboxFrame, never in the admin origin.
+ */
+function blade_demo_signage_scene_code(Context $ctx, FileStorage $storage, string $asset): array
+{
+    $q = $ctx->db->prepare('SELECT id, title, file_id FROM signage_assets WHERE id = ?');
+    $q->execute([$asset]);
+    $row = $q->fetch(PDO::FETCH_ASSOC) ?: throw new Failure('A jelenet nem található.', 404);
+    $file = preg_match('/^[1-9][0-9]{0,17}$/D', (string) $row['file_id']) ? $storage->entry((int) $row['file_id']) : null;
+    if (!$file || $file['kind'] !== 'file') throw new Failure('A jelenet nem található.', 404);
+    if ($file['mime_type'] !== BLADE_DEMO_SIGNAGE_SCENE_TYPE) throw new Failure('Ez a tartalom nem jelenet.', 415);
+    if ((int) $file['size'] > BLADE_DEMO_SIGNAGE_SCENE_BYTES) throw new Failure('A jelenet túl nagy.', 413);
+    $code = $storage->content((int) $file['id'], BLADE_DEMO_SIGNAGE_SCENE_BYTES);
+    if (!mb_check_encoding($code, 'UTF-8')) throw new Failure('Ez a tartalom nem jelenet.', 415);
+    return ['asset' => (string) $row['id'], 'title' => (string) $row['title'], 'name' => (string) $file['name'], 'bytes' => strlen($code), 'code' => $code];
+}
+
+/**
  * Idempotent synthetic setup: tables, assets over the seeded media, weekday defaults and a sample programme; then the
- * seeded asset files move into the Signage mount root (blade_demo_signage_media()) and the audio fixtures are added
- * (blade_demo_signage_audio()). Asset references to other files
+ * seeded asset files move into the Signage mount root (blade_demo_signage_media()), the audio fixtures are added
+ * (blade_demo_signage_audio()) and the scene fixture with its daily slot (blade_demo_signage_scene()). Asset references to other files
  * outside the Signage mount are reported through $report (default: one stderr line each), never moved.
  */
 function blade_demo_signage_setup(PDO $db, FileStorage $storage, ?Closure $report = null): void
@@ -194,6 +226,7 @@ function blade_demo_signage_setup(PDO $db, FileStorage $storage, ?Closure $repor
     if (!$db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn()) blade_demo_signage_seed($db);
     blade_demo_signage_media($db, $storage);
     blade_demo_signage_audio($db, $storage);
+    blade_demo_signage_scene($db, $storage);
     $report ??= static function (string $line): void { fwrite(STDERR, $line."\n"); };
     foreach (blade_demo_signage_outside($db) as $row) $report(sprintf('Signage: asset #%s (%s) references file #%s in mount "%s", outside the Signage mount; left in place.', $row['asset'], $row['title'], $row['file'], $row['mount']));
 }
@@ -265,6 +298,37 @@ function blade_demo_signage_audio(PDO $db, FileStorage $storage): void
         $used->execute([$id]);
         if (!$used->fetchColumn()) $asset->execute([$title, $id, (string) $seconds]);
     }
+}
+
+/** Synthetic scene fixture (toolkit D2, resources/files/minta-jelenet.js): file name, asset title, play time, daily slot title. */
+const BLADE_DEMO_SIGNAGE_SCENE = ['minta-jelenet.js', 'Animált jelenet', 12, 'Esti jelenet'];
+
+/**
+ * The scene asset beside the media assets, also for an existing demo database: keyed by the fixture's file name in the
+ * Signage mount root, a missing file is stored, a file no asset references gets its asset, and an asset no live
+ * programme event references gets a daily 20:00–21:00 event from this week's Monday. A rerun adds only what is
+ * missing; nothing else is changed or deleted.
+ */
+function blade_demo_signage_scene(PDO $db, FileStorage $storage): void
+{
+    [$name, $title, $seconds, $slot] = BLADE_DEMO_SIGNAGE_SCENE;
+    $root = $storage->root('signage') ?? $storage->entry($storage->ensureRoot('signage'));
+    $file = $storage->child((int) $root['id'], $name);
+    if ($file && $file['kind'] !== 'file') return;
+    $id = (string) ($file['id'] ?? $storage->createFile($root, $name, BLADE_DEMO_SIGNAGE_SCENE_TYPE, __DIR__.'/resources/files/'.$name));
+    $q = $db->prepare('SELECT id FROM signage_assets WHERE file_id = ? ORDER BY id LIMIT 1');
+    $q->execute([$id]);
+    $asset = $q->fetchColumn();
+    if ($asset === false) {
+        $db->prepare('INSERT INTO signage_assets(title,file_id,duration) VALUES (?,?,?)')->execute([$title, $id, (string) $seconds]);
+        $asset = $db->lastInsertId();
+    }
+    $q = $db->prepare("SELECT COUNT(*) FROM blade_calendar_events WHERE space = 'signage' AND deleted = 0 AND json_extract(data, '$.asset_id') = ?");
+    $q->execute([(string) $asset]);
+    if ($q->fetchColumn()) return;
+    $monday = (new DateTimeImmutable('monday this week'))->format('Y-m-d');
+    $db->prepare('INSERT INTO blade_calendar_events(space,text,start_at,end_at,rrule,duration,data) VALUES (?,?,?,?,?,?,?)')
+        ->execute(['signage', $slot, "$monday 20:00:00", '9999-02-01 00:00:00', 'FREQ=DAILY;INTERVAL=1', 3600, json_encode(['asset_id' => (string) $asset], JSON_THROW_ON_ERROR)]);
 }
 
 function blade_demo_signage_seed(PDO $db): void
