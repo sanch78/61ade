@@ -1,6 +1,6 @@
 import { t } from "./I18n";
 import { type Form } from "@dhtmlx/suite";
-import { alert } from "./MessageDialog";
+import { acknowledge } from "./MessageDialog";
 import type { UploadPolicy } from "./Uploader";
 
 export type ValidationRules = {
@@ -110,7 +110,7 @@ export class FormValidation {
     // Keep unchecked valid and show checkbox rule errors with the native Alert instead.
     const checkboxErrors=this.fields.filter(field=>field.type === "checkbox")
       .map(field=>{const error=this.error(field,values[field.name]);return error?`${field.label}: ${error}`:null;}).filter(Boolean);
-    if(checkboxErrors.length)void alert({header:t("Ellenőrizd a mezőt"),text:checkboxErrors.join("\n"),severity:"warning"});
+    if(checkboxErrors.length)void acknowledge({title:t("Ellenőrizd a mezőt"),message:checkboxErrors.join("\n"),severity:"warning"});
     return nativeValid && valid;
   }
 

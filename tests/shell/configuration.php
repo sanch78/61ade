@@ -284,6 +284,11 @@ try {
         $mutate($mutated);
         rejected(static fn() => $toolkitBuild($mutated), 'Invalid toolkit JSON accepted: '.$case);
     }
+    // A view id is declared once: a second resource whose view takes the same id fails at load (no replacement).
+    $taken = $toolkit;
+    $taken['resources']['archive'] = $toolkit['resources']['projects'];
+    try { $toolkitBuild($taken); verify(false, 'A second resource view with a taken id accepted'); }
+    catch (InvalidArgumentException $e) { verify($e->getMessage() === 'Duplicate view id: projects.main', 'A taken view id fails at load: '.$e->getMessage()); }
     unlink($directory.'/toolkit-module.json');
     $write([...$settings, 'tenancy' => ['mode' => 'x']]);
     rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Unknown tenancy key accepted');

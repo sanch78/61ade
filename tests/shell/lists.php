@@ -80,7 +80,7 @@ verify(array_unique(array_values($byFile($mread(['limit'=>45],'3'))))===['absent
 verify(array_unique(array_values($byFile($mread(['limit'=>45],'1',$as('1','api',['assets.list'])))))===[null],'API token without the thumbnail scope gets null');
 verify($byFile($mread(['limit'=>45],'1',$as('1','api',['assets.list','library.thumbnail_get'])))[$png]['name']==='pic.png','API token with the thumbnail scope');
 $one=$mw->executor->execute($as('1'),'assets','get','1',[]);verify($one['_media']['file_id']['id']===$webm,'Get projection carries the media descriptor');
-$legacy=array_column($mw->executor->execute($as('1'),'assets','list',null,[]),null,'id');verify($legacy['1']['_media']['file_id']['id']===$webm&&$legacy['5']['_media']['file_id']===null,'Legacy listing carries media descriptors');
+$plain=$mw->executor->execute($as('1'),'assets','list',null,[]);$byId=array_column($plain['items'],null,'id');verify(isset($plain['matched'])&&array_key_exists('next',$plain)&&$byId['1']['_media']['file_id']['id']===$webm&&$byId['5']['_media']['file_id']===null,'A list without parameters is the first cursor window, with media descriptors');
 // MIME-class filter on the media column.
 $definitions=array_column($mreg->get('assets','list')->listSource->filterDefinitions($as('1')),null,'name');
 verify($definitions['file_id']['type']==='select'&&$definitions['file_id']['options']===['image'=>'Kép','video'=>'Videó'],'Media column advertised as a class select');

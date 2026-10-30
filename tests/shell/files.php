@@ -610,10 +610,10 @@ $walk=function(array $values,int $limit=37) use ($call,$paging):array{$ids=[];$c
 foreach(['name','modified','size','type'] as $sort)foreach(['asc','desc'] as $direction){
     [$ids,$last]=$walk(['sort'=>$sort,'direction'=>$direction]);
     check($ids===$expected($sort,$direction,$all),"Keyset order $sort $direction: directories first, id tie-breaker, no duplicates or gaps");
-    check(count(array_unique($ids))===300&&$last['total']===300&&$last['matched']===300&&$last['truncated']===false,"Counts $sort $direction");
+    check(count(array_unique($ids))===300&&$last['total']===300&&$last['matched']===300&&!array_key_exists('truncated',$last),"Counts $sort $direction");
 }
 $first=$call('list',(string)$paging['id']);
-check(count($first['items'])===100&&$first['next']!==null&&$first['items'][0]['kind']==='directory'&&array_keys($first)===['directory','items','next','total','matched','truncated'],'Default window of 100, response keys');
+check(count($first['items'])===100&&$first['next']!==null&&$first['items'][0]['kind']==='directory'&&array_keys($first)===['directory','items','next','total','matched'],'Default window of 100, response keys');
 check(array_keys($first['items'][0])===['id','name','kind','extension','mime_type','size','modified_at','revision','width','height','duration_ms','orientation','thumbnail'],'Listing item shape unchanged');
 // Search (case-folded, LIKE wildcards literal) and type filters with total/matched.
 $filtered=fn(callable $keep)=>array_values(array_filter($all,$keep));

@@ -277,8 +277,9 @@ final class WorkspaceConfiguration
         $view = $definition['view'];
         $id = $view['id'] ?? $name;
         $this->claim($id);
+        // The resource declared its default view (SqlResource::register); the `view` section is its final form.
         $current = $this->registry->viewById($id);
-        $this->registry->view(
+        $this->registry->updateView(View::list(
             resource: $name,
             title: $view['title'],
             columns: $view['columns'] ?? $current->options['columns'],
@@ -297,7 +298,7 @@ final class WorkspaceConfiguration
             activate: is_array($view['activate'] ?? null) ? ['field' => $view['activate']['field'], 'map' => $view['activate']['map']] : ($view['activate'] ?? null),
             id: $id,
             commands: $view['commands'] ?? [],
-        );
+        ));
     }
 
     private function claim(string $id): void

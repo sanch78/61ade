@@ -4,7 +4,7 @@ import { externalSignInUnavailable, openExternalSignIn } from "./ExternalAuth";
 import { LiveChannel } from "./Realtime";
 import { DesktopOnly } from "./DesktopOnly";
 import { Form, Layout, Menu, Toolbar, Window, setTheme, awaitRedraw } from "@dhtmlx/suite";
-import { alert, closeDialogs, showDialog } from "./MessageDialog";
+import { acknowledge, closeDialogs, showDialog } from "./MessageDialog";
 import { uploads, type UploadIndicator } from "./Uploader";
 import { configureServer, server } from "./api/Server";
 import { attachContent, openWindow, themeApplied } from "./api/services";
@@ -105,11 +105,9 @@ export class AdminShell {
   private signedOut=false;
   /**
    * `#view=<id>[&record=<id>]`; `filter.<field>=<value>` presets that view's filters once and leaves the address.
-   * The legacy `#feature=<resource>` is the view whose id is that resource; the address is rewritten in place.
    */
   private route = () => {
     const route = parseRoute(location.hash);
-    if (route.legacy) { const url = new URL(location.href); url.hash = route.canonical; history.replaceState(null, "", url); }
     const view = route.view === undefined ? undefined : this.offered(route.view);
     const record = view?.record ? route.record : undefined;
     if (view && Object.keys(route.filters).length) { const url = new URL(location.href); url.hash = routeHash({ view: view.id, record }); history.replaceState(null, "", url); }
@@ -351,7 +349,7 @@ export class AdminShell {
     }
     window.addEventListener("resize", this.resize);
     if (definition.error) requestAnimationFrame(() => {
-      void alert({ header: t("Hiba"), text: definition.error, severity: "danger" })
+      void acknowledge({ title: t("Hiba"), message: definition.error, severity: "danger" })
         .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus(definition.passwordChange ? "new_password" : definition.confirmation ? "code" : "password"); });
     });
   }
@@ -462,7 +460,7 @@ export class AdminShell {
   /** The shared error dialog of a failed record resolution or view kind. */
   private async failed(error:unknown):Promise<void>{
     const fields=Object.values((error as {fieldErrors?:Record<string,string>})?.fieldErrors??{});
-    await alert({header:t("Hiba"),severity:"danger",text:[error instanceof Error?error.message:t("Sikertelen művelet."),...fields].join("\n")});
+    await acknowledge({title:t("Hiba"),severity:"danger",message:[error instanceof Error?error.message:t("Sikertelen művelet."),...fields].join("\n")});
   }
 
   /**
@@ -667,7 +665,7 @@ export class AdminShell {
     form.events.on("click", (name: string) => {
       if (name === "login") submit();
       if (name === "oauth" && !this.submitting && !openExternalSignIn(!!(form.getValue() as Record<string, unknown>).remember))
-        void alert({ header: t("Hiba"), text: externalSignInUnavailable(), severity: "warning" });
+        void acknowledge({ title: t("Hiba"), message: externalSignInUnavailable(), severity: "warning" });
     });
 
     this.attachLoginForm(form);

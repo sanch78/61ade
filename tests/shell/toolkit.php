@@ -34,18 +34,28 @@ rejects(fn()=>$registry->view('assets','X',[],['get'],id:'Assets'),'Invalid view
 rejects(fn()=>$registry->view('assets','',[],['get']),'Empty title accepted');
 try{$registry->view('assets','X',[],['missing']);throw new RuntimeException('Unknown action accepted');}catch(Failure){}
 
-// View-id rule: a later declaration with the same id replaces the earlier one and keeps its menu position.
-$registry->view('assets','Átnevezve',$columns,['get','update'],icon:'dxi dxi-key');
-check(array_column($registry->views(),'id')===['assets','assets.audio']&&$registry->viewById('assets')->title==='Átnevezve'&&$registry->viewById('assets')->icon==='dxi dxi-key','Same id replaces and keeps the position');
-(new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($registry,'Sávok');
-$registry->subview('assets','tracks','asset_id');
-check($registry->embedded('tracks')&&$registry->subviewOf('assets')==['child'=>'tracks','field'=>'asset_id'],'Sub-view by view ids embeds the child');
-$registry->view('assets','Médiatár',$columns,['get','update']);
-check($registry->subviewOf('assets')===null&&!$registry->embedded('tracks'),'A replaced view loses the sub-view attached before it');
-$registry->subview('assets','assets.audio','kind');
-check($registry->viewById('assets')->options['subview']['child']==='assets'&&!$registry->embedded('assets.audio'),'A child view of the same resource is a hierarchy');
-$registry->view('assets','Médiatár',$columns,['get','update']);
-rejects(fn()=>$registry->addView($registry->viewById('assets')->with(options:[...$registry->viewById('assets')->options,'subview'=>['child'=>'assets.audio','field'=>'kind']])),'Sub-view smuggled through options');
+// View-id rule: a second declaration of an id throws; updateView() changes the declared view and keeps its menu position.
+rejects(fn()=>$registry->view('assets','Átnevezve',$columns,['get','update']),'A duplicate view id accepted');
+rejects(fn()=>$registry->addView(new View('assets.audio','demo.player','X')),'A duplicate view id of another kind accepted');
+rejects(fn()=>$resource()->register($registry,'Újra'),'A second SqlResource::register() of the same view id accepted');
+$registry->updateView(View::list('assets','Átnevezve',$columns,['get','update'],icon:'dxi dxi-key'));
+check(array_column($registry->views(),'id')===['assets','assets.audio']&&$registry->viewById('assets')->title==='Átnevezve'&&$registry->viewById('assets')->icon==='dxi dxi-key','updateView() changes the view in place');
+rejects(fn()=>$registry->updateView(View::list('assets','X',$columns,['get'],id:'assets.missing')),'An update of an undeclared view accepted');
+rejects(fn()=>$registry->updateView(new View('assets','demo.player','X','assets')),'An update that changes the kind accepted');
+try{$registry->updateView(View::list('assets','X',$columns,['missing']));throw new RuntimeException('An update with an unknown action accepted');}catch(Failure){}
+// Sub-views (a registry of their own): an update keeps the attached sub-view, which options cannot smuggle in.
+$tree=new Registry();$resource()->register($tree,'Médiatár');$tree->view('assets','Hangok',$columns,['get'],id:'assets.audio');
+(new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($tree,'Sávok');
+$tree->subview('assets','tracks','asset_id');
+check($tree->embedded('tracks')&&$tree->subviewOf('assets')==['child'=>'tracks','field'=>'asset_id'],'Sub-view by view ids embeds the child');
+$tree->updateView(View::list('assets','Médiatár',$columns,['get','update']));
+check($tree->subviewOf('assets')==['child'=>'tracks','field'=>'asset_id']&&$tree->embedded('tracks'),'An updated view keeps its sub-view');
+rejects(fn()=>$tree->updateView(View::list('assets','X',$columns,['get'],activate:'page')),'Page activation over an embedded child accepted through an update');
+rejects(fn()=>$tree->updateView(View::list('assets','X',$columns,['get'],singleton:true)),'A singleton update of a sub-view parent accepted');
+rejects(fn()=>$tree->addView($tree->viewById('assets')->with(id:'assets.copy')),'Sub-view smuggled through options');
+$hierarchy=new Registry();$resource()->register($hierarchy,'Médiatár');$hierarchy->view('assets','Hangok',$columns,['get'],id:'assets.audio');
+$hierarchy->subview('assets','assets.audio','kind');
+check($hierarchy->viewById('assets')->options['subview']['child']==='assets'&&!$hierarchy->embedded('assets.audio'),'A child view of the same resource is a hierarchy');
 
 // Activation map: validated at definition time; `view:` targets once every view is declared.
 $map=['field'=>'kind','map'=>['audio'=>'view:demo.player','*'=>'details']];
@@ -54,22 +64,23 @@ foreach([
     ['field'=>'kind'],['field'=>'kind','map'=>['a'=>'details'],'extra'=>1],['field'=>'kind','map'=>['a'=>true]],
     ['field'=>'kind','map'=>['a'=>'create']],['field'=>'kind','map'=>['a'=>'missing']],['field'=>'kind','map'=>['a'=>'view:Bad id']],
     ['field'=>'kind','map'=>[''=>'details']],
-] as $invalid)rejects(fn()=>$registry->view('assets','X',$columns,['get','update'],activate:$invalid),'Invalid activation map accepted: '.json_encode($invalid));
-rejects(fn()=>$registry->view('assets','X',$columns,['get'],singleton:true,activate:$map),'Activation map on a singleton accepted');
-$registry->view('assets','Médiatár',$columns,['get','update'],activate:$map);
+] as $invalid)rejects(fn()=>$registry->updateView(View::list('assets','X',$columns,['get','update'],activate:$invalid)),'Invalid activation map accepted: '.json_encode($invalid));
+rejects(fn()=>$registry->updateView(View::list('assets','X',$columns,['get'],singleton:true,activate:$map)),'Activation map on a singleton accepted');
+$registry->updateView(View::list('assets','Médiatár',$columns,['get','update'],activate:$map));
 rejects(fn()=>$registry->checkViews(),'A view: target without a record view accepted');
 rejects(fn()=>new ApplicationDefinition('X',$identities,new Menu([]),sys_get_temp_dir(),workspace:new Workspace($registry,$db)),'ApplicationDefinition accepted a missing record view');
-$registry->view('assets','Médiatár',$columns,['get','update'],activate:['field'=>'kind','map'=>['image'=>'page']]);
-rejects(fn()=>$registry->subview('assets','tracks','asset_id'),'Page activation in a map over an embedded child accepted');
-$registry->subview('assets','tracks','asset_id',embed:false);
+$pages=new Registry();$resource()->register($pages,'Médiatár',activate:['field'=>'kind','map'=>['image'=>'page']]);
+(new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($pages,'Sávok');
+rejects(fn()=>$pages->subview('assets','tracks','asset_id'),'Page activation in a map over an embedded child accepted');
+$pages->subview('assets','tracks','asset_id',embed:false);
+check(!$pages->embedded('tracks'),'Page activation with embed: false keeps the child page');
 
 // Record views: project kinds only, with the record resource's `get`.
 rejects(fn()=>$registry->addView(new View('assets.files','files','X','assets',record:'assets',actions:['get'],options:['mounts'=>[]])),'Built-in kind with record accepted');
 rejects(fn()=>$registry->addView(new View('demo.player','demo.player','Lejátszó',record:'missing')),'Record view without a get action accepted');
 rejects(fn()=>$registry->addView(new View('demo.bad','unknown','X')),'Undotted project kind accepted');
 $registry->addView(new View('demo.player','demo.player','Lejátszó','assets',record:'assets',actions:['get'],options:['loop'=>true,'label'=>'Lejátszás'],open:'window'));
-$registry->view('assets','Médiatár',$columns,['get','update'],activate:$map);
-$registry->view('assets','Hangok',$columns,['get','update'],id:'assets.audio',activate:['field'=>'kind','map'=>['0'=>'details','1'=>'update']]);
+$registry->updateView(View::list('assets','Hangok',$columns,['get','update'],id:'assets.audio',activate:['field'=>'kind','map'=>['0'=>'details','1'=>'update']]));
 $registry->checkViews();
 $other=new Registry();
 $other->add(new Blade\Feature\Action('other','get','Megnyitás',[],static fn()=>[],resolve:static fn($c,$id)=>['id'=>$id]));
@@ -110,8 +121,8 @@ check((new Workspace($scoped,$db))->views(new Identity('1','Egy'))===[],'Tenant-
 $generic=fn(array $options)=>$registry->addView(new View('demo.generic','demo.generic','Generic',options:$options));
 foreach([['o'=>new stdClass()],['f'=>static fn()=>1],['n'=>NAN],['i'=>INF],['s'=>"\xff"],[1,2],['d'=>array_reduce(range(1,40),fn($c)=>[$c],1)]] as $unsafe)rejects(fn()=>$generic($unsafe),'Unsafe options accepted');
 $generic(['blob'=>str_repeat('a',GenericViewKind::MAX_BYTES-11)]);
-rejects(fn()=>$generic(['blob'=>str_repeat('a',GenericViewKind::MAX_BYTES-10)]),'Options over 64 KiB accepted');
-$generic([]);
+rejects(fn()=>$registry->updateView(new View('demo.generic','demo.generic','Generic',options:['blob'=>str_repeat('a',GenericViewKind::MAX_BYTES-10)])),'Options over 64 KiB accepted');
+$registry->updateView(new View('demo.generic','demo.generic','Generic'));
 $registry->addView(new View('demo.writer','demo.generic','Writer','assets',actions:['update']));
 $third=array_column($workspace->views(new Identity('3','Három')),null,'id');
 check(array_keys($third)===['demo.generic']&&json_encode($third['demo.generic']['options'])==='{}','A project view without actions is always offered; empty options stay an object');
