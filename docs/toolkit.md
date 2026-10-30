@@ -427,8 +427,8 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `activate`, `saved`, `changed`; `editing`, `refresh`, `selected`, `setFilters` |
 | [`RecordForm`](#recordform) | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancel`, `changed`; `submit`, `values`, `dirty` |
 | [`RecordDetails`](#recorddetails) | the `Adatok` details (`recordFields`) | `show(row \| id)` |
-| [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `pick()` resolves a `MediaDescriptor` or `null` |
-| [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; `editing` |
+| [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `editing`; `pick()` resolves a `MediaDescriptor` or `null` |
+| [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; both `editing` |
 | [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
 | [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
@@ -616,7 +616,10 @@ new app.components.Calendar({ view: "signage_schedule", signal: win.signal }).mo
   calendar view; destroy it first. `app.dhx` never exposes Scheduler.
 - `DiagramEditor`: `saved` fires after the open diagram's content was saved
   (`Mentés`, Ctrl+S); `editing()` is `true` while it has unsaved changes.
-  `Calendar` has no events.
+  `Calendar` has no events; its `editing()` is `true` while the event form is
+  open. The built-in kinds report these (and `FileManager.editing()`) as
+  `ViewInstance.editing`, so the live channel never reloads the page over them
+  and an ended session asks first, as for a list form.
 - Theme and skin changes repaint live (the Scheduler switches between its
   `terrace` and `dark` skins); a language switch reloads the page, so
   components are created again in the new language.
@@ -649,7 +652,8 @@ if (media) preview.show(media);                                      // MediaDes
   conflict and delete dialogs behave as in the built-in view and follow the
   view's `actions`; the server checks every call. `opened` (`{id,
   mime_type}`) fires each time the viewer or the text editor shows a file,
-  also on previous/next. The lifecycle is the common one
+  also on previous/next. `editing()` is `true` while a rename or new-folder
+  form is open or the text editor holds unsaved text. The lifecycle is the common one
   ([Calendar and DiagramEditor](#calendar-and-diagrameditor)): `destroy()`
   also closes the windows it opened, removes its document and upload
   listeners and aborts its pending reads (writes already sent complete).

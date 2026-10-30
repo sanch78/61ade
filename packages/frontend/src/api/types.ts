@@ -530,7 +530,10 @@ export interface ViewHost {
 export interface ViewInstance {
   /** Releases widgets, windows, listeners and subscriptions not already tied to `host.signal`. */
   destroy(): void;
-  /** `true` while the view holds unsaved input (the live channel never reloads the page over it). */
+  /**
+   * `true` while the view holds input a reload would discard: the live channel never reloads the page over it and an
+   * ended session shows its modal first. The built-in kinds report their component's `editing()`.
+   */
   editing?(): boolean;
   /** Reloads the content (a parent's preview after its window closed). */
   refresh?(): void;
@@ -1047,7 +1050,10 @@ export interface FileManagerOptions extends ComponentOptions {
  * built-in `files` kind; what it offers follows the view's `actions`. `opened` fires each time the viewer or the text
  * editor shows a file (also on previous/next). `destroy()` also closes its windows and aborts its pending reads.
  */
-export interface FileManager extends Component<FileManagerEvents> {}
+export interface FileManager extends Component<FileManagerEvents> {
+  /** `true` while a rename or new-folder form is open or the text editor holds unsaved text. */
+  editing(): boolean;
+}
 
 /** Events of `FileManager`. */
 export interface FileManagerEvents {
@@ -1091,7 +1097,10 @@ export interface CalendarOptions extends ComponentOptions {
  * neither `create` nor `update` is offered. One instance per page: constructing a second Calendar before the first
  * is destroyed throws `Error`.
  */
-export interface Calendar extends Component<Record<string, never>> {}
+export interface Calendar extends Component<Record<string, never>> {
+  /** `true` while the event form is open. */
+  editing(): boolean;
+}
 
 /** Options of `DiagramEditor` (implemented P3 C-2). */
 export interface DiagramEditorOptions extends ComponentOptions {

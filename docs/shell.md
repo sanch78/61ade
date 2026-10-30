@@ -165,7 +165,8 @@ signal ([FB-0086](feedback.md#fb-0086)): any 401 of the JSON channel
 which shows the sign-in page with the address kept, and after sign-in the
 same view opens. Over open input (the same `ViewInstance.editing()` ([views](toolkit.md#views))
 check that blocks the live channel's reload: a record or bulk form, cell or
-card editor, changed singleton form, unsaved diagram) it asks first with the
+card editor, changed singleton form, unsaved diagram, open calendar event
+form, open file rename or new-folder form, unsaved text file) it asks first with the
 warning modal "A munkamenet lejárt": **Bejelentkezés** reloads, **Mégse**
 (the initial focus) keeps the page so the input can be copied out, and the
 next 401 asks again. The caller still receives its 401 `ServerFailure` and

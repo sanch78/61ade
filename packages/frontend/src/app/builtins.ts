@@ -26,7 +26,7 @@ export function registerBuiltins(registries: { kinds: NamedRegistry<ViewKind<any
   kinds.builtin("files", { create(host, view) {
     const files = new host.app.components.FileManager({ view, signal: host.signal });
     files.mount(host);
-    return { destroy: () => files.destroy() };
+    return { editing: () => files.editing(), destroy: () => files.destroy() };
   } });
   kinds.builtin("diagram", { create(host, view) {
     const editor = new host.app.components.DiagramEditor({ view, signal: host.signal });
@@ -36,6 +36,6 @@ export function registerBuiltins(registries: { kinds: NamedRegistry<ViewKind<any
   kinds.builtin("calendar", { create(host, view) {
     const calendar = new host.app.components.Calendar({ view, signal: host.signal });
     calendar.mount(host);
-    return { destroy: () => calendar.destroy() };
+    return { editing: () => calendar.editing(), destroy: () => calendar.destroy() };
   } });
 }
