@@ -28,7 +28,7 @@ import type * as Suite from "@dhtmlx/suite";
  */
 export type ApplicationModule = (app: Application) => void | Promise<void>;
 
-/** API generation of this contract; `Application.apiVersion` carries it at run time. */
+/** API generation of this contract, a type only: the run-time value is `Application.apiVersion` (nothing to import). */
 export type ApiVersion = 1;
 
 /**
@@ -62,13 +62,16 @@ export interface Application {
   readonly events: EventBus;
   /** The signed-in identity (presentation data only; never a permission source). */
   readonly identity: Identity;
-  /** View kinds: kind name → factory. Built-ins `list`, `files`, `diagram`, `calendar` are registered by 61ade. */
-  readonly views: Registry<ViewKind<any>>;
+  /**
+   * View kinds: kind name → factory (`ViewDefinition.kind`). Built-ins `list`, `files`, `diagram`, `calendar` are
+   * registered by 61ade. The views themselves are `viewDefinitions()`/`viewDefinition(id)`.
+   */
+  readonly kinds: Registry<ViewKind<any>>;
   /** Column/value presentations: name → renderer (`column.presentation`). Built-in `image` (`icon` stays framework-internal). */
   readonly presentations: Registry<ColumnPresentation>;
   /** Field editors: name → form item factory and display renderer (`field.editor`); no built-in entries. */
   readonly fieldTypes: Registry<FieldType>;
-  /** Client-side commands: name → handler, placed on list toolbars (`ListOptions.commands`). Built-in `details`. */
+  /** Client-side commands: name → handler, placed on list toolbars (`ListKindOptions.commands`). Built-in `details`. */
   readonly commands: Registry<ClientCommand>;
   /**
    * Public component classes, bound to this application: `ListView`, `RecordForm`, `RecordDetails`, `FileManager`,
@@ -81,7 +84,7 @@ export interface Application {
   viewDefinition(id: string): ViewDefinition | undefined;
   /**
    * Opens a view like a menu click or an address change: writes `#view=<id>[&record=…]` as a history entry
-   * (page views only; `filters` are applied once and not written to the address) and mounts it through the `views` registry. Returns `false` (and changes nothing) when the view is
+   * (page views only; `filters` are applied once and not written to the address) and mounts it through the `kinds` registry. Returns `false` (and changes nothing) when the view is
    * not offered to the actor, needs a record that was not given, or its kind is not registered. Record resolution
    * failures (403/404 from the record resource's `get`) show the shared error dialog and keep the current view.
    */
@@ -270,7 +273,7 @@ export interface UploadFileInfo {
 
 /**
  * Options of `Uploads.open` (the same shape as `UploadOpenOptions` in `Uploader.ts`). The policy is the target
- * action's `ActionMetadata.upload` (list views) or a files view's `FileManagerOptions.upload.policy`.
+ * action's `ActionMetadata.upload` (list views) or a files view's `FilesKindOptions.upload.policy`.
  */
 export interface UploadOpenOptions {
   /** ACL resource and registered action that receives the files (an action with an `upload` policy). */
@@ -526,8 +529,8 @@ export interface ViewInstance {
 
 /**
  * One view as the server sends it (bootstrap `views`). The shared
- * keys stay at the top level; every kind-specific key moves verbatim into `options` (see `ListOptions`,
- * `FileManagerOptions`, `DiagramOptions`, `CalendarOptions`). All texts are already translated by the server.
+ * keys stay at the top level; every kind-specific key moves verbatim into `options` (see `ListKindOptions`,
+ * `FilesKindOptions`, `DiagramKindOptions`, `CalendarKindOptions`). All texts are already translated by the server.
  */
 export interface ViewDefinition<Options = unknown> {
   /** Unique per application (`[a-z][a-z0-9_.-]*`); defaults to the resource for the built-in builders. */
@@ -555,10 +558,10 @@ export interface ViewDefinition<Options = unknown> {
 
 /** The built-in kinds' definitions as a discriminated union. */
 export type BuiltinViewDefinition =
-  | (ViewDefinition<ListOptions> & { kind: "list" })
-  | (ViewDefinition<FileManagerOptions> & { kind: "files" })
-  | (ViewDefinition<DiagramOptions> & { kind: "diagram" })
-  | (ViewDefinition<CalendarOptions> & { kind: "calendar" });
+  | (ViewDefinition<ListKindOptions> & { kind: "list" })
+  | (ViewDefinition<FilesKindOptions> & { kind: "files" })
+  | (ViewDefinition<DiagramKindOptions> & { kind: "diagram" })
+  | (ViewDefinition<CalendarKindOptions> & { kind: "calendar" });
 
 // ---------------------------------------------------------------------------------------------------------------
 // Bootstrap metadata shapes (as `Feature\Workspace::views()` and `Field::metadata()` emit them today)
@@ -696,14 +699,14 @@ export interface SubviewMetadata {
   /** The same resource (a hierarchy): the parent toolbar acts on a selected child. */
   shared?: boolean;
   /** The child view (its id, title, actions and list options). */
-  view?: ViewDefinition<ListOptions> & { kind: "list" };
+  view?: ViewDefinition<ListKindOptions> & { kind: "list" };
   select?: boolean;
   /** The child has its own page (`embed: false`), the target of `activate: 'page'`. */
   page?: boolean;
 }
 
 /** `options` of kind `list`: today's list-specific top-level keys of `Workspace.ts` `ViewDefinition`, unchanged. */
-export interface ListOptions {
+export interface ListKindOptions {
   singleton: boolean;
   columns: ColumnMetadata[];
   detailFields?: ColumnMetadata[];
@@ -727,7 +730,7 @@ export interface ListOptions {
 }
 
 /** `options` of kind `files`: today's `files` key (`FileManager.ts` `FileManagerConfig`). */
-export interface FileManagerOptions {
+export interface FilesKindOptions {
   mounts: { id: string; label: string }[];
   upload: {
     allowed_extensions: string[];
@@ -743,7 +746,7 @@ export interface FileManagerOptions {
 }
 
 /** `options` of kind `diagram`: today's `diagram` key (`DiagramView.ts` `DiagramConfig`). */
-export interface DiagramOptions {
+export interface DiagramKindOptions {
   nodeTypes: { id: string; label: string; glyph: string; color: string; shape: string; custom: boolean }[];
   linkTypes: { id: string; label: string; color: string; style: "solid" | "dashed" | "dotted"; width: number }[];
   glyphs: Record<string, string>;
@@ -755,7 +758,7 @@ export interface DiagramOptions {
 }
 
 /** `options` of kind `calendar`: today's `calendar` key (`CalendarView.ts` `CalendarConfig`). */
-export interface CalendarOptions {
+export interface CalendarKindOptions {
   views: ("day" | "week" | "month")[];
   default_view: string;
   first_hour: number;
@@ -931,7 +934,7 @@ export type ViewReference<Options> = string | ViewDefinition<Options>;
  * id that is not offered throws `Error`, any other view `TypeError`, as does `compact` without `scope`.
  */
 export interface ListViewOptions extends ComponentOptions {
-  view: ViewReference<ListOptions>;
+  view: ViewReference<ListKindOptions>;
   /** Nested list limited to `field` = `id` (today's `WorkspaceScope`). */
   scope?: { field: string; id: string; select?: boolean };
   /** A compact preview (sub-view row style): sortable headers only, no toolbar; `height` receives its content height. */
@@ -1004,7 +1007,7 @@ export interface RecordForm extends Component<RecordFormEvents> {
 
 /** Options of `RecordDetails`. */
 export interface RecordDetailsOptions extends ComponentOptions {
-  view: ViewReference<ListOptions>;
+  view: ViewReference<ListKindOptions>;
   /** The row to show, or a record id (loaded through the view's `get`). */
   record: Row | string;
 }
@@ -1016,12 +1019,12 @@ export interface RecordDetails extends Component<Record<string, never>> {
 }
 
 /** Options of `FileManager` (implemented P3 C-2). */
-export interface FileManagerComponentOptions extends ComponentOptions {
+export interface FileManagerOptions extends ComponentOptions {
   /**
    * A files view: an offered view id or a held definition of any kind with a `resource`, its `actions` and
-   * `FileManagerOptions` (at least one mount). A string that is not offered throws `Error`; a wrong shape `TypeError`.
+   * `FilesKindOptions` (at least one mount). A string that is not offered throws `Error`; a wrong shape `TypeError`.
    */
-  view: ViewReference<FileManagerOptions>;
+  view: ViewReference<FilesKindOptions>;
 }
 
 /**
@@ -1029,7 +1032,13 @@ export interface FileManagerComponentOptions extends ComponentOptions {
  * built-in `files` kind; what it offers follows the view's `actions`. `opened` fires each time the viewer or the text
  * editor shows a file (also on previous/next). `destroy()` also closes its windows and aborts its pending reads.
  */
-export interface FileManagerComponent extends Component<{ opened: { id: string; mime_type: string } }> {}
+export interface FileManager extends Component<FileManagerEvents> {}
+
+/** Events of `FileManager`. */
+export interface FileManagerEvents {
+  /** The viewer or the text editor showed a file (also on previous/next). */
+  opened: { id: string; mime_type: string };
+}
 
 /** Options of `FilePicker.pick`. */
 export interface FilePickerOptions {
@@ -1043,7 +1052,7 @@ export interface FilePickerOptions {
 }
 
 /** The modal tiles picker of `file` fields (`FilePicker.ts`; implemented P3 C-2 as `components/files/FilePicker.ts`). */
-export interface FilePickerApi {
+export interface FilePicker {
   /**
    * Opens the picker over the field's folder (`folder_id`, otherwise the mount root), limited to its accepted MIME
    * classes. Resolves the chosen file or `null` (Cancel, Escape, abort; an already aborted signal opens nothing).
@@ -1053,12 +1062,12 @@ export interface FilePickerApi {
 }
 
 /** Options of `Calendar` (implemented P3 C-2). */
-export interface CalendarComponentOptions extends ComponentOptions {
+export interface CalendarOptions extends ComponentOptions {
   /**
    * A calendar view: an offered view id or a held definition of any kind with a `resource`, its `actions` and
-   * `CalendarOptions`. A string that is not offered throws `Error`; a wrong shape throws `TypeError`.
+   * `CalendarKindOptions`. A string that is not offered throws `Error`; a wrong shape throws `TypeError`.
    */
-  view: ViewReference<CalendarOptions>;
+  view: ViewReference<CalendarKindOptions>;
 }
 
 /**
@@ -1067,21 +1076,27 @@ export interface CalendarComponentOptions extends ComponentOptions {
  * neither `create` nor `update` is offered. One instance per page: constructing a second Calendar before the first
  * is destroyed throws `Error`.
  */
-export interface CalendarComponent extends Component<Record<string, never>> {}
+export interface Calendar extends Component<Record<string, never>> {}
 
 /** Options of `DiagramEditor` (implemented P3 C-2). */
 export interface DiagramEditorOptions extends ComponentOptions {
-  /** A diagram view: an offered view id or a held definition with a `resource`, `actions` and `DiagramOptions`. */
-  view: ViewReference<DiagramOptions>;
+  /** A diagram view: an offered view id or a held definition with a `resource`, `actions` and `DiagramKindOptions`. */
+  view: ViewReference<DiagramKindOptions>;
 }
 
 /**
  * Visual diagram editor (`components/diagram/DiagramEditor.ts` over `DiagramView.ts`), the same class as the
  * built-in `diagram` kind. `saved` fires after the open diagram's content was saved; read-only without `save`.
  */
-export interface DiagramEditorComponent extends Component<{ saved: Record<string, never> }> {
+export interface DiagramEditor extends Component<DiagramEditorEvents> {
   /** `true` while the open diagram has unsaved changes. */
   editing(): boolean;
+}
+
+/** Events of `DiagramEditor`. */
+export interface DiagramEditorEvents {
+  /** The open diagram's content was saved (`Mentés`, Ctrl+S). */
+  saved: Record<string, never>;
 }
 
 /**
@@ -1237,9 +1252,15 @@ export interface CommandBarOptions extends ComponentOptions {
 }
 
 /** The framework's responsive toolbar (`ResponsiveToolbar.ts`): collapses into `Műveletek` when it does not fit or below 768 px. */
-export interface CommandBar extends Component<{ click: { id: string } }> {
+export interface CommandBar extends Component<CommandBarEvents> {
   readonly toolbar: Suite.Toolbar;
   update(id: string, changes: Partial<Omit<CommandItem, "id" | "type">>): void;
+}
+
+/** Events of `CommandBar`. */
+export interface CommandBarEvents {
+  /** An item was clicked, also from the collapsed `Műveletek` menu. */
+  click: { id: string };
 }
 
 /** A component class bound to the application. */
@@ -1250,10 +1271,10 @@ export interface Components {
   readonly ListView: ComponentClass<ListViewOptions, ListView>;
   readonly RecordForm: ComponentClass<RecordFormOptions, RecordForm>;
   readonly RecordDetails: ComponentClass<RecordDetailsOptions, RecordDetails>;
-  readonly FileManager: ComponentClass<FileManagerComponentOptions, FileManagerComponent>;
-  readonly FilePicker: FilePickerApi;
-  readonly Calendar: ComponentClass<CalendarComponentOptions, CalendarComponent>;
-  readonly DiagramEditor: ComponentClass<DiagramEditorOptions, DiagramEditorComponent>;
+  readonly FileManager: ComponentClass<FileManagerOptions, FileManager>;
+  readonly FilePicker: FilePicker;
+  readonly Calendar: ComponentClass<CalendarOptions, Calendar>;
+  readonly DiagramEditor: ComponentClass<DiagramEditorOptions, DiagramEditor>;
   readonly MediaPlayer: ComponentClass<MediaPlayerOptions, MediaPlayer>;
   readonly SandboxFrame: ComponentClass<SandboxFrameOptions, SandboxFrame>;
   readonly CommandBar: ComponentClass<CommandBarOptions, CommandBar>;

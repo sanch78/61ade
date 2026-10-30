@@ -384,13 +384,13 @@ over the existing modules: `server` (the one JSON transport, `src/api/Server.ts`
 `X-BLADE-CSRF` from the bootstrap `csrf`; every framework component uses it),
 `ui`, `uploads`, `i18n`, `theme`, `preferences`, `live` (the tab's one
 `LiveChannel`), `events`, `identity` (`src/api/services.ts`) and the
-registries `views`, `presentations`, `fieldTypes`, `commands`
+registries `kinds`, `presentations`, `fieldTypes`, `commands`
 (`src/app/registries.ts`). Built-in names have no dot, project names need one;
 a duplicate throws unless `{replace: true}`.
 
 - **Built-in kinds** `list`, `files`, `diagram`, `calendar` are registered in
   `src/app/builtins.ts` before any module; the shell opens every view only
-  through `app.views.get(view.kind)`. The bootstrap `views` carry the shared
+  through `app.kinds.get(view.kind)`. The bootstrap `views` carry the shared
   keys at the top and the kind's payload in `options`; a built-in kind hands
   `options` to its component unchanged.
 - **Modules:** the bootstrap `modules` list (page-relative paths of

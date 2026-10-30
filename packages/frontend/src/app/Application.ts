@@ -26,7 +26,7 @@ export type ShellBridge = {
   navigate(target: NavigationTarget): boolean;
 };
 
-export type Kernel = { app: Application; events: InternalEventBus; views: NamedRegistry<ViewKind<any>> };
+export type Kernel = { app: Application; events: InternalEventBus; kinds: NamedRegistry<ViewKind<any>> };
 
 const UPLOAD_EVENTS: (keyof UploadEvents)[] = ["upload:queued", "upload:started", "upload:progress", "upload:conflict", "upload:file-done", "upload:file-failed", "upload:complete", "upload:cancelled"];
 
@@ -34,12 +34,12 @@ const UPLOAD_EVENTS: (keyof UploadEvents)[] = ["upload:queued", "upload:started"
 export function createApplication(bridge: ShellBridge): Kernel {
   const events = createEventBus();
   for (const name of UPLOAD_EVENTS) uploader.on(name, payload => events.dispatch(name, payload as never));
-  const views = new NamedRegistry<ViewKind<any>>("view kind");
+  const kinds = new NamedRegistry<ViewKind<any>>("view kind");
   const presentations = new NamedRegistry<ColumnPresentation>("presentation");
   const fieldTypes = new NamedRegistry<FieldType>("field type");
   const commands = new NamedRegistry<ClientCommand>("command");
   // Before any module, so a project can replace a built-in entry with `{replace: true}`.
-  registerBuiltins({ views, presentations, commands }, { channel: bridge.channel, user: bridge.userId });
+  registerBuiltins({ kinds, presentations, commands }, { channel: bridge.channel, user: bridge.userId });
   const offered = Object.freeze([...bridge.views]);
   const app: Application = Object.freeze({
     apiVersion: 1 as const,
@@ -53,7 +53,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
     live: live(bridge.channel),
     events,
     identity: identity(bridge.userId, bridge.displayName, bridge.tenant),
-    views,
+    kinds,
     presentations,
     fieldTypes,
     commands,
@@ -73,7 +73,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
   });
   // The framework surfaces (lists, details, forms) read the page's registries when they are created.
   Object.assign(extensions, { app, presentations, fieldTypes, commands });
-  return { app, events, views };
+  return { app, events, kinds };
 }
 
 /** Per module: its import and its initialization each have this long (G1 decision 5). */

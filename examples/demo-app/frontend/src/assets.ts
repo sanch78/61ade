@@ -1,7 +1,7 @@
 // D1 Signage Médiatár (docs/demos.md#toolkit-consumer): the record view kind `demo.asset-viewer`. A Layout from
 // `app.dhx` with the 61ade CommandBar (play, pause, position, loop), the asset's RecordDetails and a stage cell with the
 // MediaPlayer; `modules/signage.json` declares the view and opens it from Médiatár for audio and video assets.
-import type { Application, ApplicationModule, CommandBar, ListOptions, MediaDescriptor, MediaPlayer, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
+import type { Application, ApplicationModule, CommandBar, ListKindOptions, MediaDescriptor, MediaPlayer, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 
 /** `views.demo.asset-viewer.options` of signage.json. */
 type ViewerOptions = { loop?: boolean; details?: string };
@@ -17,7 +17,7 @@ function clock(seconds: number): string {
 }
 
 /** The first media column of the list view that has a described file in the row (`_media`, ACL-filtered by the server). */
-function mediaOf(list: ViewDefinition<ListOptions> | undefined, row: Row): { source: string; media: MediaDescriptor } | undefined {
+function mediaOf(list: ViewDefinition<ListKindOptions> | undefined, row: Row): { source: string; media: MediaDescriptor } | undefined {
   const slots = row._media && typeof row._media === "object" ? row._media as Record<string, MediaDescriptor | null> : {};
   for (const column of list?.options.columns ?? []) {
     const media = column.media ? slots[column.id] : undefined;
@@ -35,7 +35,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
   const t = (key: string, params?: Record<string, unknown>) => app.i18n.t(key, params);
   if (!host.record) throw new Error(t("A médianéző egy médiaelemhez nyílik meg."));
   const row = host.record.row, listId = view.options?.details ?? host.record.resource;
-  const list = app.viewDefinition(listId) as ViewDefinition<ListOptions> | undefined;
+  const list = app.viewDefinition(listId) as ViewDefinition<ListKindOptions> | undefined;
   const found = mediaOf(list, row), kind = found?.media.mime_type.split("/")[0];
   const playable = kind === "image" || kind === "video" || kind === "audio", timed = kind === "video" || kind === "audio";
   const preferences = app.preferences.scope(KIND), phone = matchMedia(PHONE);
@@ -113,6 +113,6 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
 }
 
 const assets: ApplicationModule = app => {
-  app.views.register(KIND, { create: (host, view: ViewDefinition<ViewerOptions>) => viewer(app, host, view) });
+  app.kinds.register(KIND, { create: (host, view: ViewDefinition<ViewerOptions>) => viewer(app, host, view) });
 };
 export default assets;

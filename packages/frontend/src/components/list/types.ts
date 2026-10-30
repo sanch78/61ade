@@ -3,7 +3,7 @@ import type { UploadPolicy } from "../../Uploader";
 import type { FieldDefinition } from "../../FormValidation";
 import type { MediaPart } from "../../RecordPresentation";
 import type { Row } from "../../Realtime";
-import type { Activation, Application, ListOptions, ListViewEvents, ViewDefinition as PublicDefinition } from "../../api/types";
+import type { Activation, Application, ListKindOptions, ListViewEvents, ViewDefinition as PublicDefinition } from "../../api/types";
 import type { Workspace } from "./Workspace";
 import type { Resolved } from "../../app/registries";
 
@@ -49,5 +49,5 @@ export type WorkspaceHooks={
   emit?:<K extends keyof ListViewEvents>(event:K,payload:ListViewEvents[K])=>void;
   app?:Pick<Application,"navigate"|"viewDefinition">;
   /** The view as the server sent it: the `view` of client command contexts. */
-  view?:PublicDefinition<ListOptions>;
+  view?:PublicDefinition<ListKindOptions>;
 };
