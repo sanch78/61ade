@@ -846,15 +846,22 @@ export interface FieldType {
  * What a client command acts on; every command sits in the list's command bar after the view's actions (and moves into
  * the `Műveletek` menu like them). `toolbar`: the view (no record needed); `record`: the toolbar's cursor record, like
  * the built-in record actions (disabled without one). `both` (accepted by `ClientCommand.placement`) means `record`.
+ * While a selected sub-view record holds the toolbar, a command the sub-view's list has too (the built-in `details`, a
+ * name its view declares; every command of a `shared` sub-view) runs in the sub-view's context; any other stays on
+ * the list's own cursor record and marks (docs/toolkit.md#registries).
  */
 export type CommandPlacement = "toolbar" | "record";
 /** Context of one command run. */
 export interface CommandContext {
     readonly app: Application;
+    /** The view the record belongs to: the sub-view's for a command it has too while its record holds the toolbar. */
     readonly view: ViewDefinition;
-    /** The toolbar's cursor record (a shared sub-view's while it holds the toolbar); absent without one. */
+    /**
+     * The cursor record of `view`: the sub-view's selected record for a command delegated to it, otherwise the list's
+     * own (never a record of another resource); absent without one.
+     */
     readonly row?: Row;
-    /** Marked rows (`selection`/`rowSelection` lists), possibly empty (also while a sub-view record holds the toolbar). */
+    /** Marked rows of `view` (`selection`/`rowSelection` lists), possibly empty (a compact sub-view marks none). */
     readonly rows: readonly Row[];
     /** Aborted when the view closes. */
     readonly signal: AbortSignal;
