@@ -2683,6 +2683,12 @@ that exactly equals an option label lists every option. The managed
   per-account code limit), `calendar:71` (create response timeout) and
   `subview:37` (preview row count 5 instead of 8) failed once and passed in
   isolation; none of the earlier ones repeated.
+  `subview:37` repeated (the next full run, and 2 of 15 isolated repeats,
+  with 3 and 13 rows): a real race. `ResponsiveGrid.fitHeight()` measured
+  the frame against the Grid body, which Suite draws at the container size it
+  cached on its last paint. When the body had not yet followed a resize, the
+  preview answered one resize late and its height oscillated without
+  settling. The measure now adds the body's lag behind its container.
 - **Status:** implemented and committed.
 
 <a id="fb-0084"></a>
