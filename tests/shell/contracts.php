@@ -45,6 +45,15 @@ verify(count($base->workspace->views($base->identities->authenticate('demo@examp
 $tenantDemo = require dirname(__DIR__, 2).'/examples/demo-app/tenant-application.php';
 verify($base->modules === [] && $base->stylesheets === [] && $tenantDemo->modules === [] && $tenantDemo->stylesheets === [], 'Starter admin and tenant demo declare no modules or stylesheets');
 verify($app->modules === ['app/demo.js'] && $app->versioned('app/demo.js') === 'app/demo.js?v='.rawurlencode($app->version) && $app->version !== '', 'Feature demo declares exactly its versioned demo module');
+// Cache keys from the served files (docs/toolkit.md#cache-keys): the demo module under the demo's document root; the
+// starter admin's `../assets` from /admin/, or the package build's key while the demo assets are not prepared.
+$public = dirname(__DIR__, 2).'/examples/demo-app/public';
+$demoKeys = new Blade\Shell\AssetKeys($app, ['DOCUMENT_ROOT' => $public, 'SCRIPT_FILENAME' => $public.'/index.php']);
+verify($demoKeys->url('app/demo.js') === 'app/demo.js?v='.Blade\Shell\AssetKeys::key($public.'/app/demo.js') && Blade\Shell\AssetKeys::key($public.'/app/demo.js') !== null, 'Feature demo module keyed by its built file');
+$adminKeys = new Blade\Shell\AssetKeys($base, ['DOCUMENT_ROOT' => $public, 'SCRIPT_FILENAME' => $public.'/admin/index.php']);
+$served = is_file($public.'/assets/admin.js') ? $public.'/assets/admin.js' : dirname(__DIR__, 2).'/packages/frontend/dist/admin.js';
+verify($adminKeys->url('../assets/admin.js', 'admin.js') === '../assets/admin.js?v='.Blade\Shell\AssetKeys::key($served), 'Starter admin admin.js keyed by its file');
+verify(preg_match('/^[0-9a-z]+-[0-9a-z]+$/D', (string) Blade\Shell\AssetKeys::key($served)) === 1 && !str_contains((string) file_get_contents(dirname(__DIR__, 2).'/packages/php/templates/shell.php'), '?v=32'), 'Key format and no hand-bumped shell asset version');
 // Feature demo: business modules plus every sign-in method.
 verify($app->authentication !== null && $app->oauth !== null && $app->oauth->providers() === ['Google', 'Facebook'] && count($app->languages->languages) === 2, 'Feature demo shows all sign-in methods and languages');
 verify($app->identities->authenticate('twofactor@example.test', '61ade-demo') !== null && $app->authentication->needsConfirmation($app->identities->find('4')), 'E-mail second factor account');

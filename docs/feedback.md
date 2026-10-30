@@ -344,6 +344,14 @@
 
 ## FB-0082 — Green regression baseline before the toolkit kernel
 
+<a id="fb-0083"></a>
+
 ## FB-0083 — Stable full browser suite under the guard
 
+<a id="fb-0084"></a>
+
 ## FB-0084 — Shared skill for adopting and building on 61ade
+
+<a id="fb-0085"></a>
+
+## FB-0085 — Browser cache keys from the served file
