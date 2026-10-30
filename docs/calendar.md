@@ -179,7 +179,11 @@ The feature demo configures it as a digital signage (DMS) scheduler in the
 action `signage_playlist.day` answers what plays on a date: the day's
 occurrences and a gap-free 00:00–24:00 `timeline` in which the latest-starting
 active programme wins and free time falls back to the date default, then the
-weekday default (`source`: `schedule`, `default` or `none`). Its code is in
+weekday default (`source`: `schedule`, `default` or `none`). An asset's
+`kind` is its file's MIME class, or `scene` for the synthetic scene asset
+(toolkit D2), whose code `signage_playlist.scene` delivers to the project view
+`Napi műsor` ([demos](demos.md#toolkit-d2-playlist)); setup seeds that asset
+with a daily `Esti jelenet` event (20:00–21:00). Its code is in
 `examples/demo-app/signage.php` and `modules/signage.json`.
 
 API example (an API key of the demo account with scope `signage_playlist.day`):

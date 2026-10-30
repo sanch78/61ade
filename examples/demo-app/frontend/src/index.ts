@@ -12,7 +12,7 @@ const none: Part = () => {};
 // D1 Signage Médiatár: record view demo.asset-viewer (assets.ts)
 import assets from "./assets";
 // D2 Signage Napi műsor: view kind demo.playlist-preview (playlist.ts)
-const playlist: Part = none;
+import playlist from "./playlist";
 // D3 Mérések: dashboard kind and column presentation (readings.ts)
 import readings from "./readings";
 // D4 Tasks: field type and client command (tasks.ts)
