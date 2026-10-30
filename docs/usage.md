@@ -223,6 +223,10 @@ for managed values rather than single-purpose toggle actions.
 
 ## Login modes: password, e-mail code, OAuth
 
+Both login fields start empty, including after an error or logout; browser
+autocomplete is disabled by a hint that password managers may override
+([login flow](authentication.md#belépési-folyamat)).
+
 [Authentication](authentication.md) supports password, password plus per-user code,
 and AuthHandler's external-account overlay. Listed providers appear without keys
 but give setup feedback until configured. Only existing OAuth-enabled accounts
