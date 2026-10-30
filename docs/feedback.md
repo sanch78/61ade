@@ -2923,7 +2923,7 @@ that exactly equals an option label lists every option. The managed
   `blade-logo-dark.svg`, the mark-only `blade-mark.svg` and `logo.mjs` (a port
   of the drawing's generator; its output is byte-identical to the approved
   SVGs). `tools/build.mjs` loads `.svg` as text; `src/BrandLogo.ts` inlines
-  both variants with `blade-<n>-` gradient ids and `aria-hidden` SVGs inside
+  both variants with `blade-<n>-light-`/`-dark-` gradient ids and `aria-hidden` SVGs inside
   the named `.blade-logo` (`blade-logo--brand`). PHP `Logo::$image` is
   optional, `Logo::none()`/`$shown`, `Logo::PRODUCT_LABEL`; the bootstrap
   `logo` has no `image` for the product logo and is absent only with
@@ -2944,4 +2944,13 @@ that exactly equals an option label lists every option. The managed
   own text, declared override, dark without image refused), `i18n`,
   `authentication` pass. Written, not run: `sign-in-branding.spec.cjs`
   (default in all three demos, inline parts and unique ids, variants).
-- **Status:** implemented on branch; browser specs not yet run.
+- **Integration run (2026-10-30, `toolkit/int-close`):** `browser`,
+  `authentication`, `skins`, `dialogs`, `i18n`, `mobile-grid`, `toolkit-demo`
+  passed (36); `sign-in-branding` failed twice. The light and dark variants of
+  one copy shared their gradient ids (fixed: the prefix includes the variant).
+  The spec expected the top-row logo in the tenant demo at 1280 px, where its
+  full menu, tenant, language and theme selectors leave about 113 px by the
+  menu estimate, less than the 116 px logo; the fit rule is right, so the spec
+  checks the logo at 1600 px and, at 1280 px, that the menu stays whole and the
+  logo yields.
+- **Status:** implemented; the fix awaits the `sign-in-branding` re-run.
