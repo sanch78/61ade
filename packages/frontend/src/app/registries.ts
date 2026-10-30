@@ -107,7 +107,8 @@ export const commandId = (name: string) => "blade-command:" + name;
 
 /**
  * The client commands a list shows: `builtin` names first (framework rules decide them), then the view's declared
- * `commands` in order. An unregistered name is skipped with one warning; a duplicate name appears once. A built-in
+ * `commands` in order. An unregistered name, or an entry without `run` or a `toolbar`/`record` placement, is skipped
+ * with one warning; a duplicate name appears once. A built-in
  * name falls back to `fallback` when no registry is bound (fixtures).
  */
 export function resolveCommands(builtin: string[], declared: unknown, registry: Registry<ClientCommand> | undefined, fallback: Record<string, ClientCommand> = {}): ListCommand[] {
@@ -115,7 +116,7 @@ export function resolveCommands(builtin: string[], declared: unknown, registry: 
   const out: ListCommand[] = [];
   for (const name of new Set(names)) {
     const entry = registry?.get(name) ?? (builtin.includes(name) && !registry ? fallback[name] : undefined);
-    if (!entry || typeof entry.run !== "function") { warnOnce("command", name); continue; }
+    if (!entry || typeof entry.run !== "function" || (entry.placement !== "toolbar" && entry.placement !== "record")) { warnOnce("command", name); continue; }
     out.push({ name, id: commandId(name), entry });
   }
   return out;
@@ -124,7 +125,7 @@ export function resolveCommands(builtin: string[], declared: unknown, registry: 
 /**
  * Enabled state of a command in $context: its own `enabled` (a throw disables it, logged), otherwise always for a
  * `toolbar` command and, like the built-in record actions, with a cursor record and at most one mark for a `record`
- * (or `both`) command.
+ * command.
  */
 export function commandEnabled(command: ClientCommand, context: CommandContext): boolean {
   if (typeof command.enabled !== "function") return command.placement === "toolbar" || (!!context.row && context.rows.length <= 1);
