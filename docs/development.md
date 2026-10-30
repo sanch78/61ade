@@ -267,7 +267,8 @@ the proxy is live: WebSocket selection does not fall back to polling.
 `deploy-site` refuses a `shared_assets` source when it is not in a Git
 checkout, when the copied paths have uncommitted or untracked files (ignored
 files are allowed), or when HEAD is not on its upstream. It records the copied
-library commit in the consumer's `.deploy-history.jsonl`. For this repository,
+library commit in `.deploy-history.jsonl` in the consumer's release target
+(`/space/apps/<project>/.deploy-history.jsonl`, not its dev checkout). For this repository,
 that means `packages/php` and the two `dist` files must always be committed and
 pushed. A half-done change there blocks every consumer's release until it is
 committed or removed.
@@ -310,7 +311,8 @@ before the consumer's next release:
 1. List what changed since the commit last released:
    `git -C /space/share/libs/61ade log --oneline <commit>..origin/main`, with
    `<commit>` taken from the last `shared_assets` record in
-   `.deploy-history.jsonl`. Read the matching [feedback](feedback.md) entries
+   `/space/apps/<project>/.deploy-history.jsonl` (the release target, not
+   the dev checkout). Read the matching [feedback](feedback.md) entries
    for contract changes.
 2. On the consumer's development URL: sign in, open the menu, open one list
    and one form, save one synthetic change and revert it. Check the browser
