@@ -2,7 +2,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const {execFileSync}=require('node:child_process');
 const {signIn,openView,command,view,api,isAction,createTask,deleteTasks}=require('./feature-demo.cjs');
 // Toolkit D4 (docs/demos.md#toolkit-consumer): the feature demo module registers the field type `demo.rating`
-// (Feladatok → Prioritás: number input + star strip, star display) and the record command `demo.copy-text`
+// (Feladatok → Prioritás: number input + Suite toggle-group star strip, star display) and the record command `demo.copy-text`
 // ("Másolás szövegként"). Tasks created here carry the run prefix; they are deleted after each test and, as a
 // fallback, by prefix after the run.
 const prefix='pt'+Date.now().toString(36);
@@ -27,7 +27,10 @@ async function only(page,title){
  const filter=page.locator('[data-cell-id="filter"]');
  await filter.getByLabel('Megnevezés',{exact:true}).fill(title);await filter.getByRole('button',{name:'Szűrés',exact:true}).click();
 }
-const stars=scope=>scope.locator('.demo-rating-stars button').allInnerTexts().then(texts=>texts.join(''));
+// The star strip: a Suite togglegroup named "Prioritás — csillagok" of five toggle buttons (★ pressed, ☆ released).
+const STRIP='Prioritás — csillagok';
+const starsOf=scope=>scope.getByRole('group',{name:STRIP,exact:true}).getByRole('button');
+const stars=scope=>starsOf(scope).allInnerTexts().then(texts=>texts.map(text=>text.trim()).join(''));
 // The command's control: a toolbar button, or the Műveletek menu item (the menu is then open).
 async function control(page,name){
  const menu=page.getByRole('button',{name:'Műveletek',exact:true});
@@ -50,12 +53,12 @@ test('demo.rating edits in the grid cell, the update and create forms and the ca
  const editor=page.getByRole('dialog').filter({has:page.getByRole('spinbutton',{name:'Prioritás',exact:true})});
  const spin=editor.getByRole('spinbutton',{name:'Prioritás',exact:true});
  await expect(spin).toHaveValue('2');await expect(cell.locator('input')).toHaveCount(0);
- // The star strip is a pointer shortcut outside the tab order and the accessibility tree; the input is the control.
- const strip=editor.locator('.demo-rating-stars');
- await expect(strip).toHaveAttribute('aria-hidden','true');await expect(strip.locator('button')).toHaveCount(5);
- await expect(strip.locator('button[tabindex="-1"]')).toHaveCount(5);
- expect(await stars(editor)).toBe('★★☆☆☆');
- await strip.locator('button').nth(3).click();await expect(spin).toHaveValue('4');expect(await stars(editor)).toBe('★★★★☆');
+ // The star strip: five Suite toggle buttons beside the input, pressed up to the rating; the input stays the labelled control.
+ const strip=starsOf(editor);
+ await expect(strip).toHaveCount(5);
+ await expect.poll(()=>stars(editor)).toBe('★★☆☆☆');
+ await expect(strip.nth(1)).toHaveAttribute('aria-pressed','true');await expect(strip.nth(2)).toHaveAttribute('aria-pressed','false');
+ await strip.nth(3).click();await expect(spin).toHaveValue('4');await expect.poll(()=>stars(editor)).toBe('★★★★☆');
  let edited=page.waitForResponse(isAction('__edit'));
  await editor.getByRole('button',{name:'Mentés',exact:true}).click();
  let request=(await edited).request().postDataJSON();
@@ -65,9 +68,13 @@ test('demo.rating edits in the grid cell, the update and create forms and the ca
  // Keyboard: Enter on the edit button opens the editor, the arrow keys step the input within 0–5, Enter on Mentés saves.
  await anchor.focus();await anchor.press('Enter');
  await expect(spin).toHaveValue('4');
- await spin.focus();await spin.press('ArrowDown');await expect(spin).toHaveValue('3');expect(await stars(editor)).toBe('★★★☆☆');
+ await spin.focus();await spin.press('ArrowDown');await expect(spin).toHaveValue('3');await expect.poll(()=>stars(editor)).toBe('★★★☆☆');
  for(let i=0;i<3;i++)await spin.press('ArrowUp');
- await expect(spin).toHaveValue('5');expect(await stars(editor)).toBe('★★★★★');
+ await expect(spin).toHaveValue('5');await expect.poll(()=>stars(editor)).toBe('★★★★★');
+ // A star toggle is keyboard operable too: Space on the second star sets 2, Space on it again clears to 0, then 5 again.
+ await strip.nth(1).focus();await strip.nth(1).press('Space');await expect(spin).toHaveValue('2');await expect.poll(()=>stars(editor)).toBe('★★☆☆☆');
+ await strip.nth(1).press('Space');await expect(spin).toHaveValue('0');await expect.poll(()=>stars(editor)).toBe('☆☆☆☆☆');
+ await strip.nth(4).focus();await strip.nth(4).press('Space');await expect(spin).toHaveValue('5');
  edited=page.waitForResponse(isAction('__edit'));
  await editor.getByRole('button',{name:'Mentés',exact:true}).press('Enter');
  expect(String((await edited).request().postDataJSON().values.value)).toBe('5');
@@ -80,7 +87,7 @@ test('demo.rating edits in the grid cell, the update and create forms and the ca
   if(data?.action==='__edit'&&data.values?.field==='priority'){data.values.value='9';await route.continue({postData:JSON.stringify(data)});}
   else await route.continue();
  });
- await anchor.click();await strip.locator('button').nth(0).click();await expect(spin).toHaveValue('1');
+ await anchor.click();await strip.nth(0).click();await expect(spin).toHaveValue('1');
  const rejected=page.waitForResponse(isAction('__edit'));
  await editor.getByRole('button',{name:'Mentés',exact:true}).click();
  expect((await rejected).status()).toBe(400);
@@ -96,10 +103,10 @@ test('demo.rating edits in the grid cell, the update and create forms and the ca
  // Update form (panel): the same editor; clicking the current star again clears to 0.
  await row.locator('[data-dhx-col-id="title"]').click();await command(page,'Módosítás');
  const form=page.locator('[data-cell-id="form"]'),formSpin=form.getByRole('spinbutton',{name:'Prioritás',exact:true});
- await expect(formSpin).toHaveValue('5');expect(await stars(form)).toBe('★★★★★');
- const formStar=form.locator('.demo-rating-stars button').nth(1);
+ await expect(formSpin).toHaveValue('5');await expect.poll(()=>stars(form)).toBe('★★★★★');
+ const formStar=starsOf(form).nth(1);
  await formStar.click();await expect(formSpin).toHaveValue('2');
- await formStar.click();await expect(formSpin).toHaveValue('0');expect(await stars(form)).toBe('☆☆☆☆☆');
+ await formStar.click();await expect(formSpin).toHaveValue('0');await expect.poll(()=>stars(form)).toBe('☆☆☆☆☆');
  await formStar.click();await expect(formSpin).toHaveValue('2');
  const updated=page.waitForResponse(isAction('update'));
  await form.getByRole('button',{name:'Mentés',exact:true}).click();
@@ -112,7 +119,7 @@ test('demo.rating edits in the grid cell, the update and create forms and the ca
  await expect(formSpin).toHaveValue('0');
  const fresh=`${prefix} új`;await form.getByLabel('Megnevezés',{exact:true}).fill(fresh);
  await formSpin.focus();for(let i=0;i<3;i++)await formSpin.press('ArrowUp');
- await expect(formSpin).toHaveValue('3');expect(await stars(form)).toBe('★★★☆☆');
+ await expect(formSpin).toHaveValue('3');await expect.poll(()=>stars(form)).toBe('★★★☆☆');
  const saved=page.waitForResponse(isAction('create'));
  await form.getByRole('button',{name:'Mentés',exact:true}).click();
  const answer=await saved;created.push(String((await answer.json()).data.id));
@@ -127,7 +134,7 @@ test('demo.rating edits in the grid cell, the update and create forms and the ca
  await expect(field.locator('.demo-rating')).toHaveAttribute('aria-label','2 / 5 csillag');await expect(field.locator('.demo-rating')).toHaveClass(/demo-rating--card/);
  await field.focus();await field.press('Enter');
  await expect(spin).toHaveValue('2');
- await strip.locator('button').nth(4).click();await expect(spin).toHaveValue('5');
+ await strip.nth(4).click();await expect(spin).toHaveValue('5');
  edited=page.waitForResponse(isAction('__edit'));
  await editor.getByRole('button',{name:'Mentés',exact:true}).click();
  expect(String((await edited).request().postDataJSON().values.value)).toBe('5');
@@ -222,7 +229,7 @@ test('the rating follows the Skyblue, light and dark themes',async({page})=>{
   expect(shown.inherited).toBe(true);expect(shown.color).not.toBe(shown.background);colours[theme]=shown.color;
   await cell.getByRole('button',{name:'Prioritás — szerkesztés',exact:true}).click();
   const editor=page.getByRole('dialog').filter({has:page.getByRole('spinbutton',{name:'Prioritás',exact:true})});
-  const button=editor.locator('.demo-rating-stars button').first();await expect(button).toBeVisible();
+  const button=starsOf(editor).first();await expect(button).toBeVisible();
   const star=await paint(button);expect(star.color).not.toBe(star.background);
   await editor.getByRole('button',{name:'Mégse',exact:true}).click();await expect(editor).toHaveCount(0);
  }
