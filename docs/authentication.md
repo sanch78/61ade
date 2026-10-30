@@ -167,6 +167,34 @@ be nonpublic/unversioned. Multiple instances need shared sessions/key.
 Expired challenges/remember records require operational cleanup; cleanup does
 not extend validity.
 
+<a id="runtime-permissions"></a>
+
+### Runtime directory and file permissions
+
+Point `ApplicationDefinition::runtime` (JSON `application.runtime`) at a
+nonpublic directory, for example a private `runtime/app` below the project's
+tmp tree. Startup creates missing runtime, `sessions/` and `login/` directories
+recursively with mode `0770`: other users receive no access, and an inherited
+default POSIX ACL can grant the runtime identity and project owner access.
+Without a default ACL, the process umask and owning group determine access.
+Consumers must choose a trusted group/default ACL; 61ade does not provision
+host permissions or change existing directory modes/ACLs.
+
+PHP's `files` session handler creates `sessions/sess_*` with mode `0600`.
+61ade explicitly sets `login/<IP hash>.json` to `0600` before reading or
+writing counters on each authentication attempt, including existing files;
+failure to restrict permissions stops the attempt. Directory access lets a
+project owner list and delete a runtime-owned file for
+[test-account cleanup](development.md#consumer-test-accounts), while its
+contents remain private to the runtime identity. ACL write access to these
+directories is therefore only for trusted maintainers. IP counters are not
+account-specific; leave them to expire.
+
+Existing directories created with `0700` are unchanged. Their owner or host
+operator must restore the intended group/ACL mask once; recreation after tmp
+cleanup then uses `0770`. This does not migrate runtime storage or change
+session expiry. Verification: [FB-0093](feedback.md#fb-0093).
+
 - `php8.4 tests/shell/mail.php` (recording fake command, never real mail): placeholder substitution, 0600 HTML body file in runtime and its removal after success and failure, empty stdin, address/subject/name/argument validation, exit errors, removed `transport`/`dsn` keys, layout escaping/text/color.
 - `php8.4 tests/shell/authentication.php`: default-on/per-user ACL, wrong/expired/cross-browser/replayed code, persistent limits, remember hash/rotation/expiry/revoke, sensitive-data-free audit.
 - `npm run test:browser -- tests/shell/authentication.spec.cjs` (feature demo, `twofactor@example.test`, code from the demo mailbox): code gate, CSRF and wrong-code rejection, 90-day remembered login with rotation and revocation, no credential without remember, the Users admin e-mail-confirmation switch and the confirmation window in all themes. The demo command takes the Infra helper's arguments but stores the message locally. A session restored from the remember cookie starts in the site default language; the account default applies to password, code and OAuth logins ([i18n](i18n.md#account-default-language)).

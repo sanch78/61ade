@@ -230,6 +230,11 @@ can enter, without password. Optional remember lasts 90 days.
 Framework mail layout supports project text/color; delivery uses one argument-list
 command without shell, such as the Infra mail helper. Explicit schema installation is required.
 
+Missing runtime, `sessions/` and `login/` directories use `0770`, preserving
+inherited default ACL grants for owner cleanup; session and password-attempt
+files stay `0600`. See [runtime permissions](authentication.md#runtime-permissions)
+for trusted group/ACL prerequisites and existing-directory limits.
+
 <a id="demók"></a>
 
 ## Demos

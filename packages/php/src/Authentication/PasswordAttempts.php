@@ -13,11 +13,15 @@ final class PasswordAttempts
 {
     public static function authenticate(string $runtime, string $address, IdentityProvider $identities, string $username, #[\SensitiveParameter] string $password): ?Identity
     {
-        $lock = fopen($runtime.'/login/'.hash('sha256', $address).'.json', 'c+');
+        $path = $runtime.'/login/'.hash('sha256', $address).'.json';
+        $lock = fopen($path, 'c+');
         if (!$lock || !flock($lock, LOCK_EX)) {
             throw new \RuntimeException('Login throttle unavailable.');
         }
         try {
+            if (!chmod($path, 0600)) {
+                throw new \RuntimeException('Cannot protect login throttle storage.');
+            }
             $attempts = json_decode(stream_get_contents($lock), true) ?: [];
             $attempts = array_values(array_filter($attempts, static fn($at) => $at > time() - 60));
             if (count($attempts) >= 5) {
