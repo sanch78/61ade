@@ -297,7 +297,9 @@ function preview(app, host, view) {
     const previous = s.stage, controller = new AbortController(), signal = controller.signal;
     s.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     const stage = s.stage = { controller, item, ready: false, status: "" };
-    const screen = s.layout.getCell("screen");
+    const box = new app.dhx.Layout(null, { type: "none", rows: [{ id: "content" }] });
+    s.layout.getCell("screen").attach(box);
+    const screen = box.getCell("content");
     if (!item) screen.attachHTML(message(idle()));
     else if (item.kind === "image" || item.kind === "video" || item.kind === "audio") {
       const file = item.slot.asset.file;
@@ -323,6 +325,7 @@ function preview(app, host, view) {
       player.mount(screen);
     } else if (item.kind === "scene" && scenes) void scene(stage, screen);
     else screen.attachHTML(message(item.kind === "scene" ? t("A jelenet lej\xE1tsz\xE1sa nem enged\xE9lyezett.") : item.kind === "none" ? t("Nincs tartalom") : t("Ez a tartalomt\xEDpus nem j\xE1tszhat\xF3 le.")));
+    signal.addEventListener("abort", () => box.destructor(), { once: true });
     caption(stage);
     previous?.controller.abort();
   };
