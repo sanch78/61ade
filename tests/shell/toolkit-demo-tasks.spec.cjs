@@ -204,7 +204,7 @@ test('demo.copy-text copies the cursor record or the marked tasks as text, is di
  const card=page.locator('.blade-grid-card').filter({hasText:second}).first();await expect(card).toBeVisible();
  const menu=page.getByRole('button',{name:'Műveletek',exact:true});await expect(menu).toBeVisible();
  await menu.click();await expect(page.getByRole('menuitem',{name:COPY,exact:true})).toBeDisabled();
- // The Suite toolbar popup does not close on Escape; the menu button toggles it.
+ // The menu button toggles the popup closed (Escape closes it too, mobile-grid.spec.cjs).
  await menu.click();await expect(page.getByRole('menuitem',{name:COPY,exact:true})).toBeHidden();
  await card.locator('.blade-grid-card__id').click();
  await menu.click();await page.getByRole('menuitem',{name:COPY,exact:true}).click();
