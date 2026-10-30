@@ -195,6 +195,8 @@ operator must restore the intended group/ACL mask once; recreation after tmp
 cleanup then uses `0770`. This does not migrate runtime storage or change
 session expiry. Verification: [FB-0093](feedback.md#fb-0093).
 
+### Verification
+
 - `php8.4 tests/shell/mail.php` (recording fake command, never real mail): placeholder substitution, 0600 HTML body file in runtime and its removal after success and failure, empty stdin, address/subject/name/argument validation, exit errors, removed `transport`/`dsn` keys, layout escaping/text/color.
 - `php8.4 tests/shell/authentication.php`: default-on/per-user ACL, wrong/expired/cross-browser/replayed code, persistent limits, remember hash/rotation/expiry/revoke, sensitive-data-free audit.
 - `npm run test:browser -- tests/shell/authentication.spec.cjs` (feature demo, `twofactor@example.test`, code from the demo mailbox): code gate, CSRF and wrong-code rejection, 90-day remembered login with rotation and revocation, no credential without remember, the Users admin e-mail-confirmation switch and the confirmation window in all themes. The demo command takes the Infra helper's arguments but stores the message locally. A session restored from the remember cookie starts in the site default language; the account default applies to password, code and OAuth logins ([i18n](i18n.md#account-default-language)).
