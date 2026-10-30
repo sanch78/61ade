@@ -8,8 +8,14 @@ import type { Application, ApplicationModule, ColumnMetadata, FieldMetadata, Fie
 const TOP = 5;
 /** At most this many marked tasks are copied in one run (one `get` each). */
 const COPY_LIMIT = 50;
-/** Form item name of the star strip beside the number input. */
-const strip = (name: string) => name + "__stars";
+/** Toggle id of star n in the strip. */
+const starId = (n: number) => "star" + n;
+/** Toggle states of a rating: the stars 1…n pressed. */
+const pressed = (n: number): Record<string, boolean> => Object.fromEntries(Array.from({ length: TOP }, (_, index) => [starId(index + 1), index < n]));
+/** Translates the name of the star strip; set by the module (`app.i18n`) before any form opens. */
+let translate: (key: string, params: Record<string, unknown>) => string = key => key;
+/** Form item name of the star strip; Suite also uses it as the group's accessible name ("Prioritás — csillagok"). */
+const stripName = (field: FieldMetadata) => translate("{field} — csillagok", { field: field.label });
 
 /** The rating 0–5 of a stored value (empty: 0); `null` for anything else, which is then shown as plain text. */
 function level(value: unknown): number | null {
@@ -28,49 +34,43 @@ function stars(app: Application, value: unknown, size: string, escape: (value: u
 }
 
 /**
- * Pointer shortcut of the editor: five star buttons in the Form's container item. The number input stays the
- * labelled, keyboard-operable control (arrow keys, typing); the buttons are hidden from assistive technology and the
- * tab order. Clicking the current rating again clears it to 0. Everything is released with the form's `signal`.
+ * Star strip of the editor: a Suite `togglegroup` item (Standard edition; the `container` item is PRO-only) of five
+ * toggle buttons, ★ when pressed and ☆ otherwise, named "<label> — csillagok". The number input stays the labelled
+ * control of the value (arrow keys, typing, validation messages); a toggle (click, or Space/Enter on it) sets the
+ * rating to its position, the current one clears it to 0. Both stay in step through their Suite events, which are
+ * detached when the form's `signal` aborts.
  */
-function bindStars({ app, form, field, readOnly, signal }: FieldTypeContext): void {
-  const input = form.getItem(field.name) as unknown as { getValue(): unknown; setValue(value: string): void; events: { on(name: string, handler: (value: unknown) => void, owner: object): void; detach(name: string, owner: object): void } } | undefined;
-  const box = form.getItem(strip(field.name)) as unknown as { attach(element: HTMLElement): void } | undefined;
-  if (!input || !box) return;
-  const root = document.createElement("div");
-  root.className = "demo-rating-stars";
-  root.setAttribute("aria-hidden", "true");
-  root.style.cssText = "display:flex;gap:2px;align-items:center;height:100%";
-  const buttons = Array.from({ length: TOP }, (_, index) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.tabIndex = -1;
-    button.disabled = readOnly;
-    button.dataset.value = String(index + 1);
-    button.title = app.i18n.t("{value} / {max} csillag", { value: index + 1, max: TOP });
-    button.style.cssText = "border:0;background:none;color:inherit;font:inherit;font-size:22px;line-height:1;padding:0 2px;cursor:pointer";
-    root.append(button);
-    return button;
-  });
+function bindStars({ form, field, signal }: FieldTypeContext): void {
+  type Events = { on(name: string, handler: (value: unknown) => void, owner: object): void; detach(name: string, owner: object): void };
+  const input = form.getItem(field.name) as unknown as { getValue(): unknown; setValue(value: string): void; events: Events } | undefined;
+  const group = form.getItem(stripName(field)) as unknown as { isSelected(): Record<string, boolean>; setValue(value: Record<string, boolean>): unknown; events: Events } | undefined;
+  if (typeof input?.setValue !== "function" || typeof group?.isSelected !== "function") return;
+  let rating = level(input.getValue()) ?? 0, painting = false;
   const paint = (value: unknown) => {
-    const n = level(value) ?? 0;
-    buttons.forEach((button, index) => { button.textContent = index < n ? "★" : "☆"; button.style.opacity = index < n ? "1" : ".55"; });
+    rating = level(value) ?? 0;
+    painting = true;
+    try { group.setValue(pressed(rating)); } finally { painting = false; }
   };
-  root.addEventListener("click", event => {
-    const button = (event.target as Element).closest("button");
-    if (!button || readOnly) return;
-    const chosen = Number(button.dataset.value);
-    const next = String(level(input.getValue()) === chosen ? 0 : chosen);
+  const chosen = () => {
+    if (painting) return;
+    // The toggle that differs from the shown rating is the one just pressed or released.
+    const state = group.isSelected();
+    const star = Array.from({ length: TOP }, (_, index) => index + 1).find(n => !!state[starId(n)] !== n <= rating);
+    if (star === undefined) return;
+    const next = String(star === rating ? 0 : star);
     // Suite keeps the last typed text apart from the value; the repeated call aligns it, so a later blur keeps `next`.
     input.setValue(next);
     input.setValue(next);
-    paint(next);
-  }, { signal });
+    rating = Number(next);
+    // The pressed toggle sets its own state after the group's change; the strip is aligned once that has finished.
+    queueMicrotask(() => { if (!signal.aborted) paint(next); });
+  };
   const owner = {};
   input.events.on("input", paint, owner);
   input.events.on("change", paint, owner);
-  signal.addEventListener("abort", () => { input.events.detach("input", owner); input.events.detach("change", owner); root.remove(); }, { once: true });
+  group.events.on("change", chosen, owner);
+  signal.addEventListener("abort", () => { input.events.detach("input", owner); input.events.detach("change", owner); group.events.detach("change", owner); }, { once: true });
   paint(input.getValue());
-  box.attach(root);
 }
 
 /** Plain text of one value for the copy command: option labels, the rating as "3 / 5", lists joined. */
@@ -91,6 +91,7 @@ function recordText(view: { options: unknown }, row: Row): string {
 }
 
 const tasks: ApplicationModule = app => {
+  translate = (key, params) => app.i18n.t(key, params);
   app.fieldTypes.register("demo.rating", {
     input: (field: FieldMetadata, value: unknown, readOnly: boolean) => ({
       css: "demo-rating-field",
@@ -99,7 +100,11 @@ const tasks: ApplicationModule = app => {
           type: "input", name: field.name, label: field.label, labelPosition: "top", inputType: "number", min: 0, max: TOP, step: 1,
           required: !readOnly && field.required, readOnly, value: String(value ?? field.defaultValue ?? ""),
         },
-        { type: "container", name: strip(field.name), height: 32, hidden: readOnly },
+        {
+          type: "togglegroup", name: stripName(field), css: "demo-rating-stars", multiselection: true, gap: 4, hidden: readOnly,
+          options: Array.from({ length: TOP }, (_, index) => ({ id: starId(index + 1), text: "★", offText: "☆" })),
+          value: pressed(level(value ?? field.defaultValue) ?? 0),
+        },
       ],
     }),
     bind: bindStars,
