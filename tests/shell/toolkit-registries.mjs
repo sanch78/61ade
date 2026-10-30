@@ -71,18 +71,18 @@ try{
  // Commands: built-in first, then the declared order; duplicates once; unknown or run-less entries skipped with a warning.
  const commands=new NamedRegistry('command');
  for(const [name,command] of Object.entries(builtinCommands))commands.builtin(name,command);
- const copy={label:'Másolás',placement:'both',run(){}},share={label:'Megosztás',placement:'toolbar',run(){}},open={label:'Megnyitás',placement:'record',run(){}};
- commands.register('demo.copy',copy);commands.register('demo.share',share);commands.register('demo.open',open);commands.register('demo.norun',{label:'X',placement:'toolbar'});
- const list=resolveCommands(['details'],['demo.share','demo.copy','demo.missing','demo.copy','demo.norun','demo.open',7],commands);
+ const copy={label:'Másolás',placement:'record',run(){}},share={label:'Megosztás',placement:'toolbar',run(){}},open={label:'Megnyitás',placement:'record',run(){}};
+ commands.register('demo.copy',copy);commands.register('demo.share',share);commands.register('demo.open',open);commands.register('demo.norun',{label:'X',placement:'toolbar'});commands.register('demo.both',{label:'Y',placement:'both',run(){}});
+ const list=resolveCommands(['details'],['demo.share','demo.copy','demo.missing','demo.copy','demo.norun','demo.both','demo.open',7],commands);
  assert.deepEqual(list.map(command=>command.name),['details','demo.share','demo.copy','demo.open']);
  assert.deepEqual(list.map(command=>command.id),['blade-command:details','blade-command:demo.share','blade-command:demo.copy','blade-command:demo.open']);
  assert.equal(commandId('demo.copy'),'blade-command:demo.copy');
- assert.ok(warnings.some(line=>line.includes('command "demo.missing"'))&&warnings.some(line=>line.includes('command "demo.norun"')));
+ assert.ok(['demo.missing','demo.norun','demo.both'].every(name=>warnings.some(line=>line.includes('command "'+name+'"'))),'unknown, run-less and other placements are skipped');
  assert.deepEqual(resolveCommands(['details'],undefined,undefined,builtinCommands).map(command=>command.entry),[builtinCommands.details],'no registry: the built-in entry');
  assert.deepEqual(resolveCommands([],['demo.copy'],undefined,builtinCommands),[],'no registry: no project command');
  const replaced={label:'Saját adatok',placement:'toolbar',run(){}};commands.register('details',replaced,{replace:true});
  assert.equal(resolveCommands(['details'],[],commands)[0].entry,replaced,'a replaced built-in is used');
- // Enabled rules: `toolbar` default on; `record` (and its alias `both`) default like the built-in record actions:
+ // Enabled rules: `toolbar` default on; `record` default like the built-in record actions:
  // a cursor record and at most one mark; an own rule decides alone; a throw disables (logged).
  const context=(extra={})=>({app:{},view:{id:'v'},rows:[],signal:new AbortController().signal,...extra});
  const one={row:{id:'1'},rows:[{id:'1'}]},several={row:{id:'1'},rows:[{id:'1'},{id:'2'}]};

@@ -63,9 +63,8 @@ The implementation lives in `packages/frontend/src/components/list`
 (`Workspace.ts` list core; `toolbar.ts`, `filters.ts`, `search.ts`,
 `actions.ts` forms and commands, `details.ts`, `activation.ts`, `fields.ts`
 form items, `ListView.ts`, `RecordForm.ts`, `RecordDetails.ts`,
-`CommandBar.ts`). `src/Workspace.ts` only re-exports the internals for the
-existing fixtures; its constructor is not a contract
-([migration M8](toolkit.md#migration)).
+`CommandBar.ts`). Fixtures import the internals from there; the internal
+`Workspace` constructor is not a contract ([migration M8](toolkit.md#migration)).
 
 <a id="list-extensions"></a>
 
@@ -91,7 +90,7 @@ project module registers its behaviour:
   `SqlResource::register` (JSON `view.commands`, at most 20 dotted names). The
   commands follow the view's actions in the command bar in declaration order
   and move into `Műveletek` like them; there is no record context menu. A
-  `record` command (also `both`) acts on the cursor record like the built-in
+  `record` command acts on the cursor record like the built-in
   record actions: disabled without one and, unless its own rule accepts them,
   with several marks; a `toolbar` command needs no record. The built-in
   `Adatok` command is the registry's `details` record command. While a
@@ -125,8 +124,10 @@ $source->register($registry, 'Elemek', layout: new ViewLayout(
 `SqlResource::register()` and `Registry::view()` return the registered
 `Blade\Feature\View` (kind `list`); its id defaults to the resource, and an
 explicit `id:` adds a further view of the same resource
-([toolkit views](toolkit.md#views)). A later view with the same id replaces the
-earlier one and keeps its menu position. In the bootstrap a list view's own
+([toolkit views](toolkit.md#views)). A second declaration with the same id
+throws; `Registry::updateView(View::list(…))` changes the declared view (for
+example its columns after `SqlResource::register()`) and keeps its menu
+position and sub-view ([rule](toolkit.md#view-id-rule)). In the bootstrap a list view's own
 keys (`columns`, `layout`, `filters`, `activate`, `subview`, …) are under
 `options`.
 
@@ -216,8 +217,9 @@ ways, duplicate/NULL values, complete traversal, backward scroll, live order,
 ACL/injection. The managed `grid-sort.spec.cjs` uses the feature demo's
 Mérések list (1801 rows): headers, full sorting, filters, bidirectional
 scrolling, ≤600 loaded and <100 rendered rows.
-The old empty-values/offset API remains transitional compatibility, unused by
-the new frontend. Pager/refresh buttons were removed.
+A `list` request without parameters is the first cursor window (default
+limit 100); a list id is refused (400), there is no offset paging.
+Pager/refresh buttons were removed.
 
 <a id="élő-adat-konfigurálása-és-futtatása"></a>
 
@@ -317,9 +319,8 @@ error}]}` answers each entry separately, so a refused or failing list never
 fails the others; a 401 or CSRF 403 of the whole request ends the session state
 for every list. A new subscription polls at once. A failing
 batch (network, 5xx, 413) marks only its own lists as reconnecting; the other
-batches of the interval still run. Batch size is measured in UTF-8 bytes. The single-list form
-(`values: {query, version}`) is still accepted for pages loaded before the
-change.
+batches of the interval still run. Batch size is measured in UTF-8 bytes.
+`values` carries nothing but `subscriptions`; any other shape is refused (400).
 
 WebSocket runs `packages/php/bin/live-server.mjs` with the system Node 18+ and
 PHP 8.4+. It is the committed bundle of `tools/live-server.mjs` with the
@@ -710,8 +711,8 @@ validation, metadata and thumbnails.
 ### Record delete policy and usages
 
 `SqlResource::registerDelete(…, deletePolicy: 'delete'|'archive')` (JSON
-`operations.delete_policy`; default `delete` for compatibility, `archive` is
-the recommendation for new development). `archive` sets the consumer's
+`operations.delete_policy`; default `delete`, which needs no extra columns;
+`archive` is the recommendation for new development). `archive` sets the consumer's
 `archived_at`/`archived_by` columns and every framework read of the resource
 (object loads, lists, counts, rank, live watch, unique checks and JSON
 `lookups` on the same table) hides the row as if deleted. Consumer SQL
@@ -879,9 +880,8 @@ $registry->subview('tasks', 'tasks', 'parent_id');
 ```
 
 `subview()` takes view ids (default: the resource). A child view of the same
-resource is a hierarchy of the parent view itself. Attach a sub-view after the
-final declaration of both views: a redeclared parent loses its sub-view and a
-redeclared child its embedding.
+resource is a hierarchy of the parent view itself. Declare both views first;
+`updateView()` of either keeps the sub-view and the embedding.
 
 JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "project_id", "embed": false, "select": true}}`
 (`resource` names the child view id).

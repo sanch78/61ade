@@ -26,12 +26,12 @@ $run=fn(Context $ctx,string $action,?string $id=null,array $values=[])=>$workspa
 $edit=fn(Context $ctx,string $id,string $field,mixed $value)=>$workspace->executor->edit($ctx,Accounts::RESOURCE,$id,$field,$value,$run($ctx,'get',$id)['revision']);
 
 // Default deny: the module is an ordinary ACL resource without an admin bypass.
-check($run($user,'list')===[],'Default deny list');
+check($run($user,'list')['items']===[],'Default deny list');
 fails(fn()=>$run($user,'get','1'),403,'Default deny get');
 fails(fn()=>$run($user,'create',null,['display_name'=>'X','email'=>'x@example.test']),403,'Default deny create');
 $rule=$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1',?,?,?,'allow','all','','')");
 foreach(['list','get','create','update','temporary_password'] as $action)$rule->execute([Accounts::RESOURCE,$action,'ui']);
-check(count($run($admin,'list'))===2,'Granted list');
+check(count($run($admin,'list')['items'])===2,'Granted list');
 check(array_column($registry->views(),'resource')===[Accounts::RESOURCE],'Users view registered');
 check(in_array('temporary_password',$registry->views()[0]->actions,true) && !in_array('deactivate',$registry->views()[0]->actions,true),'No single-purpose toggle actions');
 $columns=array_column($registry->views()[0]->options['columns'],'id');
@@ -100,7 +100,7 @@ check(($run($admin,'update','1',['display_name'=>'Admin','email'=>'admin2@exampl
 $api=new Context(new Identity('1','Admin'),'api',$workspace->acl,$db,[Accounts::RESOURCE.'.get']);
 fails(fn()=>$workspace->executor->execute($api,Accounts::RESOURCE,'get','2',[]),404,'UI grant does not open API');
 fails(fn()=>$workspace->executor->execute(new Context(new Identity('1','Admin'),'api',$workspace->acl,$db,[]),Accounts::RESOURCE,'list',null,[]),403,'Scope required on API');
-$listing=json_encode($run($admin,'list'));check(!str_contains($listing,'password_hash') && !str_contains($listing,'$2y$') && !str_contains($listing,'$argon'),'No password data in listing');
+$listing=json_encode($run($admin,'list')['items']);check(!str_contains($listing,'password_hash') && !str_contains($listing,'$2y$') && !str_contains($listing,'$argon'),'No password data in listing');
 
 // Configuration and construction guards.
 try{new Accounts($workspace,'accounts','id','email','display_name','password_hash',verify:static fn()=>true);throw new RuntimeException('Verifier without encoder accepted');}catch(InvalidArgumentException){}

@@ -6,14 +6,14 @@ import { TreeAdapter } from "./TreeAdapter";
 import { widgetIcons } from "./WidgetIcons";
 import { fitWindow } from "./WindowSizing";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
-import { acknowledge, alert, requestChoice, requestConfirmation } from "./MessageDialog";
+import { acknowledge, requestChoice, requestConfirmation } from "./MessageDialog";
 import { escape, clearedText, mergeUsages, type Usage } from "./RecordPresentation";
 import { actionUrl } from "./ActionUrl";
 import { server } from "./api/Server";
 import { uploads, type UploadEvents, type UploadFileInfo, type UploadPolicy } from "./Uploader";
 import { MediaPlayer } from "./components/media/MediaPlayer";
 import type { Row } from "./Realtime";
-import type { ActionConfirmation, ViewDefinition } from "./Workspace";
+import type { ActionConfirmation, ViewDefinition } from "./components/list/types";
 
 export type FileManagerConfig={mounts:{id:string;label:string}[];upload:{policy:UploadPolicy};text:{extension:string;maxBytes:number};preview:string[];thumbnails?:string[];maxDepth:number;deletePolicy?:string};
 export type FileViewDefinition={kind:"files";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean;get?:boolean;confirm?:ActionConfirmation;usages?:boolean;fields:FieldDefinition[]}[];files:FileManagerConfig};
@@ -420,7 +420,7 @@ export class FileManager {
     if(this.disposed)return;
     const e=error as Failure;
     const failed=(e.details?.failed??[]) as {name:string;error:string}[];
-    await alert({header:t("Hiba"),severity:"danger",text:[e instanceof Error?e.message:t("Sikertelen művelet."),...Object.values(e.fieldErrors??{}),...failed.map(item=>`${item.name}: ${item.error}`)].join("\n")});
+    await acknowledge({title:t("Hiba"),severity:"danger",message:[e instanceof Error?e.message:t("Sikertelen művelet."),...Object.values(e.fieldErrors??{}),...failed.map(item=>`${item.name}: ${item.error}`)].join("\n")});
   }
 
   private size(bytes:number):string{
@@ -915,7 +915,7 @@ export class FileManager {
     const save=()=>{
       const content=value();
       if(!writable||saving||content===saved)return;
-      if(new TextEncoder().encode(content).length>file.max_bytes){void alert({header:t("Hiba"),severity:"warning",text:t("A szöveg legfeljebb {size} bájt lehet.",{size:file.max_bytes})});return;}
+      if(new TextEncoder().encode(content).length>file.max_bytes){void acknowledge({title:t("Hiba"),severity:"warning",message:t("A szöveg legfeljebb {size} bájt lehet.",{size:file.max_bytes})});return;}
       saving=true;sync();
       void this.call("text_save",file.id,{revision},[{field:"content",blob:new Blob([content],{type:"text/plain"}),name:file.name}]).then(async result=>{
         saved=content;revision=result.revision;

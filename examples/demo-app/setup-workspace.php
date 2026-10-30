@@ -201,6 +201,8 @@ Blade\Admin\Permissions::grantAdministration($admin->workspace->db, $admin->work
 // Tenant demo: two tenants; demo@ (admin) belongs to both, single@ to Alfa only, none@ to no tenant.
 $db = blade_demo_db('tenants');
 Blade\Access\Schema::install($db);
+// A tenant demo created before 2026-10-30 drops the removed membership switch first (migration 0003; a no-op later).
+(require dirname(__DIR__, 2).'/packages/php/migrations/0003-tenant-member-active.php')($db);
 Blade\Tenancy\Tenancy::install($db);
 $db->exec('CREATE TABLE IF NOT EXISTS tenant_projects(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT \'open\')');
 $db->exec('CREATE TABLE IF NOT EXISTS tenant_tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL, project_id TEXT NOT NULL)');

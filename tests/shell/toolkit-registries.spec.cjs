@@ -51,7 +51,7 @@ async function mount(page){
    bind:({field,signal})=>{bound.push(field.name);signal.addEventListener('abort',()=>released.push(field.name));},
    display:(value,_row,_field,size,escape)=>`<span class="demo-stars" data-size="${size}">${'★'.repeat(Number(value)||0)}${escape('')}</span>`});
   const record=name=>context=>runs.push({name,row:context.row?.id,rows:context.rows.length,view:context.view.id,signal:context.signal instanceof AbortSignal});
-  app.commands.register('demo.copy',{label:'Másolás',icon:'dxi dxi-content-copy',placement:'both',enabled:({row})=>!!row,run:record('demo.copy')});
+  app.commands.register('demo.copy',{label:'Másolás',icon:'dxi dxi-content-copy',placement:'record',enabled:({row})=>!!row,run:record('demo.copy')});
   app.commands.register('demo.count',{label:'Számlálás',placement:'toolbar',run:record('demo.count')});
   app.commands.register('demo.open',{label:'Megnyitás',placement:'record',run:async context=>{await context.app.server.call('tasks','get',{id:context.row.id});record('demo.open')(context);}});
   app.commands.register('demo.fail',{label:'Hibás',placement:'toolbar',run:async()=>{throw new Error('A parancs nem sikerült.');}});

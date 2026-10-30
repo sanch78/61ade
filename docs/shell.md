@@ -530,10 +530,9 @@ view whose kind is not registered give an empty workspace. Filter presets apply
 once and leave the address (`history.replaceState`). Navigation never writes
 data.
 
-- **Legacy alias:** `#feature=<resource>` (delivered e-mails such as
-  `/admin/#feature=inquiries`) is read as `#view=<resource>`, the view whose id
-  equals that resource, and rewritten in place with `history.replaceState`
-  (other parameters kept), also after a sign-in.
+- **Only `#view=`:** any other fragment, such as the removed
+  `#feature=<resource>`, names no view and gives the empty workspace; it is
+  left in the address.
 - **Menu ids** are `view:<id>` (`sibling:view:<id>` for the collapsed-menu
   siblings). A [record view](toolkit.md#record-views) has no menu entry.
 - **Record views:** `#view=<id>&record=<id>` opens a view that declares
@@ -589,12 +588,13 @@ used (a narrow desktop window gets the notice too). The view host applies it
 to every kind, a project kind included, by wrapping what the kind attaches.
 
 The existing unit scripts are `node tests/shell/ui-preferences.mjs` and
-`node tests/shell/toolkit-kernel.mjs` (address parsing and the `#feature=`
-alias, registry names, the event bus). Its last recorded limitation is
+`node tests/shell/toolkit-kernel.mjs` (address parsing, registry names, the
+event bus). Its last recorded limitation is
 a stale layout double lacking `getRootNode()` (FB-0050). The managed
-`preferences.spec.cjs` checks view URLs through login/reload/history, the
-`#feature=` alias through a sign-in, persisted column width, sort, view and
-panel width, and broken storage on the feature demo's Tasks view.
+`preferences.spec.cjs` checks view URLs through login/reload/history, that a
+`#feature=` address opens no view after a sign-in, persisted column width,
+sort, view and panel width, and broken storage on the feature demo's Tasks
+view.
 Feedback: FB-0021.
 
 <a id="application-modules"></a>

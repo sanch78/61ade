@@ -2,7 +2,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const {signIn,openView}=require('./feature-demo.cjs');
 const {root,lazyBundle}=require('./fixture.cjs');
-const bundle=lazyBundle('export {Workspace} from "./packages/frontend/src/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";');
+const bundle=lazyBundle('export {Workspace} from "./packages/frontend/src/components/list/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";');
 async function mount(page,options={},table=true){
  await page.route('**/list-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="blade-application"></div>'}));
  await page.goto('/list-fixture');await page.setContent('<div id="blade-application"></div>');

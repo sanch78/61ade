@@ -4,7 +4,7 @@ import { fitWindow } from "../../WindowSizing";
 import { widgetIcons } from "../../WidgetIcons";
 import { UiPreferences } from "../../UiPreferences";
 import { Form, Layout, Window, message, awaitRedraw } from "@dhtmlx/suite";
-import { alert } from "../../MessageDialog";
+import { acknowledge } from "../../MessageDialog";
 import { Realtime, type LiveChannel, type Row, type Snapshot } from "../../Realtime";
 import { GridHeaders, type Sort } from "../../GridHeaders";
 import { GridEditing, alias, unalias } from "../../GridEditing";
@@ -354,7 +354,7 @@ export class Workspace implements ActionHost {
   call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{return this.request(this.view.resource,action,id,values,signal);}
   /** The JSON channel; another resource is the file manager of a `file` field (picker, upload target). */
   private request(resource:string,action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{return server.call(resource,action,{id,values,signal});}
-  async error(e:unknown):Promise<void>{if(!this.disposed)await alert({header:t("Hiba"),severity:"danger",text:errorText(e,this.view.actions.flatMap(a=>a.fields))});}
+  async error(e:unknown):Promise<void>{if(!this.disposed)await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(e,this.view.actions.flatMap(a=>a.fields))});}
   /** A form or edit saved (`saved` event of the public `ListView`). */
   saved(action:string,row:Row):void{this.hooks.emit?.("saved",{action,row});}
   /** The loaded window changed (`changed` event of the public `ListView`). */

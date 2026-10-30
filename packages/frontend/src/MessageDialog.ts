@@ -17,8 +17,6 @@ export type DialogOptions = {
 };
 /** One answer of a multiple-choice dialog; Cancel is always added and resolves `null`. */
 export type DialogChoice = { value: string; label: string };
-/** Shape of the former DHTMLX alert()/confirm() properties, accepted by the compatibility wrappers. */
-export type LegacyDialogOptions = { text: string; header?: string; buttons?: string[]; htmlEnable?: boolean; severity?: DialogSeverity };
 
 // Distinct glyph per severity so meaning never depends on colour alone.
 const ICONS: Record<DialogSeverity, string> = {
@@ -206,12 +204,3 @@ export function noticeMarkup(options: { title: string; message: string; severity
 export const requestConfirmation = (options: Omit<DialogOptions, "mode">) => showDialog({ ...options, mode: "confirm" });
 /** Closes every open dialog as dismissed (Cancel/OK); used when the owning view is destroyed. */
 export const closeDialogs = () => [...open].reverse().forEach(entry => entry.close(false));
-
-const legacy = (o: LegacyDialogOptions, mode: DialogMode): DialogOptions => ({
-  message: o.text, title: o.header, severity: o.severity, mode,
-  ...(mode === "confirm" ? { cancelLabel: o.buttons?.[1], confirmLabel: o.buttons?.[0] } : { okLabel: o.buttons?.[0] }),
-});
-/** Drop-in replacement for the DHTMLX alert(): `{header,text,buttons,htmlEnable}` plus optional `severity`. Text is always rendered as plain text. */
-export const alert = (o: LegacyDialogOptions) => showDialog(legacy(o, "acknowledge"));
-/** Drop-in replacement for the DHTMLX confirm(): `buttons: [apply, reject]`. */
-export const confirm = (o: LegacyDialogOptions) => showDialog(legacy(o, "confirm"));

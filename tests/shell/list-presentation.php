@@ -9,7 +9,7 @@ $db->exec("CREATE TABLE items(id INTEGER PRIMARY KEY,title TEXT,description TEXT
 $registry=new Registry();
 (new SqlResource('items','items','id',[new Field('title','Title'),new Field('description','Description',type:'textarea'),new Field('secret','Secret',secret:true)]))->register($registry,'Items');
 $registry->add(new Action('items','archive','Archive',[],function($ctx,$target){$ctx->db->prepare('UPDATE items SET archived=1 WHERE id=?')->execute([$target['id']]);return [];},resolve:static fn($ctx,$id)=>['id'=>$id],write:true,bulk:true,icon:'dxi dxi-check'));
-$registry->view('items','Items',[['id'=>'title','header'=>'Title']],['get','archive'],rowNumbers:false,selection:true);
+$registry->updateView(Blade\Feature\View::list('items','Items',[['id'=>'title','header'=>'Title']],['get','archive'],rowNumbers:false,selection:true));
 $workspace=new Workspace($registry,$db);
 $db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items','get','ui','allow','all','',''),('user','1','items','get','ui','deny','all','','description'),('user','1','items','archive','ui','allow','id','1','')");
 $actor=new Identity('1','Synthetic user',[]);$ctx=new Context($actor,'ui',$workspace->acl,$db);
@@ -84,8 +84,8 @@ $details=array_column($mediaView['options']['detailFields'],null,'id');
 check($details['file']['media']==='files'&&$details['kind']['presentation']==='icon'&&$details['kind']['options']['dxi dxi-file']==='Fájl'&&!isset($details['title']['media'])&&!isset($details['title']['presentation'])&&!isset($details['kind']['width']),'Detail fields carry media and icon presentation only');
 check($columns['file']['media']==='files'&&$columns['file']['type']==='number'&&$columns['kind']['presentation']==='icon'&&$columns['kind']['options']['dxi dxi-file']==='Fájl','Media and icon column options reach the wire');
 check(!isset($view['options']['rowHeight'])&&!isset($view['options']['tileMinWidth'])&&!isset($view['options']['tiles']),'Presentation keys absent by default');
-foreach([['rowHeight'=>31],['rowHeight'=>161],['tileMinWidth'=>119],['tileMinWidth'=>481]] as $options){try{$mediaRegistry->view('assets','Assets',[],['get'],...$options);throw new RuntimeException('Out-of-range view presentation accepted');}catch(InvalidArgumentException){}}
-$mediaRegistry->view('assets','Assets',[],['get'],rowHeight:32,tileMinWidth:480);$mediaRegistry->view('assets','Assets',[],['get'],rowHeight:160,tileMinWidth:120);
+foreach([['rowHeight'=>31],['rowHeight'=>161],['tileMinWidth'=>119],['tileMinWidth'=>481]] as $options){try{$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[],['get'],...$options));throw new RuntimeException('Out-of-range view presentation accepted');}catch(InvalidArgumentException){}}
+$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[],['get'],rowHeight:32,tileMinWidth:480));$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[],['get'],rowHeight:160,tileMinWidth:120));
 check($mediaRegistry->views()[0]->options['rowHeight']===160&&!isset($mediaRegistry->views()[0]->options['tiles']),'Range bounds accepted; tiles off is absent');
 // Static image column: option validation, the single-file-name rule and the server-side projection.
 check(Field::imageFile('a-b_c.1.PNG')&&Field::imageFile('x.svg')&&Field::imageFile('x.JpEg')&&Field::imageFile('x.webp')&&Field::imageFile('x.gif')&&Field::imageFile('x.jpg'),'Image file names accepted');
@@ -129,7 +129,7 @@ check($galleryColumns['image']['presentation']==='image'&&$galleryColumns['image
 check($galleryDetails['image']['presentation']==='image'&&$galleryDetails['image']['imageBase']==='../demo-images/'&&$galleryDetails['image']['altOf']==='title'&&!isset($galleryDetails['image']['image_base'])&&!isset($galleryDetails['title']['presentation']),'Detail fields carry the image options in camelCase');
 $galleryCtx=new Context($actor,'ui',$galleryWorkspace->acl,$db);
 $listed=$galleryWorkspace->executor->execute($galleryCtx,'gallery','list',null,[]);
-check(array_column($listed,'image','id')==['1'=>'ok.svg','2'=>'','3'=>'','4'=>'','5'=>'','6'=>'MISSING.PNG'],'Server list blanks values that are not plain image file names');
+check(array_column($listed['items'],'image','id')==['1'=>'ok.svg','2'=>'','3'=>'','4'=>'','5'=>'','6'=>'MISSING.PNG'],'Server list blanks values that are not plain image file names');
 // Usage warnings on a SqlResource delete (U5): preview through the bulk channel, clear on apply, after_delete only.
 $db->exec("CREATE TABLE shelves(id INTEGER PRIMARY KEY,title TEXT NOT NULL); INSERT INTO shelves VALUES(1,'Used'),(2,'Free'),(3,'Guarded'); CREATE TABLE books(id INTEGER PRIMARY KEY,shelf_id TEXT NOT NULL); INSERT INTO books(shelf_id) VALUES('1'),('1'),('3')");
 $hooks=['save'=>[],'delete'=>[]];
@@ -159,7 +159,7 @@ check($hooks['delete']===['1:Used','2:Free']&&$hooks['save']===[],'after_delete 
 $usageWorkspace->executor->execute($usageCtx,'shelves','update','3',['title'=>'Renamed','revision'=>$rev('3')]);check($hooks['save']===['3'],'after_save still runs on update');
 check($db->query("SELECT COUNT(*) FROM blade_audit WHERE resource='shelves' AND action='delete_preview' AND outcome='success'")->fetchColumn()>0&&json_decode($db->query("SELECT detail FROM blade_audit WHERE resource='shelves' AND action='delete' AND outcome='success' ORDER BY id LIMIT 1")->fetchColumn(),true)['policy']==='delete','Preview journaled as delete_preview; the first delete success is an applied delete');
 // Derived media columns name a media field of the resource and a part; they are no fields themselves.
-$mediaRegistry->view('assets','Assets',[['id'=>'file','header'=>'File'],['id'=>'m_type','header'=>'Type','media_of'=>'file','part'=>'type'],['id'=>'m_size','header'=>'Resolution','media_of'=>'file','part'=>'resolution']],['get']);
+$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[['id'=>'file','header'=>'File'],['id'=>'m_type','header'=>'Type','media_of'=>'file','part'=>'type'],['id'=>'m_size','header'=>'Resolution','media_of'=>'file','part'=>'resolution']],['get']));
 check(array_column($mediaRegistry->views()[0]->options['columns'],'part')===['type','resolution'],'Derived media columns kept');
-foreach([[['id'=>'x','media_of'=>'title','part'=>'type']],[['id'=>'x','media_of'=>'file','part'=>'size']],[['id'=>'x','media_of'=>'missing','part'=>'type']],[['id'=>'title','media_of'=>'file','part'=>'type']],[['id'=>'x','part'=>'duration']]] as $columns){try{$mediaRegistry->view('assets','Assets',$columns,['get']);throw new RuntimeException('Invalid derived media column accepted');}catch(InvalidArgumentException $e){check($e->getMessage()==='Invalid derived media column.','Invalid derived media column rejected');}}
+foreach([[['id'=>'x','media_of'=>'title','part'=>'type']],[['id'=>'x','media_of'=>'file','part'=>'size']],[['id'=>'x','media_of'=>'missing','part'=>'type']],[['id'=>'title','media_of'=>'file','part'=>'type']],[['id'=>'x','part'=>'duration']]] as $columns){try{$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',$columns,['get']));throw new RuntimeException('Invalid derived media column accepted');}catch(InvalidArgumentException $e){check($e->getMessage()==='Invalid derived media column.','Invalid derived media column rejected');}}
 echo "List presentation, bulk ACL and delete usage contracts passed.\n";

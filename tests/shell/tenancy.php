@@ -42,6 +42,30 @@ foreach([fn()=>new SqlResource('x','x','id',[new Field('tenant_id','T')],tenantC
     try{$invalid();throw new RuntimeException('tenant column accepted as an input or key');}catch(InvalidArgumentException){}
 }
 
+// Migration 0003: a database from before 2026-10-30 keeps the removed membership switch `active`. Tenancy::install()
+// refuses it; the migration deletes the suspended rows (they granted nothing) and drops the column, once.
+$old=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);Schema::install($old);
+$old->exec('CREATE TABLE blade_tenants (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(200) NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1)');
+$old->exec('CREATE TABLE blade_tenant_members (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id VARCHAR(100) NOT NULL, actor_id VARCHAR(100) NOT NULL, active INTEGER NOT NULL DEFAULT 1, UNIQUE(tenant_id, actor_id))');
+$old->exec("INSERT INTO blade_tenants(name) VALUES ('Régi')");$old->exec("INSERT INTO blade_tenant_members(tenant_id,actor_id,active) VALUES ('1','1',1),('1','2',0)");
+try{Tenancy::install($old);throw new RuntimeException('An unmigrated membership table was installed');}catch(LogicException $e){check(str_contains($e->getMessage(),'0003'),'Install names the migration');}
+// Fails closed at runtime too: no membership (not even the active row), a clear error naming the migration.
+$logged=ini_set('error_log','/dev/null');$unmigrated=new Tenancy($old);
+foreach([fn()=>$unmigrated->member('2','1'),fn()=>$unmigrated->member('1','1'),fn()=>$unmigrated->memberships('2'),fn()=>$unmigrated->select('2','1')] as $read){
+    try{$read();throw new RuntimeException('An unmigrated membership table granted or listed a membership');}catch(LogicException $e){check(str_contains($e->getMessage(),'0003'),'Unmigrated reads name the migration');}
+}
+$oldWorkspace=new Workspace(new Registry(),$old,tenancy:true);
+try{$oldWorkspace->context(new Identity('2','Two'),'ui','1');throw new RuntimeException('A suspended membership opened a tenant context');}catch(LogicException){}
+ini_set('error_log',(string)$logged);
+$migrate=require dirname(__DIR__,2).'/packages/php/migrations/0003-tenant-member-active.php';
+check($migrate($old)===['deleted'=>1,'dropped'=>true] && $migrate($old)===['deleted'=>0,'dropped'=>false],'Migration 0003 deletes suspended rows and drops the column once');
+Tenancy::install($old);
+check($unmigrated->member('1','1')&&!$unmigrated->member('2','1'),'After the migration the same instance grants the active membership only');
+unset($oldWorkspace);
+check(!in_array('active',array_column($old->query('PRAGMA table_info(blade_tenant_members)')->fetchAll(PDO::FETCH_ASSOC),'name'),true) && (new Tenancy($old))->memberships('1')===['1'=>'Régi'] && (new Tenancy($old))->memberships('2')===[],'Migrated: the active membership stays, the suspended one is gone');
+check($migrate(new PDO('sqlite::memory:'))===['deleted'=>0,'dropped'=>false],'Migration 0003 is a no-op without tenancy');
+unset($old,$migrate);
+
 $db=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);Schema::install($db);Tenancy::install($db);Tenancy::install($db);$schema($db);
 $workspace=new Workspace(new Registry(),$db,tenancy:true);[$accounts]=$define($workspace);
 $a=Tenancy::ensure($db,'Alfa');$b=Tenancy::ensure($db,'Béta');
@@ -72,7 +96,8 @@ check(array_column($run($ctxB,'projects','list','',['limit'=>50])['items'],'titl
 check(array_column($workspace->observe($ctxA,'projects',['limit'=>50])['items'],'title')===['Alfa 2','Alfa 1'],'Live watch is tenant-scoped');
 $batch=$workspace->watch($ctxNone,[['id'=>'p','resource'=>'projects','query'=>['limit'=>50]],['id'=>'n','resource'=>'notices','query'=>['limit'=>50]]]);
 check(!$batch[0]['ok']&&$batch[0]['status']===403&&$batch[1]['ok']&&array_column($batch[1]['data']['items'],'title')===['Közös'],'Batched watch: a scoped list without a tenant is refused alone, the global one beside it answers');
-check(array_column($run($ctxA,'projects','list',null,[]),'title')===['Alfa 2','Alfa 1'],'Offset listing is tenant-scoped');
+check(array_column($run($ctxA,'projects','list',null,[])['items'],'title')===['Alfa 2','Alfa 1'],'A list without parameters is the first, tenant-scoped cursor window');
+fails(fn()=>$run($ctxA,'projects','list','200',[]),400,'The removed offset paging (a list id) is refused');
 check($run($ctxA,'projects','get','1')['title']==='Alfa 1','Permitted read inside the tenant');
 fails(fn()=>$run($ctxA,'projects','get','3'),404,'Another tenant\'s object by ID is not found');
 fails(fn()=>$run($ctxA,'projects','update','3',['title'=>'X','revision'=>'r']),404,'Another tenant\'s object cannot be updated');
@@ -125,10 +150,8 @@ fails(fn()=>$workspace->context($one,'ui',$a),403,'Revocation takes effect on th
 fails(fn()=>$workspace->executor->edit($admin,Tenancy::MEMBERS,"$a:2",'access','1',$rows["$a:2"]['revision']),409,'A stale revision is refused');
 $workspace->executor->edit($admin,Tenancy::MEMBERS,"$a:2",'access','1',$result['revision']);
 check($workspace->tenancy->member('2',$a) && $access($a)["$a:2"]['access']==='1' && $audits()===$before+2,'Switching access on inserts the membership (audited)');
-$db->exec("UPDATE blade_tenant_members SET active=0 WHERE tenant_id='$a' AND actor_id='2'");
-$row=$access($a)["$a:2"];check($row['access']==='0' && !$workspace->tenancy->member('2',$a),'A suspended membership shows and acts as no access');
-$workspace->executor->edit($admin,Tenancy::MEMBERS,"$a:2",'access','1',$row['revision']);
-check($db->query("SELECT active FROM blade_tenant_members WHERE tenant_id='$a' AND actor_id='2'")->fetchColumn()==1 && $db->query("SELECT COUNT(*) FROM blade_tenant_members WHERE tenant_id='$a' AND actor_id='2'")->fetchColumn()==1,'Switching on re-enables a suspended membership row');
+$workspace->executor->edit($admin,Tenancy::MEMBERS,"$a:2",'access','1',$access($a)["$a:2"]['revision']);
+check($db->query("SELECT COUNT(*) FROM blade_tenant_members WHERE tenant_id='$a' AND actor_id='2'")->fetchColumn()==1,'Switching on an existing membership keeps one row');
 $account=$run($admin,Accounts::RESOURCE,'get','2');
 check(in_array($a,explode(',',$account['blade_tenant_ids']),true),'The Users form multiselect follows the access list');
 fails(fn()=>$workspace->executor->edit($admin,Tenancy::MEMBERS,"$a:2",'blade_email','x@example.test',$access($a)["$a:2"]['revision']),403,'Only the access switch is written');
@@ -166,16 +189,16 @@ fails(fn()=>$run($globalApi,'projects','list','',['limit'=>10]),403,'A global ke
 check(array_column($run($globalApi,'notices','list','',['limit'=>10])['items'],'title')===['Közös'],'A global key reaches global resources');
 fails(fn()=>$run($api,'notices','list','',[]),403,'The key scope still limits the action');
 // `_subview`: each listed parent carries the count of child records the same actor could list (one grouped COUNT).
-$expected=[];foreach($db->query('SELECT tenant_id, COUNT(*) FROM blade_tenant_members WHERE active=1 GROUP BY tenant_id')->fetchAll(PDO::FETCH_NUM) as [$t,$n])$expected[(string)$t]=(int)$n;
+$expected=[];foreach($db->query('SELECT tenant_id, COUNT(*) FROM blade_tenant_members GROUP BY tenant_id')->fetchAll(PDO::FETCH_NUM) as [$t,$n])$expected[(string)$t]=(int)$n;
 $counts=fn(array $items)=>array_column($items,'_subview','id');
 $tenants=$run($admin,Tenancy::RESOURCE,'list','',['limit'=>50])['items'];
 check(array_filter($counts($tenants),'is_int')===$counts($tenants) && count($counts($tenants))===count($tenants),'Every tenant carries an integer _subview');
 foreach($tenants as $t)check($t['_subview']===($expected[$t['id']]??0),'Tenant '.$t['id'].' access count');
 check($counts($tenants)[(string)$renamed['id']]===0 && ($tenants[0]['_subview_open']??null)===true && count($access((string)$renamed['id']))===3,'A tenant without members counts 0 but lists every account');
-check($counts($run($admin,Tenancy::RESOURCE,'list',null)) === $counts($tenants),'The plain listing carries the same counts');
-$db->exec("UPDATE blade_tenant_members SET active=0 WHERE tenant_id='$a' AND actor_id='1'");
-check($counts($run($admin,Tenancy::RESOURCE,'list','',['limit'=>50,'mode'=>'watch'])['items'])[$a]===$expected[$a]-1,'A suspended membership is not counted as access (watch snapshot)');
-$db->exec("UPDATE blade_tenant_members SET active=1 WHERE tenant_id='$a' AND actor_id='1'");
+check($counts($run($admin,Tenancy::RESOURCE,'list',null)['items']) === $counts($tenants),'A list without parameters carries the same counts');
+$db->exec("DELETE FROM blade_tenant_members WHERE tenant_id='$a' AND actor_id='1'");
+check($counts($run($admin,Tenancy::RESOURCE,'list','',['limit'=>50,'mode'=>'watch'])['items'])[$a]===$expected[$a]-1,'A removed membership is not counted as access (watch snapshot)');
+Tenancy::join($db,$a,'1');
 // A different tenant-scoped child: counts stay in the tenant and in the child's ACL predicate.
 $workspace->registry->subview('projects','tasks','project_id',embed:false);
 $db->exec("INSERT INTO tasks(tenant_id,title,project_id) VALUES ('$a','A1','1'),('$a','A2','1'),('$b','foreign','1')");

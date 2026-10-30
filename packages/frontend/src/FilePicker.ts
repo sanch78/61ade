@@ -6,7 +6,7 @@ import { actionUrl } from "./ActionUrl";
 import { uploads, type UploadResult } from "./Uploader";
 import { fileDisplay, type FieldDefinition, type FileFieldConfig } from "./FormValidation";
 import type { Row } from "./Realtime";
-import type { ViewDefinition } from "./Workspace";
+import type { ViewDefinition } from "./components/list/types";
 
 /** JSON call of another resource (the file manager) through the same UI channel, session and CSRF header. */
 export type ResourceCall=(resource:string,action:string,id:string|null,values?:Record<string,unknown>)=>Promise<any>;
