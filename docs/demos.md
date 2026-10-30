@@ -113,9 +113,9 @@ starter admin and the tenant demo stay declarative and load no project module.
   `packages/frontend/src/api`, run `npm run build` first so `admin.d.ts` is
   current.
 - **Declaration:** `application.php` `modules: ['app/demo.js']`; the shell
-  imports it as `app/demo.js?v=<version>` after sign-in. The application
-  `version` is the cache key, so a changed bundle is only refetched after a
-  revalidation or a version bump.
+  imports it as `app/demo.js?v=<mtime>-<size>` after sign-in. The key comes
+  from the built file ([cache keys](toolkit.md#cache-keys)), so a rebuilt
+  bundle is fetched on the next page load without a version bump.
 - **Structure:** `index.ts` is the module's default export. It calls one part
   per D-row in order; a failing part does not stop the later parts, and the
   failures are rethrown together so the loader reports the module once. A
@@ -296,8 +296,8 @@ See [project rules](development.md#mandatory-framework-development-rules).
 
 ## Verification
 
-- `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes; the starter admin and the tenant demo declare no modules or stylesheets, the feature demo exactly its versioned `app/demo.js` ([toolkit consumer](#toolkit-consumer)).
-- `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<version>` once (bootstrap `modules` and the network agree) and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules` and request no script outside `assets/`.
+- `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes; the starter admin and the tenant demo declare no modules or stylesheets, the feature demo exactly its `app/demo.js`, keyed by its built file ([toolkit consumer](#toolkit-consumer)), and the starter admin's `admin.js` by its file.
+- `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<file key>` once (bootstrap `modules`, the network and the file's mtime and size agree) and `admin.js` with its file key, never `?v=32`, and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules` and request no script outside `assets/`.
 - `npm run test:browser -- tests/shell/toolkit-demo-readings.spec.cjs` (written, not yet run): the [readings dashboard](#readings-dashboard) opens from the menu, its summary and chart data follow the header filter (compared with the `list` action) and the selected row, the theme switch repaints the chart and summary, the phone layout stacks and rebuilds at the breakpoint, navigating away leaves no chart, summary or listener; the plain `Mérések` list shows `demo.reading-bar` in table, cards and details and still sorts on the server.
 - Ignored `.env.test` supplies `BLADE_DEMO_URL` and `BLADE_DEMO_INSTANCE=web`; every browser spec runs against the managed server and none starts a local server ([development](development.md#unified-playwright-configuration)).
 - `npm run test:browser -- --project=shell tests/shell/demo.spec.cjs`: login modes/language row, provider overlay/start, mailbox code/English default, account columns, API issue/use/revoke, starter menu and Tasks. Real provider completion remains unverified; FB-0050 records Google's callback mismatch.
