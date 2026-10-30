@@ -1,4 +1,4 @@
-import type { Application, ColumnMetadata, ListOptions, ViewDefinition as PublicDefinition, ViewReference } from "../../api/types";
+import type { Application, ColumnMetadata, ListKindOptions, ViewDefinition as PublicDefinition, ViewReference } from "../../api/types";
 import { resolveColumn } from "../../app/registries";
 import { escape, optionText } from "../../RecordPresentation";
 import type { ViewDefinition } from "./types";
@@ -11,7 +11,7 @@ const plain=(column:Pick<ColumnMetadata,"id"|"type"|"options">,row:Record<string
  * sub-view's child view converted the same way. Columns and detail fields get their registered presentation or
  * field-type display here, once per mounted list or details (docs/toolkit.md#registries).
  */
-export function listDefinition(view:PublicDefinition<ListOptions>):ViewDefinition{
+export function listDefinition(view:PublicDefinition<ListKindOptions>):ViewDefinition{
   const subview=view.options.subview;
   const fields=[...(view.actions.find(action=>action.name==="update")?.fields??[]),...(view.actions.find(action=>action.name==="create")?.fields??[])];
   const resolve=<C extends ColumnMetadata>(columns:C[]|undefined)=>columns?.map(column=>resolveColumn(column,fields.find(field=>field.name===column.id),{escape,plain}));
@@ -26,10 +26,10 @@ export function listDefinition(view:PublicDefinition<ListOptions>):ViewDefinitio
  * be a list view (kind `list`, `options.columns`). An id that is not offered throws `Error`, any other view or value
  * `TypeError` (the rule of every component's view reference, `resolveView`).
  */
-export function resolveListView(app:Pick<Application,"viewDefinition">,reference:ViewReference<ListOptions>):PublicDefinition<ListOptions>{
+export function resolveListView(app:Pick<Application,"viewDefinition">,reference:ViewReference<ListKindOptions>):PublicDefinition<ListKindOptions>{
   const view=typeof reference==="string"?app.viewDefinition(reference):reference;
   if(typeof reference==="string"&&!view)throw new Error(`61ade: view "${reference}" is not offered to the actor.`);
-  if(!view||typeof view!=="object"||(view.kind!==undefined&&view.kind!=="list")||!Array.isArray((view.options as ListOptions|undefined)?.columns)||typeof view.resource!=="string")
+  if(!view||typeof view!=="object"||(view.kind!==undefined&&view.kind!=="list")||!Array.isArray((view.options as ListKindOptions|undefined)?.columns)||typeof view.resource!=="string")
     throw new TypeError(`61ade: "${typeof reference==="string"?reference:String((reference as {id?:unknown})?.id)}" is not a list view.`);
-  return view as PublicDefinition<ListOptions>;
+  return view as PublicDefinition<ListKindOptions>;
 }

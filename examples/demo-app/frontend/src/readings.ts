@@ -1,7 +1,7 @@
 // D3 Mérések (docs/demos.md#toolkit-consumer): the `demo.reading-bar` column presentation of the readings list and
 // the `demo.readings-dashboard` view kind, a page composed of the framework ListView, a Suite Chart from `app.dhx`
 // and an own summary, linked by the list's cursor record and filters. Types only from 61ade; everything else is `app`.
-import type { Application, ApplicationModule, ColumnPresentation, ListOptions, ListView, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
+import type { Application, ApplicationModule, ColumnPresentation, ListKindOptions, ListView, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 // The presentation's and the summary's rules; tools/build.mjs emits them into public/app/demo.css (`stylesheets`).
 import "./readings.css";
 
@@ -120,9 +120,9 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
   // The dashboard's list keeps its own mode, sort, columns and filters: a ListView keys its preferences by the id of
   // the definition it is given, so it gets the offered list view under the dashboard's view id. Filtering here never
   // changes the plain `Mérések` page (its preferences stay under `demo_readings`); the server still checks every call.
-  const source = app.viewDefinition(options.list) as ViewDefinition<ListOptions> | undefined;
+  const source = app.viewDefinition(options.list) as ViewDefinition<ListKindOptions> | undefined;
   if (!source || source.kind !== "list") throw new TypeError(`61ade feature demo: "${options.list}" is not an offered list view.`);
-  const listView: ViewDefinition<ListOptions> = { ...source, id: view.id };
+  const listView: ViewDefinition<ListKindOptions> = { ...source, id: view.id };
   const t =(key: string, params?: Record<string, unknown>) => app.i18n.t(key, params), locale = app.i18n.locale();
   const decimal = formatter(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const whole = formatter(locale, { maximumFractionDigits: 0 });
@@ -211,6 +211,6 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
 
 const readings: ApplicationModule = app => {
   app.presentations.register(BAR, readingBar(app));
-  app.views.register(KIND, { create: (host, view: ViewDefinition<DashboardOptions>) => dashboard(app, host, view) });
+  app.kinds.register(KIND, { create: (host, view: ViewDefinition<DashboardOptions>) => dashboard(app, host, view) });
 };
 export default readings;

@@ -4,7 +4,7 @@ import type { Application, ClientCommand, ColumnMetadata, CommandContext, Column
 export const NAME = /^[a-z][a-z0-9_.-]*$/;
 
 /**
- * A name → entry map of the toolkit (`views`, `presentations`, `fieldTypes`, `commands`). Built-in names have no dot
+ * A name → entry map of the toolkit (`kinds`, `presentations`, `fieldTypes`, `commands`). Built-in names have no dot
  * and are registered by 61ade with `builtin`; project names must contain one. A duplicate throws unless
  * `{replace: true}`, which is also how a project deliberately overrides a built-in entry.
  */

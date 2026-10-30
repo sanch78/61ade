@@ -1,7 +1,7 @@
 import { Layout, type Toolbar } from "@dhtmlx/suite";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { widgetIcons } from "../../WidgetIcons";
-import type { CommandBar as CommandBarApi, CommandBarOptions, CommandItem } from "../../api/types";
+import type { CommandBar as CommandBarApi, CommandBarEvents, CommandBarOptions, CommandItem } from "../../api/types";
 import { Component } from "./component";
 import { escape } from "./fields";
 
@@ -12,7 +12,7 @@ const ID=/^[A-Za-z0-9_.:-]+$/;
  * docs/toolkit.md#commandbar): the list's own `ResponsiveToolbar`, which moves every item into one `Műveletek`
  * menu below 768 px or when the items do not fit, keeping ids, state and click events.
  */
-export class CommandBar extends Component<{click:{id:string}}> implements CommandBarApi{
+export class CommandBar extends Component<CommandBarEvents> implements CommandBarApi{
   readonly layout:Layout;
   readonly toolbar:Toolbar;
   private bar:ResponsiveToolbar;

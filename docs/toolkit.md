@@ -2,7 +2,7 @@
 
 Status: **implemented** ([FB-0081](feedback.md#fb-0081)): project modules
 and stylesheets, the `app` services and [events](#event-catalog), the
-registries, built-in view kinds through the `views` registry, view ids,
+registries, built-in view kinds through the `kinds` registry, view ids,
 `#view=` routing with the `#feature=` alias, record views, the activation map,
 the components `ListView`, `RecordForm`, `RecordDetails`, `CommandBar`,
 `FileManager`, `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer` and
@@ -158,7 +158,7 @@ each member with one example.
 
 | Member | Purpose | Replaces or wraps |
 | --- | --- | --- |
-| `apiVersion` | `1` ([O11](#resolved-decisions)) | — |
+| `apiVersion` | `1` ([O11](#resolved-decisions)); a value of `app` only, `admin.d.ts` declares just its type `ApiVersion` | — |
 | `dhx` | The Suite namespace the shell uses (one instance, Standard edition) | `@dhtmlx/suite` import of the bundle |
 | `server` | Action calls, raw responses, `__form`, GET URLs | six private `fetch` transports, `ActionUrl.ts` |
 | `ui` | `dialog`, `choice`, `toast`, `window` | `MessageDialog.ts`, Suite `message`, `WindowSizing.ts` |
@@ -169,7 +169,7 @@ each member with one example.
 | `live` | `subscribe(resource, query, handlers, signal)` | `LiveChannel`/`Realtime` |
 | `events` | Typed bus `on/off/emit` ([event catalog](#event-catalog)) | uploader `on/off` |
 | `identity` | `id`, `displayName`, `tenant` | bootstrap `userId`, `displayName`, `tenant.current` |
-| `views`, `presentations`, `fieldTypes`, `commands` | [Registries](#registries) | hard-coded `AdminShell.openView`, `RecordPresentation` |
+| `kinds`, `presentations`, `fieldTypes`, `commands` | [Registries](#registries) | hard-coded `AdminShell.openView`, `RecordPresentation` |
 | `components` | [Components](#components) | `Workspace`, `FileManager`, … |
 | `viewDefinitions()`, `viewDefinition(id)` | Views offered to the actor | bootstrap `views` |
 | `navigate(target)` | Opens a view like a menu click; `false` if not offered | `AdminShell.openView` |
@@ -226,7 +226,7 @@ manager, list upload commands and `file` fields. A project never builds another
 upload dialog.
 
 ```ts
-const policy = (app.viewDefinition("files")!.options as FileManagerOptions).upload.policy;
+const policy = (app.viewDefinition("files")!.options as FilesKindOptions).upload.policy;
 // (a list view's upload action carries its own: view.actions.find(action => action.upload)?.upload)
 const target = { resource: "files", action: "upload", target: folderId, targetLabel: "Drive A:/Képek", policy };
 app.uploads.open({ ...target, onUploaded: ({ succeeded }) => refresh(succeeded) });   // once per batch
@@ -264,7 +264,7 @@ registration affects only surfaces created after it.
 
 | Registry | Built-in entries (61ade dogfoods them) | Declared on the server by |
 | --- | --- | --- |
-| `views` | `list`, `files`, `diagram`, `calendar` | the view `kind` |
+| `kinds` (view kinds) | `list`, `files`, `diagram`, `calendar` | the view `kind` |
 | `presentations` | `image` (static image column; `icon` stays framework-internal) | `Field` `column: ['presentation' => 'demo.bar']`, JSON `"column": {"presentation": "demo.bar"}` |
 | `fieldTypes` | none | `new Field(…, editor: 'demo.rating')`, JSON field `"editor": "demo.rating"` |
 | `commands` | `details` (the lists' `Adatok` command) | `Registry::view(…, commands: [...])`, `SqlResource::register(…, commands: [...])`, JSON `view.commands` |
@@ -282,7 +282,7 @@ new Field('priority', 'Prioritás', 'number', editor: 'demo.rating', column: ['e
 ```
 
 ```ts
-app.views.register("demo.asset-viewer", { create: (host, view) => mountViewer(host, view) });
+app.kinds.register("demo.asset-viewer", { create: (host, view) => mountViewer(host, view) });
 app.presentations.register("demo.bar", {
   render: (value, row, column, size, escape) =>
     `<span class="demo-bar demo-bar--${size}" style="--w:${Math.min(100, Number(value) || 0)}%">${escape(value)}</span>`,
@@ -341,7 +341,7 @@ command `demo.copy-text` ([example](#example-tasks)).
   every inline edit. Filters keep the storage type's input; calendar event
   forms take the `input` item only (no `bind`). The server keeps validating the
   value by the storage `type`.
-- **Client command** (`ListOptions.commands`): `label` (source text,
+- **Client command** (`ListKindOptions.commands`): `label` (source text,
   translated), `icon`, `placement`, `enabled`, `run`. Every command sits in the
   list's command bar: the declared ones after the view's actions, in
   declaration order whatever their placement, and they move into the
@@ -588,7 +588,7 @@ new app.components.Calendar({ view: "signage_schedule", signal: win.signal }).mo
 
 - `view` is an offered view id (`Error` when not offered to the actor) or a
   held `ViewDefinition` of any kind with `resource`, `actions` and the
-  `CalendarOptions`/`DiagramOptions` shape (`TypeError` otherwise). What the
+  `CalendarKindOptions`/`DiagramKindOptions` shape (`TypeError` otherwise). What the
   component offers follows `actions`: read-only without `create`/`update`
   (calendar) or `save` (diagram); the server checks every call again.
 - Lifecycle as for every component: create and `mount(target)` once (an
@@ -631,7 +631,7 @@ if (media) preview.show(media);                                      // MediaDes
 
 - **FileManager.** `view` is an offered view id (`Error` when not offered) or
   a held `ViewDefinition` with `resource`, `actions` and the
-  `FileManagerOptions` shape with at least one mount (`TypeError` otherwise).
+  `FilesKindOptions` shape with at least one mount (`TypeError` otherwise).
   Panels, mounts, upload (window, drop, paste), the viewer on
   [`MediaPlayer`](#mediaplayer) with previous/next, the text editor, the
   conflict and delete dialogs behave as in the built-in view and follow the
@@ -826,8 +826,8 @@ server-translated.
 | `resource` | `resource`, and `id` (default) |
 | `kind` (`files`/`diagram`/`calendar`; absent = list) | `kind`, always set (`list` explicit) |
 | `title`, `group`, `icon`, `desktopOnly`, `actions` | unchanged, top level |
-| list keys `columns`, `detailFields`, `filters`, `sortable`, `layout`, `singleton`, `rowNumbers`, `selection`, `rowSelection`, `rowHeight`, `tileMinWidth`, `tiles`, `activate`, `search`, `subview` | `options.*` (`ListOptions`) |
-| `files`, `diagram`, `calendar` | `options` (`FileManagerOptions`, `DiagramOptions`, `CalendarOptions`) |
+| list keys `columns`, `detailFields`, `filters`, `sortable`, `layout`, `singleton`, `rowNumbers`, `selection`, `rowSelection`, `rowHeight`, `tileMinWidth`, `tiles`, `activate`, `search`, `subview` | `options.*` (`ListKindOptions`) |
+| `files`, `diagram`, `calendar` | `options` (`FilesKindOptions`, `DiagramKindOptions`, `CalendarKindOptions`) |
 | placeholders `columns: []`, `filters: []`, `singleton: false` of non-list kinds | dropped |
 | — | `record`, `open` (new) |
 
@@ -1107,7 +1107,7 @@ declare module "@61ade/admin" {
 }
 
 const main: ApplicationModule = app => {
-  app.views.register("demo.player", {
+  app.kinds.register("demo.player", {
     create: host => {
       const frame = new app.components.SandboxFrame({ signal: host.signal });
       frame.mount(host);
@@ -1142,8 +1142,8 @@ sources, which enforces the types-only rule below.
 Import 61ade and Suite **types only** (`import type`): the bundle above
 contains no import at all. A runtime import of `@dhtmlx/suite` or `admin.js`
 would bundle a second instance; use `app.dhx` for Suite widgets. `admin.d.ts`
-also declares `apiVersion` from `src/api/index.ts`; read it as
-`app.apiVersion` at run time.
+declares types only (no run-time value to import): the contract generation is
+the type `ApiVersion`, its value `app.apiVersion`.
 
 <a id="event-catalog"></a>
 
@@ -1277,9 +1277,9 @@ Existing names stay as they are (no renames in API version 1):
 - **Event tense is mixed:** `select`, `activate`, `cancel` and `click` are
   present tense, `saved`, `changed`, `opened`, `loaded` and `ended` past
   tense; the uploader's page event is `upload:cancelled`.
-- **View option casing follows the kind:** `ListOptions` and `DiagramOptions`
-  are camelCase (`rowHeight`, `nodeTypes`), `FileManagerOptions`,
-  `CalendarOptions` and `UploadPolicy` snake_case (`max_depth`,
+- **View option casing follows the kind:** `ListKindOptions` and `DiagramKindOptions`
+  are camelCase (`rowHeight`, `nodeTypes`), `FilesKindOptions`,
+  `CalendarKindOptions` and `UploadPolicy` snake_case (`max_depth`,
   `default_view`, `max_size_bytes`).
 - **Column keys are passed through as declared:** `ColumnMetadata` may carry
   `imageBase` or `image_base`, `altOf` or `alt_of`, `mediaOf` or `media_of`;
@@ -1355,7 +1355,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
   const t = (key: string, params?: Record<string, unknown>) => app.i18n.t(key, params);
   if (!host.record) throw new Error(t("A médianéző egy médiaelemhez nyílik meg."));
   const row = host.record.row, listId = view.options?.details ?? host.record.resource;
-  const list = app.viewDefinition(listId) as ViewDefinition<ListOptions> | undefined;
+  const list = app.viewDefinition(listId) as ViewDefinition<ListKindOptions> | undefined;
   // …
   const render = (): void => {
     if (host.signal.aborted) return;
@@ -1394,7 +1394,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
 }
 
 const assets: ApplicationModule = app => {
-  app.views.register(KIND, { create: (host, view: ViewDefinition<ViewerOptions>) => viewer(app, host, view) });
+  app.kinds.register(KIND, { create: (host, view: ViewDefinition<ViewerOptions>) => viewer(app, host, view) });
 };
 ```
 
@@ -1488,9 +1488,9 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
   // The dashboard's list keeps its own mode, sort, columns and filters: a ListView keys its preferences by the id of
   // the definition it is given, so it gets the offered list view under the dashboard's view id. Filtering here never
   // changes the plain `Mérések` page (its preferences stay under `demo_readings`); the server still checks every call.
-  const source = app.viewDefinition(options.list) as ViewDefinition<ListOptions> | undefined;
+  const source = app.viewDefinition(options.list) as ViewDefinition<ListKindOptions> | undefined;
   if (!source || source.kind !== "list") throw new TypeError(`61ade feature demo: "${options.list}" is not an offered list view.`);
-  const listView: ViewDefinition<ListOptions> = { ...source, id: view.id };
+  const listView: ViewDefinition<ListKindOptions> = { ...source, id: view.id };
   // …
   const build = () => {
     // …
@@ -1520,7 +1520,7 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
 
 const readings: ApplicationModule = app => {
   app.presentations.register(BAR, readingBar(app));
-  app.views.register(KIND, { create: (host, view: ViewDefinition<DashboardOptions>) => dashboard(app, host, view) });
+  app.kinds.register(KIND, { create: (host, view: ViewDefinition<DashboardOptions>) => dashboard(app, host, view) });
 };
 ```
 

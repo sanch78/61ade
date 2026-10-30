@@ -1,4 +1,4 @@
-import type { FilePickerApi, FilePickerOptions, MediaDescriptor } from "../../api/types";
+import type { FilePicker as FilePickerApi, FilePickerOptions, MediaDescriptor } from "../../api/types";
 import { server } from "../../api/Server";
 import { FilePicker, fieldFolder, type ResourceCall } from "../../FilePicker";
 

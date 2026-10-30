@@ -534,6 +534,6 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
 }
 
 const playlist: ApplicationModule = app => {
-  app.views.register(KIND, { create: (host, view: ViewDefinition<PreviewOptions>) => preview(app, host, view) });
+  app.kinds.register(KIND, { create: (host, view: ViewDefinition<PreviewOptions>) => preview(app, host, view) });
 };
 export default playlist;
