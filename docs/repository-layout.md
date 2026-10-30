@@ -37,7 +37,9 @@ event bus); `app` the `Application`, registries, built-in kinds and routes;
 `media`, `sandbox`) and DHTMLX adapters; `sandbox` the frame bootstrap and document,
 built into `dist/sandbox.html` (the bootstrap inline). Older top-level modules (`AdminShell.ts`,
 `Uploader.ts`, `FileManager.ts`, …) are internals behind them
-([toolkit](toolkit.md)). Planned responsibilities: `shell`, `renderer`,
+([toolkit](toolkit.md)). `packages/frontend/brand` holds the 61ade product
+logo's SVGs and their generator `logo.mjs`, bundled into `admin.js`
+([brand](brand.md)). Planned responsibilities: `shell`, `renderer`,
 `actions`, `state`, `contracts`, `i18n` and `styles`.
 
 An empty adapter directory indicates planned scope, not an installed or licensed component.

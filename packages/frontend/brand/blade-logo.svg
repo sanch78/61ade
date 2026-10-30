@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="blade-logo blade-logo--light" viewBox="-12 -12 1405 370" role="img" aria-label="blade">
+  <!-- Geometry and parts: docs/brand.md -->
+  <defs>
+    <linearGradient id="blade-t1" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="346"><stop offset="0" stop-color="#1384C6"/><stop offset="1" stop-color="#0B2747"/></linearGradient>
+    <linearGradient id="blade-t2" gradientUnits="userSpaceOnUse" x1="150" y1="12" x2="295" y2="186"><stop offset="0" stop-color="#33CFC0"/><stop offset="1" stop-color="#0AA3A3"/></linearGradient>
+    <linearGradient id="blade-t3" gradientUnits="userSpaceOnUse" x1="150" y1="152" x2="295" y2="326"><stop offset="0" stop-color="#B4CBE0"/><stop offset="1" stop-color="#9DB6CF"/></linearGradient>
+    <linearGradient id="blade-asc" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="150"><stop offset="0" stop-color="#10C2BA"/><stop offset="1" stop-color="#0B2340"/></linearGradient>
+  </defs>
+  <g class="blade-logo__mark">
+    <polygon class="blade-logo__tile blade-logo__tile--1" points="12,72 118,24 118,286 12,334" fill="url(#blade-t1)" stroke="url(#blade-t1)" stroke-width="24" stroke-linejoin="round"/>
+    <polygon class="blade-logo__tile blade-logo__tile--2" points="162,24 283,78 283,174 162,120" fill="url(#blade-t2)" stroke="url(#blade-t2)" stroke-width="24" stroke-linejoin="round"/>
+    <polygon class="blade-logo__tile blade-logo__tile--3" points="162,164 283,218 283,314 162,260" fill="url(#blade-t3)" stroke="url(#blade-t3)" stroke-width="24" stroke-linejoin="round"/>
+  </g>
+  <g class="blade-logo__word">
+    <g class="blade-logo__glyph blade-logo__glyph--b"><path d="M365,214A108,108 0 1 1 581,214A108,108 0 1 1 365,214ZM421,214A52,52 0 1 0 525,214A52,52 0 1 0 421,214Z" fill="#0B2340"/><path d="M365,26L421,0V322H365Z" fill="url(#blade-asc)"/></g>
+    <g class="blade-logo__glyph blade-logo__glyph--l"><path d="M605,26L661,0V322H605Z" fill="url(#blade-asc)"/></g>
+    <g class="blade-logo__glyph blade-logo__glyph--a"><path d="M685,214A108,108 0 1 1 901,214A108,108 0 1 1 685,214ZM741,214A52,52 0 1 0 845,214A52,52 0 1 0 741,214Z" fill="#0B2340"/><path d="M845,106h56V322h-56Z" fill="#0B2340"/></g>
+    <g class="blade-logo__glyph blade-logo__glyph--d"><path d="M925,214A108,108 0 1 1 1141,214A108,108 0 1 1 925,214ZM981,214A52,52 0 1 0 1085,214A52,52 0 1 0 981,214Z" fill="#0B2340"/><path d="M1085,26L1141,0V322H1085Z" fill="url(#blade-asc)"/></g>
+    <g class="blade-logo__glyph blade-logo__glyph--e"><path d="M1349.8,290A108,108 0 1 1 1379.8,230H1221A52,52 0 0 0 1314,262ZM1221,198A52,52 0 0 1 1325,198Z" fill="#0B2340" fill-rule="evenodd"/></g>
+  </g>
+</svg>
