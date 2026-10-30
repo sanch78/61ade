@@ -876,7 +876,10 @@ await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, {
 `packages/php/bin/live-server.mjs`; `node tools/build.mjs --check` builds them in
 memory and fails on any difference. `packages/frontend/package.json` exports
 `./admin.js`, `./admin.css`, `./admin.d.ts`, `./sandbox.html` and
-`./sandbox.js`; `npm run demo:assets` copies the four runtime files. A
+`./sandbox.js`; `npm run demo:assets` copies the four runtime files. The same
+build writes and checks the feature demo's own module
+`examples/demo-app/public/app/demo.js` ([worked example](#typescript-recipe));
+it is demo output, not part of the package. A
 consumer that uses `SandboxFrame`:
 
 ```json
@@ -940,6 +943,18 @@ export default main;
 tsc -p tsconfig.json
 esbuild frontend/src/main.ts --bundle --format=esm --target=es2022 --outfile=public/app/main.js
 ```
+
+**Worked example:** the feature demo follows this recipe
+([toolkit consumer](demos.md#toolkit-consumer)). Its sources are
+`examples/demo-app/frontend/src` (`index.ts` and one file per demo area), its
+[`tsconfig.json`](../examples/demo-app/frontend/tsconfig.json) maps
+`@61ade/admin` straight to `packages/frontend/dist/admin.d.ts` because it lives
+in this repository (a consumer uses its `public/assets/61ade` link), `npm run
+typecheck` runs it as `tsc -p examples/demo-app/frontend`, and
+`tools/build.mjs` bundles it with the esbuild options above into
+`examples/demo-app/public/app/demo.js`, declared in `application.php` as
+`modules: ['app/demo.js']`. Its build refuses any import outside its own
+sources, which enforces the types-only rule below.
 
 Import 61ade and Suite **types only** (`import type`): the bundle above
 contains no import at all. A runtime import of `@dhtmlx/suite` or `admin.js`
@@ -1010,6 +1025,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-30 | Commands: every declared command is a list toolbar item after the view's actions, in declaration order (in the `Műveletek` menu when narrow); there is no record context menu. `placement: "toolbar"` acts on the view, `"record"` on the toolbar's cursor record like the built-in record actions (default enabled with a cursor record and at most one mark; an own `enabled` may accept the marks); `"both"` is accepted as `"record"`. `ListOptions.commands` is a server declaration (≤ 20 dotted names); the built-in Adatok is the `details` record command (toolbar id `blade-command:details`). | Owner decision at G3: one place for record actions, works on touch. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-30 | Commands while a sub-view record holds the toolbar: a command the sub-view's list has too (built-in `details`, a name its view declares; every command of a `shared` sub-view) gets the sub-view's context (`view`, `row` = its cursor record, `rows` = its marks); any other command stays on the list's own cursor record and marks. Previously every command saw the delegated record only for a `shared` sub-view and never saw marks while delegated. | Owner decision after G3: `view` and `row` of a command belong to one resource, like the built-in actions. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | Field types: new field option `editor` (dotted name; not for secret, password, file or media fields) in `ColumnMetadata.editor`; a field-type column is edited in the edit window, never the native Grid editor; filters keep the storage type's input; a presentation wins over a field type's `display`. Only `image` moved onto the presentations registry (`icon` stays internal). | Server validation keeps the storage type. | [FB-0081](feedback.md#fb-0081) |
+| 2026-10-30 | The [recipe](#typescript-recipe) names the feature demo (`examples/demo-app/frontend`, built to `public/app/demo.js`) as its worked example; no API change. | Toolkit P4 D0: the first real consumer of the recipe. | [FB-0081](feedback.md#fb-0081) |
 
 <a id="resolved-decisions"></a>
 
