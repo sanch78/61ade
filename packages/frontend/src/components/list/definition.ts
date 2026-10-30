@@ -23,11 +23,13 @@ export function listDefinition(view:PublicDefinition<ListOptions>):ViewDefinitio
 
 /**
  * A component's `view` option: an offered view id (`app.viewDefinition`) or a definition the caller holds; it must
- * be a list view (kind `list`, `options.columns`). Throws `TypeError` otherwise.
+ * be a list view (kind `list`, `options.columns`). An id that is not offered throws `Error`, any other view or value
+ * `TypeError` (the rule of every component's view reference, `resolveView`).
  */
 export function resolveListView(app:Pick<Application,"viewDefinition">,reference:ViewReference<ListOptions>):PublicDefinition<ListOptions>{
   const view=typeof reference==="string"?app.viewDefinition(reference):reference;
+  if(typeof reference==="string"&&!view)throw new Error(`61ade: view "${reference}" is not offered to the actor.`);
   if(!view||typeof view!=="object"||(view.kind!==undefined&&view.kind!=="list")||!Array.isArray((view.options as ListOptions|undefined)?.columns)||typeof view.resource!=="string")
-    throw new TypeError(`61ade: "${typeof reference==="string"?reference:String((reference as {id?:unknown})?.id)}" is not an offered list view.`);
+    throw new TypeError(`61ade: "${typeof reference==="string"?reference:String((reference as {id?:unknown})?.id)}" is not a list view.`);
   return view as PublicDefinition<ListOptions>;
 }

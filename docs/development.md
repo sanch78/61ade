@@ -267,7 +267,8 @@ the proxy is live: WebSocket selection does not fall back to polling.
 `deploy-site` refuses a `shared_assets` source when it is not in a Git
 checkout, when the copied paths have uncommitted or untracked files (ignored
 files are allowed), or when HEAD is not on its upstream. It records the copied
-library commit in the consumer's `.deploy-history.jsonl`. For this repository,
+library commit in `.deploy-history.jsonl` in the consumer's release target
+(`/space/apps/<project>/.deploy-history.jsonl`, not its dev checkout). For this repository,
 that means `packages/php` and the two `dist` files must always be committed and
 pushed. A half-done change there blocks every consumer's release until it is
 committed or removed.
@@ -302,6 +303,19 @@ change before every push.
   Consumer browser specs that assert `?v=32` or `?v=<version>` on these URLs
   must accept the file key.
 
+- **Toolkit transition (2026-10-29 to 2026-10-30, [FB-0081](feedback.md#fb-0081),
+  [ADR-0005](decisions/0005-toolkit.md)):** the owner accepted breaking changes
+  for this transition. As an exception to the rule above, the consumers migrate
+  afterwards in their own sessions; 61ade sessions do not edit them. The
+  [migration guide](toolkit.md#migration) lists every breaking and
+  consumer-relevant change since `131263a`, the 61ade commit both consumers
+  last released (M1–M15: `#view=` routing with the `#feature=` alias,
+  `view:<id>` menu ids, `View` return values, `stylesheets`, sandbox files,
+  file cache keys including the released `?v=30`, record commands in the list
+  toolbar only, and the rest), followed by the ordered steps of a consumer
+  session. Per-consumer notes: [StoryBloX](handoff/storyblox.md),
+  [allflow](handoff/allflow.md).
+
 #### Consumer update smoke check
 
 The update reaches a consumer by itself, so the check comes after the push and
@@ -310,7 +324,8 @@ before the consumer's next release:
 1. List what changed since the commit last released:
    `git -C /space/share/libs/61ade log --oneline <commit>..origin/main`, with
    `<commit>` taken from the last `shared_assets` record in
-   `.deploy-history.jsonl`. Read the matching [feedback](feedback.md) entries
+   `/space/apps/<project>/.deploy-history.jsonl` (the release target, not
+   the dev checkout). Read the matching [feedback](feedback.md) entries
    for contract changes.
 2. On the consumer's development URL: sign in, open the menu, open one list
    and one form, save one synthetic change and revert it. Check the browser
@@ -419,6 +434,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Event calendar | `php8.4 tests/shell/calendar.php`; shell `calendar.spec.cjs` |
 | File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
+| Feature demo module (`examples/demo-app/frontend`) | `npm run typecheck`, `npm run build` (`node tools/build.mjs --check`); PHP `contracts.php`, `signage.php`; shell `toolkit-demo*.spec.cjs` of the changed area |
 | Toolkit (modules, views, registries, routing) | PHP `toolkit.php`, `contracts.php`, `configuration.php`, `lists.php`; `node tests/shell/toolkit-kernel.mjs`, `toolkit-list.mjs`, `toolkit-components.mjs`, `toolkit-registries.mjs`, `toolkit-sandbox.mjs`, `ui-preferences.mjs`; shell `browser.spec.cjs`, `preferences.spec.cjs`, `activation.spec.cjs`, `toolkit-*.spec.cjs` |
 
 PHP shorthand in the table means `php8.4 tests/shell/<name>.php`.
@@ -644,23 +660,43 @@ channel enforces authorization, and agent-written or otherwise untrusted code
 runs only in a sandboxed `<iframe>` (`sandbox="allow-scripts"`, no
 same-origin), never in the admin session's origin.
 
+**Toolkit** ([ADR-0005](decisions/0005-toolkit.md), [toolkit](toolkit.md)):
+61ade is a toolkit, and its built-in views use the same public API as a
+project. A project writes declarations (PHP/JSON resources, views, record
+views, activation maps, i18n catalogues), its PHP action handlers, and, where
+it needs more, its own browser modules (`modules`/`stylesheets`) that register
+view kinds, column presentations, field types and client commands and compose
+the public components through the `Application` it receives. What stays
+mandatory: the shared infrastructure above is used, never rebuilt; every
+server read and write is a registered action checked on the server (a module
+runs with the user's session, the same trust as the project's PHP handlers,
+and gains no right from it); backend-only data never enters view `options`;
+code the project does not trust runs only in `SandboxFrame`. Inside 61ade,
+"framework first" means building the reusable tool with DHTMLX, not
+forbidding the project's code; a purely declarative application stays fully
+supported.
+
 61ade is ADE v2, a reusable admin framework in a separate Git repository.
 It owns application startup, configuration, authentication/session, permissions,
 menus, layout, windows, forms, grids, communication, errors and state management.
 UI controls use its DHTMLX adapters by default. Consumers own configuration,
-business definitions/rules and concrete identity/data/integration adapters.
+business definitions/rules, concrete identity/data/integration adapters and
+their own browser modules.
 Do not add hand-built HTML/CSS replacements for the shared admin
 infrastructure or parallel infrastructure to compensate for a missing framework
 capability; a project's domain UI is not such a replacement.
 
 Every application requires the framework's user, ACL, API-key and log admin
 built from its own definitions/tools (FB-0036, ADR-0003). Consumers supply
-configuration and adapters. The [product direction](product-direction.md)
+configuration, adapters and, where needed, modules. The [product direction](product-direction.md)
 R1–R12 is canonical; distinguish accepted requirements, evidence and open work.
 There is no external framework benchmark or exhaustive component target
 (FB-0037). New capabilities must be localized, themed, represented in the feature
-demo and documented in the event catalog. No eval/executable configuration
-strings; generated ACL catalogs never grant permission.
+demo and documented in the event catalog. No eval or executable strings in
+configuration and none in the admin origin; untrusted code (for example
+agent-written scenes) runs only inside the opaque-origin `SandboxFrame`
+([O7](toolkit.md#resolved-decisions); R8 covers configuration and the admin
+origin). Generated ACL catalogs never grant permission.
 
 Keep CityScreen/ADE business code, table names, production data and integration
 dependencies out of 61ade. Do not modify CityScreen runtime, database or old admin
@@ -669,8 +705,9 @@ library and must not be edited during 61ade work. Its links are
 `lib/_AuthHandler` and `examples/demo-app/public/lib/_AuthHandler`. Fill gaps
 in the 61ade adapter or a separately authorized library task (FB-0046).
 
-Source locations: PHP `packages/php`, frontend `packages/frontend`, tests
-`tests`, tools `tools`. The root README is the only project README; detailed
+Source locations: PHP `packages/php`, frontend `packages/frontend` (public
+API `src/api`, components `src/components`), the feature demo's project
+module `examples/demo-app/frontend`, tests `tests`, tools `tools`. The root README is the only project README; detailed
 documentation belongs in focused `docs/*.md`. Commit only synthetic fixtures/
 demo data; never secrets, vendored PRO packages, node_modules or vendor.
 

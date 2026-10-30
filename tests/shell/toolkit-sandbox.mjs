@@ -31,10 +31,10 @@ assert.equal(describe(new Error('boom')),'boom');assert.equal(describe('x'.repea
 assert.equal(byteLength('aé€'),6);
 
 // A fake frame document: its window, its parent and the delivered code's global object.
-function frameSide(parent){
+function frameSide(parent,origin='null'){
  const global={},handlers={message:[],error:[],unhandledrejection:[]},urls=[];
  const fire=(type,event)=>{for(const handler of handlers[type])handler(event);};
- startSandbox({self:{},parent,global,on:(type,handler)=>handlers[type].push(handler),objectUrl:blob=>{urls.push(blob);return 'blob:null/'+urls.length;},
+ startSandbox({self:{},origin,parent,global,on:(type,handler)=>handlers[type].push(handler),objectUrl:blob=>{urls.push(blob);return 'blob:null/'+urls.length;},
   execute(source,failed){if(global.failExecute)return failed();try{new Function('globalThis',source)(global);}catch(error){fire('error',{error});}}});
  return {global,fire,urls,receive:data=>fire('message',{source:parent,data})};
 }
@@ -42,8 +42,13 @@ function frameSide(parent){
 // Frame side alone.
 {
  const sent=[],parent={postMessage:(message,origin)=>{assert.equal(origin,'*');sent.push(message);}};
- const notFramed={};startSandbox({self:notFramed,parent:notFramed,global:notFramed,on(){throw new Error('must not listen');}});
+ const notFramed={};startSandbox({self:notFramed,origin:'null',parent:notFramed,global:notFramed,on(){throw new Error('must not listen');}});
  assert.equal('blade' in notFramed,false,'a top-level sandbox.html stays inert');
+ // Framed without `sandbox`, or with `allow-same-origin`: a real origin, so no code may ever run there.
+ for(const origin of ['https://admin.test','',undefined]){
+  const global={};startSandbox({self:{},origin,parent:{postMessage(){throw new Error('must not post');}},global,on(){throw new Error('must not listen');},execute(){throw new Error('must not run');}});
+  assert.equal('blade' in global,false,`a frame of origin ${String(origin)} stays inert`);
+ }
  const frame=frameSide(parent);
  assert.equal(Object.isFrozen(frame.global.blade),true);
  frame.fire('message',{source:{},data:{blade:1,id:'p1',type:'load',payload:{code:'',files:{}}}});assert.equal(sent.length,0,'other sources are ignored');
@@ -121,18 +126,29 @@ try{
  const count=events.length,valid={blade:1,id:'x',type:'demo.pong',payload:1};
  toParent({source:{},origin:'null',data:valid});toParent({source:frame.contentWindow,origin:'https://admin.test',data:valid});toParent({source:null,origin:'null',data:valid});
  assert.equal(events.length,count);
+ // A frame document reports the first failure its messages cause; later ones (any number) are dropped, and its
+ // project messages keep arriving.
+ const warnings=[];console.warn=line=>warnings.push(line);
  toParent({source:frame.contentWindow,origin:'null',data:{blade:1,id:'x',type:'load',payload:{}}});
- toParent({source:frame.contentWindow,origin:'null',data:{blade:1,id:'x',type:'nodot',payload:{}}});
- toParent({source:frame.contentWindow,origin:'null',data:{blade:1,id:'x',type:'error',payload:{message:'x'.repeat(5000)}}});
- assert.deepEqual(events.slice(count).map(([name,{code}])=>[name,code]),[['error','protocol'],['error','protocol'],['error','error']]);
- assert.equal(events.at(-1)[1].message.length,1001);assert.deepEqual(reports.map(r=>r.code),['protocol','protocol','error']);
+ for(let i=0;i<50;i++){
+  toParent({source:frame.contentWindow,origin:'null',data:{blade:1,id:'x',type:'nodot',payload:{}}});
+  toParent({source:frame.contentWindow,origin:'null',data:{blade:1,id:'x',type:'error',payload:{message:'x'.repeat(5000)}}});
+ }
+ toParent({source:frame.contentWindow,origin:'null',data:valid});
+ assert.deepEqual(events.slice(count).map(([name,payload])=>[name,payload.code??payload.type]),[['error','protocol'],['message','demo.pong']]);
+ assert.deepEqual(reports.map(r=>r.code),['protocol']);assert.equal(warnings.length,1,'one console line');console.warn=()=>{};
  // A second document load (navigation or reload) is a protocol error and removes the frame.
  frame.fire();assert.equal(frame.removed,true);assert.deepEqual(events.at(-1),['error',{message:'The sandbox document was navigated or reloaded.',code:'protocol'}]);
  assert.throws(()=>sandbox.post('demo.ping',1),/not ready/);
 
- // Load failures reject with the event's code; the frame-side error text is reported.
+ // Load failures reject with the event's code; the frame-side error text is reported (at most 1000 characters + …).
  const failing=sandbox.load('throw new Error("boom");');frames.at(-1).fire();
  await assert.rejects(failing,error=>error.code==='error'&&error.message==='boom');
+ const long=sandbox.load('throw new Error("x".repeat(5000));');frames.at(-1).fire();
+ await assert.rejects(long,error=>error.code==='error'&&error.message.length===1001);
+ // Project messages are delivered before `ready` too (code may report during its evaluation).
+ const early=sandbox.load('blade.post("demo.early",1);await new Promise(resolve=>setTimeout(resolve,20));');frames.at(-1).fire();await tick();await tick();
+ assert.deepEqual(events.at(-1),['message',{type:'demo.early',payload:1}]);await early;
  const syntax=sandbox.load('}{');frames.at(-1).fire();await assert.rejects(syntax,{code:'error'});
  // A newer load replaces a pending one.
  const first=sandbox.load('');const second=sandbox.load('');assert.equal(frames.at(-2).removed,true);
@@ -144,10 +160,12 @@ try{
  await assert.rejects(small.load('',{a:new Blob(['123456'])}),{code:'size'});await assert.rejects(small.load('',{a:5}),TypeError);
  assert.equal(frames.length,before);assert.equal(current.removed,false);
  await assert.rejects(sandbox.load('x'.repeat(SANDBOX_LIMITS.code+1)),{code:'size'});assert.equal(current.removed,false);
+ // A refused oversized load leaves a pending earlier load alone: it still becomes ready.
+ const kept=sandbox.load('');await assert.rejects(sandbox.load('x'.repeat(SANDBOX_LIMITS.code+1)),{code:'size'});frames.at(-1).fire();await kept;
  small.destroy();
 
  // Timeout: no ready in time removes the frame.
- const slow=new SandboxFrame({readyTimeout:30}),slowEvents=[];slow.on('error',payload=>slowEvents.push(payload));
+ const slow=new SandboxFrame({readyTimeout:30}),slowEvents=[];slow.on('error',payload=>slowEvents.push(payload));slow.mount(new FakeElement('div'));
  const stuck=slow.load('await new Promise(()=>{});');frames.at(-1).fire();
  await assert.rejects(stuck,{code:'timeout'});assert.equal(frames.at(-1).removed,true);assert.equal(slowEvents[0].code,'timeout');assert.equal(reports.at(-1).code,'timeout');
 
@@ -159,5 +177,19 @@ try{
  const controller=new AbortController(),bound=new SandboxFrame({signal:controller.signal});controller.abort();assert.equal(bound.layout.destroyed,true);
  const done=new AbortController();done.abort();assert.equal(new SandboxFrame({signal:done.signal}).layout.destroyed,true);
  sandbox.destroy();assert.equal(windowListeners.size,0);
+
+ // Lifecycle (docs/toolkit.md#components): events only while mounted, one mount, a closing host or cell owner.
+ const quiet=new SandboxFrame({maxCodeBytes:1}),quietEvents=[],before2=reports.length;quiet.on('error',payload=>quietEvents.push(payload));
+ await assert.rejects(quiet.load('12'),{code:'size'});assert.equal(quietEvents.length,0,'no component event before mount');assert.equal(reports.length,before2+1,'sandbox:error still reports');
+ assert.throws(()=>quiet.on('error','nope'),TypeError);assert.throws(()=>new SandboxFrame({signal:{}}),TypeError);
+ const cell={widget:null,attach(widget){this.widget=widget;},getWidget(){return this.widget;},detach(){this.widget=null;}};
+ quiet.mount(cell);assert.equal(cell.widget,quiet.layout);assert.throws(()=>quiet.mount(new FakeElement('div')),/already mounted/);
+ await assert.rejects(quiet.load('12'),{code:'size'});assert.equal(quietEvents.length,1,'mounted: the event arrives');
+ quiet.destroy();assert.equal(cell.widget,null,'destroy detaches the cell');assert.throws(()=>quiet.mount(cell),/destroyed/);
+ const host=new AbortController(),hosted=new SandboxFrame(),attached=[];hosted.mount({signal:host.signal,attach:content=>attached.push(content)});
+ assert.equal(attached[0],hosted.layout);host.abort();assert.equal(hosted.layout.destroyed,true,'a closing host destroys the frame');
+ const closed=new AbortController();closed.abort();const late=new SandboxFrame();late.mount({signal:closed.signal,attach(){throw new Error('closed host must not be attached');}});
+ assert.equal(late.layout.destroyed,true,'an already closed host destroys the frame');
+ assert.equal(windowListeners.size,0);
 }finally{console.warn=warn;}
-console.log('Toolkit sandbox: envelope, limits, frame bootstrap, SandboxFrame source/origin checks, ready/error/timeout, navigation kill, destroy PASS');
+console.log('Toolkit sandbox: envelope, limits, frame bootstrap, SandboxFrame source/origin checks, ready/error/timeout, one error report per document, navigation kill, lifecycle, destroy PASS');

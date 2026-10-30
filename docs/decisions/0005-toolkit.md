@@ -60,7 +60,7 @@ own screens are built from the same building blocks.
 - The public API becomes a contract with its own reference documentation,
   type declarations and breaking-change notes: the
   [toolkit reference](../toolkit.md), `packages/frontend/src/api/types.ts`
-  and `Blade\Feature\View`/`ViewKindProvider` (contract only until P2/P3).
+  and `Blade\Feature\View`/`ViewKindProvider` (implemented in P2/P3).
 - Resolved plan decisions ([details](../toolkit.md#resolved-decisions)):
   modules get the `Application` by injection, no import map (O1); plain ES
   modules or project-built TypeScript with `admin.d.ts` (O2); a view `id`

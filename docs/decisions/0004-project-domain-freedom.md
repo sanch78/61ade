@@ -3,7 +3,11 @@
 Date: 2026-10-29. Accepted owner decision ([FB-0080](../feedback.md#fb-0080)).
 
 > Extended the same day by [ADR-0005](0005-toolkit.md): 61ade becomes a toolkit;
-> the planned custom view below is absorbed into the [toolkit plan](../toolkit-plan.md).
+> the planned custom view below is absorbed into the [toolkit plan](../toolkit-plan.md)
+> and implemented: project modules and view kinds for trusted code,
+> `SandboxFrame` for untrusted code ([toolkit](../toolkit.md)). The interim
+> "own pages from its own webroot" route of the consequences is no longer
+> needed.
 Supersedes the narrow "logically unextendable" exception of
 [ADR-0002](0002-framework-first.md) and R2 in
 [product direction](../product-direction.md) for consumer projects. Inside

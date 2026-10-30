@@ -30,11 +30,15 @@ migrates automatically.
 
 ## Frontend
 
-Planned responsibilities under `packages/frontend/src`: `app` for initialization
-and services; `shell` for layout/navigation; `renderer` for schema-based component
-construction; `components` for DHTMLX adapters; `actions` for action dispatch;
-`api` for transport; `state` for workspace/view state; `contracts` for
-server/client contracts; `i18n` and `styles` for shared translation and styling.
+Under `packages/frontend/src`: `api` holds the public toolkit API (`types.ts`,
+the source of `dist/admin.d.ts`, the `Server` transport, services and the
+event bus); `app` the `Application`, registries, built-in kinds and routes;
+`components` the public components (`list`, `files`, `calendar`, `diagram`,
+`media`, `sandbox`) and DHTMLX adapters; `sandbox` the frame bootstrap built
+into `dist/sandbox.js`. Older top-level modules (`AdminShell.ts`,
+`Uploader.ts`, `FileManager.ts`, …) are internals behind them
+([toolkit](toolkit.md)). Planned responsibilities: `shell`, `renderer`,
+`actions`, `state`, `contracts`, `i18n` and `styles`.
 
 An empty adapter directory indicates planned scope, not an installed or licensed component.
 
@@ -44,6 +48,9 @@ An empty adapter directory indicates planned scope, not an installed or licensed
 
 `examples/demo-app` consumes both packages independently, using synthetic
 organizations, projects, tasks and documents rather than copies of CityScreen modules.
+Its project module sources are `examples/demo-app/frontend/src`, built into
+`examples/demo-app/public/app/demo.js` and `demo.css`
+([toolkit consumer](demos.md#toolkit-consumer)).
 
 The planned test layers are `tests/php`, `tests/frontend`, `tests/contracts`,
 `tests/e2e`, `tests/performance` and `tests/fixtures`; current runnable scripts
@@ -63,6 +70,11 @@ and content-source integrations belong in `v2/src/Integrations`. Consumer
 domain UI and its browser code belong to the consumer
 ([ADR-0004](decisions/0004-project-domain-freedom.md)); a missing general
 renderer capability is requested from 61ade without blocking the consumer.
+The consumer keeps its module sources in its own repository (for example
+`frontend/src`), builds them into its public directory (for example
+`public/app/main.js`) and declares them in `modules`
+([toolkit packaging](toolkit.md#packaging),
+[recipe](toolkit.md#typescript-recipe)).
 
 Both 61ade packages share a repository because they implement one protocol.
 The consumer application never belongs in this repository.

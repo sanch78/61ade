@@ -85,7 +85,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Network topology builder | Visual diagram editor: drag network elements from the palette, move them, connect them by the element handle with Ethernet/fibre/Wi-Fi/VPN/WAN connections, edit captions and details in the property form, save with revision check; define new element types (name, glyph, shape, colour) at runtime; two synthetic topologies; desktop only; [details](diagrams.md) | Feature demo → Hálózati topológia; `reader@example.test` views only |
 | Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Üres polc`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `C zóna` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
-| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content (asset) select and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter opening audio and video in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)) and images in their details, delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date; `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor` previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
+| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content (asset) select and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter opening audio and video in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)) and images in their details, delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date; `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
 | Appearance | Skyblue/light/dark, lower information bar and mobile menu | Any view |
@@ -126,14 +126,21 @@ starter admin and the tenant demo stay declarative and load no project module.
   per D-row in order; a failing part does not stop the later parts, and the
   failures are rethrown together so the loader reports the module once. A
   D-row adds `src/<file>.ts` with a default-exported `ApplicationModule` and
-  replaces only its own slot line in `index.ts` with the import.
+  replaces only its own slot line in `index.ts` with the import. Excerpts of
+  every part are the toolkit's [worked examples](toolkit.md#worked-examples).
+- **Gate G4 (2026-10-30):** the owner tried D1–D4 on the managed URL and
+  accepted them. Decided at the gate, stated as limits, not open work: no
+  `ListView` `marked` event (D3), no `Hang` in the `Médiatár` type filter and
+  the file picker (D1), no `MediaPlayer` playback-state event; a project that
+  needs one builds it itself ([toolkit limits](toolkit.md#limits)). Marks and
+  row selection are transient and never persisted.
 
 | Row | Area | File | Status |
 | --- | --- | --- | --- |
 | D0 | Build, declaration, empty module | `index.ts` | Implemented; registers nothing visible |
 | D1 | Signage `Médiatár` asset viewer | `assets.ts` | Implemented ([below](#d1-asset-viewer)) |
-| D2 | Signage `Napi műsor` playlist preview | `playlist.ts` | Implemented ([below](#toolkit-d2-playlist)); browser spec written, not yet run |
-| D3 | `Mérések` dashboard | `readings.ts` | Implemented ([below](#readings-dashboard)); browser spec written, not yet run |
+| D2 | Signage `Napi műsor` playlist preview | `playlist.ts` | Implemented ([below](#toolkit-d2-playlist)) |
+| D3 | `Mérések` dashboard | `readings.ts` | Implemented ([below](#readings-dashboard)) |
 | D4 | `Tasks` field type and command | `tasks.ts` | Implemented: field type `demo.rating` on `Prioritás` and record command `demo.copy-text` ([below](#toolkit-d4-tasks)) |
 | D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` and `app/demo.css` on the feature demo |
 
@@ -181,8 +188,9 @@ starter admin and the tenant demo stay declarative and load no project module.
   the ListView (with its live subscription), the theme listener, the
   breakpoint listener, the Chart and the Layout are destroyed.
 - **Limits:** the toolkit `ListView` reports the cursor record but not the
-  marked rows, so the dashboard follows selection and filters, not marks. The
-  presentation has no per-column options, so its scale is fixed at 100. The
+  marked rows (no `marked` event, owner decision at G4), so the dashboard
+  follows selection and filters, not marks. A presentation has no per-column
+  options, so the bar's scale is fixed at 100. The
   feature demo offers Hungarian and English only; the English texts are in
   `resources/locales/en.json`.
 - **What to try:** open `Mérési irányítópult`, type `Mérés 000` into the
@@ -248,8 +256,9 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   asset's `Médiafájl` field accepts `audio` beside `image` and `video`, so
   `Fájl feltöltése…` in the asset form and `Feltöltés` take audio files. The
   row shows `Hang` as the type and the probed length. The field's picker
-  (`Kiválasztás…`) does not list audio files yet: it knows the image, video
-  and text classes only ([files limits](files.md#limits)).
+  (`Kiválasztás…`) lists no audio files and the `Médiatár` type filter offers
+  no `Hang`: the file manager has no audio class (owner decision at G4, a
+  stated limit; [files limits](files.md#limits)).
 - **Declaration** ([signage.json](../examples/demo-app/modules/signage.json)):
   the record view `views.demo.asset-viewer` (kind `demo.asset-viewer`,
   `record: signage_assets`, action `get`, `open: page`, options `loop` and
@@ -306,8 +315,9 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
 - **Code delivery:** `signage_playlist.scene` (`values.asset`, label
   `Jelenet kódja`) answers `{asset, title, name, bytes, code}` for a scene
   asset's live file of at most 256 KiB UTF-8 (404 unknown or without a file,
-  415 not a scene, 413 larger). Who may preview the day (whose answer names
-  every asset and file) may read its scenes; setup grants both actions to
+  415 not a scene, 413 larger). It serves only a scene file the actor may also
+  read through the file manager (`files.content_stream` on the file's mount,
+  else 404); setup grants both actions to
   `demo@example.test` and `reader@example.test`. The page fetches the code
   through the action, never as a static file: the frame has
   `connect-src 'none'`.
@@ -375,7 +385,8 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   `scene` type, code action, limits, rights, view metadata),
   `php8.4 tests/shell/contracts.php` (the view after the real setup);
   `npm run test:browser -- tests/shell/toolkit-demo-playlist.spec.cjs`
-  (written, not yet run). `calendar.spec.cjs` (Friday timeline) and
+  (timeline, playhead, scene protocol, day change, `sandbox:error`,
+  destruction, phone width, dark theme). `calendar.spec.cjs` (Friday timeline) and
   `browser.spec.cjs` (five `Digitális kijelző` siblings at 1366 px) follow
   the new data and menu entry.
 
@@ -488,7 +499,12 @@ this self-reload needs one last owner restart ([FB-0075](feedback.md#fb-0075)).
 
 Every demonstrable new framework capability enters the full feature demo as
 module, field, action or configuration and the table above in the same batch.
-The starter admin changes only when the mandatory starter set changes.
+A new or changed public toolkit API also gets a use in the demo's project
+module ([toolkit consumer](#toolkit-consumer)) and, where it shows the API
+better than an invented snippet, an excerpt in the toolkit's
+[worked examples](toolkit.md#worked-examples). The starter admin and the
+tenant demo stay declarative (no modules); the starter admin changes only
+when the mandatory starter set changes.
 See [project rules](development.md#mandatory-framework-development-rules).
 
 <a id="ellenőrzés"></a>
@@ -497,10 +513,11 @@ See [project rules](development.md#mandatory-framework-development-rules).
 
 - `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes; the starter admin and the tenant demo declare no modules or stylesheets, the feature demo exactly its `app/demo.js` and `app/demo.css`, each keyed by its built file ([toolkit consumer](#toolkit-consumer)), and the starter admin's `admin.js` by its file.
 - `php8.4 tests/shell/signage.php`: the audio fixtures (Signage root, stored type, length, one asset each, an idempotent step restoring only a missing asset), audio upload as an asset, the activation map and the offered record view `demo.asset-viewer` (also for the reader, not without `signage_assets.get`).
-- `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<file key>` once (bootstrap `modules`, the network and the file's mtime and size agree) and `admin.js` with its file key, never `?v=32`, links `app/demo.css?v=<file key>` once after `admin.css` (written, not yet run), and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules`, request no script outside `assets/` and link no `app/demo.css`.
+- `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<file key>` once (bootstrap `modules`, the network and the file's mtime and size agree) and `admin.js` with its file key, never `?v=32`, links `app/demo.css?v=<file key>` once after `admin.css`, and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules`, request no script outside `assets/` and link no `app/demo.css`.
 - `npm run test:browser -- tests/shell/toolkit-demo-tasks.spec.cjs` ([D4](#toolkit-d4-tasks)): `Prioritás` edited through the table cell's edit button, the update and create panel forms and the card editor (pointer and keyboard), saved through `__edit`/`update`/`create` and re-rendered (also in `Adatok`); a value rewritten in transit is refused by the server with the field error in the editor; `Másolás szövegként` disabled without a record, copying the cursor record and the marks (stubbed clipboard, exact text), a refused clipboard in the error dialog, from `Műveletek` at 390 px; the stars follow light/dark/Skyblue. Tasks carry a run prefix and are deleted.
 - `npm run test:browser -- tests/shell/toolkit-demo-readings.spec.cjs`: the [readings dashboard](#readings-dashboard) opens from the menu, its summary and chart data follow the header filter (compared with the `list` action) and the selected row, the theme switch repaints the chart and summary, the phone layout stacks and rebuilds at the breakpoint, navigating away leaves no chart, summary or listener, and a filter set on the dashboard leaves the `Mérések` page unfiltered; the plain `Mérések` list shows `demo.reading-bar` in table, cards and details and still sorts on the server.
-- `npm run test:browser -- tests/shell/toolkit-demo-assets.spec.cjs` (D1, written; needs the audio assets on the managed demo): audio type and length columns, an audio upload through the asset's file field, activation per media class in table, cards and tiles (`aria-description` `Megnyitás: Médianéző`/`Megnyitás: Adatok`), Back and `Vissza a listához`, an image record by address, play, pause, `Elejére`, `Előre`/`Vissza 5 mp`, loop at the end and its preference across a reload, the details content, a record change, themes, destruction on leaving, an unknown record, and the 390 px layout rebuilt at 1400 px with the position kept. It deletes the assets and files it creates.
+- `npm run test:browser -- tests/shell/toolkit-demo-assets.spec.cjs` (D1; needs the audio assets on the managed demo): audio type and length columns, an audio upload through the asset's file field, activation per media class in table, cards and tiles (`aria-description` `Megnyitás: Médianéző`/`Megnyitás: Adatok`), Back and `Vissza a listához`, an image record by address, play, pause, `Elejére`, `Előre`/`Vissza 5 mp`, loop at the end and its preference across a reload, the details content, a record change, themes, destruction on leaving, an unknown record, and the 390 px layout rebuilt at 1400 px with the position kept. It deletes the assets and files it creates.
+- `npm run test:browser -- tests/shell/toolkit-demo-playlist.spec.cjs` ([D2](#toolkit-d2-playlist)): see its checks there.
 - Ignored `.env.test` supplies `BLADE_DEMO_URL` and `BLADE_DEMO_INSTANCE=web`; every browser spec runs against the managed server and none starts a local server ([development](development.md#unified-playwright-configuration)).
 - `npm run test:browser -- --project=shell tests/shell/demo.spec.cjs`: login modes/language row, provider overlay/start, mailbox code/English default, account columns, API issue/use/revoke, starter menu and Tasks. Real provider completion remains unverified; FB-0050 records Google's callback mismatch.
 - `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs`: six combinations on desktop/320×480, keys/focus and invalid-login caller.

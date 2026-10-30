@@ -5,14 +5,18 @@ Suite Standard 9.3.12 is installed and shell/workspace adapters are in use.
 PRO capabilities are not in the installed package.
 
 This is an availability/edition/license/implementation inventory, not a coverage
-target. [R3/R12](product-direction.md#1-elfogadott-termékkövetelmények) grow
+target. Projects use the implemented capabilities through the public
+[toolkit components](toolkit.md#components) (`ListView`, `RecordForm`,
+`RecordDetails`, `CommandBar`, `FileManager`, `FilePicker`, `Calendar`,
+`DiagramEditor`, `MediaPlayer`, `SandboxFrame`) and any other Standard widget
+through `app.dhx`, the shell's one Suite instance. [R3/R12](product-direction.md#1-elfogadott-termékkövetelmények) grow
 capabilities from real needs; unimplemented rows are candidates, not commitments.
 
 | Capability | Source | Edition boundary | 61ade status | Work when needed |
 | --- | --- | --- | --- | --- |
 | Grid/inline edit | Suite Standard | Some advanced options PRO | Workspace implemented, [usage](workspaces.md), grid-edit | Query/types/actions/policies |
 | Dynamic grid source | Framework Standard Grid adapter | Native LazyDataProxy integration PRO-only | Cursor window implemented | Bounded queries/scrolling |
-| Forms/validation | Suite Standard | Controls version-dependent | Metadata forms, client/server [validation](validation.md) | Errors/relations/types |
+| Forms/validation | Suite Standard | Controls version-dependent; the Form `container` item is PRO-only; `togglegroup` has no `aria-pressed` and Slider no ARIA role or value ([pitfalls](toolkit.md#pitfalls)) | Metadata forms, client/server [validation](validation.md); project field types ([registries](toolkit.md#registries)) | Errors/relations/types |
 | Layout/window | Suite Standard | — | Shell/workspace/resizers/popups implemented | Complex multipanel flows |
 | Menu/toolbar | Suite Standard | — | Main/list menus, theme/language selectors | Navigation/capabilities |
 | DataView | Suite Standard | Detailed inventory version-dependent; no virtualization in Standard | Cards and media tiles implemented ([workspaces](workspaces.md#media-tiles)) | Templates/selection |
@@ -28,7 +32,7 @@ capabilities from real needs; unimplemented rows are candidates, not commitments
 | Autoscheduling/critical path/resources | Gantt PRO | PRO-only | None | Separate license decision |
 | Files/media | Own service + UI | Vault is a separate commercial widget: not licensed, not used; Suite 9.3.12 GPL only exports a headless `Uploader` | Virtual [file manager](files.md): content-addressed disk store, media metadata (image, video and audio), background WebP thumbnails, streamed Range viewer GETs, the toolkit [`MediaPlayer`](toolkit.md#mediaplayer) (image, video, audio; native controls), per-mount ACL, paged server-sorted listing with tiles, archive/delete policy, rename, streamed file and ZIP download, multipart upload, TXT editor; framework [uploader](uploader.md) on Window/Layout/Grid (chunked, resumable, folders, paste) | Per-entry ACL, object-store adapter, general jobs, ZIP64/compression |
 | Diagram | DHTMLX Diagram is a separate product, not installed | Not in Suite Standard | Framework [diagram editor](diagrams.md): Suite shell/List/Form/Window around an own SVG canvas | Ports/routing/export; licensed Diagram adapter if acquired |
-| Sandboxed project code | Own component, no vendor code | — | Toolkit [`SandboxFrame`](toolkit.md#sandbox-protocol): opaque-origin `<iframe sandbox="allow-scripts">` with `sandbox.html`/`sandbox.js`, meta CSP without network, `postMessage` protocol, size/time limits; Chromium spec pending | Browser coverage beyond Chromium, P7 review |
+| Sandboxed project code | Own component, no vendor code | — | Toolkit [`SandboxFrame`](toolkit.md#sandbox-protocol): opaque-origin `<iframe sandbox="allow-scripts">` with `sandbox.html`/`sandbox.js`, meta CSP without network, `postMessage` protocol, size/time limits; verified in Chromium (`toolkit-sandbox.spec.cjs`) | Browser coverage beyond Chromium, P7 review |
 | Rich text/pivot/kanban | Separate product/adapter | Not automatic Standard Suite features | None | Need/license assessment |
 | Export/import | Backend + vendor adapter | Format/service-dependent | No export; bulk exists | Scopes/field filtering/jobs/downloads |
 
@@ -46,7 +50,8 @@ Add components/vendor options for concrete consumer needs, following
 supersedes exhaustive coverage of every public vendor capability.
 
 Common capabilities need typed framework configuration; rare options need
-validated adapter extensions. Custom client code uses registered modules.
+validated adapter extensions. Custom client code is a project module that
+registers its names ([toolkit](toolkit.md#registries)).
 Each vendor method does not require a separate REST endpoint. Public contracts
 must not depend on private/protected/internal APIs.
 

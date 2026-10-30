@@ -245,7 +245,7 @@ return new ApplicationDefinition(
   texts; `stylesheet` is a `.css` path relative to the page, checked like
   `assets`, with an optional `?v=…` cache key; without one the shell appends the
   stylesheet file's [cache key](toolkit.md#cache-keys). Same-origin paths only, so CSP
-  `style-src 'self'` holds. `base` is `light`, `dark` or `skyblue`.
+  `style-src 'self' 'unsafe-inline'` holds. `base` is `light`, `dark` or `skyblue`.
 - Skin stylesheets load after the framework CSS, so a `[data-blade-skin]`
   variable wins over the same base variable at equal specificity. Keep to
   `--dhx-*` variables; selectors on framework or Suite classes are not a
@@ -335,7 +335,9 @@ including one set by an [`activate: 'page'`](workspaces.md#activation)
 navigation, which replaces the saved ones; [FB-0079](feedback.md#fb-0079)).
 Automatic editor open/close is not persistent. Forced mobile cards do not
 overwrite manual choice. Form/record values, the search text, the filters of
-sub-view previews and windows, and secrets are excluded.
+sub-view previews and windows, marks and the cursor record (transient by
+design), and secrets are excluded. A [`ListView`](toolkit.md#listview) in a
+project page keys these by the id of the definition it is given.
 
 Restoration follows current definitions: removed columns/sort fields are ignored,
 size limits apply, and a saved filter value is applied only if the actor's
@@ -375,8 +377,9 @@ Feedback: FB-0021.
 
 ## Application modules, kinds and the view host
 
-Toolkit kernel P2 ([toolkit reference](toolkit.md), [FB-0081](feedback.md#fb-0081)).
-After sign-in the shell creates one `Application` (`src/app/Application.ts`)
+The shell side of the toolkit ([toolkit reference](toolkit.md),
+[FB-0081](feedback.md#fb-0081)); a project's own browser code lives here as
+modules, never as shell markup or a template override. After sign-in the shell creates one `Application` (`src/app/Application.ts`)
 over the existing modules: `server` (the one JSON transport, `src/api/Server.ts`,
 `X-BLADE-CSRF` from the bootstrap `csrf`; every framework component uses it),
 `ui`, `uploads`, `i18n`, `theme`, `preferences`, `live` (the tab's one
@@ -400,6 +403,10 @@ a duplicate throws unless `{replace: true}`.
   indult el: {module}`), the `module:error` event and the console, and skipped;
   the shell always starts. Without modules the shell routes at once, as before.
   Signed-out pages create no `Application`.
+- **Stylesheets:** `application.stylesheets` are `<link>`ed on signed-in
+  pages after `admin.css` and the skins, keyed like the modules
+  ([module loading](toolkit.md#module-loading)); with
+  [skins](#application-skins) they are the supported way to add project CSS.
 - **View host:** each opening gets a `ViewHost` (`signal`, `open`, `record`,
   `filters`, `attach`, `setTitle`, `close`). The signal aborts when the view
   closes (navigation, window close, sign-out, page unload) before the
