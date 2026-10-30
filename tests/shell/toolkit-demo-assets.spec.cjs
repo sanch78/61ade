@@ -101,8 +101,9 @@ test('Médiatár lists the audio assets with type and length; an audio file uplo
  const id=await assetId(page,prefix+' hang');
  const media=(await api(page,'signage_assets','get',id)).body.data._media.file_id;
  expect(media).toMatchObject({name:prefix+'-hang.wav',mime_type:'audio/wav',thumbnail:'none'});expect(Math.abs(media.duration_ms-3000)).toBeLessThanOrEqual(150);
- // The uploaded asset opens in the viewer like the seeded ones.
- await row(page,prefix+' hang').locator('[data-dhx-col-id="title"]').dblclick();
+ // The uploaded asset opens in the viewer like the seeded ones. Activation starts from a read-only cell: a double-click
+ // on the inline-editable `Megnevezés` cell edits it instead.
+ await row(page,prefix+' hang').locator('[data-dhx-col-id="media_type"]').dblclick();
  await viewerOpen(page,id,prefix+' hang');
  expect(errors).toEqual([]);
 });
@@ -112,13 +113,13 @@ test('activation by media class: audio and video open the viewer, an image its d
  await openLibrary(page);
  const wav=await assetId(page,WAV),video=await assetId(page,VIDEO),image=await assetId(page,IMAGE);
  // Table: double-click and Enter; the browser's Back returns to the list.
- await row(page,WAV).locator('[data-dhx-col-id="title"]').dblclick();
+ await row(page,WAV).locator('[data-dhx-col-id="media_type"]').dblclick();
  await viewerOpen(page,wav,WAV);
  await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);await expect(audio(page)).toHaveCount(0);
- await row(page,VIDEO).locator('[data-dhx-col-id="title"]').click();await page.keyboard.press('Enter');
+ await row(page,VIDEO).locator('[data-dhx-col-id="media_type"]').click();await page.keyboard.press('Enter');
  await viewerOpen(page,video,VIDEO,'video');
  await button(page,'Vissza a listához').click();await expect(page).toHaveURL(/#view=signage_assets$/);await expect(page.locator('.blade-player')).toHaveCount(0);
- await row(page,IMAGE).locator('[data-dhx-col-id="title"]').dblclick();
+ await row(page,IMAGE).locator('[data-dhx-col-id="media_type"]').dblclick();
  await expect(details(page)).toBeVisible();await expect(details(page)).toContainText(IMAGE);await expect(page).toHaveURL(/#view=signage_assets$/);
  await page.keyboard.press('Escape');await expect(details(page)).toHaveCount(0);
  // Cards and tiles name the per-row target and open the same views.
