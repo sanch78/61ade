@@ -91,7 +91,8 @@ uploads.on("upload:complete", ({succeeded, failed}) => …);
 
 Events: `upload:queued`, `upload:started`, `upload:progress` (`received`,
 `size`), `upload:conflict`, `upload:file-done` (`result`), `upload:file-failed`
-(`code`, `message`), `upload:complete`, `upload:cancelled`; each carries a
+(`code`, `message`), `upload:complete`, `upload:cancelled` (when each fires:
+[event catalog](toolkit.md#event-catalog)); each but `upload:complete` carries a
 read-only `file` (`id`, `name`, `size`, `type`, `relativePath`, `resource`,
 `action`, `target`). The service also offers `reopen()` and `busy`; the shell
 configures it with the CSRF token and the user id.

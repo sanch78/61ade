@@ -20,8 +20,9 @@ public runtime contract remains in the project's topic guides.
 2. Separate the general capability from the consumer's business definition.
    Extend the shared framework and its adapter first; keep fields, policies,
    actions, data sources, and business rules in the consumer. Do not add a
-   parallel admin page, hand-built HTML/CSS surface, or consumer-specific
-   frontend to compensate for a framework gap.
+   parallel admin page or hand-built HTML/CSS list to compensate for a
+   framework gap. A consumer's own domain page composes the framework's public
+   list components instead of rebuilding them.
 3. Use the existing native DHTMLX controls and supported extension points.
    Inspect the installed edition before promising a capability. Suite Standard
    does not make TreeGrid PRO behavior available; an unverified vendor option
@@ -78,6 +79,17 @@ tree as decoration for a flat list.
 - Use native controls, theme tokens, and framework sizing. Test light, dark, and
   the default theme; do not recreate a vendor skin or introduce a consumer
   shell layer to obtain a visual tweak.
+- When project code composes a list into its own page, build one layout and
+  mount the framework list component into a cell; do not nest a second frame
+  around it. A layout cell holds either static markup or widgets for its whole
+  life: content that alternates between a notice and a widget gets a fresh
+  one-cell layout per content, because a cell that showed markup can lose a
+  widget attached later. Attach the new content before releasing the old, and
+  release components before the layout that holds them.
+- A composed list's saved presentation state (mode, sort, columns, filters)
+  belongs to the view identity it is given. Reuse the menu page's identity
+  only when sharing its state is intended; otherwise give the composed list
+  its own identity.
 - Below the supported narrow-width breakpoint, move the complete command bar
   into the native actions menu while preserving original IDs, disabled/hidden
   state, events, and ACL. Force cards when the grid cannot be read; keep the
@@ -99,7 +111,8 @@ tree as decoration for a flat list.
   the grid. The server's typed query and ACL remain authoritative.
 - Keep row identity, active/editor row, and marked rows separate. Marks survive
   grid/card switching and same-row live updates, while rows leaving the bounded
-  window may drop their marks. Optional ordinal numbers describe position in the
+  window may drop their marks. Marks and the cursor row are transient: never
+  persist them in UI preferences. Optional ordinal numbers describe position in the
   complete authorized result, not database IDs.
 - Keep each action in the toolbar once, with a native icon and its original
   label. A bulk-capable action applies to marks; do not add a second “selected
@@ -108,6 +121,10 @@ tree as decoration for a flat list.
   on the cursor record and disabled without one; offer no record context menu.
   Right click, the menu key and Shift+F10 keep the browser's behaviour. One
   place works on touch and keyboard alike (owner decision, toolkit G3).
+- A custom column presentation is a pure renderer of one value: it escapes
+  every record value, gives a value shown only as a picture, bar or colour a
+  text alternative (visible text or an accessible name), and renders the same
+  meaning in the table cell, the card and the details.
 - Treat `secondary` columns as optional grid presentation only. Toggle them with
   the native show/hide API and persist each user's choice; cards/details still
   show every permitted readable field.
