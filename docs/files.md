@@ -146,7 +146,7 @@ $files->register($workspace);     // application definition and task handlers
 | `mounts` | Mount key ⇒ label; each panel selects one independently. |
 | `allowedExtensions` | Upload allowlist; only `txt`, `md`, `csv`, `json`, `png`, `jpg`, `jpeg`, `mp4`, `webm`, `mp3`, `wav`, `m4a` have known MIME detection rules, other values fail at startup. Audio is stored as `audio/mpeg` (detected `audio/mpeg`), `audio/wav` (`audio/wav`, `audio/x-wav`, `audio/wave`, `audio/vnd.wave`) and `audio/mp4` (`audio/mp4`, `audio/x-m4a`). |
 | `maxSizeBytes` | Upload limit per file (actual received bytes), at most 100 MB. |
-| `maxFiles` | Files per upload, 1–20 (default 20). Replaces the former `multiple` flag. |
+| `maxFiles` | Files per upload, 1–20 (default 20). Replaces the former `multiple` flag. The browser gets the upload rules once, as the files view's `options.upload.policy` (`UploadPolicy`, camelCase). |
 | `contentRoot` | Required absolute directory of the content store, outside any web root; persistent data, not scratch. |
 | `tempRoot` | Absolute directory for upload transfers (default `<contentRoot>/.transfers`; used by the uploader). |
 | `thumbnails` | Background thumbnails for PNG/JPEG/MP4/WebM (default `true`). |

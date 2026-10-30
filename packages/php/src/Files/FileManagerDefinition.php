@@ -137,7 +137,8 @@ final readonly class FileManagerDefinition
     {
         return [
             'mounts' => array_map(static fn($key, $label) => ['id' => $key, 'label' => $label], array_keys($this->mounts), $this->mounts),
-            'upload' => ['allowed_extensions' => $this->allowedExtensions, 'max_size_bytes' => $this->maxSizeBytes, 'multiple' => $this->maxFiles > 1, 'max_files' => $this->maxFiles, 'duplicate_policy' => $this->duplicatePolicy, 'policy' => $this->uploadPolicy()->metadata()],
+            // The upload rules once: the browser part of the `upload` action's policy (allowlist, size, count, duplicates).
+            'upload' => ['policy' => $this->uploadPolicy()->metadata()],
             'text' => ['extension' => self::TEXT_EXTENSION, 'max_bytes' => $this->textMaxBytes],
             'preview' => self::PREVIEW_TYPES,
             'thumbnails' => $this->thumbnails ? Thumbnails::TYPES : [],
