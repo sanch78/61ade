@@ -4,7 +4,7 @@ import { externalSignInUnavailable, openExternalSignIn } from "./ExternalAuth";
 import { LiveChannel } from "./Realtime";
 import { DesktopOnly } from "./DesktopOnly";
 import { Form, Layout, Menu, Toolbar, Window, setTheme, awaitRedraw } from "@dhtmlx/suite";
-import { alert, closeDialogs } from "./MessageDialog";
+import { alert, closeDialogs, showDialog } from "./MessageDialog";
 import { uploads, type UploadIndicator } from "./Uploader";
 import { configureServer, server } from "./api/Server";
 import { attachContent, openWindow, themeApplied } from "./api/services";
@@ -59,6 +59,9 @@ const escape = (text: string) =>
       ]!,
   );
 
+/** `sessionStorage` time of the last automatic sign-out reload, so a page that keeps answering 401 never loops. */
+const SIGNED_OUT="blade-signed-out";
+
 /** Finish native popup/focus state before replacing a responsive menu tree. */
 class NavigationMenu extends Menu {
   replaceItems(items:object[]):void{
@@ -84,7 +87,10 @@ export class AdminShell {
   /** The tab's one live channel (signed in with a list view), shared by every list and sub-view. */
   private channel?: LiveChannel;
   private get live():LiveChannel{return this.channel??=new LiveChannel(this.definition.live || {transport:"poll",endpoint:"live",interval:2000},
-    {notice:text=>this.liveNotice(text),editing:()=>[this.page,...this.windows].some(mounted=>mounted?.instance?.editing?.()??false)});}
+    {notice:text=>this.liveNotice(text),editing:()=>this.editing(),ended:()=>this.sessionEnded()});}
+  /** An open view may hold unsaved input (record or bulk form, cell editor, changed singleton form, diagram). */
+  private editing():boolean{return [this.page,...this.windows].some(mounted=>mounted?.instance?.editing?.()??false);}
+  private signedOut=false;
   /**
    * `#view=<id>[&record=<id>]`; `filter.<field>=<value>` presets that view's filters once and leaves the address.
    * The legacy `#feature=<resource>` is the view whose id is that resource; the address is rewritten in place.
@@ -176,7 +182,7 @@ export class AdminShell {
       setTheme(choice.base??id,document.documentElement);
       themeApplied(choice.base??id,skins.length?id:null);
     };
-    configureServer(definition.csrf || "");
+    configureServer(definition.csrf || "", definition.authenticated ? () => this.sessionEnded() : undefined);
     let theme=choices[0].id;
     try { const saved=localStorage.getItem(storage); if(choices.some(choice=>choice.id===saved))theme=saved!; } catch {}
     apply(theme);
@@ -396,6 +402,28 @@ export class AdminShell {
   private async failed(error:unknown):Promise<void>{
     const fields=Object.values((error as {fieldErrors?:Record<string,string>})?.fieldErrors??{});
     await alert({header:t("Hiba"),severity:"danger",text:[error instanceof Error?error.message:t("Sikertelen művelet."),...fields].join("\n")});
+  }
+
+  /**
+   * The session ended (a 401 of the JSON channel, or the live channel's end): the reload shows the sign-in page,
+   * which keeps the address for after sign-in. Over unsaved input the modal asks first, so the user can copy it out;
+   * Cancel keeps the page and the next 401 asks again. A second automatic reload within 60 s (the page came back
+   * signed in, yet the channel answers 401) also asks instead of looping.
+   */
+  private sessionEnded():void{
+    if(this.signedOut||this.listeners.signal.aborted)return;
+    this.signedOut=true;
+    let recent=true;
+    try{recent=Date.now()-Number(sessionStorage.getItem(SIGNED_OUT)||0)<60000;}catch{}
+    if(!recent&&!this.editing()){this.signOut();return;}
+    void showDialog({mode:"confirm",severity:"warning",title:t("A munkamenet lejárt"),initialFocus:"cancel",confirmLabel:t("Bejelentkezés"),
+      message:t("A munkamenet lejárt, a nyitott adatok nem menthetők. Másold ki, amire még szükséged van, majd jelentkezz be újra.")})
+      .then(confirmed=>{if(this.listeners.signal.aborted)return;if(confirmed)this.signOut();else this.signedOut=false;});
+  }
+  private signOut():void{
+    try{sessionStorage.setItem(SIGNED_OUT,String(Date.now()));}catch{}
+    this.channel?.close();
+    location.reload();
   }
 
   /** The live channel's page-level hint (a stale page that did not reload) in the lower bar. */

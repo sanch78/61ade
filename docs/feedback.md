@@ -2688,3 +2688,32 @@ that exactly equals an option label lists every option. The managed
   `toolkit-demo`, `browser`, `authentication`, `demo`, `toolkit-sandbox`,
   `tenancy` pass (27).
 - **Status:** implemented and committed.
+
+<a id="fb-0086"></a>
+
+## FB-0086 — An ended session leads to the sign-in page
+
+- **Date:** 2026-10-30.
+- **Observation (owner):** with an expired session, clicking between menu
+  items showed errors instead of the sign-in page, although both the poll and
+  the socket know the session ended.
+- **Cause:** a 401 was only a local `ServerFailure`, and the live channel's
+  end (`block()`) only marked the lists "A hozzáférés megszűnt"; nothing told
+  the shell.
+- **Decision (owner):** sign the page out automatically; over an open edit,
+  ask first with an "A munkamenet lejárt" modal.
+- **Implemented:** `configureServer(csrf, sessionEnded)` runs the shell's
+  handler on every 401 of `post` (so `server.call`/`request` and the
+  uploader); `LiveChannel` hook `ended` after `block()`. The shell reloads
+  (sign-in page, address kept) or, when `editing()` is true, shows the warning
+  modal (Bejelentkezés / Mégse, focus on Mégse; Mégse re-arms). A second
+  automatic reload within 60 s asks instead (`sessionStorage`
+  `blade-signed-out`). Guide: [ended session](shell.md#ended-session).
+- **Consumer impact:** none in code; a consumer spec that expects the page to
+  stay on an error dialog after a 401 now sees the sign-in page.
+- **Verification (managed URL, 2026-10-30):** PHP `i18n`, `contracts`;
+  `toolkit-kernel.mjs`; typecheck, `build --check`; browser `workspace` (11
+  passed, polling-only test skipped on the WebSocket demo: menu click after
+  the cookie is gone, open form Cancel/sign-in, 4401 reload then modal),
+  `browser`, `dialogs` (15 passed).
+- **Status:** implemented, not committed.

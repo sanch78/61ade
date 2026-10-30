@@ -7,8 +7,12 @@ import type { CallOptions, FormDescription, Server, ServerFailure } from "./type
  * `{resource, action, id, values}` to `./?blade=1` with the session cookie and the page's `X-BLADE-CSRF` token.
  */
 let csrf = "";
-/** Set once by the shell from the bootstrap `csrf`; signed-out pages have none. */
-export function configureServer(token: string): void { csrf = token; }
+let ended: (() => void) | undefined;
+/**
+ * Set once by the shell from the bootstrap `csrf`; signed-out pages have none. `sessionEnded` runs on every 401
+ * of the channel (the session is gone) before the caller sees the failure; the shell signs the page out with it.
+ */
+export function configureServer(token: string, sessionEnded?: () => void): void { csrf = token; ended = sessionEnded; }
 
 const endpoint = (): string => { const url = new URL(location.href); url.hash = ""; url.search = "?blade=1"; return url.toString(); };
 
@@ -23,7 +27,8 @@ export function post(resource: string, action: string, options: CallOptions = {}
   // Binary content travels as multipart parts; the JSON request is the `request` part beside them.
   if (options.parts) { const form = new FormData(); form.append("request", request); for (const part of options.parts) form.append(part.field, part.blob, part.name); body = form; }
   else headers["Content-Type"] = "application/json";
-  return fetch(endpoint(), { method: "POST", credentials: "same-origin", headers, body, signal: options.signal });
+  return fetch(endpoint(), { method: "POST", credentials: "same-origin", headers, body, signal: options.signal })
+    .then(response => { if (response.status === 401) ended?.(); return response; });
 }
 
 /** A `ServerFailure`: the localized server message (or the generic one), field errors and optional details. */

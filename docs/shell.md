@@ -152,6 +152,32 @@ Five failed logins/IP/60 seconds return 429 through a private file-locked
 shared limiter. Password/session data never enter menus/logs. The document
 root must be only the consumer public directory.
 
+<a id="ended-session"></a>
+
+### Ended session
+
+When the session ends while the page is open (idle timeout, sign-out in
+another tab, a removed session), the shell signs the page out on the first
+signal ([FB-0086](feedback.md#fb-0086)): any 401 of the JSON channel
+(`server.call`/`request`, the uploader, a menu click that loads a view) and the
+[live channel's end](workspaces.md#live-channel) (4401 before `ready`,
+`__ticket` or `__watch` 401/403). Without open input it reloads the page,
+which shows the sign-in page with the address kept, and after sign-in the
+same view opens. Over open input (the same `ViewInstance.editing()` ([views](toolkit.md#views))
+check that blocks the live channel's reload: a record or bulk form, cell or
+card editor, changed singleton form, unsaved diagram) it asks first with the
+warning modal "A munkamenet lejárt": **Bejelentkezés** reloads, **Mégse**
+(the initial focus) keeps the page so the input can be copied out, and the
+next 401 asks again. The caller still receives its 401 `ServerFailure` and
+shows its own error. A second automatic reload within 60 s (`sessionStorage`
+`blade-signed-out`; without storage it always asks) also asks instead of
+reloading, so a page that comes back signed in but still gets 401 never
+loops. A visible polling tab keeps its session alive
+([security model](security-model.md)), so there the signal usually comes
+from the WebSocket channel, a hidden tab or another tab's sign-out.
+`workspace.spec.cjs` covers the menu click, the open form (Cancel and sign-in)
+and the refused live ticket.
+
 With explicit `trustLocalProxy: true`, `HttpEntrypoint` trusts
 `X-BLADE-HTTPS`/`X-BLADE-Client-IP` only from loopback. The proxy must overwrite
 them from its own connection facts. Runtime and cookie path are application settings.

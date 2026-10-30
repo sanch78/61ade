@@ -285,7 +285,9 @@ most 15 s), each with a fresh `__ticket`, and subscribe every list again. A
 4401 before `ready` means the fresh ticket was refused: every list shows
 "A hozzáférés megszűnt" and is revoked, and nothing reconnects. A 4401 after
 `ready` may be an expired ticket (tickets last 1 h), so the channel asks for one
-new ticket; `__ticket` answering 401/403 ends it the same way. A 4409 reloads the
+new ticket; `__ticket` answering 401/403 ends it the same way. Every such end,
+and a `__watch` 401/403, then signs the page out
+([ended session](shell.md#ended-session)). A 4409 reloads the
 page once; `sessionStorage` (`blade-live-reload`) blocks a second reload within
 60 s, and without `sessionStorage` the page never reloads. It never reloads
 over open input either: an open record form or bulk form, a card or cell

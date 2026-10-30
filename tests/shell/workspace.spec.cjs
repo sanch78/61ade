@@ -123,16 +123,54 @@ test('a 4409 never reloads over an open form',async({page})=>{
  expect(loads).toBe(0);
  await expect(form.getByLabel('Cím',{exact:true})).toHaveValue('Unsaved draft');
 });
-// A refused ticket (4401 before ready) ends live data without a reconnect loop.
+// A refused ticket (4401 before ready) ends live data without a reconnect loop. The shell reloads once for the
+// sign-in page; this session is still alive, so the page comes back signed in and the second 4401 asks instead.
 test('a 4401 before ready ends live data and does not reconnect',async({page})=>{
  await signIn(page);
  test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
  let hellos=0;
  await page.routeWebSocket(url=>new URL(url).pathname==='/live',ws=>{ws.onMessage(message=>{if(JSON.parse(message).type==='hello'){hellos++;ws.close({code:4401,reason:'Authentication failed'});}});});
  await page.reload();
- await expect.poll(()=>hellos,{timeout:10000}).toBe(1);
+ await expect.poll(()=>hellos,{timeout:10000}).toBe(2);
+ await expect(page.getByRole('alertdialog',{name:'A munkamenet lejárt'})).toBeVisible();
  await page.waitForTimeout(4000);
- expect(hellos).toBe(1);
+ expect(hellos).toBe(2);
+});
+// An ended session (here: the cookie is gone) signs the page out on the next request: a menu click shows the
+// sign-in page with the address kept, and signing in opens the view.
+test('a menu click after the session ended shows the sign-in page',async({page,context})=>{
+ await signIn(page);
+ await openMenu(page,'Jegyzetek');
+ await expect(page.getByRole('button',{name:'Hozzáadás',exact:true})).toBeVisible();
+ await context.clearCookies();
+ // Polling's own 401 may already reload the page during the click.
+ await openMenu(page,'Jegyzetek').catch(()=>{});
+ await expect(page.getByLabel('E-mail',{exact:true})).toBeVisible({timeout:10000});
+ expect(new URL(page.url()).hash).toContain('view=');
+});
+// Over unsaved input the shell asks first; Cancel keeps the form, the next 401 asks again, sign-in reloads.
+test('an ended session over an open form asks before the sign-in page',async({page,context})=>{
+ await signIn(page);
+ await openMenu(page,'Jegyzetek');
+ await page.getByRole('button',{name:'Hozzáadás',exact:true}).click();
+ const form=page.getByRole('dialog');await form.getByLabel('Cím',{exact:true}).fill('Unsaved draft');
+ await context.clearCookies();
+ const ended=page.getByRole('alertdialog',{name:'A munkamenet lejárt'});
+ const save=async()=>{
+  await form.getByRole('button',{name:'Mentés',exact:true}).click();
+  // The failed save reports its own error above the session dialog.
+  const error=page.getByRole('alertdialog',{name:'Hiba'});
+  await error.getByRole('button',{name:'Rendben',exact:true}).click();
+  await expect(ended).toBeVisible();
+ };
+ // Polling's own 401 may ask first; otherwise the save does.
+ if(!await ended.waitFor({timeout:3000}).then(()=>true,()=>false))await save();
+ await ended.getByRole('button',{name:'Mégse',exact:true}).click();
+ await expect(ended).toHaveCount(0);
+ await expect(form.getByLabel('Cím',{exact:true})).toHaveValue('Unsaved draft');
+ await save();
+ await ended.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
+ await expect(page.getByLabel('E-mail',{exact:true})).toBeVisible({timeout:10000});
 });
 // A hidden tab unsubscribes its lists on the open socket; showing it subscribes them again.
 test('a hidden tab pauses its subscriptions without closing the channel',async({page})=>{
