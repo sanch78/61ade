@@ -157,12 +157,15 @@ the stylesheets (after the framework CSS and skins) and list the modules in the
 bootstrap `modules` key; the sign-in, e-mail confirmation and password-change
 pages load neither ([module loading](toolkit.md#module-loading)).
 
-`application.logo` is an object with the required `image` and the optional
-`dark_image` (`.svg`/`.png`/`.webp` browser paths, the same path rules and
-keys), `label` (accessible text, default `application.title`) and
+`application.logo` is absent (the 61ade [product logo](brand.md), placement
+`window`), `false` (no logo, `Logo::none()`) or an object with the optional
+`image` and `dark_image` (`.svg`/`.png`/`.webp` browser paths, the same path
+rules and keys; without `image` the product logo stays), `label` (accessible
+text, default `application.title`, or `blade` for the product logo) and
 `placement` (`window`, default, `top` or `both`: where the signed-out pages
-show it; [logo](shell.md#sign-in-logo)); another key, a non-object, a missing
-`image`, another extension, placement or a blank `label` fails at load.
+show it; [logo](shell.md#sign-in-logo)); another key or type (`true`, a
+string, a list), a `dark_image` without `image`, another extension,
+placement or a blank `label` fails at load.
 `application.sign_in_stylesheets` (`.css`, the same rules as `stylesheets`)
 are linked only on the sign-in, e-mail confirmation and password-change pages;
 they and the signed-in `stylesheets` may rely only on the

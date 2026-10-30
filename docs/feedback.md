@@ -2896,4 +2896,52 @@ that exactly equals an option label lists every option. The managed
   inside the window and, with content, that the content starts below the
   last action and ends at the window bottom (within 2 px); without content
   the 24 px rule stays.
-- **Status:** implemented; the fix awaits the browser re-run.
+- **Status:** implemented and verified: after the fix the managed browser run of
+  `browser`, `authentication`, `sign-in-branding`, `skins` and `dialogs` passed (27,
+  2026-10-30).
+
+<a id="fb-0088"></a>
+
+## FB-0088 — 61ade product logo and brand sources
+
+- **Date:** 2026-10-30.
+- **Demand (owner):** 61ade has its own logo, the wordmark "blade" with a
+  three-tile mark, drawn on one grid and approved from a Chromium render. It
+  needs a separate directory and documentation ("we will animate it later")
+  and becomes what an application without its own logo shows.
+- **Decision (owner):** sources in their own brand directory with a Node
+  generator and `docs/brand.md`; every part addressable for a later
+  loading-screen animation (none built now). The framework default is the
+  product logo, rendered inline (bundled in `admin.js`, no deployed file),
+  ids unique per copy, light/dark by `data-dhx-theme`; a declared `Logo`
+  wins; an explicit opt-out and a way to keep the product logo with another
+  placement. Chosen API: `Logo` without `image` is the product logo
+  (`new Logo(placement: 'both')`), `Logo::none()` (JSON `"logo": false`)
+  shows none, no declaration means `new Logo()`. Accessible name `blade`: it
+  is the visible wordmark (label in name), while "61ade" reads as a number.
+- **Implemented:** `packages/frontend/brand/` with `blade-logo.svg`,
+  `blade-logo-dark.svg`, the mark-only `blade-mark.svg` and `logo.mjs` (a port
+  of the drawing's generator; its output is byte-identical to the approved
+  SVGs). `tools/build.mjs` loads `.svg` as text; `src/BrandLogo.ts` inlines
+  both variants with `blade-<n>-` gradient ids and `aria-hidden` SVGs inside
+  the named `.blade-logo` (`blade-logo--brand`). PHP `Logo::$image` is
+  optional, `Logo::none()`/`$shown`, `Logo::PRODUCT_LABEL`; the bootstrap
+  `logo` has no `image` for the product logo and is absent only with
+  `none()`; JSON `application.logo` accepts `false` and an object without
+  `image`. The top-row fit rules are unchanged (the menu never yields to the
+  logo). The feature demo dropped its synthetic `61ade demo` files and keeps
+  the product logo with `placement: 'both'`; the starter admin and the tenant
+  demo show it by default. Guide: [brand](brand.md),
+  [sign-in logo](shell.md#sign-in-logo).
+- **Consumer impact:** every consumer without a `logo` now shows the product
+  logo in the top row and the sign-in window; `Logo::none()` restores the
+  earlier look. A consumer with its own `Logo` is unchanged. Nothing to
+  deploy.
+- **Verification (worktree, 2026-10-30):** `node packages/frontend/brand/logo.mjs`
+  output identical to the approved SVGs; `npm run typecheck` after
+  `node tools/build.mjs`, `build --check` (outputs restored, not committed);
+  PHP `contracts`, `configuration`, `toolkit` (default, `none()`, placement,
+  own text, declared override, dark without image refused), `i18n`,
+  `authentication` pass. Written, not run: `sign-in-branding.spec.cjs`
+  (default in all three demos, inline parts and unique ids, variants).
+- **Status:** implemented on branch; browser specs not yet run.

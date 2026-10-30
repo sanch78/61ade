@@ -459,6 +459,8 @@ application-owned DHTMLX custom themes instead of the factory ones. One skin
 hides the selector; several fill it with only those skins. Presentation only;
 without the option nothing changes.
 
+Every application shows the 61ade [product logo](brand.md) unless it declares its own or `Logo::none()`.
+
 Optional [sign-in customization](shell.md#sign-in-branding): an application
 logo in the top row and/or the sign-in windows (`logo`, placement `window`/`top`/`both`),
 `signInStylesheets` on the [supported CSS hooks](shell.md#sign-in-css-hooks),
