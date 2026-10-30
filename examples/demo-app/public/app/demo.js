@@ -1,3 +1,171 @@
+// examples/demo-app/frontend/src/readings.ts
+var KIND = "demo.readings-dashboard";
+var BAR = "demo.reading-bar";
+var SCALE = 100;
+var NARROW = "(max-width: 767px)";
+var escape = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+var numeric = (value) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const number = Number(value.trim().replace(",", "."));
+  return Number.isFinite(number) ? number : null;
+};
+var formatter = (locale, options) => {
+  try {
+    return new Intl.NumberFormat(locale, options);
+  } catch {
+    return new Intl.NumberFormat(void 0, options);
+  }
+};
+function readingBar(app) {
+  const number = formatter(app.i18n.locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return {
+    render(value, _row, _column, size, escape2) {
+      const reading = numeric(value);
+      if (reading === null) return escape2(value);
+      const width = Math.round(Math.min(SCALE, Math.max(0, reading)) / SCALE * 1e3) / 10;
+      const text = app.i18n.t("{value} a 100-b\xF3l", { value: number.format(reading) });
+      return `<span class="demo-reading-bar demo-reading-bar--${size === "card" || size === "tile" ? size : "cell"}" title="${escape2(text)}"><span class="demo-reading-bar__track" aria-hidden="true"><span class="demo-reading-bar__fill" style="width:${width}%"></span></span><span class="demo-reading-bar__value">${escape2(number.format(reading))}</span></span>`;
+    },
+    text: (value) => {
+      const reading = numeric(value);
+      return reading === null ? String(value ?? "") : app.i18n.t("{value} a 100-b\xF3l", { value: number.format(reading) });
+    }
+  };
+}
+function dashboardOptions(view) {
+  const o = view.options ?? {};
+  const name = (value) => typeof value === "string" && /^[a-z][a-z0-9_.-]*$/.test(value);
+  if (!name(o.list) || !name(o.value) || !name(o.name) || typeof o.max !== "number" || !(o.max > 0) || !Number.isInteger(o.buckets) || o.buckets < 2 || o.buckets > 20)
+    throw new TypeError(`61ade feature demo: the options of view "${view.id}" need list, value, name, max > 0 and 2\u201320 buckets.`);
+  return o;
+}
+function summarize(rows, options, matched) {
+  const bins = new Array(options.buckets).fill(0);
+  let count = 0, sum = 0, min = Infinity, max = -Infinity;
+  for (const row of rows) {
+    const value = numeric(row[options.value]);
+    if (value === null) continue;
+    count++;
+    sum += value;
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+    bins[bin(value, options)]++;
+  }
+  return { loaded: rows.length, ...matched !== void 0 ? { matched } : {}, ...count ? { min, max, average: sum / count } : {}, bins };
+}
+var bin = (value, options) => Math.min(options.buckets - 1, Math.max(0, Math.floor(value / options.max * options.buckets)));
+function themeColor(variable, fallback) {
+  const probe = document.createElement("span");
+  probe.style.color = `var(${variable}, ${fallback})`;
+  probe.hidden = true;
+  document.body.append(probe);
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  return color || fallback;
+}
+function dashboard(app, host, view) {
+  const options = dashboardOptions(view);
+  const source = app.viewDefinition(options.list);
+  if (!source || source.kind !== "list") throw new TypeError(`61ade feature demo: "${options.list}" is not an offered list view.`);
+  const listView = { ...source, id: view.id };
+  const t = (key, params) => app.i18n.t(key, params), locale = app.i18n.locale();
+  const decimal = formatter(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const whole = formatter(locale, { maximumFractionDigits: 0 });
+  const signed = formatter(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: "exceptZero" });
+  const step = options.max / options.buckets;
+  const ranges = Array.from({ length: options.buckets }, (_, index) => `${whole.format(index * step)}\u2013${whole.format((index + 1) * step)}`);
+  const narrow = matchMedia(NARROW);
+  let session, list, closed = false;
+  let presets = { ...host.filters };
+  const build = () => {
+    session?.abort();
+    const controller = session = new AbortController(), signal = controller.signal;
+    const compact = narrow.matches;
+    const summaryHeader = compact ? {} : { header: escape(t("\xD6sszes\xEDt\xE9s")) };
+    const overview = compact ? { type: "space", height: 324, rows: [{ id: "summary", height: 104 }, { id: "chart", header: escape(t("\xC9rt\xE9keloszl\xE1s")) }] } : { type: "space", height: 260, cols: [{ id: "summary", width: 340, ...summaryHeader }, { id: "chart", header: escape(t("\xC9rt\xE9keloszl\xE1s")) }] };
+    const layout = new app.dhx.Layout(null, { type: "none", css: "demo-readings", rows: [overview, { id: "list" }] });
+    let rows = [], matched, selected;
+    const colors = () => ({ rows: themeColor("--dhx-color-primary", "#0288d1"), selected: themeColor("--dhx-color-success", "#2e7d32") });
+    const chartConfig = (palette) => ({
+      type: "bar",
+      css: "demo-readings-chart",
+      scales: { bottom: { text: "range" }, left: { min: 0, maxTicks: 5 } },
+      // `text` names the series in the legend (Suite Chart; not in its typings).
+      series: [
+        { id: "rows", type: "bar", value: "rows", text: t("Sorok"), fill: palette.rows, color: palette.rows, stacked: true },
+        { id: "selected", type: "bar", value: "selected", text: t("Kiv\xE1lasztott sor"), fill: palette.selected, color: palette.selected, stacked: true }
+      ],
+      legend: { series: ["rows", "selected"], halign: "right", valign: "top" }
+    });
+    host.attach(layout);
+    const chart = new app.dhx.Chart(null, chartConfig(colors()));
+    layout.getCell("chart").attach(chart);
+    const render = () => {
+      const summary = summarize(rows, options, matched);
+      const mark = selected ? numeric(selected[options.value]) : null;
+      const markBin = mark === null ? -1 : bin(mark, options);
+      chart.data.parse(ranges.map((range, index) => ({ id: String(index), range, rows: summary.bins[index] - (index === markBin ? 1 : 0), selected: index === markBin ? 1 : 0 })));
+      const value = (number) => number === void 0 ? "\u2014" : decimal.format(number);
+      const count = summary.matched === void 0 ? whole.format(summary.loaded) : `${whole.format(summary.loaded)} / ${whole.format(summary.matched)}`;
+      const choice = selected ? `${String(selected[options.name] ?? selected.id)}: ${mark === null ? "\u2014" : decimal.format(mark)}${mark !== null && summary.average !== void 0 ? ` (${t("\xE1tlagt\xF3l {delta}", { delta: signed.format(mark - summary.average) })})` : ""}` : t("Nincs kiv\xE1lasztott sor");
+      const stat = (id, label, text, wide = false) => `<div class="demo-readings-stat${wide ? " demo-readings-stat--wide" : ""}" data-demo-stat="${id}"><dt>${escape(label)}</dt><dd title="${escape(text)}">${escape(text)}</dd></div>`;
+      const distribution = t("\xC9rt\xE9keloszl\xE1s: {bins}", { bins: ranges.map((range, index) => t("{range}: {count} sor", { range, count: summary.bins[index] })).join("; ") }) + (markBin < 0 ? "" : ". " + t("Kiv\xE1lasztott sor: {range}", { range: ranges[markBin] }));
+      layout.getCell("summary").attachHTML(`<div class="demo-readings-summary${compact ? " demo-readings-summary--narrow" : ""}" data-demo-readings="summary"><dl class="demo-readings-stats">${stat("count", t("Bet\xF6lt\xF6tt sorok"), count)}${stat("min", t("Minimum"), value(summary.min))}${stat("max", t("Maximum"), value(summary.max))}${stat("average", t("\xC1tlag"), value(summary.average))}${stat("selected", t("Kiv\xE1lasztott"), choice, true)}</dl><p class="demo-readings-hidden" data-demo-distribution data-demo-selected-bin="${markBin}">${escape(distribution)}</p></div>`);
+    };
+    const stopTheme = app.theme.onChange(() => {
+      if (!signal.aborted) {
+        chart.setConfig(chartConfig(colors()));
+        render();
+      }
+    });
+    let current;
+    signal.addEventListener("abort", () => {
+      stopTheme();
+      current?.destroy();
+      layout.getCell("chart").detach();
+      chart.destructor();
+      layout.destructor();
+      if (list === current) list = void 0;
+    }, { once: true });
+    current = list = new app.components.ListView({ view: listView, filters: presets, signal });
+    presets = {};
+    current.on("changed", (event) => {
+      rows = event.rows;
+      matched = event.matched;
+      if (selected && !rows.some((row) => String(row.id) === String(selected.id))) selected = void 0;
+      render();
+    });
+    current.on("select", ({ row }) => {
+      selected = row;
+      render();
+    });
+    current.mount(layout.getCell("list"));
+    render();
+  };
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    session?.abort();
+  };
+  narrow.addEventListener("change", () => {
+    if (!closed) build();
+  }, { signal: host.signal });
+  host.signal.addEventListener("abort", close, { once: true });
+  try {
+    build();
+  } catch (error) {
+    close();
+    throw error;
+  }
+  return { destroy: close, editing: () => list?.editing() ?? false, refresh: () => list?.refresh() };
+}
+var readings = (app) => {
+  app.presentations.register(BAR, readingBar(app));
+  app.views.register(KIND, { create: (host, view) => dashboard(app, host, view) });
+};
+var readings_default = readings;
+
 // examples/demo-app/frontend/src/tasks.ts
 var TOP = 5;
 var COPY_LIMIT = 50;
@@ -7,11 +175,11 @@ function level(value) {
   if (text === "") return 0;
   return /^[0-5]$/.test(text) ? Number(text) : null;
 }
-function stars(app, value, size, escape) {
+function stars(app, value, size, escape2) {
   const n = level(value);
-  if (n === null) return escape(value);
-  const label = escape(app.i18n.t("{value} / {max} csillag", { value: n, max: TOP }));
-  return `<span class="demo-rating demo-rating--${escape(size)}" role="img" aria-label="${label}" title="${label}" style="letter-spacing:1px;white-space:nowrap">${"\u2605".repeat(n)}<span style="opacity:.4">${"\u2606".repeat(TOP - n)}</span></span>`;
+  if (n === null) return escape2(value);
+  const label = escape2(app.i18n.t("{value} / {max} csillag", { value: n, max: TOP }));
+  return `<span class="demo-rating demo-rating--${escape2(size)}" role="img" aria-label="${label}" title="${label}" style="letter-spacing:1px;white-space:nowrap">${"\u2605".repeat(n)}<span style="opacity:.4">${"\u2606".repeat(TOP - n)}</span></span>`;
 }
 function bindStars({ app, form, field, readOnly, signal }) {
   const input = form.getItem(field.name);
@@ -97,7 +265,7 @@ var tasks = (app) => {
       ]
     }),
     bind: bindStars,
-    display: (value, _row, _field, size, escape) => stars(app, value, size, escape)
+    display: (value, _row, _field, size, escape2) => stars(app, value, size, escape2)
   });
   app.commands.register("demo.copy-text", {
     label: "M\xE1sol\xE1s sz\xF6vegk\xE9nt",
@@ -131,10 +299,9 @@ var none = () => {
 };
 var assets = none;
 var playlist = none;
-var readings = none;
 var demo = async (app) => {
   const failures = [];
-  for (const part of [assets, playlist, readings, tasks_default]) {
+  for (const part of [assets, playlist, readings_default, tasks_default]) {
     try {
       await part(app);
     } catch (error) {
