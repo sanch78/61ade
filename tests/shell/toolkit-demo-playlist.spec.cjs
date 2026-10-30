@@ -84,6 +84,7 @@ test('timeline lists the day\'s entries in order with their play times; the API 
  await expect(caption(page)).toHaveAttribute('data-demo-stage','image');
  await expect(caption(page)).toContainText(`00:00–08:00 · ${prefix} kép · Kép`);
  await expect(page.locator('[data-cell-id="screen"] img')).toBeVisible();
+ await expect(page.locator('[data-cell-id="screen"] .blade-player')).toHaveCount(1);
  await expect(frames(page)).toHaveCount(0);
  expect(errors).toEqual([]);
 });
@@ -110,6 +111,8 @@ test('the playhead advances and the stage switches from the image to the scene a
  await expect(caption(page)).toHaveAttribute('data-demo-stage','audio',{timeout:15000});
  await expect(frames(page)).toHaveCount(0);
  await expect(page.locator('[data-cell-id="screen"] audio')).toHaveCount(1);
+ // One stage at a time: the scene's box and frame were released when the audio's box replaced it.
+ await expect(page.locator('[data-cell-id="screen"] .blade-player')).toHaveCount(1);
  await expect(item(page,prefix+' hang')).toHaveAttribute('aria-current','true');
  await command(page,'Szünet');
  await expect(button(page,'Lejátszás')).toBeEnabled();
