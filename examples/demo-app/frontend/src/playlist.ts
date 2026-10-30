@@ -254,14 +254,21 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
     }
   };
 
-  /** Shows `item` on the stage. The new content replaces the old one before the old stage is destroyed. */
+  /**
+   * Shows `item` on the stage. Every stage gets its own box Layout in the `screen` cell, and its player, frame or notice
+   * goes into the box's fresh cell in the same tick: a painted Suite cell that changes from `attachHTML` content to an
+   * attached widget renders empty (the widget's DOM is wiped), so the screen cell only ever swaps widgets. The new box
+   * replaces the old one before the old stage (its component, then its box) is destroyed.
+   */
   const enter = (item: Item | undefined) => {
     const s = shell;
     if (!s) return;
     const previous = s.stage, controller = new AbortController(), signal = controller.signal;
     s.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     const stage: Stage = s.stage = { controller, item, ready: false, status: "" };
-    const screen = s.layout.getCell("screen");
+    const box: Layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "content" }] } as LayoutConfig);
+    s.layout.getCell("screen").attach(box);
+    const screen = box.getCell("content");
     if (!item) screen.attachHTML(message(idle()));
     else if (item.kind === "image" || item.kind === "video" || item.kind === "audio") {
       const file = item.slot.asset!.file!;
@@ -272,6 +279,8 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
       player.mount(screen);
     } else if (item.kind === "scene" && scenes) void scene(stage, screen);
     else screen.attachHTML(message(item.kind === "scene" ? t("A jelenet lejátszása nem engedélyezett.") : item.kind === "none" ? t("Nincs tartalom") : t("Ez a tartalomtípus nem játszható le.")));
+    // Registered after the player or frame (created above with `signal`), so they are destroyed before their box.
+    signal.addEventListener("abort", () => box.destructor(), { once: true });
     caption(stage);
     previous?.controller.abort();
   };
