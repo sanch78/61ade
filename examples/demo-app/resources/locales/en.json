@@ -77,5 +77,21 @@
   "Hossz": "Length",
   "Médiatár-elemek": "Media library items",
   "Műsorterv-események": "Schedule events",
-  "Alapértelmezett tartalmak": "Default content entries"
+  "Alapértelmezett tartalmak": "Default content entries",
+  "Mérési irányítópult": "Readings dashboard",
+  "Összesítés": "Summary",
+  "Értékeloszlás": "Value distribution",
+  "Sorok": "Rows",
+  "Kiválasztott sor": "Selected row",
+  "Betöltött sorok": "Loaded rows",
+  "Minimum": "Minimum",
+  "Maximum": "Maximum",
+  "Átlag": "Average",
+  "Kiválasztott": "Selected",
+  "Nincs kiválasztott sor": "No row selected",
+  "átlagtól {delta}": "{delta} from the average",
+  "Értékeloszlás: {bins}": "Value distribution: {bins}",
+  "{range}: {count} sor": "{range}: {count} rows",
+  "{value} a 100-ból": "{value} of 100",
+  "Kiválasztott sor: {range}": "Selected row: {range}"
 }
