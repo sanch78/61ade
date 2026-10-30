@@ -31,10 +31,10 @@ assert.equal(describe(new Error('boom')),'boom');assert.equal(describe('x'.repea
 assert.equal(byteLength('aé€'),6);
 
 // A fake frame document: its window, its parent and the delivered code's global object.
-function frameSide(parent){
+function frameSide(parent,origin='null'){
  const global={},handlers={message:[],error:[],unhandledrejection:[]},urls=[];
  const fire=(type,event)=>{for(const handler of handlers[type])handler(event);};
- startSandbox({self:{},parent,global,on:(type,handler)=>handlers[type].push(handler),objectUrl:blob=>{urls.push(blob);return 'blob:null/'+urls.length;},
+ startSandbox({self:{},origin,parent,global,on:(type,handler)=>handlers[type].push(handler),objectUrl:blob=>{urls.push(blob);return 'blob:null/'+urls.length;},
   execute(source,failed){if(global.failExecute)return failed();try{new Function('globalThis',source)(global);}catch(error){fire('error',{error});}}});
  return {global,fire,urls,receive:data=>fire('message',{source:parent,data})};
 }
@@ -42,8 +42,13 @@ function frameSide(parent){
 // Frame side alone.
 {
  const sent=[],parent={postMessage:(message,origin)=>{assert.equal(origin,'*');sent.push(message);}};
- const notFramed={};startSandbox({self:notFramed,parent:notFramed,global:notFramed,on(){throw new Error('must not listen');}});
+ const notFramed={};startSandbox({self:notFramed,origin:'null',parent:notFramed,global:notFramed,on(){throw new Error('must not listen');}});
  assert.equal('blade' in notFramed,false,'a top-level sandbox.html stays inert');
+ // Framed without `sandbox`, or with `allow-same-origin`: a real origin, so no code may ever run there.
+ for(const origin of ['https://admin.test','',undefined]){
+  const global={};startSandbox({self:{},origin,parent:{postMessage(){throw new Error('must not post');}},global,on(){throw new Error('must not listen');},execute(){throw new Error('must not run');}});
+  assert.equal('blade' in global,false,`a frame of origin ${String(origin)} stays inert`);
+ }
  const frame=frameSide(parent);
  assert.equal(Object.isFrozen(frame.global.blade),true);
  frame.fire('message',{source:{},data:{blade:1,id:'p1',type:'load',payload:{code:'',files:{}}}});assert.equal(sent.length,0,'other sources are ignored');
