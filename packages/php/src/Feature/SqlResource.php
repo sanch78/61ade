@@ -103,7 +103,7 @@ final class SqlResource
         return $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands);
     }
     /**
-     * Bulk-capable delete with the definition's policy: `delete` (default, backward compatible) removes the row and its
+     * Bulk-capable delete with the definition's policy: `delete` (default; needs no extra columns) removes the row and its
      * related storage; `archive` (recommended for new development) needs the consumer columns `archived_at` (NULL) and
      * `archived_by` and hides the row from every framework read. `preview: '1'` changes nothing and returns
      * `{count: 1, usages}` of the registered UsageProviders; an applied delete calls their clear() and reports `cleared`.

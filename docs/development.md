@@ -291,7 +291,8 @@ change before every push.
   copies only one half breaks live lists. The frontend `Workspace` constructor
   now takes the shell's `LiveChannel` instead of a `LiveConfig`; consumers that
   only use `AdminShell` are not affected. Batched `__watch`
-  (`values.subscriptions`) is new; the single-list form is still accepted.
+  (`values.subscriptions`) is new and, since 2026-10-30
+  ([FB-0081](feedback.md#fb-0081)), the only accepted form.
 
 - **File-derived cache keys (2026-10-30, [FB-0081](feedback.md#fb-0081)):**
   `admin.js`/`admin.css` are linked with `?v=<base36 mtime>-<base36 size>` of

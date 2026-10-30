@@ -22,6 +22,32 @@ own screens are built from the same building blocks.
 
 ## Decision
 
+1. 61ade is a toolkit. It provides public, documented, typed building blocks:
+   services (server calls, URLs, dialogs, toasts, windows, uploads, events,
+   i18n, theme, preferences, live data), components (list/record views,
+   forms, file manager, calendar, diagram editor, media player, sandbox frame,
+   layout helpers) and the DHTMLX instance it uses.
+2. A project ships its own frontend modules. The application definition lists
+   them; the shell loads them and hands them the application API. Modules
+   register view kinds, column presentations, field types and client commands,
+   compose framework components with their own code, and may extend framework
+   classes.
+3. The framework dogfoods the API: its built-in view kinds (list, files,
+   diagram, calendar) register through the same registries a project uses.
+4. Views get their own identity (a view id independent of the resource), so
+   several views, including record views opened for one record, can exist per
+   resource.
+5. What stays mandatory: the shared infrastructure of ADR-0004 (login,
+   identities, ACL, admin, executor, audit, upload flow, live channel) is used,
+   never rebuilt; every server read/write is authorized on the server; code a
+   project does not trust (for example agent-written) runs only in a sandboxed
+   frame without same-origin access.
+6. A purely declarative application (no modules) remains fully supported; the
+   starter admin and tenant demo stay declarative and prove it. The full
+   feature demo becomes a toolkit consumer with its own frontend modules.
+7. Breaking changes are accepted for this transition; consumers adapt through
+   their own integration work.
+
 ## Consequences
 
 - Supersedes "consumers have no shell HTML/CSS/JS layer" ([shell](../shell.md)),
@@ -39,7 +65,9 @@ own screens are built from the same building blocks.
   modules get the `Application` by injection, no import map (O1); plain ES
   modules or project-built TypeScript with `admin.d.ts` (O2); a view `id`
   independent of the resource, canonical `#view=`, with `#feature=` kept as a
-  rewritten legacy alias because delivered consumer e-mails use it (O3);
+  rewritten legacy alias (O3;
+  superseded on 2026-10-30, [FB-0081](../feedback.md#fb-0081): the alias is
+  removed and a duplicate view id throws);
   record views resolved through the record resource's `get` (O4); per-row
   activation maps with `view:<id>` targets (O5); a static sandbox document in
   an opaque-origin frame (O6), the only place untrusted code may run (O7);
@@ -48,4 +76,6 @@ own screens are built from the same building blocks.
   (O10); `apiVersion` 1 with a recorded change log after G1 (O11).
 - A later view declaration with the same id replaces the earlier one, as
   today; the owner confirms this and the other
-  [open points](../toolkit.md#open-points) at gate G1.
+  [open points](../toolkit.md#open-points) at gate G1. Superseded on
+  2026-10-30 ([FB-0081](../feedback.md#fb-0081)): a duplicate id throws and
+  `Registry::updateView()` changes a declared view.
