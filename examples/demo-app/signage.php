@@ -232,6 +232,7 @@ function blade_demo_signage_setup(PDO $db, FileStorage $storage, ?Closure $repor
     blade_demo_signage_media($db, $storage);
     blade_demo_signage_audio($db, $storage);
     blade_demo_signage_scene($db, $storage);
+    blade_demo_signage_brand($db, $storage);
     $report ??= static function (string $line): void { fwrite(STDERR, $line."\n"); };
     foreach (blade_demo_signage_outside($db) as $row) $report(sprintf('Signage: asset #%s (%s) references file #%s in mount "%s", outside the Signage mount; left in place.', $row['asset'], $row['title'], $row['file'], $row['mount']));
 }
@@ -334,6 +335,31 @@ function blade_demo_signage_scene(PDO $db, FileStorage $storage): void
     $monday = (new DateTimeImmutable('monday this week'))->format('Y-m-d');
     $db->prepare('INSERT INTO blade_calendar_events(space,text,start_at,end_at,rrule,duration,data) VALUES (?,?,?,?,?,?,?)')
         ->execute(['signage', $slot, "$monday 20:00:00", '9999-02-01 00:00:00', 'FREQ=DAILY;INTERVAL=1', 3600, json_encode(['asset_id' => (string) $asset], JSON_THROW_ON_ERROR)]);
+}
+
+/** Endless brand scene (resources/files/blade-brand.js): file name, asset title, loop length. */
+const BLADE_DEMO_SIGNAGE_BRAND = ['blade-brand.js', 'Blade brand animáció', 20];
+
+/**
+ * The brand scene asset, also for an existing demo database: a missing file is stored in the Signage mount root, and
+ * when its asset is created it becomes the weekday default of every day (existing weekday defaults are repointed,
+ * missing ones added; date-specific defaults stay). A rerun with the asset in place changes nothing.
+ */
+function blade_demo_signage_brand(PDO $db, FileStorage $storage): void
+{
+    [$name, $title, $seconds] = BLADE_DEMO_SIGNAGE_BRAND;
+    $root = $storage->root('signage') ?? $storage->entry($storage->ensureRoot('signage'));
+    $file = $storage->child((int) $root['id'], $name);
+    if ($file && $file['kind'] !== 'file') return;
+    $id = (string) ($file['id'] ?? $storage->createFile($root, $name, BLADE_DEMO_SIGNAGE_SCENE_TYPE, __DIR__.'/resources/files/'.$name));
+    $q = $db->prepare('SELECT id FROM signage_assets WHERE file_id = ? ORDER BY id LIMIT 1');
+    $q->execute([$id]);
+    if ($q->fetchColumn() !== false) return;
+    $db->prepare('INSERT INTO signage_assets(title,file_id,duration) VALUES (?,?,?)')->execute([$title, $id, (string) $seconds]);
+    $asset = (string) $db->lastInsertId();
+    $db->prepare("UPDATE signage_defaults SET asset_id = ? WHERE date = ''")->execute([$asset]);
+    $add = $db->prepare("INSERT INTO signage_defaults(weekday,date,asset_id) SELECT ?, '', ? WHERE NOT EXISTS (SELECT 1 FROM signage_defaults WHERE date = '' AND weekday = ?)");
+    foreach (array_keys(BLADE_DEMO_SIGNAGE_WEEKDAYS) as $day) $add->execute([(string) $day, $asset, (string) $day]);
 }
 
 function blade_demo_signage_seed(PDO $db): void

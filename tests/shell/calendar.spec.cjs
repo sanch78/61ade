@@ -108,9 +108,9 @@ test('playlist API: Friday timeline falls back to the weekday default between pr
  const result=await api(page,'signage_playlist','day',null,{date});
  expect(result.status).toBe(200);
  const slots=result.body.data.timeline.map(s=>`${s.start}-${s.end} ${s.source} ${s.title}`);
- expect(slots).toEqual(['00:00-08:00 default Arculati háttérkép','08:00-10:00 schedule Reggeli promó','10:00-14:00 default Arculati háttérkép','14:00-17:00 schedule Pénteki logóblokk',
+ expect(slots).toEqual(['00:00-08:00 default Blade brand animáció','08:00-10:00 schedule Reggeli promó','10:00-14:00 default Blade brand animáció','14:00-17:00 schedule Pénteki logóblokk',
   // The daily scene slot of the D2 scene fixture (signage.php blade_demo_signage_scene()).
-  '17:00-20:00 default Arculati háttérkép','20:00-21:00 schedule Esti jelenet','21:00-24:00 default Arculati háttérkép']);
+  '17:00-20:00 default Blade brand animáció','20:00-21:00 schedule Esti jelenet','21:00-24:00 default Blade brand animáció']);
  expect(result.body.data.default.source).toBe('weekday');
  expect((await api(page,'signage_schedule','events',null,{from:'2026-01-01',to:'2026-12-31'})).status).toBe(400);
 });

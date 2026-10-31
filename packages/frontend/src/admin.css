@@ -58,7 +58,9 @@ body,
 .blade-grid-card__id { color: var(--dhx-font-color-additional); font-size: 12px; margin-bottom: 10px; }
 /* The spanned sub-row content is the span cell; the synthetic row's own cells stay out of view and of the accessibility tree. */
 .blade-grid-subrow-row > .dhx_grid-cell { visibility: hidden; }
-.blade-subrow-toggle { width: 28px; min-width: 28px; height: 28px; padding: 0; }
+/* A colourless Suite link button keeps the browser's black button text, which disappears on dark themes. */
+.blade-subrow-toggle { width: 28px; min-width: 28px; height: 28px; padding: 0; color: var(--dhx-font-color-secondary); }
+.blade-subrow-toggle:hover:not(:disabled) { color: var(--dhx-color-primary); }
 .blade-grid-subrow-span .dhx_span-cell-content { width: 100%; height: 100%; padding: 0; }
 .blade-subview-slot { height: 100%; }
 /* Card sub-view button: the full child list window, full width at the card bottom and touch friendly. */
@@ -345,21 +347,22 @@ body,
   .blade-dialog__footer .dhx_button { width: 100%; }
 }
 
-/* File manager: framed active panel, upload window and monospace text editor. */
+/* File manager: active panel, upload window and monospace text editor. */
 /* Content (grid columns, tree) must not size the native flex cells; dragged widths still apply. */
 .blade-file-panels > .blade-file-panel { min-width: 0; contain: inline-size; }
 .blade-file-panels > .blade-file-panel--hidden { display: none !important; }
 .blade-file-view--hidden { display: none !important; }
 .blade-file-panels > .blade-file-panel:has(+ .blade-file-panel--hidden) { margin-right: 0; }
-.blade-file-panel__body { box-sizing: border-box; border: 2px solid transparent; }
-.blade-file-panel--active .blade-file-panel__body { border-color: var(--dhx-color-primary); }
+/* The native space panel's own frame marks the active panel and the drop target; the body draws no second border. */
+.blade-file-panels > .blade-file-panel--active { --blade-panel-border: var(--dhx-color-primary); }
 .blade-file-panel--active > .dhx_layout-cell-header { background: color-mix(in srgb, var(--dhx-color-primary) 16%, var(--dhx-background-primary)); }
 .blade-file-panel--active > .dhx_layout-cell-header .dhx_layout-cell-header__title { font-weight: 600; }
 /* The header path fills the header: FileManager collapses folders, CSS cuts what still overflows. */
 .blade-file-panels > .blade-file-panel > .dhx_layout-cell-header .dhx_layout-cell-header__title { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .blade-tree { height: 100%; }
 /* Files or folders dragged over a panel: the panel frame and a tint mark the drop target (its folder). */
-.blade-file-panel__body.blade-file-panel__body--drop { border-style: dashed; border-color: var(--dhx-color-primary); background: color-mix(in srgb, var(--dhx-color-primary) 8%, var(--dhx-background-primary)); }
+.blade-file-panels > .blade-file-panel:has(.blade-file-panel__body--drop) { --blade-panel-border: var(--dhx-color-primary); border-style: dashed !important; }
+.blade-file-panel__body.blade-file-panel__body--drop { background: color-mix(in srgb, var(--dhx-color-primary) 8%, var(--dhx-background-primary)); }
 .blade-file-find .blade-file-find__bar .dhx_navbar { padding-left: 0; }
 /* Tiles: folders, the ".." row and in-flight uploads have no thumbnail; their media slot shows the
    folder, parent or upload glyph of the Suite icon font (the tile's secondary line names the type in text). */

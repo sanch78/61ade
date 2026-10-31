@@ -1,6 +1,6 @@
 /* D3 Mérések (readings.ts): the demo.reading-bar presentation and the dashboard summary. Built into
-   public/app/demo.css (application.php `stylesheets`); colours are Suite theme variables, so Skyblue, light, dark
-   and skins apply. */
+   public/app/demo.css (application.php `stylesheets`); colours are Suite theme variables, so Blade, Blade
+   Night, light, dark and skins apply. */
 .demo-reading-bar { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; }
 .demo-reading-bar__track { flex: 1 1 auto; min-width: 32px; max-width: 160px; height: 6px; border-radius: 3px; background: var(--dhx-background-additional); overflow: hidden; }
 .demo-reading-bar__fill { display: block; height: 100%; border-radius: 3px; background: var(--dhx-color-primary); }

@@ -1,10 +1,10 @@
-import type { Application, ClientCommand, ColumnMetadata, CommandContext, ColumnPresentation, FieldMetadata, FieldType, PresentationSize, RegisterOptions, Registry, Row } from "../api/types";
+import type { Application, ClientCommand, ColumnMetadata, CommandContext, ColumnPresentation, FieldMetadata, FieldType, MediaType, PresentationSize, RegisterOptions, Registry, Row } from "../api/types";
 
 /** Registry and view names: lower-case start, then `a-z 0-9 _ . -`. */
 export const NAME = /^[a-z][a-z0-9_.-]*$/;
 
 /**
- * A name → entry map of the toolkit (`kinds`, `presentations`, `fieldTypes`, `commands`). Built-in names have no dot
+ * A name → entry map of the toolkit (`kinds`, `presentations`, `fieldTypes`, `commands`, `mediaTypes`). Built-in names have no dot
  * and are registered by 61ade with `builtin`; project names must contain one. A duplicate throws unless
  * `{replace: true}`, which is also how a project deliberately overrides a built-in entry.
  */
@@ -41,6 +41,7 @@ export const extensions: {
   presentations?: Registry<ColumnPresentation>;
   fieldTypes?: Registry<FieldType>;
   commands?: Registry<ClientCommand>;
+  mediaTypes?: Registry<MediaType>;
 } = {};
 
 const warned = new Set<string>();

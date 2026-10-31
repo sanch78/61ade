@@ -57,11 +57,13 @@ final readonly class Thumbnails
 
     private function image(string $path, string $mime, string $output): bool
     {
+        @file_put_contents('/space/share/libs/61ade/tmp/web/task-trace.log', gmdate('H:i:s').' '.getmypid().' step $size = @getimagesiz'."\n", FILE_APPEND);
         $size = @getimagesize($path);
         if (!is_array($size) || $size[0] < 1 || $size[1] < 1 || $size[0] * $size[1] > self::MAX_PIXELS) return false;
         // GD holds the decoded image in memory; without headroom in this worker now, a later attempt may succeed.
         $limit = self::bytes((string) ini_get('memory_limit'));
         if ($limit > 0 && memory_get_usage() + $size[0] * $size[1] * 6 + (int) filesize($path) > $limit * 0.9) throw new \RuntimeException('Not enough memory for the thumbnail now.');
+        @file_put_contents('/space/share/libs/61ade/tmp/web/task-trace.log', gmdate('H:i:s').' '.getmypid().' step $image = @imagecreat'."\n", FILE_APPEND);
         $image = @imagecreatefromstring((string) file_get_contents($path));
         if (!$image) return false;
         $orientation = $mime === 'image/jpeg' ? MediaProbe::exifOrientation($path) : 1;
@@ -74,11 +76,13 @@ final readonly class Thumbnails
         if (in_array($orientation, [2, 4, 5, 7], true)) imageflip($image, IMG_FLIP_HORIZONTAL);
         [$width, $height] = [imagesx($image), imagesy($image)];
         $scale = self::SIZE / max($width, $height);
+        @file_put_contents('/space/share/libs/61ade/tmp/web/task-trace.log', gmdate('H:i:s').' '.getmypid().' step $thumb = imagecreate'."\n", FILE_APPEND);
         $thumb = imagecreatetruecolor(max(1, (int) round($width * $scale)), max(1, (int) round($height * $scale)));
         imagealphablending($thumb, false);
         imagesavealpha($thumb, true);
         imagefill($thumb, 0, 0, imagecolorallocatealpha($thumb, 0, 0, 0, 127));
         imagecopyresampled($thumb, $image, 0, 0, 0, 0, imagesx($thumb), imagesy($thumb), $width, $height);
+        @file_put_contents('/space/share/libs/61ade/tmp/web/task-trace.log', gmdate('H:i:s').' '.getmypid().' step return imagewebp('."\n", FILE_APPEND);
         return imagewebp($thumb, $output, 80) && is_file($output) && filesize($output) > 0;
     }
 

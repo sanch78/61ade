@@ -75,7 +75,7 @@ function blade_demo_accounts(PDO $db, array $accounts): void
 function blade_demo_files(): Blade\Files\FileManagerDefinition
 {
     return new Blade\Files\FileManagerDefinition('files', 'Fájlkezelő', 'demo', ['a' => 'Drive A', 'b' => 'Drive B', 'c' => 'Drive C', 'signage' => 'Signage'],
-        allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'], maxSizeBytes: 5242880, maxFiles: 20, duplicatePolicy: 'ask',
+        allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'], maxSizeBytes: 1073741824, maxFiles: 20, duplicatePolicy: 'ask',
         textMaxBytes: 65536, group: 'Feature demó', desktopOnly: true, contentRoot: blade_demo_runtime('files'), deletePolicy: 'delete');
 }
 

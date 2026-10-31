@@ -16,6 +16,11 @@ Two framework capabilities, shown through the existing demos:
 - a **media-aware list presentation** (thumbnail column, tiles view, media
   card slot, search/type filter/sort) usable by any grid, card or file listing.
 
+The `files` and `signage_assets` features are **synthetic demo consumers**.
+They are good examples of the capabilities, not a DMS or file-manager product.
+Real consumers configure the same capabilities (storage root, limits, mounts,
+usage providers) for their own needs.
+
 Excluded from this plan: pause/resume across
 browsers or devices, image editing, upload from URL, tags and collections,
 duplicate detection by hash, a general job runner (M6).
@@ -68,7 +73,7 @@ update, per [development rules](development.md#mandatory-framework-development-r
   (single-range 206/416, ETag from revision, `private` cache, `nosniff`) and
   `thumbnail_get`.
 - Options on `FileManagerDefinition`: `contentRoot`, `tempRoot`,
-  `maxSizeBytes` (≤ 100 MB), `maxFiles` (≤ 20), `thumbnails`.
+  `maxSizeBytes` (≤ 1 GiB), `maxFiles` (≤ 20), `thumbnails`.
 - Migration `0002`: stream existing BLOBs to the store, verify hashes, queue
   derivatives; idempotent and resumable; the BLOB column is dropped only in a
   later step after verification. The demo uses `blade_demo_runtime('files')`.

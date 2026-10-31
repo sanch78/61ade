@@ -69,7 +69,7 @@ final readonly class FileManagerDefinition
         // A label names the mount root in paths and ZIP archives, so it follows the safe-name rule (no separators, not dot-only).
         foreach ($mounts as $key => $label) if (!is_string($key) || !preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $key) || !is_string($label) || UploadPolicy::invalidName($label) !== null) throw new \InvalidArgumentException('Invalid file mount.');
         if (!$allowedExtensions || array_diff($allowedExtensions, array_keys(self::TYPES)) || count(array_unique($allowedExtensions)) !== count($allowedExtensions)) throw new \InvalidArgumentException('Unsupported upload extension.');
-        if ($maxSizeBytes < 1 || $maxSizeBytes > 104857600 || $textMaxBytes < 1 || $textMaxBytes > 4194304 || $maxDepth < 1 || $maxDepth > 32) throw new \InvalidArgumentException('Invalid file manager limit.');
+        if ($maxSizeBytes < 1 || $maxSizeBytes > \Blade\Feature\UploadPolicy::MAX_SIZE_BYTES || $textMaxBytes < 1 || $textMaxBytes > 4194304 || $maxDepth < 1 || $maxDepth > 32) throw new \InvalidArgumentException('Invalid file manager limit.');
         if ($maxFiles < 1 || $maxFiles > self::MAX_FILES) throw new \InvalidArgumentException('Invalid file manager limit.');
         if (!in_array($duplicatePolicy, self::DUPLICATE_POLICIES, true)) throw new \InvalidArgumentException('Invalid duplicate policy.');
         if (!in_array($deletePolicy, self::DELETE_POLICIES, true)) throw new \InvalidArgumentException('Invalid delete policy.');

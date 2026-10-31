@@ -4,12 +4,14 @@ export type Sort={field:string;direction:"asc"|"desc"};
 export type Filter={name:string;label:string;type?:string;options?:Record<string,string>};
 type Column={id:string;header:string;type?:string;editable?:boolean;filter?:Filter};
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
-const filterOptions=(filter:Filter)=>Object.entries(filter.options??{}).map(([id,value])=>({id,value}));
+/** The leading "all" item clears an option filter; DHTMLX needs a non-empty id, so it maps back to the empty value. */
+const ALL="blade-filter-all";
+const filterOptions=(filter:Filter)=>[{id:ALL,value:t("Mind")},...Object.entries(filter.options??{}).map(([id,value])=>({id,value}))];
 const filterHeader=(column:Column):any=>{
   const filter=column.filter;if(!filter)return undefined;
   if(filter.type==="select"||filter.type==="checkbox"){
     // Items carry the visible label as value, which DHTMLX shows in the input; an exact label keeps every option listed for reselection.
-    const labels=Object.values(filter.options??{});
+    const labels=[t("Mind"),...Object.values(filter.options??{})];
     return {content:"comboFilter",filterConfig:{data:filterOptions(filter),filter:(item:any,input:string)=>!input||labels.includes(input)||String(item.value).toLowerCase().includes(input.toLowerCase())}};
   }
   return {content:"inputFilter"};
@@ -28,6 +30,7 @@ export class GridHeaders {
   private columns:Column[];
   private filterColumns=new Set<string>();
   private filterValues:Record<string,string>={};
+  private boundCombos=new WeakSet<object>();
   constructor(private grid:Grid,columns:Column[],private sortable:string[],change:(sort:Sort)=>void,filters:Filter[]=[],private filterChange?:(field:string,value:string)=>void){
     const definitions=new Map(filters.map(filter=>[filter.name,filter]));
     this.columns=[{id:"id",header:"ID"},...columns.map(column=>({...column,filter:definitions.get(column.id)}))];
@@ -42,7 +45,7 @@ export class GridHeaders {
       const normalized=Array.isArray(value)?String(value[0]??""):value==null?"":String(value);
       const definition=this.columns.find(item=>item.id===field)?.filter;
       const canonical=definition&&(definition.type==="select"||definition.type==="checkbox")
-        ?Object.hasOwn(definition.options??{},normalized)?normalized:Object.entries(definition.options??{}).find(([,label])=>label===normalized)?.[0]??normalized
+        ?normalized===ALL||normalized===t("Mind")?"":Object.hasOwn(definition.options??{},normalized)?normalized:Object.entries(definition.options??{}).find(([,label])=>label===normalized)?.[0]??normalized
         :normalized;
       this.filterValues[field]=canonical;
       if(!silent)this.filterChange?.(field,canonical);
@@ -78,7 +81,19 @@ export class GridHeaders {
     if(!definition||!((definition.type==="select")||(definition.type==="checkbox")))return;
     const filter:any=this.grid.getHeaderFilter(field);const combo=filter?.getFilter?.();
     if(!combo?.data)return;
-    combo.data.removeAll();combo.data.parse(filterOptions(definition));
+    // Adding only the missing items keeps the current selection; removing it would clear the filter.
+    filterOptions(definition).forEach((item,index)=>{if(!combo.data.find((existing:any)=>existing.value===item.value))combo.data.add(item,index);});
+  }
+  /** DHTMLX refills an idle picker from the loaded cells' labels; reopening restores the declared options and the "all" item. */
+  private bindFilterOptions():void{
+    for(const field of this.filterColumns){
+      const definition=this.columns.find(item=>item.id===field)?.filter;
+      if(!definition||!((definition.type==="select")||(definition.type==="checkbox")))continue;
+      const combo:any=(this.grid.getHeaderFilter(field) as any)?.getFilter?.();
+      if(!combo?.popup||this.boundCombos.has(combo))continue;
+      this.boundCombos.add(combo);
+      combo.popup.events.on("beforeShow",()=>{if(!this.disposed)this.syncFilterOptions(field);});
+    }
   }
   private setFilterDisplay(field:string,value:string):void{
     if(!this.grid.getRootNode())return;
@@ -89,6 +104,7 @@ export class GridHeaders {
   decorate():void{
     void awaitRedraw().then(()=>{
       if(this.disposed)return;
+      this.bindFilterOptions();
       for(const node of Array.from(this.grid.getRootNode()?.querySelectorAll<HTMLElement>('[role="columnheader"][data-dhx-id]')??[])){
         const id=node.getAttribute("data-dhx-id");
         if(this.columns.find(c=>c.id===id)?.editable)node.setAttribute("aria-description",t("Szerkeszthető mező"));

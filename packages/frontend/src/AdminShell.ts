@@ -51,7 +51,7 @@ export type ShellDefinition = {
   /** Only with tenancy: the server-resolved active tenant (null: no membership) and the actor's memberships. */
   tenant?: { current: string | null; choices: { id: string; name: string }[] };
   /** Only after sign-in: application skins (DHTMLX custom themes) of the identity; they replace the factory themes. */
-  skins?: { id: string; label: string; base: "light" | "dark" | "skyblue" }[];
+  skins?: { id: string; label: string; base: "light" | "dark" | "blade" | "blade-night" }[];
   /**
    * The logo (`ApplicationDefinition::$logo`): keyed image URLs (none: the inlined 61ade product logo), its accessible
    * text and placement; absent only with `Logo::none()`.
@@ -231,14 +231,18 @@ export class AdminShell {
     // Skins replace the factory themes and keep their own stored choice, so blade-theme survives a lost skin.
     // A skin applies its factory base theme and refines it through data-blade-skin.
     const skins=definition.skins??[];
-    const choices:{id:string;label:string;base?:string}[]=skins.length?skins.map(skin=>({id:skin.id,label:escape(skin.label),base:skin.base})):[{id:"skyblue",label:"Skyblue"},{id:"light",label:t("Világos")},{id:"dark",label:t("Éjjeli")}];
+    const choices:{id:string;label:string;base?:string}[]=skins.length?skins.map(skin=>({id:skin.id,label:escape(skin.label),base:skin.base})):[{id:"blade",label:"Blade"},{id:"blade-night",label:"Blade Night"},{id:"light",label:t("Világos")},{id:"dark",label:t("Éjjeli")}];
     const storage=skins.length?"blade-skin":"blade-theme";
     const apply=(id:string)=>{
       const choice=choices.find(choice=>choice.id===id)!;
+      // Blade Night runs on Suite's dark theme, so every dark rule applies; data-blade-theme names the factory theme for
+      // the Blade layer (themes/blade.css).
+      const factory=choice.base??id,base=factory==="blade-night"?"dark":factory;
       if(skins.length)document.documentElement.dataset.bladeSkin=id;
-      setTheme(choice.base??id,document.documentElement);
-      themeApplied(choice.base??id,skins.length?id:null);
-      if(!definition.authenticated)signInThemeApplied(choice.base??id);
+      document.documentElement.dataset.bladeTheme=factory;
+      setTheme(base,document.documentElement);
+      themeApplied(base,skins.length?id:null);
+      if(!definition.authenticated)signInThemeApplied(base);
     };
     configureServer(definition.csrf || "", definition.authenticated ? () => this.sessionEnded() : undefined);
     let theme=choices[0].id;

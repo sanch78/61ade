@@ -175,7 +175,8 @@ Every filterable field that is present in a view's grid receives a native DHTMLX
 header filter above its title. Text and number fields use an input; select and
 checkbox fields use an option picker whose values come from the declared field
 options; the picker shows option labels, sends option keys and lists every
-option again when reopened. An empty control omits that field from the request. Changes replace the
+option again when reopened. A leading `Mind` item clears the option filter.
+An empty control omits that field from the request. Changes replace the
 server-side list window and update the existing total/matched count; the Grid
 does not apply a separate local filter to its bounded client window. ACL and
 typed `ListSource` validation remain authoritative. Views whose filterable field

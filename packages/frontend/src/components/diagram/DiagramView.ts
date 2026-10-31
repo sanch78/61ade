@@ -111,7 +111,7 @@ export class DiagramView {
     for(const type of this.config.nodeTypes)this.types.set(type.id,type);
     this.layout=new Layout(host,{type:"space",rows:[
       {id:"commands",height:48,css:"blade-command-row"},
-      {type:"wide",cols:[
+      {cols:[
         {type:"line",width:240,css:"blade-diagram-side",rows:[
           {id:"diagrams",header:t("Diagramok"),height:200,resizable:true},
           {id:"palette",header:t("Elemek")},

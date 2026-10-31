@@ -311,7 +311,7 @@ app.fieldTypes.register("demo.rating", {
   display: (value, row, field, size, escape) => `<span aria-label="${escape(value)}/5">${"★".repeat(Number(value) || 0)}</span>`,
 });
 app.commands.register("demo.copy-text", {
-  label: "Másolás szövegként", icon: "dxi dxi-content-copy", placement: "record",
+  label: "Másolás szövegként", icon: "dxi dxi-copy", placement: "record",
   // Reads go through an action too: the server's ACL and field ACL decide what the text contains.
   run: async ({ app, row, signal }) => {
     const fresh = await app.server.call<Row>("demo_tasks", "get", { id: row!.id, signal });
@@ -429,7 +429,7 @@ new C.DiagramEditor({ view: "diagrams" }).mount(host);
 const player = new C.MediaPlayer({ source: { resource: "signage_assets", action: "content_stream", id }, mime: "audio/mpeg" });
 player.on("position", ({ seconds }) => timeline.move(seconds)); player.mount(layout.getCell("stage"));
 const frame = new C.SandboxFrame({ signal: host.signal }); await frame.load(code, { "tone.wav": blob });
-const bar = new C.CommandBar({ items: [{ id: "play", label: "Lejátszás", icon: "dxi dxi-play" }] });
+const bar = new C.CommandBar({ items: [{ id: "play", label: "Lejátszás", icon: "dxi dxi-menu-right" }] });
 bar.on("click", ({ id }) => id === "play" && player.play());
 ```
 
@@ -567,7 +567,7 @@ and click events.
 
 ```ts
 const bar = new app.components.CommandBar({ signal: host.signal, items: [
-  { id: "play", label: app.i18n.t("Lejátszás"), icon: "dxi dxi-play" },
+  { id: "play", label: app.i18n.t("Lejátszás"), icon: "dxi dxi-menu-right" },
   { id: "pause", label: app.i18n.t("Szünet"), disabled: true }] });
 bar.on("click", ({ id }) => (id === "play" ? void player.play() : player.pause()));
 bar.mount(layout.getCell("commands"));
@@ -783,7 +783,7 @@ camelCase `imageBase`, `altOf` and `mediaOf`, and a field's JSON `default` is
 ```json
 {"views": {"demo.asset-viewer": {"kind": "demo.asset-viewer", "title": "Médianéző",
   "resource": "signage_assets", "record": "signage_assets", "actions": ["get", "content_stream"],
-  "options": {"loop": true}, "open": "window", "group": "Signage", "icon": "dxi dxi-play", "desktop_only": false}}}
+  "options": {"loop": true}, "open": "window", "group": "Signage", "icon": "dxi dxi-menu-right", "desktop_only": false}}}
 ```
 
 `View` validates: id, `kind` (a built-in name or a dotted project kind),

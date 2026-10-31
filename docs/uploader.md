@@ -42,7 +42,7 @@ $registry->add(new Action('attachments', 'upload', 'Feltöltés',
 | Option | Meaning |
 | --- | --- |
 | `extensions` | Lower-case allowlist (required). |
-| `maxSizeBytes` | Per file, at most 100 MB. |
+| `maxSizeBytes` | Per file, at most 1 GiB. |
 | `maxFiles` | Per batch, 1–20 (quota). |
 | `chunkBytes` | 256 KiB–8 MiB. The default is min(4 MiB, `upload_max_filesize` − 64 KiB, `post_max_size` − 64 KiB) of the running PHP (the managed demo's FPM: 4 MiB); an explicit value above either limit fails at construction. |
 | `folders`, `maxDepth` | Allow `relative_path` folder uploads and their depth. |

@@ -1,7 +1,7 @@
-import type { ClientCommand, ColumnPresentation, ListKindOptions, ViewDefinition, ViewKind } from "../api/types";
+import type { ClientCommand, ColumnPresentation, ListKindOptions, MediaType, ViewDefinition, ViewKind } from "../api/types";
 import type { NamedRegistry } from "./registries";
 import type { LiveChannel } from "../Realtime";
-import { imagePresentation } from "../RecordPresentation";
+import { builtinMediaTypes, imagePresentation } from "../RecordPresentation";
 import { builtinCommands } from "../components/list/commands";
 
 /** What a built-in kind may need beyond the public API: the tab's live channel and the preference user. */
@@ -9,12 +9,14 @@ export type BuiltinContext = { channel: () => LiveChannel; user: string };
 
 /**
  * Registers the built-in entries (dogfooding): the kinds `list`, `files`, `diagram` and `calendar` on `kinds` (the
- * shell opens views only through it), the `image` column presentation on `presentations` and the lists' `details`
- * (`Adatok`) command on `commands`; the list surfaces render and run them through these registries.
+ * shell opens views only through it), the `image` column presentation on `presentations`, the lists' `details`
+ * (`Adatok`) command on `commands` and the `image`, `video`, `audio` media types on `mediaTypes`; the list surfaces
+ * render and run them through these registries.
  */
-export function registerBuiltins(registries: { kinds: NamedRegistry<ViewKind<any>>; presentations: NamedRegistry<ColumnPresentation>; commands: NamedRegistry<ClientCommand> }, context: BuiltinContext): void {
+export function registerBuiltins(registries: { kinds: NamedRegistry<ViewKind<any>>; presentations: NamedRegistry<ColumnPresentation>; commands: NamedRegistry<ClientCommand>; mediaTypes: NamedRegistry<MediaType> }, context: BuiltinContext): void {
   const { kinds } = registries;
   registries.presentations.builtin("image", imagePresentation);
+  for (const [name, type] of Object.entries(builtinMediaTypes)) registries.mediaTypes.builtin(name, type);
   for (const [name, command] of Object.entries(builtinCommands)) registries.commands.builtin(name, command);
   // The list kind is the public ListView (dogfooding): mounted in the host, destroyed with its signal.
   kinds.builtin("list", { create(host, view: ViewDefinition<ListKindOptions>) {

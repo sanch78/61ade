@@ -2,7 +2,7 @@ import * as Suite from "@dhtmlx/suite";
 import { t } from "../I18n";
 import { uploads as uploader, type UploadEvents } from "../Uploader";
 import type { LiveChannel } from "../Realtime";
-import type { Application, ClientCommand, ColumnPresentation, Components, FieldType, NavigationTarget, ViewDefinition, ViewKind } from "../api/types";
+import type { Application, ClientCommand, ColumnPresentation, Components, FieldType, MediaType, NavigationTarget, ViewDefinition, ViewKind } from "../api/types";
 import { server } from "../api/Server";
 import { createEventBus, type InternalEventBus } from "../api/Events";
 import { i18n, identity, live, preferences, theme, ui, uploads } from "../api/services";
@@ -38,8 +38,9 @@ export function createApplication(bridge: ShellBridge): Kernel {
   const presentations = new NamedRegistry<ColumnPresentation>("presentation");
   const fieldTypes = new NamedRegistry<FieldType>("field type");
   const commands = new NamedRegistry<ClientCommand>("command");
+  const mediaTypes = new NamedRegistry<MediaType>("media type");
   // Before any module, so a project can replace a built-in entry with `{replace: true}`.
-  registerBuiltins({ kinds, presentations, commands }, { channel: bridge.channel, user: bridge.userId });
+  registerBuiltins({ kinds, presentations, commands, mediaTypes }, { channel: bridge.channel, user: bridge.userId });
   const offered = Object.freeze([...bridge.views]);
   const app: Application = Object.freeze({
     apiVersion: 1 as const,
@@ -57,6 +58,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
     presentations,
     fieldTypes,
     commands,
+    mediaTypes,
     // Public component classes (toolkit P3 C-1 … C-4), bound to this application.
     components: Object.freeze<Partial<Components>>({
       ...listComponents({ channel: bridge.channel, user: bridge.userId, app: () => app }),
@@ -72,7 +74,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
     navigate: (target: NavigationTarget) => bridge.navigate(target),
   });
   // The framework surfaces (lists, details, forms) read the page's registries when they are created.
-  Object.assign(extensions, { app, presentations, fieldTypes, commands });
+  Object.assign(extensions, { app, presentations, fieldTypes, commands, mediaTypes });
   return { app, events, kinds };
 }
 

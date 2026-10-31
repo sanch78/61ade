@@ -1,6 +1,6 @@
 /* D2 Napi műsor (playlist.ts): the timeline strip, the stage caption and the API panel of demo.playlist-preview. Built
-   into public/app/demo.css (application.php `stylesheets`); colours are Suite theme variables, so Skyblue, light, dark
-   and skins apply. The scene inside the SandboxFrame is content and draws its own colours. */
+   into public/app/demo.css (application.php `stylesheets`); colours are Suite theme variables, so Blade, Blade
+   Night, light, dark and skins apply. The scene inside the SandboxFrame is content and draws its own colours. */
 .demo-playlist-strip { box-sizing: border-box; height: 100%; padding: 8px 12px; overflow-x: auto; overflow-y: hidden; color: var(--dhx-font-color-primary); font-family: var(--dhx-font-family); }
 .demo-playlist-track { position: relative; display: flex; min-width: 100%; height: 100%; }
 .demo-playlist-items { display: flex; flex: 1 0 auto; gap: 4px; margin: 0; padding: 0; list-style: none; }
