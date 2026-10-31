@@ -1771,9 +1771,6 @@ body:has(.image-dialog[open]) {
   }
 }
 @media (max-width: 1279px) {
-  .stage::after {
-    display: none;
-  }
   .facts div {
     border-left: 0;
   }
