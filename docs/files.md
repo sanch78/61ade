@@ -45,9 +45,9 @@ listing's first row is `..` (icon `Szülőmappa`), as in Midnight Commander:
 double-click or Enter opens the parent folder with the cursor on the folder
 just left. The row carries the framework's `_markable: false` row flag, so it
 can hold the cursor but is never marked or an operand. The panel's Layout
-header shows the current path (`Drive A:/Dokumentumok/Projektek`), not a
+header shows the current path (`Drive A:/Documents/Projects`), not a
 fixed panel name. When it does not fit, folders are collapsed from the root
-side, keeping the mount and the current folder (`Drive A:/…/Projektek`), and
+side, keeping the mount and the current folder (`Drive A:/…/Projects`), and
 CSS cuts what still overflows; the fit is recomputed when the panel is
 resized. Hovering a shortened header shows the full path in the native Suite
 tooltip.
@@ -436,14 +436,14 @@ file cap.
 
 Feature demo → `Fájlkezelő` ([demos](demos.md#teljes-feature-demó-)). Setup
 seeds Drive A–C with nested folders (depth-5 chains under
-`Dokumentumok/Projektek/2026/Q4/Mérföldkövek` and `Mély mappa/1/2/3/4`), text,
-Markdown, CSV, JSON, PNG and JPEG files (`logo.png` and `foto.jpg` in
+`Documents/Projects/2026/Q4/Milestones` and `Deep folder/1/2/3/4`), text,
+Markdown, CSV, JSON, PNG and JPEG files (`logo.png` and `photo.jpg` in
 `Képek`, 1 × 1), an empty `Média` folder on Drive A, the
 [signage media](demos.md#signage-media) (10 PNG images, 4 MP4 videos, 4 MP3
 music tracks and the brand scene) in the root of the fourth mount `Signage`
-for the signage assets ([D1](demos.md#d1-asset-viewer)), `OLVASS-EL.TXT` (uppercase
-extension), `Feltöltési minták` with non-uploadable `.exe`/`.pdf` samples and
-`nagy-naplo.txt` above the 64 KiB editor limit, and `jegyzet.txt` on Drive A
+for the signage assets ([D1](demos.md#d1-asset-viewer)), `READ-ME.TXT` (uppercase
+extension), `Upload samples` with non-uploadable `.exe`/`.pdf` samples and
+`large-log.txt` above the 64 KiB editor limit, and `note.txt` on Drive A
 and C for conflicts. `demo@example.test` has every file action;
 `reader@example.test` may only browse, read text, view media and download.
 The demo uses `deletePolicy: 'delete'`.

@@ -1,13 +1,74 @@
 /* Event calendar (DHTMLX Scheduler Standard) inside the 61ade shell; vendor CSS loads first. */
 .blade-calendar-mount, .blade-calendar { width: 100%; height: 100%; }
-.blade-calendar {
+.blade-calendar { position: relative; }
+/* The vendor skin (terrace or dark, chosen by CalendarView) only supplies structure: every colour, font and radius
+   comes from the active Suite theme or skin, so the calendar and its popups match the rest of the shell. The
+   selector outranks the vendor's :root[data-scheduler-theme='dark'] block. */
+:root[data-dhx-theme][data-scheduler-theme] {
   --dhx-scheduler-font-family: var(--dhx-font-family);
+  --dhx-scheduler-font-size: var(--dhx-font-size-normal);
+  --dhx-scheduler-border-radius: var(--dhx-border-radius);
   --dhx-scheduler-base-colors-primary: var(--dhx-color-primary);
   --dhx-scheduler-base-colors-primary-hover: var(--dhx-color-primary-hover);
   --dhx-scheduler-base-colors-primary-active: var(--dhx-color-primary-active);
+  --dhx-scheduler-base-colors-primary-lighter: color-mix(in srgb, var(--dhx-color-primary) 20%, transparent);
+  --dhx-scheduler-base-colors-background: var(--dhx-background-primary);
+  --dhx-scheduler-base-colors-border: var(--dhx-border-color);
+  --dhx-scheduler-base-colors-text-base: var(--dhx-font-color-primary);
+  --dhx-scheduler-base-colors-text-light: var(--dhx-font-color-secondary);
+  --dhx-scheduler-base-colors-icons: var(--dhx-font-color-additional);
+  --dhx-scheduler-base-colors-select: color-mix(in srgb, var(--dhx-color-primary) 10%, var(--dhx-background-primary));
+  --dhx-scheduler-base-colors-hover-color: var(--dhx-s-toolbar-button-background-hover);
+  --dhx-scheduler-base-colors-disabled: var(--dhx-background-additional);
+  --dhx-scheduler-navline-font-color: var(--dhx-font-color-primary);
+  --dhx-scheduler-scale-color: var(--dhx-font-color-secondary);
+  --dhx-scheduler-popup-background: var(--dhx-background-primary);
+  --dhx-scheduler-popup-border: 1px solid var(--dhx-border-color);
   --dhx-scheduler-event-background: var(--dhx-color-primary);
-  position: relative;
+  /* Navigation buttons read as Suite toolbar buttons: flat, the current view tab in the toolbar's pressed tint. */
+  --dhx-scheduler-btn-font-weight: var(--dhx-font-weight-medium);
+  --dhx-scheduler-btn-padding: 0 12px;
+  --dhx-scheduler-btn-background: var(--dhx-s-toolbar-button-background-active);
+  --dhx-scheduler-btn-color: var(--dhx-color-primary);
+  --dhx-scheduler-btn-border-color: transparent;
+  --dhx-scheduler-btn-background-hover: var(--dhx-s-toolbar-button-background-active);
+  --dhx-scheduler-btn-color-hover: var(--dhx-color-primary);
+  --dhx-scheduler-btn-border-hover: transparent;
+  --dhx-scheduler-btn-background-active: var(--dhx-s-toolbar-button-background-active);
+  --dhx-scheduler-btn-color-active: var(--dhx-color-primary);
+  --dhx-scheduler-btn-border-active: transparent;
+  --dhx-scheduler-btn-outline-background: transparent;
+  --dhx-scheduler-btn-outline-color: var(--dhx-font-color-primary);
+  --dhx-scheduler-btn-outline-border-color: transparent;
+  --dhx-scheduler-btn-outline-background-hover: var(--dhx-s-toolbar-button-background-hover);
+  --dhx-scheduler-btn-outline-color-hover: var(--dhx-font-color-primary);
+  --dhx-scheduler-btn-outline-border-hover: transparent;
+  --dhx-scheduler-btn-outline-background-active: var(--dhx-s-toolbar-button-background-active);
+  --dhx-scheduler-btn-outline-color-active: var(--dhx-font-color-primary);
+  --dhx-scheduler-btn-outline-border-active: transparent;
 }
+.blade-calendar .dhx_cal_navline { padding: 8px 12px; }
+.blade-calendar .dhx_cal_tab_segmented { margin: 0 1px; border-radius: var(--dhx-border-radius); }
+.blade-calendar :is(.dhx_cal_prev_button, .dhx_cal_next_button) {
+  border-radius: var(--dhx-border-radius);
+  --dhx-scheduler-btn-color: var(--dhx-font-color-primary);
+  --dhx-scheduler-btn-color-hover: var(--dhx-font-color-primary);
+  --dhx-scheduler-btn-color-active: var(--dhx-font-color-primary);
+  --dhx-scheduler-btn-background-hover: var(--dhx-s-toolbar-button-background-hover);
+  --dhx-scheduler-btn-background-active: var(--dhx-s-toolbar-button-background-active);
+}
+/* Blade and Blade Night: the glossy toolbar hover and a pressed bevel on the current view (themes/blade-chrome.css). */
+[data-blade-theme|="blade"] .blade-calendar :is(.dhx_cal_tab, .dhx_cal_today_button, .dhx_cal_prev_button, .dhx_cal_next_button):hover {
+  background-image: var(--blade-hover);
+  box-shadow: inset 0 0 0 1px var(--blade-hover-ring);
+}
+[data-blade-theme|="blade"] .blade-calendar .dhx_cal_tab.active {
+  background-image: var(--blade-pressed);
+  box-shadow: var(--blade-pressed-bevel);
+  color: var(--blade-button-text);
+  text-shadow: var(--blade-emboss);
+}
+[data-blade-theme|="blade"] .blade-calendar .dhx_cal_header { background-image: var(--blade-chrome); }
 .blade-calendar-cell > .dhx_layout-cell-content { overflow: hidden; }
 /* Event tones (CalendarDefinition::$tones): theme colours, so light and dark skins follow the Suite palette. */
 .blade-calendar .blade-calendar-event--secondary { --dhx-scheduler-event-background: var(--dhx-color-secondary); }

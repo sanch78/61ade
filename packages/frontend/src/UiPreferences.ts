@@ -23,7 +23,8 @@ export class UiPreferences {
     }catch{}
   }
   private save():void{try{localStorage.setItem(this.key,JSON.stringify(this.state));}catch{}}
-  get mode():Mode{return this.state.mode==="cards"||this.state.mode==="tiles"?this.state.mode:"table";}
+  /** The user's chosen presentation, else `fallback`. */
+  mode(fallback:Mode="table"):Mode{const mode=this.state.mode;return mode==="table"||mode==="cards"||mode==="tiles"?mode:fallback;}
   setMode(mode:Mode):void{this.state.mode=mode;this.save();}
   sort(allowed:string[]):Sort|undefined{
     const sort=this.state.sort;

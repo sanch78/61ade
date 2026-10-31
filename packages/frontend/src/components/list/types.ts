@@ -60,4 +60,6 @@ export type WorkspaceHooks={
   panel?:boolean;
   /** false: no ID column and no `ID · n` line on cards (public `ListViewOptions.showId`). */
   showId?:boolean;
+  /** The presentation until the user picks one (public `ListViewOptions.mode`). */
+  mode?:"table"|"cards"|"tiles";
 };

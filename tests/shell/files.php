@@ -828,7 +828,7 @@ fails(fn()=>$dcall('copy',(string)$dRootB['id'],['sources'=>(string)$oListOnly],
 $delRule->execute(['8','move','id','a']);$delRule->execute(['8','move','id','b']);
 check($dcall('move',(string)$dRootB['id'],['sources'=>(string)$oListOnly],'8')['succeeded'][0]['id']===(string)$oListOnly,'Move needs no download right');
 // Rename: extension rule (same stored type, allowed), safe names, conflicts, mount root, ACL; revision and thumbnail stay consistent.
-$rPhoto=$delStorage->createFile($dRootA,'fotó.jpg','image/jpeg',$tmp.'/rotated.jpg');$rText=$delStorage->createFile($dRootA,'jegyzet.txt','text/plain',$src("t\n"));$delWs->tasks->run(100,60);
+$rPhoto=$delStorage->createFile($dRootA,'fotó.jpg','image/jpeg',$tmp.'/rotated.jpg');$rText=$delStorage->createFile($dRootA,'note.txt','text/plain',$src("t\n"));$delWs->tasks->run(100,60);
 $renamed=$dcall('rename',(string)$rPhoto,['name'=>'fotó.jpeg']);
 check($renamed['name']==='fotó.jpeg'&&$renamed['revision']==='2'&&$renamed['item']['extension']==='jpeg'&&$renamed['item']['thumbnail']==='ready'&&$renamed['item']['mime_type']==='image/jpeg','jpg to jpeg keeps the stored type; thumbnail stays current');
 check($dcall('rename',(string)$rText,['name'=>'Jegyzet.TXT'])['name']==='Jegyzet.TXT','Same extension in another case; case-only rename of the entry itself');

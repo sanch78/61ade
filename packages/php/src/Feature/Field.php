@@ -97,7 +97,7 @@ final readonly class Field
             || ($column['editable'] ?? false) || $bulk || $secret || $type === 'file')) {
             throw new InvalidArgumentException('Invalid conditional field: '.$name);
         }
-        if (!array_is_list($clears) || count($clears) > 10 || count(array_unique($clears)) !== count($clears) || $secret
+        if (!array_is_list($clears) || count($clears) > 10 || count(array_unique($clears)) !== count($clears) || ($secret && $clears)
             || array_filter($clears, static fn($other) => !is_string($other) || !preg_match('/^[a-z][a-z0-9_]*$/D', $other) || $other === $name)) {
             throw new InvalidArgumentException('Invalid exclusive field: '.$name);
         }

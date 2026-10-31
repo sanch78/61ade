@@ -451,10 +451,10 @@ function blade_demo_signage_seed(PDO $db, array $assets): void
 {
     // Key => [title, transition, items: file name or [file name, transition override]]
     $lists = [
-        'morning' => ['Reggeli lista', 'fade', ['Craft coffee, slow mornings.png', 'Dynamic running shoe in cobalt and lime.png', 'Orange fizz in cobalt blue.png', 'An elegant moment in time.png', 'blade-brand.js']],
-        'day' => ['Napközbeni lista', 'fade', ['Future forms cast in chrome.png', '3d-logo-intro.mp4', 'black-friday-neon.mp4', 'office-building-at-dusk.mp4', 'sunny-pedestrian-street.mp4']],
-        'evening' => ['Esti lista', 'slide', ['Astronaut at the broken orbital ring.png', ['Electronic festival in a flood of light.png', 'zoom'], 'Fox inventor in the floating garden.png', 'Late-night bites by the river.png', 'Night ferry in the fog.png']],
-        'weekend' => ['Hétvégi lista', 'slide', ['Craft coffee, slow mornings.png', '3d-logo-intro.mp4', 'Fox inventor in the floating garden.png', ['Electronic festival in a flood of light.png', 'zoom'], 'Late-night bites by the river.png', ['Dynamic running shoe in cobalt and lime.png', 'zoom']]],
+        'morning' => ['Morning playlist', 'fade', ['Craft coffee, slow mornings.png', 'Dynamic running shoe in cobalt and lime.png', 'Orange fizz in cobalt blue.png', 'An elegant moment in time.png', 'blade-brand.js']],
+        'day' => ['Daytime playlist', 'fade', ['Future forms cast in chrome.png', '3d-logo-intro.mp4', 'black-friday-neon.mp4', 'office-building-at-dusk.mp4', 'sunny-pedestrian-street.mp4']],
+        'evening' => ['Evening playlist', 'slide', ['Astronaut at the broken orbital ring.png', ['Electronic festival in a flood of light.png', 'zoom'], 'Fox inventor in the floating garden.png', 'Late-night bites by the river.png', 'Night ferry in the fog.png']],
+        'weekend' => ['Weekend playlist', 'slide', ['Craft coffee, slow mornings.png', '3d-logo-intro.mp4', 'Fox inventor in the floating garden.png', ['Electronic festival in a flood of light.png', 'zoom'], 'Late-night bites by the river.png', ['Dynamic running shoe in cobalt and lime.png', 'zoom']]],
     ];
     $playlist = $db->prepare("INSERT INTO signage_playlists(title,transition,transition_ms,shuffle) VALUES (?,?,'600','0')");
     $item = $db->prepare('INSERT INTO signage_playlist_items(playlist_id,asset_id,position,transition) VALUES (?,?,?,?)');
@@ -477,14 +477,14 @@ function blade_demo_signage_seed(PDO $db, array $assets): void
     $weekend = 'FREQ=WEEKLY;INTERVAL=1;BYDAY=SA,SU';
     // [title, start, hours, recurrence, content]
     foreach ([
-        ['Reggeli lista', '06:00', 4, $weekdays, 'playlist:'.$ids['morning']],
-        ['Arculati animáció', '10:00', 2, $weekdays, $brand !== null ? 'asset:'.$brand : null],
-        ['Napközbeni lista', '12:00', 5, $weekdays, 'playlist:'.$ids['day']],
-        ['Narancsos pezsgés', '17:00', 1, $weekdays, isset($assets['Orange fizz in cobalt blue.png']) ? 'asset:'.$assets['Orange fizz in cobalt blue.png'] : null],
-        ['Esti lista', '18:00', 4, $weekdays, 'playlist:'.$ids['evening']],
-        ['Reggeli lista', '06:00', 4, $weekend, 'playlist:'.$ids['morning']],
-        ['Hétvégi lista', '10:00', 8, $weekend, 'playlist:'.$ids['weekend']],
-        ['Esti lista', '18:00', 4, $weekend, 'playlist:'.$ids['evening']],
+        ['Morning playlist', '06:00', 4, $weekdays, 'playlist:'.$ids['morning']],
+        ['Brand animation', '10:00', 2, $weekdays, $brand !== null ? 'asset:'.$brand : null],
+        ['Daytime playlist', '12:00', 5, $weekdays, 'playlist:'.$ids['day']],
+        ['Orange fizz', '17:00', 1, $weekdays, isset($assets['Orange fizz in cobalt blue.png']) ? 'asset:'.$assets['Orange fizz in cobalt blue.png'] : null],
+        ['Evening playlist', '18:00', 4, $weekdays, 'playlist:'.$ids['evening']],
+        ['Morning playlist', '06:00', 4, $weekend, 'playlist:'.$ids['morning']],
+        ['Weekend playlist', '10:00', 8, $weekend, 'playlist:'.$ids['weekend']],
+        ['Evening playlist', '18:00', 4, $weekend, 'playlist:'.$ids['evening']],
     ] as [$title, $start, $hours, $rule, $content]) {
         if ($content !== null) $event->execute([$title, "$monday $start:00", $rule, $hours * 3600, json_encode(['content' => $content], JSON_THROW_ON_ERROR)]);
     }

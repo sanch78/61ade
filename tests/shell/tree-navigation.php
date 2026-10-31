@@ -31,6 +31,13 @@ foreach ([['field' => 'x', 'in' => ['a']], ['field' => 'type', 'in' => []], ['fi
 rejected(static fn() => new Field('x', 'X', column: ['editable' => true], visibleWhen: $when), 'Editable conditional column accepted');
 rejected(static fn() => new Field('x', 'X', bulk: true, visibleWhen: $when), 'Bulk conditional field accepted');
 rejected(static fn() => new Blade\Feature\Action('r', 'a', 'A', [new Field('type', 'T', visibleWhen: ['field' => 'x', 'in' => ['1']]), new Field('x', 'X', visibleWhen: $when)], static fn() => []), 'Chained condition accepted');
+// Exclusive choice (`clears`): optional, non-secret fields of the same action.
+verify((new Field('x', 'X', clears: ['y']))->metadata()['clears'] === ['y'] && !isset((new Field('x', 'X'))->metadata()['clears']), 'Exclusive fields in field metadata');
+foreach ([['x'], ['y', 'y'], ['Y'], [1], ['a' => 'y']] as $bad) rejected(static fn() => new Field('x', 'X', clears: $bad), 'Invalid exclusive field accepted: '.json_encode($bad));
+rejected(static fn() => new Field('x', 'X', secret: true, clears: ['y']), 'Secret exclusive field accepted');
+rejected(static fn() => new Blade\Feature\Action('r', 'a', 'A', [new Field('x', 'X', clears: ['y'])], static fn() => []), 'Exclusive field clearing an unknown field accepted');
+rejected(static fn() => new Blade\Feature\Action('r', 'a', 'A', [new Field('x', 'X', clears: ['y']), new Field('y', 'Y', required: true)], static fn() => []), 'Exclusive field clearing a required field accepted');
+new Blade\Feature\Action('r', 'a', 'A', [new Field('x', 'X', clears: ['y']), new Field('y', 'Y', clears: ['x'])], static fn() => []);
 verify((new View('v', 'list', 'V', guide: "Első.\n\nMásodik."))->guide === "Első.\n\nMásodik.", 'View guide kept');
 foreach (['', '  ', str_repeat('x', 4001), "a\0b"] as $bad) rejected(static fn() => new View('v', 'list', 'V', guide: $bad), 'Invalid guide accepted');
 

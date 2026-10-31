@@ -540,6 +540,10 @@ current.mount(layout.getCell("list"));
   ([manual order and drops](workspaces.md#manual-order)); the dragged record,
   or every marked one when it is marked. A list with a manual order or a drop
   is draggable by its declaration; draggable rows show the drag-handle column.
+- **`mode`:** `table` (default), `cards` or `tiles`: the presentation the
+  list opens in until its user picks one in the `Nézet` menu (that choice is
+  kept per list and wins). `tiles` needs a view that offers tiles; a phone
+  always shows cards.
 
 <a id="recordform"></a>
 

@@ -35,8 +35,8 @@ const created=page=>page.waitForResponse(r=>{try{return r.request().postDataJSON
 
 test('week view shows the recurring programme and the shared event form creates an event',async({page})=>{
  await openCalendar(page);
- await expect(page.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
- await expect(page.locator('.dhx_cal_event').filter({hasText:'Arculati animáció'}).first()).toBeVisible();
+ await expect(page.locator('.dhx_cal_event').filter({hasText:'Morning playlist'}).first()).toBeVisible();
+ await expect(page.locator('.dhx_cal_event').filter({hasText:'Brand animation'}).first()).toBeVisible();
  await page.getByRole('button',{name:'Új esemény',exact:true}).click();
  const box=editor(page);await expect(box).toBeVisible();
  await expect(page.locator('.dhx_cal_light')).toHaveCount(0);
@@ -48,12 +48,12 @@ test('week view shows the recurring programme and the shared event form creates 
  expect((await saved).status()).toBe(200);await expect(box).toHaveCount(0);
  await expect(page.locator('.dhx_cal_event').filter({hasText:prefix}).first()).toBeVisible();
  await page.locator('.dhx_cal_tab[data-tab="month"], .dhx_cal_tab[name="month_tab"]').first().click();
- await expect(page.locator('.dhx_cal_event_clear, .dhx_cal_event_line').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
+ await expect(page.locator('.dhx_cal_event_clear, .dhx_cal_event_line').filter({hasText:'Morning playlist'}).first()).toBeVisible();
 });
 
 test('editing one occurrence of a series stores an exception and keeps the series',async({page})=>{
  await openCalendar(page);
- await page.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).first().dblclick();
+ await page.locator('.dhx_cal_event').filter({hasText:'Morning playlist'}).first().dblclick();
  await page.locator('.blade-dialog').getByRole('button',{name:'Csak ez az esemény',exact:true}).click();
  const box=editor(page);await expect(box).toBeVisible();
  // An occurrence edited alone keeps the series rule: no recurrence controls.
@@ -65,7 +65,7 @@ test('editing one occurrence of a series stores an exception and keeps the serie
  const values=response.request().postDataJSON().values;
  expect(values.recurring_event_id).not.toBe('');expect(values.content).not.toBe('');
  await expect(page.locator('.dhx_cal_event').filter({hasText:prefix+' kivétel'})).toHaveCount(1);
- expect(await page.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).count()).toBeGreaterThan(0);
+ expect(await page.locator('.dhx_cal_event').filter({hasText:'Morning playlist'}).count()).toBeGreaterThan(0);
 });
 
 test('the event form validates the period and writes a weekly series rule',async({page})=>{
@@ -109,8 +109,8 @@ test('playlist API: Friday timeline falls back to the weekday default outside th
  expect(result.status).toBe(200);
  const slots=result.body.data.timeline.map(s=>`${s.start}-${s.end} ${s.source} ${s.title}`);
  // The weekday blocks of the seed (signage.php blade_demo_signage_seed()); before 06:00 and after 22:00 the brand scene default.
- expect(slots).toEqual(['00:00-06:00 default Blade brand animation','06:00-10:00 schedule Reggeli lista','10:00-12:00 schedule Arculati animáció',
-  '12:00-17:00 schedule Napközbeni lista','17:00-18:00 schedule Narancsos pezsgés','18:00-22:00 schedule Esti lista','22:00-24:00 default Blade brand animation']);
+ expect(slots).toEqual(['00:00-06:00 default Blade brand animation','06:00-10:00 schedule Morning playlist','10:00-12:00 schedule Brand animation',
+  '12:00-17:00 schedule Daytime playlist','17:00-18:00 schedule Orange fizz','18:00-22:00 schedule Evening playlist','22:00-24:00 default Blade brand animation']);
  expect(result.body.data.default.source).toBe('weekday');
  expect((await api(page,'signage_schedule','events',null,{from:'2026-01-01',to:'2026-12-31'})).status).toBe(400);
 });
@@ -119,7 +119,11 @@ test('reader sees the calendar read-only and dark theme switches the skin',async
  await openCalendar(page,'reader@example.test');
  await expect(page.getByRole('button',{name:'Új esemény',exact:true})).toHaveCount(0);
  expect((await api(page,'signage_schedule','create',null,{text:'x',start_date:'2026-10-23 08:00',end_date:'2026-10-23 09:00',content:'asset:1'})).status).toBe(403);
- await page.getByRole('button',{name:/Skyblue|Világos|Éjjeli/}).click();await page.getByRole('menuitem',{name:'Éjjeli',exact:true}).click();
+ await page.getByRole('button',{name:/^(Blade|Blade Night|Világos|Éjjeli)$/}).click();await page.getByRole('menuitem',{name:'Éjjeli',exact:true}).click();
  await expect(page.locator('html')).toHaveAttribute('data-scheduler-theme','dark');
- await page.getByRole('button',{name:'Éjjeli'}).click();await page.getByRole('menuitem',{name:'Skyblue',exact:true}).click();
+ // The vendor dark skin only supplies structure: the surface is the Suite theme's, not the vendor black.
+ const surface=await page.evaluate(()=>{const probe=document.createElement('div');probe.style.background='var(--dhx-background-primary)';document.body.append(probe);
+  const want=getComputedStyle(probe).backgroundColor;probe.remove();return {want,got:getComputedStyle(document.querySelector('.blade-calendar.dhx_cal_container, .blade-calendar .dhx_cal_container')).backgroundColor};});
+ expect(surface.got).toBe(surface.want);expect(surface.got).not.toBe('rgb(0, 0, 0)');
+ await page.getByRole('button',{name:'Éjjeli'}).click();await page.getByRole('menuitem',{name:'Blade',exact:true}).click();
 });

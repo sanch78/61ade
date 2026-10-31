@@ -49,12 +49,12 @@ try {
     check($brandId !== '' && $db->query("SELECT group_concat(weekday || ':' || asset_id || ':' || playlist_id, ',') FROM (SELECT weekday, asset_id, playlist_id FROM signage_defaults WHERE date = '' ORDER BY weekday)")->fetchColumn() === implode(',', array_map(static fn($day) => "$day:$brandId:", range(1, 7))), 'Brand scene is the weekday default of every day');
     // Sample programme: four playlists (items in order, transition overrides) and weekday and weekend blocks.
     $lists = $db->query("SELECT p.title || ' ' || p.transition, group_concat(f.name || CASE i.transition WHEN '' THEN '' ELSE ':' || i.transition END, '|') FROM signage_playlists p JOIN signage_playlist_items i ON i.playlist_id = CAST(p.id AS TEXT) JOIN signage_assets a ON a.id = i.asset_id JOIN blade_files f ON f.id = a.file_id GROUP BY p.id ORDER BY p.id")->fetchAll(PDO::FETCH_KEY_PAIR);
-    check(array_keys($lists) === ['Reggeli lista fade', 'Napközbeni lista fade', 'Esti lista slide', 'Hétvégi lista slide']
-        && $lists['Reggeli lista fade'] === 'Craft coffee, slow mornings.png|Dynamic running shoe in cobalt and lime.png|Orange fizz in cobalt blue.png|An elegant moment in time.png|blade-brand.js'
-        && $lists['Hétvégi lista slide'] === 'Craft coffee, slow mornings.png|3d-logo-intro.mp4|Fox inventor in the floating garden.png|Electronic festival in a flood of light.png:zoom|Late-night bites by the river.png|Dynamic running shoe in cobalt and lime.png:zoom', 'Playlists over the demo media');
+    check(array_keys($lists) === ['Morning playlist fade', 'Daytime playlist fade', 'Evening playlist slide', 'Weekend playlist slide']
+        && $lists['Morning playlist fade'] === 'Craft coffee, slow mornings.png|Dynamic running shoe in cobalt and lime.png|Orange fizz in cobalt blue.png|An elegant moment in time.png|blade-brand.js'
+        && $lists['Weekend playlist slide'] === 'Craft coffee, slow mornings.png|3d-logo-intro.mp4|Fox inventor in the floating garden.png|Electronic festival in a flood of light.png:zoom|Late-night bites by the river.png|Dynamic running shoe in cobalt and lime.png:zoom', 'Playlists over the demo media');
     $events = $db->query("SELECT text || ' ' || substr(start_at, 12, 5) || ' ' || (duration / 3600) || 'h ' || substr(rrule, 30) FROM blade_calendar_events WHERE space = 'signage' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
-    check($events === ['Reggeli lista 06:00 4h MO,TU,WE,TH,FR', 'Arculati animáció 10:00 2h MO,TU,WE,TH,FR', 'Napközbeni lista 12:00 5h MO,TU,WE,TH,FR', 'Narancsos pezsgés 17:00 1h MO,TU,WE,TH,FR',
-        'Esti lista 18:00 4h MO,TU,WE,TH,FR', 'Reggeli lista 06:00 4h SA,SU', 'Hétvégi lista 10:00 8h SA,SU', 'Esti lista 18:00 4h SA,SU'], 'Weekday and weekend programme');
+    check($events === ['Morning playlist 06:00 4h MO,TU,WE,TH,FR', 'Brand animation 10:00 2h MO,TU,WE,TH,FR', 'Daytime playlist 12:00 5h MO,TU,WE,TH,FR', 'Orange fizz 17:00 1h MO,TU,WE,TH,FR',
+        'Evening playlist 18:00 4h MO,TU,WE,TH,FR', 'Morning playlist 06:00 4h SA,SU', 'Weekend playlist 10:00 8h SA,SU', 'Evening playlist 18:00 4h SA,SU'], 'Weekday and weekend programme');
     // A legacy reference outside the Signage mount is reported by setup (one line each) and left in place.
     $db->prepare("INSERT INTO signage_assets(title,file_id,duration) VALUES ('Régi elem',?,'5')")->execute([(string) $other]);
     $legacy = (string) $db->lastInsertId();
@@ -199,7 +199,7 @@ try {
     check($applied[0]['ok'] && $applied[0]['data']['cleared'] === ['Műsorterv-események' => 1, 'Lejátszásilista-elemek' => 1], 'Applied delete reports the cleared references');
     check((int) $db->query('SELECT COUNT(*) FROM signage_playlist_items WHERE asset_id = '.$db->quote($poster))->fetchColumn() === 0, 'Its playlist items are removed');
     check((int) $db->query('SELECT COUNT(*) FROM signage_defaults WHERE asset_id = '.$db->quote($poster))->fetchColumn() === 0 && (int) $db->query('SELECT COUNT(*) FROM signage_defaults')->fetchColumn() === 7, 'No default referenced it');
-    $event = $db->query("SELECT data, revision FROM blade_calendar_events WHERE text = 'Narancsos pezsgés'")->fetch(PDO::FETCH_ASSOC);
+    $event = $db->query("SELECT data, revision FROM blade_calendar_events WHERE text = 'Orange fizz'")->fetch(PDO::FETCH_ASSOC);
     check(json_decode($event['data'], true)['content'] === '' && (int) $event['revision'] === 2, 'Its event keeps the slot without content');
     // A default delete no longer runs the after_save rule (which re-read the deleted row and rejected every delete).
     $default = $db->query('SELECT id FROM signage_defaults ORDER BY id LIMIT 1')->fetchColumn();
@@ -212,18 +212,18 @@ try {
         $day = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify("+$offset days")->format('Y-m-d'));
         check(!array_filter($day['scheduled'], static fn($entry) => $entry['asset'] === null ? !$entry['playlist']['items'] || array_filter($entry['playlist']['items'], static fn($asset) => $asset['file'] === null) : $entry['asset']['file'] === null), 'Scheduled entries all have playable content');
         check($day['default'] === null || $day['default']['asset']['file'] !== null, 'Default content has a file');
-        check(!in_array('Narancsos pezsgés', array_column($day['scheduled'], 'title'), true), 'Blanked event skipped');
+        check(!in_array('Orange fizz', array_column($day['scheduled'], 'title'), true), 'Blanked event skipped');
         check(($day['default']['asset']['id'] ?? null) === ($offset === 0 ? null : $brandId) && ($day['default']['source'] ?? 'weekday') === 'weekday', 'Brand scene is the default; the deleted Monday default leaves none');
     }
     $tuesday = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+1 day')->format('Y-m-d'));
-    $daytime = array_values(array_filter($tuesday['scheduled'], static fn($entry) => $entry['title'] === 'Napközbeni lista'))[0]['playlist'];
+    $daytime = array_values(array_filter($tuesday['scheduled'], static fn($entry) => $entry['title'] === 'Daytime playlist'))[0]['playlist'];
     check(array_column($daytime['items'], 'kind') === ['image', 'video', 'video', 'video', 'video'] && $daytime['items'][1]['file']['mime_type'] === 'video/mp4', 'Type derived from the file');
-    $brandSlot = array_values(array_filter($tuesday['timeline'], static fn($slot) => $slot['title'] === 'Arculati animáció'));
+    $brandSlot = array_values(array_filter($tuesday['timeline'], static fn($slot) => $slot['title'] === 'Brand animation'));
     check(count($brandSlot) === 1 && $brandSlot[0]['start'] === '10:00' && $brandSlot[0]['end'] === '12:00' && $brandSlot[0]['asset']['kind'] === 'scene' && $brandSlot[0]['asset']['id'] === $sceneId, 'A scene file plays as the type `scene`');
 
     // Playlist items: an ordered child resource of its playlist (manual order within the playlist, `move`); the
     // editor lists, edits and moves them through the framework list, the reader only reads.
-    $playlist = (string) $db->query("SELECT id FROM signage_playlists WHERE title = 'Reggeli lista'")->fetchColumn();
+    $playlist = (string) $db->query("SELECT id FROM signage_playlists WHERE title = 'Morning playlist'")->fetchColumn();
     // An embedded child: no view (menu entry) of its own, the playlists view carries it as its sub-view.
     check(!isset($views['signage_playlist_items']), 'Items have no menu entry');
     $itemView = $views['signage_playlists']['options']['subview']['view'];
@@ -283,29 +283,29 @@ try {
     $db->exec('DELETE FROM signage_playlist_items WHERE CAST(position AS INTEGER) > 100');
     // List settings go through the resource's `update` (validated like any field).
     $revision = $call('signage_playlists', 'get', $playlist)['revision'];
-    fails(fn() => $call('signage_playlists', 'update', $playlist, ['title' => 'Reggeli lista', 'transition' => 'fade', 'transition_ms' => '9000', 'shuffle' => '0', 'revision' => $revision]), 400, 'Transition over 5 s refused');
-    $call('signage_playlists', 'update', $playlist, ['title' => 'Reggeli lista', 'transition' => 'slide', 'transition_ms' => '800', 'shuffle' => '0', 'revision' => $revision]);
+    fails(fn() => $call('signage_playlists', 'update', $playlist, ['title' => 'Morning playlist', 'transition' => 'fade', 'transition_ms' => '9000', 'shuffle' => '0', 'revision' => $revision]), 400, 'Transition over 5 s refused');
+    $call('signage_playlists', 'update', $playlist, ['title' => 'Morning playlist', 'transition' => 'slide', 'transition_ms' => '800', 'shuffle' => '0', 'revision' => $revision]);
     $listed = array_column($call('signage_playlists', 'list', null, ['limit' => 10])['items'], null, 'id')[$playlist];
     check((int) $listed['items'] === 4 && (int) $listed['length'] === 10 + 20 + 20, 'Length: overrides, switched-off items left out');
     // Day programme: only the items playing that day, each with its play time and transition, and their total.
     $saturday = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $saturdayDate);
-    $weekend = array_values(array_filter($saturday['timeline'], static fn($slot) => $slot['title'] === 'Reggeli lista'));
+    $weekend = array_values(array_filter($saturday['timeline'], static fn($slot) => $slot['title'] === 'Morning playlist'));
     check(count($weekend) === 1 && $weekend[0]['start'] === '06:00' && $weekend[0]['end'] === '10:00' && $weekend[0]['asset'] === null
         && array_column($weekend[0]['playlist']['items'], 'id') === [$clip, $sceneId] && array_column($weekend[0]['playlist']['items'], 'duration') === [10, 20]
         && $weekend[0]['playlist']['duration'] === 30, 'Playlist slot: switched-off and not yet valid items skipped, overrides applied');
     check(array_column($weekend[0]['playlist']['items'], 'transition') === [['type' => 'zoom', 'ms' => 800], ['type' => 'slide', 'ms' => 800]], 'Transition: item override, else the list\'s');
     $sunday = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+6 days')->format('Y-m-d'));
-    $sundaySlot = array_values(array_filter($sunday['timeline'], static fn($slot) => $slot['title'] === 'Reggeli lista'))[0];
+    $sundaySlot = array_values(array_filter($sunday['timeline'], static fn($slot) => $slot['title'] === 'Morning playlist'))[0];
     check(array_column($sundaySlot['playlist']['items'], 'id') === [$clip, $sceneId, $sceneId], 'An item plays from its first valid day');
     // Shuffle: the same items in a stable order per date.
-    $call('signage_playlists', 'update', $playlist, ['title' => 'Reggeli lista', 'transition' => 'slide', 'transition_ms' => '800', 'shuffle' => '1', 'revision' => $call('signage_playlists', 'get', $playlist)['revision']]);
-    $shuffled = static fn() => array_values(array_filter(blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+6 days')->format('Y-m-d'))['timeline'], static fn($slot) => $slot['title'] === 'Reggeli lista'))[0]['playlist'];
+    $call('signage_playlists', 'update', $playlist, ['title' => 'Morning playlist', 'transition' => 'slide', 'transition_ms' => '800', 'shuffle' => '1', 'revision' => $call('signage_playlists', 'get', $playlist)['revision']]);
+    $shuffled = static fn() => array_values(array_filter(blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+6 days')->format('Y-m-d'))['timeline'], static fn($slot) => $slot['title'] === 'Morning playlist'))[0]['playlist'];
     $first = $shuffled();
     check($first['shuffle'] === true && $first === $shuffled() && count($first['items']) === 3 && $first['duration'] === 50, 'Shuffled list: same items, stable order per date');
     // The calendar offers playlists and assets in one field; playlist events take their own colour.
     $calendarView = array_column($workspace->views(new Identity('1', 'Demo')), null, 'id')['signage_schedule'];
     $content = $calendarView['options']['fields'][0];
-    check($content['name'] === 'content' && $content['options']['playlist:'.$playlist] === 'Lejátszási lista: Reggeli lista' && $content['options']['asset:'.$sceneId] === 'Blade brand animation', 'Content choices: playlists and assets');
+    check($content['name'] === 'content' && $content['options']['playlist:'.$playlist] === 'Lejátszási lista: Morning playlist' && $content['options']['asset:'.$sceneId] === 'Blade brand animation', 'Content choices: playlists and assets');
     check($calendarView['options']['tones'] === [['field' => 'content', 'prefix' => 'playlist:', 'tone' => 'success']], 'Playlist events have their own tone');
     // Day defaults: an asset or a playlist, an exclusive field pair (`clears`); a playlist date default fills free time.
     $pair = $workspace->registry->fields('signage_defaults');
@@ -323,7 +323,7 @@ try {
     $edited = $workspace->executor->edit($ctx(), 'signage_defaults', $listDefault, 'playlist_id', $playlist, $edited['revision']);
     check($edited['values'] === ['asset_id' => '', 'playlist_id' => $playlist], 'A cell edit of the playlist empties the asset');
     $night = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), '2099-12-31');
-    check($night['default']['source'] === 'date' && $night['default']['asset'] === null && $night['default']['playlist']['id'] === $playlist && $night['default']['title'] === 'Reggeli lista'
+    check($night['default']['source'] === 'date' && $night['default']['asset'] === null && $night['default']['playlist']['id'] === $playlist && $night['default']['title'] === 'Morning playlist'
         && $night['timeline'][0]['source'] === 'default' && $night['timeline'][0]['start'] === '00:00' && $night['timeline'][0]['playlist']['id'] === $playlist, 'A playlist default plays in free time');
     check((int) array_column($call('signage_playlists', 'list', null, ['limit' => 10])['items'], null, 'id')[$playlist]['usage'] === 3, 'Playlist usage counts its default');
     // Deleting a used playlist: the preview counts events, defaults and items; the delete blanks the event and removes the items and defaults.
@@ -331,7 +331,7 @@ try {
     check($call('signage_playlists', 'delete', $playlist, ['revision' => $revision, 'preview' => '1'])['usages'] === [['label' => 'Műsorterv-események', 'count' => 2], ['label' => 'Alapértelmezett tartalmak', 'count' => 1], ['label' => 'Lejátszásilista-elemek', 'count' => 4]], 'Playlist delete preview');
     $call('signage_playlists', 'delete', $playlist, ['revision' => $revision]);
     check(!(int) $db->query('SELECT COUNT(*) FROM signage_defaults WHERE id = '.$db->quote((string) $listDefault))->fetchColumn(), 'Playlist delete removes its defaults');
-    check(array_map(static fn($data) => json_decode($data, true)['content'], $db->query("SELECT data FROM blade_calendar_events WHERE text = 'Reggeli lista'")->fetchAll(PDO::FETCH_COLUMN)) === ['', ''] && !(int) $db->query('SELECT COUNT(*) FROM signage_playlist_items WHERE playlist_id = '.$db->quote($playlist))->fetchColumn(), 'Playlist delete blanks its events and removes its items');
+    check(array_map(static fn($data) => json_decode($data, true)['content'], $db->query("SELECT data FROM blade_calendar_events WHERE text = 'Morning playlist'")->fetchAll(PDO::FETCH_COLUMN)) === ['', ''] && !(int) $db->query('SELECT COUNT(*) FROM signage_playlist_items WHERE playlist_id = '.$db->quote($playlist))->fetchColumn(), 'Playlist delete blanks its events and removes its items');
 
     // Scene code (D2): only a scene asset's live file, as text; the browser runs it in the SandboxFrame only.
     $code = $call('signage_playlist', 'scene', null, ['asset' => $sceneId]);

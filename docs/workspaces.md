@@ -1069,6 +1069,36 @@ editor that depends on the value's type ([FB-0107](feedback.md#fb-0107)).
   is not `editable` in the grid, not `bulk`, not secret and not a `file` field;
   the condition field of an action is not conditional itself.
 
+<a id="exclusive-fields"></a>
+
+## Exclusive fields
+
+Fields of a record can be an exclusive choice: a value in one empties the
+others. `clears` (server `Field` `clears`, JSON `clears`) lists the fields a
+value of this field empties; each field of the choice names the others
+([FB-0113](feedback.md#fb-0113)). The demo's `Alapértelmezett tartalom`
+offers an asset or a playlist this way.
+
+```json
+{"name": "asset_id", "label": "Médiaelem", "type": "select", "options_lookup": "signage_assets",
+ "clears": ["playlist_id"], "column": {"editable": true}},
+{"name": "playlist_id", "label": "Lejátszási lista", "type": "select", "options_lookup": "signage_playlists",
+ "clears": ["asset_id"], "column": {"editable": true}}
+```
+
+- **Forms:** action forms (bulk included), `RecordForm`, the details and the
+  card editors empty the other fields as soon as this one gets a value.
+- **Server:** every save that sends this field with a value (form, grid cell,
+  bulk, API) stores the other fields empty (`''`) and returns them with the
+  cell edit's `values`, so the grid row shows both at once. A save that sends
+  two of them with a value is refused with a field error on the cleared one
+  (`Nem adható meg együtt ezzel: <label>.`); the actor needs write access to
+  the cleared fields (else 403). That at least one is given stays the
+  resource's own rule (the demo's `after_save`).
+- **Declaration rules:** up to 10 distinct other field names of the same
+  action; the cleared fields are optional and not secret, and a secret field
+  clears nothing.
+
 ## Sub-views (expandable rows and card buttons)
 
 A list view can let each record expand to a compact preview of a related list
