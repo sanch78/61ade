@@ -75,7 +75,7 @@ test('Calendar and DiagramEditor mount in a project Layout cell, follow the them
    window.__saved=0;window.__editor.on('saved',()=>window.__saved++);
   });
   await expect(inFixture(page,'.blade-calendar .dhx_cal_data')).toBeVisible();
-  await expect(inFixture(page,'.dhx_cal_event').filter({hasText:'Reggeli promó'}).first()).toBeVisible();
+  await expect(inFixture(page,'.dhx_cal_event').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
   await expect(inFixture(page,'.blade-diagram-surface')).toBeVisible();
   // No event form is open: the calendar holds no input (its editing() is what the built-in kind reports).
   expect(await page.evaluate(()=>window.__calendar.editing())).toBe(false);
@@ -108,7 +108,7 @@ test('Calendar and DiagramEditor mount in a project Layout cell, follow the them
   // The Scheduler was released: the built-in calendar kind (the same component) opens with its events.
   await openMenu(page,'Műsorterv','Digitális kijelző');
   await expect(page.locator('.blade-calendar .dhx_cal_data')).toBeVisible();
-  await expect(page.locator('.dhx_cal_event').filter({hasText:'Reggeli promó'}).first()).toBeVisible();
+  await expect(page.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
   expect(failures).toEqual([]);
  }finally{await api(page,'topology','delete',created).catch(()=>{});}
 });
@@ -122,7 +122,7 @@ test('Calendar and DiagramEditor mount in app.ui windows; closing or destroying 
  });
  const win=page.locator('.blade-content-window').filter({hasText:'Naptár komponens'});
  await expect(win.locator('.blade-calendar .dhx_cal_data')).toBeVisible();
- await expect(win.locator('.dhx_cal_event').filter({hasText:'Reggeli promó'}).first()).toBeVisible();
+ await expect(win.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
  // Closing the window destroys the calendar with it: a new Calendar may be created afterwards.
  await page.evaluate(()=>window.__win.close());await expect(win).toHaveCount(0);await expect(page.locator('.blade-calendar')).toHaveCount(0);
  expect(await page.evaluate(()=>{const c=new window.__bladeApp.components.Calendar({view:'signage_schedule'});c.destroy();return true;})).toBe(true);
@@ -215,9 +215,10 @@ test('app.uploads opens the shared uploader for the demo files target and report
 });
 
 /** The seeded demo image in the Signage mount root (signage demo); nothing is created for the file components. */
+const IMAGE='Kézműves kávé, lassú reggelek.png',IMAGE_SEARCH='Kézműves kávé';
 async function demoImage(page){
  const root=(await api(page,'files','tree','signage')).body.data.root;
- return String((await api(page,'files','list',root,{search:'minta-fraktal'})).body.data.items.find(item=>item.name==='minta-fraktal.jpg').id);
+ return String((await api(page,'files','list',root,{search:IMAGE_SEARCH})).body.data.items.find(item=>item.name===IMAGE).id);
 }
 const fileRow=(scope,name)=>scope.locator('.dhx_grid-row').filter({has:scope.page().getByRole('gridcell',{name,exact:true})});
 const viewer=page=>page.getByRole('dialog').filter({has:page.locator('.blade-document__bar')}).last();
@@ -242,13 +243,15 @@ test('FileManager mounts in a project Layout cell, reports opened, follows the t
  // The panels work like the built-in view: another mount, the viewer on double-click, `opened` with id and type.
  await left.locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Signage',exact:true}).click();
  await expect(left.locator('.dhx_layout-cell-header__title').first()).toHaveText('Signage:/');
- await fileRow(left,'minta-fraktal.jpg').dblclick();
- await expect(viewer(page).getByRole('img',{name:'minta-fraktal.jpg'})).toBeVisible();
- await expect.poll(()=>page.evaluate(()=>window.__opened)).toEqual([{id:image,mimeType:'image/jpeg'}]);
+ // The Signage root holds all demo media: the panel search keeps the image among the rendered rows.
+ await left.getByRole('textbox',{name:'Keresés',exact:true}).fill(IMAGE_SEARCH);
+ await fileRow(left,IMAGE).dblclick();
+ await expect(viewer(page).getByRole('img',{name:IMAGE})).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>window.__opened)).toEqual([{id:image,mimeType:'image/png'}]);
  await viewer(page).getByRole('button',{name:/close/i}).click();await expect(viewer(page)).toHaveCount(0);
  // editing(): the viewer holds no input; an open rename form (F2) does until it closes.
  expect(await page.evaluate(()=>window.__files.editing())).toBe(false);
- await fileRow(left,'minta-fraktal.jpg').click();await page.keyboard.press('F2');
+ await fileRow(left,IMAGE).click();await page.keyboard.press('F2');
  const rename=page.getByRole('dialog',{name:'Átnevezés'});await expect(rename).toBeVisible();
  expect(await page.evaluate(()=>window.__files.editing())).toBe(true);
  await rename.getByRole('button',{name:'Mégse',exact:true}).click();await expect(rename).toHaveCount(0);
@@ -259,7 +262,7 @@ test('FileManager mounts in a project Layout cell, reports opened, follows the t
  await toggleTheme(page,'Éjjeli');await expect.poll(color).not.toBe(light);
  await toggleTheme(page,'Skyblue');await expect.poll(color).toBe(light);
  // Destroy with the viewer open: the window goes with the component, the cell holds nothing, events stop.
- await fileRow(left,'minta-fraktal.jpg').dblclick();await expect(viewer(page)).toBeVisible();
+ await fileRow(left,IMAGE).dblclick();await expect(viewer(page)).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>window.__opened.length)).toBe(2);
  await page.evaluate(()=>{window.__files.destroy();window.__files.destroy();});
  await expect(viewer(page)).toHaveCount(0);await expect(inFixture(page,'.blade-file-panels')).toHaveCount(0);
@@ -294,14 +297,14 @@ test('FilePicker.pick resolves the chosen demo image as a MediaDescriptor, and n
  const box=page.getByRole('dialog',{name:/^Fájl kiválasztása: /});
  await expect(box.locator('.blade-grid-tile').first()).toBeVisible();
  const find=box.getByRole('textbox',{name:'Keresés',exact:true});await expect(find).toBeFocused();
- await find.fill('minta-fraktal');await find.press('Enter');
+ await find.fill(IMAGE_SEARCH);await find.press('Enter');
  await expect(box.locator('.blade-grid-tile')).toHaveCount(1);
- await box.locator('.blade-grid-tile').filter({hasText:'minta-fraktal.jpg'}).dblclick();
+ await box.locator('.blade-grid-tile').filter({hasText:IMAGE}).dblclick();
  await expect(box).toHaveCount(0);
  await expect.poll(result).not.toBe('pending');
  const media=await result();
  expect(Object.keys(media).sort()).toEqual(['duration_ms','height','id','mime_type','name','revision','thumbnail','width']);
- expect(media).toMatchObject({id:image,name:'minta-fraktal.jpg',mime_type:'image/jpeg',width:1600,height:1000,duration_ms:null});
+ expect(media).toMatchObject({id:image,name:IMAGE,mime_type:'image/png',width:1672,height:941,duration_ms:null});
  expect(media.revision).toMatch(/^\d+$/);expect(['ready','pending','failed','none']).toContain(media.thumbnail);
  // `current` preselects the file; Cancel resolves null.
  await page.evaluate(id=>window.__pick({current:id}),image);

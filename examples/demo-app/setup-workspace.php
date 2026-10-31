@@ -132,10 +132,9 @@ foreach ($tree as $mount => $entries) {
     $root = $storage->root($mount);
     if (!$storage->children((int) $root['id'], 0)) $seed($root, $entries);
 }
-// Synthetic media for the image viewer and video player (ffmpeg test patterns), added once to existing demos too.
+// An empty media folder; the demo media live in the Signage mount (blade_demo_signage_setup()).
 $media = $storage->root('a');
-if (!$storage->child((int) $media['id'], 'Média')) $seed($media, ['Média' => [
-    'minta-fraktal.jpg' => new SplFileInfo(__DIR__.'/resources/files/minta-fraktal.jpg'), 'minta-video.webm' => new SplFileInfo(__DIR__.'/resources/files/minta-video.webm')]]);
+if (!$storage->child((int) $media['id'], 'Média')) $seed($media, ['Média' => []]);
 @rmdir(blade_demo_runtime('seed'));
 // Network topology builder: diagram tables and two synthetic topologies, seeded once.
 $topology = blade_demo_topology();

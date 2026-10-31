@@ -121,53 +121,32 @@ test('file manager viewer runs on MediaPlayer: image and video unchanged, audio 
  await page.setViewportSize({width:1400,height:900});await signIn(page);await openMenu(page,'Fájlkezelő','Feature demó');
  const left=page.locator('[data-cell-id="panel-0"]'),row=name=>left.locator('.dhx_grid-row').filter({has:page.getByRole('gridcell',{name,exact:true})});
  await expect(left.locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
- const signage=(await api(page,'files','tree','signage')).body.data.root;
- const logo=(await api(page,'files','list',signage,{limit:200})).body.data.items.find(item=>item.name==='logo.png');
- // The listing reports logo.png as an audio file and its stream answers with a synthetic WAV (route only, no data change).
- // Only the JSON action endpoint and the relabelled file's stream are routed: an intercepted (continued) media stream
- // of the real video never reaches `loadedmetadata` in Chromium, so the video's GET requests stay unrouted.
- const audioStream=`action=content_stream&id=${logo.id}&`,bytes=wav(3);
- const match=url=>url.search==='?blade=1'||(url.search.startsWith('?blade=1&')&&url.search.includes(audioStream));
- const handler=async route=>{
-  const request=route.request(),query=new URL(request.url()).searchParams;
-  if(request.method()==='GET'&&query.get('action')==='content_stream'&&query.get('id')===String(logo.id)){
-   // Single ranges as DownloadStream answers them, so the element can seek.
-   const range=/^bytes=(\d+)-(\d*)$/.exec(request.headers()['range']||'');
-   if(!range)return route.fulfill({status:200,contentType:'audio/wav',headers:{'Accept-Ranges':'bytes'},body:bytes});
-   const start=Number(range[1]),end=range[2]?Math.min(Number(range[2]),bytes.length-1):bytes.length-1;
-   return route.fulfill({status:206,contentType:'audio/wav',headers:{'Accept-Ranges':'bytes','Content-Range':`bytes ${start}-${end}/${bytes.length}`},body:bytes.subarray(start,end+1)});
-  }
-  let body;try{body=request.postDataJSON();}catch{}
-  if(body?.resource!=='files'||body?.action!=='list')return route.fallback();
-  const response=await route.fetch(),json=await response.json();
-  for(const item of json.data?.items??[])if(String(item.id)===String(logo.id))Object.assign(item,{name:'pw-hang.wav',extension:'wav',mime_type:'audio/wav',width:null,height:null,duration_ms:3000,orientation:'',thumbnail:'none'});
-  return route.fulfill({response,json});
- };
- await page.route(match,handler);
  await left.locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Signage',exact:true}).click();
+ // The Signage root holds the demo media (examples/demo-app/resources/media): the panel search brings each file into view.
+ const open=async name=>{await left.getByRole('textbox',{name:'Keresés',exact:true}).fill(name);await row(name).dblclick();};
  // Image viewer: the same toolbar and fitting, now with the format.
- await row('minta-fraktal.jpg').dblclick();
+ await open('Kézműves kávé, lassú reggelek.png');
  let viewer=windowDialog(page),bar=viewer.locator('.blade-document__bar');
  await expect(viewer.locator('.blade-player.blade-document--image')).toHaveCount(1);
- await expect(bar).toContainText('1600 × 1000 px · JPEG');await expect(bar.locator('[data-dhx-id="zoom"]')).toHaveText(/^Illesztés \(\d+\s?%\)$/);
+ await expect(bar).toContainText('1672 × 941 px · PNG');await expect(bar.locator('[data-dhx-id="zoom"]')).toHaveText(/^Illesztés \(\d+\s?%\)$/);
  await expect(viewer.locator('.blade-image-stage')).toBeFocused();
  await page.keyboard.press('+');await expect(bar.locator('[data-dhx-id="zoom"]')).toHaveText(/^\d+\s?%$/);
  await expect(bar.getByRole('button',{name:'Teljes méret',exact:true})).toBeVisible();
  await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);
  // Video player: native controls, dimensions and length as before, then the format.
- await row('minta-video.webm').dblclick();
+ await open('3d-logointro.mp4');
  viewer=windowDialog(page);bar=viewer.locator('.blade-document__bar');const video=viewer.locator('video');
- await expect(bar).toContainText('640 × 360 px · 0:06 · WebM');await expect(video).toHaveAttribute('controls','');await expect(video).toBeFocused();
+ await expect(bar).toContainText('1920 × 1080 px · 0:13 · MP4');await expect(video).toHaveAttribute('controls','');await expect(video).toBeFocused();
  await bar.getByRole('button',{name:'Ismétlés',exact:true}).click();expect(await video.evaluate(element=>element.loop)).toBe(true);
  await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);
- // Audio opens in the same window shape with the audio stage; closing releases the element.
- await row('pw-hang.wav').dblclick();
+ // Audio (the seeded 3:02 MP3, streamed with Range support) opens in the same window shape with the audio stage; closing releases the element.
+ const music=(await api(page,'files','list',(await api(page,'files','tree','signage')).body.data.root,{search:'nyugodt-zene'})).body.data.items.find(item=>item.name==='nyugodt-zene.mp3');
+ await open('nyugodt-zene.mp3');
  viewer=windowDialog(page);bar=viewer.locator('.blade-document__bar');const audio=viewer.locator('.blade-audio-stage audio');
- await expect(audio).toHaveAttribute('aria-label','pw-hang.wav');await expect(audio).toBeFocused();
- await expect(bar).toContainText('0:03 · WAV');
- expect(await audio.getAttribute('src')).toMatch(new RegExp(`action=content_stream&id=${logo.id}&v=\\d+$`));
- await page.keyboard.press('End');await expect.poll(()=>audio.evaluate(element=>Math.round(element.currentTime))).toBe(3);
+ await expect(audio).toHaveAttribute('aria-label','nyugodt-zene.mp3');await expect(audio).toBeFocused();
+ await expect(bar).toContainText('3:02 · MP3');
+ expect(await audio.getAttribute('src')).toMatch(new RegExp(`action=content_stream&id=${music.id}&v=\\d+$`));
+ await page.keyboard.press('End');await expect.poll(()=>audio.evaluate(element=>Math.round(element.currentTime))).toBe(182);
  await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);await expect(page.locator('audio')).toHaveCount(0);
- await page.unroute(match,handler);
  expect(errors).toEqual([]);
 });

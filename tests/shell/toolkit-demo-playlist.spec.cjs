@@ -23,7 +23,7 @@ test.beforeAll(()=>{
  cleanup();
  php(`
   $file=function(string $where)use($db):string{return (string)$db->query("SELECT id FROM blade_files WHERE space='demo' AND mount_id='signage' AND kind='file' AND archived_at IS NULL AND $where ORDER BY id LIMIT 1")->fetchColumn();};
-  $files=['kép'=>[$file("mime_type LIKE 'image/%'"),'4'],'jelenet'=>[$file("mime_type='text/javascript' AND name='minta-jelenet.js'"),'8'],'hang'=>[$file("mime_type LIKE 'audio/%'"),'3']];
+  $files=['kép'=>[$file("mime_type LIKE 'image/%'"),'4'],'jelenet'=>[$file("mime_type='text/javascript' AND name='blade-brand.js'"),'8'],'hang'=>[$file("mime_type LIKE 'audio/%'"),'3']];
   foreach($files as [$id])if($id==='')throw new RuntimeException('Signage image, audio or scene file missing: run setup-workspace.php (D2 data step).');
   $asset=$db->prepare('INSERT INTO signage_assets(title,file_id,duration) VALUES (?,?,?)');$ids=[];
   foreach($files as $name=>[$id,$seconds]){$asset->execute(['${prefix} '.$name,$id,$seconds]);$ids[$name]=(string)$db->lastInsertId();}

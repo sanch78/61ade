@@ -1,6 +1,4 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
-const fs=require('node:fs');
-const path=require('node:path');
 const {execFileSync}=require('node:child_process');
 const {signIn,command,api}=require('./feature-demo.cjs');
 // Toolkit D1 (docs/demos.md#toolkit-consumer): Digitális kijelző → Médiatár with the synthetic audio assets and the
@@ -13,8 +11,28 @@ const {signIn,command,api}=require('./feature-demo.cjs');
 const prefix='pd'+Date.now().toString(36);
 const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'demo';
 const php=code=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${runtime}/${instance}/features.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');${code}`],{encoding:'utf8'});
-const fixture=name=>fs.readFileSync(path.resolve(__dirname,'../../examples/demo-app/resources/files',name));
-const WAV='Szinuszhang 440 Hz (WAV)',MP3='Szinuszhang 660 Hz (MP3)',M4A='Szinuszhang 880 Hz (M4A)',VIDEO='Promóciós videó',IMAGE='Logó állókép',SCENE='Animált jelenet';
+// A mono 8-bit PCM WAV of `seconds` at 8 kHz (silence): the run's short audio for the timing checks.
+const tone=seconds=>{const n=8000*seconds,head=Buffer.alloc(44);head.write('RIFF',0);head.writeUInt32LE(36+n,4);head.write('WAVEfmt ',8);
+ head.writeUInt32LE(16,16);head.writeUInt16LE(1,20);head.writeUInt16LE(1,22);head.writeUInt32LE(8000,24);head.writeUInt32LE(8000,28);head.writeUInt16LE(1,32);head.writeUInt16LE(8,34);
+ head.write('data',36);head.writeUInt32LE(n,40);return Buffer.concat([head,Buffer.alloc(n,0x80)]);};
+// Seeded demo media (examples/demo-app/signage.php): the music tracks with their lengths, a video, an image and the brand scene.
+const MUSIC=[['Nyugodt zene','3:02'],['Izgalmas zene','2:50'],['Vidám zene','3:00'],['Drámai zene','2:59']];
+const AUDIO='Nyugodt zene',VIDEO='3D logóintró',IMAGE='Az idő elegáns pillanata',SCENE='Blade brand animáció';
+// The run's 3 s WAV asset (uploaded by the first test, or here when a test runs alone).
+const TONE=prefix+' hang';
+async function toneAsset(page){
+ const found=(await api(page,'signage_assets','list',null,{mode:'dynamic',limit:10,sort:{field:'id',direction:'desc'},filters:{},search:TONE})).body.data.items.find(item=>item.title===TONE);
+ if(found)return String(found.id);
+ const root=(await api(page,'files','tree','signage')).body.data.root;
+ const uploaded=await page.evaluate(async([root,data,name])=>{
+  const csrf=JSON.parse(document.getElementById('blade-config').textContent).csrf,form=new FormData();
+  form.append('request',JSON.stringify({resource:'files',action:'upload',id:root,values:{}}));
+  form.append('files[]',new Blob([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],{type:'audio/wav'}),name);
+  return (await (await fetch('?blade=1',{method:'POST',headers:{'X-BLADE-CSRF':csrf},body:form})).json()).data.succeeded[0].id;
+ },[root,tone(3).toString('base64'),prefix+'-hang.wav']);
+ expect((await api(page,'signage_assets','create',null,{title:TONE,file_id:String(uploaded),duration:'10'})).status).toBe(200);
+ return assetId(page,TONE);
+}
 test.describe.configure({mode:'serial'});
 test.afterAll(()=>php(`
  $db->exec("DELETE FROM signage_assets WHERE title LIKE '${prefix}%'");
@@ -52,6 +70,10 @@ async function search(page,text){
  const listed=page.waitForResponse(r=>{try{const body=r.request().postDataJSON();return body?.action==='list'&&(body.values?.search??'')===text;}catch{return false;}});
  await box.fill(text);await box.press('Enter');await listed;
 }
+// The library holds all demo media: the search keeps $title among the rendered rows, cards or tiles.
+async function only(page,title){
+ if(await grid(page).getByRole('textbox',{name:'Keresés',exact:true}).inputValue()!==title)await search(page,title);
+}
 async function openLibrary(page,width=1600){
  await page.setViewportSize({width,height:1000});await signIn(page,'demo@example.test','/#view=signage_assets');
  await expect(grid(page).locator('.dhx_grid-row, .blade-grid-card, .blade-grid-tile').first()).toBeVisible();
@@ -74,12 +96,12 @@ async function viewerOpen(page,id,title,element='audio'){
 test('Médiatár lists the audio assets with type and length; an audio file uploaded in the file field becomes an audio asset',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await openLibrary(page,1920);
- for(const [title,length] of [[WAV,'0:03'],[MP3,'0:04'],[M4A,'0:05']]){
+ for(const [title,length] of MUSIC){
   await search(page,title);
   await expect(await cell(page,title,'Típus')).toHaveText('Hang');
   await expect(await cell(page,title,'Hossz')).toHaveText(length);
   await expect(await cell(page,title,'Felbontás')).toHaveText('');
-  await expect(row(page,title).getByRole('img',{name:new RegExp(`^Hang: minta-hang\\.\\w+, ${length}$`)})).toBeVisible();
+  await expect(row(page,title).getByRole('img',{name:new RegExp(`^Hang: [\\w-]+\\.mp3, ${length}$`)})).toBeVisible();
  }
  await search(page,'');
  // Upload through the asset's file field: the shared uploader stores the WAV in the Signage folder and chooses it.
@@ -89,7 +111,7 @@ test('Médiatár lists the audio assets with type and length; an audio file uplo
  await form.getByRole('button',{name:'Fájl feltöltése…',exact:true}).click();
  const uploader=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')});
  await expect(uploader).toBeVisible();await expect(uploader).toContainText('Signage:/');
- await page.locator('input[data-blade-upload-input="files"]').setInputFiles([{name:prefix+'-hang.wav',mimeType:'audio/wav',buffer:fixture('minta-hang.wav')}]);
+ await page.locator('input[data-blade-upload-input="files"]').setInputFiles([{name:prefix+'-hang.wav',mimeType:'audio/wav',buffer:tone(3)}]);
  await expect(form.locator('.blade-file-field__body input').first()).toHaveValue(prefix+'-hang.wav',{timeout:20000});
  await uploader.getByRole('button',{name:'Bezárás',exact:true}).click();
  const saved=page.waitForResponse(r=>{try{return r.request().postDataJSON()?.action==='create';}catch{return false;}});
@@ -111,20 +133,20 @@ test('Médiatár lists the audio assets with type and length; an audio file uplo
 test('activation by MIME type or class: audio, video, images and scenes open the viewer, in table, cards and tiles',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await openLibrary(page);
- const wav=await assetId(page,WAV),video=await assetId(page,VIDEO),image=await assetId(page,IMAGE),scene=await assetId(page,SCENE);
+ const audioId=await assetId(page,AUDIO),video=await assetId(page,VIDEO),image=await assetId(page,IMAGE),scene=await assetId(page,SCENE);
  // Table: double-click and Enter; the browser's Back returns to the list.
- await row(page,WAV).locator('[data-dhx-col-id="media_type"]').dblclick();
- await viewerOpen(page,wav,WAV);
+ await only(page,AUDIO);await row(page,AUDIO).locator('[data-dhx-col-id="media_type"]').dblclick();
+ await viewerOpen(page,audioId,AUDIO);
  await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);await expect(audio(page)).toHaveCount(0);
- await row(page,VIDEO).locator('[data-dhx-col-id="media_type"]').click();await page.keyboard.press('Enter');
+ await only(page,VIDEO);await row(page,VIDEO).locator('[data-dhx-col-id="media_type"]').click();await page.keyboard.press('Enter');
  await viewerOpen(page,video,VIDEO,'video');
  await button(page,'Vissza a listához').click();await expect(page).toHaveURL(/#view=signage_assets$/);await expect(page.locator('.blade-player')).toHaveCount(0);
- await row(page,IMAGE).locator('[data-dhx-col-id="media_type"]').dblclick();
+ await only(page,IMAGE);await row(page,IMAGE).locator('[data-dhx-col-id="media_type"]').dblclick();
  await expect(page).toHaveURL(viewerUrl(image));await expect(page.locator('.blade-player .blade-image-stage')).toBeVisible();
  await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);
  // A scene (text/javascript, `Animáció` with the animation glyph) opens by the exact MIME type entry; the toolbar
  // command `Lejátszás` opens the cursor asset the same way.
- await expect(await cell(page,SCENE,'Típus')).toHaveText('Animáció');
+ await only(page,SCENE);await expect(await cell(page,SCENE,'Típus')).toHaveText('Animáció');
  await expect(row(page,SCENE).locator('.blade-media__icon.blade-icon--animation')).toHaveCount(1);
  await row(page,SCENE).locator('[data-dhx-col-id="media_type"]').click();
  await button(page,'Lejátszás').click();
@@ -135,15 +157,12 @@ test('activation by MIME type or class: audio, video, images and scenes open the
  // Cards and tiles name the per-row target and open the same views.
  for(const [label,item] of [['Kártyák',card],['Csempék',tile]]){
   await mode(page,label);
-  await expect(item(page,WAV)).toHaveAttribute('aria-description','Megnyitás: Médianéző');
-  await expect(item(page,VIDEO)).toHaveAttribute('aria-description','Megnyitás: Médianéző');
-  await expect(item(page,IMAGE)).toHaveAttribute('aria-description','Megnyitás: Médianéző');
-  await expect(item(page,SCENE)).toHaveAttribute('aria-description','Megnyitás: Médianéző');
-  await item(page,WAV).dblclick();await viewerOpen(page,wav,WAV);
+  for(const title of [AUDIO,VIDEO,IMAGE,SCENE]){await only(page,title);await expect(item(page,title)).toHaveAttribute('aria-description','Megnyitás: Médianéző');}
+  await only(page,AUDIO);await item(page,AUDIO).dblclick();await viewerOpen(page,audioId,AUDIO);
   await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);
-  await item(page,VIDEO).click();await page.keyboard.press('Enter');await viewerOpen(page,video,VIDEO,'video');
+  await only(page,VIDEO);await item(page,VIDEO).click();await page.keyboard.press('Enter');await viewerOpen(page,video,VIDEO,'video');
   await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);
-  await item(page,IMAGE).dblclick();await expect(page).toHaveURL(viewerUrl(image));
+  await only(page,IMAGE);await item(page,IMAGE).dblclick();await expect(page).toHaveURL(viewerUrl(image));
   await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);
  }
  await mode(page,'Táblázat');
@@ -159,9 +178,9 @@ test('activation by MIME type or class: audio, video, images and scenes open the
 test('viewer on an audio asset: play, pause, position, loop, details, reload, record change and destroy',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await openLibrary(page);
- const wav=await assetId(page,WAV),mp3=await assetId(page,MP3);
+ const wav=await toneAsset(page),mp3=await assetId(page,AUDIO);
  await go(page,wav);
- await viewerOpen(page,wav,WAV);
+ await viewerOpen(page,wav,TONE);
  const element=audio(page);
  await element.evaluate(node=>{node.muted=true;});
  // The command bar: every media command is enabled once the metadata is known; the position shows the length.
@@ -172,8 +191,8 @@ test('viewer on an audio asset: play, pause, position, loop, details, reload, re
  await expect(position(page)).toHaveText('Pozíció: 0:00 / 0:03');
  // Details of the asset: the media slot, derived type and length, the play time.
  const record=page.locator('.blade-record-details');
- await expect(record.getByRole('img',{name:'Hang: minta-hang.wav, 0:03',exact:true})).toBeVisible();
- for(const text of ['Megnevezés',WAV,'Típus','Hang','Hossz','0:03','Lejátszási idő (mp)'])await expect(record).toContainText(text);
+ await expect(record.getByRole('img',{name:'Hang: '+prefix+'-hang.wav, 0:03',exact:true})).toBeVisible();
+ for(const text of ['Megnevezés',TONE,'Típus','Hang','Hossz','0:03','Lejátszási idő (mp)'])await expect(record).toContainText(text);
  // Play and pause.
  await button(page,'Lejátszás').click();await expect.poll(()=>element.evaluate(node=>node.paused)).toBe(false);
  await expect(position(page)).toHaveText(/^Pozíció: 0:0[1-3] \/ 0:03$/,{timeout:5000});
@@ -193,14 +212,14 @@ test('viewer on an audio asset: play, pause, position, loop, details, reload, re
  await button(page,'Szünet').click();
  // The loop choice is a browser preference of the viewer: kept across a reload of the address.
  await page.reload();
- await viewerOpen(page,wav,WAV);await expect(button(page,'Ismétlés: be')).toBeVisible();
+ await viewerOpen(page,wav,TONE);await expect(button(page,'Ismétlés: be')).toBeVisible();
  await button(page,'Ismétlés: be').click();await expect(button(page,'Ismétlés: ki')).toBeVisible();
  // Another record of the same view replaces the content: one player, one command bar, the new asset's details.
  await go(page,mp3);
- await viewerOpen(page,mp3,MP3);
+ await viewerOpen(page,mp3,AUDIO);
  await expect(page.locator('.blade-player')).toHaveCount(1);await expect(button(page,'Lejátszás')).toHaveCount(1);
- await expect(page.locator('.blade-record-details')).toHaveCount(1);await expect(page.locator('.blade-record-details')).not.toContainText(WAV);
- await expect(position(page)).toHaveText('Pozíció: 0:00 / 0:04');
+ await expect(page.locator('.blade-record-details')).toHaveCount(1);await expect(page.locator('.blade-record-details')).not.toContainText(TONE);
+ await expect(position(page)).toHaveText('Pozíció: 0:00 / 3:02');
  // Themes: the stage follows the Suite theme variables.
  const stage=page.locator('.blade-audio-stage');
  const background=async theme=>{await page.evaluate(theme=>document.documentElement.setAttribute('data-dhx-theme',theme),theme);return stage.evaluate(node=>getComputedStyle(node).backgroundColor);};
@@ -221,9 +240,9 @@ test('phone width: the commands collapse into Műveletek, the stage sits above t
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.setViewportSize({width:390,height:844});await signIn(page,'demo@example.test','/#view=signage_assets');
  await expect(grid(page).locator('.dhx_grid-row, .blade-grid-card, .blade-grid-tile').first()).toBeVisible();
- const wav=await assetId(page,WAV);
- await go(page,wav);
- await viewerOpen(page,wav,WAV);
+ const audioId=await assetId(page,AUDIO);
+ await go(page,audioId);
+ await viewerOpen(page,audioId,AUDIO);
  const menu=button(page,'Műveletek');await expect(menu).toBeVisible();await expect(button(page,'Lejátszás')).toHaveCount(0);
  const stage=await page.locator('.blade-audio-stage').boundingBox(),info=await page.locator('.blade-record-details').boundingBox();
  expect(stage.y+stage.height).toBeLessThanOrEqual(info.y+1);

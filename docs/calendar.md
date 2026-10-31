@@ -198,8 +198,9 @@ and `transition` `{type, ms}`; the list repeats within the slot) instead of
 night, shows the day's default. An asset's
 `kind` is its file's MIME class, or `scene` for the synthetic scene asset
 (toolkit D2), whose code `signage_playlist.scene` delivers to the project view
-`Napi műsor` ([demos](demos.md#toolkit-d2-playlist)); setup seeds that asset
-with a daily `Esti jelenet` event (20:00–21:00). Its code is in
+`Napi műsor` ([demos](demos.md#toolkit-d2-playlist)); the seeded brand scene
+is the default of every weekday and plays as `Arculati animáció` 10:00–12:00 on
+weekdays ([signage media](demos.md#signage-media)). Its code is in
 `examples/demo-app/signage.php` and `modules/signage.json`.
 
 API example (an API key of the demo account with scope `signage_playlist.day`):
@@ -207,15 +208,16 @@ API example (an API key of the demo account with scope `signage_playlist.day`):
 ```sh
 curl -s https://demo.61ade.com/?blade=1 \
   -H 'Authorization: Bearer <API key>' -H 'Content-Type: application/json' \
-  -d '{"resource":"signage_playlist","action":"day","values":{"date":"2026-10-23"}}'
+  -d '{"resource":"signage_playlist","action":"day","values":{"date":"2026-10-30"}}'
 ```
 
 ```json
-{"ok":true,"data":{"date":"2026-10-23","weekday":5,"weekday_name":"Péntek",
- "default":{"id":"1","title":"Arculati háttérkép","kind":"image","duration":15,"file":{"id":"235","name":"minta-fraktal.jpg","mime_type":"image/jpeg"},"source":"weekday"},
- "scheduled":[{"event_id":"1#202610230800","series_id":"1","title":"Reggeli promó","start":"2026-10-23 08:00","end":"2026-10-23 10:00","recurring":true,"asset":{"…":"…"}}],
- "timeline":[{"start":"00:00","end":"08:00","source":"default","title":"Arculati háttérkép","asset":{"…":"…"}},
-             {"start":"08:00","end":"10:00","source":"schedule","event_id":"1#202610230800","title":"Reggeli promó","asset":{"…":"…"}}]}}
+{"ok":true,"data":{"date":"2026-10-30","weekday":5,"weekday_name":"Péntek",
+ "default":{"id":"1","title":"Blade brand animáció","kind":"scene","duration":20,"file":{"id":"39","name":"blade-brand.js","mime_type":"text/javascript"},"source":"weekday"},
+ "scheduled":[{"event_id":"1#202610300600","series_id":"1","title":"Reggeli lista","start":"2026-10-30 06:00","end":"2026-10-30 10:00","recurring":true,"asset":null,
+               "playlist":{"id":"1","title":"Reggeli lista","duration":60,"shuffle":false,"items":[{"…":"…"}]}}, {"…":"…"}],
+ "timeline":[{"start":"00:00","end":"06:00","source":"default","title":"Blade brand animáció","asset":{"…":"…"}},
+             {"start":"06:00","end":"10:00","source":"schedule","event_id":"1#202610300600","title":"Reggeli lista","playlist":{"…":"…"}}, {"…":"…"}]}}
 ```
 
 - `php8.4 tests/shell/calendar.php`: RRULE subset and rejected rules,

@@ -13,7 +13,7 @@ const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_I
 const php=code=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${runtime}/${instance}/features.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');${code}`],{encoding:'utf8'});
 const DAY='2099-12-30';
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
-const jpg=fs.readFileSync(path.resolve(__dirname,'../../examples/demo-app/resources/files/minta-fraktal.jpg'));
+const jpg=Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=','base64');
 const cleanup=()=>php(`
  $assets="SELECT id FROM signage_assets WHERE title LIKE '${prefix}%'";
  $db->exec("DELETE FROM signage_defaults WHERE date LIKE '2099-12-%' OR asset_id IN ($assets)");
@@ -105,11 +105,11 @@ test('list: thumbnail, derived type/resolution/length, play time and usage colum
  await expect(page.locator('[data-cell-id="grid"] .dhx_grid-row').first()).toBeVisible();
  for(const header of ['Megnevezés','Típus','Felbontás','Hossz','Lejátszási idő (mp)','Használat'])await expect(page.locator('[data-cell-id="grid"] [role="columnheader"]').filter({hasText:header}).first()).toBeVisible();
  // Seeded video: type and length from the media metadata, never from a stored kind (searched: the oldest row may lie below the rendered rows).
- await search(page,'Promóciós videó');
- await expect(await cell(page,'Promóciós videó','Típus')).toHaveText('Videó');
- await expect(await cell(page,'Promóciós videó','Hossz')).toHaveText(/^\d+:\d\d$/);
- await expect(await cell(page,'Promóciós videó','Felbontás')).toHaveText(/^\d+ × \d+$/);
- await expect(row(page,'Promóciós videó').getByRole('img',{name:/^Videó: minta-video\.webm/})).toBeVisible();
+ await search(page,'3D logóintró');
+ await expect(await cell(page,'3D logóintró','Típus')).toHaveText('Videó');
+ await expect(await cell(page,'3D logóintró','Hossz')).toHaveText(/^\d+:\d\d$/);
+ await expect(await cell(page,'3D logóintró','Felbontás')).toHaveText(/^\d+ × \d+$/);
+ await expect(row(page,'3D logóintró').getByRole('img',{name:/^Videó: 3d-logointro\.mp4/})).toBeVisible();
  // Usage: the run's asset is referenced by one schedule event and one default.
  await search(page,prefix);
  await expect(await cell(page,prefix+' használt','Használat')).toHaveText('2');
@@ -130,7 +130,7 @@ test('list: thumbnail, derived type/resolution/length, play time and usage colum
  const typeFilter=page.locator('[data-cell-id="filter"]').getByLabel('Médiafájl',{exact:true}).or(page.locator('[data-cell-id="filter"] select').first());
  if(await typeFilter.count()){
   await typeFilter.first().selectOption({label:'Videó'});await page.locator('[data-cell-id="filter"]').getByRole('button',{name:'Szűrés',exact:true}).click();
-  await expect(row(page,'Promóciós videó')).toBeVisible();await expect(row(page,prefix+' használt')).toHaveCount(0);
+  await expect(row(page,'3D logóintró')).toBeVisible();await expect(row(page,prefix+' használt')).toHaveCount(0);
   await page.locator('[data-cell-id="filter"]').getByRole('button',{name:'Alaphelyzet',exact:true}).click();
   await expect(row(page,prefix+' használt')).toBeVisible();
  }
@@ -267,19 +267,21 @@ test('"Feltöltés" uploads files as new assets in one step',async({page})=>{
 test('deleting a used asset warns with the usage counts, then clears the defaults and blanks the events',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await openLibrary(page);const {used}=await seed(page);
+ // The default-content test may have added a second default for the asset (2099-12-29).
+ const defaults=()=>JSON.parse(php(`echo json_encode((int)$db->query("SELECT COUNT(*) FROM signage_defaults WHERE asset_id='${used}'")->fetchColumn());`)),referenced=defaults();
  await search(page,prefix+' használt');
  await row(page,prefix+' használt').locator('.dhx_grid-cell').nth(1).click();
  const previews=[];page.on('request',request=>{try{const body=request.postDataJSON();if(body?.action==='__bulk'&&body.values?.operation==='delete')previews.push(body);}catch{}});
  await command(page,'Törlés');
  const warning=dialog(page);await expect(warning).toBeVisible();
- await expect(warning).toContainText('Műsorterv-események: 1');await expect(warning).toContainText('Alapértelmezett tartalmak: 1');
+ await expect(warning).toContainText('Műsorterv-események: 1');await expect(warning).toContainText('Alapértelmezett tartalmak: '+referenced);
  await expect(warning).toContainText(RECORD_CONSEQUENCE);await expect(warning).not.toContainText(FILE_CONSEQUENCE);
  // A mark (row-marking mode) deletes through the bulk path: one preview request, nothing deleted yet.
  expect(previews.length).toBe(1);expect(previews[0].values.items.every(item=>item.values.preview==='1')).toBe(true);
  // Cancel keeps everything.
  await expect(warning.getByRole('button',{name:'Mégse',exact:true})).toBeFocused();
  await warning.getByRole('button',{name:'Mégse',exact:true}).click();await expect(warning).toHaveCount(0);
- expect(JSON.parse(php(`echo json_encode($db->query("SELECT COUNT(*) FROM signage_defaults WHERE asset_id='${used}'")->fetchColumn());`))).toBe(1);
+ expect(defaults()).toBe(referenced);
  await command(page,'Törlés');await dialog(page).getByRole('button',{name:'Törlés',exact:true}).click();
  await expect(toast(page,'Törölt hivatkozások:')).toBeVisible();
  await expect(toast(page,'Műsorterv-események: 1')).toBeVisible();
@@ -326,6 +328,8 @@ test('deleting a used file in the file manager (Signage mount) warns, and the as
  expect((await api(page,'files','delete',(await api(page,'files','tree','b')).body.data.root,{sources:twin})).status).toBe(200);
  await left.locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Signage',exact:true}).click();
  await expect(left.locator('.dhx_layout-cell-header__title').first()).toHaveText('Signage:/');
+ // The Signage root holds the demo media too: the panel search keeps the run's rows among the rendered ones.
+ await left.getByRole('textbox',{name:'Keresés',exact:true}).fill(prefix);
  const entry=left.locator('.dhx_grid-row').filter({has:page.getByRole('gridcell',{name:prefix+'-del.png',exact:true})});
  await entry.locator('.dhx_grid-cell').nth(1).click();
  await page.getByRole('button',{name:'Törlés',exact:true}).click();
@@ -342,6 +346,7 @@ test('deleting a used file in the file manager (Signage mount) warns, and the as
  // A file without references is deleted with the declared confirmation only.
  await openMenu(page,'Fájlkezelő','Feature demó');
  await left.locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Signage',exact:true}).click();
+ await expect(left.locator('.dhx_layout-cell-header__title').first()).toHaveText('Signage:/');await left.getByRole('textbox',{name:'Keresés',exact:true}).fill(prefix);
  const plain=left.locator('.dhx_grid-row').filter({has:page.getByRole('gridcell',{name:prefix+'-b.jpg',exact:true})});
  await plain.locator('.dhx_grid-cell').nth(1).click();await page.getByRole('button',{name:'Törlés',exact:true}).click();
  await expect(dialog(page)).toBeVisible();await expect(dialog(page)).not.toContainText(FILE_CONSEQUENCE);
@@ -388,7 +393,7 @@ test('three themes and English: file field, picker and derived columns',async({p
  await expect(page.locator('html')).toHaveAttribute('lang','en');
  await openMenu(page,'Media library','Digital signage');
  await expect(page.locator('[data-cell-id="grid"] .dhx_grid-row').first()).toBeVisible();
- await expect(await cell(page,'Promóciós videó','Type')).toHaveText('Video');
+ await expect(await cell(page,'3D logóintró','Type')).toHaveText('Video');
  const actions=page.getByRole('button',{name:'Actions',exact:true});
  if(await actions.isVisible()){await actions.click();await page.getByRole('menuitem',{name:'Add',exact:true}).click();}
  else await page.getByRole('button',{name:'Add',exact:true}).click();

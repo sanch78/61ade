@@ -437,15 +437,11 @@ file cap.
 Feature demo → `Fájlkezelő` ([demos](demos.md#teljes-feature-demó-)). Setup
 seeds Drive A–C with nested folders (depth-5 chains under
 `Dokumentumok/Projektek/2026/Q4/Mérföldkövek` and `Mély mappa/1/2/3/4`), text,
-Markdown, CSV, JSON, PNG and JPEG files, `Média` on Drive A with a synthetic
-fractal JPEG (1600 × 1000) and a 6-second test-pattern WebM made with ffmpeg
-(`examples/demo-app/resources/files`, added to existing demos on the next
-setup run; the four files the signage assets use — the fractal, the video,
-`logo.png` and `foto.jpg` — are moved, with unchanged ids, into the fourth
-mount `Signage`, so `Média` and `Képek` on Drive A end up empty), three
-generated sine tones `minta-hang.wav`, `.mp3` and `.m4a` (3, 4 and 5 s) stored
-directly in the `Signage` root for the signage audio assets
-([D1](demos.md#d1-asset-viewer)), `OLVASS-EL.TXT` (uppercase
+Markdown, CSV, JSON, PNG and JPEG files (`logo.png` and `foto.jpg` in
+`Képek`, 1 × 1), an empty `Média` folder on Drive A, the
+[signage media](demos.md#signage-media) (10 PNG images, 4 MP4 videos, 4 MP3
+music tracks and the brand scene) in the root of the fourth mount `Signage`
+for the signage assets ([D1](demos.md#d1-asset-viewer)), `OLVASS-EL.TXT` (uppercase
 extension), `Feltöltési minták` with non-uploadable `.exe`/`.pdf` samples and
 `nagy-naplo.txt` above the 64 KiB editor limit, and `jegyzet.txt` on Drive A
 and C for conflicts. `demo@example.test` has every file action;
@@ -494,14 +490,14 @@ The demo uses `deletePolicy: 'delete'`.
   format, and an audio row (a listing entry and its `content_stream` answered
   by a route with a generated WAV and single ranges, no data change). The demo
   allowlist now includes `mp3`, `wav` and `m4a`, and the `Signage` mount holds
-  the audio fixtures of [D1](demos.md#d1-asset-viewer), whose viewer
+  the music tracks of [D1](demos.md#d1-asset-viewer), whose viewer
   `tests/shell/toolkit-demo-assets.spec.cjs` checks.
 - `npm run test:browser -- tests/shell/toolkit-components.spec.cjs`: the
   public `FileManager` in a project Layout cell (both panels, a mount switch,
   the viewer and its `opened` event, the dark and Skyblue themes, `destroy()`
   with the viewer open closing it and emptying the cell) and in an
   `app.ui.window` destroyed by closing it; `FilePicker.pick` on the signage
-  asset field resolving the seeded `minta-fraktal.jpg` as a `MediaDescriptor`,
+  asset field resolving a seeded signage image as a `MediaDescriptor`,
   `current` preselection, and `null` on `Mégse`, Escape and an aborted signal.
   It creates no entries.
 
