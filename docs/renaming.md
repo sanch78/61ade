@@ -18,7 +18,7 @@ identifier. This is a breaking interface rename, with no old-name aliases.
 | Workspace / OAuth bootstrap query | `?blade=1` / `?blade_auth=bootstrap` |
 | HTTP headers | `X-BLADE-CSRF`, `X-BLADE-Locale`, `X-BLADE-HTTPS`, `X-BLADE-Client-IP` |
 | Demo password | `61ade-demo` (synthetic accounts only) |
-| Repository, checkout, development URL | `sanch78/61ade`, `/space/share/libs/61ade`, `https://61ade.sanch.hu/` |
+| Repository, checkout, development URL | `sanch78/61ade`, `/space/share/libs/61ade`, `https://demo.61ade.com/` |
 
 The single development environment, direct source use and absence of deployment
 and project backup workflows remain as defined in [development](development.md#development-environment).
@@ -39,6 +39,15 @@ requested `61ade`. The correction renames only these surfaces; `Blade\`,
 | Recommended consumer links | `lib/61de`, `public/assets/61de` | `lib/61ade`, `public/assets/61ade` |
 | Demo password | `61de-demo` | `61ade-demo` |
 
+No database, session, header, preference or file path inside the packages
+changes, so an existing consumer keeps working on its old link names. A
+consumer migrates by renaming its links and every reference to them (autoloader
+path, includes, `.deploy.json` `shared_assets` targets, asset URLs, live-server
+command), and a `sanch78/61de` Composer requirement to `sanch78/61ade`. For this
+checkout, the synthetic accounts that still used `61de-demo` in the retained
+`tmp/{web,demo}` and `tmp/contracts-demo/demo` databases were rehashed to
+`61ade-demo`; customized passwords were preserved.
+
 ## Consumers and private configuration
 
 Update imports, package requirements, workspace links, application session names,
@@ -51,7 +60,7 @@ use Blade\Admin\Administration;
 ```
 
 ```ini
-BLADE_DEMO_URL=https://61ade.sanch.hu
+BLADE_DEMO_URL=https://demo.61ade.com
 BLADE_DEMO_GOOGLE_CLIENT_ID=
 BLADE_DEMO_GOOGLE_CLIENT_SECRET=
 BLADE_DEMO_FACEBOOK_CLIENT_ID=

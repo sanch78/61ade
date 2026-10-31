@@ -3,7 +3,7 @@
 ## Project name and development environment
 
 61ade is the framework project at /space/share/libs/61ade. Development and testing
-use only https://61ade.sanch.hu/ (starter admin /admin/), directly from this
+use only https://demo.61ade.com/ (starter admin /admin/), directly from this
 checkout. There is no production, deployment, post-deployment testing or project
 backup workflow. Frontend edits require build/local asset preparation;
 PHP/configuration edits are consumed directly. See [development](development.md#development-environment),

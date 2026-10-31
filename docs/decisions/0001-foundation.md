@@ -5,11 +5,20 @@ Date: 2026-10-16.
 Historical decision: identity/repository/checkout details were superseded on
 2026-10-21 by [FB-0049](../feedback.md#fb-0049). Current identity: 61ade,
 checkout /space/share/libs/61ade, one development environment
-https://61ade.sanch.hu/, without deployment or project backups.
+https://demo.61ade.com/ (from 2026-10-31, [FB-0100](../feedback.md#fb-0100)), without
+deployment or project backups.
 
 <a id="elfogadott-felhasználói-döntések"></a>
 
 ## Accepted owner decisions
+
+- 61ade admin framework is a separate reusable repository: https://github.com/sanch78/61ade.
+- Framework and consumer business logic cannot share a repository.
+- Modern PHP, PHP-FPM and OPcache; Go/Node backend was not selected.
+- DHTMLX Suite/Gantt/Scheduler with framework adapters over existing controls.
+- Developer-authored feature definitions in version-controlled source.
+- Multiple organizations, object/field permissions, per-feature external API switches.
+- License constraints do not block planning; no PRO purchase was made.
 
 <a id="ebben-a-scaffoldban-választott-technikai-alapértékek"></a>
 
@@ -32,6 +41,16 @@ proposal rather than a previously approved product choice.
 <a id="nyitott-döntések-határidővel"></a>
 
 ## Open decisions and deadlines
+
+| Decision | Latest point |
+| --- | --- |
+| Own license/GPL frontend distribution | M1, before publication |
+| Hosting framework, DB adapter, toolchain/dependency versions | M1 |
+| Metadata/API wire schema and public interfaces | M1–M3 |
+| Machine authentication/token lifecycle/revocation | M2 |
+| Licensed PRO capabilities or alternatives | Before relevant M4/M5 adapter |
+| Package artifacts/registry/release automation | M7 |
+| Measurable performance targets | Before M7, after baseline |
 
 Open choices are not completed implementation contracts; later phases must settle them.
 

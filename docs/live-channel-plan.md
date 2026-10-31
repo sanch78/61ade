@@ -211,7 +211,7 @@ and a feedback update, per the
 ## 5. Execution with agents
 
 - **Sequential phases, one checkout.** Only this checkout is served at
-  https://61ade.sanch.hu/ and browser tests take a global lock, so phases run
+  https://demo.61ade.com/ and browser tests take a global lock, so phases run
   one after another in the canonical checkout. Worktrees would miss the
   owner's uncommitted work and cannot be browser-tested.
 - **Per phase:** one implementation agent gets the phase section, the files
