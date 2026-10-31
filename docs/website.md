@@ -3,15 +3,19 @@
 The bilingual product presentation lives in this repository. English is the
 default; Hungarian has equivalent content, navigation and metadata.
 
-| Page | Managed development URL | Intended canonical URL |
-| --- | --- | --- |
-| English | https://61ade.sanch.hu/website/ | https://61ade.com/ |
-| Hungarian | https://61ade.sanch.hu/website/hu/ | https://61ade.com/hu/ |
+| Page | URL |
+| --- | --- |
+| English | https://61ade.com/ |
+| Hungarian | https://61ade.com/hu/ |
 
-The canonical domain is the owner's target, not a claim that DNS, TLS or routing
-has been configured. This work adds no hosting environment, deployment or
-backup process. All browser verification uses the existing managed URL and
-`npm run test:browser -- ...`.
+The apex is served directly from `examples/demo-app/public/website/` as its
+document root; `https://www.61ade.com/` redirects to it. DNS, TLS, the ingress
+and that redirect are Infra-owned. Page links and assets are relative (`./`,
+`../` from `/hu/`), so the same files work at the apex root. Canonical,
+`hreflang` and social-preview URLs are absolute on the apex. The retired
+`61ade.sanch.hu` has no product, demo or redirect role
+([FB-0100](feedback.md#fb-0100)). This adds no deployment or backup process;
+browser verification uses these managed URLs and `npm run test:browser -- ...`.
 
 ## Sources and generated files
 
@@ -48,7 +52,7 @@ guides are dropped. Section labels are numbered monospace tags (`01`–`06`).
 
 | Section | Content |
 | --- | --- |
-| Hero | Stack badge, serif headline with an italic blue second line, both buttons, the shared demo sign-in in monospace; below, the workspace screenshot in a browser frame and the phone screenshot, half over a navy blueprint band with four facts (languages, built-in and customizable themes, permission levels, audit); the hero guides run on behind the screenshots to the navy grid while the content is at full width (≥ 1280 px), where they meet its lines. |
+| Hero | Stack badge, serif headline with an italic blue second line, both buttons, the shared demo sign-in in monospace; below, the workspace screenshot in a browser frame and the phone screenshot, half over a navy blueprint band with four facts (languages, built-in and customizable themes, permission levels, audit); the hero guides run on behind the screenshots to the navy grid while the content is at full width (≥ 1280 px), where they meet its lines; below that the guides and the fact dividers are dropped. |
 | `#idea` | Three principles with line icons. |
 | `#product` | Files, media, calendar and diagram, each with text, documentation link and a framed screenshot. |
 | `#foundations` | Navy band: the six capabilities as a grid, then the product status. |
@@ -94,15 +98,15 @@ are copied from their canonical brand sources, without redrawing them.
 
 Thus the timing, page turns, wordmark, `.com`, glint, reflection, release and
 reduced-motion behavior follow the [brand contract](brand.md#splash). It plays
-once per tab/origin using `blade-splash` session storage. On the managed origin,
-moving from the product page to the demo in the same tab does not replay it;
-a new tab plays again. JavaScript-disabled visitors see the website directly.
+once per tab/origin using `blade-splash` session storage. The product site
+(`61ade.com`) and the demo (`demo.61ade.com`) are separate origins, so opening
+the demo plays it once there too; a new tab plays again. JavaScript-disabled visitors see the website directly.
 Run `npm run website:assets` after shared splash or logo changes, even when
 the marketing copy has not changed.
 
 ## Public demo and retained screenshots
 
-The demo link is https://61ade.sanch.hu/. Login remains required; its existing
+The demo link is https://demo.61ade.com/. Login remains required; its existing
 shared synthetic account is intentionally public:
 
 - E-mail: `demo@example.test`
