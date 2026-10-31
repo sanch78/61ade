@@ -436,7 +436,8 @@ A list can sit beside a data tree of another resource
 ([tree navigation](workspaces.md#tree-navigation): `Registry::tree()`, JSON
 `view.tree`), a field can depend on another field's value
 ([conditional fields](workspaces.md#conditional-fields): `visibleWhen`, JSON
-`visible_when`), and every view can explain itself in a closable
+`visible_when`), fields can be an exclusive choice
+([exclusive fields](workspaces.md#exclusive-fields): `clears`), and every view can explain itself in a closable
 [view guide](workspaces.md#view-guide) (`guide`, or by view id in the
 application's `guides`), shown once per sign-in session and again from the
 top row's `Útmutató` button. Prerequisites, examples,

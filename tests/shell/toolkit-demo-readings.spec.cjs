@@ -53,8 +53,8 @@ test('the dashboard opens from the menu and its chart and summary follow the lis
  expect(await painted(page,await resolve(page,'--dhx-color-primary'))).toBe(true);
  // The list's own header filter narrows the list, the summary and the chart's data together.
  const filter=page.getByRole('grid').locator('[data-dhx-id="title"] input');
- await filter.fill('Mérés 000');
- const narrow=await expected(page,{title:'Mérés 000'});
+ await filter.fill('Reading 000');
+ const narrow=await expected(page,{title:'Reading 000'});
  expect(narrow.items.length).toBe(narrow.matched);expect(narrow.matched).toBeGreaterThan(0);
  await expect(stat(page,'count')).toHaveText(`${narrow.matched} / ${narrow.matched}`);
  await expect(stat(page,'min')).toHaveText(await format(page,narrow.min));
@@ -96,11 +96,11 @@ test('the reading-bar presentation renders in the table, the cards and the detai
  expect(await bar.locator('.demo-reading-bar__value').evaluate(node=>node.children.length)).toBe(0);
  // The large list itself is unchanged: server-side sort on the title still works.
  const header=page.getByRole('grid').locator('[role="columnheader"][data-dhx-id="title"]').filter({hasText:'Megnevezés'}).first();
- await header.click();await expect(header).toHaveAttribute('aria-sort','ascending');await expect(rows(page).first()).toContainText('Mérés 0001');
+ await header.click();await expect(header).toHaveAttribute('aria-sort','ascending');await expect(rows(page).first()).toContainText('Reading 0001');
  // Details (double-click): the card size of the same presentation.
  await rows(page).first().locator('[data-dhx-col-id="title"]').dblclick();
  const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});
- await expect(detail).toContainText('Mérés 0001');await expect(detail.locator('.demo-reading-bar--card')).toBeVisible();
+ await expect(detail).toContainText('Reading 0001');await expect(detail.locator('.demo-reading-bar--card')).toBeVisible();
  await detail.getByRole('button',{name:/close/i}).click();
  // Cards: every card shows the bar.
  await view(page,'Kártyák');
@@ -152,7 +152,7 @@ test('navigating away destroys the dashboard: no chart, summary, listener or ext
  await signIn(page);await openDashboard(page);
  // The dashboard's list has its own preferences: its filter does not reach the plain Mérések page.
  const filter=()=>page.getByRole('grid').locator('[data-dhx-id="title"] input');
- await filter().fill('Mérés 000');await expect(stat(page,'count')).toHaveText(/^(\d+) \/ \1$/);
+ await filter().fill('Reading 000');await expect(stat(page,'count')).toHaveText(/^(\d+) \/ \1$/);
  await openView(page,'Mérések');
  await expect(page).toHaveURL(/#view=demo_readings/);
  await expect(chart(page)).toHaveCount(0);await expect(summary(page)).toHaveCount(0);
@@ -168,6 +168,6 @@ test('navigating away destroys the dashboard: no chart, summary, listener or ext
  await theme(page,'Skyblue');
  // Reopened, the dashboard's list comes back with its own saved filter.
  await openDashboard(page);
- await expect(filter()).toHaveValue('Mérés 000');await expect(stat(page,'count')).toHaveText(/^(\d+) \/ \1$/);
+ await expect(filter()).toHaveValue('Reading 000');await expect(stat(page,'count')).toHaveText(/^(\d+) \/ \1$/);
  expect(seen.errors).toEqual([]);expect(seen.console.filter(text=>text.includes('61ade'))).toEqual([]);
 });

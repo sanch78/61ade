@@ -75,7 +75,7 @@ test('Calendar and DiagramEditor mount in a project Layout cell, follow the them
    window.__saved=0;window.__editor.on('saved',()=>window.__saved++);
   });
   await expect(inFixture(page,'.blade-calendar .dhx_cal_data')).toBeVisible();
-  await expect(inFixture(page,'.dhx_cal_event').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
+  await expect(inFixture(page,'.dhx_cal_event').filter({hasText:'Morning playlist'}).first()).toBeVisible();
   await expect(inFixture(page,'.blade-diagram-surface')).toBeVisible();
   // No event form is open: the calendar holds no input (its editing() is what the built-in kind reports).
   expect(await page.evaluate(()=>window.__calendar.editing())).toBe(false);
@@ -108,7 +108,7 @@ test('Calendar and DiagramEditor mount in a project Layout cell, follow the them
   // The Scheduler was released: the built-in calendar kind (the same component) opens with its events.
   await openMenu(page,'Műsorterv','Digitális kijelző');
   await expect(page.locator('.blade-calendar .dhx_cal_data')).toBeVisible();
-  await expect(page.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
+  await expect(page.locator('.dhx_cal_event').filter({hasText:'Morning playlist'}).first()).toBeVisible();
   expect(failures).toEqual([]);
  }finally{await api(page,'topology','delete',created).catch(()=>{});}
 });
@@ -122,7 +122,7 @@ test('Calendar and DiagramEditor mount in app.ui windows; closing or destroying 
  });
  const win=page.locator('.blade-content-window').filter({hasText:'Naptár komponens'});
  await expect(win.locator('.blade-calendar .dhx_cal_data')).toBeVisible();
- await expect(win.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
+ await expect(win.locator('.dhx_cal_event').filter({hasText:'Morning playlist'}).first()).toBeVisible();
  // Closing the window destroys the calendar with it: a new Calendar may be created afterwards.
  await page.evaluate(()=>window.__win.close());await expect(win).toHaveCount(0);await expect(page.locator('.blade-calendar')).toHaveCount(0);
  expect(await page.evaluate(()=>{const c=new window.__bladeApp.components.Calendar({view:'signage_schedule'});c.destroy();return true;})).toBe(true);
@@ -133,7 +133,7 @@ test('Calendar and DiagramEditor mount in app.ui windows; closing or destroying 
  });
  const editorWin=page.locator('.blade-content-window').filter({hasText:'Diagram komponens'});
  await expect(editorWin.locator('.blade-diagram-surface')).toBeVisible();
- await expect(editorWin.locator('.blade-diagram-list').getByText('Irodai hálózat',{exact:true})).toBeVisible();
+ await expect(editorWin.locator('.blade-diagram-list').getByText('Office network',{exact:true})).toBeVisible();
  // Destroying the component empties the window; the window itself belongs to its creator.
  await page.evaluate(()=>window.__editor.destroy());
  await expect(editorWin).toBeVisible();await expect(editorWin.locator('.blade-diagram-surface')).toHaveCount(0);

@@ -71,14 +71,14 @@ test('one live WebSocket carries every list and sub-view of the tab',async({page
  const expand=text=>page.locator('.dhx_grid-row').filter({hasText:text}).first().locator('.blade-subrow-toggle').click();
  const preview=page.locator('.blade-subview-host .blade-subview .dhx_grid-row');
  await openMenu(page,'Projektek','Tenant demó');
- await expand('Alfa kutatás');await expect(preview.first()).toBeVisible();
+ await expand('Alpha research');await expect(preview.first()).toBeVisible();
  await openMenu(page,'Közös hirdetőtábla','Tenant demó');
  await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
  await openMenu(page,'Feladatok','Tenant demó');
- await expand('Alfa mérés');await expect(preview).toHaveCount(2);
- await page.locator('.dhx_grid-row').filter({hasText:'Alfa mérés'}).first().locator('[data-dhx-col-id="title"]').click();
+ await expand('Alpha measurement');await expect(preview).toHaveCount(2);
+ await page.locator('.dhx_grid-row').filter({hasText:'Alpha measurement'}).first().locator('[data-dhx-col-id="title"]').click();
  await page.getByRole('button',{name:'Alelemek',exact:true}).click();
- const full=page.getByRole('dialog',{name:'Feladatok — Alfa mérés'});
+ const full=page.getByRole('dialog',{name:'Feladatok — Alpha measurement'});
  await expect(full.locator('.dhx_grid-row')).toHaveCount(2);
  // Three views, two previews and the window: six subscriptions, each with its own id and update frames.
  await expect.poll(()=>updated.size,{timeout:10000}).toBeGreaterThanOrEqual(6);

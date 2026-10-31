@@ -1038,7 +1038,7 @@ function editor(app, host, view) {
     if (id === "back" && !app.navigate({ view: listView })) host.close();
   });
   bar.mount(page.cell("commands"));
-  const source = library ? new app.components.ListView({ signal, dragSource: true, panel: false, showId: false, view: {
+  const source = library ? new app.components.ListView({ signal, dragSource: true, panel: false, showId: false, mode: "tiles", view: {
     ...library,
     id: `${view.id}.library`,
     actions: library.actions.filter((action) => action.name === "get"),

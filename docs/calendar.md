@@ -173,8 +173,13 @@ shared danger confirmation.
   `en`), with framework captions overriding vendor labels that are missing or
   mistranslated. The Suite datepicker popup takes month and day names from the
   browser (`Intl`) for the shell language.
-- Theme: Skyblue and light use the `terrace` skin with the Suite primary
-  colour; the dark theme switches the Scheduler to its `dark` skin.
+- Theme: light-based themes use the `terrace` skin and dark-based ones (Éjjeli,
+  Blade Night, dark-based application skins) the `dark` skin, for structure
+  only. `calendar.css` maps every Scheduler colour, font, radius and border onto
+  the active Suite tokens (on the root, so popups follow too); the navigation
+  buttons are flat Suite toolbar buttons, with the Blade hover and pressed
+  bevel on the current view in Blade and Blade Night. A skin stylesheet that
+  sets the Suite tokens therefore restyles the calendar without Scheduler rules.
 
 ## Demo and verification
 
@@ -182,7 +187,7 @@ The feature demo configures it as a digital signage (DMS) scheduler in the
 `Digitális kijelző` group ([demos](demos.md#teljes-feature-demó-)):
 `Médiatár` (image, video and audio assets referencing file-manager media),
 `Alapértelmezett tartalom` (default content per weekday or per date: a
-playlist or a single asset, the same `content` choices as the calendar's),
+`Médiaelem` or a `Lejátszási lista`, two selects that clear each other),
 `Lejátszási listák` (playlists of assets, edited by drag and drop in the project
 record view `demo.playlist-editor`, [D5](demos.md#d5-playlist-editor)) and
 `Műsorterv` (this calendar; its extra field `content` is a playlist or a
@@ -202,7 +207,7 @@ night, shows the day's default. An asset's
 `kind` is its file's MIME class, or `scene` for the synthetic scene asset
 (toolkit D2), whose code `signage_playlist.scene` delivers to the project view
 `Napi műsor` ([demos](demos.md#toolkit-d2-playlist)); the seeded brand scene
-is the default of every weekday and plays as `Arculati animáció` 10:00–12:00 on
+is the default of every weekday and plays as `Brand animation` 10:00–12:00 on
 weekdays ([signage media](demos.md#signage-media)). Its code is in
 `examples/demo-app/signage.php` and `modules/signage.json`.
 
@@ -219,10 +224,10 @@ curl -s https://demo.61ade.com/?blade=1 -b 'blade_demo_sandbox=<cookie value>' \
 ```json
 {"ok":true,"data":{"date":"2026-10-30","weekday":5,"weekday_name":"Péntek",
  "default":{"source":"weekday","title":"Blade brand animation","asset":{"id":"1","title":"Blade brand animation","kind":"scene","duration":20,"file":{"id":"39","name":"blade-brand.js","mime_type":"text/javascript"}},"playlist":null},
- "scheduled":[{"event_id":"1#202610300600","series_id":"1","title":"Reggeli lista","start":"2026-10-30 06:00","end":"2026-10-30 10:00","recurring":true,"asset":null,
-               "playlist":{"id":"1","title":"Reggeli lista","duration":60,"shuffle":false,"items":[{"…":"…"}]}}, {"…":"…"}],
+ "scheduled":[{"event_id":"1#202610300600","series_id":"1","title":"Morning playlist","start":"2026-10-30 06:00","end":"2026-10-30 10:00","recurring":true,"asset":null,
+               "playlist":{"id":"1","title":"Morning playlist","duration":60,"shuffle":false,"items":[{"…":"…"}]}}, {"…":"…"}],
  "timeline":[{"start":"00:00","end":"06:00","source":"default","title":"Blade brand animation","asset":{"…":"…"}},
-             {"start":"06:00","end":"10:00","source":"schedule","event_id":"1#202610300600","title":"Reggeli lista","playlist":{"…":"…"}}, {"…":"…"}]}}
+             {"start":"06:00","end":"10:00","source":"schedule","event_id":"1#202610300600","title":"Morning playlist","playlist":{"…":"…"}}, {"…":"…"}]}}
 ```
 
 - `php8.4 tests/shell/calendar.php`: RRULE subset and rejected rules,

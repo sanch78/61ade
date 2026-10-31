@@ -312,7 +312,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
    {id:'31',name:'clip.webm',kind:'file',mime_type:'video/webm',revision:'r31',duration_ms:6000,width:640,height:360,thumbnail:'none'},
    {id:'32',name:'kep.png',kind:'file',mime_type:'image/png',revision:'r32',width:1920,height:1080,thumbnail:'none'},
    {id:'33',name:'masik.jpg',kind:'file',mime_type:'image/jpeg',revision:'r33',width:800,height:600,thumbnail:'none'},
-   {id:'34',name:'jegyzet.txt',kind:'file',mime_type:'text/plain',revision:'r34'},
+   {id:'34',name:'note.txt',kind:'file',mime_type:'text/plain',revision:'r34'},
   ]};
   window.requests=[];
   window.fetch=async(_url,config)=>{
@@ -361,7 +361,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
  await expect(form.getByRole('button',{name:'Fájl feltöltése…',exact:true})).toHaveCount(0);
  await form.getByRole('button',{name:'Kiválasztás…',exact:true}).click();
  const picker=page.getByRole('dialog',{name:'Fájl kiválasztása: Médiafájl'});await expect(picker).toBeVisible();
- await expect(picker.locator('.blade-grid-tile')).toHaveCount(3);await expect(picker).not.toContainText('jegyzet.txt');await expect(picker).not.toContainText('Mappa');
+ await expect(picker.locator('.blade-grid-tile')).toHaveCount(3);await expect(picker).not.toContainText('note.txt');await expect(picker).not.toContainText('Mappa');
  await expect(picker.locator('.blade-grid-tile').filter({hasText:'clip.webm'}).locator('.blade-grid-tile__meta')).toHaveText('Videó · 640 × 360 · 0:06');
  await picker.locator('[data-dhx-id="type"]').click();await page.getByRole('menuitem',{name:'Videók',exact:true}).click();
  await expect(picker.locator('.blade-grid-tile')).toHaveCount(1);

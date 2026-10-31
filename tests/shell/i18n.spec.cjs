@@ -15,7 +15,7 @@ test('framework language works before login, persists through login, translates 
  await openView(page,'Tasks','Feature demo');
  await expect(page.getByRole('button',{name:'Actions',exact:true})).toBeVisible();
  await expect(page.locator('[role="columnheader"][data-dhx-id="title"]').filter({hasText:'Name'}).first()).toContainText('Name');
- await expect(page.locator('.dhx_grid-cell[data-dhx-col-id="title"]').first()).toContainText('Szintetikus feladat');
+ await expect(page.locator('.dhx_grid-cell[data-dhx-col-id="title"]').first()).toContainText('Synthetic task');
  await expect(page.locator('.blade-navigation-row .blade-language-flag--gb')).toBeVisible();
  const png=await page.locator('.blade-navigation-row .blade-language-flag--gb').evaluate(async icon=>{const source=getComputedStyle(icon).backgroundImage;const img=new Image();img.src=source.slice(5,-2);await img.decode();return {source,width:img.naturalWidth,height:img.naturalHeight};});expect(png.source).toContain('data:image/png');expect([png.width,png.height]).toEqual([16,11]);
  await page.getByRole('button',{name:'English',exact:true}).click();

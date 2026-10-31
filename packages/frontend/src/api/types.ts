@@ -1043,6 +1043,11 @@ export interface ListViewOptions extends ComponentOptions {
   panel?: boolean;
   /** false: no ID column and no `ID · n` line on cards (a page where the id means nothing to its users). Default true. */
   showId?: boolean;
+  /**
+   * The presentation the list opens in until its user picks one (the `Nézet` menu's choice is kept per list):
+   * `tiles` only where the view offers tiles, a phone always shows cards. Default `table`.
+   */
+  mode?: "table" | "cards" | "tiles";
 }
 
 /** Events of `ListView`. */

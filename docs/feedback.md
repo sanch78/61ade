@@ -3961,45 +3961,98 @@ that exactly equals an option label lists every option. The managed
 
 - **Date:** 2026-10-31.
 - **Request:** in `Alapértelmezett tartalom`
-  (`#view=signage_defaults`) a concrete asset or a playlist can be given.
-- **Implemented:** `signage_defaults.asset_id` became `content` with the
-  programme calendar's choices (`playlist:<id>` or `asset:<id>`; both use
-  `blade_demo_signage_content()`, the JSON field through the binding
-  `signage.content`). A computed `asset_id` keeps the `Médiatár` sub-view
-  (the defaults playing an asset). In `signage_playlist.day` free time plays a
-  playlist default like a playlist event; `default` is now
-  `{source, title, asset, playlist}` instead of the asset with `source`
-  ([calendar](calendar.md#demo-and-verification)). The usage counts and the
-  delete warnings count defaults for playlists too; deleting a playlist removes
-  its defaults. Setup migrates existing rows (`asset:` + the old id, then
-  drops `asset_id`); the shared `tmp/web` instance was migrated (backup taken
-  first) and the sandbox seed rebuilt. Demo-only: no framework change.
-- **Verification (2026-10-31):** PHP `signage.php` (new: content choices
-  equal the calendar's, unknown content refused, a playlist date default fills
+  (`#view=signage_defaults`) a concrete asset or a playlist can be given; then
+  (owner, same day) "kettő select legyen, ha az egyiken valamit jelölök, a
+  másik resetelődik": two selects, choosing in one resets the other.
+- **First attempt (superseded the same day):** one `content` select with the
+  programme calendar's `playlist:<id>`/`asset:<id>` choices; it reached
+  `a94f38d` and the shared instance, and setup migrates it away.
+- **Framework:** [exclusive fields](workspaces.md#exclusive-fields): `Field`
+  `clears` (JSON `clears`, browser metadata `clears`). Forms empty the named
+  fields when this one gets a value (`bindFieldTypes`); the executor stores
+  them empty on every save sending this field with a value (form, cell, bulk,
+  API), returns them with a cell edit's `values`, refuses both with a value
+  (`Nem adható meg együtt ezzel: {field}.`, hu/en/de) and needs write access
+  to them. Declaration rules: up to 10 other field names, optional and
+  non-secret fields of the same action; a secret field clears nothing.
+- **Demo:** `signage_defaults` has `asset_id` (`Médiaelem`) and `playlist_id`
+  (`Lejátszási lista`), both optional, editable in the cell and clearing each
+  other; `signage.default_check` also requires one of them. In
+  `signage_playlist.day` free time plays a playlist default like a playlist
+  event; `default` is now `{source, title, asset, playlist}` instead of the
+  asset with `source` ([calendar](calendar.md#demo-and-verification)). Usage
+  counts and delete warnings count defaults for playlists too; deleting a
+  playlist removes its defaults. Setup rebuilds an older table (asset only
+  without a column default, or the `content` column) with both columns; the
+  shared `tmp/web` instance was migrated (backups first) and the sandbox seed
+  rebuilt; `npm run build` and `npm run demo:assets` published the bundle.
+- **Verification (2026-10-31):** PHP `signage.php` (new: the pair's
+  metadata, unknown playlist, both together and neither refused, cell edits of
+  either field empty the other and return both, a playlist date default fills
   the night, playlist usage and delete preview count it, the delete removes
-  it, the asset sub-view counts), `contracts.php`, `calendar.php`,
-  `toolkit.php`, `lists.php` and `i18n.php` passed; `configuration.php` fails
-  on HEAD as well (skin shadowing a factory theme). Browser on the shared
-  instance: `signage`, `toolkit-demo-playlist` and `calendar` 19/22, the three
-  failures the theme-toggle cases already failing in
-  [FB-0112](#fb-0112).
+  it), `tree-navigation.php` (declaration rules), `contracts.php`,
+  `validation.php`, `lists.php`, `toolkit.php`, `calendar.php`, `i18n.php`,
+  `admin.php`, `api-keys.php` and `tenancy.php` passed; `configuration.php`
+  fails on HEAD as well (skin shadowing a factory theme). Browser on the
+  shared instance: `signage` 7/8 (the form picks a playlist, then an asset,
+  and each empties the other), `toolkit-demo-playlist` 7/8; the failures are
+  the theme-toggle cases already failing in [FB-0112](#fb-0112).
 - **Status:** implemented.
 
 <a id="fb-0114"></a>
 
-## FB-0114 — English demo assets
+## FB-0114 — English demo data
 
 - **Date:** 2026-10-31.
-- **Request:** "a demo db assetek legyenek angolok" — the signage demo assets
-  in English.
-- **Implemented:** `BLADE_DEMO_SIGNAGE_MEDIA` and `BLADE_DEMO_SIGNAGE_BRAND`
-  use English file names and asset titles (e.g. `Craft coffee, slow
-  mornings.png`, `calm-music.mp3`, `Blade brand animation`); the git-ignored
-  `resources/media/` files were renamed to match. Setup renames the former
-  Hungarian names of an existing database (`BLADE_DEMO_SIGNAGE_FORMER`, through
-  `FileStorage::rename()`; an asset title changes only while it is the former
-  one, so a title edited by hand stays). Playlist and event titles were not in
-  scope and stay Hungarian ([signage media](demos.md#signage-media)). Tests and
-  the `signage_playlist.day` example in [calendar](calendar.md) follow the new
-  names. Demo-only: no framework change.
+- **Request:** "a demo db assetek legyenek angolok", then "in the db translate
+  every hungarian text" — all synthetic seed data of the demo databases in
+  English; the UI stays Hungarian with its English catalogue.
+- **Implemented:** the seeds of
+  [setup-workspace.php](../examples/demo-app/setup-workspace.php) and
+  [signage.php](../examples/demo-app/signage.php) are English: tasks
+  (`Synthetic task 01`), readings (`Reading 0001`), catalog, shelves, items and
+  zones, the Drive A–C file tree (names and text content, e.g.
+  `Documents/note.txt`, `Upload samples/large-log.txt`, `Drive C:/Shared`), the
+  two topologies (`Office network`, `Site VPN`), the signage media (file names
+  and asset titles, e.g. `Craft coffee, slow mornings.png`, `calm-music.mp3`;
+  the git-ignored `resources/media/` files were renamed), playlists and events
+  (`Morning playlist`, `Brand animation`, `Orange fizz`), the tenants `Alpha`
+  and `Beta` with their projects, tasks and notice, and the role `Editor`.
+  Account display names were English already. Existing databases are renamed
+  in place by setup before anything is seeded by name
+  ([former-names.php](../examples/demo-app/former-names.php) and
+  `BLADE_DEMO_SIGNAGE_FORMER`): only exact former values change (a file's
+  content only while its hash is the former seed's), a taken English name
+  leaves the entry, a rerun changes nothing. Tests and docs follow the new
+  names; data that tests create themselves stays as written. Demo-only: no
+  framework change.
+- **Status:** implemented.
+
+<a id="fb-0115"></a>
+
+## FB-0115 — Dark scrollbars, a themed calendar and a tiles-first library
+
+- **Date:** 2026-10-31.
+- **Requests:** "a scrollbarok-at nem lehet a dark skin esetén igazítani?";
+  "a sceduler gombjai kilógnak a dizajn-ból. minden skin esetén igazítani kell,
+  ha van más olyan eleme ami nem standard azokat is"; "a playlist-editor bal
+  panelen a tiles legyen a default".
+- **Observed:** on dark bases the native scrollbars stayed light; the
+  Scheduler kept its own palette (black surface, grey rules, `#2A2A2A` today,
+  blue outlined segmented buttons) in every theme; the editor's `Médiatár`
+  opened as a table.
+- **Implemented:** dark bases set `color-scheme: dark` and a translucent
+  `scrollbar-color` (`themes/character.css`). `calendar.css` maps every
+  Scheduler colour, font, radius and border onto the Suite tokens on the root
+  (popups included); the navigation buttons are flat Suite toolbar buttons,
+  with the Blade hover, a pressed current view and a glossy day header in Blade
+  and Blade Night ([calendar](calendar.md)). New, additive:
+  `ListViewOptions.mode` (`table`, `cards`, `tiles`), the presentation a list
+  opens in until its user picks one ([toolkit](toolkit.md#listview)); the
+  playlist editor's library uses `tiles`.
+- **Verification:** screenshots of the week, month and day views in Blade,
+  Blade Night, Világos and Éjjeli on the demo; the calendar spec's reader case
+  now picks the current theme names (it looked for the removed Skyblue) and
+  checks the dark surface is the Suite one; `toolkit-demo-playlist-editor`
+  opens the library in tiles before switching to the table for its drags.
 - **Status:** implemented.

@@ -83,7 +83,7 @@ test('existing caller: failed sign-in uses the shared danger dialog',async({page
  await expect(page.getByLabel('Jelszó',{exact:true})).toBeFocused();
 });
 test('choice with "apply to all": checkbox in the focus trap, Escape cancels',async({page})=>{
- // requestChoiceAll() through the uploader's name conflict: Drive C already holds jegyzet.txt.
+ // requestChoiceAll() through the uploader's name conflict: Drive C already holds note.txt.
  await page.setViewportSize({width:1400,height:900});
  await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61ade-demo');
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
@@ -91,16 +91,16 @@ test('choice with "apply to all": checkbox in the focus trap, Escape cancels',as
  await page.getByRole('menuitem',{name:'Feature demó',exact:true}).click();await page.getByRole('menuitem',{name:'Fájlkezelő',exact:true}).click();
  const left=page.locator('[data-cell-id="panel-0"]');
  await left.locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Drive C',exact:true}).click();
- await expect(left.getByRole('gridcell',{name:'jegyzet.txt',exact:true})).toBeVisible();
+ await expect(left.getByRole('gridcell',{name:'note.txt',exact:true})).toBeVisible();
  const read=()=>page.evaluate(async()=>{
   const csrf=JSON.parse(document.getElementById('blade-config').textContent).csrf,call=async(action,id)=>(await (await fetch('?blade=1',{method:'POST',headers:{'Content-Type':'application/json','X-BLADE-CSRF':csrf},body:JSON.stringify({resource:'files',action,id,values:{}})})).json()).data;
-  const root=(await call('tree','c')).root,file=(await call('list',root)).items.find(item=>item.name==='jegyzet.txt');
+  const root=(await call('tree','c')).root,file=(await call('list',root)).items.find(item=>item.name==='note.txt');
   return (await call('text_get',file.id)).content;
  });
  const before=await read();
  await page.getByRole('button',{name:'Feltöltés',exact:true}).click();
  const upload=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')});
- await page.locator('input[data-blade-upload-input="files"]').setInputFiles([{name:'jegyzet.txt',mimeType:'text/plain',buffer:Buffer.from('nem kerül be\n')}]);
+ await page.locator('input[data-blade-upload-input="files"]').setInputFiles([{name:'note.txt',mimeType:'text/plain',buffer:Buffer.from('nem kerül be\n')}]);
  await expect(dialog(page).getByRole('heading',{name:'Névütközés'})).toBeVisible();
  const all=dialog(page).getByRole('checkbox',{name:'Alkalmazás az összes ütközésre'});
  await expect(all).not.toBeChecked();

@@ -94,8 +94,8 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
 | Registry editor (tree navigation, conditional fields) | `Regisztrációs adatbázis` ([registry.json](../examples/demo-app/modules/registry.json)): a Windows registry editor imitation. The key tree (`Registry::tree` over the `Kulcsok` hierarchy) loads children on expansion, its toolbar adds, edits (renames or moves, guarded against cycles) and deletes keys (with their subtree and values); the value list beside it is scoped to the selected key. The value form shows the editor of the chosen `Típus` only (`visible_when`): text, multi-line text, hexadecimal DWORD/QWORD or a byte string, each with its own pattern; the `Adat` column is computed SQL | Feature demo → Regisztrációs adatbázis; `reader@example.test` browses only |
 | View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in `Menü` below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
-| Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Üres polc`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `C zóna` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
-| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date, a playlist or a single asset (the calendar's content choices through `options_binding`; a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
+| Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Empty shelf`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `Zone C` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
+| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date, an asset or a playlist (two selects clearing each other, [exclusive fields](workspaces.md#exclusive-fields); a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
 | Appearance | Skyblue/light/dark, lower information bar and mobile menu | Any view |
@@ -183,7 +183,7 @@ starter admin and the tenant demo stay declarative and load no project module.
   `demo_readings`. The list's `changed` event (load, scroll window, filter, live
   update) and `select` event (cursor record) update both. The figures describe
   the **loaded window** of the list, not the full result: unfiltered that is
-  the bounded window out of 1801; with a filter such as `Mérés 000` it is the
+  the bounded window out of 1801; with a filter such as `Reading 000` it is the
   whole match. A visually hidden paragraph lists every bin (and the selected
   bin) as the chart's text alternative. The list keeps its own saved mode,
   sort, columns and filters: a `ListView` keys them by the id of the
@@ -205,7 +205,7 @@ starter admin and the tenant demo stay declarative and load no project module.
   options, so the bar's scale is fixed at 100. The
   feature demo offers Hungarian and English only; the English texts are in
   `resources/locales/en.json`.
-- **What to try:** open `Mérési irányítópult`, type `Mérés 000` into the
+- **What to try:** open `Mérési irányítópult`, type `Reading 000` into the
   `Megnevezés` header filter (summary `9 / 9`, the chart shows nine rows),
   click a row (summary and chart mark it), switch the theme, narrow the window
   below 768 px, then open `Mérések` and its cards and details to see the bar.
@@ -328,8 +328,8 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   [b1ade logo](brand.md) of the dark palette building up, glowing, swept by
   light and dissolving), stored with the [signage media](#signage-media). The
   seeded programme makes it the default of all seven weekdays, so free time
-  loops it endlessly, and plays it as `Arculati animáció` 10–12 on weekdays
-  and in `Reggeli lista`.
+  loops it endlessly, and plays it as `Brand animation` 10–12 on weekdays
+  and in `Morning playlist`.
   Scenes are seeded only: the asset form and `Feltöltés` accept image,
   video and audio, and the file manager neither uploads nor previews scripts.
 - **Code delivery:** `signage_playlist.scene` (`values.asset`, label
@@ -458,10 +458,11 @@ dynamic playback).
   playlist slot lists only the items that play on that date (switched on,
   within their validity), each with its effective `duration` and
   `transition` (`{type, ms}`); a shuffled list comes in a stable order per
-  date. The day defaults (`signage_defaults.content`) take the same choices
-  (binding `signage.content`); a computed `asset_id` keeps the `Médiatár`
-  rows expanding to the defaults that play the asset. Setup migrates older
-  events' and defaults' `asset_id` to `content` and seeds the
+  date. A day default (`signage_defaults`) is an asset (`asset_id`) or a
+  playlist (`playlist_id`): two selects that clear each other
+  ([exclusive fields](workspaces.md#exclusive-fields)), one of them required
+  by the `after_save` rule. Setup migrates older events' `asset_id` to
+  `content`, rebuilds older defaults tables with both columns and seeds the
   four [sample playlists](#signage-media) on a fresh database. Deleting an asset removes its
   playlist items; deleting a playlist removes its items and day defaults and blanks its events
   (usage warnings in both confirmations). Time without events, the night
@@ -470,7 +471,8 @@ dynamic playback).
   panels the view declares (`options.layout`, [`PageLayout`](toolkit.md#pagelayout)),
   none showing record ids (`showId: false`):
   - **Médiatár:** a `ListView` of `signage_assets` under the editor's own view
-    id (`panel: false`: the region is its panel; table, cards or tiles, header
+    id (`panel: false`: the region is its panel; opens in tiles (`mode`) until
+    the user picks table or cards; header
     filters, the cards' `Szűrés` dialog, sorting; picking only), whose rows are
     a drag source (`dragSource`; the marked ones together).
   - **Előnézet:** the demo's shared player ([D2](#toolkit-d2-playlist),
@@ -564,7 +566,7 @@ File names and asset titles are English demo data (owner request of
 2026-10-31, [FB-0114](feedback.md#fb-0114)); setup renames the earlier
 Hungarian names of an existing database (`BLADE_DEMO_SIGNAGE_FORMER`: the file
 unless the English name is taken, the asset title only while it is the former
-one). Playlist and programme event titles stay Hungarian:
+one):
 
 | Media | Files | Source |
 | --- | --- | --- |
@@ -579,12 +581,12 @@ root, keyed by its name, and creates the asset of a file that no asset
 references. It never changes or deletes other data. A file missing from the
 media directory is reported on stderr and skipped, so the demo still sets up
 without it. On an empty asset table, `blade_demo_signage_seed()` also creates
-the sample programme: the playlists `Reggeli lista`, `Napközbeni lista`,
-`Esti lista` and `Hétvégi lista`; the brand scene as the default of every
-weekday; and weekly events from Monday. On weekdays these are `Reggeli lista`
-06–10, `Arculati animáció` 10–12, `Napközbeni lista` 12–17,
-`Narancsos pezsgés` 17–18 and `Esti lista` 18–22. On weekends they are
-`Reggeli lista` 06–10, `Hétvégi lista` 10–18 and `Esti lista` 18–22. The music is
+the sample programme: the playlists `Morning playlist`, `Daytime playlist`,
+`Evening playlist` and `Weekend playlist`; the brand scene as the default of every
+weekday; and weekly events from Monday. On weekdays these are `Morning playlist`
+06–10, `Brand animation` 10–12, `Daytime playlist` 12–17,
+`Orange fizz` 17–18 and `Evening playlist` 18–22. On weekends they are
+`Morning playlist` 06–10, `Weekend playlist` 10–18 and `Evening playlist` 18–22. The music is
 in the `Médiatár` only, not in the programme. The visitor
 [sandbox seed](#visitor-sandboxes) is a fresh setup, so the media directory
 must exist when the web setup runs. `tests/shell/signage.php` and the signage

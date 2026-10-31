@@ -284,9 +284,9 @@ test('feature demo catalog: static images in table, tiles and details; missing f
  const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});
  // The first row (newest) holds an invalid extension: no image. A plain file name shows its image.
  await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
- await expect(detail).toContainText('Kiterjesztés');await expect(detail.locator('img')).toHaveCount(0);
+ await expect(detail).toContainText('Extension');await expect(detail.locator('img')).toHaveCount(0);
  await detail.getByRole('button',{name:/close/i}).click();
- await page.locator('.dhx_grid-row').filter({hasText:'Háromszög'}).locator('[data-dhx-col-id="_number"]').dblclick();
+ await page.locator('.dhx_grid-row').filter({hasText:'Triangle'}).locator('[data-dhx-col-id="_number"]').dblclick();
  await expect(detail.locator('img[data-blade-static-image]')).toHaveCount(1);
  expect(errors).toEqual([]);
 });

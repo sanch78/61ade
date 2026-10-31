@@ -97,7 +97,7 @@ request is checked again server-side.
 ## Stored content
 
 ```json
-{"nodes": [{"id": "n1", "type": "router", "label": "Központi router", "detail": "10.0.0.1", "x": 0, "y": -40}],
+{"nodes": [{"id": "n1", "type": "router", "label": "Core router", "detail": "10.0.0.1", "x": 0, "y": -40}],
  "links": [{"id": "l1", "source": "n1", "target": "n2", "type": "fiber", "label": "10 Gbit/s"}]}
 ```
 
@@ -134,7 +134,7 @@ than one link between the same two elements, labels over 80 or details over
 
 Feature demo → `Hálózati topológia`: twelve network element types, five
 connection types (Ethernet, fibre, Wi-Fi, VPN, WAN) and two synthetic
-topologies (`Irodai hálózat`, `Telephelyek VPN`, documentation and private
+topologies (`Office network`, `Site VPN`, documentation and private
 address ranges only), seeded once by `setup-workspace.php`.
 `reader@example.test` opens diagrams read-only.
 

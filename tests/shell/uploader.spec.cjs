@@ -114,7 +114,7 @@ test('20 mixed files give per-file results without re-sends',async({page})=>{
   {name:prefix+'-k1.png',mimeType:'image/png',buffer:png},
   {name:prefix+'-big.txt',mimeType:'text/plain',buffer:Buffer.alloc(bigSize,98)},
   {name:prefix+'-k2.png',mimeType:'image/png',buffer:png},
-  {name:prefix+'-foto.jpg',mimeType:'image/jpeg',buffer:jpg},
+  {name:prefix+'-photo.jpg',mimeType:'image/jpeg',buffer:jpg},
   ...Array.from({length:13},(_,index)=>text(`${prefix}-t${String(index+1).padStart(2,'0')}.txt`,`sor ${index+1}\n`)),
  ];
  expect(files).toHaveLength(20);

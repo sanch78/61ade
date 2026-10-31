@@ -54,7 +54,7 @@ function editor(app: Application, host: ViewHost, view: ViewDefinition<EditorOpt
 
   // The library under the editor's own view id: its own mode, sort and filters (the header filters; no toolbar search);
   // picking only (no commands, no forms), in the page's panel (`panel: false`).
-  const source = library ? new app.components.ListView({ signal, dragSource: true, panel: false, showId: false, view: { ...library, id: `${view.id}.library`,
+  const source = library ? new app.components.ListView({ signal, dragSource: true, panel: false, showId: false, mode: "tiles", view: { ...library, id: `${view.id}.library`,
     actions: library.actions.filter(action => action.name === "get"),
     options: { ...library.options, rowNumbers: false, search: undefined, commands: undefined, activate: undefined, subview: undefined,
       columns: library.options.columns.filter(column => LIBRARY_COLUMNS.includes(column.id)).map(column => ({ ...column, editable: false })) } } }) : undefined;

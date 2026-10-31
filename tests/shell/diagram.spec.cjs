@@ -31,14 +31,14 @@ async function drag(page,from,to){
 
 test('seeded topology opens with palette, elements and connections',async({page})=>{
  await signIn(page);await openTopology(page);
- await expect(page.locator('.blade-diagram-list').getByText('Irodai hálózat',{exact:true})).toBeVisible();
+ await expect(page.locator('.blade-diagram-list').getByText('Office network',{exact:true})).toBeVisible();
  await expect(paletteItem(page,'Router')).toBeVisible();
- await page.locator('.blade-diagram-list').getByText('Irodai hálózat',{exact:true}).click();
+ await page.locator('.blade-diagram-list').getByText('Office network',{exact:true}).click();
  await expect(nodes(page)).toHaveCount(12);
  await expect(page.locator('.blade-diagram-link')).toHaveCount(11);
  // Selecting an element fills the Suite property form.
- await node(page,'Mag switch').locator('.blade-diagram-node__shape').click();
- await expect(page.locator('.blade-diagram-properties input[name="label"]')).toHaveValue('Mag switch');
+ await node(page,'Core switch').locator('.blade-diagram-node__shape').click();
+ await expect(page.locator('.blade-diagram-properties input[name="label"]')).toHaveValue('Core switch');
  await page.screenshot({path:require('node:path').join(process.env.BLADE_TMP_DIR||'tmp','diagram-topology.png')});
 });
 
@@ -107,7 +107,7 @@ test('define a new element type and use it',async({page})=>{
 
 test('read-only reader views without editing controls',async({page})=>{
  await signIn(page,'reader@example.test');await openTopology(page);
- await page.locator('.blade-diagram-list').getByText('Irodai hálózat',{exact:true}).click();
+ await page.locator('.blade-diagram-list').getByText('Office network',{exact:true}).click();
  await expect(nodes(page)).toHaveCount(12);
  await expect(page.getByRole('button',{name:'Mentés',exact:true})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Új elemtípus',exact:true})).toHaveCount(0);

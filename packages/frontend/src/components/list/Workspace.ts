@@ -158,7 +158,7 @@ export class Workspace implements ActionHost {
       this.headerFilters();
       this.preferences.bindGrid(this.grid.table);
       for(const column of view.columns.filter(column=>column.secondary))if(!this.visibleColumns.has(column.id))this.grid.setColumnVisible(column.id,false);
-      this.grid.setMode(this.preferences.mode);
+      this.grid.setMode(this.preferences.mode(this.hooks.mode));
       this.gridEditing=new GridEditing(this.grid.table,view.actions.find(a=>a.name==="update")?.fields??[],()=>this.rows,
         (row,field,value)=>this.saveCell(row,field,value),error=>this.error(error),active=>{this.cellEditing=active;if(!active&&!this.disposed)this.watch();});
       this.content.getCell("data").attach(this.grid.layout);

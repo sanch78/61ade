@@ -58,11 +58,20 @@ async function act(page,name){
  if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name,exact:true}).click();}
  else await bar.getByRole('button',{name,exact:true}).click();
 }
+/** Picks a presentation in a list region's `Nézet` menu, also from its `Műveletek` menu. */
+async function mode(page,id,name){
+ const bar=region(page,id),menu=bar.getByRole('button',{name:'Műveletek',exact:true});
+ if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name:/^Nézet:/}).click();}else await bar.getByRole('button',{name:/^Nézet:/}).click();
+ await page.getByRole('menuitem',{name,exact:true}).click();
+}
 function pageErrors(page){const errors=[];page.on('pageerror',error=>errors.push(error.message));return errors;}
 async function open(page,email='demo@example.test'){
  await page.setViewportSize({width:1700,height:1000});
  await signIn(page,email,`/#view=demo.playlist-editor&record=${playlist}`);
  await expect(items(page)).toHaveCount(stored().length);
+ // The library opens in tiles (`ListViewOptions.mode`) until the user picks another presentation; the drags need rows.
+ await expect(region(page,'library').locator('.blade-grid-tile').first()).toBeVisible();
+ await mode(page,'library','Táblázat');
  // The library has no toolbar search: its title column's header filter narrows it to the run's assets.
  const filter=region(page,'library').getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true});
  await filter.fill(prefix);await filter.press('Enter');
@@ -107,8 +116,7 @@ test('the library filters in tiles too: its header filters move into the Szűré
  await expect(library.getByRole('textbox',{name:'Keresés…'})).toHaveCount(0);
  const menu=library.getByRole('button',{name:'Műveletek',exact:true});
  const pick=async name=>{if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name,exact:true}).click();}else await library.getByRole('button',{name,exact:true}).click();};
- const mode=async name=>{if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name:/^Nézet:/}).click();}else await library.getByRole('button',{name:/^Nézet:/}).click();await page.getByRole('menuitem',{name,exact:true}).click();};
- await mode('Csempék');
+ await mode(page,'library','Csempék');
  await expect(library.locator('.blade-grid-tile')).toHaveCount(2);
  await pick('Szűrés');
  const dialog=page.locator('.dhx_window').filter({hasText:'Szűrés'}).last();
@@ -116,7 +124,7 @@ test('the library filters in tiles too: its header filters move into the Szűré
  await dialog.getByLabel('Megnevezés',{exact:true}).fill(`${prefix} hang`);
  await dialog.getByRole('button',{name:'Szűrés',exact:true}).click();
  await expect(library.locator('.blade-grid-tile')).toHaveCount(1);
- await mode('Táblázat');
+ await mode(page,'library','Táblázat');
  await expect(library.getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true})).toHaveValue(`${prefix} hang`);
 });
 

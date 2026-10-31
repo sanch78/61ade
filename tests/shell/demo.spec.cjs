@@ -148,7 +148,7 @@ test('the feature demo task module shows multiple choices, inline editors and a 
  await signIn(page,'demo@example.test');
  await openView(page,'Feladatok');
  await expect(page.getByRole('heading',{name:'Feladatok',exact:true})).toBeVisible();
- await expect(page.locator('.dhx_grid-row').filter({hasText:'Szintetikus feladat 39'})).toContainText('Ügyfél, Sürgős');
+ await expect(page.locator('.dhx_grid-row').filter({hasText:'Synthetic task 39'})).toContainText('Ügyfél, Sürgős');
  // The panel layout narrows the list, so commands may sit in the responsive "Műveletek" menu.
  const menu=page.getByRole('button',{name:'Műveletek',exact:true});
  if(await menu.isVisible()){

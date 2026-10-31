@@ -105,45 +105,45 @@ test('independent mounts, Tree/Grid synchronization and the directory depth limi
  await expect(path(left)).toHaveText('Drive A:/');await expect(path(right)).toHaveText('Drive B:/');
  await expect(left).toHaveClass(/blade-file-panel--active/);
  await mount(page,right,'Drive C');
- await expect(row(right,'Közös')).toBeVisible();await expect(row(left,'Dokumentumok')).toBeVisible();
+ await expect(row(right,'Shared')).toBeVisible();await expect(row(left,'Documents')).toBeVisible();
  await expect(right).toHaveClass(/blade-file-panel--active/);await expect(left).not.toHaveClass(/blade-file-panel--active/);
  // Tree mode shows only the tree; selecting a folder makes it the panel's folder for the listing.
  await view(page,left,'Mappafa');
  await expect(left.locator('.dhx_grid-row').first()).toBeHidden();await expect(left.locator('.dhx_tree')).toBeVisible();await expect(right.locator('.dhx_grid-row').first()).toBeVisible();
- await left.locator('.dhx_tree-toggle-button').first().click();await treeItem(left,'Dokumentumok').click();
- await expect(path(left)).toHaveText('Drive A:/Dokumentumok');
+ await left.locator('.dhx_tree-toggle-button').first().click();await treeItem(left,'Documents').click();
+ await expect(path(left)).toHaveText('Drive A:/Documents');
  await expect(page.getByRole('button',{name:'Szerkesztés',exact:true})).toBeDisabled();
  // Files are tree leaves with their MIME icon; a chosen file keeps its folder and is the operand.
- await expect(treeItem(left,'jegyzet.txt').locator('.dxi-format-align-left')).toHaveCount(1);
- await treeItem(left,'jegyzet.txt').click();await expect(selectedFile(left)).toContainText('jegyzet.txt');
- await expect(path(left)).toHaveText('Drive A:/Dokumentumok');await expect(page.getByRole('button',{name:'Szerkesztés',exact:true})).toBeEnabled();
- await view(page,left,'Fájllista');await expect(row(left,'jegyzet.txt')).toBeVisible();
+ await expect(treeItem(left,'note.txt').locator('.dxi-format-align-left')).toHaveCount(1);
+ await treeItem(left,'note.txt').click();await expect(selectedFile(left)).toContainText('note.txt');
+ await expect(path(left)).toHaveText('Drive A:/Documents');await expect(page.getByRole('button',{name:'Szerkesztés',exact:true})).toBeEnabled();
+ await view(page,left,'Fájllista');await expect(row(left,'note.txt')).toBeVisible();
  // No checkbox column; the first column is the MIME icon with its accessible name.
  await expect(left.locator('.dhx_grid input[type=checkbox]')).toHaveCount(0);
- await expect(row(left,'jegyzet.txt').getByRole('img',{name:'Szöveg',exact:true})).toBeVisible();
- await expect(row(left,'Projektek').getByRole('img',{name:'Mappa',exact:true})).toBeVisible();
- await pick(left,'jegyzet.txt');await expect(left.locator('.blade-grid-row-marked')).toHaveCount(1);
+ await expect(row(left,'note.txt').getByRole('img',{name:'Szöveg',exact:true})).toBeVisible();
+ await expect(row(left,'Projects').getByRole('img',{name:'Mappa',exact:true})).toBeVisible();
+ await pick(left,'note.txt');await expect(left.locator('.blade-grid-row-marked')).toHaveCount(1);
  await expect(page.getByRole('button',{name:'Szerkesztés',exact:true})).toBeEnabled();
- await pick(left,'Projektek',['ControlOrMeta']);await expect(left.locator('.blade-grid-row-marked')).toHaveCount(2);
+ await pick(left,'Projects',['ControlOrMeta']);await expect(left.locator('.blade-grid-row-marked')).toHaveCount(2);
  await expect(page.getByRole('button',{name:'Szerkesztés',exact:true})).toBeDisabled();
  // Listing → tree: entering a folder selects it in the tree; choosing its parent there returns.
- await enter(left,'Projektek');await view(page,left,'Mappafa');await expect(selectedTree(left)).toHaveText('Projektek');
- await treeItem(left,'Dokumentumok').click();await expect(path(left)).toHaveText('Drive A:/Dokumentumok');await expect(selectedTree(left)).toHaveText('Dokumentumok');
+ await enter(left,'Projects');await view(page,left,'Mappafa');await expect(selectedTree(left)).toHaveText('Projects');
+ await treeItem(left,'Documents').click();await expect(path(left)).toHaveText('Drive A:/Documents');await expect(selectedTree(left)).toHaveText('Documents');
  await view(page,left,'Fájllista');
  // No Up button: the ".." row opens the parent with the cursor on the folder left; it is never marked.
  await expect(left.getByRole('button',{name:'Fel',exact:true})).toHaveCount(0);
- await enter(left,'Projektek');await expect(row(left,'..').getByRole('img',{name:'Szülőmappa',exact:true})).toBeVisible();
+ await enter(left,'Projects');await expect(row(left,'..').getByRole('img',{name:'Szülőmappa',exact:true})).toBeVisible();
  await expect(left.locator('.dhx_grid-row').first()).toContainText('..');
  await pick(left,'..');await expect(left.locator('.blade-grid-row-marked')).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Másolás',exact:true})).toBeDisabled();
- await row(left,'..').dblclick();await expect(path(left)).toHaveText('Drive A:/Dokumentumok');
- // Suite draws the row cursor as an overlay: it lies on the Projektek row.
+ await row(left,'..').dblclick();await expect(path(left)).toHaveText('Drive A:/Documents');
+ // Suite draws the row cursor as an overlay: it lies on the Projects row.
  const cursor=await left.locator('.dhx_grid-selected-row').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect()).filter(box=>box.height).map(box=>box.top));
- const projects=(await row(left,'Projektek').boundingBox()).y;expect(cursor.some(top=>Math.abs(top-projects)<2)).toBe(true);
+ const projects=(await row(left,'Projects').boundingBox()).y;expect(cursor.some(top=>Math.abs(top-projects)<2)).toBe(true);
  await expect(path(right)).toHaveText('Drive C:/');await expect(right.locator('[data-dhx-id="mode"]')).toHaveText('Nézet: Fájllista');
- // Depth: Mély mappa/1/2/3 is depth 4, a new folder there is depth 5; inside it creation stops.
+ // Depth: Deep folder/1/2/3 is depth 4, a new folder there is depth 5; inside it creation stops.
  await mount(page,right,'Drive B');
- for(const name of ['Mély mappa','1','2','3'])await enter(right,name);
+ for(const name of ['Deep folder','1','2','3'])await enter(right,name);
  await command(page,'Új mappa');
  await expect(windowDialog(page).getByRole('button',{name:'Mégse',exact:true})).toBeVisible();
  const form=windowDialog(page);await form.getByLabel('Mappa neve').fill(prefix+'-d5');await form.getByRole('button',{name:'Létrehozás',exact:true}).click();
@@ -185,11 +185,11 @@ test('upload validation, conflict dialog and the TXT editor',async({page})=>{
  await expect(row(left,prefix+'-a (2).txt')).toBeVisible();
  await upload.getByRole('button',{name:'Bezárás',exact:true}).click();await expect(upload).toBeHidden();
  // Server-side editor rules: TXT only (case-insensitive), revision conflicts are structured.
- const txt=await entryId(page,'a',null,prefix+'-a.txt'),image=await entryId(page,'a',null,prefix+'-b.png'),upper=await entryId(page,'a',null,'OLVASS-EL.TXT');
+ const txt=await entryId(page,'a',null,prefix+'-a.txt'),image=await entryId(page,'a',null,prefix+'-b.png'),upper=await entryId(page,'a',null,'READ-ME.TXT');
  expect((await api(page,'files','text_get',image)).status).toBe(415);
  expect((await multipart(page,'text_save',image,{revision:'1'},[['content','x.png','x']])).status).toBe(415);
  expect((await api(page,'files','text_get',upper)).status).toBe(200);
- const large=await entryId(page,'b','Feltöltési minták','nagy-naplo.txt');
+ const large=await entryId(page,'b','Upload samples','large-log.txt');
  expect((await api(page,'files','text_get',large)).status).toBe(413);
  // Editor window: one full-window Layout, its toolbar (Save, line wrap, cursor position, save state) above a monospace textarea.
  await pick(left,prefix+'-a.txt');await command(page,'Szerkesztés');
@@ -233,7 +233,7 @@ test('image viewer and video player over the content_stream GET transport',async
  const left=panel(page,0),view=page.getByRole('button',{name:'Megtekintés',exact:true});
  // Server: only stored image/video types are served, as raw bytes that cannot run as a document.
  // The seeded images and videos live in the Signage mount (signage demo, files-media-plan U5).
- const image=await entryId(page,'signage',null,IMAGE),text=await entryId(page,'a','Dokumentumok','jegyzet.txt'),folder=await entryId(page,'a',null,'Média');
+ const image=await entryId(page,'signage',null,IMAGE),text=await entryId(page,'a','Documents','note.txt'),folder=await entryId(page,'a',null,'Media');
  expect(await content(page,image)).toEqual({status:200,type:'image/png',nosniff:'nosniff',disposition:'attachment',head:[137,80,78]});
  expect((await api(page,'files','content_get',text)).status).toBe(415);expect((await api(page,'files','content_get',folder)).status).toBe(400);
  await mount(page,left,'Signage');await find(left,IMAGE);
@@ -397,18 +397,18 @@ test('tiles with thumbnails, folder and parent tiles',async({page})=>{
  await tiles.filter({hasText:IMAGE}).click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(1);
  await find(left,VIDEO);await expect(left.getByRole('img',{name:'Videó: '+VIDEO+', 0:13',exact:true})).toBeVisible();
  // The ".." tile names its type; marking and double-click behave as in the listing.
- await mount(page,left,'Drive A');await tiles.filter({hasText:'Dokumentumok'}).dblclick();await expect(path(left)).toHaveText('Drive A:/Dokumentumok');
+ await mount(page,left,'Drive A');await tiles.filter({hasText:'Documents'}).dblclick();await expect(path(left)).toHaveText('Drive A:/Documents');
  const parent=tiles.filter({hasText:'Szülőmappa'});await expect(parent).toHaveCount(1);await expect(parent.locator('.blade-grid-tile__title')).toHaveText('..');
- await tiles.filter({hasText:'jegyzet.txt'}).click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(1);
+ await tiles.filter({hasText:'note.txt'}).click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(1);
  await parent.click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(0);
  await parent.dblclick();await expect(path(left)).toHaveText('Drive A:/');
  // A folder tile shows the folder glyph in its media slot and "Mappa" as its type line.
- const folder=tiles.filter({hasText:'Dokumentumok'});await expect(folder.locator('.blade-grid-tile__meta')).toHaveText('Mappa');
+ const folder=tiles.filter({hasText:'Documents'});await expect(folder.locator('.blade-grid-tile__meta')).toHaveText('Mappa');
  // Rows without a media descriptor fall back to the icon column with its accessible name.
  await expect(folder.locator('.blade-grid-tile__media .blade-record-icon[role="img"]')).toHaveAttribute('aria-label','Mappa');
  // Tiles reflow with the panel: several per row.
  const boxes=await tiles.evaluateAll(nodes=>nodes.slice(0,3).map(node=>Math.round(node.getBoundingClientRect().top)));expect(new Set(boxes).size).toBe(1);
- await view(page,left,'Fájllista');await expect(row(left,'Dokumentumok')).toBeVisible();
+ await view(page,left,'Fájllista');await expect(row(left,'Documents')).toBeVisible();
  // Videos carry the video icon ("Videó") in the listing and in the tree, as the media fallback does.
  await mount(page,left,'Signage');await find(left,VIDEO);await expect(row(left,VIDEO).getByRole('img',{name:'Videó',exact:true})).toBeVisible();
  await expect(row(left,VIDEO).locator('.dxi-menu-right')).toHaveCount(1);
@@ -644,7 +644,7 @@ test('localization, themes, the panel divider and the desktop-only notice',async
  await path(panel(page,1)).hover();await expect(page.locator('.dhx_tooltip__text')).toHaveText('Drive C:/'+long+'/'+prefix+'-belső');
  await page.mouse.move(0,0);
  // desktopOnly view option: below 768 px a centred notice replaces the view, which keeps its state.
- await mount(page,panel(page,1),'Drive C');await enter(panel(page,1),'Közös');
+ await mount(page,panel(page,1),'Drive C');await enter(panel(page,1),'Shared');
  await page.setViewportSize({width:390,height:844});
  const notice=page.getByRole('status').filter({hasText:'Csak desktop környezetben elérhető funkció.'});
  await expect(notice).toBeVisible();await expect(notice).toContainText('Fájlkezelő');
@@ -652,6 +652,6 @@ test('localization, themes, the panel divider and the desktop-only notice',async
  const centre=await notice.boundingBox();expect(Math.abs(centre.x+centre.width/2-195)).toBeLessThan(2);expect(centre.x).toBeGreaterThanOrEqual(16);
  const area=await page.locator('[data-cell-id="workspace"]').boundingBox();expect(Math.abs(centre.y+centre.height/2-(area.y+area.height/2))).toBeLessThan(2);
  await page.setViewportSize({width:1400,height:900});
- await expect(notice).toBeHidden();await expect(panel(page,1)).toBeVisible();await expect(path(panel(page,1))).toHaveText('Drive C:/Közös');
+ await expect(notice).toBeHidden();await expect(panel(page,1)).toBeVisible();await expect(path(panel(page,1))).toHaveText('Drive C:/Shared');
  expect(errors).toEqual([]);
 });
