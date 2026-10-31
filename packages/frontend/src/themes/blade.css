@@ -1,0 +1,319 @@
+/* 61ade character on the three factory bases (docs/shell.md#61ade-character). Rules target data-dhx-theme, so every
+   skin built on a base inherits them and a skin stylesheet (loaded later) can override any --blade-* token.
+   Panels float on a tinted canvas with soft corners and shadows instead of ruled boxes; the brand gradient
+   (docs/brand.md#colours) marks selection, the current menu section and an occasional glint along panel edges.
+   Skyblue is the showcase base: glossy chrome, a glass menu tab and animated corner brackets. */
+
+@property --blade-corner { syntax: "<length>"; inherits: false; initial-value: 12px; }
+
+:root {
+  --blade-cyan: #08dcfc;
+  --blade-blue: #0176fd;
+  --blade-gradient: linear-gradient(90deg, var(--blade-cyan), var(--blade-blue));
+  --blade-gradient-vertical: linear-gradient(180deg, var(--blade-cyan), var(--blade-blue));
+  --blade-radius: 8px;
+  --blade-control-radius: 6px;
+  --blade-canvas: #eef1f5;
+  --blade-panel-border: rgb(16 24 40 / 6%);
+  --blade-panel-shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 6px 18px -4px rgb(16 24 40 / 10%);
+  --blade-lift-shadow: 0 10px 22px -10px rgb(16 24 40 / 35%), 0 2px 6px -2px rgb(16 24 40 / 12%);
+  --blade-select-tint: color-mix(in srgb, var(--blade-blue) 9%, transparent);
+  --blade-mark-tint: color-mix(in srgb, var(--blade-cyan) 13%, transparent);
+  --blade-glint: color-mix(in srgb, var(--blade-cyan) 85%, white);
+}
+[data-dhx-theme="light"] {
+  --dhx-h-primary: 212;
+  --dhx-s-primary: 96%;
+  --dhx-l-primary: 45%;
+  --dhx-border-radius: var(--blade-control-radius);
+}
+[data-dhx-theme="dark"] {
+  --dhx-h-primary: 210;
+  --dhx-s-primary: 100%;
+  --dhx-l-primary: 60%;
+  --dhx-h-background: 222;
+  --dhx-s-background: 14%;
+  --dhx-l-background: 15%;
+  --dhx-border-color: hsla(0, 0%, 100%, .12);
+  --dhx-border-color-focused: hsla(210, 100%, 70%, .6);
+  --dhx-border-radius: var(--blade-control-radius);
+  --dhx-s-toolbar-background: var(--dhx-background-primary);
+  --dhx-s-grid-header-background: hsl(222, 14%, 18%);
+  --blade-blue: #0f7bff;
+  --blade-cyan: #2be2ff;
+  --blade-canvas: hsl(222, 16%, 10%);
+  --blade-panel-border: hsla(0, 0%, 100%, .06);
+  --blade-panel-shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 8px 22px -6px rgb(0 0 0 / 55%);
+  --blade-lift-shadow: 0 12px 24px -10px rgb(0 0 0 / 80%), 0 0 0 1px hsla(210, 100%, 70%, .18);
+  --blade-select-tint: color-mix(in srgb, var(--blade-blue) 20%, transparent);
+  --blade-mark-tint: color-mix(in srgb, var(--blade-cyan) 14%, transparent);
+}
+[data-dhx-theme="skyblue"] {
+  --blade-canvas-top: #d9e7f5;
+  --blade-canvas: linear-gradient(180deg, var(--blade-canvas-top) 0%, #edf4fb 55%, #e3eef8 100%);
+  --blade-panel-border: #bcd2e6;
+  --blade-panel-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(39 72 105 / 14%), 0 8px 22px -8px rgb(39 72 105 / 30%);
+  --blade-lift-shadow: 0 10px 22px -10px rgb(39 72 105 / 50%), 0 0 0 1px #9ec2e2;
+  --blade-select-tint: linear-gradient(180deg, rgb(120 190 245 / 6%) 0%, rgb(47 143 220 / 16%) 100%);
+  --blade-mark-tint: linear-gradient(180deg, #fffaf0 0%, #fff0cc 100%);
+  --blade-corner-color: #2f8fdc;
+}
+
+/* Canvas and floating panels. */
+.blade-workspace, .blade-session-bar { background: var(--blade-canvas); }
+.blade-workspace > .dhx_layout, .blade-workspace > .dhx_layout > .dhx_layout-space { background: transparent; }
+.blade-session-bar .dhx_toolbar { background: transparent; background-image: none; box-shadow: none; border: 0; }
+.blade-workspace .dhx_layout-space > .dhx_layout-cell:not(.dhx_layout-resizer) {
+  position: relative;
+  border: 1px solid var(--blade-panel-border);
+  border-radius: var(--blade-radius);
+  box-shadow: var(--blade-panel-shadow);
+  overflow: hidden;
+}
+.blade-workspace .dhx_layout-space > .dhx_layout-cell > .dhx_layout-cell-header { border-bottom: 1px solid var(--blade-panel-border); }
+/* Now and then a blade of light runs along a panel's top edge; panels start at different moments. */
+.blade-workspace .dhx_layout-space > .dhx_layout-cell:not(.dhx_layout-resizer)::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  width: 30%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--blade-glint) 45%, var(--blade-blue) 70%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  animation: blade-glint 16s ease-in-out 3s infinite;
+}
+.blade-workspace .dhx_layout-space > .dhx_layout-cell:nth-child(3n+2)::after { animation-delay: 8s; }
+.blade-workspace .dhx_layout-space > .dhx_layout-cell:nth-child(3n)::after { animation-delay: 13s; }
+@keyframes blade-glint {
+  0% { transform: translateX(-100%); opacity: 0; }
+  1% { opacity: 1; }
+  9% { transform: translateX(340%); opacity: 1; }
+  10%, 100% { transform: translateX(340%); opacity: 0; }
+}
+
+/* Top bar: one surface with a brand hairline on top and a soft shadow instead of a rule. */
+.blade-navigation-row { position: relative; z-index: 2; box-shadow: 0 1px 0 var(--blade-panel-border), 0 4px 12px -6px rgb(16 24 40 / 18%); }
+.blade-navigation-row::before {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--blade-gradient);
+  pointer-events: none;
+}
+.blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_nav-menu-button::after { background-image: var(--blade-gradient); }
+
+/* An open top-level tab and its popup are one sheet: the tab takes the popup's surface and side rules, the popup loses
+   its top-left rounding, and its top rule starts at the tab's right edge (--blade-menu-tab, set by AdminShell). */
+.blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button.dhx_nav-menu-button--active:not(:disabled),
+[data-dhx-theme="skyblue"] .blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button.dhx_nav-menu-button--active:not(:disabled) {
+  z-index: 2;
+  background: var(--dhx-background-primary);
+  box-shadow: inset 1px 0 0 var(--dhx-border-color), inset -1px 0 0 var(--dhx-border-color), inset 0 1px 0 var(--dhx-border-color);
+  text-shadow: none;
+}
+.blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button--active::after { opacity: 0; }
+body:has(.blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button--active) .dhx_menu--popup-menu > .dhx_menu:first-child {
+  border-top-color: transparent;
+  border-top-left-radius: 0;
+}
+body:has(.blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button--active) .dhx_menu--popup-menu > .dhx_menu:first-child::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: var(--blade-menu-tab, 0px);
+  right: -1px;
+  height: 1px;
+  background: var(--dhx-border-color);
+  pointer-events: none;
+}
+
+/* Popup menu items: the highlight floats inside the popup as a rounded pill instead of touching its edges. */
+.dhx_menu--popup-menu > .dhx_menu { padding: 4px 0; }
+.dhx_menu--popup-menu .dhx_menu-button { width: calc(100% - 8px); margin: 0 4px; border-radius: var(--blade-control-radius); }
+[data-dhx-theme="skyblue"] .dhx_menu--popup-menu .dhx_menu-button:is(:hover, :focus-visible):not(:disabled) {
+  background-image: linear-gradient(180deg, #fffaf0 0%, #fff0cf 100%);
+  box-shadow: inset 0 0 0 1px rgb(214 174 98 / 45%), 0 1px 3px rgb(214 174 98 / 25%);
+}
+
+/* Windows and popups: rounded, lifted. */
+.dhx_window { border-radius: calc(var(--blade-radius) + 2px); overflow: hidden; box-shadow: 0 24px 48px -16px rgb(16 24 40 / 35%), 0 2px 8px rgb(16 24 40 / 12%); }
+.dhx_popup, .dhx_menu { border-radius: var(--blade-radius); }
+.dhx_popup { box-shadow: 0 14px 32px -12px rgb(16 24 40 / 35%), 0 2px 6px rgb(16 24 40 / 10%); }
+
+/* Controls: sentence-case buttons, softer corners, a focus halo. */
+.dhx_button { text-transform: none; letter-spacing: 0; border-radius: var(--blade-control-radius); }
+:is([data-dhx-theme="light"], [data-dhx-theme="dark"]) .dhx_button--view_flat.dhx_button--color_primary:not(:disabled) {
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--blade-cyan) 22%, var(--dhx-color-primary)), var(--dhx-color-primary));
+  box-shadow: 0 1px 2px rgb(16 24 40 / 20%), inset 0 1px 0 rgb(255 255 255 / 18%);
+}
+:is([data-dhx-theme="light"], [data-dhx-theme="dark"]) .dhx_button--view_flat.dhx_button--color_secondary:not(:disabled) {
+  background-color: var(--dhx-background-additional);
+  color: var(--dhx-font-color-primary);
+}
+.dhx_button--view_flat:not(:disabled) { transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease; }
+.dhx_button--view_flat:not(:disabled):hover { transform: translateY(-1px); }
+.dhx_button--view_flat:not(:disabled):active { transform: none; }
+.dhx_input, .dhx_combobox-input-box, .dhx_select, .dhx_textarea, .dhx_input__wrapper { border-radius: var(--blade-control-radius); }
+:is([data-dhx-theme="light"], [data-dhx-theme="dark"]) :is(.dhx_input, .dhx_textarea):focus,
+:is([data-dhx-theme="light"], [data-dhx-theme="dark"]) .dhx_combobox-input-box--focus {
+  box-shadow: inset 0 0 0 1px var(--dhx-color-primary), 0 0 0 3px color-mix(in srgb, var(--dhx-color-primary) 22%, transparent);
+}
+
+/* Rows rise under the pointer; the cursor row carries a blade edge and one light sweep, marked rows stack slanted
+   cyan tiles at their left edge so a run of marked rows reads like the logo's tiles. */
+.blade-grid-views .dhx_grid-row { position: relative; transition: transform .16s ease, box-shadow .16s ease; }
+.blade-grid-views .dhx_grid-row:hover {
+  z-index: 2;
+  transform: translateY(-1px);
+  box-shadow: var(--blade-lift-shadow);
+  background-color: var(--dhx-background-primary);
+}
+/* Suite draws the cursor row as its own overlay (.dhx_grid-selected-row above the rows), so its tint stays translucent. */
+.blade-grid-views .dhx_grid-row.blade-grid-row-marked::before,
+.blade-grid-views .dhx_grid-selected-row::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 1px;
+  bottom: 1px;
+  width: 5px;
+  background: var(--blade-cyan);
+  opacity: .85;
+  clip-path: polygon(0 3px, 100% 0, 100% calc(100% - 3px), 0 100%);
+  pointer-events: none;
+}
+.blade-grid-views .dhx_grid-row.blade-grid-row-marked { background: var(--blade-mark-tint) !important; }
+.blade-grid-views .dhx_grid-selected-row {
+  overflow: hidden;
+  background: var(--blade-select-tint);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blade-blue) 45%, transparent), inset 0 -10px 18px -14px var(--blade-blue);
+}
+.blade-grid-views .dhx_grid-selected-row::before { width: 6px; background: var(--blade-gradient-vertical); opacity: 1; }
+.blade-grid-views .dhx_grid-selected-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--blade-glint) 40%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%);
+  pointer-events: none;
+  animation: blade-sweep .9s ease-out .05s 1 forwards;
+}
+@keyframes blade-sweep { to { transform: translateX(100%); } }
+
+/* Cards and tiles rise further; the cursor card gets a gradient rim and glow, a marked card a slanted corner tile. */
+:is(.blade-grid-cards, .blade-grid-tiles) .dhx_dataview-item { position: relative; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+:is(.blade-grid-cards, .blade-grid-tiles) .dhx_dataview-item:hover { transform: translateY(-3px); box-shadow: var(--blade-lift-shadow); }
+:is(.blade-grid-cards, .blade-grid-tiles) .dhx_dataview-item.dhx_dataview-item--selected {
+  border-color: transparent;
+  background: linear-gradient(var(--dhx-background-primary), var(--dhx-background-primary)) padding-box, var(--blade-gradient) border-box;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--blade-blue) 30%, transparent), 0 10px 26px -12px color-mix(in srgb, var(--blade-blue) 70%, transparent);
+}
+:is(.blade-grid-cards, .blade-grid-tiles) .dhx_dataview-item:has(.blade-grid-card--marked, .blade-grid-tile--marked)::after {
+  content: "\2713";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  left: auto;
+  width: 34px;
+  height: 30px;
+  padding: 3px 6px 0 0;
+  box-sizing: border-box;
+  text-align: right;
+  font: 700 13px/1 var(--dhx-font-family);
+  color: #fff;
+  background: var(--blade-gradient);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  pointer-events: none;
+}
+.blade-grid-card--marked { outline: 0; background: color-mix(in srgb, var(--blade-cyan) 6%, transparent); }
+[data-dhx-theme="skyblue"] .blade-grid-card--marked { background: var(--blade-mark-tint); }
+.blade-grid-tile--marked { box-shadow: none; background: var(--blade-mark-tint); }
+
+/* Skyblue showcase: glossy glass tabs, gold hover and corner brackets that keep breathing on every panel. */
+[data-dhx-theme="skyblue"] .blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button { border-radius: 7px 7px 0 0; margin-top: 6px; height: calc(100% - 6px); }
+[data-dhx-theme="skyblue"] .blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:is(:hover, :active):not(:disabled) {
+  background-color: transparent;
+  background-image: var(--blade-skyblue-hover);
+  box-shadow: inset 0 0 0 1px #d6ae62, inset 0 2px 0 rgb(255 255 255 / 80%);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 90%);
+}
+/* The current section is an open folder tab: no rule below it, its bottom is the canvas' top colour, so the tab and the
+   workspace read as one sheet. The row's bottom rule is drawn inside the row's bars, where the tab can cover it. */
+[data-dhx-theme="skyblue"] .dhx_layout-cell.blade-navigation-row { border-bottom: 0 !important; box-shadow: none; }
+/* No top hairline here: the tab's own accent is the only line near the viewport edge. */
+[data-dhx-theme="skyblue"] .blade-navigation-row::before { display: none; }
+[data-dhx-theme="skyblue"] .blade-navigation-row :is(.dhx_menu-nav, .dhx_toolbar) { box-shadow: inset 0 1px 0 rgb(255 255 255 / 95%), inset 0 -1px 0 #9fbbd5; }
+[data-dhx-theme="skyblue"] .blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_nav-menu-button {
+  z-index: 1;
+  background-image: linear-gradient(180deg, #ffffff 0%, #eef5fc 40%, var(--blade-canvas-top) 100%);
+  box-shadow: inset 1px 0 0 #8fb5d6, inset -1px 0 0 #8fb5d6, inset 0 1px 0 #8fb5d6, 0 -3px 10px -4px rgb(47 143 220 / 45%);
+  text-shadow: 0 1px 0 #fff;
+}
+[data-dhx-theme="skyblue"] .blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_nav-menu-button::after {
+  top: 0;
+  bottom: auto;
+  left: 1px;
+  right: 1px;
+  border-radius: 7px 7px 0 0;
+}
+/* Breathing brackets on the two top corners of a panel header; panels without a header have none. */
+[data-dhx-theme="skyblue"] .blade-workspace .dhx_layout-space > .dhx_layout-cell > .dhx_layout-cell-header::before {
+  --c: var(--blade-corner-color);
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 3px 3px 3px;
+  border-radius: calc(var(--blade-radius) - 3px) calc(var(--blade-radius) - 3px) 0 0;
+  background:
+    linear-gradient(var(--c), var(--c)) top left / var(--blade-corner) 2px,
+    linear-gradient(var(--c), var(--c)) top left / 2px var(--blade-corner),
+    linear-gradient(var(--c), var(--c)) top right / var(--blade-corner) 2px,
+    linear-gradient(var(--c), var(--c)) top right / 2px var(--blade-corner);
+  background-repeat: no-repeat;
+  opacity: .55;
+  pointer-events: none;
+  animation: blade-corners 3.2s ease-in-out infinite alternate;
+}
+[data-dhx-theme="skyblue"] .blade-workspace .dhx_layout-space > .dhx_layout-cell:nth-child(2n) > .dhx_layout-cell-header::before { animation-delay: -1.6s; }
+/* Skyblue: instead of the edge glint, a sheen now and then crosses the glossy panel header. */
+[data-dhx-theme="skyblue"] .blade-workspace .dhx_layout-space > .dhx_layout-cell:not(.dhx_layout-resizer)::after { display: none; }
+[data-dhx-theme="skyblue"] .blade-workspace .dhx_layout-space > .dhx_layout-cell > .dhx_layout-cell-header { position: relative; overflow: hidden; }
+[data-dhx-theme="skyblue"] .blade-workspace .dhx_layout-space > .dhx_layout-cell > .dhx_layout-cell-header::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  background: linear-gradient(105deg, transparent 20%, rgb(255 255 255 / 85%) 45%, rgb(160 214 255 / 55%) 55%, transparent 80%);
+  opacity: 0;
+  pointer-events: none;
+  animation: blade-sheen 16s ease-in-out 3s infinite;
+}
+[data-dhx-theme="skyblue"] .blade-workspace .dhx_layout-space > .dhx_layout-cell:nth-child(3n+2) > .dhx_layout-cell-header::after { animation-delay: 8s; }
+[data-dhx-theme="skyblue"] .blade-workspace .dhx_layout-space > .dhx_layout-cell:nth-child(3n) > .dhx_layout-cell-header::after { animation-delay: 13s; }
+@keyframes blade-sheen {
+  0% { transform: translateX(-110%); opacity: 0; }
+  1% { opacity: 1; }
+  10% { transform: translateX(310%); opacity: 1; }
+  11%, 100% { transform: translateX(310%); opacity: 0; }
+}
+@keyframes blade-corners {
+  from { --blade-corner: 8px; opacity: .35; }
+  to { --blade-corner: 22px; opacity: .8; }
+}
+[data-dhx-theme="skyblue"] .dhx_window { box-shadow: 0 0 0 1px #8faec9, 0 24px 48px -16px rgb(39 72 105 / 45%), 0 0 24px -6px rgb(47 143 220 / 35%); outline: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .blade-workspace .dhx_layout-space > .dhx_layout-cell::after,
+  .blade-grid-views .dhx_grid-selected-row::after,
+  .blade-workspace .dhx_layout-cell-header::after { animation: none; display: none; }
+  .blade-workspace .dhx_layout-cell-header::before { animation: none; }
+  .blade-grid-views .dhx_grid-row, :is(.blade-grid-cards, .blade-grid-tiles) .dhx_dataview-item, .dhx_button { transition: none; }
+  .blade-grid-views .dhx_grid-row:hover, :is(.blade-grid-cards, .blade-grid-tiles) .dhx_dataview-item:hover, .dhx_button--view_flat:not(:disabled):hover { transform: none; }
+}

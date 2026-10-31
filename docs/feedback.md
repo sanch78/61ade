@@ -387,6 +387,7 @@ raised blue/gold hover; adjusted breakpoint, asset v=11.
 Typecheck/build/shell Chromium 6/6; separator three-theme repeat 1/1 with 1 px
 line >12 px high and button geometry passed. Skyblue/dark images inspected.
 Owner liked buttons; no further acceptance of separator claimed.
+Superseded by [FB-0100](#fb-0100): the owner later found the boxed buttons clumsy.
 
 <a id="fb-0026--táblázatárnyék-az-oszlopfejléc-alatt"></a>
 

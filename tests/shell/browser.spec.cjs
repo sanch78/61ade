@@ -71,15 +71,15 @@ test('compact desktop menu shows the open feature\'s siblings beside Menü', asy
     await page.setViewportSize({ width: 1366, height: 800 });
     await login(page);
     const top = page.locator('.blade-navigation-row .dhx_menu-nav > li > button');
+    const current = page.locator('.blade-navigation-row .dhx_menu-nav > li.blade-menu-current');
     await expect(page.getByRole('menuitem', { name: 'Menü', exact: true })).toBeVisible();
     await expect(top).toHaveCount(1);
     await page.goto('/#view=signage_assets');
     await expect(top).toHaveText(['Menü', 'Médiatár', 'Alapértelmezett tartalom', 'Műsorterv', 'Napi műsor']);
-    await expect(top.filter({ hasText: 'Médiatár' })).toHaveClass(/--active/);
+    await expect(current).toHaveText(['Médiatár']);
     await top.filter({ hasText: 'Műsorterv' }).click();
     await expect(page).toHaveURL(/#view=signage_schedule$/);
-    await expect(top.filter({ hasText: 'Műsorterv' })).toHaveClass(/--active/);
-    await expect(top.filter({ hasText: 'Médiatár' })).not.toHaveClass(/--active/);
+    await expect(current).toHaveText(['Műsorterv']);
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(top).toHaveText(['Menü']);
 });
@@ -98,8 +98,9 @@ test('Skyblue is the default and explicit theme choices survive reload', async (
     await login(page);
     await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'skyblue');
     await expect(page.getByRole('button', { name: 'Skyblue', exact: true })).toBeVisible();
-    const color = await page.locator('.blade-session-bar .dhx_toolbar').evaluate(e => getComputedStyle(e).backgroundColor);
-    expect(color).toBe('rgb(227, 239, 249)');
+    // The status bar sits on the Skyblue canvas gradient (themes/blade.css).
+    const canvas = await page.locator('.blade-session-bar').evaluate(e => getComputedStyle(e).backgroundImage);
+    expect(canvas).toContain('linear-gradient');
     await page.getByRole('button', { name: 'Skyblue', exact: true }).click();
     await page.getByText('Éjjeli', { exact: true }).click();
     await page.reload();
@@ -111,9 +112,11 @@ test('Skyblue is the default and explicit theme choices survive reload', async (
     await page.screenshot({path: require('node:path').join(process.env.BLADE_TMP_DIR || 'tmp','skyblue-shell.png')});
 });
 
-test('theme button fits its menu row on hover in all skins without a white gap below',async({page})=>{
+test('flat main-menu tabs fit their row in all skins and underline the open view\'s section',async({page})=>{
  await page.setViewportSize(WIDE);
  await login(page);
+ await page.goto('/#view=signage_assets');
+ await expect(page.locator('.blade-navigation-row .dhx_menu-nav > li.blade-menu-current')).toHaveText(['Digitális kijelző']);
  for(const [theme,label] of [['skyblue','Skyblue'],['light','Világos'],['dark','Éjjeli']]){
   await page.getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).last().click();
   const button=page.getByRole('button',{name:label,exact:true});await button.hover();
@@ -121,9 +124,13 @@ test('theme button fits its menu row on hover in all skins without a white gap b
    const style=getComputedStyle(e),box=e.getBoundingClientRect(),row=e.closest('.blade-navigation-row').getBoundingClientRect();
    return {border:style.borderTopWidth,background:style.backgroundColor,image:style.backgroundImage,shadow:style.boxShadow,top:box.top,bottom:box.bottom,rowTop:row.top,rowBottom:row.bottom};
   });
-  expect(surface.border).toBe('1px');expect(surface.background).not.toBe('rgba(0, 0, 0, 0)');expect(surface.shadow).not.toBe('none');
+  expect(surface.border).toBe('0px');expect(surface.background).toBe('rgba(0, 0, 0, 0)');expect(surface.shadow).toBe('none');expect(surface.image).toBe('none');
   expect(surface.top).toBeGreaterThanOrEqual(surface.rowTop);expect(surface.bottom).toBeLessThanOrEqual(surface.rowBottom);
-  if(theme==='skyblue')expect(surface.image).toContain('linear-gradient');
+  const underline=await page.getByRole('menuitem',{name:/^Digitális kijelző/}).evaluate(e=>{
+   const after=getComputedStyle(e,'::after');
+   return {height:after.height,color:after.backgroundColor,icon:getComputedStyle(e.querySelector('.dhx_menu-button__icon')).color};
+  });
+  expect(underline.height).toBe('3px');expect(underline.color).not.toBe('rgba(0, 0, 0, 0)');expect(underline.icon).toBe(underline.color);
   const separator=page.locator('.blade-navigation-row [role="separator"]');
   const separatorBox=await separator.boundingBox();expect(separatorBox.width).toBe(1);expect(separatorBox.height).toBeGreaterThan(12);
   expect(await separator.evaluate(e=>getComputedStyle(e).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');

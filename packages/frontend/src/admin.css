@@ -249,43 +249,46 @@ body,
 .blade-checkbox-edit { display: inline-flex; align-items: center; }
 .blade-card-edit:focus-visible { outline: 2px solid var(--dhx-border-color-focused); }
 
-/* Persistent button surfaces distinguish top-level navigation from a text list.
-   Popup menus retain Suite's compact list treatment. */
-.blade-navigation-row .dhx_menu-nav { gap: 6px; padding-left: 8px; padding-right: 8px; }
+/* Top-level navigation: flat full-height tabs; the section of the open view carries an accent underline.
+   Hover and an open popup tint the tab; popup menus retain Suite's compact list treatment. */
+.blade-navigation-row .dhx_menu-nav { align-items: stretch; padding-left: 4px; padding-right: 4px; }
+.blade-navigation-row .dhx_menu-nav > li { display: flex; }
 .blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button {
+  position: relative;
   box-sizing: border-box;
-  padding: 4px 10px;
-  border: 1px solid var(--dhx-border-color);
-  border-radius: var(--dhx-border-radius);
-  background-color: var(--dhx-background-secondary);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-shadow: none;
+  color: var(--dhx-font-color-primary);
 }
-.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:is(:hover, :focus-visible, :active, .dhx_nav-menu-button--active):not(:disabled) {
-  background-color: var(--dhx-background-additional);
-  border-color: var(--dhx-border-color-focused);
+.blade-navigation-row .dhx_menu-nav .dhx_menu-button__icon { color: var(--dhx-font-color-secondary); }
+.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background-color: transparent;
+}
+.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:is(:hover, :active):not(:disabled) {
+  background-color: color-mix(in srgb, var(--dhx-color-primary) 8%, transparent);
+}
+.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button--active:not(:disabled) {
+  background-color: color-mix(in srgb, var(--dhx-color-primary) 14%, transparent);
 }
 .blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:focus-visible {
   outline: 2px solid var(--dhx-border-color-focused);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
-.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:is(:active, .dhx_nav-menu-button--active):not(:disabled) {
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 24%);
-}
-[data-dhx-theme="skyblue"] .blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button {
-  border-color: #7b9fbe;
-  background-image: var(--blade-skyblue-button);
-  box-shadow: inset 0 1px 0 #fff, inset 1px 0 0 rgb(255 255 255 / 65%), 0 1px 2px rgb(48 65 84 / 25%);
-  text-shadow: 0 1px 0 rgb(255 255 255 / 90%);
-}
-[data-dhx-theme="skyblue"] .blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:is(:hover, :focus-visible):not(:disabled) {
-  border-color: #b78c3e;
-  background-image: var(--blade-skyblue-hover);
-}
-[data-dhx-theme="skyblue"] .blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:is(:active, .dhx_nav-menu-button--active):not(:disabled) {
-  border-color: #6e92b2;
-  background-image: var(--blade-skyblue-pressed);
-  box-shadow: inset 0 1px 3px rgb(45 74 102 / 35%);
-}
+/* The label keeps the theme text colour (contrast on every skin); the icon and underline carry the accent. */
+.blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_menu-button__icon { color: var(--dhx-color-primary); }
+.blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_nav-menu-button::after { background-color: var(--dhx-color-primary); }
 
 /* Centered menu rows must explicitly stretch native separators to show the rule. */
 .blade-navigation-row .dhx_menu-nav__item--separator {
