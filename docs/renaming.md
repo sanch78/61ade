@@ -18,7 +18,7 @@ identifier. This is a breaking interface rename, with no old-name aliases.
 | Workspace / OAuth bootstrap query | `?blade=1` / `?blade_auth=bootstrap` |
 | HTTP headers | `X-BLADE-CSRF`, `X-BLADE-Locale`, `X-BLADE-HTTPS`, `X-BLADE-Client-IP` |
 | Demo password | `61ade-demo` (synthetic accounts only) |
-| Repository, checkout, development URL | `sanch78/61ade`, `/space/share/libs/61ade`, `https://61ade.sanch.hu/` |
+| Repository, checkout, development URL | `sanch78/61ade`, `/space/share/libs/61ade`, `https://demo.61ade.com/` |
 
 The single development environment, direct source use and absence of deployment
 and project backup workflows remain as defined in [development](development.md#development-environment).
@@ -60,7 +60,7 @@ use Blade\Admin\Administration;
 ```
 
 ```ini
-BLADE_DEMO_URL=https://61ade.sanch.hu
+BLADE_DEMO_URL=https://demo.61ade.com
 BLADE_DEMO_GOOGLE_CLIENT_ID=
 BLADE_DEMO_GOOGLE_CLIENT_SECRET=
 BLADE_DEMO_FACEBOOK_CLIENT_ID=

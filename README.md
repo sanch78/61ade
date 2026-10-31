@@ -1,7 +1,7 @@
 # 61ade
 
 Checkout: `/space/share/libs/61ade`. The project uses a single development
-environment at https://61ade.sanch.hu/, directly from the checkout, with no
+environment at https://demo.61ade.com/, directly from the checkout, with no
 deployment, post-deployment testing or project backups. See the
 [development contract](docs/development.md#development-environment).
 Packages: `sanch78/61ade` and `@61ade/admin`. Identifiers use `Blade\`,
@@ -42,8 +42,8 @@ Usage guidance changes with every capability. Lessons from user testing are
 recorded durably and incorporated into the relevant guide; this is mandatory.
 
 - [Bilingual product website and its maintenance](docs/website.md) —
-  [English preview](https://61ade.sanch.hu/website/),
-  [Hungarian preview](https://61ade.sanch.hu/website/hu/).
+  [English preview](https://61ade.com/),
+  [Hungarian preview](https://61ade.com/hu/).
 - [Usage methodology](docs/usage.md)
 - [Product requirements, evidence, open questions and implementation prompt](docs/product-direction.md)
 - [Login and navigation shell](docs/shell.md)

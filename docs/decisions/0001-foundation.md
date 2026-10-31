@@ -5,7 +5,8 @@ Date: 2026-10-16.
 Historical decision: identity/repository/checkout details were superseded on
 2026-10-21 by [FB-0049](../feedback.md#fb-0049). Current identity: 61ade,
 checkout /space/share/libs/61ade, one development environment
-https://61ade.sanch.hu/, without deployment or project backups.
+https://demo.61ade.com/ (from 2026-10-31, [FB-0100](../feedback.md#fb-0100)), without
+deployment or project backups.
 
 <a id="elfogadott-felhasználói-döntések"></a>
 

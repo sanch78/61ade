@@ -194,7 +194,7 @@ verified in Chromium during P3; record browser support.
 
 ## 6. Feature demo transformation
 
-The feature demo (`examples/demo-app/application.php`, `https://61ade.sanch.hu/`)
+The feature demo (`examples/demo-app/application.php`, `https://demo.61ade.com/`)
 becomes a toolkit consumer. It keeps declarations where they suffice and adds
 code where the toolkit is the point. Every row below replaces or extends an
 existing demo area; no separate showcase application.
@@ -282,7 +282,7 @@ parallel with other lanes of the same phase.
 
 - D0 first (build). Then D1 (needs C-1, C-3), D2 (needs C-3, C-4, D1 fixtures), D3 (needs C-1, C-5), D4 (needs C-5), D5 (done in P2), D6 (contract test).
 - Each D-row: implementation, browser spec (`tests/shell/toolkit-*.spec.cjs`), `docs/demos.md` row, i18n hu/en/de, themes (Skyblue/light/dark and skins), mobile behaviour or `desktopOnly`.
-- **Gate G4:** owner tries D1–D4 on https://61ade.sanch.hu/.
+- **Gate G4:** owner tries D1–D4 on https://demo.61ade.com/.
 
 ### P5 — Documentation and rules (lane can start after G1, finishes after P4)
 

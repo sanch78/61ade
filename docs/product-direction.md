@@ -19,7 +19,7 @@ coverage requirement. The foundation is DHTMLX; capabilities grow with actual ne
 ## Project identity and environment
 
 **61ade** lives at `/space/share/libs/61ade`. Its only environment is
-https://61ade.sanch.hu/, used directly for development and testing.
+https://demo.61ade.com/, used directly for development and testing.
 There is no production, deployment, post-deployment testing or project backup
 workflow ([FB-0049](feedback.md#fb-0049), [FB-0051](feedback.md#fb-0051)).
 R1–R12 remain applicable; consumer release references apply only to consumers'
@@ -201,7 +201,7 @@ current evidence; explain a simpler supported alternative if warranted.
 Ask about material uncertainty before dependent work, while continuing
 independent work.
 
-This project has only https://61ade.sanch.hu/ for development/testing,
+This project has only https://demo.61ade.com/ for development/testing,
 directly from /space/share/libs/61ade on catalyst. There is no production,
 deployment, post-deployment testing or project backup process. Preserve
 existing changes and the read-only shared library and _AuthHandler.

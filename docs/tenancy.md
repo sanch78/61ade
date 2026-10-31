@@ -270,4 +270,4 @@ re-issued.
   on the tenant, the switch persists after a reload, full list in a window); on a
   phone the card's `Hozzáférések (n)` button opens the list full screen, and the tenant
   choice is in the main menu.
-- Demo: https://61ade.sanch.hu/tenants/, see [demos](demos.md#tenant-demo-tenants).
+- Demo: https://demo.61ade.com/tenants/, see [demos](demos.md#tenant-demo-tenants).

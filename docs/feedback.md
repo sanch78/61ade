@@ -3454,3 +3454,61 @@ that exactly equals an option label lists every option. The managed
   cases and screenshots were removed.
 - **Status:** implemented and verified on the managed URL; owner acceptance is
   not claimed.
+
+<a id="fb-0100"></a>
+
+## FB-0100 — Domain cutover to 61ade.com
+
+- **Date:** 2026-10-31.
+- **Request:** the owner moved the project to its own domain. Product website
+  https://61ade.com/ (Hungarian `/hu/`, `www` redirects to the apex), feature
+  demo https://demo.61ade.com/ with its own login, live updates
+  `wss://demo.61ade.com/live` (Infra unit on `127.0.0.1:8088`, exact Origin
+  `https://demo.61ade.com`), public contact `sanch@61ade.com`. DNS, TLS,
+  ingress, vhosts, proxy and unit are Infra-owned. `61ade.sanch.hu` is retired
+  with no redirect, fallback or compatibility role.
+- **Implemented:** maintained docs, AGENTS/README, the website renderer's demo
+  links and browser-frame labels and the regenerated pages now use the new
+  addresses; the managed-address table is in
+  [development](development.md#development-environment). The existing private
+  keys were updated in place: root `.env.test` `BLADE_DEMO_URL` and demo `.env`
+  `BLADE_DEMO_URL` (OAuth callback base) and `BLADE_DEMO_LIVE_ENDPOINT`; no new
+  key or loader. Page links and assets were already relative, so the apex root
+  needs no base-path change. Historical feedback entries keep the old name.
+- **Security review:** cookies stay host-only (no `Domain`), `Path`, `HttpOnly`,
+  `SameSite=Lax`; CSRF, session expiry, the Bearer API and OAuth state are
+  unchanged. There is no CORS or trusted-proxy code; a cross-origin API POST
+  gets 401 without `Access-Control-Allow-Origin`. The live upgrade answers 101
+  only for Origin `https://demo.61ade.com` and 403 for `https://61ade.com`,
+  `https://61ade.sanch.hu` and `https://evil.61ade.com`.
+- **Verification:** `node tools/build-website.mjs --check` and `php -l` passed.
+  Guarded managed-URL runs: authentication, workspace (WebSocket live data,
+  including `/admin/` and `/tenants/` live paths), splash, admin, tenancy and
+  browser login/logout specs passed (one workspace case skipped). Three
+  failures expect the `Skyblue` theme, which concurrent uncommitted theme work
+  renames; they are not domain-related. Temporary cases (removed): the English
+  site loaded every asset and font without errors, had no old-host link and
+  opened the demo sign-in at https://demo.61ade.com/; the Hungarian page (via
+  `/hu/index.html`) passed the same asset/canonical/link checks. Provider
+  starts sent exactly
+  `https://demo.61ade.com/?ah_action=provider&provider=Google&callback=1` and
+  `https://demo.61ade.com/?ah_action=provider&provider=Facebook&callback=1`
+  with `state`.
+- **Open platform issues (reported to the owner; no project workaround):**
+  1. `https://61ade.com/hu/` returns the English page (200): the product vhost
+     lists `DirectoryIndex index.php index.html` with
+     `FallbackResource /index.html`, so every directory or unknown path
+     (`/hu/`, `/assets/`, `/does-not-exist/`) serves the root page;
+     `/hu/index.html` is correct. Expected: Hungarian at `/hu/`, 404 for
+     unknown paths (e.g. `DirectoryIndex index.html`, no fallback).
+  2. The demo session cookie lacks `Secure`: the `:80` vhosts behind the TLS
+     ingress do not pass `HTTPS=on` to PHP-FPM, and `Application::secure()`
+     reads only `HTTPS`. Expected: the vhost declares HTTPS for these
+     ingress-only hosts.
+- **External callbacks:** register the two callbacks above in the Google
+  OAuth client (origin `https://demo.61ade.com`) and the Facebook app (App
+  domain `demo.61ade.com`, Valid OAuth Redirect URI) and remove the
+  `61ade.sanch.hu` entries; owner action, no project console access. A
+  completed real-provider login is not claimed.
+- **Status:** project-side cutover implemented and verified on the managed
+  URLs; the two platform issues and provider registration remain open.

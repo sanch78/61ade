@@ -189,7 +189,7 @@ with a daily `Esti jelenet` event (20:00–21:00). Its code is in
 API example (an API key of the demo account with scope `signage_playlist.day`):
 
 ```sh
-curl -s https://61ade.sanch.hu/?blade=1 \
+curl -s https://demo.61ade.com/?blade=1 \
   -H 'Authorization: Bearer <API key>' -H 'Content-Type: application/json' \
   -d '{"resource":"signage_playlist","action":"day","values":{"date":"2026-10-23"}}'
 ```

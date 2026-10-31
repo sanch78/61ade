@@ -11,12 +11,14 @@ Use relevant shared skills within this project's locally declared scope.
 Canonical checkout: `/space/share/libs/61ade` on `catalyst`, owner `sanch`.
 The product is **61ade**; identifiers use `Blade\`, `BLADE_*` and `blade`.
 
-There is **one development environment only**, https://61ade.sanch.hu/
-(`/admin/` for the starter admin). Develop and test directly there. There is
-no production environment, deployment, deployment gate, post-deployment testing
-or project backup workflow. Do not introduce any of these. Runtime scratch
-belongs in this checkout's `tmp/`; preserve existing retained data and platform
-backups. These owner decisions override generic environment/release guidance.
+There is **one development environment only**, https://demo.61ade.com/
+(`/admin/` for the starter admin); the product website is https://61ade.com/
+(`/hu/` in Hungarian). The former `61ade.sanch.hu` is retired with no fallback;
+see [development](docs/development.md#development-environment). Develop and
+test directly on the demo. There is no production environment, deployment,
+deployment gate, post-deployment testing or project backup workflow. Do not
+introduce any of these. Runtime scratch belongs in this checkout's `tmp/`;
+preserve existing retained data and platform backups. These owner decisions override generic environment/release guidance.
 
 Read [development and project rules](docs/development.md),
 [usage](docs/usage.md), [product direction](docs/product-direction.md), and

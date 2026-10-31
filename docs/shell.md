@@ -126,7 +126,7 @@ php8.4 tests/shell/contracts.php
 npm run test:browser -- --project=shell tests/shell/browser.spec.cjs
 ```
 
-Open https://61ade.sanch.hu/ or https://61ade.sanch.hu/admin/.
+Open https://demo.61ade.com/ or https://demo.61ade.com/admin/.
 Synthetic login: `demo@example.test` / `61ade-demo`; more accounts are in
 [demos](demos.md). `BLADE_PHP` may select a PHP 8.4+ wrapper loading PDO SQLite.
 Use existing web-instance setup only when required, as documented in demos.

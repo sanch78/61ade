@@ -36,4 +36,4 @@ for (const [file, bytes] of files) {
         await writeFile(file, bytes);
     }
 }
-console.log(check ? 'Website assets match their sources.' : 'Website prepared at https://61ade.sanch.hu/website/ (EN) and /website/hu/ (HU).');
+console.log(check ? 'Website assets match their sources.' : 'Website prepared for https://61ade.com/ (EN) and https://61ade.com/hu/ (HU).');

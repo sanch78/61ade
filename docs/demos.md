@@ -9,9 +9,9 @@ and managed server, with separate SQLite databases, sessions and cookie paths:
 
 | Demo | URL | Definition | Data | Purpose |
 | --- | --- | --- | --- | --- |
-| Full feature demo (kitchen sink, R11) | https://61ade.sanch.hu/ | [application.php](../examples/demo-app/application.php) | `tmp/web/features.sqlite` | Every demonstrable capability on synthetic data. |
-| Starter admin | https://61ade.sanch.hu/admin/ | [admin-application.php](../examples/demo-app/admin-application.php) | `tmp/web/admin.sqlite` | Exactly the mandatory starter: login, language/theme selectors and admin module. |
-| Tenant demo | https://61ade.sanch.hu/tenants/ | [tenant-application.php](../examples/demo-app/tenant-application.php) | `tmp/web/tenants.sqlite` | The starter admin with optional [multi-tenancy](tenancy.md) on. |
+| Full feature demo (kitchen sink, R11) | https://demo.61ade.com/ | [application.php](../examples/demo-app/application.php) | `tmp/web/features.sqlite` | Every demonstrable capability on synthetic data. |
+| Starter admin | https://demo.61ade.com/admin/ | [admin-application.php](../examples/demo-app/admin-application.php) | `tmp/web/admin.sqlite` | Exactly the mandatory starter: login, language/theme selectors and admin module. |
+| Tenant demo | https://demo.61ade.com/tenants/ | [tenant-application.php](../examples/demo-app/tenant-application.php) | `tmp/web/tenants.sqlite` | The starter admin with optional [multi-tenancy](tenancy.md) on. |
 
 Use this single development environment directly. Development and testing happen
 there; there is no deployment, post-deployment testing or project backup workflow
@@ -19,8 +19,8 @@ there; there is no deployment, post-deployment testing or project backup workflo
 CLI fixture tools do not establish a second environment.
 See [development](development.md#development-environment) for build/asset preparation.
 
-The [bilingual product website](website.md) is available at `/website/` (English)
-and `/website/hu/` (Hungarian), with links back to the feature demo. Its shared
+The [bilingual product website](website.md) is at https://61ade.com/ (English)
+and https://61ade.com/hu/ (Hungarian), with links to the feature demo. Its shared
 demo credentials are also shown in the feature demo's sign-in footer; the
 input fields remain empty. Website screenshots are retained presentation
 assets captured from synthetic demo records through the managed URL.
@@ -464,7 +464,7 @@ Compared with the CLI demo instance:
 
 The feature demo (`/`) polls by default. It selects the WebSocket transport
 when the Git-ignored `examples/demo-app/.env` sets
-`BLADE_DEMO_LIVE_ENDPOINT=wss://61ade.sanch.hu/live`, which the catalyst
+`BLADE_DEMO_LIVE_ENDPOINT=wss://demo.61ade.com/live`, which the catalyst
 checkout does ([FB-0068](feedback.md#fb-0068)). Set it only while the Infra
 unit and the `/live` proxy run: WebSocket does not fall back to polling. The
 FPM pool must not force `session.save_path`: the bridge reads the sessions
@@ -483,14 +483,14 @@ for the demo with these settings:
 | Working directory | `/space/share/libs/61ade` |
 | Command | `/usr/bin/node /space/share/libs/61ade/packages/php/bin/live-server.mjs` |
 | `BLADE_LIVE_PORT` | `8088` (listens on `127.0.0.1` only) |
-| `BLADE_LIVE_ORIGIN` | `https://61ade.sanch.hu` |
+| `BLADE_LIVE_ORIGIN` | `https://demo.61ade.com` |
 | `BLADE_AUTOLOAD_FILE` | `/space/share/libs/61ade/examples/demo-app/vendor/autoload.php` |
 | `BLADE_APPLICATION_FILE` | `/space/share/libs/61ade/examples/demo-app/application.php` |
 | `BLADE_PHP` | `/usr/bin/php8.4` |
 | `BLADE_DEMO_INSTANCE` | `web` (the same `tmp/web` instance as Apache) |
 | Writable | `/space/share/libs/61ade/tmp/web` (sessions, live tickets, SQLite); the rest of the checkout read-only |
 
-The proxy forwards `/live` on `61ade.sanch.hu` to `http://127.0.0.1:8088/live`.
+The proxy forwards `/live` on `demo.61ade.com` to `http://127.0.0.1:8088/live`.
 The bridge is one long-running PHP process. It re-runs the application file
 for every observation, but classes and `require_once` files (the framework,
 `common.php`) stay as first loaded. It therefore reloads itself: when an

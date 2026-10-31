@@ -4,10 +4,26 @@
 
 Owner decisions of 2026-10-21 and 2026-10-22
 ([FB-0049](feedback.md#fb-0049), [FB-0051](feedback.md#fb-0051)):
-**61ade** has one development/test environment at https://61ade.sanch.hu/;
-the starter admin is https://61ade.sanch.hu/admin/. The canonical checkout is
+**61ade** has one development/test environment at https://demo.61ade.com/;
+the starter admin is https://demo.61ade.com/admin/. The canonical checkout is
 `/space/share/libs/61ade` on `catalyst`, owned by `sanch`. Its expected document
 root is `examples/demo-app/public/` in this checkout.
+
+Managed addresses ([FB-0100](feedback.md#fb-0100)); DNS, TLS, ingress, the
+`/live` proxy and the live-service unit are Infra-owned:
+
+| Purpose | Address | Document root / target |
+| --- | --- | --- |
+| Product website (EN, HU) | https://61ade.com/, https://61ade.com/hu/ | `examples/demo-app/public/website/` |
+| `www` alias | https://www.61ade.com/ → apex redirect | Infra |
+| Feature, starter and tenant demos | https://demo.61ade.com/ (`/admin/`, `/tenants/`) | `examples/demo-app/public/` |
+| Live updates | `wss://demo.61ade.com/live`, exact Origin `https://demo.61ade.com` | Infra unit on `127.0.0.1:8088` |
+| Contact | `sanch@61ade.com` (public address; keep it in links) | Infra mail delivery |
+
+`61ade.sanch.hu` is retired: it has no redirect, fallback or compatibility
+role. Never use it for links, tests, sessions, callbacks or live data, even if
+shared `sanch.hu` wildcard DNS still resolves it. The `*.61ade.com` wildcard
+DNS/certificate does not create application hosts or allow other origins.
 
 Develop and test directly in this environment. There is no production
 environment, deployment, deployment gate, post-deployment testability or project
@@ -29,7 +45,7 @@ browser wrapper for verification; never start an ad-hoc server or tunnel.
 
 The ignored root `.env.test` uses `KEY=VALUE` lines, read by
 `tests/browser/config.cjs`; process variables take precedence.
-`BLADE_DEMO_URL=https://61ade.sanch.hu` selects the managed URL,
+`BLADE_DEMO_URL=https://demo.61ade.com` selects the managed URL,
 `BLADE_DEMO_INSTANCE=web` selects its data instance. OAuth uses the same
 `BLADE_DEMO_URL` key in `examples/demo-app/.env`, read by `demoHostSetting`
 in `common.php` with process-env precedence. Preserve these loaders and private

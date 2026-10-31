@@ -279,10 +279,14 @@ The same-origin `./?blade_auth=bootstrap` script preserves script-src self CSP.
 
 ### Provider settings (Google, Facebook)
 
-The development hostname is 61ade.sanch.hu. These are required configuration
-values, not a claim of external-console verification. Latest evidence:
-[FB-0050](feedback.md#fb-0050), Google redirect_uri_mismatch, no completed
-real-provider login.
+The demo hostname is demo.61ade.com; the callback base is the demo `.env`
+`BLADE_DEMO_URL=https://demo.61ade.com/`. The retired `61ade.sanch.hu`
+callbacks must not be kept as a fallback ([FB-0100](feedback.md#fb-0100)).
+These are required configuration values, not a claim of external-console
+verification. Latest evidence: [FB-0100](feedback.md#fb-0100) (the provider
+start sends these exact callbacks; console registration is an owner action)
+and [FB-0050](feedback.md#fb-0050) (Google redirect_uri_mismatch, no completed
+real-provider login).
 
 The ignored [demo env](../examples/demo-app/.env) is reread each request;
 no restart is required. Only developer/web-server principals may read it.
@@ -307,8 +311,8 @@ may take several minutes to take effect; until then mismatch can occur.
 | Console | [Google Cloud](https://console.cloud.google.com/) → APIs & Services | [Meta developers](https://developers.facebook.com/apps/) → My Apps |
 | Preparation | Consent screen / Branding/Audience, External, application/support details; Testing requires test-user addresses | Authenticate/request data with Facebook Login; Development permits assigned app roles only |
 | Client | Credentials → OAuth client ID → Web application | Use cases → Facebook Login → Settings |
-| Origin/domain | https://61ade.sanch.hu | App settings → Basic → App domains: 61ade.sanch.hu |
-| Callback | `https://61ade.sanch.hu/?ah_action=provider&provider=Google&callback=1` | `https://61ade.sanch.hu/?ah_action=provider&provider=Facebook&callback=1`; Client OAuth login/Web OAuth login/Enforce HTTPS enabled |
+| Origin/domain | https://demo.61ade.com | App settings → Basic → App domains: demo.61ade.com |
+| Callback | `https://demo.61ade.com/?ah_action=provider&provider=Google&callback=1` | `https://demo.61ade.com/?ah_action=provider&provider=Facebook&callback=1`; Client OAuth login/Web OAuth login/Enforce HTTPS enabled |
 | Scope | openid email profile; previously documented as nonsensitive | email, public_profile; previously documented as standard |
 | Env | Client ID/secret → BLADE_DEMO_GOOGLE_CLIENT_ID/_SECRET | App ID/secret → BLADE_DEMO_FACEBOOK_CLIENT_ID/_SECRET |
 
