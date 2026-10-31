@@ -35,25 +35,25 @@ const created=page=>page.waitForResponse(r=>{try{return r.request().postDataJSON
 
 test('week view shows the recurring programme and the shared event form creates an event',async({page})=>{
  await openCalendar(page);
- await expect(page.locator('.dhx_cal_event').filter({hasText:'Reggeli promó'}).first()).toBeVisible();
- await expect(page.locator('.dhx_cal_event').filter({hasText:'Promóciós videó'}).first()).toBeVisible();
+ await expect(page.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
+ await expect(page.locator('.dhx_cal_event').filter({hasText:'Arculati animáció'}).first()).toBeVisible();
  await page.getByRole('button',{name:'Új esemény',exact:true}).click();
  const box=editor(page);await expect(box).toBeVisible();
  await expect(page.locator('.dhx_cal_light')).toHaveCount(0);
  await expect(box.getByRole('button',{name:'Mégse'})).toBeVisible();
  await box.getByLabel('Megnevezés').fill(prefix+' teszt');
- await box.getByLabel('Tartalom').selectOption({label:'Logó állókép'});
+ await box.getByLabel('Tartalom').selectOption({label:'Az idő elegáns pillanata'});
  const saved=created(page);
  await box.getByRole('button',{name:'Mentés',exact:true}).click();
  expect((await saved).status()).toBe(200);await expect(box).toHaveCount(0);
  await expect(page.locator('.dhx_cal_event').filter({hasText:prefix}).first()).toBeVisible();
  await page.locator('.dhx_cal_tab[data-tab="month"], .dhx_cal_tab[name="month_tab"]').first().click();
- await expect(page.locator('.dhx_cal_event_clear, .dhx_cal_event_line').filter({hasText:'Reggeli promó'}).first()).toBeVisible();
+ await expect(page.locator('.dhx_cal_event_clear, .dhx_cal_event_line').filter({hasText:'Reggeli lista'}).first()).toBeVisible();
 });
 
 test('editing one occurrence of a series stores an exception and keeps the series',async({page})=>{
  await openCalendar(page);
- await page.locator('.dhx_cal_event').filter({hasText:'Reggeli promó'}).first().dblclick();
+ await page.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).first().dblclick();
  await page.locator('.blade-dialog').getByRole('button',{name:'Csak ez az esemény',exact:true}).click();
  const box=editor(page);await expect(box).toBeVisible();
  // An occurrence edited alone keeps the series rule: no recurrence controls.
@@ -65,7 +65,7 @@ test('editing one occurrence of a series stores an exception and keeps the serie
  const values=response.request().postDataJSON().values;
  expect(values.recurring_event_id).not.toBe('');expect(values.content).not.toBe('');
  await expect(page.locator('.dhx_cal_event').filter({hasText:prefix+' kivétel'})).toHaveCount(1);
- expect(await page.locator('.dhx_cal_event').filter({hasText:'Reggeli promó'}).count()).toBeGreaterThan(0);
+ expect(await page.locator('.dhx_cal_event').filter({hasText:'Reggeli lista'}).count()).toBeGreaterThan(0);
 });
 
 test('the event form validates the period and writes a weekly series rule',async({page})=>{
@@ -73,7 +73,7 @@ test('the event form validates the period and writes a weekly series rule',async
  await page.getByRole('button',{name:'Új esemény',exact:true}).click();
  const box=editor(page);await expect(box).toBeVisible();
  await box.getByLabel('Megnevezés').fill(prefix+' sorozat');
- await box.getByLabel('Tartalom').selectOption({label:'Logó állókép'});
+ await box.getByLabel('Tartalom').selectOption({label:'Az idő elegáns pillanata'});
  await pickPreviousMonth(page,box,'Vége',15);
  let writes=0;page.on('request',r=>{try{if(r.postDataJSON()?.action==='create')writes++;}catch{}});
  await box.getByRole('button',{name:'Mentés',exact:true}).click();
@@ -101,16 +101,16 @@ test('day action shows the playlist answer and the API request',async({page})=>{
  await expect(win).toContainText('"resource": "signage_playlist"');
 });
 
-test('playlist API: Friday timeline falls back to the weekday default between programmes',async({page})=>{
+test('playlist API: Friday timeline falls back to the weekday default outside the programme blocks',async({page})=>{
  await openCalendar(page);
  const friday=new Date();friday.setDate(friday.getDate()+((5-friday.getDay()+7)%7));
  const date=`${friday.getFullYear()}-${String(friday.getMonth()+1).padStart(2,'0')}-${String(friday.getDate()).padStart(2,'0')}`;
  const result=await api(page,'signage_playlist','day',null,{date});
  expect(result.status).toBe(200);
  const slots=result.body.data.timeline.map(s=>`${s.start}-${s.end} ${s.source} ${s.title}`);
- expect(slots).toEqual(['00:00-08:00 default Blade brand animáció','08:00-10:00 schedule Reggeli promó','10:00-14:00 default Blade brand animáció','14:00-17:00 schedule Pénteki logóblokk',
-  // The daily scene slot of the D2 scene fixture (signage.php blade_demo_signage_scene()).
-  '17:00-20:00 default Blade brand animáció','20:00-21:00 schedule Esti jelenet','21:00-24:00 default Blade brand animáció']);
+ // The weekday blocks of the seed (signage.php blade_demo_signage_seed()); before 06:00 and after 22:00 the brand scene default.
+ expect(slots).toEqual(['00:00-06:00 default Blade brand animáció','06:00-10:00 schedule Reggeli lista','10:00-12:00 schedule Arculati animáció',
+  '12:00-17:00 schedule Napközbeni lista','17:00-18:00 schedule Narancsos pezsgés','18:00-22:00 schedule Esti lista','22:00-24:00 default Blade brand animáció']);
  expect(result.body.data.default.source).toBe('weekday');
  expect((await api(page,'signage_schedule','events',null,{from:'2026-01-01',to:'2026-12-31'})).status).toBe(400);
 });

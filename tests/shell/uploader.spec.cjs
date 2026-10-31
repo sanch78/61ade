@@ -31,7 +31,7 @@ const summary=page=>uploader(page).locator('.blade-uploader__summary');
 const filesInput=page=>page.locator('input[data-blade-upload-input="files"]');
 const toast=(page,text)=>page.locator('.blade-toast').filter({hasText:text});
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
-const jpg=fs.readFileSync(path.resolve(__dirname,'../../examples/demo-app/resources/files/minta-fraktal.jpg'));
+const jpg=Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=','base64');
 const text=(name,content)=>({name,mimeType:'text/plain',buffer:Buffer.from(content)});
 
 async function start(page,email='demo@example.test'){

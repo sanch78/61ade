@@ -3790,3 +3790,47 @@ that exactly equals an option label lists every option. The managed
   seeded `Promóciós videó` and `Reggeli promó`, which the demo account deleted
   on the demo at 09:03 UTC (audit).
 - **Status:** implemented.
+
+<a id="fb-0112"></a>
+
+## FB-0112 — Real media in the signage demo
+
+- **Date:** 2026-10-31.
+- **Request:** the owner uploaded generative images and videos, and made the
+  brand animation, for the `Digitális kijelző` (DMS) demo; the four sounds of
+  the StoryBloX project are to be taken over, nothing else from there.
+- **Decisions (owner, 2026-10-31):** the media stay out of Git (a git-ignored
+  directory in the checkout; no new data root, per the
+  [development](development.md#development-environment) rule); every
+  synthetic `minta-*` fixture is dropped (sine tones, fractal, test-pattern
+  video, sample scene) and the tests move onto the real media; all four
+  uploaded videos are kept (the owner considers them free to use).
+- **Implemented:** [signage media](demos.md#signage-media):
+  `BLADE_DEMO_SIGNAGE_MEDIA` and `blade_demo_signage_media()` store the 10
+  images, 4 videos, 4 MP3 tracks (StoryBloX `Oli – Chill/Exciting/Happy/Dramatic`
+  1.0.0 playback copies, renamed `nyugodt`, `izgalmas`, `vidam`, `dramai`)
+  and the brand scene from `examples/demo-app/resources/media/` into the
+  `Signage` mount; `blade_demo_signage_seed()` reproduces the programme the
+  owner had built on the shared instance (four playlists, weekday and weekend
+  blocks, the brand scene as every day's default) without the dropped scene.
+  The old fixture steps (`blade_demo_signage_audio`, `_scene`, `_brand`, the
+  Drive A move) and `resources/files/minta-*` are removed; Drive A `Média`
+  stays as an empty folder. The shared `tmp/web` instance was brought over
+  in place (files renamed to the media names, assets retitled, `minta-*`
+  assets, references and files removed) and the sandbox seed rebuilt.
+  Demo-only: no framework change.
+- **Verification (2026-10-31):** a fresh setup in a throwaway instance gave
+  19 assets, 4 playlists, 8 events and the brand default on all 7 days, and a
+  rerun added nothing; the web setup rebuilt the sandbox seed with the same
+  content and no `minta-*`. PHP `signage.php`, `contracts.php`,
+  `calendar.php`, `toolkit.php` and `lists.php` passed. Browser on the shared
+  instance: `toolkit-media` 3/3 and `subview-demos` 4/4 passed; `signage` 7/8,
+  `calendar` 5/6, `toolkit-demo-playlist` 7/8 and the media parts of
+  `toolkit-components`, `files` and `uploader` passed, the failing cases
+  only at the theme toggle, whose button the in-progress shell work renamed
+  (`Blade`). `toolkit-demo-assets` 3/4: the activation case misses
+  `Lejátszás`, which the in-progress `CommandBar` work folds into
+  `Műveletek` at 1600 px. Not run: the "too large" upload cases of
+  `uploader` and `files` (and the `files` cases depending on the latter),
+  which allocate `maxSizeBytes + 1` = 1 GiB since `ec75811`.
+- **Status:** implemented.

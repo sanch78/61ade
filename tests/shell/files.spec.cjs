@@ -35,6 +35,10 @@ async function view(page,p,label){
  await p.locator('[data-dhx-id="mode"]').click();await page.getByRole('menuitem',{name:label,exact:true}).click();
  await expect(p.locator('[data-dhx-id="mode"]')).toHaveText('Nézet: '+label);
 }
+// Seeded demo media in the Signage mount root (examples/demo-app/signage.php).
+const IMAGE='Kézműves kávé, lassú reggelek.png',VIDEO='3d-logointro.mp4';
+// The Signage root holds all demo media: the panel search keeps `name` among the rendered rows or tiles.
+async function find(p,name){await p.getByRole('textbox',{name:'Keresés',exact:true}).fill(name);await expect(p.locator('.dhx_grid-row, .blade-grid-tile').filter({hasText:name}).first()).toBeVisible();}
 async function enter(p,name){await row(p,name).dblclick();await expect(path(p)).toContainText('/'+name);}
 // Row marking as in the workspaces: a click marks one row, Ctrl/Cmd-click adds more.
 async function pick(p,name,modifiers=[]){await row(p,name).locator('.dhx_grid-cell').nth(1).click({modifiers});}
@@ -229,32 +233,32 @@ test('image viewer and video player over the content_stream GET transport',async
  const left=panel(page,0),view=page.getByRole('button',{name:'Megtekintés',exact:true});
  // Server: only stored image/video types are served, as raw bytes that cannot run as a document.
  // The seeded images and videos live in the Signage mount (signage demo, files-media-plan U5).
- const image=await entryId(page,'signage',null,'minta-fraktal.jpg'),text=await entryId(page,'a','Dokumentumok','jegyzet.txt'),folder=await entryId(page,'a',null,'Média');
- expect(await content(page,image)).toEqual({status:200,type:'image/jpeg',nosniff:'nosniff',disposition:'attachment',head:[255,216,255]});
+ const image=await entryId(page,'signage',null,IMAGE),text=await entryId(page,'a','Dokumentumok','jegyzet.txt'),folder=await entryId(page,'a',null,'Média');
+ expect(await content(page,image)).toEqual({status:200,type:'image/png',nosniff:'nosniff',disposition:'attachment',head:[137,80,78]});
  expect((await api(page,'files','content_get',text)).status).toBe(415);expect((await api(page,'files','content_get',folder)).status).toBe(400);
- await mount(page,left,'Signage');
- await pick(left,'minta-fraktal.jpg');await expect(view).toBeEnabled();
+ await mount(page,left,'Signage');await find(left,IMAGE);
+ await pick(left,IMAGE);await expect(view).toBeEnabled();
  await expect(page.getByRole('button',{name:'Szerkesztés',exact:true})).toBeDisabled();
  // Image viewer: fitted (never enlarged) by default, zoom steps and rotation in the toolbar, size and dimensions beside them.
- await row(left,'minta-fraktal.jpg').dblclick();
- const viewer=windowDialog(page),bar=viewer.locator('.blade-document__bar'),picture=viewer.getByRole('img',{name:'minta-fraktal.jpg'});
- await expect(bar).toContainText('1600 × 1000 px');await expect(bar.locator('[data-dhx-id="zoom"]')).toHaveText(/^Illesztés \(\d+\s?%\)$/);
+ await row(left,IMAGE).dblclick();
+ const viewer=windowDialog(page),bar=viewer.locator('.blade-document__bar'),picture=viewer.getByRole('img',{name:IMAGE});
+ await expect(bar).toContainText('1672 × 941 px');await expect(bar.locator('[data-dhx-id="zoom"]')).toHaveText(/^Illesztés \(\d+\s?%\)$/);
  const stage=await viewer.locator('.blade-image-stage').boundingBox(),fitted=await picture.boundingBox();
  expect(fitted.width).toBeLessThanOrEqual(stage.width);expect(fitted.height).toBeLessThanOrEqual(stage.height);
  await bar.getByRole('button',{name:'Nagyítás',exact:true}).click();
  await expect(bar.locator('[data-dhx-id="zoom"]')).toHaveText(/^\d+\s?%$/);
  await expect.poll(async()=>(await picture.boundingBox()).width).toBeGreaterThan(fitted.width);
  await bar.locator('[data-dhx-id="zoom"]').click();await page.getByRole('menuitem',{name:'100%',exact:true}).click();
- await expect.poll(()=>picture.evaluate(element=>element.getBoundingClientRect().width)).toBeCloseTo(1600,0);
+ await expect.poll(()=>picture.evaluate(element=>element.getBoundingClientRect().width)).toBeCloseTo(1672,0);
  await bar.getByRole('button',{name:'Forgatás jobbra',exact:true}).click();
- await expect.poll(()=>viewer.locator('.blade-image-frame').evaluate(element=>[element.offsetWidth,element.offsetHeight].join())).toBe('1000,1600');
+ await expect.poll(()=>viewer.locator('.blade-image-frame').evaluate(element=>[element.offsetWidth,element.offsetHeight].join())).toBe('941,1672');
  // The viewer loads the GET stream URL directly (no blob copy); the revision only keys the cache.
  const source=await picture.getAttribute('src');expect(source).toMatch(/\?blade=1&resource=files&action=content_stream&id=\d+&v=\d+$/);
  await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);
  // Range, conditional and HEAD requests; the thumbnail derivative is WebP; other sites are refused.
  const whole=await page.request.get(source);expect(whole.status()).toBe(200);
  const etag=whole.headers()['etag'],size=(await whole.body()).length;
- expect(whole.headers()).toMatchObject({'content-type':'image/jpeg','accept-ranges':'bytes','x-content-type-options':'nosniff','cross-origin-resource-policy':'same-origin','cache-control':'private, no-cache'});
+ expect(whole.headers()).toMatchObject({'content-type':'image/png','accept-ranges':'bytes','x-content-type-options':'nosniff','cross-origin-resource-policy':'same-origin','cache-control':'private, no-cache'});
  const part=await page.request.get(source,{headers:{Range:'bytes=0-99'}});
  expect(part.status()).toBe(206);expect(part.headers()['content-range']).toBe(`bytes 0-99/${size}`);expect((await part.body()).length).toBe(100);
  expect((await page.request.get(source,{headers:{Range:`bytes=${size}-`}})).status()).toBe(416);
@@ -267,9 +271,9 @@ test('image viewer and video player over the content_stream GET transport',async
  // Video player: native controls; loop and speed in the toolbar, dimensions and length beside them.
  // The media element reads the stream with HTTP Range requests (206), which is what seeking uses.
  const streamed=[];page.on('response',response=>{if(response.url().includes('action=content_stream'))streamed.push(response.status());});
- await row(left,'minta-video.webm').dblclick();
+ await find(left,VIDEO);await row(left,VIDEO).dblclick();
  const player=windowDialog(page),controls=player.locator('.blade-document__bar'),video=player.locator('video');
- await expect(controls).toContainText('640 × 360 px · 0:06');await expect(video).toHaveAttribute('controls','');
+ await expect(controls).toContainText('1920 × 1080 px · 0:13');await expect(video).toHaveAttribute('controls','');
  expect(await video.getAttribute('src')).toContain('action=content_stream');
  await video.evaluate(element=>{element.currentTime=5;});
  await expect.poll(()=>streamed.includes(206)).toBe(true);
@@ -387,11 +391,11 @@ test('tiles with thumbnails, folder and parent tiles',async({page})=>{
  await mount(page,left,'Signage');await view(page,left,'Csempék');
  await expect(tiles.first()).toBeVisible();await expect(left.locator('.dhx_grid-row').first()).toBeHidden();
  // Media slot from the listing's metadata: a ready thumbnail is the GET thumbnail_get image; type in text.
- const picture=left.getByRole('img',{name:'Kép: minta-fraktal.jpg',exact:true});await expect(picture).toBeVisible();
+ await find(left,IMAGE);const picture=left.getByRole('img',{name:'Kép: '+IMAGE,exact:true});await expect(picture).toBeVisible();
  expect(await picture.locator('img').getAttribute('src')).toMatch(/action=thumbnail_get&id=\d+&v=\d+$/);
  await expect.poll(()=>picture.locator('img').evaluate(image=>image.complete&&image.naturalWidth)).toBeGreaterThan(0);
- await expect(left.getByRole('img',{name:'Videó: minta-video.webm, 0:06',exact:true})).toBeVisible();
- await tiles.filter({hasText:'minta-fraktal.jpg'}).click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(1);
+ await tiles.filter({hasText:IMAGE}).click();await expect(left.locator('.blade-grid-tile--marked')).toHaveCount(1);
+ await find(left,VIDEO);await expect(left.getByRole('img',{name:'Videó: '+VIDEO+', 0:13',exact:true})).toBeVisible();
  // The ".." tile names its type; marking and double-click behave as in the listing.
  await mount(page,left,'Drive A');await tiles.filter({hasText:'Dokumentumok'}).dblclick();await expect(path(left)).toHaveText('Drive A:/Dokumentumok');
  const parent=tiles.filter({hasText:'Szülőmappa'});await expect(parent).toHaveCount(1);await expect(parent.locator('.blade-grid-tile__title')).toHaveText('..');
@@ -406,12 +410,12 @@ test('tiles with thumbnails, folder and parent tiles',async({page})=>{
  const boxes=await tiles.evaluateAll(nodes=>nodes.slice(0,3).map(node=>Math.round(node.getBoundingClientRect().top)));expect(new Set(boxes).size).toBe(1);
  await view(page,left,'Fájllista');await expect(row(left,'Dokumentumok')).toBeVisible();
  // Videos carry the video icon ("Videó") in the listing and in the tree, as the media fallback does.
- await mount(page,left,'Signage');await expect(row(left,'minta-video.webm').getByRole('img',{name:'Videó',exact:true})).toBeVisible();
- await expect(row(left,'minta-video.webm').locator('.dxi-menu-right')).toHaveCount(1);
+ await mount(page,left,'Signage');await find(left,VIDEO);await expect(row(left,VIDEO).getByRole('img',{name:'Videó',exact:true})).toBeVisible();
+ await expect(row(left,VIDEO).locator('.dxi-menu-right')).toHaveCount(1);
  await view(page,left,'Mappafa');
  // The current folder is selected but collapsed; its toggle (a Suite menu-right glyph outside the item content) opens it.
- if(!await treeItem(left,'minta-video.webm').isVisible())await left.locator('.dhx_tree-toggle-button').first().click();
- await expect(treeItem(left,'minta-video.webm').locator('.dxi-menu-right')).toHaveCount(1);
+ if(!await treeItem(left,VIDEO).isVisible())await left.locator('.dhx_tree-toggle-button').first().click();
+ await expect(treeItem(left,VIDEO).locator('.dxi-menu-right')).toHaveCount(1);
  await view(page,left,'Fájllista');
  expect(errors).toEqual([]);
 });
@@ -523,11 +527,12 @@ test('viewer previous and next across the images, videos and audio of the listin
  await start(page);
  // The seeded images, videos and audio (D1) live in the Signage mount root (signage demo, files-media-plan U5).
  const left=panel(page,0),media=(await api(page,'files','list',(await api(page,'files','tree','signage')).body.data.root,{limit:200})).body.data.items.filter(item=>['image/png','image/jpeg','video/mp4','video/webm','audio/mpeg','audio/wav','audio/mp4'].includes(item.mime_type));
- const count=media.length,at=media.findIndex(item=>item.name==='minta-fraktal.jpg')+1,next=media[at]?.name;
+ // The first media file of the server-sorted listing, so its row is rendered without a search (which would narrow the sequence).
+ const count=media.length,at=1,first=media[0]?.name,next=media[at]?.name;
  expect(next).toBeTruthy();
  // The shown file: an image by its accessible name, a video or audio element by its label.
  const shown=name=>windowDialog(page).getByRole('img',{name,exact:true}).or(windowDialog(page).locator(`video[aria-label="${name}"], audio[aria-label="${name}"]`));
- await mount(page,left,'Signage');await row(left,'minta-fraktal.jpg').dblclick();
+ await mount(page,left,'Signage');await row(left,first).dblclick();
  const windows=page.locator('.blade-document-window');
  let bar=windowDialog(page).locator('.blade-document__bar');
  await expect(bar.locator('[data-dhx-id="index"]')).toHaveText(at+' / '+count);
@@ -537,7 +542,7 @@ test('viewer previous and next across the images, videos and audio of the listin
  bar=windowDialog(page).locator('.blade-document__bar');await expect(bar.locator('[data-dhx-id="index"]')).toHaveText((at+1)+' / '+count);
  // PageUp/PageDown inside the viewer walk the same sequence.
  await page.keyboard.press('PageUp');
- await expect(windows).toHaveCount(1);await expect(windowDialog(page).getByRole('img',{name:'minta-fraktal.jpg'})).toBeVisible();
+ await expect(windows).toHaveCount(1);await expect(shown(first)).toBeVisible();
  await page.keyboard.press('PageDown');await expect(shown(next)).toBeVisible();await expect(windows).toHaveCount(1);
  // The panel cursor followed: the command reopens the shown file.
  await windowDialog(page).getByRole('button',{name:/close/i}).click();await expect(windows).toHaveCount(0);
@@ -561,7 +566,7 @@ test('server authorization on direct requests and audit records',async({page,bro
  try{
   const other=await context.newPage();
   await signIn(other,'reader@example.test');await openFiles(other);
-  const picture=await entryId(page,'signage',null,'minta-fraktal.jpg');
+  const picture=await entryId(page,'signage',null,IMAGE);
   for(const [action,id,values,status] of [['tree','a',{},200],['text_get',file,{},200],['tree','c',{},403],['list',rootC,{},403],['create_directory',root,{name:prefix+'-x'},403],['copy',root,{sources:file},403],['move',root,{sources:file},403]])
    expect((await api(other,'files',action,id,values)).status,'reader '+action).toBe(status);
   expect((await content(other,picture)).status,'reader content_get').toBe(200);
@@ -615,7 +620,7 @@ test('localization, themes, the panel divider and the desktop-only notice',async
  for(const name of ['Rename','Delete','Download'])await expect(page.getByRole('button',{name,exact:true})).toBeVisible();
  await expect(panel(page,0).locator('[data-dhx-id="sort"]')).toHaveText('Sort: Name ↑');
  await expect(panel(page,0).locator('.dhx_grid-header-cell').filter({hasText:'Modified'})).toBeVisible();
- const denied=await api(page,'files','text_get',await entryId(page,'signage',null,'logo.png'));expect(denied.body.error).toBe('Only .txt files can be edited.');
+ const denied=await api(page,'files','text_get',await entryId(page,'signage',null,IMAGE));expect(denied.body.error).toBe('Only .txt files can be edited.');
  await page.locator('.blade-navigation-row').getByRole('button',{name:'English',exact:true}).click();await page.getByText('Magyar',{exact:true}).click();
  // Native Layout divider: drag fully left, then right; the right panel keeps filling the row.
  await openFiles(page);

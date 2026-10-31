@@ -250,18 +250,13 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
 
 #### D1: `Médiatár` asset viewer (`demo.asset-viewer`)
 
-- **Data:** three synthetic audio assets beside the seeded images and videos:
-  `Szinuszhang 440 Hz (WAV)` (3 s), `Szinuszhang 660 Hz (MP3)` (4 s) and
-  `Szinuszhang 880 Hz (M4A)` (5 s), generated sine tones committed as
-  `examples/demo-app/resources/files/minta-hang.{wav,mp3,m4a}` (tens of KB).
-  `blade_demo_signage_audio()` (in `signage.php`, run by every
-  `setup-workspace.php`) stores a missing fixture in the `Signage` mount root
-  and creates the asset of a fixture file that no asset references, keyed by
-  the file name; it never changes or deletes other data. An existing demo
-  database gains them with the idempotent setup
+- **Data:** the four music tracks of the [signage media](#signage-media)
+  (`Nyugodt zene`, `Izgalmas zene`, `Vidám zene`, `Drámai zene`, MP3, about
+  3 min each) beside the images and videos. An existing demo database gains
+  them with the idempotent setup
   (`BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`, see
   [web-server execution](#webszerveres-futtatás-apache--php-fpm)); deleting a
-  fixture asset by hand and running setup again restores only that asset.
+  media asset by hand and running setup again restores only that asset.
 - **Audio upload:** the demo file manager allows `mp3`, `wav` and `m4a`; the
   asset's `Médiafájl` field accepts `audio` beside `image` and `video`, so
   `Fájl feltöltése…` in the asset form and `Feltöltés` take audio files. The
@@ -321,21 +316,16 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   (the resource whose `content_stream` plays the media). It is offered with
   `signage_playlist.day`; without `scene` a scene entry shows a notice.
 - **Scene asset:** a synthetic asset type, a canvas animation whose code is
-  the file `examples/demo-app/resources/files/minta-jelenet.js` (stored type
-  `text/javascript`). The file is the body of a function returning
+  a file of stored type `text/javascript`. The file is the body of a function returning
   `{load(canvas), duration(), renderAt(seconds), play(), pause(), seek(seconds)}`;
   `renderAt` is deterministic, so a seek shows that moment. The playlist
-  answer gives such an asset the type `scene`. `blade_demo_signage_scene()`
-  (run by every `setup-workspace.php`) stores a missing fixture in the
-  `Signage` mount root, creates `Animált jelenet` (12 s) for a file no asset
-  references, and adds the daily programme event `Esti jelenet` 20:00–21:00
-  when no live event references that asset; it never changes or deletes other
-  data. A second scene, `Blade brand animáció` (20 s loop,
-  `resources/files/blade-brand.js`: the [b1ade logo](brand.md) of the dark
-  palette building up, glowing, swept by light and dissolving), is stored the
-  same way by `blade_demo_signage_brand()`; when its asset is created it
-  becomes the weekday default of all seven days (existing weekday defaults
-  repointed, date defaults untouched), so free time loops it endlessly.
+  answer gives such an asset the type `scene`. The demo's scene is
+  `Blade brand animáció` (20 s loop, `resources/files/blade-brand.js`: the
+  [b1ade logo](brand.md) of the dark palette building up, glowing, swept by
+  light and dissolving), stored with the [signage media](#signage-media). The
+  seeded programme makes it the default of all seven weekdays, so free time
+  loops it endlessly, and plays it as `Arculati animáció` 10–12 on weekdays
+  and in `Reggeli lista`.
   Scenes are seeded only: the asset form and `Feltöltés` accept image,
   video and audio, and the file manager neither uploads nor previews scripts.
 - **Code delivery:** `signage_playlist.scene` (`values.asset`, label
@@ -403,13 +393,13 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   element of the player); its buttons are the keyboard route.
 - **Data step** for an existing demo database (the managed URL):
   `BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`
-  adds the scene file, asset and event and the `signage_playlist.scene`
+  adds missing media files and assets and the `signage_playlist.scene`
   rights.
-- **Try:** `Digitális kijelző` → `Napi műsor` (today, with `Esti jelenet` in
-  the evening): `Lejátszás`, click into an entry while the scene is on the
+- **Try:** `Digitális kijelző` → `Napi műsor` (today, with the brand scene at
+  10:00 on a weekday): `Lejátszás`, click into an entry while the scene is on the
   stage, `Következő nap`, `Naptár…`, switch the theme and narrow the window
   below 768 px. English texts are in `resources/locales/en.json`.
-- **Checks:** `php8.4 tests/shell/signage.php` (fixture, event, idempotence,
+- **Checks:** `php8.4 tests/shell/signage.php` (media, programme, idempotence,
   `scene` type, code action, limits, rights, view metadata),
   `php8.4 tests/shell/contracts.php` (the view after the real setup);
   `npm run test:browser -- tests/shell/toolkit-demo-playlist.spec.cjs`
@@ -464,8 +454,8 @@ dynamic playback).
   playlist slot lists only the items that play on that date (switched on,
   within their validity), each with its effective `duration` and
   `transition` (`{type, ms}`); a shuffled list comes in a stable order per
-  date. Setup migrates older events' `asset_id` to `content` and seeds
-  `Hétvégi válogatás` on a fresh database. Deleting an asset removes its
+  date. Setup migrates older events' `asset_id` to `content` and seeds the
+  four [sample playlists](#signage-media) on a fresh database. Deleting an asset removes its
   playlist items; deleting a playlist removes its items and blanks its events
   (usage warnings in both confirmations). Time without events, the night
   included, plays the day's default content.
@@ -553,6 +543,41 @@ admin interface. Extending the framework cannot replace the external party
 being simulated. Boundary: demo/tests only, no 61ade admin functionality, never
 a consumer operational interface.
 
+<a id="signage-media"></a>
+
+### Signage media
+
+Owner decision of 2026-10-31 ([FB-0112](feedback.md#fb-0112)): the
+`Digitális kijelző` demo plays real media instead of synthetic fixtures, and
+the media stay out of Git. `BLADE_DEMO_SIGNAGE_MEDIA` in
+[signage.php](../examples/demo-app/signage.php) lists them (file name, asset
+title, stored MIME type, play time). The files themselves are in the
+git-ignored `examples/demo-app/resources/media/` (about 81 MB) on `catalyst`:
+
+| Media | Files | Source |
+| --- | --- | --- |
+| 10 images (1672 × 941 PNG, 10 s each) | `<title>.png`, e.g. `Kézműves kávé, lassú reggelek.png` | Generative images uploaded by the owner |
+| 4 videos (MP4) | `3d-logointro.mp4`, `black-friday-neon.mp4`, `irodahaz-alkonyatkor.mp4`, `setaloutca.mp4` | Stock clips uploaded by the owner from free sources |
+| 4 music tracks (MP3, about 3 min each) | `nyugodt-zene.mp3`, `izgalmas-zene.mp3`, `vidam-zene.mp3`, `dramai-zene.mp3` | The four approved StoryBloX mood tracks (MP3 playback copies) |
+
+The brand scene `blade-brand.js` is source code and stays in Git
+(`resources/files/`). Every `setup-workspace.php` run
+(`blade_demo_signage_media()`) stores a missing file in the `Signage` mount
+root, keyed by its name, and creates the asset of a file that no asset
+references. It never changes or deletes other data. A file missing from the
+media directory is reported on stderr and skipped, so the demo still sets up
+without it. On an empty asset table, `blade_demo_signage_seed()` also creates
+the sample programme: the playlists `Reggeli lista`, `Napközbeni lista`,
+`Esti lista` and `Hétvégi lista`; the brand scene as the default of every
+weekday; and weekly events from Monday. On weekdays these are `Reggeli lista`
+06–10, `Arculati animáció` 10–12, `Napközbeni lista` 12–17,
+`Narancsos pezsgés` 17–18 and `Esti lista` 18–22. On weekends they are
+`Reggeli lista` 06–10, `Hétvégi lista` 10–18 and `Esti lista` 18–22. The music is
+in the `Médiatár` only, not in the programme. The visitor
+[sandbox seed](#visitor-sandboxes) is a fresh setup, so the media directory
+must exist when the web setup runs. `tests/shell/signage.php` and the signage
+browser specs need it too.
+
 <a id="webszerveres-futtatás-apache--php-fpm"></a>
 
 ## Web-server execution (Apache + PHP-FPM)
@@ -628,7 +653,7 @@ See [project rules](development.md#mandatory-framework-development-rules).
 ## Verification
 
 - `php8.4 tests/shell/contracts.php`: both setups, exact starter views, separate sessions/paths/assets and feature-demo accounts/login modes; the starter admin and the tenant demo declare no modules, stylesheets, logo, sign-in stylesheets, sign-in content or sign-in modules, the feature demo `new Logo(placement: 'both')` (the product logo, no own logo file), `branding/sign-in.css`, `branding/sign-in.js`, notice and mailbox link, the feature demo exactly its `app/demo.js` and `app/demo.css`, each keyed by its built file ([toolkit consumer](#toolkit-consumer)), and the starter admin's `admin.js` by its file.
-- `php8.4 tests/shell/signage.php`: the audio fixtures (Signage root, stored type, length, one asset each, an idempotent step restoring only a missing asset), audio upload as an asset, the activation map and the offered record view `demo.asset-viewer` (also for the reader, not without `signage_assets.get`).
+- `php8.4 tests/shell/signage.php` (needs the [signage media](#signage-media)): the demo media and sample programme (Signage root, stored type, music length, one asset each, an idempotent step restoring only a missing asset), audio upload as an asset, the activation map and the offered record view `demo.asset-viewer` (also for the reader, not without `signage_assets.get`).
 - `npm run test:browser -- tests/shell/toolkit-demo.spec.cjs`: the feature demo requests `/app/demo.js?v=<file key>` once (bootstrap `modules`, the network and the file's mtime and size agree) and `admin.js` with its file key, never `?v=32`, links `app/demo.css?v=<file key>` once after `admin.css`, and starts without the module error toast or console report; `/admin/` and `/tenants/` have no bootstrap `modules`, request no script outside `assets/` and link no `app/demo.css`.
 - `npm run test:browser -- tests/shell/sign-in-branding.spec.cjs` ([sign-in customization](shell.md#sign-in-branding)): the sign-in window shows the logo with its accessible name once (the top-row copy `aria-hidden`) and the light or dark image by theme, `branding/sign-in.css` is linked once after `admin.css` and applies through `data-blade-page`; the notice, the keyboard-reachable mailbox link and the module's footer line (following the theme) sit inside the window below the form; a failing module is reported on the console and the sign-in still works; the logo is the inlined product logo with every part addressable and unique gradient ids; after sign-in the logo closes the top row, follows a theme switch and a dark-based skin, and the sign-in stylesheet, content and modules are gone; at 390 px the window fits with everything and the top row leaves the logo out; the starter admin and the tenant demo show the product logo in the window and the top row and none of the rest.
 - `npm run test:browser -- tests/shell/toolkit-demo-tasks.spec.cjs` ([D4](#toolkit-d4-tasks)): `Prioritás` edited through the table cell's edit button, the update and create panel forms and the card editor (pointer and keyboard), saved through `__edit`/`update`/`create` and re-rendered (also in `Adatok`); a value rewritten in transit is refused by the server with the field error in the editor; `Másolás szövegként` disabled without a record, copying the cursor record and the marks (stubbed clipboard, exact text), a refused clipboard in the error dialog, from `Műveletek` at 390 px; the stars follow light/dark/Skyblue. Tasks carry a run prefix and are deleted.

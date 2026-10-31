@@ -20,3 +20,6 @@
 
 # Local agent tool state (credentials, caches, databases)
 /.codex/
+
+# Signage demo media (images, videos, music): kept out of Git, read by the demo setup (docs/demos.md#signage-media)
+/examples/demo-app/resources/media/
