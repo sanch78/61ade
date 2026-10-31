@@ -3828,9 +3828,9 @@ that exactly equals an option label lists every option. The managed
   `calendar` 5/6, `toolkit-demo-playlist` 7/8 and the media parts of
   `toolkit-components`, `files` and `uploader` passed, the failing cases
   only at the theme toggle, whose button the in-progress shell work renamed
-  (`Blade`). `toolkit-demo-assets` 3/4: the activation case misses
-  `Lejátszás`, which the in-progress `CommandBar` work folds into
-  `Műveletek` at 1600 px. Not run: the "too large" upload cases of
+  (`Blade`). `toolkit-demo-assets` 4/4 (the activation case now
+  reaches `Lejátszás` through `Műveletek` too: with about 20 assets the
+  list's command bar folds at 1600 px, on HEAD as well). Not run: the "too large" upload cases of
   `uploader` and `files` (and the `files` cases depending on the latter),
   which allocate `maxSizeBytes + 1` = 1 GiB since `ec75811`.
 - **Status:** implemented.

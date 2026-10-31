@@ -55,15 +55,22 @@ async function cell(page,title,header){
 }
 // The view selector, also when the command bar has moved into the responsive "Műveletek" menu.
 async function mode(page,label){
- const menu=grid(page).getByRole('button',{name:/^(Műveletek|Actions)$/});
+ const menu=grid(page).getByRole('button',{name:/^(Műveletek|Actions)$/}),selector=page.getByRole('button',{name:/^Nézet:/});
+ await expect(menu.or(selector).first()).toBeVisible();
  if(await menu.isVisible()){
   await menu.click();const item=page.getByRole('menuitem',{name:/^(Nézet|View):/});
   if((await item.textContent()).includes(label)){await page.keyboard.press('Escape');return;}
   await item.click();await page.getByRole('menuitem',{name:label,exact:true}).click();return;
  }
- const selector=page.getByRole('button',{name:/^Nézet:/});
  if((await selector.textContent()).includes(label))return;
  await selector.click();await page.getByRole('menuitem',{name:label,exact:true}).click();await expect(selector).toHaveText('Nézet: '+label);
+}
+// A list command, also when the command bar has moved into the responsive "Műveletek" menu.
+async function listCommand(page,label){
+ const menu=grid(page).getByRole('button',{name:/^(Műveletek|Actions)$/});
+ await expect(menu.or(button(page,label)).first()).toBeVisible();
+ if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name:label,exact:true}).click();return;}
+ await button(page,label).click();
 }
 async function search(page,text){
  const box=grid(page).getByRole('textbox',{name:'Keresés',exact:true});
@@ -149,7 +156,7 @@ test('activation by MIME type or class: audio, video, images and scenes open the
  await only(page,SCENE);await expect(await cell(page,SCENE,'Típus')).toHaveText('Animáció');
  await expect(row(page,SCENE).locator('.blade-media__icon.blade-icon--animation')).toHaveCount(1);
  await row(page,SCENE).locator('[data-dhx-col-id="media_type"]').click();
- await button(page,'Lejátszás').click();
+ await listCommand(page,'Lejátszás');
  await expect(page).toHaveURL(viewerUrl(scene));await expect(page.frameLocator('iframe').locator('canvas')).toHaveCount(1);
  await expect(button(page,'Lejátszás')).toBeEnabled();await expect(position(page)).toBeVisible();
  await button(page,'Lejátszás').click();await expect(button(page,'Szünet')).toBeEnabled();
