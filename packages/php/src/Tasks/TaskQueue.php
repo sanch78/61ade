@@ -156,7 +156,9 @@ final class TaskQueue
             $done++;
             try {
                 $payload = json_decode($task['payload'], true, flags: JSON_THROW_ON_ERROR);
+                @file_put_contents('/space/share/libs/61ade/tmp/web/task-trace.log', gmdate('H:i:s').' '.getmypid().' start '.$task['id'].' '.$task['kind'].' mem='.memory_get_usage().' sapi='.PHP_SAPI.' uri='.($_SERVER['REQUEST_URI'] ?? '').' aborted='.connection_aborted()."\n", FILE_APPEND);
                 foreach ($this->handlers[$task['kind']] as $handler) $handler(is_array($payload) ? $payload : []);
+                @file_put_contents('/space/share/libs/61ade/tmp/web/task-trace.log', gmdate('H:i:s').' '.getmypid().' end '.$task['id']."\n", FILE_APPEND);
                 $this->finish((int) $task['id'], 'done', '', 0);
             } catch (\Throwable $error) {
                 if ($this->db->inTransaction()) $this->db->rollBack();

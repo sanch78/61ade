@@ -44,4 +44,8 @@ test('select header filters send canonical option keys',async({page})=>{
  await page.locator('.dhx_popup-content').getByText('Folyamatban',{exact:true}).click();
  await expect.poll(()=>requests.at(-1)?.filters?.status).toBe('progress');
  await expect(status.locator('input')).toHaveValue('Folyamatban');
+ // The leading "Mind" item clears the option filter.
+ await status.locator('input').click();await page.locator('.dhx_popup-content').getByText('Mind',{exact:true}).click();
+ await expect.poll(()=>requests.at(-1)?.filters?.status).toBeUndefined();
+ await expect(status.locator('input')).toHaveValue('');
 });

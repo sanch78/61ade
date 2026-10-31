@@ -73,7 +73,7 @@ update, per [development rules](development.md#mandatory-framework-development-r
   (single-range 206/416, ETag from revision, `private` cache, `nosniff`) and
   `thumbnail_get`.
 - Options on `FileManagerDefinition`: `contentRoot`, `tempRoot`,
-  `maxSizeBytes` (≤ 100 MB), `maxFiles` (≤ 20), `thumbnails`.
+  `maxSizeBytes` (≤ 1 GiB), `maxFiles` (≤ 20), `thumbnails`.
 - Migration `0002`: stream existing BLOBs to the store, verify hashes, queue
   derivatives; idempotent and resumable; the BLOB column is dropped only in a
   later step after verification. The demo uses `blade_demo_runtime('files')`.

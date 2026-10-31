@@ -1,8 +1,9 @@
 import { AdminShell, type ShellDefinition } from "./AdminShell";
 import { releaseSplash } from "./Splash";
 import "@dhtmlx/suite/codebase/suite.min.css";
-import "./themes/skyblue.css";
+import "./themes/blade-chrome.css";
 import "./admin.css";
+import "./themes/character.css";
 import "./themes/blade.css";
 import "./flags/flags.css";
 import "./uploader.css";

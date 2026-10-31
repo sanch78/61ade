@@ -74,6 +74,12 @@ export interface Application {
   /** Client-side commands: name → handler, placed on list toolbars (`ListKindOptions.commands`). Built-in `details`. */
   readonly commands: Registry<ClientCommand>;
   /**
+   * Media types: name → label and fallback icon of files by MIME type (media slots, the derived `type` column, file
+   * pickers, activation). Built-ins `image`, `video`, `audio` (`image/*`, `video/*`, `audio/*`); a project adds its own
+   * types (`demo.scene` for `text/javascript`) or replaces a built-in one.
+   */
+  readonly mediaTypes: Registry<MediaType>;
+  /**
    * Public component classes, bound to this application: `ListView`, `RecordForm`, `RecordDetails`, `FileManager`,
    * `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer`, `SandboxFrame` and `CommandBar`.
    */
@@ -333,7 +339,7 @@ export interface I18n {
 
 /** Appearance state (over AdminShell's `setTheme` handling and `data-blade-skin`). */
 export interface Theme {
-  /** The applied DHTMLX base theme: `skyblue`, `light` or `dark`. */
+  /** The applied DHTMLX base theme: `blade`, `light` or `dark` (also under Blade Night; `data-blade-theme` names the factory theme). */
   current(): string;
   /** The applied application skin id (`data-blade-skin`), or `null` with a factory theme. */
   skin(): string | null;
@@ -802,6 +808,20 @@ export interface MediaDescriptor {
 // ---------------------------------------------------------------------------------------------------------------
 // Presentations, field types and client commands (implemented P3 C-5, docs/toolkit.md#registries)
 // ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * How files of some MIME types are presented (`Application.mediaTypes`). An exact type (`text/javascript`) wins over a
+ * class (`audio/*`); a file no entry matches is a `Fájl` with the generic file icon. Presentation only: what a file
+ * may be and who may read it stays the server's decision.
+ */
+export interface MediaType {
+  /** Exact MIME types or classes (`audio/*`), lower case. */
+  mime: readonly string[];
+  /** Source text, translated through `app.i18n.t` (the `type` part, accessible names). */
+  label: string;
+  /** Icon classes shown while there is no thumbnail: a Suite icon (`dxi dxi-image-outline`) or a 61ade glyph (`blade-icon blade-icon--audio`). */
+  icon: string;
+}
 
 /** Rendering size: a grid cell, a card field or a tile. */
 export type PresentationSize = "cell" | "card" | "tile";

@@ -77,7 +77,7 @@ $tree = [
     // Dokumentumok/Projektek/2026/Q4/Mérföldkövek is depth 5: a further subdirectory is rejected.
     'a' => ['Dokumentumok' => ['jegyzet.txt' => "Szintetikus jegyzet a feature demóhoz.\nSzerkeszthető szöveg.\n", 'README.md' => "# Dokumentumok\n\nSzintetikus Markdown.\n",
         'Projektek' => ['2026' => ['Q4' => ['Mérföldkövek' => ['terv.txt' => "Ötödik mélységi szinten lévő mappa fájlja.\n"]], 'osszefoglalo.txt' => "Negyedéves összefoglaló.\n"]]],
-        'Képek' => ['logo.png' => $png, 'foto.jpg' => $jpg], 'adatok.csv' => "nev,ertek\nalfa,1\nbeta,2\n", 'beallitasok.json' => "{\"tema\": \"skyblue\"}\n", 'OLVASS-EL.TXT' => "Nagybetűs kiterjesztés: szerkeszthető.\n"],
+        'Képek' => ['logo.png' => $png, 'foto.jpg' => $jpg], 'adatok.csv' => "nev,ertek\nalfa,1\nbeta,2\n", 'beallitasok.json' => "{\"tema\": \"blade\"}\n", 'OLVASS-EL.TXT' => "Nagybetűs kiterjesztés: szerkeszthető.\n"],
     'b' => ['Archívum' => ['2025' => ['regi-jegyzet.txt' => "Archivált szintetikus jegyzet.\n"]], 'napló.txt' => "Első bejegyzés.\n",
         // Kept to show the rules: these types are not in the upload allowlist, the large text exceeds the editor limit.
         'Feltöltési minták' => ['engedelyezett.txt' => "Engedélyezett típus.\n", 'engedelyezett.md' => "# Engedélyezett\n", 'tiltott-program.exe' => "MZ\x90\x00szintetikus", 'tiltott-dokumentum.pdf' => "%PDF-1.4\nszintetikus\n", 'nagy-naplo.txt' => str_repeat("Hosszú szintetikus naplósor a szerkesztő méretkorlátjához.\n", 1500)],

@@ -104,7 +104,8 @@ test('list: thumbnail, derived type/resolution/length, play time and usage colum
  await openLibrary(page);await seed(page);await page.reload();
  await expect(page.locator('[data-cell-id="grid"] .dhx_grid-row').first()).toBeVisible();
  for(const header of ['Megnevezés','Típus','Felbontás','Hossz','Lejátszási idő (mp)','Használat'])await expect(page.locator('[data-cell-id="grid"] [role="columnheader"]').filter({hasText:header}).first()).toBeVisible();
- // Seeded video: type and length from the media metadata, never from a stored kind.
+ // Seeded video: type and length from the media metadata, never from a stored kind (searched: the oldest row may lie below the rendered rows).
+ await search(page,'Promóciós videó');
  await expect(await cell(page,'Promóciós videó','Típus')).toHaveText('Videó');
  await expect(await cell(page,'Promóciós videó','Hossz')).toHaveText(/^\d+:\d\d$/);
  await expect(await cell(page,'Promóciós videó','Felbontás')).toHaveText(/^\d+ × \d+$/);

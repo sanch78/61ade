@@ -322,7 +322,7 @@ export interface I18n {
 }
 /** Appearance state (over AdminShell's `setTheme` handling and `data-blade-skin`). */
 export interface Theme {
-    /** The applied DHTMLX base theme: `skyblue`, `light` or `dark`. */
+    /** The applied DHTMLX base theme: `blade`, `light` or `dark` (also under Blade Night; `data-blade-theme` names the factory theme). */
     current(): string;
     /** The applied application skin id (`data-blade-skin`), or `null` with a factory theme. */
     skin(): string | null;
@@ -1365,7 +1365,7 @@ export interface SignInI18n {
     locale(): string;
 }
 export interface SignInTheme {
-    /** `skyblue`, `light` or `dark`. */
+    /** Applied DHTMLX theme: `blade`, `light` or `dark` (also under Blade Night). */
     current(): string;
     /** Called after each theme switch until `signal` aborts. */
     onChange(listener: (theme: string) => void, options?: {

@@ -5,7 +5,7 @@ import type { SignInApplication, SignInPage, SignInSlots } from "./api/sign-in";
 /** Sign-in modules (docs/shell.md#sign-in-modules): the restricted application and its isolated loader. */
 const LIMIT = 5000;
 const listeners = new Set<(theme: string) => void>();
-let current = "skyblue";
+let current = "blade";
 
 /** The shell's theme switch on a signed-out page (also the initial theme). */
 export function signInThemeApplied(theme: string): void {

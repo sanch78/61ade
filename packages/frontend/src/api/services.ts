@@ -17,7 +17,7 @@ const escape = (text: string) => text.replace(/[&<>"']/g, c => ({ "&": "&amp;", 
 export const i18n: I18n = { t, locale, languages };
 
 const themeListeners = new Set<(theme: string, skin: string | null) => void>();
-let themeBase = "skyblue", themeSkin: string | null = null;
+let themeBase = "blade", themeSkin: string | null = null;
 export const theme: Theme = {
   current: () => themeBase,
   skin: () => themeSkin,

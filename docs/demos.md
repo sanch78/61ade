@@ -317,7 +317,13 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   `Signage` mount root, creates `Animált jelenet` (12 s) for a file no asset
   references, and adds the daily programme event `Esti jelenet` 20:00–21:00
   when no live event references that asset; it never changes or deletes other
-  data. Scenes are seeded only: the asset form and `Feltöltés` accept image,
+  data. A second scene, `Blade brand animáció` (20 s loop,
+  `resources/files/blade-brand.js`: the [b1ade logo](brand.md) of the dark
+  palette building up, glowing, swept by light and dissolving), is stored the
+  same way by `blade_demo_signage_brand()`; when its asset is created it
+  becomes the weekday default of all seven days (existing weekday defaults
+  repointed, date defaults untouched), so free time loops it endlessly.
+  Scenes are seeded only: the asset form and `Feltöltés` accept image,
   video and audio, and the file manager neither uploads nor previews scripts.
 - **Code delivery:** `signage_playlist.scene` (`values.asset`, label
   `Jelenet kódja`) answers `{asset, title, name, bytes, code}` for a scene

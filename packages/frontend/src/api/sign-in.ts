@@ -42,7 +42,7 @@ export interface SignInI18n {
 }
 
 export interface SignInTheme {
-  /** `skyblue`, `light` or `dark`. */
+  /** Applied DHTMLX theme: `blade`, `light` or `dark` (also under Blade Night). */
   current(): string;
   /** Called after each theme switch until `signal` aborts. */
   onChange(listener: (theme: string) => void, options?: { signal?: AbortSignal }): void;

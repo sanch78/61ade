@@ -6,7 +6,7 @@ namespace Blade\Shell;
  * Logo of the shell (docs/shell.md#sign-in-logo): the end of the signed-in top menu row and, on the sign-in, e-mail
  * confirmation and password-change pages, the window, the top row or both (`placement`). Without an `image` it is the
  * 61ade product logo, the framework default an application gets when it declares no logo (docs/brand.md);
- * `Logo::none()` shows none. With images, the light one shows with Skyblue, light and light-based skins, the optional
+ * `Logo::none()` shows none. With images, the light one shows with Blade, light and light-based skins, the optional
  * dark one with the dark theme and dark-based skins. Presentation only.
  */
 final readonly class Logo

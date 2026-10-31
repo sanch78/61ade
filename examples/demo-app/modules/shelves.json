@@ -34,7 +34,7 @@
             "view": {
                 "title": "Raktárzónák",
                 "group": "Feature demó",
-                "icon": "dxi dxi-view-dashboard",
+                "icon": "dxi dxi-border-inside",
                 "tiles": true,
                 "activate": "page",
                 "columns": [

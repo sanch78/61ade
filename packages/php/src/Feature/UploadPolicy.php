@@ -12,7 +12,7 @@ use Blade\I18n\Translator;
  */
 final readonly class UploadPolicy
 {
-    public const MAX_SIZE_BYTES = 104857600;
+    public const MAX_SIZE_BYTES = 1073741824;
     public const MAX_FILES = 20;
     public const DUPLICATE_POLICIES = ['ask', 'overwrite', 'rename', 'skip', 'reject'];
     /** Per-file error codes of preflight, begin/chunk/finish (`details.code`) and failed result items. */

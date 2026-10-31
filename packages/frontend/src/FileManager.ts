@@ -114,9 +114,10 @@ export class FileManager {
 
   constructor(host:HTMLElement,private view:FileViewDefinition,private hooks:FileManagerHooks={}){
     this.config=view.files;
-    // Native wide group and resizer; no width or minWidth, which would make the Layout cells fixed.
+    // The panels are cells of the native space layout with its resizer; no width or minWidth, which would make the
+    // Layout cells fixed.
     this.layout=new Layout(host,{type:"space",rows:[
-      {type:"wide",css:"blade-file-panels",cols:[
+      {css:"blade-file-panels",cols:[
         {id:"panel-0",header:t("Bal panel"),css:"blade-file-panel",resizable:true},
         {id:"panel-1",header:t("Jobb panel"),css:"blade-file-panel"},
       ]},

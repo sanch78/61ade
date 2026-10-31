@@ -45,7 +45,10 @@ try {
     foreach ([$logo, $photo, $fractal, $video] as $id) { $row = $storage->entry($id); check($row['mount_id'] === 'signage' && (int) $row['parent_id'] === (int) $signage['id'], 'Seeded asset file moved into Signage/ keeping its id'); }
     check($storage->entry($other)['mount_id'] === 'b' && $storage->child((int) $pictures['id'], 'logo.png') === null, 'Other files untouched; moved files leave their folder');
     $assets = $db->query('SELECT title, file_id FROM signage_assets ORDER BY id')->fetchAll(PDO::FETCH_KEY_PAIR);
-    check(count($assets) === 8 && $assets['Arculati háttérkép'] === (string) $fractal && $assets['Logó állókép'] === (string) $logo && $assets['Fotó plakát'] === (string) $photo && $assets['Promóciós videó'] === (string) $video, 'Assets keep their file references (idempotent setup)');
+    check(count($assets) === 9 && $assets['Arculati háttérkép'] === (string) $fractal && $assets['Logó állókép'] === (string) $logo && $assets['Fotó plakát'] === (string) $photo && $assets['Promóciós videó'] === (string) $video, 'Assets keep their file references (idempotent setup)');
+    // Brand scene: one script file in the Signage root, its asset the weekday default of every day; idempotent.
+    $brandId = (string) $db->query("SELECT a.id FROM signage_assets a JOIN blade_files f ON f.id = a.file_id WHERE f.name = 'blade-brand.js' AND f.mime_type = 'text/javascript' AND f.mount_id = 'signage'")->fetchColumn();
+    check($brandId !== '' && $db->query("SELECT group_concat(weekday || ':' || asset_id, ',') FROM (SELECT weekday, asset_id FROM signage_defaults WHERE date = '' ORDER BY weekday)")->fetchColumn() === implode(',', array_map(static fn($day) => "$day:$brandId", range(1, 7))), 'Brand scene is the weekday default of every day');
     // A legacy reference outside the Signage mount is reported by setup (one line each) and left in place.
     $db->prepare("INSERT INTO signage_assets(title,file_id,duration) VALUES ('Régi elem',?,'5')")->execute([(string) $other]);
     $legacy = (string) $db->lastInsertId();
@@ -65,7 +68,7 @@ try {
     $db->exec("DELETE FROM signage_assets WHERE title = 'Szinuszhang 660 Hz (MP3)'");
     blade_demo_signage_audio($db, $storage);
     blade_demo_signage_audio($db, $storage);
-    check((int) $db->query("SELECT COUNT(*) FROM blade_files WHERE name LIKE 'minta-hang.%' AND archived_at IS NULL")->fetchColumn() === 3 && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 8
+    check((int) $db->query("SELECT COUNT(*) FROM blade_files WHERE name LIKE 'minta-hang.%' AND archived_at IS NULL")->fetchColumn() === 3 && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 9
         && (int) $db->query("SELECT COUNT(*) FROM signage_assets WHERE title = 'Szinuszhang 660 Hz (MP3)'")->fetchColumn() === 1, 'The audio step restores only a missing asset and is idempotent');
     $ids = array_map('strval', $db->query('SELECT title, id FROM signage_assets')->fetchAll(PDO::FETCH_KEY_PAIR));
     // Scene fixture (D2): one script file in the Signage root, its asset and a daily evening event; a rerun adds only
@@ -82,7 +85,7 @@ try {
     blade_demo_signage_scene($db, $storage);
     blade_demo_signage_scene($db, $storage);
     $slot->execute([$sceneId]);
-    check(count($slot->fetchAll()) === 1 && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 8
+    check(count($slot->fetchAll()) === 1 && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 9
         && (int) $db->query("SELECT COUNT(*) FROM blade_files WHERE name = 'minta-jelenet.js' AND archived_at IS NULL")->fetchColumn() === 1, 'The scene step restores only a missing event and is idempotent');
 
     $workspace = WorkspaceConfiguration::build($db, [dirname(__DIR__, 2).'/examples/demo-app/modules/signage.json'], static fn() => blade_demo_signage_bindings());
@@ -135,13 +138,13 @@ try {
     // Listing: `_media` descriptors and usage counts (events and day defaults referencing the asset).
     $list = $call('signage_assets', 'list', null, ['limit' => 10, 'sort' => ['field' => 'usage', 'direction' => 'desc']]);
     $items = array_column($list['items'], null, 'title');
-    check($items['Arculati háttérkép']['usage'] === 5 || $items['Arculati háttérkép']['usage'] === '5', 'Brand: five weekday defaults');
-    check((int) $items['Fotó plakát']['usage'] === 3 && (int) $items['Promóciós videó']['usage'] === 1 && (int) $items['Logó állókép']['usage'] === 1, 'Usage counts events and defaults');
-    check($list['items'][0]['title'] === 'Arculati háttérkép' && $list['items'][1]['title'] === 'Fotó plakát', 'Sorted by usage on the server');
+    check((int) $items['Blade brand animáció']['usage'] === 7 && (int) $items['Arculati háttérkép']['usage'] === 0, 'Brand scene: seven weekday defaults');
+    check((int) $items['Fotó plakát']['usage'] === 1 && (int) $items['Promóciós videó']['usage'] === 1 && (int) $items['Logó állókép']['usage'] === 1, 'Usage counts events and defaults');
+    check($list['items'][0]['title'] === 'Blade brand animáció' && (int) $list['items'][1]['usage'] === 1 && (int) end($list['items'])['usage'] === 0, 'Sorted by usage on the server');
     check($items['Promóciós videó']['_media']['file_id']['mime_type'] === 'video/webm' && $items['Logó állókép']['_media']['file_id']['width'] === 1 && $items['Promóciós videó']['_media']['file_id']['name'] === 'minta-video.webm', 'Media descriptors in rows');
     check($call('signage_assets', 'list', null, ['filters' => ['file_id' => 'video']])['matched'] === 1, 'Type filter over the file');
     $readerList = $call('signage_assets', 'list', null, ['limit' => 10], $ctx($reader));
-    check($readerList['total'] === 8 && is_array($readerList['items'][0]['_media']['file_id'] ?? null), 'Reader lists assets with media');
+    check($readerList['total'] === 9 && is_array($readerList['items'][0]['_media']['file_id'] ?? null), 'Reader lists assets with media');
 
     // Upload as asset: each file lands in Signage/ through the file manager's storage API and becomes an asset.
     $part = static function (string $name, string $content) use ($tmp): Upload { $path = $tmp.'/up-'.bin2hex(random_bytes(6)); file_put_contents($path, $content); return new Upload('files', $name, $path, strlen($content), UPLOAD_ERR_OK); };
@@ -153,7 +156,7 @@ try {
     check($storage->entry((int) $created[1]['file_id'])['name'] === 'logo (2).png' && $created[1]['title'] === 'logo (2)', 'A taken name gets a free one');
     fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('notes.txt', 'text')])), 400, 'Non-media upload rejected by the policy');
     $mismatch = fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('fake.png', 'not an image')])), 400, 'Content mismatch rejected');
-    check(($mismatch->details['code'] ?? null) === 'content_mismatch' && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 10, 'Failed upload creates no asset');
+    check(($mismatch->details['code'] ?? null) === 'content_mismatch' && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 11, 'Failed upload creates no asset');
     // Audio uploads as an asset too; the stored file keeps the detected audio type and its length reaches the row.
     $tone = $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('Hangpróba.wav', (string) file_get_contents(dirname(__DIR__, 2).'/examples/demo-app/resources/files/minta-hang.wav'))]));
     $toneRow = $call('signage_assets', 'get', $tone['assets'][0]);
@@ -191,19 +194,19 @@ try {
     $poster = $ids['Fotó plakát'];
     $revision = $call('signage_assets', 'get', $poster)['revision'];
     $bulk = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision, 'preview' => '1']], ['id' => $ids['Logó állókép'], 'values' => ['revision' => $call('signage_assets', 'get', $ids['Logó állókép'])['revision'], 'preview' => '1']]]);
-    check($bulk[0]['ok'] && $bulk[0]['data']['count'] === 1 && $bulk[0]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1], ['label' => 'Alapértelmezett tartalmak', 'count' => 2]] && !isset($bulk[0]['data']['audit']), 'Bulk preview carries the usages');
-    check($bulk[1]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && (int) $db->query("SELECT COUNT(*) FROM signage_assets")->fetchColumn() === 10, 'Preview changes nothing');
+    check($bulk[0]['ok'] && $bulk[0]['data']['count'] === 1 && $bulk[0]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && !isset($bulk[0]['data']['audit']), 'Bulk preview carries the usages');
+    check($bulk[1]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && (int) $db->query("SELECT COUNT(*) FROM signage_assets")->fetchColumn() === 11, 'Preview changes nothing');
     check(!isset($bulk[0]['data']['audit_action']) && $db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete_preview' AND outcome = 'success' AND object_id IN (".$db->quote($poster).','.$db->quote($ids['Logó állókép']).')')->fetchColumn() == 2
         && !$db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete' AND object_id = ".$db->quote($poster))->fetchColumn(), 'Previews journaled as delete_preview');
     $applied = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision]]]);
-    check($applied[0]['ok'] && $applied[0]['data']['cleared'] === ['Műsorterv-események' => 1, 'Alapértelmezett tartalmak' => 2], 'Applied delete reports the cleared references');
-    check((int) $db->query('SELECT COUNT(*) FROM signage_defaults WHERE asset_id = '.$db->quote($poster))->fetchColumn() === 0 && (int) $db->query('SELECT COUNT(*) FROM signage_defaults')->fetchColumn() === 5, 'Its day defaults are removed');
+    check($applied[0]['ok'] && $applied[0]['data']['cleared'] === ['Műsorterv-események' => 1], 'Applied delete reports the cleared references');
+    check((int) $db->query('SELECT COUNT(*) FROM signage_defaults WHERE asset_id = '.$db->quote($poster))->fetchColumn() === 0 && (int) $db->query('SELECT COUNT(*) FROM signage_defaults')->fetchColumn() === 7, 'No default referenced it');
     $event = $db->query("SELECT data, revision FROM blade_calendar_events WHERE text = 'Rendezvény plakát'")->fetch(PDO::FETCH_ASSOC);
     check(json_decode($event['data'], true)['asset_id'] === '' && (int) $event['revision'] === 2, 'Its event keeps the slot without an asset');
     // A default delete no longer runs the after_save rule (which re-read the deleted row and rejected every delete).
     $default = $db->query('SELECT id FROM signage_defaults ORDER BY id LIMIT 1')->fetchColumn();
     $call('signage_defaults', 'delete', (string) $default, ['revision' => $call('signage_defaults', 'get', (string) $default)['revision']]);
-    check((int) $db->query('SELECT COUNT(*) FROM signage_defaults')->fetchColumn() === 4, 'A default can be deleted');
+    check((int) $db->query('SELECT COUNT(*) FROM signage_defaults')->fetchColumn() === 6, 'A default can be deleted');
 
     // Playlist: assets without a file and events without an asset are skipped.
     $monday = new DateTimeImmutable('monday this week');
@@ -212,7 +215,7 @@ try {
         check(!array_filter($day['scheduled'], static fn($entry) => $entry['asset'] === null || $entry['asset']['file'] === null), 'Scheduled entries all have a playable asset');
         check($day['default'] === null || $day['default']['file'] !== null, 'Default content has a file');
         check(!in_array('Rendezvény plakát', array_column($day['scheduled'], 'title'), true), 'Blanked event skipped');
-        if ($offset < 5) check($day['default'] === null, 'Weekday default (brand, no file) skipped');
+        check(($day['default']['id'] ?? null) === ($offset === 0 ? null : $brandId), 'Brand scene is the default; the deleted Monday default leaves none');
     }
     $tuesday = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+1 day')->format('Y-m-d'));
     check($tuesday['scheduled'][0]['asset']['kind'] === 'video' && $tuesday['scheduled'][0]['title'] === 'Reggeli promó', 'Type derived from the file');
