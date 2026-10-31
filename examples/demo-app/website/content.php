@@ -15,7 +15,7 @@ return [
         'workspaceAlt' => 'The 61ade feature demo in dark theme, showing a task grid, filters and a record form.',
         'mobileAlt' => 'The same task list displayed as responsive cards on a phone.',
         'facts' => [
-            ['Languages', 'hu · en · de'],
+            ['Languages', 'i18n-based, en · hu · de out of the box'],
             ['Themes', 'Several built in, fully customizable'],
             ['Permissions', 'Object and field level'],
             ['Audit', 'Transactional journal'],
@@ -81,7 +81,7 @@ return [
         'workspaceAlt' => 'A 61ade sötét témájú demója feladatlistával, szűrőkkel és egy rekord űrlapjával.',
         'mobileAlt' => 'Ugyanaz a feladatlista mobiltelefonon, reszponzív kártyákkal.',
         'facts' => [
-            ['Nyelvek', 'hu · en · de'],
+            ['Nyelvek', 'i18n-alapú, en · hu · de beépítve'],
             ['Témák', 'Több beépített, teljesen testreszabható'],
             ['Jogosultság', 'Objektum- és mezőszinten'],
             ['Audit', 'Tranzakciós napló'],
