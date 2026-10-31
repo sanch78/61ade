@@ -1176,7 +1176,6 @@ h1 em {
 }
 .facts div {
   padding: 4px 24px 4px 20px;
-  border-left: 1px solid #ffffff26;
 }
 .facts dt {
   margin-bottom: 10px;
@@ -1795,9 +1794,6 @@ body:has(.image-dialog[open]) {
   }
 }
 @media (max-width: 1279px) {
-  .facts div {
-    border-left: 0;
-  }
   .stage-nodes {
     display: block;
   }
