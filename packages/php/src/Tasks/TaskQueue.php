@@ -10,13 +10,14 @@ use Blade\Infrastructure\Transaction;
  * reads that find missing results enqueue again (`later`). Handlers run outside any transaction and
  * must be idempotent: a task may run again after a crash or a failed attempt. One runner at a time per
  * database (`blade_task_lease`, a DB lease because web server and CLI run as different OS users), so
- * post-response work never multiplies on a shared host.
+ * post-response work never multiplies on a shared host. A task still `running` when a runner takes the
+ * lease was left by a runner that died (killed worker, fatal error): it is due again at once, not after a
+ * fixed stale time, and a dead runner's lease is taken over once it expires (budget + LEASE_MARGIN).
  */
 final class TaskQueue
 {
     public const ATTEMPTS = 3;
     private const BACKOFF = 30;
-    private const STALE = 600;
     private const KEEP_DONE = 86400;
     /** Lease time beyond the run budget: one task may outlast the budget by its own tool timeout. */
     private const LEASE_MARGIN = 120;
@@ -146,8 +147,9 @@ final class TaskQueue
     {
         $kinds = array_keys($this->handlers);
         $in = implode(',', array_fill(0, count($kinds), '?'));
-        $this->db->prepare("UPDATE blade_tasks SET state=CASE WHEN attempts>=? THEN 'failed' ELSE 'pending' END, locked_at=NULL, error=CASE WHEN attempts>=? THEN 'Interrupted.' ELSE error END, updated_at=? WHERE state='running' AND locked_at<? AND kind IN ($in)")
-            ->execute([self::ATTEMPTS, self::ATTEMPTS, self::now(), self::now(-self::STALE), ...$kinds]);
+        // The lease is ours, so no other runner is working: every `running` task of these kinds was orphaned.
+        $this->db->prepare("UPDATE blade_tasks SET state=CASE WHEN attempts>=? THEN 'failed' ELSE 'pending' END, locked_at=NULL, error=CASE WHEN attempts>=? THEN 'Interrupted.' ELSE error END, updated_at=? WHERE state='running' AND kind IN ($in)")
+            ->execute([self::ATTEMPTS, self::ATTEMPTS, self::now(), ...$kinds]);
         $started = microtime(true);
         $done = 0;
         while ($done < $limit && microtime(true) - $started < $seconds) {
@@ -156,9 +158,7 @@ final class TaskQueue
             $done++;
             try {
                 $payload = json_decode($task['payload'], true, flags: JSON_THROW_ON_ERROR);
-                @file_put_contents('/space/share/libs/61ade/tmp/web/task-trace.log', gmdate('H:i:s').' '.getmypid().' start '.$task['id'].' '.$task['kind'].' mem='.memory_get_usage().' sapi='.PHP_SAPI.' uri='.($_SERVER['REQUEST_URI'] ?? '').' aborted='.connection_aborted()."\n", FILE_APPEND);
                 foreach ($this->handlers[$task['kind']] as $handler) $handler(is_array($payload) ? $payload : []);
-                @file_put_contents('/space/share/libs/61ade/tmp/web/task-trace.log', gmdate('H:i:s').' '.getmypid().' end '.$task['id']."\n", FILE_APPEND);
                 $this->finish((int) $task['id'], 'done', '', 0);
             } catch (\Throwable $error) {
                 if ($this->db->inTransaction()) $this->db->rollBack();
@@ -204,8 +204,9 @@ final class TaskQueue
             if (!$this->handlers || $this->db->inTransaction()) return;
             if (!$this->later) {
                 $kinds = array_keys($this->handlers);
-                $q = $this->db->prepare("SELECT 1 FROM blade_tasks WHERE ((state='pending' AND available_at<=?) OR (state='running' AND locked_at<?)) AND kind IN (".implode(',', array_fill(0, count($kinds), '?')).') LIMIT 1');
-                $q->execute([self::now(), self::now(-self::STALE), ...$kinds]);
+                // An orphaned `running` task counts once no live runner holds the lease (a dead runner's has expired).
+                $q = $this->db->prepare("SELECT 1 FROM blade_tasks WHERE ((state='pending' AND available_at<=?) OR (state='running' AND EXISTS (SELECT 1 FROM blade_task_lease WHERE name='runner' AND (holder='' OR expires_at<?)))) AND kind IN (".implode(',', array_fill(0, count($kinds), '?')).') LIMIT 1');
+                $q->execute([self::now(), self::now(), ...$kinds]);
                 if (!$q->fetchColumn()) return;
             }
             if (session_status() === PHP_SESSION_ACTIVE) session_write_close();

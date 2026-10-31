@@ -10,8 +10,10 @@ const choice=(filter:FieldDefinition)=>["select","checkbox"].includes(filter.typ
 
 /**
  * The declared filter panel of a list (`filter` region): Apply and Reset in the panel; below 768 px the panel
- * hides and the toolbar's `Szűrés` command opens the same form in a dialog with Cancel. Applying reports the
- * typed values (select/checkbox without the `eq:` prefix); the list keeps, shows and requests them.
+ * hides and the toolbar's `Szűrés` command opens the same form in a dialog with Cancel. A list without the panel
+ * (its filters are the table's header filters) passes no layout: the form lives only in that dialog, which the
+ * `Szűrés` command opens in cards and tiles, where the table headers are not shown (the list shows the command).
+ * Applying reports the typed values (select/checkbox without the `eq:` prefix); the list keeps, shows and requests them.
  */
 export class ListFilters{
   readonly form:Form;
@@ -19,8 +21,10 @@ export class ListFilters{
   private mobile=false;
   private wasVisible=true;
   private resize=()=>this.fit();
-  constructor(private view:ViewDefinition,private layout:Layout,private commands:ResponsiveToolbar,private applied:(filters:Record<string,string>)=>void){
-    this.form=this.create();this.layout.getCell("filter").attach(this.form);
+  constructor(private view:ViewDefinition,private layout:Layout|undefined,private commands:ResponsiveToolbar,private applied:(filters:Record<string,string>)=>void){
+    this.form=this.create();
+    if(!layout)return;
+    layout.getCell("filter").attach(this.form);
     window.addEventListener("resize",this.resize);
   }
   private create(onCancel?:()=>void):Form{
@@ -37,6 +41,7 @@ export class ListFilters{
   }
   /** Narrow screens move the panel into the dialog (the panel's visibility is restored on a wide screen). */
   fit():void{
+    if(!this.layout)return;
     const mobile=innerWidth<768;
     if(mobile)this.commands.show("blade-filter");else this.commands.hide("blade-filter");
     if(mobile===this.mobile)return;
@@ -46,7 +51,7 @@ export class ListFilters{
     else{this.close();if(this.wasVisible)cell.show();}
   }
   open():void{
-    if(!this.mobile)return;
+    if(this.layout&&!this.mobile)return;
     if(this.dialog){this.dialog.show();return;}
     const form=this.create(()=>this.close());form.setValue(this.form.getValue());
     const dialog=new Window({css:"blade-content-window",title:t("Szűrés"),width:Math.min(420,innerWidth-24),height:Math.min(600,innerHeight-24),modal:true,closable:true});
@@ -65,5 +70,5 @@ export class ListFilters{
     this.form.setValue(values);
   }
   clear():void{this.form.clear();}
-  destroy():void{window.removeEventListener("resize",this.resize);this.close();}
+  destroy():void{window.removeEventListener("resize",this.resize);this.close();if(!this.layout)this.form.destructor();}
 }

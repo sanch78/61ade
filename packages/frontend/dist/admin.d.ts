@@ -68,6 +68,12 @@ export interface Application {
     /** Client-side commands: name → handler, placed on list toolbars (`ListKindOptions.commands`). Built-in `details`. */
     readonly commands: Registry<ClientCommand>;
     /**
+     * Media types: name → label and fallback icon of files by MIME type (media slots, the derived `type` column, file
+     * pickers, activation). Built-ins `image`, `video`, `audio` (`image/*`, `video/*`, `audio/*`); a project adds its own
+     * types (`demo.scene` for `text/javascript`) or replaces a built-in one.
+     */
+    readonly mediaTypes: Registry<MediaType>;
+    /**
      * Public component classes, bound to this application: `ListView`, `RecordForm`, `RecordDetails`, `FileManager`,
      * `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer`, `SandboxFrame` and `CommandBar`.
      */
@@ -573,6 +579,12 @@ export interface ViewDefinition<Options = unknown> {
     desktopOnly?: boolean;
     /** Default `page`. A record view never has a menu entry; it opens from activation, `navigate` or the URL. */
     open?: ViewOpenMode;
+    /**
+     * What the user sees and can do in the view (plain text, localized; blank lines separate paragraphs). Opened as a
+     * page, the shell shows it in a closable window until the user closes it once (per user and browser); the lower
+     * bar's `Útmutató` button shows it again.
+     */
+    guide?: string;
 }
 /** The built-in kinds' definitions as a discriminated union. */
 export type BuiltinViewDefinition = (ViewDefinition<ListKindOptions> & {
@@ -585,7 +597,7 @@ export type BuiltinViewDefinition = (ViewDefinition<ListKindOptions> & {
     kind: "calendar";
 });
 /** Built-in field storage types (`Blade\Feature\Field` allowlist). */
-export type BuiltinFieldType = "text" | "password" | "number" | "select" | "multiselect" | "textarea" | "checkbox" | "file";
+export type BuiltinFieldType = "text" | "password" | "number" | "select" | "multiselect" | "textarea" | "checkbox" | "date" | "file";
 /** Client-side validation hints mirroring the server rules (docs/validation.md); the server stays authoritative. */
 export interface ValidationRules {
     /** Configuration `min_length`. */
@@ -597,6 +609,9 @@ export interface ValidationRules {
     };
     /** Configuration `matches_field`. */
     matchesField?: string;
+    /** Configuration `not_before_field` / `not_after_field`: a range end, not before / not after the other field's value. */
+    notBeforeField?: string;
+    notAfterField?: string;
     unique?: boolean;
 }
 /** Browser metadata of a `file` field (`Workspace::fieldMetadata`). The field value is the file id. */
@@ -627,6 +642,14 @@ export interface FieldMetadata {
     file?: FileFieldConfig;
     /** Registered `fieldTypes` name rendering this field (server `Field` `editor`, JSON `editor`; a dotted name). */
     editor?: string;
+    /**
+     * Conditional field (server `Field` `visibleWhen`, JSON `visible_when`): forms show it, and the server validates it,
+     * only while the field `field` of the record holds one of `in`; otherwise a save stores it empty.
+     */
+    visibleWhen?: {
+        field: string;
+        in: string[];
+    };
 }
 /** Confirmation the server declares for an action (`Action::$confirm`). Plain text. */
 export interface ActionConfirmation {
@@ -726,6 +749,21 @@ export interface SubviewMetadata {
     /** The child has its own page (`embed: false`), the target of `activate: 'page'`. */
     page?: boolean;
 }
+/**
+ * The resolved tree navigation of a list: a tree of the `view` list's records (roots: an empty `parent`, children
+ * loaded on expansion) beside the list, which shows only the records whose `field` holds the selected node's id.
+ */
+export interface TreeMetadata {
+    /** The node view (its id, title, actions and list options, with its hierarchy sub-view). */
+    view: ViewDefinition<ListKindOptions> & {
+        kind: "list";
+    };
+    field: string;
+    /** The node view's parent field (its hierarchy). */
+    parent: string;
+    /** The node view's field naming a node. */
+    label: string;
+}
 /** `options` of kind `list`: today's list-specific top-level keys of `components/list/types.ts` `ViewDefinition`, unchanged. */
 export interface ListKindOptions {
     singleton: boolean;
@@ -748,11 +786,30 @@ export interface ListKindOptions {
         fields: string[];
     };
     subview?: SubviewMetadata;
+    /** Tree navigation (`Registry::tree`, JSON `view.tree`). */
+    tree?: TreeMetadata;
     /**
      * Declared client command names (`Registry::view`/`SqlResource::register` `commands`, JSON `view.commands`; dotted,
      * at most 20) shown on the list's toolbar after the view's actions, in this order; an unregistered name is skipped.
      */
     commands?: string[];
+    /**
+     * Manual order (`SqlResource` `order`, JSON `storage.order`): the list is sorted by the server-owned position
+     * `field`, within the records sharing `scope`; with `move` offered its rows are dragged or moved (`Feljebb`,
+     * `Lejjebb`, Alt+↑/↓) into place. No header or card sorting.
+     */
+    order?: {
+        field: string;
+        scope?: string;
+    };
+    /**
+     * Records dragged in from a list of resource `from` become new records through `create`, the dragged record's id
+     * in `field` (JSON `view.drop`); only while `create` is offered. In a manual order a drop lands where it is dropped.
+     */
+    drop?: {
+        from: string;
+        field: string;
+    };
 }
 /** `options` of kind `files` (`FileManagerDefinition::metadata()` in camelCase; `FileManager.ts` `FileManagerConfig`). */
 export interface FilesKindOptions {
@@ -813,6 +870,13 @@ export interface CalendarKindOptions {
         action: string;
         label: string;
     } | null;
+    /** Event colours: the first rule whose (readable) field equals `value` or starts with `prefix` gives the tone. */
+    tones: {
+        field: string;
+        tone: "primary" | "secondary" | "success" | "danger";
+        value?: string;
+        prefix?: string;
+    }[];
     fields: FieldMetadata[];
 }
 /** File metadata the media surfaces use (`RecordPresentation.ts` `MediaDescriptor`, row `_media`). */
@@ -825,6 +889,19 @@ export interface MediaDescriptor {
     width: number | null;
     height: number | null;
     thumbnail: "ready" | "pending" | "failed" | "none";
+}
+/**
+ * How files of some MIME types are presented (`Application.mediaTypes`). An exact type (`text/javascript`) wins over a
+ * class (`audio/*`); a file no entry matches is a `Fájl` with the generic file icon. Presentation only: what a file
+ * may be and who may read it stays the server's decision.
+ */
+export interface MediaType {
+    /** Exact MIME types or classes (`audio/*`), lower case. */
+    mime: readonly string[];
+    /** Source text, translated through `app.i18n.t` (the `type` part, accessible names). */
+    label: string;
+    /** Icon classes shown while there is no thumbnail: a Suite icon (`dxi dxi-image-outline`) or a 61ade glyph (`blade-icon blade-icon--audio`). */
+    icon: string;
 }
 /** Rendering size: a grid cell, a card field or a tile. */
 export type PresentationSize = "cell" | "card" | "tile";
@@ -964,6 +1041,19 @@ export interface ListViewOptions extends ComponentOptions {
     };
     /** Filters the list opens with instead of the saved ones (declared filters only). */
     filters?: Record<string, string>;
+    /**
+     * The rows can be dragged (copied) into a list on the page that declares `drop` from this view's resource
+     * (`ListKindOptions.drop`); the dragged record, or every marked record when it is marked. Default false.
+     */
+    dragSource?: boolean;
+    /**
+     * false: the list is placed in a panel of its host (a `PageLayout` region, a window) and draws no panel of its own:
+     * its toolbar and data fill the host's region, which gives the title; a declared filter panel becomes the
+     * `Szűrés` dialog and forms open as windows. Default true (the list is its own titled panel, as on a menu page).
+     */
+    panel?: boolean;
+    /** false: no ID column and no `ID · n` line on cards (a page where the id means nothing to its users). Default true. */
+    showId?: boolean;
 }
 /** Events of `ListView`. */
 export interface ListViewEvents {
@@ -1014,6 +1104,8 @@ export interface RecordFormOptions extends ComponentOptions {
     id?: string | null;
     /** Initial values overriding the described ones (never sent unless they are fields of the action). */
     values?: Record<string, unknown>;
+    /** false: no Cancel button (a form that stays on its page, such as a query's parameters). Default true. */
+    cancel?: boolean;
 }
 /** Events of `RecordForm`. */
 export interface RecordFormEvents {
@@ -1040,12 +1132,16 @@ export interface RecordForm extends Component<RecordFormEvents> {
     submit(): Promise<unknown>;
     values(): Record<string, unknown>;
     dirty(): boolean;
+    /** Fills the action's fields (other keys ignored) once the form is shown, without submitting or `changed`. */
+    setValues(values: Record<string, unknown>): Promise<void>;
 }
 /** Options of `RecordDetails`. */
 export interface RecordDetailsOptions extends ComponentOptions {
     view: ViewReference<ListKindOptions>;
     /** The row to show, or a record id (loaded through the view's `get`). */
     record: Row | string;
+    /** false: no `ID · n` line above the fields. Default true. */
+    showId?: boolean;
 }
 /** Read-only record details as the list's `Adatok` command shows them (`recordFields`). */
 export interface RecordDetails extends Component<Record<string, never>> {
@@ -1304,6 +1400,40 @@ export interface CommandBar extends Component<CommandBarEvents> {
     readonly toolbar: Suite.Toolbar;
     update(id: string, changes: Partial<Omit<CommandButton, "id" | "type">>): void;
 }
+/**
+ * A region of a page's panel tree (`PageLayout`): a leaf with its own `id` (`[a-z][a-z0-9_-]*`, unique), or a branch of
+ * `rows` or `cols`; the options of a list view's `LayoutRegion`. At most 6 levels and 30 regions; sizes 40–3000 px.
+ */
+export interface PageRegion {
+    id?: string;
+    /** Plain text (escaped; a view's declared header arrives translated). */
+    header?: string;
+    rows?: PageRegion[];
+    cols?: PageRegion[];
+    width?: number;
+    height?: number;
+    minWidth?: number;
+    minHeight?: number;
+    resizable?: boolean;
+    collapsable?: boolean;
+    collapsed?: boolean;
+}
+export interface PageLayoutOptions extends ComponentOptions {
+    /** The preference key of the panel sizes and collapsed panels (per page and user), usually the view id. */
+    id: string;
+    /** The declared panel tree, typically the view's `options.layout`; an invalid tree throws `TypeError`. */
+    tree: PageRegion;
+}
+/**
+ * A page's panels: one Suite space Layout from a declared tree with the list layout's behaviour (escaped headers,
+ * saved sizes and collapsed panels, resizer double-click restores the declared sizes). Has no events.
+ */
+export interface PageLayout extends Component<Record<string, never>> {
+    /** The cell of a declared region, a mount target of every component; an undeclared id throws `Error`. */
+    cell(id: string): LayoutCell;
+    /** Puts a Suite widget, a public component or a plain element into a declared region (released with the layout). */
+    attach(id: string, content: Mountable): void;
+}
 /** Events of `CommandBar`. */
 export interface CommandBarEvents {
     /** An item was clicked, also from the collapsed `Műveletek` menu. */
@@ -1325,6 +1455,7 @@ export interface Components {
     readonly MediaPlayer: ComponentClass<MediaPlayerOptions, MediaPlayer>;
     readonly SandboxFrame: ComponentClass<SandboxFrameOptions, SandboxFrame>;
     readonly CommandBar: ComponentClass<CommandBarOptions, CommandBar>;
+    readonly PageLayout: ComponentClass<PageLayoutOptions, PageLayout>;
 }
 /**
  * Sign-in extension point (docs/shell.md#sign-in-modules): the restricted API a project's sign-in module receives on

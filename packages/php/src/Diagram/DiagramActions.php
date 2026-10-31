@@ -47,7 +47,7 @@ final class DiagramActions
             $actions[] = new Action($resource, 'type_delete', 'Elemtípus törlése', [], fn(Context $ctx, array $target) => $this->deleteType($target['type']), resolve: fn(Context $ctx, ?string $id) => $this->customType($id), write: true, icon: 'dxi dxi-delete-outline');
         }
         foreach ($actions as $action) $registry->add($action);
-        $registry->diagram($resource, $this->definition->title, array_map(static fn($action) => $action->name, $actions), $this->definition->metadata(), $this->definition->group, $this->definition->icon, $this->definition->desktopOnly);
+        $registry->diagram($resource, $this->definition->title, array_map(static fn($action) => $action->name, $actions), $this->definition->metadata(), $this->definition->group, $this->definition->icon, $this->definition->desktopOnly, guide: $this->definition->guide);
     }
 
     /** Space-level actions take no id; the ACL object is the space, which never reaches the browser. */

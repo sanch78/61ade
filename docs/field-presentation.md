@@ -72,6 +72,27 @@ A third presentation, `presentation: "image"` with `imageBase` (and optional
 `altOf`), shows a text field holding a static application image file name in
 the same slots; see [static image column](workspaces.md#media-tiles).
 
+<a id="dátum-date"></a>
+
+## Calendar date (`date`)
+
+```json
+{"name": "date", "label": "Dátum", "type": "date", "max": 10,
+ "column": {"editable": true}}
+```
+
+The value is a real calendar date `YYYY-MM-DD` (or empty when optional); the
+server and the browser reject anything else ("Érvényes dátum szükséges
+(ÉÉÉÉ-HH-NN)."). `max` is at least 10; a date field cannot be secret. Forms
+show the native Suite DatePicker (popup calendar, weeks from Monday); a date
+can also be typed or cleared in the input. Suite 9.3 repaints a typed value
+away when its popup closes, so the framework sets a typed valid date, or a
+cleared field, again once the input leaves or the popup closes; a day picked in
+the popup wins. An editable column uses the Grid `datePicker` cell editor and
+saves through `__edit` like other cells. Filters match a date part (`2026-10`)
+like text. Calendar extra fields may also be `date`; the event form shows the
+same DatePicker but without the typed-date fix, so a date is picked there.
+
 Two column presentations take typed data only: `media` (the file-manager
 resource whose file id the field holds; thumbnail, type icon, duration badge
 and a type-stating accessible name) and `presentation: "icon"` (a Suite icon

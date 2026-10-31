@@ -1,7 +1,10 @@
 // D1 Signage Médiatár (docs/demos.md#toolkit-consumer): the record view kind `demo.asset-viewer`. A Layout from
 // `app.dhx` with the 61ade CommandBar (play, pause, position, loop), the asset's RecordDetails and a stage cell with the
-// MediaPlayer; `modules/signage.json` declares the view and opens it from Médiatár for audio and video assets.
-import type { Application, ApplicationModule, CommandBar, ListKindOptions, MediaDescriptor, MediaPlayer, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
+// MediaPlayer (image, video, audio) or a SandboxFrame running the scene (an animation asset); `modules/signage.json`
+// declares the view and opens it from Médiatár for every playable asset. Also the media type `demo.scene` (scene files
+// are `Animáció` with the 61ade animation glyph) and the record command `demo.play` (`Lejátszás`) of the Médiatár toolbar.
+import type { Application, ApplicationModule, CommandBar, ListKindOptions, MediaDescriptor, MediaPlayer, Row, SandboxFrame, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
+import { SCENE_HEAD, SCENE_READY, SCENE_TAIL, SCENE_TYPE, sceneState, type SceneState } from "./scene";
 
 /** `views.demo.asset-viewer.options` of signage.json. */
 type ViewerOptions = { loop?: boolean; details?: string };
@@ -26,6 +29,12 @@ function mediaOf(list: ViewDefinition<ListKindOptions> | undefined, row: Row): {
   return undefined;
 }
 
+/** What the stage plays: a MediaPlayer kind, a scene, or nothing. */
+function stageKind(media: MediaDescriptor | undefined): "image" | "video" | "audio" | "scene" | undefined {
+  const mime = media?.mime_type.toLowerCase() ?? "", kind = mime.split("/")[0];
+  return mime === SCENE_TYPE ? "scene" : kind === "image" || kind === "video" || kind === "audio" ? kind : undefined;
+}
+
 /**
  * One opening of the viewer. The content is built for the current width (side-by-side details on a desktop, stacked on
  * a phone) and rebuilt when the width crosses 768 px, keeping the position; each build owns an AbortController that
@@ -34,18 +43,20 @@ function mediaOf(list: ViewDefinition<ListKindOptions> | undefined, row: Row): {
 function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOptions>): ViewInstance {
   const t = (key: string, params?: Record<string, unknown>) => app.i18n.t(key, params);
   if (!host.record) throw new Error(t("A médianéző egy médiaelemhez nyílik meg."));
-  const row = host.record.row, listId = view.options?.details ?? host.record.resource;
+  const row = host.record.row, asset = String(host.record.id), listId = view.options?.details ?? host.record.resource;
   const list = app.viewDefinition(listId) as ViewDefinition<ListKindOptions> | undefined;
-  const found = mediaOf(list, row), kind = found?.media.mime_type.split("/")[0];
-  const playable = kind === "image" || kind === "video" || kind === "audio", timed = kind === "video" || kind === "audio";
+  const found = mediaOf(list, row), kind = stageKind(found?.media);
+  const playable = kind !== undefined, timed = kind === "video" || kind === "audio" || kind === "scene";
   const preferences = app.preferences.scope(KIND), phone = matchMedia(PHONE);
   let loop = preferences.get<boolean>("loop") ?? !!view.options?.loop;
   let build: AbortController | undefined, player: MediaPlayer | undefined, resume = 0;
+  // The scene's frame and its last `scene.state` (its clock runs inside the frame; the viewer only follows it).
+  let frame: SandboxFrame | undefined, scene: SceneState | undefined;
   host.setTitle(`${view.title}: ${String(row.title ?? host.record.id)}`);
 
   const render = (): void => {
     if (host.signal.aborted) return;
-    resume = player?.position() ?? resume;
+    resume = player?.position() ?? (scene ? scene.time % scene.duration : resume);
     const previous = build, controller = build = new AbortController(), signal = controller.signal;
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     const stage = playable ? [{ id: "stage" }] : [];
@@ -56,8 +67,10 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     host.attach(layout);
     previous?.abort();
     player = undefined;
+    frame = undefined;
+    scene = undefined;
 
-    const position = (seconds: number) => t("Pozíció: {position} / {length}", { position: clock(seconds), length: clock(player?.duration() ?? 0) });
+    const position = (seconds: number) => t("Pozíció: {position} / {length}", { position: clock(seconds), length: clock(player?.duration() ?? scene?.duration ?? 0) });
     const status = !found ? t("Ehhez az elemhez nincs megjeleníthető médiafájl.") : !playable ? t("Ez a fájltípus nem játszható le.") : timed ? position(resume) : "";
     const media = ["play", "pause", "rewind", "backward", "forward", "loop"];
     const bar: CommandBar = new app.components.CommandBar({ signal, items: [
@@ -67,13 +80,21 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       { id: "rewind", label: t("Elejére"), icon: "dxi dxi-chevron-double-left", disabled: true, hidden: !timed },
       { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-left", disabled: true, hidden: !timed },
       { id: "forward", label: t("Előre {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-right", disabled: true, hidden: !timed },
-      { id: "loop", label: loop ? t("Ismétlés: be") : t("Ismétlés: ki"), icon: "dxi dxi-redo", disabled: true, hidden: !timed },
+      // A scene loops by its own length.
+      { id: "loop", label: loop ? t("Ismétlés: be") : t("Ismétlés: ki"), icon: "dxi dxi-redo", disabled: true, hidden: !timed || kind === "scene" },
       { type: "spacer" },
       { id: "position", label: status, disabled: true, hidden: status === "" },
     ] });
     bar.mount(layout.getCell("commands"));
     bar.on("click", ({ id }) => {
       if (id === "back") { if (!app.navigate({ view: listId })) host.close(); return; }
+      if (frame) {
+        const at = scene ? scene.time % scene.duration : 0;
+        if (id === "play" || id === "pause") frame.post("scene." + id, {});
+        else if (id === "rewind") frame.post("scene.seek", { at: 0 });
+        else if (id === "backward" || id === "forward") frame.post("scene.seek", { at: Math.max(0, at + (id === "forward" ? STEP : -STEP)) });
+        return;
+      }
       if (!player) return;
       if (id === "play") void player.play().catch(() => {});
       else if (id === "pause") player.pause();
@@ -84,7 +105,32 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
 
     if (list) new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.getCell("details"));
 
-    if (found && playable) player = new app.components.MediaPlayer({
+    if (found && kind === "scene") {
+      const current = frame = new app.components.SandboxFrame({ signal, title: t("Jelenet: {title}", { title: String(row.title ?? found.media.name) }), readyTimeout: SCENE_READY });
+      const failed = (message: string) => { for (const id of media) bar.update(id, { disabled: true }); bar.update("position", { label: message, hidden: false }); };
+      current.on("message", ({ type, payload }) => {
+        const state = type === "scene.state" ? sceneState(payload) : undefined;
+        if (!state) return;
+        scene = state;
+        bar.update("position", { label: position(state.time % state.duration) });
+      });
+      // Every error of a SandboxFrame (code, timeout, size, protocol) arrives as the page-wide framework event.
+      app.events.on("sandbox:error", ({ message }) => { if (frame === current) failed(t("A jelenet hibát jelzett: {message}", { message })); }, { signal });
+      current.mount(layout.getCell("stage"));
+      // The scene code through `signage_playlist.scene`: the server checks that the actor may read the file.
+      void app.server.call<{ code?: unknown }>("signage_playlist", "scene", { values: { asset }, signal }).then(async answer => {
+        if (typeof answer?.code !== "string") throw new TypeError(t("A jelenet nem érkezett meg."));
+        await current.load(SCENE_HEAD + answer.code + SCENE_TAIL);
+        if (signal.aborted) return;
+        for (const id of media) bar.update(id, { disabled: false });
+        current.post("scene.seek", { at: resume });
+      }).catch(error => {
+        if (signal.aborted || (error as Error)?.name === "AbortError") return;
+        failed(error instanceof Error ? error.message : String(error));
+      });
+    }
+
+    if (found && playable && kind !== "scene") player = new app.components.MediaPlayer({
       source: { resource: found.source, action: "content_stream", id: found.media.id, version: found.media.revision },
       mime: found.media.mime_type, name: String(row.title ?? found.media.name),
       // Images keep the player's zoom toolbar; audio and video are driven by the command bar (its loop, not the player's).
@@ -109,10 +155,20 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
 
   render();
   phone.addEventListener("change", render, { signal: host.signal });
-  return { destroy: () => { build?.abort(); player = undefined; } };
+  return { destroy: () => { build?.abort(); player = undefined; frame = undefined; } };
 }
 
 const assets: ApplicationModule = app => {
   app.kinds.register(KIND, { create: (host, view: ViewDefinition<ViewerOptions>) => viewer(app, host, view) });
+  // Scene files are the library's animations: `Animáció` with the 61ade animation glyph in every media slot and picker.
+  app.mediaTypes.register("demo.scene", { mime: [SCENE_TYPE], label: "Animáció", icon: "blade-icon blade-icon--animation" });
+  // `Lejátszás` on the Médiatár toolbar: opens the viewer for the cursor asset when it has something to play.
+  const playable = (view: ViewDefinition, row: Row | undefined) =>
+    !!row && !!app.viewDefinition(KIND) && stageKind(mediaOf(view as ViewDefinition<ListKindOptions>, row)?.media) !== undefined;
+  app.commands.register("demo.play", {
+    label: "Lejátszás", icon: "dxi dxi-menu-right", placement: "record",
+    enabled: ({ view, row, rows }) => rows.length <= 1 && playable(view, row),
+    run: ({ app, row }) => { if (row) app.navigate({ view: KIND, record: String(row.id) }); },
+  });
 };
 export default assets;

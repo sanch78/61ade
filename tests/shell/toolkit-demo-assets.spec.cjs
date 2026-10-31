@@ -4,16 +4,17 @@ const path=require('node:path');
 const {execFileSync}=require('node:child_process');
 const {signIn,command,api}=require('./feature-demo.cjs');
 // Toolkit D1 (docs/demos.md#toolkit-consumer): Digitális kijelző → Médiatár with the synthetic audio assets and the
-// project record view `demo.asset-viewer` (frontend/src/assets.ts): activation by the file's media class (audio and
-// video open the viewer, an image its details) in table, cards and tiles; the viewer's CommandBar (play, pause,
-// position, loop), RecordDetails and MediaPlayer; back navigation, reload of the address, a record change, the phone
-// layout, themes and clean destruction. Assets and files created here start with the run prefix and are removed
+// project record view `demo.asset-viewer` (frontend/src/assets.ts): activation by the file's MIME type or class (audio,
+// video, images and the scene type `text/javascript` open the viewer) in table, cards and tiles and the toolbar command
+// `Lejátszás` (demo.play); the viewer's CommandBar (play, pause, position, loop), RecordDetails, MediaPlayer and the
+// scene's SandboxFrame; back navigation, reload of the address, a record change, the phone layout, themes and clean
+// destruction. Assets and files created here start with the run prefix and are removed
 // afterwards; the seeded demo data (FB-0082) is never changed.
 const prefix='pd'+Date.now().toString(36);
 const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'demo';
 const php=code=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${runtime}/${instance}/features.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');${code}`],{encoding:'utf8'});
 const fixture=name=>fs.readFileSync(path.resolve(__dirname,'../../examples/demo-app/resources/files',name));
-const WAV='Szinuszhang 440 Hz (WAV)',MP3='Szinuszhang 660 Hz (MP3)',M4A='Szinuszhang 880 Hz (M4A)',VIDEO='Promóciós videó',IMAGE='Logó állókép';
+const WAV='Szinuszhang 440 Hz (WAV)',MP3='Szinuszhang 660 Hz (MP3)',M4A='Szinuszhang 880 Hz (M4A)',VIDEO='Promóciós videó',IMAGE='Logó állókép',SCENE='Animált jelenet';
 test.describe.configure({mode:'serial'});
 test.afterAll(()=>php(`
  $db->exec("DELETE FROM signage_assets WHERE title LIKE '${prefix}%'");
@@ -23,7 +24,6 @@ const grid=page=>page.locator('[data-cell-id="grid"]');
 const row=(page,title)=>grid(page).locator('.dhx_grid-row').filter({has:page.getByRole('gridcell',{name:title,exact:true})});
 const card=(page,title)=>grid(page).locator('.blade-grid-card').filter({hasText:title}).first();
 const tile=(page,title)=>grid(page).locator('.blade-grid-tile').filter({hasText:title}).first();
-const details=page=>page.getByRole('dialog',{name:'Rekordadatok'});
 const audio=page=>page.locator('.blade-audio-stage audio');
 const button=(page,name)=>page.getByRole('button',{name,exact:true});
 const position=page=>page.getByRole('button',{name:/^Pozíció: \d+:\d\d \/ \d+:\d\d$/});
@@ -108,10 +108,10 @@ test('Médiatár lists the audio assets with type and length; an audio file uplo
  expect(errors).toEqual([]);
 });
 
-test('activation by media class: audio and video open the viewer, an image its details, in table, cards and tiles',async({page})=>{
+test('activation by MIME type or class: audio, video, images and scenes open the viewer, in table, cards and tiles',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await openLibrary(page);
- const wav=await assetId(page,WAV),video=await assetId(page,VIDEO),image=await assetId(page,IMAGE);
+ const wav=await assetId(page,WAV),video=await assetId(page,VIDEO),image=await assetId(page,IMAGE),scene=await assetId(page,SCENE);
  // Table: double-click and Enter; the browser's Back returns to the list.
  await row(page,WAV).locator('[data-dhx-col-id="media_type"]').dblclick();
  await viewerOpen(page,wav,WAV);
@@ -120,20 +120,31 @@ test('activation by media class: audio and video open the viewer, an image its d
  await viewerOpen(page,video,VIDEO,'video');
  await button(page,'Vissza a listához').click();await expect(page).toHaveURL(/#view=signage_assets$/);await expect(page.locator('.blade-player')).toHaveCount(0);
  await row(page,IMAGE).locator('[data-dhx-col-id="media_type"]').dblclick();
- await expect(details(page)).toBeVisible();await expect(details(page)).toContainText(IMAGE);await expect(page).toHaveURL(/#view=signage_assets$/);
- await page.keyboard.press('Escape');await expect(details(page)).toHaveCount(0);
+ await expect(page).toHaveURL(viewerUrl(image));await expect(page.locator('.blade-player .blade-image-stage')).toBeVisible();
+ await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);
+ // A scene (text/javascript, `Animáció` with the animation glyph) opens by the exact MIME type entry; the toolbar
+ // command `Lejátszás` opens the cursor asset the same way.
+ await expect(await cell(page,SCENE,'Típus')).toHaveText('Animáció');
+ await expect(row(page,SCENE).locator('.blade-media__icon.blade-icon--animation')).toHaveCount(1);
+ await row(page,SCENE).locator('[data-dhx-col-id="media_type"]').click();
+ await button(page,'Lejátszás').click();
+ await expect(page).toHaveURL(viewerUrl(scene));await expect(page.frameLocator('iframe').locator('canvas')).toHaveCount(1);
+ await expect(button(page,'Lejátszás')).toBeEnabled();await expect(position(page)).toBeVisible();
+ await button(page,'Lejátszás').click();await expect(button(page,'Szünet')).toBeEnabled();
+ await button(page,'Vissza a listához').click();await expect(page).toHaveURL(/#view=signage_assets$/);await expect(page.locator('iframe')).toHaveCount(0);
  // Cards and tiles name the per-row target and open the same views.
  for(const [label,item] of [['Kártyák',card],['Csempék',tile]]){
   await mode(page,label);
   await expect(item(page,WAV)).toHaveAttribute('aria-description','Megnyitás: Médianéző');
   await expect(item(page,VIDEO)).toHaveAttribute('aria-description','Megnyitás: Médianéző');
-  await expect(item(page,IMAGE)).toHaveAttribute('aria-description','Megnyitás: Adatok');
+  await expect(item(page,IMAGE)).toHaveAttribute('aria-description','Megnyitás: Médianéző');
+  await expect(item(page,SCENE)).toHaveAttribute('aria-description','Megnyitás: Médianéző');
   await item(page,WAV).dblclick();await viewerOpen(page,wav,WAV);
   await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);
   await item(page,VIDEO).click();await page.keyboard.press('Enter');await viewerOpen(page,video,VIDEO,'video');
   await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);
-  await item(page,IMAGE).dblclick();await expect(details(page)).toBeVisible();await expect(page).toHaveURL(/#view=signage_assets$/);
-  await page.keyboard.press('Escape');await expect(details(page)).toHaveCount(0);
+  await item(page,IMAGE).dblclick();await expect(page).toHaveURL(viewerUrl(image));
+  await page.goBack();await expect(page).toHaveURL(/#view=signage_assets$/);
  }
  await mode(page,'Táblázat');
  // Opened by its address, an image record shows the image stage with the player's zoom toolbar and no media commands.

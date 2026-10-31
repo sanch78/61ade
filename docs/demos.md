@@ -90,8 +90,10 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | File manager | Two panels with independent Drive A/B/C mounts and a draggable divider, each switchable between file listing (row marking, MIME icons) and a folder tree with files, new folder (depth ≤ 5), copy/move to the opposite panel with the conflict dialog, the framework [uploader](uploader.md) (txt, md, csv, json, png, jpg, mp4, webm, mp3, wav, m4a; 5 MB, 20 files; chunked and resumable, folders, paste, background with a shell indicator), TXT editor with revision conflicts; listing/tiles/tree per panel with server search, type filter, sort and paging; rename (F2), delete (Del, real delete policy), single-file and streamed ZIP download; drop/paste onto a panel; image viewer, video and audio player streamed with HTTP Range, 320 px WebP thumbnails from background tasks, content in a disk store; desktop only (`desktopOnly`), narrower windows show a notice; [details](files.md) | Feature demo → Fájlkezelő; `reader@example.test` browses and reads only; below 768 px |
 | Network topology builder | Visual diagram editor: drag network elements from the palette, move them, connect them by the element handle with Ethernet/fibre/Wi-Fi/VPN/WAN connections, edit captions and details in the property form, save with revision check; define new element types (name, glyph, shape, colour) at runtime; two synthetic topologies; desktop only; [details](diagrams.md) | Feature demo → Hálózati topológia; `reader@example.test` views only |
 | Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
+| Registry editor (tree navigation, conditional fields) | `Regisztrációs adatbázis` ([registry.json](../examples/demo-app/modules/registry.json)): a Windows registry editor imitation. The key tree (`Registry::tree` over the `Kulcsok` hierarchy) loads children on expansion, its toolbar adds, edits (renames or moves, guarded against cycles) and deletes keys (with their subtree and values); the value list beside it is scoped to the selected key. The value form shows the editor of the chosen `Típus` only (`visible_when`): text, multi-line text, hexadecimal DWORD/QWORD or a byte string, each with its own pattern; the `Adat` column is computed SQL | Feature demo → Regisztrációs adatbázis; `reader@example.test` browses only |
+| View guides | Every `Feature demó` entry opens with a closable `Útmutató` window saying what the view demonstrates and what to try; closed once, it stays closed in that browser, and the lower bar's `Útmutató` button shows it again | Any `Feature demó` entry |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Üres polc`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `C zóna` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
-| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content (asset) select and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter opening audio and video in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)) and images in their details, delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date; `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
+| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date (a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
 | Appearance | Skyblue/light/dark, lower information bar and mobile menu | Any view |
@@ -146,9 +148,10 @@ starter admin and the tenant demo stay declarative and load no project module.
 | --- | --- | --- | --- |
 | D0 | Build, declaration, empty module | `index.ts` | Implemented; registers nothing visible |
 | D1 | Signage `Médiatár` asset viewer | `assets.ts` | Implemented ([below](#d1-asset-viewer)) |
-| D2 | Signage `Napi műsor` playlist preview | `playlist.ts` | Implemented ([below](#toolkit-d2-playlist)) |
+| D2 | Signage `Napi műsor` playlist preview | `playlist.ts`, `player.ts` | Implemented ([below](#toolkit-d2-playlist)) |
 | D3 | `Mérések` dashboard | `readings.ts` | Implemented ([below](#readings-dashboard)) |
 | D4 | `Tasks` field type and command | `tasks.ts` | Implemented: field type `demo.rating` on `Prioritás` and record command `demo.copy-text` ([below](#toolkit-d4-tasks)) |
+| D5 | Signage `Lejátszási listák` playlist editor | `playlist-editor.ts` | Implemented: record view kind `demo.playlist-editor` and record command `demo.edit-playlist` ([below](#d5-playlist-editor)) |
 | D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` and `app/demo.css` on the feature demo |
 
 <a id="readings-dashboard"></a>
@@ -271,15 +274,24 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   `record: signage_assets`, action `get`, `open: page`, options `loop` and
   `details`, the list view whose details and media column it uses) and the
   `Médiatár` activation map
-  `{"field": "file_id", "map": {"audio": "view:demo.asset-viewer", "video": "view:demo.asset-viewer", "*": "details"}}`,
-  keyed by the MIME class of the file field's file
-  ([activation map](toolkit.md#activation-map)).
+  `{"field": "file_id", "map": {"image": "view:demo.asset-viewer", "audio": "view:demo.asset-viewer", "video": "view:demo.asset-viewer", "text/javascript": "view:demo.asset-viewer", "*": "details"}}`,
+  keyed by the exact MIME type, else the class, of the file field's file
+  ([activation map](toolkit.md#activation-map)), and the view command
+  `demo.play` (`Lejátszás`, a record command on the toolbar, enabled for an
+  asset with something to play).
 - **Kind** ([assets.ts](../examples/demo-app/frontend/src/assets.ts)): an
   `app.dhx.Layout` with the 61ade `CommandBar` (`Vissza a listához`,
   `Lejátszás`, `Szünet`, `Elejére`, `Vissza 5 mp`, `Előre 5 mp`,
   `Ismétlés: ki/be`, the position `Pozíció: m:ss / m:ss`), the asset's
   `RecordDetails` and a stage cell with the `MediaPlayer` (native controls;
-  the player's own toolbar only for an image, whose zoom it keeps). The loop
+  the player's own toolbar only for an image, whose zoom it keeps) or, for an
+  animation (a scene file, `text/javascript`), a `SandboxFrame` running the
+  scene code from `signage_playlist.scene` with the shared runtime of
+  [scene.ts](../examples/demo-app/frontend/src/scene.ts): the commands drive
+  the scene clock (`scene.play`/`pause`/`seek`), the position follows its
+  `scene.state`, the loop command is hidden (a scene loops by its length).
+  The module also registers the media type `demo.scene` (`Animáció`, the 61ade
+  animation glyph) for scene files. The loop
   is the command bar's: at the end it seeks to 0 and plays again; the choice
   is the `demo.asset-viewer` browser preference. Every build owns an
   `AbortController` that the host's signal aborts, which destroys the command
@@ -289,10 +301,11 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   it they stack under the stage and the commands collapse into `Műveletek`;
   crossing the width rebuilds the content and keeps the position. Colours come
   from the Suite variables (Skyblue, light, dark, skins); no project CSS.
-- **Try:** `Digitális kijelző` → `Médiatár`: double-click or Enter on an audio
-  or video asset (table, `Kártyák`, `Csempék`) opens `Médianéző` at
+- **Try:** `Digitális kijelző` → `Médiatár`: double-click or Enter on an
+  image, video, audio or animation asset (table, `Kártyák`, `Csempék`), or
+  `Lejátszás` on the toolbar, opens `Médianéző` at
   `#view=demo.asset-viewer&record=<id>` (reload keeps it, Back returns); an
-  image opens its `Rekordadatok`. `reader@example.test` views too. Texts are
+  asset without a file opens its `Rekordadatok`. `reader@example.test` views too. Texts are
   Hungarian source keys with English in `resources/locales/en.json`; the demo
   offers no German ([FB-0052](feedback.md#fb-0052)), so German exists only in
   the framework catalogue (`Hang`).
@@ -334,74 +347,161 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   `demo@example.test` and `reader@example.test`. The page fetches the code
   through the action, never as a static file: the frame has
   `connect-src 'none'`.
-- **Kind** ([playlist.ts](../examples/demo-app/frontend/src/playlist.ts)): an
-  `app.dhx.Layout` with a Suite Form `datepicker` `Nap` (today by default,
-  `#view=demo.playlist-preview&filter.date=YYYY-MM-DD` presets it), the 61ade
-  `CommandBar` (`Előző nap`, `Ma`, `Következő nap`, `Lejátszás`, `Szünet`,
-  `Elejére`, `Előző elem`, `Következő elem`, `Pozíció: m:ss / m:ss`), the
-  timeline strip, a Suite `Slider` (`Lejátszási pozíció`, 0.1 s steps) for
-  scrubbing, the stage (a caption and the screen) and the collapsible
-  `API-kérés és válasz` panel with the day's request and answer as the earlier
-  calendar window showed them. The preview plays every timeline entry once,
-  in order, for the asset's play time (`Lejátszási idő`, 1–3600 s); an entry
-  without content takes 3 s. The strip shows each entry (time range, title,
-  type, seconds; width by play time) with a playhead; a click (Enter, Space)
-  seeks to its start. Image, video and audio entries play in the
-  `MediaPlayer` (no toolbar or native controls, media looped within the
-  entry, resynchronised when more than 1 s off); a scene runs in a
-  `SandboxFrame` (`readyTimeout` 5 s, the frame's 1 MiB code limit). The run
-  stops at its end; a day change fetches the day again and starts at 0,
-  paused.
+- **Declaration panels:** `options.layout` is the page's
+  [`PageLayout`](toolkit.md#pagelayout) tree: `commands` above `player`
+  (`Előnézet`); one tree for every width. The `day` action has the icon
+  `dxi dxi-calendar-today`.
+- **Kind** ([playlist.ts](../examples/demo-app/frontend/src/playlist.ts)),
+  built from 61ade components ([FB-0108](feedback.md#fb-0108)): the
+  `CommandBar` `Előző nap`, the shown day (`YYYY-MM-DD · weekday`),
+  `Következő nap`, `Ma` and `Naptár…`, which opens a framework window with the
+  `day` action's own `RecordForm` (the date with its date picker, submit
+  `Napi műsor`); its answer is the day shown. The day is today by default;
+  `#view=demo.playlist-preview&filter.date=YYYY-MM-DD` presets it. The page
+  asks the day through `signage_playlist.day`; the request and its JSON answer
+  are the calendar's `Napi műsor (API)` window, not repeated here.
+- **Player** ([player.ts](../examples/demo-app/frontend/src/player.ts)), the
+  demo's shared player, also the playlist editor's preview: the stage (caption
+  and screen), its `CommandBar` (`Lejátszás`, `Szünet`, `Elejére`,
+  `Előző elem`, `Következő elem`, `Pozíció: m:ss / m:ss`) and the timeline
+  strip. It plays every timeline entry once, in order, for the asset's play
+  time (`Lejátszási idő`, 1–3600 s); an entry without content takes 3 s; a
+  playlist slot plays one round of its items with their transitions. The strip
+  shows each entry (time range, title, type, seconds; width by play time) with
+  a playhead; a click seeks to that point of the entry (Enter, Space: to its
+  start). Image, video and audio entries play in the `MediaPlayer` (no toolbar
+  or native controls, looped within the entry, resynchronised when more than
+  1 s off); a scene runs in a `SandboxFrame` (`readyTimeout` 5 s, the frame's
+  1 MiB code limit). Each entry enters on its own layer, with its transition
+  where it has one. The run stops at its end; a day change starts the new day
+  at 0, paused.
 - **Module ↔ frame protocol** (project messages of the documented
-  `SandboxFrame` envelope): the module sends the delivered code wrapped in its
+  `SandboxFrame` envelope): the player sends the delivered code wrapped in its
   scene runtime (canvas, scene clock, method check) through `load`;
   parent → frame `scene.play`, `scene.pause` and `scene.seek` with
   `{at}` (seconds into the entry; the scene loops by its own duration),
   frame → parent `scene.state` `{time, local, duration, playing, frames}`
   after every command and twice a second while playing. The playhead drives
-  the scene: play and pause with the run, `scene.seek` on every scrub or jump.
+  the scene: play and pause with the run, `scene.seek` on every jump.
   The caption shows the reported state (`Jelenet: 3,2 / 12,0 mp`) and keeps
   it as `data-demo-scene-*` attributes; a frame error arrives through the
-  page's `sandbox:error` event (`A jelenet hibát jelzett: …`) and leaves the
-  rest of the page working.
-- **Lifecycle:** each build owns an `AbortController` that the host's signal
-  aborts; each stage (one entry) owns another, aborted when the playhead
-  leaves the entry, on a day change and on close. They destroy the command
-  bar, form, slider, `MediaPlayer` or `SandboxFrame` (the iframe is removed),
-  the `sandbox:error` subscription, the click and pointer listeners, the
-  playback interval and the animation frame. New content is mounted before
-  the old is released.
-- **Responsive and themes:** from 768 px the day picker and commands share a
-  row and the API panel is a 420 px column beside the stage; below it
-  everything stacks, the commands collapse into `Műveletek`, the strip
-  scrolls sideways and the API panel starts collapsed. Crossing 768 px
-  rebuilds the page with the same day, position and playback. Colours are
-  Suite variables in `frontend/src/playlist.css` (Skyblue, light, dark,
-  skins); the scene draws its own content colours.
-- **Limits:** the Suite Slider thumb has no ARIA role or value, so the
-  position is also the command bar's `Pozíció` text and the strip items and
-  commands are the keyboard route. The strip is HTML in a Layout cell
-  (`attachHTML`); its clicks are handled on the document for that build only.
-  `sandbox:error` names no frame, so the stage counts it only while its scene
-  frame is the stage. The preview plays entries once each; it does not
-  simulate wall-clock time of day.
+  frame's `error` event (and the page's `sandbox:error`) as
+  `A jelenet hibát jelzett: …` and leaves the rest of the page working.
+- **Lifecycle:** the view's `AbortController` (aborted by the host's signal)
+  destroys the command bars, the open `Naptár…` window, the `MediaPlayer` or
+  `SandboxFrame` (the iframe is removed), the strip's listeners, the playback
+  interval and the animation frame; the page layout goes last. Each entry's
+  layer owns another controller, aborted when the playhead leaves the entry
+  (after its transition) and on a day change.
+- **Responsive and themes:** below 768 px both command bars collapse into
+  `Műveletek` and the strip scrolls sideways; widening keeps the day, position
+  and playback. Colours are Suite variables in
+  `frontend/src/player.css` (light, dark, skins); the scene draws its own
+  content colours.
+- **Limits:** the preview plays entries once each; it does not simulate
+  wall-clock time of day. The strip is the demo's own HTML (in its own
+  element of the player); its buttons are the keyboard route.
 - **Data step** for an existing demo database (the managed URL):
   `BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`
   adds the scene file, asset and event and the `signage_playlist.scene`
   rights.
 - **Try:** `Digitális kijelző` → `Napi műsor` (today, with `Esti jelenet` in
-  the evening): `Lejátszás`, click an entry, drag the slider while the scene
-  is on the stage, `Következő nap`, open the API panel, switch the theme and
-  narrow the window below 768 px. English texts are in
-  `resources/locales/en.json`.
+  the evening): `Lejátszás`, click into an entry while the scene is on the
+  stage, `Következő nap`, `Naptár…`, switch the theme and narrow the window
+  below 768 px. English texts are in `resources/locales/en.json`.
 - **Checks:** `php8.4 tests/shell/signage.php` (fixture, event, idempotence,
   `scene` type, code action, limits, rights, view metadata),
   `php8.4 tests/shell/contracts.php` (the view after the real setup);
   `npm run test:browser -- tests/shell/toolkit-demo-playlist.spec.cjs`
-  (timeline, playhead, scene protocol, day change, `sandbox:error`,
-  destruction, phone width, dark theme). `calendar.spec.cjs` (Friday timeline) and
+  (timeline, playhead, seeking within an entry through the scene protocol,
+  day change and `Naptár…`, a failing scene, destruction, phone width, dark
+  theme). `calendar.spec.cjs` (Friday timeline) and
   `browser.spec.cjs` (five `Digitális kijelző` siblings at 1366 px) follow
   the new data and menu entry.
+- **Playlists:** a scheduled playlist slot plays one round of its items, each
+  for its own play time; its strip items carry the list's name
+  (`data-demo-list`) and the calendar's playlist tone as a top rule.
+
+<a id="d5-playlist-editor"></a>
+
+#### D5: `Lejátszási listák` playlist editor (`demo.playlist-editor`)
+
+Modelled on common signage CMS editors (per-item play time as in Yodeck and
+OptiSigns, a list-wide transition with a per-item override as in AbleSign,
+item scheduling and switches as in OptiSigns, shuffle as ScreenCloud's
+dynamic playback).
+
+- **Data** (`signage.php`, project domain): `signage_playlists` (`title`,
+  `transition` none/fade/slide/zoom, `transition_ms` 0–5000, `shuffle`) and
+  `signage_playlist_items` (`playlist_id`, `asset_id`, `position`, and per
+  item `duration` (play time override, 1–3600 s, empty = the asset's),
+  `transition` (empty = the list's), `enabled`, `valid_from`/`valid_to`
+  (inclusive dates, either may be empty)); an asset may repeat, at most 200
+  items. Setup adds missing columns to existing demo databases. The JSON
+  resource `signage_playlists` (`modules/signage.json`) lists them with
+  computed `Elemek`, `Hossz (mp)` (play times with overrides, switched-off
+  items left out) and `Használat`; its form edits the list settings. Its
+  activation map opens every row in the record view (the editable title cell
+  renames inline on double-click), and the record command
+  `demo.edit-playlist` (`Lista szerkesztése`) does the same from the toolbar.
+- **Items as a resource** (`modules/signage.json`, [FB-0108](feedback.md#fb-0108)):
+  `signage_playlist_items` is a JSON resource embedded in `signage_playlists`
+  (its sub-view: no menu entry, the playlist rows expand to their items). Its
+  manual order (`storage.order` on `position` within `playlist_id`) gives the
+  `move` action; computed columns give the asset's thumbnail (`file_id`, a
+  media column through the asset), the effective play time and today's status
+  (`Ma`: an icon column, `Ma lejátszódik`, `Kikapcsolva`, `Lejárt`,
+  `Még nem érvényes`). Play time (pattern 1–3600), transition, switch and
+  validity are editable in the cell and in bulk; `valid_to` is not before
+  `valid_from` and the reverse (the range rules); the guard
+  `signage.playlist_item_limit` refuses a 201st item; the view takes assets
+  dropped from `signage_assets` (`view.drop`). The reader gets `list` and
+  `get`; the editor `create`, `update`, `delete` and `move` too. The list
+  settings go through the playlist's `update`.
+- **Programme:** the calendar's `content` field offers playlists
+  (`playlist:<id>`, `Lejátszási lista: <title>`) and assets (`asset:<id>`);
+  playlist events have the `success` tone. In `signage_playlist.day` a
+  playlist slot lists only the items that play on that date (switched on,
+  within their validity), each with its effective `duration` and
+  `transition` (`{type, ms}`); a shuffled list comes in a stable order per
+  date. Setup migrates older events' `asset_id` to `content` and seeds
+  `Hétvégi válogatás` on a fresh database. Deleting an asset removes its
+  playlist items; deleting a playlist removes its items and blanks its events
+  (usage warnings in both confirmations). Time without events, the night
+  included, plays the day's default content.
+- **View** (`playlist-editor.ts`, desktop only), only 61ade components in the
+  panels the view declares (`options.layout`, [`PageLayout`](toolkit.md#pagelayout)),
+  none showing record ids (`showId: false`):
+  - **Médiatár:** a `ListView` of `signage_assets` under the editor's own view
+    id (`panel: false`: the region is its panel; table, cards or tiles, header
+    filters, the cards' `Szűrés` dialog, sorting; picking only), whose rows are
+    a drag source (`dragSource`; the marked ones together).
+  - **Előnézet:** the demo's shared player ([D2](#toolkit-d2-playlist),
+    `player.ts`): today's playing items in list order, looping and muted, each
+    for its play time with its own or the list's transition.
+  - **A lista elemei:** the items' `ListView` scoped to the playlist: dropped
+    assets land where they are dropped, rows are dragged into order or moved
+    with `Feljebb`/`Lejjebb` and Alt+↑/↓ (a drag-handle column marks them),
+    the switch and the other editable cells save in place, a double-click opens
+    the item's form, marked rows share one bulk form, `Hozzáadás` adds an item
+    by form.
+  - **Összesítés** (`RecordDetails` of the playlist: settings, item count,
+    length, usage; refreshed after every change) and **Lista beállításai**
+    (`RecordForm` over `update`: title, transition, transition length,
+    shuffle). The reader sees the lists and details without commands, drops,
+    moves or the settings form.
+- **Try:** `Digitális kijelző` → `Lejátszási listák`, double-click a list,
+  drag assets from `Médiatár` into it, then pick it in a `Műsorterv` event.
+- **Checks:** `php8.4 tests/shell/signage.php` (the items resource: order,
+  `move`, validation and range rules, the limit, rights, status and effective
+  length; list settings through `update`; day programme with overrides,
+  switch, validity and stable shuffle; usage clearing; content choices and
+  tone), `php8.4 tests/shell/calendar.php` (tone rules), `npm run test:browser --
+  tests/shell/toolkit-demo-playlist-editor.spec.cjs` (opening; the library's
+  header filters and its `Szűrés` dialog in tiles; drops of one and of marked
+  assets; dragging, Alt+↑/↓ and `Feljebb`/`Lejjebb`; the switch, the form
+  with its validation and the bulk form; list settings; preview controls and
+  transition layer; reader; day programme).
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
@@ -533,8 +633,9 @@ See [project rules](development.md#mandatory-framework-development-rules).
 - `npm run test:browser -- tests/shell/sign-in-branding.spec.cjs` ([sign-in customization](shell.md#sign-in-branding)): the sign-in window shows the logo with its accessible name once (the top-row copy `aria-hidden`) and the light or dark image by theme, `branding/sign-in.css` is linked once after `admin.css` and applies through `data-blade-page`; the notice, the keyboard-reachable mailbox link and the module's footer line (following the theme) sit inside the window below the form; a failing module is reported on the console and the sign-in still works; the logo is the inlined product logo with every part addressable and unique gradient ids; after sign-in the logo closes the top row, follows a theme switch and a dark-based skin, and the sign-in stylesheet, content and modules are gone; at 390 px the window fits with everything and the top row leaves the logo out; the starter admin and the tenant demo show the product logo in the window and the top row and none of the rest.
 - `npm run test:browser -- tests/shell/toolkit-demo-tasks.spec.cjs` ([D4](#toolkit-d4-tasks)): `Prioritás` edited through the table cell's edit button, the update and create panel forms and the card editor (pointer and keyboard), saved through `__edit`/`update`/`create` and re-rendered (also in `Adatok`); a value rewritten in transit is refused by the server with the field error in the editor; `Másolás szövegként` disabled without a record, copying the cursor record and the marks (stubbed clipboard, exact text), a refused clipboard in the error dialog, from `Műveletek` at 390 px; the stars follow light/dark/Skyblue. Tasks carry a run prefix and are deleted.
 - `npm run test:browser -- tests/shell/toolkit-demo-readings.spec.cjs`: the [readings dashboard](#readings-dashboard) opens from the menu, its summary and chart data follow the header filter (compared with the `list` action) and the selected row, the theme switch repaints the chart and summary, the phone layout stacks and rebuilds at the breakpoint, navigating away leaves no chart, summary or listener, and a filter set on the dashboard leaves the `Mérések` page unfiltered; the plain `Mérések` list shows `demo.reading-bar` in table, cards and details and still sorts on the server.
-- `npm run test:browser -- tests/shell/toolkit-demo-assets.spec.cjs` (D1; needs the audio assets on the managed demo): audio type and length columns, an audio upload through the asset's file field, activation per media class in table, cards and tiles (`aria-description` `Megnyitás: Médianéző`/`Megnyitás: Adatok`), Back and `Vissza a listához`, an image record by address, play, pause, `Elejére`, `Előre`/`Vissza 5 mp`, loop at the end and its preference across a reload, the details content, a record change, themes, destruction on leaving, an unknown record, and the 390 px layout rebuilt at 1400 px with the position kept. It deletes the assets and files it creates.
+- `npm run test:browser -- tests/shell/toolkit-demo-assets.spec.cjs` (D1; needs the audio assets on the managed demo): audio type and length columns, an audio upload through the asset's file field, activation per MIME type or class in table, cards and tiles (`aria-description` `Megnyitás: Médianéző` for images, video, audio and the animation), the animation's type, glyph, toolbar `Lejátszás` and SandboxFrame stage, Back and `Vissza a listához`, an image record by address, play, pause, `Elejére`, `Előre`/`Vissza 5 mp`, loop at the end and its preference across a reload, the details content, a record change, themes, destruction on leaving, an unknown record, and the 390 px layout rebuilt at 1400 px with the position kept. It deletes the assets and files it creates.
 - `npm run test:browser -- tests/shell/toolkit-demo-playlist.spec.cjs` ([D2](#toolkit-d2-playlist)): see its checks there.
+- `npm run test:browser -- tests/shell/toolkit-demo-playlist-editor.spec.cjs` ([D5](#d5-playlist-editor)): see its checks there.
 - Ignored `.env.test` supplies `BLADE_DEMO_URL` and `BLADE_DEMO_INSTANCE=web`; every browser spec runs against the managed server and none starts a local server ([development](development.md#unified-playwright-configuration)).
 - `npm run test:browser -- --project=shell tests/shell/demo.spec.cjs`: login modes/language row, provider overlay/start, mailbox code/English default, account columns, API issue/use/revoke, starter menu and Tasks. Real provider completion remains unverified; FB-0050 records Google's callback mismatch.
 - `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs`: six combinations on desktop/320×480, keys/focus and invalid-login caller.

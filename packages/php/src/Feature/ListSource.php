@@ -10,8 +10,9 @@ final readonly class ListSource
      * $tenant: tenant column; every read, count and watch is limited to the Context's tenant and fails closed without one.
      * $countWhere: trusted developer SQL that a parent's sub-view count (countBy) adds to the listing scope, for a
      * list that shows more rows than it counts (an access list counts only the accounts with access).
+     * $order: manual order `{field, scope}` (SqlResource): the list is sorted by that field only, ascending by default.
      */
-    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null, private array $search = [], private ?Registry $registry = null, private ?string $tenant = null, private string $countWhere = '1=1')
+    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null, private array $search = [], private ?Registry $registry = null, private ?string $tenant = null, private string $countWhere = '1=1', public ?array $order = null)
     {
         if($tenant!==null&&!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$tenant))throw new \InvalidArgumentException('Invalid tenant column.');
         $known=array_column($fields,null,'name');
@@ -79,6 +80,7 @@ final readonly class ListSource
     }
     public function sortableFields(Context $ctx):array
     {
+        if($this->order)return [$this->order['field']];
         return ['id',...array_values(array_map(static fn($field)=>$field->name,array_filter($this->fields,fn($field)=>!$field->secret&&!in_array($field->type,['textarea','multiselect'],true)&&$this->queryable($ctx,$field->name))))];
     }
     private function cursor(array $position,string $direction):string
@@ -149,7 +151,7 @@ final readonly class ListSource
             foreach($this->searchable($ctx) as $index=>$name){$parts[]="$name LIKE :s$index ESCAPE '!'";$params['s'.$index]='%'.str_replace(['!','%','_'],['!!','!%','!_'],$search).'%';}
             $terms[]='('.($parts?implode(' OR ',$parts):'1=0').')';
         }
-        $sort=$input['sort']??['field'=>'id','direction'=>'desc'];
+        $sort=$input['sort']??($this->order?['field'=>$this->order['field'],'direction'=>'asc']:['field'=>'id','direction'=>'desc']);
         if(!is_array($sort)||array_diff(array_keys($sort),['field','direction'])||!is_string($sort['field']??null)||!in_array($sort['direction']??null,['asc','desc'],true))throw new Failure('Hibás rendezés.');
         $sort=['field'=>$sort['field'],'direction'=>$sort['direction']];
         if(!in_array($sort['field'],$this->sortableFields($ctx),true))throw new Failure('A mező nem rendezhető.',403);

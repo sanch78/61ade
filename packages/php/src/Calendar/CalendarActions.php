@@ -37,7 +37,8 @@ final class CalendarActions
             new Field('recurring_event_id', 'Sorozat', 'number', max: 18),
             $date('original_start', 'Eredeti kezdés', false),
             new Field('deleted', 'Törölt előfordulás', 'checkbox'),
-            ...$this->definition->fields,
+            // Required extra fields are checked in save(): a blank value already stored may stay.
+            ...array_map(static fn(Field $field) => new Field(...[...get_object_vars($field), 'required' => false]), $this->definition->fields),
         ];
         $revision = new Field('revision', 'Verzió', required: true, max: 20);
         $space = fn(Context $ctx) => ['id' => $this->definition->space, 'acl_id' => $this->definition->space, 'owner' => null];
@@ -50,7 +51,7 @@ final class CalendarActions
             new Action($resource, 'delete', 'Esemény törlése', [$revision], fn(Context $ctx, array $target, array $values) => $this->delete($ctx->db, $target['row'], $values['revision']), resolve: $entry, write: true, icon: 'dxi dxi-delete'),
         ];
         foreach ($actions as $action) $registry->add($action);
-        $registry->calendar($resource, $this->definition->title, array_map(static fn($action) => $action->name, $actions), $this->definition->fields, $this->definition->metadata(), $this->definition->group, $this->definition->icon, $this->definition->desktopOnly);
+        $registry->calendar($resource, $this->definition->title, array_map(static fn($action) => $action->name, $actions), $this->definition->fields, $this->definition->metadata(), $this->definition->group, $this->definition->icon, $this->definition->desktopOnly, guide: $this->definition->guide);
     }
 
     /** Raw series, single events and exceptions for the Scheduler, which expands series itself. */
@@ -123,6 +124,13 @@ final class CalendarActions
         } elseif ($original !== null || ($values['deleted'] ?? '0') === '1') throw new Failure('Érvénytelen sorozatkivétel.', 400, ['original_start' => 'Érvénytelen sorozatkivétel.']);
         $data = [];
         foreach ($this->definition->fields as $field) $data[$field->name] = $values[$field->name] ?? ($row ? (json_decode($row['data'], true)[$field->name] ?? '') : ($field->defaultValue ?? ''));
+        // A reference cleared by a usage provider leaves a blank required value; moving, shortening or
+        // deleting occurrences keeps it, only a new blank value is refused.
+        $kept = $row ?? ($series !== null ? $parent : null);
+        $stored = $kept ? (json_decode($kept['data'], true) ?: []) : [];
+        foreach ($this->definition->fields as $field) {
+            if ($field->required && trim((string) $data[$field->name]) === '' && ($kept === null || trim((string) ($stored[$field->name] ?? '')) !== '')) throw new Failure('Javítsd a megjelölt mezőket.', 400, [$field->name => 'Kötelező mező.']);
+        }
         $record = [$values['text'], $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), $rrule, $rrule !== '' ? (int) ($values['duration'] ?? 0) : 0, $series, $original, (int) (($values['deleted'] ?? '0') === '1'), json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)];
         if ($rrule !== '' && $record[4] < 1) throw new Failure('Javítsd a megjelölt mezőket.', 400, ['duration' => 'Ismétlődő eseménynél pozitív időtartam szükséges.']);
         if ($row === null) {

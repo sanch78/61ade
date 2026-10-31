@@ -450,6 +450,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Event calendar | `php8.4 tests/shell/calendar.php`; shell `calendar.spec.cjs` |
 | File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
+| Tree navigation, conditional fields, view guides | `php8.4 tests/shell/tree-navigation.php`, `contracts.php`; `npm run typecheck`; shell `registry.spec.cjs` |
 | Feature demo module (`examples/demo-app/frontend`) | `npm run typecheck`, `npm run build` (`node tools/build.mjs --check`); PHP `contracts.php`, `signage.php`; shell `toolkit-demo*.spec.cjs` of the changed area |
 | Toolkit (modules, views, registries, routing) | PHP `toolkit.php`, `contracts.php`, `configuration.php`, `lists.php`; `node tests/shell/toolkit-kernel.mjs`, `toolkit-list.mjs`, `toolkit-components.mjs`, `toolkit-registries.mjs`, `toolkit-sandbox.mjs`, `ui-preferences.mjs`; shell `browser.spec.cjs`, `preferences.spec.cjs`, `activation.spec.cjs`, `toolkit-*.spec.cjs` |
 
@@ -464,7 +465,7 @@ There is **no pre-deploy or post-deploy smoke gate** here. When a full developme
 regression is actually warranted, the existing broad commands are:
 
 ```sh
-(for check in contracts access admin api-keys permissions tenancy authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation files diagram calendar signage toolkit; do
+(for check in contracts access admin api-keys permissions tenancy authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation files diagram calendar signage toolkit tree-navigation; do
     php8.4 "tests/shell/$check.php" || exit
 done)
 npm run typecheck
@@ -631,6 +632,11 @@ npm run test:browser -- tests/shell/workspace.spec.cjs
 
 Shared feature-demo steps (sign-in, menu, commands, view switch, API calls,
 synthetic task creation/deletion) live in `tests/shell/feature-demo.cjs`.
+The `test` of `tools/playwright-test.cjs` gives every page a locator handler
+that closes a [view guide](workspaces.md#view-guide) window whenever it is in
+the way of an action (a fresh browser context has dismissed none); a spec that
+tests the guide calls `page.removeLocatorHandler(guide(page))` with the
+exported `guide`. Assertions do not trigger the handler.
 Artifacts use `tmp/playwright-results/` or the corresponding subdirectory of
 `BLADE_TMP_DIR`; relative scratch resolves from the repository root.
 Before cleaning runtime files, check active consumers and retain needed evidence.

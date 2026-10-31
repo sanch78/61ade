@@ -52,7 +52,8 @@
                     "resource": "demo_shelves",
                     "field": "zone_id",
                     "embed": false
-                }
+                },
+                "guide": "Deklarált aktiválás (dupla kattintás vagy Enter) oldalra: egy zónán aktiválva a Polcok oldal nyílik meg az adott zónára szűrve.\n\nA sorok kinyithatók: a zóna polcai előnézetként a sora alatt jelennek meg."
             }
         },
         "demo_shelves": {
@@ -107,7 +108,8 @@
                 "subview": {
                     "resource": "demo_shelf_items",
                     "field": "shelf_id"
-                }
+                },
+                "guide": "Deklarált aktiválás alnézetre: egy polcon duplán kattintva vagy Entert nyomva a polc tételeinek teljes listája nyílik meg ablakban, üres polcnál is, a táblázatból, a kártyákról és a csempékről egyaránt.\n\nA tételek listájában az aktiválás egy regisztrált rekordműveletet futtat: megmutatja a készletet."
             }
         },
         "demo_shelf_items": {

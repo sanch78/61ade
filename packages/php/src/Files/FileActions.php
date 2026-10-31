@@ -70,7 +70,7 @@ final class FileActions
                 upload: $this->definition->textMaxBytes),
         ];
         foreach ($actions as $action) $registry->add($action);
-        $registry->fileManager($resource, $this->definition->title, array_map(static fn($action) => $action->name, $actions), $this->definition->metadata(), $this->definition->group, $this->definition->icon, $this->definition->desktopOnly);
+        $registry->fileManager($resource, $this->definition->title, array_map(static fn($action) => $action->name, $actions), $this->definition->metadata(), $this->definition->group, $this->definition->icon, $this->definition->desktopOnly, guide: $this->definition->guide);
     }
 
     /** ACL object of every file action is the mount key, so rules may grant per mount (`id` scope). */

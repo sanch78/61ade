@@ -9,6 +9,10 @@
   position: relative;
 }
 .blade-calendar-cell > .dhx_layout-cell-content { overflow: hidden; }
+/* Event tones (CalendarDefinition::$tones): theme colours, so light and dark skins follow the Suite palette. */
+.blade-calendar .blade-calendar-event--secondary { --dhx-scheduler-event-background: var(--dhx-color-secondary); }
+.blade-calendar .blade-calendar-event--success { --dhx-scheduler-event-background: var(--dhx-color-success); }
+.blade-calendar .blade-calendar-event--danger { --dhx-scheduler-event-background: var(--dhx-color-danger); }
 .blade-calendar-detail { font-size: 12px; opacity: .85; white-space: normal; }
 .blade-calendar-day__body { box-sizing: border-box; height: 100%; overflow: auto; padding: 12px 16px 24px; }
 .blade-calendar-day__label { margin: 8px 0 4px; font-weight: 600; }

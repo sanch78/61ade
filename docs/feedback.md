@@ -3512,3 +3512,281 @@ that exactly equals an option label lists every option. The managed
   completed real-provider login is not claimed.
 - **Status:** project-side cutover implemented and verified on the managed
   URLs; the two platform issues and provider registration remain open.
+
+<a id="fb-0101"></a>
+
+## FB-0101 — Deleting occurrences of an event whose content was deleted
+
+- **Date:** 2026-10-31.
+- **Request:** deleting "Pénteki logóblokk" and its following occurrences
+  failed with "Correct the highlighted fields. This field is required."
+- **Cause:** the series' asset had been deleted, so the demo's usage provider
+  blanked its required `asset_id` (owner decision: the event keeps its slot).
+  "This and following" shortens the series with an `update`, which validated
+  the blank required field; drags and single-occurrence deletes of such events
+  failed the same way.
+- **Implemented:** `CalendarActions` checks required extra fields in `save()`:
+  a blank value the event, or the series of an exception, already stores is
+  kept; a new blank value is still refused. Guide:
+  [calendar](calendar.md).
+- **Verification:** `tests/shell/calendar.php` passed with new cases (required
+  on create, blanked series: deleted exception and shortening accepted,
+  clearing a filled field refused). `tests/shell/signage.php` fails on its
+  activation-map assertion because of concurrent uncommitted `signage.json`
+  work, unrelated to this change.
+- **Status:** implemented; retry the delete on the demo.
+
+<a id="fb-0102"></a>
+
+## FB-0102 — Médiatár: missing image thumbnails, audio and animation icons, image and animation player
+
+- **Date:** 2026-10-31.
+- **Request:** in `Digitális kijelző` → `Médiatár` freshly uploaded images had
+  no thumbnail; audio and HTML animations need generic icons; images and
+  animations need a player too, and a play button fits on the toolbar.
+- **Cause (thumbnails):** the `files.thumbnail` tasks of the upload were
+  claimed but some post-response runners died mid-run (no `done`, no error,
+  lease not released), so those tasks stayed `running` until the 10-minute
+  stale recovery, and each recovery run lost one more. The renders themselves
+  take 0.2 s and succeed (checked on the stored files); with a trace in place
+  no further runner died, so why the PHP-FPM workers ended is not established
+  (the FPM log is root-only).
+- **Implemented:** `TaskQueue` treats every `running` task as orphaned when a
+  runner takes the single lease, and `afterResponse` starts a runner for one
+  once the lease is free or expired: a dead runner delays tasks by at most its
+  lease (budget + 120 s) instead of 10 minutes ([files](files.md)).
+  Framework: `app.mediaTypes` (`MediaType` `mime`, `label`, `icon`; built-ins
+  `image`, `video`, `audio`) used by media slots, the `type` part, the file
+  picker and the file manager; glyphs `blade-icon--audio` (the built-in audio
+  icon) and `blade-icon--animation`; activation maps on media fields match an
+  exact MIME type before the class ([toolkit](toolkit.md#registries),
+  [activation](workspaces.md#activation)). Demo: media type `demo.scene`
+  (`Animáció`), `Médianéző` for images, video, audio and scenes (SandboxFrame
+  with the scene runtime shared with `Napi műsor`, `scene.ts`), the toolbar
+  command `demo.play` ([D1](demos.md#d1-asset-viewer)).
+- **Verification:** `tests/shell/files.php` (orphaned `running` tasks
+  recovered at once, a held lease's task untouched), `node
+  tests/shell/toolkit-list.mjs` (exact MIME entries), `tests/shell/signage.php`,
+  `npm run typecheck` passed. On the managed demo: all images show thumbnails,
+  the brand scene shows `Animáció` with the glyph, toolbar `Lejátszás` and
+  double-click open it in `Médianéző` and it plays, an image opens with the
+  zoom stage. `tests/shell/toolkit-demo-assets.spec.cjs` is updated but stops
+  at its first test: the audio assets it needs are currently not in the demo.
+- **Status:** implemented; the cause of the worker deaths is open.
+
+<a id="fb-0103"></a>
+
+## FB-0103 — Playlists for the signage programme
+
+- **Date:** 2026-10-31.
+- **Request:** a playlist editor that accepts media library items by drag and
+  drop; playlists made there can be scheduled and have their own colour; each
+  playlist item plays for its own length; at night there is no content, so the
+  day's default content shows. The weekly demo schedule is rebuilt that way.
+- **Implemented:** framework: `CalendarDefinition::$tones` (event colour rules
+  over extra fields, theme tones, ACL-filtered metadata,
+  [calendar](calendar.md)). Demo (project domain,
+  [D5](demos.md#d5-playlist-editor)): `signage_playlists` with items,
+  `signage_playlists.items`/`save_items`, the record view
+  `demo.playlist-editor` with drag-and-drop Suite Lists, buttons and keys; the
+  calendar field `content` (playlist or asset, older `asset_id` events
+  migrated by setup); usage clearing for playlists and playlist items; the day
+  answer and `Napi műsor` expand playlists item by item. The managed demo got
+  four playlists (`Reggeli`, `Napközbeni`, `Esti`, `Hétvégi lista`) and a
+  weekly 06:00–22:00 programme of playlists and single assets; 22:00–06:00 is
+  free.
+- **Incident:** between the JSON declaration and the setup run that created
+  the new tables (a few minutes on 2026-10-31), signed-in pages of the demo
+  answered with the "temporarily unavailable" page. Lesson: run the data step
+  on the managed instance before a declaration that needs new tables goes
+  live.
+- **Verification:** `tests/shell/signage.php`, `tests/shell/calendar.php`;
+  browser specs `toolkit-demo-playlist-editor.spec.cjs` (new) and
+  `toolkit-demo-playlist.spec.cjs` (adjusted: playlists expanded, the test
+  day's programme cancelled by exceptions); see the session report for
+  results.
+- **Status:** implemented.
+
+<a id="fb-0104"></a>
+
+## FB-0104 — A real date picker for date fields
+
+- **Date:** 2026-10-31.
+- **Request:** where there is a date (`Alapértelmezett tartalom` →
+  `Dátum`), it should be a real date picker, not a text input.
+- **Cause:** the framework had no date field type; the demo declared a text
+  field with a `YYYY-MM-DD` pattern.
+- **Implemented:** framework field type `date` (PHP `Field`, JSON
+  declarations, `BuiltinFieldType`): a real calendar date or empty, validated
+  on the server and in the browser; the native Suite DatePicker in forms (typed
+  dates and clearing kept despite the Suite 9.3 popup repaint), the Grid
+  `datePicker` cell editor for editable columns, allowed as a calendar extra
+  field ([field presentation](field-presentation.md#dátum-date)). Demo:
+  `signage_defaults.date` and the `signage_playlist.day` action's `date` are
+  `date` fields; the pattern and the business rule's own date check are gone.
+- **Verification:** `tests/shell/validation.php` (new date cases),
+  `tests/shell/signage.php`, `tests/shell/calendar.php`,
+  `tests/shell/grid-edit.php`, `npm run typecheck` passed; browser
+  `signage.spec.cjs` "default content: the date field is a native date
+  picker…" (grid cell pick saved, popup pick, typed date saved) and
+  `grid-edit.spec.cjs` passed on the managed demo. `tests/shell/configuration.php`
+  fails on its skin assertion without these changes too.
+- **Status:** implemented.
+
+<a id="fb-0105"></a>
+
+## FB-0105 — A fuller playlist editor: item overrides, transitions, library controls
+
+- **Date:** 2026-10-31. Follows [FB-0103](#fb-0103).
+- **Request:** the play time must be overridable per playlist item; the editor
+  is too simple (not just two grids side by side); the library needs view
+  switching, search and sorting; the playlist page should follow other signage
+  systems, with controls; a list-wide transition with a per-item override.
+  Chosen with the owner: library controls in the editor's media panel; also
+  an item on/off switch, bulk editing, item validity dates and shuffle.
+- **Research:** per-item play time with list-wide transitions (Yodeck,
+  OptiSigns), per-item transition overrides (AbleSign), transition length in
+  ms (Xibo), item scheduling (OptiSigns), shuffle (ScreenCloud).
+- **Implemented** ([D5](demos.md#d5-playlist-editor)): list settings
+  (`transition`, `transition_ms`, `shuffle`, edited with the 61ade RecordForm
+  over `update`) and item settings (`duration`, `transition`, `enabled`,
+  `valid_from`/`valid_to`, stored as a validated JSON list by `save_items`);
+  setup adds the columns. The editor: library with search, type filter,
+  sorting and list/tiles (DataView, browser preferences); preview stage with
+  transitions and its transport bar; a proportional timeline; the playlist
+  with badges, inline switch/remove, multi-select and keys; the item form for
+  one or several items. The day answer applies the switch, validity, play
+  time overrides, transitions and a stable per-date shuffle; `Hossz (mp)`
+  counts overrides and leaves switched-off items out.
+- **Incident:** the item columns were in code before the managed instance was
+  migrated, so `signage_playlist.day` failed on the demo for a few minutes;
+  the web setup ran at once after another session reported it.
+- **Open:** the day preview (`Napi műsor`) plays the effective play times but
+  does not animate transitions yet; validity dates are picked in the
+  datepicker popup only.
+- **Verification:** `tests/shell/signage.php`, `tests/shell/i18n.php`; browser
+  `toolkit-demo-playlist-editor.spec.cjs` (see the session report).
+- **Status:** implemented; its editor was rebuilt from 61ade components in [FB-0108](#fb-0108) (the `items`/`save_items` actions are gone).
+
+<a id="fb-0107"></a>
+
+## FB-0107 — Guides on the feature-demo entries and a registry editor demo
+
+- **Date:** 2026-10-31.
+- **Request:** the owner asked what the `Feature demó` entries other than the
+  file manager and the topology demonstrate. Selecting an entry should open a
+  closable window saying what to look at there. A new demo should imitate the
+  Windows registry editor: a tree, and editing values of different types.
+- **Decisions (owner, 2026-10-31):** the guide shows until the user closes it,
+  and an `Útmutató` button shows it again; the guide is a framework capability
+  of every view; the registry demo is built on new general framework
+  capabilities rather than a demo-only view kind.
+- **Implemented:** framework: the [view guide](workspaces.md#view-guide)
+  (`View`/builders/definitions `guide`, JSON `guide`, the shell's non-modal
+  window and lower-bar button); [tree navigation](workspaces.md#tree-navigation)
+  (`Registry::tree()`, JSON `view.tree`, `TreeNavigation` in `ListView`:
+  children loaded on expansion through the node hierarchy's `list`, node
+  actions in the tree panel, the list scoped to the selected node;
+  `TreeAdapter.setChildren`); [conditional fields](workspaces.md#conditional-fields)
+  (`Field` `visibleWhen`, JSON `visible_when`: forms show and validate the
+  field only while its condition holds, the server skips an inactive field and
+  stores it empty); a `RecordForm` mounted in an `AppWindow` fits it. Demo: a
+  guide on every `Feature demó` entry, and `Regisztrációs adatbázis`
+  ([registry.json](../examples/demo-app/modules/registry.json), seeded by
+  `setup-workspace.php`) with a cycle guard and a subtree delete hook
+  ([demos](demos.md)). Toolkit contract: M34 and the
+  [changes](toolkit.md#changes) entry; additive.
+- **Lesson:** swapping fresh one-cell Layouts in a cell lost the new one: the
+  scoped list's Layout, built on its own element, rendered nothing when
+  attached as a widget, and destroying the previous frame after attaching the
+  next emptied the cell. The list panel therefore holds one element placed
+  once (`attachContent`), and the notice or the list's own element is swapped
+  inside it.
+- **Tests:** a view guide opens in every fresh browser context, so
+  `tools/playwright-test.cjs` gives every page a locator handler that closes
+  it when it is in the way of an action ([development](development.md#unified-playwright-configuration));
+  `registry.spec.cjs` removes it to test the guide.
+- **Verification (2026-10-31):** PHP `tree-navigation.php` (new), `contracts.php`,
+  `validation.php`, `lists.php`, `toolkit.php`, `tenancy.php`, `files.php`,
+  `diagram.php`, `calendar.php`, `i18n.php` passed; `configuration.php` fails
+  at `Skin shadowing a factory theme accepted`, in the concurrent theme rename,
+  not in this change. `npm run typecheck`, `npm run build`, node
+  `toolkit-kernel`, `toolkit-list`, `toolkit-components`,
+  `toolkit-registries`, `ui-preferences` passed. Browser:
+  `registry.spec.cjs` (3 tests) passed; of the affected specs `dialogs`,
+  `workspace`, `activation`, `toolkit-demo`, `toolkit-demo-tasks` (except its
+  `Skyblue` theme test), `diagram`, `grid-edit`, `related-fields`,
+  `preferences`, `mobile-grid`, `grid-sort`, `list-integration` passed. Still
+  failing, outside this change's areas and not compared with a clean baseline
+  (the working tree holds another session's uncommitted work): the `Skyblue`
+  theme tests (`browser`, `i18n`, `toolkit-demo-tasks`, `toolkit-demo-readings`),
+  the Signage sibling menu (`browser`), `subview-demos` `Médiatár`, `files`
+  upload summary (`Sikeres: 3 … sikertelen: 1`) and `list-presentation` card
+  top inset (−2 px).
+- **Status:** implemented.
+
+<a id="fb-0108"></a>
+
+## FB-0108 — Playlist editor and day programme from 61ade components only
+
+- **Date:** 2026-10-31.
+- **Request:** the owner found the playlist editor's components ad hoc (raw
+  Suite widgets, custom templates, DOM workarounds) and asked for it to be
+  rebuilt from 61ade components only, extending the framework where a
+  capability is missing; code may stay the demo's own only where nothing else
+  would use it, after agreeing which parts. Follow-ups during the work: no
+  double frame around a panel (a list attached inside a framed region), no
+  toolbar search in the library, filters in cards and tiles like sorting, the
+  usual drag handle where rows are dragged, no ID column on the page; then the
+  same for the day programme (`Napi műsor`), with a calendar button to pick the
+  day and without its own API panel.
+- **Decisions (owner, 2026-10-31):** the preview is the demo's own code, shared
+  by the editor and the day programme (no framework slideshow component); the
+  forms (transition, list settings) are framework forms; the panels come from
+  the framework's layout handling; the editor is desktop only; the day keeps
+  its commands, `Naptár…` picks a day; the calendar's `Napi műsor (API)`
+  window is the API documentation.
+- **Implemented:** framework: [manual order](workspaces.md#manual-order)
+  (`SqlResource` `order` / JSON `storage.order`, the `move` action, positions
+  outside the revision, `ListKindOptions.order`; drag, `Feljebb`/`Lejjebb`,
+  Alt+↑/↓ in `ResponsiveGrid`/`Workspace`); drops between lists (`View`
+  `drop` / JSON `view.drop`, `ListViewOptions.dragSource`); the drag-handle
+  column; [filters in cards and tiles](workspaces.md#card-filters) and named
+  header filter inputs; [`PageLayout`](toolkit.md#pagelayout) (declared panel
+  tree with the list layout's preferences, `cell`, `attach`);
+  `ListViewOptions.panel` and `showId`, `RecordDetailsOptions.showId`;
+  `RecordFormOptions.cancel`, `RecordForm.setValues`, the action's label as
+  submit text and no toast for read-only actions; computed `column.media`
+  fields; the `not_before_field`/`not_after_field` [rules](validation.md); a
+  checkbox in a framework form shows its text (Suite's `label_sr` hid it).
+  Demo: `signage_playlist_items` as a JSON resource embedded in the playlists
+  (order, drop, status and effective length, bulk and range rules, a 200-item
+  guard), the editor as `PageLayout` + two `ListView`s + `RecordDetails` +
+  `RecordForm` + the shared player (`player.ts`), the day programme as
+  `PageLayout` + `CommandBar` + the `day` action's `RecordForm` in a window +
+  the player ([D2](demos.md#toolkit-d2-playlist), [D5](demos.md#d5-playlist-editor)).
+  Toolkit contract: M35 and the [changes](toolkit.md#changes) entry; additive.
+- **Lessons:** a Suite Grid row is as wide as all its columns, so a pointer at
+  a row's centre may fall outside its panel (tests drag and click cells). A
+  page layout is destroyed after the components in its regions. A host cell
+  that showed markup renders a later widget empty: a page that swaps layouts
+  mounts them into one element the host holds. Hiding a nested panel's frame
+  with CSS was rejected: a list in a host's panel draws none (`panel: false`).
+- **Verification (2026-10-31):** PHP `signage.php`, `lists.php` (manual order,
+  drop declarations), `validation.php` (range rules), `contracts.php`,
+  `toolkit.php`, `sorting.php`, `list-presentation.php`, `grid-edit.php`,
+  `calendar.php`, `tree-navigation.php`, `related-fields.php`, `files.php`,
+  `i18n.php` passed; `configuration.php` fails at the concurrent theme rename
+  (`Skin shadowing a factory theme accepted`). `npm run typecheck`,
+  `npm run build`, node `toolkit-kernel`, `toolkit-list`, `toolkit-components`,
+  `toolkit-registries`, `ui-preferences` passed. Browser:
+  `toolkit-demo-playlist-editor.spec.cjs` 8/8, `toolkit-demo-playlist.spec.cjs`
+  7/8 (its `Skyblue` theme test); `grid-edit`, `toolkit-list`, `list-integration`,
+  `mobile-grid`, `workspace`, `related-fields`, `activation`, `dialogs`,
+  `grid-sort` passed. Failing outside this change: the `Skyblue` theme tests,
+  the Signage sibling menu (`browser`), `subview-demos` `Médiatár` and the
+  `list-presentation` card top inset (all in [FB-0107](#fb-0107)); `signage`
+  list, `toolkit-demo-assets` activation and the `calendar` week view need the
+  seeded `Promóciós videó` and `Reggeli promó`, which the demo account deleted
+  on the demo at 09:03 UTC (audit).
+- **Status:** implemented.

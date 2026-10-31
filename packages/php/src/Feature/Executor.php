@@ -115,9 +115,15 @@ final class Executor
             $values=$action->listSource ? $input : [];
             $fieldErrors = [];
             foreach ($action->fields as $field) {
-                if(($fieldEdit||$partial)&&$field->name!=='revision'&&!array_key_exists($field->name,$input))continue;
+                if(($fieldEdit||$partial)&&$field->name!=='revision'&&!array_key_exists($field->name,$input)&&!($field->visibleWhen!==null&&array_key_exists($field->visibleWhen['field'],$input)))continue;
                 $allowed=$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$aclObject ?? '',$owner,$field->name);
                 if(!$allowed){if(array_key_exists($field->name,$input) || ($name==='create' && $field->required))throw new Failure('A mező nem módosítható.',403);continue;}
+                // An inactive conditional field is not validated; a save that sends it or its condition field stores it empty.
+                if(!$field->active(array_replace(is_array($target['row']??null)?$target['row']:[],$input))){
+                    if(array_key_exists($field->name,$input)||array_key_exists($field->visibleWhen['field'],$input)){$values[$field->name]='';if(!$field->secret)$fields[]=$field->name;}
+                    else unset($values[$field->name]);
+                    continue;
+                }
                 if (!array_key_exists($field->name,$input) && !$field->required) continue;
                 try {
                     $values[$field->name]=$field->validate($input[$field->name] ?? '',$ctx,($fieldEdit||$partial)?array_replace($target['row']??[],$input):$input);

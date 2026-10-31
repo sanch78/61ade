@@ -14,12 +14,16 @@ final readonly class CalendarDefinition
     public const VIEWS = ['day', 'week', 'month'];
     /** Field names the event model owns; extra fields must not reuse them. */
     public const RESERVED = ['id', 'text', 'start_date', 'end_date', 'rrule', 'duration', 'recurring_event_id', 'original_start', 'deleted', 'revision', 'from', 'to', 'date'];
+    /** Theme colours an event may take (`tones`); the default event colour is `primary`. */
+    public const TONES = ['primary', 'secondary', 'success', 'danger'];
 
     /**
-     * @param list<Field> $fields extra event fields (text, textarea, select, number, checkbox), stored per event
+     * @param list<Field> $fields extra event fields (text, textarea, select, number, checkbox, date), stored per event
      * @param list<string> $views offered Scheduler views, a subset of VIEWS
      * @param array{resource:string,action:string,label:string}|null $dayAction registered action
      *        called with `date` (YYYY-MM-DD) for the selected day; its result is shown read-only
+     * @param list<array{field:string,tone:string,value?:string,prefix?:string}> $tones event colours: the first rule
+     *        whose extra field equals `value` (or starts with `prefix`) gives the event its theme tone (TONES)
      */
     public function __construct(
         public string $resource,
@@ -35,11 +39,17 @@ final readonly class CalendarDefinition
         public ?string $group = null,
         public ?string $icon = 'dxi dxi-calendar-today',
         public bool $desktopOnly = false,
+        /** The view's guide text (Blade\Feature\View $guide). */
+        public ?string $guide = null,
+        public array $tones = [],
     ) {
         if (!preg_match('/^[a-z][a-z0-9_.-]*$/D', $resource) || $title === '' || !preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $space)) throw new \InvalidArgumentException('Invalid calendar definition.');
         if (!$views || array_diff($views, self::VIEWS) || count(array_unique($views)) !== count($views) || !in_array($defaultView, $views, true)) throw new \InvalidArgumentException('Invalid calendar views.');
         if ($firstHour < 0 || $lastHour > 24 || $firstHour >= $lastHour || $maxRangeDays < 1 || $maxRangeDays > 366) throw new \InvalidArgumentException('Invalid calendar limit.');
-        foreach ($fields as $field) if (!$field instanceof Field || in_array($field->name, self::RESERVED, true) || $field->secret || !in_array($field->type, ['text', 'textarea', 'select', 'number', 'checkbox'], true)) throw new \InvalidArgumentException('Invalid calendar field.');
+        foreach ($fields as $field) if (!$field instanceof Field || in_array($field->name, self::RESERVED, true) || $field->secret || !in_array($field->type, ['text', 'textarea', 'select', 'number', 'checkbox', 'date'], true)) throw new \InvalidArgumentException('Invalid calendar field.');
+        $names = array_map(static fn(Field $field) => $field->name, $fields);
+        foreach ($tones as $rule) if (!is_array($rule) || array_diff_key($rule, ['field' => 1, 'tone' => 1, 'value' => 1, 'prefix' => 1]) || !in_array($rule['field'] ?? null, $names, true)
+            || !in_array($rule['tone'] ?? null, self::TONES, true) || isset($rule['value']) === isset($rule['prefix']) || !is_string($rule['value'] ?? $rule['prefix']) || ($rule['value'] ?? $rule['prefix']) === '') throw new \InvalidArgumentException('Invalid calendar tone.');
         if ($dayAction !== null && (array_keys($dayAction) !== ['resource', 'action', 'label'] || array_filter($dayAction, static fn($value) => !is_string($value) || $value === ''))) throw new \InvalidArgumentException('Invalid calendar day action.');
     }
 
@@ -70,6 +80,6 @@ final readonly class CalendarDefinition
     public function metadata(): array
     {
         return ['space' => $this->space, 'views' => $this->views, 'default_view' => $this->defaultView, 'first_hour' => $this->firstHour, 'last_hour' => $this->lastHour,
-            'max_range_days' => $this->maxRangeDays, 'day_action' => $this->dayAction];
+            'max_range_days' => $this->maxRangeDays, 'day_action' => $this->dayAction, 'tones' => array_values($this->tones)];
     }
 }

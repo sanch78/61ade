@@ -67,7 +67,7 @@ test('login remains a usable DHTMLX window at phone width', async ({ page }) => 
     await page.setViewportSize({width:390,height:844});await page.getByRole('menuitem',{name:'Menü',exact:true}).click();await page.getByRole('menuitem',{name:'Kijelentkezés',exact:true}).click();await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();
 });
 test('compact desktop menu shows the open feature\'s siblings beside Menü', async ({ page }) => {
-    // Below the full menu's width (about 1575 px) but wide enough for Menü and the four Digitális kijelző siblings.
+    // Below the full menu's width (about 1575 px) but wide enough for Menü and the five Digitális kijelző siblings.
     await page.setViewportSize({ width: 1366, height: 800 });
     await login(page);
     const top = page.locator('.blade-navigation-row .dhx_menu-nav > li > button');
@@ -75,7 +75,7 @@ test('compact desktop menu shows the open feature\'s siblings beside Menü', asy
     await expect(page.getByRole('menuitem', { name: 'Menü', exact: true })).toBeVisible();
     await expect(top).toHaveCount(1);
     await page.goto('/#view=signage_assets');
-    await expect(top).toHaveText(['Menü', 'Médiatár', 'Alapértelmezett tartalom', 'Műsorterv', 'Napi műsor']);
+    await expect(top).toHaveText(['Menü', 'Médiatár', 'Alapértelmezett tartalom', 'Lejátszási listák', 'Műsorterv', 'Napi műsor']);
     await expect(current).toHaveText(['Médiatár']);
     await top.filter({ hasText: 'Műsorterv' }).click();
     await expect(page).toHaveURL(/#view=signage_schedule$/);

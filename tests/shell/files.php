@@ -336,7 +336,7 @@ check($audioRange['status']===206&&in_array('Content-Range: bytes 44-'.($audioSt
 check($call('content_get',$audioIds['tone.m4a'])->mimeType==='audio/mp4','Audio bytes with stored type');
 fails(fn()=>$call('content_stream',$audioIds['tone.mp3'],[],$ctx('3')),403,'Audio stream needs its own rule');
 
-// Task queue: bounded retry with backoff, stale-run recovery, one runner per database, dedupe only against pending tasks.
+// Task queue: bounded retry with backoff, orphaned-run recovery, one runner per database, dedupe only against pending tasks.
 $queue=new Blade\Tasks\TaskQueue($db);$calls=0;$ran=[];
 $queue->handle('test.flaky',function(array $payload) use (&$calls):void{$calls++;throw new RuntimeException('sensitive detail');});
 $queue->handle('test.ok',function(array $payload) use (&$ran):void{$ran[]=$payload['n'];});
@@ -349,15 +349,17 @@ $due('flaky');$queue->run(10,30);check($task('flaky')['state']==='pending'&&(int
 $due('flaky');$queue->run(10,30);check($task('flaky')['state']==='failed'&&(int)$task('flaky')['attempts']===3&&$task('flaky')['error']==='RuntimeException','Failed after three attempts with a non-sensitive error');
 $due('flaky');check($queue->run(10,30)===0&&$calls===3,'Failed tasks are not claimed again');
 $queue->enqueue('test.ok',['n'=>1],'stale');$queue->enqueue('test.ok',['n'=>2],'dead');
-$db->exec("UPDATE blade_tasks SET state='running',attempts=1,locked_at='2000-01-01T00:00:00Z' WHERE dedupe='stale'");
-$db->exec("UPDATE blade_tasks SET state='running',attempts=3,locked_at='2000-01-01T00:00:00Z' WHERE dedupe='dead'");
+// Claimed a moment ago by a runner that died: the next lease holder recovers them at once, without a stale time.
+$db->exec("UPDATE blade_tasks SET state='running',attempts=1,locked_at='".gmdate('Y-m-d\TH:i:s\Z')."' WHERE dedupe='stale'");
+$db->exec("UPDATE blade_tasks SET state='running',attempts=3,locked_at='".gmdate('Y-m-d\TH:i:s\Z')."' WHERE dedupe='dead'");
 $queue->run(10,30);
-check($ran===[1]&&$task('stale')['state']==='done'&&$task('dead')['state']==='failed'&&$task('dead')['error']==='Interrupted.','Stale running tasks recovered; exhausted ones fail');
+check($ran===[1]&&$task('stale')['state']==='done'&&$task('dead')['state']==='failed'&&$task('dead')['error']==='Interrupted.','Orphaned running tasks recovered at once; exhausted ones fail');
 $db->exec("UPDATE blade_task_lease SET holder='other-runner',expires_at='2999-01-01T00:00:00Z' WHERE name='runner'");
-$queue->enqueue('test.ok',['n'=>3],'leased');
-check($queue->run(10,30)===0&&$task('leased')['state']==='pending'&&$workspace->tasks->run(10,30)===0,'A second runner does nothing while the lease is held');
+$queue->enqueue('test.ok',['n'=>3],'leased');$queue->enqueue('test.ok',['n'=>6],'busy');
+$db->exec("UPDATE blade_tasks SET state='running',attempts=1,locked_at='".gmdate('Y-m-d\TH:i:s\Z')."' WHERE dedupe='busy'");
+check($queue->run(10,30)===0&&$task('leased')['state']==='pending'&&$task('busy')['state']==='running'&&$workspace->tasks->run(10,30)===0,'A second runner does nothing while the lease is held; the holder\'s running task stays');
 $db->exec("UPDATE blade_task_lease SET expires_at='2000-01-01T00:00:00Z' WHERE name='runner'");
-check($queue->run(10,30)===1&&$ran===[1,3]&&$db->query("SELECT holder FROM blade_task_lease WHERE name='runner'")->fetchColumn()==='','Expired lease taken over and released after the run');
+check($queue->run(10,30)===2&&$ran===[1,3,6]&&$db->query("SELECT holder FROM blade_task_lease WHERE name='runner'")->fetchColumn()==='','Expired lease taken over (its running task recovered) and released after the run');
 $queue->enqueue('test.ok',['n'=>4],'dup');$queue->enqueue('test.ok',['n'=>4],'dup');
 check((int)$db->query("SELECT COUNT(*) FROM blade_tasks WHERE dedupe='dup'")->fetchColumn()===1,'Pending duplicate skipped');
 $db->exec("UPDATE blade_tasks SET state='running',locked_at='".gmdate('Y-m-d\TH:i:s\Z')."' WHERE dedupe='dup'");

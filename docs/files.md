@@ -111,7 +111,10 @@ update and run outside any transaction. An exception or a transient cause
 (tool timeout, missing tool, memory headroom) is retried with a 30 s × attempt
 backoff and becomes `failed` after 3 attempts; only undecodable or unsupported
 input records a permanent `failed` derivative. A task left `running` by a dead
-worker is recovered after 10 minutes; `done` rows are pruned after a day. A
+worker (killed or fatal, so it never released the lease) is due again as soon as
+the next runner takes the lease, at the latest when the dead runner's lease
+expires (budget plus 120 s, [FB-0102](feedback.md#fb-0102)); `done` rows are
+pruned after a day. A
 duplicate is skipped only while an identical task is still `pending`. Reads
 retry lazily: `list` and `thumbnail_get` queue a missing thumbnail again unless
 it already failed. Applications without registered task handlers never query

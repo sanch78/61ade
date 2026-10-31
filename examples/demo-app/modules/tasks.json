@@ -194,7 +194,8 @@
                 ],
                 "layout": {
                     "form_mode": "panel"
-                }
+                },
+                "guide": "Egyetlen modulban a deklaratív lista szinte minden képessége: szűrőpanel, rendezés a fejlécre kattintva, táblázat és kártya nézet, valamint az oldalsó panelben nyíló szerkesztőűrlap.\n\nPróbáld ki: a táblázatban közvetlenül szerkeszthető a Megnevezés, az Állapot, a Prioritás és a kapcsolók; a Kapcsolattartó telefon mintára ellenőriz; a Prioritás egy projekt saját mezőtípusa (csillagok). Jelölj meg több sort, és futtass rajtuk tömeges műveletet; a Lezárás regisztrált üzleti művelet, a Párbeszéd műveletek a megerősítő és nyugtázó ablakokat mutatják.\n\nÜzleti szabály: folyamatban lévő feladatnál nem kapcsolható ki az Értesítés, a szerver mezőhibával utasítja el. A Másolás szövegként egy kliensoldali rekordparancs."
             }
         }
     },

@@ -1,6 +1,24 @@
-/* D2 Napi műsor (playlist.ts): the timeline strip, the stage caption and the API panel of demo.playlist-preview. Built
-   into public/app/demo.css (application.php `stylesheets`); colours are Suite theme variables, so Blade, Blade
-   Night, light, dark and skins apply. The scene inside the SandboxFrame is content and draws its own colours. */
+/* The demo's shared player (player.ts) of the playlist editor's preview and the day programme: stage with transition
+   layers and caption, the commands row and the timeline strip with its playhead. Built into public/app/demo.css
+   (application.php `stylesheets`); colours are Suite theme variables, so Blade, Blade Night, light, dark and skins apply.
+   A scene inside the SandboxFrame is content and draws its own colours. */
+.demo-player { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
+.demo-player__stage { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 120px; }
+.demo-player__screen { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #000; }
+.demo-player__commands { flex: 0 0 48px; height: 48px; }
+.demo-player .demo-playlist-strip { flex: 0 0 104px; height: 104px; }
+
+/* One layer per item; the entering one starts in its "from" state, the leaving one is released after the transition. */
+.demo-player__layer { position: absolute; inset: 0; transition: opacity var(--player-ms, 0ms) ease, transform var(--player-ms, 0ms) ease; }
+.demo-player__layer .dhx_layout, .demo-player__layer iframe { height: 100%; }
+.demo-player__layer--leave { pointer-events: none; }
+.demo-player__layer--fade.demo-player__layer--from, .demo-player__layer--fade.demo-player__layer--leave { opacity: 0; }
+.demo-player__layer--slide.demo-player__layer--from { transform: translateX(100%); }
+.demo-player__layer--slide.demo-player__layer--leave { transform: translateX(-100%); }
+.demo-player__layer--zoom.demo-player__layer--from { opacity: 0; transform: scale(1.15); }
+.demo-player__layer--zoom.demo-player__layer--leave { opacity: 0; transform: scale(.9); }
+@media (prefers-reduced-motion: reduce) { .demo-player__layer { transition: none; } }
+
 .demo-playlist-strip { box-sizing: border-box; height: 100%; padding: 8px 12px; overflow-x: auto; overflow-y: hidden; color: var(--dhx-font-color-primary); font-family: var(--dhx-font-family); }
 .demo-playlist-track { position: relative; display: flex; min-width: 100%; height: 100%; }
 .demo-playlist-items { display: flex; flex: 1 0 auto; gap: 4px; margin: 0; padding: 0; list-style: none; }
@@ -17,30 +35,25 @@
 .demo-playlist-item--video { border-left-color: var(--dhx-color-primary); }
 .demo-playlist-item--audio { border-left-color: var(--dhx-color-secondary); }
 .demo-playlist-item--scene { border-left-color: var(--dhx-color-danger); }
+/* An item of a scheduled playlist: the calendar's playlist tone (success) as a top rule. */
+.demo-playlist-item--list { box-shadow: inset 0 3px 0 var(--dhx-color-success); }
 .demo-playlist-item--none { border-style: dashed; }
 .demo-playlist-item > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .demo-playlist-item__time, .demo-playlist-item__meta { font-size: 12px; line-height: 16px; color: var(--dhx-font-color-secondary); font-variant-numeric: tabular-nums; }
 .demo-playlist-item__title { font-size: 14px; line-height: 20px; font-weight: var(--dhx-font-weight-medium); }
 .demo-playlist-playhead { position: absolute; top: -4px; bottom: -4px; left: 0; width: 2px; margin-left: -1px; background: var(--dhx-color-danger); pointer-events: none; }
 .demo-playlist-note { margin: 0; padding: 8px 0; color: var(--dhx-font-color-secondary); }
-.demo-playlist-scrub { padding: 0 12px; }
 
 .demo-playlist-caption {
-  box-sizing: border-box; display: flex; align-items: center; gap: 16px; height: 100%; padding: 0 12px; overflow: hidden;
+  box-sizing: border-box; display: flex; flex: 0 0 44px; align-items: center; gap: 16px; height: 44px; padding: 0 12px; overflow: hidden;
   color: var(--dhx-font-color-primary); font-family: var(--dhx-font-family); white-space: nowrap;
 }
 .demo-playlist-caption__title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--dhx-font-weight-medium); }
 .demo-playlist-caption__state { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--dhx-font-color-secondary); font-variant-numeric: tabular-nums; }
 .demo-playlist-caption__state--error { color: var(--dhx-color-danger); }
 .demo-playlist-message { display: flex; align-items: center; justify-content: center; height: 100%; padding: 16px; box-sizing: border-box; color: var(--dhx-font-color-secondary); background: var(--dhx-background-secondary); text-align: center; }
-
-.demo-playlist-api { box-sizing: border-box; height: 100%; overflow: auto; padding: 4px 12px 16px; color: var(--dhx-font-color-primary); font-family: var(--dhx-font-family); }
-.demo-playlist-api__label { margin: 8px 0 4px; font-weight: var(--dhx-font-weight-medium); }
-.demo-playlist-code {
-  margin: 0; padding: 12px; border-radius: var(--dhx-border-radius, 4px); overflow: auto; white-space: pre-wrap; word-break: break-word;
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--dhx-background-secondary); color: var(--dhx-font-color-primary);
-}
 @media (max-width: 767px) {
   .demo-playlist-slot { min-width: 88px; }
   .demo-playlist-caption { gap: 8px; font-size: 13px; }
+  .demo-player .demo-playlist-strip { flex-basis: 96px; height: 96px; }
 }

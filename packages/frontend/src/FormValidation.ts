@@ -7,6 +7,9 @@ export type ValidationRules = {
   minLength?: number;
   pattern?: { expression: string; flags?: string; message?: string };
   matchesField?: string;
+  /** A range end: not before / not after the other field's value (dates and text as strings, integers as numbers). */
+  notBeforeField?: string;
+  notAfterField?: string;
   unique?: boolean;
 };
 /**
@@ -35,12 +38,47 @@ export type FieldDefinition = {
   validation?: ValidationRules;
   bulk?: boolean;
   file?: FileFieldConfig;
+  /** Conditional field: it takes part only while the field `field` of the record holds one of `in`. */
+  visibleWhen?: { field: string; in: string[] };
 };
+/**
+ * Whether a conditional field takes part for the form's values; a condition whose field is not in $values (not on the
+ * form) leaves the decision to the server, which reads the stored value.
+ */
+export function fieldActive(field: FieldDefinition, values: Record<string, unknown>): boolean {
+  const when = field.visibleWhen;
+  if (!when || !Object.hasOwn(values, when.field)) return true;
+  const value = values[when.field];
+  return when.in.includes(typeof value === "boolean" ? (value ? "1" : "0") : String(value ?? ""));
+}
 /** Visible Form item of a `file` field (its read-only file name); the value lives in the hidden item of the field name. */
 export const fileDisplay = (name: string) => name + "__display";
 
+/** <0, 0 or >0 as $value is before, equal to or after $other (the server's ValidationRules::compare); 0 when $other is empty. */
+function compare(value: string, other: unknown): number {
+  const end = String(dateValue(other) ?? "").trim();
+  if (end === "") return 0;
+  if (/^[0-9]+$/.test(value) && /^[0-9]+$/.test(end)) { const a = value.replace(/^0+/, ""), b = end.replace(/^0+/, ""); return a.length - b.length || (a < b ? -1 : a > b ? 1 : 0); }
+  return value < end ? -1 : value > end ? 1 : 0;
+}
+/** A real calendar date `YYYY-MM-DD`. */
+export const calendarDate = (value: string): boolean => {
+  const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(value);
+  if (!match) return false;
+  const date = new Date(Date.UTC(+match[1], +match[2] - 1, +match[3]));
+  return date.getUTCFullYear() === +match[1] && date.getUTCMonth() === +match[2] - 1 && date.getUTCDate() === +match[3];
+};
+/** A `date` field value from a Suite date picker (a `%Y-%m-%d` string or a local Date) as `YYYY-MM-DD`; anything else unchanged. */
+export const dateValue = (value: unknown): unknown => {
+  if (!(value instanceof Date)) return value;
+  if (Number.isNaN(value.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+};
+
 export function fieldError(field: FieldDefinition, raw: unknown, values: Record<string, unknown>): string | null {
   if(field.type === "multiselect" && Array.isArray(raw)) raw = raw.join(",");
+  if(field.type === "date") raw = dateValue(raw);
   if(field.type === "checkbox") {
     if(![true,false,0,1,"0","1"].includes(raw as any))return t("Csak 0 vagy 1 érték adható meg.");
     if(typeof raw === "boolean")raw=raw?"1":"0";
@@ -56,6 +94,9 @@ export function fieldError(field: FieldDefinition, raw: unknown, values: Record<
     return t(rules.pattern.message ?? "Hibás formátum.");
   }
   if (rules.matchesField && value !== String(values[rules.matchesField] ?? "")) return t("A két mező értéke nem egyezik.");
+  if (rules.notBeforeField && compare(value, values[rules.notBeforeField]) < 0) return t("Nem lehet korábbi vagy kisebb a kezdő értéknél.");
+  if (rules.notAfterField && compare(value, values[rules.notAfterField]) > 0) return t("Nem lehet későbbi vagy nagyobb a záró értéknél.");
+  if (field.type === "date" && !calendarDate(value)) return t("Érvényes dátum szükséges (ÉÉÉÉ-HH-NN).");
   if (field.type === "number" && !/^[0-9]+$/.test(value)) return t("Nemnegatív egész szám szükséges.");
   if (field.type === "select" && !Object.hasOwn(field.options, value)) return t("Válassz az engedélyezett értékekből.");
   if (field.type === "multiselect") {
@@ -93,7 +134,10 @@ export class FormValidation {
   }
 
   private error(field: FieldDefinition, value: unknown): string | null {
-    return this.serverErrors.get(field.name) ?? fieldError(field, value, {...this.context(),...this.form.getValue()});
+    const values = {...this.context(),...this.form.getValue()};
+    // A conditional field the form hides is not validated; the server stores it empty.
+    if (!fieldActive(field, values)) return null;
+    return this.serverErrors.get(field.name) ?? fieldError(field, value, values);
   }
 
   validate(): boolean {

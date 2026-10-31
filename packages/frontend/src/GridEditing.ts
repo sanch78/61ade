@@ -1,5 +1,5 @@
 import { type Grid, awaitRedraw } from "@dhtmlx/suite";
-import {fieldError,type FieldDefinition} from "./FormValidation";
+import {dateValue,fieldError,type FieldDefinition} from "./FormValidation";
 import type {Row} from "./Realtime";
 
 type Column={id:string;header:string;type?:string;options?:Record<string,string>;editable?:boolean};
@@ -12,6 +12,8 @@ export const unalias=(key:string)=>key.startsWith("__blade_")&&RESERVED.includes
 export function gridEditor(column:Column):object {
   if(column.type==="checkbox"&&column.editable)return {type:"boolean",editable:true};
   if(column.type==="select"&&column.editable)return {editorType:"select",editable:true,options:Object.entries(column.options??{}).map(([id,value])=>({id,value}))};
+  // The date string stays the cell value: Suite parses it with dateFormat for the picker and formats the pick back.
+  if(column.type==="date"&&column.editable)return {editorType:"datePicker",editable:true,dateFormat:"%Y-%m-%d",editorConfig:{weekStart:"monday"}};
   return {editable:!!column.editable,editorType:column.type==="textarea"?"textarea":"input"};
 }
 
@@ -43,6 +45,7 @@ export class GridEditing {
     });
     grid.events.on("beforeEditEnd",(value:unknown,row:any,column:any)=>{
       if(value===undefined)return true;
+      value=dateValue(value);
       const field=known.get(unalias(String(column.id)));
       if(!field)return false;
       const current=rows().find(item=>String(item.id)===String(row.id));
@@ -52,6 +55,7 @@ export class GridEditing {
     });
     grid.events.on("afterEditEnd",(value:unknown,row:any,column:any)=>{
       if(this.disposed||this.saving)return;
+      value=dateValue(value);
       const current=rows().find(item=>String(item.id)===String(row.id));
       const field=known.get(unalias(String(column.id)));
       if(!current||!field||value===undefined||String(current[field.name])===String(value)||(field.type==="checkbox"&&String(current[field.name])===(value?"1":"0"))){this.active(false);return;}

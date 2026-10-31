@@ -28,10 +28,16 @@ final readonly class Field
          * card editors and displays: a dotted name; the server still validates the value by $type.
          */
         public ?string $editor = null,
+        /**
+         * Conditional field: `['field' => f, 'in' => [values]]`. The field takes part only while the field f of the same
+         * record (the submitted value, else the stored one) holds one of the values: forms show it only then, and the
+         * server validates it only then; otherwise a save that sends f or this field stores it empty.
+         */
+        public ?array $visibleWhen = null,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
-            || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'file'], true)
-            || $max < 1) {
+            || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'date', 'file'], true)
+            || $max < 1 || ($type === 'date' && ($max < 10 || $secret))) {
             throw new InvalidArgumentException('Invalid field definition.');
         }
         // `file`: the value is a file id of that file manager's mount; the column is a media column of that resource.
@@ -78,6 +84,12 @@ final readonly class Field
         // A project presentation only displays a readable value; its field stays editable like any other.
         if (isset($column['presentation']) && !$icon && !$image && ($secret || $type === 'password')) throw new InvalidArgumentException('Project presentations need a readable, non-secret field.');
         if ($editor !== null && (!self::projectName($editor) || $secret || in_array($type, ['password', 'file'], true) || isset($column['media']))) throw new InvalidArgumentException('Field editors need a dotted project field type name on a non-secret, non-password, non-file, non-media field.');
+        if ($visibleWhen !== null && (array_diff(array_keys($visibleWhen), ['field', 'in']) || !is_string($visibleWhen['field'] ?? null) || !preg_match('/^[a-z][a-z0-9_]*$/D', $visibleWhen['field'])
+            || $visibleWhen['field'] === $name || !is_array($visibleWhen['in'] ?? null) || !$visibleWhen['in'] || !array_is_list($visibleWhen['in']) || count($visibleWhen['in']) > 50
+            || array_filter($visibleWhen['in'], static fn($value) => !is_string($value) || strlen($value) > 255) || count(array_unique($visibleWhen['in'])) !== count($visibleWhen['in'])
+            || ($column['editable'] ?? false) || $bulk || $secret || $type === 'file')) {
+            throw new InvalidArgumentException('Invalid conditional field: '.$name);
+        }
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
         if ($type === 'checkbox' && $defaultValue !== null && !in_array($defaultValue, ['0', '1'], true)) {
@@ -115,6 +127,10 @@ final readonly class Field
         if ($value !== '' && ($this->column['presentation'] ?? null) === 'image' && !self::imageFile($value)) {
             $this->reject('Érvénytelen képfájlnév.');
         }
+        // `date`: a calendar date `YYYY-MM-DD`; forms and grid cells edit it with the native Suite date picker.
+        if ($value !== '' && $this->type === 'date' && !self::date($value)) {
+            $this->reject('Érvényes dátum szükséges (ÉÉÉÉ-HH-NN).');
+        }
         if ($value !== '' && $this->type === 'number' && !preg_match('/^\d+$/D', $value)) {
             $this->reject('Nemnegatív egész szám szükséges.');
         }
@@ -135,6 +151,12 @@ final readonly class Field
         return $value;
     }
 
+    /** Whether the field takes part for the record values $values (always without `visibleWhen`). */
+    public function active(array $values): bool
+    {
+        return $this->visibleWhen === null || in_array((string) ($values[$this->visibleWhen['field']] ?? ''), $this->visibleWhen['in'], true);
+    }
+
     /** MediaSource resource of the column: `column.media`, or the file manager of a `file` field. */
     public function media(): ?string
     {
@@ -151,6 +173,12 @@ final readonly class Field
     public static function projectName(mixed $name): bool
     {
         return is_string($name) && str_contains($name, '.') && preg_match('/^[a-z][a-z0-9_.-]*$/D', $name) === 1;
+    }
+
+    /** A real calendar date `YYYY-MM-DD`. */
+    public static function date(mixed $value): bool
+    {
+        return is_string($value) && preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D', $value, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
     }
 
     /** A single image file name: letters, digits, `-`, `_`, `.`; no path, no `..`, no scheme, no leading dot; png, jpg, jpeg, webp, gif or svg. */
@@ -190,6 +218,7 @@ final readonly class Field
             // Workspace adds the resolved folder, the upload policy and the actor's upload right; the folder path stays server-side.
             ...($this->file !== null ? ['file' => ['resource' => $this->file['resource'], 'mount' => $this->file['mount'], 'accept' => $this->file['accept']]] : []),
             ...($this->editor !== null ? ['editor' => $this->editor] : []),
+            ...($this->visibleWhen !== null ? ['visibleWhen' => $this->visibleWhen] : []),
         ];
     }
 }

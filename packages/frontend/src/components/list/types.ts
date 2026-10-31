@@ -24,8 +24,12 @@ export type ViewDefinition={id:string;resource:string;title:string;icon?:string;
   activate?:Activation;search?:{fields:string[]};columns:Column[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
   /** Records expand to the `resource` list filtered to `field` = record id: its own `view`, or this view when `shared`. */
   subview?:{resource:string;field:string;shared?:boolean;view?:ViewDefinition;select?:boolean;page?:boolean};
+  /** Tree navigation: the node list `view` beside this list, scoped to `field` = the selected node (api TreeMetadata). */
+  tree?:{view:PublicDefinition<ListKindOptions>;field:string;parent:string;label:string};
   /** Declared project client commands (`app.commands` names) of the toolbar. */
-  commands?:string[]};
+  commands?:string[];
+  /** Manual order and drops from another list (api ListKindOptions `order`, `drop`). */
+  order?:{field:string;scope?:string};drop?:{from:string;field:string}};
 /**
  * A nested (sub-view) instance: its list is limited to `field` = `id` and new records get that value. With
  * `shared` it has no toolbar of its own; its cursor record is reported to the parent, whose toolbar acts on it.
@@ -50,4 +54,10 @@ export type WorkspaceHooks={
   app?:Pick<Application,"navigate"|"viewDefinition">;
   /** The view as the server sent it: the `view` of client command contexts. */
   view?:PublicDefinition<ListKindOptions>;
+  /** The rows can be dragged into a list that declares `drop` from this resource (public `ListViewOptions.dragSource`). */
+  dragSource?:boolean;
+  /** false: the list sits in a host's panel and draws none of its own (public `ListViewOptions.panel`). */
+  panel?:boolean;
+  /** false: no ID column and no `ID · n` line on cards (public `ListViewOptions.showId`). */
+  showId?:boolean;
 };

@@ -21,7 +21,7 @@ capabilities from real needs; unimplemented rows are candidates, not commitments
 | Menu/toolbar | Suite Standard | — | Main/list menus, theme/language selectors | Navigation/capabilities |
 | DataView | Suite Standard | Detailed inventory version-dependent; no virtualization in Standard | Cards and media tiles implemented ([workspaces](workspaces.md#media-tiles)) | Templates/selection |
 | Tabs/popup/sidebar/ribbon/List | Suite Standard | Inventory on demand | No verified independent adapter | Shell/lifecycle |
-| Tree | Suite Standard | Advanced options need checking | `TreeAdapter` over a flat parent list, used by the [file manager](files.md); view.layout.tree remains a layout tree | Lazy children/drag moves |
+| Tree | Suite Standard | Advanced options need checking | `TreeAdapter` over a flat parent list, used by the [file manager](files.md) and the lists' [tree navigation](workspaces.md#tree-navigation) (children loaded on expansion); view.layout.tree remains a layout tree | Drag moves, live tree updates |
 | TreeGrid | Suite PRO | PRO-only | None | Licensed adapter/capability |
 | Chart | Suite Standard | PRO types/options separate | No framework adapter; projects use `app.dhx.Chart` (feature demo [readings dashboard](demos.md#readings-dashboard): bar chart in a Layout cell, theme colours on `app.theme.onChange`) | Scoped aggregates/drill-down |
 | Date/time/color picker/combo | Suite Standard | Not event calendar | Not independently qualified as a capability | Types/locale/timezone |

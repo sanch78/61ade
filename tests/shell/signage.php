@@ -77,11 +77,11 @@ try {
     check(count($scene) === 1 && $scene[0]['title'] === 'Animált jelenet' && $scene[0]['duration'] === '12' && $scene[0]['mime_type'] === 'text/javascript'
         && $scene[0]['mount_id'] === 'signage' && (int) $scene[0]['parent_id'] === (int) $signage['id'], 'Scene fixture: Signage root, script type, one asset');
     $sceneId = (string) $scene[0]['id'];
-    $slot = $db->prepare("SELECT text, start_at, rrule, duration FROM blade_calendar_events WHERE space = 'signage' AND json_extract(data, '$.asset_id') = ?");
+    $slot = $db->prepare("SELECT text, start_at, rrule, duration FROM blade_calendar_events WHERE space = 'signage' AND json_extract(data, '$.content') = 'asset:' || ?");
     $slot->execute([$sceneId]);
     $slots = $slot->fetchAll(PDO::FETCH_ASSOC);
     check(count($slots) === 1 && $slots[0]['text'] === 'Esti jelenet' && str_ends_with($slots[0]['start_at'], ' 20:00:00') && $slots[0]['rrule'] === 'FREQ=DAILY;INTERVAL=1' && (int) $slots[0]['duration'] === 3600, 'Scene fixture: daily 20:00–21:00 event');
-    $db->prepare("DELETE FROM blade_calendar_events WHERE space = 'signage' AND json_extract(data, '$.asset_id') = ?")->execute([$sceneId]);
+    $db->prepare("DELETE FROM blade_calendar_events WHERE space = 'signage' AND json_extract(data, '$.content') = 'asset:' || ?")->execute([$sceneId]);
     blade_demo_signage_scene($db, $storage);
     blade_demo_signage_scene($db, $storage);
     $slot->execute([$sceneId]);
@@ -102,6 +102,10 @@ try {
     $rule->execute(['1', 'signage_playlist', 'scene']);
     $rule->execute([$reader, 'signage_playlist', 'scene']);
     foreach (['list', 'get'] as $action) { $rule->execute([$reader, 'signage_assets', $action]); $rule->execute([$reader, 'signage_defaults', $action]); }
+    foreach (['list', 'get', 'create', 'update', 'delete'] as $action) $rule->execute(['1', 'signage_playlists', $action]);
+    foreach (['list', 'get'] as $action) $rule->execute([$reader, 'signage_playlists', $action]);
+    foreach (['list', 'get', 'create', 'update', 'delete', 'move'] as $action) $rule->execute(['1', 'signage_playlist_items', $action]);
+    foreach (['list', 'get'] as $action) $rule->execute([$reader, 'signage_playlist_items', $action]);
     $ctx = static fn(string $actor = '1', array $uploads = []) => new Context(new Identity($actor, 'Actor '.$actor), 'ui', $workspace->acl, $db, [], $uploads);
     $call = static fn(string $resource, string $action, ?string $id, array $values = [], ?Context $c = null) => $workspace->executor->execute($c ?? $ctx(), $resource, $action, $id, $values);
 
@@ -121,8 +125,10 @@ try {
     check($fileField['type'] === 'file' && $fileField['file']['resource'] === 'files' && $fileField['file']['mount'] === 'signage' && $fileField['file']['accept'] === ['image', 'video', 'audio']
         && $fileField['file']['folderId'] === (string) $signage['id'] && $fileField['file']['canUpload'] === true && $fileField['file']['canChoose'] === true && $fileField['file']['policy']['extensions'] === ['png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'] && !isset($fileField['file']['folder']), 'File field metadata');
     check(!str_contains(json_encode($view, JSON_THROW_ON_ERROR), $tmp), 'No storage path in metadata');
-    // Activation by the file's media class: audio and video open the record view demo.asset-viewer, the rest the details.
-    check(json_encode($view['options']['activate'], JSON_THROW_ON_ERROR) === '{"field":"file_id","map":{"audio":"view:demo.asset-viewer","video":"view:demo.asset-viewer","*":"details"}}', 'Activation map on the file field');
+    // Activation by the file's MIME type or class: images, video, audio and scenes (text/javascript) open the record view
+    // demo.asset-viewer, the rest the details; the toolbar command demo.play opens it too.
+    check(json_encode($view['options']['activate'], JSON_THROW_ON_ERROR) === '{"field":"file_id","map":{"image":"view:demo.asset-viewer","audio":"view:demo.asset-viewer","video":"view:demo.asset-viewer","text\\/javascript":"view:demo.asset-viewer","*":"details"}}', 'Activation map on the file field');
+    check(($view['options']['commands'] ?? null) === ['demo.play'], 'Play command on the list toolbar');
     $viewer = array_column($workspace->views(new Identity('1', 'Demo')), null, 'id')['demo.asset-viewer'] ?? null;
     check($viewer !== null && $viewer['kind'] === 'demo.asset-viewer' && $viewer['record'] === 'signage_assets' && $viewer['resource'] === 'signage_assets' && ($viewer['open'] ?? 'page') === 'page'
         && array_column($viewer['actions'], 'name') === ['get'] && $viewer['options'] === ['loop' => false, 'details' => 'signage_assets'], 'Record view demo.asset-viewer offered with its options');
@@ -138,9 +144,9 @@ try {
     // Listing: `_media` descriptors and usage counts (events and day defaults referencing the asset).
     $list = $call('signage_assets', 'list', null, ['limit' => 10, 'sort' => ['field' => 'usage', 'direction' => 'desc']]);
     $items = array_column($list['items'], null, 'title');
-    check((int) $items['Blade brand animáció']['usage'] === 7 && (int) $items['Arculati háttérkép']['usage'] === 0, 'Brand scene: seven weekday defaults');
-    check((int) $items['Fotó plakát']['usage'] === 1 && (int) $items['Promóciós videó']['usage'] === 1 && (int) $items['Logó állókép']['usage'] === 1, 'Usage counts events and defaults');
-    check($list['items'][0]['title'] === 'Blade brand animáció' && (int) $list['items'][1]['usage'] === 1 && (int) end($list['items'])['usage'] === 0, 'Sorted by usage on the server');
+    check((int) $items['Blade brand animáció']['usage'] === 7 && (int) $items['Arculati háttérkép']['usage'] === 1, 'Brand scene: seven weekday defaults; the fractal is in the sample playlist');
+    check((int) $items['Fotó plakát']['usage'] === 2 && (int) $items['Promóciós videó']['usage'] === 1 && (int) $items['Logó állókép']['usage'] === 2, 'Usage counts events, defaults and playlist items');
+    check($list['items'][0]['title'] === 'Blade brand animáció' && (int) $list['items'][1]['usage'] === 2 && (int) end($list['items'])['usage'] === 0, 'Sorted by usage on the server');
     check($items['Promóciós videó']['_media']['file_id']['mime_type'] === 'video/webm' && $items['Logó állókép']['_media']['file_id']['width'] === 1 && $items['Promóciós videó']['_media']['file_id']['name'] === 'minta-video.webm', 'Media descriptors in rows');
     check($call('signage_assets', 'list', null, ['filters' => ['file_id' => 'video']])['matched'] === 1, 'Type filter over the file');
     $readerList = $call('signage_assets', 'list', null, ['limit' => 10], $ctx($reader));
@@ -194,15 +200,17 @@ try {
     $poster = $ids['Fotó plakát'];
     $revision = $call('signage_assets', 'get', $poster)['revision'];
     $bulk = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision, 'preview' => '1']], ['id' => $ids['Logó állókép'], 'values' => ['revision' => $call('signage_assets', 'get', $ids['Logó állókép'])['revision'], 'preview' => '1']]]);
-    check($bulk[0]['ok'] && $bulk[0]['data']['count'] === 1 && $bulk[0]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && !isset($bulk[0]['data']['audit']), 'Bulk preview carries the usages');
-    check($bulk[1]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1]] && (int) $db->query("SELECT COUNT(*) FROM signage_assets")->fetchColumn() === 11, 'Preview changes nothing');
+    $used = [['label' => 'Műsorterv-események', 'count' => 1], ['label' => 'Lejátszásilista-elemek', 'count' => 1]];
+    check($bulk[0]['ok'] && $bulk[0]['data']['count'] === 1 && $bulk[0]['data']['usages'] === $used && !isset($bulk[0]['data']['audit']), 'Bulk preview carries the usages');
+    check($bulk[1]['data']['usages'] === $used && (int) $db->query("SELECT COUNT(*) FROM signage_assets")->fetchColumn() === 11, 'Preview changes nothing');
     check(!isset($bulk[0]['data']['audit_action']) && $db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete_preview' AND outcome = 'success' AND object_id IN (".$db->quote($poster).','.$db->quote($ids['Logó állókép']).')')->fetchColumn() == 2
         && !$db->query("SELECT COUNT(*) FROM blade_audit WHERE resource = 'signage_assets' AND action = 'delete' AND object_id = ".$db->quote($poster))->fetchColumn(), 'Previews journaled as delete_preview');
     $applied = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision]]]);
-    check($applied[0]['ok'] && $applied[0]['data']['cleared'] === ['Műsorterv-események' => 1], 'Applied delete reports the cleared references');
+    check($applied[0]['ok'] && $applied[0]['data']['cleared'] === ['Műsorterv-események' => 1, 'Lejátszásilista-elemek' => 1], 'Applied delete reports the cleared references');
+    check((int) $db->query('SELECT COUNT(*) FROM signage_playlist_items WHERE asset_id = '.$db->quote($poster))->fetchColumn() === 0, 'Its playlist items are removed');
     check((int) $db->query('SELECT COUNT(*) FROM signage_defaults WHERE asset_id = '.$db->quote($poster))->fetchColumn() === 0 && (int) $db->query('SELECT COUNT(*) FROM signage_defaults')->fetchColumn() === 7, 'No default referenced it');
     $event = $db->query("SELECT data, revision FROM blade_calendar_events WHERE text = 'Rendezvény plakát'")->fetch(PDO::FETCH_ASSOC);
-    check(json_decode($event['data'], true)['asset_id'] === '' && (int) $event['revision'] === 2, 'Its event keeps the slot without an asset');
+    check(json_decode($event['data'], true)['content'] === '' && (int) $event['revision'] === 2, 'Its event keeps the slot without content');
     // A default delete no longer runs the after_save rule (which re-read the deleted row and rejected every delete).
     $default = $db->query('SELECT id FROM signage_defaults ORDER BY id LIMIT 1')->fetchColumn();
     $call('signage_defaults', 'delete', (string) $default, ['revision' => $call('signage_defaults', 'get', (string) $default)['revision']]);
@@ -212,7 +220,7 @@ try {
     $monday = new DateTimeImmutable('monday this week');
     foreach (range(0, 6) as $offset) {
         $day = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify("+$offset days")->format('Y-m-d'));
-        check(!array_filter($day['scheduled'], static fn($entry) => $entry['asset'] === null || $entry['asset']['file'] === null), 'Scheduled entries all have a playable asset');
+        check(!array_filter($day['scheduled'], static fn($entry) => $entry['asset'] === null ? !$entry['playlist']['items'] || array_filter($entry['playlist']['items'], static fn($asset) => $asset['file'] === null) : $entry['asset']['file'] === null), 'Scheduled entries all have playable content');
         check($day['default'] === null || $day['default']['file'] !== null, 'Default content has a file');
         check(!in_array('Rendezvény plakát', array_column($day['scheduled'], 'title'), true), 'Blanked event skipped');
         check(($day['default']['id'] ?? null) === ($offset === 0 ? null : $brandId), 'Brand scene is the default; the deleted Monday default leaves none');
@@ -221,6 +229,98 @@ try {
     check($tuesday['scheduled'][0]['asset']['kind'] === 'video' && $tuesday['scheduled'][0]['title'] === 'Reggeli promó', 'Type derived from the file');
     $evening = array_values(array_filter($tuesday['timeline'], static fn($slot) => $slot['title'] === 'Esti jelenet'));
     check(count($evening) === 1 && $evening[0]['start'] === '20:00' && $evening[0]['end'] === '21:00' && $evening[0]['asset']['kind'] === 'scene' && $evening[0]['asset']['id'] === $sceneId, 'A scene file plays as the type `scene`');
+
+    // Playlist items: an ordered child resource of its playlist (manual order within the playlist, `move`); the
+    // editor lists, edits and moves them through the framework list, the reader only reads.
+    $playlist = (string) $db->query("SELECT id FROM signage_playlists WHERE title = 'Hétvégi válogatás'")->fetchColumn();
+    // An embedded child: no view (menu entry) of its own, the playlists view carries it as its sub-view.
+    check(!isset($views['signage_playlist_items']), 'Items have no menu entry');
+    $itemView = $views['signage_playlists']['options']['subview']['view'];
+    $itemColumns = array_column($itemView['options']['columns'], null, 'id');
+    check($itemView['options']['order'] === ['field' => 'position', 'scope' => 'playlist_id'] && $itemView['options']['sortable'] === ['position']
+        && array_column($itemView['actions'], 'name') === ['get', 'create', 'update', 'delete', 'move'], 'Items: manual order within the playlist, move offered');
+    check($itemColumns['file_id']['media'] === 'files' && $itemColumns['status']['presentation'] === 'icon' && $itemColumns['duration']['editable'] === true
+        && !in_array('position', array_column(array_column($itemView['actions'], null, 'name')['create']['fields'], 'name'), true), 'Items: thumbnail through the asset, today icon, editable play time; the position is server-owned');
+    check(($views['signage_playlists']['options']['subview']['resource'] ?? null) === 'signage_playlist_items' && $views['signage_playlists']['options']['subview']['field'] === 'playlist_id', 'Playlists expand to their items');
+    $itemsOf = static fn(string $list, ?Context $c = null) => $call('signage_playlist_items', 'list', null, ['limit' => 200, 'filters' => ['playlist_id' => $list]], $c)['items'];
+    $seeded = $itemsOf($playlist);
+    check(array_column($seeded, 'asset_id') === [$ids['Arculati háttérkép'], $ids['Logó állókép']] && array_map('intval', array_column($seeded, 'position')) === [0, 2], 'Items listed in their seeded order (the deleted asset\'s item is gone)');
+    foreach ($seeded as $item) $call('signage_playlist_items', 'delete', $item['id'], ['revision' => $item['revision']]);
+    $video = $ids['Promóciós videó'];
+    $saturdayDate = $monday->modify('+5 days')->format('Y-m-d');
+    $create = static fn(array $values, ?Context $c = null) => $call('signage_playlist_items', 'create', null, ['playlist_id' => $playlist, ...$values], $c)['id'];
+    // Video with a 10 s override and the zoom transition, the scene, the video again switched off, the scene valid only
+    // after the Saturday (skipped there): repeats, overrides, the switch and validity; each new item goes last.
+    $first = $create(['asset_id' => $video, 'duration' => '10', 'transition' => 'zoom']);
+    $second = $create(['asset_id' => $sceneId]);
+    $third = $create(['asset_id' => $video, 'enabled' => '0']);
+    $fourth = $create(['asset_id' => $sceneId, 'valid_from' => $monday->modify('+6 days')->format('Y-m-d'), 'valid_to' => '2099-12-31']);
+    $listed = array_column($itemsOf($playlist), null, 'id');
+    check(array_map('strval', array_keys($listed)) === [$first, $second, $third, $fourth], 'New items go last, in order');
+    check($listed[$first]['length'] === '10' && $listed[$second]['length'] === '12' && $listed[$first]['status'] === 'dxi dxi-check' && $listed[$third]['status'] === 'dxi dxi-eye-off' && $listed[$fourth]['status'] === 'dxi dxi-calendar-today'
+        && $listed[$first]['_media']['file_id']['mime_type'] === 'video/webm', 'Effective play time, today\'s status and the asset\'s media');
+    fails(fn() => $create(['asset_id' => $video, 'position' => '1']), 400, 'The position is not writable');
+    $refused = static fn(array $values, string $field, string $message) => check(isset(fails(fn() => $create($values), 400, $message)->fieldErrors[$field]), $message.': field error');
+    $refused(['asset_id' => '999999'], 'asset_id', 'Unknown asset refused');
+    $refused(['asset_id' => $video, 'duration' => '0'], 'duration', 'Zero play time refused');
+    $refused(['asset_id' => $video, 'duration' => '3601'], 'duration', 'Play time over an hour refused');
+    $refused(['asset_id' => $video, 'transition' => 'spin'], 'transition', 'Unknown transition refused');
+    $refused(['asset_id' => $video, 'valid_from' => '2026-02-30'], 'valid_from', 'Invalid date refused');
+    $refused(['asset_id' => $video, 'valid_from' => '2026-03-02', 'valid_to' => '2026-03-01'], 'valid_to', 'Validity end before its start refused');
+    $revision = $listed[$fourth]['revision'];
+    check(isset(fails(fn() => $workspace->executor->edit($ctx(), 'signage_playlist_items', $fourth, 'valid_from', '2100-01-01', $revision), 400, 'A start after the stored end refused in a cell edit')->fieldErrors['valid_from']), 'Range checked against the stored end');
+    // Moving: in front of another item of the playlist or last; the scope is renumbered, other revisions stay valid.
+    $move = static fn(string $id, string $before, ?Context $c = null) => $call('signage_playlist_items', 'move', $id, ['before' => $before, 'revision' => $call('signage_playlist_items', 'get', $id)['revision']], $c);
+    $order = static fn() => array_map('strval', array_column($itemsOf($playlist), 'id'));
+    $secondRevision = $listed[$second]['revision'];
+    check($move($fourth, $second)['position'] === 2 && $order() === [$first, $fourth, $second, $third], 'Moved in front of another item');
+    check($move($first, '')['position'] === 4 && $order() === [$fourth, $second, $third, $first], 'Moved last');
+    $move($first, $fourth); $move($fourth, '');
+    check($order() === [$first, $second, $third, $fourth] && array_map('intval', array_column($itemsOf($playlist), 'position')) === [1, 2, 3, 4], 'Positions renumbered 1…n');
+    check($call('signage_playlist_items', 'get', $second)['revision'] === $secondRevision, 'A move does not make other items stale');
+    $other = $call('signage_playlists', 'create', null, ['title' => 'Másik lista', 'transition' => 'fade', 'transition_ms' => '600', 'shuffle' => '0'])['id'];
+    $foreign = $call('signage_playlist_items', 'create', null, ['playlist_id' => $other, 'asset_id' => $video])['id'];
+    check((int) $itemsOf($other)[0]['position'] === 1, 'Another playlist numbers its own items');
+    check(isset(fails(fn() => $move($first, $foreign), 400, 'An item of another playlist is no move target')->fieldErrors['before']), 'Foreign move target: field error');
+    fails(fn() => $call('signage_playlist_items', 'move', $first, ['before' => '', 'revision' => 'stale']), 409, 'A stale revision refused');
+    $call('signage_playlists', 'delete', $other, ['revision' => $call('signage_playlists', 'get', $other)['revision']]);
+    check(count($itemsOf($playlist, $ctx($reader))) === 4, 'Reader lists the items');
+    fails(fn() => $create(['asset_id' => $sceneId], $ctx($reader)), 403, 'Reader cannot add an item');
+    fails(fn() => $move($first, '', $ctx($reader)), 403, 'Reader cannot move an item');
+    $db->prepare('INSERT INTO signage_playlist_items(playlist_id,asset_id,position) SELECT ?, ?, 100 + value FROM json_each(?)')->execute([$playlist, $sceneId, json_encode(range(1, BLADE_DEMO_SIGNAGE_PLAYLIST_ITEMS - 4))]);
+    fails(fn() => $create(['asset_id' => $sceneId]), 409, 'At most 200 items');
+    $db->exec('DELETE FROM signage_playlist_items WHERE CAST(position AS INTEGER) > 100');
+    // List settings go through the resource's `update` (validated like any field).
+    $revision = $call('signage_playlists', 'get', $playlist)['revision'];
+    fails(fn() => $call('signage_playlists', 'update', $playlist, ['title' => 'Hétvégi válogatás', 'transition' => 'fade', 'transition_ms' => '9000', 'shuffle' => '0', 'revision' => $revision]), 400, 'Transition over 5 s refused');
+    $call('signage_playlists', 'update', $playlist, ['title' => 'Hétvégi válogatás', 'transition' => 'slide', 'transition_ms' => '800', 'shuffle' => '0', 'revision' => $revision]);
+    $listed = array_column($call('signage_playlists', 'list', null, ['limit' => 10])['items'], null, 'id')[$playlist];
+    check((int) $listed['items'] === 4 && (int) $listed['length'] === 10 + 12 + 12, 'Length: overrides, switched-off items left out');
+    // Day programme: only the items playing that day, each with its play time and transition, and their total.
+    $saturday = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $saturdayDate);
+    $weekend = array_values(array_filter($saturday['timeline'], static fn($slot) => $slot['title'] === 'Hétvégi délután'));
+    check(count($weekend) === 1 && $weekend[0]['start'] === '13:00' && $weekend[0]['end'] === '17:00' && $weekend[0]['asset'] === null
+        && array_column($weekend[0]['playlist']['items'], 'id') === [$video, $sceneId] && array_column($weekend[0]['playlist']['items'], 'duration') === [10, 12]
+        && $weekend[0]['playlist']['duration'] === 22, 'Playlist slot: switched-off and not yet valid items skipped, overrides applied');
+    check(array_column($weekend[0]['playlist']['items'], 'transition') === [['type' => 'zoom', 'ms' => 800], ['type' => 'slide', 'ms' => 800]], 'Transition: item override, else the list\'s');
+    $sunday = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+6 days')->format('Y-m-d'));
+    $sundaySlot = array_values(array_filter($sunday['timeline'], static fn($slot) => $slot['title'] === 'Hétvégi délután'))[0];
+    check(array_column($sundaySlot['playlist']['items'], 'id') === [$video, $sceneId, $sceneId], 'An item plays from its first valid day');
+    // Shuffle: the same items in a stable order per date.
+    $call('signage_playlists', 'update', $playlist, ['title' => 'Hétvégi válogatás', 'transition' => 'slide', 'transition_ms' => '800', 'shuffle' => '1', 'revision' => $call('signage_playlists', 'get', $playlist)['revision']]);
+    $shuffled = static fn() => array_values(array_filter(blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+6 days')->format('Y-m-d'))['timeline'], static fn($slot) => $slot['title'] === 'Hétvégi délután'))[0]['playlist'];
+    $first = $shuffled();
+    check($first['shuffle'] === true && $first === $shuffled() && count($first['items']) === 3 && $first['duration'] === 34, 'Shuffled list: same items, stable order per date');
+    // The calendar offers playlists and assets in one field; playlist events take their own colour.
+    $calendarView = array_column($workspace->views(new Identity('1', 'Demo')), null, 'id')['signage_schedule'];
+    $content = $calendarView['options']['fields'][0];
+    check($content['name'] === 'content' && $content['options']['playlist:'.$playlist] === 'Lejátszási lista: Hétvégi válogatás' && $content['options']['asset:'.$sceneId] === 'Animált jelenet', 'Content choices: playlists and assets');
+    check($calendarView['options']['tones'] === [['field' => 'content', 'prefix' => 'playlist:', 'tone' => 'success']], 'Playlist events have their own tone');
+    // Deleting a used playlist: the preview counts events and items; the delete blanks the event and removes the items.
+    $revision = $call('signage_playlists', 'get', $playlist)['revision'];
+    check($call('signage_playlists', 'delete', $playlist, ['revision' => $revision, 'preview' => '1'])['usages'] === [['label' => 'Műsorterv-események', 'count' => 1], ['label' => 'Lejátszásilista-elemek', 'count' => 4]], 'Playlist delete preview');
+    $call('signage_playlists', 'delete', $playlist, ['revision' => $revision]);
+    check(json_decode((string) $db->query("SELECT data FROM blade_calendar_events WHERE text = 'Hétvégi délután'")->fetchColumn(), true)['content'] === '' && !(int) $db->query('SELECT COUNT(*) FROM signage_playlist_items')->fetchColumn(), 'Playlist delete blanks its events and removes its items');
 
     // Scene code (D2): only a scene asset's live file, as text; the browser runs it in the SandboxFrame only.
     $code = $call('signage_playlist', 'scene', null, ['asset' => $sceneId]);
@@ -247,7 +347,8 @@ try {
     $previews = array_column($workspace->views(new Identity('1', 'Demo')), null, 'id');
     $preview = $previews['demo.playlist-preview'] ?? null;
     check($preview !== null && $preview['kind'] === 'demo.playlist-preview' && $preview['resource'] === 'signage_playlist' && $preview['group'] === 'Digitális kijelző'
-        && array_column($preview['actions'], 'name') === ['day', 'scene'] && $preview['options'] === ['media' => 'files'] && !isset($preview['record']), 'Playlist preview view');
+        && array_column($preview['actions'], 'name') === ['day', 'scene'] && $preview['options']['media'] === 'files' && !isset($preview['record'])
+        && array_column($preview['options']['layout']['rows'], 'id') === ['commands', 'player'] && array_column($preview['actions'], 'icon') === ['dxi dxi-calendar-today', null], 'Playlist preview view: its panels and the day action\'s icon');
     check(isset(array_column($workspace->views(new Identity($reader, 'Reader')), null, 'id')['demo.playlist-preview']) && !isset(array_column($workspace->views(new Identity('77', 'Nobody')), null, 'id')['demo.playlist-preview']), 'The preview follows the playlist actions');
 
     // Reader: no write channel.

@@ -157,7 +157,7 @@ export class ListActions{
       const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field).map(f=>input(f,f.type==="password"?"":schema.values[f.name])),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
       this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.releaseTypes();this.editor=form;
       const files=this.fileFields=new FileFields(form,allowed,list.resourceCall,[schema.values,id?list.rows.find(row=>String(row.id)===id):undefined]);
-      const types=this.fieldTypes=bindFieldTypes(form,allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field));
+      const types=this.fieldTypes=bindFieldTypes(form,allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field),undefined,()=>{if(this.dialog?.isVisible())void fitWindow(this.dialog);});
       const close=()=>{
         files.destroy();if(this.fileFields===files)this.fileFields=undefined;
         types();if(this.fieldTypes===types)this.fieldTypes=undefined;

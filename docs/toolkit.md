@@ -285,6 +285,7 @@ registration affects only surfaces created after it.
 | `presentations` | `image` (static image column; `icon` stays framework-internal) | `Field` `column: ['presentation' => 'demo.bar']`, JSON `"column": {"presentation": "demo.bar"}` |
 | `fieldTypes` | none | `new Field(…, editor: 'demo.rating')`, JSON field `"editor": "demo.rating"` |
 | `commands` | `details` (the lists' `Adatok` command) | `Registry::view(…, commands: [...])`, `SqlResource::register(…, commands: [...])`, JSON `view.commands` |
+| `mediaTypes` | `image`, `video`, `audio` (`image/*`, `video/*`, `audio/*`) | nothing: every file's `mime_type` (`_media`, file listings) |
 
 The server checks only the shape of a project name (dotted, `Field::projectName`)
 and sends it with the view; the browser module supplies the behaviour. A view
@@ -323,6 +324,19 @@ app.commands.register("demo.count-marked", {
   label: "Kijelöltek száma", placement: "toolbar", enabled: ({ rows }) => rows.length > 0,
   run: ({ app, rows }) => app.ui.toast(app.i18n.t("{count} elem", { count: rows.length })),
 });
+```
+
+A media type gives files of some MIME types their label and fallback icon
+wherever 61ade presents a file: media slots (table, cards, tiles, details,
+the `file` field), the derived `type` part, the file manager's icon column and
+tree. `mime` lists exact types or classes (`audio/*`); an exact entry wins over
+a class, and a file no entry matches is `Fájl` with the generic file icon. The
+`icon` is a Suite icon (`dxi dxi-…`) or a 61ade glyph: `blade-icon
+blade-icon--audio` (the built-in `audio`) or `blade-icon blade-icon--animation`.
+Presentation only: what a file may be, and who reads it, stays the server's.
+
+```ts
+app.mediaTypes.register("demo.scene", { mime: ["text/javascript"], label: "Animáció", icon: "blade-icon blade-icon--animation" });
 ```
 
 The feature demo's real registrations: the presentation `demo.reading-bar`
@@ -443,6 +457,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
 | [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
+| [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels) | none; `cell(id)`, `attach(id, content)` |
 
 Every event with its payload is in the [event catalog](#event-catalog); how
 to compose components in one page is the [Layout recipe](#layout-recipe).
@@ -508,6 +523,19 @@ current.mount(layout.getCell("list"));
 - **No marks event:** `ListView` reports the cursor record (`select`) and the
   loaded window (`changed`), not the marked rows; there is no `marked` event
   or method ([limits](#limits)). Commands see the marks in their context.
+- **In a host's panel (`panel: false`):** the list draws no panel of its own
+  (no title, count or frame, no filter panel): its toolbar and data fill the
+  host's region, a `PageLayout` region for example, which gives the title; the
+  declared filters stay the table's header filters and the `Szűrés` dialog of
+  cards and tiles. Default `true` (the list is its own titled panel, as on a
+  menu page).
+- **`showId: false`:** no ID column and no `ID · n` line on cards (a page whose
+  users do not work with record ids).
+- **`dragSource: true`:** the rows can be dragged into another list of the page
+  that declares `drop` from this view's resource
+  ([manual order and drops](workspaces.md#manual-order)); the dragged record,
+  or every marked one when it is marked. A list with a manual order or a drop
+  is draggable by its declaration; draggable rows show the drag-handle column.
 
 <a id="recordform"></a>
 
@@ -538,6 +566,13 @@ form.mount(win);
   after a change until a successful save. `changed` reports every committed
   field change (on leaving the field).
 - A failed `__form` shows the error dialog; `submit()` then rejects with it.
+- `cancel: false` leaves out Cancel (a form that stays on its page, such as a
+  query's parameters). `setValues(values)` fills the action's fields once the
+  form is shown, without submitting or `changed`; the form is unchanged after it.
+- The submit button is the action's `submitLabel` from an offered view, else
+  its label (`Mentés` only without either), so a project view's query action
+  submits under its own name. A read-only action (`write: false`) shows no
+  success toast: its answer is the `saved` event's `result`.
 
 <a id="recorddetails"></a>
 
@@ -555,7 +590,8 @@ list.on("select", ({ row }) => { if (row) void details.show(row); });
 
 `record` (and `show`) take a row, shown as given, or an id, loaded through
 the view's `get` (a newer call wins). A failed load shows the error dialog and
-`show()` rejects. It has no events.
+`show()` rejects. It has no events. `showId: false` leaves out the `ID · n`
+line.
 
 <a id="commandbar"></a>
 
@@ -586,6 +622,43 @@ underlying Suite Toolbar. Escape closes an open menu, also one opened with the
 mouse, and returns the focus to its toggle (`Műveletek`); the key does not
 reach a window behind it. The feature demo's viewer drives a `MediaPlayer`
 with it ([example](#example-record-view)).
+
+<a id="pagelayout"></a>
+
+#### PageLayout
+
+A page's panels as declared data, with the framework list layout's behaviour:
+one Suite space Layout from a region tree (typically the view's
+`options.layout`), escaped panel headers, the user's panel sizes and collapsed
+panels kept per page and user (`UiPreferences`, keyed by `id`), and a resizer
+double-click that restores the declared sizes.
+
+```ts
+const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout });
+host.attach(page);
+new app.components.ListView({ view: "signage_assets", panel: false, signal }).mount(page.cell("library"));
+page.attach("preview", element);                       // a plain element of the page's own
+signal.addEventListener("abort", () => page.destroy(), { once: true });   // last: after the components in its cells
+```
+
+- `tree`: `PageRegion`, the options of a list view's region (`header`, `rows`,
+  `cols`, `width`, `height`, `minWidth`, `minHeight`, `resizable`,
+  `collapsable`, `collapsed`); a leaf has its own `id` (`[a-z][a-z0-9_-]*`,
+  unique), a branch `rows` or `cols` and no id; at most 6 levels and 30
+  regions, sizes 40–3000 px. Anything else throws `TypeError`; `id` is the
+  preference key (usually the view id).
+- `cell(id)` is a declared region's cell, the mount target of every
+  component (an undeclared id throws `Error`); `attach(id, content)` puts a
+  Suite widget, a public component or a plain element there (the view host's
+  rule), released with the layout. A region holds either attached content or
+  mounted components.
+- Destroy it after the components in its cells (the [Layout recipe](#layout-recipe)).
+  A list placed in a region is created with `panel: false`, so the region is
+  its panel.
+- The page is one tree for every width; a page that needs another tree on a
+  phone builds a new `PageLayout` and mounts it into one element the host
+  holds for the view's life (a host cell that once showed markup renders a
+  later widget empty, [pitfalls](#pitfalls)).
 
 <a id="calendar-and-diagrameditor"></a>
 
@@ -788,7 +861,9 @@ camelCase `imageBase`, `altOf` and `mediaOf`, and a field's JSON `default` is
 
 `View` validates: id, `kind` (a built-in name or a dotted project kind),
 non-empty `title`/`group`, resource and record names, unique action names
-(only with a resource), icon classes, `open` = `page` or `window`. Existence of
+(only with a resource), icon classes, `open` = `page` or `window`, and the
+optional `guide` (plain text up to 4000 characters, shown by the shell as the
+[view guide](workspaces.md#view-guide); JSON `guide`, in the bootstrap only when set). Existence of
 actions, the record resource's `get` and the kind provider is checked by
 `addView`.
 
@@ -801,11 +876,12 @@ public function addView(View $view): View;                              // a tak
 public function updateView(View $view): View;                           // changes the declared view of that id
 public function kind(string $kind, ViewKindProvider $provider): void;   // dotted, before its views; duplicate throws
 public function view(string $resource, string $title, array $columns, array $actions, /* … */
-    string|array|null $activate = null, ?string $id = null, array $commands = []): View;
-public function fileManager(/* … */, ?string $id = null): View;
-public function diagram(/* … */, ?string $id = null): View;
-public function calendar(/* … */, ?string $id = null): View;
+    string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null): View;
+public function fileManager(/* … */, ?string $id = null, ?string $guide = null): View;
+public function diagram(/* … */, ?string $id = null, ?string $guide = null): View;
+public function calendar(/* … */, ?string $id = null, ?string $guide = null): View;
 public function subview(string $view, string $child, string $field, bool $embed = true, bool $select = true): void; // view ids
+public function tree(string $view, string $tree, string $field, string $label): void; // view ids; workspaces.md#tree-navigation
 public function appendViewActions(string $view, array $actions): void;  // view id
 /** @return list<View> */ public function views(): array;
 public function viewById(string $id): ?View;
@@ -917,7 +993,7 @@ $source->register($registry, 'Médiatár', tiles: true,
 JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.asset-viewer", "*": "details"}}`.
 The feature demo keys `Médiatár` on its `file` field instead
 ([D1](demos.md#d1-asset-viewer)):
-`"activate": {"field": "file_id", "map": {"audio": "view:demo.asset-viewer", "video": "view:demo.asset-viewer", "*": "details"}}`.
+`"activate": {"field": "file_id", "map": {"image": "view:demo.asset-viewer", "audio": "view:demo.asset-viewer", "video": "view:demo.asset-viewer", "text/javascript": "view:demo.asset-viewer", "*": "details"}}`.
 
 - Values per entry: the existing `details`, `subview`, `page`, a record action
   of the view, or the new `view:<id>` (a record view whose `record` is the
@@ -925,8 +1001,9 @@ The feature demo keys `Médiatár` on its `file` field instead
 - The client chooses per row by the string value of `field`; `*` is the
   default; no match and no `*` keeps the default behaviour. A media field (a
   `file` field or a `column.media` field, whose row carries `_media[field]`)
-  is keyed by its file's MIME class (`image`, `video`, `audio`, …), not by the
-  file id; a row without a file, or with one the actor may not see
+  is keyed by its file's exact MIME type when the map names it
+  (`text/javascript`, compared in lower case), otherwise by its MIME class
+  (`image`, `video`, `audio`, …), not by the file id; a row without a file, or with one the actor may not see
   (`_media[field]` is `null`), takes `*`.
 - The server validates at definition time: `field` is a readable, non-secret
   field of the resource carried in list rows, every target as today, and
@@ -1257,6 +1334,8 @@ promise instead.
 
 ## Layout and ViewHost recipe
 
+A page of declared panels uses [`PageLayout`](#pagelayout) (the playlist
+editor and the day programme do); the rules below apply to it as well.
 A view kind builds one Suite Layout from `app.dhx`, gives it to
 `host.attach()` and mounts components into its cells. A responsive page
 rebuilds the whole Layout when it crosses 768 px and attaches the new one
@@ -1720,6 +1799,8 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M31 | The file manager's `list` answer drops `truncated` | [FB-0081](feedback.md#fb-0081) | if used | none | none |
 | M32 | Applications without `logo` show the 61ade product logo ([brand](brand.md)) in the top row (only where the menu leaves room) and above the sign-in form, accessible name `blade`; `Logo::none()` / JSON `"logo": false` turns it off | [FB-0088](feedback.md#fb-0088) | info; if a consumer wants no logo | `Logo::none()` or nothing | `Logo::none()` or nothing |
 | M33 | The first shell page of each browser window or tab opens with the 61ade [trademark screen](brand.md#splash) (about 3.3 s, not configurable); it covers the page and takes the pointer until it fades out; the shell's CSP `script-src` carries the hash of its inline gate | [FB-0089](feedback.md#fb-0089) | info: specs that screenshot or hit-test right after loading | none | none: clicks wait for it |
+| M34 | View guides ([workspaces](workspaces.md#view-guide)): a view with `guide` opens a non-modal `Útmutató: <title>` window when it opens as a page, until the user closes it once; the lower bar gains an `Útmutató` button. New, additive: `Registry::tree()` / JSON `view.tree` ([tree navigation](workspaces.md#tree-navigation)), `Field` `visibleWhen` / JSON `visible_when` ([conditional fields](workspaces.md#conditional-fields)), `ListKindOptions.tree`, `FieldMetadata.visibleWhen`, `ViewDefinition.guide`; a `RecordForm` mounted in an `AppWindow` fits it once its fields show | [FB-0107](feedback.md#fb-0107) | info: specs whose views get a guide (close it, or seed the dismissal) | none | none |
+| M35 | Lists and forms ([manual order and drops](workspaces.md#manual-order), [card filters](workspaces.md#card-filters)): a list with header filters and no filter panel shows `Szűrés` in cards and tiles (the header filters in a dialog); header filter inputs are named `Szűrés: <column>`; draggable rows (a manual order, a drop, `dragSource`) start with a drag-handle column; a checkbox in a framework form shows its text; `RecordForm` submits under the action's label when no view gives a `submitLabel` and shows no success toast for a read-only action. New, additive: `SqlResource` `order` / JSON `storage.order` with the `move` action, `View`/builder `drop` / JSON `view.drop`, `ListKindOptions.order`/`drop`, `ListViewOptions.dragSource`/`panel`/`showId`, `RecordFormOptions.cancel`, `RecordForm.setValues`, `RecordDetailsOptions.showId`, `PageLayout`, computed `column.media` fields, the `not_before_field`/`not_after_field` rules | [FB-0108](feedback.md#fb-0108) | info: specs that count toolbar items in cards, find header filters by position or expect `Mentés` or a toast from a query form | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -1830,6 +1911,10 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-30 | Trademark screen once per browser window or tab (`sessionStorage` gate, inline head script allowed by CSP hash): page-turning tiles, letters bouncing in, blade glint and spark on black, then a fade into the application; no option to skip it (M33). | Owner: it is the 61ade trademark screen; applications cannot override it. | [FB-0089](feedback.md#fb-0089) |
 | 2026-10-30 | Product logo redrawn to the owner's source drawing: the first letters read 6 and 1 (only they carry the teal), `ade` ink, heavier stems, tighter spacing, taller tile 1 with its arc; viewBox `-19 -46 1370 395`. | Owner: the b of the SVG must be the 6 of the source drawing. | [FB-0090](feedback.md#fb-0090) |
 | 2026-10-30 | Product logo redrawn as `b1ade` to the owner's new drawing: rounded-rectangle letters, the `b` and `1` in one blue gradient, `ade` ink, tiles recoloured; viewBox `-19 -46 1795 395`. The trademark screen adds the blue dot and `com`, silver ink, glow, floor light and reflection. | Owner: a better logo design; `.com` on the trademark screen only, tiles and their animation stay. | [FB-0091](feedback.md#fb-0091) |
+| 2026-10-31 | `Application.mediaTypes` (`Registry<MediaType>`: `mime`, `label`, `icon`; built-ins `image`, `video`, `audio`) presents files by MIME type in media slots, the `type` part, the file picker and the file manager; the 61ade glyphs `blade-icon--audio` (the built-in audio icon, before the generic file icon) and `blade-icon--animation`. An activation map on a media field matches an exact MIME type entry before the class. Additive. | Owner: audio and HTML animations need their own icons in the `Médiatár`, and animations their own player. | [FB-0102](feedback.md#fb-0102) |
+| 2026-10-31 | `BuiltinFieldType` gains `date` (`YYYY-MM-DD`): native DatePicker form item and Grid `datePicker` cell editor. | Dates were plain text inputs with a pattern. | [FB-0104](feedback.md#fb-0104) |
+| 2026-10-31 | `Components.PageLayout` (`PageLayoutOptions`, `PageRegion`); `ListViewOptions.dragSource`, `panel`, `showId`; `ListKindOptions.order`, `drop`; `RecordFormOptions.cancel`, `RecordForm.setValues()`; `RecordDetailsOptions.showId`; `ValidationRules.notBeforeField`, `notAfterField`. `RecordForm` submits under the action's label without a `submitLabel` and shows no toast for a read-only action. Additive (M35). | Owner: the playlist editor and the day programme are rebuilt from 61ade components only; the missing pieces (declared page panels, a manual order, drops between lists, filters in cards, range rules) belong in the framework. | [FB-0108](feedback.md#fb-0108) |
+| 2026-10-31 | `ViewDefinition.guide`, `ListKindOptions.tree` (`TreeMetadata`), `FieldMetadata.visibleWhen`; `Registry::tree()`, `View`/builder `guide`, `Field` `visibleWhen`; `RecordForm` fits an `AppWindow` it is mounted in. Additive. | Feature-demo guides and the registry editor demo need a view guide, a data tree beside a list and type-dependent value editors in the framework. | [FB-0107](feedback.md#fb-0107) |
 
 <a id="resolved-decisions"></a>
 

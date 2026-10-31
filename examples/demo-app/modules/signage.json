@@ -1,12 +1,18 @@
 {
     "section_descriptions": {
         "purpose": "Feature demo: digital signage (DMS) content register for the event calendar.",
-        "covers": "media assets over files of the Signage mount (file field, derived type/resolution/length, usage count), the record view demo.asset-viewer for audio and video assets (activation by the file's media class), default content per weekday or per date, lookup choices, a business rule hook."
+        "covers": "media assets over files of the Signage mount (file field, derived type/resolution/length, usage count), the record view demo.asset-viewer for image, video, audio and animation (scene) assets (activation by the file's MIME type or class, the demo.play toolbar command), default content per weekday or per date, lookup choices, a business rule hook, playlists of assets (computed item count and length) whose items are an ordered child resource (manual order, drops from the asset list, today's status), edited in the record view demo.playlist-editor (declared panel layout)."
     },
     "lookups": {
         "signage_assets": {
             "resource": "signage_assets",
             "table": "signage_assets",
+            "key": "id",
+            "label": "title"
+        },
+        "signage_playlists": {
+            "resource": "signage_playlists",
+            "table": "signage_playlists",
             "key": "id",
             "label": "title"
         }
@@ -17,7 +23,7 @@
                 "table": "signage_assets",
                 "key": "id",
                 "computed": {
-                    "usage": "(SELECT COUNT(*) FROM blade_calendar_events usage_event WHERE usage_event.space = 'signage' AND usage_event.deleted = 0 AND json_extract(usage_event.data, '$.asset_id') = CAST(blade_base.id AS TEXT)) + (SELECT COUNT(*) FROM signage_defaults usage_default WHERE usage_default.asset_id = CAST(blade_base.id AS TEXT))"
+                    "usage": "(SELECT COUNT(*) FROM blade_calendar_events usage_event WHERE usage_event.space = 'signage' AND usage_event.deleted = 0 AND json_extract(usage_event.data, '$.content') = 'asset:' || blade_base.id) + (SELECT COUNT(*) FROM signage_defaults usage_default WHERE usage_default.asset_id = CAST(blade_base.id AS TEXT)) + (SELECT COUNT(*) FROM signage_playlist_items usage_item WHERE usage_item.asset_id = CAST(blade_base.id AS TEXT))"
                 }
             },
             "fields": [
@@ -90,8 +96,10 @@
                 "activate": {
                     "field": "file_id",
                     "map": {
+                        "image": "view:demo.asset-viewer",
                         "audio": "view:demo.asset-viewer",
                         "video": "view:demo.asset-viewer",
+                        "text/javascript": "view:demo.asset-viewer",
                         "*": "details"
                     }
                 },
@@ -137,6 +145,9 @@
                     "update",
                     "delete"
                 ],
+                "commands": [
+                    "demo.play"
+                ],
                 "subview": {
                     "resource": "signage_defaults",
                     "field": "asset_id",
@@ -173,13 +184,8 @@
                 {
                     "name": "date",
                     "label": "Dátum",
+                    "type": "date",
                     "max": 10,
-                    "validation": {
-                        "pattern": {
-                            "expression": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-                            "message": "Formátum: ÉÉÉÉ-HH-NN."
-                        }
-                    },
                     "column": {
                         "editable": true,
                         "width": 130
@@ -225,6 +231,371 @@
                     "delete"
                 ]
             }
+        },
+        "signage_playlists": {
+            "storage": {
+                "table": "signage_playlists",
+                "key": "id",
+                "computed": {
+                    "items": "(SELECT COUNT(*) FROM signage_playlist_items count_item WHERE count_item.playlist_id = CAST(blade_base.id AS TEXT))",
+                    "length": "(SELECT COALESCE(SUM(CAST(COALESCE(NULLIF(length_item.duration, ''), length_asset.duration) AS INTEGER)), 0) FROM signage_playlist_items length_item JOIN signage_assets length_asset ON CAST(length_asset.id AS TEXT) = length_item.asset_id WHERE length_item.playlist_id = CAST(blade_base.id AS TEXT) AND length_item.enabled <> '0')",
+                    "usage": "(SELECT COUNT(*) FROM blade_calendar_events usage_event WHERE usage_event.space = 'signage' AND usage_event.deleted = 0 AND json_extract(usage_event.data, '$.content') = 'playlist:' || blade_base.id)"
+                }
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 120,
+                    "column": {
+                        "editable": true,
+                        "minWidth": 220
+                    }
+                },
+                {
+                    "name": "transition",
+                    "label": "Áttűnés",
+                    "type": "select",
+                    "required": true,
+                    "default": "fade",
+                    "options": {
+                        "none": "Nincs",
+                        "fade": "Áttűnés",
+                        "slide": "Csúsztatás",
+                        "zoom": "Nagyítás"
+                    },
+                    "column": {
+                        "width": 130
+                    }
+                },
+                {
+                    "name": "transition_ms",
+                    "label": "Áttűnés hossza (ms)",
+                    "type": "number",
+                    "required": true,
+                    "max": 4,
+                    "default": "600",
+                    "validation": {
+                        "pattern": {
+                            "expression": "^([0-9]|[1-9][0-9]{1,2}|[1-4][0-9]{3}|5000)$",
+                            "message": "0 és 5000 ms közötti érték."
+                        }
+                    },
+                    "column": {
+                        "width": 150,
+                        "align": "right"
+                    }
+                },
+                {
+                    "name": "shuffle",
+                    "label": "Keverés",
+                    "type": "checkbox",
+                    "default": "0",
+                    "column": {
+                        "width": 100
+                    }
+                },
+                {
+                    "name": "items",
+                    "label": "Elemek",
+                    "type": "number",
+                    "column": {
+                        "width": 100,
+                        "align": "right"
+                    }
+                },
+                {
+                    "name": "length",
+                    "label": "Hossz (mp)",
+                    "type": "number",
+                    "column": {
+                        "width": 120,
+                        "align": "right"
+                    }
+                },
+                {
+                    "name": "usage",
+                    "label": "Használat",
+                    "type": "number",
+                    "column": {
+                        "width": 110,
+                        "align": "right"
+                    }
+                }
+            ],
+            "operations": {
+                "delete": true,
+                "delete_policy": "delete"
+            },
+            "view": {
+                "title": "Lejátszási listák",
+                "group": "Digitális kijelző",
+                "icon": "dxi dxi-view-sequential",
+                "row_selection": true,
+                "search": [
+                    "title"
+                ],
+                "activate": {
+                    "field": "title",
+                    "map": {
+                        "*": "view:demo.playlist-editor"
+                    }
+                },
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "items",
+                        "header": "Elemek"
+                    },
+                    {
+                        "id": "length",
+                        "header": "Hossz (mp)"
+                    },
+                    {
+                        "id": "transition",
+                        "header": "Áttűnés"
+                    },
+                    {
+                        "id": "shuffle",
+                        "header": "Keverés"
+                    },
+                    {
+                        "id": "usage",
+                        "header": "Használat"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update",
+                    "delete"
+                ],
+                "commands": [
+                    "demo.edit-playlist"
+                ],
+                "subview": {
+                    "resource": "signage_playlist_items",
+                    "field": "playlist_id"
+                }
+            }
+        },
+        "signage_playlist_items": {
+            "storage": {
+                "table": "signage_playlist_items",
+                "key": "id",
+                "order": {
+                    "field": "position",
+                    "scope": "playlist_id"
+                },
+                "computed": {
+                    "file_id": "(SELECT item_asset.file_id FROM signage_assets item_asset WHERE CAST(item_asset.id AS TEXT) = blade_base.asset_id)",
+                    "length": "(SELECT CAST(COALESCE(NULLIF(blade_base.duration, ''), item_asset.duration) AS INTEGER) FROM signage_assets item_asset WHERE CAST(item_asset.id AS TEXT) = blade_base.asset_id)",
+                    "status": "CASE WHEN blade_base.enabled = '0' THEN 'dxi dxi-eye-off' WHEN blade_base.valid_to <> '' AND blade_base.valid_to < date('now', 'localtime') THEN 'dxi dxi-close' WHEN blade_base.valid_from <> '' AND blade_base.valid_from > date('now', 'localtime') THEN 'dxi dxi-calendar-today' ELSE 'dxi dxi-check' END"
+                }
+            },
+            "hooks": {
+                "guard": "signage.playlist_item_limit"
+            },
+            "fields": [
+                {
+                    "name": "playlist_id",
+                    "label": "Lejátszási lista",
+                    "type": "select",
+                    "required": true,
+                    "options_lookup": "signage_playlists"
+                },
+                {
+                    "name": "position",
+                    "label": "Sorrend",
+                    "type": "number",
+                    "max": 5,
+                    "column": {
+                        "width": 80,
+                        "align": "right"
+                    }
+                },
+                {
+                    "name": "file_id",
+                    "label": "Előnézet",
+                    "column": {
+                        "media": "files",
+                        "width": 96
+                    }
+                },
+                {
+                    "name": "asset_id",
+                    "label": "Médiaelem",
+                    "type": "select",
+                    "required": true,
+                    "options_lookup": "signage_assets",
+                    "column": {
+                        "minWidth": 180
+                    }
+                },
+                {
+                    "name": "status",
+                    "label": "Ma",
+                    "options": {
+                        "dxi dxi-check": "Ma lejátszódik",
+                        "dxi dxi-eye-off": "Kikapcsolva",
+                        "dxi dxi-close": "Lejárt",
+                        "dxi dxi-calendar-today": "Még nem érvényes"
+                    },
+                    "column": {
+                        "presentation": "icon",
+                        "width": 64,
+                        "align": "center"
+                    }
+                },
+                {
+                    "name": "length",
+                    "label": "Lejátszási idő (mp)",
+                    "type": "number",
+                    "column": {
+                        "width": 120,
+                        "align": "right"
+                    }
+                },
+                {
+                    "name": "duration",
+                    "label": "Saját lejátszási idő (mp)",
+                    "type": "number",
+                    "max": 4,
+                    "bulk": true,
+                    "validation": {
+                        "pattern": {
+                            "expression": "^([1-9][0-9]{0,2}|[12][0-9]{3}|3[0-5][0-9]{2}|3600)$",
+                            "message": "1 és 3600 mp közötti egész szám; üresen a médiaelem saját ideje."
+                        }
+                    },
+                    "column": {
+                        "editable": true,
+                        "width": 140,
+                        "align": "right"
+                    }
+                },
+                {
+                    "name": "transition",
+                    "label": "Saját áttűnés",
+                    "type": "select",
+                    "bulk": true,
+                    "options": {
+                        "none": "Nincs",
+                        "fade": "Áttűnés",
+                        "slide": "Csúsztatás",
+                        "zoom": "Nagyítás"
+                    },
+                    "column": {
+                        "editable": true,
+                        "width": 130
+                    }
+                },
+                {
+                    "name": "enabled",
+                    "label": "Bekapcsolva",
+                    "type": "checkbox",
+                    "default": "1",
+                    "bulk": true,
+                    "column": {
+                        "editable": true,
+                        "width": 100
+                    }
+                },
+                {
+                    "name": "valid_from",
+                    "label": "Érvényes ettől",
+                    "type": "date",
+                    "max": 10,
+                    "bulk": true,
+                    "column": {
+                        "editable": true,
+                        "width": 130,
+                        "secondary": true
+                    },
+                    "validation": {
+                        "not_after_field": "valid_to"
+                    }
+                },
+                {
+                    "name": "valid_to",
+                    "label": "Érvényes eddig",
+                    "type": "date",
+                    "max": 10,
+                    "bulk": true,
+                    "column": {
+                        "editable": true,
+                        "width": 130,
+                        "secondary": true
+                    },
+                    "validation": {
+                        "not_before_field": "valid_from"
+                    }
+                }
+            ],
+            "operations": {
+                "delete": true
+            },
+            "view": {
+                "title": "Lejátszásilista-elemek",
+                "group": "Digitális kijelző",
+                "icon": "dxi dxi-view-sequential",
+                "row_selection": true,
+                "row_height": 56,
+                "guide": "A lista elemei a lejátszás sorrendjében. Húzd a sorokat a sorrend módosításához, vagy használd a Feljebb és Lejjebb parancsot. Üres saját lejátszási idő esetén a médiaelem saját ideje, üres saját áttűnésnél a lista áttűnése érvényes. A Ma oszlop mutatja, hogy az elem ma lejátszódik-e.",
+                "columns": [
+                    {
+                        "id": "file_id",
+                        "header": "Előnézet"
+                    },
+                    {
+                        "id": "asset_id",
+                        "header": "Médiaelem"
+                    },
+                    {
+                        "id": "enabled",
+                        "header": "Bekapcsolva"
+                    },
+                    {
+                        "id": "status",
+                        "header": "Ma"
+                    },
+                    {
+                        "id": "length",
+                        "header": "Lejátszási idő (mp)"
+                    },
+                    {
+                        "id": "duration",
+                        "header": "Saját lejátszási idő (mp)"
+                    },
+                    {
+                        "id": "transition",
+                        "header": "Saját áttűnés"
+                    },
+                    {
+                        "id": "valid_from",
+                        "header": "Érvényes ettől"
+                    },
+                    {
+                        "id": "valid_to",
+                        "header": "Érvényes eddig"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update",
+                    "delete",
+                    "move"
+                ],
+                "drop": {
+                    "from": "signage_assets",
+                    "field": "asset_id"
+                }
+            }
         }
     },
     "views": {
@@ -241,6 +612,74 @@
                 "details": "signage_assets"
             },
             "icon": "dxi dxi-menu-right"
+        },
+        "demo.playlist-editor": {
+            "kind": "demo.playlist-editor",
+            "title": "Lejátszásilista-szerkesztő",
+            "resource": "signage_playlists",
+            "record": "signage_playlists",
+            "actions": [
+                "get",
+                "update"
+            ],
+            "options": {
+                "list": "signage_playlists",
+                "library": "signage_assets",
+                "layout": {
+                    "rows": [
+                        {
+                            "id": "commands",
+                            "height": 56
+                        },
+                        {
+                            "cols": [
+                                {
+                                    "id": "library",
+                                    "header": "Médiatár",
+                                    "width": 400,
+                                    "minWidth": 300,
+                                    "resizable": true,
+                                    "collapsable": true
+                                },
+                                {
+                                    "rows": [
+                                        {
+                                            "id": "preview",
+                                            "header": "Előnézet",
+                                            "height": 460,
+                                            "minHeight": 300,
+                                            "resizable": true,
+                                            "collapsable": true
+                                        },
+                                        {
+                                            "id": "items",
+                                            "header": "A lista elemei"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "width": 340,
+                                    "rows": [
+                                        {
+                                            "id": "details",
+                                            "header": "Összesítés",
+                                            "height": 280,
+                                            "resizable": true,
+                                            "collapsable": true
+                                        },
+                                        {
+                                            "id": "settings",
+                                            "header": "Lista beállításai"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "icon": "dxi dxi-view-sequential",
+            "desktop_only": true
         }
     }
 }

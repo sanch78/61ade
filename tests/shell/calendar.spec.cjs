@@ -63,7 +63,7 @@ test('editing one occurrence of a series stores an exception and keeps the serie
  await box.getByRole('button',{name:'Mentés',exact:true}).click();
  const response=await saved;expect(response.status()).toBe(200);
  const values=response.request().postDataJSON().values;
- expect(values.recurring_event_id).not.toBe('');expect(values.asset_id).not.toBe('');
+ expect(values.recurring_event_id).not.toBe('');expect(values.content).not.toBe('');
  await expect(page.locator('.dhx_cal_event').filter({hasText:prefix+' kivétel'})).toHaveCount(1);
  expect(await page.locator('.dhx_cal_event').filter({hasText:'Reggeli promó'}).count()).toBeGreaterThan(0);
 });
@@ -118,7 +118,7 @@ test('playlist API: Friday timeline falls back to the weekday default between pr
 test('reader sees the calendar read-only and dark theme switches the skin',async({page})=>{
  await openCalendar(page,'reader@example.test');
  await expect(page.getByRole('button',{name:'Új esemény',exact:true})).toHaveCount(0);
- expect((await api(page,'signage_schedule','create',null,{text:'x',start_date:'2026-10-23 08:00',end_date:'2026-10-23 09:00',asset_id:'1'})).status).toBe(403);
+ expect((await api(page,'signage_schedule','create',null,{text:'x',start_date:'2026-10-23 08:00',end_date:'2026-10-23 09:00',content:'asset:1'})).status).toBe(403);
  await page.getByRole('button',{name:/Skyblue|Világos|Éjjeli/}).click();await page.getByRole('menuitem',{name:'Éjjeli',exact:true}).click();
  await expect(page.locator('html')).toHaveAttribute('data-scheduler-theme','dark');
  await page.getByRole('button',{name:'Éjjeli'}).click();await page.getByRole('menuitem',{name:'Skyblue',exact:true}).click();

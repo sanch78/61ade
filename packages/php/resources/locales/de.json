@@ -59,6 +59,7 @@
   "Hibás formátum.": "Ungültiges Format.",
   "A két mező értéke nem egyezik.": "Die beiden Feldwerte stimmen nicht überein.",
   "Nemnegatív egész szám szükséges.": "Gib eine nicht negative ganze Zahl ein.",
+  "Érvényes dátum szükséges (ÉÉÉÉ-HH-NN).": "Gib ein gültiges Datum ein (JJJJ-MM-TT).",
   "Válassz az engedélyezett értékekből.": "Wähle einen zulässigen Wert.",
   "— válassz —": "— auswählen —",
   "— nincs —": "— keine —",
@@ -700,5 +701,18 @@
   "Egy alkalmazásmodul nem indult el: {module}": "Ein Anwendungsmodul wurde nicht gestartet: {module}",
   "A munkamenet lejárt": "Sitzung abgelaufen",
   "A munkamenet lejárt, a nyitott adatok nem menthetők. Másold ki, amire még szükséged van, majd jelentkezz be újra.": "Ihre Sitzung ist abgelaufen, die geöffneten Daten können nicht gespeichert werden. Kopieren Sie, was Sie noch benötigen, und melden Sie sich dann erneut an.",
-  "Hivatkozások": "Links"
+  "Hivatkozások": "Links",
+  "Útmutató": "Anleitung",
+  "A megnyitott nézet útmutatója": "Anleitung zur geöffneten Ansicht",
+  "Betöltés…": "Wird geladen…",
+  "Válassz egy elemet a fában.": "Wähle ein Element im Baum.",
+  "Nem lehet korábbi vagy kisebb a kezdő értéknél.": "Darf nicht früher oder kleiner als der Anfangswert sein.",
+  "Nem lehet későbbi vagy nagyobb a záró értéknél.": "Darf nicht später oder größer als der Endwert sein.",
+  "Elé": "Vor",
+  "Ez az elem nincs ebben a listában.": "Dieses Element ist nicht in dieser Liste.",
+  "Feljebb": "Nach oben",
+  "Lejjebb": "Nach unten",
+  "Szűrés: {column}": "Filter: {column}",
+  "Húzással áthelyezhető": "Zum Verschieben ziehen",
+  "Húzással hozzáadható": "Zum Hinzufügen ziehen"
 }

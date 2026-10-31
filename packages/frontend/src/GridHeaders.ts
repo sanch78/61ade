@@ -109,6 +109,9 @@ export class GridHeaders {
         const id=node.getAttribute("data-dhx-id");
         if(this.columns.find(c=>c.id===id)?.editable)node.setAttribute("aria-description",t("Szerkeszthető mező"));
         if(id&&this.sortable.includes(id))node.setAttribute("aria-sort",id===this.sort.field?(this.sort.direction==="asc"?"ascending":"descending"):"none");
+        // A header filter's input is named after its column (Suite renders it unlabelled).
+        const column=this.columns.find(c=>c.id===id),filter=node.querySelector<HTMLInputElement>("input");
+        if(column&&filter)filter.setAttribute("aria-label",t("Szűrés: {column}",{column:column.header}));
       }
     });
   }

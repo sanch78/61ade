@@ -10,8 +10,8 @@ import type { ViewDefinition } from "./types";
  * The record details (`Adatok`): every declared detail field present in the ACL-projected record, with its
  * column's presentation (media, icon, options). Shared by the list's details window and `RecordDetails`.
  */
-export const detailsHtml=(row:Row,view:Pick<ViewDefinition,"columns"|"detailFields">):string=>
-  `<article class="blade-record-details"><div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>${recordFields(row,presentedFields(withDerived(view.detailFields??view.columns,view.columns),view.columns))}</article>`;
+export const detailsHtml=(row:Row,view:Pick<ViewDefinition,"columns"|"detailFields">,showId=true):string=>
+  `<article class="blade-record-details">${showId?`<div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>`:""}${recordFields(row,presentedFields(withDerived(view.detailFields??view.columns,view.columns),view.columns))}</article>`;
 
 /** The list's details window: one at a time, freshly loaded through the view's `get` (a newer request wins). */
 export class DetailsWindow{

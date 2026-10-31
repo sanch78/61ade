@@ -12,7 +12,9 @@ import { formActions, input } from "../list/fields";
 import { fitWindow } from "../../WindowSizing";
 import { server } from "../../api/Server";
 
-export type CalendarConfig={views:("day"|"week"|"month")[];defaultView:string;firstHour:number;lastHour:number;maxRangeDays:number;dayAction:{resource:string;action:string;label:string}|null;fields:FieldDefinition[]};
+export type CalendarConfig={views:("day"|"week"|"month")[];defaultView:string;firstHour:number;lastHour:number;maxRangeDays:number;dayAction:{resource:string;action:string;label:string}|null;tones?:CalendarTone[];fields:FieldDefinition[]};
+/** Event colour rule (`CalendarDefinition::$tones`): the first rule whose field equals `value` or starts with `prefix` wins. */
+export type CalendarTone={field:string;tone:"primary"|"secondary"|"success"|"danger";value?:string;prefix?:string};
 export type CalendarViewDefinition={kind:"calendar";resource:string;title:string;icon?:string;desktopOnly?:boolean;group?:string;actions:{name:string;label:string;icon?:string;write:boolean}[];calendar:CalendarConfig};
 type Failure=Error&{status?:number;fieldErrors?:Record<string,string>};
 type SchedulerEvent={id:string|number;text:string;start_date:Date;end_date:Date;rrule?:string;duration?:number;recurring_event_id?:string|number;original_start?:Date|string;deleted?:boolean;_end_date?:Date;[field:string]:unknown};
@@ -173,6 +175,11 @@ export class CalendarView {
       return escape(event.text)+(labels.length?`<div class="blade-calendar-detail">${escape(labels.join(" · "))}</div>`:"");
     };
     s.templates.event_bar_text=(start:Date,end:Date,event:SchedulerEvent)=>escape(event.text);
+    const tones=this.config.tones??[];
+    s.templates.event_class=(start:Date,end:Date,event:SchedulerEvent)=>{
+      const rule=tones.find(rule=>{const value=String(event[rule.field]??"");return rule.value!==undefined?value===rule.value:!!rule.prefix&&value.startsWith(rule.prefix);});
+      return rule?`blade-calendar-event--${rule.tone}`:"";
+    };
     this.handlers.push(
       s.attachEvent("onViewChange",()=>void this.load(false)),
       s.attachEvent("onEmptyClick",(date:Date)=>{this.selected=date;}),

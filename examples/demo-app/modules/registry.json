@@ -1,0 +1,249 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: a registry editor imitation (keys in a tree, typed values beside it).",
+        "covers": "tree navigation of a list (Registry::tree over a hierarchy sub-view: lazy children, node actions in the tree panel, the list scoped to the selected key) and conditional fields (visible_when: the value editor depends on the value type), composite unique keys, a computed display column, a cycle guard and a subtree delete hook."
+    },
+    "lookups": {
+        "demo_registry_keys": {
+            "resource": "demo_registry_keys",
+            "table": "demo_registry_keys",
+            "key": "id",
+            "label": "name",
+            "extra": {
+                "": "Nincs (gyökérkulcs)"
+            }
+        }
+    },
+    "resources": {
+        "demo_registry_keys": {
+            "storage": {
+                "table": "demo_registry_keys",
+                "key": "id",
+                "unique": [
+                    [
+                        "parent_id",
+                        "name"
+                    ]
+                ]
+            },
+            "hooks": {
+                "guard": "registry.key_guard",
+                "after_delete": "registry.key_after_delete"
+            },
+            "operations": {
+                "delete": true
+            },
+            "fields": [
+                {
+                    "name": "name",
+                    "label": "Kulcs neve",
+                    "required": true,
+                    "max": 120,
+                    "validation": {
+                        "pattern": {
+                            "expression": "^[^\\\\]+$",
+                            "message": "A kulcs neve nem tartalmazhat fordított perjelet."
+                        }
+                    }
+                },
+                {
+                    "name": "parent_id",
+                    "label": "Szülőkulcs",
+                    "type": "select",
+                    "max": 20,
+                    "options_lookup": "demo_registry_keys"
+                }
+            ],
+            "view": {
+                "title": "Kulcsok",
+                "group": "Feature demó",
+                "columns": [
+                    {
+                        "id": "name",
+                        "header": "Kulcs neve"
+                    },
+                    {
+                        "id": "parent_id",
+                        "header": "Szülőkulcs"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update",
+                    "delete"
+                ],
+                "subview": {
+                    "resource": "demo_registry_keys",
+                    "field": "parent_id"
+                }
+            }
+        },
+        "demo_registry_values": {
+            "storage": {
+                "table": "demo_registry_values",
+                "key": "id",
+                "unique": [
+                    [
+                        "key_id",
+                        "name"
+                    ]
+                ],
+                "defaults": {
+                    "type": "REG_SZ"
+                },
+                "computed": {
+                    "data": "CASE blade_base.type WHEN 'REG_SZ' THEN blade_base.string_value WHEN 'REG_EXPAND_SZ' THEN blade_base.string_value WHEN 'REG_MULTI_SZ' THEN replace(blade_base.multi_value, char(10), ' | ') WHEN 'REG_DWORD' THEN '0x' || substr('00000000' || lower(blade_base.dword_value), -8) WHEN 'REG_QWORD' THEN '0x' || substr('0000000000000000' || lower(blade_base.qword_value), -16) WHEN 'REG_BINARY' THEN lower(blade_base.binary_value) ELSE '' END"
+                }
+            },
+            "operations": {
+                "delete": true
+            },
+            "fields": [
+                {
+                    "name": "key_id",
+                    "label": "Kulcs",
+                    "type": "number",
+                    "max": 20
+                },
+                {
+                    "name": "name",
+                    "label": "Név",
+                    "required": true,
+                    "max": 120
+                },
+                {
+                    "name": "type",
+                    "label": "Típus",
+                    "type": "select",
+                    "required": true,
+                    "max": 20,
+                    "options": {
+                        "REG_SZ": "Karakterlánc (REG_SZ)",
+                        "REG_EXPAND_SZ": "Bővíthető karakterlánc (REG_EXPAND_SZ)",
+                        "REG_MULTI_SZ": "Többsoros karakterlánc (REG_MULTI_SZ)",
+                        "REG_DWORD": "Duplaszó, 32 bites (REG_DWORD)",
+                        "REG_QWORD": "Négyszó, 64 bites (REG_QWORD)",
+                        "REG_BINARY": "Bináris (REG_BINARY)"
+                    },
+                    "default": "REG_SZ"
+                },
+                {
+                    "name": "string_value",
+                    "label": "Érték (szöveg)",
+                    "max": 255,
+                    "visible_when": {
+                        "field": "type",
+                        "in": [
+                            "REG_SZ",
+                            "REG_EXPAND_SZ"
+                        ]
+                    }
+                },
+                {
+                    "name": "multi_value",
+                    "label": "Érték (soronként egy karakterlánc)",
+                    "type": "textarea",
+                    "max": 2000,
+                    "visible_when": {
+                        "field": "type",
+                        "in": [
+                            "REG_MULTI_SZ"
+                        ]
+                    }
+                },
+                {
+                    "name": "dword_value",
+                    "label": "Érték (hexadecimális, 32 bit)",
+                    "required": true,
+                    "max": 8,
+                    "validation": {
+                        "pattern": {
+                            "expression": "^[0-9a-fA-F]{1,8}$",
+                            "message": "Csak hexadecimális számjegyek (0–9, a–f) adhatók meg, legfeljebb 8 jegy."
+                        }
+                    },
+                    "visible_when": {
+                        "field": "type",
+                        "in": [
+                            "REG_DWORD"
+                        ]
+                    }
+                },
+                {
+                    "name": "qword_value",
+                    "label": "Érték (hexadecimális, 64 bit)",
+                    "required": true,
+                    "max": 16,
+                    "validation": {
+                        "pattern": {
+                            "expression": "^[0-9a-fA-F]{1,16}$",
+                            "message": "Csak hexadecimális számjegyek (0–9, a–f) adhatók meg, legfeljebb 16 jegy."
+                        }
+                    },
+                    "visible_when": {
+                        "field": "type",
+                        "in": [
+                            "REG_QWORD"
+                        ]
+                    }
+                },
+                {
+                    "name": "binary_value",
+                    "label": "Érték (bájtok hexadecimálisan, szóközzel elválasztva)",
+                    "type": "textarea",
+                    "max": 1000,
+                    "validation": {
+                        "pattern": {
+                            "expression": "^[0-9a-fA-F]{2}( [0-9a-fA-F]{2})*$",
+                            "message": "Formátum: két hexadecimális jegy bájtonként, szóközzel elválasztva (például 0a ff 3c)."
+                        }
+                    },
+                    "visible_when": {
+                        "field": "type",
+                        "in": [
+                            "REG_BINARY"
+                        ]
+                    }
+                },
+                {
+                    "name": "data",
+                    "label": "Adat",
+                    "max": 2000
+                }
+            ],
+            "view": {
+                "title": "Regisztrációs adatbázis",
+                "group": "Feature demó",
+                "icon": "dxi dxi-key",
+                "columns": [
+                    {
+                        "id": "name",
+                        "header": "Név"
+                    },
+                    {
+                        "id": "type",
+                        "header": "Típus",
+                        "width": 260
+                    },
+                    {
+                        "id": "data",
+                        "header": "Adat"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update",
+                    "delete"
+                ],
+                "tree": {
+                    "resource": "demo_registry_keys",
+                    "field": "key_id",
+                    "label": "name"
+                },
+                "guide": "A Windows rendszerleíró-adatbázis szerkesztőjét utánzó nézet: bal oldalt a kulcsok fája, jobb oldalt a kijelölt kulcs értékei.\n\nA fában egy kulcs kinyitásakor töltődnek be az alkulcsai. A fa eszköztárán új alkulcsot vehetsz fel a kijelölt kulcs alá, átnevezheted vagy áthelyezheted (Szülőkulcs), és törölheted; a törlés az alkulcsokat és az értékeket is viszi.\n\nAz értéklistában az Új érték űrlapon a Típus választása dönti el, melyik szerkesztő látszik: szöveg, többsoros szöveg, hexadecimális 32 vagy 64 bites szám, illetve bájtsor. Csak a látható mezőt ellenőrzi és menti a szerver; típusváltáskor a többi kiürül.\n\nKeretrendszer-képességek: fa-navigáció listanézethez (Registry::tree) és feltételes mezők (visible_when)."
+            }
+        }
+    }
+}

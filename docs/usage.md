@@ -361,7 +361,7 @@ The feature demo configures it as a network topology builder
 [Calendar](calendar.md) wraps the native DHTMLX Scheduler Standard (GPL) as the
 `calendar` view kind over the framework table `blade_calendar_events`:
 `CalendarDefinition` (space, extra event fields, views, hours, window limit,
-optional day action), registered `events`, `occurrences`, `create`, `update`
+optional day action, event colours `tones`), registered `events`, `occurrences`, `create`, `update`
 and `delete` actions with the space as ACL object, optimistic revisions, the
 Scheduler recurring model (series, moved and deleted occurrences) and the
 server-side `Recurrence` expansion of the editor's RRULE subset. Install it in
@@ -431,6 +431,15 @@ and current presentation limits.
 indicators](workspaces.md#nézetválasztás-és-fejlécjelzések), and [counts](workspaces.md#listafejléc-és-rekordszám)
 describe the public presentation contract, with evidence in
 [historical qualification](list-presentation-validation.md).
+
+A list can sit beside a data tree of another resource
+([tree navigation](workspaces.md#tree-navigation): `Registry::tree()`, JSON
+`view.tree`), a field can depend on another field's value
+([conditional fields](workspaces.md#conditional-fields): `visibleWhen`, JSON
+`visible_when`), and every view can explain itself in a closable
+[view guide](workspaces.md#view-guide) (`guide`). Prerequisites, examples,
+limits and checks are in those sections; the feature demo's
+`Regisztrációs adatbázis` uses all three.
 
 <a id="url-és-helyi-felületbeállítások"></a>
 

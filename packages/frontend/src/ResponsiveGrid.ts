@@ -24,7 +24,19 @@ export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSel
   /** A declared activation: double-click and Enter run `open` in cards and tiles too (not the details); the accessible description of what it runs on a card or tile, `undefined` for a record without one. */
   activation?:(row:Row)=>string|undefined;
   /** false: rows never become the cursor record (native selection and key navigation off, no highlight); double-click and Enter open nothing, editable switch cells still save. */
-  select?:boolean};
+  select?:boolean;
+  /**
+   * Dragging records (table, cards and tiles; never a sub-row). `reorder(id, before)`: a record of this list was
+   * dropped in front of `before` (undefined: after the last loaded record); `step(direction)`: Alt+↑/↓ on the cursor
+   * record. `resource`: the rows are a drag source for other lists (the marked records when the dragged one is
+   * marked). `receive(records, before)`: records dragged in from another list. Suite's own data never changes: the
+   * drop is cancelled and the owner saves and reloads.
+   */
+  drag?:{resource?:string;reorder?:(id:string,before:string|undefined)=>void;step?:(direction:-1|1)=>void;receive?:(records:DraggedRecords,before:string|undefined)=>void}};
+/** Records dragged out of a list (`drag.resource`): what another list's `drag.receive` gets. */
+export type DraggedRecords={resource:string;ids:string[]};
+/** The drag in progress between lists of this page (one at a time): its source list and records. */
+let dragged:{grid:ResponsiveGrid;records:DraggedRecords}|undefined;
 /** Reserved record keys (`RESERVED`) live under their alias in widget data and as Grid column ids, so editors use the alias too. */
 const guard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,key)){copy??={...row};copy[alias(key)]=copy[key];delete copy[key];}return copy??row;};
 const unguard=(row:Row):Row=>{let copy:Row|undefined;for(const key of RESERVED)if(Object.hasOwn(row,alias(key))){copy??={...row};copy[key]=copy[alias(key)];delete copy[alias(key)];}return copy??row;};
@@ -92,11 +104,15 @@ export class ResponsiveGrid {
     this.tileMinWidth=Math.max(100,Math.min(600,Math.round(Number(options.tileMinWidth)||180)));
     const media=columns.find(isMedia)??columns.find(isImage),icon=columns.find(isIcon);
     this.tilesOffered=options.tiles??!!media;
-    const pick=options.select!==false,keys=pick&&options.keyNavigation!==false;
+    const pick=options.select!==false,keys=pick&&options.keyNavigation!==false,drag=options.drag;
+    // Native drag (Suite Standard): a source copies, a reordering list drags within itself and may receive.
+    const dragging=drag?{dragMode:(drag.reorder||drag.receive?drag.reorder||drag.resource?"both":"target":"source") as "both",dragCopy:!drag.reorder&&!drag.receive}:{};
     this.layout=new Layout(host,{type:"none",css:"blade-grid-views",views:[{id:"table"},{id:"cards"},{id:"tiles"}],activeView:"table"});
     const toggle=(id:string,row?:Row)=>{if(!hasSubview(row??this.data.find(item=>String(item.id)===id)))return "";const open=this.expanded.has(id),label=t(open?"Részletek elrejtése: {id}":"Részletek megjelenítése: {id}",{id});
       return `<button type="button" class="blade-subrow-toggle dhx_button dhx_button--view_link dhx_button--size_small dhx_button--icon" aria-expanded="${open}" aria-label="${escape(label)}" title="${escape(label)}"><span class="dhx_button__icon dxi ${open?"dxi-chevron-down":"dxi-chevron-right"}" aria-hidden="true"></span></button>`;};
-    this.grid=new Grid(null,{columns:[...(options.subview?[{id:SUBROW,header:[{text:""}],width:44,sortable:false,resizable:false,htmlEnable:true,template:(_:unknown,row:any)=>row[SUBROW]!==undefined?slot(String(row[SUBROW])):toggle(String(row.id),unguard(row))}]:[]),...(options.selection?[{id:"_mark",header:[{text:t("Jelölés")}],width:66,sortable:false,htmlEnable:true,template:(_:unknown,row:any)=>row._markable===false?"":`<input type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`}]:[]),...(options.rowNumbers!==false?[{id:"_number",header:[{text:"#"}],width:56,sortable:false}]:[]),...(options.idColumn===false?[]:[{id:"id",header:[{text:"ID"}],width:80,sortable:false}]),...columns.map(c=>({id:alias(c.id),header:(()=>{const header=gridHeader({...c,filter:filterDefinitions.get(c.id)});return Array.isArray(header)?header:[header];})(),width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
+    // Draggable rows (a manual order or a drag source) start with the usual grip; dragging works from any cell.
+    const grip=drag&&(drag.reorder||drag.resource)?`<span class="blade-drag-handle dxi dxi-drag-vertical" aria-hidden="true" title="${escape(t(drag.reorder?"Húzással áthelyezhető":"Húzással hozzáadható"))}"></span>`:"";
+    this.grid=new Grid(null,{columns:[...(grip?[{id:"_drag",header:[{text:""}],width:36,sortable:false,resizable:false,htmlEnable:true,align:"center" as const,template:(_:unknown,row:any)=>row[SUBROW]!==undefined?"":grip}]:[]),...(options.subview?[{id:SUBROW,header:[{text:""}],width:44,sortable:false,resizable:false,htmlEnable:true,template:(_:unknown,row:any)=>row[SUBROW]!==undefined?slot(String(row[SUBROW])):toggle(String(row.id),unguard(row))}]:[]),...(options.selection?[{id:"_mark",header:[{text:t("Jelölés")}],width:66,sortable:false,htmlEnable:true,template:(_:unknown,row:any)=>row._markable===false?"":`<input type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`}]:[]),...(options.rowNumbers!==false?[{id:"_number",header:[{text:"#"}],width:56,sortable:false}]:[]),...(options.idColumn===false?[]:[{id:"id",header:[{text:"ID"}],width:80,sortable:false}]),...columns.map(c=>({id:alias(c.id),header:(()=>{const header=gridHeader({...c,filter:filterDefinitions.get(c.id)});return Array.isArray(header)?header:[header];})(),width:c.width,minWidth:c.minWidth??(c.width?undefined:160),maxWidth:c.maxWidth,align:c.align??(c.type==="checkbox"?"center":"left"),autoWidth:!c.width,sortable:false,
       ...gridEditor(c),
       ...(c.type==="checkbox"?{type:"string" as const,editable:false,htmlEnable:true,template:(_:unknown,row:any)=>recordCheckbox(unguard(row),c)}:{}),
       ...(c.type!=="checkbox"||!c.editable?c.options&&Object.keys(c.options).length?{template:(_:unknown,row:any)=>escape(optionText(c,cell(row,c.id)))}:{}:{}),
@@ -111,7 +127,7 @@ export class ResponsiveGrid {
       ...(!isMedia(c)&&!isImage(c)&&(c.render||c.fieldType)?{htmlEnable:true,...(c.fieldType?{editable:false}:{}),template:(_:unknown,row:any)=>{
         const record=unguard(row),html=c.render?c.render(record,"cell"):escape(optionText(c,record[c.id]));
         return c.fieldType&&c.editable&&record._editable?.includes(c.id)?`<span class="blade-card-edit" data-blade-row="${escape(record.id)}" data-blade-field="${escape(c.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:c.header}))}">${html}</span>`:html;}}:{}),
-    }))],rowCss:row=>{const sub=(row as any)[SUBROW],index=this.index.get(String(sub??row.id))??0;return (sub!==undefined?"blade-grid-subrow-row ":"")+(index%2===1?"blade-grid-row-alternate":"");},rowHeight:rh,autoWidth:true,resizable:true,selection:(pick?"row":false) as "row",keyNavigation:keys,htmlEnable:false});
+    }))],rowCss:row=>{const sub=(row as any)[SUBROW],index=this.index.get(String(sub??row.id))??0;return (sub!==undefined?"blade-grid-subrow-row ":"")+(index%2===1?"blade-grid-row-alternate":"");},rowHeight:rh,autoWidth:true,resizable:true,selection:(pick?"row":false) as "row",keyNavigation:keys,htmlEnable:false,...(drag?{dragItem:"row" as const,...dragging}:{})});
     // Card sub-view button: a native DHTMLX flat button with the child list title and the count when known.
     const subviewButton=(row:Row)=>{const count=(row as any)._subview,caption=options.subview!.label+(count!==undefined&&count!==null?` (${Number(count)})`:"");
       return `<div class="blade-grid-card__subview"><button type="button" class="blade-card-subview dhx_button dhx_button--view_flat dhx_button--color_primary dhx_button--size_medium dhx_button--icon-left" aria-haspopup="dialog" title="${escape(caption)}"><span class="dhx_button__icon dxi dxi-arrow-expand" aria-hidden="true"></span><span class="dhx_button__text">${escape(caption)}</span></button></div>`;};
@@ -119,14 +135,14 @@ export class ResponsiveGrid {
     const mark=(row:Row)=>options.selection&&row._markable!==false?`<input class="blade-card-mark" type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`:"";
     // Card fields: every permitted field with its column's presentation; only the first media field moves to the top slot.
     const editable=presentedFields(withDerived(options.fields??columns,columns),columns).filter(field=>!media||field.id!==media.id).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable}));
-    this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:pick,keyNavigation:keys,css:"blade-grid-cards",template:(item:Row)=>{const row=unguard(item);
-      return `<article class="blade-grid-card${this.marked.has(String(row.id))?" blade-grid-card--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}>${media&&hasSlot(media,row)?`<div class="blade-grid-card__media">${recordSlot(media,row,"card")}</div>`:""}<div class="blade-grid-card__id">${mark(row)}${mark(row)?" ":""}${options.idColumn===false?"":`ID · ${escape(row.id)}`}</div>${recordFields(row,editable,true)}${options.subview&&hasSubview(row)?subviewButton(row):""}</article>`;},
+    this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:pick,keyNavigation:keys,...dragging,css:"blade-grid-cards",template:(item:Row)=>{const row=unguard(item);
+      return `<article class="blade-grid-card${this.marked.has(String(row.id))?" blade-grid-card--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}>${media&&hasSlot(media,row)?`<div class="blade-grid-card__media">${recordSlot(media,row,"card")}</div>`:""}<div class="blade-grid-card__id">${grip}${mark(row)}${mark(row)?" ":""}${options.idColumn===false?"":`ID · ${escape(row.id)}`}</div>${recordFields(row,editable,true)}${options.subview&&hasSubview(row)?subviewButton(row):""}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id)),"blade-card-subview":(event:Event,id:string|number)=>{event.stopPropagation();selected(id);options.subview?.open(String(id));}}}});
     // Tiles: media slot (or the icon column), the first text column as title and one secondary line.
     const text=columns.filter(c=>!isMedia(c)&&!isImage(c)&&!isIcon(c)&&c.type!=="checkbox"),title=text[0],detail=text[1];
-    this.tiles=new DataView(document.createElement("div"),{itemsInRow:1,gap:8,selection:pick,keyNavigation:keys,css:"blade-grid-tiles",template:(item:Row)=>{const row=unguard(item);
+    this.tiles=new DataView(document.createElement("div"),{itemsInRow:1,gap:8,selection:pick,keyNavigation:keys,...dragging,css:"blade-grid-tiles",template:(item:Row)=>{const row=unguard(item);
       const caption=title?columnText(title,row):String(row.id),line=detail&&(Object.hasOwn(row,detail.id)||derivedOf(detail))?columnText(detail,row):"";
-      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}><div class="blade-grid-tile__media">${media&&(hasSlot(media,row)||!icon||!row[icon.id])?recordSlot(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`}${mark(row)}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${detail.render?detail.render(row,"tile"):escape(line)}</div>`:""}</article>`;},
+      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}><div class="blade-grid-tile__media">${media&&(hasSlot(media,row)||!icon||!row[icon.id])?recordSlot(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`} ${mark(row)}${grip}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${detail.render?detail.render(row,"tile"):escape(line)}</div>`:""}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
     const selected=(id:string|number)=>{if(!pick)return;this.selected=this.recordId(String(id));select(this.selected);};
     const markRow=(id:string,event:MouseEvent)=>{
@@ -153,6 +169,24 @@ export class ResponsiveGrid {
       // DataView arrows move its focus; the selection (cursor) follows it.
       list.events.on("focuschange",(_index?:number,id?:string|number)=>{if(pick&&id!==undefined&&id!==null&&!list.selection.contains(id))list.selection.add(id);});
       list.events.on("doubleclick",(id:string|number,event:Event)=>{if(!pick||(event?.target as HTMLElement)?.closest(".blade-card-edit,.blade-card-subview"))return;activate(String(id));});
+    }
+    if(drag){
+      // The dragged record (and the other marked ones when it is marked) as this list's records; a sub-row never drags.
+      const start=(data:{start:string|number})=>{
+        const raw=String(data.start);if(raw.startsWith(SUBROW+":"))return false;
+        const id=this.recordId(raw);dragged={grid:this,records:{resource:drag.resource??"",ids:this.marked.has(id)?[...this.marked]:[id]}};return true;
+      };
+      const drop=(data:{start:string|number;target?:string|number;dropPosition?:string})=>{
+        const from=dragged;dragged=undefined;
+        if(!from||this.disposed)return false;
+        const before=this.dropBefore(data.target,data.dropPosition);
+        if(from.grid===this){const id=this.recordId(String(data.start));if(drag.reorder&&before!==id)drag.reorder(id,before);}
+        else if(drag.receive&&from.records.resource)drag.receive(from.records,before);
+        return false;
+      };
+      const end=()=>{if(dragged?.grid===this)dragged=undefined;};
+      this.grid.events.on("beforeRowDrag",start);this.grid.events.on("beforeRowDrop",drop);this.grid.events.on("afterRowDrag",end);
+      for(const list of [this.cards,this.tiles]){list.events.on("beforeDrag",start);list.events.on("beforeDrop",drop);list.events.on("afterDrag",end);}
     }
     this.layout.getCell("table").attach(this.grid);this.layout.getCell("cards").attach(this.cards);this.layout.getCell("tiles").attach(this.tiles);
     this.grid.events.on("scroll",(position:{x:number;y:number})=>{
@@ -199,6 +233,10 @@ export class ResponsiveGrid {
       const target=event.target as HTMLElement,inside=within(event);
       if(!inside&&!(this.engaged&&(target===document.body||target===document.documentElement)))return;
       if(inside&&(event.key==="Enter"||event.key===" ")&&edit(event))return;
+      // Alt+↑/↓ moves the cursor record one place (a manual order).
+      if(drag?.step&&inside&&event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&(event.key==="ArrowUp"||event.key==="ArrowDown")&&this.selected&&!inside.closest("input,textarea,select,[contenteditable]")){
+        drag.step(event.key==="ArrowUp"?-1:1);event.preventDefault();event.stopPropagation();return;
+      }
       if(!keys||event.altKey||event.ctrlKey||event.metaKey||event.defaultPrevented||!["Home","End","PageUp","PageDown","Enter"," "].includes(event.key))return;
       if(inside?.closest("input,textarea,select,[contenteditable],.dhx_grid-header,.dhx_grid-footer,.blade-card-edit,.blade-card-subview"))return;
       if(event.key==="Enter"){
@@ -213,6 +251,16 @@ export class ResponsiveGrid {
     },{capture:true,signal:this.listeners.signal});
     this.observer=new ResizeObserver(()=>void this.resize());this.bindRoot();
     window.addEventListener("resize",()=>void this.resize(),{signal:this.listeners.signal});
+  }
+  /**
+   * The record a drop lands in front of: the target itself (top or left half), the record after it (bottom or right
+   * half), undefined after the last loaded record or below every row; a sub-row stands for its record.
+   */
+  private dropBefore(target:string|number|undefined,position:string|undefined):string|undefined{
+    if(target===undefined||target===null||target==="")return undefined;
+    const id=this.recordId(String(target)),index=this.data.findIndex(row=>String(row.id)===id);
+    if(index<0)return undefined;
+    return position==="bot"||position==="bottom"||position==="right"||position==="after"?(index+1<this.data.length?String(this.data[index+1].id):undefined):id;
   }
   /** Observes the current root; a root that a host re-created is observed again once it is connected. */
   private bindRoot():HTMLElement|undefined{
