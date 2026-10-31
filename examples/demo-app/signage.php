@@ -43,6 +43,7 @@ function blade_demo_signage_calendar(): CalendarDefinition
         firstHour: 6, lastHour: 24,
         dayAction: ['resource' => 'signage_playlist', 'action' => 'day', 'label' => 'Napi műsor (API)'],
         group: 'Digitális kijelző',
+        guide: 'A keretrendszer eseménynaptára (DHTMLX Scheduler) digitális kijelző műsortervként: nap-, hét- és hónapnézet, közös eseményűrlap ismétlődéssel, a lejátszási listák eseményei saját színnel.'."\n\n".'Húzz egy eseményt másik időpontra, nyújtsd meg, vagy hozz létre újat; a Tartalom mezőben lejátszási listát vagy egyetlen médiaelemet választhatsz. Ismétlődő sorozatnak egyetlen előfordulása is módosítható. A Napi műsor (API) gomb az adott nap API-válaszát és a hozzá tartozó kérést mutatja.',
         tones: [['field' => 'content', 'prefix' => 'playlist:', 'tone' => 'success']]);
 }
 
@@ -143,7 +144,8 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
     $workspace->registry->addView(new View('demo.playlist-preview', 'demo.playlist-preview', 'Napi műsor', resource: 'signage_playlist',
         actions: ['day', 'scene'], options: ['media' => 'files',
             'layout' => ['rows' => [['id' => 'commands', 'height' => 56], ['id' => 'player', 'header' => 'Előnézet']]]],
-        group: 'Digitális kijelző', icon: 'dxi dxi-menu-right'));
+        group: 'Digitális kijelző', icon: 'dxi dxi-menu-right',
+        guide: 'Projekt saját nézettípusa a keretrendszer nyilvános komponenseiből: a választott nap hézagmentes műsora a signage_playlist.day művelet válaszából, a közös lejátszóval; ahol nincs esemény, az alapértelmezett tartalom tölti ki a napot, a jelenetek homokozóban (SandboxFrame) futnak.'."\n\n".'Lépj a napok között, vagy válassz napot a Naptár… paranccsal, és nézd végig a műsort.'));
     // Usage warnings: deleting a used file (file manager) or asset (Médiatár) shows the counts and clears the references.
     $workspace->registry->usage('files', new BladeDemoSignageUsage('files'));
     $workspace->registry->usage('signage_assets', new BladeDemoSignageUsage('events'));

@@ -116,7 +116,10 @@ The same details are shown on both website languages and in the feature demo's
 supported sign-in footer module, translated through its project catalogue.
 They are selectable text, not prefilled input values. Starter and tenant-demo
 sign-in pages retain their existing content. There is no guest login, new
-account, permission change, data-reset job or new public API.
+account, permission change, data-reset job or new public API. Each visitor
+signs in to an own [sandbox](demos.md#visitor-sandboxes): a copy of the
+pristine demo data, purged after an idle hour, so changes never reach other
+visitors.
 
 Twelve retained JPEGs in the website's `assets/` directory were captured on the
 managed demo, at 1440 × 900 for desktop and 390 × 844 for the mobile list:
@@ -131,7 +134,7 @@ When refreshing them, use the guarded browser wrapper, an isolated browser
 context, the synthetic demo account and actual supported UI navigation. Select
 only synthetic records/assets; do not publish private accounts, tokens,
 customer data or arbitrary retained uploads. Inspect the images before committing.
-Do not reset existing demo data to obtain a cleaner screenshot. Keep screenshot
+Do not reset existing demo data to obtain a cleaner screenshot. A browser without the developer key captures a fresh visitor sandbox, which shows the pristine seed. Keep screenshot
 dimensions and HTML image attributes aligned. Temporary capture specs, test
 reports and review screenshots belong to task cleanup, not the product tree.
 

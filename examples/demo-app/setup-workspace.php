@@ -284,4 +284,6 @@ foreach ($rules as [$type, $subject, $resource, $actions, $channel]) foreach ($a
 unset($exists, $grant, $project, $task, $db);
 $tenantDemo = require __DIR__.'/tenant-application.php';
 Blade\Admin\Permissions::grantAdministration($tenantDemo->workspace->db, $tenantDemo->workspace->registry, '1');
+// The web server's instance (public/.htaccess) also gets the developer key and a fresh seed of the visitor sandboxes.
+if ((getenv('BLADE_DEMO_INSTANCE') ?: 'demo') === 'web') blade_demo_sandbox_seed(blade_demo_instance_root(), __FILE__);
 echo "Feature, base admin and tenant demos initialized.\n";

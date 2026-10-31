@@ -1,5 +1,5 @@
 // D1 Signage Médiatár (docs/demos.md#toolkit-consumer): the record view kind `demo.asset-viewer`. A Layout from
-// `app.dhx` with the 61ade CommandBar (play, pause, position, loop), the asset's RecordDetails and a stage cell with the
+// `app.dhx` with the 61ade CommandBar (back, then icon-only transport controls: start, back, play/pause, forward, loop), the asset's RecordDetails and a stage cell with the
 // MediaPlayer (image, video, audio) or a SandboxFrame running the scene (an animation asset); `modules/signage.json`
 // declares the view and opens it from Médiatár for every playable asset. Also the media type `demo.scene` (scene files
 // are `Animáció` with the 61ade animation glyph) and the record command `demo.play` (`Lejátszás`) of the Médiatár toolbar.
@@ -72,35 +72,43 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
 
     const position = (seconds: number) => t("Pozíció: {position} / {length}", { position: clock(seconds), length: clock(player?.duration() ?? scene?.duration ?? 0) });
     const status = !found ? t("Ehhez az elemhez nincs megjeleníthető médiafájl.") : !playable ? t("Ez a fájltípus nem játszható le.") : timed ? position(resume) : "";
-    const media = ["play", "pause", "rewind", "backward", "forward", "loop"];
+    const media = ["rewind", "backward", "play", "forward", "loop"];
+    const repeat = () => ({ label: loop ? t("Ismétlés: be") : t("Ismétlés: ki"), icon: loop ? "blade-icon blade-icon--repeat" : "blade-icon blade-icon--repeat-off" });
+    // Like a player: back to the list, a divider, then icon-only transport controls with one play/pause toggle.
     const bar: CommandBar = new app.components.CommandBar({ signal, items: [
       { id: "back", label: t("Vissza a listához"), icon: "dxi dxi-arrow-left" },
-      { id: "play", label: t("Lejátszás"), icon: "dxi dxi-menu-right", disabled: true, hidden: !timed },
-      { id: "pause", label: t("Szünet"), disabled: true, hidden: !timed },
-      { id: "rewind", label: t("Elejére"), icon: "dxi dxi-chevron-double-left", disabled: true, hidden: !timed },
-      { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-left", disabled: true, hidden: !timed },
-      { id: "forward", label: t("Előre {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-right", disabled: true, hidden: !timed },
+      ...(timed ? [{ type: "separator" as const }] : []),
+      { id: "rewind", label: t("Elejére"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "blade-icon blade-icon--rewind", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "play", label: t("Lejátszás"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "forward", label: t("Előre {seconds} mp", { seconds: STEP }), icon: "blade-icon blade-icon--fast-forward", iconOnly: true, disabled: true, hidden: !timed },
       // A scene loops by its own length.
-      { id: "loop", label: loop ? t("Ismétlés: be") : t("Ismétlés: ki"), icon: "dxi dxi-redo", disabled: true, hidden: !timed || kind === "scene" },
+      { id: "loop", ...repeat(), iconOnly: true, disabled: true, hidden: !timed || kind === "scene" },
       { type: "spacer" },
       { id: "position", label: status, disabled: true, hidden: status === "" },
     ] });
     bar.mount(layout.getCell("commands"));
+    // The toggle follows the stage (also its native controls and keys): `Szünet` while playing, otherwise `Lejátszás`.
+    let playing = false;
+    const toggle = (on: boolean) => {
+      if (on === playing) return;
+      playing = on;
+      bar.update("play", on ? { label: t("Szünet"), icon: "blade-icon blade-icon--pause" } : { label: t("Lejátszás"), icon: "blade-icon blade-icon--play" });
+    };
     bar.on("click", ({ id }) => {
       if (id === "back") { if (!app.navigate({ view: listId })) host.close(); return; }
       if (frame) {
         const at = scene ? scene.time % scene.duration : 0;
-        if (id === "play" || id === "pause") frame.post("scene." + id, {});
+        if (id === "play") frame.post(playing ? "scene.pause" : "scene.play", {});
         else if (id === "rewind") frame.post("scene.seek", { at: 0 });
         else if (id === "backward" || id === "forward") frame.post("scene.seek", { at: Math.max(0, at + (id === "forward" ? STEP : -STEP)) });
         return;
       }
       if (!player) return;
-      if (id === "play") void player.play().catch(() => {});
-      else if (id === "pause") player.pause();
+      if (id === "play") { if (playing) player.pause(); else void player.play().catch(() => {}); }
       else if (id === "rewind") player.seek(0);
       else if (id === "backward" || id === "forward") player.seek(player.position() + (id === "forward" ? STEP : -STEP));
-      else if (id === "loop") { loop = !loop; preferences.set("loop", loop); bar.update("loop", { label: loop ? t("Ismétlés: be") : t("Ismétlés: ki") }); }
+      else if (id === "loop") { loop = !loop; preferences.set("loop", loop); bar.update("loop", repeat()); }
     });
 
     if (list) new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.getCell("details"));
@@ -112,6 +120,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
         const state = type === "scene.state" ? sceneState(payload) : undefined;
         if (!state) return;
         scene = state;
+        toggle(state.playing);
         bar.update("position", { label: position(state.time % state.duration) });
       });
       // Every error of a SandboxFrame (code, timeout, size, protocol) arrives as the page-wide framework event.
@@ -144,6 +153,8 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
         bar.update("position", { label: position(resume) });
       });
       current.on("position", ({ seconds }) => bar.update("position", { label: position(seconds) }));
+      current.on("play", () => toggle(true));
+      current.on("pause", () => toggle(false));
       current.on("ended", () => { if (loop) { current.seek(0); void current.play().catch(() => {}); } });
       current.on("error", ({ message }) => { for (const id of media) bar.update(id, { disabled: true }); bar.update("position", { label: message, hidden: false }); });
       current.mount(layout.getCell("stage"));

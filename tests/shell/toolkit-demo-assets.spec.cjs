@@ -4,7 +4,8 @@ const {signIn,command,api}=require('./feature-demo.cjs');
 // Toolkit D1 (docs/demos.md#toolkit-consumer): Digitális kijelző → Médiatár with the synthetic audio assets and the
 // project record view `demo.asset-viewer` (frontend/src/assets.ts): activation by the file's MIME type or class (audio,
 // video, images and the scene type `text/javascript` open the viewer) in table, cards and tiles and the toolbar command
-// `Lejátszás` (demo.play); the viewer's CommandBar (play, pause, position, loop), RecordDetails, MediaPlayer and the
+// `Lejátszás` (demo.play); the viewer's CommandBar (back, a divider, icon-only transport controls with one play/pause
+// toggle, position), RecordDetails, MediaPlayer and the
 // scene's SandboxFrame; back navigation, reload of the address, a record change, the phone layout, themes and clean
 // destruction. Assets and files created here start with the run prefix and are removed
 // afterwards; the seeded demo data (FB-0082) is never changed.
@@ -191,7 +192,17 @@ test('viewer on an audio asset: play, pause, position, loop, details, reload, re
  const element=audio(page);
  await element.evaluate(node=>{node.muted=true;});
  // The command bar: every media command is enabled once the metadata is known; the position shows the length.
- for(const name of ['Vissza a listához','Lejátszás','Szünet','Elejére','Vissza 5 mp','Előre 5 mp'])await expect(button(page,name)).toBeEnabled();
+ for(const name of ['Vissza a listához','Lejátszás','Elejére','Vissza 5 mp','Előre 5 mp'])await expect(button(page,name)).toBeEnabled();
+ // Like a player: a divider after `Vissza a listához`, then the transport controls in player order showing only their
+ // icons (the label is the tooltip and the accessible name); one toggle plays and pauses.
+ const commands=page.locator('.blade-command-row').first();
+ await expect(commands.locator('[role="separator"]')).toHaveCount(1);
+ const boxes=[];for(const name of ['Vissza a listához','Elejére','Vissza 5 mp','Lejátszás','Előre 5 mp'])boxes.push(await button(page,name).boundingBox());
+ const divider=await commands.locator('[role="separator"]').boundingBox();
+ expect(divider.x).toBeGreaterThan(boxes[0].x+boxes[0].width-1);expect(divider.x).toBeLessThan(boxes[1].x);
+ for(let index=1;index<boxes.length;index++){expect(boxes[index].x).toBeGreaterThan(boxes[index-1].x);expect(boxes[index].width).toBeLessThanOrEqual(48);}
+ expect(boxes[0].width).toBeGreaterThan(100);
+ await expect(button(page,'Szünet')).toHaveCount(0);
  const loop=page.getByRole('button',{name:/^Ismétlés: (ki|be)$/});await expect(loop).toBeEnabled();
  if((await loop.textContent()).includes('be'))await loop.click();
  await expect(button(page,'Ismétlés: ki')).toBeVisible();

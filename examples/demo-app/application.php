@@ -66,7 +66,7 @@ $workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', 
     'tasks.dialog_danger' => static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Hiba', 'value' => 'A művelet sikertelen: '.str_repeat('részletes_hibaüzenet_törés_nélkül_', 6), 'note' => "Második sor.\nHarmadik sor.", 'severity' => 'danger']],
 ]);
 $notes = new SqlResource('notes', 'notes', 'id', [new Field('title', 'Cím', required: true)], 'owner_id', ['owner_id' => '1']);
-$notes->register($workspace->registry, 'Jegyzetek', rowSelection: true);
+$notes->register($workspace->registry, 'Jegyzetek', rowSelection: true, guide: 'A legegyszerűbb PHP-ban regisztrált erőforrás (SqlResource): egy kötelező mező, létrehozás, szerkesztés és sorjelöléssel tömeges törlés. A lista élő adat: ha a jegyzet máshol módosul, a lista magától frissül.'."\n\n".'Nyisd meg a nézetet két böngészőlapon, vegyél fel az egyiken egy jegyzetet, és figyeld a másikat.');
 $notes->registerDelete($workspace->registry);
 // Two-panel virtual file manager (framework capability); mounts and upload limits are demo configuration.
 $files = blade_demo_files();
@@ -171,6 +171,8 @@ return new ApplicationDefinition(
     signInStylesheets: ['branding/sign-in.css'],
     signIn: new SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.'),
     signInModules: ['branding/sign-in.js'],
+    // View guides of the framework's own views (docs/workspaces.md#view-guide); the demo's views declare their own.
+    guides: blade_demo_admin_guides(),
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [
         'admin' => __DIR__.'/admin-application.php',
         'tenants' => __DIR__.'/tenant-application.php',

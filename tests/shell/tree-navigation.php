@@ -58,6 +58,13 @@ $tree = $values['options']['tree'] ?? [];
 verify(array_keys($tree) === ['view', 'field', 'parent', 'label'] && $tree['view']['id'] === 'demo_registry_keys' && $tree['field'] === 'key_id' && $tree['parent'] === 'parent_id' && $tree['label'] === 'name', 'Resolved tree navigation');
 verify(($tree['view']['options']['subview']['shared'] ?? false) === true, 'Node view keeps its hierarchy');
 verify(is_string($values['guide'] ?? null) && str_contains($values['guide'], 'visible_when'), 'Guide in bootstrap');
+// ApplicationDefinition `guides`: set or replace a view's guide by id once every view is declared; the tree stays.
+$application = static fn(array $guides) => new Blade\Shell\ApplicationDefinition('T', new Blade\Shell\SqlIdentityProvider($db, 'accounts', 'id', 'email', 'password_hash', 'name'), new Blade\Navigation\Menu([]), sys_get_temp_dir(), workspace: $workspace, guides: $guides);
+$application(['demo_registry_values' => 'Új útmutató.', 'demo_registry_keys' => 'Kulcsok.']);
+verify($workspace->registry->viewById('demo_registry_values')->guide === 'Új útmutató.' && $workspace->registry->viewById('demo_registry_keys')->guide === 'Kulcsok.', 'Guides set by view id');
+verify(array_column($workspace->views($admin), null, 'id')['demo_registry_values']['options']['tree']['view']['id'] === 'demo_registry_keys', 'A guide update keeps the tree');
+foreach ([['missing' => 'X'], ['demo_registry_values' => ''], ['demo_registry_values' => 7]] as $bad) rejected(static fn() => $application($bad), 'Invalid guides accepted: '.json_encode($bad));
+rejected(static fn() => new Blade\Shell\ApplicationDefinition('T', new Blade\Shell\SqlIdentityProvider($db, 'accounts', 'id', 'email', 'password_hash', 'name'), new Blade\Navigation\Menu([]), sys_get_temp_dir(), guides: ['x' => 'X']), 'Guides without a workspace accepted');
 $fields = array_column(array_column($values['actions'], null, 'name')['create']['fields'], null, 'name');
 verify($fields['dword_value']['visibleWhen'] === ['field' => 'type', 'in' => ['REG_DWORD']] && !isset($fields['type']['visibleWhen']), 'Condition in action metadata');
 // Without the node view's list the value view is a plain list.

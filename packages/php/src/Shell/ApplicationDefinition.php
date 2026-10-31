@@ -63,6 +63,12 @@ final readonly class ApplicationDefinition
          * @var list<string>
          */
         public array $signInModules = [],
+        /**
+         * View guides by view id (docs/workspaces.md#view-guide), applied once every view is declared: they set or
+         * replace the `guide` of any view of the workspace, the framework's own views (administration, API keys) too.
+         * @var array<string, string>
+         */
+        public array $guides = [],
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -73,6 +79,12 @@ final readonly class ApplicationDefinition
         }
         if (!self::paths($signInStylesheets, 'css')) throw new \InvalidArgumentException('Invalid 61ade sign-in stylesheets.');
         if (!self::paths($signInModules, 'm?js')) throw new \InvalidArgumentException('Invalid 61ade sign-in modules.');
+        if ($guides && !$workspace) throw new \InvalidArgumentException('View guides need a workspace.');
+        foreach ($guides as $id => $guide) {
+            if (!is_string($guide)) throw new \InvalidArgumentException('Invalid view guide: '.$id);
+            $view = $workspace->registry->viewById((string) $id) ?? throw new \InvalidArgumentException('Unknown view in guides: '.$id);
+            $workspace->registry->updateView($view->with(guide: $guide));
+        }
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();
     }

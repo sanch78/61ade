@@ -108,8 +108,11 @@ test('the playhead advances and the stage switches from the image to the scene a
  test.setTimeout(60000);
  const errors=pageErrors(page);
  await open(page);
+ // Transport controls like a player: icon-only, in player order, one play/pause toggle.
+ const transport=[];for(const name of ['Elejére','Előző elem','Lejátszás','Következő elem'])transport.push(await button(page,name).boundingBox());
+ for(let index=0;index<transport.length;index++){expect(transport[index].width).toBeLessThanOrEqual(48);if(index)expect(transport[index].x).toBeGreaterThan(transport[index-1].x);}
  await act(page,'Lejátszás');
- await expect(button(page,'Szünet')).toBeEnabled();await expect(button(page,'Lejátszás')).toBeDisabled();
+ await expect(button(page,'Szünet')).toBeEnabled();await expect(button(page,'Lejátszás')).toHaveCount(0);
  await expect.poll(async()=>Number(await strip(page).getAttribute('data-demo-position'))).toBeGreaterThan(0.5);
  // The image takes 0–4 s of the run; then the scene runs in the SandboxFrame with code from signage_playlist.scene.
  await expect(caption(page)).toHaveAttribute('data-demo-stage','scene',{timeout:10000});

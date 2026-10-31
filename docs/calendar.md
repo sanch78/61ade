@@ -203,10 +203,12 @@ is the default of every weekday and plays as `Arculati animáció` 10:00–12:00
 weekdays ([signage media](demos.md#signage-media)). Its code is in
 `examples/demo-app/signage.php` and `modules/signage.json`.
 
-API example (an API key of the demo account with scope `signage_playlist.day`):
+API example (an API key of the demo account with scope `signage_playlist.day`;
+the key lives in the [visitor sandbox](demos.md#visitor-sandboxes) that made it,
+so send that browser's `blade_demo_sandbox` cookie too):
 
 ```sh
-curl -s https://demo.61ade.com/?blade=1 \
+curl -s https://demo.61ade.com/?blade=1 -b 'blade_demo_sandbox=<cookie value>' \
   -H 'Authorization: Bearer <API key>' -H 'Content-Type: application/json' \
   -d '{"resource":"signage_playlist","action":"day","values":{"date":"2026-10-30"}}'
 ```

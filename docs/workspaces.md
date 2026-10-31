@@ -947,27 +947,44 @@ toast; only actions that declare confirmation metadata open a confirmation dialo
 ## View guide
 
 Every view can carry a `guide`: plain text that tells the user what the view
-shows and what to try ([FB-0107](feedback.md#fb-0107)). The shell shows it when
-the view opens as a page, in a non-modal, closable window at the lower right
-of the workspace (full screen below 768 px), titled `Útmutató: <view title>`.
+shows and which capability it demonstrates ([FB-0107](feedback.md#fb-0107),
+[FB-0109](feedback.md#fb-0109)). The shell shows it in a non-modal, closable
+window at the lower right of the workspace (full screen below 768 px), titled
+`Útmutató: <view title>`.
 
 ```php
 $registry->view('tasks', 'Feladatok', $columns, $actions, guide: "Mit látsz itt.\n\nMit próbálj ki.");
+$notes->register($registry, 'Jegyzetek', guide: '…');  // SqlResource
 new FileManagerDefinition(/* … */, guide: '…'); // DiagramDefinition, CalendarDefinition likewise
 new View('demo.dashboard', 'demo.dashboard', 'Irányítópult', guide: '…');
+// Any view by id, the framework's own views (administration, API keys) too:
+new ApplicationDefinition(/* … */, guides: ['blade_users' => '…', 'blade_api_keys' => '…']);
 ```
 
-JSON: `resources.<name>.view.guide` and `views.<id>.guide`.
+JSON: `resources.<name>.view.guide`, `views.<id>.guide`, and the
+application-level map `application.guides` (`{"<view id>": "<text>"}`).
 
 - **Text:** plain text only, at most 4000 characters, localized like a title
   (the catalogue key is the whole text). A blank line separates paragraphs, a
   single line break stays a line break. No markup is interpreted.
-- **Until closed:** closing the window by hand is remembered per page path,
-  user and view in this browser (`localStorage` key
-  `blade-guide:1:[path, user, view id]`); the guide then no longer opens by
-  itself. Leaving the view closes its guide without remembering anything.
-- **Again:** while a view with a guide is the page, the lower bar shows an
-  `Útmutató` button that opens it again.
+- **Application map:** `guides` sets or replaces the guide of the named views
+  once every view is declared (`Registry::updateView`, so sub-views, trees and
+  the menu position stay). An unknown view id, a non-string or invalid text,
+  a JSON list instead of an object, or guides without a workspace throw at
+  definition time.
+- **Once per session:** the first time a view with a guide opens as a page in
+  a sign-in session, its guide opens by itself; then it no longer does,
+  whether it was closed by hand or not. The mark is per page path, user and
+  view in the tab's `sessionStorage` (key `blade-guide:2:[path, user, view id]`),
+  so a reload or a language switch keeps it and a new tab starts afresh. The
+  signed-out page (sign-out, session expiry) clears every mark, so the next
+  sign-in shows each guide once again. Leaving the view closes its guide.
+- **Again:** when any offered view has a guide, the top row gets the
+  `Útmutató` control left of the language selector: a button labelled like the
+  selectors beside it (tooltip `A megnyitott nézet útmutatója`), enabled while the page
+  view has a guide. Below 768 px the row has no room for it, so it is an
+  `Útmutató` item of the main `Menü` (above `Kijelentkezés`), like the tenant
+  selector.
 - Not shown for a view opened in a window (`open: "window"`). A guide is
   presentation only: it grants nothing and hides nothing.
 

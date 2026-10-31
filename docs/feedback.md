@@ -444,6 +444,18 @@
 
 ## FB-0108 — Playlist editor and day programme from 61ade components only
 
+<a id="fb-0109"></a>
+
+## FB-0109 — A guide on every view, once per session, from the top row
+
+<a id="fb-0110"></a>
+
+## FB-0110 — Visitor sandboxes on the public demo
+
+<a id="fb-0111"></a>
+
+## FB-0111 — Player commands that look like a player
+
 <a id="fb-0112"></a>
 
 ## FB-0112 — Real media in the signage demo

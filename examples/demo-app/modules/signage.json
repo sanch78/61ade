@@ -103,6 +103,7 @@
                         "*": "details"
                     }
                 },
+                "guide": "Médiaelemek a keretrendszer fájlmezőjével és médiaoszlopaival: a fájlok a Fájlkezelő Signage meghajtóján vannak, a bélyegkép, a típus, a felbontás és a hossz a fájlból származik, a Használat számolt oszlop.\n\nPróbáld ki a Csempék nézetet, a keresést és a típusszűrőt; tölts fel médiát a Feltöltés paranccsal, vagy válassz fájlt az űrlap fájlmezőjében. Dupla kattintás, Enter vagy a Lejátszás parancs a Médianézőt nyitja meg; egy sor kinyitva megmutatja, mely alapértelmezett tartalmak használják. Használt elem törlése előtt figyelmeztetést kapsz, a hivatkozások törlődnek.",
                 "columns": [
                     {
                         "id": "file_id",
@@ -210,6 +211,7 @@
                 "title": "Alapértelmezett tartalom",
                 "group": "Digitális kijelző",
                 "icon": "dxi dxi-clock-outline",
+                "guide": "Mi játszódjon, amikor a műsortervben nincs esemény: a hét egy napjára vagy egy dátumra rendelt médiaelem. A Dátum a keretrendszer dátummezője: naptárválasztó az űrlapon és a táblázat cellájában is.\n\nVegyél fel egy sort egy hétköznapra, majd egyet egy dátumra. A mentés utáni üzleti szabály a kettő közül pontosan egyet enged, és mindegyiket legfeljebb egyszer.",
                 "columns": [
                     {
                         "id": "weekday",
@@ -342,6 +344,7 @@
                         "*": "view:demo.playlist-editor"
                     }
                 },
+                "guide": "Lejátszási listák számolt oszlopokkal (elemek száma, teljes hossz, használat). Egy sor kinyitva a lista elemeit mutatja beágyazott alnézetként, a Megnevezés a cellában is átírható.\n\nDupla kattintás, Enter vagy a Lista szerkesztése parancs a Lejátszásilista-szerkesztőt nyitja meg, ahol a Médiatárból húzhatsz elemeket a listába.",
                 "columns": [
                     {
                         "id": "title",
@@ -607,6 +610,7 @@
             "actions": [
                 "get"
             ],
+            "guide": "Rekordnézet egyetlen médiaelemhez, a projekt saját nézettípusa a keretrendszer komponenseiből: parancssor, a MediaPlayer lejátszó és az elem adatai; az animációk (jelenetek) homokozóban (SandboxFrame) futnak.\n\nJátszd le, állítsd meg és tekerd a videókat és a hangokat, kapcsold az ismétlést, majd térj vissza a Vissza a listához paranccsal.",
             "options": {
                 "loop": false,
                 "details": "signage_assets"
@@ -622,6 +626,7 @@
                 "get",
                 "update"
             ],
+            "guide": "Rekordnézet egy lejátszási listához, csak 61ade komponensekből: oldalelrendezés (PageLayout) két listával, az elem adataival és űrlapokkal, mellette a közös előnézet.\n\nHúzz médiaelemeket a Médiatárból a listába, rendezd át a sorokat húzással vagy a Feljebb és Lejjebb paranccsal, és állítsd be az elemenkénti lejátszási időt, áttűnést és érvényességet. Csak asztali nézetben érhető el.",
             "options": {
                 "list": "signage_playlists",
                 "library": "signage_assets",

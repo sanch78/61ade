@@ -1245,6 +1245,9 @@ export interface MediaPlayerEvents {
   /** Playback position, at most every 250 ms while playing, on pause and after every `seek`. */
   position: { seconds: number };
   ended: Record<string, never>;
+  /** Playback started or stopped (also through the native controls, the keyboard or the end): drives a play/pause toggle. */
+  play: Record<string, never>;
+  pause: Record<string, never>;
   /** The source cannot be shown or played; `message` is localized (also shown in the toolbar). */
   error: { message: string };
 }
@@ -1344,8 +1347,8 @@ export interface SandboxFrame extends Component<SandboxFrameEvents> {
   post(type: string, payload?: unknown): void;
 }
 
-/** One command bar item: a button (`type` omitted or `button`) or a spacer, which needs no id. */
-export type CommandItem = CommandButton | CommandSpacer;
+/** One command bar item: a button (`type` omitted or `button`), a separator or a spacer; the last two need no id. */
+export type CommandItem = CommandButton | CommandSeparator | CommandSpacer;
 
 /** A command bar button; its `id` is what `click` reports and `update` addresses. */
 export interface CommandButton {
@@ -1354,8 +1357,15 @@ export interface CommandButton {
   /** Plain text (escaped). */
   label: string;
   icon?: string;
+  /** Only the icon shows in the bar (a transport control); the label is the tooltip and accessible name, and the text in the collapsed menu. */
+  iconOnly?: boolean;
   disabled?: boolean;
   hidden?: boolean;
+}
+
+/** A divider line between groups of buttons (also in the collapsed `Műveletek` menu). */
+export interface CommandSeparator {
+  type: "separator";
 }
 
 /** Pushes the following items to the right (left out of the collapsed `Műveletek` menu). */
@@ -1374,7 +1384,7 @@ export interface CommandBarOptions extends ComponentOptions {
  */
 export interface CommandBar extends Component<CommandBarEvents> {
   readonly toolbar: Suite.Toolbar;
-  update(id: string, changes: Partial<Omit<CommandButton, "id" | "type">>): void;
+  update(id: string, changes: Partial<Omit<CommandButton, "id" | "type" | "iconOnly">>): void;
 }
 
 /**

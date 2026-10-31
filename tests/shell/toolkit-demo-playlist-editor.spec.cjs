@@ -251,7 +251,7 @@ test('a scheduled playlist has its own calendar tone and plays item by item in t
  // The day preview plays one round of the list: one strip item per playlist asset, marked with the list.
  // The day comes from the address of a fresh opening (the shell applies `filter.date` once and drops it).
  // A fresh page: a goto that only changes the hash would not reload the signed-out application.
- await page.context().clearCookies();const fresh=await page.context().newPage();await fresh.setViewportSize({width:1600,height:1000});
+ await page.context().clearCookies({name:'blade_demo'});const fresh=await page.context().newPage();await fresh.setViewportSize({width:1600,height:1000});
  await signIn(fresh,'demo@example.test',`/#view=demo.playlist-preview&filter.date=${DAY}`);
  const listed=fresh.locator(`[data-demo-part="strip"] [data-demo-list="${prefix} lista"]`);
  await expect(listed).toHaveCount(2);

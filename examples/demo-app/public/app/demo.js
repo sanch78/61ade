@@ -91,20 +91,27 @@ function viewer(app, host, view) {
     scene = void 0;
     const position = (seconds) => t("Poz\xEDci\xF3: {position} / {length}", { position: clock(seconds), length: clock(player?.duration() ?? scene?.duration ?? 0) });
     const status = !found ? t("Ehhez az elemhez nincs megjelen\xEDthet\u0151 m\xE9diaf\xE1jl.") : !playable ? t("Ez a f\xE1jlt\xEDpus nem j\xE1tszhat\xF3 le.") : timed ? position(resume) : "";
-    const media = ["play", "pause", "rewind", "backward", "forward", "loop"];
+    const media = ["rewind", "backward", "play", "forward", "loop"];
+    const repeat = () => ({ label: loop ? t("Ism\xE9tl\xE9s: be") : t("Ism\xE9tl\xE9s: ki"), icon: loop ? "blade-icon blade-icon--repeat" : "blade-icon blade-icon--repeat-off" });
     const bar = new app.components.CommandBar({ signal, items: [
       { id: "back", label: t("Vissza a list\xE1hoz"), icon: "dxi dxi-arrow-left" },
-      { id: "play", label: t("Lej\xE1tsz\xE1s"), icon: "dxi dxi-menu-right", disabled: true, hidden: !timed },
-      { id: "pause", label: t("Sz\xFCnet"), disabled: true, hidden: !timed },
-      { id: "rewind", label: t("Elej\xE9re"), icon: "dxi dxi-chevron-double-left", disabled: true, hidden: !timed },
-      { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-left", disabled: true, hidden: !timed },
-      { id: "forward", label: t("El\u0151re {seconds} mp", { seconds: STEP }), icon: "dxi dxi-chevron-right", disabled: true, hidden: !timed },
+      ...timed ? [{ type: "separator" }] : [],
+      { id: "rewind", label: t("Elej\xE9re"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "blade-icon blade-icon--rewind", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "play", label: t("Lej\xE1tsz\xE1s"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "forward", label: t("El\u0151re {seconds} mp", { seconds: STEP }), icon: "blade-icon blade-icon--fast-forward", iconOnly: true, disabled: true, hidden: !timed },
       // A scene loops by its own length.
-      { id: "loop", label: loop ? t("Ism\xE9tl\xE9s: be") : t("Ism\xE9tl\xE9s: ki"), icon: "dxi dxi-redo", disabled: true, hidden: !timed || kind === "scene" },
+      { id: "loop", ...repeat(), iconOnly: true, disabled: true, hidden: !timed || kind === "scene" },
       { type: "spacer" },
       { id: "position", label: status, disabled: true, hidden: status === "" }
     ] });
     bar.mount(layout.getCell("commands"));
+    let playing = false;
+    const toggle = (on) => {
+      if (on === playing) return;
+      playing = on;
+      bar.update("play", on ? { label: t("Sz\xFCnet"), icon: "blade-icon blade-icon--pause" } : { label: t("Lej\xE1tsz\xE1s"), icon: "blade-icon blade-icon--play" });
+    };
     bar.on("click", ({ id }) => {
       if (id === "back") {
         if (!app.navigate({ view: listId })) host.close();
@@ -112,21 +119,22 @@ function viewer(app, host, view) {
       }
       if (frame) {
         const at = scene ? scene.time % scene.duration : 0;
-        if (id === "play" || id === "pause") frame.post("scene." + id, {});
+        if (id === "play") frame.post(playing ? "scene.pause" : "scene.play", {});
         else if (id === "rewind") frame.post("scene.seek", { at: 0 });
         else if (id === "backward" || id === "forward") frame.post("scene.seek", { at: Math.max(0, at + (id === "forward" ? STEP : -STEP)) });
         return;
       }
       if (!player) return;
-      if (id === "play") void player.play().catch(() => {
-      });
-      else if (id === "pause") player.pause();
-      else if (id === "rewind") player.seek(0);
+      if (id === "play") {
+        if (playing) player.pause();
+        else void player.play().catch(() => {
+        });
+      } else if (id === "rewind") player.seek(0);
       else if (id === "backward" || id === "forward") player.seek(player.position() + (id === "forward" ? STEP : -STEP));
       else if (id === "loop") {
         loop = !loop;
         preferences.set("loop", loop);
-        bar.update("loop", { label: loop ? t("Ism\xE9tl\xE9s: be") : t("Ism\xE9tl\xE9s: ki") });
+        bar.update("loop", repeat());
       }
     });
     if (list) new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.getCell("details"));
@@ -140,6 +148,7 @@ function viewer(app, host, view) {
         const state = type === "scene.state" ? sceneState(payload) : void 0;
         if (!state) return;
         scene = state;
+        toggle(state.playing);
         bar.update("position", { label: position(state.time % state.duration) });
       });
       app.events.on("sandbox:error", ({ message }) => {
@@ -173,6 +182,8 @@ function viewer(app, host, view) {
         bar.update("position", { label: position(resume) });
       });
       current.on("position", ({ seconds }) => bar.update("position", { label: position(seconds) }));
+      current.on("play", () => toggle(true));
+      current.on("pause", () => toggle(false));
       current.on("ended", () => {
         if (loop) {
           current.seek(0);
@@ -248,19 +259,19 @@ var Player = class {
     stage.append(this.caption, this.screen);
     this.element.append(stage, commands, this.strip);
     this.bar = new app.components.CommandBar({ signal, items: [
-      { id: "play", label: this.t("Lej\xE1tsz\xE1s"), icon: "dxi dxi-menu-right", disabled: true },
-      { id: "pause", label: this.t("Sz\xFCnet"), disabled: true },
-      { id: "rewind", label: this.t("Elej\xE9re"), icon: "dxi dxi-chevron-double-left", disabled: true },
-      { id: "previous", label: this.t("El\u0151z\u0151 elem"), icon: "dxi dxi-chevron-left", disabled: true },
-      { id: "next", label: this.t("K\xF6vetkez\u0151 elem"), icon: "dxi dxi-chevron-right", disabled: true },
+      { id: "rewind", label: this.t("Elej\xE9re"), icon: "blade-icon blade-icon--skip-start", iconOnly: true, disabled: true },
+      { id: "previous", label: this.t("El\u0151z\u0151 elem"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true },
+      { id: "play", label: this.t("Lej\xE1tsz\xE1s"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true },
+      { id: "next", label: this.t("K\xF6vetkez\u0151 elem"), icon: "blade-icon blade-icon--skip-next", iconOnly: true, disabled: true },
       { type: "spacer" },
       { id: "position", label: this.positionText(), disabled: true }
     ] });
     this.bar.mount(commands);
     this.bar.on("click", ({ id }) => {
-      if (id === "play") this.play();
-      else if (id === "pause") this.pause();
-      else if (id === "rewind") this.seek(0);
+      if (id === "play") {
+        if (this.playing) this.pause();
+        else this.play();
+      } else if (id === "rewind") this.seek(0);
       else if (id === "previous" || id === "next") this.step(id === "next" ? 1 : -1);
     }, { signal });
     this.strip.addEventListener("click", (event) => {
@@ -420,8 +431,7 @@ var Player = class {
   }
   commands() {
     const ready = this.items.length > 0;
-    this.bar.update("play", { disabled: !ready || this.playing });
-    this.bar.update("pause", { disabled: !this.playing });
+    this.bar.update("play", { disabled: !ready, ...this.playing ? { label: this.t("Sz\xFCnet"), icon: "blade-icon blade-icon--pause" } : { label: this.t("Lej\xE1tsz\xE1s"), icon: "blade-icon blade-icon--play" } });
     for (const id of ["rewind", "previous", "next"]) this.bar.update(id, { disabled: !ready });
     this.bar.update("position", { label: this.positionText() });
   }

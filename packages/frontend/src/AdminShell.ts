@@ -73,6 +73,8 @@ const escape = (text: string) =>
 
 /** `sessionStorage` time of the last automatic sign-out reload, so a page that keeps answering 401 never loops. */
 const SIGNED_OUT="blade-signed-out";
+/** `sessionStorage` marks of the guides already shown in this sign-in session (AdminShell.guideKey). */
+const GUIDE_PREFIX="blade-guide:2:";
 
 /** Finish native popup/focus state before replacing a responsive menu tree. */
 class NavigationMenu extends Menu {
@@ -135,7 +137,7 @@ export class AdminShell {
 
   /** Top menu, or on narrow space one `Menü` button followed, on desktop, by the open feature's sibling items. */
   private renderMenu():void{
-    const width=this.root.clientWidth,controls=(this.tenantCell?180:0)+(this.definition.i18n?.selector?130:0)+(this.definition.skins?.length===1?0:145);
+    const width=this.root.clientWidth,controls=(this.tenantCell?180:0)+(this.guideCell?120:0)+(this.definition.i18n?.selector?130:0)+(this.definition.skins?.length===1?0:145);
     // Signed out there is no menu: the top-row logo only yields to the selectors.
     if (!this.menu) { this.placeLogo(width-controls); return; }
     // Only the full menu reserves a separate logout button; in compact mode it is inside Menü.
@@ -153,13 +155,13 @@ export class AdminShell {
     if(required([{value:t("Menü")},...context],false)>width)context=[];
     // The menu never yields to the logo: it shows only in the room the menu, siblings and selectors leave.
     this.placeLogo(width-(compact?required([{value:t("Menü")},...context],false):required(this.menuItems)));
-    const state=JSON.stringify([compact,current,context.length>0]);
+    const state=JSON.stringify([compact,current,context.length>0,!!this.guide]);
     if (state === this.menuState) return;
     this.menuState = state;
     // A top-level item holding the open view carries the current-section underline (CSS, not the popup's active state).
     const holds=(item:any):boolean=>item.id===current||(item.items??[]).some(holds);
     const marked=(item:any)=>holds(item)?{...item,css:"blade-menu-current"}:item;
-    const entries=[...structuredClone(this.menuItems),...this.tenantMenu(),
+    const entries=[...structuredClone(this.menuItems),...this.tenantMenu(),...this.guideMenu(),
       { id: "blade-session-separator", type: "separator" },
       { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" },
     ];
@@ -253,7 +255,7 @@ export class AdminShell {
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantCell?[{id:"tenant",width:180}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),...(choices.length>1?[{id:"theme",width:145}]:[]),
+        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantCell?[{id:"tenant",width:180}]:[]),...(this.guideCell?[{id:"guide",width:120}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),...(choices.length>1?[{id:"theme",width:145}]:[]),
           ...(this.topLogo?[{id:"logo",width:"content",css:"blade-logo-cell",html:this.logoHtml(this.windowLogo)}]:[])] },
         { id: "workspace", css: "blade-workspace" },
         { id: "status", height: 32, css: "blade-session-bar" },
@@ -276,7 +278,6 @@ export class AdminShell {
         { type: "spacer" },
         { id: "live-status", type: "title", value: "", hidden: true },
         { id: "upload-status", value: "", icon: "dxi dxi-file-import", hidden: true, css: "blade-upload-indicator" },
-        { id: "view-guide", value: t("Útmutató"), icon: "dxi dxi-information-outline", hidden: true, tooltip: t("A megnyitott nézet útmutatója") },
         {
           id: "application-version",
           type: "title",
@@ -289,7 +290,7 @@ export class AdminShell {
     if(this.topLogo)root.addEventListener("load",event=>{if((event.target as Element).closest?.(".blade-navigation-row .blade-logo"))this.renderMenu();},{capture:true,signal:this.listeners.signal});
     if (definition.authenticated) {
       uploads.configure({ userId: definition.userId });
-      this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); else if (id === "view-guide" && this.page) this.showGuide(this.page); });
+      this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); });
       this.releaseUploads = uploads.indicator(state => this.uploadIndicator(state));
     }
     if(choices.length>1){
@@ -311,6 +312,7 @@ export class AdminShell {
       this.layout.getCell("language").attach(this.languageControl());
     }
     if(this.tenantCell)this.layout.getCell("tenant").attach(this.tenantControl());
+    if(this.guideCell)this.layout.getCell("guide").attach(this.guideControl=this.guideButton());
     if (definition.authenticated) {
       const map = (items: MenuDefinition[]): object[] =>
         items.map((item) => ({
@@ -343,6 +345,7 @@ export class AdminShell {
       menu.events.on("click", (id: string | number) => {
         id=String(id).replace(/^sibling:/,"");
         if (id === "blade-logout") this.post("logout");
+        if (id === "blade-guide" && this.page) this.showGuide(this.page);
         if (id.startsWith("tenant:") && id.slice(7) !== this.definition.tenant?.current) this.post("tenant", { tenant: id.slice(7) });
         const view=id.startsWith("view:")?this.offered(id.slice(5)):undefined;
         if(view&&!view.record&&this.openable(view))void this.openView(view,{push:true});
@@ -357,6 +360,8 @@ export class AdminShell {
       if(definition.modules?.length)void loadModules(this.kernel,definition.modules,definition.version).catch(error=>console.error(error)).then(start);
       else start();
     } else {
+      // A new sign-in session shows every guide once again.
+      try{for(const key of Object.keys(sessionStorage))if(key.startsWith(GUIDE_PREFIX))sessionStorage.removeItem(key);}catch{}
       if (definition.passwordChange) this.mountPasswordChange();
       else if (definition.confirmation) this.mountConfirmation();
       else this.mountLogin();
@@ -383,7 +388,6 @@ export class AdminShell {
 
   /** The empty workspace (unknown or unoffered address, `host.close()` of a page). */
   private clear():void{
-    this.status.hide("view-guide");
     this.renderMenu();
     ++this.navigation;
     this.layout.getCell("workspace").detach();
@@ -457,19 +461,41 @@ export class AdminShell {
     }
     this.kernel!.events.dispatch("view:opened",{id:view.id,...(record?{record:record.id}:{}),open});
     if(open==="page"){
-      if(view.guide)this.status.show("view-guide");else this.status.hide("view-guide");
-      if(view.guide&&!this.guideDismissed(view))this.showGuide(mounted);
+      this.guideChanged();
+      if(view.guide&&!this.guideShown(view))this.showGuide(mounted);
     }
   }
 
-  /** Where the user's closing of a view's guide is remembered (per page path, user and view; this browser only). */
-  private guideKey(view:ViewDefinition):string{return "blade-guide:1:"+JSON.stringify([location.pathname,this.definition.userId??"",view.id]);}
-  private guideDismissed(view:ViewDefinition):boolean{try{return localStorage.getItem(this.guideKey(view))==="1";}catch{return false;}}
-  private guideWindow?:AppWindow;
   /**
-   * The page view's guide (`guide`) in a non-modal window at the lower right of the workspace; it closes with the
-   * view. Closing it by hand is remembered, so it no longer opens by itself (the lower bar's `Útmutató` shows it).
+   * Views with a guide get the `Útmutató` control: a labelled button left of the language selector, below 768 px an item of
+   * the main menu (the navigation row has no room for it there). It is enabled while the page view has a guide.
    */
+  private get guides():boolean{ return this.definition.authenticated&&(this.definition.views??[]).some(view=>!!view.guide); }
+  private get guideCell():boolean{ return this.guides&&!this.narrowRow; }
+  private guideControl?:Toolbar;
+  /** The page view's guide, if any. */
+  private get guide():string|undefined{ return this.page?.view.guide; }
+  private guideButton():Toolbar{
+    const control=new Toolbar(undefined,{css:"blade-guide-control",data:[{id:"blade-guide",value:t("Útmutató"),icon:"dxi dxi-help-circle-outline",tooltip:t("A megnyitott nézet útmutatója"),disabled:true}]});
+    control.events.on("click",(id:string|number)=>{if(id==="blade-guide"&&this.page)this.showGuide(this.page);});
+    return control;
+  }
+  private guideMenu():object[]{
+    return this.guides&&this.narrowRow?[{id:"blade-guide",value:t("Útmutató"),icon:"dxi dxi-help-circle-outline",disabled:!this.guide}]:[];
+  }
+  /** The page view changed: the control follows whether it has a guide. */
+  private guideChanged():void{
+    if(this.guide)this.guideControl?.enable("blade-guide");else this.guideControl?.disable("blade-guide");
+    this.renderMenu();
+  }
+  /**
+   * A guide opens by itself once per sign-in session: the first time its view opens as a page in this tab. The mark
+   * is per page path, user and view in `sessionStorage`; the signed-out page clears every mark.
+   */
+  private guideKey(view:ViewDefinition):string{return GUIDE_PREFIX+JSON.stringify([location.pathname,this.definition.userId??"",view.id]);}
+  private guideShown(view:ViewDefinition):boolean{try{return sessionStorage.getItem(this.guideKey(view))==="1";}catch{return false;}}
+  private guideWindow?:AppWindow;
+  /** The page view's guide (`guide`) in a non-modal window at the lower right of the workspace; it closes with the view. */
   private showGuide(mounted:Mounted):void{
     const view=mounted.view,signal=mounted.controller.signal;
     if(!view.guide||signal.aborted)return;
@@ -485,18 +511,15 @@ export class AdminShell {
       body.append(p);
     }
     win.attach(body);
-    win.signal.addEventListener("abort",()=>{
-      if(this.guideWindow===win)this.guideWindow=undefined;
-      // Closed by the user, not with its view: it stays closed.
-      if(!signal.aborted)try{localStorage.setItem(this.guideKey(view),"1");}catch{}
-    },{once:true});
+    try{sessionStorage.setItem(this.guideKey(view),"1");}catch{}
+    win.signal.addEventListener("abort",()=>{if(this.guideWindow===win)this.guideWindow=undefined;},{once:true});
   }
 
   /** Closes one view: its signal aborts, then the instance and wrapper are destroyed (exactly once). */
   private unmount(mounted:Mounted):void{
     if(mounted.controller.signal.aborted)return;
     mounted.controller.abort();
-    if(this.page===mounted)this.page=undefined;
+    if(this.page===mounted){this.page=undefined;this.guideChanged();}
     this.windows.delete(mounted);
     try{mounted.instance?.destroy();}catch(error){console.error(error);}
     mounted.wrapper?.destroy();
@@ -552,11 +575,11 @@ export class AdminShell {
 
   /** A selector only for several memberships; the switch is a server round trip that reloads the whole shell. */
   private get tenantSelector():boolean{ return this.definition.authenticated && (this.definition.tenant?.choices.length ?? 0) > 1; }
-  /** Below 768 px the tenant choice is a submenu of the main menu, so the navigation row keeps room for it. */
-  private readonly narrowTenant=innerWidth<768;
-  private get tenantCell():boolean{ return this.tenantSelector&&!this.narrowTenant; }
+  /** Below 768 px the tenant choice and the guide are items of the main menu, so the navigation row keeps room for it. */
+  private readonly narrowRow=innerWidth<768;
+  private get tenantCell():boolean{ return this.tenantSelector&&!this.narrowRow; }
   private tenantMenu():object[]{
-    if(!this.tenantSelector||!this.narrowTenant)return [];
+    if(!this.tenantSelector||!this.narrowRow)return [];
     const tenant=this.definition.tenant!,current=tenant.choices.find(choice=>choice.id===tenant.current);
     return [{id:"blade-tenant-separator",type:"separator"},{id:"blade-tenant-menu",value:escape(t("Tenant")+": "+(current?.name??"—")),icon:"dxi dxi-view-grid",
       items:tenant.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant.current?{icon:"dxi dxi-check"}:{})}))}];

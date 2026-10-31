@@ -1,7 +1,7 @@
 // The demo's shared player of the signage pages: the playlist editor's preview (playlist-editor.ts, D5) and the day
 // programme (playlist.ts, D2). It plays items in order, each for its own play time, on one clock: a stage (the 61ade
 // MediaPlayer for image, video and audio, a SandboxFrame for a scene asset) with the item's transition, the playback
-// commands (61ade CommandBar) and a timeline strip with a playhead (a click seeks within an item). Everything it shows
+// commands (61ade CommandBar, icon-only transport controls with one play/pause toggle) and a timeline strip with a playhead (a click seeks within an item). Everything it shows
 // comes from the page's items; it calls only `signage_playlist.scene` for a scene's code.
 import type { Application, CommandBar, MediaPlayer, SandboxFrame } from "@61ade/admin";
 import "./player.css";
@@ -101,18 +101,16 @@ export class Player {
     stage.append(this.caption, this.screen);
     this.element.append(stage, commands, this.strip);
     this.bar = new app.components.CommandBar({ signal, items: [
-      { id: "play", label: this.t("Lejátszás"), icon: "dxi dxi-menu-right", disabled: true },
-      { id: "pause", label: this.t("Szünet"), disabled: true },
-      { id: "rewind", label: this.t("Elejére"), icon: "dxi dxi-chevron-double-left", disabled: true },
-      { id: "previous", label: this.t("Előző elem"), icon: "dxi dxi-chevron-left", disabled: true },
-      { id: "next", label: this.t("Következő elem"), icon: "dxi dxi-chevron-right", disabled: true },
+      { id: "rewind", label: this.t("Elejére"), icon: "blade-icon blade-icon--skip-start", iconOnly: true, disabled: true },
+      { id: "previous", label: this.t("Előző elem"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true },
+      { id: "play", label: this.t("Lejátszás"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true },
+      { id: "next", label: this.t("Következő elem"), icon: "blade-icon blade-icon--skip-next", iconOnly: true, disabled: true },
       { type: "spacer" },
       { id: "position", label: this.positionText(), disabled: true },
     ] });
     this.bar.mount(commands);
     this.bar.on("click", ({ id }) => {
-      if (id === "play") this.play();
-      else if (id === "pause") this.pause();
+      if (id === "play") { if (this.playing) this.pause(); else this.play(); }
       else if (id === "rewind") this.seek(0);
       else if (id === "previous" || id === "next") this.step(id === "next" ? 1 : -1);
     }, { signal });
@@ -219,8 +217,7 @@ export class Player {
   }
   private commands(): void {
     const ready = this.items.length > 0;
-    this.bar.update("play", { disabled: !ready || this.playing });
-    this.bar.update("pause", { disabled: !this.playing });
+    this.bar.update("play", { disabled: !ready, ...(this.playing ? { label: this.t("Szünet"), icon: "blade-icon blade-icon--pause" } : { label: this.t("Lejátszás"), icon: "blade-icon blade-icon--play" }) });
     for (const id of ["rewind", "previous", "next"]) this.bar.update(id, { disabled: !ready });
     this.bar.update("position", { label: this.positionText() });
   }
