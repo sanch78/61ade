@@ -18,7 +18,8 @@ namespace Blade\Feature;
  *   options verbatim after a JSON-safety and size check, so they must never hold backend-only data.
  * $open: `page` (workspace, menu entry, address) or `window` (a framework document window, no history entry).
  * $guide: what the user sees and can do in the view (plain text, localized; blank lines separate paragraphs, at most
- *   4000 characters). Opening the view as a page shows it in a closable window until the user closes it once.
+ *   4000 characters). The first time the view opens as a page in a sign-in session the shell shows it in a closable
+ *   window; the `Útmutató` control shows it again. ApplicationDefinition `guides` sets it by view id.
  */
 final readonly class View
 {

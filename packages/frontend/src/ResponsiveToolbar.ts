@@ -43,7 +43,8 @@ export class ResponsiveToolbar extends Toolbar {
     const serialized:any[]=this.data.serialize();
     const current:any[]=this.compact?serialized[0]?.items??[]:serialized;
     const entries=this.order.map(original=>original.type==="spacer"?original:this.restoreItem(original,current.find(item=>String(item.id)===String(original.id))??original));
-    const required=entries.filter(item=>!item.hidden&&item.type!=="spacer").reduce((sum,item)=>sum+60+String(item.value??"").length*8,16);
+    // An icon-only button (`blade-command--icon`) and a separator take a fixed width; a labelled button grows with its text.
+    const required=entries.filter(item=>!item.hidden&&item.type!=="spacer").reduce((sum,item)=>sum+(item.type==="separator"?12:String(item.css??"").includes("blade-command--icon")?44:60+String(item.value??"").length*8),16);
     const compact=innerWidth<768||width<required;
     if(compact===this.compact)return;
     this.compact=compact;

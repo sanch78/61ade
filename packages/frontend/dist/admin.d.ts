@@ -1274,6 +1274,9 @@ export interface MediaPlayerEvents {
         seconds: number;
     };
     ended: Record<string, never>;
+    /** Playback started or stopped (also through the native controls, the keyboard or the end): drives a play/pause toggle. */
+    play: Record<string, never>;
+    pause: Record<string, never>;
     /** The source cannot be shown or played; `message` is localized (also shown in the toolbar). */
     error: {
         message: string;
@@ -1372,8 +1375,8 @@ export interface SandboxFrame extends Component<SandboxFrameEvents> {
     /** Sends a project message (dotted type); throws before `ready`, does nothing after `destroy()`. */
     post(type: string, payload?: unknown): void;
 }
-/** One command bar item: a button (`type` omitted or `button`) or a spacer, which needs no id. */
-export type CommandItem = CommandButton | CommandSpacer;
+/** One command bar item: a button (`type` omitted or `button`), a separator or a spacer; the last two need no id. */
+export type CommandItem = CommandButton | CommandSeparator | CommandSpacer;
 /** A command bar button; its `id` is what `click` reports and `update` addresses. */
 export interface CommandButton {
     type?: "button";
@@ -1381,8 +1384,14 @@ export interface CommandButton {
     /** Plain text (escaped). */
     label: string;
     icon?: string;
+    /** Only the icon shows in the bar (a transport control); the label is the tooltip and accessible name, and the text in the collapsed menu. */
+    iconOnly?: boolean;
     disabled?: boolean;
     hidden?: boolean;
+}
+/** A divider line between groups of buttons (also in the collapsed `Műveletek` menu). */
+export interface CommandSeparator {
+    type: "separator";
 }
 /** Pushes the following items to the right (left out of the collapsed `Műveletek` menu). */
 export interface CommandSpacer {
@@ -1398,7 +1407,7 @@ export interface CommandBarOptions extends ComponentOptions {
  */
 export interface CommandBar extends Component<CommandBarEvents> {
     readonly toolbar: Suite.Toolbar;
-    update(id: string, changes: Partial<Omit<CommandButton, "id" | "type">>): void;
+    update(id: string, changes: Partial<Omit<CommandButton, "id" | "type" | "iconOnly">>): void;
 }
 /**
  * A region of a page's panel tree (`PageLayout`): a leaf with its own `id` (`[a-z][a-z0-9_-]*`, unique), or a branch of

@@ -18,7 +18,11 @@ const node=(page,name)=>tree(page).locator('.dhx_tree-folder').filter({has:page.
 const expand=async(page,name)=>{await node(page,name).locator('> .dhx_tree-toggle-button').click();};
 const guide=page=>page.getByRole('dialog',{name:/^Útmutató: Regisztrációs adatbázis/});
 
-test('the guide opens until it is closed and the lower bar shows it again',async({page})=>{
+// The `Útmutató` control: a top-row button left of the language selector, below 768 px an item of the main menu.
+const guideButton=page=>page.locator('.blade-navigation-row .blade-guide-control').getByRole('button');
+const signOut=async page=>{await openMenu(page,'Kijelentkezés');await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();};
+
+test('a guide opens once per sign-in session and the top-row button shows it again',async({page})=>{
  // The wrapper closes guides in the way of an action; this test drives the guide itself.
  await page.removeLocatorHandler(guideWindow(page));
  await signIn(page);
@@ -27,17 +31,48 @@ test('the guide opens until it is closed and the lower bar shows it again',async
  await expect(guide(page)).toContainText('fa-navigáció');
  // Non-modal: the tree stays usable while it is open.
  await expect(node(page,'HKEY_CURRENT_USER')).toBeVisible();
+ // The button sits left of the language selector and is enabled for a view with a guide.
+ const [help,language]=await Promise.all([guideButton(page).boundingBox(),page.locator('.blade-navigation-row').getByRole('button',{name:/Magyar|English/}).boundingBox()]);
+ expect(help.x+help.width).toBeLessThanOrEqual(language.x+1);
+ await expect(guideButton(page)).toBeEnabled();
  await guide(page).getByRole('button',{name:/close|Bezárás/i}).first().click();
  await expect(guide(page)).toHaveCount(0);
+ // Shown once: neither a reload nor opening the view again shows it by itself.
  await page.reload();
  await expect(node(page,'HKEY_CURRENT_USER')).toBeVisible();
  await page.waitForTimeout(500);
  await expect(guide(page)).toHaveCount(0);
- await page.locator('.blade-session-bar').getByRole('button',{name:'Útmutató'}).click();
+ await guideButton(page).click();
  await expect(guide(page)).toBeVisible();
- // A view without a guide hides the button and closes nothing it does not own.
+ // Another view closes it and shows its own guide the first time.
  await openMenu(page,'Feladatok','Feature demó');
+ await expect(page.getByRole('dialog',{name:/^Útmutató: Feladatok/})).toBeVisible();
  await expect(guide(page)).toHaveCount(0);
+ await openMenu(page,'Regisztrációs adatbázis','Feature demó');
+ await expect(node(page,'HKEY_CURRENT_USER')).toBeVisible();
+ await page.waitForTimeout(500);
+ await expect(guide(page)).toHaveCount(0);
+ // The empty workspace has no guide: the button is disabled.
+ await page.goto('/#view=missing');
+ await expect(guideButton(page)).toBeDisabled();
+ // A new sign-in session shows every guide once again.
+ await signOut(page);
+ await signIn(page);
+ await openMenu(page,'Regisztrációs adatbázis','Feature demó');
+ await expect(guide(page)).toBeVisible();
+});
+
+test('below 768 px the guide is an item of the main menu',async({page})=>{
+ await page.removeLocatorHandler(guideWindow(page));
+ await page.setViewportSize({width:390,height:800});
+ await signIn(page);
+ await openMenu(page,'Regisztrációs adatbázis','Feature demó');
+ await expect(guide(page)).toBeVisible();
+ await guide(page).getByRole('button',{name:/close|Bezárás/i}).first().click();
+ await expect(guide(page)).toHaveCount(0);
+ await expect(page.locator('.blade-navigation-row .blade-guide-control')).toHaveCount(0);
+ await openMenu(page,'Útmutató');
+ await expect(guide(page)).toBeVisible();
 });
 
 test('keys load on expansion and scope the value list',async({page})=>{

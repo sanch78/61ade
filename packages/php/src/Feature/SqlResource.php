@@ -82,9 +82,9 @@ final class SqlResource
     }
     /**
      * Registers `list`, `get`, optional `create`/`update` and the list view (id $id, default the resource; see
-     * Registry::view() for the presentation options, $activate and $commands) and returns that View.
+     * Registry::view() for the presentation options, $activate, $commands and $guide) and returns that View.
      */
-    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = []): View
+    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null): View
     {
         $this->registry=$registry;
         $registry->registerFields($this->resource,$this->fields);
@@ -116,7 +116,7 @@ final class SqlResource
                 $actions[]='move';
             }
         }
-        return $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands);
+        return $registry->view($this->resource,$title,array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],$this->fields),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands,guide:$guide);
     }
     /**
      * Bulk-capable delete with the definition's policy: `delete` (default; needs no extra columns) removes the row and its

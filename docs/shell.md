@@ -345,8 +345,9 @@ return new ApplicationDefinition(
   yields to it: the menu, `Menü` and its
   [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) fit exactly as
   without a logo, and the logo shows only when its rendered width fits in the
-  room they and the selectors leave by the same width estimate (for example
-  not beside the feature demo's full menu at 1600 px, nor at 390 px with both
+  room they, the selectors and the [guide](workspaces.md#view-guide) button
+  leave by the same width estimate (for example not beside the feature demo's
+  full menu at 1720 px, nor at 390 px with both
   language and theme selectors).
   In compact mode the estimate counts only `Menü`, any visible siblings and
   the selectors: logout is inside `Menü` and reserves no extra width. There is
@@ -714,6 +715,7 @@ visible sibling button (`openMenu` in `feature-demo.cjs`). FB-0062.
 ## Optional language selector
 
 `i18n.selector` adds a native language selector before the theme selector,
-including on mobile. A Toolbar attached to native in-window Layout provides
+including on mobile. When a view has a [guide](workspaces.md#view-guide), the
+`Útmutató` button sits left of it (in `Menü` below 768 px). A Toolbar attached to native in-window Layout provides
 language switching inside login/confirmation modals. Localization remains active
 without a selector; see [i18n](i18n.md) for configuration and persistence.

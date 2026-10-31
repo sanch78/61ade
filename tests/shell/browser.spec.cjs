@@ -1,6 +1,7 @@
 const { test, expect } = require('../../tools/playwright-test.cjs');
-// The feature demo's full top menu fits from about 1600 px; at 1280 px it collapses into "Menü" (FB-0062).
-const WIDE = { width: 1600, height: 900 };
+// The feature demo's full top menu fits from about 1700 px (with the guide button, FB-0109); at 1280 px it collapses
+// into "Menü" (FB-0062).
+const WIDE = { width: 1720, height: 900 };
 async function login(page, name = 'demo@example.test', enter = false) {
     await page.goto('/');
     await page.getByLabel('E-mail', { exact: true }).fill(name);

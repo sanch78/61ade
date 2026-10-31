@@ -8,6 +8,7 @@ declare(strict_types=1);
  */
 
 require dirname(__DIR__, 2).'/common.php';
+blade_demo_sandbox_enter(); // each visitor reads only the outbox of their own sandbox
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
 header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; frame-ancestors 'none'");

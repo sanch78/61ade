@@ -180,6 +180,13 @@ try {
     $users = array_values(array_filter($app->workspace->registry->views(), static fn($view) => $view->resource === 'blade_users'))[0];
     verify(in_array('blade_oauth', array_column($users->options['columns'], 'id'), true) && in_array('blade_locale', array_column($users->options['columns'], 'id'), true), 'OAuth and language switches in the user admin');
     verify(in_array('blade_api_keys', array_column($app->workspace->registry->views(), 'resource'), true), 'JSON admin includes API keys');
+    // View guides by view id (docs/workspaces.md#view-guide): the framework's own views too.
+    $write([...$settings, 'oauth' => $oauth, 'admin' => [], 'application' => [...$settings['application'], 'guides' => ['blade_api_keys' => "Kulcsok.\n\nPróbáld ki."]]]);
+    verify(JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->workspace->registry->viewById('blade_api_keys')->guide === "Kulcsok.\n\nPróbáld ki.", 'JSON application.guides');
+    foreach ([['guides' => ['Szöveg']], ['guides' => 'Szöveg'], ['guides' => ['missing_view' => 'Szöveg']], ['guides' => ['blade_api_keys' => 7]], ['guides' => ['blade_api_keys' => ' ']]] as $bad) {
+        $write([...$settings, 'oauth' => $oauth, 'admin' => [], 'application' => [...$settings['application'], ...$bad]]);
+        rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid application.guides accepted: '.json_encode($bad));
+    }
 
     // Tenancy is opt-in: an empty `tenancy` object enables it; `tenant_column` scopes resources and lookups.
     verify($app->workspace->tenancy === null && !in_array('blade_tenants', array_column($app->workspace->registry->views(), 'resource'), true), 'No tenancy without the tenancy section');

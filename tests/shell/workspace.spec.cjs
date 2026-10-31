@@ -142,7 +142,7 @@ test('a menu click after the session ended shows the sign-in page',async({page,c
  await signIn(page);
  await openMenu(page,'Jegyzetek');
  await expect(page.getByRole('button',{name:'Hozzáadás',exact:true})).toBeVisible();
- await context.clearCookies();
+ await context.clearCookies({name:'blade_demo'});
  // Polling's own 401 may already reload the page during the click.
  await openMenu(page,'Jegyzetek').catch(()=>{});
  await expect(page.getByLabel('E-mail',{exact:true})).toBeVisible({timeout:10000});
@@ -154,7 +154,7 @@ test('an ended session over an open form asks before the sign-in page',async({pa
  await openMenu(page,'Jegyzetek');
  await page.getByRole('button',{name:'Hozzáadás',exact:true}).click();
  const form=page.getByRole('dialog');await form.getByLabel('Cím',{exact:true}).fill('Unsaved draft');
- await context.clearCookies();
+ await context.clearCookies({name:'blade_demo'});
  const ended=page.getByRole('alertdialog',{name:'A munkamenet lejárt'});
  const save=async()=>{
   await form.getByRole('button',{name:'Mentés',exact:true}).click();

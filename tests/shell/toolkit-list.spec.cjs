@@ -139,7 +139,7 @@ test('destroy releases the DOM, the cell and the live subscription; RecordDetail
  expect(await page.evaluate(()=>channel.handles.size)).toBe(1);
  // CommandBar: the responsive framework toolbar with click events and update().
  await page.evaluate(()=>{
-  window.bar=new app.components.CommandBar({items:[{id:'play',label:'Lejátszás',icon:'dxi dxi-check'},{type:'spacer'},{id:'stop',label:'Leállítás',disabled:true}]});
+  window.bar=new app.components.CommandBar({items:[{id:'play',label:'Lejátszás',icon:'dxi dxi-check'},{type:'separator'},{id:'next',label:'Következő',icon:'blade-icon blade-icon--skip-next',iconOnly:true},{type:'spacer'},{id:'stop',label:'Leállítás',disabled:true}]});
   window.clicks=[];bar.on('click',({id})=>clicks.push(id));bar.mount(layout.getCell('bar'));
  });
  const barCell=page.locator('[data-cell-id="bar"]');
@@ -148,6 +148,15 @@ test('destroy releases the DOM, the cell and the live subscription; RecordDetail
  await page.evaluate(()=>bar.update('stop',{label:'Állj',disabled:false}));
  await barCell.getByRole('button',{name:'Állj',exact:true}).click();
  expect(await page.evaluate(()=>clicks)).toEqual(['play','stop']);
+ // A separator divides groups; an icon-only button shows its glyph only, keeps its label as the accessible name and
+ // the tooltip, and update() of the label renames it.
+ await expect(barCell.locator('[role="separator"]')).toHaveCount(1);
+ const next=barCell.getByRole('button',{name:'Következő',exact:true});
+ expect((await next.boundingBox()).width).toBeLessThanOrEqual(48);
+ expect(await next.locator('.dhx_toolbar-button__text').evaluate(node=>node.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
+ await page.evaluate(()=>bar.update('next',{label:'Tovább',icon:'blade-icon blade-icon--fast-forward'}));
+ await barCell.getByRole('button',{name:'Tovább',exact:true}).click();
+ expect(await page.evaluate(()=>clicks)).toEqual(['play','stop','next']);
  // RecordDetails: an id is loaded through the view's get; a row is shown as given.
  await page.evaluate(()=>{window.details=new app.components.RecordDetails({view:'assets',record:'2'});details.mount(layout.getCell('side'));});
  const side=page.locator('[data-cell-id="side"]');

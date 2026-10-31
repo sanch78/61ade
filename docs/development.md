@@ -25,6 +25,13 @@ role. Never use it for links, tests, sessions, callbacks or live data, even if
 shared `sanch.hu` wildcard DNS still resolves it. The `*.61ade.com` wildcard
 DNS/certificate does not create application hosts or allow other origins.
 
+Public visitors work in [visitor sandboxes](demos.md#visitor-sandboxes)
+(per-browser copies of the seed, purged after an idle hour); development and the
+browser tests use the shared `tmp/web` instance through the developer key
+cookie, which `tools/playwright-test.cjs` adds and
+`https://demo.61ade.com/?developer=<key>` stores in a browser
+(`tmp/web/developer.key`, written by the web setup; never print or commit it).
+
 Develop and test directly in this environment. There is no production
 environment, deployment, deployment gate, post-deployment testability or project
 backup process. Do not introduce any of them. This overrides older local rules
@@ -450,7 +457,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Event calendar | `php8.4 tests/shell/calendar.php`; shell `calendar.spec.cjs` |
 | File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
-| Tree navigation, conditional fields, view guides | `php8.4 tests/shell/tree-navigation.php`, `contracts.php`; `npm run typecheck`; shell `registry.spec.cjs` |
+| Tree navigation, conditional fields, view guides | `php8.4 tests/shell/tree-navigation.php`, `contracts.php`, `configuration.php`, `i18n.php`; `npm run typecheck`; shell `registry.spec.cjs` |
 | Feature demo module (`examples/demo-app/frontend`) | `npm run typecheck`, `npm run build` (`node tools/build.mjs --check`); PHP `contracts.php`, `signage.php`; shell `toolkit-demo*.spec.cjs` of the changed area |
 | Toolkit (modules, views, registries, routing) | PHP `toolkit.php`, `contracts.php`, `configuration.php`, `lists.php`; `node tests/shell/toolkit-kernel.mjs`, `toolkit-list.mjs`, `toolkit-components.mjs`, `toolkit-registries.mjs`, `toolkit-sandbox.mjs`, `ui-preferences.mjs`; shell `browser.spec.cjs`, `preferences.spec.cjs`, `activation.spec.cjs`, `toolkit-*.spec.cjs` |
 
@@ -634,7 +641,7 @@ Shared feature-demo steps (sign-in, menu, commands, view switch, API calls,
 synthetic task creation/deletion) live in `tests/shell/feature-demo.cjs`.
 The `test` of `tools/playwright-test.cjs` gives every page a locator handler
 that closes a [view guide](workspaces.md#view-guide) window whenever it is in
-the way of an action (a fresh browser context has dismissed none); a spec that
+the way of an action (every view's guide opens once per sign-in session); a spec that
 tests the guide calls `page.removeLocatorHandler(guide(page))` with the
 exported `guide`. Assertions do not trigger the handler.
 Artifacts use `tmp/playwright-results/` or the corresponding subdirectory of

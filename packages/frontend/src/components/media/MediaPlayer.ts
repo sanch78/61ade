@@ -193,8 +193,8 @@ export class MediaPlayer implements MediaPlayerContract {
       this.emit("loaded", video ? { duration, width: video.videoWidth, height: video.videoHeight } : { duration });
     });
     on("error", () => this.failed(t(this.kind === "video" ? "A videó nem játszható le ebben a böngészőben." : "A hangfájl nem játszható le ebben a böngészőben.")));
-    on("play", () => { clearInterval(this.ticker); this.ticker = setInterval(() => this.emit("position", { seconds: media.currentTime }), TICK); });
-    const stop = () => { clearInterval(this.ticker); this.ticker = undefined; this.emit("position", { seconds: media.currentTime }); };
+    on("play", () => { clearInterval(this.ticker); this.ticker = setInterval(() => this.emit("position", { seconds: media.currentTime }), TICK); this.emit("play", {}); });
+    const stop = () => { clearInterval(this.ticker); this.ticker = undefined; this.emit("position", { seconds: media.currentTime }); this.emit("pause", {}); };
     on("pause", stop);
     on("seeked", () => this.emit("position", { seconds: media.currentTime }));
     // The element pauses (and reports the position) before it ends.

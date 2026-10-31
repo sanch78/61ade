@@ -3791,6 +3791,128 @@ that exactly equals an option label lists every option. The managed
   on the demo at 09:03 UTC (audit).
 - **Status:** implemented.
 
+<a id="fb-0109"></a>
+
+## FB-0109 — A guide on every view, once per session, from the top row
+
+- **Date:** 2026-10-31.
+- **Request:** the owner wants the guide ("help") of [FB-0107](#fb-0107) on
+  every surface, not only on some: each feature opens with its guide once per
+  session, the first time it is tried, saying which 61ade capability it
+  demonstrates; a help button beside the language selector shows the open
+  feature's guide; the help is a system-level feature, configured centrally,
+  that enables the button for a feature automatically. Follow-up: the first,
+  icon-only button looked odd on desktop beside the labelled selectors.
+- **Decisions:** supersedes FB-0107's "shows until the user closes it" and
+  its lower-bar button. A session is the sign-in session in a tab
+  (`sessionStorage`; the signed-out page clears the marks). Below 768 px the
+  navigation row has no room for another control (390 px already holds
+  `Menü`, the language and theme selectors), so there the button is an item
+  of `Menü`, like the tenant selector. The starter admin keeps no guides
+  ([FB-0044](#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)):
+  it changes only with the mandatory starter set.
+- **Implemented:** framework: the [view guide](workspaces.md#view-guide)
+  opens once per sign-in session, the labelled `Útmutató` button in the top
+  row left of the language selector (in `Menü` below 768 px), enabled while
+  the page view has a guide; `ApplicationDefinition` `guides` / JSON
+  `application.guides` set guides by view id once every view is declared (the
+  framework's own administration and API-key views too);
+  `SqlResource::register()` `guide`. Demo: a guide on every view that opens
+  as a page in the feature demo (Digitális kijelző, the record views,
+  `Jegyzetek`, administration, API keys) and the tenant demo, with English
+  translations. Toolkit contract: M36 and the [changes](toolkit.md#changes)
+  entry; additive.
+- **Coordination:** a concurrent session (visitor sandboxes) edits
+  `examples/demo-app/common.php`, `public/*/index.php` and the Playwright
+  configuration; only this entry's hunks belong to it.
+
+<a id="fb-0110"></a>
+
+## FB-0110 — Visitor sandboxes on the public demo
+
+- **Date:** 2026-10-31.
+- **Request:** the owner wants the public demo protected from visitors who
+  spoil the data for everyone, and asked whether a reset or client-side
+  mocking of changes is the answer.
+- **Decisions (owner, 2026-10-31):** neither: every visitor gets an own copy
+  of the demo data on the server, purged after one idle hour (24 hours was too
+  long). The copies poll (no WebSocket), send no mail out and need no working
+  OAuth: the provider overlay opening is enough. The whole demo host works
+  this way, the tenant demo included; no separate demo is needed. The
+  in-between "preparing your copy" page was too ugly: the cookie is set with
+  an immediate redirect instead. This supersedes the "no data-reset job"
+  statement of the [website](website.md#public-demo-and-retained-screenshots)
+  only as far as the per-visitor copies go; the shared instance is never reset.
+- **Implemented:** [visitor sandboxes](demos.md#visitor-sandboxes):
+  `examples/demo-app/sandbox.php` (signed copy cookie, copy from a seed the
+  web setup builds, idle purge, limits, the developer key selecting the shared
+  instance), the gate in the four web entrypoints, `SetEnv
+  BLADE_DEMO_SANDBOX 1`, the withheld host settings in `blade_demo_setting()`
+  and the sandbox upload limit; `tools/playwright-test.cjs` adds the developer
+  cookie to every test context, and the ended-session specs clear only the
+  session cookie. Demo-only: no framework change.
+- **Verification:** `php8.4 tests/shell/sandbox.php` passed;
+  `npm run test:browser -- tests/shell/sandbox.spec.cjs tests/shell/workspace.spec.cjs`
+  13 passed, 1 skipped (the polling case under WebSocket). Live: a web-server
+  copy shares the seed's blobs (link count 2). Copies hard-link file-store
+  blobs, so the seed's media are not duplicated per visitor.
+- **Status:** implemented.
+
+<a id="fb-0111"></a>
+
+## FB-0111 — Player commands that look like a player
+
+- **Date:** 2026-10-31.
+- **Request:** in the media viewer's command bar (`Vissza a listához`,
+  `Lejátszás`, `Szünet`, `Elejére`, `Vissza 5 mp`, `Előre 5 mp`) a divider
+  should follow the back command and the other buttons should look like a
+  player's controls; apply the same wherever relevant.
+- **Decisions:** framework first: the `CommandBar` gains a separator item and
+  icon-only buttons, and 61ade gains the transport glyphs the Suite icon font
+  lacks. An icon-only button keeps its label as visually hidden text, so the
+  accessible name, the tooltip and the collapsed `Műveletek` menu text stay
+  the label. Play and pause are one toggle, like a player; the toggle follows
+  the stage, so `MediaPlayer` reports `play` and `pause` (also from its native
+  controls and keys). Relevant elsewhere: the demo's shared playlist player
+  (playlist editor preview and day programme); the file manager viewer already
+  has icon-only steps with a separator, and the playlist editor's bar holds
+  only the back command.
+- **Implemented:** framework: `CommandSeparator`, `CommandButton.iconOnly`,
+  `MediaPlayerEvents` `play`/`pause`, glyphs `blade-icon--play`, `--pause`,
+  `--skip-start`, `--skip-previous`, `--skip-next`, `--rewind`,
+  `--fast-forward`, `--repeat`, `--repeat-off` ([CommandBar](toolkit.md#commandbar),
+  [changes](toolkit.md#changes) entry; additive). Demo: the asset viewer
+  (back, divider, `Elejére`, `Vissza 5 mp`, the toggle, `Előre 5 mp`, the
+  loop as repeat on/off) and the shared player (`Elejére`, `Előző elem`, the
+  toggle, `Következő elem`).
+- **Status:** implemented.
+- **Consequence:** the 120 px button narrows the room of the full top menu by
+  its width: the feature demo's full menu now needs about 1700 px (it
+  collapses into `Menü` below), the tenant demo's about 1360 px.
+  `browser.spec.cjs` uses 1720 px for the full menu and `sign-in-branding.spec.cjs`
+  1360 px for the tenant demo's menu-before-logo case.
+- **Verification (2026-10-31):** PHP `tree-navigation.php` (with the
+  `guides` map: set by id, the tree kept, unknown id, invalid text and no
+  workspace rejected), `contracts.php`, `i18n.php`, `toolkit.php`, `lists.php`,
+  `tenancy.php`, `signage.php`, `calendar.php`, `admin.php`, `api-keys.php`
+  passed; `configuration.php` still stops at the known `Skin shadowing a
+  factory theme accepted`; its new `application.guides` checks passed in a
+  copy without that line. `npm run typecheck`, `npm run build` passed. Browser:
+  `registry.spec.cjs` 4/4 (once per session, reload, another view, disabled
+  without a page view, a new sign-in, the 390 px `Menü` item),
+  `sign-in-branding.spec.cjs` tenant-demo case, `browser.spec.cjs` sign-in and
+  menu, `admin`, `tenancy`, `dialogs`, `workspace`, the playlist editor and
+  the rest of `toolkit-demo-playlist` passed. Still failing outside this
+  change, as in [FB-0107](#fb-0107)/[FB-0108](#fb-0108): the tests that pick
+  the removed `Skyblue` theme or expect `skyblue` (`browser`, `i18n`,
+  `skins`, `sign-in-branding`, `toolkit-demo-playlist` dark theme), the
+  `skins` lower-bar colour under a skin (transparent instead of the skin's
+  toolbar colour; the bar only lost the hidden guide button, so not compared
+  with a clean baseline), the
+  Signage sibling menu (`browser`), and the `calendar` week view and
+  `toolkit-demo-assets` activation that need deleted seed records.
+- **Status:** implemented.
+
 <a id="fb-0112"></a>
 
 ## FB-0112 — Real media in the signage demo

@@ -437,7 +437,9 @@ A list can sit beside a data tree of another resource
 `view.tree`), a field can depend on another field's value
 ([conditional fields](workspaces.md#conditional-fields): `visibleWhen`, JSON
 `visible_when`), and every view can explain itself in a closable
-[view guide](workspaces.md#view-guide) (`guide`). Prerequisites, examples,
+[view guide](workspaces.md#view-guide) (`guide`, or by view id in the
+application's `guides`), shown once per sign-in session and again from the
+top row's `Útmutató` button. Prerequisites, examples,
 limits and checks are in those sections; the feature demo's
 `Regisztrációs adatbázis` uses all three.
 

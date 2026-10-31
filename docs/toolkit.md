@@ -333,6 +333,10 @@ tree. `mime` lists exact types or classes (`audio/*`); an exact entry wins over
 a class, and a file no entry matches is `Fájl` with the generic file icon. The
 `icon` is a Suite icon (`dxi dxi-…`) or a 61ade glyph: `blade-icon
 blade-icon--audio` (the built-in `audio`) or `blade-icon blade-icon--animation`.
+The 61ade glyphs also include the transport controls the Suite font lacks, for
+any icon slot such as a [CommandBar](#commandbar) button: `--play`, `--pause`,
+`--skip-start`, `--skip-previous`, `--skip-next`, `--rewind`,
+`--fast-forward`, `--repeat` and `--repeat-off`.
 Presentation only: what a file may be, and who reads it, stays the server's.
 
 ```ts
@@ -454,7 +458,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | [`RecordDetails`](#recorddetails) | the `Adatok` details (`recordFields`) | `show(row \| id)` |
 | [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `editing`; `pick()` resolves a `MediaDescriptor` or `null` |
 | [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; both `editing` |
-| [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
+| [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `play`, `pause`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
 | [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
 | [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels) | none; `cell(id)`, `attach(id, content)` |
@@ -602,22 +606,33 @@ one `Műveletek` menu below 768 px or when they do not fit, keeping ids, state
 and click events.
 
 ```ts
+const t = (key: string) => app.i18n.t(key);
+let playing = false;
 const bar = new app.components.CommandBar({ signal: host.signal, items: [
-  { id: "play", label: app.i18n.t("Lejátszás"), icon: "dxi dxi-menu-right" },
-  { id: "pause", label: app.i18n.t("Szünet"), disabled: true }] });
-bar.on("click", ({ id }) => (id === "play" ? void player.play() : player.pause()));
+  { id: "back", label: t("Vissza a listához"), icon: "dxi dxi-arrow-left" },
+  { type: "separator" },
+  { id: "play", label: t("Lejátszás"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true }] });
+bar.on("click", ({ id }) => { if (id === "play") { if (playing) player.pause(); else void player.play().catch(() => {}); } });
 bar.mount(layout.getCell("commands"));
-player.on("loaded", () => bar.update("pause", { disabled: false }));
+player.on("loaded", () => bar.update("play", { disabled: false }));
+player.on("play", () => { playing = true; bar.update("play", { label: t("Szünet"), icon: "blade-icon blade-icon--pause" }); });
+player.on("pause", () => { playing = false; bar.update("play", { label: t("Lejátszás"), icon: "blade-icon blade-icon--play" }); });
 ```
 
 `CommandItem` is a button (`CommandButton`: `id`, `label`, `icon`,
-`disabled`, `hidden`; `type` omitted or `"button"`) or a spacer
-(`CommandSpacer`, `{ type: "spacer" }`, no id), which pushes the following
-buttons to the right and is left out of the collapsed menu. Labels are plain
-text (escaped). Button ids match `[A-Za-z0-9_.:-]+`, are unique and
+`iconOnly`, `disabled`, `hidden`; `type` omitted or `"button"`), a separator
+(`CommandSeparator`, `{ type: "separator" }`, no id), a divider line between
+groups that stays in the collapsed menu, or a spacer (`CommandSpacer`,
+`{ type: "spacer" }`, no id), which pushes the following buttons to the right
+and is left out of the collapsed menu. An `iconOnly` button shows only its
+icon in the bar, like a player's transport control: the label stays its
+accessible name and tooltip (visually hidden text) and is the item's text in
+the collapsed menu; `update` of its label changes the tooltip too. Labels are
+plain text (escaped). Button ids match `[A-Za-z0-9_.:-]+`, are unique and
 `blade-command-menu` is reserved; otherwise the constructor throws
 `TypeError`. `update(id, changes)` changes the label, icon, disabled or hidden
-state, also while the item sits in the collapsed menu. `toolbar` is the
+state, also while the item sits in the collapsed menu (a play/pause toggle is
+one button whose label and icon change). `toolbar` is the
 underlying Suite Toolbar. Escape closes an open menu, also one opened with the
 mouse, and returns the focus to its toggle (`Műveletek`); the key does not
 reach a window behind it. The feature demo's viewer drives a `MediaPlayer`
@@ -863,7 +878,8 @@ camelCase `imageBase`, `altOf` and `mediaOf`, and a field's JSON `default` is
 non-empty `title`/`group`, resource and record names, unique action names
 (only with a resource), icon classes, `open` = `page` or `window`, and the
 optional `guide` (plain text up to 4000 characters, shown by the shell as the
-[view guide](workspaces.md#view-guide); JSON `guide`, in the bootstrap only when set). Existence of
+[view guide](workspaces.md#view-guide); JSON `guide`, in the bootstrap only when set;
+`ApplicationDefinition` `guides` / JSON `application.guides` set it by view id). Existence of
 actions, the record resource's `get` and the kind provider is checked by
 `addView`.
 
@@ -888,11 +904,12 @@ public function viewById(string $id): ?View;
 // Blade\Feature\View
 public static function list(string $resource, string $title, array $columns, array $actions, /* as Registry::view() */): View;
 // Blade\Feature\SqlResource
-public function register(Registry $registry, string $title, /* … */ string|array|null $activate = null, ?string $id = null, array $commands = []): View;
+public function register(Registry $registry, string $title, /* … */ string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null): View;
 // Blade\Shell\ApplicationDefinition: constructor parameters
 /** @param list<string> $modules */ public array $modules = [],
 /** @param list<string> $stylesheets */ public array $stylesheets = [],
 public ?string $documentRoot = null,
+/** @param array<string, string> $guides view id => guide text */ public array $guides = [],
 ```
 
 - The builders keep their earlier parameters; `id` defaults to the resource,
@@ -1322,6 +1339,7 @@ while mounted, never after `destroy()`):
 | `MediaPlayer` | `loaded` | `{duration, width?, height?}` | the metadata is known (`duration` 0 for images) |
 | | `position` | `{seconds}` | every 250 ms while playing, on pause and after a completed seek |
 | | `ended` | `{}` | the media element ended (never while looping) |
+| | `play`, `pause` | `{}` | playback started or stopped, also through the native controls, the keyboard or the end (drives a play/pause toggle) |
 | | `error` | `{message}` (localized) | the source cannot be shown or played |
 | `SandboxFrame` | `ready` | `{}` | the code's top-level evaluation completed |
 | | `error` | `{message, code}` | as `sandbox:error` (the frame's `message` is untrusted text) |
@@ -1427,7 +1445,7 @@ The rules of API version 1 (closed out on 2026-10-30, [changes](#changes)):
   on every subscription and on `server.form` ([services](#services)); a
   component's constructor options carry `signal` the same way.
 - **Discriminated unions instead of optional ids:** a `CommandItem` is a
-  `CommandButton` or a `CommandSpacer` (no id).
+  `CommandButton`, a `CommandSeparator` or a `CommandSpacer` (no id).
 
 <a id="limits"></a>
 
@@ -1512,15 +1530,15 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     // …
     const bar: CommandBar = new app.components.CommandBar({ signal, items: [
       { id: "back", label: t("Vissza a listához"), icon: "dxi dxi-arrow-left" },
-      { id: "play", label: t("Lejátszás"), icon: "dxi dxi-menu-right", disabled: true, hidden: !timed },
-      // …
+      ...(timed ? [{ type: "separator" as const }] : []),
+      { id: "rewind", label: t("Elejére"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true, hidden: !timed },
+      // … back 5 s, the play/pause toggle, forward 5 s, loop: icon-only like a player's transport controls
     ] });
     bar.mount(layout.getCell("commands"));
     bar.on("click", ({ id }) => {
       if (id === "back") { if (!app.navigate({ view: listId })) host.close(); return; }
       if (!player) return;
-      if (id === "play") void player.play().catch(() => {});
-      else if (id === "pause") player.pause();
+      if (id === "play") { if (playing) player.pause(); else void player.play().catch(() => {}); }
       // …
     });
 
@@ -1801,6 +1819,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M33 | The first shell page of each browser window or tab opens with the 61ade [trademark screen](brand.md#splash) (about 3.3 s, not configurable); it covers the page and takes the pointer until it fades out; the shell's CSP `script-src` carries the hash of its inline gate | [FB-0089](feedback.md#fb-0089) | info: specs that screenshot or hit-test right after loading | none | none: clicks wait for it |
 | M34 | View guides ([workspaces](workspaces.md#view-guide)): a view with `guide` opens a non-modal `Útmutató: <title>` window when it opens as a page, until the user closes it once; the lower bar gains an `Útmutató` button. New, additive: `Registry::tree()` / JSON `view.tree` ([tree navigation](workspaces.md#tree-navigation)), `Field` `visibleWhen` / JSON `visible_when` ([conditional fields](workspaces.md#conditional-fields)), `ListKindOptions.tree`, `FieldMetadata.visibleWhen`, `ViewDefinition.guide`; a `RecordForm` mounted in an `AppWindow` fits it once its fields show | [FB-0107](feedback.md#fb-0107) | info: specs whose views get a guide (close it, or seed the dismissal) | none | none |
 | M35 | Lists and forms ([manual order and drops](workspaces.md#manual-order), [card filters](workspaces.md#card-filters)): a list with header filters and no filter panel shows `Szűrés` in cards and tiles (the header filters in a dialog); header filter inputs are named `Szűrés: <column>`; draggable rows (a manual order, a drop, `dragSource`) start with a drag-handle column; a checkbox in a framework form shows its text; `RecordForm` submits under the action's label when no view gives a `submitLabel` and shows no success toast for a read-only action. New, additive: `SqlResource` `order` / JSON `storage.order` with the `move` action, `View`/builder `drop` / JSON `view.drop`, `ListKindOptions.order`/`drop`, `ListViewOptions.dragSource`/`panel`/`showId`, `RecordFormOptions.cancel`, `RecordForm.setValues`, `RecordDetailsOptions.showId`, `PageLayout`, computed `column.media` fields, the `not_before_field`/`not_after_field` rules | [FB-0108](feedback.md#fb-0108) | info: specs that count toolbar items in cards, find header filters by position or expect `Mentés` or a toast from a query form | none | none |
+| M36 | View guides ([workspaces](workspaces.md#view-guide)): a guide opens by itself once per sign-in session (the first time its view opens as a page in a tab), no longer until it is closed; the `Útmutató` button moves from the lower bar to the top row, left of the language selector (below 768 px an item of `Menü`). New, additive: `ApplicationDefinition` `guides` / JSON `application.guides` (guides by view id, the framework's own views too), `SqlResource::register()` `guide` | [FB-0109](feedback.md#fb-0109) | if used: specs that click the lower bar's `Útmutató` or seed the `localStorage` key `blade-guide:1:` | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -1915,6 +1934,8 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-31 | `BuiltinFieldType` gains `date` (`YYYY-MM-DD`): native DatePicker form item and Grid `datePicker` cell editor. | Dates were plain text inputs with a pattern. | [FB-0104](feedback.md#fb-0104) |
 | 2026-10-31 | `Components.PageLayout` (`PageLayoutOptions`, `PageRegion`); `ListViewOptions.dragSource`, `panel`, `showId`; `ListKindOptions.order`, `drop`; `RecordFormOptions.cancel`, `RecordForm.setValues()`; `RecordDetailsOptions.showId`; `ValidationRules.notBeforeField`, `notAfterField`. `RecordForm` submits under the action's label without a `submitLabel` and shows no toast for a read-only action. Additive (M35). | Owner: the playlist editor and the day programme are rebuilt from 61ade components only; the missing pieces (declared page panels, a manual order, drops between lists, filters in cards, range rules) belong in the framework. | [FB-0108](feedback.md#fb-0108) |
 | 2026-10-31 | `ViewDefinition.guide`, `ListKindOptions.tree` (`TreeMetadata`), `FieldMetadata.visibleWhen`; `Registry::tree()`, `View`/builder `guide`, `Field` `visibleWhen`; `RecordForm` fits an `AppWindow` it is mounted in. Additive. | Feature-demo guides and the registry editor demo need a view guide, a data tree beside a list and type-dependent value editors in the framework. | [FB-0107](feedback.md#fb-0107) |
+| 2026-10-31 | View guides open once per sign-in session (`sessionStorage`, cleared on the signed-out page); the `Útmutató` control is in the top row (in `Menü` below 768 px); `ApplicationDefinition` `guides` / JSON `application.guides`; `SqlResource::register()` `guide`. Additive (M36). | Owner: every feature shows its guide once per session when first tried, with a help button beside the language selector, configured at system level. | [FB-0109](feedback.md#fb-0109) |
+| 2026-10-31 | `CommandSeparator` (`{type: "separator"}`) and `CommandButton.iconOnly` (icon in the bar, the label as tooltip, accessible name and collapsed-menu text); `MediaPlayerEvents` `play` and `pause`; 61ade transport glyphs `blade-icon--play`, `--pause`, `--skip-start`, `--skip-previous`, `--skip-next`, `--rewind`, `--fast-forward`, `--repeat`, `--repeat-off`. Additive. | Owner: a divider after the back command, and player commands that look like a player's, wherever relevant. | [FB-0111](feedback.md#fb-0111) |
 
 <a id="resolved-decisions"></a>
 

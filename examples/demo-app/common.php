@@ -5,15 +5,32 @@ declare(strict_types=1);
  * Shared synthetic demo settings. The feature demo (/) and the base admin demo (/admin/)
  * are two independent 61ade applications with their own SQLite database and session.
  */
-/**
- * Instance data directory. BLADE_DEMO_INSTANCE separates the web server copy ("web", set in
- * public/.htaccess) from the CLI/test copy ("demo"), so two OS users never share files.
- */
-function blade_demo_runtime(string $part = ''): string
+require_once __DIR__.'/sandbox.php';
+
+/** Scratch root of every demo instance (BLADE_TMP_DIR, default the checkout's tmp/). */
+function blade_demo_tmp(): string
 {
+    return getenv('BLADE_TMP_DIR') ?: dirname(__DIR__, 2).'/tmp';
+}
+
+/**
+ * Data directory of the instance this process uses. BLADE_DEMO_INSTANCE separates the web server copy ("web", set
+ * in public/.htaccess) from the CLI/test copy ("demo"), so two OS users never share files. A sandboxed web request
+ * (blade_demo_sandbox_enter) replaces it with the visitor's own copy; $set is that hook.
+ */
+function blade_demo_instance_root(?string $set = null): string
+{
+    static $root = null;
+    if ($set !== null) return $root = $set;
+    if ($root !== null) return $root;
     $instance = getenv('BLADE_DEMO_INSTANCE') ?: 'demo';
     if (!preg_match('/^[a-z][a-z0-9-]{0,31}$/D', $instance)) throw new RuntimeException('Invalid demo instance.');
-    $directory = (getenv('BLADE_TMP_DIR') ?: dirname(__DIR__, 2).'/tmp').'/'.$instance.($part !== '' ? '/'.$part : '');
+    return blade_demo_tmp().'/'.$instance;
+}
+
+function blade_demo_runtime(string $part = ''): string
+{
+    $directory = blade_demo_instance_root().($part !== '' ? '/'.$part : '');
     // Group-shared (setgid, no "other"): the web server user may reach data set up from the CLI.
     if (!is_dir($directory) && !mkdir($directory, 02770, true) && !is_dir($directory)) throw new RuntimeException('Cannot create demo runtime.');
     return $directory;
@@ -43,9 +60,13 @@ function blade_demo_languages(): Blade\I18n\Settings
     return new Blade\I18n\Settings('hu', ['hu' => 'Magyar', 'en' => 'English'], true, ['en' => $english], ['hu' => 'hu', 'en' => 'gb']);
 }
 
-/** Host setting from the environment or the Git-ignored examples/demo-app/.env (KEY=VALUE). */
+/**
+ * Host setting from the environment or the Git-ignored examples/demo-app/.env (KEY=VALUE). A visitor sandbox has no
+ * WebSocket unit (polling), sends no mail out (outbox only) and keeps OAuth to its overlay (no provider keys).
+ */
 function blade_demo_setting(string $name): ?string
 {
+    if (blade_demo_sandboxed() && preg_match('/^BLADE_DEMO_(LIVE_ENDPOINT|MAIL_|GOOGLE_|FACEBOOK_)/', $name)) return null;
     static $file = null;
     $file ??= is_file(__DIR__.'/.env') ? (parse_ini_file(__DIR__.'/.env', false, INI_SCANNER_RAW) ?: []) : [];
     $value = getenv($name);
@@ -68,6 +89,47 @@ function blade_demo_accounts(PDO $db, array $accounts): void
 }
 
 /**
+ * Guides of the framework's own views (administration, API keys), set by view id through ApplicationDefinition
+ * `guides` (docs/workspaces.md#view-guide); $tenancy: the tenant demo's variants and its Tenantok view.
+ * @return array<string, string>
+ */
+function blade_demo_admin_guides(bool $tenancy = false): array
+{
+    return [
+        'blade_users' => 'A keretrendszer kötelező felhasználókezelése, amelyet minden 61ade alkalmazás megkap: fiók létrehozása egyszer megjelenő ideiglenes jelszóval, és a belépés kapcsolói az űrlapon és a táblázatban is.'
+            .($tenancy ? ' A Tenantok mező a felhasználó tagságait állítja.' : ' Kapcsolók: letiltás, OAuth-belépés, e-mailes megerősítés és alapértelmezett nyelv.')
+            ."
+
+".'Hozz létre egy fiókot, és jelentkezz be vele: az ideiglenes jelszó után új jelszót kér. A Letiltva kapcsoló azonnal kilépteti a fiókot minden munkamenetéből.',
+        'blade_roles' => 'Szerepköralapú jogosultságkezelés: a szerepkör tagságok és jogosultsági szabályok csoportja. A védett admin szerepkör nem törölhető, és mindig marad legalább egy aktív tagja.'
+            ."
+
+".'Hozz létre egy szerepkört, adj hozzá tagot a Szerepkör-tagságokban és szabályt a Szerepkör-jogosultságokban. Tagokkal vagy szabályokkal rendelkező szerepkör nem törölhető.',
+        'blade_memberships' => 'Melyik felhasználó melyik szerepkörbe tartozik. A tagság azonnal érvényes: a felhasználó a szerepkör szabályai szerint látja a menüt, és futtathatja a műveleteket.'
+            ."
+
+".'Tegyél be egy felhasználót egy szerepkörbe, és jelentkezz be vele: a menü a jogai szerint változik. A saját védett tagságodat nem vonhatod vissza.',
+        'blade_role_rules' => 'Engedélyek szerepkörökre: erőforrás, művelet, csatorna (felület vagy API), hatókör és mező. A választható értékeket a regisztrált definíciókból képzett katalógus adja; a katalógus semmit sem enged meg, alapértelmezésben minden tiltott.'
+            ."
+
+".'Adj egy szerepkörnek jogot a Jegyzetek listájára, vagy tilts le egyetlen mezőt: a tiltott mező a válaszokból is kimarad.',
+        'blade_user_rules' => 'Ugyanazok a szabályok egyetlen felhasználóra, a szerepköreitől függetlenül: egy-egy fiók kivétele, például egy mező tiltása.'
+            ."
+
+".'Adj egy felhasználónak egyedi szabályt, majd jelentkezz be vele, és nézd meg, mit lát.',
+        'blade_api_keys' => 'Gépi hozzáférés a keretrendszer API-jához: a kulcs csak a kiválasztott műveleteket futtathatja, és csak azt, amit a tulajdonosa is megtehet. A titok egyszer jelenik meg, csak a lenyomata tárolódik; a visszavonás azonnali és végleges.'
+            .($tenancy ? ' A Tenant mező a kulcsot egy tenanthoz köti, vagy globális marad.' : '')
+            ."
+
+".'Adj ki egy kulcsot, másold ki a titkot, és hívd meg vele az API-t Authorization: Bearer fejléccel; a visszavont kulcs nem állítható vissza.',
+        ...($tenancy ? ['blade_tenants' => 'Több bérlős (multi-tenant) működés: a tenantok és a hozzáférések kezelése. Egy tenant kinyitva megmutatja, ki fér hozzá; a Hozzáférés kapcsoló egy tagság. Tenant nem törölhető, csak inaktiválható.'
+            ."
+
+".'Kapcsold be valakinek a hozzáférést, majd jelentkezz be vele: a navigációs sorban válthat a tenantjai között.'] : []),
+    ];
+}
+
+/**
  * Feature-demo file manager: virtual space "demo" with three fictional mounts and the Signage mount of the signage
  * media; entries in SQLite, content in the instance's files store. The demo deletes for real (`archive` is the
  * framework default and recommendation).
@@ -75,7 +137,7 @@ function blade_demo_accounts(PDO $db, array $accounts): void
 function blade_demo_files(): Blade\Files\FileManagerDefinition
 {
     return new Blade\Files\FileManagerDefinition('files', 'Fájlkezelő', 'demo', ['a' => 'Drive A', 'b' => 'Drive B', 'c' => 'Drive C', 'signage' => 'Signage'],
-        allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'], maxSizeBytes: 1073741824, maxFiles: 20, duplicatePolicy: 'ask',
+        allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'], maxSizeBytes: blade_demo_sandboxed() ? 20971520 : 1073741824, maxFiles: 20, duplicatePolicy: 'ask',
         textMaxBytes: 65536, group: 'Feature demó', desktopOnly: true, contentRoot: blade_demo_runtime('files'), deletePolicy: 'delete',
         guide: 'Kétpaneles fájlkezelő a keretrendszer fájlszolgáltatásán, három kitalált meghajtóval és a digitális kijelző médiatárával (Signage).'."\n\n".'Böngéssz a fában, másolj és mozgass a két panel között, tölts fel fájlokat és mappákat, nyisd meg a szövegfájlokat a szerkesztőben, nézd meg a képeket és videókat, és tölts le fájlokat vagy ZIP-csomagot. Csak asztali nézetben érhető el.');
 }

@@ -120,6 +120,17 @@ body,
 .blade-icon::before { content: ""; display: inline-block; width: 1em; height: 1em; font-size: var(--dhx-icon-size-normal); background: var(--dhx-font-color-additional); -webkit-mask: var(--blade-icon-glyph) center / contain no-repeat; mask: var(--blade-icon-glyph) center / contain no-repeat; }
 .blade-icon--audio { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/%3E%3C/svg%3E"); }
 .blade-icon--animation { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2a2 2 0 0 0-2 2v10h2V4h10V2H4m4 4a2 2 0 0 0-2 2v10h2V8h10V6H8m4 4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8m2 2 6 4-6 4v-8z'/%3E%3C/svg%3E"); }
+/* Transport glyphs for players (a CommandBar with icon-only buttons): play, pause, start, previous, next, back,
+   forward, repeat on and off. */
+.blade-icon--play { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 5.14v14l11-7-11-7z'/%3E%3C/svg%3E"); }
+.blade-icon--pause { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14 19h4V5h-4M6 19h4V5H6v14z'/%3E%3C/svg%3E"); }
+.blade-icon--skip-start { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 5v14l-7-7M6 5v14H4V5m9 0v14l-7-7'/%3E%3C/svg%3E"); }
+.blade-icon--skip-previous { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 18V6h2v12H6m3.5-6L18 6v12l-8.5-6z'/%3E%3C/svg%3E"); }
+.blade-icon--skip-next { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M16 18h2V6h-2M6 18l8.5-6L6 6v12z'/%3E%3C/svg%3E"); }
+.blade-icon--rewind { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11.5 12l8.5 6V6m-9 12V6l-8.5 6 8.5 6z'/%3E%3C/svg%3E"); }
+.blade-icon--fast-forward { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13 6v12l8.5-6M4 18l8.5-6L4 6v12z'/%3E%3C/svg%3E"); }
+.blade-icon--repeat { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17 17H7v-3l-4 4 4 4v-3h12v-6h-2M7 7h10v3l4-4-4-4v3H5v6h2V7z'/%3E%3C/svg%3E"); }
+.blade-icon--repeat-off { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 5.27 3.28 4 20 20.72 18.73 22l-3-3H7v3l-4-4 4-4v3h6.73L7 10.27V11H5V8.27l-3-3M17 13h2v4.18l-2-2V13m0-8V2l4 4-4 4V7H8.82l-2-2H17z'/%3E%3C/svg%3E"); }
 
 /* Media column presentation: lazy thumbnail over a type icon; the accessible name carries the type. */
 .blade-media { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; overflow: hidden; vertical-align: middle; border-radius: 4px; background: var(--dhx-background-secondary); color: var(--dhx-font-color-secondary); }
@@ -166,6 +177,8 @@ body,
 .blade-command-row .dhx_navbar,
 .blade-navigation-row .dhx_navbar { height: 100%; box-sizing: border-box; padding: 4px 8px; align-items: center; }
 .blade-navigation-row .dhx_menu-nav { height: 100%; box-sizing: border-box; padding-top: 0; padding-bottom: 0; align-items: center; }
+/* An icon-only CommandBar button: the label stays as hidden text (accessible name; shown again in the collapsed menu). */
+.dhx_toolbar-button.blade-command--icon > .dhx_toolbar-button__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .blade-grid-content, .blade-grid-views { overflow: hidden; user-select: none; -webkit-user-select: none; }
 .blade-grid-content input, .blade-grid-content textarea, .blade-grid-content select { user-select: text; -webkit-user-select: text; }
 .blade-grid-row-marked { background: color-mix(in srgb, var(--dhx-color-primary, #0288d1) 18%, transparent) !important; }

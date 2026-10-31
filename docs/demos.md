@@ -13,7 +13,9 @@ and managed server, with separate SQLite databases, sessions and cookie paths:
 | Starter admin | https://demo.61ade.com/admin/ | [admin-application.php](../examples/demo-app/admin-application.php) | `tmp/web/admin.sqlite` | Exactly the mandatory starter: login, language/theme selectors and admin module. |
 | Tenant demo | https://demo.61ade.com/tenants/ | [tenant-application.php](../examples/demo-app/tenant-application.php) | `tmp/web/tenants.sqlite` | The starter admin with optional [multi-tenancy](tenancy.md) on. |
 
-Use this single development environment directly. Development and testing happen
+Use this single development environment directly. Visitors work in their own
+[sandbox](#visitor-sandboxes); development and testing use the shared instance
+through the developer key. Development and testing happen
 there; there is no deployment, post-deployment testing or project backup workflow
 ([FB-0049](feedback.md#fb-0049), [FB-0051](feedback.md#fb-0051)).
 CLI fixture tools do not establish a second environment.
@@ -91,7 +93,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Network topology builder | Visual diagram editor: drag network elements from the palette, move them, connect them by the element handle with Ethernet/fibre/Wi-Fi/VPN/WAN connections, edit captions and details in the property form, save with revision check; define new element types (name, glyph, shape, colour) at runtime; two synthetic topologies; desktop only; [details](diagrams.md) | Feature demo → Hálózati topológia; `reader@example.test` views only |
 | Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
 | Registry editor (tree navigation, conditional fields) | `Regisztrációs adatbázis` ([registry.json](../examples/demo-app/modules/registry.json)): a Windows registry editor imitation. The key tree (`Registry::tree` over the `Kulcsok` hierarchy) loads children on expansion, its toolbar adds, edits (renames or moves, guarded against cycles) and deletes keys (with their subtree and values); the value list beside it is scoped to the selected key. The value form shows the editor of the chosen `Típus` only (`visible_when`): text, multi-line text, hexadecimal DWORD/QWORD or a byte string, each with its own pattern; the `Adat` column is computed SQL | Feature demo → Regisztrációs adatbázis; `reader@example.test` browses only |
-| View guides | Every `Feature demó` entry opens with a closable `Útmutató` window saying what the view demonstrates and what to try; closed once, it stays closed in that browser, and the lower bar's `Útmutató` button shows it again | Any `Feature demó` entry |
+| View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in `Menü` below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Üres polc`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `C zóna` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
 | Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date (a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
@@ -275,9 +277,11 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   `demo.play` (`Lejátszás`, a record command on the toolbar, enabled for an
   asset with something to play).
 - **Kind** ([assets.ts](../examples/demo-app/frontend/src/assets.ts)): an
-  `app.dhx.Layout` with the 61ade `CommandBar` (`Vissza a listához`,
-  `Lejátszás`, `Szünet`, `Elejére`, `Vissza 5 mp`, `Előre 5 mp`,
-  `Ismétlés: ki/be`, the position `Pozíció: m:ss / m:ss`), the asset's
+  `app.dhx.Layout` with the 61ade `CommandBar` (`Vissza a listához`, a
+  divider, then icon-only transport controls like a player's: `Elejére`,
+  `Vissza 5 mp`, one `Lejátszás`/`Szünet` toggle following the stage (also its
+  native controls and keys), `Előre 5 mp`, `Ismétlés: ki/be`; the position
+  `Pozíció: m:ss / m:ss`), the asset's
   `RecordDetails` and a stage cell with the `MediaPlayer` (native controls;
   the player's own toolbar only for an image, whose zoom it keeps) or, for an
   animation (a scene file, `text/javascript`), a `SandboxFrame` running the
@@ -352,9 +356,9 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   are the calendar's `Napi műsor (API)` window, not repeated here.
 - **Player** ([player.ts](../examples/demo-app/frontend/src/player.ts)), the
   demo's shared player, also the playlist editor's preview: the stage (caption
-  and screen), its `CommandBar` (`Lejátszás`, `Szünet`, `Elejére`,
-  `Előző elem`, `Következő elem`, `Pozíció: m:ss / m:ss`) and the timeline
-  strip. It plays every timeline entry once, in order, for the asset's play
+  and screen), its `CommandBar` (icon-only transport controls like a
+  player's: `Elejére`, `Előző elem`, one `Lejátszás`/`Szünet` toggle,
+  `Következő elem`; `Pozíció: m:ss / m:ss`) and the timeline strip. It plays every timeline entry once, in order, for the asset's play
   time (`Lejátszási idő`, 1–3600 s); an entry without content takes 3 s; a
   playlist slot plays one round of its items with their transitions. The strip
   shows each entry (time range, title, type, seconds; width by play time) with
@@ -522,7 +526,7 @@ Open `/mailbox/` directly when testing synthetic e-mail confirmation.
 The demo does not send mail. It uses [command delivery](authentication.md#levélküldés)
 with [bin/outbox.php](../examples/demo-app/bin/outbox.php): it takes the
 arguments of the Infra mail helper and stores recipient, subject and HTML body
-as JSON in `tmp/demo/outbox` (last 50).
+as JSON in `tmp/demo/outbox` (last 50). A [visitor sandbox](#visitor-sandboxes) has its own outbox and never uses the helper below.
 
 Real mail is opt-in per host, never from Git: when the Git-ignored
 `examples/demo-app/.env` sets `BLADE_DEMO_MAIL_HELPER` (the helper path, e.g.
@@ -577,6 +581,33 @@ in the `Médiatár` only, not in the programme. The visitor
 [sandbox seed](#visitor-sandboxes) is a fresh setup, so the media directory
 must exist when the web setup runs. `tests/shell/signage.php` and the signage
 browser specs need it too.
+
+<a id="visitor-sandboxes"></a>
+
+## Visitor sandboxes
+
+Owner decision of 2026-10-31 ([FB-0110](feedback.md#fb-0110)): every visitor of
+https://demo.61ade.com/ (`/`, `/admin/`, `/tenants/`, `/mailbox/`) works on an
+own copy of the pristine demo data, so nobody can spoil the demo for the
+others. There is no global reset, and nothing is mocked in the browser: the copy
+runs the same server code (validation, ACL, hooks, files, API keys).
+[sandbox.php](../examples/demo-app/sandbox.php) implements it; each web
+entrypoint calls `blade_demo_sandbox_enter()` before its application file, and
+`public/.htaccess` turns it on with `SetEnv BLADE_DEMO_SANDBOX 1`.
+
+| Part | Behavior |
+| --- | --- |
+| Seed | `BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php` also builds `tmp/web/sandbox-seed/`: a fresh setup of its own (no data the shared instance gathered) with a `.seed` stamp. Copies share its file-store blobs (content-addressed, never written in place) through hard links, so media do not multiply. A new seed makes every copy start over on its next request. |
+| Copy | A first request gets a signed `blade_demo_sandbox` cookie (HttpOnly, Secure, `SameSite=Lax`, browser session) and comes back at once to the same address; the copy `tmp/web/sandboxes/<id>/` is made only when the cookie returns, so a client without cookies never makes one. Any other request without the cookie answers 401 like an ended session. |
+| Lifetime | Purged after one idle hour; the next request starts a fresh copy. Activity is recorded once a minute. |
+| Limits | At most 100 copies (the least recently active gives way), 200 MB of own data per copy, shared blobs not counted (a larger one starts over), uploads of 20 MB per file, and no new copy while the volume has less than 2 GB free. |
+| Inside a copy | Live lists poll (no WebSocket), mail stays in the copy's own outbox, read in `/mailbox/` (nothing goes out), and the OAuth buttons open the provider overlay without provider keys (the setup feedback instead of a real sign-in). The API works with keys made in the copy; a client sends the browser's `blade_demo_sandbox` cookie with the `Authorization` header. |
+| Shared instance | `tmp/web` itself, for development and the browser tests: `developer.key` (written by the web setup) as the `blade_demo_developer` cookie selects it. Open `https://demo.61ade.com/?developer=<key>` once to store the cookie; [tools/playwright-test.cjs](../tools/playwright-test.cjs) adds it to every test context. |
+
+Checks: `php8.4 tests/shell/sandbox.php` (seed, signed ids, separate copies,
+idle purge, new seed, quota, limit, withheld settings) and
+`npm run test:browser -- tests/shell/sandbox.spec.cjs` (two visitors and the
+shared instance do not see each other's task; the cookie redirect and the 401).
 
 <a id="webszerveres-futtatás-apache--php-fpm"></a>
 
