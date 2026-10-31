@@ -91,28 +91,35 @@ export class Workspace implements ActionHost {
   constructor(host:HTMLElement,readonly view:ViewDefinition,private channel:LiveChannel,private user="",readonly scope?:WorkspaceScope,preset:Record<string,string>={},private hooks:WorkspaceHooks={}){
     // A nested view: the scope field is implied (no column, filter or input), one grid region, overlay forms.
     if(scope)view=this.view={...view,columns:view.columns.filter(column=>column.id!==scope.field),filters:view.filters.filter(filter=>filter.name!==scope.field),sortable:(view.sortable??[]).filter(field=>field!==scope.field),layout:{formMode:"overlay",tree:{rows:[{id:"grid"}]}}};
+    // In a host's panel (`panel: false`): no panel of its own; the toolbar and the data fill the host's region, the
+    // declared filter panel becomes the `Szűrés` dialog and forms open as windows.
+    const hosted=!scope&&hooks.panel===false&&!view.singleton;
+    if(hosted)view=this.view={...view,layout:{formMode:"overlay",tree:{rows:[{id:"grid"}]}}};
+    // A manual order sorts by its position only: no header or card sorting.
+    if(view.order)view=this.view={...view,sortable:[]};
     if(scope?.compact)view=this.view={...view,filters:[],search:undefined,rowNumbers:false,selection:false,rowSelection:false,tiles:false,columns:view.columns.map(column=>({...column,secondary:false}))};
     this.preferences=new UiPreferences(user,scope?view.id+"@"+scope.field:view.id);
-    this.sort=this.preferences.sort(view.sortable??[])??this.sort;
+    this.sort=view.order?{field:view.order.field,direction:"asc"}:this.preferences.sort(view.sortable??[])??this.sort;
     this.details=new DetailsWindow(view,id=>this.call("get",id),()=>this.disposed,error=>this.error(error));
     this.actions=new ListActions(this);
     const secondaryColumns=view.columns.filter(column=>column.secondary);
     const tiles=view.tiles??view.columns.some(column=>isMedia(column)||isImage(column));
     const secondary=secondaryColumns.map(column=>column.id);
     this.visibleColumns=this.preferences.visibleColumns(secondary);
-    const region=(node:Region):any=>({...node,header:node.id==="grid"?scope?undefined:escape(view.title):node.header?escape(node.header):undefined,
-      ...(node.id==="grid"&&!scope?{headerIcon:"blade-list-count",css:"blade-list-panel"}:{}),
+    const inner=!!scope||hosted;
+    const region=(node:Region):any=>({...node,header:node.id==="grid"?inner?undefined:escape(view.title):node.header?escape(node.header):undefined,
+      ...(node.id==="grid"&&!inner?{headerIcon:"blade-list-count",css:"blade-list-panel"}:{}),
       ...(node.rows?{rows:node.rows.map(region)}:{}),...(node.cols?{cols:node.cols.map(region)}:{})});
-    this.layout=new Layout(host,{type:scope?"none":"space",css:scope?.compact?"blade-subview":scope?"blade-feature-fill":undefined,...(view.singleton
+    this.layout=new Layout(host,{type:inner?"none":"space",css:scope?.compact?"blade-subview":inner?"blade-feature-fill":undefined,...(view.singleton
       ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"detail"}]}]}
-      :region(scope?view.layout.tree:this.preferences.layoutTree(view.layout.tree)))});
-    if(!view.singleton&&!scope)this.preferences.bindLayout(this.layout,view.layout.tree);
+      :region(inner?view.layout.tree:this.preferences.layoutTree(view.layout.tree)))});
+    if(!view.singleton&&!inner)this.preferences.bindLayout(this.layout,view.layout.tree);
     // Client commands: the built-in `details` of every selectable list (also a hidden preview toolbar: the parent
     // delegates it), then the view's declared commands where the list has its own toolbar.
     const builtin=!view.singleton&&scope?.select!==false?["details"]:[];
     const commands=this.clientCommands=resolveCommands(builtin,scope?.compact||scope?.shared?[]:view.commands,extensions.commands,builtinCommands);
     const ofToolbar=(fromBuiltin:boolean)=>commands.filter(command=>builtin.includes(command.name)===fromBuiltin);
-    this.commands=new ResponsiveToolbar(undefined,{data:listCommands(view,{scope,filter:this.hasRegion("filter"),tiles,secondary:secondaryColumns,visible:this.visibleColumns,commands:{builtin:ofToolbar(true),project:ofToolbar(false)}})});
+    this.commands=new ResponsiveToolbar(undefined,{data:listCommands(view,{scope,filter:this.hasRegion("filter")?"panel":view.filters.length&&!scope?.compact?"cards":false,tiles,secondary:secondaryColumns,visible:this.visibleColumns,commands:{builtin:ofToolbar(true),project:ofToolbar(false)}})});
     this.commands.events.on("click",(id:string|number)=>{if(this.delegated&&(id===commandId("details")||view.actions.some(a=>a.name===id&&a.name!=="create"&&!a.upload)&&this.delegated.view.actions.some(a=>a.name===id))){this.delegated.command(String(id));return;}this.command(String(id));});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
@@ -131,16 +138,19 @@ export class Workspace implements ActionHost {
         if(row)this.activate(row);else if(this.selected)void this.showResults(this.selected);
       },direction=>{if(!this.rendering&&!this.busy&&!this.disposed)void this.more(direction);},(cards,mobile,mode)=>{
         if(cards&&(view.sortable??[]).length)this.commands.show("blade-sort");else this.commands.hide("blade-sort");
+        // Header filters only: cards and tiles have no table headers, so the filters move into the `Szűrés` dialog.
+        if(!this.hasRegion("filter")&&view.filters.length){if(cards)this.commands.show("blade-filter");else this.commands.hide("blade-filter");}
         this.commands.data.update("blade-view",{value:mode==="tiles"?t("Nézet: Csempék"):cards?t("Nézet: Kártyák"):t("Nézet: Táblázat"),icon:mode==="tiles"?"dxi dxi-border-all":cards?"dxi dxi-view-grid":"dxi dxi-table-check"});
         // Mobile forces cards for the table without changing the stored preference; tiles remain selectable.
         if(mobile&&!tiles)this.commands.disable("blade-view");else this.commands.enable("blade-view");
         if(mode==="cards")this.commands.disable("blade-cards");else this.commands.enable("blade-cards");
         if(mode==="table"||mobile)this.commands.disable("blade-table");else this.commands.enable("blade-table");
         if(tiles){if(mode==="tiles")this.commands.disable("blade-tiles");else this.commands.enable("blade-tiles");}
-      },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,subview:scope?.compact?undefined:this.subviewOptions(),select:scope?.select,...(scope?.compact?{table:true,idColumn:false}:{}),
+      },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,subview:scope?.compact?undefined:this.subviewOptions(),select:scope?.select,...(scope?.compact?{table:true,idColumn:false}:{}),...(hooks.showId===false?{idColumn:false}:{}),
         // Per row: the declared target's description; a map without an entry for the row keeps the default (no description, cards open the details).
         activation:view.activate?row=>declaredTarget(view.activate,row)===undefined?undefined:t("Megnyitás: {target}",{target:this.activation(row).label}):undefined,
-        details:id=>{const row=this.rows.find(r=>String(r.id)===id);if(row)this.hooks.emit?.("activate",{row,target:"details"});void this.showResults(id);},marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field)});
+        details:id=>{const row=this.rows.find(r=>String(r.id)===id);if(row)this.hooks.emit?.("activate",{row,target:"details"});void this.showResults(id);},marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field),
+        drag:this.dragOptions()});
       this.sortLabel();
       // Grid column ids of reserved record keys are aliases (ResponsiveGrid): headers speak in column ids, requests in fields.
       this.gridHeaders=new GridHeaders(this.grid.table,view.columns.map(column=>({...column,id:alias(column.id)})),(view.sortable??[]).map(alias),sort=>void this.changeSort({...sort,field:unalias(sort.field)}),view.filters.map(filter=>({...filter,name:alias(filter.name)})),(field,value)=>void this.changeFilter(unalias(field),value));
@@ -153,7 +163,8 @@ export class Workspace implements ActionHost {
         (row,field,value)=>this.saveCell(row,field,value),error=>this.error(error),active=>{this.cellEditing=active;if(!active&&!this.disposed)this.watch();});
       this.content.getCell("data").attach(this.grid.layout);
       this.layout.getCell("grid").attach(this.content);
-      if(this.hasRegion("filter"))this.filterPanel=new ListFilters(view,this.layout,this.commands,filters=>{this.filters=filters;this.keepFilters();this.headerFilters();void this.load();});
+      // The declared panel, or for header filters only the dialog that cards and tiles offer (`Szűrés`).
+      if(this.hasRegion("filter")||view.filters.length)this.filterPanel=new ListFilters(view,this.hasRegion("filter")?this.layout:undefined,this.commands,filters=>{this.filters=filters;this.keepFilters();this.headerFilters();void this.load();});
     }
     this.filterPanel?.fit();
     const initial=Object.keys(preset).length||scope?preset:this.preferences.filters(view.filters);
@@ -164,7 +175,7 @@ export class Workspace implements ActionHost {
   }
   /** Runs a toolbar command; a parent's toolbar runs it here for this view's cursor record (shared sub-view). */
   command(id:string):void{
-    const view=this.view;if(id.startsWith("blade-command:")){this.runCommand(id.slice("blade-command:".length));return;}if(id==="blade-subview"){this.openSubview();return;}if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.filterPanel?.open();return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.actions.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.actions.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.actions.open(action);}
+    const view=this.view;if(id.startsWith("blade-command:")){this.runCommand(id.slice("blade-command:".length));return;}if(id==="blade-subview"){this.openSubview();return;}if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(id==="blade-move-up"||id==="blade-move-down"){void this.step(id==="blade-move-up"?-1:1);return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.filterPanel?.open();return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.actions.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.actions.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.actions.open(action);}
   }
   /**
    * What client command $name sees: the application, the view as the server sent it, the toolbar's record, the marked
@@ -330,6 +341,64 @@ export class Workspace implements ActionHost {
   private hasRegion(id:string):boolean{
     const find=(node:Region):boolean=>node.id===id||[...(node.rows??[]),...(node.cols??[])].some(find);return find(this.view.layout.tree);
   }
+  /** Manual order with `move` offered: rows are dragged and moved (not in a compact preview or a non-selectable list). */
+  private reorders():boolean{return !!this.view.order&&this.view.actions.some(a=>a.name==="move")&&!this.scope?.compact&&this.scope?.select!==false;}
+  /**
+   * The grid's drag options: reordering (manual order), receiving records of the declared `drop` resource, and the
+   * rows as a drag source (`hooks.dragSource`, the public ListView option) for a list that receives them.
+   */
+  private dragOptions(){
+    if(this.scope?.compact||this.view.singleton)return undefined;
+    const reorder=this.reorders(),drop=this.view.drop&&this.view.actions.some(a=>a.name==="create")?this.view.drop:undefined;
+    if(!reorder&&!drop&&!this.hooks.dragSource)return undefined;
+    return {...(this.hooks.dragSource?{resource:this.view.resource}:{}),...(reorder?{reorder:(id:string,before:string|undefined)=>void this.moveRow(id,before),step:(direction:-1|1)=>void this.step(direction)}:{}),
+      ...(drop?{receive:(records:{resource:string;ids:string[]},before:string|undefined)=>{if(records.resource===drop.from)void this.receive(drop.field,records.ids,before);}}:{})};
+  }
+  /**
+   * What the cursor record moves in front of one place up ($direction -1) or down: a record id, undefined (last; only
+   * when every record is loaded) or null (it cannot move: the first or last record, or no movable cursor record).
+   */
+  private neighbour(direction:-1|1):string|undefined|null{
+    const row=this.selectedRow(),index=row?this.rows.indexOf(row):-1;
+    if(!row||!row._actions?.includes("move"))return null;
+    if(direction<0)return index>0?String(this.rows[index-1].id):null;
+    if(index+2<this.rows.length)return String(this.rows[index+2].id);
+    return index+1<this.rows.length&&this.next===null?undefined:null;
+  }
+  private async step(direction:-1|1):Promise<void>{const before=this.neighbour(direction);if(before!==null&&this.selected)await this.moveRow(this.selected,before);}
+  /** Saves a manual position (`move`): $id in front of $before, undefined only when every record is loaded (last). */
+  private async moveRow(id:string,before:string|undefined):Promise<void>{
+    const row=this.rows.find(item=>String(item.id)===id);
+    if(!row||!row._actions?.includes("move")||this.busy||this.cellEditing||this.disposed||(before===undefined&&this.next!==null))return;
+    const index=this.rows.indexOf(row),next=this.rows[index+1];
+    if(before===id||(before===undefined?index===this.rows.length-1:next!==undefined&&String(next.id)===before))return;
+    try{await this.call("move",id,{before:before??"",revision:row.revision});}
+    catch(error){await this.error(error);return;}
+    if(this.disposed)return;
+    this.selected=id;await this.load();this.saved("move",row);
+  }
+  /**
+   * Records dragged in from a list of the declared `drop` resource: one `create` each (in order, $field = the dragged
+   * id, a scoped list's parent), then in a manual order a `move` in front of $before. Stops at the first failure.
+   */
+  private async receive(field:string,ids:string[],before:string|undefined):Promise<void>{
+    if(this.busy||this.cellEditing||this.disposed||!ids.length)return;
+    const ordered=this.reorders()&&before!==undefined;
+    let last:string|undefined;
+    try{
+      for(const value of ids.slice(0,100)){
+        const result=await this.call("create",null,{[field]:value,...(this.scope?{[this.scope.field]:this.scope.id}:{})});
+        if(this.disposed)return;
+        last=String(result?.id??"");if(!last)break;
+        const row:Row=await this.call("get",last);if(this.disposed)return;
+        if(ordered)await this.call("move",last,{before,revision:row.revision});
+        this.saved("create",row);
+      }
+    }catch(error){await this.error(error);}
+    if(this.disposed)return;
+    if(last)this.selected=last;
+    await this.load();
+  }
   /** The cursor record. */
   selectedRow():Row|undefined{return this.rows.find(r=>String(r.id)===this.selected);}
   private capabilities():void{
@@ -341,7 +410,8 @@ export class Workspace implements ActionHost {
     for(const command of this.clientCommands){if(commandEnabled(command.entry,this.commandContext(command.name)))this.commands.enable(command.id);else this.commands.disable(command.id);}
     const parentRow=this.subviewTarget();
     if(this.view.subview){if(parentRow&&!multiple&&hasSubview(parentRow))this.commands.enable("blade-subview");else this.commands.disable("blade-subview");}
-    for(const a of this.view.actions){if(a.name==="get"||(this.view.singleton&&a.name==="update"))continue;
+    if(this.reorders()){for(const direction of [-1,1] as const){const id=direction<0?"blade-move-up":"blade-move-down";if(!this.delegated&&!multiple&&this.neighbour(direction)!==null)this.commands.enable(id);else this.commands.disable(id);}}
+    for(const a of this.view.actions){if(a.name==="get"||a.name==="move"||(this.view.singleton&&a.name==="update"))continue;
       const bulkSelected=!this.delegated&&!!(a.bulk&&(this.view.selection||this.view.rowSelection)&&marked.length);
       const bulkAllowed=bulkSelected&&marked.length<=100&&marked.every(id=>this.rows.find(row=>String(row.id)===id)?._actions?.includes(a.name));
       if(a.name==="create"||a.upload||(bulkSelected?bulkAllowed:!multiple&&target?._actions?.includes(a.name)))this.commands.enable(a.name);else this.commands.disable(a.name);

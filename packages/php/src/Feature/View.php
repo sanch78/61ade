@@ -17,6 +17,8 @@ namespace Blade\Feature;
  *   such as ViewLayout or Field) and emit browser metadata only; the generic provider of a project kind sends the
  *   options verbatim after a JSON-safety and size check, so they must never hold backend-only data.
  * $open: `page` (workspace, menu entry, address) or `window` (a framework document window, no history entry).
+ * $guide: what the user sees and can do in the view (plain text, localized; blank lines separate paragraphs, at most
+ *   4000 characters). Opening the view as a page shows it in a closable window until the user closes it once.
  */
 final readonly class View
 {
@@ -36,6 +38,7 @@ final readonly class View
         public ?string $icon = null,
         public bool $desktopOnly = false,
         public string $open = 'page',
+        public ?string $guide = null,
     ) {
         if (!preg_match(self::ID, $id)) throw new \InvalidArgumentException('Invalid view id.');
         if (!preg_match(self::ID, $kind) || (!in_array($kind, self::BUILTIN_KINDS, true) && !str_contains($kind, '.'))) throw new \InvalidArgumentException('Invalid view kind: '.$id);
@@ -45,17 +48,18 @@ final readonly class View
         foreach ($actions as $action) if (!is_string($action) || !preg_match(self::ID, $action)) throw new \InvalidArgumentException('Invalid view actions: '.$id);
         if ($icon !== null && !preg_match('/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/D', $icon)) throw new \InvalidArgumentException('Invalid view icon: '.$id);
         if (!in_array($open, ['page', 'window'], true)) throw new \InvalidArgumentException('Invalid view open mode: '.$id);
+        if ($guide !== null && (trim($guide) === '' || mb_strlen($guide) > 4000 || str_contains($guide, "\0") || preg_match('//u', $guide) !== 1)) throw new \InvalidArgumentException('Invalid view guide: '.$id);
     }
 
     /**
      * The list view of $resource (kind `list`, id $id, default the resource) as Registry::view() declares it; see there
      * for the options. Not registered: for Registry::addView() or Registry::updateView().
      */
-    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = []): self
+    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null): self
     {
         $options = ['columns' => $columns, 'singleton' => $singleton, 'layout' => $layout ?? new ViewLayout(), 'rowNumbers' => $rowNumbers, 'selection' => $selection, 'rowSelection' => $rowSelection,
-            ...array_filter(['rowHeight' => $rowHeight, 'tileMinWidth' => $tileMinWidth, 'tiles' => $tiles ?: null, 'activate' => $activate, 'commands' => $commands ?: null], static fn($v) => $v !== null)];
-        return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly);
+            ...array_filter(['rowHeight' => $rowHeight, 'tileMinWidth' => $tileMinWidth, 'tiles' => $tiles ?: null, 'activate' => $activate, 'commands' => $commands ?: null, 'drop' => $drop], static fn($v) => $v !== null)];
+        return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide);
     }
 
     /** A copy with the given constructor arguments replaced, e.g. `$view->with(icon: 'dxi dxi-key')`. */

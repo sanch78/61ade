@@ -35,9 +35,13 @@ foreach([
     fn()=>new CalendarDefinition('cal','Calendar','test',[new Field('secret','x','password',secret:true)]),
     fn()=>new CalendarDefinition('cal','Calendar','test',firstHour:10,lastHour:9),
     fn()=>new CalendarDefinition('cal','Calendar','test',dayAction:['resource'=>'x']),
+    fn()=>new CalendarDefinition('cal','Calendar','test',[$field],tones:[['field'=>'other','prefix'=>'a','tone'=>'success']]),
+    fn()=>new CalendarDefinition('cal','Calendar','test',[$field],tones:[['field'=>'asset_id','prefix'=>'a','tone'=>'pink']]),
+    fn()=>new CalendarDefinition('cal','Calendar','test',[$field],tones:[['field'=>'asset_id','prefix'=>'a','value'=>'b','tone'=>'success']]),
+    fn()=>new CalendarDefinition('cal','Calendar','test',[$field],tones:[['field'=>'asset_id','value'=>'','tone'=>'success']]),
 ] as $invalid){try{$invalid();throw new RuntimeException('invalid definition accepted');}catch(InvalidArgumentException){}}
 
-$definition=new CalendarDefinition('cal','Calendar','test',[$field],maxRangeDays:31,dayAction:['resource'=>'day','action'=>'show','label'=>'Day']);
+$definition=new CalendarDefinition('cal','Calendar','test',[$field],tones:[['field'=>'asset_id','value'=>'b','tone'=>'danger']],maxRangeDays:31,dayAction:['resource'=>'day','action'=>'show','label'=>'Day']);
 $registry=new Registry();$workspace=new Workspace($registry,$db);$definition->register($workspace);
 $registry->add(new Blade\Feature\Action('day','show','Day',[],fn()=>[]));
 $rule=$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,?,?,?,?,'all','',?)");
@@ -52,8 +56,9 @@ $view=fn($actor)=>array_values(array_filter($workspace->views(new Identity($acto
 $full=$view('1')[0];
 check($full['kind']==='calendar'&&array_column($full['actions'],'name')===['events','occurrences','create','update','delete'],'Calendar actions');
 check($full['options']['dayAction']['action']==='show'&&array_column($full['options']['fields'],'name')===['asset_id'],'Day action and fields');
+check($full['options']['tones']===[['field'=>'asset_id','value'=>'b','tone'=>'danger']],'Tones in the metadata');
 check(!str_contains(json_encode($full),'"test"'),'Space key stays server-side');
-check(array_column($view('2')[0]['actions'],'name')===['events','occurrences']&&$view('2')[0]['options']['fields']===[]&&$view('2')[0]['options']['dayAction']===null,'Read-only metadata');
+check(array_column($view('2')[0]['actions'],'name')===['events','occurrences']&&$view('2')[0]['options']['fields']===[]&&$view('2')[0]['options']['dayAction']===null&&$view('2')[0]['options']['tones']===[],'Read-only metadata; no tone over a denied field');
 check($view('3')===[],'No view without rules');
 
 // Writes: series, single event, validation and read-only denial.
@@ -94,6 +99,15 @@ check((int)$db->query('SELECT COUNT(*) FROM blade_calendar_events WHERE recurrin
 $moved=$call('create',null,['text'=>'Promo late','start_date'=>'2026-10-21 15:00','end_date'=>'2026-10-21 16:00','recurring_event_id'=>$series['id'],'original_start'=>'2026-10-21 08:00','asset_id'=>'b']);
 $call('delete',$series['id'],['revision'=>'2']);
 check((int)$db->query('SELECT COUNT(*) FROM blade_calendar_events')->fetchColumn()===1,'Series delete removes exceptions');
+// A required field blanked by a usage provider keeps the event editable: shortening the series and
+// its occurrence exceptions keep the blank value, a new blank value is refused.
+fails(fn()=>$call('create',null,['text'=>'x','start_date'=>'2026-10-21 09:00','end_date'=>'2026-10-21 10:00','asset_id'=>'']),400,'Required field on create');
+$blank=$call('create',null,['text'=>'Logo','start_date'=>'2026-10-23 14:00','end_date'=>'9999-02-01 00:00','rrule'=>'FREQ=WEEKLY;BYDAY=FR','duration'=>'3600','asset_id'=>'a']);
+$db->exec("UPDATE blade_calendar_events SET data=json_set(data,'$.asset_id',''),revision=revision+1 WHERE id=".(int)$blank['id']);
+$call('create',null,['text'=>'Logo','start_date'=>'2026-10-23 14:00','end_date'=>'2026-10-23 15:00','recurring_event_id'=>$blank['id'],'original_start'=>'2026-10-23 14:00','deleted'=>'1','asset_id'=>'']);
+$call('update',$blank['id'],['text'=>'Logo','start_date'=>'2026-10-23 14:00','end_date'=>'2026-10-30 14:00','rrule'=>'FREQ=WEEKLY;BYDAY=FR;UNTIL=20261030T000000Z','duration'=>'3600','asset_id'=>'','revision'=>'2']);
+$single=$call('create',null,['text'=>'Event','start_date'=>'2026-10-21 09:00','end_date'=>'2026-10-21 12:00','asset_id'=>'b']);
+fails(fn()=>$call('update',$single['id'],['text'=>'Event','start_date'=>'2026-10-21 09:00','end_date'=>'2026-10-21 12:00','asset_id'=>'','revision'=>'1']),400,'Clearing a required field');
 fails(fn()=>$call('update','999',['text'=>'x','start_date'=>'2026-10-21 09:00','end_date'=>'2026-10-21 12:00','asset_id'=>'b','revision'=>'1']),404,'Unknown event');
 
 // Audit: writes are journalled with the event id.

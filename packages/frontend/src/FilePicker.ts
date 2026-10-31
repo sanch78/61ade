@@ -1,7 +1,7 @@
 import { locale, t } from "./I18n";
 import { Form, Layout, Toolbar, Window, awaitRedraw, message } from "@dhtmlx/suite";
 import { ResponsiveGrid } from "./ResponsiveGrid";
-import { escape, mediaLabel, mediaPart, type MediaDescriptor } from "./RecordPresentation";
+import { escape, mediaLabel, mediaPart, mediaTypeIcon, type MediaDescriptor } from "./RecordPresentation";
 import { actionUrl } from "./ActionUrl";
 import { uploads, type UploadResult } from "./Uploader";
 import { fileDisplay, type FieldDefinition, type FileFieldConfig } from "./FormValidation";
@@ -41,7 +41,7 @@ export async function fieldFolder(config:FileFieldConfig,call:ResourceCall):Prom
 /** "Signage:/Képek", as the file manager's panel header. */
 const directoryLabel=(directory:Directory)=>{const names=directory.path.map(part=>part.name);return (names[0]??directory.mount)+":/"+names.slice(1).join("/");};
 /** Type glyph of the thumbnail item while no thumbnail image is ready. */
-const mediaIcon=(media?:MediaDescriptor)=>!media?"dxi dxi-file-outline":media.mime_type.startsWith("video/")?"dxi dxi-menu-right":media.mime_type.startsWith("image/")?"dxi dxi-image-outline":"dxi dxi-file-outline";
+const mediaIcon=(media?:MediaDescriptor)=>media?mediaTypeIcon(media.mime_type):"dxi dxi-file-outline";
 /** Same Cancel + submit row as the workspace forms. */
 const actions=(submit:{name:string;text:string;icon:string}):any=>({css:"blade-form-actions",cols:[
   {type:"button",name:"cancel",text:t("Mégse"),icon:"dxi dxi-close",view:"flat",color:"secondary",width:"content"},

@@ -1,17 +1,17 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const {execFileSync}=require('node:child_process');
-const {signIn,openMenu,command,api}=require('./feature-demo.cjs');
+const {signIn,openMenu,api}=require('./feature-demo.cjs');
 // Toolkit D2 (docs/demos.md#toolkit-d2-playlist): Digitális kijelző → Napi műsor, the project view kind
-// `demo.playlist-preview` (frontend/src/playlist.ts): the day's `signage_playlist.day` timeline in order with play times,
-// the playhead driving the MediaPlayer (image, audio) and a SandboxFrame scene (code from `signage_playlist.scene`),
-// scrubbing through the frame protocol (asserted through the state the frame reports, not pixels), the API panel, a day
-// change, a failing scene reported through `sandbox:error`, destruction on navigation, the phone layout and the dark
-// theme. The run seeds its own assets, events and date default on a far-future Saturday with the run prefix (over the
+// `demo.playlist-preview` (frontend/src/playlist.ts on the shared player, player.ts): the day's `signage_playlist.day`
+// timeline in order with play times, the playhead driving the MediaPlayer (image, audio) and a SandboxFrame scene (code
+// from `signage_playlist.scene`), seeking within a strip item through the frame protocol (asserted through the state
+// the frame reports, not pixels), day steps and `Naptár…` (the day action's RecordForm in a window), a failing scene,
+// destruction on navigation, the phone layout and the dark theme. The run seeds its own assets, events and date default on a far-future Saturday with the run prefix (over the
 // seeded Signage files, the scene fixture included) and removes them afterwards; seeded demo data is never changed.
 const prefix='pp'+Date.now().toString(36);
 const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'demo';
 const php=code=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${runtime}/${instance}/features.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');${code}`],{encoding:'utf8'});
-// A Saturday (no weekday programme) and the Sunday after it.
+// A Saturday and the Sunday after it; the demo programme's occurrences on the Saturday are cancelled for the run.
 const DAY='2099-12-26',NEXT='2099-12-27';
 test.describe.configure({mode:'serial'});
 const cleanup=()=>php(`
@@ -29,8 +29,14 @@ test.beforeAll(()=>{
   foreach($files as $name=>[$id,$seconds]){$asset->execute(['${prefix} '.$name,$id,$seconds]);$ids[$name]=(string)$db->lastInsertId();}
   $db->prepare("INSERT INTO signage_defaults(weekday,date,asset_id) VALUES ('',?,?)")->execute(['${DAY}',$ids['kép']]);
   $event=$db->prepare("INSERT INTO blade_calendar_events(space,text,start_at,end_at,rrule,duration,data) VALUES ('signage',?,?,?,'',0,?)");
-  $event->execute(['${prefix} jelenet','${DAY} 08:00:00','${DAY} 09:00:00',json_encode(['asset_id'=>$ids['jelenet']])]);
-  $event->execute(['${prefix} hang','${DAY} 09:00:00','${DAY} 10:00:00',json_encode(['asset_id'=>$ids['hang']])]);`);
+  $event->execute(['${prefix} jelenet','${DAY} 08:00:00','${DAY} 09:00:00',json_encode(['content'=>'asset:'.$ids['jelenet']])]);
+  $event->execute(['${prefix} hang','${DAY} 09:00:00','${DAY} 10:00:00',json_encode(['content'=>'asset:'.$ids['hang']])]);
+  // Series of the demo programme (the weekend playlists) would fill the day: each occurrence on it gets a deleted
+  // exception with the run prefix (the Scheduler's own model), removed with the run's events afterwards.
+  require 'examples/demo-app/vendor/autoload.php';
+  $day=new DateTimeImmutable('${DAY}');$cancel=$db->prepare("INSERT INTO blade_calendar_events(space,text,start_at,end_at,rrule,duration,recurring_event_id,original_start,deleted,data) VALUES ('signage',?,?,?,'',0,?,?,1,'{}')");
+  foreach((new Blade\\Calendar\\CalendarDefinition('signage_schedule','x','signage'))->occurrences($db,$day,$day->modify('+1 day')) as $item)
+   if($item['recurring'])$cancel->execute(['${prefix} törölt',$item['start'].':00',$item['end'].':00',$item['series_id'],$item['start'].':00']);`);
 });
 test.afterAll(cleanup);
 
@@ -41,27 +47,38 @@ const caption=page=>page.locator('[data-demo-part="caption"]');
 const sceneState=page=>caption(page).locator('[data-demo-scene-state]');
 const sceneTime=async page=>Number(await sceneState(page).getAttribute('data-demo-scene-time'));
 const frames=page=>page.locator('iframe.blade-sandbox__frame');
-const panel=page=>page.locator('[data-demo-part="api"]');
-const dayInput=page=>page.locator('[data-cell-id="day"] input');
+const screen=page=>page.locator('[data-demo-part="screen"]');
 const button=(page,name)=>page.getByRole('button',{name,exact:true});
+// A panel of the page (the player's own commands have cells too: the page's panel comes first).
+const region=(page,id)=>page.locator(`.blade-page-layout [data-cell-id="${id}"]`).first();
+// The shown day: the day commands' label (`YYYY-MM-DD · weekday`).
+const shownDay=page=>region(page,'commands').getByRole('button',{name:/^\d{4}-\d\d-\d\d/});
+/** A command of the day bar (`commands`) or of the player (`player`), also from its `Műveletek` menu. */
+async function act(page,name,where='player'){
+ const bar=where==='player'?page.locator('[data-demo-part="commands"]'):region(page,'commands');
+ const menu=bar.getByRole('button',{name:'Műveletek',exact:true});
+ if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name,exact:true}).click();}
+ else await bar.getByRole('button',{name,exact:true}).click();
+}
 const position=page=>page.getByRole('button',{name:/^Pozíció: \d+:\d\d \/ \d+:\d\d$/});
 const clock=seconds=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds)%60).padStart(2,'0')}`;
 const seconds=slot=>slot.asset?Math.min(3600,Math.max(1,Math.round(Number(slot.asset.duration)||0))):3;
+// The preview's run: a scheduled playlist plays one round of its assets, each for its own play time.
+const run=timeline=>timeline.flatMap(slot=>slot.playlist?.items?.length?slot.playlist.items.map(asset=>({...slot,asset,playlist:null})):[slot]);
 function pageErrors(page){const errors=[];page.on('pageerror',error=>errors.push(error.message));return errors;}
 async function open(page,width=1600,height=1000){
  await page.setViewportSize({width,height});
  await signIn(page,'demo@example.test',`/#view=demo.playlist-preview&filter.date=${DAY}`);
- await expect(items(page).first()).toBeVisible();
- await expect(dayInput(page)).toHaveValue(DAY);
+ await expect(items(page).first().locator('.demo-playlist-item__title')).toHaveText(prefix+' kép');
 }
-// The day's timeline as the API answers it, and the preview's run length.
+// The day's timeline as the API answers it, the preview's run (playlists expanded) and its length.
 async function day(page,date=DAY){
  const answer=await api(page,'signage_playlist','day',null,{date});expect(answer.status,JSON.stringify(answer.body)).toBe(200);
- const timeline=answer.body.data.timeline;
+ const timeline=run(answer.body.data.timeline);
  return {timeline,total:timeline.reduce((sum,slot)=>sum+seconds(slot),0)};
 }
 
-test('timeline lists the day\'s entries in order with their play times; the API panel shows the request and answer',async({page})=>{
+test('timeline lists the day\'s entries in order with their play times; the stage shows the first one',async({page})=>{
  const errors=pageErrors(page);
  await open(page);
  const {timeline,total}=await day(page);
@@ -77,14 +94,12 @@ test('timeline lists the day\'s entries in order with their play times; the API 
  await expect(item(page,prefix+' jelenet')).toHaveAttribute('aria-label',`08:00–09:00: ${prefix} jelenet, Jelenet, 8 mp`);
  await expect(items(page).first()).toHaveAttribute('aria-current','true');
  await expect(position(page)).toHaveText(`Pozíció: 0:00 / ${clock(total)}`);
- // The view still documents the API: the request an API client sends, and the answer.
- for(const text of ['POST ./?blade=1','Authorization: Bearer','"resource": "signage_playlist"','"action": "day"',`"date": "${DAY}"`,'"timeline"',`"title": "${prefix} jelenet"`])
-  await expect(panel(page)).toContainText(text);
+ await expect(shownDay(page)).toHaveText(`${DAY} · Szombat`);
  // The stage shows the first entry, the image, in the MediaPlayer.
  await expect(caption(page)).toHaveAttribute('data-demo-stage','image');
  await expect(caption(page)).toContainText(`00:00–08:00 · ${prefix} kép · Kép`);
- await expect(page.locator('[data-cell-id="screen"] img')).toBeVisible();
- await expect(page.locator('[data-cell-id="screen"] .blade-player')).toHaveCount(1);
+ await expect(screen(page).locator('img')).toBeVisible();
+ await expect(screen(page).locator('.blade-player')).toHaveCount(1);
  await expect(frames(page)).toHaveCount(0);
  expect(errors).toEqual([]);
 });
@@ -93,7 +108,7 @@ test('the playhead advances and the stage switches from the image to the scene a
  test.setTimeout(60000);
  const errors=pageErrors(page);
  await open(page);
- await command(page,'Lejátszás');
+ await act(page,'Lejátszás');
  await expect(button(page,'Szünet')).toBeEnabled();await expect(button(page,'Lejátszás')).toBeDisabled();
  await expect.poll(async()=>Number(await strip(page).getAttribute('data-demo-position'))).toBeGreaterThan(0.5);
  // The image takes 0–4 s of the run; then the scene runs in the SandboxFrame with code from signage_playlist.scene.
@@ -110,11 +125,11 @@ test('the playhead advances and the stage switches from the image to the scene a
  // At 12 s the audio entry follows in the MediaPlayer, and the frame is gone.
  await expect(caption(page)).toHaveAttribute('data-demo-stage','audio',{timeout:15000});
  await expect(frames(page)).toHaveCount(0);
- await expect(page.locator('[data-cell-id="screen"] audio')).toHaveCount(1);
- // One stage at a time: the scene's box and frame were released when the audio's box replaced it.
- await expect(page.locator('[data-cell-id="screen"] .blade-player')).toHaveCount(1);
+ await expect(screen(page).locator('audio')).toHaveCount(1);
+ // One stage at a time: the scene's layer and frame were released when the audio's layer replaced it.
+ await expect(screen(page).locator('.blade-player')).toHaveCount(1);
  await expect(item(page,prefix+' hang')).toHaveAttribute('aria-current','true');
- await command(page,'Szünet');
+ await act(page,'Szünet');
  await expect(button(page,'Lejátszás')).toBeEnabled();
  const paused=await strip(page).getAttribute('data-demo-position');
  await page.waitForTimeout(800);
@@ -122,50 +137,44 @@ test('the playhead advances and the stage switches from the image to the scene a
  expect(errors).toEqual([]);
 });
 
-test('scrubbing seeks the scene through the frame protocol',async({page})=>{
+test('seeking within a strip item moves the scene through the frame protocol',async({page})=>{
  const errors=pageErrors(page);
  await open(page);
- const {total}=await day(page);
- await item(page,prefix+' jelenet').click();
+ await item(page,prefix+' jelenet').focus();await page.keyboard.press('Enter');
  await expect(caption(page)).toHaveAttribute('data-demo-stage','scene');
  await expect(sceneState(page)).toHaveAttribute('data-demo-scene-state','ready',{timeout:10000});
  await expect(sceneState(page)).toHaveAttribute('data-demo-scene-time','0.0');
  await expect(sceneState(page)).toHaveAttribute('data-demo-scene-playing','false');
  const frame=await frames(page).elementHandle();
- // A click on the Suite Slider's track at 9 s of the run: 5 s into the scene entry (it starts at 4 s).
- const box=await page.locator('[data-cell-id="scrub"] .dhx_slider__track').boundingBox();
- await page.mouse.click(box.x+box.width*(9/total),box.y+box.height/2);
+ // A click 5/8 into the scene's strip item (the scene is 8 s long and starts at 4 s of the run): 5 s into the scene.
+ const box=await item(page,prefix+' jelenet').boundingBox();
+ await page.mouse.click(box.x+box.width*(5/8),box.y+box.height/2);
  await expect.poll(()=>sceneTime(page)).toBeGreaterThan(4.2);
  expect(await sceneTime(page)).toBeLessThan(5.8);
  await expect(sceneState(page)).toHaveAttribute('data-demo-scene-playing','false');
  await expect(strip(page)).toHaveAttribute('data-demo-position',/^(8\.[2-9]|9\.\d)$/);
- // The thumb's arrow keys step 0.1 s; still the same frame document (a seek is a message, not a reload).
+ // Still the same frame document: a seek is a message, not a reload.
  const before=await sceneTime(page);
- await page.locator('[data-cell-id="scrub"] .dhx_slider__thumb').focus();
- for(let index=0;index<5;index++)await page.keyboard.press('ArrowRight');
- await expect.poll(()=>sceneTime(page)).toBeGreaterThan(before+0.25);
- expect(await sceneTime(page)).toBeLessThan(before+0.75);
  expect(await frame.evaluate(node=>node.isConnected)).toBe(true);
  await expect(frames(page)).toHaveCount(1);
- // Playing from there continues the scene's clock from the scrubbed time.
- await command(page,'Lejátszás');
+ // Playing from there continues the scene's clock from the sought time.
+ await act(page,'Lejátszás');
  await expect(sceneState(page)).toHaveAttribute('data-demo-scene-playing','true');
  await expect.poll(()=>sceneTime(page)).toBeGreaterThan(before+0.6);
- await command(page,'Szünet');
+ await act(page,'Szünet');
  await expect(sceneState(page)).toHaveAttribute('data-demo-scene-playing','false');
  expect(errors).toEqual([]);
 });
 
-test('a day change fetches that day and rebuilds the timeline and the stage',async({page})=>{
+test('a day change fetches that day and rebuilds the timeline and the stage; Naptár… picks a day in the day action\'s form',async({page})=>{
  const errors=pageErrors(page);
  await open(page);
  await item(page,prefix+' jelenet').click();
  await expect(frames(page)).toHaveCount(1);
  const requests=[];
  page.on('request',request=>{try{const body=request.postDataJSON();if(body?.resource==='signage_playlist')requests.push(`${body.action}:${body.values?.date??body.values?.asset}`);}catch{}});
- await command(page,'Következő nap');
- await expect(dayInput(page)).toHaveValue(NEXT);
- await expect(panel(page)).toContainText(`"date": "${NEXT}"`);
+ await act(page,'Következő nap','commands');
+ await expect(shownDay(page)).toHaveText(new RegExp(`^${NEXT}`));
  const {timeline}=await day(page,NEXT);
  await expect(items(page)).toHaveCount(timeline.length);
  await expect(items(page).filter({hasText:prefix})).toHaveCount(0);
@@ -175,11 +184,20 @@ test('a day change fetches that day and rebuilds the timeline and the stage',asy
  // The previous day's scene frame is gone (a new one exists only if the new day starts with a scene).
  if(await caption(page).getAttribute('data-demo-stage')!=='scene')await expect(frames(page)).toHaveCount(0);
  expect(requests).toContain('day:'+NEXT);
- await command(page,'Előző nap');
- await expect(dayInput(page)).toHaveValue(DAY);
+ await act(page,'Előző nap','commands');
+ await expect(shownDay(page)).toHaveText(new RegExp(`^${DAY}`));
  await expect(item(page,prefix+' jelenet')).toHaveCount(1);
  await expect(caption(page)).toHaveAttribute('data-demo-stage','image');
  await expect(frames(page)).toHaveCount(0);
+ // Naptár…: the `day` action's form in a window; its answer is the day shown.
+ await act(page,'Naptár…','commands');
+ const picker=page.locator('.dhx_window').filter({hasText:'Nap választása'});
+ await expect(picker.getByLabel('Dátum')).toHaveValue(DAY);
+ await picker.getByLabel('Dátum').fill(NEXT);await picker.getByLabel('Dátum').press('Tab');
+ await picker.getByRole('button',{name:'Napi műsor',exact:true}).click();
+ await expect(picker).toHaveCount(0);
+ await expect(shownDay(page)).toHaveText(new RegExp(`^${NEXT}`));
+ await expect(items(page).filter({hasText:prefix})).toHaveCount(0);
  expect(errors).toEqual([]);
 });
 
@@ -195,8 +213,8 @@ test('a failing scene is reported through sandbox:error and the page keeps worki
   await route.fulfill({json:{ok:true,data:{asset:String(body.values.asset),title:'x',name:'x.js',bytes:32,code:`throw new Error("${prefix} hiba");`}}});
  });
  // A day change empties the module's scene cache, so the scene is fetched again (through the route).
- await command(page,'Következő nap');await expect(panel(page)).toContainText(`"date": "${NEXT}"`);
- await command(page,'Előző nap');await expect(item(page,prefix+' jelenet')).toHaveCount(1);
+ await act(page,'Következő nap','commands');await expect(shownDay(page)).toHaveText(new RegExp(`^${NEXT}`));
+ await act(page,'Előző nap','commands');await expect(item(page,prefix+' jelenet')).toHaveCount(1);
  await item(page,prefix+' jelenet').click();
  await expect(sceneState(page)).toHaveAttribute('data-demo-scene-state','error',{timeout:10000});
  await expect(sceneState(page)).toHaveText(`A jelenet hibát jelzett: ${prefix} hiba`);
@@ -206,8 +224,8 @@ test('a failing scene is reported through sandbox:error and the page keeps worki
  await item(page,prefix+' hang').click();
  await expect(caption(page)).toHaveAttribute('data-demo-stage','audio');
  await expect(frames(page)).toHaveCount(0);
- await command(page,'Lejátszás');await expect(button(page,'Szünet')).toBeEnabled();
- await command(page,'Szünet');await expect(button(page,'Lejátszás')).toBeEnabled();
+ await act(page,'Lejátszás');await expect(button(page,'Szünet')).toBeEnabled();
+ await act(page,'Szünet');await expect(button(page,'Lejátszás')).toBeEnabled();
  await page.unroute(actions);
  expect(errors).toEqual([]);
 });
@@ -217,7 +235,7 @@ test('navigation destroys the frame, the player and the clock; Back opens a fres
  await open(page);
  await item(page,prefix+' jelenet').click();
  await expect(sceneState(page)).toHaveAttribute('data-demo-scene-state','ready',{timeout:10000});
- await command(page,'Lejátszás');
+ await act(page,'Lejátszás');
  await expect(sceneState(page)).toHaveAttribute('data-demo-scene-playing','true');
  await openMenu(page,'Médiatár','Digitális kijelző');
  await expect(page).toHaveURL(/#view=signage_assets$/);
@@ -236,38 +254,34 @@ test('navigation destroys the frame, the player and the clock; Back opens a fres
  expect(errors).toEqual([]);
 });
 
-test('phone width: stacked layout, commands in Műveletek, collapsed API panel, no page overflow; the breakpoint keeps the state',async({page})=>{
+test('phone width: stacked panels, commands in Műveletek, no page overflow; widening keeps the state',async({page})=>{
  test.setTimeout(60000);
  const errors=pageErrors(page);
  await open(page,390,844);
- await expect(button(page,'Műveletek')).toBeVisible();
+ await expect(page.locator('[data-demo-part="commands"]').getByRole('button',{name:'Műveletek',exact:true})).toBeVisible();
  await expect(button(page,'Lejátszás')).toHaveCount(0);
- await command(page,'Lejátszás');
+ await act(page,'Lejátszás');
  await expect(caption(page)).toHaveAttribute('data-demo-stage','scene',{timeout:10000});
  await expect(frames(page)).toHaveCount(1);
  await expect(frames(page)).toBeVisible();
- await command(page,'Szünet');
+ await act(page,'Szünet');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  // The strip is wider than the phone and scrolls inside its own cell.
  expect(await strip(page).evaluate(node=>node.scrollWidth>node.clientWidth)).toBe(true);
- // The API panel starts collapsed (not rendered) and opens from its header.
- await expect(panel(page)).toHaveCount(0);
- await page.locator('[data-cell-id="api"] .dhx_layout-cell-header').click();
- await expect(panel(page)).toContainText('Authorization: Bearer');
- // Crossing 768 px rebuilds the page with the same day, position and stage.
+ // Crossing 768 px keeps the day, the position and the stage (the same panels; the commands unfold).
  const at=await strip(page).getAttribute('data-demo-position');
  await page.setViewportSize({width:1366,height:900});
- await expect(dayInput(page)).toHaveValue(DAY);
+ await expect(shownDay(page)).toHaveText(new RegExp(`^${DAY}`));
  await expect(strip(page)).toHaveAttribute('data-demo-position',at);
  await expect(caption(page)).toHaveAttribute('data-demo-stage','scene');
  await expect(frames(page)).toHaveCount(1);
  expect(errors).toEqual([]);
 });
 
-test('dark theme: strip, caption and API panel take the theme colours',async({page})=>{
+test('dark theme: strip and caption take the theme colours',async({page})=>{
  const errors=pageErrors(page);
  await open(page);
- const colours=()=>page.evaluate(()=>['[data-demo-item]','[data-demo-part="api"] pre'].map(selector=>getComputedStyle(document.querySelector(selector)).backgroundColor).join(' '));
+ const colours=()=>page.evaluate(()=>['[data-demo-item]','[data-demo-part="caption"]'].map(selector=>getComputedStyle(document.querySelector(selector)).backgroundColor).join(' '));
  const light=await colours();
  await page.getByRole('button',{name:/Skyblue|Világos|Éjjeli/}).click();await page.getByRole('menuitem',{name:'Éjjeli',exact:true}).click();
  await expect.poll(colours).not.toBe(light);

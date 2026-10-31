@@ -4,7 +4,7 @@ import { acknowledge } from "../../MessageDialog";
 import { FileFields } from "../../FilePicker";
 import { FormValidation, fieldError } from "../../FormValidation";
 import { failure, server } from "../../api/Server";
-import type { ActionMetadata, FormDescription, RecordForm as RecordFormApi, RecordFormEvents, RecordFormOptions } from "../../api/types";
+import type { ActionMetadata, FormDescription, MountTarget, RecordForm as RecordFormApi, RecordFormEvents, RecordFormOptions } from "../../api/types";
 import { Component } from "./component";
 import { DECLINED, bindFieldTypes, errorText, formActions, input } from "./fields";
 import { confirmed, resultNotice } from "./actions";
@@ -27,11 +27,15 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
   private files?:FileFields;
   private ready:Promise<void>;
   private changedFields=false;
+  /** `setValues` is filling the form: its Suite change events are not the user's. */
+  private setting=false;
   private saving?:Promise<unknown>;
   private abort=new AbortController();
   private releaseTypes?:()=>void;
   /** The action's offered metadata (label, icon, confirmation) from any view of the resource, if any. */
   private action?:ActionMetadata;
+  /** Mounted in an `AppWindow`: its `fit`, run once the fields are shown and when a conditional field appears or hides. */
+  private fit?:()=>unknown;
   constructor(private context:ListContext,private options:RecordFormOptions){
     super(options);
     if(typeof options?.resource!=="string"||typeof options.action!=="string")throw new TypeError("61ade: RecordForm needs a resource and an action.");
@@ -49,21 +53,27 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       const fields=this.fields=(schema.fields as FieldDefinition[]).filter(field=>field.name!=="revision");
       const values={...schema.values,...(this.options.values??{})};
       const form=this.form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(f=>input(f,f.type==="password"?"":values[f.name])),
-        formActions({name:"submit",text:this.action?.submitLabel??t("Mentés"),icon:this.action?.icon??"dxi dxi-content-save",color:"primary"})]} as any);
+        formActions({name:"submit",text:this.action?.submitLabel??this.action?.label??t("Mentés"),icon:this.action?.icon??"dxi dxi-content-save",color:"primary"},this.options.cancel!==false)]} as any);
       this.files=new FileFields(form,schema.fields as FieldDefinition[],(resource,action,id,values={})=>server.call(resource,action,{id,values}),[schema.values as Row]);
       this.validation=new FormValidation(form,fields);
-      this.releaseTypes=bindFieldTypes(form,fields);
-      form.events.on("change",(name:string,value:unknown)=>{if(!fields.some(field=>field.name===name))return;this.changedFields=true;this.emit("changed",{field:name,value});});
+      this.releaseTypes=bindFieldTypes(form,fields,undefined,()=>this.fit?.());
+      form.events.on("change",(name:string,value:unknown)=>{if(this.setting||!fields.some(field=>field.name===name))return;this.changedFields=true;this.emit("changed",{field:name,value});});
       form.events.on("click",(name:string)=>{
         if(name==="cancel")this.emit("cancelled",{});
         else if(name==="submit")void this.submit().catch(()=>{});
       });
       this.layout.getCell("form").attach(form);
+      this.fit?.();
     }catch(error){
       if(this.destroyed||(error instanceof DOMException&&error.name==="AbortError"))return;
       await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,[])});
       throw error;
     }
+  }
+  mount(target:MountTarget):void{
+    super.mount(target);
+    const fit=(target as {fit?:unknown}).fit;
+    if(typeof fit==="function"&&"signal" in target)this.fit=()=>void fit.call(target);
   }
   values():Record<string,unknown>{
     const raw=(this.form?.getValue()??{}) as Record<string,unknown>,values:Record<string,unknown>={};
@@ -71,6 +81,19 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
     return values;
   }
   dirty():boolean{return !this.destroyed&&this.changedFields;}
+  /**
+   * Puts values into the action's fields once the form is shown (other keys are ignored) without submitting them or
+   * reporting `changed`; the form counts as unchanged afterwards (a day picker set by Previous/Next, a preset).
+   */
+  async setValues(values:Record<string,unknown>):Promise<void>{
+    await this.ready;
+    const form=this.form;
+    if(this.destroyed||!form)return;
+    const known=Object.fromEntries(Object.entries(values??{}).filter(([name])=>this.fields.some(field=>field.name===name)));
+    this.setting=true;
+    try{form.setValue(known);}finally{this.setting=false;}
+    this.changedFields=false;
+  }
   /**
    * Suite takes a typed value into the form on the input's `change` (blur). A `submit()` from code (a toolbar
    * command, a shortcut) while the user is still in a field commits that field first, as a click on Save does.
@@ -100,12 +123,13 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       if(schema.fields.some(field=>field.name==="revision"))values.revision=schema.values.revision;
       form.disable();
       try{
-        if(!await confirmed({confirm:this.action?.confirm??undefined,submitLabel:this.action?.submitLabel??t("Mentés")}))throw DECLINED;
+        if(!await confirmed({confirm:this.action?.confirm??undefined,submitLabel:this.action?.submitLabel??this.action?.label??t("Mentés")}))throw DECLINED;
         const result=await server.call<any>(this.options.resource,this.options.action,{id:this.options.id??null,values,signal:this.abort.signal});
         await awaitRedraw();
         if(this.destroyed)return result;
         this.changedFields=false;
-        resultNotice(result);
+        // A read-only action (a query) answers with its data, not with a success notice.
+        if(this.action?.write!==false)resultNotice(result);
         this.emit("saved",{action:this.options.action,result});
         if(result?.reauthenticate)location.reload();
         return result;

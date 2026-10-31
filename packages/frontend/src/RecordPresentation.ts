@@ -3,8 +3,8 @@ import type { Row } from "./Realtime";
 import type { ViewDefinition } from "./components/list/types";
 import { actionUrl } from "./ActionUrl";
 import { requestConfirmation } from "./MessageDialog";
-import type { ColumnPresentation } from "./api/types";
-import type { Resolved } from "./app/registries";
+import type { ColumnPresentation, MediaType } from "./api/types";
+import { extensions, type Resolved } from "./app/registries";
 export const escape=(value:unknown)=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 /** Display caption of a stored value: option label, or labels of a comma-separated multiple choice. */
 export function optionText(field:{type?:string;options?:Record<string,string>},value:unknown):string{
@@ -55,13 +55,35 @@ export const mediaOf=(field:{id:string},row:Row):MediaDescriptor|undefined=>{con
 export const derivedOf=(field:Column):string|undefined=>{const of=field.mediaOf;return typeof of==="string"&&of!==""&&!!field.part?of:undefined;};
 /** MIME class of a media descriptor: video, image, audio or (anything else) file. */
 const mediaKind=(media:MediaDescriptor):"video"|"image"|"audio"|"file"=>{const kind=media.mime_type.split("/")[0];return kind==="video"||kind==="image"||kind==="audio"?kind:"file";};
-const kindLabel=(kind:ReturnType<typeof mediaKind>)=>kind==="video"?t("Videó"):kind==="image"?t("Kép"):kind==="audio"?t("Hang"):t("Fájl");
+/** Built-in media types, registered on `app.mediaTypes` by builtins.ts (fixtures without an Application use them directly). */
+export const builtinMediaTypes:Readonly<Record<"image"|"video"|"audio",MediaType>>=Object.freeze({
+  image:{mime:["image/*"],label:"Kép",icon:"dxi dxi-image-outline"},
+  video:{mime:["video/*"],label:"Videó",icon:"dxi dxi-menu-right"},
+  audio:{mime:["audio/*"],label:"Hang",icon:"blade-icon blade-icon--audio"},
+});
+const FILE_TYPE:MediaType={mime:[],label:"Fájl",icon:"dxi dxi-file-outline"};
+/** The page's media types (`app.mediaTypes`) in registration order; an entry without a usable shape is skipped. */
+export function mediaTypeEntries():MediaType[]{
+  const registry=extensions.mediaTypes;
+  return (registry?registry.names().map(name=>registry.get(name)):Object.values(builtinMediaTypes))
+    .filter((entry):entry is MediaType=>!!entry&&Array.isArray(entry.mime)&&typeof entry.label==="string"&&typeof entry.icon==="string");
+}
+/** The registered type of a MIME type: an entry naming it exactly before one naming its class (`audio/*`); undefined when none does. */
+export function findMediaType(mime:string):MediaType|undefined{
+  const value=String(mime).toLowerCase(),entries=mediaTypeEntries();
+  return entries.find(entry=>entry.mime.includes(value))??entries.find(entry=>entry.mime.includes(value.split("/")[0]+"/*"));
+}
+/** The media type of a MIME type, the generic file when no entry matches. */
+export const mediaType=(mime:string):MediaType=>findMediaType(mime)??FILE_TYPE;
+/** Translated label and icon classes of a MIME type. */
+export const mediaTypeLabel=(mime:string)=>t(mediaType(mime).label);
+export const mediaTypeIcon=(mime:string)=>mediaType(mime).icon;
 /** Length text of a video or audio file; empty for other media or an unknown length. */
 const mediaLength=(media:MediaDescriptor)=>{const kind=mediaKind(media);return (kind==="video"||kind==="audio")&&typeof media.duration_ms==="number"?duration(media.duration_ms):"";};
 /** Text of one media part: `Kép`/`Videó`/`Hang`, `1920 × 1080`, `0:06`; empty when the part does not apply. */
 export function mediaPart(media:MediaDescriptor|undefined,part:MediaPart|undefined):string{
   if(!media)return "";
-  if(part==="type")return kindLabel(mediaKind(media));
+  if(part==="type")return mediaTypeLabel(media.mime_type);
   if(part==="resolution")return typeof media.width==="number"&&typeof media.height==="number"&&media.width>0&&media.height>0?`${media.width} × ${media.height}`:"";
   if(part==="duration")return mediaLength(media);
   return "";
@@ -84,7 +106,7 @@ export const duration=(ms:number)=>{const s=Math.max(0,Math.round(ms/1000)),h=Ma
 /** Type in text for the accessible name; icon and colour only repeat it. */
 export function mediaLabel(media:MediaDescriptor):string{
   const length=mediaLength(media);
-  return kindLabel(mediaKind(media))+": "+media.name+(length?", "+length:"");
+  return mediaTypeLabel(media.mime_type)+": "+media.name+(length?", "+length:"");
 }
 /** Lazy thumbnail (`thumbnail_get`) with a type-icon fallback and a video or audio length badge; all text escaped, no inline handlers. */
 export function recordMedia(field:Column,row:Row,size:"cell"|"card"|"tile"="cell"):string{
@@ -93,7 +115,7 @@ export function recordMedia(field:Column,row:Row,size:"cell"|"card"|"tile"="cell
   const kind=mediaKind(media),length=mediaLength(media);
   const url=media.thumbnail==="ready"&&field.media?actionUrl(field.media,"thumbnail_get",media.id,media.revision):"";
   const label=escape(mediaLabel(media)),failed=!!url&&failedThumbnails.has(url);
-  return `<span class="blade-media blade-media--${size} blade-media--${kind}${failed?" blade-media--failed":""}" role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon dxi ${kind==="video"?"dxi-menu-right":kind==="image"?"dxi-image-outline":"dxi-file-outline"}" aria-hidden="true"></span>${url&&!failed?`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-thumbnail>`:""}${length?`<span class="blade-media__duration" aria-hidden="true">${escape(length)}</span>`:""}</span>`;
+  return `<span class="blade-media blade-media--${size} blade-media--${kind}${failed?" blade-media--failed":""}" role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon ${escape(mediaTypeIcon(media.mime_type))}" aria-hidden="true"></span>${url&&!failed?`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-thumbnail>`:""}${length?`<span class="blade-media__duration" aria-hidden="true">${escape(length)}</span>`:""}</span>`;
 }
 /**
  * Static image column (`presentation: image`): `<img>` of `imageBase` + file name in the media slot sizes; a load

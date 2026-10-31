@@ -75,7 +75,7 @@ verify($app->accounts->oauthAllowed('5') && !$app->accounts->oauthAllowed('1') &
 $demoViews = $app->workspace->views($app->identities->find('1'));
 // Bootstrap views (docs/toolkit.md#views): id and kind always set, kind payloads under `options`, no placeholders.
 foreach ($demoViews as $view) {
-    verify(array_slice(array_keys($view), 0, 2) === ['id', 'kind'] && array_key_last($view) === 'options' && !array_diff(array_keys($view), ['id', 'kind', 'title', 'resource', 'record', 'actions', 'group', 'icon', 'desktopOnly', 'open', 'options']), 'Bootstrap view shape: '.$view['id']);
+    verify(array_slice(array_keys($view), 0, 2) === ['id', 'kind'] && array_key_last($view) === 'options' && !array_diff(array_keys($view), ['id', 'kind', 'title', 'resource', 'record', 'actions', 'group', 'icon', 'desktopOnly', 'open', 'guide', 'options']), 'Bootstrap view shape: '.$view['id']);
 }
 $demoKinds = array_column($demoViews, 'kind', 'id');
 verify($demoKinds['demo_tasks'] === 'list' && $demoKinds['files'] === 'files' && $demoKinds['topology'] === 'diagram' && $demoKinds['signage_schedule'] === 'calendar', 'Every built-in kind is named explicitly');
@@ -90,7 +90,8 @@ verify($demoKinds['demo.readings-dashboard'] === 'demo.readings-dashboard' && $d
     && array_column($demoById['demo_readings']['options']['detailFields'], 'presentation', 'id') === ['reading' => 'demo.reading-bar'], 'Readings dashboard view and reading-bar presentation');
 // Toolkit D2: the playlist preview is a project kind over the playlist actions (granted by setup), beside the calendar.
 verify($demoKinds['demo.playlist-preview'] === 'demo.playlist-preview' && array_column($demoById['demo.playlist-preview']['actions'], 'name') === ['day', 'scene']
-    && $demoById['demo.playlist-preview']['options'] === ['media' => 'files'] && $demoById['demo.playlist-preview']['group'] === 'Digitális kijelző', 'Playlist preview view over the playlist actions');
+    && $demoById['demo.playlist-preview']['options']['media'] === 'files' && array_column($demoById['demo.playlist-preview']['options']['layout']['rows'], 'id') === ['commands', 'player']
+    && $demoById['demo.playlist-preview']['group'] === 'Digitális kijelző', 'Playlist preview view over the playlist actions, with its panels');
 $dialogActions = array_values(array_filter(array_merge(...array_column($demoViews, 'actions')), static fn(array $a) => str_starts_with($a['name'], 'dialog_')));
 verify(array_column(array_column($dialogActions, 'confirm'), 'severity') === ['neutral', 'warning', 'danger'], 'Dialog demo actions expose confirm severities');
 foreach ([['message' => ''], ['message' => 'x', 'severity' => 'loud'], ['message' => 'x', 'onclick' => 'y']] as $bad) {

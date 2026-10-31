@@ -93,6 +93,13 @@ final class WorkspaceConfiguration
                 if ($sub) $workspace->registry->subview($definition['view']['id'] ?? $name, $sub['resource'], $sub['field'], $sub['embed'] ?? true, $sub['select'] ?? true);
             }
         }
+        // Tree navigation after the hierarchies it builds on; `tree.resource` names the node view id.
+        foreach ($modules as $module) {
+            foreach ($module['resources'] ?? [] as $name => $definition) {
+                $tree = $definition['view']['tree'] ?? null;
+                if ($tree) $workspace->registry->tree($definition['view']['id'] ?? $name, $tree['resource'], $tree['field'], $tree['label']);
+            }
+        }
         // `view:<id>` activation targets exist once every view is declared.
         $workspace->registry->checkViews();
         return $workspace;
@@ -107,8 +114,11 @@ final class WorkspaceConfiguration
                 'type' => 'string', 'required' => 'boolean', 'max' => 'integer',
                 'options' => 'array', 'secret' => 'boolean',
                 'options_lookup' => 'string', 'options_binding' => 'string',
-                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array', 'editor' => 'string',
+                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array', 'editor' => 'string', 'visible_when' => 'array',
             ], '$.fields');
+            if (isset($definition['visible_when'])) {
+                Shape::check($definition['visible_when'], ['field' => 'string', 'in' => 'array'], [], '$.fields.'.$definition['name'].'.visible_when');
+            }
             if (isset($definition['file'])) {
                 Shape::check($definition['file'], ['resource' => 'string', 'mount' => 'string', 'accept' => 'array'], ['folder' => 'string'], '$.fields.'.$definition['name'].'.file');
             }
@@ -141,6 +151,7 @@ final class WorkspaceConfiguration
                 bulk: $definition['bulk'] ?? false,
                 file: $definition['file'] ?? null,
                 editor: $definition['editor'] ?? null,
+                visibleWhen: $definition['visible_when'] ?? null,
             );
         }
         return $fields;
@@ -159,7 +170,7 @@ final class WorkspaceConfiguration
         $operations = $definition['operations'] ?? [];
         $view = $definition['view'];
         Shape::check($storage, ['table' => 'string', 'key' => 'string'], [
-            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array', 'tenant_column' => 'string',
+            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array', 'tenant_column' => 'string', 'order' => 'array',
         ], '$.resources.'.$name.'.storage');
         Shape::check($hooks, [], [
             'guard' => 'string', 'normalize' => 'string', 'after_save' => 'string', 'delete_guard' => 'string', 'after_delete' => 'string',
@@ -173,7 +184,7 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array',
         ], '$.resources.'.$name.'.view');
         // A string target or an `{field, map}` activation map; Registry::view() validates the targets.
         if (isset($view['activate']) && !is_string($view['activate']) && !is_array($view['activate'])) {
@@ -182,6 +193,7 @@ final class WorkspaceConfiguration
         if (isset($view['activate']) && is_array($view['activate'])) {
             Shape::check($view['activate'], ['field' => 'string', 'map' => 'array'], [], '$.resources.'.$name.'.view.activate');
         }
+        Shape::check($view['tree'] ?? ['resource' => '', 'field' => '', 'label' => ''], ['resource' => 'string', 'field' => 'string', 'label' => 'string'], [], '$.resources.'.$name.'.view.tree');
         Shape::check($view['subview'] ?? ['resource' => '', 'field' => ''], ['resource' => 'string', 'field' => 'string'], ['embed' => 'boolean', 'select' => 'boolean'], '$.resources.'.$name.'.view.subview');
         $related = [];
         foreach ($storage['related'] ?? [] as $relation) {
@@ -207,6 +219,7 @@ final class WorkspaceConfiguration
             afterDelete: $this->bindings->get($hooks['after_delete'] ?? null),
             computed: $storage['computed'] ?? [],
             tenantColumn: $storage['tenant_column'] ?? null,
+            order: $storage['order'] ?? null,
         );
         $resource->register(
             registry: $this->registry,
@@ -298,6 +311,8 @@ final class WorkspaceConfiguration
             activate: is_array($view['activate'] ?? null) ? ['field' => $view['activate']['field'], 'map' => $view['activate']['map']] : ($view['activate'] ?? null),
             id: $id,
             commands: $view['commands'] ?? [],
+            guide: $view['guide'] ?? null,
+            drop: $view['drop'] ?? null,
         ));
     }
 
@@ -320,7 +335,7 @@ final class WorkspaceConfiguration
         }
         Shape::check($definition, ['kind' => 'string', 'title' => 'string'], [
             'resource' => 'string', 'record' => 'string', 'actions' => 'array', 'options' => 'array', 'open' => 'string',
-            'group' => 'string', 'icon' => 'string', 'desktop_only' => 'boolean',
+            'group' => 'string', 'icon' => 'string', 'desktop_only' => 'boolean', 'guide' => 'string',
         ], '$.views.'.$id);
         if (in_array($definition['kind'], View::BUILTIN_KINDS, true)) {
             throw new InvalidArgumentException('Built-in view kinds are declared in resources.<name>.view: $.views.'.$id);
@@ -338,6 +353,7 @@ final class WorkspaceConfiguration
             icon: $definition['icon'] ?? null,
             desktopOnly: $definition['desktop_only'] ?? false,
             open: $definition['open'] ?? 'page',
+            guide: $definition['guide'] ?? null,
         ));
     }
 }

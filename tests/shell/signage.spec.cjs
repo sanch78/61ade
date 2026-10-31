@@ -16,12 +16,12 @@ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42
 const jpg=fs.readFileSync(path.resolve(__dirname,'../../examples/demo-app/resources/files/minta-fraktal.jpg'));
 const cleanup=()=>php(`
  $assets="SELECT id FROM signage_assets WHERE title LIKE '${prefix}%'";
- $db->exec("DELETE FROM signage_defaults WHERE date='${DAY}' OR asset_id IN ($assets)");
+ $db->exec("DELETE FROM signage_defaults WHERE date LIKE '2099-12-%' OR asset_id IN ($assets)");
  $db->exec("DELETE FROM blade_calendar_events WHERE space='signage' AND text LIKE '${prefix}%'");
  $db->exec("DELETE FROM signage_assets WHERE title LIKE '${prefix}%'");
  $q=$db->prepare("DELETE FROM blade_files WHERE space='demo' AND (name LIKE ? OR (parent_id<>0 AND parent_id NOT IN (SELECT id FROM blade_files)))");do{$q->execute(['${prefix}%']);}while($q->rowCount()>0);`);
 test.describe.configure({mode:'serial'});
-test.beforeAll(()=>{php(`$db->exec("DELETE FROM signage_defaults WHERE date='${DAY}'");`);});
+test.beforeAll(()=>{php(`$db->exec("DELETE FROM signage_defaults WHERE date LIKE '2099-12-%'");`);});
 test.afterAll(cleanup);
 
 const FILE_CONSEQUENCE='A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.',RECORD_CONSEQUENCE='Törléskor a hivatkozások törlődnek.';
@@ -95,7 +95,7 @@ async function seed(page){
  const used=await createAsset(page,prefix+' használt',files[prefix+'-a.png']);
  const fileUsed=await createAsset(page,prefix+' fájlhivatkozás',files[prefix+'-del.png']);
  php(`$db->prepare("INSERT INTO signage_defaults(weekday,date,asset_id) VALUES ('',?,?)")->execute(['${DAY}','${used}']);
-  $db->prepare("INSERT INTO blade_calendar_events(space,text,start_at,end_at,rrule,duration,data) VALUES ('signage',?,?,?,'',0,?)")->execute(['${prefix} esemény','${DAY} 08:00:00','${DAY} 09:00:00',json_encode(['asset_id'=>'${used}'])]);`);
+  $db->prepare("INSERT INTO blade_calendar_events(space,text,start_at,end_at,rrule,duration,data) VALUES ('signage',?,?,?,'',0,?)")->execute(['${prefix} esemény','${DAY} 08:00:00','${DAY} 09:00:00',json_encode(['content'=>'asset:${used}'])]);`);
  return seeded={files,used,fileUsed};
 }
 
@@ -221,6 +221,31 @@ test('create and edit: the file field picker (tiles, search, type filter, keyboa
  expect(errors).toEqual([]);
 });
 
+test('default content: the date field is a native date picker in the form and in the grid cell',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await openLibrary(page);const {used}=await seed(page);
+ await page.goto('/#view=signage_defaults');await expect(page.locator('[data-cell-id="grid"] .dhx_grid-row').first()).toBeVisible();
+ const stored=()=>JSON.parse(php(`echo json_encode($db->query("SELECT date FROM signage_defaults WHERE date LIKE '2099-12-%' ORDER BY date")->fetchAll(PDO::FETCH_COLUMN));`));
+ // Grid cell: double-click opens the Suite calendar on the stored month; a picked day is saved as YYYY-MM-DD.
+ const day=row(page,DAY).locator(`.dhx_grid-cell[data-dhx-col-id="${await column(page,'Dátum')}"]`);
+ await day.dblclick();const popup=page.locator('.dhx_popup .dhx_calendar').last();await expect(popup).toBeVisible();
+ await expect(popup).toContainText(/2099/);
+ const saved=page.waitForResponse(r=>{try{return r.request().postDataJSON()?.action==='__edit';}catch{return false;}});
+ await popup.locator('.dhx_calendar-day:not(.dhx_calendar-day--outside)').filter({hasText:/^31$/}).click();
+ expect((await saved).status()).toBe(200);await expect.poll(stored).toEqual(['2099-12-31']);
+ await expect(row(page,'2099-12-31')).toBeVisible();
+ // Form: a datepicker item whose popup fills the field with YYYY-MM-DD; a typed date is accepted too.
+ await command(page,'Hozzáadás');const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
+ const input=form.getByLabel('Dátum',{exact:true});await input.click();
+ const formPopup=page.locator('.dhx_popup .dhx_calendar').last();await expect(formPopup).toBeVisible();
+ await formPopup.locator('.dhx_calendar-day:not(.dhx_calendar-day--outside)').filter({hasText:/^15$/}).click();
+ await expect(input).toHaveValue(/^\d{4}-\d{2}-15$/);
+ await input.fill('2099-12-29');await form.getByText('Alapértelmezett tartalom').first().click();await expect(formPopup).toBeHidden();await expect(input).toHaveValue('2099-12-29');
+ await form.getByLabel('Alapértelmezett tartalom',{exact:true}).selectOption(used);
+ await form.getByRole('button',{name:'Mentés',exact:true}).click();await expect(form).toHaveCount(0);
+ await expect.poll(stored).toEqual(['2099-12-29','2099-12-31']);
+ expect(errors).toEqual([]);
+});
 test('"Feltöltés" uploads files as new assets in one step',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await openLibrary(page);await seed(page);
@@ -262,7 +287,7 @@ test('deleting a used asset warns with the usage counts, then clears the default
  const state=JSON.parse(php(`echo json_encode(['defaults'=>(int)$db->query("SELECT COUNT(*) FROM signage_defaults WHERE asset_id='${used}'")->fetchColumn(),
   'event'=>$db->query("SELECT data FROM blade_calendar_events WHERE space='signage' AND text='${prefix} esemény'")->fetchColumn()]);`));
  expect(state.defaults).toBe(0);
- expect(state.event).not.toBe(false);expect(String(JSON.parse(state.event).asset_id??'')).not.toBe(used);
+ expect(state.event).not.toBe(false);expect(String(JSON.parse(state.event).content??'')).not.toBe(used);
  // The playlist ignores the event without an asset.
  const day=await api(page,'signage_playlist','day',null,{date:DAY});expect(day.status).toBe(200);
  expect(day.body.data.scheduled.filter(item=>item.asset).map(item=>item.title)).not.toContain(prefix+' esemény');

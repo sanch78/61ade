@@ -66,11 +66,12 @@ use Blade\Calendar\CalendarDefinition;
 use Blade\Feature\{Field, Lookup};
 
 $calendar = new CalendarDefinition('signage_schedule', 'Műsorterv', 'signage',
-    fields: [new Field('asset_id', 'Tartalom', 'select', required: true,
-        options: (new Lookup('signage_assets', 'signage_assets', 'id', 'title'))->options(...))],
+    // Options closure (Context $ctx): `playlist:<id>` and `asset:<id>` choices from two ACL-filtered lookups.
+    fields: [new Field('content', 'Tartalom', 'select', required: true, options: $content)],
     firstHour: 6, lastHour: 24,
     dayAction: ['resource' => 'signage_playlist', 'action' => 'day', 'label' => 'Napi műsor (API)'],
-    group: 'Digitális kijelző');
+    group: 'Digitális kijelző',
+    tones: [['field' => 'content', 'prefix' => 'playlist:', 'tone' => 'success']]);
 CalendarDefinition::install($pdo);   // setup step; HTTP requests never run DDL
 $calendar->register($workspace);     // application definition
 ```
@@ -79,12 +80,13 @@ $calendar->register($workspace);     // application definition
 | --- | --- |
 | `resource` | ACL resource and view id; actions are `<resource>.<action>`. |
 | `space` | Storage namespace and ACL object of every action. |
-| `fields` | Extra event fields: `text`, `textarea`, `select`, `number` or `checkbox`, not secret and not a reserved event name. They appear in the event form with the same inputs as workspace forms and are validated by the same field rules (client and server). |
+| `fields` | Extra event fields: `text`, `textarea`, `select`, `number`, `checkbox` or `date`, not secret and not a reserved event name. They appear in the event form with the same inputs as workspace forms and are validated by the same field rules (client and server). |
 | `views`, `defaultView` | Subset of `day`, `week`, `month` and the opening view. |
 | `firstHour`, `lastHour` | Visible hours of the day/week views. |
 | `maxRangeDays` | Longest window `events`/`occurrences` accept (default 62, month view needs 42). |
 | `dayAction` | Optional registered action called with `date` (`YYYY-MM-DD`) for the selected day; the toolbar button shows its JSON answer read-only beside the equivalent API request. Shown only if the actor is offered that action. |
 | `group`, `icon`, `desktopOnly` | Menu group, icon (default `dxi dxi-calendar-today`) and the generic desktop-only option. |
+| `tones` | Event colours: a list of `{field, tone, value \| prefix}` rules over the extra fields; the first rule whose field equals `value` (or starts with `prefix`) colours the event with the theme tone `primary`, `secondary`, `success` or `danger` (other events keep the default `primary`). Light and dark skins follow the Suite palette. A rule over a field the actor may not read is left out of the metadata. Invalid rules throw at definition time. |
 
 ### In project code
 
@@ -142,6 +144,11 @@ shared danger confirmation.
 - Validation is inline (`FormValidation`): required fields, field rules, end
   after start, interval 1–999, count 1–5000, at least one weekday, last day not
   before the start. Server errors after the save still use the error dialog.
+- A required extra field may keep a blank value the event (or, for an
+  occurrence exception, its series) already stores, e.g. a reference cleared
+  by a usage provider: moving, shortening or deleting occurrences of such an
+  event succeeds. A new blank value is refused on create and update (`400`
+  with the field error); the form still requires the field.
 - On save the form gives the Scheduler the same values as its lightbox would
   (including the series end), so the recurring plugin creates exceptions and
   splits "this and following" as before; the data processor then calls the
@@ -174,12 +181,21 @@ shared danger confirmation.
 The feature demo configures it as a digital signage (DMS) scheduler in the
 `Digitális kijelző` group ([demos](demos.md#teljes-feature-demó-)):
 `Médiatár` (image, video and audio assets referencing file-manager media),
-`Alapértelmezett tartalom` (default asset per weekday or per date) and
-`Műsorterv` (this calendar, with the asset as the extra field). The consumer
+`Alapértelmezett tartalom` (default asset per weekday or per date),
+`Lejátszási listák` (playlists of assets, edited by drag and drop in the project
+record view `demo.playlist-editor`, [D5](demos.md#d5-playlist-editor)) and
+`Műsorterv` (this calendar; its extra field `content` is a playlist or a
+single asset, and playlist events take the `success` tone). The consumer
 action `signage_playlist.day` answers what plays on a date: the day's
 occurrences and a gap-free 00:00–24:00 `timeline` in which the latest-starting
 active programme wins and free time falls back to the date default, then the
-weekday default (`source`: `schedule`, `default` or `none`). An asset's
+weekday default (`source`: `schedule`, `default` or `none`). A playlist slot
+carries `playlist` (`id`, `title`, `duration`, `shuffle`, `items`: the
+assets that play on that date (switched on, within their validity) in order,
+a shuffled list in a stable order per date, each with its effective play time
+and `transition` `{type, ms}`; the list repeats within the slot) instead of
+`asset`; an empty playlist plays nothing. Time without events, such as the
+night, shows the day's default. An asset's
 `kind` is its file's MIME class, or `scene` for the synthetic scene asset
 (toolkit D2), whose code `signage_playlist.scene` delivers to the project view
 `Napi műsor` ([demos](demos.md#toolkit-d2-playlist)); setup seeds that asset

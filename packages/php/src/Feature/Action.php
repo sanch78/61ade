@@ -19,6 +19,9 @@ final readonly class Action
         if ($bulk && ($name === 'create' || !$resolve || $collection || array_filter($fields, static fn($field) => $field->secret || $field->type === 'password'))) throw new \InvalidArgumentException('Bulk actions must target individual objects without secret inputs.');
         foreach ([$resource,$name] as $id) if (!preg_match('/^[a-z][a-z0-9_.-]*$/D',$id)) throw new \InvalidArgumentException('Invalid action');
         foreach ($fields as $field) if (!$field instanceof Field) throw new \InvalidArgumentException('Invalid field');
+        // A condition names another field of the record; one the action carries must not be conditional itself.
+        $known = array_column($fields, null, 'name');
+        foreach ($fields as $field) if ($field->visibleWhen !== null && ($known[$field->visibleWhen['field']] ?? null)?->visibleWhen !== null) throw new \InvalidArgumentException('A field condition cannot depend on a conditional field.');
     }
 
     /** Browser-visible confirmation prompt shown before the action runs. Plain text only. */

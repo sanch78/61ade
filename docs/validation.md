@@ -31,11 +31,12 @@ The example retains Hungarian product labels/messages.
 | `validation.min_length` | Minimum Unicode character count. |
 | `validation.pattern` | `expression`, optional `flags: "i"`, `message`. Use portable JavaScript/PCRE syntax without PHP delimiters. |
 | `validation.matches_field` | Equality with another submitted field, for example password confirmation. |
+| `validation.not_before_field`, `validation.not_after_field` | A range end: not before / not after the named field's value (the submitted one, else the stored one in a cell or bulk edit). Dates and text compare as strings, nonnegative integers as numbers; an empty other end is open. Declare both ends (`valid_to` not before `valid_from`, `valid_from` not after `valid_to`) so either edit is checked. |
 | `validation.unique` | `SqlResource` checks the concrete table, excluding the current object on update. Server-only, without a separate client data query. |
 | `type: number/select` | Nonnegative integer or a member of the ACL-filtered choices. |
 
 The browser's field metadata carries the same rules in camelCase
-(`minLength`, `matchesField`, [conventions](toolkit.md#conventions)); the
+(`minLength`, `matchesField`, `notBeforeField`, `notAfterField`, [conventions](toolkit.md#conventions)); the
 declaration keeps the keys above.
 
 Text is trimmed; spaces remain significant in `secret` fields. Password

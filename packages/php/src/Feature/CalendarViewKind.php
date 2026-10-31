@@ -28,8 +28,11 @@ final class CalendarViewKind implements ViewKindProvider
         $o=$view->options;
         $fields=array_values(array_filter($o['fields'],fn($f)=>$ctx->acl->fieldAllowed($ctx->actor->id,$view->resource,'events','ui',$o['space'],null,$f->name)));
         $day=$o['day_action'];
+        // A tone keyed by a field the actor may not read would reveal its value; such rules are left out.
+        $readable=array_map(static fn($f)=>$f->name,$fields);
+        $tones=array_values(array_filter($o['tones']??[],static fn($rule)=>in_array($rule['field'],$readable,true)));
         if($day&&!$this->meta->offered($ctx,$day['resource'],$day['action']))$day=null;
         // camelCase for the browser (`defaultView`, `firstHour`, `dayAction`, …); the declared options keep their keys.
-        return ['actions'=>$actions,'options'=>ViewMetadata::camel([...array_diff_key($o,['space'=>1,'fields'=>1]),'day_action'=>$day,'fields'=>array_map(fn($f)=>$this->meta->field($ctx,$f),$fields)])];
+        return ['actions'=>$actions,'options'=>ViewMetadata::camel([...array_diff_key($o,['space'=>1,'fields'=>1]),'day_action'=>$day,'tones'=>$tones,'fields'=>array_map(fn($f)=>$this->meta->field($ctx,$f),$fields)])];
     }
 }

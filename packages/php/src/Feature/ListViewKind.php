@@ -8,11 +8,11 @@ use Blade\I18n\Translator;
  * Built-in kind `list` (`Registry::view`, `SqlResource::register`). Options: `columns`, `singleton`, `layout`
  * (ViewLayout), `rowNumbers`, `selection`, `rowSelection`, optional `rowHeight`, `tileMinWidth`, `tiles`, `activate`,
  * `commands` (project client commands of `app.commands`, docs/toolkit.md#registries);
- * `subview` is set only by `Registry::subview()`. Bootstrap options add `detailFields`, `filters`, `sortable`, `search`.
+ * `subview` is set only by `Registry::subview()`, `tree` only by `Registry::tree()`. Bootstrap options add `detailFields`, `filters`, `sortable`, `search` and `order` (manual order); `drop` (records dragged in from another list) is declared.
  */
 final class ListViewKind implements ViewKindProvider
 {
-    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'activate', 'commands'];
+    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'activate', 'commands', 'drop'];
     /** Most client commands one list declares. */
     private const COMMANDS = 20;
     private const TARGETS = ['details', 'subview', 'page'];
@@ -31,6 +31,7 @@ final class ListViewKind implements ViewKindProvider
     {
         $o=$view->options;
         if(isset($o['subview']))throw new \InvalidArgumentException('Attach sub-views with Registry::subview(): '.$view->id);
+        if(isset($o['tree']))throw new \InvalidArgumentException('Attach tree navigation with Registry::tree(): '.$view->id);
         if($view->resource===null||array_diff(array_keys($o),self::OPTIONS)||!is_array($o['columns']??null)||!array_is_list($o['columns'])||!($o['layout']??null) instanceof ViewLayout)throw new \InvalidArgumentException('Invalid list view: '.$view->id);
         foreach(['singleton','rowNumbers','selection','rowSelection'] as $flag)if(!is_bool($o[$flag]??false))throw new \InvalidArgumentException('Invalid list view: '.$view->id);
         if(($o['tiles']??true)!==true)throw new \InvalidArgumentException('Invalid view presentation.');
@@ -41,6 +42,19 @@ final class ListViewKind implements ViewKindProvider
         $commands=$o['commands']??[];
         if(!is_array($commands)||!array_is_list($commands)||count($commands)>self::COMMANDS||count(array_unique($commands,SORT_REGULAR))!==count($commands)||array_filter($commands,static fn($name)=>!Field::projectName($name)))throw new \InvalidArgumentException('Invalid view commands: '.$view->id);
         $this->columns($registry,$view->resource,$o['columns']);
+        $this->drop($registry,$view,$o['drop']??null);
+    }
+    /**
+     * `drop: {from, field}`: records dragged from a list of the resource `from` become new records of this one through
+     * its `create` (one per record, `field` = the dragged record's id). `field` is a registered, non-secret select,
+     * text or number field of the resource; the view must declare `create`. The server validates each create as usual.
+     */
+    private function drop(Registry $registry, View $view, mixed $drop): void
+    {
+        if($drop===null)return;
+        $field=is_array($drop)&&is_string($drop['field']??null)?($registry->fields($view->resource)[$drop['field']]??null):null;
+        if(!is_array($drop)||array_diff(array_keys($drop),['from','field'])||!is_string($drop['from']??null)||!preg_match('/^[a-z][a-z0-9_.-]*$/D',$drop['from'])
+            ||!$field||$field->secret||!in_array($field->type,['select','text','number'],true)||!in_array('create',$view->actions,true)||($view->options['singleton']??false))throw new \InvalidArgumentException('Invalid list drop: '.$view->id);
     }
     /**
      * A target is `details`, `subview`, `page`, `view:<id>` (a record view of this resource, checked by
@@ -116,7 +130,12 @@ final class ListViewKind implements ViewKindProvider
             ...($activate!==null?['activate'=>is_array($activate)?['field'=>$activate['field'],'map'=>(object)$activate['map']]:$activate]:[]),
             'filters'=>$list->listSource?->filterDefinitions($ctx)??[],'sortable'=>$list->listSource?->sortableFields($ctx)??[]];
         if($search=$list->listSource?->searchMetadata($ctx))$options['search']=$search;
+        // Manual order (SqlResource `order`): the list is sorted by the position; `move` (when offered) reorders it.
+        if($order=$list->listSource?->order)$options['order']=array_filter($order,static fn($value)=>$value!==null);
+        // Drops create records: only when `create` is offered to the actor.
+        if(isset($o['drop'])&&in_array('create',array_column($actions,'name'),true))$options['drop']=$o['drop'];
         if(isset($o['subview']))$options['subview']=$o['subview'];
+        if(isset($o['tree']))$options['tree']=$o['tree'];
         return ['actions'=>$actions,'options'=>$options];
     }
 }

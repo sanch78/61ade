@@ -67,19 +67,20 @@ final class Registry
     /**
      * Changes the declared view of the same id to $view, for example `updateView($registry->viewById('x')->with(icon:
      * 'dxi dxi-key'))` after SqlResource::register(). The id must exist, kind and resource stay, and the result is
-     * validated like a declaration. The menu position, the sub-view attached with subview() and the embedded state stay
-     * (a `subview` option of $view is ignored).
+     * validated like a declaration. The menu position, the sub-view attached with subview(), the tree attached with
+     * tree() and the embedded state stay (`subview` and `tree` options of $view are ignored).
      */
     public function updateView(View $view): View
     {
         $current=$this->views[$view->id]??throw new \InvalidArgumentException('Unknown view: '.$view->id);
         if($view->kind!==$current->kind||$view->resource!==$current->resource)throw new \InvalidArgumentException('A view update keeps the kind and resource: '.$view->id);
-        $options=$view->options;unset($options['subview']);
+        $options=$view->options;unset($options['subview'],$options['tree']);
         $this->check($view=$view->with(options:$options));
+        if(isset($current->options['tree']))$view=$view->with(options:[...$view->options,'tree'=>$current->options['tree']]);
         $subview=$current->options['subview']??null;
         if($subview!==null){
             if($options['singleton']??false)throw new \InvalidArgumentException('Sub-views need two list views.');
-            $view=$view->with(options:[...$options,'subview'=>$subview]);
+            $view=$view->with(options:[...$view->options,'subview'=>$subview]);
             $this->pageActivation($view,$subview['child']===$view->id||isset($this->embedded[$subview['child']]));
         }
         return $this->views[$view->id]=$view;
@@ -146,10 +147,11 @@ final class Registry
      * the details. An activation the record or actor is not offered (ACL, `_actions`, no resolved sub-view, record view
      * not offered) opens the details.
      * $commands: project client commands (`app.commands` names, dotted, at most 20) on the list toolbar.
+     * $guide: the view's guide text (View).
      */
-    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = []): View
+    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null): View
     {
-        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands));
+        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop));
     }
     /**
      * Sub-view: every record of the $view list expands (grid sub-row or card) to the $child list filtered to
@@ -176,20 +178,41 @@ final class Registry
         $this->views[$view]=$parent->with(options:[...$parent->options,'subview'=>['child'=>$same?$view:$child,'field'=>$field,...($select?[]:['select'=>false])]]);
         if(!$same&&$embed)$this->embedded[$child]=$view;
     }
-    /** File manager view (kind `files`): `$files` is browser configuration only (mounts, limits); handlers stay server-side. */
-    public function fileManager(string $resource, string $title, array $actions, array $files, ?string $group = null, ?string $icon = null, bool $desktopOnly = false, ?string $id = null): View
+    /**
+     * Tree navigation: the $view list gets a tree of the $tree list's records beside it, and shows only the records
+     * whose $field holds the selected node's id (a scope of the view, not an authorization; a new record gets that
+     * node). $tree is a list view of another resource with a hierarchy sub-view on itself (`subview($tree, $tree,
+     * parent)`): its roots are the records with an empty parent field and a node's children load when it is expanded,
+     * by the ordinary, ACL-checked `list` of that resource. $label (a readable text or select field of $tree) names a
+     * node. The tree panel's toolbar runs the $tree view's actions on the selected node (a new one under it). $tree is
+     * embedded: it has no menu entry of its own. Declare both views and the hierarchy first.
+     */
+    public function tree(string $view, string $tree, string $field, string $label): void
     {
-        return $this->addView(new View($id??$resource,'files',$title,$resource,actions:$actions,options:$files,group:$group,icon:$icon,desktopOnly:$desktopOnly));
+        $list=$this->views[$view]??null;$nodes=$this->views[$tree]??null;
+        $invalid=new \InvalidArgumentException('Invalid tree navigation.');
+        if(!$list||!$nodes||$list->kind!=='list'||$nodes->kind!=='list'||($list->options['singleton']??false)||$list->resource===$nodes->resource||isset($list->options['tree']))throw $invalid;
+        $hierarchy=$nodes->options['subview']??null;
+        if(!$hierarchy||$hierarchy['child']!==$tree)throw $invalid;
+        $known=$this->fields((string)$list->resource)[$field]??null;$name=$this->fields((string)$nodes->resource)[$label]??null;
+        if(!$known||!in_array($known->type,['select','number','text'],true)||$known->secret||!$name||!in_array($name->type,['text','select'],true)||$name->secret)throw $invalid;
+        $this->views[$view]=$list->with(options:[...$list->options,'tree'=>['view'=>$tree,'field'=>$field,'label'=>$label]]);
+        $this->embedded[$tree]=$view;
+    }
+    /** File manager view (kind `files`): `$files` is browser configuration only (mounts, limits); handlers stay server-side. */
+    public function fileManager(string $resource, string $title, array $actions, array $files, ?string $group = null, ?string $icon = null, bool $desktopOnly = false, ?string $id = null, ?string $guide = null): View
+    {
+        return $this->addView(new View($id??$resource,'files',$title,$resource,actions:$actions,options:$files,group:$group,icon:$icon,desktopOnly:$desktopOnly,guide:$guide));
     }
     /** Diagram view (kind `diagram`): `$diagram` is browser configuration only (palette, link types, limits). */
-    public function diagram(string $resource, string $title, array $actions, array $diagram, ?string $group = null, ?string $icon = null, bool $desktopOnly = false, ?string $id = null): View
+    public function diagram(string $resource, string $title, array $actions, array $diagram, ?string $group = null, ?string $icon = null, bool $desktopOnly = false, ?string $id = null, ?string $guide = null): View
     {
-        return $this->addView(new View($id??$resource,'diagram',$title,$resource,actions:$actions,options:$diagram,group:$group,icon:$icon,desktopOnly:$desktopOnly));
+        return $this->addView(new View($id??$resource,'diagram',$title,$resource,actions:$actions,options:$diagram,group:$group,icon:$icon,desktopOnly:$desktopOnly,guide:$guide));
     }
     /** Calendar view (kind `calendar`): `$fields` are the extra event fields, `$calendar` browser configuration only (views, hours, limits). */
-    public function calendar(string $resource, string $title, array $actions, array $fields, array $calendar, ?string $group = null, ?string $icon = null, bool $desktopOnly = false, ?string $id = null): View
+    public function calendar(string $resource, string $title, array $actions, array $fields, array $calendar, ?string $group = null, ?string $icon = null, bool $desktopOnly = false, ?string $id = null, ?string $guide = null): View
     {
-        return $this->addView(new View($id??$resource,'calendar',$title,$resource,actions:$actions,options:[...$calendar,'fields'=>$fields],group:$group,icon:$icon,desktopOnly:$desktopOnly));
+        return $this->addView(new View($id??$resource,'calendar',$title,$resource,actions:$actions,options:[...$calendar,'fields'=>$fields],group:$group,icon:$icon,desktopOnly:$desktopOnly,guide:$guide));
     }
     /** The registered sub-view of the view $view (`child` resource, `field`, optional `select`) or null. */
     public function subviewOf(string $view): ?array

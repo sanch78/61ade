@@ -188,4 +188,31 @@ verify($vreg->viewById('records')->actions===['get','create','update','delete']&
 $vw=new Workspace($vreg,$db);$vviews=array_column($vw->views($ctx->actor),null,'id');
 verify(array_keys($vviews)===['records','records.b','demo.chart']&&$vviews['records.b']['resource']==='records'&&$vviews['records.b']['options']['rowNumbers']===false&&$vviews['records']['options']['rowNumbers']===true&&json_encode($vviews['records.b']['options']['filters'])===json_encode($vviews['records']['options']['filters']),'Two list views of one resource keep their own options and share its filters');
 $vlive=$vw->observe($ctx,'records',['limit'=>10,'front'=>true]);verify(count($vlive['items'])===10,'A resource with list and project views stays observable');
-echo "61ade dynamic list, scope, filters, external changes, layout, media, class filter, search, archive policy and computed column tests passed.\n";
+// Manual order (SqlResource `order`): the position is server-owned (read-only, outside the revision), a new record goes
+// last within its scope, the list sorts by the position only and `move` renumbers the scope; a list view's `drop`.
+$odb=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);Blade\Access\Schema::install($odb);
+$odb->exec('CREATE TABLE steps(id INTEGER PRIMARY KEY AUTOINCREMENT,list_id TEXT NOT NULL,title TEXT NOT NULL,position INTEGER NOT NULL DEFAULT 0)');
+$stepFields=fn()=>[new Field('list_id','List'),new Field('title','Title'),new Field('position','Position','number')];
+foreach([['field'=>'missing'],['field'=>'title'],['field'=>'position','scope'=>'missing'],['field'=>'position','scope'=>'position'],['field'=>'position','extra'=>1]] as $bad){try{new SqlResource('steps','steps','id',$stepFields(),order:$bad);throw new RuntimeException('Invalid manual order accepted');}catch(InvalidArgumentException){}}
+$oreg=new Registry();$steps=(new SqlResource('steps','steps','id',$stepFields(),order:['field'=>'position','scope'=>'list_id']));
+$steps->register($oreg,'Steps');
+$oreg->updateView(Blade\Feature\View::list('steps','Steps',[['id'=>'title','header'=>'Title']],['get','create','update','move'],drop:['from'=>'records','field'=>'title']));
+foreach([[['from'=>'records'],['get','create']],[['from'=>'Bad name','field'=>'title'],['get','create']],[['from'=>'records','field'=>'missing'],['get','create']],[['from'=>'records','field'=>'title'],['get']]] as $i=>[$bad,$actions]){try{$oreg->addView(Blade\Feature\View::list('steps','B',[],$actions,id:'steps.bad'.$i,drop:$bad));throw new RuntimeException('Invalid drop accepted');}catch(InvalidArgumentException){}}
+$ow=new Workspace($oreg,$odb);$octx=new Context(new Identity('1','One'),'ui',$ow->acl,$odb);
+$q=$odb->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','steps',?,'ui','allow','all','','')");foreach(['list','get','create','update','move'] as $action)$q->execute([$action]);
+$ocall=fn(string $action,?string $id,array $values=[])=>$ow->executor->execute($octx,'steps',$action,$id,$values);
+$stepView=array_column($ow->views($octx->actor),null,'id')['steps'];
+verify($stepView['options']['order']===['field'=>'position','scope'=>'list_id']&&$stepView['options']['sortable']===['position']&&$stepView['options']['drop']===['from'=>'records','field'=>'title'],'Order and drop reach the view');
+verify(!in_array('position',array_column(array_column($stepView['actions'],null,'name')['create']['fields'],'name'),true),'The position is not an input');
+$ids=[];foreach(['a','b','c'] as $title)$ids[$title]=(string)$ocall('create',null,['list_id'=>'1','title'=>$title])['id'];
+$other=(string)$ocall('create',null,['list_id'=>'2','title'=>'x'])['id'];
+$order=fn()=>array_map(fn($row)=>$row['title'],$ocall('list',null,['filters'=>['list_id'=>'1']])['items']);
+verify($order()===['a','b','c']&&(int)$ocall('get',$other)['position']===1,'New records go last within their scope');
+try{$ocall('list',null,['sort'=>['field'=>'title','direction'=>'asc']]);throw new RuntimeException('Sorting a manual order by another field accepted');}catch(Failure $e){verify($e->status===403,'Only the position sorts');}
+$revision=$ocall('get',$ids['b'])['revision'];
+verify($ocall('move',$ids['c'],['before'=>$ids['a'],'revision'=>$ocall('get',$ids['c'])['revision']])['position']===1&&$order()===['c','a','b'],'Moved in front of another record');
+verify($ocall('get',$ids['b'])['revision']===$revision,'Other records keep their revision');
+$ocall('move',$ids['c'],['before'=>'','revision'=>$ocall('get',$ids['c'])['revision']]);verify($order()===['a','b','c'],'Moved last');
+try{$ocall('move',$ids['a'],['before'=>$other,'revision'=>$ocall('get',$ids['a'])['revision']]);throw new RuntimeException('A record of another scope accepted as move target');}catch(Failure $e){verify(isset($e->fieldErrors['before']),'Foreign target is a field error');}
+try{$ocall('move',$ids['a'],['before'=>'','revision'=>'stale']);throw new RuntimeException('Stale move accepted');}catch(Failure $e){verify($e->status===409,'Stale revision refused');}
+echo "61ade dynamic list, scope, filters, external changes, layout, media, class filter, search, archive policy, computed column and manual order tests passed.\n";

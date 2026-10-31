@@ -59,6 +59,7 @@
   "Hibás formátum.": "Invalid format.",
   "A két mező értéke nem egyezik.": "The two field values do not match.",
   "Nemnegatív egész szám szükséges.": "Enter a non-negative integer.",
+  "Érvényes dátum szükséges (ÉÉÉÉ-HH-NN).": "Enter a valid date (YYYY-MM-DD).",
   "Válassz az engedélyezett értékekből.": "Choose an allowed value.",
   "— válassz —": "— choose —",
   "— nincs —": "— none —",
@@ -700,5 +701,18 @@
   "Egy alkalmazásmodul nem indult el: {module}": "An application module did not start: {module}",
   "A munkamenet lejárt": "Session expired",
   "A munkamenet lejárt, a nyitott adatok nem menthetők. Másold ki, amire még szükséged van, majd jelentkezz be újra.": "Your session has expired, so the open data cannot be saved. Copy out anything you still need, then sign in again.",
-  "Hivatkozások": "Links"
+  "Hivatkozások": "Links",
+  "Útmutató": "Guide",
+  "A megnyitott nézet útmutatója": "Guide to the open view",
+  "Betöltés…": "Loading…",
+  "Válassz egy elemet a fában.": "Select an item in the tree.",
+  "Nem lehet korábbi vagy kisebb a kezdő értéknél.": "Cannot be earlier or smaller than the start value.",
+  "Nem lehet későbbi vagy nagyobb a záró értéknél.": "Cannot be later or larger than the end value.",
+  "Elé": "Before",
+  "Ez az elem nincs ebben a listában.": "This item is not in this list.",
+  "Feljebb": "Move up",
+  "Lejjebb": "Move down",
+  "Szűrés: {column}": "Filter: {column}",
+  "Húzással áthelyezhető": "Drag to move",
+  "Húzással hozzáadható": "Drag to add"
 }

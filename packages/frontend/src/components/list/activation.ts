@@ -12,8 +12,8 @@ type Row={id:string|number;_actions?:string[];[field:string]:unknown};
  * (`"*"` when the value has none). `undefined`: nothing declared, or a map without a matching entry and without
  * `"*"`, which keeps the default behaviour. A field the actor may not read is absent from the row and so has the
  * empty value (the `"*"` entry). A media field (one with a `_media` slot in the row, such as a `file` field) is keyed
- * by its file's MIME class (`image`, `video`, `audio`, …) instead of the file id; no file, or one the actor may not
- * see, is the empty value.
+ * by its file's exact MIME type (`text/javascript`) when the map names it, otherwise by its MIME class (`image`,
+ * `video`, `audio`, …) instead of the file id; no file, or one the actor may not see, is the empty value.
  */
 export function declaredTarget(activate:unknown,row:Row):string|undefined{
   if(typeof activate==="string")return activate||undefined;
@@ -22,9 +22,10 @@ export function declaredTarget(activate:unknown,row:Row):string|undefined{
   if(typeof field!=="string"||!map||typeof map!=="object")return undefined;
   const media=row._media,slot=media&&typeof media==="object"&&Object.hasOwn(media,field)?(media as Record<string,unknown>)[field]:undefined;
   const mime=slot&&typeof slot==="object"?(slot as {mime_type?:unknown}).mime_type:undefined;
-  const raw=slot===undefined?row[field]:typeof mime==="string"?mime.split("/")[0]:"";
+  const entries=map as Record<string,unknown>,exact=typeof mime==="string"?mime.toLowerCase():"";
+  const raw=slot===undefined?row[field]:exact===""?"":exact.includes("/")&&Object.hasOwn(entries,exact)?exact:exact.split("/")[0];
   const value=raw===null||raw===undefined?"":typeof raw==="boolean"?(raw?"1":"0"):String(raw);
-  const entries=map as Record<string,unknown>,target=value!==""&&Object.hasOwn(entries,value)?entries[value]:entries["*"];
+  const target=value!==""&&Object.hasOwn(entries,value)?entries[value]:entries["*"];
   return typeof target==="string"&&target!==""?target:undefined;
 }
 

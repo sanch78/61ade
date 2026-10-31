@@ -114,6 +114,13 @@ body,
 .blade-grid-tile__meta { padding: 2px 10px 10px; color: var(--dhx-font-color-secondary); font-size: 12px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .blade-grid-tile__title:last-child { padding-bottom: 10px; }
 
+/* 61ade glyphs the Suite icon font lacks (paths after Material Design Icons, Apache-2.0): a mask in the glyph colour,
+   sized and coloured like a `dxi` glyph, so `blade-icon blade-icon--audio` stands wherever a `dxi dxi-…` class does. */
+.blade-icon { display: inline-block; line-height: 0; font-size: 0; color: var(--dhx-font-color-secondary); }
+.blade-icon::before { content: ""; display: inline-block; width: 1em; height: 1em; font-size: var(--dhx-icon-size-normal); background: var(--dhx-font-color-additional); -webkit-mask: var(--blade-icon-glyph) center / contain no-repeat; mask: var(--blade-icon-glyph) center / contain no-repeat; }
+.blade-icon--audio { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/%3E%3C/svg%3E"); }
+.blade-icon--animation { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2a2 2 0 0 0-2 2v10h2V4h10V2H4m4 4a2 2 0 0 0-2 2v10h2V8h10V6H8m4 4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8m2 2 6 4-6 4v-8z'/%3E%3C/svg%3E"); }
+
 /* Media column presentation: lazy thumbnail over a type icon; the accessible name carries the type. */
 .blade-media { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; overflow: hidden; vertical-align: middle; border-radius: 4px; background: var(--dhx-background-secondary); color: var(--dhx-font-color-secondary); }
 .blade-media__image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -455,3 +462,20 @@ body,
 }
 .blade-dialog__all-input { margin: 2px 0 0; width: 16px; height: 16px; accent-color: var(--dhx-color-primary); flex: none; }
 .blade-dialog__all-input:focus-visible { outline: 2px solid var(--dhx-border-color-focused, var(--dhx-color-primary)); outline-offset: 2px; }
+
+/* View guide (`guide`): plain paragraphs in a non-modal window; long text scrolls inside it. */
+.blade-view-guide { box-sizing: border-box; height: 100%; overflow: auto; padding: 4px 20px 16px; line-height: 1.5; color: var(--dhx-font-color-primary); }
+.blade-view-guide p { margin: 0 0 10px; }
+
+/* Tree navigation of a list (`TreeNavigation`): the tree fills the panel below its toolbar and scrolls. */
+.blade-tree-cell .blade-tree { overflow: auto; }
+.blade-tree-list { height: 100%; width: 100%; }
+
+
+/* Draggable rows (a manual order, a drag source): the grip column and the cards' and tiles' grip. */
+.blade-drag-handle { cursor: grab; color: var(--dhx-font-color-secondary); font-size: 18px; line-height: 1; }
+.blade-grid-tile__media .blade-drag-handle { position: absolute; top: 6px; right: 6px; z-index: 1; }
+.blade-grid-card__id .blade-drag-handle { margin-right: 4px; vertical-align: middle; }
+
+/* A checkbox whose label is for screen readers only keeps its visible text (Suite's `label_sr` hides both). */
+.dhx_form-group--checkbox.dhx_form-group--label_sr .dhx_checkbox__holder > .dhx_text { visibility: visible; position: static; clip: auto; overflow: visible; }

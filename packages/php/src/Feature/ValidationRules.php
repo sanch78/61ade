@@ -14,7 +14,7 @@ final class ValidationRules
         foreach ($rules as $key => $value) {
             $valid = match ($key) {
                 'min_length' => is_int($value) && $value >= 0,
-                'matches_field' => is_string($value) && preg_match('/^[a-z][a-z0-9_]*$/D', $value),
+                'matches_field', 'not_before_field', 'not_after_field' => is_string($value) && preg_match('/^[a-z][a-z0-9_]*$/D', $value),
                 'unique' => is_bool($value),
                 'pattern' => is_array($value),
                 default => false,
@@ -65,6 +65,22 @@ final class ValidationRules
             || !hash_equals((string) $values[$rules['matches_field']], $value))) {
             return \Blade\I18n\Translator::text('A két mező értéke nem egyezik.');
         }
+        // A range: dates (YYYY-MM-DD) and other text compare as strings, nonnegative integers as numbers; an empty other end is open.
+        if (isset($rules['not_before_field']) && self::compare($value, $values[$rules['not_before_field']] ?? '') < 0) {
+            return \Blade\I18n\Translator::text('Nem lehet korábbi vagy kisebb a kezdő értéknél.');
+        }
+        if (isset($rules['not_after_field']) && self::compare($value, $values[$rules['not_after_field']] ?? '') > 0) {
+            return \Blade\I18n\Translator::text('Nem lehet későbbi vagy nagyobb a záró értéknél.');
+        }
         return null;
+    }
+
+    /** <0, 0 or >0 as $value is before, equal to or after $other; 0 when $other is empty or not a scalar. */
+    private static function compare(string $value, mixed $other): int
+    {
+        $other = is_scalar($other) ? trim((string) $other) : '';
+        if ($other === '') return 0;
+        if (preg_match('/^\d+$/D', $value) && preg_match('/^\d+$/D', $other)) return strlen(ltrim($value, '0')) <=> strlen(ltrim($other, '0')) ?: strcmp(ltrim($value, '0'), ltrim($other, '0'));
+        return strcmp($value, $other);
     }
 }

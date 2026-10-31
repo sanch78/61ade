@@ -497,7 +497,8 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
   sends the map as a JSON object. The client chooses per row by the string
   value of the field in the list row (a field the actor may not read is absent
   and takes `*`), the same in table, cards and tiles. A media field (`file`
-  field or `column.media`) is keyed by its file's MIME class (`image`, `video`,
+  field or `column.media`) is keyed by its file's exact MIME type when the map
+  names it (`text/javascript`), otherwise by its MIME class (`image`, `video`,
   `audio`, …) from the row's `_media`; no file or a hidden one takes `*`.
 - **`view:<id>`:** the client opens the record view through the shell's
   navigation (`app.navigate({view, record})`: page or window as the view
@@ -583,6 +584,84 @@ whole-batch transaction nor export.
 `list-presentation.php` checks ACL/secrets/metadata/opt-in/limits/duplicates/
 partial success; `list-presentation.spec.cjs` checks columns/mobile/details/icons/
 marks/bulk and theme geometry. FB-0019.
+
+<a id="manual-order"></a>
+
+## Manual order, drops between lists and the drag handle
+
+[FB-0108](feedback.md#fb-0108). A resource whose records have an order the
+users set (playlist items, steps, menu entries) declares it on the
+`SqlResource` (JSON `storage.order`):
+
+```json
+"storage": {"table": "signage_playlist_items", "key": "id", "order": {"field": "position", "scope": "playlist_id"}}
+```
+
+- `field` is a declared `number` field (not computed, editable, secret or
+  media); `scope` an optional declared field: the records sharing its value
+  are ordered among themselves. The server owns the position: it is read-only
+  (never a create or update input), a new record goes last within its scope,
+  and positions are not part of a record's revision, so moving one record never
+  makes the others stale.
+- The resource gets the `move` action (`update` enabled; its own ACL entry,
+  `ui` channel): `before` is the id of a record of the same scope the record
+  goes in front of, `''` puts it last; the scope is renumbered 1…n in one
+  transaction and audited. A `before` outside the scope is a field error, a
+  stale `revision` 409.
+- The list is sorted by the position only (`sortable` is the position, no
+  header or card sorting) and the view carries `options.order`. With `move`
+  offered, the rows are dragged into place (table, cards and tiles), the
+  toolbar has `Feljebb` and `Lejjebb` instead of the action's form, and
+  Alt+↑/Alt+↓ moves the cursor record; a move saves and reloads the list. In a
+  compact preview the order shows but nothing moves.
+
+A list view declares that it takes records dragged from another list (JSON
+`view.drop`, PHP `View::list(…, drop:)` / `Registry::view(…, drop:)`):
+
+```json
+"view": {"title": "Lejátszásilista-elemek", "drop": {"from": "signage_assets", "field": "asset_id"}, "actions": ["get", "create", "update", "delete", "move"]}
+```
+
+- `from` is a resource, `field` a registered non-secret select, text or number
+  field; the view declares `create`, and the browser gets `options.drop` only
+  while `create` is offered. A drop creates one record per dragged record
+  through `create` (`field` = its id, a scoped list's parent field added), at
+  most 100; in a manual order the new records land where they were dropped
+  (a `move` each). Every create is validated, authorized and audited as usual.
+- The source is a `ListView` of that resource created with `dragSource: true`
+  ([toolkit](toolkit.md#listview)); the dragged record is copied, or every
+  marked record when it is marked. The keyboard route is the target's own
+  `Hozzáadás` form.
+- Suite's drag only signals: its own data never changes, the server's answer
+  is reloaded.
+
+Draggable rows (a manual order with `move`, a drop target that can reorder, a
+drag source) start with the usual drag-handle column (`dxi-drag-vertical`,
+decorative; its tooltip says `Húzással áthelyezhető` or `Húzással hozzáadható`);
+cards and tiles show the same handle. Dragging works from any cell.
+
+<a id="card-filters"></a>
+
+## Filters in cards and tiles
+
+A list whose filters are the table's header filters (no declared filter panel)
+shows `Szűrés` in the toolbar while it shows cards or tiles, where the headers
+are not visible, the same way `Rendezés` appears there: it opens the filters in
+a dialog (Apply, Reset, Cancel) with the header filters' values, and applying
+updates the header filters too. Each header filter input is named
+`Szűrés: <column>` for assistive technology.
+
+<a id="hosted-list"></a>
+
+## A list in a host's panel
+
+A `ListView` placed in a region of a page ([`PageLayout`](toolkit.md#pagelayout))
+is created with `panel: false`: it draws no titled panel of its own, so the
+region is its only frame and title, and its toolbar and data fill the region.
+The declared filter panel and form panel are not used there (header filters,
+the cards' `Szűrés` dialog and form windows instead). `showId: false` leaves
+out the ID column and the cards' `ID · n` line on a page whose users do not
+work with ids.
 
 <a id="nézetválasztás-és-fejlécjelzések"></a>
 
@@ -862,6 +941,116 @@ toolbar actions, including one-time secret reveals, report through a non-blockin
 toast; only actions that declare confirmation metadata open a confirmation dialog.
 
 <a id="sub-views"></a>
+
+<a id="view-guide"></a>
+
+## View guide
+
+Every view can carry a `guide`: plain text that tells the user what the view
+shows and what to try ([FB-0107](feedback.md#fb-0107)). The shell shows it when
+the view opens as a page, in a non-modal, closable window at the lower right
+of the workspace (full screen below 768 px), titled `Útmutató: <view title>`.
+
+```php
+$registry->view('tasks', 'Feladatok', $columns, $actions, guide: "Mit látsz itt.\n\nMit próbálj ki.");
+new FileManagerDefinition(/* … */, guide: '…'); // DiagramDefinition, CalendarDefinition likewise
+new View('demo.dashboard', 'demo.dashboard', 'Irányítópult', guide: '…');
+```
+
+JSON: `resources.<name>.view.guide` and `views.<id>.guide`.
+
+- **Text:** plain text only, at most 4000 characters, localized like a title
+  (the catalogue key is the whole text). A blank line separates paragraphs, a
+  single line break stays a line break. No markup is interpreted.
+- **Until closed:** closing the window by hand is remembered per page path,
+  user and view in this browser (`localStorage` key
+  `blade-guide:1:[path, user, view id]`); the guide then no longer opens by
+  itself. Leaving the view closes its guide without remembering anything.
+- **Again:** while a view with a guide is the page, the lower bar shows an
+  `Útmutató` button that opens it again.
+- Not shown for a view opened in a window (`open: "window"`). A guide is
+  presentation only: it grants nothing and hides nothing.
+
+<a id="tree-navigation"></a>
+
+## Tree navigation (data tree beside a list)
+
+A list view can get a tree of another resource's records beside it, for
+example keys and their values, categories and their products
+([FB-0107](feedback.md#fb-0107)). The list then shows only the records whose
+field holds the selected node's id.
+
+```php
+// The nodes are a hierarchy of their own (parent_id: a select whose options include '').
+$registry->subview('keys', 'keys', 'parent_id');
+$registry->tree('values', 'keys', 'key_id', 'name');   // list view, node view, list field, node label field
+```
+
+JSON: `"view": {"title": "…", "tree": {"resource": "keys", "field": "key_id", "label": "name"}}`
+on the list's resource (`resource` names the node view id); the node resource
+declares `"subview": {"resource": "keys", "field": "parent_id"}`.
+
+- **Layout:** the tree panel (header: the node view's title, 300 px,
+  resizable and collapsible; its width is a preference of the list view) sits
+  left of the list. The list panel's header names the selected node. The first
+  root is selected when the view opens.
+- **Loading:** roots are the node records with an empty parent field; a node's
+  children load the first time it is expanded, through the node resource's
+  ordinary `list` with the parent filter, sorted by the label field when it is
+  sortable. The hierarchy's `_subview` child count decides which nodes get an
+  expand toggle. At most 1000 children per node load (pages of 200).
+- **Node actions:** the panel's toolbar holds the node view's actions except
+  `get` and uploads. `create` opens its form with the parent field preset to
+  the selected node (a root without a selection); `update` and other record
+  actions with fields open their form for the selected node; a field-free
+  action (`delete`) runs at once after its declared confirmation. A record
+  action the node's `_actions` does not offer is disabled. After a node
+  action the affected level reloads; a new node is selected.
+- **The list:** a scoped list of the selected node (as a sub-view window):
+  the field is no column, filter or form input; a new record gets the node as
+  its field; the layout is the grid with overlay forms.
+- **Security:** every read and write is an ordinary, ACL-checked call of its
+  resource. The field filter is a scope of the view, not an authorization.
+  Without the node view offered to the actor the list is a plain list.
+- **Declaration rules:** the list view is not a singleton, has no tree yet and
+  is of another resource than the nodes; the node view has a hierarchy
+  sub-view on itself; `field` is a non-secret select, number or text field of
+  the list resource, `label` a non-secret text or select field of the node
+  resource. The node view is embedded: it has no menu entry of its own.
+- **Moves:** a changed parent field is a move; the server checks it like any
+  update, so a project that allows moves guards against cycles (the feature
+  demo's `registry.key_guard`). Deleting a node with children is the node
+  resource's business (the demo's `after_delete` removes the subtree).
+
+Limits: the tree is not live (it reloads only after its own actions); no drag
+moves; no search inside the tree; a node shows its label field only.
+
+<a id="conditional-fields"></a>
+
+## Conditional fields
+
+A field can take part only while another field of the same record holds one
+of some values: `visibleWhen` (JSON `visible_when`), for example a value
+editor that depends on the value's type ([FB-0107](feedback.md#fb-0107)).
+
+```json
+{"name": "dword_value", "label": "Érték (hexadecimális)", "required": true, "max": 8,
+ "validation": {"pattern": {"expression": "^[0-9a-fA-F]{1,8}$"}},
+ "visible_when": {"field": "type", "in": ["REG_DWORD"]}}
+```
+
+- **Forms:** action forms, `RecordForm` and the details show the field only
+  while the condition holds and follow changes of the condition field at once;
+  a hidden field is not validated in the browser. A form window refits when
+  a field appears or disappears.
+- **Server:** the condition is evaluated on the submitted values over the
+  stored row. An inactive field is not validated (also not `required`); a
+  save that sends the field or its condition field stores it empty (`''`).
+  A save that sends neither leaves it as stored.
+- **Declaration rules:** `field` is another field name; `in` lists 1–50
+  distinct strings (a checkbox condition uses `"0"`/`"1"`). A conditional field
+  is not `editable` in the grid, not `bulk`, not secret and not a `file` field;
+  the condition field of an action is not conditional itself.
 
 ## Sub-views (expandable rows and card buttons)
 

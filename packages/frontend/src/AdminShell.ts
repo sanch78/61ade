@@ -276,6 +276,7 @@ export class AdminShell {
         { type: "spacer" },
         { id: "live-status", type: "title", value: "", hidden: true },
         { id: "upload-status", value: "", icon: "dxi dxi-file-import", hidden: true, css: "blade-upload-indicator" },
+        { id: "view-guide", value: t("Útmutató"), icon: "dxi dxi-information-outline", hidden: true, tooltip: t("A megnyitott nézet útmutatója") },
         {
           id: "application-version",
           type: "title",
@@ -288,7 +289,7 @@ export class AdminShell {
     if(this.topLogo)root.addEventListener("load",event=>{if((event.target as Element).closest?.(".blade-navigation-row .blade-logo"))this.renderMenu();},{capture:true,signal:this.listeners.signal});
     if (definition.authenticated) {
       uploads.configure({ userId: definition.userId });
-      this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); });
+      this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); else if (id === "view-guide" && this.page) this.showGuide(this.page); });
       this.releaseUploads = uploads.indicator(state => this.uploadIndicator(state));
     }
     if(choices.length>1){
@@ -382,6 +383,7 @@ export class AdminShell {
 
   /** The empty workspace (unknown or unoffered address, `host.close()` of a page). */
   private clear():void{
+    this.status.hide("view-guide");
     this.renderMenu();
     ++this.navigation;
     this.layout.getCell("workspace").detach();
@@ -454,6 +456,40 @@ export class AdminShell {
       return;
     }
     this.kernel!.events.dispatch("view:opened",{id:view.id,...(record?{record:record.id}:{}),open});
+    if(open==="page"){
+      if(view.guide)this.status.show("view-guide");else this.status.hide("view-guide");
+      if(view.guide&&!this.guideDismissed(view))this.showGuide(mounted);
+    }
+  }
+
+  /** Where the user's closing of a view's guide is remembered (per page path, user and view; this browser only). */
+  private guideKey(view:ViewDefinition):string{return "blade-guide:1:"+JSON.stringify([location.pathname,this.definition.userId??"",view.id]);}
+  private guideDismissed(view:ViewDefinition):boolean{try{return localStorage.getItem(this.guideKey(view))==="1";}catch{return false;}}
+  private guideWindow?:AppWindow;
+  /**
+   * The page view's guide (`guide`) in a non-modal window at the lower right of the workspace; it closes with the
+   * view. Closing it by hand is remembered, so it no longer opens by itself (the lower bar's `Útmutató` shows it).
+   */
+  private showGuide(mounted:Mounted):void{
+    const view=mounted.view,signal=mounted.controller.signal;
+    if(!view.guide||signal.aborted)return;
+    this.guideWindow?.close();
+    const width=Math.min(420,innerWidth-24),height=Math.min(340,innerHeight-24);
+    const win=this.guideWindow=openWindow({title:t("Útmutató")+": "+view.title,css:"blade-content-window blade-guide-window",width,height,modal:false,fit:false,signal});
+    if(innerWidth>=768)win.window.setPosition(Math.max(12,innerWidth-width-16),Math.max(12,innerHeight-height-48));
+    const body=document.createElement("div");body.className="blade-view-guide";
+    for(const paragraph of view.guide.split(/\n\s*\n/)){
+      if(!paragraph.trim())continue;
+      const p=document.createElement("p");
+      paragraph.trim().split("\n").forEach((line,index)=>{if(index)p.append(document.createElement("br"));p.append(line);});
+      body.append(p);
+    }
+    win.attach(body);
+    win.signal.addEventListener("abort",()=>{
+      if(this.guideWindow===win)this.guideWindow=undefined;
+      // Closed by the user, not with its view: it stays closed.
+      if(!signal.aborted)try{localStorage.setItem(this.guideKey(view),"1");}catch{}
+    },{once:true});
   }
 
   /** Closes one view: its signal aborts, then the instance and wrapper are destroyed (exactly once). */

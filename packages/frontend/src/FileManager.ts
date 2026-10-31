@@ -7,7 +7,7 @@ import { widgetIcons } from "./WidgetIcons";
 import { fitWindow } from "./WindowSizing";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 import { acknowledge, requestChoice, requestConfirmation } from "./MessageDialog";
-import { escape, clearedText, mergeUsages, type Usage } from "./RecordPresentation";
+import { escape, clearedText, findMediaType, mediaTypeEntries, mergeUsages, type Usage } from "./RecordPresentation";
 import { actionUrl } from "./ActionUrl";
 import { server } from "./api/Server";
 import { uploads, type UploadEvents, type UploadFileInfo, type UploadPolicy } from "./Uploader";
@@ -46,9 +46,10 @@ const formActions=(submit:{name:string;text:string;icon:string}):any=>({css:"bla
   {type:"button",name:"cancel",text:t("Mégse"),icon:"dxi dxi-close",view:"flat",color:"secondary",width:"content"},
   {type:"button",...submit,color:"primary",width:"content"},
 ]});
-/** Suite icon by kind and detected MIME type, the same in the listing and the tree. */
-const fileIcon=(kind:string,mime:string):string=>kind==="directory"?"dxi dxi-folder":mime.startsWith("image/")?"dxi dxi-image-outline":mime.startsWith("video/")?"dxi dxi-menu-right":mime==="text/csv"?"dxi dxi-file-excel":mime.startsWith("text/")||mime==="application/json"?"dxi dxi-format-align-left":"dxi dxi-file-outline";
-const iconLabels=():Record<string,string>=>({"dxi dxi-arrow-up":t("Szülőmappa"),"dxi dxi-file-import":t("Feltöltés alatt"),"dxi dxi-folder":t("Mappa"),"dxi dxi-image-outline":t("Kép"),"dxi dxi-menu-right":t("Videó"),"dxi dxi-file-excel":t("Táblázat"),"dxi dxi-format-align-left":t("Szöveg"),"dxi dxi-file-outline":t("Fájl")});
+/** Icon by kind and detected MIME type, the same in the listing and the tree: a media type (`app.mediaTypes`) first. */
+const fileIcon=(kind:string,mime:string):string=>kind==="directory"?"dxi dxi-folder":findMediaType(mime)?.icon??(mime==="text/csv"?"dxi dxi-file-excel":mime.startsWith("text/")||mime==="application/json"?"dxi dxi-format-align-left":"dxi dxi-file-outline");
+const iconLabels=():Record<string,string>=>({"dxi dxi-arrow-up":t("Szülőmappa"),"dxi dxi-file-import":t("Feltöltés alatt"),"dxi dxi-folder":t("Mappa"),"dxi dxi-file-excel":t("Táblázat"),"dxi dxi-format-align-left":t("Szöveg"),"dxi dxi-file-outline":t("Fájl"),
+  ...Object.fromEntries(mediaTypeEntries().map(type=>[type.icon,t(type.label)]))});
 /** The listing's first row in a subfolder, as in mc: opens the parent and is never an operand. */
 const PARENT="..";
 /** Rows of one listing request (the server maximum) and the most rows a panel keeps loaded. */

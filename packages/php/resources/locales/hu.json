@@ -59,6 +59,7 @@
   "Hibás formátum.": "Hibás formátum.",
   "A két mező értéke nem egyezik.": "A két mező értéke nem egyezik.",
   "Nemnegatív egész szám szükséges.": "Nemnegatív egész szám szükséges.",
+  "Érvényes dátum szükséges (ÉÉÉÉ-HH-NN).": "Érvényes dátum szükséges (ÉÉÉÉ-HH-NN).",
   "Válassz az engedélyezett értékekből.": "Válassz az engedélyezett értékekből.",
   "— válassz —": "— válassz —",
   "— nincs —": "— nincs —",
@@ -700,5 +701,18 @@
   "Egy alkalmazásmodul nem indult el: {module}": "Egy alkalmazásmodul nem indult el: {module}",
   "A munkamenet lejárt": "A munkamenet lejárt",
   "A munkamenet lejárt, a nyitott adatok nem menthetők. Másold ki, amire még szükséged van, majd jelentkezz be újra.": "A munkamenet lejárt, a nyitott adatok nem menthetők. Másold ki, amire még szükséged van, majd jelentkezz be újra.",
-  "Hivatkozások": "Hivatkozások"
+  "Hivatkozások": "Hivatkozások",
+  "Útmutató": "Útmutató",
+  "A megnyitott nézet útmutatója": "A megnyitott nézet útmutatója",
+  "Betöltés…": "Betöltés…",
+  "Válassz egy elemet a fában.": "Válassz egy elemet a fában.",
+  "Nem lehet korábbi vagy kisebb a kezdő értéknél.": "Nem lehet korábbi vagy kisebb a kezdő értéknél.",
+  "Nem lehet későbbi vagy nagyobb a záró értéknél.": "Nem lehet későbbi vagy nagyobb a záró értéknél.",
+  "Elé": "Elé",
+  "Ez az elem nincs ebben a listában.": "Ez az elem nincs ebben a listában.",
+  "Feljebb": "Feljebb",
+  "Lejjebb": "Lejjebb",
+  "Szűrés: {column}": "Szűrés: {column}",
+  "Húzással áthelyezhető": "Húzással áthelyezhető",
+  "Húzással hozzáadható": "Húzással hozzáadható"
 }

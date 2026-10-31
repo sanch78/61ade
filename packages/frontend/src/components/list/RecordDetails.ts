@@ -20,9 +20,11 @@ export class RecordDetails extends Component<Record<string,never>> implements Re
   private view:ViewDefinition;
   private epoch=0;
   private abort?:AbortController;
+  private showId:boolean;
   constructor(context:ListContext,options:RecordDetailsOptions){
     super(options);
     this.view=listDefinition(resolveListView(context.app(),options.view));
+    this.showId=options.showId!==false;
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"details"}]});
     void this.show(options.record).catch(()=>{});
     this.bind(options.signal);
@@ -41,7 +43,7 @@ export class RecordDetails extends Component<Record<string,never>> implements Re
       }
     }else row=record;
     if(this.destroyed||epoch!==this.epoch)return;
-    this.layout.getCell("details").attachHTML(`<div class="blade-view-slot">${detailsHtml(row,this.view)}</div>`);
+    this.layout.getCell("details").attachHTML(`<div class="blade-view-slot">${detailsHtml(row,this.view,this.showId)}</div>`);
   }
   protected dispose():void{this.epoch++;this.abort?.abort();this.layout.destructor();}
 }

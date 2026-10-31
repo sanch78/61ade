@@ -47,7 +47,7 @@ final class Workspace
     /**
      * Views offered to $actor (bootstrap `views`, docs/toolkit.md#views); tenant-scoped ones only with an active $tenant
      * (membership checked), record views only with the record resource's `get` offered. Each entry is
-     * `{id, kind, title, resource?, record?, actions, group, icon, desktopOnly, open, options}`; the kind provider
+     * `{id, kind, title, resource?, record?, actions, group, icon, desktopOnly, open, guide?, options}`; the kind provider
      * decides whether the view is offered and builds `actions` and `options`.
      */
     public function views(Identity $actor,?string $tenant=null): array
@@ -62,6 +62,7 @@ final class Workspace
             $out[$view->id]=[...\Blade\I18n\Translator::presentation(['id'=>$view->id,'kind'=>$view->kind,'title'=>$view->title,
                 ...($view->resource!==null?['resource'=>$view->resource]:[]),...($view->record!==null?['record'=>$view->record]:[]),
                 'actions'=>$data['actions'],'group'=>$view->group,'icon'=>$view->icon,'desktopOnly'=>$view->desktopOnly,'open'=>$view->open]),
+                ...($view->guide!==null?['guide'=>\Blade\I18n\Translator::text($view->guide)]:[]),
                 // An empty options map stays a JSON object.
                 'options'=>$data['options']===[]?new \stdClass():\Blade\I18n\Translator::presentation($data['options'])];
         }
@@ -79,6 +80,14 @@ final class Workspace
             $resolved[$key]=true;
         };
         foreach(array_keys($out) as $key)$resolve((string)$key);
+        // Tree navigation needs its node view offered to the actor (with its resolved hierarchy); without it the list is a plain list.
+        foreach($out as $key=>$entry){
+            $tree=$entry['kind']==='list'?($entry['options']['tree']??null):null;
+            if($tree===null)continue;
+            $nodes=$out[$tree['view']]??null;
+            if($nodes===null||!isset($nodes['options']['subview']['shared'])){unset($out[$key]['options']['tree']);continue;}
+            $out[$key]['options']['tree']=['view'=>$nodes,'field'=>$tree['field'],'parent'=>$nodes['options']['subview']['field'],'label'=>$tree['label']];
+        }
         return array_values(array_filter($out,fn($view)=>!$this->registry->embedded($view['id'])));
     }
     /** Field metadata of $field for the actor of $ctx (ViewMetadata::field). */

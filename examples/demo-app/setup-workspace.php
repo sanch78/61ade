@@ -59,6 +59,35 @@ if (!$db->query('SELECT COUNT(*) FROM demo_shelf_zones')->fetchColumn()) {
         foreach ($shelves as $shelf) $place->execute([$id, $shelf]);
     }
 }
+// Registry editor imitation (modules/registry.json): synthetic keys in a hierarchy and values of every type.
+$db->exec("CREATE TABLE IF NOT EXISTS demo_registry_keys(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,parent_id TEXT NOT NULL DEFAULT '')");
+$db->exec("CREATE TABLE IF NOT EXISTS demo_registry_values(id INTEGER PRIMARY KEY AUTOINCREMENT,key_id INTEGER NOT NULL,name TEXT NOT NULL,type TEXT NOT NULL DEFAULT 'REG_SZ',string_value TEXT NOT NULL DEFAULT '',multi_value TEXT NOT NULL DEFAULT '',dword_value TEXT NOT NULL DEFAULT '',qword_value TEXT NOT NULL DEFAULT '',binary_value TEXT NOT NULL DEFAULT '')");
+if (!$db->query('SELECT COUNT(*) FROM demo_registry_keys')->fetchColumn()) {
+    $key = $db->prepare('INSERT INTO demo_registry_keys(name,parent_id) VALUES (?,?)');
+    $value = $db->prepare('INSERT INTO demo_registry_values(key_id,name,type,string_value,multi_value,dword_value,qword_value,binary_value) VALUES (?,?,?,?,?,?,?,?)');
+    $add = static function (array $keys, string $parent) use (&$add, $db, $key, $value): void {
+        foreach ($keys as $name => [$values, $children]) {
+            $key->execute([$name, $parent]);$id = (string) $db->lastInsertId();
+            foreach ($values as [$valueName, $type, $data]) $value->execute([$id, $valueName, $type,
+                in_array($type, ['REG_SZ', 'REG_EXPAND_SZ'], true) ? $data : '', $type === 'REG_MULTI_SZ' ? $data : '', $type === 'REG_DWORD' ? $data : '', $type === 'REG_QWORD' ? $data : '', $type === 'REG_BINARY' ? $data : '']);
+            $add($children, $id);
+        }
+    };
+    $add([
+        'HKEY_CURRENT_USER' => [[], [
+            'Control Panel' => [[], ['Desktop' => [[['Wallpaper', 'REG_SZ', 'C:\\Users\\Demo\\Pictures\\aurora.jpg'], ['CursorBlinkRate', 'REG_SZ', '530'], ['ScreenSaveActive', 'REG_DWORD', '1']], []]]],
+            'Environment' => [[['TEMP', 'REG_EXPAND_SZ', '%USERPROFILE%\\AppData\\Local\\Temp'], ['Path', 'REG_EXPAND_SZ', '%USERPROFILE%\\bin']], []],
+            'Software' => [[], ['Synthetic Labs' => [[], ['Viewer' => [[
+                ['Version', 'REG_SZ', '2.4.1'], ['WindowWidth', 'REG_DWORD', '00000500'], ['LastRun', 'REG_QWORD', '01db2f0a6c3e8000'],
+                ['RecentFiles', 'REG_MULTI_SZ', "report.txt\nnotes.md\nplan.csv"], ['Layout', 'REG_BINARY', '01 00 00 00 2c 01 00 00 f4 01'],
+            ], ['Settings' => [[['Theme', 'REG_SZ', 'dark'], ['AutoSave', 'REG_DWORD', '00000001']], []]]]]]]],
+        ]],
+        'HKEY_LOCAL_MACHINE' => [[], [
+            'SOFTWARE' => [[], ['Synthetic Labs' => [[['InstallDir', 'REG_EXPAND_SZ', '%ProgramFiles%\\Synthetic Labs'], ['Licensed', 'REG_DWORD', '00000000']], []]]],
+            'SYSTEM' => [[], ['CurrentControlSet' => [[], ['Services' => [[], ['DemoService' => [[['Start', 'REG_DWORD', '00000002'], ['DependOnService', 'REG_MULTI_SZ', "RpcSs\nTcpip"]], []]]]]]]],
+        ]],
+    ], '');
+}
 // Virtual file manager: framework tables, one root per mount and a synthetic tree, seeded once per mount.
 // Earlier BLOB content moves to the content store first (migration 0002); verification must pass.
 $files = blade_demo_files();
@@ -164,6 +193,11 @@ $rules[] = [(string) $reader, 'demo_tasks', ['list', 'get'], 'deny', 'descriptio
 $rules[] = [(string) $reader, 'files', ['tree', 'list', 'text_get', 'content_get', 'content_stream', 'thumbnail_get', 'download', 'zip_prepare', 'zip_get']];
 // Shelves without their item list: the child is not offered, so double-click opens the shelf details.
 $rules[] = [(string) $reader, 'demo_shelves', ['list', 'get']];
+// Registry editor imitation: full rights for the demo account, browsing only for the reader.
+$rules[] = ['1', 'demo_registry_keys', ['list', 'get', 'create', 'update', 'delete']];
+$rules[] = ['1', 'demo_registry_values', ['list', 'get', 'create', 'update', 'delete']];
+$rules[] = [(string) $reader, 'demo_registry_keys', ['list', 'get']];
+$rules[] = [(string) $reader, 'demo_registry_values', ['list', 'get']];
 // Read-only topology viewer: opens diagrams, no editing.
 $rules[] = [(string) $reader, 'topology', ['list', 'get']];
 // Digital signage: calendar table, synthetic assets, weekday defaults and programme; the seeded asset media move into
@@ -173,6 +207,8 @@ require_once __DIR__.'/signage.php';
 blade_demo_signage_setup($db, $storage);
 array_push($rules, ['1', 'signage_assets', ['list', 'get', 'create', 'update', 'delete', 'upload_asset']], ['1', 'signage_defaults', ['list', 'get', 'create', 'update', 'delete']],
     ['1', 'signage_schedule', ['events', 'occurrences', 'create', 'update', 'delete']], ['1', 'signage_playlist', ['day', 'scene']],
+    ['1', 'signage_playlists', ['list', 'get', 'create', 'update', 'delete']], [(string) $reader, 'signage_playlists', ['list', 'get']],
+    ['1', 'signage_playlist_items', ['list', 'get', 'create', 'update', 'delete', 'move']], [(string) $reader, 'signage_playlist_items', ['list', 'get']],
     [(string) $reader, 'signage_assets', ['list', 'get']], [(string) $reader, 'signage_defaults', ['list', 'get']],
     [(string) $reader, 'signage_schedule', ['events', 'occurrences']], [(string) $reader, 'signage_playlist', ['day', 'scene']]);
 foreach ($rules as $rule) foreach ($rule[2] as $action) {

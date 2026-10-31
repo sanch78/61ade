@@ -57,7 +57,8 @@
                 ],
                 "actions": [
                     "get"
-                ]
+                ],
+                "guide": "Statikus képoszlop: a Kép mező egy fájlnevet tárol, a lista ebből mutat képet a táblázat cellájában, a kártyán, a csempén és az Adatok ablakban.\n\nHiányzó képfájlnál helyőrző látszik, érvénytelen fájlnévnél nincs kép. A katalógus csak olvasható."
             }
         }
     }

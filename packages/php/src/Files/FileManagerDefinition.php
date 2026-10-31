@@ -58,6 +58,8 @@ final readonly class FileManagerDefinition
         public ?string $group = null,
         public ?string $icon = 'dxi dxi-folder-open',
         public bool $desktopOnly = false,
+        /** The view's guide text (Blade\Feature\View $guide). */
+        public ?string $guide = null,
         public string $contentRoot = '',
         public ?string $tempRoot = null,
         public bool $thumbnails = true,

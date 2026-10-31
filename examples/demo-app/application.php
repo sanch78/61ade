@@ -24,7 +24,7 @@ $languages = blade_demo_languages();
 
 // Business modules: declarative JSON with explicitly registered handlers, plus one PHP-registered resource.
 require_once __DIR__.'/signage.php';
-$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json', __DIR__.'/modules/catalog.json', __DIR__.'/modules/shelves.json'], static fn() => [
+$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json', __DIR__.'/modules/catalog.json', __DIR__.'/modules/shelves.json', __DIR__.'/modules/registry.json'], static fn() => [
     ...blade_demo_signage_bindings(),
     'tasks.complete' => static function (Context $ctx, array $target): array {
         $ctx->db->prepare("UPDATE demo_tasks SET status = 'done' WHERE id = ?")->execute([$target['id']]);
@@ -44,6 +44,21 @@ $workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', 
         $query->execute([$target['id']]);
         [$title, $quantity] = $query->fetch(PDO::FETCH_NUM) ?: ['', 0];
         return ['reveal' => ['label' => 'Készlet', 'value' => $title.': '.(int) $quantity.' db', 'severity' => 'neutral']];
+    },
+    // Registry editor imitation: a key cannot move below itself; deleting a key removes its subtree and their values.
+    'registry.key_guard' => static function (Context $ctx, ?array $target, array $values): void {
+        if ($target === null) return;
+        $query = $ctx->db->prepare('SELECT parent_id FROM demo_registry_keys WHERE id = ?');
+        for ($parent = (string) ($values['parent_id'] ?? ''), $steps = 0; $parent !== '' && $steps < 64; $steps++) {
+            if ($parent === (string) $target['id']) throw new Failure('Javítsd a megjelölt mezőket.', 400, ['parent_id' => 'A kulcs nem kerülhet saját maga alá.']);
+            $query->execute([$parent]);
+            $parent = (string) $query->fetchColumn();
+        }
+    },
+    'registry.key_after_delete' => static function (Context $ctx, string $id): void {
+        $subtree = 'WITH RECURSIVE subtree(id) AS (SELECT CAST(? AS TEXT) UNION SELECT CAST(k.id AS TEXT) FROM demo_registry_keys k JOIN subtree s ON k.parent_id = s.id)';
+        $ctx->db->prepare("$subtree DELETE FROM demo_registry_values WHERE CAST(key_id AS TEXT) IN (SELECT id FROM subtree)")->execute([$id]);
+        $ctx->db->prepare("$subtree DELETE FROM demo_registry_keys WHERE CAST(id AS TEXT) IN (SELECT id FROM subtree)")->execute([$id]);
     },
     // Dialog showcase: each action asks for confirmation (Action `confirm`) and then acknowledges (`reveal` + severity).
     'tasks.dialog_neutral' => static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Információ', 'value' => 'A művelet lefutott.', 'note' => 'Semleges nyugtázás: egyetlen Rendben gomb.', 'severity' => 'neutral']],

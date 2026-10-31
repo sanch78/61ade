@@ -30,12 +30,24 @@ function blade_demo_signage_calendar(): CalendarDefinition
 {
     // Under `archive` archived assets are no programme choices (the framework Lookup hides them).
     $assets = new Lookup('signage_assets', 'signage_assets', 'id', 'title', hideArchived: blade_demo_signage_policy() === 'archive');
+    $playlists = new Lookup('signage_playlists', 'signage_playlists', 'id', 'title');
+    // One choice per event: a playlist (`playlist:<id>`) or a single asset (`asset:<id>`), each list ACL-filtered.
+    $content = static function (Context $ctx) use ($assets, $playlists): array {
+        $out = [];
+        foreach ($playlists->options($ctx) as $id => $title) $out['playlist:'.$id] = \Blade\I18n\Translator::text('Lejátszási lista: {title}', ['title' => $title]);
+        foreach ($assets->options($ctx) as $id => $title) $out['asset:'.$id] = $title;
+        return $out;
+    };
     return new CalendarDefinition('signage_schedule', 'Műsorterv', 'signage',
-        fields: [new Field('asset_id', 'Tartalom', 'select', required: true, options: $assets->options(...))],
+        fields: [new Field('content', 'Tartalom', 'select', required: true, options: $content)],
         firstHour: 6, lastHour: 24,
         dayAction: ['resource' => 'signage_playlist', 'action' => 'day', 'label' => 'Napi műsor (API)'],
-        group: 'Digitális kijelző');
+        group: 'Digitális kijelző',
+        tones: [['field' => 'content', 'prefix' => 'playlist:', 'tone' => 'success']]);
 }
+
+/** Most items a playlist holds. */
+const BLADE_DEMO_SIGNAGE_PLAYLIST_ITEMS = 200;
 
 /** Named handlers of modules/signage.json. */
 function blade_demo_signage_bindings(): array
@@ -47,36 +59,48 @@ function blade_demo_signage_bindings(): array
             $q->execute([$id]);
             [$weekday, $date] = $q->fetch(PDO::FETCH_NUM) ?: ['', ''];
             if (($weekday === '') === ($date === '')) throw new Failure('Javítsd a megjelölt mezőket.', 400, ['weekday' => 'Add meg a hét napját vagy egy dátumot (csak az egyiket).']);
-            if ($date !== '' && (!($parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date)) || $parsed->format('Y-m-d') !== $date)) throw new Failure('Javítsd a megjelölt mezőket.', 400, ['date' => 'Érvénytelen dátum.']);
             $column = $weekday !== '' ? 'weekday' : 'date';
             $q = $ctx->db->prepare("SELECT COUNT(*) FROM signage_defaults WHERE $column = ? AND id <> ?");
             $q->execute([$weekday !== '' ? $weekday : $date, $id]);
             if ($q->fetchColumn()) throw new Failure('Javítsd a megjelölt mezőket.', 400, [$column => 'Erre a napra már van alapértelmezett tartalom.']);
             return [];
         },
+        // A new playlist item: at most BLADE_DEMO_SIGNAGE_PLAYLIST_ITEMS per playlist (guard; $target is null on create).
+        'signage.playlist_item_limit' => static function (Context $ctx, ?array $target, array $values): void {
+            if ($target !== null) return;
+            $q = $ctx->db->prepare('SELECT COUNT(*) FROM signage_playlist_items WHERE playlist_id = ?');
+            $q->execute([(string) ($values['playlist_id'] ?? '')]);
+            if ((int) $q->fetchColumn() >= BLADE_DEMO_SIGNAGE_PLAYLIST_ITEMS) throw new Failure('Egy listában legfeljebb '.BLADE_DEMO_SIGNAGE_PLAYLIST_ITEMS.' elem lehet.', 409);
+        },
     ];
 }
 
 /**
  * References of the signage tables (framework UsageProvider). The owner decision of FB-0063: a deleted file only
- * clears the asset's file reference (the asset stays); a deleted asset removes its day defaults and blanks the
- * asset of its programme events. The playlist ignores assets without a file and events without an asset.
+ * clears the asset's file reference (the asset stays); a deleted asset removes its day defaults and playlist items and
+ * blanks the content of its programme events; a deleted playlist removes its items and blanks its events. The day
+ * programme ignores assets without a file and events without content.
  */
 final readonly class BladeDemoSignageUsage implements UsageProvider
 {
-    /** @param 'files'|'events'|'defaults' $kind */
-    public function __construct(private string $kind) {}
+    /**
+     * @param 'files'|'events'|'defaults'|'items'|'playlist_items' $kind
+     * @param 'asset'|'playlist' $target `events`: which content prefix the deleted ids are
+     */
+    public function __construct(private string $kind, private string $target = 'asset') {}
 
     public function usages(Context $ctx, array $ids): array
     {
         [$label, $sql] = match ($this->kind) {
             'files' => ['Médiatár-elemek', 'SELECT file_id, COUNT(*) FROM signage_assets WHERE file_id IN (%s) GROUP BY file_id'],
-            'events' => ['Műsorterv-események', "SELECT json_extract(data, '$.asset_id'), COUNT(*) FROM blade_calendar_events WHERE space = 'signage' AND deleted = 0 AND json_extract(data, '$.asset_id') IN (%s) GROUP BY 1"],
+            'events' => ['Műsorterv-események', "SELECT substr(json_extract(data, '$.content'), ".(strlen($this->target) + 2).'), COUNT(*) FROM blade_calendar_events WHERE space = \'signage\' AND deleted = 0 AND json_extract(data, \'$.content\') IN (%s) GROUP BY 1'],
             'defaults' => ['Alapértelmezett tartalmak', 'SELECT asset_id, COUNT(*) FROM signage_defaults WHERE asset_id IN (%s) GROUP BY asset_id'],
+            'items' => ['Lejátszásilista-elemek', 'SELECT asset_id, COUNT(*) FROM signage_playlist_items WHERE asset_id IN (%s) GROUP BY asset_id'],
+            'playlist_items' => ['Lejátszásilista-elemek', 'SELECT playlist_id, COUNT(*) FROM signage_playlist_items WHERE playlist_id IN (%s) GROUP BY playlist_id'],
         };
         $out = [];
         foreach (array_chunk($ids, 500) as $chunk) {
-            $q = $ctx->db->prepare(sprintf($sql, implode(',', array_fill(0, count($chunk), '?'))));
+            $q = $ctx->db->prepare(sprintf($sql, implode(',', array_fill(0, count($chunk), $this->kind === 'events' ? "'".$this->target.":' || ?" : '?'))));
             $q->execute($chunk);
             foreach ($q->fetchAll(PDO::FETCH_NUM) as [$id, $count]) $out[(string) $id] = [['label' => $label, 'count' => (int) $count]];
         }
@@ -90,8 +114,10 @@ final readonly class BladeDemoSignageUsage implements UsageProvider
             match ($this->kind) {
                 'files' => $ctx->db->prepare("UPDATE signage_assets SET file_id = '' WHERE file_id IN ($in)")->execute($chunk),
                 // A blanked event keeps its slot; its revision changes so an open editor reloads it.
-                'events' => $ctx->db->prepare("UPDATE blade_calendar_events SET data = json_set(data, '$.asset_id', ''), revision = revision + 1 WHERE space = 'signage' AND json_extract(data, '$.asset_id') IN ($in)")->execute($chunk),
+                'events' => $ctx->db->prepare("UPDATE blade_calendar_events SET data = json_set(data, '$.content', ''), revision = revision + 1 WHERE space = 'signage' AND json_extract(data, '$.content') IN (".implode(',', array_fill(0, count($chunk), "'".$this->target.":' || ?")).')')->execute($chunk),
                 'defaults' => $ctx->db->prepare("DELETE FROM signage_defaults WHERE asset_id IN ($in)")->execute($chunk),
+                'items' => $ctx->db->prepare("DELETE FROM signage_playlist_items WHERE asset_id IN ($in)")->execute($chunk),
+                'playlist_items' => $ctx->db->prepare("DELETE FROM signage_playlist_items WHERE playlist_id IN ($in)")->execute($chunk),
             };
         }
     }
@@ -103,8 +129,8 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
     $calendar = blade_demo_signage_calendar();
     $calendar->register($workspace);
     $workspace->registry->add(new Action('signage_playlist', 'day', 'Napi műsor', [
-        new Field('date', 'Dátum', required: true, max: 10, validation: ['pattern' => ['expression' => '^[0-9]{4}-[0-9]{2}-[0-9]{2}$', 'message' => 'Formátum: ÉÉÉÉ-HH-NN.']]),
-    ], static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_playlist($ctx, $calendar, $values['date']), resolve: static fn() => ['id' => null, 'owner' => null]));
+        new Field('date', 'Dátum', 'date', required: true, max: 10),
+    ], static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_playlist($ctx, $calendar, $values['date']), resolve: static fn() => ['id' => null, 'owner' => null], icon: 'dxi dxi-calendar-today'));
     // Toolkit D2: the code of a scene asset for the playlist preview, which runs it in a SandboxFrame. Only a scene file the
     // actor could also read through the file manager (`content_stream` on its mount) is served; nothing else.
     $workspace->registry->add(new Action('signage_playlist', 'scene', 'Jelenet kódja', [
@@ -113,12 +139,18 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
         $storage = $files->storage($ctx->db, $workspace->tasks);
         return blade_demo_signage_scene_code($ctx, $storage, new FileMedia($files, $storage), $values['asset']);
     }, resolve: static fn() => ['id' => null, 'owner' => null]));
+    // Its panels (app.components.PageLayout): the day's commands above the shared player (frontend/src/player.ts).
     $workspace->registry->addView(new View('demo.playlist-preview', 'demo.playlist-preview', 'Napi műsor', resource: 'signage_playlist',
-        actions: ['day', 'scene'], options: ['media' => 'files'], group: 'Digitális kijelző', icon: 'dxi dxi-menu-right'));
+        actions: ['day', 'scene'], options: ['media' => 'files',
+            'layout' => ['rows' => [['id' => 'commands', 'height' => 56], ['id' => 'player', 'header' => 'Előnézet']]]],
+        group: 'Digitális kijelző', icon: 'dxi dxi-menu-right'));
     // Usage warnings: deleting a used file (file manager) or asset (Médiatár) shows the counts and clears the references.
     $workspace->registry->usage('files', new BladeDemoSignageUsage('files'));
     $workspace->registry->usage('signage_assets', new BladeDemoSignageUsage('events'));
     $workspace->registry->usage('signage_assets', new BladeDemoSignageUsage('defaults'));
+    $workspace->registry->usage('signage_assets', new BladeDemoSignageUsage('items'));
+    $workspace->registry->usage('signage_playlists', new BladeDemoSignageUsage('events', 'playlist'));
+    $workspace->registry->usage('signage_playlists', new BladeDemoSignageUsage('playlist_items'));
     // Upload as asset in one step: the shared uploader stores each file in the Signage mount and creates an asset.
     $workspace->registry->add(new Action('signage_assets', 'upload_asset', 'Feltöltés', [],
         static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_upload($ctx, $files->files($ctx->db, $workspace->tasks)),
@@ -126,6 +158,17 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
         upload: new UploadPolicy(array_values(array_intersect($files->allowedExtensions, ['png', 'jpg', 'jpeg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'])), $files->maxSizeBytes, $files->maxFiles,
             duplicatePolicy: 'rename', tempRoot: $files->temporaryRoot())));
     $workspace->registry->appendViewActions('signage_assets', ['upload_asset']);
+}
+
+/**
+ * One playlist item as stored and sent: asset, optional play time override (seconds, '' = the asset's), optional
+ * transition override ('' = the playlist's), on/off switch and an optional validity period (inclusive dates).
+ * @return array{asset:string,duration:string,transition:string,enabled:bool,valid_from:string,valid_to:string}
+ */
+function blade_demo_signage_item(array $row): array
+{
+    return ['asset' => (string) $row['asset_id'], 'duration' => (string) ($row['duration'] ?? ''), 'transition' => (string) ($row['transition'] ?? ''),
+        'enabled' => (string) ($row['enabled'] ?? '1') !== '0', 'valid_from' => (string) ($row['valid_from'] ?? ''), 'valid_to' => (string) ($row['valid_to'] ?? '')];
 }
 
 /** Stores every received file in the Signage mount root and creates an asset of it (title: the name without extension, 10 s). */
@@ -170,9 +213,32 @@ function blade_demo_signage_playlist(Context $ctx, CalendarDefinition $calendar,
     $q->execute([$date, $date, (string) $weekday]);
     [$defaultId, $defaultSource] = $q->fetch(PDO::FETCH_NUM) ?: [null, null];
     $default = $defaultId !== null ? ($assets[(string) $defaultId] ?? null) : null;
-    // Events without a playable asset (blanked by a deleted asset, or its file deleted) are left out.
+    // Playlists with the items that play on this date (switched on, within their validity), in order (shuffled lists in a
+    // stable order per date), each with its own play time (the override or the asset's) and transition (the item's
+    // override or the list's); the list loops in its slot.
+    $playlists = [];
+    foreach ($ctx->db->query('SELECT p.id, p.title, p.transition AS list_transition, p.transition_ms, p.shuffle, i.asset_id, i.duration, i.transition, i.enabled, i.valid_from, i.valid_to FROM signage_playlists p LEFT JOIN signage_playlist_items i ON i.playlist_id = CAST(p.id AS TEXT) ORDER BY p.id, i.position, i.id')->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $id = (string) $row['id'];
+        $playlists[$id] ??= ['id' => $id, 'title' => $row['title'], 'duration' => 0, 'shuffle' => $row['shuffle'] === '1', 'items' => []];
+        if ($row['asset_id'] === null || ($asset = $assets[(string) $row['asset_id']] ?? null) === null) continue;
+        $item = blade_demo_signage_item($row);
+        if (!$item['enabled'] || ($item['valid_from'] !== '' && $date < $item['valid_from']) || ($item['valid_to'] !== '' && $date > $item['valid_to'])) continue;
+        $playlists[$id]['items'][] = [...$asset, 'duration' => $item['duration'] !== '' ? (int) $item['duration'] : $asset['duration'],
+            'transition' => ['type' => $item['transition'] !== '' ? $item['transition'] : $row['list_transition'], 'ms' => (int) $row['transition_ms']]];
+    }
+    foreach ($playlists as &$list) {
+        if ($list['shuffle']) { $keys = array_map(static fn($i) => crc32($date.'|'.$list['id'].'|'.$i), array_keys($list['items'])); array_multisort($keys, $list['items']); }
+        $list['duration'] = array_sum(array_column($list['items'], 'duration'));
+    }
+    unset($list);
+    $content = static function (array $data) use ($assets, $playlists): array {
+        [$type, $id] = explode(':', (string) ($data['content'] ?? ''), 2) + ['', ''];
+        $playlist = $type === 'playlist' ? ($playlists[$id] ?? null) : null;
+        return ['asset' => $type === 'asset' ? ($assets[$id] ?? null) : null, 'playlist' => $playlist && $playlist['items'] ? $playlist : null];
+    };
+    // Events without playable content (blanked by a deleted asset or playlist, a deleted file, an empty playlist) are left out.
     $scheduled = array_values(array_filter(array_map(static fn($item) => ['event_id' => $item['id'], 'series_id' => $item['series_id'], 'title' => $item['text'], 'start' => $item['start'], 'end' => $item['end'],
-        'recurring' => $item['recurring'], 'asset' => $assets[(string) ($item['data']['asset_id'] ?? '')] ?? null], $calendar->occurrences($ctx->db, $from, $to)), static fn($entry) => $entry['asset'] !== null));
+        'recurring' => $item['recurring'], ...$content($item['data'])], $calendar->occurrences($ctx->db, $from, $to)), static fn($entry) => $entry['asset'] !== null || $entry['playlist'] !== null));
     // Segment boundaries in minutes of the day; each segment takes the latest-starting active entry.
     $minute = static fn(string $time) => max(0, min(1440, intdiv((new DateTimeImmutable($time, new DateTimeZone('UTC')))->getTimestamp() - $from->getTimestamp(), 60)));
     $points = [0, 1440];
@@ -186,8 +252,8 @@ function blade_demo_signage_playlist(Context $ctx, CalendarDefinition $calendar,
         $active = null;
         foreach ($scheduled as $index => $entry) if ($minute($entry['start']) <= $a && $minute($entry['end']) >= $b) $active = $index;
         $slot = $active !== null
-            ? ['source' => 'schedule', 'event_id' => $scheduled[$active]['event_id'], 'title' => $scheduled[$active]['title'], 'asset' => $scheduled[$active]['asset']]
-            : ['source' => $default ? 'default' : 'none', 'event_id' => null, 'title' => $default['title'] ?? null, 'asset' => $default];
+            ? ['source' => 'schedule', 'event_id' => $scheduled[$active]['event_id'], 'title' => $scheduled[$active]['title'], 'asset' => $scheduled[$active]['asset'], 'playlist' => $scheduled[$active]['playlist']]
+            : ['source' => $default ? 'default' : 'none', 'event_id' => null, 'title' => $default['title'] ?? null, 'asset' => $default, 'playlist' => null];
         $last = array_key_last($timeline);
         if ($last !== null && $timeline[$last]['end'] === $clock($a) && $timeline[$last]['source'] === $slot['source'] && $timeline[$last]['event_id'] === $slot['event_id']) $timeline[$last]['end'] = $clock($b);
         else $timeline[] = ['start' => $clock($a), 'end' => $clock($b), ...$slot];
@@ -228,6 +294,18 @@ function blade_demo_signage_setup(PDO $db, FileStorage $storage, ?Closure $repor
     // `kind` is no longer used (the type comes from the file); the column stays for existing demo data.
     $db->exec("CREATE TABLE IF NOT EXISTS signage_assets(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'image',file_id TEXT NOT NULL DEFAULT '',duration TEXT NOT NULL DEFAULT '10')");
     $db->exec("CREATE TABLE IF NOT EXISTS signage_defaults(id INTEGER PRIMARY KEY AUTOINCREMENT,weekday TEXT NOT NULL DEFAULT '',date TEXT NOT NULL DEFAULT '',asset_id TEXT NOT NULL)");
+    $db->exec('CREATE TABLE IF NOT EXISTS signage_playlists(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL)');
+    $db->exec("CREATE TABLE IF NOT EXISTS signage_playlist_items(id INTEGER PRIMARY KEY AUTOINCREMENT,playlist_id TEXT NOT NULL,asset_id TEXT NOT NULL,position INTEGER NOT NULL DEFAULT 0)");
+    $db->exec('CREATE INDEX IF NOT EXISTS signage_playlist_items_list ON signage_playlist_items(playlist_id, position)');
+    // Playlist settings and item overrides (added to existing demo databases).
+    $columns = static fn(string $table) => array_column($db->query("PRAGMA table_info($table)")->fetchAll(PDO::FETCH_ASSOC), 'name');
+    foreach (['transition' => "'fade'", 'transition_ms' => "'600'", 'shuffle' => "'0'"] as $column => $default)
+        if (!in_array($column, $columns('signage_playlists'), true)) $db->exec("ALTER TABLE signage_playlists ADD COLUMN $column TEXT NOT NULL DEFAULT $default");
+    foreach (['duration' => "''", 'transition' => "''", 'enabled' => "'1'", 'valid_from' => "''", 'valid_to' => "''"] as $column => $default)
+        if (!in_array($column, $columns('signage_playlist_items'), true)) $db->exec("ALTER TABLE signage_playlist_items ADD COLUMN $column TEXT NOT NULL DEFAULT $default");
+    // Events of the single-asset programme (`asset_id`) take the content field (`asset:<id>`, blank stays blank).
+    $db->exec("UPDATE blade_calendar_events SET data = json_remove(json_set(data, '$.content', CASE WHEN json_extract(data, '$.asset_id') = '' THEN '' ELSE 'asset:' || json_extract(data, '$.asset_id') END), '$.asset_id'), revision = revision + 1
+        WHERE space = 'signage' AND json_type(data, '$.asset_id') IS NOT NULL AND json_type(data, '$.content') IS NULL");
     if (!$db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn()) blade_demo_signage_seed($db);
     blade_demo_signage_media($db, $storage);
     blade_demo_signage_audio($db, $storage);
@@ -329,12 +407,12 @@ function blade_demo_signage_scene(PDO $db, FileStorage $storage): void
         $db->prepare('INSERT INTO signage_assets(title,file_id,duration) VALUES (?,?,?)')->execute([$title, $id, (string) $seconds]);
         $asset = $db->lastInsertId();
     }
-    $q = $db->prepare("SELECT COUNT(*) FROM blade_calendar_events WHERE space = 'signage' AND deleted = 0 AND json_extract(data, '$.asset_id') = ?");
-    $q->execute([(string) $asset]);
+    $q = $db->prepare("SELECT COUNT(*) FROM blade_calendar_events WHERE space = 'signage' AND deleted = 0 AND json_extract(data, '$.content') = ?");
+    $q->execute(['asset:'.$asset]);
     if ($q->fetchColumn()) return;
     $monday = (new DateTimeImmutable('monday this week'))->format('Y-m-d');
     $db->prepare('INSERT INTO blade_calendar_events(space,text,start_at,end_at,rrule,duration,data) VALUES (?,?,?,?,?,?,?)')
-        ->execute(['signage', $slot, "$monday 20:00:00", '9999-02-01 00:00:00', 'FREQ=DAILY;INTERVAL=1', 3600, json_encode(['asset_id' => (string) $asset], JSON_THROW_ON_ERROR)]);
+        ->execute(['signage', $slot, "$monday 20:00:00", '9999-02-01 00:00:00', 'FREQ=DAILY;INTERVAL=1', 3600, json_encode(['content' => 'asset:'.$asset], JSON_THROW_ON_ERROR)]);
 }
 
 /** Endless brand scene (resources/files/blade-brand.js): file name, asset title, loop length. */
@@ -379,10 +457,16 @@ function blade_demo_signage_seed(PDO $db): void
     foreach (range(1, 7) as $day) $default->execute([(string) $day, '', $ids[$day >= 6 ? 'poster' : 'brand']]);
     $event = $db->prepare('INSERT INTO blade_calendar_events(space,text,start_at,end_at,rrule,duration,data) VALUES (?,?,?,?,?,?,?)');
     $monday = (new DateTimeImmutable('monday this week'))->format('Y-m-d');
-    $data = static fn(string $id) => json_encode(['asset_id' => $id], JSON_THROW_ON_ERROR);
+    $data = static fn(string $id) => json_encode(['content' => 'asset:'.$id], JSON_THROW_ON_ERROR);
     // Weekday morning promo (recurring), a weekly Friday afternoon block and a one-off event this week.
     $event->execute(['signage', 'Reggeli promó', "$monday 08:00:00", '9999-02-01 00:00:00', 'FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR', 7200, $data($ids['promo'])]);
     $event->execute(['signage', 'Pénteki logóblokk', "$monday 14:00:00", '9999-02-01 00:00:00', 'FREQ=WEEKLY;INTERVAL=1;BYDAY=FR', 10800, $data($ids['logo'])]);
     $day = (new DateTimeImmutable($monday))->modify('+2 days')->format('Y-m-d');
     $event->execute(['signage', 'Rendezvény plakát', "$day 09:00:00", "$day 12:00:00", '', 0, $data($ids['poster'])]);
+    // A playlist of three assets (each for its own play time), every weekend afternoon.
+    $db->exec("INSERT INTO signage_playlists(title) VALUES ('Hétvégi válogatás')");
+    $playlist = (string) $db->lastInsertId();
+    $item = $db->prepare('INSERT INTO signage_playlist_items(playlist_id,asset_id,position) VALUES (?,?,?)');
+    foreach (['brand', 'poster', 'logo'] as $position => $key) $item->execute([$playlist, $ids[$key], $position]);
+    $event->execute(['signage', 'Hétvégi délután', "$monday 13:00:00", '9999-02-01 00:00:00', 'FREQ=WEEKLY;INTERVAL=1;BYDAY=SA,SU', 14400, json_encode(['content' => 'playlist:'.$playlist], JSON_THROW_ON_ERROR)]);
 }

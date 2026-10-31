@@ -38,6 +38,8 @@ final readonly class DiagramDefinition
         public ?string $group = null,
         public ?string $icon = 'dxi dxi-line-connect',
         public bool $desktopOnly = false,
+        /** The view's guide text (Blade\Feature\View $guide). */
+        public ?string $guide = null,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_.-]*$/D', $resource) || $title === '' || !$nodeTypes || !$linkTypes || count($nodeTypes) > 60 || count($linkTypes) > 20) throw new \InvalidArgumentException('Invalid diagram definition.');
         foreach ($nodeTypes as $key => $type) {

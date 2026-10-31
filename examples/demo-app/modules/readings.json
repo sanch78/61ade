@@ -45,7 +45,8 @@
                 ],
                 "actions": [
                     "get"
-                ]
+                ],
+                "guide": "Nagy, csak olvasható szintetikus lista: a táblázat virtuálisan görget, a rendezés és a szűrés a szerveren fut, a böngésző mindig csak egy korlátozott ablaknyi sort tart.\n\nGörgess a lista aljára, majd rendezz és szűrj: a sorszámok a teljes szűrt eredményben elfoglalt helyet mutatják. Az érték oszlop sávja egy projekt saját oszlopmegjelenítése."
             }
         }
     },
@@ -65,7 +66,8 @@
                 "buckets": 10
             },
             "group": "Feature demó",
-            "icon": "dxi dxi-chart-vertical"
+            "icon": "dxi dxi-chart-vertical",
+            "guide": "Egy projekt által regisztrált saját nézettípus a Mérések adatain: lista, diagram és összesítő egy oldalon.\n\nJelölj ki egy sort vagy szűrj a listában: a diagram és az összesítő követi. Ez a toolkit bővíthetőségének mintapéldája, a nyilvános komponensekből összeállítva."
         }
     }
 }

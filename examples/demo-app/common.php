@@ -76,7 +76,8 @@ function blade_demo_files(): Blade\Files\FileManagerDefinition
 {
     return new Blade\Files\FileManagerDefinition('files', 'Fájlkezelő', 'demo', ['a' => 'Drive A', 'b' => 'Drive B', 'c' => 'Drive C', 'signage' => 'Signage'],
         allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'], maxSizeBytes: 1073741824, maxFiles: 20, duplicatePolicy: 'ask',
-        textMaxBytes: 65536, group: 'Feature demó', desktopOnly: true, contentRoot: blade_demo_runtime('files'), deletePolicy: 'delete');
+        textMaxBytes: 65536, group: 'Feature demó', desktopOnly: true, contentRoot: blade_demo_runtime('files'), deletePolicy: 'delete',
+        guide: 'Kétpaneles fájlkezelő a keretrendszer fájlszolgáltatásán, három kitalált meghajtóval és a digitális kijelző médiatárával (Signage).'."\n\n".'Böngéssz a fában, másolj és mozgass a két panel között, tölts fel fájlokat és mappákat, nyisd meg a szövegfájlokat a szerkesztőben, nézd meg a képeket és videókat, és tölts le fájlokat vagy ZIP-csomagot. Csak asztali nézetben érhető el.');
 }
 
 /** Feature-demo diagram editor configured as a network topology builder (synthetic palette). */
@@ -101,5 +102,5 @@ function blade_demo_topology(): Blade\Diagram\DiagramDefinition
         'wifi' => ['label' => 'Wi-Fi', 'color' => '#0288d1', 'style' => 'dashed', 'width' => 2],
         'vpn' => ['label' => 'VPN-alagút', 'color' => '#8e24aa', 'style' => 'dotted', 'width' => 3],
         'wan' => ['label' => 'WAN', 'color' => '#e53935', 'width' => 3],
-    ], group: 'Feature demó', desktopOnly: true);
+    ], group: 'Feature demó', desktopOnly: true, guide: 'A keretrendszer diagramszerkesztője hálózati topológia-szerkesztőként beállítva: a paletta eszközei és a kapcsolattípusok a demó konfigurációja.'."\n\n".'Húzz eszközöket a vászonra, kösd össze őket, és mentsd a diagramot; saját eszköztípust is felvehetsz. Csak asztali nézetben érhető el.');
 }

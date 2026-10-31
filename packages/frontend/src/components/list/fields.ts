@@ -4,6 +4,7 @@ import { fileInput } from "../../FilePicker";
 import type { Form } from "@dhtmlx/suite";
 import { extensions, fieldTypeOf } from "../../app/registries";
 import type { FieldMetadata } from "../../api/types";
+import { calendarDate, dateValue, fieldActive } from "../../FormValidation";
 import type { ActionDefinition, FieldDefinition } from "./types";
 
 /** Form item factories and action helpers shared by the list, its forms and the public `RecordForm`. */
@@ -30,18 +31,57 @@ export const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>{
   return builtinInput(f,value,readOnly);
 };
 /**
- * Runs `bind` of the registered field types among $fields once their Form exists. The returned release aborts their
- * `signal`; the owner calls it when the form closes or is replaced.
+ * Runs `bind` of the registered field types among $fields once their Form exists, and shows each conditional field
+ * (`visibleWhen`) only while its condition holds; `toggled` runs after a field appeared or disappeared (a window refits).
+ * The returned release aborts their `signal`; the owner calls it when the form closes or is replaced.
  */
-export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(field:FieldDefinition)=>boolean=()=>false):()=>void{
+export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(field:FieldDefinition)=>boolean=()=>false,toggled?:()=>void):()=>void{
   const controller=new AbortController(),app=extensions.app;
+  const conditional=fields.filter(field=>field.visibleWhen&&form.getItem(field.name));
+  if(conditional.length){
+    const shown=new Map<string,boolean>();
+    const apply=()=>{
+      if(controller.signal.aborted)return;
+      const values=form.getValue() as Record<string,unknown>;let changed=false;
+      for(const field of conditional){
+        const active=fieldActive(field,values);
+        if(shown.get(field.name)===active)continue;
+        if(shown.has(field.name))changed=true;
+        shown.set(field.name,active);
+        const item=form.getItem(field.name) as any;
+        if(active)item.show();else item.hide();
+      }
+      if(changed)toggled?.();
+    };
+    apply();
+    form.events.on("change",(name:string)=>{if(conditional.some(field=>field.visibleWhen!.field===name))apply();});
+  }
   for(const field of fields){
+    if(field.type==="date"&&!readOnly(field)&&!fieldTypeOf(field))keepTypedDate(form,field,controller.signal);
     const type=field.type==="file"?undefined:fieldTypeOf(field);
     if(!type?.bind||!app)continue;
     try{type.bind({app,form,field:field as FieldMetadata,readOnly:readOnly(field),signal:controller.signal});}
     catch(error){console.error(`61ade: field type "${(field as FieldMetadata).editor}" bind failed`,error);}
   }
   return ()=>controller.abort();
+}
+/**
+ * Suite 9.3 DatePicker repaints a typed date away when its popup closes; a typed valid date, or a cleared
+ * field, is set again once the input leaves or the popup closes. A pick in the popup wins over earlier typing.
+ */
+function keepTypedDate(form:Form,field:FieldDefinition,signal:AbortSignal):void{
+  const item=form.getItem(field.name) as any;
+  if(!item)return;
+  let typed:string|undefined;
+  const settle=()=>setTimeout(()=>{
+    if(signal.aborted||typed===undefined)return;
+    const value=typed;typed=undefined;
+    if((value===""||calendarDate(value))&&String(dateValue(item.getValue())??"")!==value){if(value==="")item.clear();else item.setValue(value);}
+  });
+  item.events.on("input",(value:unknown)=>{typed=String(value??"").trim();});
+  item.events.on("change",(value:unknown)=>{if(String(dateValue(value)??"")!==typed)typed=undefined;});
+  item.events.on("blur",settle);
+  item.events.on("afterHide",settle);
 }
 const builtinInput=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type==="file"?fileInput(f,value,readOnly):f.type==="multiselect"&&!readOnly?{
   // Native Suite Combo with multiple selection; the kernel accepts the list or its comma-joined form.
@@ -52,6 +92,10 @@ const builtinInput=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type=
     // The hidden label names the checkbox; Suite otherwise announces it as "checkbox <text>".
     {type:"checkbox",name:f.name,text:f.label,label:f.label,hiddenLabel:true,width:"content",checked:String(value??f.defaultValue??"0")==="1"||value===true,disabled:readOnly},
   ],
+}:f.type==="date"&&!readOnly?{
+  // Native Suite DatePicker; the value stays the `YYYY-MM-DD` string the kernel validates.
+  type:"datepicker",name:f.name,label:f.label,labelPosition:"top",required:f.required,dateFormat:"%Y-%m-%d",valueFormat:"string",
+  weekStart:"monday",editable:true,value:String(value??f.defaultValue??""),
 }:({
   type:readOnly?"input":f.type==="select"?"select":f.type==="textarea"?"textarea":"input",
   name:f.name,label:f.label,labelPosition:"top",required:!readOnly&&f.required,maxlength:f.max,

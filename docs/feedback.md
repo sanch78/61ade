@@ -415,3 +415,31 @@
 <a id="fb-0100"></a>
 
 ## FB-0100 — Domain cutover to 61ade.com
+
+<a id="fb-0101"></a>
+
+## FB-0101 — Deleting occurrences of an event whose content was deleted
+
+<a id="fb-0102"></a>
+
+## FB-0102 — Media thumbnails, audio and animation icons, image and animation player
+
+<a id="fb-0103"></a>
+
+## FB-0103 — Playlists for the signage programme
+
+<a id="fb-0104"></a>
+
+## FB-0104 — A real date picker for date fields
+
+<a id="fb-0105"></a>
+
+## FB-0105 — A fuller playlist editor: item overrides, transitions, library controls
+
+<a id="fb-0107"></a>
+
+## FB-0107 — Guides on the feature-demo entries and a registry editor demo
+
+<a id="fb-0108"></a>
+
+## FB-0108 — Playlist editor and day programme from 61ade components only
