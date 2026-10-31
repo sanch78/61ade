@@ -48,7 +48,7 @@ guides are dropped. Section labels are numbered monospace tags (`01`–`06`).
 
 | Section | Content |
 | --- | --- |
-| Hero | Stack badge, serif headline with an italic blue second line, both buttons, the shared demo sign-in in monospace; below, the workspace screenshot in a browser frame and the phone screenshot, half over a navy blueprint band with four facts (languages, built-in and customizable themes, permission levels, audit); the hero guides run on behind the screenshots to the navy grid. |
+| Hero | Stack badge, serif headline with an italic blue second line, both buttons, the shared demo sign-in in monospace; below, the workspace screenshot in a browser frame and the phone screenshot, half over a navy blueprint band with four facts (languages, built-in and customizable themes, permission levels, audit); the hero guides run on behind the screenshots to the navy grid while the content is at full width (≥ 1280 px), where they meet its lines. |
 | `#idea` | Three principles with line icons. |
 | `#product` | Files, media, calendar and diagram, each with text, documentation link and a framed screenshot. |
 | `#foundations` | Navy band: the six capabilities as a grid, then the product status. |

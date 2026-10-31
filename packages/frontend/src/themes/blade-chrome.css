@@ -1,0 +1,65 @@
+/* Blade and Blade Night glossy chrome on Suite 9 widgets (docs/shell.md#61ade-character). No vendor skin files are
+   modified. Loaded before admin.css; the variables and tokens live in themes/blade.css, loaded after character.css. */
+
+/* Low selector specificity lets Suite validation, disabled and focus states win. */
+:where([data-blade-theme|="blade"]) .dhx_menu-nav,
+:where([data-blade-theme|="blade"]) .dhx_toolbar,
+:where([data-blade-theme|="blade"]) .dhx_layout-cell-header,
+:where([data-blade-theme|="blade"]) .dhx_grid-header-cell,
+:where([data-blade-theme|="blade"]) .dhx_grid-footer-cell,
+:where([data-blade-theme|="blade"]) .dhx_window-header {
+  background-image: var(--blade-chrome);
+  box-shadow: inset 0 1px 0 var(--blade-highlight);
+}
+:where([data-blade-theme|="blade"]) .dhx_layout-cell-header__title,
+:where([data-blade-theme|="blade"]) .dhx_grid-header-cell {
+  text-shadow: var(--blade-emboss);
+}
+:where([data-blade-theme|="blade"]) .dhx_menu {
+  border: 1px solid var(--dhx-border-color);
+  box-shadow: inset 0 0 0 1px var(--blade-highlight), 1px 2px 4px rgba(48,65,84,.22);
+}
+:where([data-blade-theme|="blade"]) .dhx_menu-button:hover:not(:disabled),
+:where([data-blade-theme|="blade"]) .dhx_menu-button:focus-visible:not(:disabled),
+:where([data-blade-theme|="blade"]) .dhx_toolbar-button:hover:not(:disabled),
+:where([data-blade-theme|="blade"]) .dhx_toolbar-button:focus-visible:not(:disabled) {
+  background-image: var(--blade-hover);
+  box-shadow: inset 0 0 0 1px var(--blade-hover-ring);
+}
+:where([data-blade-theme|="blade"]) .dhx_button--view_flat.dhx_button--color_primary,
+:where([data-blade-theme|="blade"]) .dhx_button--view_flat.dhx_button--color_secondary {
+  background-image: var(--blade-button);
+  box-shadow: var(--blade-bevel);
+  color: var(--blade-button-text);
+  text-shadow: var(--blade-emboss);
+}
+:where([data-blade-theme|="blade"]) .dhx_button--view_flat.dhx_button--color_primary:hover,
+:where([data-blade-theme|="blade"]) .dhx_button--view_flat.dhx_button--color_secondary:hover {
+  background-image: var(--blade-hover);
+}
+:where([data-blade-theme|="blade"]) .dhx_button--view_flat.dhx_button--color_primary:active,
+:where([data-blade-theme|="blade"]) .dhx_button--view_flat.dhx_button--color_secondary:active {
+  background-image: var(--blade-pressed);
+  box-shadow: var(--blade-pressed-bevel);
+}
+:where([data-blade-theme|="blade"]) .dhx_button--disabled,
+:where([data-blade-theme|="blade"]) .dhx_button:disabled {
+  background-image: none;
+  text-shadow: none;
+}
+:where([data-blade-theme|="blade"]) .dhx_button:focus-visible {
+  outline: 2px solid var(--dhx-color-primary);
+  outline-offset: 2px;
+}
+:where([data-blade-theme|="blade"]) .dhx_input {
+  background-color: var(--blade-input);
+  box-shadow: inset 0 1px 2px rgba(45,74,102,.16), inset 0 0 0 1px var(--dhx-border-color);
+}
+:where([data-blade-theme|="blade"]) .dhx_select {
+  background-image: var(--blade-chrome);
+}
+
+/* Native rowCss tracks the displayed order, including virtual scrolling. */
+:where([data-blade-theme|="blade"]) .blade-grid-row-alternate {
+  background-color: var(--blade-row-alternate);
+}

@@ -1770,6 +1770,11 @@ body:has(.image-dialog[open]) {
     transform: none;
   }
 }
+@media (max-width: 1279px) {
+  .stage::after {
+    display: none;
+  }
+}
 @media (max-width: 1080px) {
   .desktop-nav {
     display: none;
@@ -1815,8 +1820,7 @@ body:has(.image-dialog[open]) {
   .section > .wrap::before,
   .section > .wrap::after,
   .closing > .wrap::before,
-  .closing > .wrap::after,
-  .stage::after {
+  .closing > .wrap::after {
     display: none;
   }
   .brand img {

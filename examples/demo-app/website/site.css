@@ -290,6 +290,8 @@ body:has(.image-dialog[open]) { overflow: hidden; }
 .reveal-ready [data-reveal]:not(.is-revealed) { opacity: 0; transform: translateY(24px); }
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
+/* The guides meet the blueprint grid only at full content width. */
+@media (max-width: 1279px) { .stage::after { display: none; } }
 @media (max-width: 1080px) {
   .desktop-nav { display: none; }
   .mobile-nav { display: block; }
@@ -304,7 +306,7 @@ body:has(.image-dialog[open]) { overflow: hidden; }
   :root { --gutter: 20px; --inset: 0px; }
   .header-inner, .section > .wrap, .closing > .wrap, .hero-copy, .footer-inner { border-inline: 0; }
   .header-inner { padding-inline: 0; }
-  .section > .wrap::before, .section > .wrap::after, .closing > .wrap::before, .closing > .wrap::after, .stage::after { display: none; }
+  .section > .wrap::before, .section > .wrap::after, .closing > .wrap::before, .closing > .wrap::after { display: none; }
   .brand img { width: 100px; }
   .header-actions { gap: 10px; }
   .header-actions > .button--small { display: none; }
