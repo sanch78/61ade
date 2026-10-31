@@ -3,6 +3,7 @@ import { releaseSplash } from "./Splash";
 import "@dhtmlx/suite/codebase/suite.min.css";
 import "./themes/skyblue.css";
 import "./admin.css";
+import "./themes/blade.css";
 import "./flags/flags.css";
 import "./uploader.css";
 import "./splash.css";

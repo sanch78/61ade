@@ -153,16 +153,19 @@ export class AdminShell {
     if(required([{value:t("Menü")},...context],false)>width)context=[];
     // The menu never yields to the logo: it shows only in the room the menu, siblings and selectors leave.
     this.placeLogo(width-(compact?required([{value:t("Menü")},...context],false):required(this.menuItems)));
-    const state=JSON.stringify([compact,context.length?current:""]);
+    const state=JSON.stringify([compact,current,context.length>0]);
     if (state === this.menuState) return;
     this.menuState = state;
+    // A top-level item holding the open view carries the current-section underline (CSS, not the popup's active state).
+    const holds=(item:any):boolean=>item.id===current||(item.items??[]).some(holds);
+    const marked=(item:any)=>holds(item)?{...item,css:"blade-menu-current"}:item;
     const entries=[...structuredClone(this.menuItems),...this.tenantMenu(),
       { id: "blade-session-separator", type: "separator" },
       { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" },
     ];
-    const prefixed=(items:any[]):object[]=>items.map(item=>({...item,id:"sibling:"+item.id,active:item.id===current,...(item.items?{items:prefixed(item.items)}:{})}));
+    const prefixed=(items:any[]):any[]=>items.map(item=>({...item,id:"sibling:"+item.id,...(item.items?{items:prefixed(item.items)}:{})}));
     this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),icon:"dxi dxi-view-grid",items:entries},
-      ...(context.length?[{id:"blade-context-separator",type:"separator"},...prefixed(context)]:[])]:entries);
+      ...(context.length?[{id:"blade-context-separator",type:"separator"},...context.map(marked).map(item=>prefixed([item])[0])]:[])]:entries.map(marked));
   }
 
   /**
@@ -327,6 +330,11 @@ export class AdminShell {
       const menu = new NavigationMenu(undefined, { navigationType: "click" });
       this.menu = menu;
       this.resize();
+      // The open top-level tab's width lets CSS start its popup's top rule at the tab's right edge (themes/blade.css).
+      menu.events.on("openMenu", (id: string | number) => {
+        const tab=this.root.querySelector<HTMLElement>(`.blade-navigation-row .dhx_menu-nav > li > [data-dhx-id="${CSS.escape(String(id))}"]`);
+        if(tab)document.documentElement.style.setProperty("--blade-menu-tab",tab.getBoundingClientRect().width+"px");
+      });
       menu.events.on("click", (id: string | number) => {
         id=String(id).replace(/^sibling:/,"");
         if (id === "blade-logout") this.post("logout");

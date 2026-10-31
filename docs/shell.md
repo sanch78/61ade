@@ -666,17 +666,23 @@ own icons. Breakpoints include icon width. See [list headings/counts](workspaces
 
 <a id="elkülönülő-főmenügombok"></a>
 
-## Distinct main-menu buttons
+## Main-menu tabs
 
-All three themes give native top-level DHTMLX items permanent borders,
-theme backgrounds and 6 px gaps. Skyblue uses a blue gradient, light top edge
-and shadow for the requested classic Windows appearance; hover is gold and
-pressed/open state recessed blue. Keyboard focus has its own outline.
-Submenus retain native list layout. Separators, e.g. before logout, are faint
-1 px vertical lines following theme border color. No consumer configuration;
-rebuild/prepare assets. Historical shell asset version: `v=11`.
-Compact breakpoints include borders/gaps. Verified by `browser.spec.cjs`
-across themes, open submenus and phone width.
+Top-level native DHTMLX Menu items are flat, full-row-height tabs in every
+theme: no border, background, gradient or shadow, the item's icon in the
+theme's secondary text colour. Hover tints the tab with 8 % of
+`--dhx-color-primary`, an open popup with 14 %; keyboard focus has an inset
+outline. The section of the open view is marked: its top-level item (or, in
+the compact desktop menu, the sibling of the open view) gets the `css` class
+`blade-menu-current`, which shows a 3 px `--dhx-color-primary` underline and
+the primary-coloured icon while the label keeps the theme text colour. The
+marker is a CSS class on the item, not the native `active` state, so it stays
+apart from the open-popup state. Submenus retain native list layout.
+Separators, e.g. before logout, are faint 1 px vertical lines following the
+theme border colour. No consumer configuration; rebuild/prepare assets.
+Compact breakpoints are unchanged. Verified by `browser.spec.cjs` across
+themes and the compact sibling case. FB-0100 replaced the FB-0025 bordered
+buttons.
 
 <a id="kompakt-ablakfejléc-és-teljes-mobilmenü"></a>
 
@@ -696,7 +702,7 @@ behavior stay consistent; no consumer configuration. FB-0028.
 When the top menu does not fit a desktop-width (≥ 768 px) row and collapses into
 `Menü`, the open feature's siblings follow it after a faint separator: the
 items of the same menu branch (e.g. the other views of its `group`), with the
-open one in the native pressed (`active`) state. They are the same entries as
+open one marked as the [current section](#elkülönülő-főmenügombok). They are the same entries as
 inside `Menü`, so ACL filtering is unchanged. Top-level features have no
 context, phone width shows only `Menü`, and the siblings are omitted when they
 would not fit by the same width estimate. Navigation updates them.
