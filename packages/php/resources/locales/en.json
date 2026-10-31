@@ -708,6 +708,7 @@
   "Válassz egy elemet a fában.": "Select an item in the tree.",
   "Nem lehet korábbi vagy kisebb a kezdő értéknél.": "Cannot be earlier or smaller than the start value.",
   "Nem lehet későbbi vagy nagyobb a záró értéknél.": "Cannot be later or larger than the end value.",
+  "Nem adható meg együtt ezzel: {field}.": "Cannot be given together with: {field}.",
   "Elé": "Before",
   "Ez az elem nincs ebben a listában.": "This item is not in this list.",
   "Feljebb": "Move up",

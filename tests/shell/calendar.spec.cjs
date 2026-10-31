@@ -42,7 +42,7 @@ test('week view shows the recurring programme and the shared event form creates 
  await expect(page.locator('.dhx_cal_light')).toHaveCount(0);
  await expect(box.getByRole('button',{name:'Mégse'})).toBeVisible();
  await box.getByLabel('Megnevezés').fill(prefix+' teszt');
- await box.getByLabel('Tartalom').selectOption({label:'Az idő elegáns pillanata'});
+ await box.getByLabel('Tartalom').selectOption({label:'An elegant moment in time'});
  const saved=created(page);
  await box.getByRole('button',{name:'Mentés',exact:true}).click();
  expect((await saved).status()).toBe(200);await expect(box).toHaveCount(0);
@@ -73,7 +73,7 @@ test('the event form validates the period and writes a weekly series rule',async
  await page.getByRole('button',{name:'Új esemény',exact:true}).click();
  const box=editor(page);await expect(box).toBeVisible();
  await box.getByLabel('Megnevezés').fill(prefix+' sorozat');
- await box.getByLabel('Tartalom').selectOption({label:'Az idő elegáns pillanata'});
+ await box.getByLabel('Tartalom').selectOption({label:'An elegant moment in time'});
  await pickPreviousMonth(page,box,'Vége',15);
  let writes=0;page.on('request',r=>{try{if(r.postDataJSON()?.action==='create')writes++;}catch{}});
  await box.getByRole('button',{name:'Mentés',exact:true}).click();
@@ -109,8 +109,8 @@ test('playlist API: Friday timeline falls back to the weekday default outside th
  expect(result.status).toBe(200);
  const slots=result.body.data.timeline.map(s=>`${s.start}-${s.end} ${s.source} ${s.title}`);
  // The weekday blocks of the seed (signage.php blade_demo_signage_seed()); before 06:00 and after 22:00 the brand scene default.
- expect(slots).toEqual(['00:00-06:00 default Blade brand animáció','06:00-10:00 schedule Reggeli lista','10:00-12:00 schedule Arculati animáció',
-  '12:00-17:00 schedule Napközbeni lista','17:00-18:00 schedule Narancsos pezsgés','18:00-22:00 schedule Esti lista','22:00-24:00 default Blade brand animáció']);
+ expect(slots).toEqual(['00:00-06:00 default Blade brand animation','06:00-10:00 schedule Reggeli lista','10:00-12:00 schedule Arculati animáció',
+  '12:00-17:00 schedule Napközbeni lista','17:00-18:00 schedule Narancsos pezsgés','18:00-22:00 schedule Esti lista','22:00-24:00 default Blade brand animation']);
  expect(result.body.data.default.source).toBe('weekday');
  expect((await api(page,'signage_schedule','events',null,{from:'2026-01-01',to:'2026-12-31'})).status).toBe(400);
 });

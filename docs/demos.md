@@ -95,7 +95,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Registry editor (tree navigation, conditional fields) | `Regisztrációs adatbázis` ([registry.json](../examples/demo-app/modules/registry.json)): a Windows registry editor imitation. The key tree (`Registry::tree` over the `Kulcsok` hierarchy) loads children on expansion, its toolbar adds, edits (renames or moves, guarded against cycles) and deletes keys (with their subtree and values); the value list beside it is scoped to the selected key. The value form shows the editor of the chosen `Típus` only (`visible_when`): text, multi-line text, hexadecimal DWORD/QWORD or a byte string, each with its own pattern; the `Adat` column is computed SQL | Feature demo → Regisztrációs adatbázis; `reader@example.test` browses only |
 | View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in `Menü` below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Üres polc`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `C zóna` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
-| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date (a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
+| Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the `file` field with picker and upload, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date, a playlist or a single asset (the calendar's content choices through `options_binding`; a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
 | Appearance | Skyblue/light/dark, lower information bar and mobile menu | Any view |
@@ -253,7 +253,7 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
 #### D1: `Médiatár` asset viewer (`demo.asset-viewer`)
 
 - **Data:** the four music tracks of the [signage media](#signage-media)
-  (`Nyugodt zene`, `Izgalmas zene`, `Vidám zene`, `Drámai zene`, MP3, about
+  (`Calm music`, `Exciting music`, `Cheerful music`, `Dramatic music`, MP3, about
   3 min each) beside the images and videos. An existing demo database gains
   them with the idempotent setup
   (`BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`, see
@@ -324,7 +324,7 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   `{load(canvas), duration(), renderAt(seconds), play(), pause(), seek(seconds)}`;
   `renderAt` is deterministic, so a seek shows that moment. The playlist
   answer gives such an asset the type `scene`. The demo's scene is
-  `Blade brand animáció` (20 s loop, `resources/files/blade-brand.js`: the
+  `Blade brand animation` (20 s loop, `resources/files/blade-brand.js`: the
   [b1ade logo](brand.md) of the dark palette building up, glowing, swept by
   light and dissolving), stored with the [signage media](#signage-media). The
   seeded programme makes it the default of all seven weekdays, so free time
@@ -458,9 +458,12 @@ dynamic playback).
   playlist slot lists only the items that play on that date (switched on,
   within their validity), each with its effective `duration` and
   `transition` (`{type, ms}`); a shuffled list comes in a stable order per
-  date. Setup migrates older events' `asset_id` to `content` and seeds the
+  date. The day defaults (`signage_defaults.content`) take the same choices
+  (binding `signage.content`); a computed `asset_id` keeps the `Médiatár`
+  rows expanding to the defaults that play the asset. Setup migrates older
+  events' and defaults' `asset_id` to `content` and seeds the
   four [sample playlists](#signage-media) on a fresh database. Deleting an asset removes its
-  playlist items; deleting a playlist removes its items and blanks its events
+  playlist items; deleting a playlist removes its items and day defaults and blanks its events
   (usage warnings in both confirmations). Time without events, the night
   included, plays the day's default content.
 - **View** (`playlist-editor.ts`, desktop only), only 61ade components in the
@@ -556,13 +559,18 @@ Owner decision of 2026-10-31 ([FB-0112](feedback.md#fb-0112)): the
 the media stay out of Git. `BLADE_DEMO_SIGNAGE_MEDIA` in
 [signage.php](../examples/demo-app/signage.php) lists them (file name, asset
 title, stored MIME type, play time). The files themselves are in the
-git-ignored `examples/demo-app/resources/media/` (about 81 MB) on `catalyst`:
+git-ignored `examples/demo-app/resources/media/` (about 81 MB) on `catalyst`.
+File names and asset titles are English demo data (owner request of
+2026-10-31, [FB-0114](feedback.md#fb-0114)); setup renames the earlier
+Hungarian names of an existing database (`BLADE_DEMO_SIGNAGE_FORMER`: the file
+unless the English name is taken, the asset title only while it is the former
+one). Playlist and programme event titles stay Hungarian:
 
 | Media | Files | Source |
 | --- | --- | --- |
-| 10 images (1672 × 941 PNG, 10 s each) | `<title>.png`, e.g. `Kézműves kávé, lassú reggelek.png` | Generative images uploaded by the owner |
-| 4 videos (MP4) | `3d-logointro.mp4`, `black-friday-neon.mp4`, `irodahaz-alkonyatkor.mp4`, `setaloutca.mp4` | Stock clips uploaded by the owner from free sources |
-| 4 music tracks (MP3, about 3 min each) | `nyugodt-zene.mp3`, `izgalmas-zene.mp3`, `vidam-zene.mp3`, `dramai-zene.mp3` | The four approved StoryBloX mood tracks (MP3 playback copies) |
+| 10 images (1672 × 941 PNG, 10 s each) | `<title>.png`, e.g. `Craft coffee, slow mornings.png` | Generative images uploaded by the owner |
+| 4 videos (MP4) | `3d-logo-intro.mp4`, `black-friday-neon.mp4`, `office-building-at-dusk.mp4`, `sunny-pedestrian-street.mp4` | Stock clips uploaded by the owner from free sources |
+| 4 music tracks (MP3, about 3 min each) | `calm-music.mp3`, `exciting-music.mp3`, `cheerful-music.mp3`, `dramatic-music.mp3` | The four approved StoryBloX mood tracks (MP3 playback copies) |
 
 The brand scene `blade-brand.js` is source code and stays in Git
 (`resources/files/`). Every `setup-workspace.php` run

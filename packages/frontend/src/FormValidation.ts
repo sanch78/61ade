@@ -40,6 +40,8 @@ export type FieldDefinition = {
   file?: FileFieldConfig;
   /** Conditional field: it takes part only while the field `field` of the record holds one of `in`. */
   visibleWhen?: { field: string; in: string[] };
+  /** Exclusive choice: a value of this field empties these fields of the record. */
+  clears?: string[];
 };
 /**
  * Whether a conditional field takes part for the form's values; a condition whose field is not in $values (not on the

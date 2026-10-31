@@ -3956,3 +3956,50 @@ that exactly equals an option label lists every option. The managed
   `uploader` and `files` (and the `files` cases depending on the latter),
   which allocate `maxSizeBytes + 1` = 1 GiB since `ec75811`.
 - **Status:** implemented.
+
+## FB-0113 — Playlist as default content
+
+- **Date:** 2026-10-31.
+- **Request:** in `Alapértelmezett tartalom`
+  (`#view=signage_defaults`) a concrete asset or a playlist can be given.
+- **Implemented:** `signage_defaults.asset_id` became `content` with the
+  programme calendar's choices (`playlist:<id>` or `asset:<id>`; both use
+  `blade_demo_signage_content()`, the JSON field through the binding
+  `signage.content`). A computed `asset_id` keeps the `Médiatár` sub-view
+  (the defaults playing an asset). In `signage_playlist.day` free time plays a
+  playlist default like a playlist event; `default` is now
+  `{source, title, asset, playlist}` instead of the asset with `source`
+  ([calendar](calendar.md#demo-and-verification)). The usage counts and the
+  delete warnings count defaults for playlists too; deleting a playlist removes
+  its defaults. Setup migrates existing rows (`asset:` + the old id, then
+  drops `asset_id`); the shared `tmp/web` instance was migrated (backup taken
+  first) and the sandbox seed rebuilt. Demo-only: no framework change.
+- **Verification (2026-10-31):** PHP `signage.php` (new: content choices
+  equal the calendar's, unknown content refused, a playlist date default fills
+  the night, playlist usage and delete preview count it, the delete removes
+  it, the asset sub-view counts), `contracts.php`, `calendar.php`,
+  `toolkit.php`, `lists.php` and `i18n.php` passed; `configuration.php` fails
+  on HEAD as well (skin shadowing a factory theme). Browser on the shared
+  instance: `signage`, `toolkit-demo-playlist` and `calendar` 19/22, the three
+  failures the theme-toggle cases already failing in
+  [FB-0112](#fb-0112).
+- **Status:** implemented.
+
+<a id="fb-0114"></a>
+
+## FB-0114 — English demo assets
+
+- **Date:** 2026-10-31.
+- **Request:** "a demo db assetek legyenek angolok" — the signage demo assets
+  in English.
+- **Implemented:** `BLADE_DEMO_SIGNAGE_MEDIA` and `BLADE_DEMO_SIGNAGE_BRAND`
+  use English file names and asset titles (e.g. `Craft coffee, slow
+  mornings.png`, `calm-music.mp3`, `Blade brand animation`); the git-ignored
+  `resources/media/` files were renamed to match. Setup renames the former
+  Hungarian names of an existing database (`BLADE_DEMO_SIGNAGE_FORMER`, through
+  `FileStorage::rename()`; an asset title changes only while it is the former
+  one, so a title edited by hand stays). Playlist and event titles were not in
+  scope and stay Hungarian ([signage media](demos.md#signage-media)). Tests and
+  the `signage_playlist.day` example in [calendar](calendar.md) follow the new
+  names. Demo-only: no framework change.
+- **Status:** implemented.

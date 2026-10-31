@@ -181,7 +181,8 @@ shared danger confirmation.
 The feature demo configures it as a digital signage (DMS) scheduler in the
 `Digitális kijelző` group ([demos](demos.md#teljes-feature-demó-)):
 `Médiatár` (image, video and audio assets referencing file-manager media),
-`Alapértelmezett tartalom` (default asset per weekday or per date),
+`Alapértelmezett tartalom` (default content per weekday or per date: a
+playlist or a single asset, the same `content` choices as the calendar's),
 `Lejátszási listák` (playlists of assets, edited by drag and drop in the project
 record view `demo.playlist-editor`, [D5](demos.md#d5-playlist-editor)) and
 `Műsorterv` (this calendar; its extra field `content` is a playlist or a
@@ -189,7 +190,9 @@ single asset, and playlist events take the `success` tone). The consumer
 action `signage_playlist.day` answers what plays on a date: the day's
 occurrences and a gap-free 00:00–24:00 `timeline` in which the latest-starting
 active programme wins and free time falls back to the date default, then the
-weekday default (`source`: `schedule`, `default` or `none`). A playlist slot
+weekday default (`source`: `schedule`, `default` or `none`); `default` is
+`{source, title, asset, playlist}` (`source` `date` or `weekday`), or null
+when the day has none or it plays nothing. A playlist slot
 carries `playlist` (`id`, `title`, `duration`, `shuffle`, `items`: the
 assets that play on that date (switched on, within their validity) in order,
 a shuffled list in a stable order per date, each with its effective play time
@@ -215,10 +218,10 @@ curl -s https://demo.61ade.com/?blade=1 -b 'blade_demo_sandbox=<cookie value>' \
 
 ```json
 {"ok":true,"data":{"date":"2026-10-30","weekday":5,"weekday_name":"Péntek",
- "default":{"id":"1","title":"Blade brand animáció","kind":"scene","duration":20,"file":{"id":"39","name":"blade-brand.js","mime_type":"text/javascript"},"source":"weekday"},
+ "default":{"source":"weekday","title":"Blade brand animation","asset":{"id":"1","title":"Blade brand animation","kind":"scene","duration":20,"file":{"id":"39","name":"blade-brand.js","mime_type":"text/javascript"}},"playlist":null},
  "scheduled":[{"event_id":"1#202610300600","series_id":"1","title":"Reggeli lista","start":"2026-10-30 06:00","end":"2026-10-30 10:00","recurring":true,"asset":null,
                "playlist":{"id":"1","title":"Reggeli lista","duration":60,"shuffle":false,"items":[{"…":"…"}]}}, {"…":"…"}],
- "timeline":[{"start":"00:00","end":"06:00","source":"default","title":"Blade brand animáció","asset":{"…":"…"}},
+ "timeline":[{"start":"00:00","end":"06:00","source":"default","title":"Blade brand animation","asset":{"…":"…"}},
              {"start":"06:00","end":"10:00","source":"schedule","event_id":"1#202610300600","title":"Reggeli lista","playlist":{"…":"…"}}, {"…":"…"}]}}
 ```
 

@@ -22,6 +22,8 @@ final readonly class Action
         // A condition names another field of the record; one the action carries must not be conditional itself.
         $known = array_column($fields, null, 'name');
         foreach ($fields as $field) if ($field->visibleWhen !== null && ($known[$field->visibleWhen['field']] ?? null)?->visibleWhen !== null) throw new \InvalidArgumentException('A field condition cannot depend on a conditional field.');
+        // An exclusive choice empties optional fields of the same action, never a secret one.
+        foreach ($fields as $field) foreach ($field->clears as $other) if (!isset($known[$other]) || $known[$other]->secret || $known[$other]->required) throw new \InvalidArgumentException('An exclusive field clears an unknown field: '.$field->name);
     }
 
     /** Browser-visible confirmation prompt shown before the action runs. Plain text only. */

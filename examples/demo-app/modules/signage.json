@@ -1,7 +1,7 @@
 {
     "section_descriptions": {
         "purpose": "Feature demo: digital signage (DMS) content register for the event calendar.",
-        "covers": "media assets over files of the Signage mount (file field, derived type/resolution/length, usage count), the record view demo.asset-viewer for image, video, audio and animation (scene) assets (activation by the file's MIME type or class, the demo.play toolbar command), default content per weekday or per date, lookup choices, a business rule hook, playlists of assets (computed item count and length) whose items are an ordered child resource (manual order, drops from the asset list, today's status), edited in the record view demo.playlist-editor (declared panel layout)."
+        "covers": "media assets over files of the Signage mount (file field, derived type/resolution/length, usage count), the record view demo.asset-viewer for image, video, audio and animation (scene) assets (activation by the file's MIME type or class, the demo.play toolbar command), default content (a playlist or a single asset) per weekday or per date, lookup choices, a business rule hook, playlists of assets (computed item count and length) whose items are an ordered child resource (manual order, drops from the asset list, today's status), edited in the record view demo.playlist-editor (declared panel layout)."
     },
     "lookups": {
         "signage_assets": {
@@ -194,13 +194,28 @@
                 },
                 {
                     "name": "asset_id",
-                    "label": "Alapértelmezett tartalom",
+                    "label": "Médiaelem",
                     "type": "select",
-                    "required": true,
                     "options_lookup": "signage_assets",
+                    "clears": [
+                        "playlist_id"
+                    ],
                     "column": {
                         "editable": true,
                         "minWidth": 220
+                    }
+                },
+                {
+                    "name": "playlist_id",
+                    "label": "Lejátszási lista",
+                    "type": "select",
+                    "options_lookup": "signage_playlists",
+                    "clears": [
+                        "asset_id"
+                    ],
+                    "column": {
+                        "editable": true,
+                        "minWidth": 200
                     }
                 }
             ],
@@ -211,7 +226,7 @@
                 "title": "Alapértelmezett tartalom",
                 "group": "Digitális kijelző",
                 "icon": "dxi dxi-clock-outline",
-                "guide": "Mi játszódjon, amikor a műsortervben nincs esemény: a hét egy napjára vagy egy dátumra rendelt médiaelem. A Dátum a keretrendszer dátummezője: naptárválasztó az űrlapon és a táblázat cellájában is.\n\nVegyél fel egy sort egy hétköznapra, majd egyet egy dátumra. A mentés utáni üzleti szabály a kettő közül pontosan egyet enged, és mindegyiket legfeljebb egyszer.",
+                "guide": "Mi játszódjon, amikor a műsortervben nincs esemény: a hét egy napjára vagy egy dátumra rendelt médiaelem vagy lejátszási lista. A kettő közül egyet választhatsz: ha az egyiket kijelölöd, a másik kiürül (a keretrendszer kizáró mezőpárja, az űrlapon és a táblázat cellájában is). A Dátum a keretrendszer dátummezője: naptárválasztó az űrlapon és a táblázat cellájában is.\n\nVegyél fel egy sort egy hétköznapra, majd egyet egy dátumra. A mentés utáni üzleti szabály a kettő közül pontosan egyet enged, és mindegyiket legfeljebb egyszer.",
                 "columns": [
                     {
                         "id": "weekday",
@@ -223,7 +238,11 @@
                     },
                     {
                         "id": "asset_id",
-                        "header": "Alapértelmezett tartalom"
+                        "header": "Médiaelem"
+                    },
+                    {
+                        "id": "playlist_id",
+                        "header": "Lejátszási lista"
                     }
                 ],
                 "actions": [
@@ -241,7 +260,7 @@
                 "computed": {
                     "items": "(SELECT COUNT(*) FROM signage_playlist_items count_item WHERE count_item.playlist_id = CAST(blade_base.id AS TEXT))",
                     "length": "(SELECT COALESCE(SUM(CAST(COALESCE(NULLIF(length_item.duration, ''), length_asset.duration) AS INTEGER)), 0) FROM signage_playlist_items length_item JOIN signage_assets length_asset ON CAST(length_asset.id AS TEXT) = length_item.asset_id WHERE length_item.playlist_id = CAST(blade_base.id AS TEXT) AND length_item.enabled <> '0')",
-                    "usage": "(SELECT COUNT(*) FROM blade_calendar_events usage_event WHERE usage_event.space = 'signage' AND usage_event.deleted = 0 AND json_extract(usage_event.data, '$.content') = 'playlist:' || blade_base.id)"
+                    "usage": "(SELECT COUNT(*) FROM blade_calendar_events usage_event WHERE usage_event.space = 'signage' AND usage_event.deleted = 0 AND json_extract(usage_event.data, '$.content') = 'playlist:' || blade_base.id) + (SELECT COUNT(*) FROM signage_defaults usage_default WHERE usage_default.playlist_id = CAST(blade_base.id AS TEXT))"
                 }
             },
             "fields": [

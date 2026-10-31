@@ -76,12 +76,12 @@ test('a JSON-declared sub-view: a media item expands to the default contents tha
  await signIn(page);
  await openMenu(page,'Médiatár','Digitális kijelző');
  // The library holds the demo media; the header filter keeps the brand scene (every weekday's default) in the rendered rows.
- await page.getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true}).fill('Blade brand animáció');
- await expect(page.locator('.dhx_grid-row').filter({hasText:'Blade brand animáció'})).toHaveCount(1);
- await expand(page,'Blade brand animáció');
+ await page.getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true}).fill('Blade brand animation');
+ await expect(page.locator('.dhx_grid-row').filter({hasText:'Blade brand animation'})).toHaveCount(1);
+ await expand(page,'Blade brand animation');
  await expect(preview(page).locator('.dhx_grid-row')).toHaveCount(7);
  for(const day of ['Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat','Vasárnap'])await expect(preview(page).locator('.dhx_grid-row').filter({hasText:day})).toHaveCount(1);
- await expand(page,'Blade brand animáció');
+ await expand(page,'Blade brand animation');
  await expect(page.locator('.blade-subview-host')).toHaveCount(0);
  expect(errors).toEqual([]);
 });

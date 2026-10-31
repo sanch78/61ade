@@ -37,21 +37,21 @@ try {
     check($signage !== null, 'Setup creates the Signage mount root');
     // The demo media and the brand scene: one file each in the Signage root with its stored type, one asset each.
     $seeded = $db->query('SELECT a.title, a.duration, f.name, f.mime_type, f.mount_id, f.parent_id FROM signage_assets a JOIN blade_files f ON f.id = a.file_id ORDER BY a.id')->fetchAll(PDO::FETCH_ASSOC);
-    $expected = [['Blade brand animáció', '20', 'blade-brand.js', 'text/javascript']];
+    $expected = [['Blade brand animation', '20', 'blade-brand.js', 'text/javascript']];
     foreach (BLADE_DEMO_SIGNAGE_MEDIA as $name => [$title, $mime, $seconds]) $expected[] = [$title, (string) $seconds, $name, $mime];
     check(array_map(static fn($row) => [$row['title'], $row['duration'], $row['name'], $row['mime_type']], $seeded) === $expected
         && !array_filter($seeded, static fn($row) => $row['mount_id'] !== 'signage' || (int) $row['parent_id'] !== (int) $signage['id']), 'Demo media: Signage root, stored type, one asset each (idempotent setup)');
     check($storage->entry($other)['mount_id'] === 'b', 'Other files untouched');
     $fileOf = static fn(string $name) => (int) $storage->child((int) $signage['id'], $name)['id'];
-    [$image, $video, $music] = [$fileOf('Kézműves kávé, lassú reggelek.png'), $fileOf('3d-logointro.mp4'), $fileOf('nyugodt-zene.mp3')];
+    [$image, $video, $music] = [$fileOf('Craft coffee, slow mornings.png'), $fileOf('3d-logo-intro.mp4'), $fileOf('calm-music.mp3')];
     // Brand scene: one script file in the Signage root, its asset the weekday default of every day.
     $brandId = (string) $db->query("SELECT a.id FROM signage_assets a JOIN blade_files f ON f.id = a.file_id WHERE f.name = 'blade-brand.js' AND f.mime_type = 'text/javascript' AND f.mount_id = 'signage'")->fetchColumn();
-    check($brandId !== '' && $db->query("SELECT group_concat(weekday || ':' || asset_id, ',') FROM (SELECT weekday, asset_id FROM signage_defaults WHERE date = '' ORDER BY weekday)")->fetchColumn() === implode(',', array_map(static fn($day) => "$day:$brandId", range(1, 7))), 'Brand scene is the weekday default of every day');
+    check($brandId !== '' && $db->query("SELECT group_concat(weekday || ':' || asset_id || ':' || playlist_id, ',') FROM (SELECT weekday, asset_id, playlist_id FROM signage_defaults WHERE date = '' ORDER BY weekday)")->fetchColumn() === implode(',', array_map(static fn($day) => "$day:$brandId:", range(1, 7))), 'Brand scene is the weekday default of every day');
     // Sample programme: four playlists (items in order, transition overrides) and weekday and weekend blocks.
     $lists = $db->query("SELECT p.title || ' ' || p.transition, group_concat(f.name || CASE i.transition WHEN '' THEN '' ELSE ':' || i.transition END, '|') FROM signage_playlists p JOIN signage_playlist_items i ON i.playlist_id = CAST(p.id AS TEXT) JOIN signage_assets a ON a.id = i.asset_id JOIN blade_files f ON f.id = a.file_id GROUP BY p.id ORDER BY p.id")->fetchAll(PDO::FETCH_KEY_PAIR);
     check(array_keys($lists) === ['Reggeli lista fade', 'Napközbeni lista fade', 'Esti lista slide', 'Hétvégi lista slide']
-        && $lists['Reggeli lista fade'] === 'Kézműves kávé, lassú reggelek.png|Dinamikus futócipő kobalt és lime színekben.png|Narancsos pezsgés kobaltkékben.png|Az idő elegáns pillanata.png|blade-brand.js'
-        && $lists['Hétvégi lista slide'] === 'Kézműves kávé, lassú reggelek.png|3d-logointro.mp4|Rókafeltaláló a lebegő kertben.png|Elektronikus fesztivál fényárban.png:zoom|Éjszakai falatok a folyóparton.png|Dinamikus futócipő kobalt és lime színekben.png:zoom', 'Playlists over the demo media');
+        && $lists['Reggeli lista fade'] === 'Craft coffee, slow mornings.png|Dynamic running shoe in cobalt and lime.png|Orange fizz in cobalt blue.png|An elegant moment in time.png|blade-brand.js'
+        && $lists['Hétvégi lista slide'] === 'Craft coffee, slow mornings.png|3d-logo-intro.mp4|Fox inventor in the floating garden.png|Electronic festival in a flood of light.png:zoom|Late-night bites by the river.png|Dynamic running shoe in cobalt and lime.png:zoom', 'Playlists over the demo media');
     $events = $db->query("SELECT text || ' ' || substr(start_at, 12, 5) || ' ' || (duration / 3600) || 'h ' || substr(rrule, 30) FROM blade_calendar_events WHERE space = 'signage' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
     check($events === ['Reggeli lista 06:00 4h MO,TU,WE,TH,FR', 'Arculati animáció 10:00 2h MO,TU,WE,TH,FR', 'Napközbeni lista 12:00 5h MO,TU,WE,TH,FR', 'Narancsos pezsgés 17:00 1h MO,TU,WE,TH,FR',
         'Esti lista 18:00 4h MO,TU,WE,TH,FR', 'Reggeli lista 06:00 4h SA,SU', 'Hétvégi lista 10:00 8h SA,SU', 'Esti lista 18:00 4h SA,SU'], 'Weekday and weekend programme');
@@ -66,10 +66,10 @@ try {
     // Music: the probed length reaches the file. The media step restores only a missing asset, adds no programme to an
     // existing database, and is idempotent.
     check(abs((int) $storage->entry($music)['duration_ms'] - 182040) <= 150, 'Music length probed');
-    $db->exec("DELETE FROM signage_assets WHERE title = 'Vidám zene'");
+    $db->exec("DELETE FROM signage_assets WHERE title = 'Cheerful music'");
     foreach ([1, 2] as $run) blade_demo_signage_setup($db, $storage);
-    check((int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 19 && (int) $db->query("SELECT COUNT(*) FROM signage_assets WHERE title = 'Vidám zene'")->fetchColumn() === 1
-        && (int) $db->query("SELECT COUNT(*) FROM blade_files WHERE name = 'vidam-zene.mp3' AND archived_at IS NULL")->fetchColumn() === 1
+    check((int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 19 && (int) $db->query("SELECT COUNT(*) FROM signage_assets WHERE title = 'Cheerful music'")->fetchColumn() === 1
+        && (int) $db->query("SELECT COUNT(*) FROM blade_files WHERE name = 'cheerful-music.mp3' AND archived_at IS NULL")->fetchColumn() === 1
         && (int) $db->query('SELECT COUNT(*) FROM signage_playlists')->fetchColumn() === 4 && (int) $db->query('SELECT COUNT(*) FROM blade_calendar_events')->fetchColumn() === 8, 'The media step restores only a missing asset and is idempotent');
     $ids = array_map('strval', $db->query('SELECT title, id FROM signage_assets')->fetchAll(PDO::FETCH_KEY_PAIR));
     $sceneId = $brandId;
@@ -130,23 +130,24 @@ try {
     // Listing: `_media` descriptors and usage counts (events and day defaults referencing the asset).
     $list = $call('signage_assets', 'list', null, ['limit' => 30, 'sort' => ['field' => 'usage', 'direction' => 'desc']]);
     $items = array_column($list['items'], null, 'title');
-    check((int) $items['Blade brand animáció']['usage'] === 9, 'Brand scene: seven weekday defaults, its event and a playlist item');
-    check((int) $items['Narancsos pezsgés kobaltkékben']['usage'] === 2 && (int) $items['Kézműves kávé, lassú reggelek']['usage'] === 2 && (int) $items['3D logóintró']['usage'] === 2 && (int) $items['Nyugodt zene']['usage'] === 0, 'Usage counts events, defaults and playlist items');
-    check($list['items'][0]['title'] === 'Blade brand animáció' && (int) $list['items'][1]['usage'] === 2 && (int) end($list['items'])['usage'] === 0, 'Sorted by usage on the server');
-    check($items['3D logóintró']['_media']['file_id']['mime_type'] === 'video/mp4' && $items['3D logóintró']['_media']['file_id']['width'] === 1920 && $items['3D logóintró']['_media']['file_id']['name'] === '3d-logointro.mp4'
-        && $items['Nyugodt zene']['_media']['file_id']['mime_type'] === 'audio/mpeg', 'Media descriptors in rows');
+    check((int) $items['Blade brand animation']['usage'] === 9, 'Brand scene: seven weekday defaults, its event and a playlist item');
+    check($items['Blade brand animation']['_subview'] === 7 && $items['3D logo intro']['_subview'] === 0, 'An asset expands to the defaults playing it');
+    check((int) $items['Orange fizz in cobalt blue']['usage'] === 2 && (int) $items['Craft coffee, slow mornings']['usage'] === 2 && (int) $items['3D logo intro']['usage'] === 2 && (int) $items['Calm music']['usage'] === 0, 'Usage counts events, defaults and playlist items');
+    check($list['items'][0]['title'] === 'Blade brand animation' && (int) $list['items'][1]['usage'] === 2 && (int) end($list['items'])['usage'] === 0, 'Sorted by usage on the server');
+    check($items['3D logo intro']['_media']['file_id']['mime_type'] === 'video/mp4' && $items['3D logo intro']['_media']['file_id']['width'] === 1920 && $items['3D logo intro']['_media']['file_id']['name'] === '3d-logo-intro.mp4'
+        && $items['Calm music']['_media']['file_id']['mime_type'] === 'audio/mpeg', 'Media descriptors in rows');
     check($call('signage_assets', 'list', null, ['filters' => ['file_id' => 'video']])['matched'] === 4, 'Type filter over the file');
     $readerList = $call('signage_assets', 'list', null, ['limit' => 10], $ctx($reader));
     check($readerList['total'] === 19 && is_array($readerList['items'][0]['_media']['file_id'] ?? null), 'Reader lists assets with media');
 
     // Upload as asset: each file lands in Signage/ through the file manager's storage API and becomes an asset.
     $part = static function (string $name, string $content) use ($tmp): Upload { $path = $tmp.'/up-'.bin2hex(random_bytes(6)); file_put_contents($path, $content); return new Upload('files', $name, $path, strlen($content), UPLOAD_ERR_OK); };
-    $result = $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('Nyitó kép.png', $png), $part('Éjszakai komp a ködben.png', $png)]));
+    $result = $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('Nyitó kép.png', $png), $part('Night ferry in the fog.png', $png)]));
     check(count($result['assets']) === 2 && !isset($result['succeeded']), 'Generic success result, one asset per file');
     $created = $db->query('SELECT title, file_id, duration FROM signage_assets WHERE id IN ('.implode(',', array_map('intval', $result['assets'])).') ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
     $stored = $storage->entry((int) $created[0]['file_id']);
     check($created[0]['title'] === 'Nyitó kép' && $created[0]['duration'] === '10' && $stored['mount_id'] === 'signage' && (int) $stored['parent_id'] === (int) $signage['id'] && $stored['mime_type'] === 'image/png', 'Asset title, duration and stored file');
-    check($storage->entry((int) $created[1]['file_id'])['name'] === 'Éjszakai komp a ködben (2).png' && $created[1]['title'] === 'Éjszakai komp a ködben (2)', 'A taken name gets a free one');
+    check($storage->entry((int) $created[1]['file_id'])['name'] === 'Night ferry in the fog (2).png' && $created[1]['title'] === 'Night ferry in the fog (2)', 'A taken name gets a free one');
     fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('notes.txt', 'text')])), 400, 'Non-media upload rejected by the policy');
     $mismatch = fails(fn() => $call('signage_assets', 'upload_asset', null, [], $ctx('1', [$part('fake.png', 'not an image')])), 400, 'Content mismatch rejected');
     check(($mismatch->details['code'] ?? null) === 'content_mismatch' && (int) $db->query('SELECT COUNT(*) FROM signage_assets')->fetchColumn() === 21, 'Failed upload creates no asset');
@@ -181,13 +182,13 @@ try {
     check($preview['count'] === 1 && $preview['entries'] === 1 && $preview['usages'] === [['label' => 'Médiatár-elemek', 'count' => 1]] && $storage->entry($music) !== null, 'File delete preview');
     $deleted = $call('files', 'delete', (string) $signage['id'], ['sources' => (string) $music]);
     check($deleted['cleared'] === ['Médiatár-elemek' => 1] && $storage->entry($music) === null, 'File deleted, references cleared');
-    check($db->query('SELECT file_id FROM signage_assets WHERE id = '.(int) $ids['Nyugodt zene'])->fetchColumn() === '', 'The asset stays without a file');
-    $silent = $call('signage_assets', 'get', $ids['Nyugodt zene']);
+    check($db->query('SELECT file_id FROM signage_assets WHERE id = '.(int) $ids['Calm music'])->fetchColumn() === '', 'The asset stays without a file');
+    $silent = $call('signage_assets', 'get', $ids['Calm music']);
     check($silent['file_id'] === '' && $silent['_media']['file_id'] === null, 'Asset without file reads cleanly');
 
     // Deleting a used asset: one preview over the marks (bulk), then the defaults go and the events lose their asset.
-    $poster = $ids['Narancsos pezsgés kobaltkékben'];
-    $coffee = $ids['Kézműves kávé, lassú reggelek'];
+    $poster = $ids['Orange fizz in cobalt blue'];
+    $coffee = $ids['Craft coffee, slow mornings'];
     $revision = $call('signage_assets', 'get', $poster)['revision'];
     $bulk = $workspace->executor->bulk($ctx(), 'signage_assets', 'delete', [['id' => $poster, 'values' => ['revision' => $revision, 'preview' => '1']], ['id' => $coffee, 'values' => ['revision' => $call('signage_assets', 'get', $coffee)['revision'], 'preview' => '1']]]);
     check($bulk[0]['ok'] && $bulk[0]['data']['count'] === 1 && $bulk[0]['data']['usages'] === [['label' => 'Műsorterv-események', 'count' => 1], ['label' => 'Lejátszásilista-elemek', 'count' => 1]] && !isset($bulk[0]['data']['audit']), 'Bulk preview carries the usages');
@@ -210,9 +211,9 @@ try {
     foreach (range(0, 6) as $offset) {
         $day = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify("+$offset days")->format('Y-m-d'));
         check(!array_filter($day['scheduled'], static fn($entry) => $entry['asset'] === null ? !$entry['playlist']['items'] || array_filter($entry['playlist']['items'], static fn($asset) => $asset['file'] === null) : $entry['asset']['file'] === null), 'Scheduled entries all have playable content');
-        check($day['default'] === null || $day['default']['file'] !== null, 'Default content has a file');
+        check($day['default'] === null || $day['default']['asset']['file'] !== null, 'Default content has a file');
         check(!in_array('Narancsos pezsgés', array_column($day['scheduled'], 'title'), true), 'Blanked event skipped');
-        check(($day['default']['id'] ?? null) === ($offset === 0 ? null : $brandId), 'Brand scene is the default; the deleted Monday default leaves none');
+        check(($day['default']['asset']['id'] ?? null) === ($offset === 0 ? null : $brandId) && ($day['default']['source'] ?? 'weekday') === 'weekday', 'Brand scene is the default; the deleted Monday default leaves none');
     }
     $tuesday = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), $monday->modify('+1 day')->format('Y-m-d'));
     $daytime = array_values(array_filter($tuesday['scheduled'], static fn($entry) => $entry['title'] === 'Napközbeni lista'))[0]['playlist'];
@@ -234,9 +235,9 @@ try {
     check(($views['signage_playlists']['options']['subview']['resource'] ?? null) === 'signage_playlist_items' && $views['signage_playlists']['options']['subview']['field'] === 'playlist_id', 'Playlists expand to their items');
     $itemsOf = static fn(string $list, ?Context $c = null) => $call('signage_playlist_items', 'list', null, ['limit' => 200, 'filters' => ['playlist_id' => $list]], $c)['items'];
     $seeded = $itemsOf($playlist);
-    check(array_column($seeded, 'asset_id') === [$coffee, $ids['Dinamikus futócipő kobalt és lime színekben'], $ids['Az idő elegáns pillanata'], $brandId] && array_map('intval', array_column($seeded, 'position')) === [0, 1, 3, 4], 'Items listed in their seeded order (the deleted asset\'s item is gone)');
+    check(array_column($seeded, 'asset_id') === [$coffee, $ids['Dynamic running shoe in cobalt and lime'], $ids['An elegant moment in time'], $brandId] && array_map('intval', array_column($seeded, 'position')) === [0, 1, 3, 4], 'Items listed in their seeded order (the deleted asset\'s item is gone)');
     foreach ($seeded as $item) $call('signage_playlist_items', 'delete', $item['id'], ['revision' => $item['revision']]);
-    $clip = $ids['3D logóintró'];
+    $clip = $ids['3D logo intro'];
     $saturdayDate = $monday->modify('+5 days')->format('Y-m-d');
     $create = static fn(array $values, ?Context $c = null) => $call('signage_playlist_items', 'create', null, ['playlist_id' => $playlist, ...$values], $c)['id'];
     // Video with a 10 s override and the zoom transition, the scene, the video again switched off, the scene valid only
@@ -304,22 +305,42 @@ try {
     // The calendar offers playlists and assets in one field; playlist events take their own colour.
     $calendarView = array_column($workspace->views(new Identity('1', 'Demo')), null, 'id')['signage_schedule'];
     $content = $calendarView['options']['fields'][0];
-    check($content['name'] === 'content' && $content['options']['playlist:'.$playlist] === 'Lejátszási lista: Reggeli lista' && $content['options']['asset:'.$sceneId] === 'Blade brand animáció', 'Content choices: playlists and assets');
+    check($content['name'] === 'content' && $content['options']['playlist:'.$playlist] === 'Lejátszási lista: Reggeli lista' && $content['options']['asset:'.$sceneId] === 'Blade brand animation', 'Content choices: playlists and assets');
     check($calendarView['options']['tones'] === [['field' => 'content', 'prefix' => 'playlist:', 'tone' => 'success']], 'Playlist events have their own tone');
-    // Deleting a used playlist: the preview counts events and items; the delete blanks the event and removes the items.
+    // Day defaults: an asset or a playlist, an exclusive field pair (`clears`); a playlist date default fills free time.
+    $pair = $workspace->registry->fields('signage_defaults');
+    check($workspace->fieldMetadata($ctx(), $pair['asset_id'])['clears'] === ['playlist_id'] && $workspace->fieldMetadata($ctx(), $pair['playlist_id'])['clears'] === ['asset_id'], 'Asset and playlist clear each other');
+    $refusedDefault = static function (array $values, string $field, string $message) use ($call): void {
+        try { $call('signage_defaults', 'create', null, ['weekday' => '', 'date' => '2099-12-31', ...$values]); } catch (Failure $error) { check($error->status === 400 && isset($error->fieldErrors[$field]), $message); return; }
+        check(false, $message);
+    };
+    $refusedDefault(['playlist_id' => '999999'], 'playlist_id', 'Unknown playlist refused');
+    $refusedDefault(['asset_id' => $sceneId, 'playlist_id' => $playlist], 'playlist_id', 'Asset and playlist together refused');
+    $refusedDefault([], 'asset_id', 'A default needs an asset or a playlist');
+    $listDefault = (string) $call('signage_defaults', 'create', null, ['weekday' => '', 'date' => '2099-12-31', 'playlist_id' => $playlist])['id'];
+    $edited = $workspace->executor->edit($ctx(), 'signage_defaults', $listDefault, 'asset_id', $sceneId, $call('signage_defaults', 'get', $listDefault)['revision']);
+    check($edited['values'] === ['asset_id' => $sceneId, 'playlist_id' => ''], 'A cell edit of the asset empties the playlist and returns both');
+    $edited = $workspace->executor->edit($ctx(), 'signage_defaults', $listDefault, 'playlist_id', $playlist, $edited['revision']);
+    check($edited['values'] === ['asset_id' => '', 'playlist_id' => $playlist], 'A cell edit of the playlist empties the asset');
+    $night = blade_demo_signage_playlist($ctx(), blade_demo_signage_calendar(), '2099-12-31');
+    check($night['default']['source'] === 'date' && $night['default']['asset'] === null && $night['default']['playlist']['id'] === $playlist && $night['default']['title'] === 'Reggeli lista'
+        && $night['timeline'][0]['source'] === 'default' && $night['timeline'][0]['start'] === '00:00' && $night['timeline'][0]['playlist']['id'] === $playlist, 'A playlist default plays in free time');
+    check((int) array_column($call('signage_playlists', 'list', null, ['limit' => 10])['items'], null, 'id')[$playlist]['usage'] === 3, 'Playlist usage counts its default');
+    // Deleting a used playlist: the preview counts events, defaults and items; the delete blanks the event and removes the items and defaults.
     $revision = $call('signage_playlists', 'get', $playlist)['revision'];
-    check($call('signage_playlists', 'delete', $playlist, ['revision' => $revision, 'preview' => '1'])['usages'] === [['label' => 'Műsorterv-események', 'count' => 2], ['label' => 'Lejátszásilista-elemek', 'count' => 4]], 'Playlist delete preview');
+    check($call('signage_playlists', 'delete', $playlist, ['revision' => $revision, 'preview' => '1'])['usages'] === [['label' => 'Műsorterv-események', 'count' => 2], ['label' => 'Alapértelmezett tartalmak', 'count' => 1], ['label' => 'Lejátszásilista-elemek', 'count' => 4]], 'Playlist delete preview');
     $call('signage_playlists', 'delete', $playlist, ['revision' => $revision]);
+    check(!(int) $db->query('SELECT COUNT(*) FROM signage_defaults WHERE id = '.$db->quote((string) $listDefault))->fetchColumn(), 'Playlist delete removes its defaults');
     check(array_map(static fn($data) => json_decode($data, true)['content'], $db->query("SELECT data FROM blade_calendar_events WHERE text = 'Reggeli lista'")->fetchAll(PDO::FETCH_COLUMN)) === ['', ''] && !(int) $db->query('SELECT COUNT(*) FROM signage_playlist_items WHERE playlist_id = '.$db->quote($playlist))->fetchColumn(), 'Playlist delete blanks its events and removes its items');
 
     // Scene code (D2): only a scene asset's live file, as text; the browser runs it in the SandboxFrame only.
     $code = $call('signage_playlist', 'scene', null, ['asset' => $sceneId]);
-    check($code['asset'] === $sceneId && $code['title'] === 'Blade brand animáció' && $code['name'] === 'blade-brand.js' && $code['code'] === file_get_contents(dirname(__DIR__, 2).'/examples/demo-app/resources/files/blade-brand.js')
+    check($code['asset'] === $sceneId && $code['title'] === 'Blade brand animation' && $code['name'] === 'blade-brand.js' && $code['code'] === file_get_contents(dirname(__DIR__, 2).'/examples/demo-app/resources/files/blade-brand.js')
         && $code['bytes'] === strlen($code['code']) && str_contains($code['code'], 'renderAt('), 'Scene code delivered');
     check($call('signage_playlist', 'scene', null, ['asset' => $sceneId], $ctx($reader))['asset'] === $sceneId, 'Reader may preview scenes');
     fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $clip]), 415, 'A media asset is no scene');
     fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => '999999']), 404, 'Unknown scene');
-    fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $ids['Nyugodt zene']]), 404, 'Scene asset without a file');
+    fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $ids['Calm music']]), 404, 'Scene asset without a file');
     check(isset(fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => 'x']), 400, 'Malformed scene id')->fieldErrors['asset']), 'Malformed scene id is a field error');
     fails(fn() => $call('signage_playlist', 'scene', null, ['asset' => $sceneId], $ctx('77')), 403, 'Scene code needs signage_playlist.scene');
     // The scene file must be readable through the file manager too (files.content_stream on its mount), else 404.
