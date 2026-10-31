@@ -114,6 +114,11 @@ a:hover > .arrow { transform: translate(2px, -2px); }
 /* The hero guides run on behind the screenshots down to the navy grid. */
 .stage::after { content: ""; position: absolute; top: 0; left: 50%; z-index: -1; width: min(var(--wrap), 100% - 2 * var(--gutter)); height: 42%; border-inline: 1px solid var(--line); transform: translateX(-50%); }
 .section > .wrap::after, .closing > .wrap::after { right: -4px; }
+/* Below full content width the guides stop at the navy band; nodes close them there. */
+.stage-nodes { display: none; position: absolute; top: 42%; left: 50%; width: min(var(--wrap), 100% - 2 * var(--gutter)); transform: translateX(-50%); }
+.stage-nodes::before, .stage-nodes::after { content: ""; position: absolute; top: -4px; width: 7px; height: 7px; border: 1px solid var(--line-strong); background: var(--paper); }
+.stage-nodes::before { left: -4px; }
+.stage-nodes::after { right: -4px; }
 .section--tint { background: var(--tint); }
 .section--tint > .wrap::before, .section--tint > .wrap::after { background: var(--tint); }
 .label { display: flex; align-items: center; gap: 12px; margin: 0 0 28px; font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); }
@@ -291,7 +296,7 @@ body:has(.image-dialog[open]) { overflow: hidden; }
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
 /* The guides meet the blueprint grid only at full content width. */
-@media (max-width: 1279px) { .facts div { border-left: 0; } }
+@media (max-width: 1279px) { .facts div { border-left: 0; } .stage-nodes { display: block; } }
 @media (max-width: 1080px) {
   .desktop-nav { display: none; }
   .mobile-nav { display: block; }
@@ -306,7 +311,7 @@ body:has(.image-dialog[open]) { overflow: hidden; }
   :root { --gutter: 20px; --inset: 0px; }
   .header-inner, .section > .wrap, .closing > .wrap, .hero-copy, .footer-inner { border-inline: 0; }
   .header-inner { padding-inline: 0; }
-  .section > .wrap::before, .section > .wrap::after, .closing > .wrap::before, .closing > .wrap::after { display: none; }
+  .section > .wrap::before, .section > .wrap::after, .closing > .wrap::before, .closing > .wrap::after, .stage::after, .stage-nodes { display: none; }
   .brand img { width: 100px; }
   .header-actions { gap: 10px; }
   .header-actions > .button--small { display: none; }

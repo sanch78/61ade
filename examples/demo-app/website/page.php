@@ -10,7 +10,7 @@ $rich = static fn(string $value): string => str_replace('&lt;br&gt;', '<br>', $e
 $root = $language === 'hu' ? '../' : './';
 $home = $root.($language === 'hu' ? 'hu/' : '');
 $canonical = 'https://61ade.com/'.($language === 'hu' ? 'hu/' : '');
-$demo = 'https://61ade.sanch.hu/';
+$demo = 'https://demo.61ade.com/';
 $repository = 'https://github.com/sanch78/61ade';
 $documentation = $repository.'/blob/main/docs/';
 $sections = ['idea', 'product', 'foundations', 'story', 'usage'];
@@ -105,9 +105,10 @@ $label = static fn(string $index, string $text): string => '<p class="label"><sp
             <p class="hero-login" data-enter><?= $escape($t['demoHint']) ?> <code>demo@example.test</code> <span aria-hidden="true">/</span> <code>61ade-demo</code></p>
         </div>
         <div class="stage">
+            <span class="stage-nodes" aria-hidden="true"></span>
             <div class="stage-inner wrap" data-enter>
                 <div class="browser">
-                    <div class="browser-bar" aria-hidden="true"><span class="browser-dots"><i></i><i></i><i></i></span><span class="browser-url">61ade.sanch.hu</span></div>
+                    <div class="browser-bar" aria-hidden="true"><span class="browser-dots"><i></i><i></i><i></i></span><span class="browser-url">demo.61ade.com</span></div>
                     <?php $image('workspace', $t['workspaceAlt'], true); ?>
                 </div>
                 <div class="phone"><?php $image('mobile', $t['mobileAlt'], false, true); ?></div>
@@ -150,7 +151,7 @@ $label = static fn(string $index, string $text): string => '<p class="label"><sp
                         <div class="feature-body"><p><?= $escape($text) ?></p><a class="text-link" href="<?= $documentation.$guide ?>"><?= $escape($t['docs']) ?><?= $arrow ?></a></div>
                         <span class="feature-progress" aria-hidden="true"></span>
                     </div>
-                    <figure class="feature-figure"><div class="browser"><div class="browser-bar" aria-hidden="true"><span class="browser-dots"><i></i><i></i><i></i></span><span class="browser-url">61ade.sanch.hu</span></div><?php $image($file, $alt); ?></div></figure>
+                    <figure class="feature-figure"><div class="browser"><div class="browser-bar" aria-hidden="true"><span class="browser-dots"><i></i><i></i><i></i></span><span class="browser-url">demo.61ade.com</span></div><?php $image($file, $alt); ?></div></figure>
                 </article>
 <?php endforeach; ?>
             </div>

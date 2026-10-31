@@ -925,6 +925,30 @@ a:hover > .arrow {
 .closing > .wrap::after {
   right: -4px;
 }
+.stage-nodes {
+  display: none;
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: min(var(--wrap), 100% - 2 * var(--gutter));
+  transform: translateX(-50%);
+}
+.stage-nodes::before,
+.stage-nodes::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+}
+.stage-nodes::before {
+  left: -4px;
+}
+.stage-nodes::after {
+  right: -4px;
+}
 .section--tint {
   background: var(--tint);
 }
@@ -1774,6 +1798,9 @@ body:has(.image-dialog[open]) {
   .facts div {
     border-left: 0;
   }
+  .stage-nodes {
+    display: block;
+  }
 }
 @media (max-width: 1080px) {
   .desktop-nav {
@@ -1820,7 +1847,9 @@ body:has(.image-dialog[open]) {
   .section > .wrap::before,
   .section > .wrap::after,
   .closing > .wrap::before,
-  .closing > .wrap::after {
+  .closing > .wrap::after,
+  .stage::after,
+  .stage-nodes {
     display: none;
   }
   .brand img {
