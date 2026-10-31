@@ -36,7 +36,7 @@ async function view(page,p,label){
  await expect(p.locator('[data-dhx-id="mode"]')).toHaveText('Nézet: '+label);
 }
 // Seeded demo media in the Signage mount root (examples/demo-app/signage.php).
-const IMAGE='Kézműves kávé, lassú reggelek.png',VIDEO='3d-logointro.mp4';
+const IMAGE='Craft coffee, slow mornings.png',VIDEO='3d-logo-intro.mp4';
 // The Signage root holds all demo media: the panel search keeps `name` among the rendered rows or tiles.
 async function find(p,name){await p.getByRole('textbox',{name:'Keresés',exact:true}).fill(name);await expect(p.locator('.dhx_grid-row, .blade-grid-tile').filter({hasText:name}).first()).toBeVisible();}
 async function enter(p,name){await row(p,name).dblclick();await expect(path(p)).toContainText('/'+name);}

@@ -47,6 +47,9 @@
   --blade-lift-shadow: 0 12px 24px -10px rgb(0 0 0 / 80%), 0 0 0 1px hsla(210, 100%, 70%, .18);
   --blade-select-tint: color-mix(in srgb, var(--blade-blue) 20%, transparent);
   --blade-mark-tint: color-mix(in srgb, var(--blade-cyan) 14%, transparent);
+  /* Native scrollbars and form controls follow the dark surface instead of the browser's light default. */
+  color-scheme: dark;
+  scrollbar-color: hsla(0, 0%, 100%, .28) transparent;
 }
 /* Canvas and floating panels: every leaf cell (or line group) of a space layout; a nested space group is no panel. */
 .blade-workspace, .blade-session-bar { background: var(--blade-canvas); }

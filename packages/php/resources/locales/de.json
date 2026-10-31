@@ -708,6 +708,7 @@
   "Válassz egy elemet a fában.": "Wähle ein Element im Baum.",
   "Nem lehet korábbi vagy kisebb a kezdő értéknél.": "Darf nicht früher oder kleiner als der Anfangswert sein.",
   "Nem lehet későbbi vagy nagyobb a záró értéknél.": "Darf nicht später oder größer als der Endwert sein.",
+  "Nem adható meg együtt ezzel: {field}.": "Kann nicht zusammen angegeben werden mit: {field}.",
   "Elé": "Vor",
   "Ez az elem nincs ebben a listában.": "Dieses Element ist nicht in dieser Liste.",
   "Feljebb": "Nach oben",

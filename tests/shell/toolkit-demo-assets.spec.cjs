@@ -17,8 +17,8 @@ const tone=seconds=>{const n=8000*seconds,head=Buffer.alloc(44);head.write('RIFF
  head.writeUInt32LE(16,16);head.writeUInt16LE(1,20);head.writeUInt16LE(1,22);head.writeUInt32LE(8000,24);head.writeUInt32LE(8000,28);head.writeUInt16LE(1,32);head.writeUInt16LE(8,34);
  head.write('data',36);head.writeUInt32LE(n,40);return Buffer.concat([head,Buffer.alloc(n,0x80)]);};
 // Seeded demo media (examples/demo-app/signage.php): the music tracks with their lengths, a video, an image and the brand scene.
-const MUSIC=[['Nyugodt zene','3:02'],['Izgalmas zene','2:50'],['Vidám zene','3:00'],['Drámai zene','2:59']];
-const AUDIO='Nyugodt zene',VIDEO='3D logóintró',IMAGE='Az idő elegáns pillanata',SCENE='Blade brand animáció';
+const MUSIC=[['Calm music','3:02'],['Exciting music','2:50'],['Cheerful music','3:00'],['Dramatic music','2:59']];
+const AUDIO='Calm music',VIDEO='3D logo intro',IMAGE='An elegant moment in time',SCENE='Blade brand animation';
 // The run's 3 s WAV asset (uploaded by the first test, or here when a test runs alone).
 const TONE=prefix+' hang';
 async function toneAsset(page){

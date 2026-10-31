@@ -650,6 +650,11 @@ export interface FieldMetadata {
         field: string;
         in: string[];
     };
+    /**
+     * Exclusive choice (server `Field` `clears`, JSON `clears`): a value of this field empties these fields of the record;
+     * forms empty them at once, the server on every save that sends this field with a value.
+     */
+    clears?: string[];
 }
 /** Confirmation the server declares for an action (`Action::$confirm`). Plain text. */
 export interface ActionConfirmation {

@@ -105,11 +105,11 @@ test('list: thumbnail, derived type/resolution/length, play time and usage colum
  await expect(page.locator('[data-cell-id="grid"] .dhx_grid-row').first()).toBeVisible();
  for(const header of ['Megnevezés','Típus','Felbontás','Hossz','Lejátszási idő (mp)','Használat'])await expect(page.locator('[data-cell-id="grid"] [role="columnheader"]').filter({hasText:header}).first()).toBeVisible();
  // Seeded video: type and length from the media metadata, never from a stored kind (searched: the oldest row may lie below the rendered rows).
- await search(page,'3D logóintró');
- await expect(await cell(page,'3D logóintró','Típus')).toHaveText('Videó');
- await expect(await cell(page,'3D logóintró','Hossz')).toHaveText(/^\d+:\d\d$/);
- await expect(await cell(page,'3D logóintró','Felbontás')).toHaveText(/^\d+ × \d+$/);
- await expect(row(page,'3D logóintró').getByRole('img',{name:/^Videó: 3d-logointro\.mp4/})).toBeVisible();
+ await search(page,'3D logo intro');
+ await expect(await cell(page,'3D logo intro','Típus')).toHaveText('Videó');
+ await expect(await cell(page,'3D logo intro','Hossz')).toHaveText(/^\d+:\d\d$/);
+ await expect(await cell(page,'3D logo intro','Felbontás')).toHaveText(/^\d+ × \d+$/);
+ await expect(row(page,'3D logo intro').getByRole('img',{name:/^Videó: 3d-logo-intro\.mp4/})).toBeVisible();
  // Usage: the run's asset is referenced by one schedule event and one default.
  await search(page,prefix);
  await expect(await cell(page,prefix+' használt','Használat')).toHaveText('2');
@@ -130,7 +130,7 @@ test('list: thumbnail, derived type/resolution/length, play time and usage colum
  const typeFilter=page.locator('[data-cell-id="filter"]').getByLabel('Médiafájl',{exact:true}).or(page.locator('[data-cell-id="filter"] select').first());
  if(await typeFilter.count()){
   await typeFilter.first().selectOption({label:'Videó'});await page.locator('[data-cell-id="filter"]').getByRole('button',{name:'Szűrés',exact:true}).click();
-  await expect(row(page,'3D logóintró')).toBeVisible();await expect(row(page,prefix+' használt')).toHaveCount(0);
+  await expect(row(page,'3D logo intro')).toBeVisible();await expect(row(page,prefix+' használt')).toHaveCount(0);
   await page.locator('[data-cell-id="filter"]').getByRole('button',{name:'Alaphelyzet',exact:true}).click();
   await expect(row(page,prefix+' használt')).toBeVisible();
  }
@@ -240,8 +240,12 @@ test('default content: the date field is a native date picker in the form and in
  const formPopup=page.locator('.dhx_popup .dhx_calendar').last();await expect(formPopup).toBeVisible();
  await formPopup.locator('.dhx_calendar-day:not(.dhx_calendar-day--outside)').filter({hasText:/^15$/}).click();
  await expect(input).toHaveValue(/^\d{4}-\d{2}-15$/);
- await input.fill('2099-12-29');await form.getByText('Alapértelmezett tartalom').first().click();await expect(formPopup).toBeHidden();await expect(input).toHaveValue('2099-12-29');
- await form.getByLabel('Alapértelmezett tartalom',{exact:true}).selectOption(used);
+ await input.fill('2099-12-29');await form.getByText('Médiaelem').first().click();await expect(formPopup).toBeHidden();await expect(input).toHaveValue('2099-12-29');
+ // Asset and playlist are an exclusive pair (`clears`): choosing one empties the other.
+ const asset=form.getByLabel('Médiaelem',{exact:true}),list=form.getByLabel('Lejátszási lista',{exact:true});
+ await list.selectOption({index:1});await asset.selectOption(used);await expect(list).toHaveValue('');
+ await list.selectOption({index:1});await expect(asset).toHaveValue('');
+ await asset.selectOption(used);await expect(list).toHaveValue('');
  await form.getByRole('button',{name:'Mentés',exact:true}).click();await expect(form).toHaveCount(0);
  await expect.poll(stored).toEqual(['2099-12-29','2099-12-31']);
  expect(errors).toEqual([]);
@@ -393,7 +397,7 @@ test('three themes and English: file field, picker and derived columns',async({p
  await expect(page.locator('html')).toHaveAttribute('lang','en');
  await openMenu(page,'Media library','Digital signage');
  await expect(page.locator('[data-cell-id="grid"] .dhx_grid-row').first()).toBeVisible();
- await expect(await cell(page,'3D logóintró','Type')).toHaveText('Video');
+ await expect(await cell(page,'3D logo intro','Type')).toHaveText('Video');
  const actions=page.getByRole('button',{name:'Actions',exact:true});
  if(await actions.isVisible()){await actions.click();await page.getByRole('menuitem',{name:'Add',exact:true}).click();}
  else await page.getByRole('button',{name:'Add',exact:true}).click();

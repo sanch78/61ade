@@ -34,6 +34,13 @@ final readonly class Field
          * server validates it only then; otherwise a save that sends f or this field stores it empty.
          */
         public ?array $visibleWhen = null,
+        /**
+         * Exclusive choice: field names of the same record that a value of this field stores empty (each field of
+         * the choice names the others). Forms empty them as soon as this field gets a value; the server stores them
+         * empty on every save that sends this field with a value (form, cell, bulk, API) and rejects a save that sends
+         * both with a value.
+         */
+        public array $clears = [],
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
             || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'date', 'file'], true)
@@ -89,6 +96,10 @@ final readonly class Field
             || array_filter($visibleWhen['in'], static fn($value) => !is_string($value) || strlen($value) > 255) || count(array_unique($visibleWhen['in'])) !== count($visibleWhen['in'])
             || ($column['editable'] ?? false) || $bulk || $secret || $type === 'file')) {
             throw new InvalidArgumentException('Invalid conditional field: '.$name);
+        }
+        if (!array_is_list($clears) || count($clears) > 10 || count(array_unique($clears)) !== count($clears) || $secret
+            || array_filter($clears, static fn($other) => !is_string($other) || !preg_match('/^[a-z][a-z0-9_]*$/D', $other) || $other === $name)) {
+            throw new InvalidArgumentException('Invalid exclusive field: '.$name);
         }
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
@@ -219,6 +230,7 @@ final readonly class Field
             ...($this->file !== null ? ['file' => ['resource' => $this->file['resource'], 'mount' => $this->file['mount'], 'accept' => $this->file['accept']]] : []),
             ...($this->editor !== null ? ['editor' => $this->editor] : []),
             ...($this->visibleWhen !== null ? ['visibleWhen' => $this->visibleWhen] : []),
+            ...($this->clears ? ['clears' => $this->clears] : []),
         ];
     }
 }

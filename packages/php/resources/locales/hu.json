@@ -708,6 +708,7 @@
   "Válassz egy elemet a fában.": "Válassz egy elemet a fában.",
   "Nem lehet korábbi vagy kisebb a kezdő értéknél.": "Nem lehet korábbi vagy kisebb a kezdő értéknél.",
   "Nem lehet későbbi vagy nagyobb a záró értéknél.": "Nem lehet későbbi vagy nagyobb a záró értéknél.",
+  "Nem adható meg együtt ezzel: {field}.": "Nem adható meg együtt ezzel: {field}.",
   "Elé": "Elé",
   "Ez az elem nincs ebben a listában.": "Ez az elem nincs ebben a listában.",
   "Feljebb": "Feljebb",

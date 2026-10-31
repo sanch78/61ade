@@ -136,6 +136,15 @@ final class Executor
                 }
                 if (!$field->secret) $fields[]=$field->name;
             }
+            // An exclusive choice (`clears`): a sent value stores the other fields empty; both sent with a value is an error.
+            foreach($action->fields as $field){
+                if(!$field->clears||!array_key_exists($field->name,$input)||($values[$field->name]??'')==='')continue;
+                foreach($field->clears as $other){
+                    if(is_scalar($input[$other]??null)&&trim((string)$input[$other])!==''){$fieldErrors[$other]=\Blade\I18n\Translator::text('Nem adható meg együtt ezzel: {field}.',['field'=>\Blade\I18n\Translator::text($field->label)]);continue;}
+                    if(!$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$aclObject ?? '',$owner,$other))throw new Failure('A mező nem módosítható.',403);
+                    $values[$other]='';if(!in_array($other,$fields,true))$fields[]=$other;
+                }
+            }
             if ($fieldErrors) throw new Failure('Javítsd a megjelölt mezőket.', 400, $fieldErrors);
             $rejected=[];
             if($action->upload instanceof UploadPolicy && $ctx->uploads){

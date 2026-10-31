@@ -125,7 +125,7 @@ test('file manager viewer runs on MediaPlayer: image and video unchanged, audio 
  // The Signage root holds the demo media (examples/demo-app/resources/media): the panel search brings each file into view.
  const open=async name=>{await left.getByRole('textbox',{name:'Keresés',exact:true}).fill(name);await row(name).dblclick();};
  // Image viewer: the same toolbar and fitting, now with the format.
- await open('Kézműves kávé, lassú reggelek.png');
+ await open('Craft coffee, slow mornings.png');
  let viewer=windowDialog(page),bar=viewer.locator('.blade-document__bar');
  await expect(viewer.locator('.blade-player.blade-document--image')).toHaveCount(1);
  await expect(bar).toContainText('1672 × 941 px · PNG');await expect(bar.locator('[data-dhx-id="zoom"]')).toHaveText(/^Illesztés \(\d+\s?%\)$/);
@@ -134,16 +134,16 @@ test('file manager viewer runs on MediaPlayer: image and video unchanged, audio 
  await expect(bar.getByRole('button',{name:'Teljes méret',exact:true})).toBeVisible();
  await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);
  // Video player: native controls, dimensions and length as before, then the format.
- await open('3d-logointro.mp4');
+ await open('3d-logo-intro.mp4');
  viewer=windowDialog(page);bar=viewer.locator('.blade-document__bar');const video=viewer.locator('video');
  await expect(bar).toContainText('1920 × 1080 px · 0:13 · MP4');await expect(video).toHaveAttribute('controls','');await expect(video).toBeFocused();
  await bar.getByRole('button',{name:'Ismétlés',exact:true}).click();expect(await video.evaluate(element=>element.loop)).toBe(true);
  await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);
  // Audio (the seeded 3:02 MP3, streamed with Range support) opens in the same window shape with the audio stage; closing releases the element.
- const music=(await api(page,'files','list',(await api(page,'files','tree','signage')).body.data.root,{search:'nyugodt-zene'})).body.data.items.find(item=>item.name==='nyugodt-zene.mp3');
- await open('nyugodt-zene.mp3');
+ const music=(await api(page,'files','list',(await api(page,'files','tree','signage')).body.data.root,{search:'calm-music'})).body.data.items.find(item=>item.name==='calm-music.mp3');
+ await open('calm-music.mp3');
  viewer=windowDialog(page);bar=viewer.locator('.blade-document__bar');const audio=viewer.locator('.blade-audio-stage audio');
- await expect(audio).toHaveAttribute('aria-label','nyugodt-zene.mp3');await expect(audio).toBeFocused();
+ await expect(audio).toHaveAttribute('aria-label','calm-music.mp3');await expect(audio).toBeFocused();
  await expect(bar).toContainText('3:02 · MP3');
  expect(await audio.getAttribute('src')).toMatch(new RegExp(`action=content_stream&id=${music.id}&v=\\d+$`));
  await page.keyboard.press('End');await expect.poll(()=>audio.evaluate(element=>Math.round(element.currentTime))).toBe(182);

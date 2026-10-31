@@ -215,7 +215,7 @@ test('app.uploads opens the shared uploader for the demo files target and report
 });
 
 /** The seeded demo image in the Signage mount root (signage demo); nothing is created for the file components. */
-const IMAGE='Kézműves kávé, lassú reggelek.png',IMAGE_SEARCH='Kézműves kávé';
+const IMAGE='Craft coffee, slow mornings.png',IMAGE_SEARCH='Craft coffee';
 async function demoImage(page){
  const root=(await api(page,'files','tree','signage')).body.data.root;
  return String((await api(page,'files','list',root,{search:IMAGE_SEARCH})).body.data.items.find(item=>item.name===IMAGE).id);

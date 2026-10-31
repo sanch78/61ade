@@ -31,8 +31,9 @@ export const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>{
   return builtinInput(f,value,readOnly);
 };
 /**
- * Runs `bind` of the registered field types among $fields once their Form exists, and shows each conditional field
- * (`visibleWhen`) only while its condition holds; `toggled` runs after a field appeared or disappeared (a window refits).
+ * Runs `bind` of the registered field types among $fields once their Form exists, shows each conditional field
+ * (`visibleWhen`) only while its condition holds and empties the fields an exclusive field `clears` once it gets a
+ * value; `toggled` runs after a field appeared or disappeared (a window refits).
  * The returned release aborts their `signal`; the owner calls it when the form closes or is replaced.
  */
 export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(field:FieldDefinition)=>boolean=()=>false,toggled?:()=>void):()=>void{
@@ -56,6 +57,12 @@ export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(fiel
     apply();
     form.events.on("change",(name:string)=>{if(conditional.some(field=>field.visibleWhen!.field===name))apply();});
   }
+  const exclusive=new Map(fields.filter(field=>field.clears?.length&&form.getItem(field.name)).map(field=>[field.name,field.clears!]));
+  if(exclusive.size)form.events.on("change",(name:string,value:unknown)=>{
+    const others=exclusive.get(name);
+    if(controller.signal.aborted||!others||value===undefined||value===null||value===""||value===false)return;
+    for(const other of others){const item=form.getItem(other) as any;if(item&&String(item.getValue()??"")!=="")item.setValue("");}
+  });
   for(const field of fields){
     if(field.type==="date"&&!readOnly(field)&&!fieldTypeOf(field))keepTypedDate(form,field,controller.signal);
     const type=field.type==="file"?undefined:fieldTypeOf(field);
