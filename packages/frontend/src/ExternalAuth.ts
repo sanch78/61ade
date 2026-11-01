@@ -5,7 +5,7 @@ const instances = new WeakMap<Element, Modal>();
 
 /**
  * Minimal Bootstrap 5 Modal contract (constructor, show, hide, getInstance, getOrCreateInstance,
- * data-bs-dismiss, data-bs-backdrop="static", data-bs-keyboard="false") for the _AuthHandler overlay.
+ * data-bs-dismiss, data-bs-backdrop="static", data-bs-keyboard="false", the `fade` entrance) for the _AuthHandler overlay.
  * Installed only when the page has no Bootstrap, so the global Bootstrap stylesheet never reaches
  * the DHTMLX interface.
  */
@@ -30,6 +30,9 @@ class Modal {
     document.body.append(this.backdrop);
     if (this.element.parentElement !== document.body) document.body.append(this.element);
     this.element.style.display = "block";
+    // Bootstrap's `fade`: the hidden state renders once, so `.show` runs the entrance transition (admin.css).
+    void this.element.offsetHeight;
+    this.backdrop.classList.add("show");
     this.element.classList.add("show");
     this.element.setAttribute("aria-modal", "true");
     this.element.setAttribute("role", "dialog");
@@ -39,6 +42,7 @@ class Modal {
   }
   hide(): void {
     this.element.classList.remove("show");
+    this.backdrop?.classList.remove("show");
     this.element.style.display = "none";
     this.backdrop?.remove();
     document.removeEventListener("keydown", this.keys);

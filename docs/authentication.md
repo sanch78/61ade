@@ -255,6 +255,9 @@ Prerequisites:
 The overlay uses Bootstrap modal markup. 61ade supplies a small compatible shim
 only without Bootstrap, plus scoped theme header/border styling; global Bootstrap
 CSS never enters the DHTMLX interface. Overlay is above the top DHTMLX layer.
+The shim plays Bootstrap's `fade` entrance itself: the overlay and backdrop
+fade in (0.15 s) and the dialog slides down into place (0.3 s);
+`prefers-reduced-motion: reduce` shows them at once ([FB-0118](feedback.md#fb-0118)).
 The same-origin `./?blade_auth=bootstrap` script preserves script-src self CSP.
 
 ```json
@@ -288,6 +291,10 @@ makes the external account the only way in ([FB-0117](feedback.md#fb-0117)):
   click does not dismiss it (the shim honours `data-bs-backdrop="static"` and
   `data-bs-keyboard="false"`; with the page's own Bootstrap it opens again after
   closing). The top row's language and theme selectors stay usable.
+- The overlay opens only after the [trademark screen](brand.md#splash) has
+  played and left the page (`splashLeft()` in `Splash.ts`), so it never stacks
+  above it. On later pages of the same tab, where the screen does not play,
+  it opens without delay ([FB-0118](feedback.md#fb-0118)).
 - The window content declared for the sign-in window moves into the overlay: the
   logo (placement `window` or `both`) and the header slot above the provider
   buttons, the notice, links and footer slot below them

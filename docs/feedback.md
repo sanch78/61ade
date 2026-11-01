@@ -478,3 +478,7 @@
 <a id="fb-0117"></a>
 
 ## FB-0117 — OAuth-only sign-in
+
+<a id="fb-0118"></a>
+
+## FB-0118 — The OAuth-only overlay waits for the trademark screen and fades in

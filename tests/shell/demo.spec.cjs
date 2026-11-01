@@ -44,12 +44,32 @@ test('the feature demo login offers password, OAuth, remember me and the languag
  expect(errors).toEqual([]);
 });
 
+test('the AuthHandler overlay fades in with normal motion and appears at once with reduced motion',async({page})=>{
+ // Every transition that starts on the overlay, its dialog or the backdrop, recorded from the first frame.
+ await page.addInitScript(()=>{window.overlayTransitions=[];document.addEventListener('transitionrun',event=>{
+  const target=event.target;if(target.matches('.authhandler-login-modal, .authhandler-login-modal .modal-dialog, .blade-external-backdrop'))
+   window.overlayTransitions.push(target.className.split(' ')[0]+':'+event.propertyName);},true);});
+ const open=async()=>{
+  await page.goto('/');
+  await page.getByRole('button',{name:OAUTH,exact:true}).click();
+  await expect(page.locator('.authhandler-login-modal')).toHaveCSS('opacity','1');
+  await expect(page.locator('.authhandler-login-modal .modal-dialog')).toHaveCSS('transform','none');
+  return page.evaluate(()=>window.overlayTransitions.sort());
+ };
+ await page.emulateMedia({reducedMotion:'no-preference'});
+ expect(await open()).toEqual(['blade-external-backdrop:opacity','modal-dialog:transform','modal:opacity']);
+ await page.emulateMedia({reducedMotion:'reduce'});
+ expect(await open()).toEqual([]);
+});
+
 test('OAuth opens the AuthHandler overlay with the native Google and Facebook buttons; a click runs the provider flow',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/');
  await page.getByRole('button',{name:OAUTH,exact:true}).click();
  const overlay=page.locator('.authhandler-login-modal');
  await expect(overlay).toBeVisible();
+ // The Bootstrap shim's `fade` entrance (FB-0118): the overlay, its dialog and the backdrop end as Bootstrap shows them.
+ await expect.poll(()=>overlay.evaluate(modal=>[getComputedStyle(modal).opacity,getComputedStyle(modal.querySelector('.modal-dialog')).transform,getComputedStyle(document.querySelector('.blade-external-backdrop')).opacity].join())).toBe('1,none,1');
  for(const provider of ['google','facebook']){
   await expect(overlay.locator(`.authhandler-provider-${provider}`)).toBeVisible();
   const icon=await overlay.locator(`.authhandler-provider-icon-${provider}`).evaluate(el=>getComputedStyle(el).backgroundImage);
