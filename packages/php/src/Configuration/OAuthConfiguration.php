@@ -14,13 +14,14 @@ use Blade\Shell\IdentityProvider;
  * Optional "oauth" section: external sign-in through the standalone _AuthHandler library.
  * A provider whose id or secret resolves to an empty value (e.g. an unset environment
  * variable with "default": "") stays hidden.
+ * "exclusive": true makes it the only sign-in (no 61ade password login).
  */
 final class OAuthConfiguration
 {
     public static function build(array $definition, Closure $path, string $runtime, Accounts $accounts, IdentityProvider $identities, Workspace $workspace): AuthHandlerLogin
     {
         Shape::check($definition, ['module' => 'string', 'assets' => 'string', 'providers' => 'array'], [
-            'description' => 'string', 'site_url' => 'string', 'storage' => 'string', 'texts' => 'array',
+            'description' => 'string', 'site_url' => 'string', 'storage' => 'string', 'texts' => 'array', 'exclusive' => 'boolean',
         ], '$.oauth');
         $providers = [];
         foreach ($definition['providers'] as $name => $provider) {
@@ -33,7 +34,7 @@ final class OAuthConfiguration
         return new AuthHandlerLogin(
             $path($definition['module']), $definition['assets'], $providers, $accounts, $identities, $workspace,
             isset($definition['storage']) ? $path($definition['storage']) : $runtime.'/oauth-identities.sqlite',
-            $definition['site_url'] ?? null, $definition['texts'] ?? [],
+            $definition['site_url'] ?? null, $definition['texts'] ?? [], exclusive: $definition['exclusive'] ?? false,
         );
     }
 }

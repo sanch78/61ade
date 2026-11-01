@@ -18,7 +18,7 @@ $checkout = dirname(__DIR__, 3);
 require_once $checkout.'/packages/php/src/Shell/Splash.php';
 $image = static function (string $file, string $alt, bool $priority = false, bool $mobile = false) use ($root, $escape, $language): void {
     if ($language === 'en') $file .= '-en'; ?>
-<a class="screenshot" href="<?= $root ?>assets/<?= $escape($file) ?>.jpg" data-preview><img src="<?= $root ?>assets/<?= $escape($file) ?>.jpg" alt="<?= $escape($alt) ?>" width="<?= $mobile ? 390 : 1440 ?>" height="<?= $mobile ? 844 : 900 ?>"<?= $priority ? ' fetchpriority="high"' : ($mobile ? '' : ' loading="lazy"') ?> decoding="async"></a><?php
+<a class="screenshot" href="<?= $root ?>assets/<?= $escape($file) ?>.jpg" data-preview><img src="<?= $root ?>assets/<?= $escape($file) ?>.jpg" alt="<?= $escape($alt) ?>" width="<?= $mobile ? 780 : 1440 ?>" height="<?= $mobile ? 1688 : 900 ?>"<?= $priority ? ' fetchpriority="high"' : ($mobile ? '' : ' loading="lazy"') ?> decoding="async"></a><?php
 };
 // Line icons (24 × 24, stroked with currentColor).
 $icons = [
@@ -111,7 +111,13 @@ $label = static fn(string $index, string $text): string => '<p class="label"><sp
                     <div class="browser-bar" aria-hidden="true"><span class="browser-dots"><i></i><i></i><i></i></span><span class="browser-url">demo.61ade.com</span></div>
                     <?php $image('workspace', $t['workspaceAlt'], true); ?>
                 </div>
-                <div class="phone"><?php $image('mobile', $t['mobileAlt'], false, true); ?></div>
+                <div class="phone">
+                    <div class="phone-screen">
+                        <div class="phone-status" aria-hidden="true"><span>9:41</span><i class="phone-island"></i><svg viewBox="0 0 34 12"><path d="M1 9h2v2H1zM5 7h2v4H5zM9 4.5h2V11H9zM13 2h2v9h-2z"/><rect x="18.5" y="1.5" width="12" height="9" rx="2.2" fill="none" stroke="currentColor"/><rect x="20" y="3" width="8" height="6" rx="1"/><path d="M31.5 4.5v3"/></svg></div>
+                        <?php $image('mobile', $t['mobileAlt'], false, true); ?>
+                        <i class="phone-home" aria-hidden="true"></i>
+                    </div>
+                </div>
             </div>
             <dl class="facts wrap">
 <?php foreach ($t['facts'] as [$name, $value]): ?>

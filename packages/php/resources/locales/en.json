@@ -285,6 +285,7 @@
   "Érvénytelen kérés.": "Invalid request.",
   "Belépés külső fiókkal": "Sign in with an external account",
   "A külső belépés most nem érhető el. Próbáld újra később.": "External sign-in is not available now. Please try again later.",
+  "A jelszavas belépés ki van kapcsolva; lépj be külső fiókkal.": "Password sign-in is turned off; sign in with an external account.",
   "A(z) {provider} belépés még nincs beállítva (hiányzó kulcs).": "{provider} sign-in is not set up yet (missing key).",
   "Figyelmeztetés": "Warning",
   "Információ": "Information",

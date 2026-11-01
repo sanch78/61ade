@@ -6,7 +6,8 @@ use Blade\Admin\{Accounts,Administration};
 use Blade\Authentication\AuthHandlerLogin;
 use Blade\Configuration\OAuthConfiguration;
 use Blade\Feature\{Registry,Workspace,Failure};
-use Blade\Shell\SqlIdentityProvider;
+use Blade\Navigation\Menu;
+use Blade\Shell\{Application,ApplicationDefinition,SqlIdentityProvider};
 function check(bool $ok,string $message):void{if(!$ok)throw new RuntimeException($message);}
 function fails(callable $call,int $status,string $message):void{
     try{$call();}catch(Failure $e){check($e->status===$status,$message.' (status '.$e->status.')');return;}
@@ -21,8 +22,8 @@ foreach([[1,'person@example.test','Person'],[2,'other@example.test','Other']] as
 $registry=new Registry();$workspace=new Workspace($registry,$db);
 $accounts=new Accounts($workspace,'accounts','id','email','display_name','password_hash',oauth:true);
 $identities=Administration::register($workspace,$accounts,new SqlIdentityProvider($db,'accounts','id','email','password_hash','display_name'));
-$login=fn(array $providers,?string $site='https://app.example.test/')=>new AuthHandlerLogin('/nonexistent','lib/_AuthHandler',$providers,$accounts,$identities,$workspace,'/tmp/unused.sqlite',$site,
-    ['registration_with_provider_google'=>['hu'=>'Google-fiók']],static fn(array $config)=>new FakeAuthHandler($config));
+$login=fn(array $providers,?string $site='https://app.example.test/',bool $exclusive=false)=>new AuthHandlerLogin('/nonexistent','lib/_AuthHandler',$providers,$accounts,$identities,$workspace,'/tmp/unused.sqlite',$site,
+    ['registration_with_provider_google'=>['hu'=>'Google-fiók']],static fn(array $config)=>new FakeAuthHandler($config),$exclusive);
 
 // Every listed provider shows in the overlay, keys or not; only a switched-off one is hidden.
 check($login(['Google'=>['enabled'=>false,'keys'=>['id'=>'g','secret'=>'s']]])->enabled()===false,'Switched-off provider hidden');
@@ -65,4 +66,25 @@ try{new AuthHandlerLogin(dirname(__DIR__,2).'/lib/_AuthHandler','lib/_AuthHandle
 $root=dirname(__DIR__,2);
 $configured=OAuthConfiguration::build(['module'=>'lib/_AuthHandler','assets'=>'lib/_AuthHandler','providers'=>['Google'=>['keys'=>['id'=>'g','secret'=>''],'scope'=>'email']]],static fn(string $p)=>$root.'/'.$p,'/tmp',$accounts,$identities,$workspace);
 check($configured->providers()===['Google'] && !$configured->configured('Google'),'JSON provider with empty secret shown, not usable');
+
+// OAuth-only sign-in: it needs an enabled provider, and no 61ade password, code or password-change flow is offered.
+try{$login(['Google'=>['enabled'=>false,'keys'=>['id'=>'g','secret'=>'s']]],exclusive:true);throw new RuntimeException('OAuth-only without a provider accepted');}catch(InvalidArgumentException){}
+check(!$configured->exclusive && OAuthConfiguration::build(['module'=>'lib/_AuthHandler','assets'=>'lib/_AuthHandler','exclusive'=>true,'providers'=>['Google'=>['keys'=>['id'=>'g','secret'=>'s']]]],static fn(string $p)=>$root.'/'.$p,'/tmp',$accounts,$identities,$workspace)->exclusive,'JSON "exclusive" makes OAuth the only sign-in');
+$runtime=$root.'/tmp/oauth-shell';if(!is_dir($runtime))mkdir($runtime,0700,true);
+$render=function(ApplicationDefinition $definition,array $post=[]):string{
+    $_SERVER['REQUEST_METHOD']=$post?'POST':'GET';$_POST=$post;ob_start();(new Application($definition))->run();return (string)ob_get_clean();
+};
+$bootstrap=fn(string $page)=>json_decode(html_entity_decode((string)preg_replace('~^.*<script type="application/json" id="blade-config">(.*?)</script>.*$~s','$1',$page)),true,flags:JSON_THROW_ON_ERROR);
+$only=new ApplicationDefinition('App',$identities,new Menu([]),$runtime,sessionName:'blade_oauth_only',workspace:$workspace,accounts:$accounts,oauth:$login(['Google'=>['keys'=>['id'=>'g','secret'=>'s']]],exclusive:true));
+check(!isset($bootstrap($render(new ApplicationDefinition('App',$identities,new Menu([]),$runtime,sessionName:'blade_oauth_only',workspace:$workspace,accounts:$accounts,oauth:$bridge)))['oauthOnly']),'No oauthOnly key beside the password sign-in');
+$page=$render($only);
+check(($bootstrap($page)['oauthOnly']??false)===true && $bootstrap($page)['oauth']===true && str_contains($page,'?blade_auth=bootstrap'),'OAuth-only sign-in page loads the AuthHandler overlay instead of the 61ade window');
+$csrf=preg_match('~name="csrf" value="([0-9a-f]+)"~',$page,$match)?$match[1]:'';
+$_COOKIE['blade_oauth_only']=session_id();session_write_close();
+foreach(['login','confirm_login','resend_login','change_password'] as $action){
+    $page=$render($only,['csrf'=>$csrf,'action'=>$action,'username'=>'other@example.test','password'=>'x']);
+    check(http_response_code()===403 && str_contains($bootstrap($page)['error'],'jelszavas belépés ki van kapcsolva') && $bootstrap($page)['authenticated']===false,'OAuth-only rejects '.$action);
+    session_write_close();
+}
+$_COOKIE=[];$_POST=[];
 echo "61ade AuthHandler external sign-in tests passed.\n";

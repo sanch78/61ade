@@ -285,6 +285,7 @@
   "Érvénytelen kérés.": "Érvénytelen kérés.",
   "Belépés külső fiókkal": "Belépés külső fiókkal",
   "A külső belépés most nem érhető el. Próbáld újra később.": "A külső belépés most nem érhető el. Próbáld újra később.",
+  "A jelszavas belépés ki van kapcsolva; lépj be külső fiókkal.": "A jelszavas belépés ki van kapcsolva; lépj be külső fiókkal.",
   "A(z) {provider} belépés még nincs beállítva (hiányzó kulcs).": "A(z) {provider} belépés még nincs beállítva (hiányzó kulcs).",
   "Figyelmeztetés": "Figyelmeztetés",
   "Információ": "Információ",

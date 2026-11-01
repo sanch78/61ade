@@ -137,10 +137,10 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
     session?.abort();
     const controller = session = new AbortController(), signal = controller.signal;
     const compact = narrow.matches;
-    const summaryHeader = compact ? {} : { header: escape(t("Összesítés")) };
+    const summaryHeader = compact ? {} : { header: t("Összesítés") };
     const overview = compact
-      ? { type: "space", height: 324, rows: [{ id: "summary", height: 104 }, { id: "chart", header: escape(t("Értékeloszlás")) }] }
-      : { type: "space", height: 260, cols: [{ id: "summary", width: 340, ...summaryHeader }, { id: "chart", header: escape(t("Értékeloszlás")) }] };
+      ? { type: "space", height: 324, rows: [{ id: "summary", height: 104 }, { id: "chart", header: t("Értékeloszlás") }] }
+      : { type: "space", height: 260, cols: [{ id: "summary", width: 340, ...summaryHeader }, { id: "chart", header: t("Értékeloszlás") }] };
     const layout: Layout = new app.dhx.Layout(null, { type: "none", css: "demo-readings", rows: [overview, { id: "list" }] } as ConstructorParameters<Application["dhx"]["Layout"]>[1]);
 
     let rows: readonly Row[] = [], matched: number | undefined, selected: Row | undefined;

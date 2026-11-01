@@ -231,7 +231,9 @@ there to stop that filling. After a failed submission the identifier is retained
 [Authentication](authentication.md) supports password, password plus per-user code,
 and AuthHandler's external-account overlay. Listed providers appear without keys
 but give setup feedback until configured. Only existing OAuth-enabled accounts
-can enter, without password. Optional remember lasts 90 days.
+can enter, without password. `oauth.exclusive` makes the overlay the only
+sign-in, carrying the declared logo and content
+([OAuth-only](authentication.md#oauth-only-sign-in)). Optional remember lasts 90 days.
 Framework mail layout supports project text/color; delivery uses one argument-list
 command without shell, such as the Infra mail helper. Explicit schema installation is required.
 

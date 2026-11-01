@@ -648,7 +648,8 @@ with it ([example](#example-record-view)).
 
 A page's panels as declared data, with the framework list layout's behaviour:
 one Suite space Layout from a region tree (typically the view's
-`options.layout`), escaped panel headers, the user's panel sizes and collapsed
+`options.layout`), plain-text panel headers (Suite renders them as text, so
+they are not HTML-escaped again), the user's panel sizes and collapsed
 panels kept per page and user (`UiPreferences`, keyed by `id`), and a resizer
 double-click that restores the declared sizes.
 

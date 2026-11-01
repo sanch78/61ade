@@ -4056,3 +4056,60 @@ that exactly equals an option label lists every option. The managed
   checks the dark surface is the Suite one; `toolkit-demo-playlist-editor`
   opens the library in tiles before switching to the table for its drags.
 - **Status:** implemented.
+
+<a id="fb-0116"></a>
+
+## FB-0116 — Signage screenshots on the website and a real phone frame
+
+- **Date:** 2026-11-01.
+- **Request:** "a termék oldalon már nagyon alkalmatlanok a screenshot-ok,
+  frissítsd őket. használj vegyesen blade és blade light skineket. és dms
+  menüpontok alól válassz (azok a legszebbek). a nyitólapi mobil képernyőt
+  szebben oldd meg mint most van, hülyén néz ki a telefon screen-jén a kép".
+- **Observed:** the retained images still showed the old task grid in the
+  former dark theme; the phone image filled the frame edge to edge, so its
+  rounded corners cut into the top toolbar and the footer, at 1× sharpness.
+  The English playlist editor showed `The list&#39;s items`: Suite renders
+  Layout cell headers as text, and `PageLayout`, the list `Workspace`,
+  `TreeNavigation` and the readings view escaped them once more.
+- **Implemented:** all twelve website images recaptured from a fresh visitor
+  sandbox on the `Digitális kijelző` views, Blade and Blade Night alternating
+  ([website](website.md#public-demo-and-retained-screenshots)); the showcase
+  is now media library, playlists, calendar and media viewer (files and
+  diagram images removed; both stay in the capabilities text), with new
+  English and Hungarian copy and alternative text. The phone frame gets its
+  own status bar (time, island, signal and battery) and home indicator in the
+  Blade bar colours, sized in container units; the phone image is 780 × 1688.
+  Layout panel headers are passed as plain text
+  ([toolkit](toolkit.md#pagelayout)).
+- **Verification:** both languages at 1440, 1024, 390 and 320 px on
+  https://61ade.com/: no horizontal overflow, every image loaded, no 4xx;
+  hero, phone and showcase inspected visually; `node tools/build-website.mjs
+  --check`, `npm run typecheck`; toolkit-components,
+  toolkit-demo-playlist-editor, toolkit-demo-readings and toolkit-list specs.
+  The temporary capture and check spec was removed.
+- **Status:** implemented.
+
+
+<a id="fb-0117"></a>
+
+## FB-0117 — OAuth-only sign-in
+
+- **Date:** 2026-11-01.
+- **Request:** "tegyük lehetővé a csak oauth logint. ilyenkor nincs 61ade
+  login, csak az authandler login jön fel. itt nem kell demózni, tesztelni a
+  storyblox-on fogom. logót tudjok injectelni a site így is a beépített
+  authhandler logint overlaybe".
+- **Implemented:** optional `oauth.exclusive` (PHP `AuthHandlerLogin`
+  `exclusive`). The signed-out shell skips the 61ade window and opens
+  AuthHandler's overlay, which cannot be dismissed; the declared logo, notice,
+  links and sign-in module slots are placed in it. The server rejects every
+  password, code and password-change action and omits their pending state
+  ([OAuth-only sign-in](authentication.md#oauth-only-sign-in)). `_AuthHandler`
+  is unchanged.
+- **Verification:** `php8.4 tests/shell/oauth.php` (configuration guard, JSON
+  key, `oauthOnly` bootstrap, 403 on `login`, `confirm_login`, `resend_login`,
+  `change_password`), `tests/shell/authentication.php`, `toolkit.php`,
+  `i18n.php`, `npm run typecheck`, `npm run build`. Not shown in the demo by
+  the owner's decision; browser acceptance happens in the consumer project.
+- **Status:** implemented; consumer acceptance pending.
