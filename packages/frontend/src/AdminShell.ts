@@ -1,6 +1,6 @@
 import { configureLanguage, languageIcon, type LanguageConfig, t } from "./I18n";
 import { widgetIcons } from "./WidgetIcons";
-import { externalSignInUnavailable, openExternalSignIn } from "./ExternalAuth";
+import { externalSignInUnavailable, openExclusiveSignIn, openExternalSignIn } from "./ExternalAuth";
 import { LiveChannel } from "./Realtime";
 import { DesktopOnly } from "./DesktopOnly";
 import { Form, Layout, Menu, Toolbar, Window, setTheme, awaitRedraw } from "@dhtmlx/suite";
@@ -40,6 +40,8 @@ export type ShellDefinition = {
   passwordChange?: { expires: number };
   loginIdentifier?: "email" | "username";
   oauth?: boolean;
+  /** Signed out, OAuth-only sign-in: AuthHandler's overlay replaces the 61ade sign-in window. */
+  oauthOnly?: boolean;
   displayName?: string;
   menu?: MenuDefinition[];
   /** Offered views in menu order (toolkit `ViewDefinition`: shared keys at the top, the kind's payload in `options`). */
@@ -364,12 +366,18 @@ export class AdminShell {
       try{for(const key of Object.keys(sessionStorage))if(key.startsWith(GUIDE_PREFIX))sessionStorage.removeItem(key);}catch{}
       if (definition.passwordChange) this.mountPasswordChange();
       else if (definition.confirmation) this.mountConfirmation();
+      else if (definition.oauthOnly) { if (!definition.error) void this.mountExternal(); }
       else this.mountLogin();
     }
     window.addEventListener("resize", this.resize);
     if (definition.error) requestAnimationFrame(() => {
       void acknowledge({ title: t("Hiba"), message: definition.error, severity: "danger" })
-        .then(() => { if (!this.listeners.signal.aborted) this.loginForm?.setFocus(definition.passwordChange ? "new_password" : definition.confirmation ? "code" : "password"); });
+        .then(() => {
+          if (this.listeners.signal.aborted) return;
+          // OAuth-only: the overlay opens after the message (it would stack above it).
+          if (definition.oauthOnly) void this.mountExternal();
+          else this.loginForm?.setFocus(definition.passwordChange ? "new_password" : definition.confirmation ? "code" : "password");
+        });
     });
   }
 
@@ -630,17 +638,35 @@ export class AdminShell {
     ]});
     layout.getCell("form").attach(form);
     this.loginWindow!.attach(layout);
-    if(modules.length)this.startSignInModules(layout,modules);
+    if(modules.length)this.startSignInModules(modules,(name,element)=>attachContent(layout.getCell(name),element,this.listeners.signal));
+  }
+
+  /**
+   * OAuth-only sign-in: AuthHandler's overlay is the window. The same content as in the sign-in window surrounds its
+   * provider buttons: logo and header slot above, notice, links and footer slot below.
+   */
+  private async mountExternal():Promise<void>{
+    const modules=this.definition.signInModules??[];
+    const opened=await openExclusiveSignIn(content=>{
+      const body=content.querySelector(".modal-body")!;
+      if(this.windowLogo)body.insertAdjacentHTML("beforebegin",`<div class="blade-auth-logo">${this.logoHtml()}</div>`);
+      body.insertAdjacentHTML("afterend",this.signInInfo());
+      if(modules.length)this.startSignInModules(modules,(name,element)=>{
+        if(name==="header")body.before(element);else content.append(element);
+        this.listeners.signal.addEventListener("abort",()=>element.remove(),{once:true});
+      });
+    });
+    if(!opened&&!this.listeners.signal.aborted)void acknowledge({ title: t("Hiba"), message: externalSignInUnavailable(), severity: "warning" });
   }
 
   /** Empty header and footer slots for the sign-in modules; the window refits whenever their content changes size. */
-  private startSignInModules(layout:Layout,modules:string[]):void{
-    const slot=(name:string)=>{
+  private startSignInModules(modules:string[],place:(name:"header"|"footer",element:HTMLElement)=>void):void{
+    const slot=(name:"header"|"footer")=>{
       const element=document.createElement("div");
       element.className="blade-sign-in-slot blade-sign-in-slot--"+name;
       element.dataset.bladeSlot=name;
       if(name==="footer")element.dataset.bladeAfterForm="";
-      attachContent(layout.getCell(name),element,this.listeners.signal);
+      place(name,element);
       return element;
     };
     const header=slot("header"),footer=slot("footer");

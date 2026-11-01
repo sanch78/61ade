@@ -66,6 +66,10 @@ final class Application
                     $this->switchTenant($identity, $tenancy, $_POST['tenant'] ?? null);
                 } elseif ($action === 'logout') {
                     $this->logout($identity);
+                } elseif (!$identity && $this->definition->oauth?->exclusive && in_array($action, ['login', 'confirm_login', 'resend_login', 'cancel_login', 'change_password', 'cancel_password_change'], true)) {
+                    // OAuth-only sign-in: none of the 61ade password, code or password-change flows.
+                    $workspace?->journal->record('', 'ui', 'session', 'login', '', 'rejected');
+                    throw new Failure('A jelszavas belépés ki van kapcsolva; lépj be külső fiókkal.', 403);
                 } elseif ($action === 'login' && !$identity) {
                     $username = is_string($_POST['username'] ?? null) ? trim($_POST['username']) : '';
                     $this->login($username);
@@ -101,10 +105,11 @@ final class Application
             'loginIdentifier' => $definition->accounts ? 'email' : 'username',
             'oauth' => !$identity && $definition->oauth?->enabled(),
         ];
-        if (!$identity && isset($_SESSION['pendingPasswordChange'])) {
+        if (!$identity && $definition->oauth?->exclusive) $bootstrap['oauthOnly'] = true;
+        if (!$identity && !$definition->oauth?->exclusive && isset($_SESSION['pendingPasswordChange'])) {
             $bootstrap['passwordChange'] = ['expires' => $_SESSION['pendingPasswordChange']['expires']];
         }
-        if (!$identity && isset($_SESSION['pendingLogin'])) {
+        if (!$identity && !$definition->oauth?->exclusive && isset($_SESSION['pendingLogin'])) {
             $pending = $_SESSION['pendingLogin'];
             $bootstrap['confirmation'] = ['email' => $pending['email'], 'expires' => $pending['expires']];
         }

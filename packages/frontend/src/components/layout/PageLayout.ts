@@ -3,7 +3,6 @@ import type { LayoutCell, Mountable, PageLayout as PageLayoutApi, PageLayoutOpti
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
 import { Component } from "../list/component";
-import { escape } from "../list/fields";
 
 const REGION=/^[a-z][a-z0-9_-]{0,63}$/;
 const KEYS=new Set(["id","header","rows","cols","width","height","minWidth","minHeight","resizable","collapsable","collapsed"]);
@@ -43,7 +42,7 @@ function regions(tree:unknown):Set<string>{
 /**
  * A page's panels as a public component (`app.components.PageLayout`, docs/toolkit.md#pagelayout): the declared
  * tree (typically a view's `options.layout`) as one Suite space Layout, the framework's list layout behaviour
- * included: escaped panel headers, the user's panel sizes and collapsed panels kept per page and user
+ * included: plain-text panel headers (Suite renders them as text), the user's panel sizes and collapsed panels kept per page and user
  * (`UiPreferences`, keyed by `id`), a resizer double-click restoring the declared sizes. Components mount into
  * `cell(id)`; `attach(id, content)` puts a widget or a plain element there (the view host's rule).
  */
@@ -57,7 +56,7 @@ export class PageLayout extends Component<Record<string,never>> implements PageL
     this.ids=regions(options.tree);
     const preferences=new UiPreferences(context.user,options.id);
     const tree:PageRegion=options.tree.rows||options.tree.cols?options.tree:{rows:[options.tree]};
-    const config=(node:PageRegion):Record<string,unknown>=>({...node,...(node.header!==undefined?{header:escape(node.header)}:{}),
+    const config=(node:PageRegion):Record<string,unknown>=>({...node,
       ...(node.rows?{rows:node.rows.map(config)}:{}),...(node.cols?{cols:node.cols.map(config)}:{})});
     this.layout=new Layout(this.host,{type:"space",css:"blade-page-layout",...config(preferences.layoutTree(tree))} as any);
     preferences.bindLayout(this.layout,tree);

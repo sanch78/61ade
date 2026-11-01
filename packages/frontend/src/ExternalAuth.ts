@@ -1,21 +1,22 @@
 import { t } from "./I18n";
 
-type Handler = { login: (notice?: boolean) => void; setProviderRedirectGetQuery: (query: string | null) => void };
+type Handler = { ready?: boolean; login: (notice?: boolean) => void; setProviderRedirectGetQuery: (query: string | null) => void };
 const instances = new WeakMap<Element, Modal>();
 
 /**
  * Minimal Bootstrap 5 Modal contract (constructor, show, hide, getInstance, getOrCreateInstance,
- * data-bs-dismiss) for the _AuthHandler overlay. Installed only when the page has no Bootstrap,
- * so the global Bootstrap stylesheet never reaches the DHTMLX interface.
+ * data-bs-dismiss, data-bs-backdrop="static", data-bs-keyboard="false") for the _AuthHandler overlay.
+ * Installed only when the page has no Bootstrap, so the global Bootstrap stylesheet never reaches
+ * the DHTMLX interface.
  */
 class Modal {
   private backdrop?: HTMLElement;
-  private keys = (event: KeyboardEvent) => { if (event.key === "Escape") this.hide(); };
+  private keys = (event: KeyboardEvent) => { if (event.key === "Escape" && this.element.dataset.bsKeyboard !== "false") this.hide(); };
   constructor(private element: HTMLElement) {
     instances.set(element, this);
     element.addEventListener("click", event => {
       const target = event.target as HTMLElement;
-      if (target === element || target.closest('[data-bs-dismiss="modal"]')) this.hide();
+      if ((target === element && element.dataset.bsBackdrop !== "static") || target.closest('[data-bs-dismiss="modal"]')) this.hide();
     });
   }
   static getInstance(element: Element | null): Modal | null { return element ? instances.get(element) ?? null : null; }
@@ -54,6 +55,28 @@ export function openExternalSignIn(remember: boolean): boolean {
   if (!handler) return false;
   handler.setProviderRedirectGetQuery(remember ? "blade_remember=1" : null);
   handler.login();
+  return true;
+}
+/**
+ * OAuth-only sign-in (docs/authentication.md#oauth-only-sign-in): AuthHandler's overlay is the sign-in window. It
+ * cannot be dismissed, `decorate` adds the application's content to it once, and it opens again if it closes.
+ */
+export async function openExclusiveSignIn(decorate: (content: HTMLElement) => void): Promise<boolean> {
+  const handler = scope.authHandler;
+  if (!handler) return false;
+  // AuthHandler initializes asynchronously after its bootstrap script.
+  for (const started = Date.now(); !handler.ready; await new Promise(resolve => setTimeout(resolve, 20)))
+    if (Date.now() - started > 5000) return false;
+  handler.setProviderRedirectGetQuery(null);
+  handler.login();
+  const modal = document.getElementById("authhandler-login-modal");
+  const content = modal?.querySelector<HTMLElement>(".modal-content");
+  if (!modal || !content) return false;
+  Object.assign(modal.dataset, { bsBackdrop: "static", bsKeyboard: "false" });
+  modal.querySelector(".modal-header .btn-close")?.remove();
+  decorate(content);
+  // The page's own Bootstrap reads those options only once: if it still closes the overlay, it opens again.
+  modal.addEventListener("hidden.bs.modal", () => setTimeout(() => handler.login()));
   return true;
 }
 export const externalSignInUnavailable = () => t("A külső belépés most nem érhető el. Próbáld újra később.");

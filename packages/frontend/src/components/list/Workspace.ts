@@ -107,11 +107,11 @@ export class Workspace implements ActionHost {
     const secondary=secondaryColumns.map(column=>column.id);
     this.visibleColumns=this.preferences.visibleColumns(secondary);
     const inner=!!scope||hosted;
-    const region=(node:Region):any=>({...node,header:node.id==="grid"?inner?undefined:escape(view.title):node.header?escape(node.header):undefined,
+    const region=(node:Region):any=>({...node,header:node.id==="grid"?inner?undefined:view.title:node.header||undefined,
       ...(node.id==="grid"&&!inner?{headerIcon:"blade-list-count",css:"blade-list-panel"}:{}),
       ...(node.rows?{rows:node.rows.map(region)}:{}),...(node.cols?{cols:node.cols.map(region)}:{})});
     this.layout=new Layout(host,{type:inner?"none":"space",css:scope?.compact?"blade-subview":inner?"blade-feature-fill":undefined,...(view.singleton
-      ?{rows:[{id:"body",header:escape(view.title),rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"detail"}]}]}
+      ?{rows:[{id:"body",header:view.title,rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"detail"}]}]}
       :region(inner?view.layout.tree:this.preferences.layoutTree(view.layout.tree)))});
     if(!view.singleton&&!inner)this.preferences.bindLayout(this.layout,view.layout.tree);
     // Client commands: the built-in `details` of every selectable list (also a hidden preview toolbar: the parent

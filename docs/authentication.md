@@ -17,6 +17,7 @@ and trusted sign-in modules with a restricted API
 | Password (e-mail/password) | Always | Active, enabled account with correct password. |
 | Password + e-mail code | authentication / LoginSecurity | Account with E-mail confirmation enabled; code required after password. |
 | AuthHandler OAuth (Google/Facebook/other Hybridauth providers) | oauth / AuthHandlerLogin plus built-in admin | Existing exact e-mail match with OAuth enabled and account allowed; password is irrelevant. The provider verification limitation is below. |
+| OAuth only | oauth `exclusive: true` | As OAuth; the password, e-mail code and password-change flows are off ([OAuth-only sign-in](#oauth-only-sign-in)). |
 
 All may be enabled together, as in the [feature demo](demos.md).
 Switches are [admin fields](admin.md#fiókkapcsolók).
@@ -269,11 +270,37 @@ The same-origin `./?blade_auth=bootstrap` script preserves script-src self CSP.
 }
 ```
 
-- Module is the filesystem path relative to configuration; assets is browser-relative. Optional storage defaults to runtime/oauth-identities.sqlite. Texts follow AuthHandler lang.json key → {language:text}.
+- Module is the filesystem path relative to configuration; assets is browser-relative. Optional exclusive (default false) selects [OAuth-only sign-in](#oauth-only-sign-in). Optional storage defaults to runtime/oauth-identities.sqlite. Texts follow AuthHandler lang.json key → {language:text}.
 - Names follow AuthHandler capitalization (Google/Facebook). Hybridauth adapter can select a custom adapter. Enabled false hides; empty keys keep buttons with feedback.
 - PHP: `new AuthHandlerLogin($moduleDir,'lib/_AuthHandler',$providers,$accounts,$identities,$workspace,$storage,$siteUrl,texts: …)`, then ApplicationDefinition(oauth: …).
 - AuthHandler receives only provider operations. provider_only_auth disables its password/register/reset flows; 61ade owns those.
 - Audit: authentication.oauth_start, oauth_callback, oauth_login success/denial, without token/e-mail values.
+
+<a id="oauth-only-sign-in"></a>
+
+### OAuth-only sign-in
+
+`"exclusive": true` in the oauth section (PHP `AuthHandlerLogin(..., exclusive: true)`)
+makes the external account the only way in ([FB-0117](feedback.md#fb-0117)):
+
+- The signed-out page shows no 61ade sign-in window. The shell opens AuthHandler's
+  provider overlay directly; it has no close button, and Escape or a backdrop
+  click does not dismiss it (the shim honours `data-bs-backdrop="static"` and
+  `data-bs-keyboard="false"`; with the page's own Bootstrap it opens again after
+  closing). The top row's language and theme selectors stay usable.
+- The window content declared for the sign-in window moves into the overlay: the
+  logo (placement `window` or `both`) and the header slot above the provider
+  buttons, the notice, links and footer slot below them
+  ([sign-in customization](shell.md#sign-in-branding)). Sign-in stylesheets apply
+  as on the password page.
+- A server message (missing provider key, account not allowed) appears first;
+  the overlay opens after it is closed.
+- The server rejects `login`, `confirm_login`, `resend_login`, `cancel_login`,
+  `change_password` and `cancel_password_change` with 403 and a
+  `session.login` rejection audit, and sends no pending code or
+  password-change state. No remembered-login choice is offered; existing
+  remembered sessions keep working until they expire or are revoked.
+- At least one provider must be enabled, otherwise configuration fails.
 
 <a id="szolgáltatói-beállítás-google-facebook"></a>
 
@@ -320,7 +347,7 @@ The account e-mail must match and OAuth permission must be enabled in Users.
 Provider callbacks pass through the browser; server initiates outbound token
 exchange, so the managed site's client-IP restriction remains compatible.
 
-Verification: oauth.php checks provider filtering/configuration, single-use
+Verification: oauth.php checks provider filtering/configuration, the OAuth-only bootstrap and rejected password flows, single-use
 handoff, account allow/off/unknown/invalid/disabled decisions, audit/protections
 and JSON; configuration.php; managed demo.spec.cjs checks overlay/native icons
 and start or missing-key feedback. Starting a provider is not completed login.

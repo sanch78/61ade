@@ -1155,18 +1155,79 @@ h1 em {
 .phone {
   position: absolute;
   right: calc(var(--inset) - 36px);
-  bottom: -48px;
-  width: clamp(130px, 15vw, 212px);
+  bottom: -56px;
+  container-type: inline-size;
+  width: clamp(140px, 16vw, 228px);
   padding: 7px;
-  border-radius: 34px;
+  border-radius: 36px;
   background: #0b0d12;
   box-shadow:
     0 0 0 1px #ffffff1f inset,
     0 0 0 1px #13161b,
     0 40px 70px -20px #000000b3;
 }
+.phone-screen {
+  overflow: hidden;
+  border-radius: 13.5cqw;
+  background: #f6f9fe;
+}
+.phone-status {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 11.5cqw;
+  padding: 1.2cqw 7cqw 0 9cqw;
+  font: 600 4.6cqw/1 var(--sans);
+  letter-spacing: -.01em;
+  color: #1b2a3a;
+}
+.phone-status svg {
+  width: 13cqw;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+}
+.phone-status svg path:first-child {
+  stroke: none;
+}
+.phone-island {
+  position: absolute;
+  top: 2.6cqw;
+  left: 50%;
+  width: 27cqw;
+  height: 7.4cqw;
+  border-radius: 4cqw;
+  background: #0b0d12;
+  transform: translateX(-50%);
+}
 .phone .screenshot {
-  border-radius: 27px;
+  background: #f6f9fe;
+}
+.phone .screenshot::after {
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+}
+.phone-home {
+  position: relative;
+  display: block;
+  height: 6.5cqw;
+  background: #e4eff8;
+}
+.phone-home::after {
+  content: "";
+  position: absolute;
+  top: 2.4cqw;
+  left: 50%;
+  width: 34cqw;
+  height: 1.4cqw;
+  border-radius: 1cqw;
+  background: #1b2a3a;
+  transform: translateX(-50%);
 }
 .facts {
   display: grid;
@@ -1871,13 +1932,13 @@ body:has(.image-dialog[open]) {
   }
   .phone {
     right: -6px;
-    bottom: -28px;
-    width: 104px;
+    bottom: -32px;
+    width: 112px;
     padding: 4px;
     border-radius: 20px;
   }
-  .phone .screenshot {
-    border-radius: 16px;
+  .phone .screenshot::after {
+    display: none;
   }
   .browser-bar {
     height: 28px;

@@ -285,6 +285,7 @@
   "Érvénytelen kérés.": "Ungültige Anfrage.",
   "Belépés külső fiókkal": "Mit externem Konto anmelden",
   "A külső belépés most nem érhető el. Próbáld újra később.": "Die externe Anmeldung ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.",
+  "A jelszavas belépés ki van kapcsolva; lépj be külső fiókkal.": "Die Anmeldung mit Passwort ist ausgeschaltet; melden Sie sich mit einem externen Konto an.",
   "A(z) {provider} belépés még nincs beállítva (hiányzó kulcs).": "Die Anmeldung mit {provider} ist noch nicht eingerichtet (Schlüssel fehlt).",
   "Figyelmeztetés": "Warnung",
   "Információ": "Information",

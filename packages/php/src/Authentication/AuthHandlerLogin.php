@@ -36,6 +36,7 @@ final class AuthHandlerLogin
      * @param string $storage SQLite file of AuthHandler's own external identity store (private runtime).
      * @param ?string $siteUrl Absolute application URL ending with "/"; null derives it from the request (development).
      * @param array $texts AuthHandler caption overrides in its own lang.json shape: key => [locale => text].
+     * @param bool $exclusive OAuth-only sign-in: no 61ade password window or flow, the AuthHandler overlay is the sign-in.
      */
     public function __construct(
         private string $module,
@@ -48,6 +49,7 @@ final class AuthHandlerLogin
         private ?string $siteUrl = null,
         private array $texts = [],
         ?Closure $factory = null,
+        public readonly bool $exclusive = false,
     ) {
         if (!$accounts->oauth) throw new InvalidArgumentException('External sign-in requires the account administration with OAuth enabled.');
         if (!preg_match('~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*/?$~D', $assets)) throw new InvalidArgumentException('Invalid AuthHandler asset path.');
@@ -62,6 +64,7 @@ final class AuthHandlerLogin
                 throw new InvalidArgumentException('Provider names follow AuthHandler: one capital letter, then lower case (Google, Facebook).');
             }
         }
+        if ($exclusive && !$this->enabled()) throw new InvalidArgumentException('OAuth-only sign-in needs at least one enabled provider.');
         $this->factory = $factory;
         if (!$factory && !is_file($module.'/includes/AuthHandler.php')) throw new InvalidArgumentException('AuthHandler library not found: '.$module);
     }

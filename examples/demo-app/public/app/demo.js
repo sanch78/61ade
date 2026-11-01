@@ -798,8 +798,8 @@ function dashboard(app, host, view) {
     session?.abort();
     const controller = session = new AbortController(), signal = controller.signal;
     const compact = narrow.matches;
-    const summaryHeader = compact ? {} : { header: escape2(t("\xD6sszes\xEDt\xE9s")) };
-    const overview = compact ? { type: "space", height: 324, rows: [{ id: "summary", height: 104 }, { id: "chart", header: escape2(t("\xC9rt\xE9keloszl\xE1s")) }] } : { type: "space", height: 260, cols: [{ id: "summary", width: 340, ...summaryHeader }, { id: "chart", header: escape2(t("\xC9rt\xE9keloszl\xE1s")) }] };
+    const summaryHeader = compact ? {} : { header: t("\xD6sszes\xEDt\xE9s") };
+    const overview = compact ? { type: "space", height: 324, rows: [{ id: "summary", height: 104 }, { id: "chart", header: t("\xC9rt\xE9keloszl\xE1s") }] } : { type: "space", height: 260, cols: [{ id: "summary", width: 340, ...summaryHeader }, { id: "chart", header: t("\xC9rt\xE9keloszl\xE1s") }] };
     const layout = new app.dhx.Layout(null, { type: "none", css: "demo-readings", rows: [overview, { id: "list" }] });
     let rows = [], matched, selected;
     const colors = () => ({ rows: themeColor("--dhx-color-primary", "#0288d1"), selected: themeColor("--dhx-color-success", "#2e7d32") });

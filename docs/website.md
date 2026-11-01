@@ -52,9 +52,9 @@ guides are dropped. Section labels are numbered monospace tags (`01`–`06`).
 
 | Section | Content |
 | --- | --- |
-| Hero | Stack badge, serif headline with an italic blue second line, both buttons, the shared demo sign-in in monospace; below, the workspace screenshot in a browser frame and the phone screenshot, half over a navy blueprint band with four facts (i18n with en · hu · de out of the box, built-in and customizable themes, permission levels, audit); the hero guides run on behind the screenshots to the navy grid; the facts have no dividers; below 1280 px, where the guides would miss the grid lines, they end in small nodes at the top of the band. |
+| Hero | Stack badge, serif headline with an italic blue second line, both buttons, the shared demo sign-in in monospace; below, the workspace screenshot in a browser frame and the phone screenshot (a phone frame with its own status bar, island and home indicator around the image, sized in container units, so the rounded screen never clips the interface), half over a navy blueprint band with four facts (i18n with en · hu · de out of the box, built-in and customizable themes, permission levels, audit); the hero guides run on behind the screenshots to the navy grid; the facts have no dividers; below 1280 px, where the guides would miss the grid lines, they end in small nodes at the top of the band. |
 | `#idea` | Three principles with line icons. |
-| `#product` | Files, media, calendar and diagram, each with text, documentation link and a framed screenshot. |
+| `#product` | Media library, playlists, calendar and a project view (the media viewer), all from the demo's digital signage (`Digitális kijelző`) menu, each with text, documentation link and a framed screenshot. |
 | `#foundations` | Navy band: the six capabilities as a grid, then the product status. |
 | `#story` | DDE → ADE → 61ade timeline and signature. |
 | `#usage` | Usage intent, license card, and the demo invitation with the shared account in a sign-in-style card. |
@@ -122,12 +122,18 @@ pristine demo data, purged after an idle hour, so changes never reach other
 visitors.
 
 Twelve retained JPEGs in the website's `assets/` directory were captured on the
-managed demo, at 1440 × 900 for desktop and 390 × 844 for the mobile list:
-`workspace`, `files`, `media`, `calendar`, `diagram` and `mobile`, plus a
-`-en` version of each. Each website language uses the matching real UI language
-in the dark theme, including its social-preview image. Captions and alternative
-text are localized too. Stored record values keep their original demo text;
-capturing the English UI does not translate or modify retained demo data.
+managed demo from the `Digitális kijelző` (digital signage) menu, at 1440 × 900
+for desktop and at 390 × 844 with device scale 2 (780 × 1688) for the phone:
+`workspace` (playlist editor), `media` (media library tiles), `playlists`
+(one playlist expanded to its items), `calendar` (schedule week), `viewer`
+(media viewer) and `mobile` (media library cards), plus a `-en` version of
+each. The two factory themes alternate: Blade Night for `workspace`, `media`
+and `calendar`, Blade for `playlists`, `viewer` and `mobile`. The phone frame's
+status bar and home indicator continue the Blade theme's top and bottom bar
+colours. Each website language uses the matching real UI language, including
+its social-preview image. Captions and alternative text are localized too.
+Stored record values keep their original demo text; capturing the English UI
+does not translate or modify retained demo data.
 These images are website deliverables, not disposable test evidence.
 
 When refreshing them, use the guarded browser wrapper, an isolated browser
@@ -167,4 +173,4 @@ for shared template changes. Use targeted checks; temporary task-only browser
 cases are removed after passing.
 
 Recorded results and limits: [FB-0096](feedback.md#fb-0096),
-[FB-0099](feedback.md#fb-0099).
+[FB-0099](feedback.md#fb-0099), [FB-0116](feedback.md#fb-0116).

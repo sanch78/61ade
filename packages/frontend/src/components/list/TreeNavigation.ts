@@ -43,7 +43,7 @@ export class TreeNavigation {
   constructor(host:HTMLElement,private context:ListContext,private config:TreeMetadata,private title:string,listId:string,private list:(node:string)=>{element:HTMLElement;layout:Layout;destroy():void}){
     this.view=config.view;
     this.preferences=new UiPreferences(context.user,listId+"@tree");
-    const tree={cols:[{id:"tree",header:escape(this.view.title),width:300,minWidth:180,resizable:true,collapsable:true},{id:"list",header:escape(title)}]};
+    const tree={cols:[{id:"tree",header:this.view.title,width:300,minWidth:180,resizable:true,collapsable:true},{id:"list",header:title}]};
     this.layout=new Layout(host,{type:"space",...this.preferences.layoutTree(tree)} as any);
     this.preferences.bindLayout(this.layout,tree);
     this.nodes=new Layout(document.createElement("div"),{type:"none",rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"nodes",css:"blade-tree-cell"}]});
@@ -110,7 +110,7 @@ export class TreeNavigation {
   /** The list panel's header: the list title and the selected node's name. */
   private heading():void{
     const node=this.selected;
-    this.layout.getCell("list").config.header=escape(node!==undefined&&this.rows.has(node)?`${this.title} — ${this.label(this.rows.get(node)!)}`:this.title);
+    this.layout.getCell("list").config.header=node!==undefined&&this.rows.has(node)?`${this.title} — ${this.label(this.rows.get(node)!)}`:this.title;
   }
   private commands():void{
     const row=this.selected!==undefined?this.rows.get(this.selected):undefined;
