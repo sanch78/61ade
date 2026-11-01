@@ -156,7 +156,9 @@ not a [project CSS hook](shell.md#sign-in-css-hooks).
   104 %) into the application and removes it: about 3.3 s from the first
   paint. A slower load holds the finished logo and repeats the glint every
   3 s from 4.6 s. The screen covers the page and takes the pointer until it
-  leaves.
+  leaves. `splashLeft()` resolves once it has left (at once without a screen);
+  the [OAuth-only overlay](authentication.md#oauth-only-sign-in), which stacks
+  above every layer, waits for it ([FB-0118](feedback.md#fb-0118)).
 - **Limits:** without JavaScript it is hidden (`<noscript>` style); if
   `admin.js` never releases it, it hides itself after 12 s.
   `prefers-reduced-motion: reduce` keeps the screen and the credit's fade,

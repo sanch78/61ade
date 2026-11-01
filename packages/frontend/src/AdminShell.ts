@@ -3,6 +3,7 @@ import { widgetIcons } from "./WidgetIcons";
 import { externalSignInUnavailable, openExclusiveSignIn, openExternalSignIn } from "./ExternalAuth";
 import { LiveChannel } from "./Realtime";
 import { DesktopOnly } from "./DesktopOnly";
+import { splashLeft } from "./Splash";
 import { Form, Layout, Menu, Toolbar, Window, setTheme, awaitRedraw } from "@dhtmlx/suite";
 import { acknowledge, closeDialogs, showDialog } from "./MessageDialog";
 import { uploads, type UploadIndicator } from "./Uploader";
@@ -647,6 +648,9 @@ export class AdminShell {
    */
   private async mountExternal():Promise<void>{
     const modules=this.definition.signInModules??[];
+    // The overlay stacks above every layer, the trademark screen included: it opens once that has fully played and left.
+    await splashLeft();
+    if(this.listeners.signal.aborted)return;
     const opened=await openExclusiveSignIn(content=>{
       const body=content.querySelector(".modal-body")!;
       if(this.windowLogo)body.insertAdjacentHTML("beforebegin",`<div class="blade-auth-logo">${this.logoHtml()}</div>`);

@@ -4113,3 +4113,36 @@ that exactly equals an option label lists every option. The managed
   `i18n.php`, `npm run typecheck`, `npm run build`. Not shown in the demo by
   the owner's decision; browser acceptance happens in the consumer project.
 - **Status:** implemented; consumer acceptance pending.
+
+<a id="fb-0118"></a>
+
+## FB-0118 — The OAuth-only overlay waits for the trademark screen and fades in
+
+- **Date:** 2026-11-01.
+- **Request:** consumer acceptance of [FB-0117](#fb-0117) on a new, signed-out
+  tab: the overlay appeared at about 0.5 s, above the trademark screen still
+  playing until about 3.6 s (overlay z-index 2147483002 over the screen's
+  2147483000); and it appeared without Bootstrap's entrance (opacity 1 at once,
+  0 s transitions). Expected: open after the screen has fully played and left,
+  with no added delay on later pages of the tab; animate the entrance without
+  global Bootstrap CSS, honouring reduced motion; fix in 61ade, `_AuthHandler`
+  unchanged.
+- **Cause:** `AdminShell` started `mountExternal()` in its constructor and it
+  waited only for AuthHandler; `releaseSplash()` ran independently, and the
+  shim stacks above every body layer at opening time. The shim set
+  `display: block` and `.show` in one step, with no `fade` styles.
+- **Implemented:** `Splash.ts` `splashLeft()` resolves when the screen leaves
+  the page (at once without one, right after the shell where the head gate hid
+  it); `mountExternal()` awaits it before opening the overlay. The shim renders
+  the hidden state once before adding `.show` to the overlay and backdrop;
+  `admin.css` fades them in and slides the dialog down, with no transition
+  under `prefers-reduced-motion: reduce`
+  ([OAuth-only sign-in](authentication.md#oauth-only-sign-in),
+  [overlay](authentication.md#oauth-belépés-authhandler), [splash](brand.md#splash)).
+- **Verification:** `npm run typecheck`, `npm run build`; new
+  `tests/shell/demo.spec.cjs` case (overlay, dialog and backdrop transitions
+  with normal motion, none with reduced motion) and the existing OAuth overlay
+  and `splash.spec.cjs` cases pass. The consumer's two presentation tests
+  (no overlap with the screen, overlay shown after it left; animated entrance)
+  pass against this build.
+- **Status:** implemented.
