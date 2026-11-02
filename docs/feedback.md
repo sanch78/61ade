@@ -526,3 +526,7 @@
 <a id="fb-0127"></a>
 
 ## FB-0127 — The uploader window uses the shared window action row
+
+<a id="fb-0128"></a>
+
+## FB-0128 — The demo file manager accepts at most 20 MiB per file

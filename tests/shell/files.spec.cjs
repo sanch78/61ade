@@ -166,11 +166,13 @@ test('upload validation, conflict dialog and the TXT editor',async({page})=>{
  // The framework uploader (Uploader.ts): a non-modal window with a per-file queue; rejected files fail in place.
  await command(page,'Feltöltés');
  const upload=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')}),input=page.locator('input[data-blade-upload-input="files"]');
+ // One byte over the demo's limit (examples/demo-app/common.php), read from the policy like uploader.spec.cjs.
+ const maxSize=await page.evaluate(()=>JSON.parse(document.getElementById('blade-config').textContent).views.find(view=>view.id==='files').options.upload.policy.maxSizeBytes);
  await input.setInputFiles([
   {name:prefix+'-a.txt',mimeType:'text/plain',buffer:Buffer.from('első sor\n')},
   {name:prefix+'-b.png',mimeType:'image/png',buffer:png},
   {name:prefix+'-c.exe',mimeType:'text/plain',buffer:Buffer.from('MZ')},
-  {name:prefix+'-big.txt',mimeType:'text/plain',buffer:Buffer.alloc(5242881,97)},
+  {name:prefix+'-big.txt',mimeType:'text/plain',buffer:Buffer.alloc(maxSize+1,97)},
  ]);
  await expect(upload.locator('.blade-uploader__summary')).toHaveText('Sikeres: 2, kihagyva: 0, sikertelen: 2.');
  await expect(upload).toContainText('Nem engedélyezett fájltípus');await expect(upload).toContainText('túl nagy');
