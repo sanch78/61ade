@@ -67,7 +67,7 @@ test('e-mail confirmation gates login; a remembered login lasts 90 days and surv
 test('without remember: the confirmation actions stay inside the login window in all themes and no credential is stored', async ({page}) => {
   await password(page);
   const dialog = page.getByRole('dialog', {name: 'E-mailes megerősítés', exact: true}); await expect(dialog).toBeVisible();
-  for (const theme of ['skyblue', 'light', 'dark']) {
+  for (const theme of ['blade', 'light', 'dark']) {
     await page.evaluate(theme => {document.documentElement.setAttribute('data-dhx-theme', theme); dispatchEvent(new Event('resize'));}, theme);
     // Without sign-in content the last action sits 24 px above the window bottom. With declared content (the feature
     // demo's notice, links and footer slot, docs/shell.md#sign-in-content) that box starts below the last action and

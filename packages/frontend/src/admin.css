@@ -338,6 +338,8 @@ body,
 .authhandler-modal .btn-close::before { content: "\00d7"; font-size: 22px; line-height: 28px; }
 .authhandler-modal .modal-body { padding: 16px; }
 .blade-external-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); }
+/* OAuth-only sign-in: the top row (40 px) stays uncovered, so its selectors work while the overlay is open. */
+[data-blade-exclusive-sign-in] .authhandler-modal, [data-blade-exclusive-sign-in] .blade-external-backdrop { top: 40px; }
 /* Bootstrap's `fade` entrance without its stylesheet: the overlay and backdrop fade in, the dialog slides down into place. */
 .authhandler-modal.fade, .blade-external-backdrop { opacity: 0; transition: opacity .15s linear; }
 .authhandler-modal.fade .modal-dialog { transform: translateY(-50px); transition: transform .3s ease-out; }

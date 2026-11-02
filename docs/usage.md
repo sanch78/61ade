@@ -34,8 +34,8 @@ data over [one channel per tab](workspaces.md#live-channel) that every list and
 sub-view shares; singleton details are direct forms.
 No upper application-title header; one lower bar has user left, application/version
 right. An ended session signs the page out on its next request
-([shell](shell.md#ended-session)). Skyblue (default), light and dark use DHTMLX setTheme; Skyblue uses Suite 9
-theme variables. Synthetic and consumer integration evidence exists.
+([shell](shell.md#ended-session)). Blade (default), Blade Night, light and dark use DHTMLX setTheme; Blade is a
+custom Suite 9 theme ([appearance](shell.md#megjelenési-mód)). Synthetic and consumer integration evidence exists.
 
 Optional [multi-tenancy](tenancy.md) (organizations) has its stage 1:
 tenant-scoped SQL resources and lookups, memberships, switching, tenant-bound
@@ -468,8 +468,8 @@ transferring mismatched row pixel offsets. [Details](workspaces.md#kártyaszerke
 
 Main-menu items are flat tabs; the open view's section is underlined in the
 theme's primary colour ([main-menu tabs](shell.md#elkülönülő-főmenügombok)). [Responsive commands](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség)
-collapse into Actions and keep uniform card width. Skyblue rows alternate white/
-#f7f7f7 by display index, including virtualization, with native selection above.
+collapse into Actions and keep uniform card width. Blade rows alternate white/
+#f7f7f7 (Blade Night: a faint light tint) by display index, including virtualization, with native selection above.
 No consumer configuration; rebuild/prepare assets.
 
 A collapsed desktop `Menü` is followed by the open feature's sibling menu items
@@ -477,7 +477,7 @@ A collapsed desktop `Menü` is followed by the open feature's sibling menu items
 
 [Popup headers](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü) are 40 px, with
 theme background and 1 px divider. The light theme label is Világos; default
-is Skyblue and valid saved choices persist.
+is Blade and valid saved choices persist.
 
 Optional [application skins](shell.md#application-skins) (`ApplicationDefinition
 skins:` or JSON `application.skins`) give selected signed-in identities

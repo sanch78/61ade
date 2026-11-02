@@ -24,7 +24,7 @@ for(const type of ['space','wide'])for(const axis of ['x','y']){
     return {first:box(document.querySelector('[data-cell-id="first"]')),second:box(document.querySelector('[data-cell-id="second"]')),grip:box(document.querySelector('.dhx_layout-resizer__icon'))};
    });
   }
-  for(const theme of ['light','skyblue','dark']){
+  for(const theme of ['light','blade','dark']){
    await page.evaluate(theme=>dhx.setTheme(theme),theme);
    const boxes=await geometry();
    const coordinate=axis==='x'?'x':'y',size=axis==='x'?'width':'height';

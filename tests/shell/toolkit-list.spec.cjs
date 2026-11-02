@@ -31,7 +31,7 @@ async function mount(page){
    if(request.action==='update'){const index=rows.findIndex(item=>item.id===request.id);rows[index]={...rows[index],title:request.values.title,revision:rows[index].revision+'b'};data=rows[index];}
    return {ok:true,json:async()=>({ok:true,data})};
   };
-  fixture.setTheme('skyblue',document.documentElement);
+  fixture.setTheme('blade',document.documentElement);
   const kinds={audio:'Hang',video:'Videó',image:'Kép'};
   const assets={id:'assets',kind:'list',title:'Médiatár',resource:'assets',
    actions:[{name:'get',label:'Adatok',write:false,fields:[]},{name:'update',label:'Módosítás',submitLabel:'Mentés',write:true,fields:[title]}],
@@ -175,7 +175,7 @@ test('destroy releases the DOM, the cell and the live subscription; RecordDetail
  await page.evaluate(()=>fixture.setTheme('dark',document.documentElement));
  await expect.poll(()=>cell.evaluate(element=>getComputedStyle(element).color)).not.toBe(light);
  await expect(page.locator('.dhx_grid-row')).toHaveCount(4);
- await page.evaluate(()=>fixture.setTheme('skyblue',document.documentElement));
+ await page.evaluate(()=>fixture.setTheme('blade',document.documentElement));
  // destroy(): DOM, cell, subscription and handlers released; idempotent; no events afterwards.
  await page.evaluate(()=>{list.destroy();list.destroy();details.destroy();bar.destroy();});
  await expect(page.locator('.dhx_grid-row')).toHaveCount(0);

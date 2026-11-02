@@ -193,17 +193,24 @@ production environment. Menu visibility never replaces backend endpoint policy.
 
 ## Appearance mode
 
-The right-hand DHTMLX Toolbar selector offers Skyblue (`skyblue`), light
-(`light`) and dark (`dark`). Without a saved valid choice, Skyblue is used;
-existing valid choices persist. `blade-theme` in localStorage is a browser
-preference, not authorization/profile data.
+<a id="61ade-character"></a>
 
-Suite 9.3.12 does not ship legacy Skyblue. The framework uses the documented
+The right-hand DHTMLX Toolbar selector offers 61ade's own pair, Blade
+(`blade`) and Blade Night (`blade-night`), and the Suite themes `Világos`
+(`light`) and `Éjjeli` (`dark`). Without a saved valid choice, Blade is used;
+existing valid choices persist, a removed one (such as the former `skyblue`)
+falls back to Blade. `blade-theme` in localStorage is a browser preference,
+not authorization/profile data.
+
+Blade is the DHTMLX theme `blade`, defined through the documented
 [custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/) and
-DHTMLX CSS variables for a light-blue palette; Suite 9 controls remain native,
-without recreating the entire legacy image/gradient skin. `setTheme` applies
-to the document root and all controls. No legacy CSS or application skin layer.
-`browser.spec.cjs` checks the default, actual toolbar color, switching and reload persistence.
+DHTMLX CSS variables (`themes/blade.css`, glossy chrome in
+`themes/blade-chrome.css`); Blade Night runs on Suite's `dark`, so every dark
+rule applies. `data-blade-theme` on `<html>` names the chosen factory theme
+(`blade`, `blade-night`, `light`, `dark`); `data-dhx-theme` is the applied
+Suite theme (`blade`, `dark`, `light`). Suite controls remain native; `setTheme`
+applies to the document root and all controls. `browser.spec.cjs` checks the
+default, actual toolbar color, switching and reload persistence.
 
 <a id="application-skins"></a>
 
@@ -211,12 +218,12 @@ to the document root and all controls. No legacy CSS or application skin layer.
 
 An application may give selected signed-in users its own appearance (skin)
 instead of the factory themes ([FB-0072](feedback.md#fb-0072)). A skin refines
-a factory base theme (`light`, `dark` or `skyblue`): the shell applies the base
+a factory base theme (`blade`, `blade-night`, `light` or `dark`): the shell applies the base
 with `setTheme` and marks the root with `data-blade-skin="<id>"`; the
 application's stylesheet overrides documented Suite `--dhx-*` variables on that
 selector ([custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/)).
 Everything keyed to the base keeps working unchanged: the Suite dark variables,
-the framework's dark and Skyblue rules, and the calendar's dark Scheduler skin.
+the framework's dark and Blade rules, and the calendar's dark Scheduler skin.
 A skin only states what differs. Controls stay native; 61ade ships no
 application CSS.
 
@@ -232,7 +239,7 @@ return new ApplicationDefinition(
 ```
 
 ```css
-/* skins/brand.css — only what differs from the base; Skyblue lists more variables. */
+/* skins/brand.css — only what differs from the base; Blade lists more variables. */
 [data-blade-skin="brand"] {
   --dhx-h-primary: 210; --dhx-s-primary: 16%; --dhx-l-primary: 36%;
   --dhx-background-secondary: #e4e7eb;
@@ -242,12 +249,12 @@ return new ApplicationDefinition(
 ```
 
 - `Skin(id, label, stylesheet, base = 'light')`: `id` is lowercase
-  `[a-z][a-z0-9-]*` and must not be a factory theme (`skyblue`, `light`,
-  `dark`, `contrast-light`, `contrast-dark`); `label` is localized like other
+  `[a-z][a-z0-9-]*` and must not be a factory theme (`blade`, `blade-night`,
+  `light`, `dark`, `contrast-light`, `contrast-dark`); `label` is localized like other
   texts; `stylesheet` is a `.css` path relative to the page, checked like
   `assets`, with an optional `?v=…` cache key; without one the shell appends the
   stylesheet file's [cache key](toolkit.md#cache-keys). Same-origin paths only, so CSP
-  `style-src 'self' 'unsafe-inline'` holds. `base` is `light`, `dark` or `skyblue`.
+  `style-src 'self' 'unsafe-inline'` holds. `base` is `light`, `dark`, `blade` or `blade-night`.
 - Skin stylesheets load after the framework CSS, so a `[data-blade-skin]`
   variable wins over the same base variable at equal specificity. Keep to
   `--dhx-*` variables; selectors on framework or Suite classes are not a
@@ -362,8 +369,8 @@ return new ApplicationDefinition(
   the page's one focus (the modal dims the row behind it) and a window logo
   never competes with the selectors for room on a phone. Anything else fails
   (`Invalid 61ade logo placement`).
-- **Themes:** the product logo always switches; with `darkImage`, the light image shows under Skyblue, light and
-  light-based [skins](#application-skins), the dark image under dark and
+- **Themes:** the product logo always switches; with `darkImage`, the light image shows under Blade, light and
+  light-based [skins](#application-skins), the dark image under Blade Night, dark and
   dark-based skins (the applied base, `data-dhx-theme="dark"`). A theme switch
   repaints at once through CSS. Without `darkImage` the light image shows in
   every theme.
@@ -469,7 +476,7 @@ rely on these hooks only:
 | Hook | Meaning |
 | --- | --- |
 | `data-blade-page` on `<html>` | Page kind, set by the server before any script runs: `sign-in`, `confirmation` (e-mail code), `password-change` (forced temporary password replacement), `shell` (signed in). |
-| `data-dhx-theme` on `<html>` | Applied base theme (`skyblue`, `light`, `dark`), set by the shell; read it, never set it. |
+| `data-dhx-theme` on `<html>` | Applied Suite theme (`blade`, `light`, `dark`; Blade Night applies `dark`), set by the shell; read it, never set it. |
 | `data-blade-skin` on `<html>` | Active [skin](#application-skins) id (signed in, with skins only). |
 | `.blade-logo`, `.blade-logo__image` | A logo copy and its images. |
 | `--blade-logo-height` (24px), `--blade-logo-max-width` (160px) | Size of the top-row logo; the row measures the rendered logo. |
@@ -694,7 +701,7 @@ Framework padding is 4 px vertical/12 px horizontal instead of factory
 28 px top/20 px bottom. Content sizing measures the actual header. Its 1 px
 bottom line uses `--dhx-border-color` inside the 40 px height (FB-0031).
 The secondary background is light gray in light theme and lighter dark in dark
-theme; Skyblue retains its blue gradient.
+theme; Blade and Blade Night keep their glossy chrome gradient.
 
 Compact navigation puts all branches, logout and the native separator under
 `Menü`. Desktop width restores the original top menu. ACL and logout POST

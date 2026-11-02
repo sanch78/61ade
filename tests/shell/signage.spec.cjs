@@ -380,8 +380,8 @@ test('reader: read-only library and Signage mount',async({page})=>{
 test('three themes and English: file field, picker and derived columns',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await openLibrary(page);await seed(page);
- for(const [label,theme] of [['Éjjeli','dark'],['Világos','light'],['Skyblue','skyblue']]){
-  await page.locator('.blade-navigation-row').getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).click();
+ for(const [label,theme] of [['Éjjeli','dark'],['Világos','light'],['Blade','blade']]){
+  await page.locator('.blade-navigation-row').getByRole('button',{name:/^(Blade|Blade Night|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-dhx-theme',theme);
   await command(page,'Hozzáadás');const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
   const preview=form.locator('.blade-file-field__media .dhx_avatar');await expect(preview).toBeVisible();

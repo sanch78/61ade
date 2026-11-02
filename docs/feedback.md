@@ -4127,6 +4127,10 @@ that exactly equals an option label lists every option. The managed
   with no added delay on later pages of the tab; animate the entrance without
   global Bootstrap CSS, honouring reduced motion; fix in 61ade, `_AuthHandler`
   unchanged.
+- **Also found:** the consumer's top-row selector cases failed on HEAD as well:
+  the full-screen overlay took the pointer although the guide promised usable
+  language and theme selectors. The owner asked for no remaining failures
+  ("ne legyen hiba").
 - **Cause:** `AdminShell` started `mountExternal()` in its constructor and it
   waited only for AuthHandler; `releaseSplash()` ran independently, and the
   shim stacks above every body layer at opening time. The shim set
@@ -4136,7 +4140,8 @@ that exactly equals an option label lists every option. The managed
   it); `mountExternal()` awaits it before opening the overlay. The shim renders
   the hidden state once before adding `.show` to the overlay and backdrop;
   `admin.css` fades them in and slides the dialog down, with no transition
-  under `prefers-reduced-motion: reduce`
+  under `prefers-reduced-motion: reduce`. In OAuth-only mode the overlay and backdrop
+  start below the 40 px top row (`data-blade-exclusive-sign-in`)
   ([OAuth-only sign-in](authentication.md#oauth-only-sign-in),
   [overlay](authentication.md#oauth-belépés-authhandler), [splash](brand.md#splash)).
 - **Verification:** `npm run typecheck`, `npm run build`; new
@@ -4144,5 +4149,6 @@ that exactly equals an option label lists every option. The managed
   with normal motion, none with reduced motion) and the existing OAuth overlay
   and `splash.spec.cjs` cases pass. The consumer's two presentation tests
   (no overlap with the screen, overlay shown after it left; animated entrance)
-  pass against this build.
+  pass against this build, and so do its four `oauth-only.spec.cjs` cases
+  (top-row theme and language selectors included).
 - **Status:** implemented.

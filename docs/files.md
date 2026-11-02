@@ -484,7 +484,7 @@ The demo uses `deletePolicy: 'delete'`.
 - `npm run test:browser -- tests/shell/toolkit-media.spec.cjs`: the
   `MediaPlayer` component on a synthetic page (generated WAV and PNG Blobs:
   length and format, `loaded`/`position` events, clamped `seek`, Space, Home,
-  End and arrow keys, loop and speed, light/dark/Skyblue themes, 390 px width,
+  End and arrow keys, loop and speed, Blade/Blade Night/light/dark themes, 390 px width,
   `signal` destroy with the object URL revoked, decoding errors, refused
   types), then the demo's viewer: image and video toolbars as before plus the
   format, and an audio row (a listing entry and its `content_stream` answered
@@ -494,7 +494,7 @@ The demo uses `deletePolicy: 'delete'`.
   `tests/shell/toolkit-demo-assets.spec.cjs` checks.
 - `npm run test:browser -- tests/shell/toolkit-components.spec.cjs`: the
   public `FileManager` in a project Layout cell (both panels, a mount switch,
-  the viewer and its `opened` event, the dark and Skyblue themes, `destroy()`
+  the viewer and its `opened` event, the dark and Blade themes, `destroy()`
   with the viewer open closing it and emptying the cell) and in an
   `app.ui.window` destroyed by closing it; `FilePicker.pick` on the signage
   asset field resolving a seeded signage image as a `MediaDescriptor`,

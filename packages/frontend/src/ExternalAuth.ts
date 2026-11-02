@@ -72,6 +72,8 @@ export async function openExclusiveSignIn(decorate: (content: HTMLElement) => vo
   for (const started = Date.now(); !handler.ready; await new Promise(resolve => setTimeout(resolve, 20)))
     if (Date.now() - started > 5000) return false;
   handler.setProviderRedirectGetQuery(null);
+  // The overlay and its backdrop start below the top row, whose language and theme selectors stay usable (admin.css).
+  document.documentElement.dataset.bladeExclusiveSignIn = "";
   handler.login();
   const modal = document.getElementById("authhandler-login-modal");
   const content = modal?.querySelector<HTMLElement>(".modal-content");

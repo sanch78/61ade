@@ -35,7 +35,7 @@ const ok = await requestConfirmation({ severity: "danger", title: "Törlés",
 `initialFocus` (`confirm`/`cancel`; danger always focuses Cancel).
 Labels/titles are localized hu/en/de: OK, Confirm, Cancel, Information, Warning,
 Error, Dangerous action. Styling uses `admin.css` `.blade-dialog*` with
-DHTMLX `--dhx-*` theme variables across Skyblue/light/dark; dark warning amber
+DHTMLX `--dhx-*` theme variables across Blade/Blade Night/light/dark; dark warning amber
 is lighter.
 
 `requestChoice({message, title?, severity?, cancelLabel?, choices})` is the

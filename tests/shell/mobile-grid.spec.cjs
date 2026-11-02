@@ -90,7 +90,7 @@ test('synthetic media tiles: reflow, row-height restore, keys, marks, reserved k
   window.rows=Array.from({length:120},(_,i)=>{const kind=kinds[i%3];return {id:String(i+1),thumb:'f'+i,title:i===2?'Hosszúnévtöréspróba'.repeat(20):'Média '+i,height:1000,kind:'a',
    _media:{thumb:{id:i===4?'missing':'f'+i,name:(kind.ext==='webm'?'minta':kind.ext==='jpg'?'foto':'leiras')+i+'.'+kind.ext,mime_type:kind.mime_type,revision:'r'+i,duration_ms:kind.duration_ms,width:640,height:360,thumbnail:i===4?'ready':i%2?'failed':'none'}}};});
   window.more=[];window.selected=null;window.opened=0;window.modes=[];
-  fixture.setTheme('skyblue',document.documentElement);
+  fixture.setTheme('blade',document.documentElement);
   // The host Layout re-creates the attached grid DOM on a views switch (FB-0058).
   window.host=new fixture.Layout(document.getElementById('blade-application'),{type:'none',views:[{id:'list'},{id:'other'}],activeView:'list'});
   host.getCell('other').attachHTML('<p>Other view</p>');
@@ -161,7 +161,7 @@ test('synthetic media tiles: reflow, row-height restore, keys, marks, reserved k
  await page.keyboard.press(' ');await expect.poll(()=>page.evaluate(()=>marks)).toEqual(['1']);
  await page.keyboard.press('Enter');expect(await page.evaluate(()=>opened)).toBe(1);
  await expect(page.locator('.blade-grid-tiles .dhx_dataview-item--focus')).toHaveCount(1);
- for(const theme of ['skyblue','light','dark']){
+ for(const theme of ['blade','light','dark']){
   await page.evaluate(theme=>fixture.setTheme(theme,document.documentElement),theme);await frame();
   // The ring is a box-shadow in the theme focus colour (no outline).
   const ring=await page.locator('.blade-grid-tiles .dhx_dataview-item--focus').evaluate(e=>{const s=getComputedStyle(e);return {outline:s.outlineStyle,shadow:s.boxShadow};});
@@ -169,7 +169,7 @@ test('synthetic media tiles: reflow, row-height restore, keys, marks, reserved k
   expect(await page.locator('.blade-grid-tiles').evaluate(e=>e.scrollWidth-e.clientWidth)).toBe(0);
   await page.screenshot({path:path.join(process.env.BLADE_TMP_DIR||path.join(root,'tmp'),`media-tiles-${theme}.png`)});
  }
- await page.evaluate(()=>fixture.setTheme('skyblue',document.documentElement));
+ await page.evaluate(()=>fixture.setTheme('blade',document.documentElement));
  // Table keys: cursor row moves, Space marks; marks survive the mode switch.
  await mode('table');
  await page.locator('.dhx_grid-cell[data-dhx-col-id="title"]').first().click();expect(await page.evaluate(()=>selected)).toBe('1');
@@ -261,7 +261,7 @@ test('details and cards render every media field and name an icon without option
    if(request.action==='get')data=rows[0];
    return {ok:true,json:async()=>({ok:true,data})};
   };
-  fixture.setTheme('skyblue',document.documentElement);
+  fixture.setTheme('blade',document.documentElement);
   window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'items',resource:'items',title:'Elemek',
    columns:[{id:'title',header:'Cím'},{id:'cover',header:'Borító',media:'files'},{id:'glyph',header:'Jel',presentation:'icon'}],
    detailFields:[{id:'title',header:'Cím',type:'text'},{id:'cover',header:'Borító',type:'text'},{id:'clip',header:'Előzetes',type:'text',media:'files'},{id:'glyph',header:'Jel',type:'text',presentation:'icon'}],
@@ -330,7 +330,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
    else if(request.action==='__bulk')data=request.values.items.map(item=>({id:item.id,ok:true,data:item.values.preview==='1'?{count:1,usages:[{label:'Műsorterv-események',count:1}]}:{cleared:{'Műsorterv-események':1}}}));
    return {ok:true,json:async()=>({ok:true,data})};
   };
-  fixture.setTheme('skyblue',document.documentElement);
+  fixture.setTheme('blade',document.documentElement);
   window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'assets',resource:'assets',title:'Médiatár',selection:true,
    columns:[{id:'file_id',header:'Médiafájl',type:'file',media:'files'},{id:'title',header:'Cím'},{id:'media_type',header:'Típus',mediaOf:'file_id',part:'type'},{id:'resolution',header:'Felbontás',mediaOf:'file_id',part:'resolution'},{id:'length',header:'Hossz',mediaOf:'file_id',part:'duration'}],
    detailFields:[{id:'title',header:'Cím',type:'text'},{id:'file_id',header:'Médiafájl',type:'file',media:'files'}],

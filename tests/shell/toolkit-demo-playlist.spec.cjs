@@ -286,10 +286,10 @@ test('dark theme: strip and caption take the theme colours',async({page})=>{
  await open(page);
  const colours=()=>page.evaluate(()=>['[data-demo-item]','[data-demo-part="caption"]'].map(selector=>getComputedStyle(document.querySelector(selector)).backgroundColor).join(' '));
  const light=await colours();
- await page.getByRole('button',{name:/Skyblue|Világos|Éjjeli/}).click();await page.getByRole('menuitem',{name:'Éjjeli',exact:true}).click();
+ await page.getByRole('button',{name:/^(Blade|Blade Night|Világos|Éjjeli)$/}).click();await page.getByRole('menuitem',{name:'Éjjeli',exact:true}).click();
  await expect.poll(colours).not.toBe(light);
  await expect(items(page).first()).toBeVisible();
- await page.getByRole('button',{name:'Éjjeli'}).click();await page.getByRole('menuitem',{name:'Skyblue',exact:true}).click();
+ await page.getByRole('button',{name:'Éjjeli'}).click();await page.getByRole('menuitem',{name:'Blade',exact:true}).click();
  await expect.poll(colours).toBe(light);
  expect(errors).toEqual([]);
 });

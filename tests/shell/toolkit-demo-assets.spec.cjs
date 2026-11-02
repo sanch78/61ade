@@ -241,7 +241,7 @@ test('viewer on an audio asset: play, pause, position, loop, details, reload, re
  // Themes: the stage follows the Suite theme variables.
  const stage=page.locator('.blade-audio-stage');
  const background=async theme=>{await page.evaluate(theme=>document.documentElement.setAttribute('data-dhx-theme',theme),theme);return stage.evaluate(node=>getComputedStyle(node).backgroundColor);};
- expect(await background('light')).not.toBe(await background('dark'));await background('skyblue');
+ expect(await background('light')).not.toBe(await background('dark'));await background('blade');
  // Back to the list destroys the viewer: no player, media element, command bar or details remain.
  await button(page,'Vissza a listához').click();
  await expect(page).toHaveURL(/#view=signage_assets$/);await expect(grid(page).locator('.dhx_grid-row, .blade-grid-card, .blade-grid-tile').first()).toBeVisible();

@@ -64,7 +64,7 @@ test('MediaPlayer plays audio: length and format, events, seek, keyboard, toolba
  expect(await audio.evaluate(element=>element.playbackRate)).toBe(1.5);await expect(bar).toContainText('Sebesség: 1,5×');
  // Themes: the stage follows the Suite theme variables.
  const background=async theme=>{await page.evaluate(theme=>document.documentElement.setAttribute('data-dhx-theme',theme),theme);return stage.evaluate(element=>getComputedStyle(element).backgroundColor);};
- const light=await background('light'),dark=await background('dark');await background('skyblue');
+ const light=await background('light'),dark=await background('dark');await background('blade');
  expect(light).not.toBe(dark);
  // Mobile: the controls stay inside the viewport, the info text gives way. The info is one toolbar item; Suite puts
  // its `css` class on the item wrapper and on the text node, so every node with the class must be hidden.

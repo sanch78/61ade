@@ -55,7 +55,7 @@ const inFixture=(page,selector)=>page.locator('#toolkit-fixture '+selector);
 // The fixture box is hidden (still mounted) while the shell's theme selector is used.
 const toggleTheme=async(page,name)=>{
  await page.evaluate(()=>{const box=document.getElementById('toolkit-fixture');if(box)box.style.visibility='hidden';});
- await page.getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByRole('menuitem',{name,exact:true}).click();
+ await page.getByRole('button',{name:/^(Blade|Blade Night|Világos|Éjjeli)$/}).click();await page.getByRole('menuitem',{name,exact:true}).click();
  await page.evaluate(()=>{const box=document.getElementById('toolkit-fixture');if(box)box.style.visibility='';});
 };
 
@@ -96,7 +96,7 @@ test('Calendar and DiagramEditor mount in a project Layout cell, follow the them
   expect(await page.evaluate(()=>[window.__saved,window.__editor.editing()])).toEqual([1,false]);
   // Theme: the Scheduler skin follows the shell theme while mounted.
   await toggleTheme(page,'Éjjeli');await expect(page.locator('html')).toHaveAttribute('data-scheduler-theme','dark');
-  await toggleTheme(page,'Skyblue');await expect(page.locator('html')).not.toHaveAttribute('data-scheduler-theme','dark');
+  await toggleTheme(page,'Blade');await expect(page.locator('html')).not.toHaveAttribute('data-scheduler-theme','dark');
   // Destroy: widgets leave the cells, the cells hold nothing, events and shortcuts stop.
   await page.evaluate(()=>{window.__calendar.destroy();window.__editor.destroy();window.__calendar.destroy();});
   await expect(inFixture(page,'.blade-calendar')).toHaveCount(0);await expect(inFixture(page,'.blade-diagram-surface')).toHaveCount(0);
@@ -260,7 +260,7 @@ test('FileManager mounts in a project Layout cell, reports opened, follows the t
  const color=()=>left.locator('.dhx_grid-cell').first().evaluate(element=>getComputedStyle(element).color);
  const light=await color();
  await toggleTheme(page,'Éjjeli');await expect.poll(color).not.toBe(light);
- await toggleTheme(page,'Skyblue');await expect.poll(color).toBe(light);
+ await toggleTheme(page,'Blade');await expect.poll(color).toBe(light);
  // Destroy with the viewer open: the window goes with the component, the cell holds nothing, events stop.
  await fileRow(left,IMAGE).dblclick();await expect(viewer(page)).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>window.__opened.length)).toBe(2);

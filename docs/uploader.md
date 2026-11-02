@@ -183,7 +183,7 @@ handler failure); when no part remains the request is `400` with
   itself across a reload, so re-adding it is required.
 - **Accessibility.** Every control is reachable by keyboard with a visible
   focus ring; a polite `aria-live` region announces starts, finishes and
-  failures; strings are localized (hu/en/de) and styled for Skyblue, light and
+  failures; strings are localized (hu/en/de) and styled for Blade, Blade Night, light and
   dark.
 
 ## Demo and verification

@@ -144,7 +144,7 @@ A separate category-column migration is a later decision.
 ### E9 — Localization and themes
 
 Framework catalogs contain all labels/errors/mail in hu/en/de.
-Native DHTMLX controls support checking Skyblue/light/dark.
+Native DHTMLX controls support checking Blade/Blade Night/light/dark.
 
 <a id="4-alapértékek-jóváhagyva-2026-10-21"></a>
 

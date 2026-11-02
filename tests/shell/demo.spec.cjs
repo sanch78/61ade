@@ -34,7 +34,7 @@ test('the feature demo login offers password, OAuth, remember me and the languag
  await english.getByLabel('Email',{exact:true}).fill('demo@example.test');await english.getByLabel('Password',{exact:true}).fill('61ade-demo');
  await english.getByRole('button',{name:'Sign in',exact:true}).click();
  const language=page.locator('.blade-navigation-row').getByRole('button',{name:'English',exact:true});
- const theme=page.locator('.blade-navigation-row').getByRole('button',{name:'Skyblue',exact:true});
+ const theme=page.locator('.blade-navigation-row').getByRole('button',{name:'Blade',exact:true});
  await expect(language).toBeVisible();
  expect((await language.boundingBox()).x).toBeLessThan((await theme.boundingBox()).x);
  await language.click();await page.getByText('Magyar',{exact:true}).click();

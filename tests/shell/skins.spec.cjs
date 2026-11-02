@@ -9,7 +9,7 @@ async function login(page,email){
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toHaveCount(0);
 }
-const LABELS=/^(Skyblue|Világos|Éjjeli|Pala|Tinta)$/;
+const LABELS=/^(Blade|Blade Night|Világos|Éjjeli|Pala|Tinta)$/;
 const stored=(page,key)=>page.evaluate(key=>localStorage.getItem(key),key);
 const toolbar=page=>page.locator('.blade-session-bar .dhx_toolbar').evaluate(e=>getComputedStyle(e).backgroundColor);
 const selector=page=>page.locator('.blade-navigation-row').getByRole('button',{name:LABELS});
@@ -65,12 +65,12 @@ test('an unskinned user keeps the factory themes and switching',async({page})=>{
  await page.goto('/');
  await page.evaluate(()=>{localStorage.removeItem('blade-theme');localStorage.setItem('blade-skin','demo-ink');});
  await login(page,'demo@example.test');
- await expect(html(page)).toHaveAttribute('data-dhx-theme','skyblue');
+ await expect(html(page)).toHaveAttribute('data-dhx-theme','blade');
  await expect(html(page)).not.toHaveAttribute('data-blade-skin',/./);
  await expect(page.locator('link[href*="skins/"]')).toHaveCount(0);
  expect(await page.locator('#blade-config').evaluate(e=>JSON.parse(e.textContent).skins)).toBeUndefined();
  await selector(page).click();
- await expect(page.getByRole('menuitem').filter({hasText:LABELS})).toHaveText(['Skyblue','Világos','Éjjeli']);
+ await expect(page.getByRole('menuitem').filter({hasText:LABELS})).toHaveText(['Blade','Blade Night','Világos','Éjjeli']);
  await page.getByRole('menuitem',{name:'Világos',exact:true}).click();
  await expect(html(page)).toHaveAttribute('data-dhx-theme','light');
  expect(await stored(page,'blade-theme')).toBe('light');
