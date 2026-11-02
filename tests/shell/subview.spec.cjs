@@ -51,7 +51,7 @@ test('a preview fits its records and scrolls only above 5–10 rows (by the view
  await page.evaluate(()=>workspace.destroy());
 });
 
-test('inside a window the preview stays over its slot, in the window's stacking context',async({page})=>{
+test('inside a window the preview stays over its slot, in the window\'s stacking context',async({page})=>{
  await page.setViewportSize({width:1200,height:800});await mount(page,true);
  await page.locator('.dhx_grid-row').filter({hasText:'Elem 1'}).first().locator('.blade-subrow-toggle').click();
  await expect(page.locator('.blade-subview-host .dhx_grid-row')).toHaveCount(2);
