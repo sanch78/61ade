@@ -716,5 +716,7 @@
   "Lejjebb": "Move down",
   "Szűrés: {column}": "Filter: {column}",
   "Húzással áthelyezhető": "Drag to move",
-  "Húzással hozzáadható": "Drag to add"
+  "Húzással hozzáadható": "Drag to add",
+  "Frekvenciaspektrum: mély hangoktól a magasakig": "Frequency spectrum: low to high frequencies",
+  "A frekvenciamegjelenítő nem érhető el ebben a böngészőben.": "The frequency visualizer is unavailable in this browser."
 }

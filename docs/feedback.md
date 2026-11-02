@@ -4152,3 +4152,47 @@ that exactly equals an option label lists every option. The managed
   pass against this build, and so do its four `oauth-only.spec.cjs` cases
   (top-row theme and language selectors included).
 - **Status:** implemented.
+
+
+<a id="fb-0119"></a>
+
+## FB-0119 — Optional player spectrum, composed repeat controls and bottom toolbar
+
+- **Date:** 2026-11-02.
+- **Request:** move a consumer's audio spectrum into the reusable MediaPlayer;
+  support repeat switches in the player and an external command bar, allow
+  automatic playback, and place the player's own toolbar below its stage.
+- **Implemented:** optional audio-only `visualizer: "spectrum"`, with up to
+  64 logarithmic FFT bands, native audio fallback, HU/EN/DE descriptions,
+  themed colours, reduced-motion/hidden-tab behavior and lifecycle cleanup.
+  Analysis uses the existing media element and attaches only after Web Audio
+  runs, preserving native audio while a browser awaits a gesture.
+  `loop()`, `setLoop(boolean)` and `loop {loop}` synchronize the player toggle
+  with consumer controls. `toolbarPosition: "bottom"` is optional; top remains
+  the default. Existing `autoplay: true` requests native autoplay, subject to
+  browser policy. D1 enables the spectrum for audio through its public API.
+- **Verification:** typecheck, matching tracked build and demo assets, PHP
+  i18n checks; all three existing toolkit-media cases and all four demo-asset
+  cases passed. Focused synthetic checks cover actual FFT output, pause/end
+  reset, repeat API/toolbar synchronization, real end-of-file looping,
+  bottom-toolbar geometry, unsupported analysis, reduced motion, mobile size
+  and context cleanup. The D1 viewer now uses a full-width 2U PageLayout,
+  with transport commands inside the left player region and collapsible
+  details on the right. A composed 2U PageLayout checks the resizer and
+  collapsible detail region. All three focused cases passed, including the
+  actual managed D1 page geometry, left-panel command placement and
+  collapse/reopen. All eight playlist-editor cases passed after the generic
+  layout correction; the four asset-viewer cases passed after the stable
+  mount correction for phone/desktop rebuilds. Desktop and mobile previews
+  were inspected visually.
+- **Layout correction:** Suite makes a region content-sized when it has a
+  minimum but no explicit size or gravity. PageLayout now supplies gravity
+  for every unsized region on its parent axis, so minimum dimensions remain
+  floors and flexible panels fill the available space. This also removes a
+  canvas/auto-width feedback loop exposed by the spectrum. Explicitly sized
+  panels keep their declared size. The D1 viewer demonstrates this composed
+  layout through the same public components used by consumers.
+- **Events:** repeat emits a browser component event; unsupported analysis
+  displays a local status. No new server action or audit event; normal media
+  reads keep their existing authorization/audit.
+- **Status:** implemented and verified on the managed demo.

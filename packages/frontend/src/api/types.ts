@@ -1240,9 +1240,14 @@ export interface MediaPlayerOptions extends ComponentOptions {
   info?: string;
   /** The player's toolbar (image zoom/rotation; video/audio loop and speed; the info text). Default true. */
   toolbar?: boolean;
+  /** Player toolbar placement, default top. Ignored when toolbar is false. */
+  toolbarPosition?: "top" | "bottom";
   /** Native controls (default true). */
   controls?: boolean;
+  /** Optional logarithmic frequency spectrum, audio only; other values/kinds throw TypeError. Default off. */
+  visualizer?: "spectrum";
   loop?: boolean;
+  /** Native autoplay request (default false); browser gesture policies still apply. */
   autoplay?: boolean;
   muted?: boolean;
   playbackRate?: number;
@@ -1250,6 +1255,8 @@ export interface MediaPlayerOptions extends ComponentOptions {
 
 /** Events of `MediaPlayer`. */
 export interface MediaPlayerEvents {
+  /** Repeat changed through setLoop() or the player toolbar. No event for an unchanged value. */
+  loop: {loop: boolean};
   /** Metadata known: duration in seconds (0 for images), natural size for images and videos. */
   loaded: { duration: number; width?: number; height?: number };
   /** Playback position, at most every 250 ms while playing, on pause and after every `seek`. */
@@ -1267,6 +1274,10 @@ export interface MediaPlayerEvents {
  * pause, arrows seek 5 s, Home/End; image stage: `+`, `-`, `0`). Media methods do nothing for images.
  */
 export interface MediaPlayer extends Component<MediaPlayerEvents> {
+  /** Repeat state; false for images. */
+  loop(): boolean;
+  /** Updates native playback and the player toolbar together; no-op for images or after destruction. */
+  setLoop(loop: boolean): void;
   /** Resolves when playback starts; rejects like `HTMLMediaElement.play()` (for example a refused autoplay). */
   play(): Promise<void>;
   pause(): void;

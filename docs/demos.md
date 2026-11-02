@@ -713,6 +713,19 @@ See [project rules](development.md#mandatory-framework-development-rules).
 - `php8.4 tests/shell/tenancy.php` and `npm run test:browser -- tests/shell/tenancy.spec.cjs`: the tenant demo and the tenancy security matrix ([tenancy](tenancy.md#verification)). The spec switches demo@ back to Alfa.
 - Manual verification: open the managed URLs directly from the checkout.
 
+
+### Optional audio spectrum
+
+The D1 media viewer uses a full-width 2U PageLayout: a left player region
+with the transport CommandBar at its top, and resizable, collapsible details
+on the right. Narrow screens stack the regions. The player toolbar is below
+the stage. It enables `visualizer: "spectrum"` for audio assets through
+its public `MediaPlayer` declaration. Open an audio item in Médianéző and press
+Play to see the frequency bars; pause resets them. Other media keep their
+existing stages. Repeat synchronization for composed players is documented in
+[MediaPlayer](toolkit.md#mediaplayer). This is a synthetic example; no consumer
+code or data is required.
+
 <a id="korlátok"></a>
 
 ## Limits

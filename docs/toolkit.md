@@ -667,6 +667,9 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   unique), a branch `rows` or `cols` and no id; at most 6 levels and 30
   regions, sizes 40–3000 px. Anything else throws `TypeError`; `id` is the
   preference key (usually the view id).
+- A region with a minimum but no explicit size fills the remaining space
+  on its parent axis. The minimum is a floor; it does not make the region
+  fit its content.
 - `cell(id)` is a declared region's cell, the mount target of every
   component (an undeclared id throws `Error`); `attach(id, content)` puts a
   Suite widget, a public component or a plain element there (the view host's
@@ -824,6 +827,27 @@ if (current) {
   the caller's `info`. Below 600 px the info text is hidden. The audio stage
   shows `name` on the theme's background. Colours come from the Suite theme
   variables, so Blade, Blade Night, light, dark and skins apply without code.
+- **Toolbar placement.** `toolbarPosition: "bottom"` places the player toolbar
+  below its stage; default `"top"`. `toolbar: false` hides it in either position.
+  Other placement values throw `TypeError`.
+- **Audio spectrum.** `visualizer: "spectrum"` adds logarithmic FFT bars from
+  40 Hz to 16 kHz (up to Nyquist), with localized frequency labels and theme
+  colours. Default off; specifying it for non-audio or passing another value
+  throws `TypeError`. The graph uses the same audio element as playback, with
+  one audible destination. Pause/end reset the bars, hidden tabs stop animation,
+  reduced motion shows a static spectrum, and destroy releases the graph and
+  AudioContext. Without Web Audio/canvas support a localized status appears;
+  native playback remains available. Analysis attaches only after the context
+  runs, so a pending Web Audio gesture cannot silence native playback.
+- **Autoplay.** `autoplay: true` requests native automatic playback; default
+  false. Browser gesture policies still apply. A blocked request requires Play
+  or the native controls; this option does not bypass browser policy.
+- **Repeat.** `loop()` reads the current repeat state; `setLoop(boolean)` changes
+  native playback and the player's repeat toggle together. The `loop` event
+  carries `{loop}` only when the state changes, including toolbar clicks.
+  External command bars can call `setLoop(!player.loop())` and subscribe to
+  `loop` to keep their own label/icon in sync. Images and destroyed players
+  ignore the setter; images report false. No extra server writes occur.
 - **Keyboard.** `focus()` focuses the media element or the image stage. On the
   media element, Space/K plays or pauses, ←/→ seek 5 s and Home/End jump.
   A key the native controls already handled is not applied twice. On the image
@@ -1341,6 +1365,7 @@ while mounted, never after `destroy()`):
 | `CommandBar` | `click` | `{id}` | an item was clicked, also from the collapsed `Műveletek` menu |
 | `FileManager` | `opened` | `{id, mimeType}` | the viewer or text editor showed a file, also on previous/next |
 | `DiagramEditor` | `saved` | `{}` | the open diagram's content was saved (`Mentés`, Ctrl+S) |
+| `MediaPlayer` | `loop` | `{loop}` | repeat changes through `setLoop` or the player toolbar; unchanged values emit nothing |
 | `MediaPlayer` | `loaded` | `{duration, width?, height?}` | the metadata is known (`duration` 0 for images) |
 | | `position` | `{seconds}` | every 250 ms while playing, on pause and after a completed seek |
 | | `ended` | `{}` | the media element ended (never while looping) |
@@ -1941,6 +1966,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-31 | `ViewDefinition.guide`, `ListKindOptions.tree` (`TreeMetadata`), `FieldMetadata.visibleWhen`; `Registry::tree()`, `View`/builder `guide`, `Field` `visibleWhen`; `RecordForm` fits an `AppWindow` it is mounted in. Additive. | Feature-demo guides and the registry editor demo need a view guide, a data tree beside a list and type-dependent value editors in the framework. | [FB-0107](feedback.md#fb-0107) |
 | 2026-10-31 | View guides open once per sign-in session (`sessionStorage`, cleared on the signed-out page); the `Útmutató` control is in the top row (in `Menü` below 768 px); `ApplicationDefinition` `guides` / JSON `application.guides`; `SqlResource::register()` `guide`. Additive (M36). | Owner: every feature shows its guide once per session when first tried, with a help button beside the language selector, configured at system level. | [FB-0109](feedback.md#fb-0109) |
 | 2026-10-31 | `CommandSeparator` (`{type: "separator"}`) and `CommandButton.iconOnly` (icon in the bar, the label as tooltip, accessible name and collapsed-menu text); `MediaPlayerEvents` `play` and `pause`; 61ade transport glyphs `blade-icon--play`, `--pause`, `--skip-start`, `--skip-previous`, `--skip-next`, `--rewind`, `--fast-forward`, `--repeat`, `--repeat-off`. Additive. | Owner: a divider after the back command, and player commands that look like a player's, wherever relevant. | [FB-0111](feedback.md#fb-0111) |
+| 2026-11-02 | `MediaPlayerOptions.visualizer: "spectrum"` (optional, audio only); `MediaPlayer.loop()`, `setLoop(boolean)` and `loop {loop}` event synchronize repeat controls; `toolbarPosition` (`top` / `bottom`) defaults to top. Existing `autoplay` remains a native request subject to browser policy. Additive. | Audio preview spectrum and synchronized repeat. | [FB-0119](feedback.md#fb-0119) |
 
 <a id="resolved-decisions"></a>
 

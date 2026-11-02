@@ -141,7 +141,9 @@ follow this route through the
    `RecordForm`, `RecordDetails`, `CommandBar`, `FileManager`, `FilePicker`,
    `Calendar`, `DiagramEditor`, `MediaPlayer` in a Suite Layout from
    `app.dhx` ([components](toolkit.md#components),
-   [Layout recipe](toolkit.md#layout-recipe)); untrusted code only in
+   [Layout recipe](toolkit.md#layout-recipe)); `MediaPlayer` optionally shows an
+   audio frequency spectrum and exposes synchronized repeat state
+   ([media options](toolkit.md#mediaplayer)); untrusted code only in
    `SandboxFrame` ([sandbox](toolkit.md#sandbox-protocol)).
 4. **Build** TypeScript against `admin.d.ts` with types-only imports
    ([recipe](toolkit.md#typescript-recipe)) and deploy the sandbox files when

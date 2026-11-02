@@ -716,5 +716,7 @@
   "Lejjebb": "Lejjebb",
   "Szűrés: {column}": "Szűrés: {column}",
   "Húzással áthelyezhető": "Húzással áthelyezhető",
-  "Húzással hozzáadható": "Húzással hozzáadható"
+  "Húzással hozzáadható": "Húzással hozzáadható",
+  "Frekvenciaspektrum: mély hangoktól a magasakig": "Frekvenciaspektrum: mély hangoktól a magasakig",
+  "A frekvenciamegjelenítő nem érhető el ebben a böngészőben.": "A frekvenciamegjelenítő nem érhető el ebben a böngészőben."
 }

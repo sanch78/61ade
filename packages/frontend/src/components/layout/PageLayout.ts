@@ -56,8 +56,11 @@ export class PageLayout extends Component<Record<string,never>> implements PageL
     this.ids=regions(options.tree);
     const preferences=new UiPreferences(context.user,options.id);
     const tree:PageRegion=options.tree.rows||options.tree.cols?options.tree:{rows:[options.tree]};
-    const config=(node:PageRegion):Record<string,unknown>=>({...node,
-      ...(node.rows?{rows:node.rows.map(config)}:{}),...(node.cols?{cols:node.cols.map(config)}:{})});
+    const config=(node:PageRegion,axis?:"width"|"height"):Record<string,unknown>=>({...node,
+      // Suite treats a minimum without gravity as content-sized. A minimum is a floor, not a fixed size.
+      ...(axis&&node[axis]===undefined?{gravity:1}:{}),
+      ...(node.rows?{rows:node.rows.map(child=>config(child,"height"))}:{}),
+      ...(node.cols?{cols:node.cols.map(child=>config(child,"width"))}:{})});
     this.layout=new Layout(this.host,{type:"space",css:"blade-page-layout",...config(preferences.layoutTree(tree))} as any);
     preferences.bindLayout(this.layout,tree);
     this.bind(options.signal);

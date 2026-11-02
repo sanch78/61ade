@@ -54,18 +54,25 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
   let frame: SandboxFrame | undefined, scene: SceneState | undefined;
   host.setTitle(`${view.title}: ${String(row.title ?? host.record.id)}`);
 
+  const root = document.createElement("div");
+  root.style.cssText = "width:100%;height:100%";
+  host.attach(root);
+
   const render = (): void => {
     if (host.signal.aborted) return;
     resume = player?.position() ?? (scene ? scene.time % scene.duration : resume);
     const previous = build, controller = build = new AbortController(), signal = controller.signal;
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
-    const stage = playable ? [{ id: "stage" }] : [];
-    const layout = new app.dhx.Layout(null, { type: "none", rows: phone.matches
-      ? [{ id: "commands", height: 48 }, ...stage.map(cell => ({ ...cell, height: kind === "audio" ? 200 : Math.max(220, Math.round(innerHeight * 0.4)) })), { id: "details" }]
-      : [{ id: "commands", height: 48 }, { type: "line", cols: [...stage, { id: "details", ...(playable ? { width: 380 } : {}) }] }] });
-    // The new content replaces the old one before the old build is released, so no cell repaints a destroyed widget.
-    host.attach(layout);
     previous?.abort();
+    const details = { id: "details", header: t("Adatok"), collapsable: true };
+    const layout = new app.components.PageLayout({ id: `${view.id}.${phone.matches ? "narrow" : "wide"}`,
+      tree: phone.matches
+        ? { rows: [{ id: "player", height: kind === "audio" ? 380 : Math.max(220, Math.round(innerHeight * 0.4)), resizable: true }, { ...details, minHeight: 120 }] }
+        : { cols: [{ id: "player", minWidth: 240, resizable: true }, { ...details, width: 380, minWidth: 240 }] } });
+    // The command row belongs to the left-hand player region, beside the collapsible metadata region.
+    layout.mount(root);
+    const left = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "stage" }] });
+    layout.attach("player", left);
     player = undefined;
     frame = undefined;
     scene = undefined;
@@ -87,7 +94,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       { type: "spacer" },
       { id: "position", label: status, disabled: true, hidden: status === "" },
     ] });
-    bar.mount(layout.getCell("commands"));
+    bar.mount(left.getCell("commands"));
     // The toggle follows the stage (also its native controls and keys): `Szünet` while playing, otherwise `Lejátszás`.
     let playing = false;
     const toggle = (on: boolean) => {
@@ -108,10 +115,10 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       if (id === "play") { if (playing) player.pause(); else void player.play().catch(() => {}); }
       else if (id === "rewind") player.seek(0);
       else if (id === "backward" || id === "forward") player.seek(player.position() + (id === "forward" ? STEP : -STEP));
-      else if (id === "loop") { loop = !loop; preferences.set("loop", loop); bar.update("loop", repeat()); }
+      else if (id === "loop") { loop = !loop; player.setLoop(loop); preferences.set("loop", loop); bar.update("loop", repeat()); }
     });
 
-    if (list) new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.getCell("details"));
+    if (list) new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.cell("details"));
 
     if (found && kind === "scene") {
       const current = frame = new app.components.SandboxFrame({ signal, title: t("Jelenet: {title}", { title: String(row.title ?? found.media.name) }), readyTimeout: SCENE_READY });
@@ -125,7 +132,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       });
       // Every error of a SandboxFrame (code, timeout, size, protocol) arrives as the page-wide framework event.
       app.events.on("sandbox:error", ({ message }) => { if (frame === current) failed(t("A jelenet hibát jelzett: {message}", { message })); }, { signal });
-      current.mount(layout.getCell("stage"));
+      current.mount(left.getCell("stage"));
       // The scene code through `signage_playlist.scene`: the server checks that the actor may read the file.
       void app.server.call<{ code?: unknown }>("signage_playlist", "scene", { values: { asset }, signal }).then(async answer => {
         if (typeof answer?.code !== "string") throw new TypeError(t("A jelenet nem érkezett meg."));
@@ -142,8 +149,8 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     if (found && playable && kind !== "scene") player = new app.components.MediaPlayer({
       source: { resource: found.source, action: "content_stream", id: found.media.id, version: found.media.revision },
       mime: found.media.mime_type, name: String(row.title ?? found.media.name),
-      // Images keep the player's zoom toolbar; audio and video are driven by the command bar (its loop, not the player's).
-      toolbar: !timed, signal,
+      // The player toolbar stays below the stage; its repeat switch and the command bar share state.
+      toolbarPosition: "bottom", visualizer: kind === "audio" ? "spectrum" : undefined, loop, signal,
     });
     const current = player;
     if (current) {
@@ -155,13 +162,14 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       current.on("position", ({ seconds }) => bar.update("position", { label: position(seconds) }));
       current.on("play", () => toggle(true));
       current.on("pause", () => toggle(false));
-      current.on("ended", () => { if (loop) { current.seek(0); void current.play().catch(() => {}); } });
+      current.on("loop", state => { loop = state.loop; preferences.set("loop", loop); bar.update("loop", repeat()); });
+
       current.on("error", ({ message }) => { for (const id of media) bar.update(id, { disabled: true }); bar.update("position", { label: message, hidden: false }); });
-      current.mount(layout.getCell("stage"));
+      current.mount(left.getCell("stage"));
       current.focus();
     }
     // Registered after the components, so they are destroyed (and detached from their cells) before the layout.
-    signal.addEventListener("abort", () => layout.destructor(), { once: true });
+    signal.addEventListener("abort", () => { left.destructor(); layout.destroy(); }, { once: true });
   };
 
   render();
