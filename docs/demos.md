@@ -719,7 +719,8 @@ See [project rules](development.md#mandatory-framework-development-rules).
 The D1 media viewer uses a full-width 2U PageLayout: a left player region
 with the transport CommandBar at its top, and resizable, collapsible details
 on the right. Narrow screens stack the regions. The player toolbar is below
-the stage. It enables `visualizer: "spectrum"` for audio assets through
+the stage. Animation frames opt into the shared SandboxFrame autoplay
+delegation; their scene runtime still controls when playback starts. It enables `visualizer: "spectrum"` for audio assets through
 its public `MediaPlayer` declaration. Open an audio item in Médianéző and press
 Play to see the frequency bars; pause resets them. Other media keep their
 existing stages. Repeat synchronization for composed players is documented in

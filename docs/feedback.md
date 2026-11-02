@@ -4196,3 +4196,27 @@ that exactly equals an option label lists every option. The managed
   displays a local status. No new server action or audit event; normal media
   reads keep their existing authorization/audit.
 - **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0120"></a>
+
+## FB-0120 — Optional autoplay delegation for sandboxed scene playback
+
+- **Date:** 2026-11-02.
+- **Request:** an animation preview required Play in its parent controls and
+  another Play inside the frame. Support automatic playback while retaining
+  the sandbox boundary.
+- **Implemented:** optional `SandboxFrameOptions.autoplay: true` adds only
+  `allow="autoplay *"` to the iframe. The sandbox flags remain `allow-scripts`;
+  credentialless loading, opaque origin, CSP, protocol validation and
+  lifecycle behavior remain intact. Default false. The D1 animation viewer
+  demonstrates opting into delegation. Scene autoplay, repeat and transport
+  messages remain the scene adapter's contract.
+- **Verification:** build, typecheck and demo assets; a synthetic Web Audio
+  scene starts from one parent Play click with origin `null`. All three
+  existing toolkit-sandbox cases pass (storage, parent/cookie isolation,
+  network CSP, message provenance, failures and destruction).
+- **Limit:** browser/user autoplay restrictions still apply; delegation is
+  permission to attempt playback, not an override of those restrictions.
+  [Browser policy](https://developer.chrome.com/blog/autoplay).
+- **Status:** implemented and verified on the managed demo.

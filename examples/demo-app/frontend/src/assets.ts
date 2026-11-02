@@ -121,7 +121,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     if (list) new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.cell("details"));
 
     if (found && kind === "scene") {
-      const current = frame = new app.components.SandboxFrame({ signal, title: t("Jelenet: {title}", { title: String(row.title ?? found.media.name) }), readyTimeout: SCENE_READY });
+      const current = frame = new app.components.SandboxFrame({ signal, autoplay: true, title: t("Jelenet: {title}", { title: String(row.title ?? found.media.name) }), readyTimeout: SCENE_READY });
       const failed = (message: string) => { for (const id of media) bar.update(id, { disabled: true }); bar.update("position", { label: message, hidden: false }); };
       current.on("message", ({ type, payload }) => {
         const state = type === "scene.state" ? sceneState(payload) : undefined;

@@ -1071,6 +1071,13 @@ The feature demo keys `Médiatár` on its `file` field instead
 
 ## Sandbox protocol
 
+`SandboxFrameOptions.autoplay: true` delegates autoplay permission to this
+opaque frame (`allow="autoplay *"`); default false. Browser/user autoplay
+policy still applies. This does not add sandbox flags or grant same-origin,
+storage, credentials or network access. A parent Play gesture can start a
+scene's Web Audio without a second artificial in-frame gesture gate. A
+browser may still require one gesture if it refuses automatic sound.
+
 `SandboxFrame` (`src/components/sandbox/SandboxFrame.ts`) creates
 `<iframe sandbox="allow-scripts" credentialless referrerpolicy="no-referrer"
 src="<admin.js directory>/sandbox.html?<admin.js cache key>">`: an opaque origin
@@ -1967,6 +1974,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-31 | View guides open once per sign-in session (`sessionStorage`, cleared on the signed-out page); the `Útmutató` control is in the top row (in `Menü` below 768 px); `ApplicationDefinition` `guides` / JSON `application.guides`; `SqlResource::register()` `guide`. Additive (M36). | Owner: every feature shows its guide once per session when first tried, with a help button beside the language selector, configured at system level. | [FB-0109](feedback.md#fb-0109) |
 | 2026-10-31 | `CommandSeparator` (`{type: "separator"}`) and `CommandButton.iconOnly` (icon in the bar, the label as tooltip, accessible name and collapsed-menu text); `MediaPlayerEvents` `play` and `pause`; 61ade transport glyphs `blade-icon--play`, `--pause`, `--skip-start`, `--skip-previous`, `--skip-next`, `--rewind`, `--fast-forward`, `--repeat`, `--repeat-off`. Additive. | Owner: a divider after the back command, and player commands that look like a player's, wherever relevant. | [FB-0111](feedback.md#fb-0111) |
 | 2026-11-02 | `MediaPlayerOptions.visualizer: "spectrum"` (optional, audio only); `MediaPlayer.loop()`, `setLoop(boolean)` and `loop {loop}` event synchronize repeat controls; `toolbarPosition` (`top` / `bottom`) defaults to top. Existing `autoplay` remains a native request subject to browser policy. Additive. | Audio preview spectrum and synchronized repeat. | [FB-0119](feedback.md#fb-0119) |
+| 2026-11-02 | `SandboxFrameOptions.autoplay` delegates autoplay to the opaque frame, default false; no sandbox flags or isolation permissions added. Additive. | One parent playback gesture for scene audio. | [FB-0120](feedback.md#fb-0120) |
 
 <a id="resolved-decisions"></a>
 
