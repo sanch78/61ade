@@ -49,7 +49,7 @@ message broker.
   socket.
 - **Auth:** a single-use ticket from `__ticket`, valid for 1 h and bound to the
   session and tenant (`Live/Tickets.php`). Every observation rechecks the
-  session, idle timeout (30 min since the last HTTP request), credential
+  session, idle timeout (application sessionIdleTimeout, default 30 min since the last HTTP request), credential
   version, login security, tenant membership and ACL.
 - **Writes:** every UI/API write goes through `Executor::execute` / `bulk` /
   `edit` and commits there (`Feature/Executor.php`). External writes (CLI,

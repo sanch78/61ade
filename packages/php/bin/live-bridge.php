@@ -35,7 +35,7 @@ while(!feof(STDIN)){
         $file=$app->live->route(is_string($request['path']??null)?$request['path']:'');
         if($file!==null){$app=require $file;if(!$app instanceof Blade\Shell\ApplicationDefinition||!$app->workspace)throw new RuntimeException('A 61ade workspace is required');}
         session_name($app->sessionName);session_save_path($app->runtime.'/sessions');
-        $state=Blade\Live\Tickets::session($app->runtime,(string)($request['ticket']??''));
+        $state=Blade\Live\Tickets::session($app->runtime,(string)($request['ticket']??''),$app->sessionIdleTimeout);
         $actor=$app->identities->find((string)$state['identity']);
         if(!$actor||($state['credentialVersion']??0)!==$app->workspace->version($actor->id)||($app->authentication&&!($state['loginSecurityEnabled']??false)))throw new Blade\Feature\Failure('A munkamenet lejárt.',401);
         // The ticket's tenant must still be the session's tenant and a membership; a switch or revocation ends it.

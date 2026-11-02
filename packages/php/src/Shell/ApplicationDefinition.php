@@ -69,6 +69,10 @@ final readonly class ApplicationDefinition
          * @var array<string, string>
          */
         public array $guides = [],
+        /** Seconds since the last HTTP request before authentication expires (60–31536000); live traffic does not refresh it. */
+        public int $sessionIdleTimeout = 1800,
+        /** Session cookie lifetime in seconds (0–31536000); zero keeps a browser-session cookie, positive values renew on each HTTP request. */
+        public int $sessionCookieLifetime = 0,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -76,6 +80,9 @@ final readonly class ApplicationDefinition
             || !self::paths($modules, 'm?js') || !self::paths($stylesheets, 'css')
             || ($documentRoot !== null && ($documentRoot === '' || str_contains($documentRoot, "\0")))) {
             throw new \InvalidArgumentException('Invalid 61ade application definition.');
+        }
+        if ($sessionIdleTimeout < 60 || $sessionIdleTimeout > 31536000 || $sessionCookieLifetime < 0 || $sessionCookieLifetime > 31536000) {
+            throw new \InvalidArgumentException('Invalid 61ade session lifetime.');
         }
         if (!self::paths($signInStylesheets, 'css')) throw new \InvalidArgumentException('Invalid 61ade sign-in stylesheets.');
         if (!self::paths($signInModules, 'm?js')) throw new \InvalidArgumentException('Invalid 61ade sign-in modules.');

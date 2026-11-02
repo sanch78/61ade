@@ -33,7 +33,7 @@ column header filters, dynamic lists, server sorting and polling/WebSocket live
 data over [one channel per tab](workspaces.md#live-channel) that every list and
 sub-view shares; singleton details are direct forms.
 No upper application-title header; one lower bar has user left, application/version
-right. An ended session signs the page out on its next request
+right. Session idle timeout and persistent cookie lifetime are [configurable](authentication.md#session-lifetime), with unchanged 30-minute/browser-session defaults. An ended session signs the page out on its next request
 ([shell](shell.md#ended-session)). Blade (default), Blade Night, light and dark use DHTMLX setTheme; Blade is a
 custom Suite 9 theme ([appearance](shell.md#megjelenési-mód)). Synthetic and consumer integration evidence exists.
 

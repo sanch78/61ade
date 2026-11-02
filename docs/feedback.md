@@ -4220,3 +4220,32 @@ that exactly equals an option label lists every option. The managed
   permission to attempt playback, not an override of those restrictions.
   [Browser policy](https://developer.chrome.com/blog/autoplay).
 - **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0121"></a>
+
+## FB-0121 — Configurable session idle timeout and persistent cookie
+
+- **Date:** 2026-11-02.
+- **Request:** a consumer needs a rolling 30-day login instead of the fixed
+  30-minute idle limit, including browser restarts.
+- **Implemented:** additive `ApplicationDefinition.sessionIdleTimeout` and
+  `sessionCookieLifetime`, with corresponding JSON `session.idle_timeout` and
+  `cookie_lifetime`. Defaults remain 1800 and 0 seconds. HTTP idle expiry and
+  live bridge authorization use the same configured timeout. Positive cookie
+  lifetime renews on HTTP requests. Request-local PHP GC retention is raised
+  to the idle limit without lowering a larger host value.
+- **Verification:** targeted PHP checks cover unchanged defaults, duration
+  validation, HTTP expiry/ID rotation/lastSeen refresh, cookie parameters,
+  29-day survival and 31-day expiry under a 30-day policy, live acceptance
+  and expiry, JSON typing/ranges. Existing configuration and authentication
+  contract suites pass. The existing managed-demo browser case for e-mail
+  verification and remembered-cookie rotation/logout passes. No wall-clock
+  30-day survival claim.
+- **Hosting requirement:** external session-file purging and locked PHP pool
+  settings must retain sessions for the configured interval; the library
+  does not modify the host. Existing account revocation/logout semantics
+  remain intact; no schema or provider changes.
+- **Events:** no new event; normal login/logout/revocation paths retain their
+  existing audit semantics.
+- **Status:** implemented; external retention is a consumer hosting concern.
