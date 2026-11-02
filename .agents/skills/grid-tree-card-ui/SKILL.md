@@ -74,8 +74,10 @@ tree as decoration for a flat list.
   established gap and native resizer behavior instead of moving widgets in CSS.
 - Define ordinary toolbar insets in the common widget style, shared by list
   command bars and direct layout attachments. Do not rely on a list-only
-  wrapper for basic spacing; navigation and window headers may have their own
-  role-specific geometry.
+  wrapper for basic spacing. The toolbar also owns its bottom separator,
+  independent of the content below; avoid duplicating it in the host or next
+  widget. Navigation and window headers may have their own role-specific
+  geometry.
 - Give the toolbar its own height and scroll boundary. Scrolling rows/cards must
   not cover commands. Keep view selection, sorting, column visibility, actions,
   filtering, and details discoverable through the native toolbar/menu; do not

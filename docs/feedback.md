@@ -507,3 +507,8 @@
 <a id="fb-0123"></a>
 
 ## FB-0123 — Paste an image directly into a form field
+
+
+<a id="fb-0124"></a>
+
+## FB-0124 — A Toolbar owns its bottom divider
