@@ -13,8 +13,11 @@ body,
 
 /* Every native content Toolbar uses the same inset, whether attached to a grid, layout or public CommandBar. */
 :root { --blade-toolbar-padding: 4px 8px; }
-.dhx_toolbar { height: 100% !important; min-height: 0; }
+.dhx_toolbar { height: 100% !important; min-height: 0; box-sizing: border-box; border-bottom: 1px solid var(--dhx-border-color); }
 .dhx_toolbar .dhx_navbar { height: 100%; box-sizing: border-box; padding: var(--blade-toolbar-padding); align-items: center; }
+/* A cell filled by a Toolbar (directly or through CommandBar) delegates its lower rule to the widget. */
+.dhx_layout-line.dhx_layout-rows > .dhx_layout-cell:has(> .dhx_toolbar, > .dhx_layout > .blade-command-row:only-child > .dhx_toolbar) { border-bottom: 0; }
+.dhx_layout-rows > .dhx_layout-cell:has(> .dhx_toolbar, > .dhx_layout > .blade-command-row:only-child > .dhx_toolbar) + .dhx_layout-cell > .dhx_grid .dhx_grid-content { border-top: 0; }
 
 /* Fit the Toolbar's intrinsic inline height to the shell's 32px status cell. */
 .blade-session-bar .dhx_toolbar {
@@ -213,7 +216,7 @@ body,
 /* Cards use the command shadow; tables separate scrolling rows below the header. */
 .blade-command-row { z-index: 2; box-shadow: 0 3px 7px rgb(0 0 0 / 22%); }
 [data-dhx-theme="dark"] .blade-command-row { box-shadow: 0 3px 8px rgb(0 0 0 / 55%); }
-.blade-grid-content:has(.dhx_grid) .blade-command-row { box-shadow: none; border-bottom: 1px solid var(--dhx-border-color); box-sizing: border-box; }
+.blade-grid-content:has(.dhx_grid) .blade-command-row { box-shadow: none; }
 .blade-grid-views .dhx_grid-header { box-shadow: 0 3px 7px rgb(0 0 0 / 22%); }
 [data-dhx-theme="dark"] .blade-grid-views .dhx_grid-header { box-shadow: 0 3px 8px rgb(0 0 0 / 55%); }
 /* Native Form columns remain a horizontal action group at every theme size. */
@@ -274,6 +277,7 @@ body,
 .blade-navigation-row { background-color: var(--dhx-s-toolbar-background); }
 .blade-navigation-row.dhx_layout-line > .dhx_layout-cell { border: 0; background: transparent; }
 .blade-navigation-row :is(.dhx_menu-nav, .dhx_toolbar) {
+  border-bottom: 0;
   height: 100% !important;
   min-height: 0;
   background: transparent;

@@ -4334,3 +4334,30 @@ that exactly equals an option label lists every option. The managed
 - **Events:** existing `upload:*` and normal form `changed`/`saved`; no new
   event or server action.
 - **Status:** implemented and verified within the limits above.
+
+
+<a id="fb-0124"></a>
+
+## FB-0124 — A Toolbar owns its bottom divider
+
+- **Date:** 2026-11-02.
+- **Request:** following [FB-0122](#fb-0122), a normal Toolbar above borderless
+  content still had no bottom rule. It must close its row in every skin.
+- **Implemented:** the common native Toolbar style draws a 1 px bottom border
+  using `--dhx-border-color`, inside its declared height. Direct Layout cells
+  and cells holding only a public CommandBar delegate their adjoining rule to
+  the Toolbar; a following native Grid drops its duplicate top edge. The
+  list-only command-row border is removed. Navigation/status keep their own
+  row boundaries and the native window header keeps its existing divider.
+  [Toolkit](toolkit.md#commandbar), [usage](usage.md).
+- **Validation:** presentation only; no actions, configuration, authorization,
+  persistence or events change.
+- **Verification:** matching build/demo assets; two existing shell cases pass
+  (login/footer geometry and navigation tabs across themes). Focused managed-
+  URL checks pass for direct Toolbar and CommandBar attachments in `none` and
+  `line` Layouts, above a native Grid and beside one, across Blade, Blade
+  Night, light and dark: one visible bottom rule, no duplicate host/grid edge,
+  unchanged 48 px row and 8 px button inset. The managed media list keeps one
+  divider in table and cards. Screenshots inspected; temporary specs and
+  artifacts removed.
+- **Status:** implemented and verified on the managed demo.

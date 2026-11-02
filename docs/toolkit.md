@@ -613,8 +613,11 @@ one `Műveletek` menu below 768 px or when they do not fit, keeping ids, state
 and click events. Every normal native Toolbar, including one attached directly
 to a Layout, shares the same inset as the list command bar through
 `--blade-toolbar-padding` (default `4px 8px`). This is common widget CSS,
-not a per-view setting. The shell navigation, status bar and window header
-keep their role-specific geometry.
+not a per-view setting. A normal Toolbar also owns its 1 px bottom rule,
+coloured by `--dhx-border-color`, even above borderless content. Direct Layout
+attachments and CommandBar delegate the adjoining rule to it so the divider
+is not doubled by the host cell or a following native Grid. The shell
+navigation, status bar and window header keep their role-specific geometry.
 
 ```ts
 const t = (key: string) => app.i18n.t(key);

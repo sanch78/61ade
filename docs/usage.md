@@ -479,7 +479,8 @@ the open view's section is underlined in the theme accent ([main-menu tabs](shel
 collapse into Actions and keep uniform card width. Blade rows alternate white/
 #f7f7f7 (Blade Night: a faint light tint) by display index, including virtualization, with native selection above.
 All normal Toolbars share the list toolbar's inset through the common
-`--blade-toolbar-padding` token, including direct Layout attachments. Mobile
+`--blade-toolbar-padding` token, including direct Layout attachments, and own
+a themed 1 px bottom divider even above borderless content. Mobile
 shell selectors collapse together into the `Beállítások` hamburger menu.
 No consumer configuration; rebuild/prepare assets.
 
