@@ -191,13 +191,13 @@ class UploadService {
   open(options: UploadOpenOptions): void {
     const { files, transfer, background, ...context } = options;
     this.context = context;
-    this.mount();
+    if (!background) this.mount();
     // Shown first: repainting the zone of a hidden window leaves the whole window empty when it is shown.
     if (!background && !this.win!.isVisible()) {
       this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       this.win!.show();
     }
-    if (this.win!.isVisible()) this.renderZone();
+    if (this.win?.isVisible()) this.renderZone();
     this.restore();
     this.updateIndicator();
     if (!background) void awaitRedraw().then(() => this.zoneNode()?.focus({ preventScroll: true }));
@@ -208,8 +208,9 @@ class UploadService {
 
   /** Reopens the window with its current queue (shell indicator click). */
   reopen(): void {
-    if (!this.win || !this.context) return;
-    if (!this.win.isVisible()) { this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null; this.win.show(); }
+    if (!this.context) return;
+    this.mount();
+    if (!this.win!.isVisible()) { this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null; this.win!.show(); }
     this.renderZone();
     this.updateIndicator();
     void awaitRedraw().then(() => this.zoneNode()?.focus({ preventScroll: true }));
@@ -263,6 +264,7 @@ class UploadService {
     });
     win.events.on("afterShow", () => this.updateIndicator());
     Object.assign(this, { win, layout, grid, commands });
+    for (const item of this.items.values()) this.paint(item);
     this.paintSummary();
     this.listen();
   }

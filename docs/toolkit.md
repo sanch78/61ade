@@ -262,7 +262,9 @@ app.uploads.reopen();                                                           
   still checks every file against the action's `UploadPolicy`, ACL and handler.
 - `background: true` queues supplied files without opening or focusing the
   window; `reopen()` shows the shared queue. The flag must be a boolean.
-  The built-in file field uses it for direct paste and drop.
+  The built-in file field uses it for its native single-file input, paste
+  and drop. Window/Layout/Grid construction is deferred until the first
+  visible `open` or `reopen`; the interface is populated from the queue then.
 - Progress goes to `app.events` as `upload:queued`, `upload:started`,
   `upload:progress`, `upload:conflict`, `upload:file-done`,
   `upload:file-failed`, `upload:complete` and `upload:cancelled` for every
@@ -770,8 +772,9 @@ new app.components.Calendar({ view: "signage_schedule", signal: win.signal }).mo
 
 `app.components.FileManager` is the two-panel [file manager](files.md) of a
 files view; the built-in `files` kind is this class mounted in the view host.
-`app.components.FilePicker.pick` is the modal tiles picker of `file` fields
-(`Kiválasztás…`) as a promise.
+`app.components.FilePicker.pick` explicitly opens a modal tiles picker over
+a file field's folder and returns a promise. The built-in form file control
+uses a native local-file input; it does not open this existing-file picker.
 
 ```ts
 const files = new app.components.FileManager({ view: "files", signal: host.signal });

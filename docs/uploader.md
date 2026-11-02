@@ -65,8 +65,9 @@ offers only the audio extensions. The queue shows a type icon for audio (object
 URL previews are for images only).
 
 List views open it automatically for actions that declare an `UploadPolicy`
-(the signage `Feltöltés` command), and the `file` field opens it for its
-folder ([workspaces](workspaces.md#file-field)).
+(the signage `Feltöltés` command). A [file field](workspaces.md#file-field)
+sends one local file to the same queue in the background, through its native
+file dialog, drop or paste; it does not open the full upload window.
 
 Client: open the shared uploader from a command; never build another upload
 dialog. Project modules use `app.uploads` and `app.events`
@@ -107,6 +108,10 @@ opening or focusing the window. The queue, events, conflict decisions and
 server checks are the same; `reopen()` can show its progress and failures.
 The [file form field](workspaces.md#file-field) uses this mode for direct
 paste and drop. Omitting `background` keeps the existing window behavior.
+The background path does not construct a hidden Window/Layout/Grid. The
+first normal `open()` or `reopen()` constructs the interface and fills its
+grid from the existing queue. This keeps a form's transfer independent of
+the later multi-file upload window and its target.
 An all-duplicate batch whose files are already in flight reports them as
 skipped to its `onUploaded` callback, so callers can release their pending
 state. The original transfer keeps its original callback.

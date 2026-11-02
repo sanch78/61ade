@@ -777,11 +777,14 @@ accepted MIME class, which the actor may read (`thumbnail_get`); errors are
 field errors on every channel. Its metadata carries the resolved `folderId`,
 the accepted classes, the file manager's upload policy narrowed to them (no
 folders), `canUpload` and `canChoose` ([camelCase](toolkit.md#conventions)); list rows carry its `_media` descriptor, so the
-column is a media column automatically. The form control shows the thumbnail
-and name with `Kiválasztás…` (a tiles picker over the folder with search and a
-type filter; Enter or double-click chooses, Escape or `Mégse` cancels),
-`Fájl feltöltése…` (the shared uploader; the first stored file is chosen) and
-`Törlés` for optional fields. Grid editing of a file field is not supported.
+column is a media column automatically. The form control is a single-file
+input: `Fájl megadása…` opens the browser's native file dialog; once a file
+is present the command is `Fájl cseréje…`. Clicking the preview area or
+pressing Enter/Space on the file name opens the same native dialog. The
+control shows the file name and a full-width, 180 px high preview that keeps
+the entire image visible with `object-fit: contain`; it does not crop it to
+an avatar. `Törlés` clears optional references. Grid editing is unsupported.
+
 When upload is allowed, focus the file name or a command inside the field and
 paste a clipboard file (Ctrl+V / Cmd+V), or drop one file onto the field. This
 queues it through the shared uploader in the background, without opening or
@@ -809,14 +812,21 @@ For example, with an existing `files` resource and `assets` mount:
 
 Framework form save paths report a field validation error while the transfer
 is pending; the user can save once it settles. Failure keeps the prior
-reference and shows the reason beside the field. Choosing another file or
+reference and shows the reason beside the field. Providing another file or
 clearing the field invalidates older upload callbacks. Closing the form
 releases listeners and object URLs; an already queued transfer may finish
 and leave an unreferenced file in the declared folder. Uploading stores the
 file immediately; **Save** assigns it to the record. Clearing an optional
-field clears its reference, not the stored file. The upload button retains
-the full shared queue window. This behavior is shared by the public
-`RecordForm` and built-in action, singleton and bulk forms.
+field clears its reference, not the stored file. This behavior is shared by
+the public `RecordForm` and built-in action, singleton and bulk forms.
+
+The form control no longer opens a stored-file picker or the full uploader
+window ([FB-0126](feedback.md#fb-0126), superseding that part of FB-0123).
+Existing-file selection remains an explicit toolkit
+[`FilePicker`](toolkit.md#filemanager-and-filepicker) operation. The list's
+`Feltöltés` command is the independent multi-file upload flow. File ids, field metadata, server
+validation and ACL are unchanged; a field without upload permission offers
+no local-file input or stored-file picker.
 
 Consumers that store uploads themselves use `FileManagerDefinition::files()`
 (`MountStorage::folder()`/`store()`), which applies the file manager's
