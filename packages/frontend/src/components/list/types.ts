@@ -46,11 +46,13 @@ export type WorkspaceScope={field:string;id:string;
    */
   compact?:{height:(pixels:number)=>void}};
 /**
- * What a list instance gets beyond its definition: the public `ListView` events of the top-level list (nested
- * previews and windows report nothing) and the application's navigation for `view:<id>` activation targets.
+ * What a list instance gets beyond its definition: public `ListView` events of the top-level list, nested target
+ * propagation and the application's navigation for `view:<id>` activation targets.
  */
 export type WorkspaceHooks={
   emit?:<K extends keyof ListViewEvents>(event:K,payload:ListViewEvents[K])=>void;
+  /** A nested preview/window changed its active context; other public events stay local to the top-level list. */
+  target?:()=>void;
   app?:Pick<Application,"navigate"|"viewDefinition">;
   /** The view as the server sent it: the `view` of client command contexts. */
   view?:PublicDefinition<ListKindOptions>;

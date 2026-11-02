@@ -976,8 +976,6 @@ not open an intermediate form containing a second Execute button. Successful
 toolbar actions, including one-time secret reveals, report through a non-blocking
 toast; only actions that declare confirmation metadata open a confirmation dialog.
 
-<a id="sub-views"></a>
-
 <a id="view-guide"></a>
 
 ## View guide
@@ -1135,6 +1133,8 @@ offers an asset or a playlist this way.
   action; the cleared fields are optional and not secret, and a secret field
   clears nothing.
 
+<a id="sub-views"></a>
+
 ## Sub-views (expandable rows and card buttons)
 
 A list view can let each record expand to a compact preview of a related list
@@ -1208,6 +1208,15 @@ JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "proje
   only `create` and upload actions (no `Adatok`, edit or delete). Declared
   editable switch cells still save through `__edit`. `views()` carries
   `subview.select: false`; it is left out at the default.
+- **Selection, focus and an external panel:** each list keeps its own cursor:
+  selecting a preview record does not clear the main list's selection. The
+  child's keyboard navigation belongs to the child, independently of the
+  retained main cursor. A toolkit panel follows `ListView`'s `target` event
+  (`{view, row, rows}`), or reads `target()`, to observe the active preview or
+  foremost sub-view window as well as the main list. Closing a window restores
+  the underlying target. `select` and `selected()` keep their main-list meaning;
+  command-specific delegation stays unchanged
+  ([ListView](toolkit.md#listview), [FB-0125](feedback.md#fb-0125)).
 - **Partial count (`_subview_open`):** a child `ListSource` with a
   `countWhere` (trusted SQL added only to the count) counts part of what it
   lists, for example the accounts with access. Its parents then also carry
