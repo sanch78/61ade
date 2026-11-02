@@ -4481,3 +4481,19 @@ that exactly equals an option label lists every option. The managed
   because orphaned Playwright workers of earlier timed-out runs were still
   holding the managed browser run.
 - **Status:** implemented; the full uploader regression is pending.
+
+<a id="fb-0128"></a>
+
+## FB-0128 — The demo file manager accepts at most 20 MiB per file
+
+- **Date:** 2026-11-02.
+- **Decision:** the owner does not allow 1 GiB uploads on the demo. Since
+  `ec75811` the shared (developer) instance accepted 1 GiB per file and the
+  visitor sandboxes 20 MiB. Every demo instance now uses 20 MiB
+  (`examples/demo-app/common.php`). The signage library inherits the limit.
+  The framework maximum of 1 GiB per `UploadPolicy` is unchanged.
+- **Effect on tests:** `files.spec.cjs` reads the limit from the files view's
+  policy for its "too big" file and no longer assumes 5 MiB, so that case
+  sends 20 MiB + 1 byte.
+- **Status:** implemented; `blade_demo_files()->maxSizeBytes` reports
+  20971520 on the `web` instance.

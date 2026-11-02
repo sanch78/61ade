@@ -137,7 +137,7 @@ function blade_demo_admin_guides(bool $tenancy = false): array
 function blade_demo_files(): Blade\Files\FileManagerDefinition
 {
     return new Blade\Files\FileManagerDefinition('files', 'Fájlkezelő', 'demo', ['a' => 'Drive A', 'b' => 'Drive B', 'c' => 'Drive C', 'signage' => 'Signage'],
-        allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'], maxSizeBytes: blade_demo_sandboxed() ? 20971520 : 1073741824, maxFiles: 20, duplicatePolicy: 'ask',
+        allowedExtensions: ['txt', 'md', 'csv', 'json', 'png', 'jpg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'], maxSizeBytes: 20971520, maxFiles: 20, duplicatePolicy: 'ask',
         textMaxBytes: 65536, group: 'Feature demó', desktopOnly: true, contentRoot: blade_demo_runtime('files'), deletePolicy: 'delete',
         guide: 'Kétpaneles fájlkezelő a keretrendszer fájlszolgáltatásán, három kitalált meghajtóval és a digitális kijelző médiatárával (Signage).'."\n\n".'Böngéssz a fában, másolj és mozgass a két panel között, tölts fel fájlokat és mappákat, nyisd meg a szövegfájlokat a szerkesztőben, nézd meg a képeket és videókat, és tölts le fájlokat vagy ZIP-csomagot. Csak asztali nézetben érhető el.');
 }
