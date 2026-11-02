@@ -126,27 +126,26 @@ test('phone width: the sign-in logo fits; the top row gives the room to Menü an
  const windowBox=await dialog.boundingBox(),logoBox=await logo(dialog).boundingBox();
  expect(logoBox.x).toBeGreaterThanOrEqual(windowBox.x);
  expect(logoBox.x+logoBox.width).toBeLessThanOrEqual(windowBox.x+windowBox.width);
- // The window fits the phone with the notice, link and footer line. Beside the language and theme selectors the top
- // row has no room for its copy at 390 px (275 + 133 px), the window keeps its own; a 430 px phone holds both.
+ // Collapsed navigation controls leave room for the top-row logo on phones.
  await expect(footer(dialog)).toBeVisible();
  expect(windowBox.y+windowBox.height).toBeLessThanOrEqual(844);
- await expect(topLogo(page)).toBeHidden();
+ await expect(topLogo(page)).toBeVisible();
  await page.setViewportSize({width:430,height:932});
  await expect(topLogo(page)).toBeVisible();
  const topBox=await topLogo(page).boundingBox();
  expect(topBox.x+topBox.width).toBeLessThanOrEqual(430);
  await page.setViewportSize({width:390,height:844});
  await signedIn(page,'demo@example.test');
- // The feature demo's row holds Menü, the language and the theme selector: no room for the logo at 390 px.
+ // The feature demo has its navigation menu and collapsed controls, with room for the logo.
  await expect(page.getByRole('menuitem',{name:'Menü',exact:true})).toBeVisible();
- await expect(topLogo(page)).toBeHidden();
+ await expect(page.getByRole('button',{name:'Beállítások',exact:true})).toBeVisible();
+ await expect(topLogo(page)).toBeVisible();
  await page.setViewportSize(WIDE);
  await expect(topLogo(page)).toBeVisible();
 });
 
 test('the starter admin and the tenant demo show the product logo without declaring it',async({page})=>{
- // 1600 px: at 1360 px the tenant demo's full menu and its tenant, guide, language and theme selectors leave about 73 px by
- // the menu estimate, less than the 110 px top-row logo, so the logo yields there (checked below), never the menu.
+ // The logo only uses the room left by the content-sized menu and controls, without collapsing either.
  await page.setViewportSize({width:1600,height:900});
  for(const path of ['/admin/','/tenants/']){
   await page.goto(path);
@@ -168,8 +167,8 @@ test('the starter admin and the tenant demo show the product logo without declar
   await expect(logo(page)).toHaveCount(1);
   expect(await uniqueIds(page)).toBe(true);
  }
- // The menu never yields to the logo: at 1360 px the tenant demo keeps its full menu and leaves the logo out.
- await page.setViewportSize({width:1360,height:900});
+ // At 1100 px the tenant demo keeps its full menu and leaves the logo out.
+ await page.setViewportSize({width:1100,height:900});
  await expect(page.getByRole('menuitem',{name:'Kijelentkezés',exact:true})).toBeVisible();
  await expect(page.getByRole('menuitem',{name:/^(Menü|Menu)$/})).toHaveCount(0);
  await expect(topLogo(page)).toBeHidden();

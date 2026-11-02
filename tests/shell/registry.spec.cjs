@@ -18,7 +18,7 @@ const node=(page,name)=>tree(page).locator('.dhx_tree-folder').filter({has:page.
 const expand=async(page,name)=>{await node(page,name).locator('> .dhx_tree-toggle-button').click();};
 const guide=page=>page.getByRole('dialog',{name:/^Útmutató: Regisztrációs adatbázis/});
 
-// The `Útmutató` control: a top-row button left of the language selector, below 768 px an item of the main menu.
+// The guide stays with the top-row controls, below 768 px inside their settings menu.
 const guideButton=page=>page.locator('.blade-navigation-row .blade-guide-control').getByRole('button');
 const signOut=async page=>{await openMenu(page,'Kijelentkezés');await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();};
 
@@ -62,7 +62,7 @@ test('a guide opens once per sign-in session and the top-row button shows it aga
  await expect(guide(page)).toBeVisible();
 });
 
-test('below 768 px the guide is an item of the main menu',async({page})=>{
+test('below 768 px the guide is an item of the settings menu',async({page})=>{
  await page.removeLocatorHandler(guideWindow(page));
  await page.setViewportSize({width:390,height:800});
  await signIn(page);
@@ -71,7 +71,8 @@ test('below 768 px the guide is an item of the main menu',async({page})=>{
  await guide(page).getByRole('button',{name:/close|Bezárás/i}).first().click();
  await expect(guide(page)).toHaveCount(0);
  await expect(page.locator('.blade-navigation-row .blade-guide-control')).toHaveCount(0);
- await openMenu(page,'Útmutató');
+ await page.getByRole('button',{name:'Beállítások',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Útmutató',exact:true}).click();
  await expect(guide(page)).toBeVisible();
 });
 

@@ -473,10 +473,14 @@ full SQL. Layout-resizer double-click restores declared size. Content-fitted
 windows/scroll restoration preserve visible records across views rather than
 transferring mismatched row pixel offsets. [Details](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok).
 
-Main-menu items are flat tabs; the open view's section is underlined in the
-theme's primary colour ([main-menu tabs](shell.md#elkülönülő-főmenügombok)). [Responsive commands](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség)
+The main-menu row uses flat, full-height menu items and selectors with shared
+hover/focus states, content-sized controls and symmetric separator spacing;
+the open view's section is underlined in the theme accent ([main-menu tabs](shell.md#elkülönülő-főmenügombok)). [Responsive commands](workspaces.md#reszponzív-műveletsor-és-azonos-kártyaszélesség)
 collapse into Actions and keep uniform card width. Blade rows alternate white/
 #f7f7f7 (Blade Night: a faint light tint) by display index, including virtualization, with native selection above.
+All normal Toolbars share the list toolbar's inset through the common
+`--blade-toolbar-padding` token, including direct Layout attachments. Mobile
+shell selectors collapse together into the `Beállítások` hamburger menu.
 No consumer configuration; rebuild/prepare assets.
 
 A collapsed desktop `Menü` is followed by the open feature's sibling menu items

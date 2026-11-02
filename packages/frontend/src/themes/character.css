@@ -2,7 +2,7 @@
    skin built on a base inherits them and a skin stylesheet (loaded later) can override any --blade-* token.
    Panels float on a tinted canvas with soft corners and shadows instead of ruled boxes; the brand gradient
    (docs/brand.md#colours) marks selection, the current menu section and an occasional glint along panel edges.
-   Blade and Blade Night (themes/blade.css) are the showcase: glossy chrome, folder tabs and animated corner brackets. */
+   Blade and Blade Night (themes/blade.css) are the showcase: glossy chrome and animated corner brackets. */
 
 @property --blade-corner { syntax: "<length>"; inherits: false; initial-value: 12px; }
 
@@ -104,30 +104,6 @@
   pointer-events: none;
 }
 .blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_nav-menu-button::after { background-image: var(--blade-gradient); }
-
-/* An open top-level tab and its popup are one sheet: the tab takes the popup's surface and side rules, the popup loses
-   its top-left rounding, and its top rule starts at the tab's right edge (--blade-menu-tab, set by AdminShell). */
-.blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button.dhx_nav-menu-button--active:not(:disabled) {
-  z-index: 2;
-  background: var(--dhx-background-primary);
-  box-shadow: inset 1px 0 0 var(--dhx-border-color), inset -1px 0 0 var(--dhx-border-color), inset 0 1px 0 var(--dhx-border-color);
-  text-shadow: none;
-}
-.blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button--active::after { opacity: 0; }
-body:has(.blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button--active) .dhx_menu--popup-menu > .dhx_menu:first-child {
-  border-top-color: transparent;
-  border-top-left-radius: 0;
-}
-body:has(.blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button--active) .dhx_menu--popup-menu > .dhx_menu:first-child::before {
-  content: "";
-  position: absolute;
-  top: -1px;
-  left: var(--blade-menu-tab, 0px);
-  right: -1px;
-  height: 1px;
-  background: var(--dhx-border-color);
-  pointer-events: none;
-}
 
 /* Popup menu items: the highlight floats inside the popup as a rounded pill instead of touching its edges. */
 .dhx_menu--popup-menu > .dhx_menu { padding: 4px 0; }

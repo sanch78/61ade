@@ -4251,6 +4251,50 @@ that exactly equals an option label lists every option. The managed
 - **Status:** implemented; external retention is a consumer hosting concern.
 
 
+<a id="fb-0122"></a>
+
+## FB-0122 — Common Toolbar spacing and unified navigation in every skin
+
+- **Date:** 2026-11-02.
+- **Request:** the main-menu tab and tenant selector had different hover
+  treatment and uneven gaps around separators. Use one flat presentation for
+  the entire top row, in every skin, keeping the current menu section marked.
+  Follow-up: every normal Toolbar must receive the grid toolbar inset through
+  common code; fold right-hand controls into a hamburger on phones; a nested
+  controls popup must not make its parent menu inaccessible.
+- **Implemented:** native Menu and Toolbar controls share full-height flat
+  geometry, 12 px horizontal padding, 8 px icon spacing, primary-tinted hover
+  and open states, and inset keyboard focus. Selector Layout cells size to
+  content with symmetric 8 px separator spacing, replacing fixed-width slots.
+  Menu fitting uses the native font's measured label widths and the actual
+  selector widths. Only the current view's section carries an underline.
+  Blade and Blade Night keep their row chrome, with the same flat controls;
+  their separate folder tabs and connected-popup presentation are removed.
+  Normal Toolbars share `--blade-toolbar-padding` (`4px 8px`) and fill their
+  host through common CSS, including a Toolbar directly attached to a Layout.
+  The list-specific padding dependency is removed. Shell navigation, status
+  and window headers keep their role-specific geometry. Below 768 px or when
+  the control group cannot fit, tenant, guide, language and theme move into
+  the right-hand `Beállítások` hamburger. Compact Toolbar submenus replace
+  the current native popup, with `Vissza`/ArrowLeft to return and Escape to
+  close and focus the opener. This also fixes overlapping cascades in compact
+  list command menus.
+  [Shell](shell.md#elkülönülő-főmenügombok), [usage](usage.md).
+- **Validation:** presentation only; no public configuration, authorization,
+  persistence or server action changes. No new audit or browser event.
+- **Verification:** build, typecheck and PHP i18n checks pass. Seventeen
+  existing managed-demo cases pass across shell navigation, skins, language,
+  guide placement, tenant switching, phone access lists, branding and the
+  public CommandBar lifecycle. Focused checks compare actual plain-Toolbar
+  and grid-command geometry in all four factory themes, including changing
+  their shared inset token; navigation hover/open/focus geometry in Blade,
+  Blade Night, light/dark and the Pala/Tinta application skins; 320/390 px
+  controls, one-popup submenus, Back/ArrowLeft, returning to desktop with a
+  submenu open, and deeper native Toolbar submenu return paths. Screenshots
+  inspected visually. Task-only specs and artifacts are removed.
+- **Status:** implemented and verified on the managed demo.
+
+
 <a id="fb-0123"></a>
 
 ## FB-0123 — Paste an image directly into a form field
