@@ -102,6 +102,15 @@ configures it with the CSRF token and the user id.
 
 ## Transfer protocol
 
+`open({...target, files, background: true})` queues supplied files without
+opening or focusing the window. The queue, events, conflict decisions and
+server checks are the same; `reopen()` can show its progress and failures.
+The [file form field](workspaces.md#file-field) uses this mode for direct
+paste and drop. Omitting `background` keeps the existing window behavior.
+An all-duplicate batch whose files are already in flight reports them as
+skipped to its `onUploaded` callback, so callers can release their pending
+state. The original transfer keeps its original callback.
+
 `POST ./?blade=1` with the CSRF header (UI) or a Bearer token (API), envelope
 `{resource, action: "__upload", id: <target>, values: {operation, action: <target action>, …}}`.
 

@@ -56,6 +56,16 @@ export function fieldActive(field: FieldDefinition, values: Record<string, unkno
 /** Visible Form item of a `file` field (its read-only file name); the value lives in the hidden item of the field name. */
 export const fileDisplay = (name: string) => name + "__display";
 
+/** File-field transfers must settle before any form path may save the reference. */
+const pendingFiles = new WeakMap<Form, Set<string>>();
+export function fileUploadPending(form: Form, name: string, pending?: boolean): boolean {
+  if (pending === true) {
+    if (!pendingFiles.has(form)) pendingFiles.set(form, new Set());
+    pendingFiles.get(form)!.add(name);
+  } else if (pending === false) pendingFiles.get(form)?.delete(name);
+  return pendingFiles.get(form)?.has(name) ?? false;
+}
+
 /** <0, 0 or >0 as $value is before, equal to or after $other (the server's ValidationRules::compare); 0 when $other is empty. */
 function compare(value: string, other: unknown): number {
   const end = String(dateValue(other) ?? "").trim();
@@ -139,6 +149,7 @@ export class FormValidation {
     const values = {...this.context(),...this.form.getValue()};
     // A conditional field the form hides is not validated; the server stores it empty.
     if (!fieldActive(field, values)) return null;
+    if (fileUploadPending(this.form, field.name)) return t("Várd meg a fájl feltöltését.");
     return this.serverErrors.get(field.name) ?? fieldError(field, value, values);
   }
 

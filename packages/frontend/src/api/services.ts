@@ -85,7 +85,7 @@ export const uploads: Uploads = {
   open(options) {
     const invalid = (what: string) => new TypeError(`61ade: uploads.open needs ${what}.`);
     if (!options || typeof options !== "object") throw invalid("an options object");
-    const { resource, action, target, targetLabel, policy, files, transfer, onUploaded } = options;
+    const { resource, action, target, targetLabel, policy, files, transfer, background, onUploaded } = options;
     if (typeof resource !== "string" || !resource || typeof action !== "string" || !action) throw invalid("a resource and an action name");
     if (target !== null && typeof target !== "string") throw invalid("a target id string or null");
     if (typeof targetLabel !== "string") throw invalid("a targetLabel text");
@@ -95,8 +95,9 @@ export const uploads: Uploads = {
     if (queued?.some(file => !(file instanceof File))) throw invalid("File objects in `files`");
     if (transfer !== undefined && !(transfer instanceof DataTransfer)) throw invalid("a DataTransfer in `transfer`");
     if (onUploaded !== undefined && typeof onUploaded !== "function") throw invalid("a function in `onUploaded`");
+    if (background !== undefined && typeof background !== "boolean") throw invalid("a boolean in `background`");
     uploader.open({ resource, action, target, targetLabel, policy: { ...policy, extensions: [...policy.extensions] },
-      ...(queued?.length ? { files: queued } : {}), ...(transfer ? { transfer } : {}), ...(onUploaded ? { onUploaded } : {}) });
+      ...(queued?.length ? { files: queued } : {}), ...(transfer ? { transfer } : {}), ...(background !== undefined ? { background } : {}), ...(onUploaded ? { onUploaded } : {}) });
   },
   reopen: () => uploader.reopen(),
 };

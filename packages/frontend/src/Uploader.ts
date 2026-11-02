@@ -46,6 +46,8 @@ export type UploadOpenOptions = {
   files?: File[] | FileList;
   /** A drop's DataTransfer from the caller's own surface (folders included); pass it synchronously from the drop handler. */
   transfer?: DataTransfer;
+  /** Queue supplied files without showing or focusing the window; `reopen` still shows the queue. */
+  background?: boolean;
   /** Called once per batch when every file of it has settled; the caller refreshes its view. */
   onUploaded?: (result: UploadResult) => void;
 };
@@ -185,20 +187,20 @@ class UploadService {
     return () => this.indicators.delete(listener);
   }
 
-  /** Shows the window for a target; queued files of other targets stay in the queue. */
+  /** Queues files for a target; shows the window unless `background` is set. */
   open(options: UploadOpenOptions): void {
-    const { files, transfer, ...context } = options;
+    const { files, transfer, background, ...context } = options;
     this.context = context;
     this.mount();
     // Shown first: repainting the zone of a hidden window leaves the whole window empty when it is shown.
-    if (!this.win!.isVisible()) {
+    if (!background && !this.win!.isVisible()) {
       this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       this.win!.show();
     }
-    this.renderZone();
+    if (this.win!.isVisible()) this.renderZone();
     this.restore();
     this.updateIndicator();
-    void awaitRedraw().then(() => this.zoneNode()?.focus({ preventScroll: true }));
+    if (!background) void awaitRedraw().then(() => this.zoneNode()?.focus({ preventScroll: true }));
     // Folder entries of a drop are readable only in the drop handler's task: `dropped` takes them synchronously.
     if (transfer) void this.dropped(transfer);
     else if (files?.length) void this.add(Array.from(files, file => ({ file, relativePath: "" })));
@@ -208,6 +210,7 @@ class UploadService {
   reopen(): void {
     if (!this.win || !this.context) return;
     if (!this.win.isVisible()) { this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null; this.win.show(); }
+    this.renderZone();
     this.updateIndicator();
     void awaitRedraw().then(() => this.zoneNode()?.focus({ preventScroll: true }));
   }
@@ -558,6 +561,10 @@ class UploadService {
       else fresh.push(item);
     }
     if (ignored) this.announce(t("{count} fájl már a sorban van.", { count: ignored }));
+    if (!batch.items.length) {
+      try { batch.onUploaded?.({ succeeded: [], skipped: files.map(({ file }) => ({ name: file.name })), failed: [] }); } catch (error) { console.error(error); }
+      return;
+    }
     if (fresh.length) await this.preflight(fresh, context);
     const queued = batch.items.filter(item => item.state === "queued").length;
     if (queued) this.announce(t("Feltöltés elindult: {count} fájl.", { count: queued }));

@@ -318,6 +318,11 @@ conflict decision with "apply to all", background upload with a shell
 indicator, resume after reload, `upload:*` events). Do not build another
 upload dialog.
 
+An upload-enabled [`file` form field](workspaces.md#file-field) also accepts
+one file directly by paste (Ctrl+V / Cmd+V) or drop, with a local image preview
+and background transfer. Saving waits for the upload to settle; the form
+stores the resulting file id. Use `accept: ["image"]` for an image-only field.
+
 Lists gain [media columns, tiles, row height and search](workspaces.md#media-tiles):
 `column.media` renders file thumbnails with a type-stating accessible name,
 filters by MIME class, `tiles`/`tileMinWidth` add a tile mode, `rowHeight`

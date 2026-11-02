@@ -4249,3 +4249,44 @@ that exactly equals an option label lists every option. The managed
 - **Events:** no new event; normal login/logout/revocation paths retain their
   existing audit semantics.
 - **Status:** implemented; external retention is a consumer hosting concern.
+
+
+<a id="fb-0123"></a>
+
+## FB-0123 — Paste an image directly into a form field
+
+- **Date:** 2026-11-02.
+- **Request:** an ordinary form image field that accepts a clipboard image,
+  shows its preview and uploads without a separate upload window.
+- **Implemented:** the existing `file` field accepts one clipboard file while
+  focused, or one dropped file. The shared uploader's additive
+  `background: true` option keeps its queue, protocol, checks and events while
+  leaving the form focused. A local image preview and localized status appear
+  in the field; success selects the stored file id. Form validation blocks
+  saving while this direct upload is pending. Failures preserve the old
+  reference; another choice/clear invalidates earlier callbacks. Closing the
+  form releases its listeners and object URLs. The existing picker and full
+  upload-window button remain available. Image-only fields use the existing
+  `accept: ["image"]` declaration. No server, storage or ACL contract changes.
+- **Demo and guides:** `Digitális kijelző` → `Médiatár` → `Hozzáadás` →
+  `Médiafájl`; the view guide now mentions direct paste/drop.
+  [File field](workspaces.md#file-field), [uploader](uploader.md),
+  [toolkit](toolkit.md#uploads), [usage](usage.md).
+- **Verification:** build, typecheck, PHP i18n and toolkit component contracts
+  pass. Three temporary managed-demo browser cases pass: real browser
+  clipboard + Ctrl+V, pending-save refusal, drop replacement and persisted id;
+  scoped paste, multiple-file/type/content refusals, recovery and form close;
+  an independent public `RecordForm` with two optional image fields, denied
+  upload, clearing, background API validation and reopening the shared queue.
+  Existing signage upload/picker/reader cases, toolkit-components and
+  uploader-reopen pass; uploader cancel/retry, clipboard paste and background
+  indicator cases pass (3/3). The signage themes/English case passes its theme
+  checks but stops at its absent `3D logo intro` seed record; this is a demo
+  fixture limitation, not a claimed pass. Temporary task tests are removed.
+- **Limits:** the clipboard must contain a file, not an image URL or HTML;
+  verified in the managed Chromium browser. A queued upload can finish after
+  form cancellation and leave a file in the target folder. Save assigns the
+  reference; clearing a field does not delete the stored file.
+- **Events:** existing `upload:*` and normal form `changed`/`saved`; no new
+  event or server action.
+- **Status:** implemented and verified within the limits above.

@@ -260,6 +260,9 @@ app.uploads.reopen();                                                           
 - A malformed option (missing resource/action, non-string target, no policy,
   non-`File` entries) throws `TypeError` before anything opens. The server
   still checks every file against the action's `UploadPolicy`, ACL and handler.
+- `background: true` queues supplied files without opening or focusing the
+  window; `reopen()` shows the shared queue. The flag must be a boolean.
+  The built-in file field uses it for direct paste and drop.
 - Progress goes to `app.events` as `upload:queued`, `upload:started`,
   `upload:progress`, `upload:conflict`, `upload:file-done`,
   `upload:file-failed`, `upload:complete` and `upload:cancelled` for every
