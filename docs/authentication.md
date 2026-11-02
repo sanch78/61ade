@@ -219,6 +219,32 @@ session expiry. Verification: [FB-0093](feedback.md#fb-0093).
 
 <a id="oauth-belépés-authhandler"></a>
 
+## Session lifetime
+
+`ApplicationDefinition` accepts `sessionIdleTimeout` (seconds, 60–31536000,
+default 1800) and `sessionCookieLifetime` (seconds, 0–31536000, default 0).
+JSON uses `session.idle_timeout` and `session.cookie_lifetime` with the same
+validation/defaults. Existing applications retain their 30-minute idle limit
+and browser-session cookie.
+
+For a rolling 30-day login, set both values to `30 * 86400` (JSON: 2592000).
+The server checks the idle timeout against the last HTTP request, then
+refreshes that timestamp. A positive cookie lifetime renews its expiry on
+each HTTP request and survives browser restarts. Secure-on-HTTPS, HttpOnly,
+SameSite=Lax, host-only scope and the declared cookie path remain unchanged.
+Live bridge checks use the same application's timeout; live traffic alone
+does not renew it. Logout still clears authentication and rotates the session,
+and account/credential revocation is rechecked normally. This is session
+retention, independent of the optional rotating remembered-login credential.
+
+PHP's request-local `session.gc_maxlifetime` is raised to at least the idle
+limit, without reducing a larger host value. The host's session-file cleanup
+must also retain files for at least this interval. Pool-admin overrides,
+shared-directory purge policies and platform changes belong to the hosting
+operator; changing PHP application settings alone cannot promise retention.
+Old sessions already expired or deleted cannot be recovered. An existing
+unexpired session receives the new cookie policy on its next HTTP request.
+
 ## OAuth login (AuthHandler)
 
 The independent _AuthHandler library runs OAuth unchanged

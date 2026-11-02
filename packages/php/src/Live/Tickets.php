@@ -14,16 +14,16 @@ final class Tickets
         if(file_put_contents($file,$data,LOCK_EX)===false)throw new \RuntimeException('Cannot issue live ticket');chmod($file,0600);
         return $ticket;
     }
-    public static function session(string $runtime,string $ticket):array
+    public static function session(string $runtime,string $ticket,int $idleTimeout=1800):array
     {
         if(!preg_match('/^[a-f0-9]{64}$/D',$ticket))throw new Failure('Érvénytelen élő kapcsolat.',401);
         $file=$runtime.'/live/'.hash('sha256',$ticket).'.json';$data=is_file($file)?json_decode(file_get_contents($file),true):null;
         if(!$data||($data['expires']??0)<time())throw new Failure('Az élő kapcsolat lejárt.',401);
         $session=$data['session']??'';
         if(!is_string($session)||!preg_match('/^[a-zA-Z0-9,-]{1,128}$/D',$session)||!is_file($runtime.'/sessions/sess_'.$session))throw new Failure('A munkamenet lejárt.',401);
-        session_id($session);session_start(['read_and_close'=>true]);
+        session_id($session);session_start(['read_and_close'=>true,'gc_maxlifetime'=>max($idleTimeout,(int)ini_get('session.gc_maxlifetime'))]);
         $state=$_SESSION;$_SESSION=[];
-        if(!isset($state['identity'],$state['lastSeen'])||time()-$state['lastSeen']>1800)throw new Failure('A munkamenet lejárt.',401);
+        if(!isset($state['identity'],$state['lastSeen'])||time()-$state['lastSeen']>$idleTimeout)throw new Failure('A munkamenet lejárt.',401);
         return [...$state,'ticketTenant'=>is_string($data['tenant']??null)?$data['tenant']:null];
     }
 }

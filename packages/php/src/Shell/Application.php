@@ -191,19 +191,25 @@ final class Application
             session_id(is_string($cookie) && preg_match('/^[A-Za-z0-9,-]{22,256}$/D', $cookie) ? $cookie : session_create_id());
         }
         session_save_path($runtime.'/sessions');
+        ini_set('session.gc_maxlifetime', (string) max($this->definition->sessionIdleTimeout, (int) ini_get('session.gc_maxlifetime')));
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         session_set_cookie_params([
-            'lifetime' => 0,
+            'lifetime' => $this->definition->sessionCookieLifetime,
             'path' => $this->definition->cookiePath,
             'secure' => $this->secure(),
             'httponly' => true,
             'samesite' => 'Lax',
         ]);
         session_start();
-        if (isset($_SESSION['lastSeen']) && time() - $_SESSION['lastSeen'] > 1800) {
+        if (isset($_SESSION['lastSeen']) && time() - $_SESSION['lastSeen'] > $this->definition->sessionIdleTimeout) {
             $_SESSION = [];
             session_regenerate_id(true);
+        }
+        if ($this->definition->sessionCookieLifetime > 0) {
+            $cookie = session_get_cookie_params();
+            unset($cookie['lifetime']);
+            setcookie(session_name(), session_id(), [...$cookie, 'expires' => time() + $this->definition->sessionCookieLifetime]);
         }
         $_SESSION['lastSeen'] = time();
         $_SESSION['csrf'] ??= bin2hex(random_bytes(32));

@@ -492,3 +492,8 @@
 <a id="fb-0120"></a>
 
 ## FB-0120 — Optional autoplay delegation for sandboxed scene playback
+
+
+<a id="fb-0121"></a>
+
+## FB-0121 — Configurable session idle timeout and persistent cookie
