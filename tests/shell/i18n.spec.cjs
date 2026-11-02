@@ -38,7 +38,7 @@ test('framework language works before login, persists through login, translates 
  await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','hu');
  await page.getByRole('button',{name:'Blade',exact:true}).click();await expect(page.getByText('Világos',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Blade',exact:true}).click();
  await page.setViewportSize({width:390,height:844});await expect(page.getByRole('button',{name:'Műveletek',exact:true})).toBeInViewport();
- await expect(page.getByRole('button',{name:'Magyar',exact:true})).toBeInViewport();
+ await expect(page.getByRole('button',{name:'Beállítások',exact:true})).toBeInViewport();
  await page.getByRole('menuitem',{name:'Menü',exact:true}).click();await page.getByRole('menuitem',{name:'Kijelentkezés',exact:true}).click();await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();
  await expect(page.locator('.blade-session-bar')).toContainText('Nincs bejelentkezve');expect(errors).toEqual([]);
 });

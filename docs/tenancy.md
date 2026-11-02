@@ -160,8 +160,9 @@ client parameter:
 - **API keys:** the key's binding (below).
 
 Several memberships show a tenant selector in the navigation row; below 768 px
-it is a `Tenant: <name>` submenu of the main menu, so the row keeps room for the
-menu. A switch posts
+it moves with the other selectors into the right-hand `Beállítások` controls
+menu. Its submenu uses a single popup with `Vissza` to return to the controls;
+main navigation stays separate. A switch posts
 `action=tenant` with the CSRF token. The server checks membership, stores the
 choice, audits `session.tenant_switch` (with `from`), issues a new CSRF token
 and reloads the shell. The reload clears lists, forms, caches and
@@ -269,5 +270,5 @@ re-issued.
   expands to its access list (every user, rows not selectable, the toolbar stays
   on the tenant, the switch persists after a reload, full list in a window); on a
   phone the card's `Hozzáférések (n)` button opens the list full screen, and the tenant
-  choice is in the main menu.
+  choice is in the right-hand controls menu.
 - Demo: https://demo.61ade.com/tenants/, see [demos](demos.md#tenant-demo-tenants).

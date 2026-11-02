@@ -1,6 +1,5 @@
 const { test, expect } = require('../../tools/playwright-test.cjs');
-// The feature demo's full top menu fits from about 1700 px (with the guide button, FB-0109); at 1280 px it collapses
-// into "Menü" (FB-0062).
+// The full menu fits at WIDE; the content-sized navigation controls leave more room than fixed slots (FB-0122).
 const WIDE = { width: 1720, height: 900 };
 async function login(page, name = 'demo@example.test', enter = false) {
     await page.goto('/');
@@ -68,8 +67,8 @@ test('login remains a usable DHTMLX window at phone width', async ({ page }) => 
     await page.setViewportSize({width:390,height:844});await page.getByRole('menuitem',{name:'Menü',exact:true}).click();await page.getByRole('menuitem',{name:'Kijelentkezés',exact:true}).click();await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();
 });
 test('compact desktop menu shows the open feature\'s siblings beside Menü', async ({ page }) => {
-    // Below the full menu's width (about 1575 px) but wide enough for Menü and the five Digitális kijelző siblings.
-    await page.setViewportSize({ width: 1366, height: 800 });
+    // Below the full menu's width, with room for Menü and the five Digitális kijelző siblings.
+    await page.setViewportSize({ width: 1200, height: 800 });
     await login(page);
     const top = page.locator('.blade-navigation-row .dhx_menu-nav > li > button');
     const current = page.locator('.blade-navigation-row .dhx_menu-nav > li.blade-menu-current');
@@ -132,9 +131,10 @@ test('flat main-menu tabs fit their row in all skins and underline the open view
    return {height:after.height,color:after.backgroundColor,icon:getComputedStyle(e.querySelector('.dhx_menu-button__icon')).color};
   });
   expect(underline.height).toBe('3px');expect(underline.color).not.toBe('rgba(0, 0, 0, 0)');expect(underline.icon).toBe(underline.color);
-  const separator=page.locator('.blade-navigation-row [role="separator"]');
-  const separatorBox=await separator.boundingBox();expect(separatorBox.width).toBe(1);expect(separatorBox.height).toBeGreaterThan(12);
-  expect(await separator.evaluate(e=>getComputedStyle(e).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+  for(const separator of await page.locator('.blade-navigation-row [role="separator"]').all()){
+   const separatorBox=await separator.boundingBox();expect(separatorBox.width).toBe(1);expect(separatorBox.height).toBeGreaterThan(12);
+   expect(await separator.evaluate(e=>getComputedStyle(e).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+  }
   const bounds=await button.evaluate(element=>{
    const row=element.closest('.blade-navigation-row'),outer=row.getBoundingClientRect(),button=element.getBoundingClientRect(),menu=row.querySelector('.dhx_menu-nav').getBoundingClientRect();
    return {top:outer.top,bottom:outer.bottom,buttonTop:button.top,buttonBottom:button.bottom,menuBottom:menu.bottom,border:parseFloat(getComputedStyle(row).borderBottomWidth)};

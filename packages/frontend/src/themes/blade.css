@@ -108,42 +108,9 @@
   --blade-window-shadow: 0 0 0 1px #2e4865, 0 24px 48px -16px rgb(0 0 0 / 70%), 0 0 26px -6px rgb(43 226 255 / 25%);
 }
 
-/* Folder tabs: glass tabs with a gold (night: cyan) hover. */
-[data-blade-theme|="blade"] .blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button { border-radius: 7px 7px 0 0; margin-top: 6px; height: calc(100% - 6px); }
-[data-blade-theme|="blade"] .blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:is(:hover, :active):not(:disabled) {
-  background-color: transparent;
-  background-image: var(--blade-hover);
-  box-shadow: inset 0 0 0 1px var(--blade-hover-ring), inset 0 2px 0 var(--blade-highlight);
-  text-shadow: var(--blade-emboss);
-}
-/* The current section is an open folder tab: no rule below it, its bottom is the canvas' top colour, so the tab and the
-   workspace read as one sheet. The row's bottom rule is drawn inside each of the row's cells (bars, logo, an empty menu
-   cell before sign-in), where the tab can cover it. */
-[data-blade-theme|="blade"] .dhx_layout-cell.blade-navigation-row { border-bottom: 0 !important; box-shadow: none; }
-/* No top hairline here: the tab's own accent is the only line near the viewport edge. */
-[data-blade-theme|="blade"] .blade-navigation-row::before { display: none; }
-[data-blade-theme|="blade"] .blade-navigation-row :is(.dhx_menu-nav, .dhx_toolbar) { box-shadow: inset 0 1px 0 var(--blade-highlight), inset 0 -1px 0 var(--blade-rule); }
-[data-blade-theme|="blade"] .blade-navigation-row > .dhx_layout-cell { box-shadow: inset 0 -1px 0 var(--blade-rule); }
-[data-blade-theme|="blade"] .blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_nav-menu-button {
-  z-index: 1;
-  background-image: var(--blade-tab);
-  box-shadow: inset 1px 0 0 var(--blade-tab-rule), inset -1px 0 0 var(--blade-tab-rule), inset 0 1px 0 var(--blade-tab-rule), 0 -3px 10px -4px var(--blade-tab-glow);
-  text-shadow: var(--blade-emboss);
-}
-[data-blade-theme|="blade"] .blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_nav-menu-button::after {
-  top: 0;
-  bottom: auto;
-  left: 1px;
-  right: 1px;
-  border-radius: 7px 7px 0 0;
-}
-/* An open tab joins its popup as one sheet (character.css); it outranks the hover and current-tab looks above. */
-[data-blade-theme|="blade"] .blade-navigation-row .dhx_menu-nav > li > .dhx_nav-menu-button.dhx_nav-menu-button--active:not(:disabled) {
-  z-index: 2;
-  background: var(--dhx-background-primary);
-  box-shadow: inset 1px 0 0 var(--dhx-border-color), inset -1px 0 0 var(--dhx-border-color), inset 0 1px 0 var(--dhx-border-color);
-  text-shadow: none;
-}
+/* The navigation row keeps Blade chrome; its flat controls share the shell's geometry and state colours. */
+[data-blade-theme|="blade"] .blade-navigation-row { background-image: var(--blade-chrome); }
+
 [data-blade-theme|="blade"] .dhx_menu--popup-menu .dhx_menu-button:is(:hover, :focus-visible):not(:disabled) {
   background-image: var(--blade-pill);
   box-shadow: inset 0 0 0 1px var(--blade-pill-ring), 0 1px 3px var(--blade-pill-glow);

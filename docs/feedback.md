@@ -499,6 +499,11 @@
 ## FB-0121 — Configurable session idle timeout and persistent cookie
 
 
+<a id="fb-0122"></a>
+
+## FB-0122 — Common Toolbar spacing and unified navigation in every skin
+
+
 <a id="fb-0123"></a>
 
 ## FB-0123 — Paste an image directly into a form field

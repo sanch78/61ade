@@ -11,6 +11,11 @@ body,
   min-height: 0;
 }
 
+/* Every native content Toolbar uses the same inset, whether attached to a grid, layout or public CommandBar. */
+:root { --blade-toolbar-padding: 4px 8px; }
+.dhx_toolbar { height: 100% !important; min-height: 0; }
+.dhx_toolbar .dhx_navbar { height: 100%; box-sizing: border-box; padding: var(--blade-toolbar-padding); align-items: center; }
+
 /* Fit the Toolbar's intrinsic inline height to the shell's 32px status cell. */
 .blade-session-bar .dhx_toolbar {
   height: 100% !important;
@@ -118,6 +123,7 @@ body,
    sized and coloured like a `dxi` glyph, so `blade-icon blade-icon--audio` stands wherever a `dxi dxi-…` class does. */
 .blade-icon { display: inline-block; line-height: 0; font-size: 0; color: var(--dhx-font-color-secondary); }
 .blade-icon::before { content: ""; display: inline-block; width: 1em; height: 1em; font-size: var(--dhx-icon-size-normal); background: var(--dhx-font-color-additional); -webkit-mask: var(--blade-icon-glyph) center / contain no-repeat; mask: var(--blade-icon-glyph) center / contain no-repeat; }
+.blade-icon--menu { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 5h18v2H3zm0 6h18v2H3zm0 6h18v2H3z'/%3E%3C/svg%3E"); }
 .blade-icon--audio { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/%3E%3C/svg%3E"); }
 .blade-icon--animation { --blade-icon-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2a2 2 0 0 0-2 2v10h2V4h10V2H4m4 4a2 2 0 0 0-2 2v10h2V8h10V6H8m4 4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8m2 2 6 4-6 4v-8z'/%3E%3C/svg%3E"); }
 /* Transport glyphs for players (a CommandBar with icon-only buttons): play, pause, start, previous, next, back,
@@ -155,7 +161,6 @@ body,
 .blade-record-details .blade-media--card { max-width: 320px; border-radius: 4px; }
 
 /* Declared list search: its own native Toolbar input beside the command bar. */
-.blade-search-cell .dhx_navbar { padding: 4px 8px 4px 8px; }
 .blade-search-cell .dhx_toolbar__item, .blade-search-cell .dhx_toolbar__input { flex: 1; width: 100%; min-width: 0; }
 /* Matches the vendor :first-child/:last-child margin rule (0,3,0); its 12px margin pushed the input past the cell. */
 .blade-search-cell .dhx_toolbar__item .dhx_form-group { margin: 0; }
@@ -172,10 +177,6 @@ body,
 
 /* Cells, not the scrolling content, own toolbar dimensions and stacking. */
 .blade-command-row { overflow: hidden; position: relative; z-index: 1; }
-.blade-command-row .dhx_toolbar,
-.blade-navigation-row .dhx_toolbar { height: 100% !important; min-height: 0; }
-.blade-command-row .dhx_navbar,
-.blade-navigation-row .dhx_navbar { height: 100%; box-sizing: border-box; padding: 4px 8px; align-items: center; }
 .blade-navigation-row .dhx_menu-nav { height: 100%; box-sizing: border-box; padding-top: 0; padding-bottom: 0; align-items: center; }
 /* An icon-only CommandBar button: the label stays as hidden text (accessible name; shown again in the collapsed menu). */
 .dhx_toolbar-button.blade-command--icon > .dhx_toolbar-button__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -222,8 +223,6 @@ body,
 .blade-filter-actions { flex-wrap: nowrap; }
 .blade-filter-actions .dhx_button { white-space: nowrap; }
 
-.blade-navigation-row .dhx_menu-button__icon { margin-right: 6px; }
-
 /* The Form owns auth spacing; Suite's extra 28px bottom pad would clip a fitted form. */
 .blade-auth-window .dhx_window-content { padding-bottom: 0; }
 
@@ -237,7 +236,7 @@ body,
 .blade-logo--themed .blade-logo__image--dark,
 [data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--light { display: none; }
 [data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--dark { display: block; }
-/* End of the top menu row; the rule before it is the previous layout cell's own right border (a border here doubled it). */
+/* The logo uses the room left by navigation; on phones it precedes the controls toggle. */
 .blade-navigation-row .blade-logo { padding: 0 12px; }
 .blade-navigation-row .blade-logo__image { height: var(--blade-logo-height, 24px); max-width: var(--blade-logo-max-width, 160px); }
 /* Top of the sign-in, e-mail confirmation and password-change windows, centred above the form. */
@@ -271,14 +270,33 @@ body,
 .blade-checkbox-edit { display: inline-flex; align-items: center; }
 .blade-card-edit:focus-visible { outline: 2px solid var(--dhx-border-color-focused); }
 
-/* Top-level navigation: flat full-height tabs; the section of the open view carries an accent underline.
-   Hover and an open popup tint the tab; popup menus retain Suite's compact list treatment. */
-.blade-navigation-row .dhx_menu-nav { align-items: stretch; padding-left: 4px; padding-right: 4px; }
-.blade-navigation-row .dhx_menu-nav > li { display: flex; }
-.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button {
+/* One navigation surface: Menu tabs and Toolbar selectors share geometry and states in every skin. */
+.blade-navigation-row { background-color: var(--dhx-s-toolbar-background); }
+.blade-navigation-row.dhx_layout-line > .dhx_layout-cell { border: 0; background: transparent; }
+.blade-navigation-row :is(.dhx_menu-nav, .dhx_toolbar) {
+  height: 100% !important;
+  min-height: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.blade-navigation-row .dhx_menu-nav { align-items: stretch; padding: 0 8px; }
+.blade-navigation-row .dhx_toolbar .dhx_navbar { align-items: stretch; padding: 0; width: max-content; }
+.blade-navigation-row :is(.dhx_menu-nav > li, .dhx_toolbar__item) { display: flex; }
+.blade-navigation-control { position: relative; padding: 0 8px; }
+.blade-navigation-control::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background-color: var(--dhx-border-color);
+}
+.blade-navigation-row :is(.dhx_nav-menu-button, .dhx_toolbar-button) {
   position: relative;
   box-sizing: border-box;
   height: 100%;
+  margin: 0;
   padding: 0 12px;
   border: 0;
   border-radius: 0;
@@ -286,9 +304,20 @@ body,
   box-shadow: none;
   text-shadow: none;
   color: var(--dhx-font-color-primary);
+  white-space: nowrap;
+  transition: background-color .15s ease;
 }
-.blade-navigation-row .dhx_menu-nav .dhx_menu-button__icon { color: var(--dhx-font-color-secondary); }
-.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button::after {
+.blade-navigation-row .dhx_toolbar-button__text { overflow: hidden; text-overflow: ellipsis; }
+.blade-navigation-row .dhx_toolbar-button { max-width: 240px; }
+.blade-navigation-row .blade-controls-toggle { width: 44px; padding: 0; }
+.blade-controls-toggle .dhx_toolbar-button__caret { display: none; }
+@media (max-width: 767px) { .blade-navigation-row > .blade-navigation-control { order: 2; } }
+.blade-navigation-row :is(.dhx_nav-menu-button, .dhx_toolbar-button):not(:disabled) :is(.dhx_menu-button__icon, .dhx_toolbar-button__icon) { color: var(--dhx-font-color-secondary); }
+.blade-navigation-row .dhx_menu-button__icon { margin-right: 8px; }
+.blade-navigation-row .dhx_menu-button__icon + .dhx_menu-button__text { margin-left: 0; }
+.blade-navigation-row .dhx_toolbar-button__icon + .dhx_toolbar-button__text { margin-left: 8px; }
+.blade-navigation-row :is(.dhx_toolbar-button__icon, .dhx_toolbar-button__caret) { flex-shrink: 0; }
+.blade-navigation-row .dhx_nav-menu-button::after {
   content: "";
   position: absolute;
   left: 8px;
@@ -298,25 +327,33 @@ body,
   border-radius: 3px 3px 0 0;
   background-color: transparent;
 }
-.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:is(:hover, :active):not(:disabled) {
-  background-color: color-mix(in srgb, var(--dhx-color-primary) 8%, transparent);
+.blade-navigation-row :is(.dhx_nav-menu-button, .dhx_toolbar-button):is(:hover, :active, :focus-visible):not(:disabled) {
+  background: color-mix(in srgb, var(--dhx-color-primary) 8%, transparent);
+  box-shadow: none;
+  text-shadow: none;
 }
-.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button--active:not(:disabled) {
-  background-color: color-mix(in srgb, var(--dhx-color-primary) 14%, transparent);
+.blade-navigation-row :is(.dhx_nav-menu-button--active, .dhx_toolbar-button--active, .dhx_toolbar-button[aria-expanded="true"]):not(:disabled) {
+  background: color-mix(in srgb, var(--dhx-color-primary) 14%, transparent);
+  box-shadow: none;
+  text-shadow: none;
 }
-.blade-navigation-row .dhx_menu-nav .dhx_nav-menu-button:focus-visible {
+.blade-navigation-row :is(.dhx_nav-menu-button, .dhx_toolbar-button):focus-visible {
   outline: 2px solid var(--dhx-border-color-focused);
   outline-offset: -2px;
 }
-/* The label keeps the theme text colour (contrast on every skin); the icon and underline carry the accent. */
+@media (prefers-reduced-motion: reduce) {
+  .blade-navigation-row :is(.dhx_nav-menu-button, .dhx_toolbar-button) { transition: none; }
+}
+/* Only a view's menu section carries the persistent marker; selectors keep transient states. */
 .blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_menu-button__icon { color: var(--dhx-color-primary); }
 .blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_nav-menu-button::after { background-color: var(--dhx-color-primary); }
 
 /* Centered menu rows must explicitly stretch native separators to show the rule. */
-.blade-navigation-row .dhx_menu-nav__item--separator {
+.blade-navigation-row :is(.dhx_menu-nav__item--separator, .dhx_toolbar__item--separator) {
   align-self: stretch;
   flex: 0 0 1px;
-  margin: 8px 3px;
+  height: auto;
+  margin: 8px;
   background-color: var(--dhx-border-color);
 }
 
@@ -393,7 +430,6 @@ body,
 /* Files or folders dragged over a panel: the panel frame and a tint mark the drop target (its folder). */
 .blade-file-panels > .blade-file-panel:has(.blade-file-panel__body--drop) { --blade-panel-border: var(--dhx-color-primary); border-style: dashed !important; }
 .blade-file-panel__body.blade-file-panel__body--drop { background: color-mix(in srgb, var(--dhx-color-primary) 8%, var(--dhx-background-primary)); }
-.blade-file-find .blade-file-find__bar .dhx_navbar { padding-left: 0; }
 /* Tiles: folders, the ".." row and in-flight uploads have no thumbnail; their media slot shows the
    folder, parent or upload glyph of the Suite icon font (the tile's secondary line names the type in text). */
 .blade-file-list .blade-grid-tile[data-blade-row^="upload:"] { opacity: .75; }

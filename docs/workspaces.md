@@ -1018,9 +1018,9 @@ application-level map `application.guides` (`{"<view id>": "<text>"}`).
 - **Again:** when any offered view has a guide, the top row gets the
   `Útmutató` control left of the language selector: a button labelled like the
   selectors beside it (tooltip `A megnyitott nézet útmutatója`), enabled while the page
-  view has a guide. Below 768 px the row has no room for it, so it is an
-  `Útmutató` item of the main `Menü` (above `Kijelentkezés`), like the tenant
-  selector.
+  view has a guide. Below 768 px it moves with the tenant, language and theme
+  selectors into the right-hand `Beállítások` hamburger menu; main navigation
+  stays in `Menü`.
 - Not shown for a view opened in a window (`open: "window"`). A guide is
   presentation only: it grants nothing and hides nothing.
 

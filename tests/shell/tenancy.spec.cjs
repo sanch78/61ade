@@ -127,10 +127,12 @@ test('on a phone a tenant card opens its access list full screen from the card b
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.setViewportSize({width:390,height:844});
  await signIn(page,'demo@example.test','/tenants/');
- // The navigation row keeps room for the menu: the tenant choice is a submenu there.
+ // The navigation controls collapse together, leaving the main navigation its own menu.
  await expect(page.locator('.blade-navigation-row [data-cell-id="tenant"]')).toHaveCount(0);
+ await page.getByRole('button',{name:'Beállítások',exact:true}).click();
+ await expect(page.getByRole('menuitem',{name:'Alpha',exact:true})).toBeVisible();
+ await page.keyboard.press('Escape');
  await page.getByRole('menuitem',{name:/^(Menü|Menu)$/}).click();
- await expect(page.getByRole('menuitem',{name:'Tenant: Alpha',exact:true})).toBeVisible();
  await page.getByRole('menuitem',{name:'Adminisztráció',exact:true}).click();
  await page.getByRole('menuitem',{name:'Tenantok',exact:true}).click();
  const card=page.locator('.blade-grid-card').filter({hasText:'Alpha'});

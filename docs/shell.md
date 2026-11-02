@@ -346,17 +346,16 @@ return new ApplicationDefinition(
   (`Invalid 61ade logo image`); `darkImage` needs `image`. `label` is the
   accessible text, localized like other texts; it defaults to the application
   `title` (`blade` for the product logo), and a blank one is refused. Same-origin images keep the CSP `img-src 'self' data: blob:`.
-- **Signed in:** always the last cell of the top menu row, after the tenant,
-  language and theme selectors, behind a 1 px line in the theme border colour
-  (24 px high, at most 160 px wide). It is not a menu item and the menu never
+- **Signed in:** the last cell of the desktop menu row, after the tenant,
+  language and theme selectors (before the controls hamburger on a phone).
+  It is 24 px high and at most 160 px wide. It is not a menu item and the menu never
   yields to it: the menu, `Menü` and its
   [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) fit exactly as
   without a logo, and the logo shows only when its rendered width fits in the
   room they, the selectors and the [guide](workspaces.md#view-guide) button
-  leave by the same width estimate (for example not beside the feature demo's
-  full menu at 1720 px, nor at 390 px with both
-  language and theme selectors).
-  In compact mode the estimate counts only `Menü`, any visible siblings and
+  leave by the same measurement. Collapsed controls can leave room for the
+  logo on a phone too.
+  In compact mode the measurement counts only `Menü`, any visible siblings and
   the selectors: logout is inside `Menü` and reserves no extra width. There is
   no phone breakpoint that hides the logo; with one skin and no language
   selector it fits at 320 px ([FB-0092](feedback.md#fb-0092)). Widening brings
@@ -676,21 +675,39 @@ own icons. Breakpoints include icon width. See [list headings/counts](workspaces
 
 ## Main-menu tabs
 
-Top-level native DHTMLX Menu items are flat, full-row-height tabs in every
-theme: no border, background, gradient or shadow, the item's icon in the
-theme's secondary text colour. Hover tints the tab with 8 % of
-`--dhx-color-primary`, an open popup with 14 %; keyboard focus has an inset
-outline. The section of the open view is marked: its top-level item (or, in
-the compact desktop menu, the sibling of the open view) gets the `css` class
-`blade-menu-current`, which shows a 3 px `--dhx-color-primary` underline and
-the primary-coloured icon while the label keeps the theme text colour. The
-marker is a CSS class on the item, not the native `active` state, so it stays
-apart from the open-popup state. Submenus retain native list layout.
-Separators, e.g. before logout, are faint 1 px vertical lines following the
-theme border colour. No consumer configuration; rebuild/prepare assets.
-Compact breakpoints are unchanged. Verified by `browser.spec.cjs` across
-themes and the compact sibling case. FB-0100 replaced the FB-0025 bordered
-buttons.
+The entire 40 px navigation row has one presentation in every factory theme
+and application skin: native DHTMLX Menu items and Toolbar controls (tenant,
+guide, language and theme) are flat, full-height elements with 12 px horizontal
+padding and an 8 px icon-to-label gap. The controls have a content-sized Layout
+cell, with 8 px on either side of each separator; they no longer reserve
+fixed 180/120/130/145 px slots. Menu fitting measures labels with the native
+menu font and uses the rendered selector widths. Long selector labels truncate
+at a 240 px button width; their native popup keeps the complete choices.
+Below 768 px (or when the control group cannot fit), the complete right-hand
+group moves into one icon-only `Beállítások` hamburger menu: tenant, guide,
+language and theme remain native menu entries with the same actions. Widening
+restores the controls and their current state. Compact submenus replace the current popup, with a native `Vissza` item and
+ArrowLeft to return, so they cannot cover the parent controls. Escape closes
+the popup and returns focus to its opener. This also applies before sign-in.
+
+Idle controls have no background, gradient, rounding or shadow. Hover tints
+all enabled elements with 8 % of `--dhx-color-primary`; an open popup uses
+14 %. Keyboard focus has an inset outline. Blade/Blade Night retain the row's
+chrome surface, with the same flat controls and state treatment as light/dark
+and application skins. Other toolbars keep their normal widget appearance.
+
+Only the section of the open view has a persistent marker: its top-level item
+(or, in the compact desktop menu, the sibling of the open view) gets the
+`blade-menu-current` class, showing a 3 px accent underline and a
+primary-coloured icon. Selectors have only transient hover, focus and open
+states. The marker is separate from the native popup's `active` state.
+Submenus retain native compact list layout. Separators are faint 1 px rules
+following the theme border colour. No consumer configuration; rebuild/prepare
+assets. Main navigation stays in its separate `Menü`; no selector competes with it
+for phone-row space.
+Verified by the managed-demo shell/skin checks and focused desktop/phone
+geometry and state comparisons. FB-0100 replaced the FB-0025 bordered buttons;
+FB-0122 unifies the full row and removes the separate Blade folder-tab treatment.
 
 <a id="kompakt-ablakfejléc-és-teljes-mobilmenü"></a>
 
@@ -722,7 +739,7 @@ visible sibling button (`openMenu` in `feature-demo.cjs`). FB-0062.
 ## Optional language selector
 
 `i18n.selector` adds a native language selector before the theme selector,
-including on mobile. When a view has a [guide](workspaces.md#view-guide), the
-`Útmutató` button sits left of it (in `Menü` below 768 px). A Toolbar attached to native in-window Layout provides
+inside `Beállítások` on mobile. When a view has a [guide](workspaces.md#view-guide), the
+`Útmutató` button sits left of it (in the same controls menu below 768 px). A Toolbar attached to native in-window Layout provides
 language switching inside login/confirmation modals. Localization remains active
 without a selector; see [i18n](i18n.md) for configuration and persistence.

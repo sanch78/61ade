@@ -11,7 +11,7 @@ async function login(page,email){
 }
 const LABELS=/^(Blade|Blade Night|Világos|Éjjeli|Pala|Tinta)$/;
 const stored=(page,key)=>page.evaluate(key=>localStorage.getItem(key),key);
-const toolbar=page=>page.locator('.blade-session-bar .dhx_toolbar').evaluate(e=>getComputedStyle(e).backgroundColor);
+const navigationSurface=page=>page.locator('.blade-navigation-row').evaluate(e=>getComputedStyle(e).backgroundColor);
 const selector=page=>page.locator('.blade-navigation-row').getByRole('button',{name:LABELS});
 const html=page=>page.locator('html');
 
@@ -23,7 +23,7 @@ test('one skin applies over its base without a selector and leaves the factory c
  await expect(html(page)).toHaveAttribute('data-dhx-theme','light');
  await expect(html(page)).toHaveAttribute('data-blade-skin','demo-slate');
  expect(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--dhx-s-toolbar-background').trim())).toBe('#e4e7eb');
- expect(await toolbar(page)).toBe('rgb(228, 231, 235)');
+ expect(await navigationSurface(page)).toBe('rgb(228, 231, 235)');
  await expect(selector(page)).toHaveCount(0);
  expect(await stored(page,'blade-theme')).toBe('dark');
  expect(await stored(page,'blade-skin')).toBeNull();
@@ -52,7 +52,7 @@ test('several skins: the selector lists only them, a dark-based skin brings the 
  await expect(html(page)).toHaveAttribute('data-blade-skin','demo-ink');
  await expect(selector(page)).toHaveText('Tinta');
  // The skin's own variable wins; an unset one comes from the Suite dark theme, not the light default.
- expect(await toolbar(page)).toBe('rgb(37, 43, 50)');
+ expect(await navigationSurface(page)).toBe('rgb(37, 43, 50)');
  const dark=await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--dhx-font-color-primary').trim());
  await page.evaluate(()=>document.documentElement.setAttribute('data-dhx-theme','light'));
  expect(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--dhx-font-color-primary').trim())).not.toBe(dark);

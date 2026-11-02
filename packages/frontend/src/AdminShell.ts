@@ -6,6 +6,7 @@ import { DesktopOnly } from "./DesktopOnly";
 import { splashLeft } from "./Splash";
 import { Form, Layout, Menu, Toolbar, Window, setTheme, awaitRedraw } from "@dhtmlx/suite";
 import { acknowledge, closeDialogs, showDialog } from "./MessageDialog";
+import { ResponsiveToolbar } from "./ResponsiveToolbar";
 import { uploads, type UploadIndicator } from "./Uploader";
 import { configureServer, server } from "./api/Server";
 import { attachContent, openWindow, themeApplied } from "./api/services";
@@ -95,6 +96,8 @@ export class AdminShell {
   private status: Toolbar;
   private releaseUploads?: () => void;
   private menu?: NavigationMenu;
+  private controls?: ResponsiveToolbar;
+  private controlSize?:ResizeObserver;
   /** The view of the workspace page and the views open in document windows. */
   private page?: Mounted;
   private windows=new Set<Mounted>();
@@ -140,11 +143,16 @@ export class AdminShell {
 
   /** Top menu, or on narrow space one `Menü` button followed, on desktop, by the open feature's sibling items. */
   private renderMenu():void{
-    const width=this.root.clientWidth,controls=(this.tenantCell?180:0)+(this.guideCell?120:0)+(this.definition.i18n?.selector?130:0)+(this.definition.skins?.length===1?0:145);
+    const width=this.root.clientWidth,controls=Array.from(this.root.querySelectorAll<HTMLElement>(".blade-navigation-control")).reduce((sum,cell)=>sum+cell.getBoundingClientRect().width,0);
     // Signed out there is no menu: the top-row logo only yields to the selectors.
     if (!this.menu) { this.placeLogo(width-controls); return; }
-    // Only the full menu reserves a separate logout button; in compact mode it is inside Menü.
-    const required=(items:any[],logout=true)=>items.reduce((sum:number,item:any)=>sum+76+String(item.value || "").length*9,controls+(logout?160:0));
+    // Measure labels with the native menu font; fixed character estimates waste space on long sibling labels.
+    const button=this.root.querySelector<HTMLElement>(".blade-navigation-row .dhx_nav-menu-button"),
+      style=getComputedStyle(button??this.root),measure=document.createElement("canvas").getContext("2d")!,label=document.createElement("span");
+    measure.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const itemWidth=(item:any)=>{label.innerHTML=String(item.value??"");return 32+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+Math.ceil(measure.measureText(label.textContent??"").width);};
+    // 16 px row inset; only the full menu reserves logout and its 17 px separator.
+    const required=(items:any[],logout=true)=>items.reduce((sum:number,item:any)=>sum+itemWidth(item),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
     const compact = width < Math.max(768,required(this.menuItems));
     const current="view:"+(parseRoute(location.hash).view??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -155,16 +163,16 @@ export class AdminShell {
       }
     };
     let context=compact&&width>=768?siblings(this.menuItems)??[]:[];
-    if(required([{value:t("Menü")},...context],false)>width)context=[];
+    if(required([{value:t("Menü")},...context],false)+(context.length?17:0)>width)context=[];
     // The menu never yields to the logo: it shows only in the room the menu, siblings and selectors leave.
-    this.placeLogo(width-(compact?required([{value:t("Menü")},...context],false):required(this.menuItems)));
+    this.placeLogo(width-(compact?required([{value:t("Menü")},...context],false)+(context.length?17:0):required(this.menuItems)));
     const state=JSON.stringify([compact,current,context.length>0,!!this.guide]);
     if (state === this.menuState) return;
     this.menuState = state;
     // A top-level item holding the open view carries the current-section underline (CSS, not the popup's active state).
     const holds=(item:any):boolean=>item.id===current||(item.items??[]).some(holds);
     const marked=(item:any)=>holds(item)?{...item,css:"blade-menu-current"}:item;
-    const entries=[...structuredClone(this.menuItems),...this.tenantMenu(),...this.guideMenu(),
+    const entries=[...structuredClone(this.menuItems),
       { id: "blade-session-separator", type: "separator" },
       { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" },
     ];
@@ -255,10 +263,21 @@ export class AdminShell {
     apply(theme);
     if (definition.protocol !== 1)
       throw new Error(t("Nem kompatibilis 61ade felületverzió."));
+    const tenant=definition.tenant,currentTenant=tenant?.choices.find(choice=>choice.id===tenant.current),language=definition.i18n;
+    const controlItems:object[]=[
+      ...(this.tenantSelector?[{id:"blade-tenant",value:escape(currentTenant?.name??t("Tenant")),icon:"dxi dxi-view-grid",tooltip:t("Tenant váltása"),
+        items:tenant!.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant!.current?{icon:"dxi dxi-check"}:{})}))}]:[]),
+      ...(this.guides?[{id:"blade-guide",css:"blade-guide-control",value:t("Útmutató"),icon:"dxi dxi-help-circle-outline",tooltip:t("A megnyitott nézet útmutatója"),disabled:true}]:[]),
+      ...(language?.selector?[{id:"blade-language",value:escape(language.languages[language.locale]),icon:languageIcon(language,language.locale),tooltip:t("Nyelv"),
+        items:Object.keys(language.languages).map(id=>({id:"language:"+id,value:escape(language.languages[id]),icon:languageIcon(language,id)}))}]:[]),
+      ...(choices.length>1?[{id:"theme-choice",value:choices.find(choice=>choice.id===theme)!.label,
+        items:choices.map(choice=>({id:"theme:"+choice.id,value:choice.label}))}]:[]),
+    ];
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},...(this.tenantCell?[{id:"tenant",width:180}]:[]),...(this.guideCell?[{id:"guide",width:120}]:[]),...(definition.i18n?.selector?[{id:"language",width:130}]:[]),...(choices.length>1?[{id:"theme",width:145}]:[]),
+        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},
+          ...(controlItems.length?[{id:"controls",width:"content",css:"blade-navigation-control"}]:[]),
           ...(this.topLogo?[{id:"logo",width:"content",css:"blade-logo-cell",html:this.logoHtml(this.windowLogo)}]:[])] },
         { id: "workspace", css: "blade-workspace" },
         { id: "status", height: 32, css: "blade-session-bar" },
@@ -296,26 +315,27 @@ export class AdminShell {
       this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); });
       this.releaseUploads = uploads.indicator(state => this.uploadIndicator(state));
     }
-    if(choices.length>1){
-      const label=(id:string)=>choices.find(choice=>choice.id===id)!.label;
-      const themeControl=new Toolbar(undefined,{data:[{id:"theme-choice",value:label(theme),items:choices.map(choice=>({id:"theme:"+choice.id,value:choice.label}))}]});
-      themeControl.events.on("click",(id:string|number)=>{
-        const next=String(id).slice(6);
-        if(!String(id).startsWith("theme:")||!choices.some(choice=>choice.id===next))return;
-        apply(next);
-        themeControl.data.update("theme-choice",{value:label(next)});
-        try{localStorage.setItem(storage,next);}catch{}
-        // The other logo image may have another width.
-        this.renderMenu();
+    if(controlItems.length){
+      const controls=this.controls=new ResponsiveToolbar(undefined,{data:controlItems.flatMap((item,index)=>index?[{type:"separator"},item]:[item])},
+        {id:"blade-controls-menu",value:t("Beállítások"),icon:"dxi blade-icon blade-icon--menu",css:"blade-command--icon blade-controls-toggle",availableWidth:()=>this.root.clientWidth-120});
+      controls.events.on("click",(id:string|number)=>{
+        const key=String(id);
+        if(key==="blade-guide"&&this.page)this.showGuide(this.page);
+        if(key.startsWith("language:"))this.post("language",{locale:key.slice(9)});
+        if(key.startsWith("tenant:")&&key.slice(7)!==tenant?.current)this.post("tenant",{tenant:key.slice(7)});
+        if(!key.startsWith("theme:"))return;
+        const choice=choices.find(choice=>choice.id===key.slice(6));
+        if(!choice)return;
+        apply(choice.id);
+        controls.data.update("theme-choice",{value:choice.label});
+        try{localStorage.setItem(storage,choice.id);}catch{}
+        void awaitRedraw().then(()=>{if(!this.listeners.signal.aborted)this.renderMenu();});
         void this.fitLogin();
       });
-      this.layout.getCell("theme").attach(themeControl);
+      this.layout.getCell("controls").attach(controls);
+      this.controlSize=new ResizeObserver(()=>this.renderMenu());
+      this.controlSize.observe(controls.getRootNode());
     }
-    if(definition.i18n?.selector){
-      this.layout.getCell("language").attach(this.languageControl());
-    }
-    if(this.tenantCell)this.layout.getCell("tenant").attach(this.tenantControl());
-    if(this.guideCell)this.layout.getCell("guide").attach(this.guideControl=this.guideButton());
     if (definition.authenticated) {
       const map = (items: MenuDefinition[]): object[] =>
         items.map((item) => ({
@@ -340,11 +360,6 @@ export class AdminShell {
       const menu = new NavigationMenu(undefined, { navigationType: "click" });
       this.menu = menu;
       this.resize();
-      // The open top-level tab's width lets CSS start its popup's top rule at the tab's right edge (themes/blade.css).
-      menu.events.on("openMenu", (id: string | number) => {
-        const tab=this.root.querySelector<HTMLElement>(`.blade-navigation-row .dhx_menu-nav > li > [data-dhx-id="${CSS.escape(String(id))}"]`);
-        if(tab)document.documentElement.style.setProperty("--blade-menu-tab",tab.getBoundingClientRect().width+"px");
-      });
       menu.events.on("click", (id: string | number) => {
         id=String(id).replace(/^sibling:/,"");
         if (id === "blade-logout") this.post("logout");
@@ -370,6 +385,8 @@ export class AdminShell {
       else if (definition.oauthOnly) { if (!definition.error) void this.mountExternal(); }
       else this.mountLogin();
     }
+    // Content-sized selectors settle after native widgets render; recalculate menu/logo fit with their actual widths.
+    void awaitRedraw().then(()=>{if(!this.listeners.signal.aborted)this.resize();});
     window.addEventListener("resize", this.resize);
     if (definition.error) requestAnimationFrame(() => {
       void acknowledge({ title: t("Hiba"), message: definition.error, severity: "danger" })
@@ -475,26 +492,13 @@ export class AdminShell {
     }
   }
 
-  /**
-   * Views with a guide get the `Útmutató` control: a labelled button left of the language selector, below 768 px an item of
-   * the main menu (the navigation row has no room for it there). It is enabled while the page view has a guide.
-   */
+  /** The guide stays in the navigation controls, including their compact menu. */
   private get guides():boolean{ return this.definition.authenticated&&(this.definition.views??[]).some(view=>!!view.guide); }
-  private get guideCell():boolean{ return this.guides&&!this.narrowRow; }
-  private guideControl?:Toolbar;
   /** The page view's guide, if any. */
   private get guide():string|undefined{ return this.page?.view.guide; }
-  private guideButton():Toolbar{
-    const control=new Toolbar(undefined,{css:"blade-guide-control",data:[{id:"blade-guide",value:t("Útmutató"),icon:"dxi dxi-help-circle-outline",tooltip:t("A megnyitott nézet útmutatója"),disabled:true}]});
-    control.events.on("click",(id:string|number)=>{if(id==="blade-guide"&&this.page)this.showGuide(this.page);});
-    return control;
-  }
-  private guideMenu():object[]{
-    return this.guides&&this.narrowRow?[{id:"blade-guide",value:t("Útmutató"),icon:"dxi dxi-help-circle-outline",disabled:!this.guide}]:[];
-  }
   /** The page view changed: the control follows whether it has a guide. */
   private guideChanged():void{
-    if(this.guide)this.guideControl?.enable("blade-guide");else this.guideControl?.disable("blade-guide");
+    if(this.guides){if(this.guide)this.controls?.enable("blade-guide");else this.controls?.disable("blade-guide");}
     this.renderMenu();
   }
   /**
@@ -584,32 +588,6 @@ export class AdminShell {
 
   /** A selector only for several memberships; the switch is a server round trip that reloads the whole shell. */
   private get tenantSelector():boolean{ return this.definition.authenticated && (this.definition.tenant?.choices.length ?? 0) > 1; }
-  /** Below 768 px the tenant choice and the guide are items of the main menu, so the navigation row keeps room for it. */
-  private readonly narrowRow=innerWidth<768;
-  private get tenantCell():boolean{ return this.tenantSelector&&!this.narrowRow; }
-  private tenantMenu():object[]{
-    if(!this.tenantSelector||!this.narrowRow)return [];
-    const tenant=this.definition.tenant!,current=tenant.choices.find(choice=>choice.id===tenant.current);
-    return [{id:"blade-tenant-separator",type:"separator"},{id:"blade-tenant-menu",value:escape(t("Tenant")+": "+(current?.name??"—")),icon:"dxi dxi-view-grid",
-      items:tenant.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant.current?{icon:"dxi dxi-check"}:{})}))}];
-  }
-  private tenantControl():Toolbar{
-    const tenant=this.definition.tenant!;
-    const current=tenant.choices.find(choice=>choice.id===tenant.current);
-    const control=new Toolbar(undefined,{data:[{id:"blade-tenant",value:escape(current?.name??t("Tenant")),icon:"dxi dxi-view-grid",tooltip:t("Tenant váltása"),
-      items:tenant.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant.current?{icon:"dxi dxi-check"}:{})}))}]});
-    control.events.on("click",(id:string|number)=>{
-      const choice=String(id).startsWith("tenant:")?String(id).slice(7):"";
-      if(choice&&choice!==tenant.current)this.post("tenant",{tenant:choice});
-    });
-    return control;
-  }
-  private languageControl():Toolbar{
-    const config=this.definition.i18n!;
-    const language=new Toolbar(undefined,{data:[{id:"blade-language",value:escape(config.languages[config.locale]),icon:languageIcon(config,config.locale),tooltip:t("Nyelv"),items:Object.keys(config.languages).map(id=>({id:"language:"+id,value:escape(config.languages[id]),icon:languageIcon(config,id)}))}]});
-    language.events.on("click",(id:string|number)=>{if(String(id).startsWith("language:"))this.post("language",{locale:String(id).slice(9)});});
-    return language;
-  }
   /** Language row of the sign-in forms: an ordinary read-only Combo aligned with the other fields. */
   private languageItem(labelPosition:"left"|"top"="left"):object[]{
     const config=this.definition.i18n;
@@ -943,6 +921,8 @@ export class AdminShell {
     this.unmountAll();
     this.channel?.close();
     this.loginWindow?.destructor();
+    this.controlSize?.disconnect();
+    this.controls?.disposeResponsive();
     this.layout.destructor();
     this.root.replaceChildren();
   }
