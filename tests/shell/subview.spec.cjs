@@ -4,9 +4,12 @@ const {root,lazyBundle}=require('./fixture.cjs');
 const bundle=lazyBundle('export {Workspace} from "./packages/frontend/src/components/list/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',{outdir:path.join(root,'tmp','subview-fixture')});
 // Synthetic hierarchy of one resource: records 1–3 at the top, 11 and 12 under 1. The sub-view is the same
 // resource (`shared`), so it has no toolbar of its own and the parent's toolbar acts on its cursor record.
-async function mount(page){
+// `framed`: the list inside a window as Suite draws one (a fixed, transformed popup wrapper with the stacking level).
+async function mount(page,framed=false){
+ const list='<div id="blade-application" style="height:700px"></div>';
  await page.route('**/subview-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="blade-application"></div>'}));
- await page.goto('/subview-fixture');await page.setContent('<div id="blade-application" style="height:700px"></div>');
+ await page.goto('/subview-fixture');
+ await page.setContent(framed?`<div class="dhx_popup dhx_popup--window_modal" style="position:fixed;left:120px;top:60px;width:900px;z-index:10000000;transform:translate(0,0);will-change:transform"><div class="dhx_window" style="will-change:transform">${list}</div></div>`:list);
  await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle()});
  await page.evaluate(()=>{
   const record=(id,parent)=>({id,title:'Elem '+id,parent_id:parent,revision:'r'+id,_actions:['get','archive']});
@@ -45,6 +48,23 @@ test('a preview fits its records and scrolls only above 5–10 rows (by the view
  // 40 % of 800 px is 8 rows of 40 px: the twelve children scroll after eight.
  await expect.poll(()=>body.evaluate(element=>Math.round((element.clientHeight-element.querySelector('.dhx_header-wrapper').offsetHeight)/40))).toBe(8);
  expect(await body.evaluate(element=>element.scrollHeight>element.clientHeight)).toBe(true);
+ await page.evaluate(()=>workspace.destroy());
+});
+
+test('inside a window the preview stays over its slot, in the window's stacking context',async({page})=>{
+ await page.setViewportSize({width:1200,height:800});await mount(page,true);
+ await page.locator('.dhx_grid-row').filter({hasText:'Elem 1'}).first().locator('.blade-subrow-toggle').click();
+ await expect(page.locator('.blade-subview-host .dhx_grid-row')).toHaveCount(2);
+ // The layer belongs to the window's stacking context, not the page body above every window.
+ expect(await page.locator('.blade-subview-layer').evaluate(layer=>layer.parentElement.classList.contains('dhx_popup'))).toBe(true);
+ await expect.poll(()=>page.evaluate(()=>{
+  // A table preview spans the visible data area (the grid body) at its slot's height.
+  const slot=[...document.querySelectorAll('.blade-subview-slot')].map(e=>e.getBoundingClientRect()).find(r=>r.width>0);
+  const host=document.querySelector('.blade-subview-host').getBoundingClientRect(),body=document.querySelector('#blade-application .dhx_grid-body').getBoundingClientRect();
+  return Math.abs(slot.top-host.top)<=1&&Math.abs(slot.height-host.height)<=1&&Math.abs(body.left-host.left)<=1;
+ })).toBe(true);
+ const row=await page.locator('.blade-subview-host .dhx_grid-row').first().boundingBox();
+ expect(await page.evaluate(([x,y])=>!!document.elementFromPoint(x,y)?.closest('.blade-subview-host'),[row.x+row.width/2,row.y+row.height/2])).toBe(true);
  await page.evaluate(()=>workspace.destroy());
 });
 

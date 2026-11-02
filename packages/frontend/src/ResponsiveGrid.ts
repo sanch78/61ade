@@ -340,9 +340,26 @@ export class ResponsiveGrid {
   }
   get rowPixels():number{return this.rowHeight;}
   private unmount(id:string):void{const entry=this.mounted.get(id);if(!entry)return;this.mounted.delete(id);entry.view.destroy();entry.host.remove();}
+  /**
+   * The nested views' layer lives in the window holding the grid (its popup wrapper: the window's stacking context),
+   * so menus, dialogs and newer windows stack above the previews as above the window itself; outside a window it
+   * lives in the page body.
+   */
   private subviewLayer():HTMLElement{
-    if(!this.layer){this.layer=document.createElement("div");this.layer.className="blade-subview-layer";document.body.append(this.layer);}
+    if(!this.layer){this.layer=document.createElement("div");this.layer.className="blade-subview-layer";}
+    const frame=(this.layout.getRootNode() as HTMLElement|undefined)?.closest<HTMLElement>(".dhx_window");
+    const parent=frame?.closest<HTMLElement>(".dhx_popup")??frame??document.body;
+    if(this.layer.parentElement!==parent)parent.append(this.layer);
     return this.layer;
+  }
+  /** Viewport offset of the fixed layer's containing block: a transformed (or filtered, painted) parent, else none. */
+  private layerOrigin(layer:HTMLElement):{left:number;top:number}{
+    const parent=layer.parentElement;
+    if(!parent||parent===document.body)return {left:0,top:0};
+    const style=getComputedStyle(parent);
+    if(style.transform==="none"&&style.filter==="none"&&!/transform|filter/.test(style.willChange)&&!/paint|layout|strict|content/.test(style.contain))return {left:0,top:0};
+    const box=parent.getBoundingClientRect();
+    return {left:box.left+parent.clientLeft,top:box.top+parent.clientTop};
   }
   /**
    * Keeps every mounted nested view over its slot while any is open (one measurement per frame): the layer is
@@ -360,9 +377,9 @@ export class ResponsiveGrid {
       const header=this.compact?0:scroller.querySelector<HTMLElement>(".dhx_header-wrapper")?.offsetHeight??0;
       const box={left:area.left,top:area.top+header,width:scroller.clientWidth,height:Math.max(0,scroller.clientHeight-header)};
       layer.hidden=false;layer.classList.toggle("blade-subview-layer--table",!this.compact);
-      // Inside a window the layer stacks just above it; otherwise above the page, below every dialog and popup.
-      const frame=root.closest<HTMLElement>(".dhx_window");
-      const style=`left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px;z-index:${frame?(Number.parseInt(getComputedStyle(frame).zIndex)||0)+1:1}`;
+      // Above the page or the window content it lives in, below every dialog and popup.
+      const origin=this.layerOrigin(layer);
+      const style=`left:${box.left-origin.left}px;top:${box.top-origin.top}px;width:${box.width}px;height:${box.height}px;z-index:1`;
       if(layer.getAttribute("style")!==style)layer.setAttribute("style",style);
       for(const [id,{host}] of this.mounted){
         const target=root.querySelector<HTMLElement>(`[data-blade-subview="${CSS.escape(id)}"]`)?.getBoundingClientRect();
