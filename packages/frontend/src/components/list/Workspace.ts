@@ -13,7 +13,7 @@ import { FileFields } from "../../FilePicker";
 import { ResponsiveGrid, previewRows, hasSubview } from "../../ResponsiveGrid";
 import { FormValidation } from "../../FormValidation";
 import { server } from "../../api/Server";
-import type { Application, ListViewEvents } from "../../api/types";
+import type { Application, ListTarget, ListViewEvents } from "../../api/types";
 import { commandEnabled, commandId, extensions, fieldTypeOf, resolveCommands, type ListCommand } from "../../app/registries";
 import { LIST, builtinCommands, type ListCommandContext } from "./commands";
 import { bindFieldTypes, errorText, escape, formActions, input } from "./fields";
@@ -76,6 +76,8 @@ export class Workspace implements ActionHost {
   private previews=new Map<string,Workspace>();
   /** Open full sub-view windows. */
   private windows=new Map<Workspace,Window>();
+  private targetQueued=false;
+  private targetSignature?:string;
   /** Client commands (`app.commands`) of the command bar, whatever their placement. */
   private clientCommands:ListCommand[]=[];
   /** Aborted when the list closes (`CommandContext.signal`). */
@@ -185,6 +187,9 @@ export class Workspace implements ActionHost {
    */
   private commandContext(name:string):ListCommandContext{
     if(this.delegated?.hasCommand(name))return this.delegated.commandContext(name);
+    return this.ownContext();
+  }
+  private ownContext():ListCommandContext{
     const row=this.selectedRow();
     const marked=(this.grid?.markedIds??[]).map(id=>this.rows.find(item=>String(item.id)===id)).filter((item):item is Row=>!!item);
     const view=this.hooks.view??{id:this.view.id,kind:"list",title:this.view.title,resource:this.view.resource,actions:this.view.actions as any,options:{} as any};
@@ -279,7 +284,7 @@ export class Workspace implements ActionHost {
     // A re-render of the preview ($refresh) only re-evaluates the toolbar while that preview holds it.
     const shared=sub.select===false?{select:false}:{shared:(workspace:Workspace,selected:Row|undefined,refresh?:boolean)=>{if(this.disposed||refresh&&this.delegated!==workspace)return;this.delegated=selected?workspace:this.delegated===workspace?undefined:this.delegated;this.capabilities();}};
     return {label:sub.shared?t("Alelemek"):child.title,open:(id:string)=>this.openRecord(id),mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>{
-      const id=String(row.id),preview=new Workspace(host,child,this.channel,this.user,{field:sub.field,id,...shared,compact:{height}},{},{app:this.hooks.app,view:this.childView()});
+      const id=String(row.id),preview=new Workspace(host,child,this.channel,this.user,{field:sub.field,id,...shared,compact:{height}},{},{app:this.hooks.app,view:this.childView(),target:()=>this.reportTarget()});
       this.previews.set(id,preview);
       // A collapsed preview gives the toolbar back to this list.
       return {destroy:()=>{if(this.previews.get(id)===preview)this.previews.delete(id);preview.destroy();if(this.delegated===preview){this.delegated=undefined;if(!this.disposed)this.capabilities();}}};
@@ -316,7 +321,7 @@ export class Workspace implements ActionHost {
   /** Toolbar command of a view with a sub-view: the full child list of the record the toolbar acts on. */
   private openSubview():void{const row=this.subviewTarget();if(row)this.openRecord(String(row.id),row);}
   /** The record whose child list the toolbar command opens: a selected child only in a hierarchy. */
-  private subviewTarget():Row|undefined{return this.view.subview?.shared?this.target():this.selectedRow();}
+  private subviewTarget():Row|undefined{return this.view.subview?.shared?this.toolbarTarget():this.selectedRow();}
   /** The full child list of one record (toolbar command, card button); nothing for a record without sub-items unless $empty (activation). */
   private openRecord(id:string,row=this.rows.find(r=>String(r.id)===id),empty=false):void{
     const sub=this.view.subview,child=sub?.shared?this.view:sub?.view;
@@ -328,16 +333,37 @@ export class Workspace implements ActionHost {
     const mobile=innerWidth<768;
     const dialog=new Window({css:"blade-feature-window",title:escape(child.title+" — "+caption),ariaLabel:child.title+" — "+caption,
       width:mobile?innerWidth:Math.min(1100,innerWidth-24),height:mobile?innerHeight:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:!mobile,movable:!mobile});
-    const full=new Workspace(document.createElement("div"),child,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})},{},{app:this.hooks.app,view:this.childView()});
+    const full=new Workspace(document.createElement("div"),child,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})},{},{app:this.hooks.app,view:this.childView(),target:()=>this.reportTarget()});
     dialog.attach(full.layout);dialog.show();this.windows.set(full,dialog);
+    this.reportTarget();
     // Opened by a double-click or Enter, the parent Grid would keep the focus: the window takes it (Escape closes it).
     void awaitRedraw().then(()=>{const root=dialog.getContainer()?.closest<HTMLElement>(".dhx_popup");if(root&&!root.contains(document.activeElement))root.focus();});
-    dialog.events.on("afterHide",()=>{this.windows.delete(full);full.destroy();void awaitRedraw().then(()=>dialog.destructor());if(!this.disposed)closed();});
+    dialog.events.on("afterHide",()=>{this.windows.delete(full);full.destroy();void awaitRedraw().then(()=>dialog.destructor());if(!this.disposed){this.reportTarget();closed();}});
   }
   /** The public definition of the sub-view's child (this view's own for a hierarchy). */
   private childView(){return this.view.subview?.shared?this.hooks.view:this.hooks.view?.options.subview?.view;}
   /** The record the toolbar's built-in actions act on: a delegated preview's cursor record, otherwise this view's. */
-  private target():Row|undefined{return this.delegated?.selectedRow()??this.selectedRow();}
+  private toolbarTarget():Row|undefined{return this.delegated?.selectedRow()??this.selectedRow();}
+  /** Public active context. A modal child window owns it while open; preview delegation stays toolbar-driven. */
+  target():ListTarget{
+    const window=[...this.windows.keys()].at(-1);
+    if(window)return window.target();
+    if(this.delegated?.selectedRow())return this.delegated.target();
+    const {view,row,rows}=this.ownContext();
+    return Object.freeze({view,row,rows});
+  }
+  /** Coalesce native selection/mark callbacks; notify only when the resulting context or its record data changed. */
+  private reportTarget():void{
+    if(this.disposed||this.targetQueued)return;
+    this.targetQueued=true;
+    queueMicrotask(()=>{
+      this.targetQueued=false;if(this.disposed)return;
+      const target=this.target(),signature=JSON.stringify([target.view.id,target.row,target.rows]);
+      if(signature===this.targetSignature)return;
+      this.targetSignature=signature;
+      this.hooks.emit?.("target",target);this.hooks.target?.();
+    });
+  }
   private hasRegion(id:string):boolean{
     const find=(node:Region):boolean=>node.id===id||[...(node.rows??[]),...(node.cols??[])].some(find);return find(this.view.layout.tree);
   }
@@ -405,7 +431,7 @@ export class Workspace implements ActionHost {
     const marked=this.grid?.markedIds??[];
     // Several marks make single-record commands ambiguous: only bulk-capable actions and create stay available.
     // A selected preview record takes the toolbar over; its marks stay its own.
-    const multiple=!this.delegated&&!!((this.view.selection||this.view.rowSelection)&&marked.length>1),target=this.target();
+    const multiple=!this.delegated&&!!((this.view.selection||this.view.rowSelection)&&marked.length>1),target=this.toolbarTarget();
     // Client commands (the built-in `details` included) follow their `enabled` rule in their own context (commandContext).
     for(const command of this.clientCommands){if(commandEnabled(command.entry,this.commandContext(command.name)))this.commands.enable(command.id);else this.commands.disable(command.id);}
     const parentRow=this.subviewTarget();
@@ -416,6 +442,7 @@ export class Workspace implements ActionHost {
       const bulkAllowed=bulkSelected&&marked.length<=100&&marked.every(id=>this.rows.find(row=>String(row.id)===id)?._actions?.includes(a.name));
       if(a.name==="create"||a.upload||(bulkSelected?bulkAllowed:!multiple&&target?._actions?.includes(a.name)))this.commands.enable(a.name);else this.commands.disable(a.name);
     }
+    this.reportTarget();
   }
   private async changeFilter(field:string,value:string):Promise<void>{
     if(this.disposed||!this.setFilter(field,value))return;

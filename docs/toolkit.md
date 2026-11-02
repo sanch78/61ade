@@ -456,7 +456,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 
 | Component | Wraps | Events / methods |
 | --- | --- | --- |
-| [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `activate`, `saved`, `changed`; `editing`, `refresh`, `selected`, `setFilters` |
+| [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `target`, `activate`, `saved`, `changed`; `editing`, `refresh`, `selected`, `target`, `setFilters` |
 | [`RecordForm`](#recordform) | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancelled`, `changed`; `submit`, `values`, `dirty` |
 | [`RecordDetails`](#recorddetails) | the `Adatok` details (`recordFields`) | `show(row \| id)` |
 | [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `editing`; `pick()` resolves a `MediaDescriptor` or `null` |
@@ -512,9 +512,9 @@ current.mount(layout.getCell("list"));
   `saved` (the list's create, update, record-action and singleton forms and
   inline cell or card edits; `action` is `update` for an edit), `changed` (the
   loaded window after a load, scroll window, live update or revocation, with
-  the server's `total` and `matched`). Nested previews and sub-view windows
-  report nothing.
-- Methods: `editing()`, `refresh()`, `selected()`, `setFilters(filters)`
+  the server's `total` and `matched`). These events stay local to the main
+  list. `target` also follows nested previews and sub-view windows (below).
+- Methods: `editing()`, `refresh()`, `selected()`, `target()`, `setFilters(filters)`
   (replaces all values; undeclared fields are ignored).
 - The [activation map](#activation-map) is chosen per row; a `view:<id>`
   target calls `app.navigate({view, record})`.
@@ -527,9 +527,30 @@ current.mount(layout.getCell("list"));
   view.id }`, [example](#example-readings)). Marks and the cursor record are
   transient: they are never stored, so a reload or a new instance starts
   without them.
-- **No marks event:** `ListView` reports the cursor record (`select`) and the
-  loaded window (`changed`), not the marked rows; there is no `marked` event
-  or method ([limits](#limits)). Commands see the marks in their context.
+- **Active context (`target`):** a panel following the active record subscribes
+  to `list.on("target", ({view, row, rows}) => …)` and reads the same state with
+  `list.target()`. `view` is the offered view the records belong to, `row` its
+  cursor record (`undefined` without one), `rows` its marked records (empty in
+  a compact preview). The selected preview owns the context while it holds the
+  toolbar; selecting a main row, collapsing that preview or losing its selected
+  record returns it to the main list. The foremost open sub-view window owns
+  the context while open, including on a phone, and closing it restores the
+  underlying context. An unselected window has its child `view` and no `row`.
+  A non-selectable child never supplies a cursor record. Selection and marks
+  remain local to each list: `selected()` and `select` still describe only the
+  main list. Keyboard focus is separate; entering a child does not clear the
+  main cursor. `target()` is `undefined` after destroy and before a tree node
+  has created its scoped list.
+- **Target delivery:** selection, marks, active-record data changes (including
+  live updates), delegation and opening/closing a child window notify after
+  the current synchronous updates. Unchanged contexts emit nothing; the
+  payload and marked-row array are frozen snapshots (record data is not deep
+  frozen). This reports the active context, not the result of resolving any
+  particular command: commands absent from a child's view still use the main
+  record under the existing [delegation rules](workspaces.md#sub-views).
+- **Marks:** there is no separate `marked` event or method. The active
+  context's marks are available in `target`, and commands keep their own marks
+  in their context ([limits](#limits)).
 - **In a host's panel (`panel: false`):** the list draws no panel of its own
   (no title, count or frame, no filter panel): its toolbar and data fill the
   host's region, a `PageLayout` region for example, which gives the title; the
@@ -1375,6 +1396,7 @@ while mounted, never after `destroy()`):
 | Component | Event | Payload | Fires |
 | --- | --- | --- | --- |
 | `ListView` | `select` | `{row}` (`undefined`: none) | the cursor record changed, also when it left the loaded window |
+| | `target` | `{view, row, rows}` (`ListTarget`) | active selection, marks or record data changed, including previews and foremost sub-view windows; opening/closing a window restores the corresponding context |
 | | `activate` | `{row, target}` | double-click or Enter resolved to `target` (after the activation map and its fallbacks), before it runs; `details` also for a card or tile without a target and for the `#` cell |
 | | `saved` | `{action, row}` | a form of the list (create, update, record action with fields, singleton Save) or an inline cell or card edit (`action` `update`) saved; `row` is the server's answer |
 | | `changed` | `{rows, total?, matched?}` | the loaded window changed (load, scroll window, filter, live update, delete, revocation) |
@@ -1503,8 +1525,10 @@ The rules of API version 1 (closed out on 2026-10-30, [changes](#changes)):
 Owner decisions of 2026-10-30 (gate G4): not planned in 61ade; a project that
 needs one builds it in its own module.
 
-- `ListView` has no `marked` event or method; a page follows the cursor record
-  (`select`) and the loaded window (`changed`), and commands see the marks.
+- `ListView` has no separate `marked` event or method; `target` includes the
+  active context's marks (added in [FB-0125](feedback.md#fb-0125)), `select`
+  follows the main cursor and `changed` its loaded window. Commands retain
+  their own context and marks.
 - `MediaPlayer` has no playback-state event; derive it from your own
   `play()`/`pause()` calls and `position`/`ended`.
 - Audio has no media class in the file manager: the list's media type filter
@@ -1988,6 +2012,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-10-31 | `CommandSeparator` (`{type: "separator"}`) and `CommandButton.iconOnly` (icon in the bar, the label as tooltip, accessible name and collapsed-menu text); `MediaPlayerEvents` `play` and `pause`; 61ade transport glyphs `blade-icon--play`, `--pause`, `--skip-start`, `--skip-previous`, `--skip-next`, `--rewind`, `--fast-forward`, `--repeat`, `--repeat-off`. Additive. | Owner: a divider after the back command, and player commands that look like a player's, wherever relevant. | [FB-0111](feedback.md#fb-0111) |
 | 2026-11-02 | `MediaPlayerOptions.visualizer: "spectrum"` (optional, audio only); `MediaPlayer.loop()`, `setLoop(boolean)` and `loop {loop}` event synchronize repeat controls; `toolbarPosition` (`top` / `bottom`) defaults to top. Existing `autoplay` remains a native request subject to browser policy. Additive. | Audio preview spectrum and synchronized repeat. | [FB-0119](feedback.md#fb-0119) |
 | 2026-11-02 | `SandboxFrameOptions.autoplay` delegates autoplay to the opaque frame, default false; no sandbox flags or isolation permissions added. Additive. | One parent playback gesture for scene audio. | [FB-0120](feedback.md#fb-0120) |
+| 2026-11-02 | `ListView.target()` and `target` (`ListTarget`: `{view, row, rows}`) expose the active context, including selected previews and foremost child windows, marks and selected-record live changes. Existing `select`, `selected()` and command-specific delegation keep their meaning. Additive. | A selection-following panel needs the framework's nested active context. | [FB-0125](feedback.md#fb-0125) |
 
 <a id="resolved-decisions"></a>
 

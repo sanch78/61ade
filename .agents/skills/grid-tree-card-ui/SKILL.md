@@ -120,6 +120,10 @@ tree as decoration for a flat list.
   window may drop their marks. Marks and the cursor row are transient: never
   persist them in UI preferences. Optional ordinal numbers describe position in the
   complete authorized result, not database IDs.
+- A panel following an active record uses the framework's context event and
+  query across main lists, expanded previews and child windows. Preserve each
+  list's cursor separately from keyboard focus; do not reproduce toolbar
+  delegation in the consumer ([FB-0125](../../../docs/feedback.md#fb-0125)).
 - Keep each action in the toolbar once, with a native icon and its original
   label. A bulk-capable action applies to marks; do not add a second “selected
   rows” command. A field-free action runs directly; a form is for input.

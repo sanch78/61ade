@@ -1067,12 +1067,27 @@ export interface ListViewOptions extends ComponentOptions {
      */
     mode?: "table" | "cards" | "tiles";
 }
+/** Active record context of a list, including its selected preview or foremost open sub-view window. */
+export interface ListTarget {
+    /** The offered list view the records belong to. */
+    readonly view: ViewDefinition;
+    /** The cursor record; absent without a selection. */
+    readonly row: Row | undefined;
+    /** Marked records of that same view (a compact preview has none). */
+    readonly rows: readonly Row[];
+}
 /** Events of `ListView`. */
 export interface ListViewEvents {
     /** The cursor record changed (`undefined`: none). */
     select: {
         row: Row | undefined;
     };
+    /**
+     * The active record context changed: selection, marks, selected-record data, preview delegation or a sub-view
+     * window opening/closing. Delivered after the current synchronous updates; `target()` returns the same state.
+     * Command-specific delegation rules remain unchanged.
+     */
+    target: ListTarget;
     /**
      * Double-click/Enter resolved to `target` for `row` (after the activation map and its fallbacks), reported before it
      * runs; `details` also for a card or tile without a declared target and for the `#` cell.
@@ -1105,6 +1120,8 @@ export interface ListView extends Component<ListViewEvents> {
     refresh(): void;
     /** The cursor record. */
     selected(): Row | undefined;
+    /** Active context, including sub-views; undefined after destroy or before a tree node creates its list. */
+    target(): ListTarget | undefined;
     /** Replaces the filters (declared filters only; other fields are ignored) and reloads. */
     setFilters(filters: Record<string, string>): void;
 }

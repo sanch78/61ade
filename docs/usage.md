@@ -149,6 +149,11 @@ follow this route through the
    ([recipe](toolkit.md#typescript-recipe)) and deploy the sandbox files when
    used ([packaging](toolkit.md#packaging)).
 
+A panel following a list's active record uses `list.on("target", ({view, row,
+rows}) => …)` and `list.target()`: these include selected expanded rows and
+the foremost child window, including on a phone. The main cursor remains
+available through `select` / `selected()` ([ListView](toolkit.md#listview)).
+
 Every server read and write is still a registered, ACL-checked action; a
 module gains no right. A failing module is reported (toast, `module:error`,
 console) and skipped, and the shell still starts. The

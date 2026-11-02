@@ -4361,3 +4361,48 @@ that exactly equals an option label lists every option. The managed
   divider in table and cards. Screenshots inspected; temporary specs and
   artifacts removed.
 - **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0125"></a>
+
+## FB-0125 — Active list target across expanded rows and child windows
+
+- **Date:** 2026-11-02.
+- **Request:** a project panel must follow the record selected in a main list,
+  an expanded child preview or a phone's child window, using the framework's
+  existing context rather than reproducing toolbar delegation. The owner also
+  asks whether selecting a child clears the main cursor.
+- **Decision:** additive `ListView` event `target` and query `target()` return
+  `ListTarget` (`{view, row, rows}`): the offered view, its cursor record and
+  its marked records. Each list retains its own cursor, independently of
+  keyboard focus; `select` and `selected()` retain their main-list meaning.
+  The active preview follows toolbar delegation. The foremost open modal
+  child window supplies its own context until closed, including when it has
+  no selection; closing it restores the underlying preview/main context.
+  A non-selectable child never supplies a cursor record.
+- **Implemented:** the shared Workspace exposes and forwards target snapshots
+  through nested previews and full windows. Selection, marks, active-record
+  data changes, preview removal and window lifecycle schedule a notification
+  after synchronous native callbacks settle; an unchanged context emits
+  nothing. The getter returns the same state as the event. Destroy releases
+  pending notifications; before a tree has a scoped list and after destroy
+  the public query returns `undefined`. Payload/marks arrays are frozen;
+  record objects are not deep frozen. Existing per-command delegation stays
+  intact (a parent-only command can still act on the parent).
+- **Guides:** [ListView](toolkit.md#listview),
+  [sub-views](workspaces.md#sub-views), [usage](usage.md); reusable interaction
+  guidance in the grid/tree/card skill. No server, ACL, data or persistence
+  contract changes; records remain those of ordinary authorized list calls.
+- **Verification:** build, typecheck, matching demo assets; PHP lists,
+  tenancy and configuration contracts; Node toolkit-list and
+  toolkit-components checks pass. Nine temporary public-API browser cases on
+  the managed URL pass: parent/child contexts even with identical record ids,
+  retained main cursor and child arrow-key navigation, marks, repeated
+  selection suppression, live changes/removal, parent refresh, collapse,
+  desktop/phone windows, non-selectable children, nested hierarchy windows,
+  denied child data and destroy with an open window. Checked in Blade, light
+  and dark. Eighteen existing activation, subview, subview-demo, toolkit-list
+  and toolkit-registry cases pass. The subview fixture's existing bundle
+  lacked an output path for the file-field CSS import; adding its temporary
+  output path fixes that fixture setup. Task-only tests/artifacts removed.
+- **Status:** implemented and verified on the managed demo.
