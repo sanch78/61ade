@@ -482,3 +482,8 @@
 <a id="fb-0118"></a>
 
 ## FB-0118 — The OAuth-only overlay waits for the trademark screen and fades in
+
+
+<a id="fb-0119"></a>
+
+## FB-0119 — Optional player spectrum, composed repeat controls and bottom toolbar

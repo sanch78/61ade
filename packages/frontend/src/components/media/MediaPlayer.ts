@@ -3,6 +3,7 @@ import { locale, t } from "../../I18n";
 import { server } from "../../api/Server";
 import type { MediaPlayer as MediaPlayerContract, MediaPlayerEvents, MediaPlayerOptions, MountTarget, SignalOptions } from "../../api/types";
 import { Lifecycle, optionSignal } from "../Lifecycle";
+import { spectrum } from "./Spectrum";
 import "./media.css";
 
 type Kind = "image" | "video" | "audio";
@@ -51,12 +52,19 @@ export class MediaPlayer implements MediaPlayerContract {
   private resize?: ResizeObserver;
   private ticker?: ReturnType<typeof setInterval>;
   private release?: () => void;
+  private prepareSpectrum?: () => void;
 
   constructor(options: MediaPlayerOptions, chrome: MediaChrome = {}) {
     const bound = optionSignal(options);
     const mime = String(options.mime ?? "");
     const kind = mime.startsWith("image/") ? "image" : mime.startsWith("video/") ? "video" : mime.startsWith("audio/") ? "audio" : null;
     if (!kind) throw new TypeError(`61ade: MediaPlayer cannot show "${mime}" (image/*, video/* or audio/* expected).`);
+    if (options.visualizer !== undefined && (options.visualizer !== "spectrum" || kind !== "audio")) {
+      throw new TypeError('61ade: MediaPlayer visualizer must be "spectrum" on audio.');
+    }
+    if (options.toolbarPosition !== undefined && !["top", "bottom"].includes(options.toolbarPosition)) {
+      throw new TypeError('61ade: MediaPlayer toolbarPosition must be "top" or "bottom".');
+    }
     this.kind = kind;
     this.name = options.name || t("Médiatartalom");
     this.info = options.info ?? "";
@@ -69,8 +77,10 @@ export class MediaPlayer implements MediaPlayerContract {
     const signal = this.listeners.signal;
 
     const bar = options.toolbar !== false;
+    const barRow = bar ? [{ id: "bar", height: 48, css: "blade-command-row" }] : [];
+    const stageRow = { id: "stage", css: "blade-document__body" };
     this.layout = new Layout(document.createElement("div"), { type: "none", css: `blade-document blade-document--${kind} blade-player`,
-      rows: [...(bar ? [{ id: "bar", height: 48, css: "blade-command-row" }] : []), { id: "stage", css: "blade-document__body" }] });
+      rows: options.toolbarPosition === "bottom" ? [stageRow, ...barRow] : [...barRow, stageRow] });
     if (bar) {
       this.toolbar = new Toolbar(undefined, { css: "blade-document__bar", data: [...(chrome.before ?? []), ...this.items(options), { id: "info", type: "text", value: this.info, css: "blade-player__info" }, ...(chrome.after ?? [])] });
       this.layout.getCell("bar").attach(this.toolbar);
@@ -111,6 +121,7 @@ export class MediaPlayer implements MediaPlayerContract {
       media.defaultPlaybackRate = media.playbackRate = options.playbackRate ?? 1;
       media.tabIndex = 0;
       media.setAttribute("aria-label", this.name);
+      if (options.visualizer === "spectrum") this.prepareSpectrum = spectrum(media, this.stage, signal);
       this.stage.append(media);
       this.playable(media, format, signal);
       media.src = url;
@@ -201,7 +212,7 @@ export class MediaPlayer implements MediaPlayerContract {
     on("ended", () => { clearInterval(this.ticker); this.emit("ended", {}); });
     this.toolbar?.events.on("click", (id: string | number) => {
       const value = String(id);
-      if (value === "loop") media.loop = !!this.toolbar!.getState("loop");
+      if (value === "loop") this.setLoop(!!this.toolbar!.getState("loop"));
       else if (value.startsWith("speed:")) { media.defaultPlaybackRate = media.playbackRate = Number(value.slice(6)); this.label("speed", t("Sebesség: {speed}", { speed: this.rate(media.playbackRate) })); }
     });
     media.addEventListener("keydown", event => {
@@ -249,8 +260,16 @@ export class MediaPlayer implements MediaPlayerContract {
   /** Moves the keyboard focus to the player (the media element or the image stage). */
   focus(): void { this.place(); (this.media ?? this.stage).focus(); }
 
-  play(): Promise<void> { return this.media && !this.life.destroyed ? this.media.play() : Promise.resolve(); }
+  play(): Promise<void> { if (!this.life.destroyed) this.prepareSpectrum?.(); return this.media && !this.life.destroyed ? this.media.play() : Promise.resolve(); }
   pause(): void { this.media?.pause(); }
+  loop(): boolean { return this.media?.loop ?? false; }
+  setLoop(loop: boolean): void {
+    if (!this.media || this.life.destroyed) return;
+    const value = !!loop, changed = value !== this.media.loop;
+    this.media.loop = value;
+    this.toolbar?.setState({loop: value});
+    if (changed) this.emit("loop", {loop: value});
+  }
   seek(seconds: number): void {
     const media = this.media;
     if (!media || this.life.destroyed || !Number.isFinite(seconds)) return;
