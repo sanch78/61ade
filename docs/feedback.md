@@ -4451,3 +4451,33 @@ that exactly equals an option label lists every option. The managed
   Empty, landscape and phone previews and the populated full uploader were
   visually inspected. Temporary task tests and artifacts are removed.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0127"></a>
+
+## FB-0127 — The uploader window uses the shared window action row
+
+- **Date:** 2026-11-02.
+- **Report:** the upload window's lower `Befejezettek törlése` / `Bezárás`
+  row did not look like the other windows' actions, and a line ran below it.
+- **Cause:** the row was a Toolbar in a top command-row cell, so it took the
+  toolbar look, the command row's downward shadow and, since
+  [FB-0124](#fb-0124)'s shared toolbar divider, a bottom rule that separated
+  nothing. The window kept Suite's default content inset, so the rule sat
+  above a white strip. The Toolbar's CSS class also reused the progress-bar
+  fill class `blade-uploader__bar`.
+- **Implemented:** the row is the shared window action row (native Form,
+  `blade-form-actions`, as the file picker and record forms): the clear
+  command is the flat secondary button, `Bezárás` the primary one, with one
+  rule above it and the window's lower edge below. The uploader window's
+  content has no inset; each cell keeps its own. The class collision is gone.
+  Commands, accessible names and the disabled state of the clear command are
+  unchanged.
+- **Guides:** [uploader](uploader.md).
+- **Verification:** typecheck and build pass. `uploader-reopen.spec.cjs`
+  asserts the footer contract (no content Toolbar, Form action row, primary
+  `Bezárás`, flush with the window bottom, rule above only) and passes on the
+  managed demo; the desktop footer was visually inspected. The full
+  `uploader.spec.cjs` run did not start its first case within 15 minutes
+  because orphaned Playwright workers of earlier timed-out runs were still
+  holding the managed browser run.
+- **Status:** implemented; the full uploader regression is pending.

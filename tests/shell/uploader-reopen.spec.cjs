@@ -9,6 +9,17 @@ test('uploader reopened across routes stays modal and keeps its content',async({
   await expect(page.locator('.dhx_window__overlay')).toHaveCount(1);
   await expect(page.locator('.blade-uploader__zone')).toBeVisible();
   await expect(page.locator('.blade-uploader__commands')).toBeVisible();
+  if(!index){
+   // The footer is the shared window action row: native Form buttons, flush with the window's lower edge, no rule below.
+   const footer=await page.locator('.blade-uploader-window').evaluate(win=>{
+    const content=win.querySelector('.dhx_window-content').getBoundingClientRect(),cell=win.querySelector('.blade-uploader__commands'),box=cell.getBoundingClientRect();
+    return {toolbars:win.querySelectorAll('.dhx_window-content .dhx_toolbar').length,actions:!!cell.querySelector('.blade-form-actions'),gap:Math.round(content.bottom-box.bottom),
+     inset:Math.round(box.left-content.left),below:getComputedStyle(cell).borderBottomWidth,above:getComputedStyle(cell).borderTopWidth,
+     primary:cell.querySelector('.dhx_button--color_primary')?.textContent.trim()};
+   });
+   expect(footer).toEqual({toolbars:0,actions:true,gap:0,inset:0,below:'0px',above:'1px',primary:'Bezárás'});
+   await page.screenshot({path:`${process.env.BLADE_TMP_DIR||'tmp'}/uploader/footer.png`});
+  }
   await page.keyboard.press('Escape');
   await expect(page.locator('.blade-uploader-window')).toHaveCount(0);
  }

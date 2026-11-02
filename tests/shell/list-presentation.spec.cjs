@@ -2,7 +2,7 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const path=require('node:path');
 const {signIn,openView}=require('./feature-demo.cjs');
 const {root,lazyBundle}=require('./fixture.cjs');
-const bundle=lazyBundle('export {Workspace} from "./packages/frontend/src/components/list/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";');
+const bundle=lazyBundle('export {Workspace} from "./packages/frontend/src/components/list/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',{outdir:path.join(root,'tmp','list-presentation-fixture')});
 async function mount(page,options={},table=true){
  await page.route('**/list-fixture',route=>route.fulfill({contentType:'text/html',body:'<div id="blade-application"></div>'}));
  await page.goto('/list-fixture');await page.setContent('<div id="blade-application"></div>');
@@ -72,7 +72,8 @@ test('toolbar stays inside its cell and above scrolling grid/cards in all themes
   });
   expect(bounds.toolbar.bottom).toBeLessThanOrEqual(bounds.outer.bottom);for(const button of bounds.buttons){expect(button.top).toBeGreaterThanOrEqual(bounds.outer.top);expect(button.bottom).toBeLessThanOrEqual(bounds.outer.bottom);}
   expect(await page.locator('.blade-command-row').evaluate(element=>getComputedStyle(element).boxShadow)).toBe('none');
-  expect(await page.locator('.blade-command-row').evaluate(element=>getComputedStyle(element).borderBottomWidth)).toBe('1px');
+  // The toolbar owns the 1 px divider (docs/toolkit.md); the command row does not double it.
+  expect(await page.locator('.blade-command-row').evaluate(element=>[getComputedStyle(element).borderBottomWidth,getComputedStyle(element.querySelector('.dhx_toolbar')).borderBottomWidth])).toEqual(['0px','1px']);
   expect(await page.locator('.dhx_grid-header').first().evaluate(element=>getComputedStyle(element).boxShadow)).not.toBe('none');
   await page.locator('.dhx_grid').hover();await page.mouse.wheel(0,500);
   await expect.poll(()=>page.evaluate(()=>workspace.grid.table.getScrollState().y)).toBeGreaterThan(0);
@@ -134,8 +135,9 @@ test('view switching keeps the natural top inset and does not transfer row pixel
  await switchTo(true);
  await expect.poll(()=>page.evaluate(()=>workspace.grid.capture().id)).toBe('1');
  // The first card row contains records 1–3, so record 3 remains fully visible.
- const card=page.locator('[data-blade-row="3"]');await expect(card).toBeInViewport();
- expect(await card.evaluate(element=>element.getBoundingClientRect().top-element.closest('.blade-grid-cards').getBoundingClientRect().top)).toBeGreaterThanOrEqual(0);
+ // The pointer left over the card from the menu would lift it 3 px (hover, themes/character.css).
+ const card=page.locator('[data-blade-row="3"]');await expect(card).toBeInViewport();await page.mouse.move(0,0);
+ await expect.poll(()=>card.evaluate(element=>element.getBoundingClientRect().top-element.closest('.blade-grid-cards').getBoundingClientRect().top)).toBeGreaterThanOrEqual(0);
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });
 

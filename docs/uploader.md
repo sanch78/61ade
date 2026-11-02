@@ -5,7 +5,7 @@ Status: implemented on 2026-10-24 as phase U2 of the
 user acceptance is not claimed.
 
 The uploader is the framework's only upload flow. It is built on DHTMLX Suite
-Standard components (Window, Layout, Grid, Toolbar) and a framework transfer
+Standard components (Window, Layout, Grid, Form) and a framework transfer
 protocol; the commercial Vault widget and third-party uploaders such as Uppy
 are not used. The framework owns the protocol, authorization, temporary
 storage, the window, the queue and the shell indicator. A consumer declares an
@@ -167,7 +167,11 @@ handler failure); when no part remains the request is `400` with
   URL for images, revoked on removal; otherwise a type icon), name with the
   relative path, size, localized status, a progress bar
   (`role="progressbar"`) and per-row Cancel, Retry and Remove buttons with
-  accessible names. Below it a summary and `Befejezettek törlése` / `Bezárás`.
+  accessible names. Below it a summary and the shared window action row
+  (a native Form with `blade-form-actions`, as the file picker and record
+  forms): `Befejezettek törlése` as the flat secondary button and `Bezárás`
+  as the primary one, one rule above and the window's lower edge below (the
+  window content has no inset; every cell brings its own).
 - **Flow.** Choosing files starts the upload immediately (no second
   confirmation). A preflight runs first; rejected files become failed rows
   with their reason and send no bytes. Three transfers run in parallel, chunk
