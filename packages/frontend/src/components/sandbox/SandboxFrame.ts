@@ -37,6 +37,7 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
     private readonly life = new Lifecycle<SandboxFrameEvents>(() => this.destroy());
     private readonly limits: { code: number; files: number; ready: number };
     private readonly title: string;
+    private readonly autoplay: boolean;
     private frame?: HTMLIFrameElement;
     private frameListeners?: AbortController;
     private pending?: Pending;
@@ -52,6 +53,7 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
         files: limit(options.maxFileBytes, SANDBOX_LIMITS.files, "maxFileBytes"),
         ready: limit(options.readyTimeout, SANDBOX_LIMITS.ready, "readyTimeout"),
       };
+      this.autoplay = options.autoplay === true;
       this.title = options.title ?? t("Tartalom");
       this.root.className = "blade-sandbox";
       this.host.className = "blade-sandbox__host";
@@ -110,6 +112,7 @@ export function sandboxFrameClass(report: Report, address?: string): ComponentCl
       const frame = document.createElement("iframe");
       frame.className = "blade-sandbox__frame";
       frame.setAttribute("sandbox", "allow-scripts");
+      if (this.autoplay) frame.allow = "autoplay *";
       // Chromium: the frame's own requests and navigations carry no credentials at all.
       frame.setAttribute("credentialless", "");
       frame.referrerPolicy = "no-referrer";

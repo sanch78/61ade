@@ -487,3 +487,8 @@
 <a id="fb-0119"></a>
 
 ## FB-0119 — Optional player spectrum, composed repeat controls and bottom toolbar
+
+
+<a id="fb-0120"></a>
+
+## FB-0120 — Optional autoplay delegation for sandboxed scene playback

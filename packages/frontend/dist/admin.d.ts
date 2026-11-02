@@ -1341,6 +1341,8 @@ export interface SandboxLoad {
 }
 /** Options of `SandboxFrame` (toolkit C-4). */
 export interface SandboxFrameOptions extends ComponentOptions {
+    /** Delegate autoplay permission to the opaque frame (default false). Browser/user policy still applies. */
+    autoplay?: boolean;
     /** Maximum UTF-8 size of `code` (default 1 MiB) and total size of `files` (default 32 MiB); a larger load fails with `size`. */
     maxCodeBytes?: number;
     maxFileBytes?: number;
