@@ -1,0 +1,9 @@
+.blade-file-field:focus-within .blade-file-field__media .dhx_avatar {
+  outline: 2px solid var(--dhx-border-color-focused, var(--dhx-color-primary));
+  outline-offset: 2px;
+}
+.blade-file-field--drop .dhx_avatar {
+  outline: 2px dashed var(--dhx-color-primary);
+  outline-offset: 2px;
+}
+.blade-file-field[aria-busy="true"] .dhx_avatar { opacity: .65; }

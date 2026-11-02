@@ -295,6 +295,8 @@ export interface UploadOpenOptions {
     files?: File[] | FileList;
     /** A drop's DataTransfer (folders included); pass it synchronously from the drop handler. */
     transfer?: DataTransfer;
+    /** Queue supplied files without opening or focusing the window; `reopen()` shows their queue. */
+    background?: boolean;
     /** Called once per batch when every file of it has settled. */
     onUploaded?: (result: UploadResult) => void;
 }
@@ -305,7 +307,7 @@ export interface UploadOpenOptions {
  */
 export interface Uploads {
     /**
-     * Shows the upload window for a target; files queued for other targets stay in the queue. `files`/`transfer`
+     * Shows the upload window for a target (unless `background`); files queued for other targets stay. `files`/`transfer`
      * queue at once (no second confirmation). Throws `TypeError` for a malformed option (no window opens); the server
      * checks every file against the action's policy, ACL and handler as for any upload.
      */

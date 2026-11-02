@@ -782,6 +782,42 @@ and name with `Kiválasztás…` (a tiles picker over the folder with search and
 type filter; Enter or double-click chooses, Escape or `Mégse` cancels),
 `Fájl feltöltése…` (the shared uploader; the first stored file is chosen) and
 `Törlés` for optional fields. Grid editing of a file field is not supported.
+When upload is allowed, focus the file name or a command inside the field and
+paste a clipboard file (Ctrl+V / Cmd+V), or drop one file onto the field. This
+queues it through the shared uploader in the background, without opening or
+focusing its window. The field shows upload status and an immediate local
+image preview (PNG/JPEG/GIF/WebP up to 20 MiB); its value changes to the stored
+file id only on success. Ordinary text paste and paste elsewhere in the form
+are untouched. More than one file is refused with a field hint.
+`accept: ["image"]` makes this an image-only field using the mount's existing
+extension and size policy; no new field type or server route is needed.
+
+For example, with an existing `files` resource and `assets` mount:
+
+```json
+{
+    "name": "cover",
+    "label": "Cover",
+    "type": "file",
+    "file": {
+        "resource": "files",
+        "mount": "assets",
+        "accept": ["image"]
+    }
+}
+```
+
+Framework form save paths report a field validation error while the transfer
+is pending; the user can save once it settles. Failure keeps the prior
+reference and shows the reason beside the field. Choosing another file or
+clearing the field invalidates older upload callbacks. Closing the form
+releases listeners and object URLs; an already queued transfer may finish
+and leave an unreferenced file in the declared folder. Uploading stores the
+file immediately; **Save** assigns it to the record. Clearing an optional
+field clears its reference, not the stored file. The upload button retains
+the full shared queue window. This behavior is shared by the public
+`RecordForm` and built-in action, singleton and bulk forms.
+
 Consumers that store uploads themselves use `FileManagerDefinition::files()`
 (`MountStorage::folder()`/`store()`), which applies the file manager's
 validation, metadata and thumbnails.

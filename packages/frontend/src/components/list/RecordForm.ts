@@ -2,7 +2,7 @@ import { t } from "../../I18n";
 import { Form, Layout, awaitRedraw } from "@dhtmlx/suite";
 import { acknowledge } from "../../MessageDialog";
 import { FileFields } from "../../FilePicker";
-import { FormValidation, fieldError } from "../../FormValidation";
+import { FormValidation, fieldError, fileUploadPending } from "../../FormValidation";
 import { failure, server } from "../../api/Server";
 import type { ActionMetadata, FormDescription, MountTarget, RecordForm as RecordFormApi, RecordFormEvents, RecordFormOptions } from "../../api/types";
 import { Component } from "./component";
@@ -116,7 +116,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       this.commit();
       if(!validation.validate()){
         const raw=form.getValue() as Record<string,unknown>,errors:Record<string,string>={};
-        for(const field of this.fields){const error=fieldError(field,raw[field.name],raw);if(error)errors[field.name]=error;}
+        for(const field of this.fields){const error=fileUploadPending(form,field.name)?t("Várd meg a fájl feltöltését."):fieldError(field,raw[field.name],raw);if(error)errors[field.name]=error;}
         throw failure(400,{error:t("Javítsd a megjelölt mezőket."),fieldErrors:errors});
       }
       const values=this.values();

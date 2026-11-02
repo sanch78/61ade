@@ -497,3 +497,8 @@
 <a id="fb-0121"></a>
 
 ## FB-0121 — Configurable session idle timeout and persistent cookie
+
+
+<a id="fb-0123"></a>
+
+## FB-0123 — Paste an image directly into a form field
