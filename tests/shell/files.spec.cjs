@@ -604,8 +604,8 @@ test('server authorization on direct requests and audit records',async({page,bro
 test('localization, themes, the panel divider and the desktop-only notice',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await start(page);
- for(const [label,theme] of [['Éjjeli','dark'],['Világos','light'],['Skyblue','skyblue']]){
-  await page.locator('.blade-navigation-row').getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).click();
+ for(const [label,theme] of [['Éjjeli','dark'],['Világos','light'],['Blade','blade']]){
+  await page.locator('.blade-navigation-row').getByRole('button',{name:/^(Blade|Blade Night|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-dhx-theme',theme);
   const border=await panel(page,0).locator('.blade-file-panel__body').evaluate(element=>getComputedStyle(element).borderTopColor);
   expect(border).not.toBe('rgba(0, 0, 0, 0)');

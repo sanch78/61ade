@@ -35,7 +35,7 @@ async function mount(page){
    if(request.action==='update'){const index=rows.findIndex(item=>item.id===request.id);rows[index]={...rows[index],...request.values,revision:rows[index].revision+'u'};data=rows[index];}
    return {ok:true,json:async()=>({ok:true,data})};
   };
-  fixture.setTheme('skyblue',document.documentElement);
+  fixture.setTheme('blade',document.documentElement);
   const tasks={id:'tasks',kind:'list',title:'Feladatok',resource:'tasks',
    actions:[{name:'get',label:'Adatok',write:false,fields:[]},{name:'update',label:'Módosítás',submitLabel:'Mentés',write:true,fields:[field('title','Cím'),priority]}],
    options:{singleton:false,selection:true,filters:[],sortable:[],tiles:true,layout:{formMode:'overlay',tree:{rows:[{id:'grid'}]}},
@@ -80,7 +80,7 @@ async function mountSubview(page){
    if(request.action==='get')answer=data[request.resource]?.find(item=>item.id===request.id);
    return {ok:true,json:async()=>({ok:true,data:answer})};
   };
-  fixture.setTheme('skyblue',document.documentElement);
+  fixture.setTheme('blade',document.documentElement);
   const get={name:'get',label:'Adatok',write:false,fields:[]};
   const options=(columns,commands)=>({singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{rows:[{id:'grid'}]}},columns,commands});
   const child={id:'project-tasks',kind:'list',title:'Feladatok',resource:'tasks',actions:[get],

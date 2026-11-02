@@ -37,7 +37,7 @@ async function expected(page,filters){
  return {items,matched:answer.body.data.matched,min:Math.min(...values),max:Math.max(...values),average:values.reduce((a,b)=>a+b,0)/values.length,bins};
 }
 async function theme(page,label){
- await page.getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByRole('menuitem',{name:label,exact:true}).click();
+ await page.getByRole('button',{name:/^(Blade|Blade Night|Világos|Éjjeli)$/}).click();await page.getByRole('menuitem',{name:label,exact:true}).click();
 }
 
 test('the dashboard opens from the menu and its chart and summary follow the list filter and selection',async({page})=>{
@@ -115,7 +115,7 @@ test('the chart and summary follow the theme',async({page})=>{
  test.setTimeout(60000);const seen=watch(page);
  await page.setViewportSize({width:1280,height:900});
  await signIn(page);await openDashboard(page);
- for(const [label,name] of [['Éjjeli','dark'],['Világos','light'],['Skyblue','skyblue']]){
+ for(const [label,name] of [['Éjjeli','dark'],['Világos','light'],['Blade','blade']]){
   await theme(page,label);
   await expect(page.locator('html')).toHaveAttribute('data-dhx-theme',name);
   const primary=await resolve(page,'--dhx-color-primary');
@@ -165,7 +165,7 @@ test('navigating away destroys the dashboard: no chart, summary, listener or ext
  await page.setViewportSize({width:1280,height:900});await page.waitForTimeout(500);
  await expect(chart(page)).toHaveCount(0);await expect(summary(page)).toHaveCount(0);
  for(const subscriptions of seen.watches.slice(after))expect(subscriptions.filter(item=>item.resource==='demo_readings').length).toBeLessThanOrEqual(1);
- await theme(page,'Skyblue');
+ await theme(page,'Blade');
  // Reopened, the dashboard's list comes back with its own saved filter.
  await openDashboard(page);
  await expect(filter()).toHaveValue('Reading 000');await expect(stat(page,'count')).toHaveText(/^(\d+) \/ \1$/);

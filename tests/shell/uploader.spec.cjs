@@ -464,10 +464,10 @@ test('themes and English',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await start(page);
  await openUploader(page);
- for(const [label,theme] of [['Éjjeli','dark'],['Világos','light'],['Skyblue','skyblue']]){
+ for(const [label,theme] of [['Éjjeli','dark'],['Világos','light'],['Blade','blade']]){
   // The window is modal: the theme menu behind it is not operable, so the theme changes with the window closed.
   await page.keyboard.press('Escape');await expect(uploader(page)).toHaveCount(0);
-  await page.locator('.blade-navigation-row').getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).click();
+  await page.locator('.blade-navigation-row').getByRole('button',{name:/^(Blade|Blade Night|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-dhx-theme',theme);
   await openUploader(page);
   const zone=uploader(page).locator('.blade-uploader__zone');

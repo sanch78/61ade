@@ -15,7 +15,7 @@ const hue=page=>page.evaluate(()=>getComputedStyle(document.documentElement).get
 const html=page=>page.locator('html');
 const footer=dialog=>dialog.locator('[data-blade-slot="footer"] .demo-sign-in-footer');
 const NOTICE='Szintetikus demó: a fiókok és az adatok kitaláltak.';
-const selector=page=>page.locator('.blade-navigation-row').getByRole('button',{name:/^(Skyblue|Világos|Éjjeli|Pala|Tinta)$/});
+const selector=page=>page.locator('.blade-navigation-row').getByRole('button',{name:/^(Blade|Blade Night|Világos|Éjjeli|Pala|Tinta)$/});
 async function theme(page,label){await selector(page).click();await page.getByRole('menuitem',{name:label,exact:true}).click();}
 async function signedIn(page,email){
  await signIn(page,email);
@@ -52,7 +52,7 @@ test('the sign-in window shows the logo once with the sign-in stylesheet, per th
  // Notice below the form, inside the window; the sign-in module's line in the footer slot.
  await expect(dialog.getByText(NOTICE,{exact:true})).toBeVisible();
  await expect(dialog.locator('a[href="mailbox/"]')).toHaveCount(0);
- await expect(footer(dialog)).toHaveText('Demó bejelentkezési modul · téma: skyblue');
+ await expect(footer(dialog)).toHaveText('Demó bejelentkezési modul · téma: blade');
  for(const element of [dialog.getByText(NOTICE,{exact:true}),footer(dialog)]){
   const box=await element.boundingBox();
   expect(box.y).toBeGreaterThanOrEqual(button.y+button.height);

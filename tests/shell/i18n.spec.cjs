@@ -21,7 +21,7 @@ test('framework language works before login, persists through login, translates 
  await page.getByRole('button',{name:'English',exact:true}).click();
  for(const [name,country]of [['Magyar','hu'],['English','gb']])await expect(page.getByRole('menuitem',{name,exact:true}).locator('.blade-language-flag--'+country)).toBeVisible();
  await page.screenshot({path:path.join(process.env.BLADE_TMP_DIR,'i18n-png-selector.png'),animations:'disabled'});await page.getByRole('button',{name:'English',exact:true}).click();
- const languageBox=await page.getByRole('button',{name:'English',exact:true}).boundingBox(),themeBox=await page.getByRole('button',{name:'Skyblue',exact:true}).boundingBox();expect(languageBox.x+languageBox.width).toBeLessThanOrEqual(themeBox.x);
+ const languageBox=await page.getByRole('button',{name:'English',exact:true}).boundingBox(),themeBox=await page.getByRole('button',{name:'Blade',exact:true}).boundingBox();expect(languageBox.x+languageBox.width).toBeLessThanOrEqual(themeBox.x);
  const title='E2E nyelv '+Date.now();created.push(await createTask(page,{title,status:'new'}));
  const schema=await api(page,'demo_tasks','__form',created[0],{operation:'update'});
  const serverValidation=await api(page,'demo_tasks','__edit',created[0],{field:'title',value:'',revision:schema.body.data.values.revision});
@@ -36,7 +36,7 @@ test('framework language works before login, persists through login, translates 
  await expect(page).toHaveURL(/view=demo_tasks/);
  await expect(page.locator('[role="columnheader"][data-dhx-id="title"]').filter({hasText:'Megnevezés'}).first()).toContainText('Megnevezés');
  await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','hu');
- await page.getByRole('button',{name:'Skyblue',exact:true}).click();await expect(page.getByText('Világos',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Skyblue',exact:true}).click();
+ await page.getByRole('button',{name:'Blade',exact:true}).click();await expect(page.getByText('Világos',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Blade',exact:true}).click();
  await page.setViewportSize({width:390,height:844});await expect(page.getByRole('button',{name:'Műveletek',exact:true})).toBeInViewport();
  await expect(page.getByRole('button',{name:'Magyar',exact:true})).toBeInViewport();
  await page.getByRole('menuitem',{name:'Menü',exact:true}).click();await page.getByRole('menuitem',{name:'Kijelentkezés',exact:true}).click();await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();

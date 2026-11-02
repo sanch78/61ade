@@ -95,22 +95,22 @@ test('invalid login returns to the DHTMLX form with safe feedback', async ({ pag
     await expect(page.getByLabel(/Jelszó/)).toHaveValue('');
 });
 
-test('Skyblue is the default and explicit theme choices survive reload', async ({ page }) => {
+test('Blade is the default and explicit theme choices survive reload', async ({ page }) => {
     await login(page);
-    await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'skyblue');
-    await expect(page.getByRole('button', { name: 'Skyblue', exact: true })).toBeVisible();
-    // The status bar sits on the Skyblue canvas gradient (themes/blade.css).
+    await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'blade');
+    await expect(page.getByRole('button', { name: 'Blade', exact: true })).toBeVisible();
+    // The status bar sits on the Blade canvas gradient (themes/blade.css).
     const canvas = await page.locator('.blade-session-bar').evaluate(e => getComputedStyle(e).backgroundImage);
     expect(canvas).toContain('linear-gradient');
-    await page.getByRole('button', { name: 'Skyblue', exact: true }).click();
+    await page.getByRole('button', { name: 'Blade', exact: true }).click();
     await page.getByText('Éjjeli', { exact: true }).click();
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'dark');
     await page.getByRole('button', { name: 'Éjjeli', exact: true }).click();
-    await page.getByText('Skyblue', { exact: true }).click();
+    await page.getByText('Blade', { exact: true }).click();
     await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'skyblue');
-    await page.screenshot({path: require('node:path').join(process.env.BLADE_TMP_DIR || 'tmp','skyblue-shell.png')});
+    await expect(page.locator('html')).toHaveAttribute('data-dhx-theme', 'blade');
+    await page.screenshot({path: require('node:path').join(process.env.BLADE_TMP_DIR || 'tmp','blade-shell.png')});
 });
 
 test('flat main-menu tabs fit their row in all skins and underline the open view\'s section',async({page})=>{
@@ -118,8 +118,8 @@ test('flat main-menu tabs fit their row in all skins and underline the open view
  await login(page);
  await page.goto('/#view=signage_assets');
  await expect(page.locator('.blade-navigation-row .dhx_menu-nav > li.blade-menu-current')).toHaveText(['Digitális kijelző']);
- for(const [theme,label] of [['skyblue','Skyblue'],['light','Világos'],['dark','Éjjeli']]){
-  await page.getByRole('button',{name:/^(Skyblue|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).last().click();
+ for(const [theme,label] of [['blade','Blade'],['light','Világos'],['dark','Éjjeli']]){
+  await page.getByRole('button',{name:/^(Blade|Blade Night|Világos|Éjjeli)$/}).click();await page.getByText(label,{exact:true}).last().click();
   const button=page.getByRole('button',{name:label,exact:true});await button.hover();
   const surface=await page.getByRole('menuitem',{name:/^Nyilvántartás/}).evaluate(e=>{
    const style=getComputedStyle(e),box=e.getBoundingClientRect(),row=e.closest('.blade-navigation-row').getBoundingClientRect();

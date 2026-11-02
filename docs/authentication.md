@@ -290,7 +290,9 @@ makes the external account the only way in ([FB-0117](feedback.md#fb-0117)):
   provider overlay directly; it has no close button, and Escape or a backdrop
   click does not dismiss it (the shim honours `data-bs-backdrop="static"` and
   `data-bs-keyboard="false"`; with the page's own Bootstrap it opens again after
-  closing). The top row's language and theme selectors stay usable.
+  closing). The top row's language and theme selectors stay usable: the
+  overlay and its backdrop start below the 40 px row
+  (`data-blade-exclusive-sign-in` on `<html>`, [FB-0118](feedback.md#fb-0118)).
 - The overlay opens only after the [trademark screen](brand.md#splash) has
   played and left the page (`splashLeft()` in `Splash.ts`), so it never stacks
   above it. On later pages of the same tab, where the screen does not play,

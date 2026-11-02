@@ -213,7 +213,7 @@ test('demo.copy-text copies the cursor record or the marked tasks as text, is di
  expect(seen.errors).toEqual([]);expect(seen.reports).toEqual([]);
 });
 
-test('the rating follows the Skyblue, light and dark themes',async({page})=>{
+test('the rating follows the Blade, light and dark themes',async({page})=>{
  const seen=watch(page);
  await page.setViewportSize({width:1600,height:900});await signIn(page);await openView(page,'Feladatok');
  const title=`${prefix} téma`;created.push(await createTask(page,{title,status:'new',priority:4}));
@@ -224,7 +224,7 @@ test('the rating follows the Skyblue, light and dark themes',async({page})=>{
   return {color:getComputedStyle(el).color,background,inherited:getComputedStyle(el).color===getComputedStyle(el.closest('.dhx_grid-cell')??el.parentElement).color};
  });
  const colours={};
- for(const theme of ['light','dark','skyblue']){
+ for(const theme of ['light','dark','blade']){
   await page.evaluate(theme=>localStorage.setItem('blade-theme',theme),theme);await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-dhx-theme',theme);
   await expect(page.locator('.dhx_grid-row').first()).toBeVisible();

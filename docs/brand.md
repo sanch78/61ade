@@ -21,8 +21,8 @@ The sources live in `packages/frontend/brand/`:
 
 | File | Content |
 | --- | --- |
-| `blade-logo.svg` | Mark and wordmark for light themes (Skyblue, light, light-based skins). |
-| `blade-logo-dark.svg` | The same for the dark theme and dark-based skins. |
+| `blade-logo.svg` | Mark and wordmark for light themes (Blade, light, light-based skins). |
+| `blade-logo-dark.svg` | The same for the dark themes (Blade Night, dark) and dark-based skins. |
 | `blade-mark.svg` | The three tiles alone (light palette) in a square, for small sizes and favicons. |
 | `logo.mjs` | The generator: `node packages/frontend/brand/logo.mjs` rewrites the three SVGs beside it and the [trademark screen's](#splash) copy `packages/php/resources/brand/splash-logo.svg` (an optional argument names another output directory for all four). |
 

@@ -21,7 +21,7 @@ async function mount(page,options={},table=true){
    if(request.action==='__bulk')data=request.values.items.map(item=>({id:item.id,ok:true}));
    return {ok:true,json:async()=>({ok:true,data})};
   };
-  fixture.setTheme('skyblue',document.documentElement);
+  fixture.setTheme('blade',document.documentElement);
   window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'items',resource:'items',title:'Elemek',columns:[fields[0]],detailFields:fields,actions:[{name:'get',label:'Adatok',fields:[]},{name:'archive',label:'Archiválás',submitLabel:'Végrehajtás',write:true,bulk:true,fields:[]},{name:'note',label:'Megjegyzés',submitLabel:'Mentés',write:true,fields:[]}],singleton:false,filters:[],sortable:[],layout:{formMode:'overlay',tree:{cols:[{id:'grid',header:'Találatok'}]}},selection:true,...options},new fixture.LiveChannel({transport:'poll',endpoint:'live',interval:60000}));
  },options);
  if(!table)return;
@@ -64,7 +64,7 @@ test('cards use multiple columns; details include fields outside the grid; marks
 test('toolbar stays inside its cell and above scrolling grid/cards in all themes; numbering can be disabled',async({page})=>{
  await page.setViewportSize({width:1280,height:900});await mount(page,{rowNumbers:false});
  await expect(page.locator('[data-dhx-col-id="_number"]')).toHaveCount(0);
- for(const theme of ['skyblue','light','dark']){
+ for(const theme of ['blade','light','dark']){
   await page.evaluate(theme=>fixture.setTheme(theme,document.documentElement),theme);
   const bounds=await page.locator('.blade-command-row').evaluate(cell=>{
    const outer=cell.getBoundingClientRect(),toolbar=cell.querySelector('.dhx_toolbar').getBoundingClientRect();
@@ -139,7 +139,7 @@ test('view switching keeps the natural top inset and does not transfer row pixel
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });
 
-for(const theme of ['skyblue','light','dark'])test(`compact commands retain ACL state, nested sorting and desktop restoration (${theme})`,async({page})=>{
+for(const theme of ['blade','light','dark'])test(`compact commands retain ACL state, nested sorting and desktop restoration (${theme})`,async({page})=>{
  test.setTimeout(60000);
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.setViewportSize({width:1400,height:900});await mount(page,{sortable:['id','title']});
@@ -219,7 +219,7 @@ async function imageRoutes(page){
   return name==='ok.svg'?route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80" width="160" height="80"><rect width="160" height="80" fill="#3b82c4"/></svg>'}):route.fulfill({status:404,body:''});});
  return loaded;
 }
-for(const theme of ['skyblue','light','dark'])test(`static image column shows images in table, cards, tiles and details; bad values show none (${theme})`,async({page})=>{
+for(const theme of ['blade','light','dark'])test(`static image column shows images in table, cards, tiles and details; bad values show none (${theme})`,async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));const loaded=await imageRoutes(page);
  await page.setViewportSize({width:1280,height:900});
  await mount(page,{columns:imageColumns,rows:imageRows,rowHeight:56,tileMinWidth:160,detailFields:imageColumns});

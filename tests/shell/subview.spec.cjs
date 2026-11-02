@@ -24,7 +24,7 @@ async function mount(page){
    if(request.action==='archive')data={};
    return {ok:true,json:async()=>({ok:true,data})};
   };
-  fixture.setTheme('skyblue',document.documentElement);
+  fixture.setTheme('blade',document.documentElement);
   window.workspace=new fixture.Workspace(document.getElementById('blade-application'),{id:'items',resource:'items',title:'Elemek',
    columns:[{id:'title',header:'Cím'},{id:'parent_id',header:'Szülő'}],
    actions:[{name:'get',label:'Adatok',fields:[]},{name:'archive',label:'Archiválás',submitLabel:'Végrehajtás',write:true,fields:[]}],

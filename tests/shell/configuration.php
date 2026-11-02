@@ -136,7 +136,7 @@ try {
         $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
         rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid sign-in branding accepted: '.json_encode($bad));
     }
-    rejected(static fn() => new Blade\Shell\Skin('skyblue', 'Shadow', 'skins/brand.css'), 'Skin shadowing a factory theme accepted');
+    rejected(static fn() => new Blade\Shell\Skin('blade-night', 'Shadow', 'skins/brand.css'), 'Skin shadowing a factory theme accepted');
     verify($app->live->applications === [] && $app->live->route('/live/admin') === null, 'No further live applications without live.applications');
     $write([...$settings, 'live' => [...$settings['live'], 'transport' => 'websocket', 'applications' => ['admin' => 'admin.php', 'tenants' => '/srv/tenants.php']]]);
     $routed = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);

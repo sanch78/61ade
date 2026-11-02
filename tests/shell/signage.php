@@ -245,10 +245,13 @@ try {
     $first = $create(['asset_id' => $clip, 'duration' => '10', 'transition' => 'zoom']);
     $second = $create(['asset_id' => $sceneId]);
     $third = $create(['asset_id' => $clip, 'enabled' => '0']);
-    $fourth = $create(['asset_id' => $sceneId, 'valid_from' => $monday->modify('+6 days')->format('Y-m-d'), 'valid_to' => '2099-12-31']);
+    $sundayDate = $monday->modify('+6 days')->format('Y-m-d');
+    $fourth = $create(['asset_id' => $sceneId, 'valid_from' => $sundayDate, 'valid_to' => '2099-12-31']);
+    // Today's status: not yet valid before the Sunday, playing on it.
+    $fourthToday = date('Y-m-d') < $sundayDate ? 'dxi dxi-calendar-today' : 'dxi dxi-check';
     $listed = array_column($itemsOf($playlist), null, 'id');
     check(array_map('strval', array_keys($listed)) === [$first, $second, $third, $fourth], 'New items go last, in order');
-    check($listed[$first]['length'] === '10' && $listed[$second]['length'] === '20' && $listed[$first]['status'] === 'dxi dxi-check' && $listed[$third]['status'] === 'dxi dxi-eye-off' && $listed[$fourth]['status'] === 'dxi dxi-calendar-today'
+    check($listed[$first]['length'] === '10' && $listed[$second]['length'] === '20' && $listed[$first]['status'] === 'dxi dxi-check' && $listed[$third]['status'] === 'dxi dxi-eye-off' && $listed[$fourth]['status'] === $fourthToday
         && $listed[$first]['_media']['file_id']['mime_type'] === 'video/mp4', 'Effective play time, today\'s status and the asset\'s media');
     fails(fn() => $create(['asset_id' => $clip, 'position' => '1']), 400, 'The position is not writable');
     $refused = static fn(array $values, string $field, string $message) => check(isset(fails(fn() => $create($values), 400, $message)->fieldErrors[$field]), $message.': field error');

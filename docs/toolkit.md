@@ -823,7 +823,7 @@ if (current) {
   `PNG`, `MP4`, `WebM`, `MP3`, `WAV`, `M4A`, otherwise the MIME subtype) and
   the caller's `info`. Below 600 px the info text is hidden. The audio stage
   shows `name` on the theme's background. Colours come from the Suite theme
-  variables, so Skyblue, light, dark and skins apply without code.
+  variables, so Blade, Blade Night, light, dark and skins apply without code.
 - **Keyboard.** `focus()` focuses the media element or the image stage. On the
   media element, Space/K plays or pauses, ←/→ seek 5 s and Home/End jump.
   A key the native controls already handled is not applied twice. On the image
