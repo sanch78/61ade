@@ -218,7 +218,10 @@ export interface WindowOptions {
   /** Initial size; clamped to the viewport minus 24 px. Below 768 px the window is full screen. */
   width?: number;
   height?: number;
-  /** Fits the height to the rendered form actions or content (`fitWindow`) after each `attach`. Default true. */
+  /**
+   * Fits the height to the rendered form actions or content (`fitWindow`) after each `attach` of a Form or an element.
+   * A Layout or a component keeps the requested size (a `RecordForm` fits the window once its fields show). Default true.
+   */
   fit?: boolean;
   modal?: boolean;
   resizable?: boolean;
@@ -227,7 +230,8 @@ export interface WindowOptions {
 }
 
 /**
- * A framework document window (`blade-content-window`: 40 px themed header, close button, Escape closes).
+ * A framework document window (`blade-content-window`: 40 px themed header, close button, Escape closes). The window
+ * adds no inset: a Layout or a component fills it edge to edge, a Form or an element brings its own padding.
  * Owned by its creator; `close()` or the close button destroys the window and its attached content.
  */
 export interface AppWindow {

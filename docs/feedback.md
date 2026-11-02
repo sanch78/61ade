@@ -522,3 +522,7 @@
 <a id="fb-0126"></a>
 
 ## FB-0126 — A single-file form input, separate from the full uploader
+
+<a id="fb-0127"></a>
+
+## FB-0127 — The uploader window uses the shared window action row

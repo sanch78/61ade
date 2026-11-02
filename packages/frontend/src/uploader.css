@@ -16,6 +16,10 @@
 }
 
 .blade-uploader { font-family: var(--dhx-font-family); color: var(--dhx-font-color-primary); }
+/* The Layout fills the window edge to edge; each cell brings its own inset. The action row is the
+   shared window footer (Form + blade-form-actions) with one rule above it and none below. */
+.blade-uploader-window .dhx_window-content { padding: 0; }
+.blade-uploader__commands { border-top: 1px solid var(--dhx-border-color); }
 .blade-uploader__zone-cell { padding: 12px 16px 8px; }
 .blade-uploader__zone {
   display: flex;
@@ -64,7 +68,7 @@
 .blade-uploader__actions { display: flex; gap: 4px; }
 .blade-uploader__action:focus-visible { outline: 2px solid var(--dhx-border-color-focused, var(--dhx-color-primary)); outline-offset: 1px; }
 
-.blade-uploader__summary-cell { padding: 8px 16px 0; }
+.blade-uploader__summary-cell { padding: 8px 16px; }
 .blade-uploader__summary { color: var(--dhx-font-color-secondary); font-size: var(--dhx-font-size-small); overflow-wrap: anywhere; }
 
 /* Completion toast with failures; the success toast keeps the shell's green edge. */
@@ -80,6 +84,6 @@
 @media (max-width: 480px) {
   .blade-uploader__zone-cell { padding: 8px 8px 4px; }
   .blade-uploader__queue { padding: 0 8px; }
-  .blade-uploader__summary-cell { padding: 6px 8px 0; }
+  .blade-uploader__summary-cell { padding: 6px 8px; }
   .blade-uploader__pick { flex: 1 1 100%; justify-content: center; }
 }

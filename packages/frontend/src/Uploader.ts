@@ -1,4 +1,4 @@
-import { Grid, Layout, Toolbar, Window, awaitRedraw, message } from "@dhtmlx/suite";
+import { Form, Grid, Layout, Window, awaitRedraw, message } from "@dhtmlx/suite";
 import { locale, t } from "./I18n";
 import { escape, recordIcon } from "./RecordPresentation";
 import { requestChoiceAll } from "./MessageDialog";
@@ -122,7 +122,7 @@ class UploadService {
   private win?: Window;
   private grid?: Grid;
   private layout?: Layout;
-  private commands?: Toolbar;
+  private commands?: Form;
   private context?: Context;
   private items = new Map<string, Item>();
   private sequence = 0;
@@ -233,7 +233,7 @@ class UploadService {
       { id: "zone", height: "content", css: "blade-uploader__zone-cell" },
       { id: "queue", css: "blade-uploader__queue" },
       { id: "summary", height: "content", css: "blade-uploader__summary-cell" },
-      { id: "commands", height: 48, css: "blade-command-row blade-uploader__commands" },
+      { id: "commands", height: "content", css: "blade-uploader__commands" },
     ] });
     const grid = new Grid(null, {
       columns: [
@@ -245,14 +245,14 @@ class UploadService {
       data: [], rowHeight: 56, autoWidth: true, resizable: false, sortable: false, keyNavigation: false, htmlEnable: false, css: "blade-uploader__grid",
       eventHandlers: { onclick: { "blade-uploader__action": (event: Event) => this.rowAction(event) } },
     });
-    const commands = new Toolbar(undefined, { css: "blade-uploader__bar", data: [
-      { type: "spacer" },
-      { id: "clear", value: t("Befejezettek törlése"), icon: "dxi dxi-delete-outline", disabled: true },
-      { id: "close", value: t("Bezárás"), icon: "dxi dxi-close" },
-    ] });
-    commands.events.on("click", (id: string | number) => {
-      if (id === "clear") this.clearFinished();
-      else if (id === "close") win.hide();
+    // The shared window action row (as formActions): the secondary command flat, Close as the primary one.
+    const commands = new Form(document.createElement("div"), { padding: "8px 16px 16px", rows: [{ css: "blade-form-actions", cols: [
+      { type: "button", name: "clear", text: t("Befejezettek törlése"), icon: "dxi dxi-delete-outline", view: "flat", color: "secondary", width: "content", disabled: true },
+      { type: "button", name: "close", text: t("Bezárás"), icon: "dxi dxi-close", color: "primary", width: "content" },
+    ] }] } as any);
+    commands.events.on("click", (name: string) => {
+      if (name === "clear") this.clearFinished();
+      else if (name === "close") win.hide();
     });
     layout.getCell("queue").attach(grid);
     layout.getCell("commands").attach(commands);
@@ -903,7 +903,8 @@ class UploadService {
       this.summaryText = text;
       this.layout.getCell("summary").attachHTML(`<div class="blade-uploader__summary">${escape(text)}</div>`);
     }
-    if (items.some(item => SETTLED.includes(item.state))) this.commands?.enable("clear"); else this.commands?.disable("clear");
+    const clear = this.commands?.getItem("clear");
+    if (items.some(item => SETTLED.includes(item.state))) clear?.enable(); else clear?.disable();
   }
 
   private updateIndicator(): void {

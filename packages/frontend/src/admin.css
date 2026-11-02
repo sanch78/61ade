@@ -255,7 +255,9 @@ body,
 .blade-sign-in-slot--header:not(:empty) { padding: 16px 20px 0; }
 .blade-sign-in-slot--footer:not(:empty) { padding: 0 20px 16px; }
 
-.blade-content-window .dhx_window-content { padding-bottom: 0; }
+/* A framework window has no inset of its own: a Layout or a component fills it edge to edge, and a Form,
+   the record details and an element bring their own padding. */
+.blade-content-window .dhx_window-content { padding: 0; }
 /* Suite sizes a textarea from its Form cell: the cell takes the window height beyond the fitted
    content, so a clamped or resized window has no gap below its actions. fitWindow pauses it. */
 .blade-content-window .dhx_form > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 1; }
@@ -438,12 +440,10 @@ body,
    folder, parent or upload glyph of the Suite icon font (the tile's secondary line names the type in text). */
 .blade-file-list .blade-grid-tile[data-blade-row^="upload:"] { opacity: .75; }
 /* Picker window: search and type filter above the tiles, Cancel + choose below; the tiles take the rest. */
-.blade-file-picker-window .dhx_window-content { padding: 0; }
 .blade-file-picker__body { min-height: 0; }
 .blade-file-picker__actions { border-top: 1px solid var(--dhx-border-color); }
 /* Document windows (text editor, image viewer, video player): the Layout fills the window, the
    toolbar sits above the content cell, and the content takes every size the window gets. */
-.blade-document-window .dhx_window-content { padding: 0; }
 .blade-document__body { min-height: 0; }
 .blade-text-editor textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; }
 .blade-text-editor textarea[wrap="off"] { white-space: pre; overflow-wrap: normal; }

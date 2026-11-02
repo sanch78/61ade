@@ -1,4 +1,4 @@
-import { Window, awaitRedraw, message } from "@dhtmlx/suite";
+import { Layout, Window, awaitRedraw, message } from "@dhtmlx/suite";
 import { languages, locale, t } from "../I18n";
 import { requestChoice, showDialog } from "../MessageDialog";
 import { fitWindow } from "../WindowSizing";
@@ -131,7 +131,12 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
   const api: AppWindow = {
     window: win,
     signal: controller.signal,
-    attach(content) { if (closed) return; attachContent(win, content, controller.signal); if (fit) void fitWindow(win); },
+    // A Layout (a component's included) fills the requested size; a form inside it fits the window itself (RecordForm).
+    attach(content) {
+      if (closed) return;
+      attachContent(win, content, controller.signal);
+      if (fit && (content instanceof HTMLElement || !(content instanceof Layout || ("destroy" in content && "layout" in content)))) void fitWindow(win);
+    },
     setTitle(text) { if (closed) return; win.config.title = escape(text); win.header?.data.update("title", { value: escape(text) }); },
     fit: () => closed ? Promise.resolve() : fitWindow(win),
     close() { if (closed) return; if (win.isVisible()) win.hide(); else finish(); },
