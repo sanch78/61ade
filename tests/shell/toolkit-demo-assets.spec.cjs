@@ -112,16 +112,15 @@ test('Médiatár lists the audio assets with type and length; an audio file uplo
   await expect(row(page,title).getByRole('img',{name:new RegExp(`^Hang: [\\w-]+\\.mp3, ${length}$`)})).toBeVisible();
  }
  await search(page,'');
- // Upload through the asset's file field: the shared uploader stores the WAV in the Signage folder and chooses it.
+ // The file field's native dialog sends the WAV to the shared background queue.
  await command(page,'Hozzáadás');
  const form=page.getByRole('dialog',{name:/ — Hozzáadás$/});await expect(form).toBeVisible();
  await form.getByLabel('Megnevezés',{exact:true}).fill(prefix+' hang');
- await form.getByRole('button',{name:'Fájl feltöltése…',exact:true}).click();
- const uploader=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')});
- await expect(uploader).toBeVisible();await expect(uploader).toContainText('Signage:/');
- await page.locator('input[data-blade-upload-input="files"]').setInputFiles([{name:prefix+'-hang.wav',mimeType:'audio/wav',buffer:tone(3)}]);
+ const chosen=page.waitForEvent('filechooser');
+ await form.getByRole('button',{name:'Fájl megadása…',exact:true}).click();
+ await (await chosen).setFiles([{name:prefix+'-hang.wav',mimeType:'audio/wav',buffer:tone(3)}]);
  await expect(form.locator('.blade-file-field__body input').first()).toHaveValue(prefix+'-hang.wav',{timeout:20000});
- await uploader.getByRole('button',{name:'Bezárás',exact:true}).click();
+ await expect(page.getByRole('dialog').filter({has:page.locator('.blade-uploader')})).toBeHidden();
  const saved=page.waitForResponse(r=>{try{return r.request().postDataJSON()?.action==='create';}catch{return false;}});
  await form.getByRole('button',{name:'Mentés',exact:true}).click();expect((await saved).status()).toBe(200);
  await expect(form).toHaveCount(0);

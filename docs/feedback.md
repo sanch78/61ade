@@ -4334,6 +4334,9 @@ that exactly equals an option label lists every option. The managed
 - **Events:** existing `upload:*` and normal form `changed`/`saved`; no new
   event or server action.
 - **Status:** implemented and verified within the limits above.
+  The file-field controls and preview are superseded by
+  [FB-0126](#fb-0126); the original verification did not cover every later
+  interaction with the full upload window.
 
 
 <a id="fb-0124"></a>
@@ -4405,4 +4408,46 @@ that exactly equals an option label lists every option. The managed
   and toolkit-registry cases pass. The subview fixture's existing bundle
   lacked an output path for the file-field CSS import; adding its temporary
   output path fixes that fixture setup. Task-only tests/artifacts removed.
+- **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0126"></a>
+
+## FB-0126 — A single-file form input, separate from the full uploader
+
+- **Date:** 2026-11-02.
+- **Correction to [FB-0123](#fb-0123):** the Add form must offer one local
+  file by native file dialog, drop or paste. The existing-file picker and
+  full upload window do not belong inside it. The owner also reported an
+  empty full upload window after pasting in Add, and a poor square preview.
+- **Implemented:** the shared `file` control has `Fájl megadása…` (then
+  `Fájl cseréje…`), a native single-file input and the existing background
+  transfer. Clicking the drop/preview surface or pressing Enter/Space on
+  the file name opens the same native dialog. There is no stored-file
+  picker or full-uploader button in a form. The preview spans the field,
+  is 180 px high and uses `contain`, so portrait/landscape images stay whole.
+  Optional clearing, pending-save validation, errors, ACL, file ids and
+  metadata retain their contracts. The standalone public `FilePicker`
+  remains available for explicit existing-file selection.
+- **Uploader lifecycle:** a background transfer constructs no hidden
+  Window/Layout/Grid. The first visible `open` or `reopen` builds the UI and
+  hydrates it from the shared queue. The list's `Feltöltés` command keeps its
+  multi-file flow and shows files queued from forms too. The reported blank
+  window was not consistently reproduced before the change; the new path
+  removes hidden-window construction from a form transfer.
+- **Guides:** [file field](workspaces.md#file-field), [uploader](uploader.md),
+  [toolkit](toolkit.md#uploads), [usage](usage.md), [demo](demos.md).
+  The demo's Hungarian/English view guide describes the two entry points.
+- **Verification:** build/typecheck, PHP i18n and toolkit component contracts
+  pass. Targeted managed-browser checks cover direct native-file input and
+  replacement, paste → save → full uploader → two-file upload → reopen,
+  field permissions and optional clearing, audio upload, the public uploader
+  and standalone picker, themes and English. The existing signage and audio
+  field cases follow the new UI; the synthetic field fixture has a named
+  in-memory bundle output for its CSS import. The English column check no
+  longer depends on a specific missing seed-video title. Ten selected
+  desktop/browser regressions pass; the phone native-input/preview case
+  passes separately after its fixture also recognized responsive cards.
+  Empty, landscape and phone previews and the populated full uploader were
+  visually inspected. Temporary task tests and artifacts are removed.
 - **Status:** implemented and verified on the managed demo.

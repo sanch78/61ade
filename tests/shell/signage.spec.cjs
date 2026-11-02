@@ -1,10 +1,8 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
-const fs=require('node:fs');
-const path=require('node:path');
 const {execFileSync}=require('node:child_process');
 const {signIn,openMenu,command,api}=require('./feature-demo.cjs');
 // Signage media library on shared files (Digitális kijelző → Médiatár), phase U5 of docs/files-media-plan.md:
-// `file` field with the tiles picker and upload, derived media columns, usage count, upload as asset, and the
+// `file` field with a native single-file input and background upload, derived media columns, usage count, upload as asset, and the
 // usage warning of deleting a referenced asset (schedule events, defaults) or file (file manager, Signage mount).
 // Every asset, file, event and default created here starts with the run prefix (or uses the run's far-future
 // date) and is removed afterwards; seeded demo data is never changed.
@@ -30,7 +28,6 @@ const toast=(page,text)=>page.locator('.blade-toast').filter({hasText:text});
 const dialog=page=>page.getByRole('alertdialog');
 const row=(page,title)=>page.locator('[data-cell-id="grid"] .dhx_grid-row').filter({has:page.getByRole('gridcell',{name:title,exact:true})});
 const editor=(page,label)=>page.getByRole('dialog',{name:new RegExp(' — '+label+'$')});
-const picker=page=>page.getByRole('dialog',{name:/^(Fájl kiválasztása|Choose a file): /});
 const uploader=page=>page.getByRole('dialog').filter({has:page.locator('.blade-uploader')});
 const filesInput=page=>page.locator('input[data-blade-upload-input="files"]');
 const fileName=form=>form.locator('.blade-file-field__body input').first();
@@ -137,71 +134,44 @@ test('list: thumbnail, derived type/resolution/length, play time and usage colum
  expect(errors).toEqual([]);
 });
 
-test('create and edit: the file field picker (tiles, search, type filter, keyboard) and upload into the Signage folder',async({page})=>{
+test('create and edit: the file field uploads one local file directly and keeps a proportional preview',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
- await openLibrary(page);const {files}=await seed(page);
+ await openLibrary(page);await seed(page);
  await command(page,'Hozzáadás');
  const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
- await expect(form.getByRole('button',{name:'Kiválasztás…',exact:true})).toBeVisible();
- await expect(form.getByRole('button',{name:'Fájl feltöltése…',exact:true})).toBeVisible();
+ await expect(form.getByRole('button',{name:'Kiválasztás…',exact:true})).toHaveCount(0);
+ await expect(form.getByRole('button',{name:'Fájl feltöltése…',exact:true})).toHaveCount(0);
  await form.getByLabel('Megnevezés',{exact:true}).fill(prefix+' új');
- // A required file field reports its error on the visible file name, like other fields.
  await form.getByRole('button',{name:'Mentés',exact:true}).click();
  await expect(form.locator('.blade-file-field')).toContainText('Kötelező mező.');
- await form.getByRole('button',{name:'Kiválasztás…',exact:true}).click();
- const box=picker(page);await expect(box).toBeVisible();
- await expect(box.locator('.blade-grid-tile').first()).toBeVisible();
- // Only accepted media; search narrows the folder; the type filter offers the accepted classes.
- const find=box.getByRole('textbox',{name:'Keresés',exact:true});await expect(find).toBeFocused();
- await find.fill(prefix);await find.press('Enter');
- await expect(box.locator('.blade-grid-tile')).toHaveCount(3);
- await box.locator('[data-dhx-id="type"]').click();
- await expect(page.getByRole('menuitem',{name:'Szöveg',exact:true})).toHaveCount(0);
- await page.getByRole('menuitem',{name:'Videók',exact:true}).click();
- await expect(box.locator('.blade-grid-tile')).toHaveCount(0);
- await box.locator('[data-dhx-id="type"]').click();await page.getByRole('menuitem',{name:'Képek',exact:true}).click();
- await expect(box.locator('.blade-grid-tile')).toHaveCount(3);
- await expect(box.getByRole('button',{name:'Kiválasztás',exact:true})).toBeDisabled();
- // Double-click chooses.
- await tile(box,prefix+'-b.jpg').dblclick();
- await expect(box).toHaveCount(0);
- await expect(fileName(form)).toHaveValue(prefix+'-b.jpg');
- // The thumbnail item shows the image once its thumbnail is ready, otherwise the image type glyph.
- await expect(form.locator('.blade-file-field__media img[alt="Kép: '+prefix+'-b.jpg"], .blade-file-field__media .dxi-image-outline').first()).toBeVisible();
+ // A single native file dialog feeds the shared background queue; no upload window opens.
+ const chosen=page.waitForEvent('filechooser');
+ await form.getByRole('button',{name:'Fájl megadása…',exact:true}).click();
+ const chooser=await chosen;expect(chooser.isMultiple()).toBe(false);
+ await chooser.setFiles([{name:prefix+'-form.png',mimeType:'image/png',buffer:png}]);
+ await expect(fileName(form)).toHaveValue(prefix+'-form.png',{timeout:20000});
+ const image=form.locator('.blade-file-field__media img');await expect(image).toBeVisible();
+ await expect.poll(()=>image.evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
+ expect(await image.evaluate(img=>getComputedStyle(img).objectFit)).toBe('contain');
+ await expect(uploader(page)).toBeHidden();
  await expect(form.locator('.blade-file-field')).not.toContainText('Kötelező mező.');
- // Escape closes the picker without a change; Enter on a selected tile chooses.
- await form.getByRole('button',{name:'Kiválasztás…',exact:true}).click();await expect(picker(page)).toBeVisible();
- await page.keyboard.press('Escape');await expect(picker(page)).toHaveCount(0);await expect(fileName(form)).toHaveValue(prefix+'-b.jpg');
- // Focus returns to the field's command when the picker closes.
- await expect(form.getByRole('button',{name:'Kiválasztás…',exact:true})).toBeFocused();
- await fileName(form).focus();await page.keyboard.press('Enter');await expect(picker(page)).toBeVisible();
- await picker(page).getByRole('textbox',{name:'Keresés',exact:true}).fill(prefix+'-a');await picker(page).getByRole('textbox',{name:'Keresés',exact:true}).press('Enter');
- await expect(picker(page).locator('.blade-grid-tile')).toHaveCount(1);
- await tile(picker(page),prefix+'-a.png').click();await expect(picker(page).getByRole('button',{name:'Kiválasztás',exact:true})).toBeEnabled();
- await page.keyboard.press('Enter');await expect(picker(page)).toHaveCount(0);
- await expect(fileName(form)).toHaveValue(prefix+'-a.png');
+ const root=(await api(page,'files','tree','signage')).body.data.root;
+ const added=(await api(page,'files','list',root,{search:prefix+'-form'})).body.data.items[0];
  const saved=page.waitForResponse(r=>{try{return r.request().postDataJSON()?.action==='create';}catch{return false;}});
  await form.getByRole('button',{name:'Mentés',exact:true}).click();
  const created=await saved;expect(created.status()).toBe(200);
- expect(JSON.parse(created.request().postData()).values.file_id).toBe(files[prefix+'-a.png']);
+ expect(JSON.parse(created.request().postData()).values.file_id).toBe(added.id);
  await expect(form).toHaveCount(0);
  await search(page,prefix+' új');
  await expect(await cell(page,prefix+' új','Típus')).toHaveText('Kép');
- // Edit: "Fájl feltöltése…" uploads into the Signage folder and chooses the first stored file.
- await row(page,prefix+' új').locator('.dhx_grid-cell').nth(1).click();
- await command(page,'Módosítás');
+ await row(page,prefix+' új').locator('.dhx_grid-cell').nth(1).click();await command(page,'Módosítás');
  const edit=editor(page,'Módosítás');await expect(edit).toBeVisible();
- await expect(fileName(edit)).toHaveValue(prefix+'-a.png');
- await edit.getByRole('button',{name:'Fájl feltöltése…',exact:true}).click();
- await expect(uploader(page)).toBeVisible();
- await expect(uploader(page)).toContainText('Signage:/');
- await filesInput(page).setInputFiles([{name:prefix+'-c.png',mimeType:'image/png',buffer:png}]);
- await expect(fileName(edit)).toHaveValue(prefix+'-c.png',{timeout:20000});
- await uploader(page).getByRole('button',{name:'Bezárás',exact:true}).click();
+ await expect(fileName(edit)).toHaveValue(prefix+'-form.png');
+ const replacement=page.waitForEvent('filechooser');await fileName(edit).focus();await page.keyboard.press('Enter');
+ await (await replacement).setFiles([{name:prefix+'-c.png',mimeType:'image/png',buffer:png}]);
+ await expect(fileName(edit)).toHaveValue(prefix+'-c.png',{timeout:20000});await expect(uploader(page)).toBeHidden();
  await edit.getByRole('button',{name:'Mentés',exact:true}).click();await expect(edit).toHaveCount(0);
  await expect(row(page,prefix+' új').getByRole('img',{name:'Kép: '+prefix+'-c.png',exact:true})).toBeVisible();
- // The uploaded file is a file of the Signage mount root.
- const root=(await api(page,'files','tree','signage')).body.data.root;
  const listed=await api(page,'files','list',root,{search:prefix+'-c'});
  expect(listed.body.data.items.map(item=>item.name)).toEqual([prefix+'-c.png']);
  // The server rejects a file outside the field's mount or class.
@@ -377,7 +347,7 @@ test('reader: read-only library and Signage mount',async({page})=>{
  expect(errors).toEqual([]);
 });
 
-test('three themes and English: file field, picker and derived columns',async({page})=>{
+test('three themes and English: direct file field and derived columns',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await openLibrary(page);await seed(page);
  for(const [label,theme] of [['Éjjeli','dark'],['Világos','light'],['Blade','blade']]){
@@ -386,27 +356,23 @@ test('three themes and English: file field, picker and derived columns',async({p
   await command(page,'Hozzáadás');const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
   const preview=form.locator('.blade-file-field__media .dhx_avatar');await expect(preview).toBeVisible();
   expect(await preview.evaluate(element=>getComputedStyle(element).borderTopColor)).not.toBe('rgba(0, 0, 0, 0)');
-  await form.getByRole('button',{name:'Kiválasztás…',exact:true}).click();await expect(picker(page).locator('.blade-grid-tile').first()).toBeVisible();
-  const colors=await picker(page).locator('.blade-grid-tile__title').first().evaluate(element=>{const style=getComputedStyle(element),tile=getComputedStyle(element.closest('.dhx_dataview-item'));return [style.color,tile.backgroundColor];});
-  expect(colors[0]).not.toBe(colors[1]);
-  await page.screenshot({path:path.join(runtime,`signage-picker-${theme}.png`)});
-  await picker(page).getByRole('button',{name:'Mégse',exact:true}).click();await expect(picker(page)).toHaveCount(0);
+  await expect(form.getByRole('button',{name:'Fájl megadása…',exact:true})).toBeVisible();
+  await expect(form).toContainText('Húzd ide a fájlt, vagy illeszd be Ctrl+V-vel.');
   await form.getByRole('button',{name:'Mégse',exact:true}).click();await expect(form).toHaveCount(0);
  }
  await page.locator('.blade-navigation-row').getByRole('button',{name:'Magyar',exact:true}).click();await page.getByText('English',{exact:true}).click();
  await expect(page.locator('html')).toHaveAttribute('lang','en');
  await openMenu(page,'Media library','Digital signage');
  await expect(page.locator('[data-cell-id="grid"] .dhx_grid-row').first()).toBeVisible();
- await expect(await cell(page,'3D logo intro','Type')).toHaveText('Video');
+ expect(await column(page,'Type')).toBe('media_type');
  const actions=page.getByRole('button',{name:'Actions',exact:true});
  if(await actions.isVisible()){await actions.click();await page.getByRole('menuitem',{name:'Add',exact:true}).click();}
  else await page.getByRole('button',{name:'Add',exact:true}).click();
  const form=page.getByRole('dialog',{name:/ — Add$/});await expect(form).toBeVisible();
- await expect(form.getByRole('button',{name:'Choose…',exact:true})).toBeVisible();await expect(form.getByRole('button',{name:'Upload file…',exact:true})).toBeVisible();
- await form.getByRole('button',{name:'Choose…',exact:true}).click();
- await expect(picker(page)).toBeVisible();await expect(picker(page).getByRole('button',{name:'Cancel',exact:true})).toBeVisible();
- await expect(picker(page).getByRole('textbox',{name:'Search',exact:true})).toBeVisible();
- await picker(page).getByRole('button',{name:'Cancel',exact:true}).click();await form.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(form.getByRole('button',{name:'Add a file…',exact:true})).toBeVisible();
+ await expect(form).toContainText('Drop a file here, or paste with Ctrl+V.');
+ await expect(form.getByRole('button',{name:'Upload file…',exact:true})).toHaveCount(0);
+ await form.getByRole('button',{name:'Cancel',exact:true}).click();
  await page.locator('.blade-navigation-row').getByRole('button',{name:'English',exact:true}).click();await page.getByText('Magyar',{exact:true}).last().click();
  await expect(page.locator('html')).toHaveAttribute('lang','hu');
  expect(errors).toEqual([]);

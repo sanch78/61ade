@@ -293,7 +293,7 @@ test('details and cards render every media field and name an icon without option
 test('synthetic file field, derived media columns and usage-aware delete',async({page})=>{
  const path=require('node:path');const {buildSync}=require('esbuild');
  const root=path.resolve(__dirname,'../..');
- const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/components/list/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false}).outputFiles[0].text;
+ const bundle=buildSync({stdin:{contents:'export {Workspace} from "./packages/frontend/src/components/list/Workspace"; export {LiveChannel} from "./packages/frontend/src/Realtime"; export {setTheme} from "@dhtmlx/suite";',resolveDir:root},bundle:true,format:'iife',globalName:'fixture',write:false,outfile:'fixture.js'}).outputFiles[0].text;
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/file-field-fixture',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><div id="blade-application"></div>'}));
  await page.setViewportSize({width:1280,height:800});await page.goto('/file-field-fixture');
@@ -353,32 +353,19 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Csempék',{exact:true}).click();
  await expect(page.locator('.blade-grid-tile').filter({hasText:'Képes'}).locator('.blade-grid-tile__meta')).toHaveText('Kép');
  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Táblázat',{exact:true}).click();
- // The file field: thumbnail and name, the tiles picker over the folder (accepted classes only), clearing.
+ // The file field shows its descriptor and allows an optional reference to be cleared.
+ // Without upload permission it offers neither a native file dialog nor an existing-file picker.
  await at('Videós','title').click();await page.getByRole('button',{name:'Módosítás',exact:true}).click();
  const form=page.getByRole('dialog',{name:'Médiatár — Módosítás'});await expect(form).toBeVisible();
  const name=form.locator('.blade-file-field__body input').first();
  await expect(name).toHaveValue('clip.webm');await expect(form.locator('.blade-file-field__media .dhx_avatar__preview-icon.dxi-menu-right')).toBeVisible();
- await expect(form.getByRole('button',{name:'Fájl feltöltése…',exact:true})).toHaveCount(0);
- await form.getByRole('button',{name:'Kiválasztás…',exact:true}).click();
- const picker=page.getByRole('dialog',{name:'Fájl kiválasztása: Médiafájl'});await expect(picker).toBeVisible();
- await expect(picker.locator('.blade-grid-tile')).toHaveCount(3);await expect(picker).not.toContainText('note.txt');await expect(picker).not.toContainText('Mappa');
- await expect(picker.locator('.blade-grid-tile').filter({hasText:'clip.webm'}).locator('.blade-grid-tile__meta')).toHaveText('Videó · 640 × 360 · 0:06');
- await picker.locator('[data-dhx-id="type"]').click();await page.getByRole('menuitem',{name:'Videók',exact:true}).click();
- await expect(picker.locator('.blade-grid-tile')).toHaveCount(1);
- expect(await page.evaluate(()=>requests.filter(r=>r.resource==='files'&&r.action==='list').at(-1).values.type)).toBe('video');
- await picker.locator('[data-dhx-id="type"]').click();await page.getByRole('menuitem',{name:'Minden típus',exact:true}).click();
- const find=picker.getByRole('textbox',{name:'Keresés',exact:true});await find.fill('masik');await find.press('Enter');
- await expect(picker.locator('.blade-grid-tile')).toHaveCount(1);
- await picker.locator('.blade-grid-tile').first().dblclick();await expect(picker).toHaveCount(0);
- await expect(name).toHaveValue('masik.jpg');await expect(form.locator('.blade-file-field__media .dhx_avatar__preview-icon.dxi-image-outline')).toBeVisible();
+ await expect(form.getByRole('button',{name:'Fájl megadása…',exact:true})).toHaveCount(0);
+ await expect(form.getByRole('button',{name:'Kiválasztás…',exact:true})).toHaveCount(0);
  await form.getByRole('button',{name:'Törlés',exact:true}).click();await expect(name).toHaveValue('');
  await expect(form.getByRole('button',{name:'Törlés',exact:true})).toBeDisabled();
- await form.getByRole('button',{name:'Kiválasztás…',exact:true}).click();await expect(picker).toBeVisible();
- await picker.locator('.blade-grid-tile').filter({hasText:'kep.png'}).click();await picker.getByRole('button',{name:'Kiválasztás',exact:true}).click();
- await expect(name).toHaveValue('kep.png');
  await form.getByRole('button',{name:'Mentés',exact:true}).click();await expect(form).toHaveCount(0);
  const update=await page.evaluate(()=>requests.find(r=>r.action==='update'));
- expect(update.values.file_id).toBe('32');expect(Object.keys(update.values)).not.toContain('file_id__display');
+ expect(update.values.file_id).toBe('');expect(Object.keys(update.values)).not.toContain('file_id__display');
  // Usage-aware delete: one preview, one danger confirmation listing the counts, then the cleared toast.
  await at('Videós','title').click();
  await page.getByRole('button',{name:'Törlés',exact:true}).click();

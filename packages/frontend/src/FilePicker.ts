@@ -15,7 +15,7 @@ export type Directory={id:string;mount:string;depth:number;path:{id:string;name:
 type Entry={id:string;name:string;kind:"directory"|"file";mime_type:string;revision:string;width?:number|null;height?:number|null;duration_ms?:number|null;thumbnail?:MediaDescriptor["thumbnail"]};
 type Listing={directory:Directory;items:Entry[];next?:string|null;total?:number;matched?:number};
 type Kind="image"|"video"|"text"|"other";
-/** `canChoose`: the actor may browse the field's folder (`list` on the mount); without it `Kiválasztás…` is not offered. */
+/** `canChoose` describes the folder's list permission for the explicit toolkit FilePicker. */
 type PickerConfig=FileFieldConfig;
 
 /** Rows of one picker request (the file manager's `list` maximum) and the most rows the picker keeps. */
@@ -50,23 +50,21 @@ const actions=(submit:{name:string;text:string;icon:string}):any=>({css:"blade-f
 ]});
 
 /**
- * Form items of a `file` field: the thumbnail (a read-only native Suite Avatar; Suite Standard Form has
- * no HTML container item), the read-only file name (the item that shows
- * validation errors) and the commands `Kiválasztás…`, `Fájl feltöltése…` (when the actor may upload)
- * and `Törlés` (optional fields). The file id is the hidden item named after the field, so form values,
+ * One-file form control: native file dialog, drop and paste, with a proportional preview. The native Suite
+ * Avatar only displays the preview; the shared uploader owns all transfers. The file id is hidden, so form values,
  * validation and saving treat it like any other field. {@link FileFields} brings the items to life.
  */
 export function fileInput(field:FieldDefinition,value:unknown,readOnly=false):any{
-  const config=field.file as PickerConfig|undefined,upload=!readOnly&&!!config?.canUpload&&!!config.policy,choose=!readOnly&&!!config?.canChoose;
-  return {css:"blade-file-field",rows:[
+  const config=field.file as PickerConfig|undefined,upload=!readOnly&&!!config?.canUpload&&!!config.policy;
+  return {css:"blade-file-field"+(upload?" blade-file-field--upload":""),rows:[
     {type:"input",name:field.name,hidden:true,value:String(value??"")},
-    {css:"blade-file-field__row",cols:[
-      {type:"avatar",name:field.name+"__media",readOnly:true,removeIcon:false,circle:false,size:96,icon:"dxi dxi-file-outline",alt:"",css:"blade-file-field__media"},
+    {css:"blade-file-field__row",rows:[
       {css:"blade-file-field__body",rows:[
-        {type:"input",name:fileDisplay(field.name),label:field.label,labelPosition:"top",readOnly:true,required:!readOnly&&field.required,placeholder:t("Nincs kiválasztott fájl"),preMessage:upload?t("Válassz, húzz ide vagy illessz be egy fájlt (Ctrl+V)."):"",value:""},
+        {type:"input",name:fileDisplay(field.name),label:field.label,labelPosition:"top",readOnly:true,required:!readOnly&&field.required,placeholder:t("Nincs megadott fájl"),value:""},
+        {type:"avatar",name:field.name+"__media",readOnly:true,removeIcon:false,circle:false,size:160,icon:"dxi dxi-file-outline",alt:field.label,
+          placeholder:upload?t("Húzd ide a fájlt, vagy illeszd be Ctrl+V-vel."):"",css:"blade-file-field__media"},
         ...(readOnly||!config?[]:[{css:"blade-file-field__actions",cols:[
-          ...(choose?[{type:"button",name:field.name+"__choose",text:t("Kiválasztás…"),icon:"dxi dxi-folder-open",view:"flat",color:"primary",width:"content"}]:[]),
-          ...(upload?[{type:"button",name:field.name+"__upload",text:t("Fájl feltöltése…"),icon:"dxi dxi-file-import",view:"flat",color:"primary",width:"content"}]:[]),
+          ...(upload?[{type:"button",name:field.name+"__browse",text:t("Fájl megadása…"),icon:"dxi dxi-file-import",view:"flat",color:"primary",width:"content"}]:[]),
           ...(!field.required?[{type:"button",name:field.name+"__clear",text:t("Törlés"),icon:"dxi dxi-close",view:"flat",color:"secondary",width:"content"}]:[]),
         ]}]),
       ]},
@@ -74,11 +72,11 @@ export function fileInput(field:FieldDefinition,value:unknown,readOnly=false):an
   ]};
 }
 
-/** One `file` field of a Form: thumbnail and name of the chosen file, picker, upload and clearing. */
+/** One `file` field of a Form: one native file input, drop/paste, preview and clearing. */
 class FileField{
   private media?:MediaDescriptor;
   private folder?:Promise<Directory>;
-  private picker?:FilePicker;
+  private input?:HTMLInputElement;
   private disposed=false;
   private abort=new AbortController();
   private preview?:string;
@@ -89,17 +87,19 @@ class FileField{
     this.paint();
     if(readOnly)return;
     form.events.on("click",(name:string)=>{
-      if(name===field.name+"__choose")void this.choose();
-      else if(name===field.name+"__upload")void this.upload();
+      if(name===field.name+"__browse")this.browse();
       else if(name===field.name+"__clear"&&!fileUploadPending(form,field.name))this.set(undefined);
     });
-    // The file name is a read-only text box: Enter or Space on it opens the picker, as the button (when offered).
+    // Keep clipboard focus on the file name; Enter/Space opens the native single-file dialog.
     form.getItem(fileDisplay(field.name))?.events.on("keydown",(event:KeyboardEvent)=>{
-      if((event.key!=="Enter"&&event.key!==" ")||!config.canChoose)return;
-      event.preventDefault();void this.choose();
+      if((event.key!=="Enter"&&event.key!==" ")||!config.canUpload)return;
+      event.preventDefault();this.browse();
     });
     if(!config.canUpload||!config.policy)return;
     const signal=this.abort.signal;
+    document.addEventListener("click",event=>{
+      if(this.target(event)&&event.target instanceof Element&&event.target.closest(".blade-file-field__media"))this.browse();
+    },{signal});
     document.addEventListener("paste",event=>{
       if(!this.target(event))return;
       const data=event.clipboardData;
@@ -131,7 +131,7 @@ class FileField{
     // The thumbnail image when it is ready (`thumbnail_get`), otherwise the type glyph; `alt` states type and name.
     const avatar=this.form.getItem(this.field.name+"__media");
     if(avatar){
-      avatar.setProperties({icon:mediaIcon(media),alt:media?mediaLabel(media):""});
+      avatar.setProperties({icon:mediaIcon(media),alt:media?mediaLabel(media):this.field.label});
       if(this.preview)avatar.setValue({src:this.preview});
       else if(media?.thumbnail==="ready")avatar.setValue({src:actionUrl(this.config.resource,"thumbnail_get",media.id,media.revision)});else avatar.clear();
     }
@@ -139,14 +139,15 @@ class FileField{
     this.form.getItem(fileDisplay(this.field.name))?.setValue(media?.name??(value?t("Fájl #{id}",{id:value}):""));
     const clear=this.form.getItem(this.field.name+"__clear");
     if(clear){if(value&&!fileUploadPending(this.form,this.field.name))clear.enable();else clear.disable();}
-    for(const suffix of ["__choose","__upload"]){const button=this.form.getItem(this.field.name+suffix);if(button){if(fileUploadPending(this.form,this.field.name))button.disable();else button.enable();}}
+    const browse=this.form.getItem(this.field.name+"__browse");
+    if(browse){browse.setProperties({text:value?t("Fájl cseréje…"):t("Fájl megadása…")});if(fileUploadPending(this.form,this.field.name))browse.disable();else browse.enable();}
   }
   private set(media:MediaDescriptor|undefined):void{
     if(this.disposed)return;
     this.epoch++;
     this.media=media;
     this.releasePreview();
-    this.form.getItem(fileDisplay(this.field.name))?.setProperties({preMessage:this.config.canUpload?t("Válassz, húzz ide vagy illessz be egy fájlt (Ctrl+V)."):""});
+    this.form.getItem(fileDisplay(this.field.name))?.setProperties({preMessage:""});
     // The hidden item's change clears a shown server error (FormValidation) and marks the form dirty.
     this.form.getItem(this.field.name).setValue(media?.id??"");
     this.form.getItem(fileDisplay(this.field.name))?.clearValidate();
@@ -156,48 +157,45 @@ class FileField{
   private directory():Promise<Directory>{
     return this.folder??=fieldFolder(this.config,this.call).catch(error=>{this.folder=undefined;throw error;});
   }
-  private async choose():Promise<void>{
-    if(this.picker||this.disposed||!this.config.canChoose||fileUploadPending(this.form,this.field.name))return;
-    this.picker=new FilePicker(this.config,this.field.label,this.call,()=>this.directory(),this.value);
-    try{const media=await this.picker.result;if(media)this.set(media);}
-    finally{
-      this.picker=undefined;
-      // Focus returns to the field's command once the modal window has gone.
-      if(!this.disposed)void awaitRedraw().then(()=>{if(!this.disposed)this.form.getItem(this.field.name+"__choose")?.focus();});
+  private browse():void{
+    if(this.disposed||!this.config.canUpload||!this.config.policy||this.form.isDisabled(fileDisplay(this.field.name))||fileUploadPending(this.form,this.field.name))return;
+    if(!this.input){
+      const input=this.input=Object.assign(document.createElement("input"),{type:"file",tabIndex:-1,className:"blade-file-field__input",accept:this.config.policy.extensions.map(ext=>"."+ext).join(",")});
+      input.setAttribute("aria-hidden","true");input.dataset.bladeFileInput=this.field.name;document.body.append(input);
+      input.addEventListener("change",()=>{const files=Array.from(input.files??[]);input.value="";if(files.length)void this.upload(files);},{signal:this.abort.signal});
     }
+    this.input.click();
   }
-  /** The shared uploader targets the folder; the first file stored of the batch becomes the value. */
-  private async upload(files?:File[]):Promise<void>{
+  /** A single local file goes to the shared queue without opening its window. */
+  private async upload(files:File[]):Promise<void>{
     if(!this.config.canUpload||!this.config.policy||this.disposed||fileUploadPending(this.form,this.field.name))return;
     const display=this.form.getItem(fileDisplay(this.field.name));
-    if(files&&files.length!==1){display.setProperties({preMessage:t("Ebbe a mezőbe egy fájlt illessz be vagy húzz.")});return;}
-    if(files&&!this.config.policy.extensions.includes(files[0].name.split(".").pop()?.toLowerCase()??"")){
+    if(files.length!==1){display.setProperties({preMessage:t("Ebbe a mezőbe egy fájlt illessz be vagy húzz.")});return;}
+    if(!this.config.policy.extensions.includes(files[0].name.split(".").pop()?.toLowerCase()??"")){
       display.setProperties({preMessage:t("A fájl típusa ehhez a mezőhöz nem engedélyezett.")});return;
     }
     const epoch=++this.epoch;
     const previous=this.value;
-    if(files){
-      fileUploadPending(this.form,this.field.name,true);
-      display.clearValidate();display.setProperties({preMessage:t("Feltöltés…")});
-      this.releasePreview();
-      const file=files[0];
-      if(/^image\/(png|jpeg|gif|webp)$/.test(file.type)&&file.size<=20*1048576)this.preview=URL.createObjectURL(file);
-      this.paint();
-      void awaitRedraw().then(()=>{if(!this.disposed&&fileUploadPending(this.form,this.field.name))this.root()?.setAttribute("aria-busy","true");});
-    }
+    fileUploadPending(this.form,this.field.name,true);
+    display.clearValidate();display.setProperties({preMessage:t("Feltöltés…")});
+    this.releasePreview();
+    const file=files[0];
+    if(/^image\/(png|jpeg|gif|webp)$/.test(file.type)&&file.size<=20*1048576)this.preview=URL.createObjectURL(file);
+    this.paint();
+    void awaitRedraw().then(()=>{if(!this.disposed&&fileUploadPending(this.form,this.field.name))this.root()?.setAttribute("aria-busy","true");});
     const settled=(error?:string)=>{
       if(epoch!==this.epoch)return;
       fileUploadPending(this.form,this.field.name,false);
       if(this.disposed)return;
       this.root()?.removeAttribute("aria-busy");display.clearValidate();
-      display.setProperties({preMessage:escape(error??t("Válassz, húzz ide vagy illessz be egy fájlt (Ctrl+V)."))});
+      display.setProperties({preMessage:escape(error??"")});
       this.paint();
     };
     let directory:Directory;
     try{directory=await this.directory();}catch(error){if(this.disposed||epoch!==this.epoch)return;settled(error instanceof Error?error.message:t("Sikertelen művelet."));this.releasePreview();this.paint();return;}
     if(this.disposed||epoch!==this.epoch)return;
     uploads.open({resource:this.config.resource,action:"upload",target:directory.id,targetLabel:directoryLabel(directory),policy:this.config.policy,
-      ...(files?{files,background:true}:{}),onUploaded:(result:UploadResult)=>{
+      files,background:true,onUploaded:(result:UploadResult)=>{
       if(epoch!==this.epoch)return;
       settled(result.failed[0]?.error??(!result.succeeded.length?t("Kihagyva"):undefined));
       const first=result.succeeded[0];if(this.disposed)return;
@@ -209,7 +207,7 @@ class FileField{
     }});
   }
   private releasePreview():void{if(this.preview)URL.revokeObjectURL(this.preview);this.preview=undefined;}
-  destroy():void{this.disposed=true;this.abort.abort();fileUploadPending(this.form,this.field.name,false);this.releasePreview();this.picker?.close();}
+  destroy():void{this.disposed=true;this.abort.abort();this.input?.remove();fileUploadPending(this.form,this.field.name,false);this.releasePreview();}
 }
 
 /** Every `file` field of a Form; `values._media` (or the list row's) describes the current files. */

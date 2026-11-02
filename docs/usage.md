@@ -324,8 +324,9 @@ indicator, resume after reload, `upload:*` events). Do not build another
 upload dialog.
 
 An upload-enabled [`file` form field](workspaces.md#file-field) also accepts
-one file directly by paste (Ctrl+V / Cmd+V) or drop, with a local image preview
-and background transfer. Saving waits for the upload to settle; the form
+one local file through `Fájl megadása…`, paste (Ctrl+V / Cmd+V) or drop, with
+a proportional preview and background transfer. It opens neither the full
+uploader nor a stored-file picker. Saving waits for the upload to settle; the form
 stores the resulting file id. Use `accept: ["image"]` for an image-only field.
 
 Lists gain [media columns, tiles, row height and search](workspaces.md#media-tiles):
