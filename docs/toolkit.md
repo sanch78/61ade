@@ -1962,6 +1962,7 @@ markup may change without notice.
 | 2026-11-02 | `MediaPlayerOptions.visualizer: "spectrum"` (optional, audio only); `MediaPlayer.loop()`, `setLoop(boolean)` and `loop {loop}` event synchronize repeat controls; `toolbarPosition` (`top` / `bottom`) defaults to top. Existing `autoplay` remains a native request subject to browser policy. Additive. | [FB-0119](feedback.md#fb-0119) |
 | 2026-11-02 | `SandboxFrameOptions.autoplay` delegates autoplay to the opaque frame, default false; no sandbox flags or isolation permissions added. Additive. | [FB-0120](feedback.md#fb-0120) |
 | 2026-11-02 | `ListView.target()` and `target` (`ListTarget`: `{view, row, rows}`) expose the active context, including selected previews and foremost child windows, marks and selected-record live changes. Existing `select`, `selected()` and command-specific delegation keep their meaning. Additive. | [FB-0125](feedback.md#fb-0125) |
+| 2026-11-02 | A table's or card's sub-view previews inside a window live in that window's popup wrapper (its stacking context, the containing block of the fixed layer) instead of the page body, so they show over their slots in the window and stay below its menus, dialogs and later windows. No API change. | — |
 
 <a id="resolved-decisions"></a>
 
