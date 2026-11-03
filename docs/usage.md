@@ -237,6 +237,8 @@ Sign in stays before the rightmost logo on desktop and beside the controls
 hamburger on phones, where the public shell hides the logo.
 The sign-in modal opens over the existing guest view; Cancel before a challenge
 keeps that view and its input without reloading.
+An expired guest session renews public access; it does not require login. A
+reload prompt protects unsaved input and never asks a guest to authenticate.
 Login switches to the member's rights; logout returns to the public UI. The
 [public demo](demos.md#public-access-demo) demonstrates this separately; the other
 demos keep their login requirement.

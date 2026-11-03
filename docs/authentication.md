@@ -103,6 +103,18 @@ session and expire on sign-in/logout or account revocation. A request with an
 Authorization header always uses the Bearer API channel: a missing/invalid token
 returns 401 and never falls back to guest permissions.
 
+A guest's technical session may expire while the browser is idle or its tab is
+hidden. This does not sign a user out or require authentication: the shell
+normally reloads into public access with the view address kept. Over unsaved
+input, or after another automatic reload within 60 seconds, it offers **Reload**
+with a guest-session message and Cancel to retain the input; it never suggests
+signing in to renew guest access. An intentionally open sign-in is kept, but
+automatic guest renewal drops any stray `signin` URL flag when no sign-in is open.
+An unrelated public UI POST error (including expired CSRF on a language change)
+shows its error without opening sign-in. Only an explicit sign-in request,
+authentication POST or pending challenge opens the authentication window.
+See [ended sessions](shell.md#ended-session), [FB-0133](feedback.md#fb-0133).
+
 **Limits:** this is one shared permission identity, not one user per visitor.
 `own` scope and actor-based rate limits refer to that account for every visitor;
 do not use `own` to isolate visitor data. Short-lived upload state retains its

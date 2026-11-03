@@ -185,7 +185,8 @@ root must be only the consumer public directory.
 
 ### Ended session
 
-When the session ends while the page is open (idle timeout, sign-out in
+For an authenticated page in a login-only application, when the session ends
+while it is open (idle timeout, sign-out in
 another tab, a removed session), the shell signs the page out on the first
 signal ([FB-0086](feedback.md#fb-0086)): any 401 of the JSON channel
 (`server.call`/`request`, the uploader, a menu click that loads a view) and the
@@ -207,6 +208,14 @@ loops. A visible polling tab keeps its session alive
 from the WebSocket channel, a hidden tab or another tab's sign-out.
 `workspace.spec.cjs` covers the menu click, the open form (Cancel and sign-in)
 and the refused live ticket.
+
+For [public access](authentication.md#public-access), an ended guest session
+normally reloads into the public UI. If input or the reload-loop guard requires
+confirmation, the same modal offers **Újratöltés** with a guest-session message,
+not the member's Sign in instruction. Cancel retains the input. No authentication
+is requested unless the visitor already opened sign-in intentionally. Generic
+public POST errors are reported without switching into sign-in. Guest CSRF and
+authorization checks remain in force; no failed action is replayed automatically.
 
 With explicit `trustLocalProxy: true`, `HttpEntrypoint` trusts
 `X-BLADE-HTTPS`/`X-BLADE-Client-IP` only from loopback. The proxy must overwrite

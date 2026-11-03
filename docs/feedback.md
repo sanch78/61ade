@@ -4651,3 +4651,41 @@ that exactly equals an option label lists every option. The managed
   Real OAuth provider completion is not claimed. Temporary sources and artifacts
   were removed after verification; no full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0133"></a>
+
+## FB-0133 — Guest-session expiry must not request sign-in
+
+- **Date:** 2026-11-03.
+- **Report:** the owner returned to the public demo (`/public/`) and saw a login
+  window despite never signing in. A guest still has a technical CSRF/live
+  session, but expiry must not turn public access into an authentication request.
+- **Reproduced defects:** the common expiry warning offered Sign in even to a
+  guest when input or the reload-loop guard prevented an automatic refresh. Also,
+  any shell POST error set `signingIn`: expired CSRF on a public language POST
+  opened an actual password window. Both behaviors were reproduced before the
+  fix; this does not establish which triggered the owner's particular visit.
+- **Fixed:** guest expiry uses a localized Reload action and guest-session
+  explanation; automatic recovery returns to public access and removes a stray
+  `signin` URL flag when no sign-in was intentionally open. Unsaved input and the
+  one-reload-per-minute guard retain their confirmation/Cancel behavior. The
+  server opens authentication only for an explicit sign-in request, an auth POST
+  or a pending challenge, not an unrelated public UI error. Mandatory-login
+  behavior, CSRF rejection, server ACL and audit are unchanged; actions are not
+  retried automatically. The guest account remains active in the managed demo.
+- **Guides:** [public access](authentication.md#public-access),
+  [ended sessions](shell.md#ended-session), [usage](usage.md).
+- **Verification:** four temporary managed-URL browser cases passed: repeated
+  guest expiry offers Reload rather than Sign in and returns to guest access;
+  a public POST CSRF error shows no login; a missing guest session silently
+  renews the public page and keeps its view address; an explicitly posted login
+  still shows sign-in after a CSRF error. Session loss was simulated by removing
+  only the browser's guest-session cookie, without waiting thirty minutes or
+  changing runtime permissions. The three existing `workspace.spec.cjs` session
+  cases (4401/reload-loop guard, ended session/menu click, unsaved form) passed.
+  PHP `contracts`, `authentication`, `oauth`, `i18n`, typecheck, build consistency
+  and PHP lint passed. HU/EN/DE catalogues have the new guest text and Reload
+  label. One temporary test was corrected to await navigation before inspecting
+  the replacement document. Temporary sources and artifacts were removed after
+  verification; no full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

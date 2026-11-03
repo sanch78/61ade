@@ -727,5 +727,7 @@
   "Frekvenciaspektrum: mély hangoktól a magasakig": "Frequency spectrum: low to high frequencies",
   "A frekvenciamegjelenítő nem érhető el ebben a böngészőben.": "The frequency visualizer is unavailable in this browser.",
   "Beállítások": "Settings",
-  "Vissza": "Back"
+  "Vissza": "Back",
+  "Újratöltés": "Reload",
+  "A vendégmunkamenet lejárt. A folytatáshoz töltsd újra a felületet; a nem mentett adatokat előbb másold ki.": "The guest session has expired. Reload to continue; copy any unsaved data first."
 }

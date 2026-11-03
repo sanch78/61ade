@@ -656,8 +656,8 @@ export class AdminShell {
   }
 
   /**
-   * The session ended (a 401 of the JSON channel, or the live channel's end): the reload shows the sign-in page,
-   * which keeps the address for after sign-in. Over unsaved input the modal asks first, so the user can copy it out;
+   * The session ended: a member returns to sign-in, a guest to public access, with the view address kept.
+   * Over unsaved input the modal asks first, so the user can copy it out;
    * Cancel keeps the page and the next 401 asks again. A second automatic reload within 60 s (the page came back
    * signed in, yet the channel answers 401) also asks instead of looping.
    */
@@ -667,13 +667,18 @@ export class AdminShell {
     let recent=true;
     try{recent=Date.now()-Number(sessionStorage.getItem(SIGNED_OUT)||0)<60000;}catch{}
     if(!recent&&!this.editing()){this.signOut();return;}
-    void showDialog({mode:"confirm",severity:"warning",title:t("A munkamenet lejárt"),initialFocus:"cancel",confirmLabel:t("Bejelentkezés"),
-      message:t("A munkamenet lejárt, a nyitott adatok nem menthetők. Másold ki, amire még szükséged van, majd jelentkezz be újra.")})
+    const guest=!!this.definition.guest;
+    void showDialog({mode:"confirm",severity:"warning",title:t("A munkamenet lejárt"),initialFocus:"cancel",confirmLabel:t(guest?"Újratöltés":"Bejelentkezés"),
+      message:t(guest?"A vendégmunkamenet lejárt. A folytatáshoz töltsd újra a felületet; a nem mentett adatokat előbb másold ki.":"A munkamenet lejárt, a nyitott adatok nem menthetők. Másold ki, amire még szükséged van, majd jelentkezz be újra.")})
       .then(confirmed=>{if(this.listeners.signal.aborted)return;if(confirmed)this.signOut();else this.signedOut=false;});
   }
   private signOut():void{
     try{sessionStorage.setItem(SIGNED_OUT,String(Date.now()));}catch{}
     this.channel?.close();
+    if(this.definition.guest&&!this.definition.signingIn){
+      const url=new URL(location.href);url.searchParams.delete("signin");
+      if(url.href!==location.href){location.replace(url);return;}
+    }
     location.reload();
   }
 
