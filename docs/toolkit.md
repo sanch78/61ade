@@ -677,10 +677,12 @@ state, also while the item sits in the collapsed menu (a play/pause toggle is
 one button whose label and icon change). `toolbar` is the
 underlying Suite Toolbar. Escape closes an open menu, also one opened with the
 mouse, and returns the focus to its toggle (`Műveletek`); the key does not
-reach a window behind it. Compact submenus use one popup at a time; a native
-`Vissza` entry or ArrowLeft returns to the parent menu, keeping controls
-reachable on narrow screens. The feature demo's viewer drives a `MediaPlayer`
-with it ([example](#example-record-view)).
+reach a window behind it. Toolbar submenus open to the right when their actual
+themed width fits in the viewport, including inside `Műveletek`. Otherwise the submenu replaces its
+ancestors at the original toolbar button; a native `Vissza` entry or ArrowLeft
+returns to the parent. This also applies near the right edge on desktop, and
+each deeper level makes the same fit decision. The feature demo's viewer drives
+a `MediaPlayer` with it ([example](#example-record-view)).
 
 <a id="pagelayout"></a>
 
@@ -1901,7 +1903,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M34 | View guides ([workspaces](workspaces.md#view-guide)): a view with `guide` opens a non-modal `Útmutató: <title>` window when it opens as a page, until the user closes it once; the lower bar gains an `Útmutató` button. New, additive: `Registry::tree()` / JSON `view.tree` ([tree navigation](workspaces.md#tree-navigation)), `Field` `visibleWhen` / JSON `visible_when` ([conditional fields](workspaces.md#conditional-fields)), `ListKindOptions.tree`, `FieldMetadata.visibleWhen`, `ViewDefinition.guide`; a `RecordForm` mounted in an `AppWindow` fits it once its fields show | [FB-0107](feedback.md#fb-0107) | info: specs whose views get a guide (close it, or seed the dismissal) | none | none |
 | M35 | Lists and forms ([manual order and drops](workspaces.md#manual-order), [card filters](workspaces.md#card-filters)): a list with header filters and no filter panel shows `Szűrés` in cards and tiles (the header filters in a dialog); header filter inputs are named `Szűrés: <column>`; draggable rows (a manual order, a drop, `dragSource`) start with a drag-handle column; a checkbox in a framework form shows its text; `RecordForm` submits under the action's label when no view gives a `submitLabel` and shows no success toast for a read-only action. New, additive: `SqlResource` `order` / JSON `storage.order` with the `move` action, `View`/builder `drop` / JSON `view.drop`, `ListKindOptions.order`/`drop`, `ListViewOptions.dragSource`/`panel`/`showId`, `RecordFormOptions.cancel`, `RecordForm.setValues`, `RecordDetailsOptions.showId`, `PageLayout`, computed `column.media` fields, the `not_before_field`/`not_after_field` rules | [FB-0108](feedback.md#fb-0108) | info: specs that count toolbar items in cards, find header filters by position or expect `Mentés` or a toast from a query form | none | none |
 | M36 | View guides ([workspaces](workspaces.md#view-guide)): a guide opens by itself once per sign-in session (the first time its view opens as a page in a tab), no longer until it is closed; the `Útmutató` button moves from the lower bar to the top row, left of the language selector (below 768 px an item of `Menü`). New, additive: `ApplicationDefinition` `guides` / JSON `application.guides` (guides by view id, the framework's own views too), `SqlResource::register()` `guide` | [FB-0109](feedback.md#fb-0109) | if used: specs that click the lower bar's `Útmutató` or seed the `localStorage` key `blade-guide:1:` | none | none |
-| M37 | Common Toolbar inset (`--blade-toolbar-padding`, default `4px 8px`) and flat shell navigation in every skin; below 768 px the right-hand tenant/guide/language/theme controls collapse together into `Beállítások`. Compact Toolbar submenus show one level with `Vissza`/ArrowLeft instead of overlapping cascades | [FB-0122](feedback.md#fb-0122) | if used: mobile UI specs must open the controls menu before choosing a selector or guide | no runtime change | no runtime change |
+| M37 | Common Toolbar inset (`--blade-toolbar-padding`, default `4px 8px`) and flat shell navigation in every skin; below 768 px the right-hand tenant/guide/language/theme controls collapse together into `Beállítások`. Toolbar submenus cascade right when they fit, otherwise replace ancestors at the toolbar toggle with `Vissza`/ArrowLeft | [FB-0122](feedback.md#fb-0122), [FB-0135](feedback.md#fb-0135) | if used: mobile UI specs must open the controls menu before choosing a selector or guide | no runtime change | no runtime change |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

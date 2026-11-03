@@ -4278,7 +4278,8 @@ that exactly equals an option label lists every option. The managed
   the right-hand `Beállítások` hamburger. Compact Toolbar submenus replace
   the current native popup, with `Vissza`/ArrowLeft to return and Escape to
   close and focus the opener. This also fixes overlapping cascades in compact
-  list command menus.
+  list command menus. Submenu placement is superseded by the adaptive
+  fit rule in [FB-0135](#fb-0135).
   [Shell](shell.md#elkülönülő-főmenügombok), [usage](usage.md).
 - **Validation:** presentation only; no public configuration, authorization,
   persistence or server action changes. No new audit or browser event.
@@ -4714,4 +4715,37 @@ that exactly equals an option label lists every option. The managed
   explicit header height and horizontal-header geometry. Blade screenshots were
   visually inspected. The four existing layout-resizer and three application-skin
   cases passed. Temporary test source and screenshots were removed.
+- **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0135"></a>
+
+## FB-0135 — Toolbar submenus cascade right when they fit
+
+- **Date:** 2026-11-03.
+- **Request:** a nested toolbar submenu must open to the right when there is
+  room; otherwise open at the toolbar button so it cannot cover parent rows.
+  This replaces [FB-0122](#fb-0122)'s unconditional compact-menu replacement.
+- **Implemented:** the common `ResponsiveToolbar` measures the native popup's
+  actual themed width at each depth. A fitting submenu keeps Suite's rightward
+  cascade. If it would cross the viewport's right edge, it replaces ancestor
+  popups at the original toolbar toggle, with the existing localized `Vissza`
+  and ArrowLeft return path. The rule applies to compact commands and desktop
+  selectors near the right edge. Back retains the original toggle before
+  Suite closes its clicked menu; Escape restores focus there. Resizing closes
+  the open popup so the next opening measures the new available space.
+  No configuration, permissions, server actions, audit or event changes.
+- **Guides:** [CommandBar](toolkit.md#commandbar),
+  [shell controls](shell.md#elkülönülő-főmenügombok), [usage](usage.md).
+- **Verification:** build, asset preparation, typecheck, PHP `contracts` and
+  `configuration` passed. Six temporary managed-URL browser cases passed:
+  rightward cascades and 320 px replacement in Blade, Blade Night, light and
+  dark; several submenu depths, Back/ArrowLeft, command dispatch, Escape/focus;
+  desktop right-edge replacement and toolbar restoration; a long label forcing
+  replacement on a wider screen, measured toggle alignment and keyboard entry.
+  The fallback screenshot was visually inspected. Eleven existing selected
+  browser/navigation, theme/skin and list-toolbar cases passed, including the
+  compact sorting/ACL/desktop-restoration cases. Initial temporary selectors
+  were corrected for native icon text. Temporary source and artifacts were
+  removed after verification; no full-smoke claim.
 - **Status:** implemented and verified on the managed demo.

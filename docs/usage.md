@@ -504,6 +504,10 @@ All normal Toolbars share the list toolbar's inset through the common
 `--blade-toolbar-padding` token, including direct Layout attachments, and own
 a themed 1 px bottom divider even above borderless content. Mobile
 shell selectors collapse together into the `Beállítások` hamburger menu.
+Toolbar submenus open to the right when they fit; otherwise they replace the
+ancestor popups at the toolbar button, with `Vissza`/ArrowLeft to return.
+This applies at every depth and to desktop controls near the right edge too
+([CommandBar](toolkit.md#commandbar)).
 No consumer configuration; rebuild/prepare assets.
 
 A collapsed desktop `Menü` is followed by the open feature's sibling menu items
