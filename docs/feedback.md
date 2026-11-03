@@ -534,3 +534,7 @@
 <a id="fb-0129"></a>
 
 ## FB-0129 — Window resize handles can be grabbed on their whole width
+
+<a id="fb-0130"></a>
+
+## FB-0130 — Native separators before declared menu groups

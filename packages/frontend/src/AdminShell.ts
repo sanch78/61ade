@@ -46,6 +46,8 @@ export type ShellDefinition = {
   oauthOnly?: boolean;
   displayName?: string;
   menu?: MenuDefinition[];
+  /** Translated labels of offered view groups that get a preceding native separator. */
+  menuSeparators?: string[];
   /** Offered views in menu order (toolkit `ViewDefinition`: shared keys at the top, the kind's payload in `options`). */
   views?: ViewDefinition[];
   /** Only after sign-in: the application's ES modules (`ApplicationDefinition::$modules`), page-relative paths. */
@@ -152,7 +154,7 @@ export class AdminShell {
     measure.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
     const itemWidth=(item:any)=>{label.innerHTML=String(item.value??"");return 32+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+Math.ceil(measure.measureText(label.textContent??"").width);};
     // 16 px row inset; only the full menu reserves logout and its 17 px separator.
-    const required=(items:any[],logout=true)=>items.reduce((sum:number,item:any)=>sum+itemWidth(item),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
+    const required=(items:any[],logout=true)=>items.reduce((sum:number,item:any,index:number)=>sum+itemWidth(item)+(index&&item.separatorBefore?17:0),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
     const compact = width < Math.max(768,required(this.menuItems));
     const current="view:"+(parseRoute(location.hash).view??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -172,7 +174,9 @@ export class AdminShell {
     // A top-level item holding the open view carries the current-section underline (CSS, not the popup's active state).
     const holds=(item:any):boolean=>item.id===current||(item.items??[]).some(holds);
     const marked=(item:any)=>holds(item)?{...item,css:"blade-menu-current"}:item;
-    const entries=[...structuredClone(this.menuItems),
+    const entries=[...structuredClone(this.menuItems).flatMap((item:any,index:number)=>[
+      ...(index&&item.separatorBefore?[{id:"blade-before:"+item.id,type:"separator"}]:[]),item,
+    ]),
       { id: "blade-session-separator", type: "separator" },
       { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" },
     ];
@@ -352,7 +356,7 @@ export class AdminShell {
         const item={id:"view:"+view.id,value:escape(view.title),icon:view.icon??"dxi dxi-table-check"};
         if(view.group){
           let group=features.find(v=>v.id==="group:"+view.group);
-          if(!group){group={id:"group:"+view.group,value:escape(view.group),icon:"dxi dxi-folder-open",items:[]};features.push(group);}
+          if(!group){group={id:"group:"+view.group,value:escape(view.group),icon:"dxi dxi-folder-open",items:[],separatorBefore:definition.menuSeparators?.includes(view.group)};features.push(group);}
           group.items.push(item);
         }else features.push(item);
       }

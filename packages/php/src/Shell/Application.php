@@ -143,6 +143,8 @@ final class Application
             if ($tenancy) $bootstrap['tenant'] = ['current' => $tenant, 'choices' => array_map(static fn($id, $name) => ['id' => (string) $id, 'name' => $name], array_keys($memberships = $tenancy->memberships($identity->id)), $memberships)];
             if ($workspace) {
                 $bootstrap['views'] = $workspace->views($identity, $tenant);
+                $separators = array_values(array_intersect(array_map(Translator::text(...), $definition->menuSeparators), array_column($bootstrap['views'], 'group')));
+                if ($separators) $bootstrap['menuSeparators'] = $separators;
                 $bootstrap['csrf'] = $csrf;
                 $bootstrap['live'] = $definition->live->metadata();
             }
