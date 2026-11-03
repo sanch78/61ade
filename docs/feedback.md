@@ -4781,3 +4781,31 @@ that exactly equals an option label lists every option. The managed
   same-document history changes, and the stage fixture intercepts only GET.
   Task-only source and artifacts were removed after verification.
 - **Status:** implemented and verified on the managed demo; no full-smoke claim.
+
+<a id="fb-0137"></a>
+
+## FB-0137 — Hide the 61ade sign-in window behind AuthHandler
+
+- **Date:** 2026-11-03.
+- **Request:** while AuthHandler's provider overlay is open, hide the 61ade
+  sign-in window; restore it when the overlay closes.
+- **Implemented:** the shell suspends its native Window on the provider modal's
+  opening event and restores it on the hidden event, retaining the same Form,
+  entered values and external-button focus. Resize/refit cannot reopen the
+  suspended window. Public sign-in treats suspension separately from Cancel,
+  with listeners scoped to the current sign-in lifetime. The Bootstrap-compatible
+  shim now emits the opening event too. AuthHandler is unchanged; OAuth-only
+  behavior, server authentication, permissions and audit are unchanged.
+- **Guides:** [authentication](authentication.md#oauth-belépés-authhandler),
+  [usage](usage.md).
+- **Verification:** typecheck, build/asset preparation and PHP `contracts` and
+  `oauth` passed. Four temporary managed-URL browser cases cover desktop/phone,
+  X/Escape/backdrop dismissal, resize while hidden, retained input and focus,
+  plus public Cancel/reopen with a synthetic provider modal. The public demo
+  has no OAuth configuration; the initial public cases were corrected to inject
+  that synthetic configuration. The existing native-provider and motion cases
+  and three existing desktop/phone/default-demo sign-in-branding cases passed.
+  A 528 px screenshot was inspected: only the provider overlay is visible.
+  Temporary verification source and artifacts were removed. Real provider
+  completion was not tested; no full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

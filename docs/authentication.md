@@ -387,6 +387,11 @@ Prerequisites:
 The overlay uses Bootstrap modal markup. 61ade supplies a small compatible shim
 only without Bootstrap, plus scoped theme header/border styling; global Bootstrap
 CSS never enters the DHTMLX interface. Overlay is above the top DHTMLX layer.
+While the provider overlay is open, the native 61ade sign-in window is hidden,
+including over public access. Closing the overlay restores the same form and
+its entered values, with focus on the external-account button. Resizing does not
+reopen the underlying window. This uses the modal lifecycle in the 61ade adapter;
+AuthHandler is unchanged, and temporarily hiding the window does not cancel sign-in.
 The shim plays Bootstrap's `fade` entrance itself: the overlay and backdrop
 fade in (0.15 s) and the dialog slides down into place (0.3 s);
 `prefers-reduced-motion: reduce` shows them at once ([FB-0118](feedback.md#fb-0118)).

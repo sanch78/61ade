@@ -254,7 +254,9 @@ there to stop that filling. After a failed submission the identifier is retained
 ([login flow](authentication.md#belépési-folyamat)).
 
 [Authentication](authentication.md) supports password, password plus per-user code,
-and AuthHandler's external-account overlay. Listed providers appear without keys
+and AuthHandler's external-account overlay. The 61ade window hides while that
+overlay is open and returns with its entered values when the overlay closes.
+Listed providers appear without keys
 but give setup feedback until configured. Only existing OAuth-enabled accounts
 can enter, without password. `oauth.exclusive` makes the overlay the only
 sign-in, carrying the declared logo and content
