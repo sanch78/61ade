@@ -249,6 +249,12 @@ Suite theme (`blade`, `dark`, `light`). Suite controls remain native; `setTheme`
 applies to the document root and all controls. `browser.spec.cjs` checks the
 default, actual toolbar color, switching and reload persistence.
 
+In Blade and Blade Night, a collapsed Layout column keeps its original strip
+width and carries the glossy header over its full height. The vertical title
+stays inside that header below the expand icon; the entire strip remains the
+native mouse/keyboard toggle. Expanded and horizontally collapsed headers keep
+their Suite geometry ([FB-0134](feedback.md#fb-0134)).
+
 <a id="application-skins"></a>
 
 ### Application skins (optional)

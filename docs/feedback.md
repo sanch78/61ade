@@ -4689,3 +4689,29 @@ that exactly equals an option label lists every option. The managed
   the replacement document. Temporary sources and artifacts were removed after
   verification; no full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0134"></a>
+
+## FB-0134 — Blade chrome on collapsed vertical panel headers
+
+- **Date:** 2026-11-03.
+- **Request:** collapsed vertical panel labels must receive Blade styling;
+  follow-up: preserve their previous width.
+- **Cause:** Suite places its rotated caption below a short header. Blade's
+  glossy header background therefore did not cover the vertical caption strip;
+  the workspace header's overflow clipping could also hide the caption.
+- **Fixed:** in Blade and Blade Night, collapsed column headers fill the cell's
+  height and contain the vertical caption below the native expand icon. Native
+  horizontal padding preserves the previous strip width. Expanded columns and
+  horizontally collapsed headers keep their existing geometry. The full strip
+  remains the native toggle, including Enter support. No configuration, API,
+  authorization or event changes; factory light/dark are unaffected.
+- **Guides:** [appearance](shell.md#61ade-character), [usage](usage.md).
+- **Verification:** build and typecheck passed. Eight temporary managed-demo
+  browser cases cover space/wide layouts in Blade, Blade Night, light and dark:
+  strip width compared against the original committed stylesheet, caption/icon
+  containment, full-height chrome, full-strip click, Enter, reopening with an
+  explicit header height and horizontal-header geometry. Blade screenshots were
+  visually inspected. The four existing layout-resizer and three application-skin
+  cases passed. Temporary test source and screenshots were removed.
+- **Status:** implemented and verified on the managed demo.
