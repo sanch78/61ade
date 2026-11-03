@@ -550,3 +550,7 @@
 <a id="fb-0133"></a>
 
 ## FB-0133 — Guest-session expiry must not request sign-in
+
+<a id="fb-0134"></a>
+
+## FB-0134 — Blade chrome on collapsed vertical panel headers
