@@ -737,9 +737,12 @@ at a 240 px button width; their native popup keeps the complete choices.
 Below 768 px (or when the control group cannot fit), the complete right-hand
 group moves into one icon-only `Beállítások` hamburger menu: tenant, guide,
 language and theme remain native menu entries with the same actions. Widening
-restores the controls and their current state. Compact submenus replace the current popup, with a native `Vissza` item and
-ArrowLeft to return, so they cannot cover the parent controls. Escape closes
-the popup and returns focus to its opener. This also applies before sign-in.
+restores the controls and their current state. Toolbar submenus cascade to the
+right when their measured width fits. Otherwise they replace the ancestor
+popups at the toolbar toggle, with a native `Vissza` item and ArrowLeft to
+return. The same rule applies to deeper levels and desktop right-edge controls.
+Escape closes the popup and returns focus to its opener. This also applies
+before sign-in.
 
 Idle controls have no background, gradient, rounding or shadow. Hover tints
 all enabled elements with 8 % of `--dhx-color-primary`; an open popup uses
