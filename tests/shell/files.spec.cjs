@@ -5,9 +5,11 @@ const {signIn,openMenu,command,api}=require('./feature-demo.cjs');
 // Every entry created here starts with the run prefix and is removed afterwards with its subtree.
 const prefix='pw'+Date.now().toString(36);
 const started=new Date(Date.now()-5000).toISOString().replace(/\.\d+Z$/,'Z');
+// Upload batches go through files on disk, as in uploader.spec.cjs: a buffer of several MB stalls the transfer.
+const fs=require('node:fs'),scratch=require('node:path').resolve(process.env.BLADE_TMP_DIR||'tmp','files-'+prefix);
 const php=code=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${process.env.BLADE_TMP_DIR||'tmp'}/${process.env.BLADE_DEMO_INSTANCE||'demo'}/features.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');${code}`],{encoding:'utf8'});
 test.describe.configure({mode:'serial'});
-test.afterAll(()=>{php(`$q=$db->prepare("DELETE FROM blade_files WHERE space='demo' AND (name LIKE ? OR (parent_id<>0 AND parent_id NOT IN (SELECT id FROM blade_files)))");do{$q->execute(['${prefix}%']);}while($q->rowCount()>0);`);});
+test.afterAll(()=>{fs.rmSync(scratch,{recursive:true,force:true});php(`$q=$db->prepare("DELETE FROM blade_files WHERE space='demo' AND (name LIKE ? OR (parent_id<>0 AND parent_id NOT IN (SELECT id FROM blade_files)))");do{$q->execute(['${prefix}%']);}while($q->rowCount()>0);`);});
 
 const panel=(page,index)=>page.locator(`[data-cell-id="panel-${index}"]`);
 // The panel header shows the current path (collapsed in the middle when it does not fit).
@@ -168,12 +170,10 @@ test('upload validation, conflict dialog and the TXT editor',async({page})=>{
  const upload=page.getByRole('dialog').filter({has:page.locator('.blade-uploader')}),input=page.locator('input[data-blade-upload-input="files"]');
  // One byte over the demo's limit (examples/demo-app/common.php), read from the policy like uploader.spec.cjs.
  const maxSize=await page.evaluate(()=>JSON.parse(document.getElementById('blade-config').textContent).views.find(view=>view.id==='files').options.upload.policy.maxSizeBytes);
+ fs.mkdirSync(scratch,{recursive:true});
  await input.setInputFiles([
-  {name:prefix+'-a.txt',mimeType:'text/plain',buffer:Buffer.from('első sor\n')},
-  {name:prefix+'-b.png',mimeType:'image/png',buffer:png},
-  {name:prefix+'-c.exe',mimeType:'text/plain',buffer:Buffer.from('MZ')},
-  {name:prefix+'-big.txt',mimeType:'text/plain',buffer:Buffer.alloc(maxSize+1,97)},
- ]);
+  [prefix+'-a.txt',Buffer.from('első sor\n')],[prefix+'-b.png',png],[prefix+'-c.exe',Buffer.from('MZ')],[prefix+'-big.txt',Buffer.alloc(maxSize+1,97)],
+ ].map(([name,buffer])=>{const target=require('node:path').join(scratch,name);fs.writeFileSync(target,buffer);return target;}));
  await expect(upload.locator('.blade-uploader__summary')).toHaveText('Sikeres: 2, kihagyva: 0, sikertelen: 2.');
  await expect(upload).toContainText('Nem engedélyezett fájltípus');await expect(upload).toContainText('túl nagy');
  await expect(page.locator('.blade-toast').filter({hasText:'Sikeres: 2, kihagyva: 0, sikertelen: 2.'})).toBeVisible();
@@ -202,9 +202,10 @@ test('upload validation, conflict dialog and the TXT editor',async({page})=>{
  // The textarea fills the window below the toolbar, also after the user enlarges it: no empty band.
  const gap=()=>editor.evaluate(root=>root.getBoundingClientRect().bottom-root.querySelector('textarea').getBoundingClientRect().bottom);
  expect(await gap()).toBeLessThan(4);
- const before=(await area.boundingBox()).height,handle=await editor.locator('.dhx_window-resizer--bottom').boundingBox();
- await page.mouse.move(handle.x+handle.width/2,handle.y+handle.height/2);await page.mouse.down();
- await page.mouse.move(handle.x+handle.width/2,handle.y+handle.height/2+120,{steps:6});await page.mouse.up();
+ // Grabbed at its centre, on the window edge: the window must not clip its handles (the overlay would get the press).
+ const before=(await area.boundingBox()).height,handle=await editor.locator('.dhx_window-resizer--bottom').boundingBox(),grab=handle.y+handle.height/2;
+ await page.mouse.move(handle.x+handle.width/2,grab);await page.mouse.down();
+ await page.mouse.move(handle.x+handle.width/2,Math.min(grab+120,page.viewportSize().height-4),{steps:6});await page.mouse.up();
  await expect.poll(async()=>(await area.boundingBox()).height).toBeGreaterThan(before+80);expect(await gap()).toBeLessThan(4);
  await bar.getByRole('button',{name:'Sortörés',exact:true}).click();await expect(area).toHaveAttribute('wrap','off');
  await area.fill('szerkesztett szöveg\n');
@@ -409,7 +410,8 @@ test('tiles with thumbnails, folder and parent tiles',async({page})=>{
  // Rows without a media descriptor fall back to the icon column with its accessible name.
  await expect(folder.locator('.blade-grid-tile__media .blade-record-icon[role="img"]')).toHaveAttribute('aria-label','Mappa');
  // Tiles reflow with the panel: several per row.
- const boxes=await tiles.evaluateAll(nodes=>nodes.slice(0,3).map(node=>Math.round(node.getBoundingClientRect().top)));expect(new Set(boxes).size).toBe(1);
+ // The pointer left over a tile would lift it 3 px (hover, themes/character.css).
+ await page.mouse.move(0,0);await expect.poll(()=>tiles.evaluateAll(nodes=>new Set(nodes.slice(0,3).map(node=>Math.round(node.getBoundingClientRect().top))).size)).toBe(1);
  await view(page,left,'Fájllista');await expect(row(left,'Documents')).toBeVisible();
  // Videos carry the video icon ("Videó") in the listing and in the tree, as the media fallback does.
  await mount(page,left,'Signage');await find(left,VIDEO);await expect(row(left,VIDEO).getByRole('img',{name:'Videó',exact:true})).toBeVisible();
@@ -534,7 +536,12 @@ test('viewer previous and next across the images, videos and audio of the listin
  expect(next).toBeTruthy();
  // The shown file: an image by its accessible name, a video or audio element by its label.
  const shown=name=>windowDialog(page).getByRole('img',{name,exact:true}).or(windowDialog(page).locator(`video[aria-label="${name}"], audio[aria-label="${name}"]`));
- await mount(page,left,'Signage');await row(left,first).dblclick();
+ await mount(page,left,'Signage');
+ // The panel's grid also scrolls sideways, so the row is never wholly in view and a locator click scrolls it,
+ // redrawing the virtual grid with the row under the sticky header. Double-click its visible centre instead.
+ await expect(row(left,first)).toBeVisible();
+ const target=await row(left,first).evaluate(element=>{const box=element.getBoundingClientRect(),body=element.closest('.dhx_grid-body').getBoundingClientRect();return {x:box.left+Math.min(box.width,body.right-box.left)/2,y:box.top+box.height/2};});
+ await page.mouse.dblclick(target.x,target.y);
  const windows=page.locator('.blade-document-window');
  let bar=windowDialog(page).locator('.blade-document__bar');
  await expect(bar.locator('[data-dhx-id="index"]')).toHaveText(at+' / '+count);

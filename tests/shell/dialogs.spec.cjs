@@ -5,6 +5,8 @@ const VARIANTS=[['neutral','Párbeszéd: Információ (semleges)','Megerősíté
 async function signIn(page){
  await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61ade-demo');
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
+ // The collapsed menu is only known once the shell has replaced the sign-in page.
+ await expect(page.locator('html')).toHaveAttribute('data-blade-page','shell');await expect(page.locator('.blade-navigation-row .dhx_menu-nav')).toBeVisible();
  const burger=page.getByRole('menuitem',{name:'Menü',exact:true});if(await burger.isVisible())await burger.click();
  await page.getByRole('menuitem',{name:'Feature demó',exact:true}).click();await page.getByRole('menuitem',{name:'Feladatok',exact:true}).click();
  await expect(page.locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
@@ -87,6 +89,8 @@ test('choice with "apply to all": checkbox in the focus trap, Escape cancels',as
  await page.setViewportSize({width:1400,height:900});
  await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61ade-demo');
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
+ // The collapsed menu is only known once the shell has replaced the sign-in page.
+ await expect(page.locator('html')).toHaveAttribute('data-blade-page','shell');await expect(page.locator('.blade-navigation-row .dhx_menu-nav')).toBeVisible();
  const burger=page.getByRole('menuitem',{name:'Menü',exact:true});if(await burger.isVisible())await burger.click();
  await page.getByRole('menuitem',{name:'Feature demó',exact:true}).click();await page.getByRole('menuitem',{name:'Fájlkezelő',exact:true}).click();
  const left=page.locator('[data-cell-id="panel-0"]');
