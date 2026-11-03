@@ -4749,3 +4749,35 @@ that exactly equals an option label lists every option. The managed
   were corrected for native icon text. Temporary source and artifacts were
   removed after verification; no full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0136"></a>
+
+## FB-0136 — Public sign-in windows can be closed
+
+- **Date:** 2026-11-03.
+- **Request:** the sign-in window over public access must be closable.
+- **Implemented:** the native password, code-confirmation and forced-password-change
+  windows expose Suite's header X and Escape when public access is available.
+  They invoke the same cancellation path as public Cancel. Before a challenge,
+  closing removes the window, modal blocker, listeners and sign-in styles,
+  restores focus to Sign in and retains the guest view/input without reloading.
+  Pending stages use the existing server-side cancellation/logout and reload
+  public access. Submission guards remain effective. Native window destruction
+  may complete its own hide without recursively cancelling or leaving an empty
+  modal behind. Mandatory-login windows retain their existing required-login
+  behavior; AuthHandler is unchanged. No new API, action or audit event.
+- **Guides:** [public access](authentication.md#public-access),
+  [shell](shell.md), [toolkit](toolkit.md#module-loading), [usage](usage.md).
+- **Verification:** build, asset preparation, typecheck and PHP `contracts`,
+  `authentication` and `oauth` passed. Five temporary managed-URL browser cases
+  cover repeated X/Escape/Cancel with preserved DOM, input, address and focus
+  at 1280/390 px; direct/failed public sign-in and required-login behavior;
+  synthetic code/password-change bootstrap stages invoking the existing logout
+  cancellation. All nine existing authentication and sign-in-branding cases
+  passed too. Desktop and phone screenshots were inspected. Initial checks
+  found and verified the native hide/destruction recursion fix; the temporary
+  navigation counter was corrected to count document requests rather than
+  same-document history changes, and the stage fixture intercepts only GET.
+  Task-only source and artifacts were removed after verification.
+- **Status:** implemented and verified on the managed demo; no full-smoke claim.

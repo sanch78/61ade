@@ -13,9 +13,11 @@ immediately before the rightmost top-row logo on desktop and beside the controls
 hamburger on phones, where the public shell hides the logo while offering Sign in.
 A completed login switches to the member's rights, and logout returns to guest access.
 The default remains mandatory login.
-Public Sign in opens a modal over the existing view; cancelling before a challenge
-preserves that view, unsaved input and live connection without a reload. A direct
-sign-in address or a failed/pending authentication POST keeps the guest-only view
+Public Sign in opens a modal over the existing view; X, Escape or Cancel before
+a challenge preserves that view, unsaved input and live connection without a
+reload. Public code/password-change windows are closable too, through the
+existing server cancellation. A direct sign-in address or a failed/pending
+authentication POST keeps the guest-only view
 behind the window ([public sign-in behavior](authentication.md#public-access)).
 
 <a id="keretszerződés-és-használat"></a>

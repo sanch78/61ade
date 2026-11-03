@@ -76,10 +76,15 @@ hamburger, and the public shell hides the logo while offering Sign in.
 The button opens the existing sign-in window **over the current public view**,
 without navigating or recreating its list/form. The shell fetches `./?signin=1`
 for its sign-in metadata and declared assets, keeps the `#view=…` address and
-leaves the guest's live connection and unsaved input intact. Cancel before a
-challenge closes only the window, without a request or reload; its module
-listeners and styles are removed. OAuth-only uses the same public background,
-with Cancel in the top row above its provider overlay.
+leaves the guest's live connection and unsaved input intact. The public sign-in
+window can be closed with its header X, Escape or Cancel. Before a challenge,
+these close only the window, without a request or reload; its module listeners
+and styles are removed and focus returns to Sign in. Public code-confirmation
+and forced-password-change windows also offer X/Escape: closing them uses the
+existing server-side cancellation and reloads public access, clearing the pending
+authentication. Closing is blocked while a submission is in progress. OAuth-only
+uses the same public background, with Cancel in the top row above its provider
+overlay.
 
 The ordinary password, code, forced-password-change and OAuth flows still perform
 authentication. Their POSTs/provider redirects may reload the page, but the server
