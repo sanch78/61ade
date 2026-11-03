@@ -13,6 +13,10 @@ immediately before the rightmost top-row logo on desktop and beside the controls
 hamburger on phones, where the public shell hides the logo while offering Sign in.
 A completed login switches to the member's rights, and logout returns to guest access.
 The default remains mandatory login.
+Public Sign in opens a modal over the existing view; cancelling before a challenge
+preserves that view, unsaved input and live connection without a reload. A direct
+sign-in address or a failed/pending authentication POST keeps the guest-only view
+behind the window ([public sign-in behavior](authentication.md#public-access)).
 
 <a id="keretszerződés-és-használat"></a>
 
@@ -406,12 +410,14 @@ return new ApplicationDefinition(
   announces the logo once.
 - **Sign-in stylesheets:** `signInStylesheets` (`.css`, same path rules and
   keys) are linked only on the sign-in, e-mail confirmation and
-  password-change pages, after `admin.css` (those pages load no skins). The
+  password-change pages, after `admin.css` (login-only pages load no skins). The
   signed-in shell links `stylesheets` instead and never the sign-in ones; the
-  sign-in pages never link `stylesheets` and never import `modules`.
+  login-only sign-in pages never link `stylesheets` or import `modules`.
+  With public access, those assets remain active for the guest background while
+  the sign-in window additionally loads its own assets.
 - **Bootstrap:** `logo` = `{image?, dark?, label, placement}` (keyed URLs; no
   `image`: the product logo) on every page, absent only with `Logo::none()`;
-  `signIn` and `signInModules` (below) on the signed-out pages only, absent
+  `signIn` and `signInModules` (below) while sign-in is requested, absent
   when not declared.
 
 <a id="sign-in-content"></a>
@@ -446,8 +452,9 @@ so the box ends at the window's bottom edge with its own 16 px padding.
 
 `signInModules` (JSON `application.sign_in_modules`) are project ES modules
 (`.js`/`.mjs`, the path rules and [cache keys](toolkit.md#cache-keys) of
-`modules`) loaded only on the three signed-out pages; signed-in pages never
-load them, and the sign-in pages never load `modules`. After the window is
+`modules`) loaded only while one of the three sign-in windows is mounted;
+signed-in pages never load them. Login-only pages load no `modules`; a public
+sign-in keeps its guest `Application` and modules behind the modal. After the window is
 mounted the shell imports them in parallel and calls each default export in
 declaration order with a frozen `SignInApplication` (types in
 `src/api/sign-in.ts`, part of `admin.d.ts`):
@@ -457,7 +464,7 @@ declaration order with a frozen `SignInApplication` (types in
 | `apiVersion` | `1`, as `Application.apiVersion`. |
 | `page` | `sign-in`, `confirmation` or `password-change` (the `data-blade-page` value). |
 | `i18n.t(key, params)`, `i18n.locale()` | The page's catalog (framework and project texts); plain text. |
-| `theme.current()`, `theme.onChange(listener, {signal})` | The applied factory theme; the listener runs after each switch until `signal` aborts. |
+| `theme.current()`, `theme.onChange(listener, {signal})` | The applied factory theme; the listener runs after each switch until `signal` aborts or the sign-in window closes. |
 | `dhx` | The DHTMLX Suite namespace the shell uses. |
 | `slots.header`, `slots.footer` | Empty elements in the window above and below the form (`[data-blade-slot]`); the window refits when their content changes size. |
 
@@ -664,13 +671,16 @@ a duplicate throws unless `{replace: true}`.
   initialization) is reported by a danger toast (`Egy alkalmazásmodul nem
   indult el: {module}`), the `module:error` event and the console, and skipped;
   the shell always starts. Without modules the shell routes at once, as before.
-  Sign-in pages create no `Application`; they run only the
+  Login-only sign-in pages create no `Application`; they run only the
   [sign-in modules](#sign-in-modules) with their restricted `SignInApplication`.
+  A public sign-in keeps its guest `Application`, views and modules behind the
+  modal; authentication does not grant them member rights before completion.
 - **Stylesheets:** `application.stylesheets` are `<link>`ed on application
   pages (signed in or explicitly public) after `admin.css` and the skins, keyed like the modules
   ([module loading](toolkit.md#module-loading)); with
   [skins](#application-skins) they are the supported way to add project CSS.
-  The sign-in pages link `signInStylesheets` instead
+  Login-only sign-in pages link `signInStylesheets` instead; a public sign-in
+  loads these in addition to its background styles and removes them on Cancel
   ([sign-in branding](#sign-in-branding)); both kinds rely only on the
   [supported hooks](#sign-in-css-hooks).
 - **View host:** each opening gets a `ViewHost` (`signal`, `open`, `record`,

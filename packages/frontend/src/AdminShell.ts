@@ -33,9 +33,11 @@ export type ShellDefinition = {
   title: string;
   version?: string;
   authenticated: boolean;
-  /** The public UI is available; `guest` means this page renders it rather than a sign-in window. */
+  /** The public UI is available; `guest` denotes its actor, including under a sign-in window. */
   publicAccess?: boolean;
   guest?: boolean;
+  /** A sign-in window over the public application; its actor remains the guest until authentication completes. */
+  signingIn?: boolean;
   username: string;
   userId?: string;
   error: string;
@@ -132,6 +134,8 @@ export class AdminShell {
   private menuState?: string;
   private loginWindow?: Window;
   private loginForm?: Form;
+  private authListeners = new AbortController();
+  private openingSignIn = false;
   private submitting = false;
   private listeners = new AbortController();
   private resize = () => {
@@ -215,7 +219,7 @@ export class AdminShell {
   }
   /** Signed out, `placement` decides; the signed-in shell always shows the logo in the top row. */
   private get applicationPage():boolean{ return this.definition.authenticated || !!this.definition.guest; }
-  private get windowLogo():boolean{ return !this.applicationPage&&!!this.definition.logo&&(this.definition.logo.placement??"window")!=="top"; }
+  private get windowLogo():boolean{ return (!this.applicationPage||!!this.definition.signingIn)&&!!this.definition.logo&&(this.definition.logo.placement??"window")!=="top"; }
   private get topLogo():boolean{ return !!this.definition.logo&&(this.applicationPage||(this.definition.logo.placement??"window")!=="window"); }
 
   /** The windows' notice and links below the form: plain text, native links in a labelled list. */
@@ -264,7 +268,7 @@ export class AdminShell {
       document.documentElement.dataset.bladeTheme=factory;
       setTheme(base,document.documentElement);
       themeApplied(base,skins.length?id:null);
-      if(!this.applicationPage)signInThemeApplied(base);
+      if(!this.applicationPage||definition.signingIn)signInThemeApplied(base);
     };
     configureServer(definition.csrf || "", this.applicationPage ? () => this.sessionEnded() : undefined);
     let theme=choices[0].id;
@@ -327,11 +331,11 @@ export class AdminShell {
       this.releaseUploads = uploads.indicator(state => this.uploadIndicator(state));
     }
     if(signInControl){
-      const label=t(definition.guest?"Bejelentkezés":"Mégse");
-      const control=this.signInControl=new Toolbar(undefined,{data:[{id:"blade-sign-in",value:label,tooltip:label,icon:definition.guest?"dxi dxi-key":"dxi dxi-arrow-left"}]});
+      const cancel=definition.signingIn&&definition.oauthOnly,label=t(cancel?"Mégse":"Bejelentkezés");
+      const control=this.signInControl=new Toolbar(undefined,{data:[{id:"blade-sign-in",value:label,tooltip:label,icon:cancel?"dxi dxi-arrow-left":"dxi dxi-key"}]});
       control.events.on("click",()=>{
-        if(!definition.guest){this.post("logout");return;}
-        const url=new URL(location.href);url.search="?signin=1";location.assign(url);
+        if(definition.signingIn&&definition.oauthOnly)this.cancelSignIn();
+        else void this.beginSignIn();
       });
       this.layout.getCell("sign-in-control").attach(control);
     }
@@ -400,23 +404,106 @@ export class AdminShell {
     } else {
       // A new sign-in session shows every guide once again.
       try{for(const key of Object.keys(sessionStorage))if(key.startsWith(GUIDE_PREFIX))sessionStorage.removeItem(key);}catch{}
-      if (definition.passwordChange) this.mountPasswordChange();
-      else if (definition.confirmation) this.mountConfirmation();
-      else if (definition.oauthOnly) { if (!definition.error) void this.mountExternal(); }
-      else this.mountLogin();
     }
+    if(!this.applicationPage||definition.signingIn)this.mountSignIn();
     // Content-sized selectors settle after native widgets render; recalculate menu/logo fit with their actual widths.
     void awaitRedraw().then(()=>{if(!this.listeners.signal.aborted)this.resize();});
     window.addEventListener("resize", this.resize);
-    if (definition.error) requestAnimationFrame(() => {
-      void acknowledge({ title: t("Hiba"), message: definition.error, severity: "danger" })
+    this.reportError();
+  }
+
+  private reportError():void{
+    if (this.definition.error) requestAnimationFrame(() => {
+      void acknowledge({ title: t("Hiba"), message: this.definition.error, severity: "danger" })
         .then(() => {
           if (this.listeners.signal.aborted) return;
           // OAuth-only: the overlay opens after the message (it would stack above it).
-          if (definition.oauthOnly) void this.mountExternal();
-          else this.loginForm?.setFocus(definition.passwordChange ? "new_password" : definition.confirmation ? "code" : "password");
+          if (this.definition.oauthOnly) void this.mountExternal();
+          else this.loginForm?.setFocus(this.definition.passwordChange ? "new_password" : this.definition.confirmation ? "code" : "password");
         });
     });
+  }
+
+  /** Fetch only the existing sign-in page's auth metadata/assets; keep the current view, form and live channel. */
+  private async beginSignIn():Promise<void>{
+    if(this.openingSignIn||this.definition.signingIn||this.submitting)return;
+    this.openingSignIn=true;
+    const url=new URL(location.href);url.searchParams.set("signin","1");
+    const styles:HTMLLinkElement[]=[];
+    try{
+      const response=await fetch(url,{credentials:"same-origin",signal:this.listeners.signal});
+      if(new URL(response.url).origin!==location.origin)throw new Error(t("Sikertelen művelet."));
+      const page=new DOMParser().parseFromString(await response.text(),"text/html"),json=page.querySelector("#blade-config")?.textContent;
+      if(!json)throw new Error(t("Sikertelen művelet."));
+      const config=JSON.parse(json) as ShellDefinition;
+      // A changed login/account/session needs the server's complete fresh page, never a mixed identity context.
+      if(config.authenticated||!config.guest||config.userId!==this.definition.userId||config.csrf!==this.definition.csrf){location.assign(url);return;}
+      for(const source of Array.from(page.querySelectorAll<HTMLLinkElement|HTMLScriptElement>("[data-blade-sign-in-asset]"))){
+        const script=source.tagName==="SCRIPT",path=new URL(source.getAttribute(script?"src":"href")!,response.url);
+        if(path.origin!==location.origin)throw new Error(t("Sikertelen művelet."));
+        const selector=script?"script[src]":"link[rel=stylesheet]";
+        if(Array.from(document.querySelectorAll<HTMLLinkElement|HTMLScriptElement>(selector)).some(node=>(node instanceof HTMLScriptElement?node.src:node.href)===path.href))continue;
+        const node=script?document.createElement("script"):document.createElement("link");
+        node.dataset.bladeSignInAsset="";
+        if(node instanceof HTMLScriptElement)node.src=path.href;else{node.rel="stylesheet";node.href=path.href;styles.push(node);}
+        await new Promise<void>((resolve,reject)=>{
+          const timer=setTimeout(()=>{node.remove();reject(new Error(t("Sikertelen művelet.")));},5000);
+          node.onload=()=>{clearTimeout(timer);resolve();};node.onerror=()=>{clearTimeout(timer);node.remove();reject(new Error(t("Sikertelen művelet.")));};
+          document.head.append(node);
+        });
+      }
+      if(this.listeners.signal.aborted)return;
+      const {username,error,rememberAvailable,rememberDays,loginIdentifier,confirmation,passwordChange,oauth,oauthOnly,signIn,signInModules}=config;
+      Object.assign(this.definition,{username,error,rememberAvailable,rememberDays,loginIdentifier,confirmation,passwordChange,oauth,oauthOnly,signIn,signInModules,signingIn:true});
+      history.replaceState(null,"",url);
+      this.command.setAttribute("action","./?signin=1");
+      document.documentElement.dataset.bladePage=page.documentElement.dataset.bladePage;
+      this.mountSignIn();this.reportError();
+    }catch(error){
+      styles.forEach(node=>node.remove());
+      if(!this.listeners.signal.aborted)await this.failed(error);
+    }finally{this.openingSignIn=false;}
+  }
+
+  private mountSignIn():void{
+    this.authListeners.abort();this.authListeners=new AbortController();
+    signInThemeApplied(document.documentElement.dataset.dhxTheme??"blade");
+    this.signInLogo();
+    if(this.definition.passwordChange)this.mountPasswordChange();
+    else if(this.definition.confirmation)this.mountConfirmation();
+    else if(this.definition.oauthOnly){
+      this.signInControl?.data.update("blade-sign-in",{value:t("Mégse"),tooltip:t("Mégse"),icon:"dxi dxi-arrow-left"});
+      if(!this.definition.error)void this.mountExternal();
+    }else this.mountLogin();
+  }
+
+  /** Cancel before a server-side challenge: close only the modal, preserving unsaved public input and list state. */
+  private cancelSignIn():void{
+    if(this.submitting)return;
+    if(this.definition.confirmation||this.definition.passwordChange){this.post("logout");return;}
+    this.authListeners.abort();
+    const win=this.loginWindow;this.loginWindow=undefined;this.loginForm=undefined;
+    // Suite finishes the button's native click dispatch before its Form/Window may be destroyed.
+    queueMicrotask(()=>{
+      win?.destructor();
+      void awaitRedraw().then(()=>{
+        if(!this.listeners.signal.aborted&&!this.definition.signingIn)this.signInControl?.getRootNode()?.querySelector<HTMLButtonElement>("button")?.focus();
+      });
+    });
+    this.definition.signingIn=false;this.definition.error="";this.definition.username="";
+    document.querySelectorAll('link[data-blade-sign-in-asset]').forEach(node=>node.remove());
+    document.documentElement.dataset.bladePage="shell";
+    const url=new URL(location.href);url.searchParams.delete("signin");history.replaceState(null,"",url);
+    this.command.setAttribute("action","./");this.signInLogo();
+    this.signInControl?.data.update("blade-sign-in",{value:t("Bejelentkezés"),tooltip:t("Bejelentkezés"),icon:"dxi dxi-key"});
+  }
+
+  /** The window's logo is the named copy while a sign-in modal is open. */
+  private signInLogo():void{
+    const logo=this.root.querySelector<HTMLElement>(".blade-navigation-row .blade-logo");
+    if(!logo)return;
+    if(this.windowLogo)logo.setAttribute("aria-hidden","true");
+    else{logo.removeAttribute("aria-hidden");logo.setAttribute("role","img");logo.setAttribute("aria-label",this.definition.logo!.label);}
   }
 
   /** An offered view by id (the bootstrap `views` are already filtered by the server). */
@@ -508,7 +595,7 @@ export class AdminShell {
     this.kernel!.events.dispatch("view:opened",{id:view.id,...(record?{record:record.id}:{}),open});
     if(open==="page"){
       this.guideChanged();
-      if(view.guide&&!this.guideShown(view))this.showGuide(mounted);
+      if(view.guide&&!this.definition.signingIn&&!this.guideShown(view))this.showGuide(mounted);
     }
   }
 
@@ -637,7 +724,7 @@ export class AdminShell {
     ]});
     layout.getCell("form").attach(form);
     this.loginWindow!.attach(layout);
-    if(modules.length)this.startSignInModules(modules,(name,element)=>attachContent(layout.getCell(name),element,this.listeners.signal));
+    if(modules.length)this.startSignInModules(modules,(name,element)=>attachContent(layout.getCell(name),element,this.authListeners.signal));
   }
 
   /**
@@ -645,24 +732,28 @@ export class AdminShell {
    * provider buttons: logo and header slot above, notice, links and footer slot below.
    */
   private async mountExternal():Promise<void>{
-    const modules=this.definition.signInModules??[];
+    const modules=this.definition.signInModules??[],signal=this.authListeners.signal;
     // The overlay stacks above every layer, the trademark screen included: it opens once that has fully played and left.
     await splashLeft();
-    if(this.listeners.signal.aborted)return;
+    if(signal.aborted)return;
     const opened=await openExclusiveSignIn(content=>{
       const body=content.querySelector(".modal-body")!;
       if(this.windowLogo)body.insertAdjacentHTML("beforebegin",`<div class="blade-auth-logo">${this.logoHtml()}</div>`);
       body.insertAdjacentHTML("afterend",this.signInInfo());
+      const logo=body.previousElementSibling?.classList.contains("blade-auth-logo")?body.previousElementSibling:null,
+        info=body.nextElementSibling?.classList.contains("blade-sign-in-info")?body.nextElementSibling:null;
+      signal.addEventListener("abort",()=>{logo?.remove();info?.remove();},{once:true});
       if(modules.length)this.startSignInModules(modules,(name,element)=>{
         if(name==="header")body.before(element);else content.append(element);
-        this.listeners.signal.addEventListener("abort",()=>element.remove(),{once:true});
+        signal.addEventListener("abort",()=>element.remove(),{once:true});
       });
-    });
-    if(!opened&&!this.listeners.signal.aborted)void acknowledge({ title: t("Hiba"), message: externalSignInUnavailable(), severity: "warning" });
+    },signal);
+    if(!opened&&!signal.aborted)void acknowledge({ title: t("Hiba"), message: externalSignInUnavailable(), severity: "warning" });
   }
 
   /** Empty header and footer slots for the sign-in modules; the window refits whenever their content changes size. */
   private startSignInModules(modules:string[],place:(name:"header"|"footer",element:HTMLElement)=>void):void{
+    const signal=this.authListeners.signal;
     const slot=(name:"header"|"footer")=>{
       const element=document.createElement("div");
       element.className="blade-sign-in-slot blade-sign-in-slot--"+name;
@@ -674,14 +765,15 @@ export class AdminShell {
     const header=slot("header"),footer=slot("footer");
     const observer=new ResizeObserver(()=>{void this.fitLogin();});
     observer.observe(header);observer.observe(footer);
-    this.listeners.signal.addEventListener("abort",()=>observer.disconnect(),{once:true});
+    signal.addEventListener("abort",()=>observer.disconnect(),{once:true});
     const kinds:SignInPage[]=["sign-in","confirmation","password-change"];
     const kind=document.documentElement.dataset.bladePage as SignInPage;
     const page=kinds.includes(kind)?kind:this.definition.passwordChange?"password-change":this.definition.confirmation?"confirmation":"sign-in";
-    void loadSignInModules(signInApplication(page,this.definition.i18n?.locale??document.documentElement.lang,{header,footer}),modules);
+    void loadSignInModules(signInApplication(page,this.definition.i18n?.locale??document.documentElement.lang,{header,footer},signal),modules,signal);
   }
   private mountLogin(): void {
     const definition = this.definition;
+    const signal=this.authListeners.signal;
     this.loginWindow = new Window({
       title: t("Bejelentkezés"),
       ariaLabel: t("Bejelentkezés"),
@@ -765,7 +857,7 @@ export class AdminShell {
     };
     form.events.on("click", (name: string) => {
       if (name === "login") submit();
-      if (name === "public") this.post("logout");
+      if (name === "public") this.cancelSignIn();
       if (name === "oauth" && !this.submitting && !openExternalSignIn(!!(form.getValue() as Record<string, unknown>).remember))
         void acknowledge({ title: t("Hiba"), message: externalSignInUnavailable(), severity: "warning" });
     });
@@ -795,9 +887,10 @@ export class AdminShell {
         });
         submit();
       },
-      { capture: true, signal: this.listeners.signal },
+      { capture: true, signal },
     );
     requestAnimationFrame(() => {
+      if(signal.aborted)return;
       form.setFocus(definition.error ? "password" : "username");
       const inputs = this.loginWindow?.getContainer().querySelectorAll("input");
       inputs?.forEach((input) => {
@@ -811,6 +904,7 @@ export class AdminShell {
   }
 
   private mountConfirmation(): void {
+    const signal=this.authListeners.signal;
     const confirmation = this.definition.confirmation!;
     this.loginWindow = new Window({
       title: t("E-mailes megerősítés"),
@@ -851,10 +945,11 @@ export class AdminShell {
       event.preventDefault();
       form.setValue({ code: event.target.value });
       submit();
-    }, { capture: true, signal: this.listeners.signal });
+    }, { capture: true, signal });
     this.attachLoginForm(form);
     this.resize();
     requestAnimationFrame(() => {
+      if(signal.aborted)return;
       form.setFocus("code");
       const input = this.loginWindow?.getContainer().querySelector('input[name="code"]');
       input?.setAttribute("autocomplete", "one-time-code");
@@ -864,6 +959,7 @@ export class AdminShell {
 
   /** Forced replacement of an administrator-issued temporary password; no session exists yet. */
   private mountPasswordChange(): void {
+    const signal=this.authListeners.signal;
     this.loginWindow = new Window({
       title: t("Jelszócsere"),
       ariaLabel: t("Jelszócsere"),
@@ -904,10 +1000,11 @@ export class AdminShell {
       event.preventDefault();
       form.setValue({ [event.target.name]: event.target.value });
       submit();
-    }, { capture: true, signal: this.listeners.signal });
+    }, { capture: true, signal });
     this.attachLoginForm(form);
     this.resize();
     requestAnimationFrame(() => {
+      if(signal.aborted)return;
       form.setFocus("new_password");
       this.loginWindow?.getContainer().querySelectorAll<HTMLInputElement>('input[type="password"]').forEach(input => input.setAttribute("autocomplete", "new-password"));
     });
@@ -938,6 +1035,7 @@ export class AdminShell {
     this.releaseIcons();
     this.releaseUploads?.();
     this.listeners.abort();
+    this.authListeners.abort();
     window.removeEventListener("resize", this.resize);
     closeDialogs();
     this.unmountAll();

@@ -157,7 +157,9 @@ found below `application.document_root` (a non-empty string; default the
 request's `DOCUMENT_ROOT`; see [cache keys](toolkit.md#cache-keys)). Application pages (signed in or explicitly public) link
 the stylesheets (after the framework CSS and skins) and list the modules in the
 bootstrap `modules` key; the sign-in, e-mail confirmation and password-change
-pages load neither ([module loading](toolkit.md#module-loading)).
+pages of login-only applications load neither. With public access, the guest
+background keeps them while the sign-in window additionally loads its own
+assets ([module loading](toolkit.md#module-loading)).
 
 `application.logo` is absent (the 61ade [product logo](brand.md), placement
 `window`), `false` (no logo, `Logo::none()`) or an object with the optional

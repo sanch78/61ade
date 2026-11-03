@@ -86,7 +86,7 @@ export default (app) => {
   [configuration](configuration.md#belépés-és-alkalmazásszekciók).
 - **When:** in the application shell, including explicitly configured
   [public access](authentication.md#public-access). The sign-in, e-mail confirmation and
-  password-change pages load neither modules nor stylesheets (as with skins);
+  password-change pages of login-only applications load neither modules nor stylesheets (as with skins);
   they link the separate `signInStylesheets` (JSON
   `application.sign_in_stylesheets`) instead and import only the separate
   `signInModules` (JSON `application.sign_in_modules`; same path rules, keys,
@@ -97,6 +97,10 @@ export default (app) => {
   password field ([sign-in modules](shell.md#sign-in-modules)). Stylesheets are linked
   after the framework CSS and skins; both kinds rely only on the
   [supported CSS hooks](shell.md#sign-in-css-hooks).
+  With public access, opening sign-in preserves the existing guest `Application`,
+  view instances, input and live channel; its ordinary assets remain active behind
+  the modal, which additionally loads the restricted sign-in modules and styles.
+  Cancel disposes the sign-in listeners/styles without destroying the guest view.
 - **Order:** the shell `import()`s all modules in parallel and calls their
   default exports one by one in declaration order with the page's
   `Application`, then routes. A failed import, a throw, a rejection, an

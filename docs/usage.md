@@ -235,6 +235,8 @@ with `publicIdentity` / JSON `application.public_identity`: the id of a dedicate
 active account with explicit guest UI rights. The same shell works without login;
 Sign in stays before the rightmost logo on desktop and beside the controls
 hamburger on phones, where the public shell hides the logo.
+The sign-in modal opens over the existing guest view; Cancel before a challenge
+keeps that view and its input without reloading.
 Login switches to the member's rights; logout returns to the public UI. The
 [public demo](demos.md#public-access-demo) demonstrates this separately; the other
 demos keep their login requirement.

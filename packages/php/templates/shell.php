@@ -9,13 +9,16 @@
 <?php foreach ($skins as $skin): ?>
     <link rel="stylesheet" href="<?= $escape($keys->url($skin->stylesheet)) ?>">
 <?php endforeach; ?>
-<?php foreach ($page === 'shell' ? $definition->stylesheets : $definition->signInStylesheets as $stylesheet): ?>
+<?php foreach ($actor ? $definition->stylesheets : [] as $stylesheet): ?>
     <link rel="stylesheet" href="<?= $escape($keys->url($stylesheet)) ?>">
 <?php endforeach; ?>
+<?php foreach ($page !== 'shell' ? $definition->signInStylesheets : [] as $stylesheet): ?>
+    <link rel="stylesheet" data-blade-sign-in-asset href="<?= $escape($keys->url($stylesheet)) ?>">
+<?php endforeach; ?>
 <?php if ($bootstrap['oauth'] ?? false): $auth = rtrim($definition->oauth->assets, '/'); ?>
-    <link rel="stylesheet" href="<?= $escape($keys->url($auth.'/AuthHandler.css')) ?>">
-    <script src="<?= $escape($keys->url($auth.'/AuthHandler.js')) ?>"></script>
-    <script src="./?blade_auth=bootstrap"></script>
+    <link rel="stylesheet" data-blade-sign-in-asset href="<?= $escape($keys->url($auth.'/AuthHandler.css')) ?>">
+    <script data-blade-sign-in-asset src="<?= $escape($keys->url($auth.'/AuthHandler.js')) ?>"></script>
+    <script data-blade-sign-in-asset src="./?blade_auth=bootstrap"></script>
 <?php endif; ?>
     <script type="module" src="<?= $escape($keys->url($definition->assets.'/admin.js', 'admin.js')) ?>"></script>
 </head>

@@ -4605,3 +4605,49 @@ that exactly equals an option label lists every option. The managed
   Temporary verification sources, sandbox and artifacts were removed afterward.
   Real OAuth provider completion was not tested; no full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0132"></a>
+
+## FB-0132 — Sign-in keeps the public layout behind its modal
+
+- **Date:** 2026-11-03.
+- **Feedback:** the owner likes public access but questions why opening sign-in
+  clears the layout. Opening authentication must retain the current public view.
+- **Implemented:** public Sign in fetches the existing `?signin=1` page's auth
+  metadata and explicitly marked same-origin assets, then opens the framework's
+  ordinary sign-in window in place. It does not rebuild the guest `Application`,
+  view, form input, filter or live connection. Cancel before a server challenge
+  closes only the window, removes its styles and listeners, and restores focus
+  to Sign in. Native Form/Window destruction waits until Suite completes its
+  button click dispatch. OAuth-only cancellation also removes its backdrop,
+  decorations and reopening listener; AuthHandler itself is unchanged.
+- **Server and lifecycle:** `guest` remains true while `signingIn` marks the
+  authentication overlay. Direct sign-in addresses, failed submissions and pending
+  code/password steps render the same guest-only background, with application
+  assets plus the separate sign-in assets. The restricted sign-in API stays
+  separate from the guest toolkit API. A changed account/session while opening
+  requires a fresh page. Successful authentication still replaces the whole
+  context with the member's rights; it never adds them to a guest instance.
+  The existing auth POST/provider redirects may reload the page; view address is
+  retained, but unsaved guest input is guaranteed only for opening/local Cancel.
+  Automatic view guides stay behind the authentication flow. Default login-only
+  applications retain their existing behavior.
+- **Events:** no new server event for opening/closing a modal; actual login,
+  challenge, failure, logout and registered-action events retain their existing
+  paths and audit. Public modules remain trusted project code on the same origin.
+- **Guides:** [authentication](authentication.md#public-access), [shell](shell.md),
+  [toolkit](toolkit.md#module-loading), [configuration](configuration.md),
+  [usage](usage.md), [public demo](demos.md#public-access-demo).
+- **Verification:** PHP `contracts`, `authentication`, `oauth`, `toolkit` and
+  `i18n` passed. A temporary PHP consumer checked guest-only background and
+  separate assets on normal/direct/pending sign-in, member replacement and a
+  disabled guest. Typecheck/build consistency and PHP lint passed. Five temporary
+  browser cases passed on the managed URL: exact view/filter/live-channel
+  preservation over repeated open/Cancel and one Enter submission, phone/direct
+  and failed sign-in, modal module/style/listener lifetime, an OAuth-only overlay
+  stand-in over the same guest view, and failed auth-page loading. The tests found
+  and verified the fix for synchronous destruction during a native click. All 16
+  existing browser/navigation, authentication and sign-in-branding cases passed.
+  Real OAuth provider completion is not claimed. Temporary sources and artifacts
+  were removed after verification; no full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

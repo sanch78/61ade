@@ -15,7 +15,7 @@ export function signInThemeApplied(theme: string): void {
   }
 }
 
-export function signInApplication(page: SignInPage, locale: string, slots: SignInSlots): SignInApplication {
+export function signInApplication(page: SignInPage, locale: string, slots: SignInSlots, signal?: AbortSignal): SignInApplication {
   return Object.freeze({
     apiVersion: 1 as const,
     page,
@@ -23,9 +23,10 @@ export function signInApplication(page: SignInPage, locale: string, slots: SignI
     theme: Object.freeze({
       current: () => current,
       onChange(listener: (theme: string) => void, options: { signal?: AbortSignal } = {}) {
-        if (typeof listener !== "function" || options.signal?.aborted) return;
+        if (typeof listener !== "function" || signal?.aborted || options.signal?.aborted) return;
         listeners.add(listener);
         options.signal?.addEventListener("abort", () => listeners.delete(listener), { once: true });
+        signal?.addEventListener("abort", () => listeners.delete(listener), { once: true });
       },
     }),
     dhx,
@@ -37,7 +38,7 @@ export function signInApplication(page: SignInPage, locale: string, slots: SignI
  * Imports the modules in parallel and calls their default exports in declaration order. A failed import, a missing
  * default export, a throw, a rejection or more than 5 s is reported on the console and skipped.
  */
-export async function loadSignInModules(app: SignInApplication, modules: readonly string[]): Promise<void> {
+export async function loadSignInModules(app: SignInApplication, modules: readonly string[], signal?: AbortSignal): Promise<void> {
   const limited = <T>(work: Promise<T>, what: string) => {
     let timer = 0;
     return Promise.race([work, new Promise<never>((_, reject) => { timer = window.setTimeout(() => reject(new Error(`${what} exceeded ${LIMIT} ms`)), LIMIT); })])
@@ -48,6 +49,7 @@ export async function loadSignInModules(app: SignInApplication, modules: readonl
   for (const [index, module] of modules.entries()) {
     try {
       const main = (await imports[index]).default;
+      if(signal?.aborted)return;
       if (typeof main !== "function") throw new TypeError("the module has no default export function");
       await limited(Promise.resolve().then(() => main(app)), "initialization");
     } catch (error) {
