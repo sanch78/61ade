@@ -30,7 +30,7 @@ final class JsonApplication
         $session = $config->section('session');
         $live = $config->section('live');
         $workspace = $config->section('workspace');
-        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'any', 'sign_in_stylesheets' => 'array', 'sign_in' => 'array', 'sign_in_modules' => 'array', 'guides' => 'array', 'menu_separators' => 'array'], '$.application');
+        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'any', 'sign_in_stylesheets' => 'array', 'sign_in' => 'array', 'sign_in_modules' => 'array', 'guides' => 'array', 'menu_separators' => 'array', 'public_identity' => 'string'], '$.application');
         if (isset($application['guides']) && array_is_list($application['guides']) && $application['guides'] !== []) throw new \InvalidArgumentException('Invalid configuration type: $.application.guides');
         // `false`: no logo (Logo::none()); an object, `image` optional (without it the product logo); absent: the default.
         $logo = $application['logo'] ?? null;
@@ -116,6 +116,7 @@ final class JsonApplication
             // View guides by view id, the framework's own views too (docs/workspaces.md#view-guide).
             guides: $application['guides'] ?? [],
             menuSeparators: $application['menu_separators'] ?? [],
+            publicIdentity: $application['public_identity'] ?? null,
             documentRoot: match ($application['document_root'] ?? null) { null => null, '' => '', default => $config->path($application['document_root']) },
         );
     }

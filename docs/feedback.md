@@ -538,3 +538,7 @@
 <a id="fb-0130"></a>
 
 ## FB-0130 — Native separators before declared menu groups
+
+<a id="fb-0131"></a>
+
+## FB-0131 — Optional public application UI with sign-in beside the rightmost logo

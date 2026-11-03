@@ -36,11 +36,13 @@ while(!feof(STDIN)){
         if($file!==null){$app=require $file;if(!$app instanceof Blade\Shell\ApplicationDefinition||!$app->workspace)throw new RuntimeException('A 61ade workspace is required');}
         session_name($app->sessionName);session_save_path($app->runtime.'/sessions');
         $state=Blade\Live\Tickets::session($app->runtime,(string)($request['ticket']??''),$app->sessionIdleTimeout);
-        $actor=$app->identities->find((string)$state['identity']);
-        if(!$actor||($state['credentialVersion']??0)!==$app->workspace->version($actor->id)||($app->authentication&&!($state['loginSecurityEnabled']??false)))throw new Blade\Feature\Failure('A munkamenet lejárt.',401);
+        $public=$state['ticketPublicIdentity'];
+        $actor=$public!==null?($public===$app->publicIdentity?$app->publicActor():null):$app->identities->find((string)$state['identity']);
+        $version=$state[$public!==null?'publicCredentialVersion':'credentialVersion']??0;
+        if(!$actor||$version!==$app->workspace->version($actor->id)||($public===null&&$app->authentication&&!($state['loginSecurityEnabled']??false)))throw new Blade\Feature\Failure('A munkamenet lejárt.',401);
         // The ticket's tenant must still be the session's tenant and a membership; a switch or revocation ends it.
         $tenant=$state['ticketTenant'];
-        if($tenant!==($state['tenant']??null)||($tenant!==null&&!$app->workspace->tenancy?->member($actor->id,$tenant)))throw new Blade\Feature\Failure('A munkamenet lejárt.',401);
+        if(($public!==null&&$tenant!==null)||$tenant!==($state['tenant']??null)||($tenant!==null&&!$app->workspace->tenancy?->member($actor->id,$tenant)))throw new Blade\Feature\Failure('A munkamenet lejárt.',401);
         $ctx=$app->workspace->context($actor,'ui',$tenant);
         // `check`: the hello of a channel, authentication only; each later observation repeats every check above.
         $result=($request['check']??false)===true?[]:$app->workspace->observe($ctx,(string)($request['resource']??''),is_array($request['query']??null)?$request['query']:[],(string)($request['version']??''));

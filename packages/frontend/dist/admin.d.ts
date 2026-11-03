@@ -54,7 +54,7 @@ export interface Application {
     readonly live: Live;
     /** Typed page-wide event bus. */
     readonly events: EventBus;
-    /** The signed-in identity (presentation data only; never a permission source). */
+    /** The effective identity, signed in or public (presentation data only; never a permission source). */
     readonly identity: Identity;
     /**
      * View kinds: kind name → factory (`ViewDefinition.kind`). Built-ins `list`, `files`, `diagram`, `calendar` are
@@ -482,10 +482,12 @@ export interface EventBus {
      */
     emit<K extends keyof AppEvents>(event: K, payload: AppEvents[K]): void;
 }
-/** The signed-in identity from the bootstrap (`userId`, `displayName`, `tenant.current`). */
+/** The effective identity from the bootstrap, with `authenticated: false` for public access. */
 export interface Identity {
     readonly id: string;
     readonly displayName: string;
+    /** False when the application uses its configured public account without sign-in. */
+    readonly authenticated: boolean;
     /** Active tenant id with tenancy, otherwise `null`. */
     readonly tenant: string | null;
 }

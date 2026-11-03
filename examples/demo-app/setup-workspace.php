@@ -179,8 +179,11 @@ blade_demo_accounts($db, [
     // Application skins (application.php): one skin, and a choice between two.
     [null, 'skin@example.test', '61ade-demo', 'Skin Demo', 1, 0],
     [null, 'skins@example.test', '61ade-demo', 'Skins Demo', 1, 0],
+    // Public UI: a dedicated account, no known password, only explicitly granted catalogue reads.
+    [null, 'guest@example.test', bin2hex(random_bytes(32)), 'Guest', 1, 0],
 ]);
 $reader = $db->query("SELECT id FROM accounts WHERE email = 'reader@example.test'")->fetchColumn();
+$guest = (string) $db->query("SELECT id FROM accounts WHERE email = 'guest@example.test'")->fetchColumn();
 $db->exec("INSERT OR IGNORE INTO blade_auth_settings(actor_id,email_confirmation) VALUES ('4',1)");
 $db->exec("INSERT OR IGNORE INTO blade_account_state(actor_id,locale) VALUES ('4','en')");
 $db->exec("INSERT OR IGNORE INTO blade_account_state(actor_id,oauth_allowed) VALUES ('5',1)");
@@ -188,6 +191,7 @@ $exists = $db->prepare("SELECT COUNT(*) FROM blade_rules WHERE subject_type='use
 $grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,?,?,'ui',?,'all','',?)");
 $rules = [['1', 'files', ['tree', 'list', 'create_directory', 'upload', 'copy', 'move', 'text_get', 'text_save', 'content_get', 'content_stream', 'thumbnail_get', 'delete', 'rename', 'download', 'zip_prepare', 'zip_get']], ['1', 'notes', ['list', 'get', 'create', 'update', 'delete']], ['1', 'demo_catalog', ['list', 'get']], ['1', 'demo_shelf_zones', ['list', 'get', 'create', 'update']], ['1', 'demo_shelves', ['list', 'get', 'create', 'update']], ['1', 'demo_shelf_items', ['list', 'get', 'create', 'update', 'delete', 'stock']], ['1', 'demo_tasks', ['list', 'get', 'create', 'update', 'delete', 'complete', 'dialog_neutral', 'dialog_warning', 'dialog_danger']], ['1', 'demo_readings', ['list', 'get']], ['1', 'topology', ['list', 'get', 'create', 'save', 'delete', 'type_create', 'type_delete']]];
 foreach (['4', '5'] as $actor) $rules[] = [$actor, 'notes', ['list', 'get']];
+$rules[] = [$guest, 'demo_catalog', ['list', 'get']];
 // Read-only reader: tasks without the description field (field-level deny).
 $rules[] = [(string) $reader, 'demo_tasks', ['list', 'get']];
 $rules[] = [(string) $reader, 'demo_tasks', ['list', 'get'], 'deny', 'description'];

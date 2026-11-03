@@ -239,7 +239,7 @@ body,
 .blade-logo--themed .blade-logo__image--dark,
 [data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--light { display: none; }
 [data-dhx-theme="dark"] .blade-logo--themed .blade-logo__image--dark { display: block; }
-/* The logo uses the room left by navigation; on phones it precedes the controls toggle. */
+/* The rightmost logo uses the room left by navigation and controls. */
 .blade-navigation-row .blade-logo { padding: 0 12px; }
 .blade-navigation-row .blade-logo__image { height: var(--blade-logo-height, 24px); max-width: var(--blade-logo-max-width, 160px); }
 /* Top of the sign-in, e-mail confirmation and password-change windows, centred above the form. */
@@ -317,7 +317,15 @@ body,
 .blade-navigation-row .dhx_toolbar-button { max-width: 240px; }
 .blade-navigation-row .blade-controls-toggle { width: 44px; padding: 0; }
 .blade-controls-toggle .dhx_toolbar-button__caret { display: none; }
-@media (max-width: 767px) { .blade-navigation-row > .blade-navigation-control { order: 2; } }
+/* The logo always closes the row. Public access keeps sign-in beside the controls hamburger on phones. */
+@media (max-width: 767px) {
+  .blade-navigation-row > .blade-navigation-control { order: 2; }
+  .blade-navigation-row > .blade-sign-in-control { order: 3; }
+  .blade-navigation-row > .blade-logo-cell { order: 4; }
+  .blade-public-navigation > .blade-logo-cell { display: none; }
+  .blade-sign-in-control .dhx_toolbar-button { width: 44px; padding: 0; }
+  .blade-sign-in-control .dhx_toolbar-button__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 .blade-navigation-row :is(.dhx_nav-menu-button, .dhx_toolbar-button):not(:disabled) :is(.dhx_menu-button__icon, .dhx_toolbar-button__icon) { color: var(--dhx-font-color-secondary); }
 .blade-navigation-row .dhx_menu-button__icon { margin-right: 8px; }
 .blade-navigation-row .dhx_menu-button__icon + .dhx_menu-button__text { margin-left: 0; }

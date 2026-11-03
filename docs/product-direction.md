@@ -108,7 +108,7 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 | --- | --- | --- |
 | Registered action success/deny/error, UI/API | Audit | Implemented, Executor. |
 | Record/form describe and live subscription | Audit | Implemented, Workspace. |
-| Password login success/deny, logout | Security | Implemented, Shell/Application. |
+| Password login success/deny, logout | Security | Implemented, Shell/Application. Public access emits no login success; its ordinary actions use the dedicated guest actor and existing ACL/audit ([public access](authentication.md#public-access)). |
 | CSRF/transport rejection | Security | Implemented. |
 | E-mail code send/check, remembered-login restore | Security | Implemented, Authentication. |
 | API-key issue/revoke (admin all-scope or user own-scope) | Security | Registered `blade_api_keys.create/update`, `__edit`, without secret. |

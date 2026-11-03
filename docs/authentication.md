@@ -22,6 +22,82 @@ and trusted sign-in modules with a restricted API
 All may be enabled together, as in the [feature demo](demos.md).
 Switches are [admin fields](admin.md#fiókkapcsolók).
 
+## Public access
+
+An application may offer its ordinary 61ade UI without sign-in. This is opt-in:
+`ApplicationDefinition(publicIdentity: '42')`, or JSON
+`application.public_identity: "42"`, names a dedicated account in the application's
+identity provider. The default `null` (omit the JSON key) keeps mandatory login.
+PHP 8.4+, the ordinary account/ACL schema and current frontend assets are required;
+no new schema or third-party dependency is needed. Reference consumer:
+[public demo](demos.md#public-access-demo), [FB-0131](feedback.md#fb-0131).
+
+1. Provision a dedicated active account through the application's existing
+   account setup, with an unknown random password if password sign-in is unwanted.
+2. Grant only the intended **UI** resource/action/object/field rights to that
+   account, directly or through roles. The ordinary permission administration is
+   used; configuring `publicIdentity` grants nothing. Start with read-only rights
+   for a public catalogue, for example `catalog.list` and `catalog.get`.
+3. Declare its exact account id as a nonempty string, at most 100 bytes with no
+   control characters. The provider must return the same id. Do not use a personal
+   or administrator account: all its UI permissions become public.
+
+```php
+return new Blade\Shell\ApplicationDefinition(
+    // title, identities, menu, runtime, workspace and the other ordinary settings…
+    publicIdentity: '42',
+);
+```
+
+```json
+{
+    "application": {
+        "title": "Public catalogue",
+        "runtime": "runtime",
+        "public_identity": "42"
+    }
+}
+```
+
+Without a signed-in account the server resolves the public account anew on every
+page, action and WebSocket observation. A missing or disabled account closes public
+access and shows the normal sign-in. ACL changes apply on the next request. There
+is no authenticated session identity or login success event for guest access.
+The visitor gets only the guest's offered views and actions; writes work only if
+explicitly granted and pass the same validation, business guards, transactions
+and audit. `Context::$actor->authenticated` and toolkit
+`app.identity.authenticated` are `false` for a public visitor, `true` for a normal
+sign-in. They describe identity state; server ACL still decides access.
+
+The public shell loads the regular modules, stylesheets, skins, guides and routing.
+Its top-row **Sign in** button is immediately before the rightmost logo on desktop.
+On phones it is an accessible icon button immediately after the controls
+hamburger, and the public shell hides the logo while offering Sign in.
+The button opens `./?signin=1`, preserving the `#view=…` address. The ordinary
+password, code, forced-password-change and OAuth flows remain responsible for
+sign-in; their pages load the separate sign-in assets. Cancel returns to public
+access and cancels pending sign-in state; in OAuth-only mode Cancel is in the
+top row above the overlay. A completed sign-in replaces the public identity with
+the member's own rights; logout returns to the public UI. Login-only applications
+are unchanged. The demo's feature/starter/tenant applications still require login.
+
+Public access uses an HttpOnly/SameSite session cookie for CSRF, live tickets and
+session-bound uploads. UI POSTs still require CSRF. An invalid/expired guest token
+returns 401 so an old page reloads into a fresh public session; authenticated CSRF
+failures retain 403. GET-capable actions retain their fetch-metadata checks. Both
+polling and WebSockets use the same ACL; tickets bind to the public account and
+session and expire on sign-in/logout or account revocation. A request with an
+Authorization header always uses the Bearer API channel: a missing/invalid token
+returns 401 and never falls back to guest permissions.
+
+**Limits:** this is one shared permission identity, not one user per visitor.
+`own` scope and actor-based rate limits refer to that account for every visitor;
+do not use `own` to isolate visitor data. Short-lived upload state retains its
+separate session binding. Public visitors have no active tenant or tenant selector,
+even if the configured account has memberships; tenant-scoped resources fail
+closed. Consumers own account provisioning, business data and explicit grants;
+61ade owns shell, sign-in, transport and authorization behavior.
+
 <a id="konfiguráció"></a>
 
 ## Configuration

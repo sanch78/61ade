@@ -73,7 +73,7 @@ export function live(channel: () => LiveChannel): Live {
   };
 }
 
-export const identity = (id: string, displayName: string, tenant: string | null): Identity => Object.freeze({ id, displayName, tenant });
+export const identity = (id: string, displayName: string, tenant: string | null, authenticated = true): Identity => Object.freeze({ id, displayName, tenant, authenticated });
 
 /**
  * `Application.uploads` over the page's one `Uploader.ts` service (the shell's own uploads use the same service, so

@@ -11,6 +11,12 @@ role memberships and direct rules. There is no admin bypass. Registered resource
 and actions form the permission catalog; unknown permissions cannot grant access.
 A catalog, including one generated from definitions, never grants rights by itself.
 
+Opt-in [public access](authentication.md#public-access) resolves a dedicated active
+account without sign-in and uses its ordinary UI rights in the same executor.
+There is no automatic public grant or Bearer fallback. All visitors share that
+account's `own` scope; the guest has no active tenant. Its actions retain their
+normal audit actor id, with no login success event for a guest page.
+
 Rules contain subject (user/role), resource, action, channel (ui/api), effect
 (allow/deny), object scope (all/own/id), optional object ID and field (whole action
 or named field). The backend data provider determines ownership. Explicit deny

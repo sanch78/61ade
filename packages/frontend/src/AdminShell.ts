@@ -33,6 +33,9 @@ export type ShellDefinition = {
   title: string;
   version?: string;
   authenticated: boolean;
+  /** The public UI is available; `guest` means this page renders it rather than a sign-in window. */
+  publicAccess?: boolean;
+  guest?: boolean;
   username: string;
   userId?: string;
   error: string;
@@ -50,22 +53,22 @@ export type ShellDefinition = {
   menuSeparators?: string[];
   /** Offered views in menu order (toolkit `ViewDefinition`: shared keys at the top, the kind's payload in `options`). */
   views?: ViewDefinition[];
-  /** Only after sign-in: the application's ES modules (`ApplicationDefinition::$modules`), page-relative paths. */
+  /** Application pages, including public access: the project's ES modules, page-relative paths. */
   modules?: string[];
   csrf?: string;
   live?: import("./Realtime").LiveConfig;
   /** Only with tenancy: the server-resolved active tenant (null: no membership) and the actor's memberships. */
   tenant?: { current: string | null; choices: { id: string; name: string }[] };
-  /** Only after sign-in: application skins (DHTMLX custom themes) of the identity; they replace the factory themes. */
+  /** Application pages: skins of the effective identity; they replace the factory themes. */
   skins?: { id: string; label: string; base: "light" | "dark" | "blade" | "blade-night" }[];
   /**
    * The logo (`ApplicationDefinition::$logo`): keyed image URLs (none: the inlined 61ade product logo), its accessible
    * text and placement; absent only with `Logo::none()`.
    */
   logo?: { image?: string; dark?: string; label: string; placement?: "window" | "top" | "both" };
-  /** Signed out only: the windows' notice and links (`ApplicationDefinition::$signIn`), server-translated plain text. */
+  /** Sign-in windows only: notice and links, server-translated plain text. */
   signIn?: { notice?: string; links?: { label: string; href: string }[] };
-  /** Signed out only: the sign-in modules (`ApplicationDefinition::$signInModules`), page-relative keyed paths. */
+  /** Sign-in pages only: the sign-in modules, page-relative keyed paths. */
   signInModules?: string[];
 };
 const escape = (text: string) =>
@@ -99,6 +102,7 @@ export class AdminShell {
   private releaseUploads?: () => void;
   private menu?: NavigationMenu;
   private controls?: ResponsiveToolbar;
+  private signInControl?: Toolbar;
   private controlSize?:ResizeObserver;
   /** The view of the workspace page and the views open in document windows. */
   private page?: Mounted;
@@ -154,7 +158,7 @@ export class AdminShell {
     measure.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
     const itemWidth=(item:any)=>{label.innerHTML=String(item.value??"");return 32+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+Math.ceil(measure.measureText(label.textContent??"").width);};
     // 16 px row inset; only the full menu reserves logout and its 17 px separator.
-    const required=(items:any[],logout=true)=>items.reduce((sum:number,item:any,index:number)=>sum+itemWidth(item)+(index&&item.separatorBefore?17:0),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
+    const required=(items:any[],logout=this.definition.authenticated)=>items.reduce((sum:number,item:any,index:number)=>sum+itemWidth(item)+(index&&item.separatorBefore?17:0),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
     const compact = width < Math.max(768,required(this.menuItems));
     const current="view:"+(parseRoute(location.hash).view??"");
     const siblings=(items:any[],nested=false):any[]|undefined=>{
@@ -177,8 +181,8 @@ export class AdminShell {
     const entries=[...structuredClone(this.menuItems).flatMap((item:any,index:number)=>[
       ...(index&&item.separatorBefore?[{id:"blade-before:"+item.id,type:"separator"}]:[]),item,
     ]),
-      { id: "blade-session-separator", type: "separator" },
-      { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" },
+      ...(this.definition.authenticated ? [{ id: "blade-session-separator", type: "separator" },
+      { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" }] : []),
     ];
     const prefixed=(items:any[]):any[]=>items.map(item=>({...item,id:"sibling:"+item.id,...(item.items?{items:prefixed(item.items)}:{})}));
     this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),icon:"dxi dxi-view-grid",items:entries},
@@ -210,8 +214,9 @@ export class AdminShell {
     return `<span class="blade-logo${css}" ${hidden?'aria-hidden="true"':`role="img" aria-label="${escape(logo.label)}"`}>${images}</span>`;
   }
   /** Signed out, `placement` decides; the signed-in shell always shows the logo in the top row. */
-  private get windowLogo():boolean{ return !this.definition.authenticated&&!!this.definition.logo&&(this.definition.logo.placement??"window")!=="top"; }
-  private get topLogo():boolean{ return !!this.definition.logo&&(this.definition.authenticated||(this.definition.logo.placement??"window")!=="window"); }
+  private get applicationPage():boolean{ return this.definition.authenticated || !!this.definition.guest; }
+  private get windowLogo():boolean{ return !this.applicationPage&&!!this.definition.logo&&(this.definition.logo.placement??"window")!=="top"; }
+  private get topLogo():boolean{ return !!this.definition.logo&&(this.applicationPage||(this.definition.logo.placement??"window")!=="window"); }
 
   /** The windows' notice and links below the form: plain text, native links in a labelled list. */
   private signInInfo():string{
@@ -259,15 +264,16 @@ export class AdminShell {
       document.documentElement.dataset.bladeTheme=factory;
       setTheme(base,document.documentElement);
       themeApplied(base,skins.length?id:null);
-      if(!definition.authenticated)signInThemeApplied(base);
+      if(!this.applicationPage)signInThemeApplied(base);
     };
-    configureServer(definition.csrf || "", definition.authenticated ? () => this.sessionEnded() : undefined);
+    configureServer(definition.csrf || "", this.applicationPage ? () => this.sessionEnded() : undefined);
     let theme=choices[0].id;
     try { const saved=localStorage.getItem(storage); if(choices.some(choice=>choice.id===saved))theme=saved!; } catch {}
     apply(theme);
     if (definition.protocol !== 1)
       throw new Error(t("Nem kompatibilis 61ade felületverzió."));
     const tenant=definition.tenant,currentTenant=tenant?.choices.find(choice=>choice.id===tenant.current),language=definition.i18n;
+    const signInControl=definition.guest || (definition.publicAccess && definition.oauthOnly);
     const controlItems:object[]=[
       ...(this.tenantSelector?[{id:"blade-tenant",value:escape(currentTenant?.name??t("Tenant")),icon:"dxi dxi-view-grid",tooltip:t("Tenant váltása"),
         items:tenant!.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant!.current?{icon:"dxi dxi-check"}:{})}))}]:[]),
@@ -280,8 +286,9 @@ export class AdminShell {
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"blade-navigation-row", cols: [{id:"main-menu"},
+        { id: "menu-row", height: 40, css:"blade-navigation-row"+(definition.guest?" blade-public-navigation":""), cols: [{id:"main-menu"},
           ...(controlItems.length?[{id:"controls",width:"content",css:"blade-navigation-control"}]:[]),
+          ...(signInControl?[{id:"sign-in-control",width:"content",css:"blade-navigation-control blade-sign-in-control"}]:[]),
           ...(this.topLogo?[{id:"logo",width:"content",css:"blade-logo-cell",html:this.logoHtml(this.windowLogo)}]:[])] },
         { id: "workspace", css: "blade-workspace" },
         { id: "status", height: 32, css: "blade-session-bar" },
@@ -314,14 +321,23 @@ export class AdminShell {
     this.layout.getCell("status").attach(this.status);
     // The top-row logo's width is known once its image loads (load does not bubble: capture).
     if(this.topLogo)root.addEventListener("load",event=>{if((event.target as Element).closest?.(".blade-navigation-row .blade-logo"))this.renderMenu();},{capture:true,signal:this.listeners.signal});
-    if (definition.authenticated) {
+    if (this.applicationPage) {
       uploads.configure({ userId: definition.userId });
       this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); });
       this.releaseUploads = uploads.indicator(state => this.uploadIndicator(state));
     }
+    if(signInControl){
+      const label=t(definition.guest?"Bejelentkezés":"Mégse");
+      const control=this.signInControl=new Toolbar(undefined,{data:[{id:"blade-sign-in",value:label,tooltip:label,icon:definition.guest?"dxi dxi-key":"dxi dxi-arrow-left"}]});
+      control.events.on("click",()=>{
+        if(!definition.guest){this.post("logout");return;}
+        const url=new URL(location.href);url.search="?signin=1";location.assign(url);
+      });
+      this.layout.getCell("sign-in-control").attach(control);
+    }
     if(controlItems.length){
       const controls=this.controls=new ResponsiveToolbar(undefined,{data:controlItems.flatMap((item,index)=>index?[{type:"separator"},item]:[item])},
-        {id:"blade-controls-menu",value:t("Beállítások"),icon:"dxi blade-icon blade-icon--menu",css:"blade-command--icon blade-controls-toggle",availableWidth:()=>this.root.clientWidth-120});
+        {id:"blade-controls-menu",value:t("Beállítások"),icon:"dxi blade-icon blade-icon--menu",css:"blade-command--icon blade-controls-toggle",availableWidth:()=>this.root.clientWidth-120-(this.signInControl?.getRootNode()?.getBoundingClientRect().width??0)});
       controls.events.on("click",(id:string|number)=>{
         const key=String(id);
         if(key==="blade-guide"&&this.page)this.showGuide(this.page);
@@ -340,7 +356,7 @@ export class AdminShell {
       this.controlSize=new ResizeObserver(()=>this.renderMenu());
       this.controlSize.observe(controls.getRootNode());
     }
-    if (definition.authenticated) {
+    if (this.applicationPage) {
       const map = (items: MenuDefinition[]): object[] =>
         items.map((item) => ({
           id: item.id,
@@ -375,7 +391,7 @@ export class AdminShell {
       this.layout.getCell("main-menu").attach(menu);
       // Opened once after sign-in, before the first list: every list of the page subscribes on it.
       if((definition.views||[]).some(view=>view.kind==="list"))void this.live;
-      this.kernel=createApplication({channel:()=>this.live,userId:definition.userId??"",displayName:definition.displayName??"",tenant:definition.tenant?.current??null,
+      this.kernel=createApplication({channel:()=>this.live,userId:definition.userId??"",displayName:definition.displayName??"",tenant:definition.tenant?.current??null,authenticated:definition.authenticated,
         views:definition.views??[],navigate:target=>this.navigate(target)});
       const start=()=>{if(this.listeners.signal.aborted)return;window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});this.route();};
       // Project modules register their kinds before the first route; a declarative application routes at once.
@@ -497,7 +513,7 @@ export class AdminShell {
   }
 
   /** The guide stays in the navigation controls, including their compact menu. */
-  private get guides():boolean{ return this.definition.authenticated&&(this.definition.views??[]).some(view=>!!view.guide); }
+  private get guides():boolean{ return this.applicationPage&&(this.definition.views??[]).some(view=>!!view.guide); }
   /** The page view's guide, if any. */
   private get guide():string|undefined{ return this.page?.view.guide; }
   /** The page view changed: the control follows whether it has a guide. */
@@ -712,6 +728,7 @@ export class AdminShell {
         {
           align: "end",
           cols: [
+            ...(definition.publicAccess ? [{type:"button" as const,name:"public",text:t("Mégse"),view:"link" as const}] : []),
             {
               type: "button",
               name: "login",
@@ -748,6 +765,7 @@ export class AdminShell {
     };
     form.events.on("click", (name: string) => {
       if (name === "login") submit();
+      if (name === "public") this.post("logout");
       if (name === "oauth" && !this.submitting && !openExternalSignIn(!!(form.getValue() as Record<string, unknown>).remember))
         void acknowledge({ title: t("Hiba"), message: externalSignInUnavailable(), severity: "warning" });
     });

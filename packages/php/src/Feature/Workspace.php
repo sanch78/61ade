@@ -159,7 +159,7 @@ final class Workspace
             // Session binding of short-lived state (transfers, ZIP manifests): a hash of the session id (ui) or bearer token (api), never the raw value.
             $secret=$channel==='api'?substr($_SERVER['HTTP_AUTHORIZATION'],7):session_id();
             $owner=is_string($secret)&&$secret!==''?Transfers::owner($secret):'';
-            // Post-response tasks only for authenticated requests; anonymous traffic never starts a runner.
+            // Only admitted actors start post-response tasks (including an explicitly configured public account).
             register_shutdown_function(fn()=>$this->tasks->afterResponse());
             $method=$_SERVER['REQUEST_METHOD']??'';
             if($method==='GET'||$method==='HEAD'){
@@ -175,7 +175,7 @@ final class Workspace
                 $this->respond($result,$method==='HEAD');exit;
             }
             if($method!=='POST')throw new Failure('POST szükséges.',405);
-            if($channel==='ui' && !hash_equals($csrf,$_SERVER['HTTP_X_BLADE_CSRF']??''))throw new Failure('Érvénytelen munkamenet.',403);
+            if($channel==='ui' && !hash_equals($csrf,$_SERVER['HTTP_X_BLADE_CSRF']??''))throw new Failure('Érvénytelen munkamenet.',$actor->authenticated?403:401);
             // Binary parts travel as multipart/form-data: a JSON `request` field plus file parts, never base64 JSON.
             $multipart=str_starts_with(strtolower((string)($_SERVER['CONTENT_TYPE']??'')),'multipart/form-data');
             $raw=$multipart?($_POST['request']??null):file_get_contents('php://input',length:65537);
@@ -202,7 +202,7 @@ final class Workspace
             }
             if($data['action']==='__ticket'){
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
-                echo json_encode(['ok'=>true,'data'=>['ticket'=>\Blade\Live\Tickets::issue($runtime,$sessionId,$tenant)]],JSON_THROW_ON_ERROR);exit;
+                echo json_encode(['ok'=>true,'data'=>['ticket'=>\Blade\Live\Tickets::issue($runtime,$sessionId,$tenant,$actor->authenticated?null:$actor->id)]],JSON_THROW_ON_ERROR);exit;
             }
             if($data['action']==='__watch'){
                 if($channel!=='ui')throw new Failure('Nem érhető el.',403);
