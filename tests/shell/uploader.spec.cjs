@@ -49,6 +49,9 @@ async function folder(page,name){
  const left=panel(page,0);
  await panel(page,0).locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Drive B',exact:true}).click();
  await panel(page,0).locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Drive A',exact:true}).click();
+ // The root fills up with this run's folders (removed after all tests): scroll the virtual grid to the new row.
+ await expect(left.locator('.dhx_grid-row').first()).toBeVisible();await left.locator('.dhx_grid').first().hover();
+ for(let i=0;i<20&&!await row(left,name).count();i++)await page.mouse.wheel(0,200);
  await row(left,name).dblclick();await expect(heading(left)).toHaveText('Drive A:/'+name);
  return String(created.body.data.id);
 }
