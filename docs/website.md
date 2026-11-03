@@ -115,8 +115,9 @@ shared synthetic account is intentionally public:
 The same details are shown on both website languages and in the feature demo's
 supported sign-in footer module, translated through its project catalogue.
 They are selectable text, not prefilled input values. Starter and tenant-demo
-sign-in pages retain their existing content. There is no guest login, new
-account, permission change, data-reset job or new public API. Each visitor
+sign-in pages retain their existing content. These three applications continue
+to require sign-in. The separate [public-access example](demos.md#public-access-demo)
+at `/public/` uses an explicitly restricted guest account. Each visitor
 signs in to an own [sandbox](demos.md#visitor-sandboxes): a copy of the
 pristine demo data, purged after an idle hour, so changes never reach other
 visitors.

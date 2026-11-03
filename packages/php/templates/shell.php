@@ -9,7 +9,7 @@
 <?php foreach ($skins as $skin): ?>
     <link rel="stylesheet" href="<?= $escape($keys->url($skin->stylesheet)) ?>">
 <?php endforeach; ?>
-<?php foreach ($bootstrap['authenticated'] ? $definition->stylesheets : $definition->signInStylesheets as $stylesheet): ?>
+<?php foreach ($page === 'shell' ? $definition->stylesheets : $definition->signInStylesheets as $stylesheet): ?>
     <link rel="stylesheet" href="<?= $escape($keys->url($stylesheet)) ?>">
 <?php endforeach; ?>
 <?php if ($bootstrap['oauth'] ?? false): $auth = rtrim($definition->oauth->assets, '/'); ?>
@@ -22,7 +22,7 @@
 <body>
     <?php require __DIR__.'/splash.php'; ?>
     <div id="blade-application"></div>
-    <form id="blade-command" method="post" action="./" hidden>
+    <form id="blade-command" method="post" action="<?= $page !== 'shell' && ($bootstrap['publicAccess'] ?? false) ? './?signin=1' : './' ?>" hidden>
         <input type="hidden" name="csrf" value="<?= $escape($csrf) ?>">
     </form>
     <noscript>Az adminisztrációs felület használatához JavaScript szükséges.</noscript>

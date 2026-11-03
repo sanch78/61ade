@@ -17,12 +17,13 @@ import { sandboxFrameClass } from "../components/sandbox/SandboxFrame";
 import { MediaPlayer } from "../components/media/MediaPlayer";
 import { PageLayout } from "../components/layout/PageLayout";
 
-/** What the shell hands the application object: its live channel, the signed-in identity, its views and router. */
+/** What the shell hands the application object: its live channel, effective identity, views and router. */
 export type ShellBridge = {
   channel: () => LiveChannel;
   userId: string;
   displayName: string;
   tenant: string | null;
+  authenticated?: boolean;
   views: readonly ViewDefinition[];
   navigate(target: NavigationTarget): boolean;
 };
@@ -31,7 +32,7 @@ export type Kernel = { app: Application; events: InternalEventBus; kinds: NamedR
 
 const UPLOAD_EVENTS: (keyof UploadEvents)[] = ["upload:queued", "upload:started", "upload:progress", "upload:conflict", "upload:file-done", "upload:file-failed", "upload:complete", "upload:cancelled"];
 
-/** The page's one `Application` (toolkit K-F3), created by the shell after sign-in, with the built-in kinds. */
+/** The application page's one `Application` (toolkit K-F3), with the built-in kinds. */
 export function createApplication(bridge: ShellBridge): Kernel {
   const events = createEventBus();
   for (const name of UPLOAD_EVENTS) uploader.on(name, payload => events.dispatch(name, payload as never));
@@ -54,7 +55,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
     preferences: preferences(bridge.userId),
     live: live(bridge.channel),
     events,
-    identity: identity(bridge.userId, bridge.displayName, bridge.tenant),
+    identity: identity(bridge.userId, bridge.displayName, bridge.tenant, bridge.authenticated),
     kinds,
     presentations,
     fieldTypes,

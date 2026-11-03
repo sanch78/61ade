@@ -134,7 +134,7 @@ follow this route through the
 2. **Add a module** where the declaration is not enough:
    `ApplicationDefinition` `modules`/`stylesheets` (JSON
    `application.modules/stylesheets`) list same-origin ES modules and CSS;
-   the signed-in shell imports each one and calls its default export with
+   the application shell (signed in or explicitly public) imports each one and calls its default export with
    `app` before routing ([module loading](toolkit.md#module-loading)).
 3. **Register and compose:** view kinds, column presentations, field types
    and client commands ([registries](toolkit.md#registries)); `ListView`,
@@ -229,6 +229,15 @@ for managed values rather than single-purpose toggle actions.
 <a id="belépési-módok-jelszó-e-mailes-kétfaktor-oauth"></a>
 
 ## Login modes: password, e-mail code, OAuth
+
+Applications may also enable [public access](authentication.md#public-access)
+with `publicIdentity` / JSON `application.public_identity`: the id of a dedicated
+active account with explicit guest UI rights. The same shell works without login;
+Sign in stays before the rightmost logo on desktop and beside the controls
+hamburger on phones, where the public shell hides the logo.
+Login switches to the member's rights; logout returns to the public UI. The
+[public demo](demos.md#public-access-demo) demonstrates this separately; the other
+demos keep their login requirement.
 
 The application supplies no demo credentials to the login fields. Browser
 password managers can fill saved credentials; remove the site's saved entry

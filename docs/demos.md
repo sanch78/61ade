@@ -4,14 +4,38 @@ Status: implemented and verified on 2026-10-21
 ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs));
 user acceptance is not claimed.
 
-Three independent applications share the Composer consumer `examples/demo-app`
-and managed server, with separate SQLite databases, sessions and cookie paths:
+The demos share the Composer consumer `examples/demo-app` and managed server.
+The starter and tenant demos have separate SQLite stores; the public example
+reuses the feature store, with its own session and cookie path:
 
 | Demo | URL | Definition | Data | Purpose |
 | --- | --- | --- | --- | --- |
 | Full feature demo (kitchen sink, R11) | https://demo.61ade.com/ | [application.php](../examples/demo-app/application.php) | `tmp/web/features.sqlite` | Every demonstrable capability on synthetic data. |
 | Starter admin | https://demo.61ade.com/admin/ | [admin-application.php](../examples/demo-app/admin-application.php) | `tmp/web/admin.sqlite` | Exactly the mandatory starter: login, language/theme selectors and admin module. |
+| Public access | https://demo.61ade.com/public/ | [public-application.php](../examples/demo-app/public-application.php) | `tmp/web/features.sqlite` | Catalogue without login; Sign in switches to the member's rights. |
 | Tenant demo | https://demo.61ade.com/tenants/ | [tenant-application.php](../examples/demo-app/tenant-application.php) | `tmp/web/tenants.sqlite` | The starter admin with optional [multi-tenancy](tenancy.md) on. |
+
+## Public access demo
+
+Open https://demo.61ade.com/public/#view=demo_catalog without signing in. The
+ordinary catalogue view is available through the dedicated `guest@example.test`
+account, which has only `demo_catalog.list/get` UI grants and an unknown random
+password. Notes and administration require a member with their own grants.
+**Sign in** is immediately before the rightmost logo on desktop and immediately
+after the controls hamburger on phones, where the public shell hides the logo.
+Cancel returns to guest access. Sign in as
+`demo@example.test` / `61ade-demo` to see the member's notes/admin views, then log
+out to return to the public catalogue. The URL's view address is kept.
+
+The definition uses the public `ApplicationDefinition.publicIdentity` contract,
+the existing catalogue module and normal account administration. Its runtime is
+`tmp/web/public`, session `blade_public_demo`, cookie path `/public/`, assets
+`../assets`; `features.sqlite` and its guest grants are prepared by the existing
+setup script. The same visitor sandbox rules apply. Polling is used in visitor
+sandboxes; the shared developer instance also uses the existing WebSocket service
+at `/live/public`. No extra service or host configuration is required.
+See [public access](authentication.md#public-access) for setup, shared-identity
+limits, API/CSRF behavior and account revocation. Other demos keep mandatory login.
 
 Use this single development environment directly. Visitors work in their own
 [sandbox](#visitor-sandboxes); development and testing use the shared instance

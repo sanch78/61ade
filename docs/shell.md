@@ -7,6 +7,13 @@ DHTMLX Window/Form login, Menu, Toolbar and Layout with an empty workspace.
 There is no separate application frontend, dashboard or placeholder page.
 For the later feature/workspace/ACL layer, see [ACL and actions](access-and-actions.md).
 
+An optional [public identity](authentication.md#public-access) offers the same shell
+without login, with explicitly granted guest rights. Its Sign in button sits
+immediately before the rightmost top-row logo on desktop and beside the controls
+hamburger on phones, where the public shell hides the logo while offering Sign in.
+A completed login switches to the member's rights, and logout returns to guest access.
+The default remains mandatory login.
+
 <a id="keretszerződés-és-használat"></a>
 
 ## Framework contract and usage
@@ -233,7 +240,7 @@ default, actual toolbar color, switching and reload persistence.
 
 ### Application skins (optional)
 
-An application may give selected signed-in users its own appearance (skin)
+An application may give selected identities (members or its public account) its own appearance (skin)
 instead of the factory themes ([FB-0072](feedback.md#fb-0072)). A skin refines
 a factory base theme (`blade`, `blade-night`, `light` or `dark`): the shell applies the base
 with `setTheme` and marks the root with `data-blade-skin="<id>"`; the
@@ -363,8 +370,10 @@ return new ApplicationDefinition(
   (`Invalid 61ade logo image`); `darkImage` needs `image`. `label` is the
   accessible text, localized like other texts; it defaults to the application
   `title` (`blade` for the product logo), and a blank one is refused. Same-origin images keep the CSP `img-src 'self' data: blob:`.
-- **Signed in:** the last cell of the desktop menu row, after the tenant,
-  language and theme selectors (before the controls hamburger on a phone).
+- **Application shell:** the last cell of the menu row, after the tenant,
+  language and theme selectors on desktop and after the controls hamburger on a
+  phone. With public access, Sign in precedes the logo on desktop; on phones the
+  public shell hides the logo while offering Sign in ([public access](authentication.md#public-access)).
   It is 24 px high and at most 160 px wide. It is not a menu item and the menu never
   yields to it: the menu, `Menü` and its
   [sibling items](#kompakt-ablakfejléc-és-teljes-mobilmenü) fit exactly as
@@ -655,13 +664,13 @@ a duplicate throws unless `{replace: true}`.
   initialization) is reported by a danger toast (`Egy alkalmazásmodul nem
   indult el: {module}`), the `module:error` event and the console, and skipped;
   the shell always starts. Without modules the shell routes at once, as before.
-  Signed-out pages create no `Application`; they run only the
+  Sign-in pages create no `Application`; they run only the
   [sign-in modules](#sign-in-modules) with their restricted `SignInApplication`.
-- **Stylesheets:** `application.stylesheets` are `<link>`ed on signed-in
-  pages after `admin.css` and the skins, keyed like the modules
+- **Stylesheets:** `application.stylesheets` are `<link>`ed on application
+  pages (signed in or explicitly public) after `admin.css` and the skins, keyed like the modules
   ([module loading](toolkit.md#module-loading)); with
   [skins](#application-skins) they are the supported way to add project CSS.
-  The signed-out pages link `signInStylesheets` instead
+  The sign-in pages link `signInStylesheets` instead
   ([sign-in branding](#sign-in-branding)); both kinds rely only on the
   [supported hooks](#sign-in-css-hooks).
 - **View host:** each opening gets a `ViewHost` (`signal`, `open`, `record`,

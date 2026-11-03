@@ -4544,3 +4544,64 @@ that exactly equals an option label lists every option. The managed
   browser module route missed the asset version query; matching the pathname
   fixed the fixture. Temporary verification sources were removed afterward.
 - **Status:** implemented and verified; no full-smoke claim.
+
+<a id="fb-0131"></a>
+
+## FB-0131 — Optional public application UI with sign-in beside the rightmost logo
+
+- **Date:** 2026-11-03.
+- **Requirement:** applications must be able to offer a login-free UI, with a
+  Sign in button beside the logo on desktop and the hamburger on phones. Owner
+  corrections: the order is **Sign in | logo**, with the logo at the right edge;
+  on phones the public shell hides the logo when offering Sign in.
+- **Implemented:** optional `ApplicationDefinition.publicIdentity` / JSON
+  `application.public_identity` selects a dedicated active account's explicit UI
+  permissions. The default still requires login. The guest is resolved on each
+  request and uses the existing ACL, field projection, guards, transactions and
+  audit; no automatic grant or authenticated session identity. PHP
+  `Identity.authenticated` and toolkit `app.identity.authenticated` distinguish a
+  public visitor from an authenticated actor. The ordinary modules, stylesheets,
+  skins, guides and routing work in the public shell.
+- **Sign-in:** the native top-row Toolbar button precedes the rightmost logo;
+  on phones it becomes an accessible icon button immediately after the controls
+  hamburger and the public shell hides its logo there. Other pages keep the logo
+  last, with the existing fit-or-hide policy for insufficient room. `?signin=1` opens the existing
+  password/code/password-change/OAuth flow, preserving the view address. Cancel
+  returns to guest access; successful login uses the member's own rights, and
+  logout returns to the public UI. The separate sign-in assets stay confined to
+  the sign-in pages. OAuth-only does not open its overlay over a guest page.
+- **Transport and limits:** UI requests retain session/CSRF protection. A stale
+  guest CSRF token returns 401 for a fresh-page reload; authenticated CSRF errors
+  retain 403. Bearer requests never fall back to public access. WebSocket tickets
+  bind to the guest account and session and recheck account state, version and
+  ACL. There is no guest active tenant. All visitors share the configured actor's
+  `own` scope and actor-based limits; this is not per-visitor ownership isolation.
+- **Demo:** `/public/` reuses the feature catalogue/store with an independent
+  session, a dedicated account with an unknown random password and only catalogue
+  list/get grants. The feature sign-in links to it; the other demos keep login.
+  The existing setup and visitor-sandbox seed include the guest, and the existing
+  live service also routes `/live/public`. No consumer or AuthHandler runtime was
+  changed.
+- **Guides:** [authentication](authentication.md#public-access),
+  [shell](shell.md), [configuration](configuration.md), [toolkit](toolkit.md),
+  [ACL](access-and-actions.md), [usage](usage.md), [demo](demos.md#public-access-demo).
+- **Verification:** PHP `contracts`, `configuration`, `access`, `permissions`,
+  `api-keys`, `tenancy`, `authentication`, `oauth`, `mail`, `i18n` and `toolkit`
+  passed, with typecheck, build consistency, PHP lint, documentation links and
+  the toolkit kernel check. The existing live-protocol suite passed all 22
+  checks. Two temporary PHP consumers verified public/default configuration,
+  disabled accounts, field/write denials and audit, separate application/sign-in
+  assets, pending code/password steps, OAuth-only bootstrap, and guest live-ticket
+  account/configuration/version/tenant/expiry checks.
+  Five temporary managed-URL browser cases passed: desktop placement and ACL /
+  Bearer / CSRF separation, phone layout across 320–1280 px and themes, failed /
+  cancelled / completed sign-in and logout, toolkit modules and localization,
+  and a real visitor's isolated polling sandbox. The final phone check verifies
+  logo suppression only in the public shell. The 19 existing browser, skins,
+  authentication and sign-in-branding cases also passed across focused runs.
+  An early startup measurement of an unrendered Toolbar was fixed. Temporary
+  selectors were corrected for native nested theme menus, module cache-key
+  queries and the existing desktop logo-fit policy; these were fixture failures.
+  Temporary verification sources, sandbox and artifacts were removed afterward.
+  Real OAuth provider completion was not tested; no full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

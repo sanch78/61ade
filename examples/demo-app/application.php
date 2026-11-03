@@ -14,7 +14,7 @@ use Blade\Feature\{Context, Failure, Field, SqlResource};
 use Blade\Live\LiveConfig;
 use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage};
 use Blade\Navigation\{Menu, MenuItem};
-use Blade\Shell\{ApplicationDefinition, Identity, Logo, SignIn, Skin, SqlIdentityProvider};
+use Blade\Shell\{ApplicationDefinition, Identity, Logo, SignIn, SignInLink, Skin, SqlIdentityProvider};
 
 require_once __DIR__.'/common.php';
 $runtime = blade_demo_runtime('features');
@@ -169,7 +169,7 @@ return new ApplicationDefinition(
     // a sign-in module filling the window's footer slot.
     logo: new Logo(placement: 'both'),
     signInStylesheets: ['branding/sign-in.css'],
-    signIn: new SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.'),
+    signIn: new SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.', [new SignInLink('Nyilvános demó', '/public/')]),
     signInModules: ['branding/sign-in.js'],
     // View guides of the framework's own views (docs/workspaces.md#view-guide); the demo's views declare their own.
     guides: blade_demo_admin_guides(),
@@ -177,5 +177,6 @@ return new ApplicationDefinition(
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [
         'admin' => __DIR__.'/admin-application.php',
         'tenants' => __DIR__.'/tenant-application.php',
+        'public' => __DIR__.'/public-application.php',
     ]) : new LiveConfig(),
 );

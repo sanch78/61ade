@@ -10,7 +10,7 @@ import { signalOf } from "./Events";
 let csrf = "";
 let ended: (() => void) | undefined;
 /**
- * Set once by the shell from the bootstrap `csrf`; signed-out pages have none. `sessionEnded` runs on every 401
+ * Set once by the shell from the bootstrap `csrf`; sign-in pages have none. `sessionEnded` runs on every 401
  * of the channel (the session is gone) before the caller sees the failure; the shell signs the page out with it.
  */
 export function configureServer(token: string, sessionEnded?: () => void): void { csrf = token; ended = sessionEnded; }

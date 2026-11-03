@@ -84,7 +84,8 @@ export default (app) => {
 - **Naming:** `application.modules` are browser ES modules;
   `workspace.modules` remain the JSON definition files of
   [configuration](configuration.md#belépés-és-alkalmazásszekciók).
-- **When:** only in the signed-in shell. The sign-in, e-mail confirmation and
+- **When:** in the application shell, including explicitly configured
+  [public access](authentication.md#public-access). The sign-in, e-mail confirmation and
   password-change pages load neither modules nor stylesheets (as with skins);
   they link the separate `signInStylesheets` (JSON
   `application.sign_in_stylesheets`) instead and import only the separate
@@ -178,7 +179,7 @@ each member with one example.
 | `preferences` | `scope(name)` → `get/set/remove` (`name` must contain a dot, else `TypeError`) | `UiPreferences.ts` storage |
 | `live` | `subscribe(resource, query, handlers, {signal})` | `LiveChannel`/`Realtime` |
 | `events` | Typed bus `on(name, handler, {signal})`, `off`, `emit` ([event catalog](#event-catalog)) | uploader `on/off` |
-| `identity` | `id`, `displayName`, `tenant` | bootstrap `userId`, `displayName`, `tenant.current` |
+| `identity` | `id`, `displayName`, `tenant`, `authenticated` | bootstrap `userId`, `displayName`, `tenant.current`, `authenticated`; false for the configured public account, without granting any right |
 | `kinds`, `presentations`, `fieldTypes`, `commands` | [Registries](#registries) | hard-coded `AdminShell.openView`, `RecordPresentation` |
 | `components` | [Components](#components) | `Workspace`, `FileManager`, … |
 | `viewDefinitions()`, `viewDefinition(id)` | Views offered to the actor | bootstrap `views` |

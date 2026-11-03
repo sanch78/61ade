@@ -28,15 +28,15 @@ final readonly class ApplicationDefinition
         public ?\Blade\Authentication\AuthHandlerLogin $oauth = null,
         /** Browser path of the built frontend, relative to the page (e.g. "../assets" under /admin/). */
         public string $assets = 'assets',
-        /** Optional application skins of the signed-in identity: Closure(Identity): list<Skin>; none keeps the factory themes. */
+        /** Optional application skins of the effective identity (including public access); none keeps the factory themes. */
         public ?\Closure $skins = null,
         /**
          * Browser ES modules (`.js`/`.mjs`) of the project, paths like `assets`/skin stylesheets; the signed-in shell
          * imports them and calls each default export with its `Application` (docs/toolkit.md#module-loading).
-         * @var list<string>
+         * Public access uses the same modules. @var list<string>
          */
         public array $modules = [],
-        /** Project stylesheets (`.css`), linked on signed-in pages after the framework CSS and skins. @var list<string> */
+        /** Project stylesheets (`.css`), linked on application pages after the framework CSS and skins. @var list<string> */
         public array $stylesheets = [],
         /**
          * Filesystem directory the site root `/` is served from; the shell derives the assets' cache keys from the files
@@ -75,6 +75,8 @@ final readonly class ApplicationDefinition
         public int $sessionCookieLifetime = 0,
         /** View group labels that get a preceding native menu separator (docs/shell.md#menu-group-separators). @var list<string> */
         public array $menuSeparators = [],
+        /** Optional active account id whose UI permissions are offered without sign-in (docs/authentication.md#public-access). */
+        public ?string $publicIdentity = null,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -85,6 +87,9 @@ final readonly class ApplicationDefinition
         }
         if ($sessionIdleTimeout < 60 || $sessionIdleTimeout > 31536000 || $sessionCookieLifetime < 0 || $sessionCookieLifetime > 31536000) {
             throw new \InvalidArgumentException('Invalid 61ade session lifetime.');
+        }
+        if ($publicIdentity !== null && ($publicIdentity === '' || strlen($publicIdentity) > 100 || preg_match('/[\x00-\x1f\x7f]/', $publicIdentity))) {
+            throw new \InvalidArgumentException('Invalid 61ade public identity.');
         }
         if (!self::paths($signInStylesheets, 'css')) throw new \InvalidArgumentException('Invalid 61ade sign-in stylesheets.');
         if (!self::paths($signInModules, 'm?js')) throw new \InvalidArgumentException('Invalid 61ade sign-in modules.');
@@ -105,6 +110,15 @@ final readonly class ApplicationDefinition
         }
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();
+    }
+
+    /** Resolve on every request: a missing or disabled public account grants no access, and is never a sign-in. */
+    public function publicActor(): ?Identity
+    {
+        $actor = $this->publicIdentity === null ? null : $this->identities->find($this->publicIdentity);
+        if (!$actor) return null;
+        if ($actor->id !== $this->publicIdentity) throw new \UnexpectedValueException('The public identity must resolve to its declared account id.');
+        return new Identity($actor->id, $actor->displayName, $actor->attributes, authenticated: false);
     }
 
     /**
