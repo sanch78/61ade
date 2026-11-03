@@ -81,6 +81,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | E-mail second factor | Code after password; formatted message with project text/color overrides | `twofactor@example.test` / `61ade-demo`; code in [mailbox](#demó-postafiók-mailbox) |
 | OAuth (AuthHandler) | External-account button → native provider overlay; existing OAuth-enabled accounts only, no password | Native Google/Facebook buttons; missing keys show setup feedback, configured keys start the real provider flow; [setup](authentication.md#szolgáltatói-beállítás-google-facebook), HTTPS required |
 | Language | Hungarian/English selector before theme, language row in login form, account default used for login and mail | `twofactor@example.test` defaults to English |
+| Menu group separator | `menuSeparators` inserts one native separator before a declared view group; ACL, declaration order, current-view marking and the compact menu are preserved | Before `Digitális kijelző`; the existing separator before logout remains |
 | User admin | Disabled, OAuth, e-mail confirmation, default language as form/grid checkbox/select | Administration → Users |
 | ACL | Roles, memberships and catalog-based rules | Administration |
 | API keys | Once-only secret, multiselect action scope, revocation checkbox | Root menu → API keys |

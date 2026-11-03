@@ -493,6 +493,13 @@ No consumer configuration; rebuild/prepare assets.
 A collapsed desktop `Menü` is followed by the open feature's sibling menu items
 ([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)); no configuration.
 
+Optional `ApplicationDefinition(menuSeparators: ['Management'])` / JSON
+`application.menu_separators` adds a native separator before the named view
+group, keeping declaration order and the existing separator before logout.
+The compact menu retains the separators; the default empty list changes
+nothing. See [group separators](shell.md#menu-group-separators) for validation
+and limits, and the feature demo's `Digitális kijelző` group for an example.
+
 [Popup headers](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü) are 40 px, with
 theme background and 1 px divider. The light theme label is Világos; default
 is Blade and valid saved choices persist.

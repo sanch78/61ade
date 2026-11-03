@@ -73,6 +73,8 @@ final readonly class ApplicationDefinition
         public int $sessionIdleTimeout = 1800,
         /** Session cookie lifetime in seconds (0–31536000); zero keeps a browser-session cookie, positive values renew on each HTTP request. */
         public int $sessionCookieLifetime = 0,
+        /** View group labels that get a preceding native menu separator (docs/shell.md#menu-group-separators). @var list<string> */
+        public array $menuSeparators = [],
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -91,6 +93,15 @@ final readonly class ApplicationDefinition
             if (!is_string($guide)) throw new \InvalidArgumentException('Invalid view guide: '.$id);
             $view = $workspace->registry->viewById((string) $id) ?? throw new \InvalidArgumentException('Unknown view in guides: '.$id);
             $workspace->registry->updateView($view->with(guide: $guide));
+        }
+        if (!array_is_list($menuSeparators)) throw new \InvalidArgumentException('Menu separators must be a list of view groups.');
+        $groups = array_column($workspace?->registry->views() ?? [], 'group');
+        $seen = [];
+        foreach ($menuSeparators as $group) {
+            if (!is_string($group) || !in_array($group, $groups, true) || isset($seen[$group])) {
+                throw new \InvalidArgumentException('Menu separators require unique, declared view groups.');
+            }
+            $seen[$group] = true;
         }
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();

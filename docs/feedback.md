@@ -4516,3 +4516,31 @@ that exactly equals an option label lists every option. The managed
   right handles receive a point 3 px outside the window edge, and passes on
   the managed demo. Both corners were inspected on its screenshot.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0130"></a>
+
+## FB-0130 — Native separators before declared menu groups
+
+- **Date:** 2026-11-03.
+- **Requirement:** an application needs a native separator before a selected
+  view group, while retaining the existing separator before logout and the
+  existing declaration order. This is a divider, not a flexible spacer.
+- **Implemented:** `ApplicationDefinition::menuSeparators` / JSON
+  `application.menu_separators` names unique declared view groups. Only
+  offered groups enter the translated bootstrap. `AdminShell` inserts one
+  native separator per selected group, counts its width, omits a leading
+  separator and retains it in the compact menu. The default is an empty list;
+  there is no new ordering API or CSS. The feature demo uses the option before
+  `Digitális kijelző`.
+- **Guide:** [menu group separators](shell.md#menu-group-separators),
+  [configuration](configuration.md), [usage](usage.md), [demo](demos.md).
+- **Verification:** PHP `contracts.php` and `configuration.php`, frontend
+  build and typecheck passed. All 10 existing `browser.spec.cjs` and
+  `skins.spec.cjs` cases passed on the managed demo. Four temporary synthetic
+  browser cases passed for desktop/current-group marking, compact navigation
+  and resizing, the unchanged default and an absent group. A temporary
+  synthetic PHP/JSON consumer also passed valid/default declarations and
+  rejection of unknown groups, duplicates and invalid values. Its initial
+  browser module route missed the asset version query; matching the pathname
+  fixed the fixture. Temporary verification sources were removed afterward.
+- **Status:** implemented and verified; no full-smoke claim.

@@ -74,6 +74,23 @@ navigation is described below. Logout is a working framework menu action.
 For a new module, first implement needed feature/action/policy capabilities,
 then configure its business integration.
 
+<a id="menu-group-separators"></a>
+
+### Separators before view groups
+
+`ApplicationDefinition(menuSeparators: ['Management'])` (JSON
+`application.menu_separators`) inserts one native DHTMLX
+`{type: "separator"}` immediately before the named group of views. Use the
+group's original declaration label; the shell translates it and includes it
+only when the actor is offered that group. The list must contain unique,
+declared view groups; unknown groups and invalid values fail at startup.
+
+View declaration order still determines menu order. There is no leading
+separator when the group is first. The existing separator before logout
+stays, and both separators remain inside the compact `Menü`. Current-view
+marking is unchanged. With the default empty list, existing menus stay the
+same. The feature demo declares a separator before `Digitális kijelző`.
+
 <a id="dhtmlx-megjelenítés-és-csomagolás"></a>
 
 ## DHTMLX rendering and packaging
