@@ -18,6 +18,10 @@ test('uploader reopened across routes stays modal and keeps its content',async({
      primary:cell.querySelector('.dhx_button--color_primary')?.textContent.trim()};
    });
    expect(footer).toEqual({toolbars:0,actions:true,gap:0,inset:0,below:'0px',above:'1px',primary:'Bezárás'});
+   // The resize handles straddle the window edge; the window does not clip their outer half (the overlay would take the press).
+   const outside=await page.locator('.blade-uploader-window').evaluate(win=>{const box=win.getBoundingClientRect(),at=(x,y)=>document.elementFromPoint(x,y)?.className??'';
+    return [at(box.left+box.width/2,box.bottom+3),at(box.right+3,box.top+box.height/2)];});
+   expect(outside).toEqual([expect.stringContaining('dhx_window-resizer--bottom'),expect.stringContaining('dhx_window-resizer--right')]);
    await page.screenshot({path:`${process.env.BLADE_TMP_DIR||'tmp'}/uploader/footer.png`});
   }
   await page.keyboard.press('Escape');

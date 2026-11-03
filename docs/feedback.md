@@ -4497,3 +4497,22 @@ that exactly equals an option label lists every option. The managed
   sends 20 MiB + 1 byte.
 - **Status:** implemented; `blade_demo_files()->maxSizeBytes` reports
   20971520 on the `web` instance.
+
+<a id="fb-0129"></a>
+
+## FB-0129 — Window resize handles can be grabbed on their whole width
+
+- **Date:** 2026-11-02.
+- **Report:** `files.spec.cjs` found that the outer half of a window's resize
+  handle passed the press to the modal overlay. A drag from the edge did not
+  resize the window.
+- **Cause:** `themes/character.css` clipped `.dhx_window` (`overflow: hidden`,
+  since `ec75811`) to round the header background. Suite places its resize
+  handles 6 px outside the window and keeps the window `overflow: visible`.
+- **Implemented:** the window no longer clips. The header (and its toolbar)
+  round their top corners, and the content rounds its bottom corners and
+  clips itself, so the rounded look is unchanged.
+- **Verification:** `uploader-reopen.spec.cjs` checks that the bottom and
+  right handles receive a point 3 px outside the window edge, and passes on
+  the managed demo. Both corners were inspected on its screenshot.
+- **Status:** implemented and verified on the managed demo.
