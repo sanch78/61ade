@@ -100,7 +100,9 @@ export default (app) => {
   With public access, opening sign-in preserves the existing guest `Application`,
   view instances, input and live channel; its ordinary assets remain active behind
   the modal, which additionally loads the restricted sign-in modules and styles.
-  Cancel disposes the sign-in listeners/styles without destroying the guest view.
+  X, Escape and Cancel dispose the sign-in listeners/styles without destroying
+  the guest view before a challenge. Closing a pending public code/password-change
+  window uses server cancellation and reloads the public context.
 - **Order:** the shell `import()`s all modules in parallel and calls their
   default exports one by one in declaration order with the page's
   `Application`, then routes. A failed import, a throw, a rejection, an

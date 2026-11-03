@@ -559,3 +559,8 @@
 <a id="fb-0135"></a>
 
 ## FB-0135 — Toolbar submenus cascade right when they fit
+
+
+<a id="fb-0136"></a>
+
+## FB-0136 — Public sign-in windows can be closed

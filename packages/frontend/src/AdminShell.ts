@@ -711,6 +711,15 @@ export class AdminShell {
       template:(item:{id:string;value:string})=>`<span class="blade-language-option"><span class="${flag(item.id)}"></span>${escape(item.value)}</span>`}];
   }
   private attachLoginForm(form:Form):void{
+    if(this.definition.publicAccess){
+      const win=this.loginWindow!;
+      win.events.on("beforeHide",()=>{
+        // Destruction closes the detached window through the same native event.
+        if(this.listeners.signal.aborted||this.loginWindow!==win)return true;
+        this.cancelSignIn();
+        return false;
+      });
+    }
     form.events.on("change",(name:string)=>{
       if(name!=="blade_language")return;
       // The Combo reports an intermediate empty value while switching; read the settled choice.
@@ -786,7 +795,7 @@ export class AdminShell {
       width: 420,
       height: definition.rememberAvailable ? 340 : 290,
       modal: true,
-      closable: false,
+      closable: !!this.definition.publicAccess,
       movable: true,
       resizable: false,
     });
@@ -918,7 +927,7 @@ export class AdminShell {
       width: 460,
       height: 420,
       modal: true,
-      closable: false,
+      closable: !!this.definition.publicAccess,
       resizable: false,
     });
     const form = new Form(document.createElement("div"), {
@@ -972,7 +981,7 @@ export class AdminShell {
       width: 460,
       height: 420,
       modal: true,
-      closable: false,
+      closable: !!this.definition.publicAccess,
       resizable: false,
     });
     const length = (value: string | number) => [...String(value)].length >= 12 && [...String(value)].length <= 128;
