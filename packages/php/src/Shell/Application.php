@@ -98,7 +98,8 @@ final class Application
         }
 
         $definition = $this->definition;
-        $signingIn = !$identity && (!$guest || $signInRequested || $error !== '' || isset($_SESSION['pendingLogin']) || isset($_SESSION['pendingPasswordChange']));
+        $authPost = $_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? null, ['login', 'confirm_login', 'resend_login', 'change_password'], true);
+        $signingIn = !$identity && (!$guest || $signInRequested || $authPost || isset($_SESSION['pendingLogin']) || isset($_SESSION['pendingPasswordChange']));
         // The public actor remains the background of every sign-in step; member rights arrive only after sign-in.
         $actor = $identity ?? $guest;
         $csrf = $_SESSION['csrf'];

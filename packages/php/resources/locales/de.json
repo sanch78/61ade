@@ -727,5 +727,7 @@
   "Frekvenciaspektrum: mély hangoktól a magasakig": "Frequenzspektrum: von tiefen zu hohen Frequenzen",
   "A frekvenciamegjelenítő nem érhető el ebben a böngészőben.": "Die Frequenzanzeige ist in diesem Browser nicht verfügbar.",
   "Beállítások": "Einstellungen",
-  "Vissza": "Zurück"
+  "Vissza": "Zurück",
+  "Újratöltés": "Neu laden",
+  "A vendégmunkamenet lejárt. A folytatáshoz töltsd újra a felületet; a nem mentett adatokat előbb másold ki.": "Die Gastsitzung ist abgelaufen. Laden Sie die Oberfläche neu, um fortzufahren; kopieren Sie zuvor ungespeicherte Daten."
 }

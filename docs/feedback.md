@@ -546,3 +546,7 @@
 <a id="fb-0132"></a>
 
 ## FB-0132 — Sign-in keeps the public layout behind its modal
+
+<a id="fb-0133"></a>
+
+## FB-0133 — Guest-session expiry must not request sign-in
