@@ -73,13 +73,26 @@ The public shell loads the regular modules, stylesheets, skins, guides and routi
 Its top-row **Sign in** button is immediately before the rightmost logo on desktop.
 On phones it is an accessible icon button immediately after the controls
 hamburger, and the public shell hides the logo while offering Sign in.
-The button opens `./?signin=1`, preserving the `#view=…` address. The ordinary
-password, code, forced-password-change and OAuth flows remain responsible for
-sign-in; their pages load the separate sign-in assets. Cancel returns to public
-access and cancels pending sign-in state; in OAuth-only mode Cancel is in the
-top row above the overlay. A completed sign-in replaces the public identity with
-the member's own rights; logout returns to the public UI. Login-only applications
-are unchanged. The demo's feature/starter/tenant applications still require login.
+The button opens the existing sign-in window **over the current public view**,
+without navigating or recreating its list/form. The shell fetches `./?signin=1`
+for its sign-in metadata and declared assets, keeps the `#view=…` address and
+leaves the guest's live connection and unsaved input intact. Cancel before a
+challenge closes only the window, without a request or reload; its module
+listeners and styles are removed. OAuth-only uses the same public background,
+with Cancel in the top row above its provider overlay.
+
+The ordinary password, code, forced-password-change and OAuth flows still perform
+authentication. Their POSTs/provider redirects may reload the page, but the server
+retains the guest-only view behind every pending or failed sign-in step. A direct
+`?signin=1` address also renders that background. The public application's modules,
+styles and skins remain active; the window additionally gets its separate sign-in
+styles and restricted `SignInApplication` modules. Both sets are trusted project
+code. View guides do not automatically open over the authentication window.
+Until sign-in completes, `authenticated` remains false and only guest rights are
+available. A changed account/session while opening requires a fresh page instead
+of mixing contexts. Successful sign-in reloads with the member's own rights;
+logout returns to the public UI. Login-only applications are unchanged. The demo's
+feature/starter/tenant applications still require login.
 
 Public access uses an HttpOnly/SameSite session cookie for CSRF, live tickets and
 session-bound uploads. UI POSTs still require CSRF. An invalid/expired guest token

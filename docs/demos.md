@@ -23,7 +23,8 @@ account, which has only `demo_catalog.list/get` UI grants and an unknown random
 password. Notes and administration require a member with their own grants.
 **Sign in** is immediately before the rightmost logo on desktop and immediately
 after the controls hamburger on phones, where the public shell hides the logo.
-Cancel returns to guest access. Sign in as
+Sign in opens over the current catalogue without clearing it; Cancel before a
+challenge keeps its filters and view instance without reloading. Sign in as
 `demo@example.test` / `61ade-demo` to see the member's notes/admin views, then log
 out to return to the public catalogue. The URL's view address is kept.
 

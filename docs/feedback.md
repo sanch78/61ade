@@ -542,3 +542,7 @@
 <a id="fb-0131"></a>
 
 ## FB-0131 — Optional public application UI with sign-in beside the rightmost logo
+
+<a id="fb-0132"></a>
+
+## FB-0132 — Sign-in keeps the public layout behind its modal

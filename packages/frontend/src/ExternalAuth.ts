@@ -65,12 +65,13 @@ export function openExternalSignIn(remember: boolean): boolean {
  * OAuth-only sign-in (docs/authentication.md#oauth-only-sign-in): AuthHandler's overlay is the sign-in window. It
  * cannot be dismissed, `decorate` adds the application's content to it once, and it opens again if it closes.
  */
-export async function openExclusiveSignIn(decorate: (content: HTMLElement) => void): Promise<boolean> {
+export async function openExclusiveSignIn(decorate: (content: HTMLElement) => void, signal?: AbortSignal): Promise<boolean> {
   const handler = scope.authHandler;
   if (!handler) return false;
   // AuthHandler initializes asynchronously after its bootstrap script.
   for (const started = Date.now(); !handler.ready; await new Promise(resolve => setTimeout(resolve, 20)))
-    if (Date.now() - started > 5000) return false;
+    if (signal?.aborted || Date.now() - started > 5000) return false;
+  if(signal?.aborted)return false;
   handler.setProviderRedirectGetQuery(null);
   // The overlay and its backdrop start below the top row, whose language and theme selectors stay usable (admin.css).
   document.documentElement.dataset.bladeExclusiveSignIn = "";
@@ -82,7 +83,13 @@ export async function openExclusiveSignIn(decorate: (content: HTMLElement) => vo
   modal.querySelector(".modal-header .btn-close")?.remove();
   decorate(content);
   // The page's own Bootstrap reads those options only once: if it still closes the overlay, it opens again.
-  modal.addEventListener("hidden.bs.modal", () => setTimeout(() => handler.login()));
+  const reopen=()=>setTimeout(()=>{if(!signal?.aborted)handler.login();});
+  modal.addEventListener("hidden.bs.modal",reopen);
+  signal?.addEventListener("abort",()=>{
+    modal.removeEventListener("hidden.bs.modal",reopen);
+    delete document.documentElement.dataset.bladeExclusiveSignIn;
+    (scope.bootstrap?.Modal as typeof Modal)?.getInstance(modal)?.hide();
+  },{once:true});
   return true;
 }
 export const externalSignInUnavailable = () => t("A külső belépés most nem érhető el. Próbáld újra később.");

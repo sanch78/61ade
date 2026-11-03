@@ -98,8 +98,9 @@ final class Application
         }
 
         $definition = $this->definition;
-        $public = $guest && !$signInRequested && $error === '' && !isset($_SESSION['pendingLogin']) && !isset($_SESSION['pendingPasswordChange']);
-        $actor = $identity ?? ($public ? $guest : null);
+        $signingIn = !$identity && (!$guest || $signInRequested || $error !== '' || isset($_SESSION['pendingLogin']) || isset($_SESSION['pendingPasswordChange']));
+        // The public actor remains the background of every sign-in step; member rights arrive only after sign-in.
+        $actor = $identity ?? $guest;
         $csrf = $_SESSION['csrf'];
         $escape = static fn(string $text): string => htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         // Cache keys of every shell asset from its file (docs/toolkit.md#cache-keys); one stat per asset and page.
@@ -110,15 +111,15 @@ final class Application
             'title' => Translator::text($definition->title),
             'version' => $definition->version,
             'authenticated' => $identity !== null,
-            ...($guest ? ['publicAccess' => true, 'guest' => (bool) $public] : []),
+            ...($guest ? ['publicAccess' => true, 'guest' => true, 'signingIn' => $signingIn] : []),
             'username' => $username,
             'error' => $error,
             'rememberAvailable' => $definition->authentication !== null,
             'rememberDays' => $definition->authentication?->rememberDays,
             'loginIdentifier' => $definition->accounts ? 'email' : 'username',
-            'oauth' => !$actor && $definition->oauth?->enabled(),
+            'oauth' => $signingIn && $definition->oauth?->enabled(),
         ];
-        if (!$actor && $definition->oauth?->exclusive) $bootstrap['oauthOnly'] = true;
+        if ($signingIn && $definition->oauth?->exclusive) $bootstrap['oauthOnly'] = true;
         if (!$identity && !$definition->oauth?->exclusive && isset($_SESSION['pendingPasswordChange'])) {
             $bootstrap['passwordChange'] = ['expires' => $_SESSION['pendingPasswordChange']['expires']];
         }
@@ -127,7 +128,7 @@ final class Application
             $bootstrap['confirmation'] = ['email' => $pending['email'], 'expires' => $pending['expires']];
         }
         // Page kind for project CSS (`data-blade-page` on <html>), in the order the shell picks its window.
-        $page = $actor ? 'shell' : (isset($bootstrap['passwordChange']) ? 'password-change' : (isset($bootstrap['confirmation']) ? 'confirmation' : 'sign-in'));
+        $page = !$signingIn ? 'shell' : (isset($bootstrap['passwordChange']) ? 'password-change' : (isset($bootstrap['confirmation']) ? 'confirmation' : 'sign-in'));
         // The logo (top menu row, sign-in windows): without a declaration the product logo (no image: the shell inlines
         // it); declared images as keyed URLs; `Logo::none()` none.
         $logo = $definition->logo ?? new Logo();
@@ -138,13 +139,13 @@ final class Application
             if ($logo->darkImage !== null) $bootstrap['logo']['dark'] = $keys->url($logo->darkImage);
         }
         // Signed-out pages only: the windows' notice and links (translated here, plain text) and the sign-in modules.
-        if (!$actor && ($signIn = $definition->signIn) && ($signIn->notice !== null || $signIn->links)) {
+        if ($signingIn && ($signIn = $definition->signIn) && ($signIn->notice !== null || $signIn->links)) {
             $bootstrap['signIn'] = array_filter([
                 'notice' => $signIn->notice === null ? null : Translator::text($signIn->notice),
                 'links' => array_map(static fn(SignInLink $link) => ['label' => Translator::text($link->label), 'href' => $link->href], $signIn->links),
             ], static fn($value) => $value !== null && $value !== []);
         }
-        if (!$actor && $definition->signInModules) $bootstrap['signInModules'] = array_map(static fn(string $module): string => $keys->url($module), $definition->signInModules);
+        if ($signingIn && $definition->signInModules) $bootstrap['signInModules'] = array_map(static fn(string $module): string => $keys->url($module), $definition->signInModules);
         $skins = $actor ? $this->skins($actor) : [];
         if ($actor) {
             if ($skins) $bootstrap['skins'] = array_map(static fn(Skin $skin) => ['id' => $skin->id, 'label' => Translator::text($skin->label), 'base' => $skin->base], $skins);
