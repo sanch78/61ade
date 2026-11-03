@@ -22,6 +22,7 @@ class Modal {
   static getInstance(element: Element | null): Modal | null { return element ? instances.get(element) ?? null : null; }
   static getOrCreateInstance(element: HTMLElement): Modal { return instances.get(element) ?? new Modal(element); }
   show(): void {
+    this.element.dispatchEvent(new Event("show.bs.modal"));
     this.backdrop ??= Object.assign(document.createElement("div"), { className: "blade-external-backdrop" });
     // DHTMLX raises window layers dynamically: stack above the highest one at opening time.
     const top = Math.max(1000, ...Array.from(document.body.children, node => Number.parseInt(getComputedStyle(node).zIndex, 10) || 0));

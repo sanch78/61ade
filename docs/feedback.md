@@ -564,3 +564,7 @@
 <a id="fb-0136"></a>
 
 ## FB-0136 — Public sign-in windows can be closed
+
+<a id="fb-0137"></a>
+
+## FB-0137 — Hide the 61ade sign-in window behind AuthHandler

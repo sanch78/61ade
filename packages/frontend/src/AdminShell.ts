@@ -134,6 +134,7 @@ export class AdminShell {
   private menuState?: string;
   private loginWindow?: Window;
   private loginForm?: Form;
+  private externalSignInOpen = false;
   private authListeners = new AbortController();
   private openingSignIn = false;
   private submitting = false;
@@ -147,7 +148,7 @@ export class AdminShell {
       Math.min(width, innerWidth - 24),
       Math.min(height, innerHeight - 24),
     );
-    if(!this.loginWindow.isVisible())this.loginWindow.show();
+    if(!this.externalSignInOpen&&!this.loginWindow.isVisible())this.loginWindow.show();
     void this.fitLogin();
   };
 
@@ -234,7 +235,7 @@ export class AdminShell {
   private async fitLogin():Promise<void>{
     await awaitRedraw();
     const win=this.loginWindow;
-    if(!win||this.listeners.signal.aborted)return;
+    if(!win||this.externalSignInOpen||this.listeners.signal.aborted)return;
     const container=win.getContainer();
     const buttons=Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(button=>button.getBoundingClientRect().height>0&&!button.closest("[data-blade-after-form]"));
     if(!buttons.length)return;
@@ -467,6 +468,7 @@ export class AdminShell {
 
   private mountSignIn():void{
     this.authListeners.abort();this.authListeners=new AbortController();
+    this.externalSignInOpen=false;
     signInThemeApplied(document.documentElement.dataset.dhxTheme??"blade");
     this.signInLogo();
     if(this.definition.passwordChange)this.mountPasswordChange();
@@ -715,7 +717,7 @@ export class AdminShell {
       const win=this.loginWindow!;
       win.events.on("beforeHide",()=>{
         // Destruction closes the detached window through the same native event.
-        if(this.listeners.signal.aborted||this.loginWindow!==win)return true;
+        if(this.externalSignInOpen||this.listeners.signal.aborted||this.loginWindow!==win)return true;
         this.cancelSignIn();
         return false;
       });
@@ -859,6 +861,18 @@ export class AdminShell {
       ],
     });
     this.loginForm = form;
+    // Suspend the native window without cancelling public sign-in or discarding its Form.
+    document.addEventListener("show.bs.modal",event=>{
+      if((event.target as HTMLElement).id!=="authhandler-login-modal")return;
+      this.externalSignInOpen=true;
+      this.loginWindow?.hide();
+    },{capture:true,signal});
+    document.addEventListener("hidden.bs.modal",event=>{
+      if((event.target as HTMLElement).id!=="authhandler-login-modal"||!this.externalSignInOpen)return;
+      this.externalSignInOpen=false;
+      this.resize();
+      requestAnimationFrame(()=>{if(!signal.aborted&&!this.externalSignInOpen)form.setFocus("oauth");});
+    },{capture:true,signal});
     form.events.on("afterValidate",()=>{void this.fitLogin();});
     const submit = () => {
       if (this.submitting || !form.validate()) return;
