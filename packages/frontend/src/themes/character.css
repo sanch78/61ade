@@ -109,7 +109,11 @@
 .dhx_menu--popup-menu > .dhx_menu { padding: 4px 0; }
 .dhx_menu--popup-menu .dhx_menu-button { width: calc(100% - 8px); margin: 0 4px; border-radius: var(--blade-control-radius); }
 /* Windows and popups: rounded, lifted. */
-.dhx_window { border-radius: calc(var(--blade-radius) + 2px); overflow: hidden; box-shadow: 0 24px 48px -16px rgb(16 24 40 / 35%), 0 2px 8px rgb(16 24 40 / 12%); }
+/* The window itself must not clip: Suite's resize handles straddle its edge (6 px outside), and a clipped outer
+   half would hand the press to the modal overlay. The header and the content round their own corners instead. */
+.dhx_window { border-radius: calc(var(--blade-radius) + 2px); box-shadow: 0 24px 48px -16px rgb(16 24 40 / 35%), 0 2px 8px rgb(16 24 40 / 12%); }
+.dhx_window-header, .dhx_window-header .dhx_toolbar { border-radius: calc(var(--blade-radius) + 2px) calc(var(--blade-radius) + 2px) 0 0; }
+.dhx_window-content { border-radius: 0 0 calc(var(--blade-radius) + 2px) calc(var(--blade-radius) + 2px); overflow: hidden; }
 .dhx_popup, .dhx_menu { border-radius: var(--blade-radius); }
 .dhx_popup { box-shadow: 0 14px 32px -12px rgb(16 24 40 / 35%), 0 2px 6px rgb(16 24 40 / 10%); }
 

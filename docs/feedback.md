@@ -530,3 +530,7 @@
 <a id="fb-0128"></a>
 
 ## FB-0128 — The demo file manager accepts at most 20 MiB per file
+
+<a id="fb-0129"></a>
+
+## FB-0129 — Window resize handles can be grabbed on their whole width
