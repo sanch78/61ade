@@ -12,8 +12,8 @@ Canonical checkout: `/space/share/libs/61ade` on `catalyst`, owner `sanch`.
 The product is **61ade**; identifiers use `Blade\`, `BLADE_*` and `blade`.
 
 There is **one development environment only**, https://demo.61ade.com/
-(`/admin/` for the starter admin); the product website is https://61ade.com/
-(`/hu/` in Hungarian). The former `61ade.sanch.hu` is retired with no fallback;
+(`/admin/` for the starter admin). The product website is no longer part of
+this repository. The former `61ade.sanch.hu` is retired with no fallback;
 see [development](docs/development.md#development-environment). Develop and
 test directly on the demo. There is no production environment, deployment,
 deployment gate, post-deployment testing or project backup workflow. Do not

@@ -41,9 +41,6 @@ on CityScreen or ADE.
 Usage guidance changes with every capability. Lessons from user testing are
 recorded durably and incorporated into the relevant guide; this is mandatory.
 
-- [Bilingual product website and its maintenance](docs/website.md) —
-  [English preview](https://61ade.com/),
-  [Hungarian preview](https://61ade.com/hu/).
 - [Usage methodology](docs/usage.md)
 - [Product requirements, evidence, open questions and implementation prompt](docs/product-direction.md)
 - [Login and navigation shell](docs/shell.md)
