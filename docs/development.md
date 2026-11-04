@@ -14,11 +14,14 @@ Managed addresses ([FB-0100](feedback.md#fb-0100)); DNS, TLS, ingress, the
 
 | Purpose | Address | Document root / target |
 | --- | --- | --- |
-| Product website (EN, HU) | https://61ade.com/, https://61ade.com/hu/ | `examples/demo-app/public/website/` |
-| `www` alias | https://www.61ade.com/ → apex redirect | Infra |
 | Feature, starter and tenant demos | https://demo.61ade.com/ (`/admin/`, `/tenants/`) | `examples/demo-app/public/` |
 | Live updates | `wss://demo.61ade.com/live`, exact Origin `https://demo.61ade.com` | Infra unit on `127.0.0.1:8088` |
 | Contact | `sanch@61ade.com` (public address; keep it in links) | Infra mail delivery |
+
+The product website was removed from this repository on 2026-11-04
+([FB-0139](feedback.md#fb-0139)). Its former apex document root and `www`
+redirect are no longer repository runtime contracts; DNS, TLS and ingress
+remain Infra-owned, and this removal does not reconfigure them.
 
 `61ade.sanch.hu` is retired: it has no redirect, fallback or compatibility
 role. Never use it for links, tests, sessions, callbacks or live data, even if
