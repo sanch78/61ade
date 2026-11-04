@@ -64,9 +64,9 @@ export function openExternalSignIn(remember: boolean): boolean {
 }
 /**
  * OAuth-only sign-in (docs/authentication.md#oauth-only-sign-in): AuthHandler's overlay is the sign-in window. It
- * cannot be dismissed, `decorate` adds the application's content to it once, and it opens again if it closes.
+ * stays open until sign-in unless a close destination is declared. `decorate` adds the application's content once.
  */
-export async function openExclusiveSignIn(decorate: (content: HTMLElement) => void, signal?: AbortSignal): Promise<boolean> {
+export async function openExclusiveSignIn(decorate: (content: HTMLElement) => void, signal?: AbortSignal, closeHref?: string): Promise<boolean> {
   const handler = scope.authHandler;
   if (!handler) return false;
   // AuthHandler initializes asynchronously after its bootstrap script.
@@ -81,7 +81,12 @@ export async function openExclusiveSignIn(decorate: (content: HTMLElement) => vo
   const content = modal?.querySelector<HTMLElement>(".modal-content");
   if (!modal || !content) return false;
   Object.assign(modal.dataset, { bsBackdrop: "static", bsKeyboard: "false" });
-  modal.querySelector(".modal-header .btn-close")?.remove();
+  const close = modal.querySelector<HTMLButtonElement>(".modal-header .btn-close");
+  if (closeHref && close) {
+    close.removeAttribute("data-bs-dismiss");
+    close.setAttribute("aria-label", t("Bezárás"));
+    close.addEventListener("click", () => location.assign(closeHref), { signal });
+  } else close?.remove();
   decorate(content);
   // The page's own Bootstrap reads those options only once: if it still closes the overlay, it opens again.
   const reopen=()=>setTimeout(()=>{if(!signal?.aborted)handler.login();});

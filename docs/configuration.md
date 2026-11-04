@@ -24,7 +24,7 @@ return JsonApplication::load(
 | --- | --- |
 | `description` | Human explanation, not runtime configuration; valid on every configuration object. |
 | `environment` | Env files and the process variable selecting an alternate file. |
-| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. Optional `version`, `skins` naming an identity binding `Closure(Identity): list<Skin>` ([application skins](shell.md#application-skins)), and `modules` / `stylesheets`: browser paths of the project's ES modules and CSS ([module loading](toolkit.md#module-loading)). Optional `document_root`: the directory served at `/`, relative to the JSON directory, default the request's `DOCUMENT_ROOT` ([cache keys](toolkit.md#cache-keys)). Optional sign-in customization ([shell](shell.md#sign-in-branding)): `logo` `{image, dark_image?, label?, placement?}`, `sign_in_stylesheets`, `sign_in` `{notice?, links?: [{label, href}]}` and `sign_in_modules`. Optional `guides`: view id → [view guide](workspaces.md#view-guide) text, for any view including the built-in administration. Optional `menu_separators`: unique declared view-group labels that get a preceding native separator ([menu groups](shell.md#menu-group-separators)). Optional `public_identity`: the string id of a dedicated active account whose explicit UI rights are available without sign-in ([public access](authentication.md#public-access)); omitted by default. |
+| `application` | `title`, `runtime`; relative runtime paths resolve from the JSON directory. Optional `version`, `skins` naming an identity binding `Closure(Identity): list<Skin>` ([application skins](shell.md#application-skins)), and `modules` / `stylesheets`: browser paths of the project's ES modules and CSS ([module loading](toolkit.md#module-loading)). Optional `document_root`: the directory served at `/`, relative to the JSON directory, default the request's `DOCUMENT_ROOT` ([cache keys](toolkit.md#cache-keys)). Optional sign-in customization ([shell](shell.md#sign-in-branding)): `logo` `{image, dark_image?, label?, placement?}`, `sign_in_stylesheets`, `sign_in` `{notice?, links?: [{label, href}], close_href?}` and `sign_in_modules`. Optional `guides`: view id → [view guide](workspaces.md#view-guide) text, for any view including the built-in administration. Optional `menu_separators`: unique declared view-group labels that get a preceding native separator ([menu groups](shell.md#menu-group-separators)). Optional `public_identity`: the string id of a dedicated active account whose explicit UI rights are available without sign-in ([public access](authentication.md#public-access)); omitted by default. |
 | `database` | MySQL `host`, integer `port`, `name`, `charset`, `user`, `password`; password requires an env reference. |
 | `session` | `name`, `cookie_path`, optional `idle_timeout` (default 1800 seconds), `cookie_lifetime` (default 0); see [session lifetime](authentication.md#session-lifetime). |
 | `identity` | SQL account schema and named `allowed`/`password_verifier` adapters. |
@@ -176,7 +176,10 @@ they and the signed-in `stylesheets` may rely only on the
 [supported CSS hooks](shell.md#sign-in-css-hooks). `application.sign_in` is an
 object with the optional `notice` (catalogue key, plain text, at most 500
 characters) and `links` (a list of at most six `{label, href}` objects; `href`
-a same-origin path or an `https://` URL; [rules](shell.md#sign-in-content)).
+a same-origin path or an `https://` URL; [rules](shell.md#sign-in-content)). Optional `close_href`
+uses the same destination validation and enables the first-step native header
+X, navigating there on close; omitted preserves existing required/public
+sign-in behavior ([header close](shell.md#sign-in-content)).
 `application.sign_in_modules` (`.js`/`.mjs`, the rules of `modules`) are
 imported only on those three pages with the restricted `SignInApplication`
 ([sign-in modules](shell.md#sign-in-modules)); like `modules` they are trusted

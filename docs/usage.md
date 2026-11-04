@@ -36,6 +36,10 @@ No upper application-title header; one lower bar has user left, application/vers
 right. Session idle timeout and persistent cookie lifetime are [configurable](authentication.md#session-lifetime), with unchanged 30-minute/browser-session defaults. An ended session signs the page out on its next request
 ([shell](shell.md#ended-session)). Blade (default), Blade Night, light and dark use DHTMLX setTheme; Blade is a
 custom Suite 9 theme ([appearance](shell.md#megjelenési-mód)). Synthetic and consumer integration evidence exists.
+Applications whose sign-in is entered from a separate public document may
+set `SignIn(closeHref: '/public/')` (JSON `application.sign_in.close_href`)
+to return there from the first-step native header X; defaults are unchanged
+([sign-in content](shell.md#sign-in-content)).
 Collapsed column headers in Blade and Blade Night use a full-height glossy
 strip with the vertical caption inside, preserving the original width
 ([theme details](shell.md#61ade-character)).

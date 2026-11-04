@@ -169,7 +169,7 @@ return new ApplicationDefinition(
     // a sign-in module filling the window's footer slot.
     logo: new Logo(placement: 'both'),
     signInStylesheets: ['branding/sign-in.css'],
-    signIn: new SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.', [new SignInLink('Nyilvános demó', '/public/')]),
+    signIn: new SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.', [new SignInLink('Nyilvános demó', '/public/')], closeHref: '/public/'),
     signInModules: ['branding/sign-in.js'],
     // View guides of the framework's own views (docs/workspaces.md#view-guide); the demo's views declare their own.
     guides: blade_demo_admin_guides(),

@@ -4809,3 +4809,35 @@ that exactly equals an option label lists every option. The managed
   Temporary verification source and artifacts were removed. Real provider
   completion was not tested; no full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0138"></a>
+
+## FB-0138 — A sign-in header X can return to a public document
+
+- **Date:** 2026-11-04.
+- **Request:** an application with a public document outside the shell needs
+  the first-step sign-in header's native X to return there; a footer link
+  does not fit the requested interaction.
+- **Implemented:** optional `SignIn.closeHref` (JSON `sign_in.close_href`),
+  validated by the existing sign-in link destination rules. It enables the
+  native password-window close action and restores AuthHandler's existing
+  header X in OAuth-only mode. The latter has a localized accessible name
+  and navigates without dismiss/reopen flicker. No extra content row is
+  introduced. Omission preserves required/public sign-in behavior; pending
+  challenges keep their existing cancellation flows. AuthHandler itself is
+  unchanged. There is no new authentication, authorization or audit action.
+  The feature demo declares `/public/` as its destination.
+- **Guides:** [sign-in content](shell.md#sign-in-content),
+  [configuration](configuration.md), [OAuth only](authentication.md#oauth-only-sign-in),
+  [usage](usage.md), [event catalog](product-direction.md#4-eseménynapló-lefedési-katalógus).
+- **Verification:** PHP `contracts`, `configuration`, `toolkit` and `oauth`,
+  build/asset preparation and typecheck passed. Five temporary managed-demo
+  browser cases passed: native X and Escape navigation and OAuth-only header
+  X/Enter navigation at 1280/390 px in Blade/dark, header containment, plus
+  unchanged mandatory exclusive mode when no destination is declared. Four
+  existing branding, successful sign-in and provider-overlay/motion cases
+  passed. Desktop/phone screenshots were inspected. Temporary browser source
+  and screenshots were removed. Real provider completion and full smoke
+  were not run.
+- **Status:** implemented and verified on the managed demo.

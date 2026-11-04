@@ -424,8 +424,10 @@ The same-origin `./?blade_auth=bootstrap` script preserves script-src self CSP.
 makes the external account the only way in ([FB-0117](feedback.md#fb-0117)):
 
 - The signed-out page shows no 61ade sign-in window. The shell opens AuthHandler's
-  provider overlay directly; it has no close button, and Escape or a backdrop
-  click does not dismiss it (the shim honours `data-bs-backdrop="static"` and
+  provider overlay directly. By default it has no close button; declaring
+  `SignIn(closeHref: '/public/')` restores the native header X and navigates
+  there on activation ([header close](shell.md#sign-in-content)). Escape or
+  a backdrop click does not dismiss it (the shim honours `data-bs-backdrop="static"` and
   `data-bs-keyboard="false"`; with the page's own Bootstrap it opens again after
   closing). The top row's language and theme selectors stay usable: the
   overlay and its backdrop start below the 40 px row
