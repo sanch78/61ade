@@ -69,7 +69,7 @@ export type ShellDefinition = {
    */
   logo?: { image?: string; dark?: string; label: string; placement?: "window" | "top" | "both" };
   /** Sign-in windows only: notice and links, server-translated plain text. */
-  signIn?: { notice?: string; links?: { label: string; href: string }[] };
+  signIn?: { closeHref?: string; notice?: string; links?: { label: string; href: string }[] };
   /** Sign-in pages only: the sign-in modules, page-relative keyed paths. */
   signInModules?: string[];
 };
@@ -713,7 +713,15 @@ export class AdminShell {
       template:(item:{id:string;value:string})=>`<span class="blade-language-option"><span class="${flag(item.id)}"></span>${escape(item.value)}</span>`}];
   }
   private attachLoginForm(form:Form):void{
-    if(this.definition.publicAccess){
+    const closeHref=this.definition.signIn?.closeHref;
+    if(closeHref&&!this.definition.confirmation&&!this.definition.passwordChange){
+      const win=this.loginWindow!;
+      win.events.on("beforeHide",()=>{
+        if(this.submitting)return false;
+        if(this.externalSignInOpen||this.listeners.signal.aborted||this.loginWindow!==win)return true;
+        location.assign(closeHref);return false;
+      });
+    }else if(this.definition.publicAccess){
       const win=this.loginWindow!;
       win.events.on("beforeHide",()=>{
         // Destruction closes the detached window through the same native event.
@@ -763,7 +771,7 @@ export class AdminShell {
         if(name==="header")body.before(element);else content.append(element);
         signal.addEventListener("abort",()=>element.remove(),{once:true});
       });
-    },signal);
+    },signal,this.definition.signIn?.closeHref);
     if(!opened&&!signal.aborted)void acknowledge({ title: t("Hiba"), message: externalSignInUnavailable(), severity: "warning" });
   }
 
@@ -797,7 +805,7 @@ export class AdminShell {
       width: 420,
       height: definition.rememberAvailable ? 340 : 290,
       modal: true,
-      closable: !!this.definition.publicAccess,
+      closable: !!this.definition.publicAccess || !!this.definition.signIn?.closeHref,
       movable: true,
       resizable: false,
     });

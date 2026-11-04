@@ -463,6 +463,29 @@ so the box ends at the window's bottom edge with its own 16 px padding.
 - The box is not shown on signed-in pages; the shell's own pages stay as they
   are.
 
+#### Header close destination
+
+`SignIn(closeHref: '/public/')` (JSON
+`application.sign_in.close_href`) gives the first-step password window and
+OAuth-only provider chooser their native header X. Activating it navigates
+in the same tab to that trusted application destination; it does not leave
+an empty shell behind. Password windows also use this destination for their
+native Escape/close action. The OAuth-only backdrop and Escape remain
+blocked, so cancellation is explicit through the X. The close icon's
+accessible name uses the existing localized **Bezárás** text.
+
+The value follows `SignInLink`'s destination validation: a same-origin path
+or an `https://` URL. Omitted/null preserves the existing behavior, including
+required sign-in and public-access cancellation that retains the public
+view. Confirmation and forced-password-change stages keep their existing
+cancellation flows; the destination grants no identity, rights or server
+session changes. Closing does not emit an authentication/audit event.
+
+The feature demo declares `/public/` as its close destination. A document
+outside the shell can use `/` instead. This is independent of the optional
+notice, links and sign-in modules; a close destination alone adds no text
+or additional row to the sign-in window.
+
 <a id="sign-in-modules"></a>
 
 #### Sign-in modules (extension point)

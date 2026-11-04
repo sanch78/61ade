@@ -568,3 +568,8 @@
 <a id="fb-0137"></a>
 
 ## FB-0137 — Hide the 61ade sign-in window behind AuthHandler
+
+
+<a id="fb-0138"></a>
+
+## FB-0138 — A sign-in header X can return to a public document

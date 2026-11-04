@@ -140,8 +140,9 @@ final class Application
             if ($logo->darkImage !== null) $bootstrap['logo']['dark'] = $keys->url($logo->darkImage);
         }
         // Signed-out pages only: the windows' notice and links (translated here, plain text) and the sign-in modules.
-        if ($signingIn && ($signIn = $definition->signIn) && ($signIn->notice !== null || $signIn->links)) {
+        if ($signingIn && ($signIn = $definition->signIn) && ($signIn->notice !== null || $signIn->links || $signIn->closeHref !== null)) {
             $bootstrap['signIn'] = array_filter([
+                'closeHref' => $signIn->closeHref,
                 'notice' => $signIn->notice === null ? null : Translator::text($signIn->notice),
                 'links' => array_map(static fn(SignInLink $link) => ['label' => Translator::text($link->label), 'href' => $link->href], $signIn->links),
             ], static fn($value) => $value !== null && $value !== []);

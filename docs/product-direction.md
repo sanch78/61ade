@@ -108,6 +108,7 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 | --- | --- | --- |
 | Registered action success/deny/error, UI/API | Audit | Implemented, Executor. |
 | Record/form describe and live subscription | Audit | Implemented, Workspace. |
+| First-step header close to a declared destination | UI navigation | No authentication or state mutation; no audit event. Required/public defaults remain unchanged ([sign-in content](shell.md#sign-in-content)). |
 | Password login success/deny, logout | Security | Implemented, Shell/Application. Public access emits no login success; its ordinary actions use the dedicated guest actor and existing ACL/audit ([public access](authentication.md#public-access)). |
 | CSRF/transport rejection | Security | Implemented. |
 | E-mail code send/check, remembered-login restore | Security | Implemented, Authentication. |

@@ -38,7 +38,7 @@ final class JsonApplication
         if (is_array($logo)) Shape::check($logo, [], ['image' => 'string', 'dark_image' => 'string', 'label' => 'string', 'placement' => 'string'], '$.application.logo');
         $signIn = $application['sign_in'] ?? null;
         if ($signIn !== null) {
-            Shape::check($signIn, [], ['notice' => 'string', 'links' => 'array'], '$.application.sign_in');
+            Shape::check($signIn, [], ['notice' => 'string', 'links' => 'array', 'close_href' => 'string'], '$.application.sign_in');
             if (!array_is_list($signIn['links'] ?? [])) throw new \InvalidArgumentException('Invalid configuration type: $.application.sign_in.links');
             foreach ($signIn['links'] ?? [] as $index => $link) {
                 if (!is_array($link)) throw new \InvalidArgumentException('Invalid configuration type: $.application.sign_in.links.'.$index);
@@ -111,7 +111,7 @@ final class JsonApplication
             // Sign-in branding (docs/shell.md#sign-in-branding): browser paths like `stylesheets`.
             logo: match (true) { $logo === null => null, $logo === false => \Blade\Shell\Logo::none(), default => new \Blade\Shell\Logo($logo['image'] ?? null, $logo['dark_image'] ?? null, $logo['label'] ?? null, $logo['placement'] ?? 'window') },
             signInStylesheets: $application['sign_in_stylesheets'] ?? [],
-            signIn: $signIn === null ? null : new \Blade\Shell\SignIn($signIn['notice'] ?? null, array_map(static fn(array $link) => new \Blade\Shell\SignInLink($link['label'], $link['href']), $signIn['links'] ?? [])),
+            signIn: $signIn === null ? null : new \Blade\Shell\SignIn($signIn['notice'] ?? null, array_map(static fn(array $link) => new \Blade\Shell\SignInLink($link['label'], $link['href']), $signIn['links'] ?? []), $signIn['close_href'] ?? null),
             signInModules: $application['sign_in_modules'] ?? [],
             // View guides by view id, the framework's own views too (docs/workspaces.md#view-guide).
             guides: $application['guides'] ?? [],
