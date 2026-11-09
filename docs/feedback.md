@@ -5112,3 +5112,20 @@ that exactly equals an option label lists every option. The managed
   and in a sub-view's child list the form shows the scope field. No
   full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0146"></a>
+
+## FB-0146 — Remove the demo menu group separator
+
+- **Date:** 2026-11-09.
+- **Request:** remove the separator between Feature demo and Digital signage.
+- **Implemented:** removed the feature demo's `menuSeparators` declaration;
+  it uses the default empty group-separator list. The optional framework
+  capability and the session separator remain unchanged.
+- **Guides:** [shell](shell.md#menu-group-separators), [usage](usage.md),
+  [demos](demos.md).
+- **Verification:** PHP syntax check and four existing managed-demo browser
+  cases passed: desktop navigation/logout, phone navigation/logout, compact
+  desktop siblings and menu geometry in Blade/light/dark. The Blade screenshot
+  was inspected; the requested separator is absent. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo.
