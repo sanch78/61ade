@@ -799,13 +799,18 @@ tabs.on("change", ({ id }) => {
   between enabled tabs and open them; the tab row is a `tablist`, each button
   a `tab` with `aria-selected` and `aria-controls`, each panel a `tabpanel`
   labelled by its tab, and only the open tab is in the page's tab order. Tab
-  buttons get the theme's inset focus ring. The DOM ids Suite derives from tab
+  buttons get the theme's inset focus ring.
+- Presentation (every skin, from the Suite and skin variables): the tab row
+  is the panel's header (37 px, the header surface, Blade chrome and title
+  type, its divider); tabs start at the panel's edge with dividers between
+  them and labels on the content's 20 px inset; the open tab has the panel's
+  surface and an accent top edge and no divider below it, so it opens into its
+  content like a folder. Suite's sliding underline is not used. The DOM ids Suite derives from tab
   ids are prefixed per instance, so two `Tabs` may use the same tab ids.
 - Create the content of a tab when the tab first opens if it costs a request
   (the example's form); recreate a discarded form on the next opening rather
   than in the same `change` handler that destroyed it ([pitfalls](#pitfalls)).
-- The built-in list uses it for [`detail_tabs`](workspaces.md#detail-tabs);
-  the feature demo's playlist editor declares a `tabs` branch in its
+- The feature demo's playlist editor declares a `tabs` branch in its
   [`PageLayout`](#pagelayout) ([demos](demos.md#toolkit-consumer)).
   Verification: `tests/shell/tabs.spec.cjs`.
 - Limits: tabs on top only; no closable, reorderable, scrolling-arrow or
@@ -1156,7 +1161,9 @@ id to the server, which resolves the row through that resource's `get` action
 `host.record`. Opened from the [activation map](#activation-map) (`view:<id>`),
 `app.navigate({view, record})` (for example from a project client command) or
 the address. A record view
-has no menu entry. `open: "page"` (default) mounts it in the workspace with an
+has no menu entry. As a page, it inherits the record resource's
+[menu context](shell.md#elkülönülő-főmenügombok) from an offered menu view;
+its optional `group` restricts the source group. `open: "page"` (default) mounts it in the workspace with an
 address and history entry; `open: "window"` opens a framework document window
 (full screen below 768 px) without an address change. The view is offered only
 when the actor is offered the record resource's `get`; a `get` failure (403,
@@ -2008,7 +2015,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M35 | Lists and forms ([manual order and drops](workspaces.md#manual-order), [card filters](workspaces.md#card-filters)): a list with header filters and no filter panel shows `Szűrés` in cards and tiles (the header filters in a dialog); header filter inputs are named `Szűrés: <column>`; draggable rows (a manual order, a drop, `dragSource`) start with a drag-handle column; a checkbox in a framework form shows its text; `RecordForm` submits under the action's label when no view gives a `submitLabel` and shows no success toast for a read-only action. New, additive: `SqlResource` `order` / JSON `storage.order` with the `move` action, `View`/builder `drop` / JSON `view.drop`, `ListKindOptions.order`/`drop`, `ListViewOptions.dragSource`/`panel`/`showId`, `RecordFormOptions.cancel`, `RecordForm.setValues`, `RecordDetailsOptions.showId`, `PageLayout`, computed `column.media` fields, the `not_before_field`/`not_after_field` rules | [FB-0108](feedback.md#fb-0108) | info: specs that count toolbar items in cards, find header filters by position or expect `Mentés` or a toast from a query form | none | none |
 | M36 | View guides ([workspaces](workspaces.md#view-guide)): a guide opens by itself once per sign-in session (the first time its view opens as a page in a tab), no longer until it is closed; the `Útmutató` button moves from the lower bar to the top row, left of the language selector (below 768 px an item of `Menü`). New, additive: `ApplicationDefinition` `guides` / JSON `application.guides` (guides by view id, the framework's own views too), `SqlResource::register()` `guide` | [FB-0109](feedback.md#fb-0109) | if used: specs that click the lower bar's `Útmutató` or seed the `localStorage` key `blade-guide:1:` | none | none |
 | M37 | Common Toolbar inset (`--blade-toolbar-padding`, default `4px 8px`) and flat shell navigation in every skin; below 768 px the right-hand tenant/guide/language/theme controls collapse together into `Beállítások`. Toolbar submenus cascade right when they fit, otherwise replace ancestors at the toolbar toggle with `Vissza`/ArrowLeft | [FB-0122](feedback.md#fb-0122), [FB-0135](feedback.md#fb-0135) | if used: mobile UI specs must open the controls menu before choosing a selector or guide | no runtime change | no runtime change |
-| M38 | Tabs ([Tabs](#tabs), [detail tabs](workspaces.md#detail-tabs)): `app.components.Tabs`, a `tabs` branch of `PageLayout` (region ids starting with `blade-` are now refused), `PageLayout` `guard`/`tabsOf`, the list view's opt-in `detail_tabs`; `RecordForm.destroy()` destroys its Suite Form one redraw later | [FB-0145](feedback.md#fb-0145) | info: a `PageLayout` region id starting with `blade-` throws `TypeError` | none | none |
+| M38 | Tabs ([Tabs](#tabs)): `app.components.Tabs`, a `tabs` branch of `PageLayout` (region ids starting with `blade-` are now refused), `PageLayout` `guard`/`tabsOf`; `RecordForm.destroy()` destroys its Suite Form one redraw later | [FB-0145](feedback.md#fb-0145) | info: a `PageLayout` region id starting with `blade-` throws `TypeError` | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2129,7 +2136,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-02 | `SandboxFrameOptions.autoplay` delegates autoplay to the opaque frame, default false; no sandbox flags or isolation permissions added. Additive. | One parent playback gesture for scene audio. | [FB-0120](feedback.md#fb-0120) |
 | 2026-11-02 | `ListView.target()` and `target` (`ListTarget`: `{view, row, rows}`) expose the active context, including selected previews and foremost child windows, marks and selected-record live changes. Existing `select`, `selected()` and command-specific delegation keep their meaning. Additive. | A selection-following panel needs the framework's nested active context. | [FB-0125](feedback.md#fb-0125) |
 | 2026-11-02 | A table's or card's sub-view previews inside a window live in that window's popup wrapper (its stacking context, the containing block of the fixed layer) instead of the page body, so they show over their slots in the window and stay below its menus, dialogs and later windows. No API change. | Found in cyberspace.hu: a `ListView` with a sub-view in an `app.ui.window` expanded to an empty row (the body-level layer had `z-index: 1`, the window's `.dhx_window` reports `auto`). | — |
-| 2026-11-09 | `Components.Tabs` (`TabsOptions`, `TabDefinition`, `TabsEvents`, event `change`); `PageRegion.tabs` (a `tabs` branch; region ids `blade-…` are reserved), `PageLayoutOptions.guard`, `PageLayout.tabsOf()`; `ListKindOptions.detailTabs` (JSON `detail_tabs`, PHP `detailTabs`). `RecordForm.destroy()` destroys its Suite Form one redraw later. Additive (M38). | Owner: a tabbed switch between viewing and editing, offered in one or two places and optional everywhere else. | [FB-0145](feedback.md#fb-0145) |
+| 2026-11-09 | `Components.Tabs` (`TabsOptions`, `TabDefinition`, `TabsEvents`, event `change`); `PageRegion.tabs` (a `tabs` branch; region ids `blade-…` are reserved), `PageLayoutOptions.guard`, `PageLayout.tabsOf()`. `RecordForm.destroy()` destroys its Suite Form one redraw later. Additive (M38). | Owner: a tabbed switch between viewing and editing, offered where a page needs it. The list's `detail_tabs` window of the first version was withdrawn the same day. | [FB-0145](feedback.md#fb-0145) |
 
 <a id="resolved-decisions"></a>
 

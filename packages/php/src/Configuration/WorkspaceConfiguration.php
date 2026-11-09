@@ -185,7 +185,7 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'detail_tabs' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array',
         ], '$.resources.'.$name.'.view');
         // A string target or an `{field, map}` activation map; Registry::view() validates the targets.
         if (isset($view['activate']) && !is_string($view['activate']) && !is_array($view['activate'])) {
@@ -314,7 +314,6 @@ final class WorkspaceConfiguration
             commands: $view['commands'] ?? [],
             guide: $view['guide'] ?? null,
             drop: $view['drop'] ?? null,
-            detailTabs: $view['detail_tabs'] ?? false,
         ));
     }
 

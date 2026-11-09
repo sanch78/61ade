@@ -7,6 +7,8 @@ import { Component } from "../list/component";
 const TAB=/^[a-z][a-z0-9_-]{0,63}$/;
 const KEYS=new Set(["id","label","disabled"]);
 let instances=0;
+/** The tab row is a panel header: the height of a Suite Layout cell header in every skin. */
+const ROW=37;
 
 /** Checks the declared tabs (1–12, unique ids `[a-z][a-z0-9_-]*`, plain-text labels of 1–80 characters); throws `TypeError`. */
 export function checkTabs(tabs:unknown,owner="Tabs"):TabDefinition[]{
@@ -58,9 +60,9 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
     if(options.id)this.preferences=new UiPreferences(context.user,options.id);
     const remembered=this.preferences?.tab();
     const active=options.active??(remembered&&enabled.includes(remembered)?remembered:enabled[0]);
-    this.layout=new Layout(this.host,{type:"none",css:"blade-tabs",rows:[{id:this.prefix+"row",height:45,css:"blade-tabs__row"},
+    this.layout=new Layout(this.host,{type:"none",css:"blade-tabs",rows:[{id:this.prefix+"row",height:ROW,css:"blade-tabs__row"},
       {css:"blade-tabs__panels",rows:this.tabs.map(tab=>({id:this.cellId(tab.id),css:this.panelCss(tab.id===active)}))}]} as any);
-    this.tabbar=new Tabbar(null,{mode:"top",noContent:true,activeView:this.cellId(active),
+    this.tabbar=new Tabbar(null,{mode:"top",noContent:true,tabHeight:ROW,activeView:this.cellId(active),
       disabled:this.tabs.filter(tab=>tab.disabled).map(tab=>this.cellId(tab.id)),
       views:this.tabs.map(tab=>({id:this.cellId(tab.id),tab:tab.label}))} as any);
     this.layout.getCell(this.prefix+"row").attach(this.tabbar);

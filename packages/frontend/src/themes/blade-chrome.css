@@ -7,12 +7,14 @@
 :where([data-blade-theme|="blade"]) .dhx_layout-cell-header,
 :where([data-blade-theme|="blade"]) .dhx_grid-header-cell,
 :where([data-blade-theme|="blade"]) .dhx_grid-footer-cell,
-:where([data-blade-theme|="blade"]) .dhx_window-header {
+:where([data-blade-theme|="blade"]) .dhx_window-header,
+:where([data-blade-theme|="blade"]) .blade-tabs__row .dhx_tabbar {
   background-image: var(--blade-chrome);
   box-shadow: inset 0 1px 0 var(--blade-highlight);
 }
 :where([data-blade-theme|="blade"]) .dhx_layout-cell-header__title,
-:where([data-blade-theme|="blade"]) .dhx_grid-header-cell {
+:where([data-blade-theme|="blade"]) .dhx_grid-header-cell,
+:where([data-blade-theme|="blade"]) .blade-tabs .dhx_tabbar-tab-button:not(.dhx_tabbar-tab-button--active) {
   text-shadow: var(--blade-emboss);
 }
 /* Suite rotates the collapsed title outside its short header. Keep the whole vertical strip inside the chrome. */
@@ -87,3 +89,5 @@
 :where([data-blade-theme|="blade"]) .blade-grid-row-alternate {
   background-color: var(--blade-row-alternate);
 }
+/* Tabs: the tab row carries the header chrome; closed tabs show it, the open tab has the panel's surface. */
+[data-blade-theme|="blade"] .blade-tabs .dhx_tabbar-tab-button:not(.dhx_tabbar-tab-button--active) { background: transparent; }

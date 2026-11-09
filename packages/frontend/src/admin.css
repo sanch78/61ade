@@ -201,7 +201,41 @@ body,
 /* Tabs (app.components.Tabs, docs/toolkit.md#tabs): the native Tabbar on the theme surface, inset keyboard focus. */
 /* Every panel stays rendered (a widget in a hidden tab may repaint); the inactive ones are hidden. */
 .blade-tabs__panel--hidden { display: none !important; }
+/* Folder tabs: the tab row is the panel's header (its height, surface, divider and title type). Tabs start at the
+   panel's edge with dividers between them, labels on the content's 20 px inset; the open tab takes the panel's surface
+   and has no divider below it, so it opens into its content. Suite's sliding underline is not used. */
 .blade-tabs__row { overflow: hidden; }
+.blade-tabs__row .dhx_tabbar {
+  height: 100%;
+  background-color: transparent;
+}
+.blade-tabs__row .dhx_tabbar-header-active { display: none; }
+.blade-tabs__row :is(.dhx_tabbar-header__wrapper, .dhx_tabbar-header) { height: 100%; }
+/* Suite's own frame line below the whole tab row would run under the open tab too. */
+.blade-tabs__row .dhx_tabbar--top > .dhx_tabbar-header__wrapper { border-bottom: 0; }
+.blade-tabs__row .dhx_tabbar-header { display: flex; align-items: stretch; gap: 0; padding: 0; margin: 0; }
+.blade-tabs__row .dhx_tabbar-tab { height: 100% !important; }
+/* The header divider: under the closed tabs and the rest of the row only, never under the open tab. */
+.blade-tabs__row .dhx_tabbar-header::after { content: ""; flex: 1 1 auto; box-shadow: inset 0 -1px 0 var(--blade-panel-border, var(--dhx-border-color)); }
+.blade-tabs .dhx_tabbar-tab-button {
+  padding: 0 20px;
+  border: 0;
+  border-right: 1px solid var(--blade-panel-border, var(--dhx-border-color));
+  border-radius: 0;
+  background: var(--dhx-background-secondary);
+  box-shadow: inset 0 -1px 0 var(--blade-panel-border, var(--dhx-border-color));
+  color: var(--dhx-font-color-secondary);
+  text-transform: none;
+}
+.blade-tabs .dhx_tabbar-tab-button .dhx_button__text { opacity: 1; }
+.blade-tabs .dhx_tabbar-tab-button:hover { color: var(--dhx-font-color-primary); }
+.blade-tabs .dhx_tabbar-tab-button--active,
+.blade-tabs .dhx_tabbar-tab-button--active:hover {
+  background: var(--dhx-background-primary);
+  color: var(--dhx-font-color-primary);
+  box-shadow: inset 0 2px 0 var(--dhx-color-primary);
+}
+.blade-tabs .dhx_tabbar-tab-button--disabled { color: var(--dhx-font-color-disabled); }
 .blade-tabs .dhx_tabbar-tab-button:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
 .blade-detail-tab { height: 100%; overflow: auto; }
 .blade-record-details dl { margin: 0; }

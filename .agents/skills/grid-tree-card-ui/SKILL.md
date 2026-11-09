@@ -176,13 +176,10 @@ tree as decoration for a flat list.
   fetch a fresh ACL-checked record; secrets, technical revision/ACL metadata,
   and denied fields stay absent. Fields omitted from the grid may be included
   when they are readable in the record response.
-- Viewing and editing one record side by side in a window is an opt-in
-  `detail_tabs` per list (`Adatok` | `Szerkesztés`), not a second edit flow:
-  the edit tab is the update `RecordForm`, offered only when the record's
-  `_actions` include `update`; leaving unsaved input asks first, and the tab
-  reloads the stored values after a discard
-  ([FB-0145](../../../docs/feedback.md#fb-0145)). Project pages use `Tabs` or a
-  `PageLayout` `tabs` branch for the same pattern, never a hand-built tab row.
+- Details beside an edit form of the same record are tabs of one panel
+  (`Tabs` or a `PageLayout` `tabs` branch), never a hand-built tab row; leaving
+  unsaved input asks first, and a discarded form is recreated with the stored
+  values on the next opening ([FB-0145](../../../docs/feedback.md#fb-0145)).
 - Card editing is not a second save system. Editable text/select/textarea opens
   the native editor and uses the same revision, validation, cross-field checks,
   ACL, transaction, and audit path as grid/form editing. Read-only values stay

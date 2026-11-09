@@ -22,7 +22,6 @@ import { listCommands } from "./toolbar";
 import { ListFilters } from "./filters";
 import { ListSearch } from "./search";
 import { DetailsWindow } from "./details";
-import { RecordForm } from "./RecordForm";
 import { ListActions, type ActionHost } from "./actions";
 import type { FieldDefinition, Region, ViewDefinition, WorkspaceHooks, WorkspaceScope } from "./types";
 
@@ -103,10 +102,7 @@ export class Workspace implements ActionHost {
     if(scope?.compact)view=this.view={...view,filters:[],search:undefined,rowNumbers:false,selection:false,rowSelection:false,tiles:false,columns:view.columns.map(column=>({...column,secondary:false}))};
     this.preferences=new UiPreferences(user,scope?view.id+"@"+scope.field:view.id);
     this.sort=view.order?{field:view.order.field,direction:"asc"}:this.preferences.sort(view.sortable??[])??this.sort;
-    // `detailTabs`: the details window's `Szerkesztés` tab is the public RecordForm of `update` (docs/workspaces.md#detail-tabs).
-    this.details=new DetailsWindow(view,id=>this.call("get",id),()=>this.disposed,error=>this.error(error),view.detailTabs?{user,
-      form:id=>new RecordForm({channel:()=>this.channel,user:this.user,app:()=>extensions.app as Application},{resource:view.resource,action:"update",id}),
-      saved:()=>{if(!this.disposed)void this.load();}}:undefined);
+    this.details=new DetailsWindow(view,id=>this.call("get",id),()=>this.disposed,error=>this.error(error));
     this.actions=new ListActions(this);
     const secondaryColumns=view.columns.filter(column=>column.secondary);
     const tiles=view.tiles??view.columns.some(column=>isMedia(column)||isImage(column));

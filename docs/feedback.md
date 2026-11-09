@@ -5077,12 +5077,27 @@ that exactly equals an option label lists every option. The managed
   - Demos: `Médiatár` declares `detail_tabs`; the playlist editor's right
     column (`Összesítés`, `Lista beállításai`) is a `tabs` branch with a guard
     for unsaved settings; both guides and English texts updated.
+- **Follow-up (owner, same day):**
+  - The `Médiatár` demo and the list's `detail_tabs` were rejected and are
+    withdrawn: the option, its PHP/JSON plumbing, the tabbed details window,
+    its text and checks are removed (never released to a consumer). The
+    playlist editor's tabs stay. A separate demo (a list with its form panel
+    above the grid in three tabs) follows in its own feedback entry.
+  - The presentation did not read as tabs, and later did not match the other
+    panels. Tabs are now folder tabs in the panel's header: the tab row has a
+    Layout cell header's height (37 px), surface (Blade chrome), title type and
+    divider; tabs start at the panel's edge with dividers and labels on the
+    content's 20 px inset; the open tab takes the panel's surface with an
+    accent top edge and no divider below it (neither the header divider nor
+    Suite's own row frame), opening into its content. Checked
+    in Blade, Blade Night, light and dark screenshots (removed);
+    `tabs.spec.cjs` checks the geometry (first tab flush with the panel, open
+    tab joining it).
 - **Lessons (in the guides):** Suite Tabbar content shows only the active
   cell; a component mounted into a cell right after the previous one in the
   same handler renders empty, so a discarded form is recreated on the next
   opening ([pitfalls](toolkit.md#pitfalls)).
 - **Guides:** [toolkit Tabs](toolkit.md#tabs), [PageLayout](toolkit.md#pagelayout),
-  [detail tabs](workspaces.md#detail-tabs), [configuration](configuration.md),
   [usage](usage.md), [demos](demos.md), [component matrix](component-matrix.md),
   [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md);
@@ -5107,10 +5122,7 @@ that exactly equals an option label lists every option. The managed
   and removed. No full-smoke claim.
 - **Limits:** tabs on top only; no closable, reorderable or icon tabs; a tab
   row wider than its space relies on Suite's header scrolling (not verified
-  beyond two tabs at 390 px). `detail_tabs` has one edit tab (`update`), no
-  guard when the whole window is closed (as for the separate update window),
-  and in a sub-view's child list the form shows the scope field. No
-  full-smoke claim.
+  beyond two tabs at 390 px). No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0146"></a>
@@ -5128,4 +5140,37 @@ that exactly equals an option label lists every option. The managed
   cases passed: desktop navigation/logout, phone navigation/logout, compact
   desktop siblings and menu geometry in Blade/light/dark. The Blade screenshot
   was inspected; the requested separator is absent. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0147"></a>
+
+## FB-0147 — Keep the menu context on record pages
+
+- **Date:** 2026-11-09.
+- **Request:** `demo.playlist-editor&record=3` still belongs to Digital signage,
+  but its main-menu selection disappears; solve this in the framework.
+- **Cause:** the shell matched the route only against menu item ids. Record
+  views have no menu entry, so neither the section marker nor the compact
+  desktop siblings could resolve them.
+- **Implemented:** a record page inherits the first offered non-record view
+  whose resource equals its record resource. An explicit record-view `group`
+  limits the source group; if that group has no matching source, the group
+  itself supplies the section and siblings, without selecting a child.
+  Multiple sources follow declaration order; an absent source/group marks
+  nothing. Window openings keep the underlying page's context. This uses
+  existing permission-filtered metadata; no new option, data write or audit
+  event. The playlist editor and asset viewer benefit automatically.
+- **Guides:** [menu context](shell.md#elkülönülő-főmenügombok),
+  [record views](toolkit.md#record-views), [usage](usage.md),
+  [playlist editor demo](demos.md#d5-playlist-editor).
+- **Verification:** reproduced the missing marker in Chromium before the
+  fix. Build, asset preparation, typecheck and PHP `contracts.php` and
+  `configuration.php` passed. All ten existing `browser.spec.cjs` and
+  `skins.spec.cjs` cases passed on the managed demo. Four temporary browser
+  cases passed: direct links/reloads at 1720/1200 px with phone resize and
+  return; toolbar navigation and Back/Forward; unrelated-page navigation;
+  an independent synthetic consumer covering declaration order, explicit
+  groups, group-only context and compact siblings, absent sources,
+  top-level sources and window openings. Temporary verification files and
+  artifacts were removed afterwards. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.

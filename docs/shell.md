@@ -828,7 +828,17 @@ and application skins. Other toolbars keep their normal widget appearance.
 Only the section of the open view has a persistent marker: its top-level item
 (or, in the compact desktop menu, the sibling of the open view) gets the
 `blade-menu-current` class, showing a 3 px accent underline and a
-primary-coloured icon. Selectors have only transient hover, focus and open
+primary-coloured icon. A record page inherits the first offered non-record
+view whose `resource` equals its `record` resource. If the record view declares
+`group`, only source views in that group qualify; without a matching source,
+the declared group itself carries the marker. Several matching source views
+use their declaration order. Without an offered source or group there is no
+marker. For example, `demo.playlist-editor` (`record: signage_playlists`)
+inherits `Lejátszási listák` and its `Digitális kijelző` group, including on a
+direct link, reload and Back/Forward. The same source supplies the compact
+desktop siblings; a group-only match supplies its children without selecting
+one. A record opened in a window keeps the underlying page's menu context.
+Selectors have only transient hover, focus and open
 states. The marker is separate from the native popup's `active` state.
 Submenus retain native compact list layout. Separators are faint 1 px rules
 following the theme border colour. No consumer configuration; rebuild/prepare

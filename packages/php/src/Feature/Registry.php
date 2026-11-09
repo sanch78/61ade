@@ -148,12 +148,10 @@ final class Registry
      * not offered) opens the details.
      * $commands: project client commands (`app.commands` names, dotted, at most 20) on the list toolbar.
      * $guide: the view's guide text (View).
-     * $detailTabs: the details window (`Adatok`) gains a `Szerkesztés` tab with the update form for a record that offers
-     * `update`; the toolbar's update command and activation are unchanged.
      */
-    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $detailTabs = false): View
+    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null): View
     {
-        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$detailTabs));
+        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop));
     }
     /**
      * Sub-view: every record of the $view list expands (grid sub-row or card) to the $child list filtered to

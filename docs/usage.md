@@ -376,13 +376,8 @@ search box. A text field of static image file names shows as an image with
 `column.presentation: "image"` and `image_base`; the images are the
 application's own static files, outside every ACL.
 
-A list view can show a record's details and its update form as two tabs of
-one window, `Adatok` and `Szerkesztés`: JSON `view.detail_tabs: true` (PHP
-`detailTabs: true`), opt-in per view; the tab appears only for a record that
-offers `update`, and unsaved changes ask before the tab is left
-([detail tabs](workspaces.md#detail-tabs)). A project page gets the same tabs
-from [`app.components.Tabs`](toolkit.md#tabs) or a declared `tabs` branch of
-its [`PageLayout`](toolkit.md#pagelayout) tree, with a `guard` for unsaved
+A project page shows tabbed panels with [`app.components.Tabs`](toolkit.md#tabs) or a declared `tabs` branch of
+its [`PageLayout`](toolkit.md#pagelayout) tree (folder tabs in the panel's header), with a `guard` for unsaved
 input and the last open tab kept per user.
 
 A list view's [`activate`](workspaces.md#activation) (JSON `view.activate`)
@@ -526,6 +521,11 @@ Card editing shares __edit/revision/validation/ACL/audit with Grid; sorting uses
 full SQL. Layout-resizer double-click restores declared size. Content-fitted
 windows/scroll restoration preserve visible records across views rather than
 transferring mismatched row pixel offsets. [Details](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok).
+
+Record pages automatically retain the menu context of the first offered menu
+view for their `record` resource, including direct links and reloads. An explicit
+`group` limits that inheritance to the named group; see the
+[menu context rules](shell.md#elkülönülő-főmenügombok).
 
 The main-menu row uses flat, full-height menu items and selectors with shared
 hover/focus states, content-sized controls and symmetric separator spacing;
