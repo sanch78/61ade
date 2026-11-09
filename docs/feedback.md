@@ -5327,6 +5327,7 @@ that exactly equals an option label lists every option. The managed
   `i18n`, `signage`, `lists`, `access`, `permissions`; node `toolkit-kernel`,
   `toolkit-list`, `toolkit-components`, `toolkit-registries`,
   `toolkit-sandbox`; the affected browser set above: 43 passed.
+- **Commit:** `b112782` on `main`, pushed to `origin/main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0150"></a>
