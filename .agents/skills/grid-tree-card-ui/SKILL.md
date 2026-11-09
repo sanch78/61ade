@@ -169,6 +169,9 @@ tree as decoration for a flat list.
   workspace default targets roughly 340 px columns and one column on mobile.
   Every card in a row has equal border-box width, wraps long unbroken text, and
   remains readable in all themes.
+- Child-list buttons overlay existing media without increasing item height:
+  upper right on cards, full width along the bottom on tiles. Cards without
+  media retain the footer button ([FB-0144](../../../docs/feedback.md#fb-0144)).
 - Cards/details use the same authorized fields as the record contract. Details
   fetch a fresh ACL-checked record; secrets, technical revision/ACL metadata,
   and denied fields stay absent. Fields omitted from the grid may be included

@@ -73,6 +73,11 @@ global, and membership decides where it applies.
 
 [Sub-views](workspaces.md#sub-views), one per kind:
 
+In cards, the child-list button overlays the cover's upper-right corner, or
+stays in the footer without a cover. In tiles, it spans the cover's bottom edge;
+neither overlay increases the item's height. The media-library demo offers both
+presentations through its native view selector.
+
 | Where | Sub-view | Shows |
 | --- | --- | --- |
 | Administration → `Tenantok` | access list (`blade_tenant_members`, embedded, `select: false`) | Every user with the editable `Hozzáférés` switch; rows are not selectable and the toolbar stays on the tenant; the toolbar's `Hozzáférések` opens the same list (switch only) in a window; on a phone the card's `Hozzáférések (n)` button (users with access) opens the window |

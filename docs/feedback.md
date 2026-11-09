@@ -5007,3 +5007,28 @@ that exactly equals an option label lists every option. The managed
   password-change steps are not bound. `Strict` is accepted together with
   OAuth. No full-smoke claim.
 - **Status:** implemented and verified locally and on the managed demo.
+
+<a id="fb-0144"></a>
+
+## FB-0144 — Overlay child-list buttons on card and tile covers
+
+- **Date:** 2026-11-09.
+- **Request:** keep cards with children the same height as other cards; offer
+  the child-list button on tiles too, across the full width.
+- **Implemented:** the existing native child-list button overlays the cover's
+  upper-right corner on cards and its bottom edge at full width on tiles.
+  Cards without media keep the footer button. Captions retain their child count,
+  full accessible name and tooltip; long labels truncate within the cover.
+  Buttons remain at least 40 px high. The same child-count visibility rules,
+  full child-list window and keyboard behaviour apply in both modes. No new
+  declaration, permission or server contract. This refines FB-0071's card footer.
+- **Guides:** [sub-views](workspaces.md#sub-views), [usage](usage.md),
+  [demos](demos.md), [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
+- **Verification:** build, asset preparation, typecheck, PHP tenancy and
+  configuration checks passed. All 24 targeted Chromium cases passed on the
+  managed demo: 12 existing sub-view/activation cases and 12 temporary cases
+  covering cards/tiles, Blade/light/dark and 1280/390 px. Geometry, mouse,
+  Enter/Space, no children, unknown counts, no cover and long captions were
+  checked; screenshots were inspected. Temporary tests and screenshots were
+  removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

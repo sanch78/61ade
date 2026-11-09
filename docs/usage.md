@@ -32,6 +32,10 @@ model; see [admin](admin.md), [ACL](access-and-actions.md) and [shell](shell.md)
 column header filters, dynamic lists, server sorting and polling/WebSocket live
 data over [one channel per tab](workspaces.md#live-channel) that every list and
 sub-view shares; singleton details are direct forms.
+Cards place their child-list button over the cover's upper-right corner, keeping
+the same height as cards without children. Cards without a cover keep the
+full-width footer button. Tiles overlay the same button across the cover's bottom
+edge ([sub-views](workspaces.md#sub-views)).
 The full desktop menu aligns logout to the right, before the selectors; compact
 navigation keeps it inside Menü ([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)).
 No upper application-title header; one lower bar has user left, application/version
