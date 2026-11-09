@@ -394,6 +394,12 @@ Such a list may also declare its [first sort](workspaces.md#list-sort)
 the user picks one; a `textarea` field shows a [4-line
 preview](workspaces.md#long-text-in-cards) on its cards.
 
+A page shows or hides a `collapsable` region itself with
+[`PageLayout.collapse(id)` / `expand(id)`](toolkit.md#pagelayout-collapse),
+for a command bar toggle or for a phone that collapses a region while one
+tab is shown; `collapse {id, collapsed}` follows every change. Only the
+user's own header click is kept.
+
 A record page that shows one item large, like a media player, is a two-column `PageLayout`: a control panel of
 [`SettingsForm`](toolkit.md#settingsform)s (local view settings with switches, segmented choices, ranges, colours
 and chips, kept per user with `key`, never written to the server) and a viewer with

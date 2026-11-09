@@ -474,7 +474,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `play`, `pause`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
 | [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse), Suite toggle items | `click`, `toggle`, `change`; `update(id, changes)`, `value(id)` |
-| [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels, the active tab of a `tabs` branch, the open sections of an `accordion` branch) | none; `cell(id)`, `attach(id, content)`, `tabsOf(id)`, `accordionOf(id)` |
+| [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels, the active tab of a `tabs` branch, the open sections of an `accordion` branch) | `collapse`; `cell(id)`, `attach(id, content)`, `tabsOf(id)`, `accordionOf(id)`, `collapse(id)`, `expand(id)`, `isCollapsed(id)` |
 | [`Tabs`](#tabs) | Suite `Tabbar` (header only) over one Layout cell per tab, `UiPreferences` (the active tab) | `change`; `cell(id)`, `attach(id, content)`, `active`, `select`, `update` |
 | [`Accordion`](#accordion) | one Suite Layout cell per section under its cell header, `UiPreferences` (the open sections) | `toggle`; `cell(id)`, `attach(id, content)`, `openSections`, `isOpen`, `open`, `close`, `toggle`, `update` |
 
@@ -887,7 +887,39 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   component (an undeclared id throws `Error`); `attach(id, content)` puts a
   Suite widget, a public component or a plain element there (the view host's
   rule), released with the layout. A region holds either attached content or
-  mounted components.
+  mounted components. An attached public component is mounted there (its
+  events are delivered; it can be attached or mounted once), the same for
+  `Tabs.attach` and `Accordion.attach`.
+
+<a id="pagelayout-collapse"></a>
+
+- **Collapsing from code** ([FB-0153](feedback.md#fb-0153)): a leaf declared
+  `collapsable` (in a `rows` or `cols` branch, also beside a `tabs` or
+  `accordion` branch, and in a nested `PageLayout` attached into a tab) is
+  collapsed to its header by `collapse(id)` and opened by `expand(id)`, as
+  its header click does; both return the resulting state, like
+  `isCollapsed(id)`. Any other id (a region that is not `collapsable`, a tab,
+  a section, an unknown id) throws `Error`. `collapse {id, collapsed}`
+  reports every change of such a leaf: the header click, its keys and the
+  page's own call; a call that changes nothing reports nothing.
+- **Kept or not:** the user's collapse (header click) stays in
+  `UiPreferences` as before and applies when the page is built again. A
+  call from code is not kept: it is the page's state, such as a phone
+  collapsing a region while one tab is shown, and never replaces the user's
+  choice. One rule covers both a command bar toggle (the page keeps its own
+  preference with `app.preferences` if it wants one) and a transient
+  collapse. A page that collapses a region for a while and opens it again
+  later remembers whether it was open:
+
+  ```ts
+  let restore = false;
+  tabs.on("change", ({ id }) => {
+    if (id === "work") { if (!page.isCollapsed("control")) { restore = true; page.collapse("control"); } }
+    else if (restore) { restore = false; page.expand("control"); }
+  }, { signal });
+  bar.on("toggle", ({ id, pressed }) => id === "side" && (pressed ? work.expand("side") : work.collapse("side")));
+  work.on("collapse", ({ id, collapsed }) => id === "side" && bar.update("side", { pressed: !collapsed }), { signal });
+  ```
 - Destroy it after the components in its cells (the [Layout recipe](#layout-recipe)).
   A list placed in a region is created with `panel: false`, so the region is
   its panel.
@@ -1805,6 +1837,7 @@ while mounted, never after `destroy()`):
 | `SettingsForm` | `change` | `{field, value, values}` | a user change of one field (immediate, on leaving a text field, throttled while a range is dragged) |
 | `SettingsForm` | `submit` | `{values}` | the submit button (with `submit`) and the values passed validation |
 | `Tabs` | `change` | `{id, previous}` | another tab opened (a click, the keys, `select`), after the guard allowed it |
+| `PageLayout` | `collapse` | `{id, collapsed}` | a `collapsable` leaf collapsed or expanded (its header, its keys, `collapse`, `expand`); a call that changes nothing reports nothing |
 | `Accordion` | `toggle` | `{id, open}` | a section opened or closed (a header click, the keys, `open`, `close`, `toggle`); a closing is reported before the opening it caused |
 | `FileManager` | `opened` | `{id, mimeType}` | the viewer or text editor showed a file, also on previous/next |
 | `DiagramEditor` | `saved` | `{}` | the open diagram's content was saved (`Mentés`, Ctrl+S) |
@@ -2317,6 +2350,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M39 | Accordion ([Accordion](#accordion)): `app.components.Accordion`, an `accordion` branch of `PageLayout` (`multiple`, a section's `open`), `PageLayout.accordionOf` | [FB-0148](feedback.md#fb-0148) | info: `open` and `multiple` were refused before as unsupported options and are now accepted only in an `accordion` branch | none | none |
 | M40 | Menu-less list views ([views](#menu-less-views)): `menu: false` on `View`, `View::list`, `Registry::view`, `SqlResource::register` and JSON `view.menu`; bootstrap `menu: false`; such a view has no menu entry and its address and `navigate` are refused | [FB-0149](feedback.md#fb-0149) | info: a bootstrap view may carry `menu`; code that lists `viewDefinitions()` as navigation targets skips `menu: false` | none | none |
 | M41 | First sort and long text in cards ([list sort](workspaces.md#list-sort), [long text](workspaces.md#long-text-in-cards)): `sort` on `View::list`, `Registry::view`, `SqlResource::register` and JSON `view.sort`; bootstrap `options.sort`; a `textarea` field shows at most 4 lines on a card | [FB-0152](feedback.md#fb-0152) | info: specs that read a long `textarea` value from a card's visible text see the first 4 lines (the DOM keeps the whole value) | none | none |
+| M42 | [PageLayout](#pagelayout-collapse) `collapse(id)`, `expand(id)`, `isCollapsed(id)` and the `collapse` event; `attach(id, component)` of `PageLayout`, `Tabs` and `Accordion` mounts the component (its events are delivered) | [FB-0153](feedback.md#fb-0153) | info: a component attached into a region and then mounted again (or attached twice) throws `already mounted`; mount it once | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2443,6 +2477,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-09 | `CommandItem` adds `CommandToggle`, `CommandSelect`, `CommandSegmented`, `CommandRange`, `CommandGroup` (`CommandOption`); `CommandBarOptions.label`, `.placement`; `CommandBar.update(id, CommandChanges)`, `CommandBar.value(id)`; `CommandBarEvents.toggle`, `.change`. Additive; a project `switch` over every `CommandItem` type gets the new members. | A record page's player bars above and below its viewer need toggles, choices, button groups and a range. | [FB-0150](feedback.md#fb-0150) |
 | 2026-11-09 | `Components.SettingsForm` (`SettingsFormOptions`, `SettingsField`, `SettingsFieldType`, `SettingsGroup`, `SettingsChip`, `SettingsFormEvents`: `change`, `submit`). Additive. | A record page's view settings have no record action, and `RecordForm` needs one. | [FB-0151](feedback.md#fb-0151) |
 | 2026-11-09 | `ListKindOptions.sort` (`{field, direction}`, the first sort). PHP `sort` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.sort`. A `textarea` field shows at most 4 lines on a card. Additive (M41). | A consumer's scoped side-panel list starts oldest first and holds long text entries. | [FB-0152](feedback.md#fb-0152) |
+| 2026-11-09 | `PageLayout.collapse(id)`, `expand(id)`, `isCollapsed(id)`, `PageLayoutEvents` (`collapse {id, collapsed}`; `PageLayout` extends `Component<PageLayoutEvents>`). A public component given to `attach` of `PageLayout`, `Tabs` or `Accordion` is mounted there, so its events arrive. Additive (M42). | A consumer's record page shows or hides a side panel from its command bar and collapses its control region on a phone while one tab is shown. | [FB-0153](feedback.md#fb-0153) |
 
 <a id="resolved-decisions"></a>
 

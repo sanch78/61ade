@@ -1,5 +1,5 @@
 import { Layout } from "@dhtmlx/suite";
-import type { Accordion as AccordionApi, LayoutCell, Mountable, PageLayout as PageLayoutApi, PageLayoutOptions, PageRegion, Tabs as TabsApi } from "../../api/types";
+import type { Accordion as AccordionApi, LayoutCell, Mountable, PageLayout as PageLayoutApi, PageLayoutEvents, PageLayoutOptions, PageRegion, Tabs as TabsApi } from "../../api/types";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
 import { Component } from "../list/component";
@@ -19,10 +19,10 @@ const BRANCHES=["rows","cols","tabs","accordion"] as const;
  * at most 150 characters. A `tabs` branch takes the sizes and `resizable` only and holds 1–12 leaves with an id and a
  * `header` (the tab's label) and nothing else. An `accordion` branch takes the sizes, `resizable` and `multiple` and
  * holds 1–12 leaves with an id, a `header` (the section's label) and optionally `open` (at most one without
- * `multiple`). Returns the region ids; throws `TypeError`.
+ * `multiple`). Returns the region ids and the collapsible ones; throws `TypeError`.
  */
-function regions(tree:unknown):Set<string>{
-  const ids=new Set<string>();let nodes=0;
+function regions(tree:unknown):{ids:Set<string>;collapsable:Set<string>}{
+  const ids=new Set<string>(),collapsable=new Set<string>();let nodes=0;
   const fail=(reason:string):never=>{throw new TypeError(`61ade: PageLayout: ${reason}.`);};
   const visit=(node:unknown,depth:number,parent?:"tabs"|"accordion"):void=>{
     if(!node||typeof node!=="object"||Array.isArray(node))fail("a region is an object");
@@ -58,10 +58,11 @@ function regions(tree:unknown):Set<string>{
       const id=region.id;
       if(typeof id!=="string"||!REGION.test(id)||id.startsWith("blade-")||ids.has(id))fail(`region id "${String(id)}" is missing, invalid or repeated`);
       ids.add(id as string);
+      if(region.collapsable===true)collapsable.add(id as string);
     }
   };
   visit(tree,0);
-  return ids;
+  return {ids,collapsable};
 }
 
 /**
@@ -69,11 +70,16 @@ function regions(tree:unknown):Set<string>{
  * tree (typically a view's `options.layout`) as one Suite space Layout, the framework's list layout behaviour
  * included: plain-text panel headers (Suite renders them as text), the user's panel sizes and collapsed panels kept per page and user
  * (`UiPreferences`, keyed by `id`), a resizer double-click restoring the declared sizes. Components mount into
- * `cell(id)`; `attach(id, content)` puts a widget or a plain element there (the view host's rule).
+ * `cell(id)`; `attach(id, content)` puts a widget or a plain element there (the view host's rule). A `collapsable`
+ * leaf is collapsed and expanded by the user or by `collapse`/`expand` (not kept: a page's own state, such as a phone
+ * collapsing a region for one tab, never replaces the user's choice); `collapse {id, collapsed}` follows both.
  */
-export class PageLayout extends Component<Record<string,never>> implements PageLayoutApi{
+export class PageLayout extends Component<PageLayoutEvents> implements PageLayoutApi{
   readonly layout:Layout;
   private ids:Set<string>;
+  private collapsable:Set<string>;
+  /** True while `collapse`/`expand` runs: Suite reports that change synchronously, and it is not kept. */
+  private transient=false;
   private released=new AbortController();
   /** One `Tabs` per `tabs` branch, in a framework cell `blade-tabs-<n>` of the Layout; region id → its tabs. */
   private tabGroups:Tabs[]=[];
@@ -85,7 +91,7 @@ export class PageLayout extends Component<Record<string,never>> implements PageL
     super(options);
     if(typeof options?.id!=="string"||!/^[a-z][a-z0-9_.-]*$/.test(options.id))throw new TypeError("61ade: PageLayout needs an id (the preference key, usually the view id).");
     if(options.guard!==undefined&&typeof options.guard!=="function")throw new TypeError("61ade: PageLayout: guard is a function.");
-    this.ids=regions(options.tree);
+    ({ids:this.ids,collapsable:this.collapsable}=regions(options.tree));
     const preferences=new UiPreferences(context.user,options.id);
     // A `tabs` branch is one framework leaf of the Layout; its tabs are created into that cell below.
     const groups:{cell:string;tabs:PageRegion[]}[]=[];
@@ -103,7 +109,10 @@ export class PageLayout extends Component<Record<string,never>> implements PageL
       ...(node.rows?{rows:node.rows.map(child=>config(child,"height"))}:{}),
       ...(node.cols?{cols:node.cols.map(child=>config(child,"width"))}:{})});
     this.layout=new Layout(this.host,{type:"space",css:"blade-page-layout",...config(preferences.layoutTree(tree))} as any);
-    preferences.bindLayout(this.layout,tree);
+    preferences.bindLayout(this.layout,tree,()=>this.transient);
+    // Every change of a collapsible leaf: a header click, its keys or the page's own call.
+    for(const [event,collapsed] of [["afterCollapse",true],["afterExpand",false]] as const)
+      this.layout.events.on(event,(id:string|number)=>{if(this.collapsable.has(String(id)))this.emit("collapse",{id:String(id),collapsed});});
     for(const group of groups){
       const tabs=new Tabs(context,{id:`${options.id}.${group.cell.slice(6)}`,tabs:group.tabs.map(tab=>({id:tab.id!,label:tab.header!})),guard:options.guard});
       tabs.mount(this.layout.getCell(group.cell));
@@ -132,6 +141,25 @@ export class PageLayout extends Component<Record<string,never>> implements PageL
    * when Suite redraws it, released with this layout). A region holds either attached content or mounted components.
    */
   attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.released.signal);}
+  /** Whether a `collapsable` leaf is collapsed; another id throws `Error`. */
+  isCollapsed(id:string):boolean{return this.collapsible(id).config.collapsed===true;}
+  /** Collapses a `collapsable` leaf to its header for now (not kept); unchanged when it is collapsed. Returns `true`. */
+  collapse(id:string):boolean{return this.set(id,true);}
+  /** Expands a `collapsable` leaf for now (not kept); unchanged when it is open. Returns `false` (not collapsed). */
+  expand(id:string):boolean{return this.set(id,false);}
+  private collapsible(id:string):LayoutCell{
+    if(!this.ids.has(id))throw new Error(`61ade: PageLayout has no region "${id}".`);
+    if(!this.collapsable.has(id))throw new Error(`61ade: PageLayout region "${id}" is not collapsable.`);
+    return this.layout.getCell(id);
+  }
+  private set(id:string,collapsed:boolean):boolean{
+    const cell=this.collapsible(id);
+    if(!this.destroyed&&(cell.config.collapsed===true)!==collapsed){
+      this.transient=true;
+      try{if(collapsed)cell.collapse();else cell.expand();}finally{this.transient=false;}
+    }
+    return this.isCollapsed(id);
+  }
   /** The tabs of the `tabs` branch holding region $id. */
   tabsOf(id:string):TabsApi|undefined{return this.tabbed.get(id);}
   /** The accordion of the `accordion` branch holding region $id. */

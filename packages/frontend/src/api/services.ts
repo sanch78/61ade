@@ -108,7 +108,12 @@ let slots = 0;
  * lives in a slot of the target's HTML content and is put back whenever a repaint replaces that slot.
  */
 export function attachContent(target: { attach(content: any): unknown; attachHTML(html: string): void }, content: Mountable, signal: AbortSignal): void {
-  if (!(content instanceof HTMLElement)) { target.attach("destroy" in content && "layout" in content ? content.layout : content); return; }
+  // A public component is mounted there, so it is placed once and its events are delivered (FB-0153); a Suite widget
+  // is attached as it is.
+  if (!(content instanceof HTMLElement)) {
+    if ("destroy" in content && "layout" in content && typeof (content as { mount?: unknown }).mount === "function") { (content as { mount(target: unknown): void }).mount(target); return; }
+    target.attach("destroy" in content && "layout" in content ? content.layout : content); return;
+  }
   const id = "blade-slot-" + ++slots;
   target.attachHTML(`<div class="blade-view-slot" id="${id}"></div>`);
   const place = () => { const slot = document.getElementById(id); if (slot && content.parentElement !== slot) slot.append(content); };

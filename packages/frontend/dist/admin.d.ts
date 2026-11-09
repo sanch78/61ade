@@ -1720,7 +1720,18 @@ export interface PageLayoutOptions extends ComponentOptions {
  * A page's panels: one Suite space Layout from a declared tree with the list layout's behaviour (escaped headers,
  * saved sizes and collapsed panels, resizer double-click restores the declared sizes). Has no events.
  */
-export interface PageLayout extends Component<Record<string, never>> {
+/** Events of `PageLayout`. */
+export interface PageLayoutEvents {
+    /**
+     * A `collapsable` leaf collapsed or expanded: a header click, its keys, or `collapse`/`expand` of the page. A call
+     * that changes nothing reports nothing.
+     */
+    collapse: {
+        id: string;
+        collapsed: boolean;
+    };
+}
+export interface PageLayout extends Component<PageLayoutEvents> {
     /** The cell of a declared region, a mount target of every component; an undeclared id throws `Error`. */
     cell(id: string): LayoutCell;
     /** Puts a Suite widget, a public component or a plain element into a declared region (released with the layout). */
@@ -1729,6 +1740,15 @@ export interface PageLayout extends Component<Record<string, never>> {
     tabsOf(id: string): Tabs | undefined;
     /** The `Accordion` of the `accordion` branch that holds region $id (to `open` a section or follow `toggle`), else `undefined`. */
     accordionOf(id: string): Accordion | undefined;
+    /** Whether a `collapsable` leaf (in a `rows`/`cols` branch) is collapsed; any other id throws `Error`. */
+    isCollapsed(id: string): boolean;
+    /**
+     * Collapses a `collapsable` leaf to its header, as its header click does, and returns `true`. Not kept: the user's
+     * own choice stays in `UiPreferences` and applies when the page is built again. Reports `collapse` when it changed.
+     */
+    collapse(id: string): boolean;
+    /** Expands a `collapsable` leaf (not kept, like `collapse`) and returns `false`. */
+    expand(id: string): boolean;
 }
 /** One section of `Accordion`: an id (`[a-z][a-z0-9_-]*`, unique) and a plain-text label (escaped). */
 export interface AccordionSection {

@@ -5306,12 +5306,12 @@ that exactly equals an option label lists every option. The managed
   consumer's second case (a parent list in a compact window choosing which
   parent the first list shows) uses existing `ListView` events and was not
   built in the demo.
-  - *Default sort (open):* a scoped card list cannot declare its first sort.
+  - *Default sort (resolved by [FB-0152](#fb-0152)):* a scoped card list cannot declare its first sort.
     A list without a manual order starts newest first (`id` descending,
     `Workspace.ts`) until the user picks a `sortable` field, so the
     consumer's "oldest first" side panel has no declaration yet. The demo
     list follows its manual order (`position`), so it does not show this.
-  - *Long text in cards (open):* a card shows every column value in full
+  - *Long text in cards (resolved by [FB-0152](#fb-0152)):* a card shows every column value in full
     (`.blade-grid-card dd`, `white-space: pre-wrap`, no clamp or height
     limit), so a `textarea` of several thousand characters makes one tall
     card. Found from the code and CSS, not observed in the browser. The full
@@ -5492,4 +5492,63 @@ that exactly equals an option label lists every option. The managed
 - **Limits:** the clamp is fixed at 4 lines (no per-field option). Cards
   show every permitted field, so a scoped card list also shows its scope
   field (here `Feladat`, the task id); unchanged.
+- **Commit:** `3082f59` on `main`, pushed to `origin/main`.
+- **Status:** implemented.
+
+<a id="fb-0153"></a>
+
+## FB-0153 — Collapsing a page region from code
+
+- **Date:** 2026-11-09.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms). A record page shows or hides a side panel from its
+  command bar. On a phone (rows: the tabs above, the control region below)
+  it collapses the control region to its header while one tab is shown.
+  `PageLayout` kept the collapsed panels in `UiPreferences` but had no
+  events, and a page could not collapse a region itself. Owner decisions:
+  every change is reported, also a call from code (like `Accordion`); only
+  the user's own collapse is kept. The control region is a `collapsable`
+  leaf with an `Accordion` mounted inside it, not a collapsible branch.
+- **Implemented:**
+  - `PageLayout.collapse(id)`, `expand(id)`, `isCollapsed(id)` for a leaf
+    declared `collapsable` (in `rows`/`cols`, beside a `tabs` or `accordion`
+    branch, in a nested `PageLayout`); any other id throws `Error`.
+    `collapse {id, collapsed}` (`PageLayoutEvents`) for the header click, its
+    keys and the page's calls; a call that changes nothing reports nothing.
+  - `UiPreferences.bindLayout` takes a `transient` check: a collapse made by
+    `collapse`/`expand` (Suite reports it synchronously) is not stored.
+  - Found on the way: `attach(id, component)` of `PageLayout`, `Tabs` and
+    `Accordion` attached the component's Layout without mounting it, so the
+    component never delivered its events (a nested `PageLayout` or an
+    `Accordion` attached into a region was silent). `attachContent` now
+    mounts a public component (M42).
+  - Demo D7 `Feladatlap`: a first tab `Munka` with a nested `PageLayout`, a
+    `CommandBar` toggle `Oldalpanel` over the side panel `Kijelölt jegyzet`
+    (the selected note), in step with its header. On a phone the control
+    region collapses while `Munka` is shown and opens again on another tab.
+- **Guides:** [PageLayout collapse](toolkit.md#pagelayout-collapse), the
+  component and event tables, [changes](toolkit.md#changes) (M42),
+  [usage](usage.md), [demos D7](demos.md#d7-task-page), the
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:** `node tools/build.mjs`, `npm run typecheck`,
+  `npm run demo:assets`; node `toolkit-kernel`, `toolkit-list`,
+  `toolkit-components`, `toolkit-registries`, `toolkit-sandbox`. On the
+  managed demo: `tests/shell/page-layout-collapse.spec.cjs` at 1366 and 390
+  px (states and return values; events from code, none for a call without
+  change; a nested `PageLayout` attached into a tab reports its own; nothing
+  kept from code, the header click kept; misuse messages for a plain
+  region, a tab, a section and an unknown id). `tests/shell/task-page.spec.cjs`
+  at 1366 and 390 px (the selected note in the panel; toggle and header in
+  step; the toggle's collapse not kept, the header's kept across a reload;
+  the phone's control region collapsed on `Munka`, open on `Jegyzetek`, not
+  kept). Regression: `task-page`, `page-layout-collapse`, `accordion`,
+  `tabs`, `toolkit-demo-assets`, `toolkit-demo-playlist-editor`,
+  `menuless-view`, `settings-form` (35 passed); `view-controls`,
+  `toolkit-demo-readings`, `layout-resizer`, `subview`, `toolkit-components`
+  (20 passed).
+- **Limits:** a toggle that collapses from code is not kept; a page that
+  wants its toggle remembered stores it itself (`app.preferences`). Below
+  768 px a `CommandBar` puts even a single toggle into `Műveletek`. The bar's
+  `label` names the root element, while Suite's inner toolbar keeps the name
+  `Eszköztár` (unchanged, noted).
 - **Status:** implemented.
