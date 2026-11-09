@@ -1,7 +1,7 @@
 // D1 Signage Médiatár (docs/demos.md#toolkit-consumer): the record view kind `demo.asset-viewer`. A Layout from
 // `app.dhx` with the 61ade CommandBar (back, then icon-only transport controls: start, back, play/pause, forward, loop),
-// the asset's RecordDetails (with `update`: an `accordion` branch, `Adatok` above `Szerkesztés`, the asset's
-// RecordForm created on first opening) and a stage cell with the
+// the asset's RecordDetails (with `update`: an `accordion` branch, `Adatok` above `Szerkesztés`, one open at a time,
+// the asset's RecordForm created on first opening) and a stage cell with the
 // MediaPlayer (image, video, audio) or a SandboxFrame running the scene (an animation asset); `modules/signage.json`
 // declares the view and opens it from Médiatár for every playable asset. Also the media type `demo.scene` (scene files
 // are `Animáció` with the 61ade animation glyph) and the record command `demo.play` (`Lejátszás`) of the Médiatár toolbar.
@@ -68,11 +68,11 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     const previous = build, controller = build = new AbortController(), signal = controller.signal;
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     previous?.abort();
-    // With `update` the side region is an accordion: `Adatok` (open) above `Szerkesztés`; both may be open and share
-    // the height. Otherwise the collapsible `Adatok` panel.
+    // With `update` the side region is an accordion: `Adatok` (open) above `Szerkesztés`; one is open at a time and
+    // fills the column. Otherwise the collapsible `Adatok` panel.
     const extra = editable ? [{ id: "edit", header: t("Szerkesztés") }] : [];
     const details: PageRegion = extra.length
-      ? { multiple: true, accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] }
+      ? { accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] }
       : { id: "details", header: t("Adatok"), collapsable: true };
     const layout = new app.components.PageLayout({ id: `${view.id}.${phone.matches ? "narrow" : "wide"}${extra.map(section => "." + section.id).join("")}`,
       tree: phone.matches

@@ -88,7 +88,7 @@ function viewer(app, host, view) {
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     previous?.abort();
     const extra = editable ? [{ id: "edit", header: t("Szerkeszt\xE9s") }] : [];
-    const details = extra.length ? { multiple: true, accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] } : { id: "details", header: t("Adatok"), collapsable: true };
+    const details = extra.length ? { accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] } : { id: "details", header: t("Adatok"), collapsable: true };
     const layout = new app.components.PageLayout({
       id: `${view.id}.${phone.matches ? "narrow" : "wide"}${extra.map((section) => "." + section.id).join("")}`,
       tree: phone.matches ? { rows: [{ id: "player", height: kind === "audio" ? 380 : Math.max(220, Math.round(innerHeight * 0.4)), resizable: true }, { ...details, minHeight: 120 }] } : { cols: [{ id: "player", minWidth: 240, resizable: true }, { ...details, width: 380, minWidth: 240 }] }
