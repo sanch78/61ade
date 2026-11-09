@@ -618,3 +618,7 @@
 <a id="fb-0150"></a>
 
 ## FB-0150 — Player toolbars: toggles, choices, groups and a range in the CommandBar
+
+<a id="fb-0151"></a>
+
+## FB-0151 — A settings form without a record action

@@ -1119,6 +1119,107 @@ export interface RecordFormOptions extends ComponentOptions {
   cancel?: boolean;
 }
 
+/**
+ * Field types of a `SettingsForm`: the `RecordForm` types without a server value of their own (`file`, `password`), plus
+ * the view controls `switch`, `segmented`, `range`, `color` and `chips`.
+ */
+export type SettingsFieldType = Exclude<BuiltinFieldType, "file" | "password"> | "switch" | "segmented" | "range" | "color" | "chips";
+
+/** One chip of a `chips` field: its text and an optional small image (shown 20 px high, decorative). */
+export interface SettingsChip {
+  label: string;
+  /** Image URL (same-origin or `data:`); the label stays the accessible name. */
+  image?: string;
+}
+
+/**
+ * One `SettingsForm` field, declared like a `RecordForm` field (`FieldMetadata`) without the server-only keys. Values
+ * are native: `switch`/`checkbox` boolean; `range` a number, `number` a number or `null` when empty; `multiselect` and
+ * `chips` with `multiple` a string array; every other type a string (`color` `#rrggbb`).
+ */
+export interface SettingsField {
+  name: string;
+  /** Plain text. */
+  label: string;
+  type: SettingsFieldType;
+  /** `select`, `multiselect`, `segmented` (2–6) and `chips`: value → label (a chip may give an image too). */
+  options?: Record<string, string | SettingsChip>;
+  /** The value before the user's own (and after `reset()`); default: empty, `false`, a range's `min`, the first segment. */
+  defaultValue?: unknown;
+  required?: boolean;
+  /** Text types: maximum length (default 255). `range`: the upper bound. */
+  max?: number;
+  /** `range`: the lower bound. */
+  min?: number;
+  /** `range`: default 1. */
+  step?: number;
+  /** `range`: the unit shown beside its number input and read with its name (`%`, `px`, `s`). */
+  unit?: string;
+  /** `chips`: several may be chosen (the value is an array). Default false. */
+  multiple?: boolean;
+  /** Client validation rules of the text types (`ValidationRules`). */
+  validation?: ValidationRules;
+  /** A registered `app.fieldTypes` editor for a built-in type; its value is the editor's. */
+  editor?: string;
+  /** Shown only while the field `field` holds one of `in` (a boolean as `"1"`/`"0"`), as in `RecordForm`. */
+  visibleWhen?: { field: string; in: string[] };
+  /** A value of this field resets these fields to their defaults, as `RecordForm` empties them. */
+  clears?: string[];
+  /** Shown but not changeable (also through `update`). */
+  disabled?: boolean;
+}
+
+/** Fields under a heading (a native fieldset); groups do not nest. */
+export interface SettingsGroup {
+  /** The heading, plain text. */
+  group: string;
+  fields: SettingsField[];
+}
+
+/**
+ * Options of `SettingsForm`. Field names are `[A-Za-z][A-Za-z0-9_]*` and unique; an unknown type, a malformed option
+ * list or range, or a `visibleWhen`/`clears` naming no field throws `TypeError`.
+ */
+export interface SettingsFormOptions extends ComponentOptions {
+  fields: Array<SettingsField | SettingsGroup>;
+  /** Initial values (over the defaults, under the user's kept values); invalid ones are ignored. */
+  values?: Record<string, unknown>;
+  /**
+   * Keeps the user's values per page and user in the browser (`UiPreferences`, as a list's view choices), under this
+   * key (1–80 characters); kept values the fields no longer accept are dropped. Never a server write.
+   */
+  key?: string;
+  /** A submit row with this button (plain-text label): it validates and reports `submit`. Default: none. */
+  submit?: { label: string; icon?: string };
+}
+
+/** Events of `SettingsForm`. */
+export interface SettingsFormEvents {
+  /**
+   * A user change: at once for switches, checkboxes, choices, chips and colours; text and numbers when the field is left;
+   * a range at most every 100 ms while dragged and once more on release. `values` are all values after it.
+   */
+  change: { field: string; value: unknown; values: Record<string, unknown> };
+  /** The submit button was pressed and the values passed validation. */
+  submit: { values: Record<string, unknown> };
+}
+
+/** A form of local view settings: framework field types, no record and no server action. */
+export interface SettingsForm extends Component<SettingsFormEvents> {
+  /** Every field's current value (hidden conditional fields included). */
+  values(): Record<string, unknown>;
+  /** Sets the given fields (unknown names and invalid values are ignored) without `change`; kept with `key`. */
+  setValues(values: Record<string, unknown>): void;
+  /** Sets one field as the user would: reports `change` (when the value changed) and keeps it with `key`; `TypeError` for an invalid value. */
+  set(field: string, value: unknown): void;
+  /** Back to the defaults (and `options.values`), forgetting the kept values; no `change`. */
+  reset(): void;
+  /** Disables or enables a field. */
+  update(field: string, changes: { disabled?: boolean }): void;
+  /** Runs the client validation and shows its messages; true when every shown field is valid. */
+  validate(): boolean;
+}
+
 /** Events of `RecordForm`. */
 export interface RecordFormEvents {
   /** The action succeeded: `action` is the submitted action's name, `result` its `data` (what `submit()` resolves). */
@@ -1715,6 +1816,7 @@ export type ComponentClass<Options, Instance> = new (options: Options) => Instan
 export interface Components {
   readonly ListView: ComponentClass<ListViewOptions, ListView>;
   readonly RecordForm: ComponentClass<RecordFormOptions, RecordForm>;
+  readonly SettingsForm: ComponentClass<SettingsFormOptions, SettingsForm>;
   readonly RecordDetails: ComponentClass<RecordDetailsOptions, RecordDetails>;
   readonly FileManager: ComponentClass<FileManagerOptions, FileManager>;
   readonly FilePicker: FilePicker;
