@@ -46,6 +46,8 @@ export class SettingsForm extends Component<SettingsFormEvents> implements Setti
   private observer:MutationObserver;
   private fit?:()=>unknown;
   private serial=++serial;
+  /** Names of the group fieldsets (see `dispose`). */
+  private groups:string[]=[];
   constructor(context:{user:string},private options:SettingsFormOptions){
     super(options);
     if(!options||!Array.isArray(options.fields)||!options.fields.length)throw invalid("SettingsForm needs fields.");
@@ -55,7 +57,8 @@ export class SettingsForm extends Component<SettingsFormEvents> implements Setti
       if(entry&&typeof entry==="object"&&"group" in entry){
         const group=entry as SettingsGroup;
         if(typeof group.group!=="string"||!Array.isArray(group.fields)||!group.fields.length)throw invalid("a SettingsForm group needs a heading and fields.");
-        return {type:"fieldset",label:group.group,css:"blade-settings__group",rows:group.fields.map(field=>this.declare(field))};
+        const name=`blade-group-${this.groups.length}`;this.groups.push(name);
+        return {type:"fieldset",name,label:group.group,css:"blade-settings__group",rows:group.fields.map(field=>this.declare(field))};
       }
       return this.declare(entry as SettingsField);
     });
@@ -369,6 +372,10 @@ export class SettingsForm extends Component<SettingsFormEvents> implements Setti
     for(const state of this.throttle.values())clearTimeout(state.timer);
     this.observer.disconnect();this.releaseTypes();
     const form=this.form;
+    // Suite 9.3.12: a fieldset's destructor hides its cell, which repaints the Form's own Layout one frame later, after
+    // that Layout is gone ("Cannot read properties of null (reading 'type')"). The group cells need no hiding when the
+    // whole Form goes.
+    for(const name of this.groups){const group=form.getItem(name) as {cell?:unknown}|undefined;if(group?.cell)group.cell={hide(){},show(){}};}
     this.layout.getCell("form").detach();
     this.layout.destructor();
     void awaitRedraw().then(()=>form.destructor());
