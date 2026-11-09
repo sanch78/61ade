@@ -159,7 +159,7 @@ follow this route through the
    `app` before routing ([module loading](toolkit.md#module-loading)).
 3. **Register and compose:** view kinds, column presentations, field types
    and client commands ([registries](toolkit.md#registries)); `ListView`,
-   `RecordForm`, `RecordDetails`, `CommandBar`, `FileManager`, `FilePicker`,
+   `RecordForm`, `SettingsForm`, `RecordDetails`, `CommandBar`, `FileManager`, `FilePicker`,
    `Calendar`, `DiagramEditor`, `MediaPlayer`, `PageLayout`, `Tabs` and `Accordion` in a Suite Layout from
    `app.dhx` ([components](toolkit.md#components),
    [Layout recipe](toolkit.md#layout-recipe)); `MediaPlayer` optionally shows an
@@ -384,6 +384,13 @@ A tall region is divided into collapsible sections with [`app.components.Accordi
 declared `accordion` branch of the [`PageLayout`](toolkit.md#pagelayout) tree: one section open at a time, or several
 with `multiple` (the open ones share the height), each section a mount target, the open sections kept per user. A
 `RecordForm` is one form: put it in one section, or use one form per section.
+
+A record page that shows one item large, like a media player, is a two-column `PageLayout`: a control panel of
+[`SettingsForm`](toolkit.md#settingsform)s (local view settings with switches, segmented choices, ranges, colours
+and chips, kept per user with `key`, never written to the server) and a viewer with
+[`CommandBar`](toolkit.md#commandbar-view-controls)s above and below it (toggles, selects, segmented choices,
+button groups and a range, all usable from the collapsed `Műveletek` menu). The page builds no panels, forms or
+toolbars of its own.
 
 A list view's [`activate`](workspaces.md#activation) (JSON `view.activate`)
 declares what double-click and Enter run on a record in table, cards and

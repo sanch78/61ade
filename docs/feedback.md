@@ -5277,8 +5277,54 @@ that exactly equals an option label lists every option. The managed
   options and range bounds, two bars with the same ids, Escape; at 390 px
   toggles as checked entries, selects and segmented choices as submenus, the
   range beside `Műveletek`, and the state carried back to the wide bar. The
-  themes and skins: the pressed toggle's and range value's contrast is
-  measured (≥ 4.5:1) in this spec. Regression: the existing specs of the list toolbar,
+  themes, skins and English are covered with the record page in
+  [FB-0151](#fb-0151). Regression: the existing specs of the list toolbar,
   record views and shell controls that use `ResponsiveToolbar`.
 - **Status:** implemented.
 
+<a id="fb-0151"></a>
+
+## FB-0151 — A settings form without a record action
+
+- **Date:** 2026-11-09.
+- **Request:** a record page shows one item large and lets the user control
+  how it is shown, the way a media player does. Its control panel is a form,
+  but a page's view settings have no record and no server action, and
+  `RecordForm` needs a resource action. The consumer may not build its own
+  forms.
+- **Decision (owner, 2026-11-09):** a separate public component with the
+  `RecordForm` field declarations, native values (`boolean`, `number`,
+  `string[]`) rather than the `RecordForm` strings, no submit row unless
+  asked, optional persistence per page and user through the existing
+  preferences, and never a server write.
+- **Implemented:** `app.components.SettingsForm`: the `RecordForm` types
+  (without `file` and `password`) through the shared field factory,
+  validation and field-type editors, plus `switch` (`role="switch"`),
+  `segmented` (2–6 options over native radios), `range` (Suite Slider with
+  a coupled, announced number input, `min`/`max`/`step`/`unit`), `color`
+  (Suite ColorPicker) and `chips` (single or multiple, optional small
+  decorative image). `values`, `setValues`, `set`, `reset`, `update(name,
+  {disabled})`, `validate`; `change {field, value, values}` at once for
+  switches, choices, chips and colours, on leaving a text field, at most every
+  100 ms while a range is dragged and once more on release; `submit` only
+  with the `submit` option. Conditional (`visibleWhen`) and exclusive
+  (`clears`) fields as in `RecordForm`; groups with a native fieldset
+  heading. With `key` the values are kept in `UiPreferences` under
+  `settings:<key>` and checked against the fields when the form is created.
+  Fixes found on the way: Suite marks a checkbox group as a `radiogroup` and
+  leaves the choice groups unnamed, uses option ids as element ids, and
+  disables a select's options but not the element; the form corrects each.
+  Chosen segments and chips use a primary tint, border and ring with the
+  normal text colour, because white text on the primary colour fell to
+  2.7:1 in Blade Night.
+- **Guides:** [SettingsForm](toolkit.md#settingsform), the component and
+  event tables, [usage](usage.md), [changes](toolkit.md#changes).
+- **Verification:** `npm run typecheck`, `npm run build`;
+  `npm run test:browser -- tests/shell/settings-form.spec.cjs` on the managed
+  demo: every control's value and event timing, conditional, exclusive and
+  disabled fields, persistence and `reset`, the submit row, a window; the
+  record page (this form beside the [FB-0150](#fb-0150) bars) in Blade, Blade
+  Night, light, dark and the slate and ink skins and in English at 1366 and
+  390 px, no horizontal overflow at 390 px, measured text contrast of the
+  chosen segment and chip ≥ 7:1 everywhere. The screenshots were inspected.
+- **Status:** implemented.

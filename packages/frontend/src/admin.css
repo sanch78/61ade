@@ -210,6 +210,45 @@ body,
 .blade-command-range input[type="range"]:focus-visible { outline: 2px solid var(--dhx-color-primary); outline-offset: 2px; }
 .blade-command-range__value { flex: none; min-width: 3ch; font-variant-numeric: tabular-nums; color: var(--dhx-font-color-primary); white-space: nowrap; }
 
+/* SettingsForm controls (docs/toolkit.md#settingsform): native Suite items in their view-control form. */
+.blade-settings fieldset { min-width: 0; max-width: 100%; box-sizing: border-box; }
+/* Switch: the checkbox as a track and knob; the input keeps role="switch" and its label. */
+.blade-settings__switch .dhx_checkbox__visual-input { min-width: 36px; max-width: 36px; min-height: 20px; max-height: 20px; border-radius: 10px; border: 2px solid var(--dhx-font-color-secondary); background: transparent; background-image: none !important; position: relative; box-sizing: border-box; transition: background-color .15s, border-color .15s; }
+.blade-settings__switch .dhx_checkbox__visual-input::before { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--dhx-font-color-secondary); transition: transform .15s; }
+.blade-settings__switch .dhx_checkbox__visual-input::after { display: none; }
+.blade-settings__switch .dhx_checkbox__input:checked + .dhx_checkbox__visual-input { background-color: var(--dhx-color-primary); border-color: var(--dhx-color-primary); }
+.blade-settings__switch .dhx_checkbox__input:checked + .dhx_checkbox__visual-input::before { transform: translateX(16px); background: var(--dhx-font-color-contrast, #fff); }
+/* Segmented choice: the radio buttons as joined buttons; the radios stay the focusable, announced controls. */
+.blade-segmented .dhx_radio-group--container > .dhx_layout { flex-wrap: wrap; }
+.blade-segmented .dhx_radio-group--container .dhx_layout-cell { flex: 1 1 auto !important; min-width: 0; margin: 0; }
+.blade-segmented .dhx_radiobutton { position: relative; display: flex; align-items: center; justify-content: center; min-height: 32px; margin: 0 0 0 -1px; padding: 0 12px; border: 1px solid var(--dhx-border-color); background: var(--dhx-background-primary); cursor: pointer; box-sizing: border-box; }
+.blade-segmented .dhx_layout-cell:first-child .dhx_radiobutton { margin-left: 0; border-radius: var(--dhx-border-radius) 0 0 var(--dhx-border-radius); }
+.blade-segmented .dhx_layout-cell:last-child .dhx_radiobutton { border-radius: 0 var(--dhx-border-radius) var(--dhx-border-radius) 0; }
+.blade-segmented .dhx_radiobutton__visual-input { display: none; }
+.blade-segmented .dhx_radiobutton .dhx_text { margin: 0; align-self: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Chosen: a primary tint, border and inner ring with the normal text colour (the contrast holds in every theme and skin). */
+.blade-segmented .dhx_radiobutton:has(:checked) { z-index: 1; background: color-mix(in srgb, var(--dhx-color-primary) 18%, var(--dhx-background-primary)); border-color: var(--dhx-color-primary); box-shadow: inset 0 0 0 1px var(--dhx-color-primary); color: var(--dhx-font-color-primary); font-weight: 600; }
+.blade-segmented .dhx_radiobutton:has(:checked) .dhx_text { color: inherit; }
+/* Chips: checkbox or radio buttons as rounded chips that wrap; an optional small image before the text. */
+.blade-chips .dhx_radio-group--container > .dhx_layout, .blade-chips .dhx_checkbox-group--container > .dhx_layout { flex-wrap: wrap; gap: 6px; }
+.blade-chips .dhx_radio-group--container .dhx_layout-cell, .blade-chips .dhx_checkbox-group--container .dhx_layout-cell { flex: 0 0 auto !important; margin: 0; }
+.blade-chips .dhx_radiobutton, .blade-chips .dhx_checkbox { position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 30px; margin: 0; padding: 0 12px; border: 1px solid var(--dhx-border-color); border-radius: 15px; background: var(--dhx-background-primary); cursor: pointer; box-sizing: border-box; }
+.blade-chips .dhx_checkbox__holder { display: flex; align-items: center; }
+.blade-chips .dhx_radiobutton__visual-input, .blade-chips .dhx_checkbox__visual-input { display: none; }
+.blade-chips .dhx_text, .blade-chips .dhx_checkbox__holder { margin: 0; white-space: nowrap; align-self: center; }
+.blade-chips .dhx_radiobutton:has(:checked), .blade-chips .dhx_checkbox:has(:checked) { background: color-mix(in srgb, var(--dhx-color-primary) 18%, var(--dhx-background-primary)); border-color: var(--dhx-color-primary); box-shadow: inset 0 0 0 1px var(--dhx-color-primary); color: var(--dhx-font-color-primary); font-weight: 600; }
+.blade-chips .dhx_radiobutton:has(:checked) .dhx_text, .blade-chips .dhx_checkbox:has(:checked) .dhx_text { color: inherit; }
+.blade-chip__image { width: 20px; height: 20px; margin-left: -6px; border-radius: 50%; object-fit: cover; flex: none; }
+/* Hidden inputs of segments and chips cover their button: clicks reach them and the focus ring shows on the button. */
+.blade-segmented .dhx_radiobutton__input, .blade-chips .dhx_radiobutton__input, .blade-chips .dhx_checkbox__input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.blade-segmented .dhx_radiobutton:has(:focus-visible), .blade-chips .dhx_radiobutton:has(:focus-visible), .blade-chips .dhx_checkbox:has(:focus-visible) { outline: 2px solid var(--dhx-color-primary); outline-offset: 2px; z-index: 2; }
+/* Range: the slider and its number input on one line; the unit as plain text. */
+.blade-range { align-items: flex-end; gap: 8px; }
+.blade-range__slider { min-width: 0; }
+.blade-range__number .dhx_input__container { display: flex; align-items: center; gap: 6px; }
+.blade-range__number .dhx_input { min-width: 0; }
+.blade-range__unit { flex: none; color: var(--dhx-font-color-secondary); }
+
 .blade-grid-content, .blade-grid-views { overflow: hidden; user-select: none; -webkit-user-select: none; }
 .blade-grid-content input, .blade-grid-content textarea, .blade-grid-content select { user-select: text; -webkit-user-select: text; }
 .blade-grid-row-marked { background: color-mix(in srgb, var(--dhx-color-primary, #0288d1) 18%, transparent) !important; }

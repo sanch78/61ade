@@ -467,6 +467,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | --- | --- | --- |
 | [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `target`, `activate`, `saved`, `changed`; `editing`, `refresh`, `selected`, `target`, `setFilters` |
 | [`RecordForm`](#recordform) | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancelled`, `changed`; `submit`, `values`, `dirty` |
+| [`SettingsForm`](#settingsform) | the `RecordForm` field factory (`fields.ts`), `FormValidation`, native Suite Form items, `UiPreferences` (with `key`) | `change`, `submit`; `values`, `setValues`, `set`, `reset`, `update`, `validate` |
 | [`RecordDetails`](#recorddetails) | the `Adatok` details (`recordFields`) | `show(row \| id)` |
 | [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `editing`; `pick()` resolves a `MediaDescriptor` or `null` |
 | [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; both `editing` |
@@ -616,6 +617,83 @@ form.mount(win);
   its label (`Mentés` only without either), so a project view's query action
   submits under its own name. A read-only action (`write: false`) shows no
   success toast: its answer is the `saved` event's `result`.
+
+<a id="settingsform"></a>
+
+#### SettingsForm
+
+A form of local settings that is no record action: how a page shows its item
+(fit, zoom, a grid, a background), a filter of the page's own. It takes the
+`RecordForm` field declarations and field types, adds the controls a viewer
+needs and holds its values itself; it never calls the server. With `key` the
+user's values are kept per page and user in the browser, like a list's view
+choices.
+
+```ts
+const t = (key: string) => app.i18n.t(key);
+const settings = new app.components.SettingsForm({ key: `${view.id}.view`, signal: host.signal, fields: [
+  { group: t("Megjelenés"), fields: [
+    { name: "fit", label: t("Igazítás"), type: "segmented", options: { contain: t("Teljes"), cover: t("Kitöltés") } },
+    { name: "zoom", label: t("Nagyítás"), type: "range", min: 25, max: 400, step: 5, unit: "%", defaultValue: 100 },
+    { name: "grid", label: t("Rács"), type: "switch" },
+    { name: "gridColor", label: t("Rács színe"), type: "color", defaultValue: "#336699", visibleWhen: { field: "grid", in: ["1"] } },
+  ] },
+  { name: "tags", label: t("Címkék"), type: "chips", multiple: true, options: { warm: { label: t("Meleg"), image: dotUrl }, cold: t("Hideg") } },
+] });
+settings.on("change", ({ field, value }) => viewer.apply(field, value));
+settings.mount(page.cell("settings"));
+viewer.applyAll(settings.values());          // the kept values are there at once
+```
+
+- **Fields** (`SettingsField`, in groups `SettingsGroup {group, fields}` under
+  a native fieldset heading; groups do not nest): `name`
+  (`[A-Za-z][A-Za-z0-9_]*`, no `__`, unique), `label` (plain text), `type`,
+  and per type `options`, `defaultValue`, `required`, `max`, `validation`,
+  `editor`, `visibleWhen`, `clears`, `disabled`. The `RecordForm` types are
+  `text`, `number`, `select`, `multiselect`, `textarea`, `checkbox` and
+  `date` (no `file`, no `password`: neither has a value without the server),
+  with the same items, client validation and `app.fieldTypes` editors. View
+  controls:
+
+  | Type | Control | Value |
+  | --- | --- | --- |
+  | `switch` | checkbox with `role="switch"`, drawn as a track | `boolean` |
+  | `segmented` | 2–6 `options` as joined buttons over native radios (`radiogroup`) | option key |
+  | `range` | Suite Slider and a coupled number input: `min`, `max`, `step` (default 1), `unit`; the number input is the announced control, named `label (unit)` | `number` (fitted to the step and bounds) |
+  | `color` | Suite ColorPicker | `#rrggbb` |
+  | `chips` | `options` as rounded chips that wrap; `multiple` (checkboxes in a `group`) or one (radios); an option `{label, image}` shows a small decorative image | option key, or keys with `multiple` |
+
+  Other values: `checkbox` `boolean`, `number` a number or `null`,
+  `multiselect` an array, the rest strings. A malformed declaration throws
+  `TypeError` (an unknown type, 2–6 segments, a range without `min < max`, a
+  `visibleWhen` or `clears` naming no field, an invalid `defaultValue`).
+- **Values:** `values()` holds every field (hidden conditional ones too).
+  `setValues(values)` and `reset()` report nothing; `set(name, value)` acts
+  like the user and reports `change` when the value changed (an invalid value
+  throws `TypeError`; `setValues` ignores invalid values and unknown names).
+  Start order: the defaults, `options.values`, then the kept values.
+- **`change {field, value, values}`:** at once for switches, checkboxes,
+  choices, chips and colours; text and numbers when the field is left (a
+  typed range number is fitted and the slider follows); a range at most every
+  100 ms while it is dragged and once more on release. An exclusive field
+  (`clears`) puts the other fields back to their defaults and reports them
+  too.
+- **Conditional and disabled fields:** `visibleWhen` as in `RecordForm` (a
+  boolean is `"1"`/`"0"`); `disabled` or `update(name, {disabled})` keeps a
+  field visible but unchangeable (a select is disabled as an element too).
+- **No submit row** unless `submit: {label, icon?}` is given: its button runs
+  `validate()` and reports `submit {values}` only when every shown field is
+  valid. `validate()` alone shows the messages and answers whether the form is
+  valid.
+- **Persistence (`key`, 1–80 characters):** `UiPreferences` under the page
+  path, the user and `settings:<key>`, written on every change, `set` and
+  `setValues`; kept values a field no longer accepts are dropped when the
+  form is created; `reset()` forgets them. There is no server write; a value
+  the server must know is a `RecordForm`.
+- **Placement:** any `MountTarget`: a `PageLayout` region, a `Tabs` tab, an
+  Accordion section, a window (which it refits when a conditional field
+  appears). It is one column with labels above the controls, so it fits a
+  390 px phone; segments and chips wrap.
 
 <a id="recorddetails"></a>
 
@@ -948,6 +1026,26 @@ sections.on("toggle", ({ id, open }) => {
 - Presentation (every skin, from the Suite and skin variables): the Suite
   Layout cell header (37 px, the header surface, Blade chrome and title type),
   so sections read like the page's other panels.
+- **Subdividing a section:** a section is a mount target like any cell, so
+  an `Accordion` mounted into `cell(id)` divides it further (a control
+  panel's `Megjelenés` section with its own `Rács` and `Háttér` parts).
+  Give the inner accordion its own `id`; each keeps its open sections
+  separately per page and user. Destroy the content first, then the inner
+  accordion, then the outer one (the [Layout recipe](#layout-recipe) order):
+  the containers get no `signal` and are destroyed by a listener registered
+  after their content. `SettingsForm` groups (fieldset headings) are the
+  lighter choice when the parts need not collapse.
+
+  ```ts
+  const panel = new app.components.Accordion({ id: `${view.id}.panel`, multiple: true, sections: [
+    { id: "view", label: t("Megjelenés") }, { id: "filter", label: t("Szűrés") }] });
+  panel.mount(page.cell("panel"));
+  const appearance = new app.components.Accordion({ id: `${view.id}.panel.view`, multiple: true, sections: [
+    { id: "grid", label: t("Rács") }, { id: "background", label: t("Háttér") }] });
+  appearance.mount(panel.cell("view"));
+  new app.components.SettingsForm({ key: `${view.id}.grid`, fields: gridFields, signal }).mount(appearance.cell("grid"));
+  signal.addEventListener("abort", () => { appearance.destroy(); panel.destroy(); }, { once: true });   // after the content
+  ```
 - Create the content of a section when it first opens if it costs a request
   (the example's form). A component created later than the page's own abort
   listener has no `signal` and is destroyed explicitly before the layout
@@ -1659,6 +1757,8 @@ while mounted, never after `destroy()`):
 | `CommandBar` | `click` | `{id}` | an item was clicked, also from the collapsed `Műveletek` menu |
 | `CommandBar` | `toggle` | `{id, pressed}` | the user flipped a toggle (the bar or the menu) |
 | `CommandBar` | `change` | `{id, value}` | the user chose an option of a select or segmented choice, or moved a range (throttled while dragged) |
+| `SettingsForm` | `change` | `{field, value, values}` | a user change of one field (immediate, on leaving a text field, throttled while a range is dragged) |
+| `SettingsForm` | `submit` | `{values}` | the submit button (with `submit`) and the values passed validation |
 | `Tabs` | `change` | `{id, previous}` | another tab opened (a click, the keys, `select`), after the guard allowed it |
 | `Accordion` | `toggle` | `{id, open}` | a section opened or closed (a header click, the keys, `open`, `close`, `toggle`); a closing is reported before the opening it caused |
 | `FileManager` | `opened` | `{id, mimeType}` | the viewer or text editor showed a file, also on previous/next |
@@ -1732,8 +1832,9 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
   only by class and text; keep a labelled standard input as the accessible
   control of the value ([field type example](#example-tasks)).
 - **Suite Slider has no ARIA role or value.** Its thumb is not announced;
-  show the value as text as well and offer another keyboard route. A
-  `CommandBar` range is a native range input and has neither problem.
+  show the value as text as well and offer another keyboard route. The
+  framework's own ranges do: a `SettingsForm` range pairs the slider with a
+  number input, and a `CommandBar` range is a native range input.
 - **`sandbox:error` names no frame.** A page with several frames, or one that
   replaces its frame, either listens to each component's own `error` event or
   checks that the frame it tracks is still the current one before acting.
@@ -2286,6 +2387,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-09 | `Components.Tabs` (`TabsOptions`, `TabDefinition`, `TabsEvents`, event `change`); `PageRegion.tabs` (a `tabs` branch; region ids `blade-…` are reserved), `PageLayoutOptions.guard`, `PageLayout.tabsOf()`. `RecordForm.destroy()` destroys its Suite Form one redraw later. Additive (M38). | Owner: a tabbed switch between viewing and editing, offered where a page needs it. The list's `detail_tabs` window of the first version was withdrawn the same day. | [FB-0145](feedback.md#fb-0145) |
 | 2026-11-09 | `Components.Accordion` (`AccordionOptions`, `AccordionSection`, `AccordionEvents`, event `toggle`); `PageRegion.accordion`, `multiple`, `open` (an `accordion` branch), `PageLayout.accordionOf()`. Additive (M39). | Owner: an accordion attachable to a layout region, to divide a tall panel such as a form's region. | [FB-0148](feedback.md#fb-0148) |
 | 2026-11-09 | `CommandItem` adds `CommandToggle`, `CommandSelect`, `CommandSegmented`, `CommandRange`, `CommandGroup` (`CommandOption`); `CommandBarOptions.label`, `.placement`; `CommandBar.update(id, CommandChanges)`, `CommandBar.value(id)`; `CommandBarEvents.toggle`, `.change`. Additive; a project `switch` over every `CommandItem` type gets the new members. | A record page's player bars above and below its viewer need toggles, choices, button groups and a range. | [FB-0150](feedback.md#fb-0150) |
+| 2026-11-09 | `Components.SettingsForm` (`SettingsFormOptions`, `SettingsField`, `SettingsFieldType`, `SettingsGroup`, `SettingsChip`, `SettingsFormEvents`: `change`, `submit`). Additive. | A record page's view settings have no record action, and `RecordForm` needs one. | [FB-0151](feedback.md#fb-0151) |
 
 <a id="resolved-decisions"></a>
 
