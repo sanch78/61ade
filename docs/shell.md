@@ -829,7 +829,7 @@ Only the section of the open view has a persistent marker: its top-level item
 (or, in the compact desktop menu, the sibling of the open view) gets the
 `blade-menu-current` class, showing a 3 px accent underline and a
 primary-coloured icon. A record page inherits the first offered non-record
-view whose `resource` equals its `record` resource. If the record view declares
+view with a menu entry (not a [`menu: false`](toolkit.md#menu-less-views) list) whose `resource` equals its `record` resource. If the record view declares
 `group`, only source views in that group qualify; without a matching source,
 the declared group itself carries the marker. Several matching source views
 use their declaration order. Without an offered source or group there is no

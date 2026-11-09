@@ -1296,6 +1296,48 @@ optional `guide` (plain text up to 4000 characters, shown by the shell as the
 actions, the record resource's `get` and the kind provider is checked by
 `addView`.
 
+<a id="menu-less-views"></a>
+
+**A list view without a menu entry** (`menu: false`; PHP `View`,
+`View::list`, `Registry::view`, `SqlResource::register`; JSON
+`resources.<name>.view.menu`): for lists that only make sense inside a
+project page, such as several scoped lists of a record page, beside the one
+sub-view a parent list may embed.
+
+```php
+$items = $registry->viewById('signage_playlist_items');
+$registry->addView($items->with(id: 'signage_asset_items', title: 'Lejátszási listákban', actions: ['get'], group: null, guide: null, menu: false));
+```
+
+```ts
+new app.components.ListView({ view: app.viewDefinition("signage_asset_items")!, scope: { field: "asset_id", id: asset },
+  mode: "cards", panel: false, showId: false }).mount(sections.cell("items"));
+```
+
+- The view is offered exactly like any list view (the same ACL rule, the
+  bootstrap with `menu: false`, `app.viewDefinition`), so `ListView`,
+  `scope`, sub-views, live refresh, record commands and the `RecordForm`
+  submit labels of its actions work unchanged.
+- It has no menu entry (neither the main menu nor the compact siblings),
+  and a record page never inherits its menu context from it
+  ([menu context](shell.md#elkülönülő-főmenügombok)). The address
+  `#view=<id>` and `app.navigate` refuse it like a view that is not offered:
+  the address opens the empty workspace, `navigate` returns `false`. Not
+  being in the menu is navigation, not authorization: the actions stay
+  callable wherever the ACL offers them.
+- A sub-view child with `menu: false` has no page of its own (no `page` in
+  the sub-view metadata), so a `page` activation over it throws at
+  definition time (`subview()`, also `checkViews()` when the child leaves the
+  menu later); a sub-view preview and its full-list window work.
+- Only a list view that is not a singleton and has no `guide` (it never opens
+  as a page) may set it; a record view (no menu entry anyway), any other
+  kind, a singleton or a guide throw `InvalidArgumentException`. JSON `menu`
+  is a boolean.
+- The feature demo's asset viewer shows `signage_asset_items`
+  ([demos](demos.md#d1-asset-viewer)). Verification:
+  `tests/shell/menuless-view.spec.cjs`, `tests/shell/toolkit.php`,
+  `tests/shell/configuration.php`.
+
 PHP signatures (`packages/php/src/Feature/Registry.php`, `SqlResource.php`,
 `packages/php/src/Shell/ApplicationDefinition.php`):
 
@@ -1305,7 +1347,8 @@ public function addView(View $view): View;                              // a tak
 public function updateView(View $view): View;                           // changes the declared view of that id
 public function kind(string $kind, ViewKindProvider $provider): void;   // dotted, before its views; duplicate throws
 public function view(string $resource, string $title, array $columns, array $actions, /* … */
-    string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null): View;
+    string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null,
+    bool $menu = true): View;                                           // menu: false, see menu-less views
 public function fileManager(/* … */, ?string $id = null, ?string $guide = null): View;
 public function diagram(/* … */, ?string $id = null, ?string $guide = null): View;
 public function calendar(/* … */, ?string $id = null, ?string $guide = null): View;
@@ -1317,7 +1360,7 @@ public function viewById(string $id): ?View;
 // Blade\Feature\View
 public static function list(string $resource, string $title, array $columns, array $actions, /* as Registry::view() */): View;
 // Blade\Feature\SqlResource
-public function register(Registry $registry, string $title, /* … */ string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null): View;
+public function register(Registry $registry, string $title, /* … */ string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, bool $menu = true): View;
 // Blade\Shell\ApplicationDefinition: constructor parameters
 /** @param list<string> $modules */ public array $modules = [],
 /** @param list<string> $stylesheets */ public array $stylesheets = [],
@@ -2272,6 +2315,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M37 | Common Toolbar inset (`--blade-toolbar-padding`, default `4px 8px`) and flat shell navigation in every skin; below 768 px the right-hand tenant/guide/language/theme controls collapse together into `Beállítások`. Toolbar submenus cascade right when they fit, otherwise replace ancestors at the toolbar toggle with `Vissza`/ArrowLeft | [FB-0122](feedback.md#fb-0122), [FB-0135](feedback.md#fb-0135) | if used: mobile UI specs must open the controls menu before choosing a selector or guide | no runtime change | no runtime change |
 | M38 | Tabs ([Tabs](#tabs)): `app.components.Tabs`, a `tabs` branch of `PageLayout` (region ids starting with `blade-` are now refused), `PageLayout` `guard`/`tabsOf`; `RecordForm.destroy()` destroys its Suite Form one redraw later | [FB-0145](feedback.md#fb-0145) | info: a `PageLayout` region id starting with `blade-` throws `TypeError` | none | none |
 | M39 | Accordion ([Accordion](#accordion)): `app.components.Accordion`, an `accordion` branch of `PageLayout` (`multiple`, a section's `open`), `PageLayout.accordionOf` | [FB-0148](feedback.md#fb-0148) | info: `open` and `multiple` were refused before as unsupported options and are now accepted only in an `accordion` branch | none | none |
+| M40 | Menu-less list views ([views](#menu-less-views)): `menu: false` on `View`, `View::list`, `Registry::view`, `SqlResource::register` and JSON `view.menu`; bootstrap `menu: false`; such a view has no menu entry and its address and `navigate` are refused | [FB-0149](feedback.md#fb-0149) | info: a bootstrap view may carry `menu`; code that lists `viewDefinitions()` as navigation targets skips `menu: false` | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2394,6 +2438,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-02 | A table's or card's sub-view previews inside a window live in that window's popup wrapper (its stacking context, the containing block of the fixed layer) instead of the page body, so they show over their slots in the window and stay below its menus, dialogs and later windows. No API change. | Found in cyberspace.hu: a `ListView` with a sub-view in an `app.ui.window` expanded to an empty row (the body-level layer had `z-index: 1`, the window's `.dhx_window` reports `auto`). | — |
 | 2026-11-09 | `Components.Tabs` (`TabsOptions`, `TabDefinition`, `TabsEvents`, event `change`); `PageRegion.tabs` (a `tabs` branch; region ids `blade-…` are reserved), `PageLayoutOptions.guard`, `PageLayout.tabsOf()`. `RecordForm.destroy()` destroys its Suite Form one redraw later. Additive (M38). | Owner: a tabbed switch between viewing and editing, offered where a page needs it. The list's `detail_tabs` window of the first version was withdrawn the same day. | [FB-0145](feedback.md#fb-0145) |
 | 2026-11-09 | `Components.Accordion` (`AccordionOptions`, `AccordionSection`, `AccordionEvents`, event `toggle`); `PageRegion.accordion`, `multiple`, `open` (an `accordion` branch), `PageLayout.accordionOf()`. Additive (M39). | Owner: an accordion attachable to a layout region, to divide a tall panel such as a form's region. | [FB-0148](feedback.md#fb-0148) |
+| 2026-11-09 | `ViewDefinition.menu` (`false` only); `Application.navigate` returns `false` for a `menu: false` view. PHP `View::$menu`, `menu` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.menu`. Additive (M40). | A consumer's record page embeds several scoped framework lists that must not appear in the menu (StoryBloX request, recorded without business terms). | [FB-0149](feedback.md#fb-0149) |
 | 2026-11-09 | `CommandItem` adds `CommandToggle`, `CommandSelect`, `CommandSegmented`, `CommandRange`, `CommandGroup` (`CommandOption`); `CommandBarOptions.label`, `.placement`; `CommandBar.update(id, CommandChanges)`, `CommandBar.value(id)`; `CommandBarEvents.toggle`, `.change`. Additive; a project `switch` over every `CommandItem` type gets the new members. | A record page's player bars above and below its viewer need toggles, choices, button groups and a range. | [FB-0150](feedback.md#fb-0150) |
 | 2026-11-09 | `Components.SettingsForm` (`SettingsFormOptions`, `SettingsField`, `SettingsFieldType`, `SettingsGroup`, `SettingsChip`, `SettingsFormEvents`: `change`, `submit`). Additive. | A record page's view settings have no record action, and `RecordForm` needs one. | [FB-0151](feedback.md#fb-0151) |
 

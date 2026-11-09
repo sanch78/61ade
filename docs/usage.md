@@ -385,6 +385,11 @@ declared `accordion` branch of the [`PageLayout`](toolkit.md#pagelayout) tree: o
 with `multiple` (the open ones share the height), each section a mount target, the open sections kept per user. A
 `RecordForm` is one form: put it in one section, or use one form per section.
 
+A list that only makes sense inside a project page (several scoped lists of a record page) is declared with
+[`menu: false`](toolkit.md#menu-less-views) (PHP `Registry::view`/`SqlResource::register`, JSON `view.menu`): it is
+offered like any list and mounted with `ListView`, but has no menu entry, and its `#view=` address and `navigate` are
+refused. A record view, a singleton or a view with a guide cannot set it.
+
 A record page that shows one item large, like a media player, is a two-column `PageLayout`: a control panel of
 [`SettingsForm`](toolkit.md#settingsform)s (local view settings with switches, segmented choices, ranges, colours
 and chips, kept per user with `key`, never written to the server) and a viewer with

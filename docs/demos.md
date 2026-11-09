@@ -336,6 +336,15 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   Without `update` (`reader@example.test`) the side region is the collapsible
   `Adatok` panel as before. Crossing 768 px rebuilds the content, which drops
   unsaved input in the form.
+- **Menu-less list:** a third section, `Lejátszási listákban`, shows the
+  asset's playlist items as cards: a `ListView` of `signage_asset_items`, a
+  list view of `signage_playlist_items` declared in
+  [signage.php](../examples/demo-app/signage.php) with
+  [`menu: false`](toolkit.md#menu-less-views) (columns `Lejátszási lista`,
+  `Sorrend`, `Ma`, `Lejátszási idő (mp)`; `get` only), scoped to
+  `asset_id`, created when the section first opens. It is in no menu, and
+  `#view=signage_asset_items` opens the empty workspace. The accordion shows
+  whenever this list or `update` is offered.
 - **Responsive:** from 768 px the details sit beside the stage (380 px), below
   it they stack under the stage and the commands collapse into `Műveletek`;
   crossing the width rebuilds the content and keeps the position. Colours come

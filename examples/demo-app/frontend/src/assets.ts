@@ -5,13 +5,15 @@
 // MediaPlayer (image, video, audio) or a SandboxFrame running the scene (an animation asset); `modules/signage.json`
 // declares the view and opens it from Médiatár for every playable asset. Also the media type `demo.scene` (scene files
 // are `Animáció` with the 61ade animation glyph) and the record command `demo.play` (`Lejátszás`) of the Médiatár toolbar.
-import type { Application, ApplicationModule, CommandBar, PageRegion, RecordForm, ListKindOptions, MediaDescriptor, MediaPlayer, Row, SandboxFrame, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
+import type { Application, ApplicationModule, CommandBar, ListView, PageRegion, RecordForm, ListKindOptions, MediaDescriptor, MediaPlayer, Row, SandboxFrame, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 import { SCENE_HEAD, SCENE_READY, SCENE_TAIL, SCENE_TYPE, sceneState, type SceneState } from "./scene";
 
 /** `views.demo.asset-viewer.options` of signage.json. */
 type ViewerOptions = { loop?: boolean; details?: string };
 
 const KIND = "demo.asset-viewer";
+/** The playlist items of one asset (signage.php): offered without a menu entry. */
+const ITEMS = "signage_asset_items";
 const PHONE = "(max-width: 767px)";
 const STEP = 5;
 
@@ -51,6 +53,8 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
   const playable = kind !== undefined, timed = kind === "video" || kind === "audio" || kind === "scene";
   // The asset's own form beside its details, when the list offers `update` and the record allows it.
   const editable = !!list?.actions.some(action => action.name === "update") && (!Array.isArray(row._actions) || row._actions.includes("update"));
+  // The asset's playlist items: a list view without a menu entry (`menu: false`, signage.php), offered by the ACL.
+  const usages = app.viewDefinition(ITEMS) as ViewDefinition<ListKindOptions> | undefined;
   const preferences = app.preferences.scope(KIND), phone = matchMedia(PHONE);
   let loop = preferences.get<boolean>("loop") ?? !!view.options?.loop;
   let build: AbortController | undefined, player: MediaPlayer | undefined, resume = 0;
@@ -68,9 +72,9 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     const previous = build, controller = build = new AbortController(), signal = controller.signal;
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     previous?.abort();
-    // With `update` the side region is an accordion: `Adatok` (open) above `Szerkesztés`; one is open at a time and
-    // fills the column. Otherwise the collapsible `Adatok` panel.
-    const extra = editable ? [{ id: "edit", header: t("Szerkesztés") }] : [];
+    // With `update` or the asset's playlist items the side region is an accordion: `Adatok` (open) above `Szerkesztés`
+    // and `Lejátszási listákban`; one is open at a time and fills the column. Otherwise the collapsible `Adatok` panel.
+    const extra = [...(editable ? [{ id: "edit", header: t("Szerkesztés") }] : []), ...(usages ? [{ id: "items", header: t("Lejátszási listákban") }] : [])];
     const details: PageRegion = extra.length
       ? { accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] }
       : { id: "details", header: t("Adatok"), collapsable: true };
@@ -144,9 +148,18 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       });
       form.mount(layout.cell("edit"));
     };
+    // The playlist items of this asset, as cards in their section (the section is the panel), created on first opening
+    // like the form and destroyed before the layout.
+    let items: ListView | undefined;
+    const showItems = () => {
+      if (items || !usages || signal.aborted) return;
+      items = new app.components.ListView({ view: usages, scope: { field: "asset_id", id: asset }, mode: "cards", panel: false, showId: false });
+      items.mount(layout.cell("items"));
+    };
     const sections = extra.length ? layout.accordionOf("details") : undefined;
-    sections?.on("toggle", ({ id, open }) => { if (open && id === "edit") edit(); }, { signal });
+    sections?.on("toggle", ({ id, open }) => { if (open && id === "edit") edit(); if (open && id === "items") showItems(); }, { signal });
     if (editable && sections?.isOpen("edit")) edit();
+    if (usages && sections?.isOpen("items")) showItems();
 
     if (found && kind === "scene") {
       const current = frame = new app.components.SandboxFrame({ signal, autoplay: true, title: t("Jelenet: {title}", { title: String(row.title ?? found.media.name) }), readyTimeout: SCENE_READY });
@@ -197,7 +210,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       current.focus();
     }
     // Registered after the components, so they are destroyed (and detached from their cells) before the layout.
-    signal.addEventListener("abort", () => { form?.destroy(); form = undefined; left.destructor(); layout.destroy(); }, { once: true });
+    signal.addEventListener("abort", () => { form?.destroy(); form = undefined; items?.destroy(); items = undefined; left.destructor(); layout.destroy(); }, { once: true });
   };
 
   render();

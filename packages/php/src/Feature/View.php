@@ -20,6 +20,9 @@ namespace Blade\Feature;
  * $guide: what the user sees and can do in the view (plain text, localized; blank lines separate paragraphs, at most
  *   4000 characters). The first time the view opens as a page in a sign-in session the shell shows it in a closable
  *   window; the `Útmutató` control shows it again. ApplicationDefinition `guides` sets it by view id.
+ * $menu: false offers the view (bootstrap, `app.viewDefinition`, a scoped `ListView` in a project page) without a menu
+ *   entry; the address `#view=<id>` and `app.navigate` refuse it like an unknown view. Only a list view that is not a
+ *   singleton and has no guide (it never opens as a page) may leave the menu; a record view has no entry anyway.
  */
 final readonly class View
 {
@@ -40,6 +43,7 @@ final readonly class View
         public bool $desktopOnly = false,
         public string $open = 'page',
         public ?string $guide = null,
+        public bool $menu = true,
     ) {
         if (!preg_match(self::ID, $id)) throw new \InvalidArgumentException('Invalid view id.');
         if (!preg_match(self::ID, $kind) || (!in_array($kind, self::BUILTIN_KINDS, true) && !str_contains($kind, '.'))) throw new \InvalidArgumentException('Invalid view kind: '.$id);
@@ -49,6 +53,7 @@ final readonly class View
         foreach ($actions as $action) if (!is_string($action) || !preg_match(self::ID, $action)) throw new \InvalidArgumentException('Invalid view actions: '.$id);
         if ($icon !== null && !preg_match('/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/D', $icon)) throw new \InvalidArgumentException('Invalid view icon: '.$id);
         if (!in_array($open, ['page', 'window'], true)) throw new \InvalidArgumentException('Invalid view open mode: '.$id);
+        if (!$menu && ($kind !== 'list' || $record !== null || ($options['singleton'] ?? false) || $guide !== null)) throw new \InvalidArgumentException('Only a list view that is not a singleton and has no guide can leave the menu: '.$id);
         if ($guide !== null && (trim($guide) === '' || mb_strlen($guide) > 4000 || str_contains($guide, "\0") || preg_match('//u', $guide) !== 1)) throw new \InvalidArgumentException('Invalid view guide: '.$id);
     }
 
@@ -56,11 +61,11 @@ final readonly class View
      * The list view of $resource (kind `list`, id $id, default the resource) as Registry::view() declares it; see there
      * for the options. Not registered: for Registry::addView() or Registry::updateView().
      */
-    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null): self
+    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true): self
     {
         $options = ['columns' => $columns, 'singleton' => $singleton, 'layout' => $layout ?? new ViewLayout(), 'rowNumbers' => $rowNumbers, 'selection' => $selection, 'rowSelection' => $rowSelection,
             ...array_filter(['rowHeight' => $rowHeight, 'tileMinWidth' => $tileMinWidth, 'tiles' => $tiles ?: null, 'activate' => $activate, 'commands' => $commands ?: null, 'drop' => $drop], static fn($v) => $v !== null)];
-        return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide);
+        return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide, menu: $menu);
     }
 
     /** A copy with the given constructor arguments replaced, e.g. `$view->with(icon: 'dxi dxi-key')`. */

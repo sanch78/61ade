@@ -5246,6 +5246,89 @@ that exactly equals an option label lists every option. The managed
   A form divided into sections is one form per section.
 - **Status:** implemented and verified on the managed demo.
 
+<a id="fb-0149"></a>
+
+## FB-0149 — List views without a menu entry
+
+- **Date:** 2026-11-09.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms): a list view offered to the actor and mountable as a scoped
+  `ListView` in a project or record page, but without a menu entry of its
+  own. Today every offered list view is a menu entry, and only one embedded
+  sub-view per parent is exempt, so a page with several scoped lists showed
+  unwanted menu items or re-implemented lists outside the framework. Owner
+  decisions: the address `#view=<id>` is refused (not opened as a page); the
+  flag on a record view or a singleton throws at definition time.
+- **Implemented:**
+  - `menu: false` on `View` (constructor, `with`), `View::list`,
+    `Registry::view`, `SqlResource::register`; JSON
+    `resources.<name>.view.menu` (a boolean). Only a list view that is not a
+    singleton and has no guide (it never opens as a page) may set it; a
+    record view, another kind, a singleton or a guide throw.
+  - Bootstrap: `menu: false` on such views only (`ViewDefinition.menu`).
+    The shell leaves them out of the main menu and the compact siblings; the
+    address and `app.navigate` refuse them like a view that is not offered
+    (the empty workspace, `false`); a record page's menu context never
+    inherits from one.
+  - A sub-view child with `menu: false` has no `page` in the sub-view
+    metadata; a `page` activation over it throws in `subview()` and in
+    `checkViews()` when the child leaves the menu later.
+  - Demo: `signage_asset_items` (signage.php), the playlist items of one
+    asset, mounted by the asset viewer as a third accordion section
+    `Lejátszási listákban` (cards, `panel: false`, `showId: false`, scoped to
+    `asset_id`, created on first opening, destroyed before the layout). The
+    accordion now shows when `update` or this list is offered. Guide text
+    updated (hu source, English); new text `Lejátszási listákban`.
+- **Guides:** [toolkit views](toolkit.md#menu-less-views),
+  [shell menu context](shell.md#elkülönülő-főmenügombok),
+  [workspaces sub-views](workspaces.md), [usage](usage.md),
+  [demos](demos.md#d1-asset-viewer),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md);
+  migration row M40 (additive, info only).
+- **Verification:** `npm run build` (`node tools/build.mjs --check` clean),
+  `npm run typecheck`, `npm run demo:assets`; PHP `toolkit` (new cases: the
+  opt-in, `SqlResource::register`, singleton/guide/record view/project kind
+  refused, a guide added by update refused, page activation over a menu-less
+  child refused in `subview()` and `checkViews()`, bootstrap `menu: false`,
+  no `page` for a menu-less sub-view child), `configuration` (JSON
+  `view.menu`, non-boolean and singleton refused), `contracts`, `i18n`,
+  `signage`, `lists`, `access`, `permissions` and node `toolkit-kernel`,
+  `toolkit-list`, `toolkit-components`, `toolkit-registries`,
+  `toolkit-sandbox` passed. New
+  `tests/shell/menuless-view.spec.cjs` (no menu entry, refused address; the
+  asset viewer's scoped card list at 1366 and 390 px) passed. The affected
+  browser set (`menuless-view`, `accordion`, `toolkit-demo-assets`,
+  `browser`, `subview`, `subview-demos`, `activation`, `preferences`, `i18n`,
+  `tabs`, `toolkit-demo-playlist-editor`): 43 passed. Temporary screenshots
+  at 1366 and 390 px were inspected and removed. No full-smoke claim.
+- **Limits:** a user without the list's actions simply gets no such view
+  (the ACL rule of every list); the page decides what to show instead. The
+  consumer's second case (a parent list in a compact window choosing which
+  parent the first list shows) uses existing `ListView` events and was not
+  built in the demo.
+  - *Default sort (open):* a scoped card list cannot declare its first sort.
+    A list without a manual order starts newest first (`id` descending,
+    `Workspace.ts`) until the user picks a `sortable` field, so the
+    consumer's "oldest first" side panel has no declaration yet. The demo
+    list follows its manual order (`position`), so it does not show this.
+  - *Long text in cards (open):* a card shows every column value in full
+    (`.blade-grid-card dd`, `white-space: pre-wrap`, no clamp or height
+    limit), so a `textarea` of several thousand characters makes one tall
+    card. Found from the code and CSS, not observed in the browser. The full
+    text is in `Adatok`.
+- **Follow-up verification (2026-11-09):** after the one-open-section change
+  (`9e9bef5`) the spec closed the open section through its own header, which
+  is now `aria-disabled`; it now opens `Adatok` instead. The spec seeds two
+  playlists. At 1366 and 390 px it checks two scoped cards, and that the
+  toolbar's `Adatok` record command (in `Műveletek`) opens the card the user
+  clicked last, not the other one. The demo guide (hu, English) now says one
+  section opens at a time. Re-run on the managed demo: `node tools/build.mjs
+  --check`, `npm run typecheck`; PHP `toolkit`, `configuration`, `contracts`,
+  `i18n`, `signage`, `lists`, `access`, `permissions`; node `toolkit-kernel`,
+  `toolkit-list`, `toolkit-components`, `toolkit-registries`,
+  `toolkit-sandbox`; the affected browser set above: 43 passed.
+- **Status:** implemented and verified on the managed demo.
+
 <a id="fb-0150"></a>
 
 ## FB-0150 — Player toolbars: toggles, choices, groups and a range in the CommandBar

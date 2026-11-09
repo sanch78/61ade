@@ -47,6 +47,7 @@ function sceneState(payload) {
 
 // examples/demo-app/frontend/src/assets.ts
 var KIND = "demo.asset-viewer";
+var ITEMS = "signage_asset_items";
 var PHONE = "(max-width: 767px)";
 var STEP = 5;
 function clock(seconds) {
@@ -73,6 +74,7 @@ function viewer(app, host, view) {
   const found = mediaOf(list, row), kind = stageKind(found?.media);
   const playable = kind !== void 0, timed = kind === "video" || kind === "audio" || kind === "scene";
   const editable = !!list?.actions.some((action) => action.name === "update") && (!Array.isArray(row._actions) || row._actions.includes("update"));
+  const usages = app.viewDefinition(ITEMS);
   const preferences = app.preferences.scope(KIND), phone = matchMedia(PHONE);
   let loop = preferences.get("loop") ?? !!view.options?.loop;
   let build, player, resume = 0;
@@ -87,7 +89,7 @@ function viewer(app, host, view) {
     const previous = build, controller = build = new AbortController(), signal = controller.signal;
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     previous?.abort();
-    const extra = editable ? [{ id: "edit", header: t("Szerkeszt\xE9s") }] : [];
+    const extra = [...editable ? [{ id: "edit", header: t("Szerkeszt\xE9s") }] : [], ...usages ? [{ id: "items", header: t("Lej\xE1tsz\xE1si list\xE1kban") }] : []];
     const details = extra.length ? { accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] } : { id: "details", header: t("Adatok"), collapsable: true };
     const layout = new app.components.PageLayout({
       id: `${view.id}.${phone.matches ? "narrow" : "wide"}${extra.map((section) => "." + section.id).join("")}`,
@@ -162,11 +164,19 @@ function viewer(app, host, view) {
       });
       form.mount(layout.cell("edit"));
     };
+    let items;
+    const showItems = () => {
+      if (items || !usages || signal.aborted) return;
+      items = new app.components.ListView({ view: usages, scope: { field: "asset_id", id: asset }, mode: "cards", panel: false, showId: false });
+      items.mount(layout.cell("items"));
+    };
     const sections = extra.length ? layout.accordionOf("details") : void 0;
     sections?.on("toggle", ({ id, open }) => {
       if (open && id === "edit") edit();
+      if (open && id === "items") showItems();
     }, { signal });
     if (editable && sections?.isOpen("edit")) edit();
+    if (usages && sections?.isOpen("items")) showItems();
     if (found && kind === "scene") {
       const current2 = frame = new app.components.SandboxFrame({ signal, autoplay: true, title: t("Jelenet: {title}", { title: String(row.title ?? found.media.name) }), readyTimeout: SCENE_READY });
       const failed = (message) => {
@@ -230,6 +240,8 @@ function viewer(app, host, view) {
     signal.addEventListener("abort", () => {
       form?.destroy();
       form = void 0;
+      items?.destroy();
+      items = void 0;
       left.destructor();
       layout.destroy();
     }, { once: true });

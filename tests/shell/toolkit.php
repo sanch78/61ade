@@ -75,6 +75,26 @@ rejects(fn()=>$pages->subview('assets','tracks','asset_id'),'Page activation in 
 $pages->subview('assets','tracks','asset_id',embed:false);
 check(!$pages->embedded('tracks'),'Page activation with embed: false keeps the child page');
 
+// `menu: false` (docs/toolkit.md#views): a list view that is not a singleton, has no guide and is no record view.
+$menuless=new Registry();$resource()->register($menuless,'Médiatár');
+$hidden=$menuless->view('assets','Rejtett',$columns,['get'],id:'assets.hidden',menu:false);
+check(!$hidden->menu&&$menuless->viewById('assets')->menu,'menu: false is opt-in per view');
+check(!(new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($menuless,'Sávok',menu:false)->menu,'SqlResource::register(menu: false)');
+rejects(fn()=>$menuless->view('assets','X',$columns,['get'],singleton:true,id:'assets.single',menu:false),'menu: false on a singleton accepted');
+rejects(fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.guided',guide:'Útmutató',menu:false),'menu: false with a guide accepted');
+rejects(fn()=>$menuless->addView(new View('demo.hidden','demo.player','X','assets',record:'assets',actions:['get'],menu:false)),'menu: false on a record view accepted');
+rejects(fn()=>$menuless->addView(new View('demo.panel','demo.player','X',menu:false)),'menu: false on a project kind accepted');
+rejects(fn()=>$menuless->updateView($hidden->with(guide:'Útmutató')),'A guide added to a menu-less view accepted');
+// A page activation needs the child's own page: not a menu-less child, also when it leaves the menu later.
+$menuPages=new Registry();$resource()->register($menuPages,'Médiatár',activate:'page');
+(new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($menuPages,'Sávok',menu:false);
+rejects(fn()=>$menuPages->subview('assets','tracks','asset_id',embed:false),'Page activation over a menu-less child accepted');
+$menuLater=new Registry();$resource()->register($menuLater,'Médiatár',activate:'page');
+(new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($menuLater,'Sávok');
+$menuLater->subview('assets','tracks','asset_id',embed:false);
+$menuLater->updateView($menuLater->viewById('tracks')->with(menu:false));
+rejects(fn()=>$menuLater->checkViews(),'Page activation over a child that left the menu accepted');
+
 // Record views: project kinds only, with the record resource's `get`.
 rejects(fn()=>$registry->addView(new View('assets.files','files','X','assets',record:'assets',actions:['get'],options:['mounts'=>[]])),'Built-in kind with record accepted');
 rejects(fn()=>$registry->addView(new View('demo.player','demo.player','Lejátszó',record:'missing')),'Record view without a get action accepted');
@@ -102,6 +122,16 @@ check(array_keys($views['assets']['options'])===['columns','detailFields','singl
 $json=json_encode($views,JSON_THROW_ON_ERROR);
 check(str_contains($json,'"activate":{"field":"kind","map":{"audio":"view:demo.player","*":"details"}}')&&str_contains($json,'"map":{"0":"details","1":"update"}'),'Activation maps are JSON objects');
 check($views['demo.player']['options']===['loop'=>true,'label'=>'Lejátszás']&&array_column($views['demo.player']['actions'],'name')===['get'],'Generic provider passes options and offered actions');
+// A menu-less view is offered (bootstrap) with `menu: false`; a non-page sub-view child of it carries no `page`.
+$menuWorkspace=new Workspace($menuless,$db);
+$offered=array_column($menuWorkspace->views(new Identity('1','Egy')),null,'id');
+check(isset($offered['assets.hidden'])&&$offered['assets.hidden']['menu']===false&&!array_key_exists('menu',$offered['assets']),'Bootstrap: menu: false only on the menu-less view');
+$menuSub=new Registry();$resource()->register($menuSub,'Médiatár');
+(new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($menuSub,'Sávok',menu:false);
+$menuSub->subview('assets','tracks','asset_id',embed:false);
+$grant('1','tracks','list');$grant('1','tracks','get');
+$subOffered=array_column((new Workspace($menuSub,$db))->views(new Identity('1','Egy')),null,'id');
+check(isset($subOffered['tracks'])&&!isset($subOffered['assets']['options']['subview']['page'])&&$subOffered['assets']['options']['subview']['view']['menu']===false,'A menu-less sub-view child has no page of its own');
 $reader=array_column($workspace->views(new Identity('2','Kettő')),'id');
 check($reader===['assets','assets.audio'],'Record view needs the record resource get offered');
 check($workspace->views(new Identity('3','Három'))===[],'No offered action, no view');

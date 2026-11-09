@@ -1203,7 +1203,9 @@ JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "proje
   `activate: 'page'` opens the child's own page filtered to the record instead.
 - **Embedded child:** by default a different child view has no menu entry of
   its own; `embed: false` keeps it. The child view must be offered to the actor,
-  otherwise the parent has no sub-view.
+  otherwise the parent has no sub-view. A child declared with
+  [`menu: false`](toolkit.md#menu-less-views) has no page of its own either,
+  so a `page` activation over it is refused.
 - **Toolbar on a selected child:** a record selected in a preview takes the
   parent toolbar over for the actions the child view has under the same name
   (`update`, `delete`, `Adatok`, …), which then run on that child record; the
