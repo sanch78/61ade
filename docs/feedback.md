@@ -4864,3 +4864,23 @@ that exactly equals an option label lists every option. The managed
   passed. No browser run: this removes a standalone static site without
   changing the demo or framework behavior. Apex HTTP behavior was not tested.
 - **Status:** removed from the repository and verified locally.
+
+<a id="fb-0140"></a>
+
+## FB-0140 — Align desktop logout to the right
+
+- **Date:** 2026-11-09.
+- **Request:** move desktop logout to the right.
+- **Implemented:** the full navigation menu uses a native DHTMLX Menu spacer
+  before the session separator, aligning logout to its right edge before the
+  selector controls. Compact desktop and phone navigation retain logout in Menü.
+  No configuration, authentication, permission, POST or audit changes.
+- **Guides:** [shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü),
+  [usage](usage.md).
+- **Verification:** build, asset preparation, typecheck, PHP contracts and
+  configuration passed. All ten existing browser/navigation and skin cases
+  passed on the managed demo, including desktop/phone logout, resizing and
+  theme switching. A temporary geometry assertion verified logout's right edge;
+  the desktop screenshot was visually inspected. Temporary assertion and task
+  screenshots were removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

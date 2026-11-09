@@ -800,7 +800,8 @@ The secondary background is light gray in light theme and lighter dark in dark
 theme; Blade and Blade Night keep their glossy chrome gradient.
 
 Compact navigation puts all branches, logout and the native separator under
-`Menü`. Desktop width restores the original top menu. ACL and logout POST
+`Menü`. Desktop width restores the full top menu, with logout aligned to its right edge
+before the selector controls using a native Menu spacer. ACL and logout POST
 behavior stay consistent; no consumer configuration. FB-0028.
 
 When the top menu does not fit a desktop-width (≥ 768 px) row and collapses into

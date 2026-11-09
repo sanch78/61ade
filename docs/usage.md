@@ -32,6 +32,8 @@ model; see [admin](admin.md), [ACL](access-and-actions.md) and [shell](shell.md)
 column header filters, dynamic lists, server sorting and polling/WebSocket live
 data over [one channel per tab](workspaces.md#live-channel) that every list and
 sub-view shares; singleton details are direct forms.
+The full desktop menu aligns logout to the right, before the selectors; compact
+navigation keeps it inside Menü ([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)).
 No upper application-title header; one lower bar has user left, application/version
 right. Session idle timeout and persistent cookie lifetime are [configurable](authentication.md#session-lifetime), with unchanged 30-minute/browser-session defaults. An ended session signs the page out on its next request
 ([shell](shell.md#ended-session)). Blade (default), Blade Night, light and dark use DHTMLX setTheme; Blade is a
