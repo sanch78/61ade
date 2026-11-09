@@ -252,6 +252,20 @@ try {
     $broken['resources']['projects']['view']['subview']['embed'] = true;
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
     rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Page activation over an embedded child accepted');
+    // `view.menu: false`: offered without a menu entry; a boolean, refused on a singleton.
+    unset($broken['resources']['projects']['view']['activate'], $broken['resources']['projects']['view']['subview']);
+    $broken['resources']['tasks']['view']['menu'] = false;
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    $menuViews = array_column(WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true)->registry->views(), null, 'resource');
+    verify($menuViews['tasks']->menu === false && $menuViews['projects']->menu === true, 'JSON view menu: false');
+    $broken['resources']['tasks']['view']['menu'] = 'no';
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Non-boolean view menu accepted');
+    $broken['resources']['tasks']['view']['menu'] = false;
+    $broken['resources']['tasks']['view']['singleton'] = true;
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'menu: false on a JSON singleton accepted');
+    unset($broken['resources']['tasks']['view']['menu'], $broken['resources']['tasks']['view']['singleton']);
     // Registries (docs/toolkit.md#registries): `view.commands` and a field `editor` are dotted project names.
     unset($broken['resources']['projects']['view']['activate']);
     $broken['resources']['projects']['view']['commands'] = ['demo.copy-text'];

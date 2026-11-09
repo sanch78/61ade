@@ -91,7 +91,7 @@ export interface Application {
   /**
    * Opens a view like a menu click or an address change: writes `#view=<id>[&record=…]` as a history entry
    * (page views only; `filters` are applied once and not written to the address) and mounts it through the `kinds` registry. Returns `false` (and changes nothing) when the view is
-   * not offered to the actor, needs a record that was not given, or its kind is not registered. Record resolution
+   * not offered to the actor, is a `menu: false` list, needs a record that was not given, or its kind is not registered. Record resolution
    * failures (403/404 from the record resource's `get`) show the shared error dialog and keep the current view.
    */
   navigate(target: NavigationTarget): boolean;
@@ -580,6 +580,11 @@ export interface ViewDefinition<Options = unknown> {
   desktopOnly?: boolean;
   /** Default `page`. A record view never has a menu entry; it opens from activation, `navigate` or the URL. */
   open?: ViewOpenMode;
+  /**
+   * `false`: a list view offered without a menu entry or address of its own (PHP `menu: false`, JSON `view.menu`), to be
+   * mounted as a scoped `ListView` in a project page; `#view=<id>` and `navigate` refuse it. Absent for other views.
+   */
+  menu?: false;
   /**
    * What the user sees and can do in the view (plain text, localized; blank lines separate paragraphs). Opened as a
    * page, the shell shows it in a closable window until the user closes it once (per user and browser); the lower

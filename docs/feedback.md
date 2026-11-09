@@ -615,6 +615,10 @@
 
 ## FB-0148 — Accordion attachable to a layout region
 
+<a id="fb-0149"></a>
+
+## FB-0149 — List views without a menu entry
+
 <a id="fb-0150"></a>
 
 ## FB-0150 — Player toolbars: toggles, choices, groups and a range in the CommandBar

@@ -148,6 +148,15 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
             'layout' => ['rows' => [['id' => 'commands', 'height' => 56], ['id' => 'player', 'header' => 'Előnézet']]]],
         group: 'Digitális kijelző', icon: 'dxi dxi-menu-right',
         guide: 'Projekt saját nézettípusa a keretrendszer nyilvános komponenseiből: a választott nap hézagmentes műsora a signage_playlist.day művelet válaszából, a közös lejátszóval; ahol nincs esemény, az alapértelmezett tartalom tölti ki a napot, a jelenetek homokozóban (SandboxFrame) futnak.'."\n\n".'Lépj a napok között, vagy válassz napot a Naptár… paranccsal, és nézd végig a műsort.'));
+    // A list without a menu entry (`menu: false`, docs/toolkit.md#views): the playlist items of one asset, mounted by the
+    // asset viewer (frontend/src/assets.ts) as a scoped ListView in its accordion; `#view=signage_asset_items` is refused.
+    $items = $workspace->registry->viewById('signage_playlist_items');
+    $itemOptions = $items->options;
+    unset($itemOptions['subview'], $itemOptions['drop'], $itemOptions['tree']);
+    $workspace->registry->addView($items->with(id: 'signage_asset_items', title: 'Lejátszási listákban', actions: ['get'], group: null, guide: null, menu: false,
+        options: [...$itemOptions, 'rowNumbers' => false, 'rowSelection' => false,
+            'columns' => [['id' => 'playlist_id', 'header' => 'Lejátszási lista'],
+                ...array_values(array_filter($itemOptions['columns'], static fn(array $column) => in_array($column['id'], ['position', 'status', 'length'], true)))]]));
     // Usage warnings: deleting a used file (file manager) or asset (Médiatár) shows the counts and clears the references.
     $workspace->registry->usage('files', new BladeDemoSignageUsage('files'));
     $workspace->registry->usage('signage_assets', new BladeDemoSignageUsage('events'));

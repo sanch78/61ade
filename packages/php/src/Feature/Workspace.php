@@ -47,7 +47,8 @@ final class Workspace
     /**
      * Views offered to $actor (bootstrap `views`, docs/toolkit.md#views); tenant-scoped ones only with an active $tenant
      * (membership checked), record views only with the record resource's `get` offered. Each entry is
-     * `{id, kind, title, resource?, record?, actions, group, icon, desktopOnly, open, guide?, options}`; the kind provider
+     * `{id, kind, title, resource?, record?, actions, group, icon, desktopOnly, open, menu?, guide?, options}` (`menu` only as
+     * `false`: offered without a menu entry or address of its own); the kind provider
      * decides whether the view is offered and builds `actions` and `options`.
      */
     public function views(Identity $actor,?string $tenant=null): array
@@ -61,13 +62,13 @@ final class Workspace
             if($data===null)continue;
             $out[$view->id]=[...\Blade\I18n\Translator::presentation(['id'=>$view->id,'kind'=>$view->kind,'title'=>$view->title,
                 ...($view->resource!==null?['resource'=>$view->resource]:[]),...($view->record!==null?['record'=>$view->record]:[]),
-                'actions'=>$data['actions'],'group'=>$view->group,'icon'=>$view->icon,'desktopOnly'=>$view->desktopOnly,'open'=>$view->open]),
+                'actions'=>$data['actions'],'group'=>$view->group,'icon'=>$view->icon,'desktopOnly'=>$view->desktopOnly,'open'=>$view->open,...($view->menu?[]:['menu'=>false])]),
                 ...($view->guide!==null?['guide'=>\Blade\I18n\Translator::text($view->guide)]:[]),
                 // An empty options map stays a JSON object.
                 'options'=>$data['options']===[]?new \stdClass():\Blade\I18n\Translator::presentation($data['options'])];
         }
         // A sub-view needs its child view offered to the actor; an embedded child has no menu entry of its own, any
-        // other different child view carries `page` (its own page, the target of `activate: 'page'`).
+        // other different child view kept in the menu carries `page` (its own page, the target of `activate: 'page'`).
         // Resolved depth first, so a child view carries its own (resolved) sub-view; a cycle ends at the repeat.
         $resolved=[];
         $resolve=function(string $key,array $path=[])use(&$resolve,&$out,&$resolved):void{
@@ -75,7 +76,7 @@ final class Workspace
             ['child'=>$child,'field'=>$field]=$out[$key]['options']['subview'];$select=($out[$key]['options']['subview']['select']??true)?[]:['select'=>false];
             if($child!==$key&&isset($out[$child])&&!in_array($child,$path,true))$resolve($child,[...$path,$key]);
             $subview=$child===$key?['resource'=>$out[$key]['resource'],'field'=>$field,'shared'=>true,...$select]
-                :(isset($out[$child])?['resource'=>$out[$child]['resource'],'field'=>$field,'view'=>$out[$child],...$select,...($this->registry->embedded($child)?[]:['page'=>true])]:null);
+                :(isset($out[$child])?['resource'=>$out[$child]['resource'],'field'=>$field,'view'=>$out[$child],...$select,...($this->registry->embedded($child)||($out[$child]['menu']??true)===false?[]:['page'=>true])]:null);
             if($subview===null)unset($out[$key]['options']['subview']);else $out[$key]['options']['subview']=$subview;
             $resolved[$key]=true;
         };

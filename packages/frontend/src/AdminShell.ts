@@ -124,7 +124,7 @@ export class AdminShell {
    */
   private route = () => {
     const route = parseRoute(location.hash);
-    const view = route.view === undefined ? undefined : this.offered(route.view);
+    const view = route.view === undefined ? undefined : this.navigable(route.view);
     const record = view?.record ? route.record : undefined;
     if (view && Object.keys(route.filters).length) { const url = new URL(location.href); url.hash = routeHash({ view: view.id, record }); history.replaceState(null, "", url); }
     if (view && this.openable(view, record)) void this.openView(view, { record, filters: route.filters });
@@ -165,9 +165,9 @@ export class AdminShell {
     // 16 px row inset; only the full menu reserves logout and its 17 px separator.
     const required=(items:any[],logout=this.definition.authenticated)=>items.reduce((sum:number,item:any,index:number)=>sum+itemWidth(item)+(index&&item.separatorBefore?17:0),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
     const compact = width < Math.max(768,required(this.menuItems));
-    const view=this.offered(parseRoute(location.hash).view??"");
+    const view=this.navigable(parseRoute(location.hash).view??"");
     // Record pages have no menu entry: inherit the first offered menu view of their record resource.
-    const menuView=view?.record?(this.definition.views??[]).find(candidate=>!candidate.record&&candidate.resource===view.record&&(!view.group||candidate.group===view.group)):view;
+    const menuView=view?.record?(this.definition.views??[]).find(candidate=>!candidate.record&&candidate.menu!==false&&candidate.resource===view.record&&(!view.group||candidate.group===view.group)):view;
     const current=menuView?"view:"+menuView.id:view?.group?"group:"+view.group:"";
     const siblings=(items:any[],nested=false):any[]|undefined=>{
       for(const item of items){
@@ -375,8 +375,9 @@ export class AdminShell {
             : { disabled: true }),
         }));
       const features: any[]=[];
-      // A record view opens for one record (activation, navigate, address) and has no menu entry.
-      for(const view of (definition.views || []).filter(view=>!view.record)) {
+      // A record view opens for one record (activation, navigate, address) and has no menu entry; a `menu: false` list
+      // is only mounted inside project pages.
+      for(const view of (definition.views || []).filter(view=>!view.record&&view.menu!==false)) {
         const item={id:"view:"+view.id,value:escape(view.title),icon:view.icon??"dxi dxi-table-check"};
         if(view.group){
           let group=features.find(v=>v.id==="group:"+view.group);
@@ -393,7 +394,7 @@ export class AdminShell {
         if (id === "blade-logout") this.post("logout");
         if (id === "blade-guide" && this.page) this.showGuide(this.page);
         if (id.startsWith("tenant:") && id.slice(7) !== this.definition.tenant?.current) this.post("tenant", { tenant: id.slice(7) });
-        const view=id.startsWith("view:")?this.offered(id.slice(5)):undefined;
+        const view=id.startsWith("view:")?this.navigable(id.slice(5)):undefined;
         if(view&&!view.record&&this.openable(view))void this.openView(view,{push:true});
       });
       this.layout.getCell("main-menu").attach(menu);
@@ -513,12 +514,14 @@ export class AdminShell {
 
   /** An offered view by id (the bootstrap `views` are already filtered by the server). */
   private offered(id:string):ViewDefinition|undefined{return this.definition.views?.find(view=>view.id===id);}
+  /** An offered view that opens on its own (menu, address, `navigate`): not a `menu: false` list. */
+  private navigable(id:string):ViewDefinition|undefined{const view=this.offered(id);return view?.menu===false?undefined:view;}
   /** Its kind is registered, and a record view has its record id. */
   private openable(view:ViewDefinition,record?:string):boolean{return !!this.kernel?.kinds.has(view.kind)&&(!view.record||!!record);}
 
   /** `Application.navigate`: like a menu click or an address, through the `kinds` registry. */
   private navigate(target:NavigationTarget):boolean{
-    const view=typeof target?.view==="string"?this.offered(target.view):undefined,record=view?.record?target.record:undefined;
+    const view=typeof target?.view==="string"?this.navigable(target.view):undefined,record=view?.record?target.record:undefined;
     if(!view||!this.openable(view,record))return false;
     void this.openView(view,{record,filters:{...target.filters},open:target.open,push:true});
     return true;

@@ -92,7 +92,7 @@ final class Registry
         if($view->record!==null&&(in_array($view->kind,View::BUILTIN_KINDS,true)||!isset($this->actions[$view->record.'.get'])))throw new \InvalidArgumentException('A record view needs a project kind and the get action of its record resource: '.$view->id);
         $provider->validate($this,$view);
     }
-    /** `activate: 'page'` needs a child view with its own page: another resource's view kept in the menu. */
+    /** `activate: 'page'` needs a child view with its own page: another resource's view kept in the menu (also checkViews()). */
     private function pageActivation(View $parent,bool $withoutPage): void
     {
         if($withoutPage&&in_array('page',ListViewKind::targets($parent->options['activate']??null),true))throw new \InvalidArgumentException('A page activation needs a sub-view with embed: false.');
@@ -115,12 +115,15 @@ final class Registry
     public function embedded(string $id): bool { return isset($this->embedded[$id]); }
     /**
      * Checks references between views once all are declared (JsonApplication, ApplicationDefinition and every
-     * `Workspace::views()` call it): each `view:<id>` activation target names a record view of the list's resource.
+     * `Workspace::views()` call it): each `view:<id>` activation target names a record view of the list's resource, and
+     * a `page` activation's sub-view child still has its own page (a child changed to `menu: false` later is refused).
      */
     public function checkViews(): void
     {
         foreach($this->views as $view){
             if($view->kind!=='list')continue;
+            $child=$view->options['subview']['child']??null;
+            if($child!==null&&$child!==$view->id&&!($this->views[$child]->menu??true))$this->pageActivation($view,true);
             foreach(ListViewKind::targets($view->options['activate']??null) as $target){
                 if(!str_starts_with($target,'view:'))continue;
                 $record=$this->views[substr($target,5)]??null;
@@ -148,10 +151,11 @@ final class Registry
      * not offered) opens the details.
      * $commands: project client commands (`app.commands` names, dotted, at most 20) on the list toolbar.
      * $guide: the view's guide text (View).
+     * $menu: false offers the view without a menu entry or address of its own, for scoped `ListView`s in project pages (View).
      */
-    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null): View
+    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true): View
     {
-        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop));
+        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$menu));
     }
     /**
      * Sub-view: every record of the $view list expands (grid sub-row or card) to the $child list filtered to
@@ -174,7 +178,7 @@ final class Registry
         $same=$sub->resource===$parent->resource;
         $known=$this->fields((string)$sub->resource)[$field]??null;
         if(!$known||!in_array($known->type,['select','number','text'],true)||$known->secret||($same&&$known->type!=='select'))throw new \InvalidArgumentException('Invalid sub-view.');
-        $this->pageActivation($parent,$same||$embed);
+        $this->pageActivation($parent,$same||$embed||!$sub->menu);
         $this->views[$view]=$parent->with(options:[...$parent->options,'subview'=>['child'=>$same?$view:$child,'field'=>$field,...($select?[]:['select'=>false])]]);
         if(!$same&&$embed)$this->embedded[$child]=$view;
     }
