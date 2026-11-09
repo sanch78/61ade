@@ -634,3 +634,7 @@
 <a id="fb-0153"></a>
 
 ## FB-0153 — Collapsing a page region from code
+
+<a id="fb-0154"></a>
+
+## FB-0154 — A more actions menu in the CommandBar

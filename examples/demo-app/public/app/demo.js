@@ -1244,8 +1244,17 @@ function page(app, host, view) {
       });
       layout.attach("work", work);
       const side = work;
+      const deletable = notes.actions.some((action) => action.name === "delete");
       bar = new app.components.CommandBar({ label: t("Munka"), signal, items: [
-        { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "dxi dxi-border-right", pressed: !side.isCollapsed("side") }
+        { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "dxi dxi-border-right", pressed: !side.isCollapsed("side") },
+        { type: "spacer" },
+        // The commands of the selected note behind one button instead of permanent buttons.
+        { type: "menu", id: "more", label: t("Tov\xE1bbi m\u0171veletek"), icon: "dxi dxi-dots-vertical", iconOnly: true, items: [
+          { id: "show", label: t("Megjelen\xEDt\xE9s az oldalpanelen"), icon: "dxi dxi-border-right", disabled: true },
+          { id: "copy", label: t("Sz\xF6veg m\xE1sol\xE1sa"), icon: "dxi dxi-copy", disabled: true },
+          { type: "separator" },
+          { id: "delete", label: t("T\xF6rl\xE9s"), icon: "dxi dxi-delete", disabled: true, hidden: !deletable }
+        ] }
       ] });
       bar.mount(side.cell("commands"));
       side.on("collapse", ({ id, collapsed }) => {
@@ -1257,6 +1266,25 @@ function page(app, host, view) {
           else side.collapse("side");
         }
       });
+      let current;
+      bar.on("click", ({ id }) => {
+        const note = current;
+        if (!note) return;
+        if (id === "show") side.expand("side");
+        else if (id === "copy") {
+          const clipboard = typeof navigator !== "undefined" ? navigator.clipboard : void 0;
+          void (clipboard?.writeText(String(note.body ?? "")) ?? Promise.reject(new Error("clipboard"))).then(() => app.ui.toast(t("A jegyzet sz\xF6vege a v\xE1g\xF3lapra ker\xFClt.")), () => void app.ui.dialog({ severity: "warning", message: t("A v\xE1g\xF3lap nem \xE9rhet\u0151 el.") }));
+        } else if (id === "delete") void (async () => {
+          if (!await app.ui.dialog({ mode: "confirm", severity: "danger", title: t("T\xF6rl\xE9s"), message: t("T\xF6rl\xF6d a kijel\xF6lt jegyzetet?"), confirmLabel: t("T\xF6rl\xE9s") })) return;
+          try {
+            await app.server.call(notes.resource, "delete", { id: String(note.id) });
+          } catch {
+            return;
+          }
+          workList?.refresh();
+          noteList?.refresh();
+        })();
+      });
       workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, mode: "table", panel: false, showId: false });
       workList.mount(side.cell("main"));
       const panel = document.createElement("div"), hint = document.createElement("p");
@@ -1266,6 +1294,8 @@ function page(app, host, view) {
       panel.append(hint);
       side.attach("side", panel);
       workList.on("target", ({ row: note }) => {
+        current = note;
+        for (const id of ["show", "copy", "delete"]) bar?.update(id, { disabled: !note });
         if (!note) return;
         if (selected) {
           void selected.show(note).catch(() => {

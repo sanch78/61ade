@@ -136,3 +136,41 @@ for(const [width,height] of [[1366,900],[390,844]])test(`Munka at ${width} px: t
  }
  expect(errors).toEqual([]);
 });
+
+// Part of FB-0154 (docs/toolkit.md#commandbar-menu): `További műveletek` holds the selected note's commands.
+for(const [width,height] of [[1366,900],[390,844]])test(`Munka at ${width} px: the more actions menu acts on the selected note`,async({page})=>{
+ const errors=pageErrors(page);
+ await page.setViewportSize({width,height});
+ await page.addInitScript(()=>{window.__copied=[];Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>{window.__copied.push(text);}},configurable:true});});
+ await signIn(page,'demo@example.test',`/#view=demo.task-page&record=${task}`);
+ await page.getByRole('tab',{name:'Munka',exact:true}).click();
+ const work=page.getByRole('tabpanel',{name:'Munka',exact:true});
+ const openMenu=async()=>{
+  const more=work.getByRole('button',{name:'További műveletek'});
+  if(await more.isVisible())await more.click();
+  else{await work.getByRole('button',{name:'Műveletek'}).first().click();await page.getByRole('menuitem',{name:'További műveletek'}).click();}
+ };
+ // Without a selected note the entries are disabled.
+ await openMenu();
+ await expect(page.getByRole('menuitem',{name:'Szöveg másolása'})).toBeDisabled();
+ await page.keyboard.press('Escape');await page.keyboard.press('Escape');
+ // The panel collapsed by the user; the menu's entry opens it with the selected note.
+ await region(page,'side').locator('.dhx_layout-cell-header').first().click();
+ await expect.poll(()=>collapsed(region(page,'side'))).toBe(true);
+ await work.locator('.dhx_grid-row, .blade-grid-card').filter({hasText:`${prefix} első`}).first().click();
+ await openMenu();
+ await page.getByRole('menuitem',{name:'Megjelenítés az oldalpanelen'}).click();
+ await expect.poll(()=>collapsed(region(page,'side'))).toBe(false);
+ await expect(region(page,'side').locator('.blade-record-details')).toContainText(`${prefix} első`);
+ await openMenu();
+ await page.getByRole('menuitem',{name:'Szöveg másolása'}).click();
+ await expect.poll(()=>page.evaluate(()=>window.__copied)).toEqual([`${prefix} első`]);
+ await expect(page.getByText('A jegyzet szövege a vágólapra került.')).toBeVisible();
+ // The header choice of the user stays (the menu's expand is the page's own).
+ await page.reload();
+ await page.getByRole('tab',{name:'Munka',exact:true}).click();
+ await expect.poll(()=>collapsed(region(page,'side'))).toBe(true);
+ await region(page,'side').locator('.dhx_layout-cell-header').first().click();
+ await expect.poll(()=>collapsed(region(page,'side'))).toBe(false);
+ expect(errors).toEqual([]);
+});

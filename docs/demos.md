@@ -584,7 +584,11 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
   header through the `collapse` event. On a phone the control region
   collapses to its header while `Munka` is shown and opens again on
   `Jegyzetek`; a header click of the user while `Munka` is shown is kept as
-  the user's choice.
+  the user's choice. The bar's icon-only [menu](toolkit.md#commandbar-menu)
+  `További műveletek` holds the selected note's commands, enabled while a
+  note is selected: `Megjelenítés az oldalpanelen` (opens the panel),
+  `Szöveg másolása` (the clipboard) and, with `delete` offered, `Törlés`
+  (after a confirmation; both lists refresh).
 - **`Jegyzetek` tab:** the task's notes, `demo_task_notes`, a list view
   with [`menu: false`](toolkit.md#menu-less-views) and the [first
   sort](workspaces.md#list-sort) `id` ascending (oldest first), mounted as
@@ -600,7 +604,9 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
   in declared order, the long note at most 4 lines and clipped, `Adatok`
   with the whole text; `Munka`: the selected note in the panel, the toggle
   and the header in step, the header collapse kept and the toggle's not,
-  the phone's control region), `tests/shell/page-layout-collapse.spec.cjs`,
+  the phone's control region; the menu's entries disabled without a
+  selection, opening the panel and copying the selected note),
+  `tests/shell/page-layout-collapse.spec.cjs`, `tests/shell/command-menu.spec.cjs`,
   `php8.4 tests/shell/toolkit.php` and `configuration.php` (`sort`).
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
