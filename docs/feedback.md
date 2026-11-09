@@ -5675,3 +5675,46 @@ that exactly equals an option label lists every option. The managed
   example a combobox without a label is "Select value"); none was reported.
 - **Commit:** `7b2c03d` on `main`.
 - **Status:** implemented.
+
+<a id="fb-0156"></a>
+
+## FB-0156 — One lower edge for toolbars and closed accordion sections
+
+- **Date:** 2026-11-09.
+- **Request:** doubled lower edges recurring in a consumer's panels (reported
+  with a narrow screenshot). Reproduced independently on the managed feature
+  demo: a `CommandBar` or native Toolbar filling a `PageLayout` region draws
+  its own 1 px bottom rule immediately inside the region's 1 px frame.
+- **Implemented:** the common Toolbar CSS omits its top and bottom rules
+  when the widget fills a framed `space` or `wide` Layout cell, directly or
+  through CommandBar's single-row layout. The outer panel keeps its complete
+  frame. The bottom CommandBar host rule now applies to `line` layouts only;
+  it no longer removes a `space` panel's top frame. Toolbars above or below
+  content within a panel retain their separators. A follow-up screenshot
+  showed a final closed Accordion section against the lower panel frame;
+  reproduced on the demo with three sections, the middle one open: the
+  header's lower rule sits immediately inside the panel frame. The last
+  closed header now omits that rule; opening it restores the separator
+  above its content, and dividers between sections remain. No API or
+  consumer changes.
+- **Guides:** [CommandBar](toolkit.md#commandbar), [usage](usage.md), the
+  reusable layout rule in the `grid-tree-card-ui` skill.
+- **Verification:** `npm run build`, `npm run demo:assets`,
+  `npm run typecheck`; PHP `contracts`, `configuration`. A temporary browser
+  fixture on the managed demo checks `space` and `wide` at 1366 and 390 px:
+  a native Toolbar, a top CommandBar and a bottom CommandBar each retain
+  their host's four-sided frame and draw no additional horizontal rule;
+  bars sharing a panel with content keep their inner separators. Checked
+  in Blade, Blade Night, light and dark, plus synthetic cream and ink
+  palettes. The light and cream screenshots were inspected. The same six
+  palettes at both widths check the final Accordion header closed, open,
+  closed again, and with all sections closed: the outer lower border stays,
+  the terminal header rule appears only when open, and section separators
+  remain. Its cream screenshot was inspected. Regression: `browser`,
+  `skins`, `command-bar` with the four toolbar fixture cases (16 passed);
+  after the Accordion change, `accordion` and the two Accordion fixture
+  cases (4 passed). Task-only fixtures and screenshots were removed.
+- **Limits:** the consumer's authenticated page itself was not exercised;
+  the shared composition was reproduced on the feature demo. Application
+  borders or shadows declared by consumer CSS are outside this change.
+- **Status:** implemented.

@@ -572,7 +572,11 @@ collapse into Actions and keep uniform card width. Blade rows alternate white/
 #f7f7f7 (Blade Night: a faint light tint) by display index, including virtualization, with native selection above.
 All normal Toolbars share the list toolbar's inset through the common
 `--blade-toolbar-padding` token, including direct Layout attachments, and own
-a themed 1 px bottom divider even above borderless content. Mobile
+a themed 1 px bottom divider even above borderless content. If a Toolbar or
+CommandBar fills a framed `space`/`wide` cell, only the cell draws the outer
+edge, avoiding a doubled rule. The final closed Accordion section likewise
+omits its header's lower rule against the panel frame
+([FB-0156](feedback.md#fb-0156)). Mobile
 shell selectors collapse together into the `Beállítások` hamburger menu.
 Toolbar submenus open to the right when they fit; otherwise they replace the
 ancestor popups at the toolbar button, with `Vissza`/ArrowLeft to return.

@@ -77,7 +77,11 @@ tree as decoration for a flat list.
   wrapper for basic spacing. The toolbar also owns its bottom separator,
   independent of the content below; avoid duplicating it in the host or next
   widget. Navigation and window headers may have their own role-specific
-  geometry.
+  geometry. If a toolbar fills an entire framed layout cell, the cell owns
+  the outer edge; add no toolbar separator against that frame. Keep the
+  separator when the toolbar shares a panel with content. Similarly, the
+  final closed accordion header needs no lower rule against its panel frame;
+  keep separators between sections and between an open header and content.
 - Give the toolbar its own height and scroll boundary. Scrolling rows/cards must
   not cover commands. Keep view selection, sorting, column visibility, actions,
   filtering, and details discoverable through the native toolbar/menu; do not
