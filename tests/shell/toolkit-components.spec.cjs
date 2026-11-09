@@ -248,7 +248,7 @@ test('FileManager mounts in a project Layout cell, reports opened, follows the t
  await fileRow(left,IMAGE).dblclick();
  await expect(viewer(page).getByRole('img',{name:IMAGE})).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>window.__opened)).toEqual([{id:image,mimeType:'image/png'}]);
- await viewer(page).getByRole('button',{name:/close/i}).click();await expect(viewer(page)).toHaveCount(0);
+ await viewer(page).getByRole('button',{name:'Ablak bezárása',exact:true}).click();await expect(viewer(page)).toHaveCount(0);
  // editing(): the viewer holds no input; an open rename form (F2) does until it closes.
  expect(await page.evaluate(()=>window.__files.editing())).toBe(false);
  await fileRow(left,IMAGE).click();await page.keyboard.press('F2');

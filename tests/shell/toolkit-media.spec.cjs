@@ -132,13 +132,13 @@ test('file manager viewer runs on MediaPlayer: image and video unchanged, audio 
  await expect(viewer.locator('.blade-image-stage')).toBeFocused();
  await page.keyboard.press('+');await expect(bar.locator('[data-dhx-id="zoom"]')).toHaveText(/^\d+\s?%$/);
  await expect(bar.getByRole('button',{name:'Teljes méret',exact:true})).toBeVisible();
- await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);
+ await viewer.getByRole('button',{name:'Ablak bezárása',exact:true}).click();await expect(viewer).toHaveCount(0);
  // Video player: native controls, dimensions and length as before, then the format.
  await open('3d-logo-intro.mp4');
  viewer=windowDialog(page);bar=viewer.locator('.blade-document__bar');const video=viewer.locator('video');
  await expect(bar).toContainText('1920 × 1080 px · 0:13 · MP4');await expect(video).toHaveAttribute('controls','');await expect(video).toBeFocused();
  await bar.getByRole('button',{name:'Ismétlés',exact:true}).click();expect(await video.evaluate(element=>element.loop)).toBe(true);
- await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);
+ await viewer.getByRole('button',{name:'Ablak bezárása',exact:true}).click();await expect(viewer).toHaveCount(0);
  // Audio (the seeded 3:02 MP3, streamed with Range support) opens in the same window shape with the audio stage; closing releases the element.
  const music=(await api(page,'files','list',(await api(page,'files','tree','signage')).body.data.root,{search:'calm-music'})).body.data.items.find(item=>item.name==='calm-music.mp3');
  await open('calm-music.mp3');
@@ -147,6 +147,6 @@ test('file manager viewer runs on MediaPlayer: image and video unchanged, audio 
  await expect(bar).toContainText('3:02 · MP3');
  expect(await audio.getAttribute('src')).toMatch(new RegExp(`action=content_stream&id=${music.id}&v=\\d+$`));
  await page.keyboard.press('End');await expect.poll(()=>audio.evaluate(element=>Math.round(element.currentTime))).toBe(182);
- await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);await expect(page.locator('audio')).toHaveCount(0);
+ await viewer.getByRole('button',{name:'Ablak bezárása',exact:true}).click();await expect(viewer).toHaveCount(0);await expect(page.locator('audio')).toHaveCount(0);
  expect(errors).toEqual([]);
 });

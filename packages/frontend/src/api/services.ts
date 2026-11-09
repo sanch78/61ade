@@ -146,6 +146,13 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
     fit: () => closed ? Promise.resolve() : fitWindow(win),
     close() { if (closed) return; if (win.isVisible()) win.hide(); else finish(); },
   };
+  // Suite closes only a modal window on Escape; a non-modal one closes while the focus is inside it (FB-0155). An
+  // Escape already taken (a menu or popup inside the window closed first) is left alone.
+  if (!(options.modal ?? true)) document.addEventListener("keydown", event => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    const dialog = win.getContainer()?.closest<HTMLElement>('[role="dialog"]');
+    if (dialog && document.activeElement && dialog.contains(document.activeElement)) { event.preventDefault(); api.close(); }
+  }, { signal: controller.signal });
   win.show();
   if (options.signal?.aborted) api.close();
   else options.signal?.addEventListener("abort", () => api.close(), { once: true });

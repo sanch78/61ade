@@ -638,3 +638,7 @@
 <a id="fb-0154"></a>
 
 ## FB-0154 — A more actions menu in the CommandBar
+
+<a id="fb-0155"></a>
+
+## FB-0155 — Suite's English-only names and Escape in a non-modal window

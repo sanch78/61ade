@@ -90,7 +90,7 @@ test('a tenant expands to its access list: every user, not selectable, one acces
  await page.getByRole('button',{name:'Módosítás',exact:true}).click();
  const tenantForm=page.getByRole('dialog').filter({has:page.getByLabel('Név',{exact:true})});
  await expect(tenantForm.getByLabel('Név',{exact:true})).toHaveValue('Beta');
- await tenantForm.getByRole('button',{name:'close',exact:true}).click();
+ await tenantForm.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);
  // The switch grants access (an audited single-field edit) and persists after a reload; the count follows.
  await single.locator('.blade-checkbox-edit').click();
@@ -113,7 +113,7 @@ test('a tenant expands to its access list: every user, not selectable, one acces
  const inWindow=full.locator('.dhx_grid-row').filter({hasText:'single@example.test'});
  await inWindow.locator('.blade-checkbox-edit').click();
  await expect(inWindow.getByRole('checkbox',{name:'Hozzáférés'})).not.toBeChecked();
- await full.getByRole('button',{name:'close',exact:true}).click();
+ await full.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  await expect(full).toHaveCount(0);
  await expect(flag('single@example.test')).not.toBeChecked();
  const audit=await api(page,'blade_tenant_members','list','',{limit:200,filters:{tenant_id:(await api(page,'blade_tenants','list','',{limit:50})).body.data.items.find(item=>item.name==='Beta').id,access:'1'}});
@@ -152,12 +152,12 @@ test('on a phone a tenant card opens its access list full screen from the card b
  await expect(items.filter({hasText:'none@example.test'})).toHaveCount(1);
  await expect(full.locator('.dhx_dataview-item--selected, .dhx_grid-selected-row')).toHaveCount(0);
  const area=await full.boundingBox();expect(area.width).toBeGreaterThanOrEqual(388);
- await full.getByRole('button',{name:'close',exact:true}).click();
+ await full.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  // The toolbar command still opens it (the responsive actions menu on a phone).
  await card.locator('.blade-grid-card__id').click();
  await page.getByRole('button',{name:'Műveletek',exact:true}).click();
  await page.getByRole('menuitem',{name:'Hozzáférések',exact:true}).click();
  await expect(full).toBeVisible();
- await full.getByRole('button',{name:'close',exact:true}).click();
+ await full.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  expect(errors).toEqual([]);
 });

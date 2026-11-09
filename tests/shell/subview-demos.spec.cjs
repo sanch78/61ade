@@ -67,7 +67,7 @@ test('a task expands to its subtasks; selecting one hands the toolbar over to it
  const full=page.getByRole('dialog',{name:'Feladatok — Alpha measurement'});
  await expect(full.locator('.dhx_grid-row')).toHaveCount(2);
  await expect(full.getByRole('button',{name:'Hozzáadás',exact:true})).toBeVisible();
- await full.getByRole('button',{name:'close',exact:true}).click();
+ await full.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  expect(errors).toEqual([]);
 });
 
@@ -103,6 +103,6 @@ test('in cards a project opens its tasks window from the card button, on a phone
  await expect(full.getByText('Alpha report',{exact:true})).toBeVisible();
  const area=await full.boundingBox();expect(area.width).toBeGreaterThanOrEqual(388);
  await expect(page.locator('.blade-subview-host')).toHaveCount(0);
- await full.getByRole('button',{name:'close',exact:true}).click();
+ await full.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  expect(errors).toEqual([]);
 });

@@ -82,7 +82,7 @@ test('one live WebSocket carries every list and sub-view of the tab',async({page
  await expect(full.locator('.dhx_grid-row')).toHaveCount(2);
  // Three views, two previews and the window: six subscriptions, each with its own id and update frames.
  await expect.poll(()=>updated.size,{timeout:10000}).toBeGreaterThanOrEqual(6);
- await full.getByRole('button',{name:'close',exact:true}).click();
+ await full.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  expect(sockets).toEqual([sockets[0]]);
  expect(new URL(sockets[0]).pathname).toBe('/live/tenants');
  expect(closed).toEqual([]);

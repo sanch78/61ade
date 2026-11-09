@@ -15,7 +15,7 @@ test('SQL sorting and virtual scrolling share the full result set',async({page})
  expect(requests.at(-1).sort).toEqual({field:'title',direction:'desc'});
  await rows.first().locator('[data-dhx-col-id="title"]').dblclick();
  const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});await expect(detail).toContainText('Reading 1801');
- await detail.getByRole('button',{name:/close/i}).click();
+ await detail.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  const sorted=requests.length;
  for(let i=0;i<8;i++){
   const before=requests.length;await grid.hover();await page.mouse.wheel(0,30000);await expect.poll(()=>requests.length).toBeGreaterThan(before);await page.waitForTimeout(150);

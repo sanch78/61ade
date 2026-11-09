@@ -1,4 +1,6 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
+// A component fixture bundles one module, not the admin.ts entry, so a window's close button keeps Suite's name
+// "close" there (pages loading admin.js name it `Ablak bezárása`, FB-0155).
 const {openMenu}=require('./feature-demo.cjs');
 test('native cards preserve selection, editing and live data across responsive changes',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -21,11 +23,11 @@ test('native cards preserve selection, editing and live data across responsive c
  await page.getByText('Szűrés',{exact:true}).click();
  await expect(page.getByRole('dialog').getByLabel('Cím',{exact:true})).toBeVisible();
  expect((await page.locator('.dhx_window-header').boundingBox()).height).toBe(40);
- await page.getByRole('dialog').getByRole('button',{name:'Close',exact:false}).click();
+ await page.getByRole('dialog').getByRole('button',{name:/^(close|Ablak bezárása)$/}).click();
 
  await cards.first().click();await page.getByRole('button',{name:'Műveletek',exact:true}).click();
  await page.getByText('Módosítás',{exact:true}).click();await expect(page.getByRole('dialog').getByLabel('Cím',{exact:true})).toBeVisible();
- await page.getByRole('dialog').getByRole('button',{name:'Close',exact:false}).click();
+ await page.getByRole('dialog').getByRole('button',{name:/^(close|Ablak bezárása)$/}).click();
  await page.setViewportSize({width:1280,height:900});await expect(page.locator('.dhx_grid')).toBeVisible();
  await expect(page.getByRole('button',{name:'Módosítás',exact:true})).toBeEnabled();
  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();await expect(cards.first()).toBeVisible();
@@ -278,7 +280,7 @@ test('details and cards render every media field and name an icon without option
  await expect(details).not.toContainText('f2');
  await expect(details.locator('.blade-record-icon')).toHaveAttribute('aria-hidden','true');
  await expect(details).toContainText('image outline');await expect(details).not.toContainText('dxi dxi-');
- await details.getByRole('button',{name:'Close',exact:false}).click();
+ await details.getByRole('button',{name:/^(close|Ablak bezárása)$/}).click();
  // Cards: the first media field fills the slot on top, every further one is rendered in its own field.
  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
  const card=page.locator('.blade-grid-card').first();await expect(card).toBeVisible();
@@ -347,7 +349,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
  await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
  const details=page.getByRole('dialog',{name:'Rekordadatok',exact:true});
  await expect(details).toContainText('Felbontás');await expect(details).toContainText('640 × 360');
- await details.getByRole('button',{name:'Close',exact:false}).click();
+ await details.getByRole('button',{name:/^(close|Ablak bezárása)$/}).click();
  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
  await expect(page.locator('.blade-grid-card').first()).toContainText('Hossz');await expect(page.locator('.blade-grid-card').first()).toContainText('0:06');
  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Csempék',{exact:true}).click();
