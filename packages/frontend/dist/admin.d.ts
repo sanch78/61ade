@@ -1425,8 +1425,11 @@ export interface SandboxFrame extends Component<SandboxFrameEvents> {
     /** Sends a project message (dotted type); throws before `ready`, does nothing after `destroy()`. */
     post(type: string, payload?: unknown): void;
 }
-/** One command bar item: a button (`type` omitted or `button`), a separator or a spacer; the last two need no id. */
-export type CommandItem = CommandButton | CommandSeparator | CommandSpacer;
+/**
+ * One command bar item: a button (`type` omitted or `button`), a toggle, a select, a segmented choice, a range, a
+ * group of buttons, a separator or a spacer; the last three need no id.
+ */
+export type CommandItem = CommandButton | CommandToggle | CommandSelect | CommandSegmented | CommandRange | CommandGroup | CommandSeparator | CommandSpacer;
 /** A command bar button; its `id` is what `click` reports and `update` addresses. */
 export interface CommandButton {
     type?: "button";
@@ -1439,6 +1442,72 @@ export interface CommandButton {
     disabled?: boolean;
     hidden?: boolean;
 }
+/**
+ * A button with a pressed state (`aria-pressed`, the pressed styling): a click flips it and reports `toggle`, not
+ * `click`; in the collapsed `Műveletek` menu it is a checked entry (`menuitemcheckbox`).
+ */
+export interface CommandToggle extends Omit<CommandButton, "type"> {
+    type: "toggle";
+    /** Default false. */
+    pressed?: boolean;
+}
+/** One choice of a select or a segmented choice; `value` is what `change` reports, `label` plain text (escaped). */
+export interface CommandOption {
+    value: string;
+    label: string;
+    /** Segmented choice only: the option's icon (with `iconOnly` of the item the option shows its icon only). */
+    icon?: string;
+}
+/**
+ * A short choice (a speed, a view): a menu button `label: <chosen option>` (its icon only with `iconOnly`) whose
+ * options are checked entries (`menuitemradio`); a submenu in the collapsed menu. A pick reports `change`.
+ */
+export interface CommandSelect {
+    type: "select";
+    id: string;
+    label: string;
+    icon?: string;
+    iconOnly?: boolean;
+    /** 2–20 options with unique values. */
+    options: CommandOption[];
+    /** One of the options' values; default the first. */
+    value?: string;
+    disabled?: boolean;
+    hidden?: boolean;
+}
+/**
+ * An exclusive choice shown as joined buttons in the bar (the chosen one pressed), a submenu `label: <chosen option>`
+ * in the collapsed menu. `label` names the choice (each button's tooltip is `label: option`). A pick reports `change`.
+ */
+export interface CommandSegmented extends Omit<CommandSelect, "type" | "icon"> {
+    type: "segmented";
+}
+/**
+ * A native range input in the bar (`role="slider"` with its value text). It never moves into the collapsed menu: it
+ * stays beside `Műveletek` and takes the remaining width (at least 120 px). The label is its accessible name and
+ * tooltip (hidden text). Dragging reports `change` at most every 100 ms and once more on release.
+ */
+export interface CommandRange {
+    type: "range";
+    id: string;
+    label: string;
+    min: number;
+    max: number;
+    /** Default 1. */
+    step?: number;
+    /** Default `min`; clamped to `min`–`max`. */
+    value?: number;
+    /** Shows the value beside the input (true: the number; a function: its text, also the value text read out). */
+    valueLabel?: boolean | ((value: number) => string);
+    disabled?: boolean;
+    hidden?: boolean;
+}
+/** Buttons and toggles kept together: joined in the bar, a block between separators in the collapsed menu. */
+export interface CommandGroup {
+    type: "group";
+    /** 2–12 buttons or toggles. */
+    items: Array<CommandButton | CommandToggle>;
+}
 /** A divider line between groups of buttons (also in the collapsed `Műveletek` menu). */
 export interface CommandSeparator {
     type: "separator";
@@ -1447,9 +1516,33 @@ export interface CommandSeparator {
 export interface CommandSpacer {
     type: "spacer";
 }
-/** Options of `CommandBar`. Button ids are `[A-Za-z0-9_.:-]+` and unique (`blade-command-menu` is reserved); otherwise `TypeError`. */
+/**
+ * Options of `CommandBar`. Item ids (also inside groups) are `[A-Za-z0-9_.:-]+` and unique within the bar
+ * (`blade-command-menu` is reserved); a malformed item (options, range bounds, group) throws `TypeError` too. Several
+ * bars on a page (a player's bars above and below its viewer) may use the same ids: menus and ids stay per bar.
+ */
 export interface CommandBarOptions extends ComponentOptions {
     items: CommandItem[];
+    /** The toolbar's accessible name (plain text), to tell several bars of a page apart. */
+    label?: string;
+    /** `bottom`: a bar below its content, with its rule on top instead of below. Default `top`. */
+    placement?: "top" | "bottom";
+}
+/** What `CommandBar.update` changes; each key applies to the item kinds that have it (others ignore it). */
+export interface CommandChanges {
+    label?: string;
+    icon?: string;
+    disabled?: boolean;
+    hidden?: boolean;
+    /** A toggle's state (no `toggle` event). */
+    pressed?: boolean;
+    /** A select's or segmented choice's option value, or a range's number (no `change` event). */
+    value?: string | number;
+    /** A select's or segmented choice's options (the value stays if still offered, else the first). */
+    options?: CommandOption[];
+    /** A range's bounds (the value is clamped). */
+    min?: number;
+    max?: number;
 }
 /**
  * The framework's responsive toolbar (`ResponsiveToolbar.ts`): collapses into `Műveletek` when it does not fit or below
@@ -1457,7 +1550,13 @@ export interface CommandBarOptions extends ComponentOptions {
  */
 export interface CommandBar extends Component<CommandBarEvents> {
     readonly toolbar: Suite.Toolbar;
-    update(id: string, changes: Partial<Omit<CommandButton, "id" | "type" | "iconOnly">>): void;
+    /**
+     * Changes one item (also while it sits in the collapsed menu); an unknown id does nothing, an invalid value throws
+     * `TypeError`. Changes from code report no event.
+     */
+    update(id: string, changes: CommandChanges): void;
+    /** A toggle's state, a select's or segmented choice's value, a range's number; `undefined` for other ids. */
+    value(id: string): boolean | string | number | undefined;
 }
 /**
  * A region of a page's panel tree (`PageLayout`): a leaf with its own `id` (`[a-z][a-z0-9_-]*`, unique, not starting
@@ -1624,6 +1723,16 @@ export interface CommandBarEvents {
     /** An item was clicked, also from the collapsed `Műveletek` menu. */
     click: {
         id: string;
+    };
+    /** A toggle was flipped by the user (also from the collapsed menu). */
+    toggle: {
+        id: string;
+        pressed: boolean;
+    };
+    /** A select, segmented choice or range got a new value from the user. */
+    change: {
+        id: string;
+        value: string | number;
     };
 }
 /** A component class bound to the application. */

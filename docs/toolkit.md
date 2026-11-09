@@ -472,7 +472,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; both `editing` |
 | [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `play`, `pause`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
-| [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
+| [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse), Suite toggle items | `click`, `toggle`, `change`; `update(id, changes)`, `value(id)` |
 | [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels, the active tab of a `tabs` branch, the open sections of an `accordion` branch) | none; `cell(id)`, `attach(id, content)`, `tabsOf(id)`, `accordionOf(id)` |
 | [`Tabs`](#tabs) | Suite `Tabbar` (header only) over one Layout cell per tab, `UiPreferences` (the active tab) | `change`; `cell(id)`, `attach(id, content)`, `active`, `select`, `update` |
 | [`Accordion`](#accordion) | one Suite Layout cell per section under its cell header, `UiPreferences` (the open sections) | `toggle`; `cell(id)`, `attach(id, content)`, `openSections`, `isOpen`, `open`, `close`, `toggle`, `update` |
@@ -666,7 +666,8 @@ player.on("pause", () => { playing = false; bar.update("play", { label: t("Lejá
 ```
 
 `CommandItem` is a button (`CommandButton`: `id`, `label`, `icon`,
-`iconOnly`, `disabled`, `hidden`; `type` omitted or `"button"`), a separator
+`iconOnly`, `disabled`, `hidden`; `type` omitted or `"button"`), one of the
+[view controls](#commandbar-view-controls), a separator
 (`CommandSeparator`, `{ type: "separator" }`, no id), a divider line between
 groups that stays in the collapsed menu, or a spacer (`CommandSpacer`,
 `{ type: "spacer" }`, no id), which pushes the following buttons to the right
@@ -687,6 +688,57 @@ ancestors at the original toolbar button; a native `Vissza` entry or ArrowLeft
 returns to the parent. This also applies near the right edge on desktop, and
 each deeper level makes the same fit decision. The feature demo's viewer drives
 a `MediaPlayer` with it ([example](#example-record-view)).
+
+<a id="commandbar-view-controls"></a>
+
+**View controls.** A player's bars above and below its viewer hold more than
+buttons. Every item stays usable in the collapsed `Műveletek` menu, and keys
+and screen readers get the native Suite toolbar and menu semantics:
+
+```ts
+const top = new app.components.CommandBar({ label: t("Nézet"), signal, items: [
+  { id: "back", label: t("Vissza"), icon: "dxi dxi-arrow-left" },
+  { type: "toggle", id: "grid", label: t("Rács"), icon: "dxi dxi-view-grid", pressed: true },
+  { type: "group", items: [{ id: "zoomIn", label: t("Nagyít"), icon: "dxi dxi-plus", iconOnly: true },
+                           { id: "zoomOut", label: t("Kicsinyít"), icon: "dxi dxi-minus", iconOnly: true }] },
+  { type: "spacer" },
+  { type: "segmented", id: "layout", label: t("Nézet"), options: [{ value: "one", label: t("Egy") }, { value: "two", label: t("Kettő") }] }] });
+const bottom = new app.components.CommandBar({ label: t("Lejátszás"), placement: "bottom", signal, items: [
+  { id: "play", label: t("Lejátszás"), icon: "blade-icon blade-icon--play", iconOnly: true },
+  { type: "range", id: "position", label: t("Pozíció"), min: 0, max: 1, value: 0, valueLabel: clock },
+  { type: "select", id: "speed", label: t("Sebesség"), options: [{ value: "1", label: "1×" }, { value: "2", label: "2×" }] }] });
+top.on("toggle", ({ id, pressed }) => id === "grid" && viewer.grid(pressed));
+bottom.on("change", ({ id, value }) => id === "position" ? player.seek(Number(value)) : setSpeed(Number(value)));   // setSpeed, clock: the page's own
+player.on("loaded", () => bottom.update("position", { max: player.duration() }));
+player.on("position", ({ seconds }) => bottom.update("position", { value: seconds }));
+top.mount(page.cell("above")); bottom.mount(page.cell("below"));
+```
+
+| Item | In the bar | In `Műveletek` | Reports |
+| --- | --- | --- | --- |
+| `toggle` (`CommandToggle`: a button's keys and `pressed`) | button with `aria-pressed`, a primary tint and an inset bar while pressed | checked entry (`menuitemcheckbox`) | `toggle {id, pressed}` (no `click`) |
+| `select` (`id`, `label`, `icon`, `iconOnly`, `options` 2–20 `{value, label}`, `value`) | menu button `label: option`, its options checked entries (`menuitemradio`) | submenu | `change {id, value}` |
+| `segmented` (as `select`, an option may have an `icon`) | joined buttons, the chosen one pressed; tooltip `label: option` | submenu `label: option` | `change {id, value}` |
+| `group` (`items`: 2–12 buttons or toggles) | joined buttons | a block between separators | their own events |
+| `range` (`id`, `label`, `min`, `max`, `step`, `value`, `valueLabel`) | native range input (`slider`, value text from `valueLabel`), the remaining width, at least 120 px | stays in the bar beside the menu | `change {id, value}`: at most every 100 ms while dragged, then on release |
+
+- A pick of the chosen option reports nothing; changes from code (`update`)
+  report nothing. `update(id, changes)` takes `label`, `icon`, `disabled`,
+  `hidden`, `pressed` (toggle), `value` (select, segmented, range), `options`
+  (select, segmented; the value stays if still offered, else the first) and
+  `min`/`max` (range); an invalid value throws `TypeError`. `value(id)` is a
+  toggle's state, a choice's value or a range's number.
+- `valueLabel: true` shows the number beside the range; a function gives the
+  text, which is also its `aria-valuetext` (a clock for a position). The
+  range's label is its accessible name and tooltip. Its arrow, Home/End and
+  Page keys move the thumb and never reach the toolbar's own key navigation.
+- Several bars on a page (above and below a viewer) may use the same item
+  ids: each bar's ids, menus and popups are its own, and Escape closes the
+  menu that is open. `label` names the toolbar for screen readers;
+  `placement: "bottom"` draws the bar's rule above it instead of below.
+- Ids are `[A-Za-z0-9_.:-]+` and unique within a bar, including inside a
+  group; a malformed item (an unknown `type`, options, range bounds, a group)
+  throws `TypeError`.
 
 <a id="pagelayout"></a>
 
@@ -1605,6 +1657,8 @@ while mounted, never after `destroy()`):
 | | `cancelled` | `{}` | Cancel was pressed |
 | | `changed` | `{field, value}` | a field value was committed (on leaving the field) |
 | `CommandBar` | `click` | `{id}` | an item was clicked, also from the collapsed `Műveletek` menu |
+| `CommandBar` | `toggle` | `{id, pressed}` | the user flipped a toggle (the bar or the menu) |
+| `CommandBar` | `change` | `{id, value}` | the user chose an option of a select or segmented choice, or moved a range (throttled while dragged) |
 | `Tabs` | `change` | `{id, previous}` | another tab opened (a click, the keys, `select`), after the guard allowed it |
 | `Accordion` | `toggle` | `{id, open}` | a section opened or closed (a header click, the keys, `open`, `close`, `toggle`); a closing is reported before the opening it caused |
 | `FileManager` | `opened` | `{id, mimeType}` | the viewer or text editor showed a file, also on previous/next |
@@ -1678,8 +1732,8 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
   only by class and text; keep a labelled standard input as the accessible
   control of the value ([field type example](#example-tasks)).
 - **Suite Slider has no ARIA role or value.** Its thumb is not announced;
-  show the value as text as well (the playlist's `Pozíció` command bar item)
-  and offer another keyboard route.
+  show the value as text as well and offer another keyboard route. A
+  `CommandBar` range is a native range input and has neither problem.
 - **`sandbox:error` names no frame.** A page with several frames, or one that
   replaces its frame, either listens to each component's own `error` event or
   checks that the frame it tracks is still the current one before acting.
@@ -2231,6 +2285,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-02 | A table's or card's sub-view previews inside a window live in that window's popup wrapper (its stacking context, the containing block of the fixed layer) instead of the page body, so they show over their slots in the window and stay below its menus, dialogs and later windows. No API change. | Found in cyberspace.hu: a `ListView` with a sub-view in an `app.ui.window` expanded to an empty row (the body-level layer had `z-index: 1`, the window's `.dhx_window` reports `auto`). | — |
 | 2026-11-09 | `Components.Tabs` (`TabsOptions`, `TabDefinition`, `TabsEvents`, event `change`); `PageRegion.tabs` (a `tabs` branch; region ids `blade-…` are reserved), `PageLayoutOptions.guard`, `PageLayout.tabsOf()`. `RecordForm.destroy()` destroys its Suite Form one redraw later. Additive (M38). | Owner: a tabbed switch between viewing and editing, offered where a page needs it. The list's `detail_tabs` window of the first version was withdrawn the same day. | [FB-0145](feedback.md#fb-0145) |
 | 2026-11-09 | `Components.Accordion` (`AccordionOptions`, `AccordionSection`, `AccordionEvents`, event `toggle`); `PageRegion.accordion`, `multiple`, `open` (an `accordion` branch), `PageLayout.accordionOf()`. Additive (M39). | Owner: an accordion attachable to a layout region, to divide a tall panel such as a form's region. | [FB-0148](feedback.md#fb-0148) |
+| 2026-11-09 | `CommandItem` adds `CommandToggle`, `CommandSelect`, `CommandSegmented`, `CommandRange`, `CommandGroup` (`CommandOption`); `CommandBarOptions.label`, `.placement`; `CommandBar.update(id, CommandChanges)`, `CommandBar.value(id)`; `CommandBarEvents.toggle`, `.change`. Additive; a project `switch` over every `CommandItem` type gets the new members. | A record page's player bars above and below its viewer need toggles, choices, button groups and a range. | [FB-0150](feedback.md#fb-0150) |
 
 <a id="resolved-decisions"></a>
 

@@ -5237,3 +5237,48 @@ that exactly equals an option label lists every option. The managed
   A form divided into sections is one form per section.
 - **Status:** implemented and verified on the managed demo.
 
+<a id="fb-0150"></a>
+
+## FB-0150 — Player toolbars: toggles, choices, groups and a range in the CommandBar
+
+- **Date:** 2026-11-09.
+- **Request:** the viewer of such a record page has player-like toolbars
+  above and below it. `CommandBar` held buttons, separators and spacers only.
+  Needed: a toggle with a pressed state, a short select, a range with a value
+  label, a group of buttons and a segmented choice, the same component in two
+  regions without conflicting ids or menus, every item usable in the
+  collapsed `Műveletek` menu, and the keyboard and screen-reader behaviour of
+  the existing buttons.
+- **Decision (owner, 2026-11-09):** a range does not move into the collapsed
+  menu; it stays in the bar beside `Műveletek` with the remaining width (at
+  least 120 px). A toggle reports `toggle`, not `click`.
+- **Implemented:** `CommandToggle` (Suite `twoState`: `aria-pressed` in the
+  bar, `menuitemcheckbox` in a menu, a primary tint with an inset bar),
+  `CommandSelect` (a menu button `label: option` with `menuitemradio`
+  entries), `CommandSegmented` (joined buttons in the bar, a submenu in the
+  collapsed menu), `CommandGroup` (joined buttons, a block between separators
+  in the menu) and `CommandRange` (a native range input with
+  `aria-valuetext`, keys kept from the toolbar's navigation, throttled
+  `change`). `update(id, CommandChanges)` and `value(id)`; options `label`
+  (the toolbar's accessible name) and `placement: "bottom"`.
+  `ResponsiveToolbar` learned an item shown inline in the bar but as a
+  submenu when collapsed, an item pinned beside the menu, a state change that
+  reaches the presentation not drawn at the moment (`setItem`), and to look
+  up a submenu in its own popup: before, a second bar with a menu of the same
+  name could take the first bar's popup. Internal Suite ids of menus, options
+  and ranges carry a per-bar `#n`, which public ids cannot contain, so two
+  bars never collide.
+- **Guides:** [CommandBar view controls](toolkit.md#commandbar-view-controls),
+  the event catalog, the Slider pitfall, [usage](usage.md),
+  [changes](toolkit.md#changes).
+- **Verification:** `npm run typecheck`, `npm run build`;
+  `npm run test:browser -- tests/shell/command-bar.spec.cjs` on the managed
+  demo: every item's events and ARIA state at 1366 px, `update` of states,
+  options and range bounds, two bars with the same ids, Escape; at 390 px
+  toggles as checked entries, selects and segmented choices as submenus, the
+  range beside `Műveletek`, and the state carried back to the wide bar. The
+  themes and skins: the pressed toggle's and range value's contrast is
+  measured (≥ 4.5:1) in this spec. Regression: the existing specs of the list toolbar,
+  record views and shell controls that use `ResponsiveToolbar`.
+- **Status:** implemented.
+
