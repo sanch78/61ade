@@ -610,3 +610,7 @@
 <a id="fb-0147"></a>
 
 ## FB-0147 — Keep the menu context on record pages
+
+<a id="fb-0148"></a>
+
+## FB-0148 — Accordion attachable to a layout region

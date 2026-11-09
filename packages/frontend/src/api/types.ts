@@ -1438,9 +1438,10 @@ export interface CommandBar extends Component<CommandBarEvents> {
 
 /**
  * A region of a page's panel tree (`PageLayout`): a leaf with its own `id` (`[a-z][a-z0-9_-]*`, unique, not starting
- * with `blade-`), or a branch of `rows`, `cols` or `tabs`; the options of a list view's `LayoutRegion`. At most 6 levels
- * and 30 regions; sizes 40–3000 px. A `tabs` branch holds 1–12 leaves, each a tab with its `header` as the label and
- * no other option; the branch itself takes the sizes and `resizable` only.
+ * with `blade-`), or a branch of `rows`, `cols`, `tabs` or `accordion`; the options of a list view's `LayoutRegion`. At
+ * most 6 levels and 30 regions; sizes 40–3000 px. A `tabs` branch holds 1–12 leaves, each a tab with its `header` as
+ * the label and no other option; an `accordion` branch holds 1–12 leaves, each a section with its `header` as the label
+ * and optionally `open`. Either branch takes the sizes and `resizable`; an `accordion` branch also `multiple`.
  */
 export interface PageRegion {
   id?: string;
@@ -1450,6 +1451,12 @@ export interface PageRegion {
   cols?: PageRegion[];
   /** Tabbed leaves (`app.components.Tabs`); the last active tab is kept per page and user. */
   tabs?: PageRegion[];
+  /** Stacked collapsible leaves (`app.components.Accordion`); the open sections are kept per page and user. */
+  accordion?: PageRegion[];
+  /** An `accordion` branch: several sections may be open at once (`AccordionOptions.multiple`). */
+  multiple?: boolean;
+  /** A leaf of an `accordion` branch: open at first (without `multiple`, at most one); default the first section. */
+  open?: boolean;
   width?: number;
   height?: number;
   minWidth?: number;
@@ -1479,6 +1486,61 @@ export interface PageLayout extends Component<Record<string, never>> {
   attach(id: string, content: Mountable): void;
   /** The `Tabs` of the `tabs` branch that holds region $id (to `select` it or follow `change`), else `undefined`. */
   tabsOf(id: string): Tabs | undefined;
+  /** The `Accordion` of the `accordion` branch that holds region $id (to `open` a section or follow `toggle`), else `undefined`. */
+  accordionOf(id: string): Accordion | undefined;
+}
+
+/** One section of `Accordion`: an id (`[a-z][a-z0-9_-]*`, unique) and a plain-text label (escaped). */
+export interface AccordionSection {
+  id: string;
+  /** 1–80 characters. */
+  label: string;
+  /** A disabled section stays closed and cannot be opened; at least one section is enabled. */
+  disabled?: boolean;
+}
+
+export interface AccordionOptions extends ComponentOptions {
+  /** 1–12 sections in display order; an invalid list throws `TypeError`. */
+  sections: AccordionSection[];
+  /** Several sections may be open at once (and all may be closed). Default `false`: exactly one section is open. */
+  multiple?: boolean;
+  /**
+   * The sections open at first (enabled ones; exactly one without `multiple`). Default: the remembered sections with
+   * `id`, else the first enabled section.
+   */
+  open?: string[];
+  /** Remembers the open sections per page and user under this key (`[a-z][a-z0-9_.-]*`). */
+  id?: string;
+}
+
+/** Events of `Accordion`. */
+export interface AccordionEvents {
+  /** A section opened or closed (a header click, the keys, `open`, `close`, `toggle`); closings are reported first. */
+  toggle: { id: string; open: boolean };
+}
+
+/**
+ * Stacked collapsible sections: a Suite Layout cell per section under its header (plain-text label), the open ones
+ * sharing the height. Every section stays rendered and a closed one is hidden, so its content keeps its state and may
+ * update while closed. Headers are buttons (`aria-expanded`) over labelled regions; Enter and Space toggle.
+ */
+export interface Accordion extends Component<AccordionEvents> {
+  /** A section's cell, a mount target of every component; an undeclared id throws `Error`. */
+  cell(id: string): LayoutCell;
+  /** Puts a Suite widget, a public component or a plain element into a section (released with the accordion). */
+  attach(id: string, content: Mountable): void;
+  /** The open sections' ids in display order. */
+  openSections(): string[];
+  /** Whether a section is open; an undeclared id throws `Error`. */
+  isOpen(id: string): boolean;
+  /** Opens a section (without `multiple` the open one closes); returns whether it is open. A disabled one stays closed. */
+  open(id: string): boolean;
+  /** Closes a section; without `multiple` the open section stays open (`false`). Returns whether it is closed. */
+  close(id: string): boolean;
+  /** Opens a closed section or closes an open one (as a header click); returns whether it is open. */
+  toggle(id: string): boolean;
+  /** Changes a label or the disabled state; disabling an open section throws `Error`. */
+  update(id: string, changes: { label?: string; disabled?: boolean }): void;
 }
 
 /** One tab of `Tabs`: an id (`[a-z][a-z0-9_-]*`, unique) and a plain-text label (escaped). */
@@ -1553,4 +1615,5 @@ export interface Components {
   readonly CommandBar: ComponentClass<CommandBarOptions, CommandBar>;
   readonly PageLayout: ComponentClass<PageLayoutOptions, PageLayout>;
   readonly Tabs: ComponentClass<TabsOptions, Tabs>;
+  readonly Accordion: ComponentClass<AccordionOptions, Accordion>;
 }

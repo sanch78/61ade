@@ -180,6 +180,9 @@ tree as decoration for a flat list.
   (`Tabs` or a `PageLayout` `tabs` branch), never a hand-built tab row; leaving
   unsaved input asks first, and a discarded form is recreated with the stored
   values on the next opening ([FB-0145](../../../docs/feedback.md#fb-0145)).
+  When both should be visible at once in a tall column, use sections of one
+  panel (`Accordion` or a `PageLayout` `accordion` branch with `multiple`),
+  never hand-built collapsible markup ([FB-0148](../../../docs/feedback.md#fb-0148)).
 - Card editing is not a second save system. Editable text/select/textarea opens
   the native editor and uses the same revision, validation, cross-field checks,
   ACL, transaction, and audit path as grid/form editing. Read-only values stay

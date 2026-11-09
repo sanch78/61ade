@@ -2,7 +2,7 @@ import * as Suite from "@dhtmlx/suite";
 import { t } from "../I18n";
 import { uploads as uploader, type UploadEvents } from "../Uploader";
 import type { LiveChannel } from "../Realtime";
-import type { Application, ClientCommand, ColumnPresentation, Components, FieldType, MediaType, NavigationTarget, PageLayoutOptions, TabsOptions, ViewDefinition, ViewKind } from "../api/types";
+import type { AccordionOptions, Application, ClientCommand, ColumnPresentation, Components, FieldType, MediaType, NavigationTarget, PageLayoutOptions, TabsOptions, ViewDefinition, ViewKind } from "../api/types";
 import { server } from "../api/Server";
 import { createEventBus, type InternalEventBus } from "../api/Events";
 import { i18n, identity, live, preferences, theme, ui, uploads } from "../api/services";
@@ -17,6 +17,7 @@ import { sandboxFrameClass } from "../components/sandbox/SandboxFrame";
 import { MediaPlayer } from "../components/media/MediaPlayer";
 import { PageLayout } from "../components/layout/PageLayout";
 import { Tabs } from "../components/layout/Tabs";
+import { Accordion } from "../components/layout/Accordion";
 
 /** What the shell hands the application object: its live channel, effective identity, views and router. */
 export type ShellBridge = {
@@ -73,6 +74,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
       MediaPlayer,
       PageLayout: class extends PageLayout { constructor(options: PageLayoutOptions) { super({ user: bridge.userId }, options); } },
       Tabs: class extends Tabs { constructor(options: TabsOptions) { super({ user: bridge.userId }, options); } },
+      Accordion: class extends Accordion { constructor(options: AccordionOptions) { super({ user: bridge.userId }, options); } },
     }) as Components,
     viewDefinitions: () => offered,
     viewDefinition: (id: string) => offered.find(view => view.id === id),
