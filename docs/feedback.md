@@ -5314,6 +5314,10 @@ that exactly equals an option label lists every option. The managed
   Fixes found on the way: Suite marks a checkbox group as a `radiogroup` and
   leaves the choice groups unnamed, uses option ids as element ids, and
   disables a select's options but not the element; the form corrects each.
+  Suite 9.3.12's fieldset destructor repaints the destroyed Form's Layout a
+  frame later (a page error in about half of the runs that destroyed the form
+  shortly after building it); the form releases its group fieldsets without
+  that repaint ([pitfalls](toolkit.md#pitfalls)).
   Chosen segments and chips use a primary tint, border and ring with the
   normal text colour, because white text on the primary colour fell to
   2.7:1 in Blade Night.

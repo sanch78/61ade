@@ -1835,6 +1835,12 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
   show the value as text as well and offer another keyboard route. The
   framework's own ranges do: a `SettingsForm` range pairs the slider with a
   number input, and a `CommandBar` range is a native range input.
+- **Suite Form `fieldset` destructor.** Destroying a Form with a `fieldset`
+  hides the fieldset's cell, which repaints the Form's own Layout one frame
+  after it is gone (`Cannot read properties of null (reading 'type')`, now
+  and then). `SettingsForm` groups are fieldsets and are released without
+  it; a project Form with a `fieldset` stubs the fieldset item's `cell`
+  before `destructor()`.
 - **`sandbox:error` names no frame.** A page with several frames, or one that
   replaces its frame, either listens to each component's own `error` event or
   checks that the frame it tracks is still the current one before acting.
