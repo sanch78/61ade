@@ -400,6 +400,11 @@ for a command bar toggle or for a phone that collapses a region while one
 tab is shown; `collapse {id, collapsed}` follows every change. Only the
 user's own header click is kept.
 
+The commands of a selected item that need not stay visible go into one
+*more actions* button: a [`menu` item](toolkit.md#commandbar-menu) of the
+`CommandBar` (1–12 buttons and separators, each reporting `click`; a
+submenu of `Műveletek` when the bar is narrow).
+
 A record page that shows one item large, like a media player, is a two-column `PageLayout`: a control panel of
 [`SettingsForm`](toolkit.md#settingsform)s (local view settings with switches, segmented choices, ranges, colours
 and chips, kept per user with `key`, never written to the server) and a viewer with

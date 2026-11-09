@@ -2,7 +2,7 @@ import { Layout, type Toolbar } from "@dhtmlx/suite";
 import { t } from "../../I18n";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { widgetIcons } from "../../WidgetIcons";
-import type { CommandBar as CommandBarApi, CommandBarEvents, CommandBarOptions, CommandButton, CommandChanges, CommandItem, CommandOption, CommandRange, CommandSelect, CommandToggle } from "../../api/types";
+import type { CommandBar as CommandBarApi, CommandBarEvents, CommandBarOptions, CommandButton, CommandChanges, CommandItem, CommandMenu, CommandOption, CommandRange, CommandSelect, CommandToggle } from "../../api/types";
 import { Component } from "./component";
 import { escape } from "./fields";
 
@@ -15,7 +15,7 @@ let serial=0;
 /** `generation` is part of the option ids: options replaced by `update` get ids the toolbar has not drawn. */
 type Choice={kind:"select"|"segmented";item:CommandSelect;options:CommandOption[];value:string;generation:number};
 type Range={kind:"range";item:CommandRange;value:number;emitted:number;last:number;timer?:ReturnType<typeof setTimeout>};
-type Entry={kind:"button";item:CommandButton}|{kind:"toggle";item:CommandToggle;pressed:boolean}|Choice|Range;
+type Entry={kind:"button";item:CommandButton}|{kind:"toggle";item:CommandToggle;pressed:boolean}|{kind:"menu";item:CommandMenu}|Choice|Range;
 
 const finite=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value);
 const invalid=(message:string)=>new TypeError("61ade: "+message);
@@ -25,7 +25,8 @@ const invalid=(message:string)=>new TypeError("61ade: "+message);
  * docs/toolkit.md#commandbar): the list's own `ResponsiveToolbar`, which moves every item into one `Műveletek`
  * menu below 768 px or when the items do not fit, keeping ids, state and events. Toggles, selects and segmented choices
  * are native Suite toggle items (`twoState`, `group`: `aria-pressed` in the bar, checked menu entries in a menu); a
- * range is a native range input that stays in the bar beside the collapsed menu.
+ * range is a native range input that stays in the bar beside the collapsed menu; a `menu` is a Suite menu button whose
+ * entries are the bar's buttons (a submenu of the collapsed menu).
  */
 export class CommandBar extends Component<CommandBarEvents> implements CommandBarApi{
   readonly layout:Layout;
@@ -69,6 +70,18 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
         if(children.length<2||children.length>12||children.some(child=>!child||(child.type!==undefined&&child.type!=="button"&&child.type!=="toggle")))throw invalid("a command group holds 2–12 buttons or toggles.");
         const buttons=children.map((child,index)=>{const [button]=this.item(child,false,false);return {...button,css:[button.css,"blade-command--grouped",index===0?"blade-command--first":"",index===children.length-1?"blade-command--last":""].filter(Boolean).join(" ")};});
         return [...(first?[]:[{type:"separator"}]),...buttons,...(last?[]:[{type:"separator"}])];
+      }
+      case "menu":{
+        const id=this.id(item.id),children=Array.isArray(item.items)?item.items:[];
+        if(typeof item.label!=="string")throw invalid(`command "${id}" needs a label.`);
+        if(!children.length||children.length>12||children.some(child=>!child||(child.type!==undefined&&child.type!=="button"&&child.type!=="separator"))||!children.some(child=>child.type!=="separator"))
+          throw invalid("a command menu holds 1–12 buttons and separators, at least one button.");
+        this.entries.set(id,{kind:"menu",item});
+        if(item.iconOnly)this.iconOnly.add(id);
+        return [{id:this.suiteId("menu",id),value:escape(item.label),...(item.icon?{icon:item.icon}:{}),
+          css:["blade-command--menu",item.iconOnly?"blade-command--icon":""].filter(Boolean).join(" "),
+          ...(item.iconOnly?{tooltip:item.label}:{}),...(item.disabled?{disabled:true}:{}),...(item.hidden?{hidden:true}:{}),
+          items:children.map(child=>child.type==="separator"?{type:"separator"}:this.item(child,false,false)[0])}];
       }
       case "toggle":{
         const id=this.id(item.id);
@@ -217,7 +230,10 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
     const entry=this.destroyed?undefined:this.entries.get(id);
     if(!entry||!changes||typeof changes!=="object")return;
     if(changes.label!==undefined&&typeof changes.label!=="string")throw invalid("a command label must be text.");
-    if(entry.kind==="button"||entry.kind==="toggle"){
+    if(entry.kind==="menu"){
+      if(changes.label!==undefined)entry.item={...entry.item,label:changes.label};
+      this.state(this.suiteId("menu",id),{...(changes.label!==undefined?{value:escape(changes.label),...(this.iconOnly.has(id)?{tooltip:changes.label}:{})}:{}),...(changes.icon!==undefined?{icon:changes.icon}:{})},changes);
+    }else if(entry.kind==="button"||entry.kind==="toggle"){
       const values={...(changes.label!==undefined?{value:escape(changes.label),...(this.iconOnly.has(id)?{tooltip:changes.label}:{})}:{}),...(changes.icon!==undefined?{icon:changes.icon}:{})};
       if(entry.kind==="toggle"&&changes.pressed!==undefined){entry.pressed=changes.pressed===true;Object.assign(values,{active:entry.pressed});}
       this.state(id,values,changes);

@@ -798,6 +798,7 @@ top.mount(page.cell("above")); bottom.mount(page.cell("below"));
 | `select` (`id`, `label`, `icon`, `iconOnly`, `options` 2–20 `{value, label}`, `value`) | menu button `label: option`, its options checked entries (`menuitemradio`) | submenu | `change {id, value}` |
 | `segmented` (as `select`, an option may have an `icon`) | joined buttons, the chosen one pressed; tooltip `label: option` | submenu `label: option` | `change {id, value}` |
 | `group` (`items`: 2–12 buttons or toggles) | joined buttons | a block between separators | their own events |
+| `menu` (`CommandMenu`: `id`, `label`, `icon`, `iconOnly`, `disabled`, `hidden`, `items` 1–12 buttons and separators, at least one button) | one menu button, its entries a Suite menu | submenu | each entry `click {id}`, like a button ([below](#commandbar-menu)) |
 | `range` (`id`, `label`, `min`, `max`, `step`, `value`, `valueLabel`) | native range input (`slider`, value text from `valueLabel`), the remaining width, at least 120 px | stays in the bar beside the menu | `change {id, value}`: at most every 100 ms while dragged, then on release |
 
 - A pick of the chosen option reports nothing; changes from code (`update`)
@@ -815,8 +816,43 @@ top.mount(page.cell("above")); bottom.mount(page.cell("below"));
   menu that is open. `label` names the toolbar for screen readers;
   `placement: "bottom"` draws the bar's rule above it instead of below.
 - Ids are `[A-Za-z0-9_.:-]+` and unique within a bar, including inside a
-  group; a malformed item (an unknown `type`, options, range bounds, a group)
-  throws `TypeError`.
+  group or a menu; a malformed item (an unknown `type`, options, range
+  bounds, a group, a menu) throws `TypeError`.
+
+<a id="commandbar-menu"></a>
+
+**More actions menu** ([FB-0154](feedback.md#fb-0154)): the commands of the
+selected item behind one button instead of permanent buttons.
+
+```ts
+const bar = new app.components.CommandBar({ label: t("Munka"), signal, items: [
+  { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "dxi dxi-border-right", pressed: true },
+  { type: "spacer" },
+  { type: "menu", id: "more", label: t("További műveletek"), icon: "dxi dxi-dots-vertical", iconOnly: true, items: [
+    { id: "show", label: t("Megjelenítés az oldalpanelen"), disabled: true },
+    { id: "copy", label: t("Szöveg másolása"), icon: "dxi dxi-copy", disabled: true },
+    { type: "separator" },
+    { id: "delete", label: t("Törlés"), icon: "dxi dxi-delete", disabled: true }] }] });
+list.on("target", ({ row }) => { for (const id of ["show", "copy", "delete"]) bar.update(id, { disabled: !row }); }, { signal });
+bar.on("click", ({ id }) => run(id));   // run: the page's own
+```
+
+- `items`: 1–12 entries, `CommandButton`s (at least one) and
+  `CommandSeparator`s; a toggle, a choice, a range, a group or a nested menu
+  throws `TypeError`, as does a menu without `label`. Entry ids are ids of
+  the bar (unique with every other item).
+- In the bar it is one Suite menu button (with `iconOnly` only its icon, the
+  label its tooltip and accessible name); in the collapsed `Műveletek` menu
+  it is a submenu with the existing submenu fit rules (to the right when it
+  fits, otherwise replacing its parent with `Vissza`).
+- Each entry reports `click {id}` like a button, also from the collapsed
+  menu. `update(entryId, {label, icon, disabled, hidden})` changes an entry
+  and `update(menuId, {label, icon, disabled, hidden})` the button, also
+  while the bar is collapsed.
+- Native Suite toolbar and menu semantics: `menu` named by the label,
+  `menuitem` entries (a disabled one is `aria-disabled`), Enter and the
+  arrows; Escape closes the open menu and returns the focus to its button
+  (to `Műveletek` when collapsed).
 
 <a id="pagelayout"></a>
 
@@ -2351,6 +2387,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M40 | Menu-less list views ([views](#menu-less-views)): `menu: false` on `View`, `View::list`, `Registry::view`, `SqlResource::register` and JSON `view.menu`; bootstrap `menu: false`; such a view has no menu entry and its address and `navigate` are refused | [FB-0149](feedback.md#fb-0149) | info: a bootstrap view may carry `menu`; code that lists `viewDefinitions()` as navigation targets skips `menu: false` | none | none |
 | M41 | First sort and long text in cards ([list sort](workspaces.md#list-sort), [long text](workspaces.md#long-text-in-cards)): `sort` on `View::list`, `Registry::view`, `SqlResource::register` and JSON `view.sort`; bootstrap `options.sort`; a `textarea` field shows at most 4 lines on a card | [FB-0152](feedback.md#fb-0152) | info: specs that read a long `textarea` value from a card's visible text see the first 4 lines (the DOM keeps the whole value) | none | none |
 | M42 | [PageLayout](#pagelayout-collapse) `collapse(id)`, `expand(id)`, `isCollapsed(id)` and the `collapse` event; `attach(id, component)` of `PageLayout`, `Tabs` and `Accordion` mounts the component (its events are delivered) | [FB-0153](feedback.md#fb-0153) | info: a component attached into a region and then mounted again (or attached twice) throws `already mounted`; mount it once | none | none |
+| M43 | [CommandBar menu](#commandbar-menu): `{type: "menu", id, label, icon, iconOnly, items}`, one *more actions* button whose entries report `click` (a submenu of `Műveletek` when collapsed) | [FB-0154](feedback.md#fb-0154) | none | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2478,6 +2515,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-09 | `Components.SettingsForm` (`SettingsFormOptions`, `SettingsField`, `SettingsFieldType`, `SettingsGroup`, `SettingsChip`, `SettingsFormEvents`: `change`, `submit`). Additive. | A record page's view settings have no record action, and `RecordForm` needs one. | [FB-0151](feedback.md#fb-0151) |
 | 2026-11-09 | `ListKindOptions.sort` (`{field, direction}`, the first sort). PHP `sort` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.sort`. A `textarea` field shows at most 4 lines on a card. Additive (M41). | A consumer's scoped side-panel list starts oldest first and holds long text entries. | [FB-0152](feedback.md#fb-0152) |
 | 2026-11-09 | `PageLayout.collapse(id)`, `expand(id)`, `isCollapsed(id)`, `PageLayoutEvents` (`collapse {id, collapsed}`; `PageLayout` extends `Component<PageLayoutEvents>`). A public component given to `attach` of `PageLayout`, `Tabs` or `Accordion` is mounted there, so its events arrive. Additive (M42). | A consumer's record page shows or hides a side panel from its command bar and collapses its control region on a phone while one tab is shown. | [FB-0153](feedback.md#fb-0153) |
+| 2026-11-09 | `CommandItem` adds `CommandMenu` (`type: "menu"`, `items`: 1–12 `CommandButton`s and `CommandSeparator`s); its entries report `click {id}` and take `update`. Additive (M43). | A consumer's command bar acts on the selected item with a few commands behind one *more actions* button. | [FB-0154](feedback.md#fb-0154) |
 
 <a id="resolved-decisions"></a>
 

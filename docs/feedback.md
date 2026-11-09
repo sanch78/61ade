@@ -5551,4 +5551,56 @@ that exactly equals an option label lists every option. The managed
   768 px a `CommandBar` puts even a single toggle into `Műveletek`. The bar's
   `label` names the root element, while Suite's inner toolbar keeps the name
   `Eszköztár` (unchanged, noted).
+- **Commit:** `43c14de` on `main`, pushed to `origin/main`.
+- **Status:** implemented.
+
+<a id="fb-0154"></a>
+
+## FB-0154 — A more actions menu in the CommandBar
+
+- **Date:** 2026-11-09.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms). A command bar acts on the item selected in the main
+  column with a few commands that belong behind one *more actions* button
+  instead of permanent buttons. No existing item covered it: a `select` is a
+  radio choice reporting `change`, and a `group` is a row of permanent
+  buttons.
+- **Implemented:**
+  - `CommandMenu` (`{type: "menu", id, label, icon, iconOnly, disabled,
+    hidden, items}`; `items` 1–12 `CommandButton`s, at least one, and
+    `CommandSeparator`s). In the bar a Suite menu button, in the collapsed
+    `Műveletek` menu a submenu (the existing submenu fit rules). The entries
+    are buttons of the bar: `click {id}`, and `update(id, {label, icon,
+    disabled, hidden})` also while collapsed; `update` of the menu id changes
+    the button. A malformed menu throws `TypeError`.
+  - Demo D7 `Feladatlap`, `Munka`: the icon-only `További műveletek` menu
+    with `Megjelenítés az oldalpanelen`, `Szöveg másolása` and `Törlés`
+    (with `delete`, after a confirmation), enabled while a note is selected.
+    The page guide (hu, English) describes `Munka`; the texts of FB-0153 and
+    this entry have English translations.
+- **Guides:** [CommandBar menu](toolkit.md#commandbar-menu) beside the view
+  controls, [changes](toolkit.md#changes) (M43), [usage](usage.md),
+  [demos D7](demos.md#d7-task-page), the
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:** `node tools/build.mjs`, `npm run typecheck`,
+  `npm run demo:assets`, PHP `i18n`, `configuration`. On the managed demo:
+  `tests/shell/command-menu.spec.cjs` (1366 px: the definition checks, the
+  menu named by its label with three entries and a disabled one, `click`,
+  Escape closing and returning the focus to the button, `update` of entries
+  and of the button, the keyboard; 390 px: the submenu of `Műveletek`, an
+  entry enabled and hidden while collapsed, Escape back to `Műveletek`).
+  `tests/shell/task-page.spec.cjs` at 1366 and 390 px (entries disabled
+  without a selection; opening the panel the user had collapsed; copying
+  the selected note through a stubbed clipboard, its toast; the user's
+  header choice still kept). Regression: `command-bar`, `command-menu`,
+  `settings-form`, `toolkit-demo-assets`, `toolkit-demo-playlist-editor`,
+  `task-page`, `page-layout-collapse`, `i18n`: 31 passed, 1 failed, 5 not
+  run. The failure was `toolkit-demo-playlist-editor` "library assets dragged
+  into the items…" (the stored order after two drops). Rerun of the four
+  unfinished files: 19 passed, the drop case included. It is unrelated to
+  this change (no CommandBar or layout in the drop path); watch for a
+  repeat.
+- **Limits:** a menu holds buttons and separators only (no toggles, choices
+  or nested menus). The demo's `Törlés` is not exercised by the browser
+  test (it deletes the seeded note); the `delete` action is the list's own.
 - **Status:** implemented.

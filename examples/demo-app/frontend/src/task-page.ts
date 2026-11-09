@@ -3,7 +3,8 @@
 // components only: a collapsible control region (the task's `Adatok` and `Szerkesztés` in an Accordion) beside tabs;
 // `Munka` is a nested PageLayout: a command bar above the notes table and a collapsible side panel with the selected
 // note, which the bar's toggle shows or hides (`PageLayout.collapse`/`expand` and its `collapse` event); on a phone
-// the control region collapses to its header while `Munka` is shown, without changing the user's own choice.
+// the control region collapses to its header while `Munka` is shown, without changing the user's own choice. The bar's
+// `További műveletek` menu (`type: "menu"`) holds the commands of the selected note, enabled while one is selected.
 // `Jegyzetek` holds the task's notes, a list without a menu entry (`demo_task_notes`, `menu: false`) sorted oldest
 // first (`view.sort`) as cards, whose long text shows a 4-line preview.
 import type { Accordion, Application, ApplicationModule, CommandBar, ListKindOptions, ListView, PageLayout, PageRegion, RecordDetails, RecordForm, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
@@ -82,12 +83,35 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
           : { rows: [{ id: "commands", height: 56 }, { cols: [{ id: "main", minWidth: 240 }, { id: "side", header: t("Kijelölt jegyzet"), width: 340, minWidth: 220, collapsable: true, resizable: true }] }] } });
       layout.attach("work", work);
       const side = work;
+      const deletable = notes.actions.some(action => action.name === "delete");
       bar = new app.components.CommandBar({ label: t("Munka"), signal, items: [
-        { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "dxi dxi-border-right", pressed: !side.isCollapsed("side") }] });
+        { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "dxi dxi-border-right", pressed: !side.isCollapsed("side") },
+        { type: "spacer" },
+        // The commands of the selected note behind one button instead of permanent buttons.
+        { type: "menu", id: "more", label: t("További műveletek"), icon: "dxi dxi-dots-vertical", iconOnly: true, items: [
+          { id: "show", label: t("Megjelenítés az oldalpanelen"), icon: "dxi dxi-border-right", disabled: true },
+          { id: "copy", label: t("Szöveg másolása"), icon: "dxi dxi-copy", disabled: true },
+          { type: "separator" },
+          { id: "delete", label: t("Törlés"), icon: "dxi dxi-delete", disabled: true, hidden: !deletable }] }] });
       bar.mount(side.cell("commands"));
       // The toggle follows the panel, also when the user collapses it by its header; the toggle itself collapses it.
       side.on("collapse", ({ id, collapsed }) => { if (id === "side") bar?.update("side", { pressed: !collapsed }); }, { signal });
       bar.on("toggle", ({ id, pressed }) => { if (id === "side") { if (pressed) side.expand("side"); else side.collapse("side"); } });
+      let current: Record<string, unknown> | undefined;
+      bar.on("click", ({ id }) => {
+        const note = current;
+        if (!note) return;
+        if (id === "show") side.expand("side");
+        else if (id === "copy") {
+          const clipboard = typeof navigator !== "undefined" ? navigator.clipboard : undefined;
+          void (clipboard?.writeText(String(note.body ?? "")) ?? Promise.reject(new Error("clipboard")))
+            .then(() => app.ui.toast(t("A jegyzet szövege a vágólapra került.")), () => void app.ui.dialog({ severity: "warning", message: t("A vágólap nem érhető el.") }));
+        } else if (id === "delete") void (async () => {
+          if (!await app.ui.dialog({ mode: "confirm", severity: "danger", title: t("Törlés"), message: t("Törlöd a kijelölt jegyzetet?"), confirmLabel: t("Törlés") })) return;
+          try { await app.server.call(notes.resource!, "delete", { id: String(note.id) }); } catch { return; /* the error dialog was shown */ }
+          workList?.refresh(); noteList?.refresh();
+        })();
+      });
       workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, mode: "table", panel: false, showId: false });
       workList.mount(side.cell("main"));
       // The panel holds one element of the page: a hint until a note is selected, then that note's details.
@@ -98,6 +122,9 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
       panel.append(hint);
       side.attach("side", panel);
       workList.on("target", ({ row: note }) => {
+        // The menu's entries act on the selected note: enabled while one is selected, also in the collapsed bar.
+        current = note;
+        for (const id of ["show", "copy", "delete"]) bar?.update(id, { disabled: !note });
         if (!note) return;
         if (selected) { void selected.show(note).catch(() => { /* the error dialog was shown */ }); return; }
         hint.remove();

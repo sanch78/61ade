@@ -1550,7 +1550,7 @@ export interface SandboxFrame extends Component<SandboxFrameEvents> {
  * One command bar item: a button (`type` omitted or `button`), a toggle, a select, a segmented choice, a range, a
  * group of buttons, a separator or a spacer; the last three need no id.
  */
-export type CommandItem = CommandButton | CommandToggle | CommandSelect | CommandSegmented | CommandRange | CommandGroup | CommandSeparator | CommandSpacer;
+export type CommandItem = CommandButton | CommandToggle | CommandSelect | CommandSegmented | CommandRange | CommandGroup | CommandMenu | CommandSeparator | CommandSpacer;
 /** A command bar button; its `id` is what `click` reports and `update` addresses. */
 export interface CommandButton {
     type?: "button";
@@ -1628,6 +1628,24 @@ export interface CommandGroup {
     type: "group";
     /** 2–12 buttons or toggles. */
     items: Array<CommandButton | CommandToggle>;
+}
+/**
+ * One button that opens a menu of commands (a *more actions* button): in the bar a menu button, in the collapsed
+ * `Műveletek` menu a submenu. Each entry is a button of the bar: it reports `click {id}` and `update(id, …)` changes its
+ * label, icon, disabled or hidden state, also while the bar is collapsed. `update` of the menu's own id changes the
+ * menu button.
+ */
+export interface CommandMenu {
+    type: "menu";
+    id: string;
+    /** Plain text (escaped): the button's text, or its tooltip and accessible name with `iconOnly`. */
+    label: string;
+    icon?: string;
+    iconOnly?: boolean;
+    disabled?: boolean;
+    hidden?: boolean;
+    /** 1–12 entries: buttons (at least one) and separators. */
+    items: Array<CommandButton | CommandSeparator>;
 }
 /** A divider line between groups of buttons (also in the collapsed `Műveletek` menu). */
 export interface CommandSeparator {
