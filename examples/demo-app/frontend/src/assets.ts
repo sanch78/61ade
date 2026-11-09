@@ -1,9 +1,11 @@
 // D1 Signage Médiatár (docs/demos.md#toolkit-consumer): the record view kind `demo.asset-viewer`. A Layout from
-// `app.dhx` with the 61ade CommandBar (back, then icon-only transport controls: start, back, play/pause, forward, loop), the asset's RecordDetails and a stage cell with the
+// `app.dhx` with the 61ade CommandBar (back, then icon-only transport controls: start, back, play/pause, forward, loop),
+// the asset's RecordDetails (with `update`: an `accordion` branch, `Adatok` above `Szerkesztés`, the asset's
+// RecordForm created on first opening) and a stage cell with the
 // MediaPlayer (image, video, audio) or a SandboxFrame running the scene (an animation asset); `modules/signage.json`
 // declares the view and opens it from Médiatár for every playable asset. Also the media type `demo.scene` (scene files
 // are `Animáció` with the 61ade animation glyph) and the record command `demo.play` (`Lejátszás`) of the Médiatár toolbar.
-import type { Application, ApplicationModule, CommandBar, ListKindOptions, MediaDescriptor, MediaPlayer, Row, SandboxFrame, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
+import type { Application, ApplicationModule, CommandBar, PageRegion, RecordForm, ListKindOptions, MediaDescriptor, MediaPlayer, Row, SandboxFrame, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 import { SCENE_HEAD, SCENE_READY, SCENE_TAIL, SCENE_TYPE, sceneState, type SceneState } from "./scene";
 
 /** `views.demo.asset-viewer.options` of signage.json. */
@@ -47,6 +49,8 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
   const list = app.viewDefinition(listId) as ViewDefinition<ListKindOptions> | undefined;
   const found = mediaOf(list, row), kind = stageKind(found?.media);
   const playable = kind !== undefined, timed = kind === "video" || kind === "audio" || kind === "scene";
+  // The asset's own form beside its details, when the list offers `update` and the record allows it.
+  const editable = !!list?.actions.some(action => action.name === "update") && (!Array.isArray(row._actions) || row._actions.includes("update"));
   const preferences = app.preferences.scope(KIND), phone = matchMedia(PHONE);
   let loop = preferences.get<boolean>("loop") ?? !!view.options?.loop;
   let build: AbortController | undefined, player: MediaPlayer | undefined, resume = 0;
@@ -64,8 +68,13 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     const previous = build, controller = build = new AbortController(), signal = controller.signal;
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     previous?.abort();
-    const details = { id: "details", header: t("Adatok"), collapsable: true };
-    const layout = new app.components.PageLayout({ id: `${view.id}.${phone.matches ? "narrow" : "wide"}`,
+    // With `update` the side region is an accordion: `Adatok` (open) above `Szerkesztés`; both may be open and share
+    // the height. Otherwise the collapsible `Adatok` panel.
+    const extra = editable ? [{ id: "edit", header: t("Szerkesztés") }] : [];
+    const details: PageRegion = extra.length
+      ? { multiple: true, accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] }
+      : { id: "details", header: t("Adatok"), collapsable: true };
+    const layout = new app.components.PageLayout({ id: `${view.id}.${phone.matches ? "narrow" : "wide"}${extra.map(section => "." + section.id).join("")}`,
       tree: phone.matches
         ? { rows: [{ id: "player", height: kind === "audio" ? 380 : Math.max(220, Math.round(innerHeight * 0.4)), resizable: true }, { ...details, minHeight: 120 }] }
         : { cols: [{ id: "player", minWidth: 240, resizable: true }, { ...details, width: 380, minWidth: 240 }] } });
@@ -118,7 +127,26 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       else if (id === "loop") { loop = !loop; player.setLoop(loop); preferences.set("loop", loop); bar.update("loop", repeat()); }
     });
 
-    if (list) new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.cell("details"));
+    const recordDetails = list ? new app.components.RecordDetails({ view: list, record: row, signal }) : undefined;
+    recordDetails?.mount(layout.cell("details"));
+    // The form costs a request: created when `Szerkesztés` first opens (or opens remembered). A save refreshes the
+    // details and the title; the form stays in its section (a closed section keeps its input).
+    let form: RecordForm | undefined;
+    const edit = () => {
+      if (form || signal.aborted) return;
+      // No `signal`: created after the build's teardown listener (below), which destroys it before the layout (the
+      // Layout recipe's order).
+      form = new app.components.RecordForm({ resource: host.record!.resource, action: "update", id: asset, cancel: false });
+      form.on("saved", () => {
+        const title = form?.values().title;
+        if (typeof title === "string" && title.trim()) host.setTitle(`${view.title}: ${title}`);
+        void recordDetails?.show(asset).catch(() => { /* the error dialog was shown; the details keep the last row */ });
+      });
+      form.mount(layout.cell("edit"));
+    };
+    const sections = extra.length ? layout.accordionOf("details") : undefined;
+    sections?.on("toggle", ({ id, open }) => { if (open && id === "edit") edit(); }, { signal });
+    if (editable && sections?.isOpen("edit")) edit();
 
     if (found && kind === "scene") {
       const current = frame = new app.components.SandboxFrame({ signal, autoplay: true, title: t("Jelenet: {title}", { title: String(row.title ?? found.media.name) }), readyTimeout: SCENE_READY });
@@ -169,7 +197,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       current.focus();
     }
     // Registered after the components, so they are destroyed (and detached from their cells) before the layout.
-    signal.addEventListener("abort", () => { left.destructor(); layout.destroy(); }, { once: true });
+    signal.addEventListener("abort", () => { form?.destroy(); form = undefined; left.destructor(); layout.destroy(); }, { once: true });
   };
 
   render();

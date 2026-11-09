@@ -4,7 +4,7 @@ import type { FieldDefinition } from "./FormValidation";
 
 type Region={id?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;collapsable?:boolean;collapsed?:boolean};
 type Mode="table"|"cards"|"tiles";
-type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>;tab?:string};
+type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>;tab?:string;sections?:string[]};
 const size=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value)&&value>=40&&value<=10000;
 const pixels=(value:unknown):number|undefined=>{
   const numeric=typeof value==="string"&&/^\d+(\.\d+)?px$/.test(value)?Number.parseFloat(value):value;
@@ -29,6 +29,9 @@ export class UiPreferences {
   /** The last active tab of a `Tabs` (keyed by its `id`); the caller checks it against the declared tabs. */
   tab():string|undefined{return typeof this.state.tab==="string"?this.state.tab:undefined;}
   setTab(id:string):void{this.state.tab=id;this.save();}
+  /** The open sections of an `Accordion` (keyed by its `id`); the caller checks them against the declared sections. */
+  sections():string[]|undefined{const value=this.state.sections;return Array.isArray(value)&&value.every(id=>typeof id==="string")?[...value]:undefined;}
+  setSections(ids:string[]):void{this.state.sections=[...ids];this.save();}
   sort(allowed:string[]):Sort|undefined{
     const sort=this.state.sort;
     return sort&&allowed.includes(sort.field)&&(sort.direction==="asc"||sort.direction==="desc")?sort:undefined;

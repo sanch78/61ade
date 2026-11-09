@@ -72,6 +72,7 @@ function viewer(app, host, view) {
   const list = app.viewDefinition(listId);
   const found = mediaOf(list, row), kind = stageKind(found?.media);
   const playable = kind !== void 0, timed = kind === "video" || kind === "audio" || kind === "scene";
+  const editable = !!list?.actions.some((action) => action.name === "update") && (!Array.isArray(row._actions) || row._actions.includes("update"));
   const preferences = app.preferences.scope(KIND), phone = matchMedia(PHONE);
   let loop = preferences.get("loop") ?? !!view.options?.loop;
   let build, player, resume = 0;
@@ -86,9 +87,10 @@ function viewer(app, host, view) {
     const previous = build, controller = build = new AbortController(), signal = controller.signal;
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     previous?.abort();
-    const details = { id: "details", header: t("Adatok"), collapsable: true };
+    const extra = editable ? [{ id: "edit", header: t("Szerkeszt\xE9s") }] : [];
+    const details = extra.length ? { multiple: true, accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] } : { id: "details", header: t("Adatok"), collapsable: true };
     const layout = new app.components.PageLayout({
-      id: `${view.id}.${phone.matches ? "narrow" : "wide"}`,
+      id: `${view.id}.${phone.matches ? "narrow" : "wide"}${extra.map((section) => "." + section.id).join("")}`,
       tree: phone.matches ? { rows: [{ id: "player", height: kind === "audio" ? 380 : Math.max(220, Math.round(innerHeight * 0.4)), resizable: true }, { ...details, minHeight: 120 }] } : { cols: [{ id: "player", minWidth: 240, resizable: true }, { ...details, width: 380, minWidth: 240 }] }
     });
     layout.mount(root);
@@ -146,7 +148,25 @@ function viewer(app, host, view) {
         bar.update("loop", repeat());
       }
     });
-    if (list) new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.cell("details"));
+    const recordDetails = list ? new app.components.RecordDetails({ view: list, record: row, signal }) : void 0;
+    recordDetails?.mount(layout.cell("details"));
+    let form;
+    const edit = () => {
+      if (form || signal.aborted) return;
+      form = new app.components.RecordForm({ resource: host.record.resource, action: "update", id: asset, cancel: false });
+      form.on("saved", () => {
+        const title = form?.values().title;
+        if (typeof title === "string" && title.trim()) host.setTitle(`${view.title}: ${title}`);
+        void recordDetails?.show(asset).catch(() => {
+        });
+      });
+      form.mount(layout.cell("edit"));
+    };
+    const sections = extra.length ? layout.accordionOf("details") : void 0;
+    sections?.on("toggle", ({ id, open }) => {
+      if (open && id === "edit") edit();
+    }, { signal });
+    if (editable && sections?.isOpen("edit")) edit();
     if (found && kind === "scene") {
       const current2 = frame = new app.components.SandboxFrame({ signal, autoplay: true, title: t("Jelenet: {title}", { title: String(row.title ?? found.media.name) }), readyTimeout: SCENE_READY });
       const failed = (message) => {
@@ -208,6 +228,8 @@ function viewer(app, host, view) {
       current.focus();
     }
     signal.addEventListener("abort", () => {
+      form?.destroy();
+      form = void 0;
       left.destructor();
       layout.destroy();
     }, { once: true });

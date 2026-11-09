@@ -5,7 +5,7 @@ and stylesheets, the `app` services and [events](#event-catalog), the
 registries, built-in view kinds through the `kinds` registry, view ids,
 `#view=` routing, record views, the activation map,
 the components `ListView`, `RecordForm`, `RecordDetails`, `CommandBar`,
-`PageLayout`, `Tabs`, `FileManager`, `FilePicker`, `Calendar`,
+`PageLayout`, `Tabs`, `Accordion`, `FileManager`, `FilePicker`, `Calendar`,
 `DiagramEditor`, `MediaPlayer` and `SandboxFrame`, `admin.d.ts` and the sandbox document. The feature demo is its
 reference consumer ([worked examples](#worked-examples)); the owner tried it
 at gate G4 on 2026-10-30. This guide is the canonical public contract; the
@@ -473,8 +473,9 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `play`, `pause`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
 | [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
-| [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels, the active tab of a `tabs` branch) | none; `cell(id)`, `attach(id, content)`, `tabsOf(id)` |
+| [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels, the active tab of a `tabs` branch, the open sections of an `accordion` branch) | none; `cell(id)`, `attach(id, content)`, `tabsOf(id)`, `accordionOf(id)` |
 | [`Tabs`](#tabs) | Suite `Tabbar` (header only) over one Layout cell per tab, `UiPreferences` (the active tab) | `change`; `cell(id)`, `attach(id, content)`, `active`, `select`, `update` |
+| [`Accordion`](#accordion) | one Suite Layout cell per section under its cell header, `UiPreferences` (the open sections) | `toggle`; `cell(id)`, `attach(id, content)`, `openSections`, `isOpen`, `open`, `close`, `toggle`, `update` |
 
 Every event with its payload is in the [event catalog](#event-catalog); how
 to compose components in one page is the [Layout recipe](#layout-recipe).
@@ -721,7 +722,8 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   region `id` (to `select` a tab or follow `change`), otherwise `undefined`.
   The last active tab is kept per page and user. `guard` (the
   [`Tabs` guard](#tabs), with region ids) applies to every `tabs` branch of
-  the page, so a dirty form in one tab asks before it is left:
+  the page (not to an `accordion` branch, whose closed sections keep their
+  content), so a dirty form in one tab asks before it is left:
 
   ```json
   { "width": 340, "tabs": [ { "id": "details", "header": "Összesítés" }, { "id": "settings", "header": "Lista beállításai" } ] }
@@ -731,6 +733,22 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout,
     guard: ({ from }) => from !== "settings" || !settings?.dirty() || app.ui.dialog({ mode: "confirm", severity: "warning",
       title: t("Nem mentett módosítások"), message: t("A lista beállításainak nem mentett módosításai elvesznek."), confirmLabel: t("Elvetés") }) });
+  ```
+- An `accordion` branch is an [`Accordion`](#accordion) in its place: 1–12
+  leaves, each a section with its `id`, a `header` (the section's label, 1–80
+  characters) and optionally `open: true` (open at first); the branch takes
+  the sizes, `resizable` and `multiple` (several sections open at once) and no
+  header or collapsing. Without `multiple` at most one leaf is `open`, and
+  without any the first section opens. The open sections are kept per page and
+  user; the declared `open` applies until the user has toggled a section.
+  `cell(id)` and `attach(id, …)` of a section work like any region's;
+  `accordionOf(id)` returns the `Accordion` of the branch holding region `id`
+  (to `open` a section or follow `toggle`), otherwise `undefined`. `open`
+  outside an `accordion` branch and `multiple` outside its branch throw
+  `TypeError`:
+
+  ```json
+  { "width": 380, "multiple": true, "accordion": [ { "id": "details", "header": "Adatok", "open": true }, { "id": "edit", "header": "Szerkesztés" } ] }
   ```
 - A region with a minimum but no explicit size fills the remaining space
   on its parent axis. The minimum is a floor; it does not make the region
@@ -817,6 +835,79 @@ tabs.on("change", ({ id }) => {
   icon tabs; the tab row does not wrap. Tabs wider than the row rely on
   Suite's own header scrolling, which was not verified beyond two tabs at
   390 px.
+
+<a id="accordion"></a>
+
+#### Accordion
+
+Stacked collapsible sections in one panel: for a tall region whose content
+is read in parts, such as a record's details above its edit form, without
+the space of a separate panel for each. Every section is a cell of the
+component's own Suite Layout under its Suite cell header (the label, plain
+text); the open sections share the height and a closed one keeps only its
+header. Every section stays rendered and a closed one is hidden with CSS, so
+its content keeps its state (a form its input) and may update while closed.
+Suite's own collapsed cell (`collapsable`) leaves its content out of the
+render, like the inactive tab of a plain Tabbar ([pitfalls](#pitfalls)), so
+the accordion does not use it.
+
+```ts
+const sections = new app.components.Accordion({ id: `${view.id}.side`, multiple: true, signal, sections: [
+  { id: "details", label: t("Adatok") }, { id: "edit", label: t("Szerkesztés"), disabled: !editable }], open: ["details"] });
+sections.mount(layout.getCell("side"));
+new app.components.RecordDetails({ view: list, record: row, signal }).mount(sections.cell("details"));
+let form: RecordForm | undefined;
+sections.on("toggle", ({ id, open }) => {
+  if (id === "edit" && open && !form) { form = new app.components.RecordForm({ resource, action: "update", id: String(row.id), cancel: false }); form.mount(sections.cell("edit")); }
+});
+```
+
+- `sections`: 1–12 `AccordionSection`s in display order: `id`
+  (`[a-z][a-z0-9_-]*`, unique), `label` (plain text, 1–80 characters,
+  escaped), optional `disabled` (stays closed); at least one section is
+  enabled. Anything else throws `TypeError`.
+- `multiple`: several sections may be open at once, and all may be closed.
+  Without it exactly one section is open: opening another closes it, and the
+  open section's own header does nothing.
+- `open`: the sections open at first (enabled ones, each once; exactly one
+  without `multiple`). Without it the remembered sections with `id`,
+  otherwise the first enabled section. `id` (`[a-z][a-z0-9_.-]*`): the
+  preference key under which the open sections are kept per page and user;
+  without it nothing is stored.
+- `cell(id)` is a section's Layout cell, the mount target of every component;
+  `attach(id, content)` puts a Suite widget, a public component or a plain
+  element there (released with the accordion). An undeclared id throws `Error`.
+- `openSections()` lists the open sections in display order, `isOpen(id)`
+  tells one. `open(id)`, `close(id)` and `toggle(id)` act as a header click
+  and return the resulting state (`open` and `toggle` whether it is open,
+  `close` whether it is closed): a disabled section stays closed, and without
+  `multiple` the open section is not closed. `update(id, {label, disabled})`
+  changes a section; disabling an open one throws `Error`. `toggle {id, open}`
+  follows every change; when opening one section closes another, the closing
+  is reported first.
+- Keyboard and accessibility: each header is a `button` with
+  `aria-expanded` and `aria-controls` over a `region` labelled by it; Enter
+  and Space toggle, ArrowUp/ArrowDown (wrapping), Home and End move between
+  the headers. A disabled header leaves the tab order; a header that cannot
+  change (disabled, or the open one without `multiple`) has
+  `aria-disabled="true"`. Suite's English `click to expand` label is removed so
+  the label is the accessible name. Headers get the theme's inset focus ring
+  and a chevron (down: open, right: closed).
+- Presentation (every skin, from the Suite and skin variables): the Suite
+  Layout cell header (37 px, the header surface, Blade chrome and title type),
+  so sections read like the page's other panels.
+- Create the content of a section when it first opens if it costs a request
+  (the example's form). A component created later than the page's own abort
+  listener has no `signal` and is destroyed explicitly before the layout
+  ([Layout recipe](#layout-recipe), the feature demo's asset viewer).
+- The feature demo's asset viewer declares an `accordion` branch in its
+  [`PageLayout`](#pagelayout) ([demos](demos.md#d1-asset-viewer)).
+  Verification: `tests/shell/accordion.spec.cjs`.
+- Limits: vertical stacking only; sections are not resizable against each
+  other (open sections share the height equally) and cannot be reordered;
+  no icons in the header; no guard (closing a section discards nothing). One
+  `RecordForm` is one Suite Form and cannot span sections: a form divided
+  into sections is one form per section, each with its own submit.
 
 <a id="calendar-and-diagrameditor"></a>
 
@@ -1515,6 +1606,7 @@ while mounted, never after `destroy()`):
 | | `changed` | `{field, value}` | a field value was committed (on leaving the field) |
 | `CommandBar` | `click` | `{id}` | an item was clicked, also from the collapsed `Műveletek` menu |
 | `Tabs` | `change` | `{id, previous}` | another tab opened (a click, the keys, `select`), after the guard allowed it |
+| `Accordion` | `toggle` | `{id, open}` | a section opened or closed (a header click, the keys, `open`, `close`, `toggle`); a closing is reported before the opening it caused |
 | `FileManager` | `opened` | `{id, mimeType}` | the viewer or text editor showed a file, also on previous/next |
 | `DiagramEditor` | `saved` | `{}` | the open diagram's content was saved (`Mentés`, Ctrl+S) |
 | `MediaPlayer` | `loop` | `{loop}` | repeat changes through `setLoop` or the player toolbar; unchanged values emit nothing |
@@ -2016,6 +2108,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M36 | View guides ([workspaces](workspaces.md#view-guide)): a guide opens by itself once per sign-in session (the first time its view opens as a page in a tab), no longer until it is closed; the `Útmutató` button moves from the lower bar to the top row, left of the language selector (below 768 px an item of `Menü`). New, additive: `ApplicationDefinition` `guides` / JSON `application.guides` (guides by view id, the framework's own views too), `SqlResource::register()` `guide` | [FB-0109](feedback.md#fb-0109) | if used: specs that click the lower bar's `Útmutató` or seed the `localStorage` key `blade-guide:1:` | none | none |
 | M37 | Common Toolbar inset (`--blade-toolbar-padding`, default `4px 8px`) and flat shell navigation in every skin; below 768 px the right-hand tenant/guide/language/theme controls collapse together into `Beállítások`. Toolbar submenus cascade right when they fit, otherwise replace ancestors at the toolbar toggle with `Vissza`/ArrowLeft | [FB-0122](feedback.md#fb-0122), [FB-0135](feedback.md#fb-0135) | if used: mobile UI specs must open the controls menu before choosing a selector or guide | no runtime change | no runtime change |
 | M38 | Tabs ([Tabs](#tabs)): `app.components.Tabs`, a `tabs` branch of `PageLayout` (region ids starting with `blade-` are now refused), `PageLayout` `guard`/`tabsOf`; `RecordForm.destroy()` destroys its Suite Form one redraw later | [FB-0145](feedback.md#fb-0145) | info: a `PageLayout` region id starting with `blade-` throws `TypeError` | none | none |
+| M39 | Accordion ([Accordion](#accordion)): `app.components.Accordion`, an `accordion` branch of `PageLayout` (`multiple`, a section's `open`), `PageLayout.accordionOf` | [FB-0148](feedback.md#fb-0148) | info: `open` and `multiple` were refused before as unsupported options and are now accepted only in an `accordion` branch | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2137,6 +2230,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-02 | `ListView.target()` and `target` (`ListTarget`: `{view, row, rows}`) expose the active context, including selected previews and foremost child windows, marks and selected-record live changes. Existing `select`, `selected()` and command-specific delegation keep their meaning. Additive. | A selection-following panel needs the framework's nested active context. | [FB-0125](feedback.md#fb-0125) |
 | 2026-11-02 | A table's or card's sub-view previews inside a window live in that window's popup wrapper (its stacking context, the containing block of the fixed layer) instead of the page body, so they show over their slots in the window and stay below its menus, dialogs and later windows. No API change. | Found in cyberspace.hu: a `ListView` with a sub-view in an `app.ui.window` expanded to an empty row (the body-level layer had `z-index: 1`, the window's `.dhx_window` reports `auto`). | — |
 | 2026-11-09 | `Components.Tabs` (`TabsOptions`, `TabDefinition`, `TabsEvents`, event `change`); `PageRegion.tabs` (a `tabs` branch; region ids `blade-…` are reserved), `PageLayoutOptions.guard`, `PageLayout.tabsOf()`. `RecordForm.destroy()` destroys its Suite Form one redraw later. Additive (M38). | Owner: a tabbed switch between viewing and editing, offered where a page needs it. The list's `detail_tabs` window of the first version was withdrawn the same day. | [FB-0145](feedback.md#fb-0145) |
+| 2026-11-09 | `Components.Accordion` (`AccordionOptions`, `AccordionSection`, `AccordionEvents`, event `toggle`); `PageRegion.accordion`, `multiple`, `open` (an `accordion` branch), `PageLayout.accordionOf()`. Additive (M39). | Owner: an accordion attachable to a layout region, to divide a tall panel such as a form's region. | [FB-0148](feedback.md#fb-0148) |
 
 <a id="resolved-decisions"></a>
 

@@ -323,8 +323,18 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   is the command bar's: at the end it seeks to 0 and plays again; the choice
   is the `demo.asset-viewer` browser preference. Every build owns an
   `AbortController` that the host's signal aborts, which destroys the command
-  bar, details and player (media element, listeners) and then the layout; a
-  record change or a navigation creates a new instance.
+  bar, details, form and player (media element, listeners) and then the
+  layout; a record change or a navigation creates a new instance.
+- **Accordion:** when the list view offers `update` and the record's
+  `_actions` allow it, the side region is a declared `accordion` branch of the
+  page's `PageLayout` with `multiple` ([Accordion](toolkit.md#accordion)):
+  `Adatok` (open at first) above `Szerkesztés`, the asset's own `RecordForm`
+  of `update` without Cancel, created when the section first opens. Both may
+  be open and share the column's height; a save refreshes the details and the
+  title, and the open sections are kept per user (separately for the wide and
+  narrow layout). Without `update` (`reader@example.test`) the side region is
+  the collapsible `Adatok` panel as before. Crossing 768 px rebuilds the
+  content, which drops unsaved input in the form.
 - **Responsive:** from 768 px the details sit beside the stage (380 px), below
   it they stack under the stage and the commands collapse into `Műveletek`;
   crossing the width rebuilds the content and keeps the position. Colours come

@@ -160,7 +160,7 @@ follow this route through the
 3. **Register and compose:** view kinds, column presentations, field types
    and client commands ([registries](toolkit.md#registries)); `ListView`,
    `RecordForm`, `RecordDetails`, `CommandBar`, `FileManager`, `FilePicker`,
-   `Calendar`, `DiagramEditor`, `MediaPlayer`, `PageLayout` and `Tabs` in a Suite Layout from
+   `Calendar`, `DiagramEditor`, `MediaPlayer`, `PageLayout`, `Tabs` and `Accordion` in a Suite Layout from
    `app.dhx` ([components](toolkit.md#components),
    [Layout recipe](toolkit.md#layout-recipe)); `MediaPlayer` optionally shows an
    audio frequency spectrum, colours the original native audio timeline for
@@ -379,6 +379,11 @@ application's own static files, outside every ACL.
 A project page shows tabbed panels with [`app.components.Tabs`](toolkit.md#tabs) or a declared `tabs` branch of
 its [`PageLayout`](toolkit.md#pagelayout) tree (folder tabs in the panel's header), with a `guard` for unsaved
 input and the last open tab kept per user.
+
+A tall region is divided into collapsible sections with [`app.components.Accordion`](toolkit.md#accordion) or a
+declared `accordion` branch of the [`PageLayout`](toolkit.md#pagelayout) tree: one section open at a time, or several
+with `multiple` (the open ones share the height), each section a mount target, the open sections kept per user. A
+`RecordForm` is one form: put it in one section, or use one form per section.
 
 A list view's [`activate`](workspaces.md#activation) (JSON `view.activate`)
 declares what double-click and Enter run on a record in table, cards and

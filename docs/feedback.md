@@ -5174,3 +5174,66 @@ that exactly equals an option label lists every option. The managed
   top-level sources and window openings. Temporary verification files and
   artifacts were removed afterwards. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0148"></a>
+
+## FB-0148 — Accordion attachable to a layout region
+
+- **Date:** 2026-11-09.
+- **Request:** an accordion attachable to a layout element, for example to
+  divide a form in a tall layout. Owner decision: a generic layout accordion
+  (component and `PageLayout` branch, like `tabs`), not form-field sections;
+  one `RecordForm` stays one Suite Form and cannot span sections.
+- **Implemented:**
+  - `app.components.Accordion`: one Suite Layout cell per section under its
+    Suite cell header (plain-text label), a mount target of every component.
+    Every section stays rendered and a closed one is hidden with CSS (only its
+    header remains); the open sections share the height. Suite's own
+    `collapsable` cell was not used: it leaves the collapsed cell's content
+    out of the render, like the Tabbar's inactive tabs ([FB-0145](#fb-0145)),
+    its header's ARIA label is English (`click to expand`), Space does not
+    toggle, and the Layout's `isAccordion` only adds a class. Options
+    `sections` (1–12, plain-text labels, `disabled`), `multiple` (several
+    open, all may close; default exactly one open), `open`, `id` (the open
+    sections per page and user, `UiPreferences`); `cell`, `attach`,
+    `openSections`, `isOpen`, `open`, `close`, `toggle`, `update`, event
+    `toggle {id, open}` (closings first). Header `button` with
+    `aria-expanded`/`aria-controls` over a labelled `region`, Enter/Space,
+    ArrowUp/ArrowDown/Home/End, `aria-disabled` on a header that cannot
+    change, the theme's inset focus ring and a chevron.
+  - `PageLayout`: an `accordion` branch of leaves with `id`, `header` and
+    optional `open` (at most one without `multiple`), the branch with sizes,
+    `resizable` and `multiple`; `accordionOf(id)`. `open` and `multiple`
+    outside an accordion branch throw `TypeError`.
+  - Demo: the asset viewer's side region is an `accordion` branch with
+    `multiple` when `update` is offered and allowed: `Adatok` above
+    `Szerkesztés` (the asset's `RecordForm`, created on first opening, without
+    Cancel); a save refreshes the details and the title. Without `update` the
+    collapsible `Adatok` panel stays. The form has no `signal` and is
+    destroyed before the layout (the Layout recipe's order): with `signal` it
+    was destroyed after the layout on reload and threw `Cannot set properties
+    of null (setting 'html')`. Guide text updated (hu source, English).
+- **Guides:** [toolkit Accordion](toolkit.md#accordion),
+  [PageLayout](toolkit.md#pagelayout), [event catalog](toolkit.md#event-catalog),
+  [usage](usage.md), [demos](demos.md#d1-asset-viewer),
+  [component matrix](component-matrix.md),
+  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md);
+  migration row M39 (additive, info only).
+- **Verification:** `npm run build` (`node tools/build.mjs --check` clean),
+  `npm run typecheck`, `npm run demo:assets`; PHP `i18n`, `contracts`,
+  `configuration`, `toolkit`, `signage` and node `toolkit-kernel`,
+  `toolkit-list`, `toolkit-components`, `toolkit-registries`,
+  `toolkit-sandbox` passed. New `tests/shell/accordion.spec.cjs` (the
+  component's roles, keys, single and multiple mode, kept content, geometry,
+  option checks; the asset viewer's branch, save and remembered sections).
+  The affected browser set (`accordion`, `tabs`, `toolkit-demo-assets`,
+  `toolkit-demo-playlist-editor`, `toolkit-components`, `preferences`,
+  `i18n`, `layout-resizer`): 31 passed. Temporary screenshots in Blade,
+  Blade Night, light and dark at 1400 px and Blade at 390 px were inspected
+  and removed. No full-smoke claim.
+- **Limits:** vertical sections only; no resizing between open sections
+  (they share the height equally), no reordering, no header icons, no guard.
+  A form divided into sections is one form per section.
+- **Status:** implemented and verified on the managed demo.
+
