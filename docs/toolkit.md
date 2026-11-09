@@ -5,8 +5,8 @@ and stylesheets, the `app` services and [events](#event-catalog), the
 registries, built-in view kinds through the `kinds` registry, view ids,
 `#view=` routing, record views, the activation map,
 the components `ListView`, `RecordForm`, `RecordDetails`, `CommandBar`,
-`FileManager`, `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer` and
-`SandboxFrame`, `admin.d.ts` and the sandbox document. The feature demo is its
+`PageLayout`, `Tabs`, `FileManager`, `FilePicker`, `Calendar`,
+`DiagramEditor`, `MediaPlayer` and `SandboxFrame`, `admin.d.ts` and the sandbox document. The feature demo is its
 reference consumer ([worked examples](#worked-examples)); the owner tried it
 at gate G4 on 2026-10-30. This guide is the canonical public contract; the
 owner accepted it at gate G1 on 2026-10-29
@@ -473,7 +473,8 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `play`, `pause`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
 | [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse) | `click`; `update(id, changes)` |
-| [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels) | none; `cell(id)`, `attach(id, content)` |
+| [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels, the active tab of a `tabs` branch) | none; `cell(id)`, `attach(id, content)`, `tabsOf(id)` |
+| [`Tabs`](#tabs) | Suite `Tabbar` (header only) over one Layout cell per tab, `UiPreferences` (the active tab) | `change`; `cell(id)`, `attach(id, content)`, `active`, `select`, `update` |
 
 Every event with its payload is in the [event catalog](#event-catalog); how
 to compose components in one page is the [Layout recipe](#layout-recipe).
@@ -708,9 +709,29 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
 - `tree`: `PageRegion`, the options of a list view's region (`header`, `rows`,
   `cols`, `width`, `height`, `minWidth`, `minHeight`, `resizable`,
   `collapsable`, `collapsed`); a leaf has its own `id` (`[a-z][a-z0-9_-]*`,
-  unique), a branch `rows` or `cols` and no id; at most 6 levels and 30
+  unique, not starting with `blade-`, which the framework reserves), a branch
+  `rows`, `cols` or `tabs` and no id; at most 6 levels and 30
   regions, sizes 40–3000 px. Anything else throws `TypeError`; `id` is the
   preference key (usually the view id).
+- A `tabs` branch is a [`Tabs`](#tabs) in its place: 1–12 leaves, each a tab
+  with its `id` and a `header` (the tab's label, 1–80 characters) and no
+  other option; the branch itself takes the sizes and `resizable` only (no
+  header, no collapsing). `cell(id)` and `attach(id, …)` of a tab region work
+  like any region's; `tabsOf(id)` returns the `Tabs` of the branch holding
+  region `id` (to `select` a tab or follow `change`), otherwise `undefined`.
+  The last active tab is kept per page and user. `guard` (the
+  [`Tabs` guard](#tabs), with region ids) applies to every `tabs` branch of
+  the page, so a dirty form in one tab asks before it is left:
+
+  ```json
+  { "width": 340, "tabs": [ { "id": "details", "header": "Összesítés" }, { "id": "settings", "header": "Lista beállításai" } ] }
+  ```
+
+  ```ts
+  const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout,
+    guard: ({ from }) => from !== "settings" || !settings?.dirty() || app.ui.dialog({ mode: "confirm", severity: "warning",
+      title: t("Nem mentett módosítások"), message: t("A lista beállításainak nem mentett módosításai elvesznek."), confirmLabel: t("Elvetés") }) });
+  ```
 - A region with a minimum but no explicit size fills the remaining space
   on its parent axis. The minimum is a floor; it does not make the region
   fit its content.
@@ -726,6 +747,71 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   phone builds a new `PageLayout` and mounts it into one element the host
   holds for the view's life (a host cell that once showed markup renders a
   later widget empty, [pitfalls](#pitfalls)).
+
+<a id="tabs"></a>
+
+#### Tabs
+
+Tabbed panels: one tab open at a time, for content that belongs together but
+need not be visible at once, such as a record's details beside its edit form.
+The tab row is the native Suite `Tabbar` (header only, `noContent`) and every
+tab is a cell of the component's own Layout. Every panel stays rendered and
+the inactive ones are hidden with CSS, so content in a hidden tab keeps its
+state (a form its input) and may update while hidden (a `RecordDetails`
+reloading after a save). Suite's own Tabbar content renders only the active
+cell and fails to show again a widget that repainted while hidden
+([pitfalls](#pitfalls)).
+
+```ts
+const tabs = new app.components.Tabs({ id: `${view.id}.record`, signal, tabs: [
+  { id: "details", label: t("Adatok") }, { id: "edit", label: t("Szerkesztés"), disabled: !editable }],
+  guard: ({ from }) => from !== "edit" || !form?.dirty() || app.ui.dialog({ mode: "confirm", severity: "warning",
+    title: t("Nem mentett módosítások"), message: t("A rekord nem mentett módosításai elvesznek."), confirmLabel: t("Elvetés") }) });
+tabs.mount(layout.getCell("record"));
+new app.components.RecordDetails({ view: list, record: row, signal }).mount(tabs.cell("details"));
+let form: RecordForm | undefined;
+tabs.on("change", ({ id }) => {
+  if (id === "edit" && !form) { form = new app.components.RecordForm({ resource, action: "update", id: String(row.id) }); form.mount(tabs.cell("edit")); }
+});
+```
+
+- `tabs`: 1–12 `TabDefinition`s in display order: `id` (`[a-z][a-z0-9_-]*`,
+  unique), `label` (plain text, 1–80 characters, escaped), optional
+  `disabled`; at least one tab is enabled. Anything else throws `TypeError`.
+- `active`: the first active tab (an enabled one). Without it the remembered
+  tab with `id`, otherwise the first enabled tab. `id`
+  (`[a-z][a-z0-9_.-]*`): the preference key under which the last active tab
+  is kept per page and user; without it nothing is stored.
+- `guard({from, to})`: asked before every change, from a click, the keys and
+  `select`. `true`, or a promise resolving `true`, lets it happen; anything
+  else keeps the current tab, and a pending answer holds the change. A throw
+  keeps the current tab and is logged. The guard does not run when the
+  component (or its window) is destroyed.
+- `cell(id)` is a tab's Layout cell, the mount target of every component;
+  `attach(id, content)` puts a Suite widget, a public component or a plain
+  element there (released with the tabs). An undeclared id throws `Error`.
+- `active()` is the open tab's id; `select(id)` opens a tab as a click does
+  (guard included) and resolves whether it is open afterwards (a disabled tab
+  resolves `false`); `update(id, {label, disabled})` changes a tab, and
+  disabling the open tab throws `Error`. `change {id, previous}` follows
+  every change. `tabbar` is the Suite Tabbar of the tab row.
+- Keyboard and accessibility: Suite's ArrowLeft/ArrowRight (and Home/End) move
+  between enabled tabs and open them; the tab row is a `tablist`, each button
+  a `tab` with `aria-selected` and `aria-controls`, each panel a `tabpanel`
+  labelled by its tab, and only the open tab is in the page's tab order. Tab
+  buttons get the theme's inset focus ring. The DOM ids Suite derives from tab
+  ids are prefixed per instance, so two `Tabs` may use the same tab ids.
+- Create the content of a tab when the tab first opens if it costs a request
+  (the example's form); recreate a discarded form on the next opening rather
+  than in the same `change` handler that destroyed it ([pitfalls](#pitfalls)).
+- The built-in list uses it for [`detail_tabs`](workspaces.md#detail-tabs);
+  the feature demo's playlist editor declares a `tabs` branch in its
+  [`PageLayout`](#pagelayout) ([demos](demos.md#toolkit-consumer)).
+  Verification: `tests/shell/tabs.spec.cjs`.
+- Limits: tabs on top only; no closable, reorderable, scrolling-arrow or
+  icon tabs; the tab row does not wrap. Tabs wider than the row rely on
+  Suite's own header scrolling, which was not verified beyond two tabs at
+  390 px.
 
 <a id="calendar-and-diagrameditor"></a>
 
@@ -1421,6 +1507,7 @@ while mounted, never after `destroy()`):
 | | `cancelled` | `{}` | Cancel was pressed |
 | | `changed` | `{field, value}` | a field value was committed (on leaving the field) |
 | `CommandBar` | `click` | `{id}` | an item was clicked, also from the collapsed `Műveletek` menu |
+| `Tabs` | `change` | `{id, previous}` | another tab opened (a click, the keys, `select`), after the guard allowed it |
 | `FileManager` | `opened` | `{id, mimeType}` | the viewer or text editor showed a file, also on previous/next |
 | `DiagramEditor` | `saved` | `{}` | the open diagram's content was saved (`Mentés`, Ctrl+S) |
 | `MediaPlayer` | `loop` | `{loop}` | repeat changes through `setLoop` or the player toolbar; unchanged values emit nothing |
@@ -1470,6 +1557,16 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
   a notice and a widget gets a fresh one-cell box Layout per content, attached
   to the outer cell, with the notice or widget in the box's cell
   ([scene stage example](#example-sandbox)).
+- **Suite Tabbar content shows only the active cell.** A widget in an
+  inactive tab of a plain Suite `Tabbar` that repaints while hidden (a
+  `RecordDetails.show`, a form's `enable`) throws on the next opening and the
+  tab stays empty. Use [`Tabs`](#tabs) (or a `tabs` branch of
+  [`PageLayout`](#pagelayout)), which keeps every panel rendered.
+- **A component mounted into a cell right after the previous one renders
+  empty.** Destroying a component and mounting a new one into the same cell
+  in the same handler leaves the cell blank (Suite patches the old content's
+  removed view). Mount the replacement on the next opening or user action, as
+  the tabbed details window and the playlist editor's settings tab do.
 - **Elements into cells.** No public API puts an `HTMLElement` into a Layout
   cell except `ViewHost.attach` (which wraps it). Use instead: the element
   target of a component's `mount(target)` (an element with a height), a
@@ -1847,8 +1944,8 @@ The [focused task group](development.md#focused-task-groups) of the toolkit:
   `toolkit-list`, `toolkit-components`, `toolkit-media`, `toolkit-sandbox`,
   `toolkit-registries`, and the feature demo's `toolkit-demo`,
   `toolkit-demo-assets`, `toolkit-demo-playlist`, `toolkit-demo-readings`,
-  `toolkit-demo-tasks` (`.spec.cjs`); regressions `browser`, `preferences`,
-  `activation`.
+  `toolkit-demo-tasks`, `toolkit-demo-playlist-editor` and `tabs`
+  (`.spec.cjs`); regressions `browser`, `preferences`, `activation`.
 
 Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 [verification matrix](toolkit-plan.md#9-verification-matrix) lists the areas.
@@ -1911,6 +2008,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M35 | Lists and forms ([manual order and drops](workspaces.md#manual-order), [card filters](workspaces.md#card-filters)): a list with header filters and no filter panel shows `Szűrés` in cards and tiles (the header filters in a dialog); header filter inputs are named `Szűrés: <column>`; draggable rows (a manual order, a drop, `dragSource`) start with a drag-handle column; a checkbox in a framework form shows its text; `RecordForm` submits under the action's label when no view gives a `submitLabel` and shows no success toast for a read-only action. New, additive: `SqlResource` `order` / JSON `storage.order` with the `move` action, `View`/builder `drop` / JSON `view.drop`, `ListKindOptions.order`/`drop`, `ListViewOptions.dragSource`/`panel`/`showId`, `RecordFormOptions.cancel`, `RecordForm.setValues`, `RecordDetailsOptions.showId`, `PageLayout`, computed `column.media` fields, the `not_before_field`/`not_after_field` rules | [FB-0108](feedback.md#fb-0108) | info: specs that count toolbar items in cards, find header filters by position or expect `Mentés` or a toast from a query form | none | none |
 | M36 | View guides ([workspaces](workspaces.md#view-guide)): a guide opens by itself once per sign-in session (the first time its view opens as a page in a tab), no longer until it is closed; the `Útmutató` button moves from the lower bar to the top row, left of the language selector (below 768 px an item of `Menü`). New, additive: `ApplicationDefinition` `guides` / JSON `application.guides` (guides by view id, the framework's own views too), `SqlResource::register()` `guide` | [FB-0109](feedback.md#fb-0109) | if used: specs that click the lower bar's `Útmutató` or seed the `localStorage` key `blade-guide:1:` | none | none |
 | M37 | Common Toolbar inset (`--blade-toolbar-padding`, default `4px 8px`) and flat shell navigation in every skin; below 768 px the right-hand tenant/guide/language/theme controls collapse together into `Beállítások`. Toolbar submenus cascade right when they fit, otherwise replace ancestors at the toolbar toggle with `Vissza`/ArrowLeft | [FB-0122](feedback.md#fb-0122), [FB-0135](feedback.md#fb-0135) | if used: mobile UI specs must open the controls menu before choosing a selector or guide | no runtime change | no runtime change |
+| M38 | Tabs ([Tabs](#tabs), [detail tabs](workspaces.md#detail-tabs)): `app.components.Tabs`, a `tabs` branch of `PageLayout` (region ids starting with `blade-` are now refused), `PageLayout` `guard`/`tabsOf`, the list view's opt-in `detail_tabs`; `RecordForm.destroy()` destroys its Suite Form one redraw later | [FB-0145](feedback.md#fb-0145) | info: a `PageLayout` region id starting with `blade-` throws `TypeError` | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2031,6 +2129,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-02 | `SandboxFrameOptions.autoplay` delegates autoplay to the opaque frame, default false; no sandbox flags or isolation permissions added. Additive. | One parent playback gesture for scene audio. | [FB-0120](feedback.md#fb-0120) |
 | 2026-11-02 | `ListView.target()` and `target` (`ListTarget`: `{view, row, rows}`) expose the active context, including selected previews and foremost child windows, marks and selected-record live changes. Existing `select`, `selected()` and command-specific delegation keep their meaning. Additive. | A selection-following panel needs the framework's nested active context. | [FB-0125](feedback.md#fb-0125) |
 | 2026-11-02 | A table's or card's sub-view previews inside a window live in that window's popup wrapper (its stacking context, the containing block of the fixed layer) instead of the page body, so they show over their slots in the window and stay below its menus, dialogs and later windows. No API change. | Found in cyberspace.hu: a `ListView` with a sub-view in an `app.ui.window` expanded to an empty row (the body-level layer had `z-index: 1`, the window's `.dhx_window` reports `auto`). | — |
+| 2026-11-09 | `Components.Tabs` (`TabsOptions`, `TabDefinition`, `TabsEvents`, event `change`); `PageRegion.tabs` (a `tabs` branch; region ids `blade-…` are reserved), `PageLayoutOptions.guard`, `PageLayout.tabsOf()`; `ListKindOptions.detailTabs` (JSON `detail_tabs`, PHP `detailTabs`). `RecordForm.destroy()` destroys its Suite Form one redraw later. Additive (M38). | Owner: a tabbed switch between viewing and editing, offered in one or two places and optional everywhere else. | [FB-0145](feedback.md#fb-0145) |
 
 <a id="resolved-decisions"></a>
 

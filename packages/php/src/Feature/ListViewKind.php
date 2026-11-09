@@ -6,13 +6,13 @@ use Blade\I18n\Translator;
 
 /**
  * Built-in kind `list` (`Registry::view`, `SqlResource::register`). Options: `columns`, `singleton`, `layout`
- * (ViewLayout), `rowNumbers`, `selection`, `rowSelection`, optional `rowHeight`, `tileMinWidth`, `tiles`, `activate`,
+ * (ViewLayout), `rowNumbers`, `selection`, `rowSelection`, optional `rowHeight`, `tileMinWidth`, `tiles`, `detailTabs` (the details window with an `Adatok` and a `Szerkesztés` tab), `activate`,
  * `commands` (project client commands of `app.commands`, docs/toolkit.md#registries);
  * `subview` is set only by `Registry::subview()`, `tree` only by `Registry::tree()`. Bootstrap options add `detailFields`, `filters`, `sortable`, `search` and `order` (manual order); `drop` (records dragged in from another list) is declared.
  */
 final class ListViewKind implements ViewKindProvider
 {
-    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'activate', 'commands', 'drop'];
+    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'detailTabs', 'activate', 'commands', 'drop'];
     /** Most client commands one list declares. */
     private const COMMANDS = 20;
     private const TARGETS = ['details', 'subview', 'page'];
@@ -34,7 +34,7 @@ final class ListViewKind implements ViewKindProvider
         if(isset($o['tree']))throw new \InvalidArgumentException('Attach tree navigation with Registry::tree(): '.$view->id);
         if($view->resource===null||array_diff(array_keys($o),self::OPTIONS)||!is_array($o['columns']??null)||!array_is_list($o['columns'])||!($o['layout']??null) instanceof ViewLayout)throw new \InvalidArgumentException('Invalid list view: '.$view->id);
         foreach(['singleton','rowNumbers','selection','rowSelection'] as $flag)if(!is_bool($o[$flag]??false))throw new \InvalidArgumentException('Invalid list view: '.$view->id);
-        if(($o['tiles']??true)!==true)throw new \InvalidArgumentException('Invalid view presentation.');
+        if(($o['tiles']??true)!==true||($o['detailTabs']??true)!==true)throw new \InvalidArgumentException('Invalid view presentation.');
         $rowHeight=$o['rowHeight']??null;$tileMinWidth=$o['tileMinWidth']??null;
         if(($rowHeight!==null&&(!is_int($rowHeight)||$rowHeight<32||$rowHeight>160))||($tileMinWidth!==null&&(!is_int($tileMinWidth)||$tileMinWidth<120||$tileMinWidth>480)))throw new \InvalidArgumentException('Invalid view presentation.');
         $this->activation($registry,$view,$o['activate']??null);
@@ -125,7 +125,7 @@ final class ListViewKind implements ViewKindProvider
         $activate=$o['activate']??null;
         $options=['columns'=>$columns,'detailFields'=>$detailFields,'singleton'=>$singleton,'layout'=>$o['layout']->metadata(),
             'rowNumbers'=>$o['rowNumbers']??true,'selection'=>$o['selection']??false,'rowSelection'=>$o['rowSelection']??false,
-            ...array_intersect_key($o,['rowHeight'=>1,'tileMinWidth'=>1,'tiles'=>1]),...(($o['commands']??[])!==[]?['commands'=>$o['commands']]:[]),
+            ...array_intersect_key($o,['rowHeight'=>1,'tileMinWidth'=>1,'tiles'=>1,'detailTabs'=>1]),...(($o['commands']??[])!==[]?['commands'=>$o['commands']]:[]),
             // A map is always a JSON object, also for consecutive integer keys.
             ...($activate!==null?['activate'=>is_array($activate)?['field'=>$activate['field'],'map'=>(object)$activate['map']]:$activate]:[]),
             'filters'=>$list->listSource?->filterDefinitions($ctx)??[],'sortable'=>$list->listSource?->sortableFields($ctx)??[]];

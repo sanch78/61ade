@@ -143,5 +143,14 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
     const saving=this.saving=run().finally(()=>{if(this.saving===saving)this.saving=undefined;});
     return saving;
   }
-  protected dispose():void{this.abort.abort();this.releaseTypes?.();this.files?.destroy();this.form?.destructor();this.layout.destructor();}
+  protected dispose():void{
+    this.abort.abort();this.releaseTypes?.();this.files?.destroy();
+    // Suite 9.3.12 still repaints a form's buttons after a pending enable, disable or blur (a save, Cancel or a tab
+    // change destroys the form at once): the Form is taken out of its cell and destroyed once that redraw has run. The
+    // Layout goes at once, so a component mounted into the same cell right after this one is not unmounted with it.
+    const form=this.form;
+    if(form)this.layout.getCell("form").detach();
+    this.layout.destructor();
+    if(form)void awaitRedraw().then(()=>form.destructor());
+  }
 }

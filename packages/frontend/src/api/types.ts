@@ -785,6 +785,8 @@ export interface ListKindOptions {
   rowHeight?: number;
   tileMinWidth?: number;
   tiles?: boolean;
+  /** The details window has an `Adatok` and, for a record that offers `update`, a `Szerkesztés` tab (JSON `detail_tabs`). */
+  detailTabs?: boolean;
   activate?: Activation;
   search?: { fields: string[] };
   subview?: SubviewMetadata;
@@ -1437,15 +1439,19 @@ export interface CommandBar extends Component<CommandBarEvents> {
 }
 
 /**
- * A region of a page's panel tree (`PageLayout`): a leaf with its own `id` (`[a-z][a-z0-9_-]*`, unique), or a branch of
- * `rows` or `cols`; the options of a list view's `LayoutRegion`. At most 6 levels and 30 regions; sizes 40–3000 px.
+ * A region of a page's panel tree (`PageLayout`): a leaf with its own `id` (`[a-z][a-z0-9_-]*`, unique, not starting
+ * with `blade-`), or a branch of `rows`, `cols` or `tabs`; the options of a list view's `LayoutRegion`. At most 6 levels
+ * and 30 regions; sizes 40–3000 px. A `tabs` branch holds 1–12 leaves, each a tab with its `header` as the label and
+ * no other option; the branch itself takes the sizes and `resizable` only.
  */
 export interface PageRegion {
   id?: string;
-  /** Plain text (escaped; a view's declared header arrives translated). */
+  /** Plain text (escaped; a view's declared header arrives translated). In a `tabs` branch: the tab's label. */
   header?: string;
   rows?: PageRegion[];
   cols?: PageRegion[];
+  /** Tabbed leaves (`app.components.Tabs`); the last active tab is kept per page and user. */
+  tabs?: PageRegion[];
   width?: number;
   height?: number;
   minWidth?: number;
@@ -1460,6 +1466,8 @@ export interface PageLayoutOptions extends ComponentOptions {
   id: string;
   /** The declared panel tree, typically the view's `options.layout`; an invalid tree throws `TypeError`. */
   tree: PageRegion;
+  /** The guard of every `tabs` branch (`TabsOptions.guard`, with the region ids as `from` and `to`). */
+  guard?: TabsOptions["guard"];
 }
 
 /**
@@ -1471,6 +1479,57 @@ export interface PageLayout extends Component<Record<string, never>> {
   cell(id: string): LayoutCell;
   /** Puts a Suite widget, a public component or a plain element into a declared region (released with the layout). */
   attach(id: string, content: Mountable): void;
+  /** The `Tabs` of the `tabs` branch that holds region $id (to `select` it or follow `change`), else `undefined`. */
+  tabsOf(id: string): Tabs | undefined;
+}
+
+/** One tab of `Tabs`: an id (`[a-z][a-z0-9_-]*`, unique) and a plain-text label (escaped). */
+export interface TabDefinition {
+  id: string;
+  /** 1–80 characters. */
+  label: string;
+  /** A disabled tab cannot be opened; at least one tab is enabled. */
+  disabled?: boolean;
+}
+
+export interface TabsOptions extends ComponentOptions {
+  /** 1–12 tabs in display order; an invalid list throws `TypeError`. */
+  tabs: TabDefinition[];
+  /** The first active tab (an enabled one); default: the remembered tab with `id`, else the first enabled tab. */
+  active?: string;
+  /** Remembers the last active tab per page and user under this key (`[a-z][a-z0-9_.-]*`). */
+  id?: string;
+  /**
+   * Asked before every change, also from `select`: `true` (or a promise of it) lets the change happen, anything else
+   * keeps the current tab. A pending answer holds the change; a throw keeps the current tab and is logged.
+   */
+  guard?: (change: { from: string; to: string }) => boolean | Promise<boolean>;
+}
+
+/** Events of `Tabs`. */
+export interface TabsEvents {
+  /** Another tab became active (a click, the keys, `select`). */
+  change: { id: string; previous: string };
+}
+
+/**
+ * Tabbed panels: the native Suite Tabbar as the tab row (plain-text labels), a Layout cell per tab, an optional guard,
+ * the WAI-ARIA tab roles and the remembered tab. Every panel stays rendered and the inactive ones are hidden, so content
+ * in another tab keeps its state and may update while hidden.
+ */
+export interface Tabs extends Component<TabsEvents> {
+  /** The tab row (a header-only Suite Tabbar, `noContent`); the panels are cells of `layout`. */
+  readonly tabbar: Suite.Tabbar;
+  /** A tab's cell, a mount target of every component; an undeclared id throws `Error`. */
+  cell(id: string): LayoutCell;
+  /** Puts a Suite widget, a public component or a plain element into a tab (released with the tabs). */
+  attach(id: string, content: Mountable): void;
+  /** The active tab's id. */
+  active(): string;
+  /** Opens a tab like a click (guard included); resolves whether it is active. A disabled tab resolves `false`. */
+  select(id: string): Promise<boolean>;
+  /** Changes a label or the disabled state; disabling the active tab throws `Error`. */
+  update(id: string, changes: { label?: string; disabled?: boolean }): void;
 }
 
 /** Events of `CommandBar`. */
@@ -1495,4 +1554,5 @@ export interface Components {
   readonly SandboxFrame: ComponentClass<SandboxFrameOptions, SandboxFrame>;
   readonly CommandBar: ComponentClass<CommandBarOptions, CommandBar>;
   readonly PageLayout: ComponentClass<PageLayoutOptions, PageLayout>;
+  readonly Tabs: ComponentClass<TabsOptions, Tabs>;
 }

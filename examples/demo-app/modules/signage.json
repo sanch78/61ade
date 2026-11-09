@@ -103,7 +103,8 @@
                         "*": "details"
                     }
                 },
-                "guide": "Médiaelemek a keretrendszer fájlmezőjével és médiaoszlopaival: a fájlok a Fájlkezelő Signage meghajtóján vannak, a bélyegkép, a típus, a felbontás és a hossz a fájlból származik, a Használat számolt oszlop.\n\nPróbáld ki a Csempék nézetet, a keresést és a típusszűrőt; tölts fel médiát a Feltöltés paranccsal, vagy adj meg egy fájlt a Hozzáadás űrlap fájlmezőjében. A Fájl megadása gomb a géped fájljait nyitja meg, az űrlap nem nyit külön feltöltőablakot. A fájlmezőre fókuszálva Ctrl+V-vel képet is beilleszthetsz, vagy ráhúzhatsz egy fájlt; az előnézet azonnal megjelenik, a háttérfeltöltés után menthetsz. Dupla kattintás, Enter vagy a Lejátszás parancs a Médianézőt nyitja meg; egy sor kinyitva megmutatja, mely alapértelmezett tartalmak használják. Használt elem törlése előtt figyelmeztetést kapsz, a hivatkozások törlődnek.",
+                "detail_tabs": true,
+                "guide": "Médiaelemek a keretrendszer fájlmezőjével és médiaoszlopaival: a fájlok a Fájlkezelő Signage meghajtóján vannak, a bélyegkép, a típus, a felbontás és a hossz a fájlból származik, a Használat számolt oszlop.\n\nPróbáld ki a Csempék nézetet, a keresést és a típusszűrőt; tölts fel médiát a Feltöltés paranccsal, vagy adj meg egy fájlt a Hozzáadás űrlap fájlmezőjében. A Fájl megadása gomb a géped fájljait nyitja meg, az űrlap nem nyit külön feltöltőablakot. A fájlmezőre fókuszálva Ctrl+V-vel képet is beilleszthetsz, vagy ráhúzhatsz egy fájlt; az előnézet azonnal megjelenik, a háttérfeltöltés után menthetsz. Az Adatok parancs (és a nem lejátszható elemen a dupla kattintás) füles ablakot nyit: az Adatok fülön megnézed az elemet, a Szerkesztés fülön ugyanott módosíthatod. Dupla kattintás, Enter vagy a Lejátszás parancs a Médianézőt nyitja meg; egy sor kinyitva megmutatja, mely alapértelmezett tartalmak használják. Használt elem törlése előtt figyelmeztetést kapsz, a hivatkozások törlődnek.",
                 "columns": [
                     {
                         "id": "file_id",
@@ -645,7 +646,7 @@
                 "get",
                 "update"
             ],
-            "guide": "Rekordnézet egy lejátszási listához, csak 61ade komponensekből: oldalelrendezés (PageLayout) két listával, az elem adataival és űrlapokkal, mellette a közös előnézet.\n\nHúzz médiaelemeket a Médiatárból a listába, rendezd át a sorokat húzással vagy a Feljebb és Lejjebb paranccsal, és állítsd be az elemenkénti lejátszási időt, áttűnést és érvényességet. Csak asztali nézetben érhető el.",
+            "guide": "Rekordnézet egy lejátszási listához, csak 61ade komponensekből: oldalelrendezés (PageLayout) két listával, a közös előnézettel, jobb oldalt két füllel: az Összesítés a lista adatait mutatja, a Lista beállításai fülön szerkesztheted őket.\n\nHúzz médiaelemeket a Médiatárból a listába, rendezd át a sorokat húzással vagy a Feljebb és Lejjebb paranccsal, és állítsd be az elemenkénti lejátszási időt, áttűnést és érvényességet. Ha a beállításokat mentés nélkül hagynád el, a fülváltás előbb megerősítést kér. Csak asztali nézetben érhető el.",
             "options": {
                 "list": "signage_playlists",
                 "library": "signage_assets",
@@ -683,13 +684,10 @@
                                 },
                                 {
                                     "width": 340,
-                                    "rows": [
+                                    "tabs": [
                                         {
                                             "id": "details",
-                                            "header": "Összesítés",
-                                            "height": 280,
-                                            "resizable": true,
-                                            "collapsable": true
+                                            "header": "Összesítés"
                                         },
                                         {
                                             "id": "settings",

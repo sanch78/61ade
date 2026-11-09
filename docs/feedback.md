@@ -5032,3 +5032,83 @@ that exactly equals an option label lists every option. The managed
   checked; screenshots were inspected. Temporary tests and screenshots were
   removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0145"></a>
+
+## FB-0145 — Tabs for switching between viewing and editing
+
+- **Date:** 2026-11-09.
+- **Request:** the demo has no tabbed view switch and nothing uses one; it
+  would help in places, for example to switch between viewing and editing a
+  record. Owner decisions: build the public component, the built-in
+  details/edit window and a declarative `tabs` branch of `PageLayout`; do not
+  introduce it everywhere: one or two good demos, and optional in the
+  framework (the toolbar's update command keeps its own window).
+- **Implemented:**
+  - `app.components.Tabs`: the native Suite `Tabbar` as the tab row only
+    (`noContent`) over one Layout cell per tab. Every panel stays rendered and
+    the inactive ones are hidden with CSS: Suite's own Tabbar content renders
+    the active cell only and threw (`Cannot set properties of null (setting
+    '_node')`) when a widget in a hidden tab had repainted, leaving the tab
+    empty. Options `tabs` (1–12, plain-text labels, `disabled`), `active`,
+    `id` (the remembered tab per page and user, `UiPreferences`) and `guard`
+    (sync or async, also for `select`); `cell`, `attach`, `active`, `select`,
+    `update`, event `change`. WAI-ARIA roles Suite 9.3.12 leaves out
+    (`tablist`, `tab`, `tabpanel` with `aria-controls`/`aria-labelledby`),
+    roving tab order, Suite's arrow and Home/End keys, per-instance prefixes
+    for the DOM ids Suite derives from tab ids, the theme's inset focus ring.
+  - `PageLayout`: a `tabs` branch of leaves with `id` and `header` (the
+    label) is a `Tabs` in its place; `guard` for every branch of the page,
+    `tabsOf(id)`; region ids starting with `blade-` are reserved.
+  - List views: opt-in `detail_tabs` (JSON) / `detailTabs` (PHP `View::list`,
+    `Registry::view`, `SqlResource::register`, metadata
+    `options.detailTabs`). The details window gets `Adatok | Szerkesztés`
+    when the view offers `update` and the record's `_actions` include it;
+    the edit tab is the public `RecordForm` of `update`, created on first
+    opening; unsaved changes ask before leaving (`Nem mentett módosítások`,
+    new text `A rekord nem mentett módosításai elvesznek.` in hu/en/de);
+    leaving drops the form; a save reloads the details and the list and
+    returns to `Adatok`.
+  - `RecordForm.destroy()` takes its Suite Form out of its cell and destroys
+    it one redraw later: a save or Cancel that destroyed the form at once
+    made Suite repaint a destroyed button (`Cannot read properties of null
+    (reading 'color')`). The Layout still goes at once, so a component
+    mounted into the same cell right after is not unmounted with it.
+  - Demos: `Médiatár` declares `detail_tabs`; the playlist editor's right
+    column (`Összesítés`, `Lista beállításai`) is a `tabs` branch with a guard
+    for unsaved settings; both guides and English texts updated.
+- **Lessons (in the guides):** Suite Tabbar content shows only the active
+  cell; a component mounted into a cell right after the previous one in the
+  same handler renders empty, so a discarded form is recreated on the next
+  opening ([pitfalls](toolkit.md#pitfalls)).
+- **Guides:** [toolkit Tabs](toolkit.md#tabs), [PageLayout](toolkit.md#pagelayout),
+  [detail tabs](workspaces.md#detail-tabs), [configuration](configuration.md),
+  [usage](usage.md), [demos](demos.md), [component matrix](component-matrix.md),
+  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md);
+  migration row M38 (additive, info only).
+- **Verification:** `npm run typecheck`, `npm run build`
+  (`node tools/build.mjs --check` clean), `npm run demo:assets`; PHP
+  `contracts`, `configuration` (new `detail_tabs` cases), `lists`, `toolkit`,
+  `i18n`, `signage` passed; node `toolkit-kernel`, `toolkit-list`,
+  `toolkit-components`, `toolkit-registries`, `toolkit-sandbox` passed
+  (`ui-preferences.mjs` fails identically on the previous commit: it reads
+  `mode` as a property). New `tests/shell/tabs.spec.cjs` (5 cases: roles and
+  keys, guard cancel/discard/save, reader without `update`, 390 px, the
+  playlist editor's tabs, guard and remembered tab) passed repeatedly. The
+  affected browser set (`toolkit-components`, `toolkit-list`,
+  `toolkit-demo-assets`, `toolkit-demo-playlist`,
+  `toolkit-demo-playlist-editor` adapted to the tabs, `signage`,
+  `subview-demos`, `activation`, `toolkit-demo-tasks`, `toolkit-registries`,
+  `tabs`, `preferences`, `i18n`): 57 passed, 1 failed —
+  `toolkit-demo-playlist` "a day change …" (a date popup covers `Napi műsor`),
+  which fails the same way on the previous commit's build. Temporary
+  screenshots in Blade, Blade Night, light and dark at 1280 px were inspected
+  and removed. No full-smoke claim.
+- **Limits:** tabs on top only; no closable, reorderable or icon tabs; a tab
+  row wider than its space relies on Suite's header scrolling (not verified
+  beyond two tabs at 390 px). `detail_tabs` has one edit tab (`update`), no
+  guard when the whole window is closed (as for the separate update window),
+  and in a sub-view's child list the form shows the scope field. No
+  full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

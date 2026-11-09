@@ -198,6 +198,12 @@ body,
 .blade-grid-views .dhx_grid { border: 0; }
 .blade-grid-views .dhx_grid-content { border: 0; isolation: isolate; }
 .blade-record-details { padding: 16px 20px; overflow-wrap: anywhere; }
+/* Tabs (app.components.Tabs, docs/toolkit.md#tabs): the native Tabbar on the theme surface, inset keyboard focus. */
+/* Every panel stays rendered (a widget in a hidden tab may repaint); the inactive ones are hidden. */
+.blade-tabs__panel--hidden { display: none !important; }
+.blade-tabs__row { overflow: hidden; }
+.blade-tabs .dhx_tabbar-tab-button:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
+.blade-detail-tab { height: 100%; overflow: auto; }
 .blade-record-details dl { margin: 0; }
 .blade-grid-card__field dt, .blade-grid-card__field dd { min-width: 0; }
 .blade-record-details .blade-grid-card__field dd { white-space: pre-wrap; margin: 0; }

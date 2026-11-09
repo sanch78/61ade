@@ -160,7 +160,7 @@ follow this route through the
 3. **Register and compose:** view kinds, column presentations, field types
    and client commands ([registries](toolkit.md#registries)); `ListView`,
    `RecordForm`, `RecordDetails`, `CommandBar`, `FileManager`, `FilePicker`,
-   `Calendar`, `DiagramEditor`, `MediaPlayer` in a Suite Layout from
+   `Calendar`, `DiagramEditor`, `MediaPlayer`, `PageLayout` and `Tabs` in a Suite Layout from
    `app.dhx` ([components](toolkit.md#components),
    [Layout recipe](toolkit.md#layout-recipe)); `MediaPlayer` optionally shows an
    audio frequency spectrum, colours the original native audio timeline for
@@ -375,6 +375,15 @@ drives all paging math, and a declared `search` adds a server-side text
 search box. A text field of static image file names shows as an image with
 `column.presentation: "image"` and `image_base`; the images are the
 application's own static files, outside every ACL.
+
+A list view can show a record's details and its update form as two tabs of
+one window, `Adatok` and `Szerkesztés`: JSON `view.detail_tabs: true` (PHP
+`detailTabs: true`), opt-in per view; the tab appears only for a record that
+offers `update`, and unsaved changes ask before the tab is left
+([detail tabs](workspaces.md#detail-tabs)). A project page gets the same tabs
+from [`app.components.Tabs`](toolkit.md#tabs) or a declared `tabs` branch of
+its [`PageLayout`](toolkit.md#pagelayout) tree, with a `guard` for unsaved
+input and the last open tab kept per user.
 
 A list view's [`activate`](workspaces.md#activation) (JSON `view.activate`)
 declares what double-click and Enter run on a record in table, cards and

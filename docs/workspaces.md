@@ -446,6 +446,47 @@ transient by design (owner decision, 2026-10-30): they are never stored in the
 UI preferences, so a reload or a new opening starts without them, and a
 toolkit `ListView` has no marks event ([toolkit limits](toolkit.md#limits)).
 
+<a id="detail-tabs"></a>
+
+### Details and editing in one window (`detail_tabs`)
+
+Purpose: switching between viewing and editing a record without closing one
+window and opening another. Opt-in per list view, for the lists where it
+helps; every other list keeps the separate details and update windows.
+
+- **Declaration:** JSON `view.detail_tabs: true`; PHP `Registry::view(…,
+  detailTabs: true)`, `SqlResource::register(…, detailTabs: true)` or
+  `View::list(…, detailTabs: true)`. Only `true` is accepted (another value
+  fails at load); the browser metadata carries `options.detailTabs`.
+- **Behaviour:** the details window (the `Adatok` command, a `details`
+  activation, a card's double-click) gets two tabs, `Adatok` and
+  `Szerkesztés`, when the view offers `update` and the record's `_actions`
+  include it. Without either, the actor gets the plain details window:
+  ACL, object rules and `_actions` decide, the tab is never a permission.
+  `Szerkesztés` holds the public [`RecordForm`](toolkit.md#recordform) of
+  `update`, created when the tab first opens: the same `__form` field ACL,
+  revision check, validation, executor and audit as every update form.
+  Leaving the tab with unsaved changes asks first (`Nem mentett
+  módosítások`, `Elvetés` / `Mégse`); discarding, or leaving an unchanged
+  form, drops the form, so the next opening shows the stored values and
+  revision. A save reloads the details and the list and returns to `Adatok`;
+  the form's `Mégse` returns without asking. The window always opens on
+  `Adatok`.
+- **Unchanged:** double-click and Enter still run the view's
+  [activation](#activation) (the update form by default), and the toolbar's
+  `Módosítás` opens the separate update window (or the form panel).
+- **Keyboard and accessibility:** the tabs are the framework's
+  [`Tabs`](toolkit.md#tabs): `tablist`/`tab`/`tabpanel` roles, the arrow keys
+  and Home/End between tabs, only the active tab in the page's tab order.
+- **Limits:** one edit tab with the `update` action; no further declared tabs,
+  no record actions in the window, no guard when the whole window is closed
+  (as for the separate update window). In a sub-view preview the form shows
+  the scope field as well.
+- **Demo and checks:** the feature demo's `Médiatár`
+  ([demos](demos.md#toolkit-consumer)); `tests/shell/tabs.spec.cjs` (roles,
+  keys, guard, save, a reader without `update`, 390 px) and
+  `tests/shell/configuration.php` (`detail_tabs`).
+
 Toolbar/view-switch internal layouts are type none; the outer results panel
 owns the only frame. Toolbar fills its own height and scrolling content cannot
 overdraw it. Grid mode has a theme-colored 1 px divider above column headings.
