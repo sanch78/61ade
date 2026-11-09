@@ -111,6 +111,15 @@ try {
         $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
         rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid application module path accepted: '.json_encode($bad));
     }
+    // Session cookie policy and client-address binding (docs/authentication.md#cookie-samesite): opt-in session keys.
+    verify($app->sameSite === 'Lax' && $app->bindSessionToClientAddress === false, 'Lax and unbound sessions by default');
+    $write([...$settings, 'session' => [...$settings['session'], 'same_site' => 'Strict', 'bind_to_client_address' => true]]);
+    $hardened = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
+    verify($hardened->sameSite === 'Strict' && $hardened->bindSessionToClientAddress === true, 'JSON session.same_site and bind_to_client_address');
+    foreach ([['same_site' => 'None'], ['same_site' => 'strict'], ['same_site' => ''], ['same_site' => true], ['bind_to_client_address' => 'true'], ['bind_to_client_address' => 1]] as $bad) {
+        $write([...$settings, 'session' => [...$settings['session'], ...$bad]]);
+        rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid session policy accepted: '.json_encode($bad));
+    }
     // Sign-in branding (docs/shell.md#sign-in-branding): application.logo and application.sign_in_stylesheets.
     verify($app->logo === null && $app->signInStylesheets === [] && $app->signIn === null && $app->signInModules === [], 'No logo, sign-in stylesheets, content or modules by default');
     $write([...$settings, 'application' => [...$settings['application'], 'logo' => ['image' => 'branding/logo.svg', 'dark_image' => 'branding/logo-dark.svg', 'label' => 'Márka', 'placement' => 'both'], 'sign_in_stylesheets' => ['branding/sign-in.css'],

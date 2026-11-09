@@ -590,3 +590,7 @@
 <a id="fb-0142"></a>
 
 ## FB-0142 — Recolour the original timeline and remove the duplicate
+
+<a id="fb-0143"></a>
+
+## FB-0143 — Opt-in Strict cookies, client-address binding and trusted proxy networks

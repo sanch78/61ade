@@ -77,6 +77,10 @@ final readonly class ApplicationDefinition
         public array $menuSeparators = [],
         /** Optional active account id whose UI permissions are offered without sign-in (docs/authentication.md#public-access). */
         public ?string $publicIdentity = null,
+        /** SameSite of the session and remembered-login cookies: `Lax` or `Strict` (docs/authentication.md#cookie-samesite). */
+        public string $sameSite = 'Lax',
+        /** End a signed-in session used from another client address (docs/authentication.md#client-address-binding). */
+        public bool $bindSessionToClientAddress = false,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -88,6 +92,7 @@ final readonly class ApplicationDefinition
         if ($sessionIdleTimeout < 60 || $sessionIdleTimeout > 31536000 || $sessionCookieLifetime < 0 || $sessionCookieLifetime > 31536000) {
             throw new \InvalidArgumentException('Invalid 61ade session lifetime.');
         }
+        if ($sameSite !== 'Lax' && $sameSite !== 'Strict') throw new \InvalidArgumentException('Invalid 61ade SameSite policy.');
         if ($publicIdentity !== null && ($publicIdentity === '' || strlen($publicIdentity) > 100 || preg_match('/[\x00-\x1f\x7f]/', $publicIdentity))) {
             throw new \InvalidArgumentException('Invalid 61ade public identity.');
         }

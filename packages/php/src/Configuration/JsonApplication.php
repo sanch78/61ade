@@ -45,7 +45,7 @@ final class JsonApplication
                 Shape::check($link, ['label' => 'string', 'href' => 'string'], [], '$.application.sign_in.links.'.$index);
             }
         }
-        Shape::check($session, ['name' => 'string', 'cookie_path' => 'string'], ['idle_timeout' => 'integer', 'cookie_lifetime' => 'integer'], '$.session');
+        Shape::check($session, ['name' => 'string', 'cookie_path' => 'string'], ['idle_timeout' => 'integer', 'cookie_lifetime' => 'integer', 'same_site' => 'string', 'bind_to_client_address' => 'boolean'], '$.session');
         Shape::check($live, [
             'transport' => 'string',
             'endpoint' => 'string',
@@ -95,6 +95,8 @@ final class JsonApplication
             cookiePath: $session['cookie_path'],
             sessionIdleTimeout: $session['idle_timeout'] ?? 1800,
             sessionCookieLifetime: $session['cookie_lifetime'] ?? 0,
+            sameSite: $session['same_site'] ?? 'Lax',
+            bindSessionToClientAddress: $session['bind_to_client_address'] ?? false,
             workspace: $builtWorkspace,
             live: new LiveConfig($live['transport'], $live['endpoint'], $live['interval_ms'], array_map($config->path(...), $live['applications'] ?? [])),
             authentication: $authentication,

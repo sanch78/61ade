@@ -98,4 +98,48 @@ foreach ([['message' => ''], ['message' => 'x', 'severity' => 'loud'], ['message
     try { new Blade\Feature\Action('r', 'a', 'A', [], static fn() => [], confirm: $bad); throw new RuntimeException('Invalid confirm accepted'); }
     catch (InvalidArgumentException) {}
 }
+// Session cookie policy (docs/authentication.md#cookie-samesite): Lax and unbound unless declared; no `None`.
+verify($app->sameSite === 'Lax' && !$app->bindSessionToClientAddress && $base->sameSite === 'Lax' && !$base->bindSessionToClientAddress, 'Demos keep Lax, unbound sessions');
+$policy = static fn(string $sameSite) => new Blade\Shell\ApplicationDefinition('T', $app->identities, new Menu([]), sys_get_temp_dir(), sameSite: $sameSite, bindSessionToClientAddress: true);
+verify($policy('Strict')->sameSite === 'Strict' && $policy('Strict')->bindSessionToClientAddress, 'Strict SameSite and binding accepted');
+foreach (['None', 'none', 'strict', 'lax', ''] as $bad) {
+    try { $policy($bad); throw new RuntimeException('Invalid SameSite accepted: '.$bad); }
+    catch (InvalidArgumentException) {}
+}
+// Trusted proxies (docs/shell.md#trusted-proxies): X-BLADE-Client-IP/X-BLADE-HTTPS count only from a trusted
+// connection. The probe definition records the request it sees; null means it never ran (the entrypoint failed closed).
+$probe = static function (Closure $run, string $from, string $client = '203.0.113.7'): ?array {
+    [$server, $seen, $log] = [$_SERVER, null, ini_set('error_log', '/dev/null')];
+    $_SERVER = ['REMOTE_ADDR' => $from, 'HTTP_X_BLADE_CLIENT_IP' => $client, 'HTTP_X_BLADE_HTTPS' => 'on'];
+    ob_start();
+    try {
+        $run(static function () use (&$seen): never { $seen = [$_SERVER['REMOTE_ADDR'], $_SERVER['HTTPS'] ?? null]; throw new LogicException('probe'); });
+        verify(str_contains((string) ob_get_contents(), 'role="alert"'), 'Entrypoint failures answer with the safe error page');
+    } finally {
+        ob_end_clean();
+        ini_set('error_log', (string) $log);
+        $_SERVER = $server;
+    }
+    return $seen;
+};
+$entry = static fn(bool|array $trust): Closure => static fn(Closure $definition) => Blade\Infrastructure\HttpEntrypoint::run($definition, $trust);
+$forwarded = ['203.0.113.7', 'on'];
+verify($probe(static fn(Closure $definition) => Blade\Infrastructure\HttpEntrypoint::run($definition), '127.0.0.1') === ['127.0.0.1', null], 'No proxy trusted by default, not even loopback');
+verify($probe($entry(true), '127.0.0.1') === $forwarded && $probe($entry(true), '::1') === $forwarded, 'trustProxy true: a loopback proxy sets client address and scheme');
+verify($probe($entry(true), '127.0.0.2') === ['127.0.0.2', null] && $probe($entry(true), '192.0.2.10') === ['192.0.2.10', null], 'trustProxy true: exactly 127.0.0.1 and ::1, as before');
+verify($probe($entry(true), '127.0.0.1', 'not-an-address') === ['127.0.0.1', null], 'An invalid forwarded address changes nothing');
+verify($probe(static fn(Closure $definition) => Blade\Infrastructure\HttpEntrypoint::run($definition, trustLocalProxy: true), '127.0.0.1') === $forwarded
+    && $probe(static fn(Closure $definition) => Blade\Infrastructure\HttpEntrypoint::run($definition, trustLocalProxy: true), '192.0.2.10') === ['192.0.2.10', null], 'trustLocalProxy stays an alias of true');
+$networks = ['192.0.2.0/24', '2001:db8::/32', '198.51.100.7/32'];
+verify($probe($entry($networks), '192.0.2.10') === $forwarded && $probe($entry($networks), '2001:db8:1::7') === $forwarded && $probe($entry($networks), '198.51.100.7') === $forwarded, 'Listed CIDR proxies accepted');
+verify($probe($entry($networks), '192.0.3.1') === ['192.0.3.1', null] && $probe($entry($networks), '198.51.100.8') === ['198.51.100.8', null] && $probe($entry($networks), '127.0.0.1') === ['127.0.0.1', null] && $probe($entry($networks), '::ffff:192.0.2.10') === ['::ffff:192.0.2.10', null], 'Unlisted sources ignored, loopback and mapped IPv4 included');
+// Prefixes inside a byte: /25 and /127 cover exactly their half and pair.
+verify($probe($entry(['192.0.2.128/25']), '192.0.2.200') === $forwarded && $probe($entry(['192.0.2.128/25']), '192.0.2.127') === ['192.0.2.127', null]
+    && $probe($entry(['2001:db8::/127']), '2001:db8::1') === $forwarded && $probe($entry(['2001:db8::/127']), '2001:db8::2') === ['2001:db8::2', null], 'Partial-byte prefixes match exactly their network');
+verify($probe($entry(['::ffff:192.0.2.0/120']), '::ffff:192.0.2.10') === $forwarded && $probe($entry(['::ffff:192.0.2.0/120']), '192.0.2.10') === ['192.0.2.10', null], 'IPv4-mapped connections need a mapped IPv6 network');
+verify($probe($entry([]), '127.0.0.1') === ['127.0.0.1', null], 'An empty list trusts nothing');
+foreach ([['192.0.2.1/24'], ['192.0.2.129/25'], ['2001:db8::1/127'], ['192.0.2.0'], ['192.0.2.0/0'], ['::/0'], ['192.0.2.0/33'], ['2001:db8::/129'], ['192.0.2.0/024'], ['192.000.2.0/24'], ['fe80::%eth0/64'], [' 192.0.2.0/24'], ['192.0.2.0/24 '], ['192.0.2.0/24', 'proxy'], [24], ['proxy' => '192.0.2.0/24']] as $bad) {
+    verify($probe($entry($bad), '192.0.2.10') === null, 'Invalid trusted proxy list fails closed: '.json_encode($bad));
+}
+verify($probe(static fn(Closure $definition) => Blade\Infrastructure\HttpEntrypoint::run($definition, ['192.0.2.0/24'], true), '192.0.2.10') === null, 'trustProxy list with trustLocalProxy fails closed');
 echo "61ade standalone shell contracts passed.\n";

@@ -111,6 +111,7 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 | First-step header close to a declared destination | UI navigation | No authentication or state mutation; no audit event. Required/public defaults remain unchanged ([sign-in content](shell.md#sign-in-content)). |
 | Password login success/deny, logout | Security | Implemented, Shell/Application. Public access emits no login success; its ordinary actions use the dedicated guest actor and existing ACL/audit ([public access](authentication.md#public-access)). |
 | CSRF/transport rejection | Security | Implemented. |
+| Bound session used from another client address (opt-in) | Security | Implemented, Shell/Application: `session`/`client_address`, outcome `rejected`, the account id only, no addresses ([binding](authentication.md#client-address-binding)). |
 | E-mail code send/check, remembered-login restore | Security | Implemented, Authentication. |
 | API-key issue/revoke (admin all-scope or user own-scope) | Security | Registered `blade_api_keys.create/update`, `__edit`, without secret. |
 | OAuth start/callback/login result | Security | `authentication.oauth_start`, `oauth_callback`, `oauth_login`. |

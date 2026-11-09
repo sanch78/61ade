@@ -99,4 +99,63 @@ verify($security->needsConfirmation($other), 'Per-user switch on');
 denied(static fn() => $workspace->executor->execute(new Context($other, 'ui', $workspace->acl, $db), 'members', 'security', '1', ['email_confirmation' => '0']), 'Settings action enforces ACL', 403);
 $logs = json_encode($db->query('SELECT * FROM blade_audit')->fetchAll(PDO::FETCH_ASSOC));
 verify(!str_contains($logs, $code) && !str_contains($logs, $credential['cookie']) && !str_contains($logs, 'demo-password-123'), 'Authentication audit contains no secrets');
-echo "61ade email confirmation, settings and 90-day remembered login contracts passed.\n";
+
+// Shell requests, each in its own process (fixtures/authentication/request.php): cookie SameSite and the opt-in
+// client-address binding (docs/authentication.md#cookie-samesite, docs/authentication.md#client-address-binding).
+$workspace->executor->execute($context, 'members', 'security', '2', ['email_confirmation' => '0']);
+$request = static function (array $options, string $address, array $cookies = [], array $post = []): array {
+    $process = proc_open([PHP_BINARY, dirname(__DIR__).'/fixtures/authentication/request.php'], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+    fwrite($pipes[0], json_encode(['options' => $options, 'server' => ['REMOTE_ADDR' => $address, ...($post ? ['REQUEST_METHOD' => 'POST'] : [])], 'cookies' => $cookies, 'post' => $post], JSON_THROW_ON_ERROR));
+    fclose($pipes[0]);
+    [$output, $errors] = [stream_get_contents($pipes[1]), stream_get_contents($pipes[2])];
+    if (proc_close($process) !== 0 || $errors !== '') throw new RuntimeException('Shell request failed: '.$errors);
+    return json_decode($output, true, flags: JSON_THROW_ON_ERROR);
+};
+$cookie = static fn(array $response, string $name): ?array => array_values(array_filter($response['cookies'], static fn(array $c) => $c['name'] === $name))[0] ?? null;
+$jar = static fn(array $response, ?array $remember = null): array => [$response['session']['name'] => $response['session']['id'], ...($remember ? [$remember['name'] => $remember['value']] : [])];
+// Password sign-in of account 2 (no e-mail code) with remember, from $address.
+$signIn = static function (array $options, string $address) use ($request, $jar): array {
+    $page = $request($options, $address);
+    return $request($options, $address, $jar($page), ['action' => 'login', 'csrf' => $page['data']['csrf'], 'username' => 'other', 'password' => 'demo-password-123', 'remember' => '1']);
+};
+$events = static fn(): array => $db->query("SELECT actor_id, outcome, object_id, field_names, detail FROM blade_audit WHERE resource = 'session' AND action = 'client_address' ORDER BY id")->fetchAll(PDO::FETCH_NUM);
+
+// Defaults: Lax session and remember cookies, no stored address, the session survives an address change.
+$login = $signIn([], '198.51.100.7');
+$remember = $cookie($login, 'blade_auth_test_remember');
+verify($login['data']['identity'] === '2' && $login['session']['samesite'] === 'Lax' && $login['session']['httponly'] && $login['session']['secure'], 'Default session cookie: Lax, HttpOnly, Secure');
+verify($remember['value'] !== '' && $remember['samesite'] === 'Lax' && $remember['httponly'] && $remember['secure'] && $remember['path'] === '/', 'Default remember cookie: Lax, HttpOnly, Secure');
+verify(!array_key_exists('clientAddress', $login['data']), 'No client address stored by default');
+$moved = $request([], '203.0.113.9', $jar($login));
+verify(($moved['data']['identity'] ?? null) === '2' && $moved['session']['id'] === $login['session']['id'] && $events() === [], 'Without binding the session survives an address change');
+$language = $request([], '203.0.113.9', $jar($login), ['action' => 'language', 'locale' => 'hu', 'csrf' => $moved['data']['csrf']]);
+verify($cookie($language, 'blade_auth_test_language')['samesite'] === 'Lax', 'Default language cookie: Lax');
+
+// Strict and bound: both credentials Strict, the language preference stays Lax.
+$strict = ['sameSite' => 'Strict', 'bindSessionToClientAddress' => true];
+$login = $signIn($strict, '198.51.100.7');
+$remember = $cookie($login, 'blade_auth_test_remember');
+verify($login['session']['samesite'] === 'Strict' && $remember['samesite'] === 'Strict' && $remember['value'] !== '', 'Strict session and remember cookies');
+verify($login['data']['identity'] === '2' && $login['data']['clientAddress'] === '198.51.100.7', 'Sign-in stores the client address');
+$same = $request($strict, '198.51.100.7', $jar($login));
+verify(($same['data']['identity'] ?? null) === '2' && $same['session']['id'] === $login['session']['id'], 'Bound session kept at the same address');
+$language = $request($strict, '198.51.100.7', $jar($login), ['action' => 'language', 'locale' => 'hu', 'csrf' => $same['data']['csrf']]);
+verify($cookie($language, 'blade_auth_test_language')['samesite'] === 'Lax', 'Language cookie stays Lax under Strict');
+// Another address: the session is cleared and rotated, its file (and so its live ticket) is gone, the event audited.
+$ticket = Blade\Live\Tickets::issue($app->runtime, $login['session']['id']);
+$moved = $request($strict, '203.0.113.9', $jar($login));
+verify(!isset($moved['data']['identity']) && $moved['session']['id'] !== $login['session']['id'] && !is_file($app->runtime.'/sessions/sess_'.$login['session']['id']), 'Bound session ends on an address change');
+verify($events() === [['2', 'rejected', '', '[]', '{}']], 'Address change audited with the account id only, no addresses');
+denied(static fn() => Blade\Live\Tickets::session($app->runtime, $ticket), 'Live ticket of the ended session refused', 401);
+// With the remember cookie the sign-in is restored at the new address, with a rotated credential.
+$login = $signIn($strict, '198.51.100.7');
+$remember = $cookie($login, 'blade_auth_test_remember');
+$restored = $request($strict, '203.0.113.9', $jar($login, $remember));
+$rotated = $cookie($restored, 'blade_auth_test_remember');
+verify(($restored['data']['identity'] ?? null) === '2' && $restored['data']['clientAddress'] === '203.0.113.9' && $restored['session']['id'] !== $login['session']['id'], 'Remembered login restores the session at the new address');
+verify($rotated['value'] !== '' && $rotated['value'] !== $remember['value'] && $rotated['samesite'] === 'Strict' && count($events()) === 2, 'Restore rotates the Strict remember cookie after the audited address change');
+// A signed-in session without a stored address (binding enabled later) ends once.
+$login = $signIn([], '198.51.100.7');
+$bound = $request(['bindSessionToClientAddress' => true], '198.51.100.7', $jar($login));
+verify(!isset($bound['data']['identity']) && count($events()) === 3, 'Enabling the binding ends unbound sessions');
+echo "61ade email confirmation, settings, 90-day remembered login and session cookie/binding contracts passed.\n";
