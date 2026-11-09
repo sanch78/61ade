@@ -581,3 +581,7 @@
 <a id="fb-0140"></a>
 
 ## FB-0140 — Align desktop logout to the right
+
+<a id="fb-0141"></a>
+
+## FB-0141 — Make audio playback position clearly visible
