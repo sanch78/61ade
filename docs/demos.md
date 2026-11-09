@@ -327,14 +327,15 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   layout; a record change or a navigation creates a new instance.
 - **Accordion:** when the list view offers `update` and the record's
   `_actions` allow it, the side region is a declared `accordion` branch of the
-  page's `PageLayout` with `multiple` ([Accordion](toolkit.md#accordion)):
+  page's `PageLayout` ([Accordion](toolkit.md#accordion)) without `multiple`:
   `Adatok` (open at first) above `Szerkesztés`, the asset's own `RecordForm`
-  of `update` without Cancel, created when the section first opens. Both may
-  be open and share the column's height; a save refreshes the details and the
-  title, and the open sections are kept per user (separately for the wide and
-  narrow layout). Without `update` (`reader@example.test`) the side region is
-  the collapsible `Adatok` panel as before. Crossing 768 px rebuilds the
-  content, which drops unsaved input in the form.
+  of `update` without Cancel, created when the section first opens. One
+  section is open at a time: opening another closes it, and the open one
+  fills the column. A save refreshes the details and the title, and the open
+  section is kept per user (separately for the wide and narrow layout).
+  Without `update` (`reader@example.test`) the side region is the collapsible
+  `Adatok` panel as before. Crossing 768 px rebuilds the content, which drops
+  unsaved input in the form.
 - **Responsive:** from 768 px the details sit beside the stage (380 px), below
   it they stack under the stage and the commands collapse into `Műveletek`;
   crossing the width rebuilds the content and keeps the position. Colours come

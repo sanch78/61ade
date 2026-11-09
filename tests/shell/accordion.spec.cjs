@@ -3,8 +3,8 @@ const {execFileSync}=require('node:child_process');
 const {signIn}=require('./feature-demo.cjs');
 // Accordion (docs/toolkit.md#accordion): the public component from a fixture module (roles, keys, one or several open
 // sections, the closed section's kept content, the geometry, option checks) and the declared `accordion` branch of
-// PageLayout in the asset viewer (`Adatok` above `Szerkesztés`, the asset's form, the remembered open sections). The
-// run seeds its own asset with the run prefix and removes it.
+// PageLayout in the asset viewer (`Adatok` above `Szerkesztés`, one open at a time, the asset's form, the remembered
+// open section). The run seeds its own asset with the run prefix and removes it.
 const prefix='ac'+Date.now().toString(36);
 const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'demo';
 const php=code=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${runtime}/${instance}/features.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');${code}`],{encoding:'utf8'});
@@ -151,26 +151,29 @@ test('asset viewer: the declared accordion branch, the asset form and the rememb
  await expect(header(layout,'Adatok')).toHaveAttribute('aria-expanded','true');
  await expect(header(layout,'Szerkesztés')).toHaveAttribute('aria-expanded','false');
  await expect(layout.getByRole('region',{name:'Adatok'})).toContainText(`${prefix} elem`);
- // Both may be open: they share the tall side column.
+ // One open at a time: opening the form closes the details, and the form fills the side column.
+ const column=await layout.locator('.blade-accordion').first().boundingBox();
  await header(layout,'Szerkesztés').click();
+ await expect(header(layout,'Adatok')).toHaveAttribute('aria-expanded','false');
+ await expect(layout.getByRole('region',{name:'Adatok'})).toHaveCount(0);
  const form=layout.getByRole('region',{name:'Szerkesztés'});
  const name=form.getByLabel('Megnevezés',{exact:true});
  await expect(name).toHaveValue(`${prefix} elem`);
- const [details,edit]=[await layout.getByRole('region',{name:'Adatok'}).boundingBox(),await form.boundingBox()];
- expect(Math.abs(details.height-edit.height)).toBeLessThanOrEqual(2);
- expect(edit.y).toBeGreaterThan(details.y+details.height-1);
+ const edit=await form.boundingBox();
+ expect(edit.height).toBeGreaterThan(column.height*0.6);
  await name.fill(`${prefix} elem új`);await name.press('Tab');
  await form.getByRole('button',{name:'Mentés',exact:true}).click();
- await expect(layout.getByRole('region',{name:'Adatok'})).toContainText(`${prefix} elem új`);
+ await expect(form.getByLabel('Megnevezés',{exact:true})).toHaveValue(`${prefix} elem új`);
  expect(php(`echo $db->query("SELECT title FROM signage_assets WHERE id=${asset}")->fetchColumn();`).trim()).toBe(`${prefix} elem új`);
- // Closing the details keeps only its header; the open sections are remembered per page and user.
- await header(layout,'Adatok').click();
- await expect(layout.getByRole('region',{name:'Adatok'})).toHaveCount(0);
+ // The open section is remembered per page and user.
  await page.reload();
  const again=page.locator('.blade-page-layout').first();
  await expect(header(again,'Szerkesztés')).toHaveAttribute('aria-expanded','true');
  await expect(header(again,'Adatok')).toHaveAttribute('aria-expanded','false');
  await expect(again.getByRole('region',{name:'Szerkesztés'}).getByLabel('Megnevezés',{exact:true})).toHaveValue(`${prefix} elem új`);
+ // Opening the details closes the form; the refreshed details show the saved title.
  await header(again,'Adatok').click();
+ await expect(header(again,'Szerkesztés')).toHaveAttribute('aria-expanded','false');
+ await expect(again.getByRole('region',{name:'Adatok'})).toContainText(`${prefix} elem új`);
  expect(errors).toEqual([]);
 });
