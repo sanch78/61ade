@@ -642,3 +642,7 @@
 <a id="fb-0155"></a>
 
 ## FB-0155 — Suite's English-only names and Escape in a non-modal window
+
+<a id="fb-0156"></a>
+
+## FB-0156 — One lower edge for toolbars and closed accordion sections

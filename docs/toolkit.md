@@ -740,6 +740,10 @@ coloured by `--dhx-border-color`, even above borderless content. Direct Layout
 attachments and CommandBar delegate the adjoining rule to it so the divider
 is not doubled by the host cell or a following native Grid. The shell
 navigation, status bar and window header keep their role-specific geometry.
+When a Toolbar or CommandBar fills a framed `space`/`wide` Layout cell,
+the cell owns the outer edge: the toolbar draws no additional top or bottom
+rule against it. A toolbar within a panel, above or below content, keeps its
+separator ([FB-0156](feedback.md#fb-0156)).
 
 ```ts
 const t = (key: string) => app.i18n.t(key);
@@ -1114,6 +1118,9 @@ sections.on("toggle", ({ id, open }) => {
   so sections read like the page's other panels. A header after an open
   section has a 1 px top border in the theme's border colour to separate it
   from that section's content; consecutive closed sections keep one divider.
+  The last closed section has no bottom header rule against the enclosing
+  panel's frame ([FB-0156](feedback.md#fb-0156)); opening it restores the rule
+  between its header and content.
 - **Subdividing a section:** a section is a mount target like any cell, so
   an `Accordion` mounted into `cell(id)` divides it further (a control
   panel's `Megjelenés` section with its own `Rács` and `Háttér` parts).
