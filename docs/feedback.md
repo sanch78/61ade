@@ -577,3 +577,7 @@
 <a id="fb-0139"></a>
 
 ## FB-0139 — Remove the product website from the repository
+
+<a id="fb-0140"></a>
+
+## FB-0140 — Align desktop logout to the right

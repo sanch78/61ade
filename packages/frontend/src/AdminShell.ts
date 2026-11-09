@@ -191,7 +191,7 @@ export class AdminShell {
     ];
     const prefixed=(items:any[]):any[]=>items.map(item=>({...item,id:"sibling:"+item.id,...(item.items?{items:prefixed(item.items)}:{})}));
     this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),icon:"dxi dxi-view-grid",items:entries},
-      ...(context.length?[{id:"blade-context-separator",type:"separator"},...context.map(marked).map(item=>prefixed([item])[0])]:[])]:entries.map(marked));
+      ...(context.length?[{id:"blade-context-separator",type:"separator"},...context.map(marked).map(item=>prefixed([item])[0])]:[])]:entries.flatMap(item=>item.id==="blade-session-separator"?[{id:"blade-session-spacer",type:"spacer"},marked(item)]:[marked(item)]));
   }
 
   /**
