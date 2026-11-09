@@ -17,7 +17,7 @@ export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSel
   tiles?:boolean;
   /** Arrow/Home/End/PageUp/PageDown move the cursor row, Enter opens, Space toggles the mark (default true). */
   keyNavigation?:boolean;
-  /** Records expand to this nested view (collapsed by default); tiles do not expand. */
+  /** Records expand to this nested view in tables; cards and tiles open its full window. */
   subview?:SubViewOptions;
   /** Always the table: no cards on narrow screens (a compact preview). */
   table?:boolean;
@@ -45,7 +45,7 @@ const cell=(row:any,id:string)=>row[alias(id)];
  * Sub-views: an open record shows a nested framework view under it, in a table sub-row (a framework row spanned
  * from the toggle column over the whole table). The row only reserves a slot; the nested view lives in a fixed,
  * clipped layer above it, so its widgets never sit inside this Grid's DOM and their mouse and key handling stays
- * separate. A card does not embed it: its sub-view button opens the full child view (`open`). A record whose
+ * separate. Cards and tiles do not embed it: their sub-view button opens the full child view (`open`). A record whose
  * `_subview` count is 0 has no sub-items and does not expand, unless `_subview_open` (the count covers only part of
  * the child rows, such as accounts with access); a missing count means unknown (expandable).
  */
@@ -54,7 +54,7 @@ const slot=(id:string,height?:number)=>`<div class="blade-subview-slot" data-bla
 export type SubView={destroy():void};
 /** `mount` reports the height the nested view's content needs. */
 export type SubViewOptions={mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>SubView;
-  /** Card button caption (the child list title) and the full child view of one record. */
+  /** Card/tile button caption (the child list title) and the full child view of one record. */
   label:string;open:(id:string)=>void};
 /** A record has sub-items unless the server counted none (`_subview: 0` without `_subview_open`). */
 export const hasSubview=(row:Row|undefined)=>!!row&&((row as any)._subview_open===true||Number((row as any)._subview??1)!==0);
@@ -128,22 +128,22 @@ export class ResponsiveGrid {
         const record=unguard(row),html=c.render?c.render(record,"cell"):escape(optionText(c,record[c.id]));
         return c.fieldType&&c.editable&&record._editable?.includes(c.id)?`<span class="blade-card-edit" data-blade-row="${escape(record.id)}" data-blade-field="${escape(c.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:c.header}))}">${html}</span>`:html;}}:{}),
     }))],rowCss:row=>{const sub=(row as any)[SUBROW],index=this.index.get(String(sub??row.id))??0;return (sub!==undefined?"blade-grid-subrow-row ":"")+(index%2===1?"blade-grid-row-alternate":"");},rowHeight:rh,autoWidth:true,resizable:true,selection:(pick?"row":false) as "row",keyNavigation:keys,htmlEnable:false,...(drag?{dragItem:"row" as const,...dragging}:{})});
-    // Card sub-view button: a native DHTMLX flat button with the child list title and the count when known.
+    // Card/tile sub-view button: a native DHTMLX flat button with the child list title and the count when known.
     const subviewButton=(row:Row)=>{const count=(row as any)._subview,caption=options.subview!.label+(count!==undefined&&count!==null?` (${Number(count)})`:"");
       return `<div class="blade-grid-card__subview"><button type="button" class="blade-card-subview dhx_button dhx_button--view_flat dhx_button--color_primary dhx_button--size_medium dhx_button--icon-left" aria-haspopup="dialog" title="${escape(caption)}"><span class="dhx_button__icon dxi dxi-arrow-expand" aria-hidden="true"></span><span class="dhx_button__text">${escape(caption)}</span></button></div>`;};
     const hint=(row:Row)=>{const text=pick?options.activation?.(row):undefined;return text?` aria-description="${escape(text)}"`:"";};
     const mark=(row:Row)=>options.selection&&row._markable!==false?`<input class="blade-card-mark" type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`:"";
     // Card fields: every permitted field with its column's presentation; only the first media field moves to the top slot.
     const editable=presentedFields(withDerived(options.fields??columns,columns),columns).filter(field=>!media||field.id!==media.id).map(field=>({...field,editable:columns.find(c=>c.id===field.id)?.editable}));
-    this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:pick,keyNavigation:keys,...dragging,css:"blade-grid-cards",template:(item:Row)=>{const row=unguard(item);
-      return `<article class="blade-grid-card${this.marked.has(String(row.id))?" blade-grid-card--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}>${media&&hasSlot(media,row)?`<div class="blade-grid-card__media">${recordSlot(media,row,"card")}</div>`:""}<div class="blade-grid-card__id">${grip}${mark(row)}${mark(row)?" ":""}${options.idColumn===false?"":`ID · ${escape(row.id)}`}</div>${recordFields(row,editable,true)}${options.subview&&hasSubview(row)?subviewButton(row):""}</article>`;},
+    this.cards=new DataView(document.createElement("div"),{itemsInRow:1,gap:12,selection:pick,keyNavigation:keys,...dragging,css:"blade-grid-cards",template:(item:Row)=>{const row=unguard(item),cover=media&&hasSlot(media,row)?recordSlot(media,row,"card"):"",subview=options.subview&&hasSubview(row)?subviewButton(row):"";
+      return `<article class="blade-grid-card${this.marked.has(String(row.id))?" blade-grid-card--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}>${cover?`<div class="blade-grid-card__media">${cover}${subview}</div>`:""}<div class="blade-grid-card__id">${grip}${mark(row)}${mark(row)?" ":""}${options.idColumn===false?"":`ID · ${escape(row.id)}`}</div>${recordFields(row,editable,true)}${cover?"":subview}</article>`;},
       eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id)),"blade-card-subview":(event:Event,id:string|number)=>{event.stopPropagation();selected(id);options.subview?.open(String(id));}}}});
     // Tiles: media slot (or the icon column), the first text column as title and one secondary line.
     const text=columns.filter(c=>!isMedia(c)&&!isImage(c)&&!isIcon(c)&&c.type!=="checkbox"),title=text[0],detail=text[1];
     this.tiles=new DataView(document.createElement("div"),{itemsInRow:1,gap:8,selection:pick,keyNavigation:keys,...dragging,css:"blade-grid-tiles",template:(item:Row)=>{const row=unguard(item);
       const caption=title?columnText(title,row):String(row.id),line=detail&&(Object.hasOwn(row,detail.id)||derivedOf(detail))?columnText(detail,row):"";
-      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}><div class="blade-grid-tile__media">${media&&(hasSlot(media,row)||!icon||!row[icon.id])?recordSlot(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`} ${mark(row)}${grip}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${detail.render?detail.render(row,"tile"):escape(line)}</div>`:""}</article>`;},
-      eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id))}}});
+      return `<article class="blade-grid-tile${this.marked.has(String(row.id))?" blade-grid-tile--marked":""}" data-blade-row="${escape(row.id)}"${hint(row)}><div class="blade-grid-tile__media">${media&&(hasSlot(media,row)||!icon||!row[icon.id])?recordSlot(media,row,"tile"):icon&&row[icon.id]?`<span class="blade-media blade-media--tile">${recordIcon(icon,row[icon.id])}</span>`:`<span class="blade-media blade-media--tile blade-media--empty" aria-hidden="true"></span>`} ${mark(row)}${grip}${options.subview&&hasSubview(row)?subviewButton(row):""}</div><div class="blade-grid-tile__title" title="${escape(caption)}">${escape(caption||"—")}</div>${line?`<div class="blade-grid-tile__meta" title="${escape(line)}">${detail.render?detail.render(row,"tile"):escape(line)}</div>`:""}</article>`;},
+      eventHandlers:{onclick:{"blade-card-mark":(_event:Event,id:string|number)=>this.toggleMark(String(id)),"blade-card-subview":(event:Event,id:string|number)=>{event.stopPropagation();selected(id);options.subview?.open(String(id));}}}});
     const selected=(id:string|number)=>{if(!pick)return;this.selected=this.recordId(String(id));select(this.selected);};
     const markRow=(id:string,event:MouseEvent)=>{
       // A `_markable: false` row (such as a ".." parent link) can hold the cursor, never a mark.

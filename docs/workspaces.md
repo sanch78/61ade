@@ -1148,8 +1148,8 @@ offers an asset or a playlist this way.
 ## Sub-views (expandable rows and card buttons)
 
 A list view can let each record expand to a compact preview of a related list
-under its row in the table. In card view (and so on a phone) a card does not
-expand: it carries a button that opens the full related list in a window.
+under its row in the table. Cards and tiles do not expand: they carry a button
+that opens the full related list in a window, also on a phone.
 The preview is for a quick look, not for work. The full related list, with all
 its actions, opens in a window from the parent toolbar.
 
@@ -1172,9 +1172,13 @@ JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "proje
 - **Toggle:** the table gets a first toggle column (an accessible button with
   `aria-expanded`). Enter on the toggle cell or a click expands or collapses it.
   Records start collapsed, and a record whose child count is 0 has no toggle.
-  Cards show a full-width button at the bottom ("Feladatok (2)"; `Alelemek (n)`
-  for a hierarchy, at least 40 px tall) only when there are children. Tiles do
-  not expand, and a preview never expands further.
+  Cards show a button ("Feladatok (2)"; `Alelemek (n)` for a hierarchy, at least
+  40 px tall) only when there are children. With a media cover, it overlays the
+  upper-right corner without increasing card height; without a cover, it spans
+  the card footer. Long captions fit the card with an ellipsis and retain their
+  full accessible name and tooltip. Tiles show the same button across the full
+  width of the cover's bottom edge without changing tile height, also on an icon
+  or empty media placeholder. A preview never expands further.
 - **Preview:** the child view's columns without the parent field. Headers sort
   only: no filters, search, toolbar, row numbers, marks or title bar. Editable
   columns (a switch, for example) stay editable through the normal grid-edit

@@ -71,9 +71,12 @@ body,
 .blade-subrow-toggle:hover:not(:disabled) { color: var(--dhx-color-primary); }
 .blade-grid-subrow-span .dhx_span-cell-content { width: 100%; height: 100%; padding: 0; }
 .blade-subview-slot { height: 100%; }
-/* Card sub-view button: the full child list window, full width at the card bottom and touch friendly. */
+/* Card sub-view button: overlay the cover without adding height; cards without media keep the footer. */
 .blade-grid-card__subview { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--dhx-border-color); }
 .blade-card-subview { width: 100%; min-height: 40px; justify-content: flex-start; }
+.blade-grid-card__media > .blade-grid-card__subview { position: absolute; top: 8px; right: 8px; max-width: calc(100% - 16px); margin: 0; padding: 0; border: 0; }
+.blade-grid-card__media .blade-card-subview { width: auto; max-width: 100%; }
+:is(.blade-grid-card__media, .blade-grid-tile__media) .blade-card-subview .dhx_button__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* Nested views sit in a fixed layer clipped to the visible data area, above their slot; dialogs and popups stay above it. */
 .blade-subview-layer { position: fixed; z-index: 1; overflow: hidden; pointer-events: none; }
 .blade-subview-host { position: absolute; box-sizing: border-box; pointer-events: auto; }
@@ -90,7 +93,7 @@ body,
 .blade-grid-card dt { color: var(--dhx-font-color-secondary); font-weight: 500; }
 .blade-grid-card dd { margin: 0; color: var(--dhx-font-color-primary); white-space: pre-wrap; }
 .blade-grid-card dt, .blade-grid-card dd { overflow-wrap: anywhere; line-height: 1.5; }
-.blade-grid-card__media { margin: -14px -16px 12px; }
+.blade-grid-card__media { position: relative; margin: -14px -16px 12px; }
 
 /* Tiles: native DataView widths (equal per row), media slot, title and one secondary line. */
 .blade-grid-tiles .dhx_dataview-item {
@@ -117,6 +120,8 @@ body,
 .blade-grid-tile { display: flex; flex-direction: column; min-width: 0; height: 100%; }
 .blade-grid-tile--marked { background: color-mix(in srgb, var(--dhx-color-primary) 14%, transparent); box-shadow: inset 0 0 0 2px var(--dhx-color-primary); }
 .blade-grid-tile__media { position: relative; }
+.blade-grid-tile__media > .blade-grid-card__subview { position: absolute; bottom: 0; left: 0; right: 0; margin: 0; padding: 0; border: 0; }
+.blade-grid-tile__media .blade-card-subview { border-radius: 0; }
 .blade-grid-tile__media .blade-card-mark { position: absolute; top: 8px; left: 8px; z-index: 1; margin: 0; }
 .blade-grid-tile__title { padding: 8px 10px 0; color: var(--dhx-font-color-primary); font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; min-height: 2.8em; }
 .blade-grid-tile__meta { padding: 2px 10px 10px; color: var(--dhx-font-color-secondary); font-size: 12px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
