@@ -5673,4 +5673,5 @@ that exactly equals an option label lists every option. The managed
   whole `files` spec then passed (11).
 - **Limits:** other English Suite names stay as Suite writes them (for
   example a combobox without a label is "Select value"); none was reported.
+- **Commit:** `7b2c03d` on `main`.
 - **Status:** implemented.
