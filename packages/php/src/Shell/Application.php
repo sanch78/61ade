@@ -217,12 +217,20 @@ final class Application
             'path' => $this->definition->cookiePath,
             'secure' => $this->secure(),
             'httponly' => true,
-            'samesite' => 'Lax',
+            'samesite' => $this->definition->sameSite,
         ]);
         session_start();
         if (isset($_SESSION['lastSeen']) && time() - $_SESSION['lastSeen'] > $this->definition->sessionIdleTimeout) {
             $_SESSION = [];
             session_regenerate_id(true);
+        }
+        // Opt-in binding: a signed-in session from another address ends; a remembered login may restore it there.
+        if ($this->definition->bindSessionToClientAddress && isset($_SESSION['identity'])
+            && ($_SESSION['clientAddress'] ?? null) !== ($_SERVER['REMOTE_ADDR'] ?? '')) {
+            $actor = (string) $_SESSION['identity'];
+            $_SESSION = [];
+            session_regenerate_id(true);
+            $this->definition->workspace?->journal->record($actor, 'ui', 'session', 'client_address', '', 'rejected');
         }
         if ($this->definition->sessionCookieLifetime > 0) {
             $cookie = session_get_cookie_params();
@@ -382,6 +390,7 @@ final class Application
             'credentialVersion' => $verifiedVersion ?? $this->definition->workspace?->version($actor->id) ?? 0,
             'loginSecurityEnabled' => $this->definition->authentication !== null,
         ];
+        if ($this->definition->bindSessionToClientAddress) $_SESSION['clientAddress'] = $_SERVER['REMOTE_ADDR'] ?? '';
         session_regenerate_id(true);
     }
 
@@ -451,6 +460,7 @@ final class Application
         }
     }
 
+    /** A browser preference, no credential: stays `Lax` under `sameSite: 'Strict'` (docs/i18n.md). */
     private function languageCookie(string $locale): void
     {
         setcookie($this->definition->sessionName.'_language', $locale, ['expires'=>time()+31536000,'path'=>$this->definition->cookiePath,'secure'=>$this->secure(),'httponly'=>true,'samesite'=>'Lax']);
@@ -473,7 +483,7 @@ final class Application
             'path' => $this->definition->cookiePath,
             'secure' => $this->secure(),
             'httponly' => true,
-            'samesite' => 'Lax',
+            'samesite' => $this->definition->sameSite,
         ]);
     }
 

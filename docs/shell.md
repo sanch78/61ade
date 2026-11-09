@@ -177,8 +177,11 @@ typecheck/build and all four initial Chromium tests passed.
 
 ## Security and development boundary
 
-Sessions use strict IDs, HttpOnly/SameSite=Lax and HTTPS Secure cookies, ID
-rotation on login/logout, CSRF on both POSTs and a 30-minute idle timeout.
+Sessions use strict IDs, HttpOnly and HTTPS Secure cookies with SameSite=Lax
+(optionally [`Strict`](authentication.md#cookie-samesite)), ID rotation on
+login/logout, CSRF on both POSTs and a 30-minute idle timeout. An optional
+[client-address binding](authentication.md#client-address-binding) ends a
+signed-in session used from another address.
 Five failed logins/IP/60 seconds return 429 through a private file-locked
 shared limiter. Password/session data never enter menus/logs. The document
 root must be only the consumer public directory.
@@ -219,14 +222,61 @@ is requested unless the visitor already opened sign-in intentionally. Generic
 public POST errors are reported without switching into sign-in. Guest CSRF and
 authorization checks remain in force; no failed action is replayed automatically.
 
-With explicit `trustLocalProxy: true`, `HttpEntrypoint` trusts
-`X-BLADE-HTTPS`/`X-BLADE-Client-IP` only from loopback. The proxy must overwrite
-them from its own connection facts. Runtime and cookie path are application settings.
+Runtime and cookie path are application settings.
 
 Feature Registry, SQL CRUD, object/field ACL and audit have since been added.
 Complete M1/M2/M4, Symfony hosting, multiple organizations and PHP 8.5 remain
 open. Future consumer FPM qualification is separate; this project has no
 production environment. Menu visibility never replaces backend endpoint policy.
+
+<a id="trusted-proxies"></a>
+
+### Trusted proxies
+
+`HttpEntrypoint::run($definition, $trustProxy)` decides whose
+`X-BLADE-Client-IP` and `X-BLADE-HTTPS` replace the connection's
+`REMOTE_ADDR` and `HTTPS`. The rewrite happens before the application
+definition exists, so this is an entrypoint argument, not an
+`ApplicationDefinition` or JSON key.
+
+| `$trustProxy` | Trusted connections |
+| --- | --- |
+| `false` (default) | none: the headers are ignored |
+| `true` | exactly `127.0.0.1` and `::1`, the former loopback opt-in, unchanged |
+| `['192.0.2.0/24', '2001:db8::/32']` | connections from an address in a listed network |
+
+From a trusted connection, a valid `X-BLADE-Client-IP` becomes `REMOTE_ADDR`
+and `HTTPS` becomes `on` exactly when `X-BLADE-HTTPS` is `on`, otherwise
+`off`. A missing or invalid address changes nothing. Other connections'
+headers are ignored. The earlier named argument `trustLocalProxy: true`
+remains an alias of `true`; combining it with a `$trustProxy` value fails.
+
+```php
+Blade\Infrastructure\HttpEntrypoint::run(static fn() => require '../application.php', ['192.0.2.10/32']);
+```
+
+Networks are `address/prefix` strings: a valid IPv4 address without leading
+zeros or any valid IPv6 notation without a zone, a prefix of 1–32 or 1–128
+without leading zeros, and all host bits zero (`192.0.2.0/24`, not
+`192.0.2.1/24`). A single proxy is `/32` or `/128`. `/0` is refused because
+it would let every client choose its address; halves such as `0.0.0.0/1` and
+`128.0.0.0/1` are just as unsafe, so list only the proxies' own addresses or
+networks. IPv4 networks match IPv4 connections and IPv6 networks
+IPv6 ones; an IPv4-mapped connection (`::ffff:192.0.2.10`) needs an entry such
+as `::ffff:192.0.2.0/120`. An empty list trusts nothing. Anything else (not a
+list, a non-string or invalid entry) fails closed: no header is used, the
+application does not start, and the request gets the same 503 page as a
+configuration error, with `61ade unavailable: InvalidArgumentException` in the
+PHP error log.
+
+The proxy must set both headers from its own connection facts on every request
+and never pass on client-sent values. Listing a network that also contains
+ordinary clients, or a proxy that forwards client headers, lets those clients
+choose their address and scheme. They can then spread password attempts
+across invented addresses, which defeats the per-address sign-in limit above
+(`PasswordAttempts`). They can also present another client's address to pass
+the [client-address binding](authentication.md#client-address-binding), and
+turn off the cookies' Secure attribute with `X-BLADE-HTTPS: off`.
 
 <a id="megjelenési-mód"></a>
 

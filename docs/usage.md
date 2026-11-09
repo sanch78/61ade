@@ -35,7 +35,15 @@ sub-view shares; singleton details are direct forms.
 The full desktop menu aligns logout to the right, before the selectors; compact
 navigation keeps it inside Menü ([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)).
 No upper application-title header; one lower bar has user left, application/version
-right. Session idle timeout and persistent cookie lifetime are [configurable](authentication.md#session-lifetime), with unchanged 30-minute/browser-session defaults. An ended session signs the page out on its next request
+right. Session idle timeout and persistent cookie lifetime are [configurable](authentication.md#session-lifetime), with unchanged 30-minute/browser-session defaults.
+Three security options are opt-in, with unchanged defaults: `sameSite: 'Strict'`
+(JSON `session.same_site`) for the session and remember cookies
+([cookie SameSite](authentication.md#cookie-samesite); visitors arriving from
+another site, OAuth callbacks included, come without them), `bindSessionToClientAddress` (JSON `session.bind_to_client_address`)
+to end a signed-in session used from another address
+([binding](authentication.md#client-address-binding)), and `HttpEntrypoint::run`'s
+`$trustProxy` list of proxy networks ([trusted proxies](shell.md#trusted-proxies)).
+An ended session signs the page out on its next request
 ([shell](shell.md#ended-session)). Blade (default), Blade Night, light and dark use DHTMLX setTheme; Blade is a
 custom Suite 9 theme ([appearance](shell.md#megjelenési-mód)). Synthetic and consumer integration evidence exists.
 Applications whose sign-in is entered from a separate public document may

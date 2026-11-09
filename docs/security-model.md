@@ -84,6 +84,14 @@ The browser baseline is a server-side session, secure cookie and CSRF protection
 Session cookies do not carry indefinitely trusted policy decisions. Login rate
 limits, logout and session revocation are required.
 
+Implemented opt-ins, all off by default: `Strict` instead of `Lax` for the
+session and remember cookies ([cookie SameSite](authentication.md#cookie-samesite)),
+ending a signed-in session used from another client address
+([client-address binding](authentication.md#client-address-binding)), and
+trusted proxy networks for the client address and scheme
+([trusted proxies](shell.md#trusted-proxies)). The client address that the
+sign-in limit and the binding use is only as reliable as that proxy list.
+
 Machine clients need revocable scoped credentials; the protocol is an M2 decision.
 Invalidate policy caches after permission changes. Organization switching clears
 the preceding data and UI context.
@@ -115,6 +123,10 @@ polling tab keeps its session alive. This is unchanged behavior and an open L5
 item ([plan](live-channel-plan.md#7-risks)).
 Batched polling (`__watch` with `subscriptions`) answers each entry under the
 same request's session, tenant and ACL; a 401 still fails the whole request.
+With [client-address binding](authentication.md#client-address-binding), an
+address change ends the session on its next HTTP request. The deleted session
+file then fails the per-observation recheck, so the channel closes with 4401;
+the live server itself compares no addresses.
 
 <a id="kötelező-tesztmátrix"></a>
 

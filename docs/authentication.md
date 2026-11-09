@@ -264,8 +264,9 @@ credential; see [admin behavior](admin.md#elvárt-működés).
 
 Without the checkbox, only an ordinary session is created. After complete
 authentication with it, a separate random 256-bit secret is placed in an
-HttpOnly/SameSite cookie, Secure on TLS, host-bound and scoped to application path;
-never localStorage. Server stores hash only. Absolute expiry is 90 days from
+HttpOnly cookie with the application's [SameSite](#cookie-samesite) policy,
+Secure on TLS, host-bound and scoped to application path; never localStorage.
+Server stores hash only. Absolute expiry is 90 days from
 issue and never slides on restore.
 
 A new browser session restores a 61ade session and rotates the secret. Replay
@@ -320,7 +321,7 @@ session expiry. Verification: [FB-0093](feedback.md#fb-0093).
 ### Verification
 
 - `php8.4 tests/shell/mail.php` (recording fake command, never real mail): placeholder substitution, 0600 HTML body file in runtime and its removal after success and failure, empty stdin, address/subject/name/argument validation, exit errors, removed `transport`/`dsn` keys, layout escaping/text/color.
-- `php8.4 tests/shell/authentication.php`: default-on/per-user ACL, wrong/expired/cross-browser/replayed code, persistent limits, remember hash/rotation/expiry/revoke, sensitive-data-free audit.
+- `php8.4 tests/shell/authentication.php`: default-on/per-user ACL, wrong/expired/cross-browser/replayed code, persistent limits, remember hash/rotation/expiry/revoke, sensitive-data-free audit. Real shell requests, each in its own process through `tests/fixtures/authentication/request.php`, cover the [SameSite](#cookie-samesite) of the session, remember and language cookies for the default and `Strict`, and [client-address binding](#client-address-binding): kept without binding and at the same address, ended, rotated and audited on another address, its live ticket refused, restored by a remembered login at the new address, and unbound sessions ended once binding is enabled.
 - `npm run test:browser -- tests/shell/authentication.spec.cjs` (feature demo, `twofactor@example.test`, code from the demo mailbox): code gate, CSRF and wrong-code rejection, 90-day remembered login with rotation and revocation, no credential without remember, the Users admin e-mail-confirmation switch and the confirmation window in all themes. The demo command takes the Infra helper's arguments but stores the message locally. A session restored from the remember cookie starts in the site default language; the account default applies to password, code and OAuth logins ([i18n](i18n.md#account-default-language)).
 
 <a id="oauth-belépés-authhandler"></a>
@@ -337,7 +338,8 @@ For a rolling 30-day login, set both values to `30 * 86400` (JSON: 2592000).
 The server checks the idle timeout against the last HTTP request, then
 refreshes that timestamp. A positive cookie lifetime renews its expiry on
 each HTTP request and survives browser restarts. Secure-on-HTTPS, HttpOnly,
-SameSite=Lax, host-only scope and the declared cookie path remain unchanged.
+[SameSite](#cookie-samesite) (`Lax` unless declared), host-only scope and the
+declared cookie path remain unchanged.
 Live bridge checks use the same application's timeout; live traffic alone
 does not renew it. Logout still clears authentication and rotates the session,
 and account/credential revocation is rechecked normally. This is session
@@ -350,6 +352,86 @@ shared-directory purge policies and platform changes belong to the hosting
 operator; changing PHP application settings alone cannot promise retention.
 Old sessions already expired or deleted cannot be recovered. An existing
 unexpired session receives the new cookie policy on its next HTTP request.
+
+<a id="cookie-samesite"></a>
+
+## Cookie SameSite
+
+`ApplicationDefinition` accepts `sameSite: 'Lax'` (default) or `'Strict'`;
+JSON uses `session.same_site` with the same two values. `None`, other
+spellings and other types are rejected at startup. The policy applies to the
+session cookie, including its renewal under a positive
+[cookie lifetime](#session-lifetime), and to the [remember-me](#bejelentkezve-maradok)
+cookie. HttpOnly, Secure on HTTPS, host-only scope and the cookie path are
+unchanged. Without the option both cookies are exactly as before.
+
+The language cookie stays `Lax` under `Strict`: it holds a display preference,
+not a credential ([i18n](i18n.md)), so a visitor arriving from another site
+still sees the sign-in page in the chosen language. AuthHandler's own short
+sign-in session cookie is set by that library and is not affected.
+
+Compatibility under `Strict`: the browser withholds the session and remember
+cookies on every cross-site request, including a top-level navigation from
+another site, such as a link in an e-mail or chat message. Such a request
+arrives like a new visitor's. The shell answers with the sign-in page (or the
+public UI) and starts a new session, whose cookie replaces the stored one, so
+the visitor is signed out; any other site can thus sign a visitor out by
+linking or redirecting to the application. A remembered login, not sent on
+that request either, restores a session on the next same-site request. An
+OAuth provider's callback is such a navigation with its redirects. The session
+created at the end of that chain is not sent to the chain's final redirect,
+which starts a new session over it. Applications with
+[OAuth](#oauth-login-authhandler) or other cross-site entry points keep `Lax`.
+The OAuth outcome follows from the browsers' SameSite rules and is not
+verified with a real provider ([FB-0143](feedback.md#fb-0143)). Navigation
+started from the application, the JSON channel, uploads and the live channel
+are same-site and unaffected.
+
+<a id="client-address-binding"></a>
+
+## Client-address binding
+
+`ApplicationDefinition(bindSessionToClientAddress: true)` (JSON
+`session.bind_to_client_address: true`; default `false`) binds a signed-in
+session to the client address it signed in from. Every sign-in (password,
+e-mail code, forced password change, OAuth and remembered-login restore)
+stores `REMOTE_ADDR` in the session, after the
+[trusted-proxy](shell.md#trusted-proxies) rewrite. Every HTTP request compares
+it exactly with its own address. On a mismatch the shell clears the session
+and rotates its ID, deleting the old session file. It records
+`session`/`client_address` with outcome `rejected` and the account id in the
+audit journal, without addresses. The request then continues signed out. A
+remember cookie restores a new session bound to the new address and records
+`remember_restore`. Otherwise the sign-in page (or the public UI) appears and
+the account may sign in again from the new address. An open page follows the
+[ended-session](shell.md#ended-session) flow.
+
+- Only signed-in sessions are bound. Pending e-mail-code and forced
+  password-change steps and public-access guest sessions are not; they keep
+  their own expiry and CSRF checks.
+- A signed-in session without a stored address, such as one from before the
+  option was enabled, ends on its next request.
+- The live channel follows the session. Tickets come only from HTTP
+  (`__ticket`), after the check. An ended session's file is gone, and every
+  WebSocket observation rechecks it, so the channel closes with 4401 at its
+  next observation. The WebSocket server sees only the proxy's connection and
+  compares no addresses itself. Polling `__watch` requests are HTTP requests
+  and are checked directly.
+- The remembered-login credential is not bound. It belongs to the device and
+  restores at any address until it expires or is revoked; remember is offered
+  whenever `authentication` is configured. With several open tabs, their
+  first requests after an address change (for example the live channels'
+  reconnection) can arrive together with the same remember secret. The first
+  one restores and rotates it; a later one presents the previous secret,
+  which the [replay rule](#bejelentkezve-maradok) treats as reuse: the
+  remembered login is revoked, and depending on which response arrives last
+  the visitor may end up signed out and signs in with the password.
+- The address is the one the server reports for the connection. Behind a
+  proxy, configure [trusted proxies](shell.md#trusted-proxies) so that each
+  client has its own address; otherwise every visitor shares the proxy's
+  address and the binding has no effect. Clients whose address changes
+  legitimately (mobile networks, IPv6 privacy addresses, IPv4/IPv6 switching,
+  load-balanced egress) are signed out at each change.
 
 ## OAuth login (AuthHandler)
 

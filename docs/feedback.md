@@ -4940,3 +4940,70 @@ that exactly equals an option label lists every option. The managed
   and screenshots were removed. Firefox/Safari and forced-colour rendering
   were not exercised. No full-smoke claim.
 - **Status:** corrected and verified on the managed demo.
+
+<a id="fb-0143"></a>
+
+## FB-0143 — Opt-in Strict cookies, client-address binding and trusted proxy networks
+
+- **Date:** 2026-11-09.
+- **Request:** an admin-only consumer needs `SameSite=Strict` session cookies,
+  a session that ends when its client address changes, and trust for a
+  reverse proxy that is not on loopback. Every option is opt-in, and the
+  defaults must reproduce the earlier behaviour exactly.
+- **Implemented:** `ApplicationDefinition.sameSite` (`Lax` default or
+  `Strict`; JSON `session.same_site`; `None` is refused) applies to the
+  session and remembered-login cookies. `bindSessionToClientAddress` (JSON
+  `session.bind_to_client_address`, default `false`) stores the address at
+  every sign-in. On a mismatch, the session is cleared, its ID rotated and
+  `session`/`client_address` `rejected` recorded with the account id and no
+  addresses. `HttpEntrypoint::run(..., bool|array $trustProxy)` accepts
+  `false`, `true` (exactly `127.0.0.1`/`::1`, as before) or a list of
+  canonical CIDR networks. An invalid list fails closed with the 503 page;
+  `trustLocalProxy: true` remains an alias.
+- **Decisions:** the language cookie stays `Lax`, being a display preference
+  without a credential. Only signed-in sessions are bound. Sessions without a
+  stored address end once binding is enabled. The remembered-login
+  credential is not bound, so it restores a session at the new address. The
+  live channel follows the session: an ended session's file fails the
+  bridge's recheck (4401), and the server compares no addresses of its own.
+  Proxy networks refuse `/0`, host bits, zones and prefix or IPv4 leading
+  zeros; any valid IPv6 notation is accepted.
+- **Compatibility:** under `Strict`, a cross-site top-level navigation (an
+  e-mail or chat link, an OAuth callback chain) arrives without the session
+  and remember cookies, and the fresh session it starts replaces the stored
+  one. OAuth sign-in is therefore expected to be lost at the callback chain's
+  final redirect, so applications with OAuth keep `Lax`; any other site can
+  sign a visitor out by linking to the application. Proxy networks that
+  include ordinary clients let them choose their address, which weakens
+  `PasswordAttempts` throttling and the binding.
+- **Guides:** [cookie SameSite](authentication.md#cookie-samesite),
+  [client-address binding](authentication.md#client-address-binding),
+  [trusted proxies](shell.md#trusted-proxies), [security model](security-model.md),
+  [configuration](configuration.md), [i18n](i18n.md), [usage](usage.md),
+  [event catalog](product-direction.md#4-eseménynapló-lefedési-katalógus).
+- **Verification:** PHP `contracts`, `configuration` and `authentication`
+  cover the new cases; all 23 PHP suites, typecheck and build consistency
+  pass. Real shell requests, each in its own process, cover the default and
+  `Strict` cookies (the language cookie `Lax` in both), binding on and off,
+  the mismatch audited with the account id only, the refused live ticket and
+  the remembered-login restore at a new address. The proxy matrix covers
+  default, loopback, listed IPv4/IPv6, /25, /127 and mapped networks and
+  fail-closed invalid lists. Mutated code (literal `Lax`, no binding check,
+  widened loopback, missing host-bit check, an address stored without
+  binding) fails these checks. On the managed demo, 21 existing cases of
+  `authentication.spec.cjs`, `browser.spec.cjs` and `workspace.spec.cjs`
+  pass; the polling case skips itself because the demo selects WebSocket. A
+  temporary capture of the feature demo's `Set-Cookie` headers (sign-in with
+  remember, language, logout) is identical before and after the change; the
+  capture was removed afterwards.
+- **Limits:** the demos keep the defaults. Behind the shared ingress every
+  visitor has the proxy's address, so the managed demo cannot show the
+  binding, and switching a demo to `Strict` would change every visitor's and
+  spec's cookie policy. OAuth under `Strict` and IPv6 client addresses were
+  not exercised in a browser. With several open tabs, concurrent first
+  requests after an address change can present the same remember secret;
+  the existing replay rule then revokes the remembered login, and the visitor
+  may have to sign in with the password. Pending e-mail-code and forced
+  password-change steps are not bound. `Strict` is accepted together with
+  OAuth. No full-smoke claim.
+- **Status:** implemented and verified locally and on the managed demo.
