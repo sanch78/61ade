@@ -10,7 +10,7 @@
 // - the preview: the demo's shared player (player.ts, also the day programme's), today's playing items in order with
 //   their transitions.
 // `modules/signage.json` declares the view, the resources and the layout.
-import type { Application, ApplicationModule, ListKindOptions, MediaDescriptor, PageRegion, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
+import type { Application, ApplicationModule, ListKindOptions, MediaDescriptor, PageRegion, RecordForm, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 import { Player, type PlayerItem } from "./player";
 import { SCENE_TYPE } from "./scene";
 
@@ -45,7 +45,10 @@ function editor(app: Application, host: ViewHost, view: ViewDefinition<EditorOpt
   let rows: readonly Row[] = [];
 
   // Released after the components in its cells (registered last, below), as the Layout recipe requires.
-  const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout });
+  // The right column is a `tabs` branch (Összesítés | Lista beállításai): leaving unsaved settings asks first.
+  const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout,
+    guard: ({ from }) => from !== "settings" || !settingsForm?.dirty() || app.ui.dialog({ mode: "confirm", severity: "warning",
+      title: t("Nem mentett módosítások"), message: t("A lista beállításainak nem mentett módosításai elvesznek."), confirmLabel: t("Elvetés") }) });
   host.attach(page);
 
   const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a listához"), icon: "dxi dxi-arrow-left" }] });
@@ -65,8 +68,23 @@ function editor(app: Application, host: ViewHost, view: ViewDefinition<EditorOpt
 
   const details = new app.components.RecordDetails({ view: listView, record: host.record.row, showId: false, signal });
   details.mount(page.cell("details"));
-  const settingsForm = view.actions.some(action => action.name === "update") ? new app.components.RecordForm({ resource: host.record.resource, action: "update", id: playlist, signal }) : undefined;
-  settingsForm?.mount(page.cell("settings"));
+  const editable = view.actions.some(action => action.name === "update");
+  const createSettings = (): RecordForm | undefined => {
+    if (!editable) return undefined;
+    // No `signal`: a replacement form is created after the page's own abort listener, so the page's teardown below
+    // destroys the current form explicitly before the layout (the Layout recipe's order).
+    const form = new app.components.RecordForm({ resource: host.record!.resource, action: "update", id: playlist });
+    form.mount(page.cell("settings"));
+    form.on("saved", () => void reload().then(show), { signal });
+    return form;
+  };
+  let settingsForm = createSettings();
+  // Discarded settings (the guard confirmed leaving them): the edited form goes, and the next opening of the tab gets a
+  // fresh one with the stored values (a component mounted into a cell right after the previous one renders empty).
+  page.tabsOf("settings")?.on("change", ({ id, previous }) => {
+    if (previous === "settings" && settingsForm?.dirty()) { settingsForm.destroy(); settingsForm = undefined; }
+    if (id === "settings" && !settingsForm) settingsForm = createSettings();
+  }, { signal });
   const reload = async () => {
     try {
       const row = await app.server.call<Row>(host.record!.resource, "get", { id: playlist, signal });
@@ -75,7 +93,6 @@ function editor(app: Application, host: ViewHost, view: ViewDefinition<EditorOpt
       await details.show(row);
     } catch { /* the details keep the last row; a failed request shows the framework dialog on the next action */ }
   };
-  settingsForm?.on("saved", () => void reload().then(show), { signal });
 
   // The preview: the demo's shared player (player.ts), today's playing items in list order, looping.
   const preview = new Player({ app, signal, files, loop: true, muted: true, scenes: true });
@@ -96,7 +113,7 @@ function editor(app: Application, host: ViewHost, view: ViewDefinition<EditorOpt
     show();
     void details.show(playlist).catch(() => {});
   }, { signal });
-  signal.addEventListener("abort", () => page.destroy(), { once: true });
+  signal.addEventListener("abort", () => { settingsForm?.destroy(); page.destroy(); }, { once: true });
 
   return {
     destroy: () => controller.abort(),

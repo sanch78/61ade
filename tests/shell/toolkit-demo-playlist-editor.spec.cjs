@@ -3,8 +3,8 @@ const {execFileSync}=require('node:child_process');
 const {signIn,api,command}=require('./feature-demo.cjs');
 // D5 (docs/demos.md#d5-playlist-editor): Digitális kijelző → Lejátszási listák, the record view kind
 // `demo.playlist-editor` (frontend/src/playlist-editor.ts), built from 61ade components only: the declared panels
-// (PageLayout), the asset library and the playlist's items as ListViews, the playlist's details and settings
-// (RecordDetails, RecordForm) and the demo's own preview. Covered: opening by double-click and by `Lista szerkesztése`;
+// (PageLayout), the asset library and the playlist's items as ListViews, the playlist's details and settings as the
+// tabs of a declared `tabs` branch (RecordDetails, RecordForm) and the demo's own preview. Covered: opening by double-click and by `Lista szerkesztése`;
 // library assets dragged into the items (one or every marked one, landing where dropped: the list's `drop`); the manual
 // order by dragging, Alt+↑/↓ and Feljebb/Lejjebb (`move`); inline and bulk editing with the declared validation; the
 // settings; the preview's controls and transition layers; the reader's read-only editor; a scheduled playlist in its
@@ -42,7 +42,11 @@ const stored=()=>JSON.parse(php(`$q=$db->prepare('SELECT asset_id FROM signage_p
 const rows=()=>JSON.parse(php(`$q=$db->prepare('SELECT asset_id,duration,transition,enabled,valid_from,valid_to FROM signage_playlist_items WHERE playlist_id=? ORDER BY CAST(position AS INTEGER),id');$q->execute(['${playlist}']);echo json_encode($q->fetchAll(PDO::FETCH_ASSOC));`));
 const reset=assets=>php(`$db->prepare('DELETE FROM signage_playlist_items WHERE playlist_id=?')->execute(['${playlist}']);$i=$db->prepare('INSERT INTO signage_playlist_items(playlist_id,asset_id,position) VALUES (?,?,?)');foreach(${JSON.stringify(assets)} as $p=>$a)$i->execute(['${playlist}',$a,$p+1]);`);
 // A declared panel of the page (the lists inside have cells of their own, such as `commands`: the outer one comes first).
-const region=(page,id)=>page.locator(`.blade-page-layout [data-cell-id="${id}"]`).first();
+// `details` and `settings` are the tabs of the right column (a `tabs` branch): the active (visible) tab's panel.
+const TABS={details:'Összesítés',settings:'Lista beállításai'};
+const region=(page,id)=>TABS[id]?page.locator('.blade-page-layout [role="tabpanel"]:visible').first():page.locator(`.blade-page-layout [data-cell-id="${id}"]`).first();
+/** Opens a tab of the right column (the page remembers the last one per user). */
+const tab=(page,id)=>page.locator('.blade-page-layout').first().getByRole('tab',{name:TABS[id],exact:true}).click();
 const items=page=>region(page,'items').locator('.dhx_grid-row');
 const library=(page,name)=>region(page,'library').locator('.dhx_grid-row').filter({hasText:`${prefix} ${name}`});
 // The visible title cell of a row (a Grid row is as wide as all its columns, wider than its panel).
@@ -98,11 +102,13 @@ test('Lejátszási listák opens the editor by double-click and by its toolbar c
  await row.locator('[data-dhx-col-id="items"]').dblclick();
  await expect(page).toHaveURL(new RegExp(`view=demo\\.playlist-editor&record=${playlist}`));
  await expect(items(page)).toHaveCount(1);
- for(const id of ['commands','library','preview','items','details','settings'])await expect(region(page,id)).toBeVisible();
+ for(const id of ['commands','library','preview','items'])await expect(region(page,id)).toBeVisible();
+ await tab(page,'details');
  await expect(items(page).first()).toContainText(`${prefix} kép`);
  await expect(blocks(page)).toHaveCount(1);
  await expect(caption(page)).toHaveText(`1 / 1 · ${prefix} kép`);
  await expect(region(page,'details')).toContainText(`${prefix} lista`);
+ await tab(page,'settings');
  await expect(region(page,'settings').getByLabel('Megnevezés')).toHaveValue(`${prefix} lista`);
  await button(page,'Vissza a listához').click();
  await row.click();await command(page,'Lista szerkesztése');
@@ -210,12 +216,14 @@ test('list settings through the RecordForm, and the preview plays with controls 
  reset([ids['kép'],ids['hang']]);
  php(`$db->prepare("UPDATE signage_playlist_items SET duration='2', transition='zoom' WHERE playlist_id=? AND position=2")->execute(['${playlist}']);`);
  await open(page);
+ await tab(page,'settings');
  const settings=region(page,'settings');
  await settings.getByLabel('Áttűnés hossza (ms)').fill('900');
  const updated=answered(page,'update');
  await settings.getByRole('button',{name:'Mentés',exact:true}).click();
  expect((await updated).status()).toBe(200);
  await expect.poll(()=>php(`echo $db->query("SELECT transition_ms FROM signage_playlists WHERE id=${playlist}")->fetchColumn();`)).toBe('900');
+ await tab(page,'details');
  await expect(region(page,'details')).toContainText('900');
  // Preview: first item on the stage, play, the next item enters with its own transition (zoom), wrap-around.
  await expect(caption(page)).toHaveText(`1 / 2 · ${prefix} kép`);
@@ -237,6 +245,7 @@ test('the reader sees the playlist read-only: no drops, no moves, no settings',a
  await open(page,'reader@example.test');
  await expect(region(page,'items').getByRole('button',{name:'Hozzáadás',exact:true})).toHaveCount(0);
  await expect(region(page,'items').getByRole('button',{name:'Feljebb',exact:true})).toHaveCount(0);
+ await tab(page,'settings');
  await expect(region(page,'settings').getByRole('button',{name:'Mentés',exact:true})).toHaveCount(0);
  await drag(page,library(page,'hang'),items(page).last());
  await page.waitForTimeout(500);

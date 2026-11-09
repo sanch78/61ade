@@ -129,7 +129,7 @@ setup steps (paths, deploy entries, keys) are in
 | Custom cell, card or tile rendering | a presentation: synchronous, escape every value, give a picture or colour a text alternative, no per-column options |
 | Custom editor for a field | a field type (`editor`): the item's `name` is the field name; the server still validates the storage type; refused on secret, password, `file` and media fields |
 | A browser action on the list or its cursor record | a client command: declared on the server (at most 20 per view), `placement` `toolbar` or `record`, own `enabled` rule for marks; reads and writes through actions |
-| A list, form, details, media, files or calendar inside your page | [components](../../../docs/toolkit.md#components) |
+| A list, form, details, media, files or calendar inside your page | [components](../../../docs/toolkit.md#components); tabbed panels (details beside an edit form) with `Tabs` or a `tabs` branch of `PageLayout`, a list's details and update form in one window with `detail_tabs` |
 | Code the project does not trust (agent-written scenes) | `SandboxFrame` (step 5) |
 
 Unknown or failing presentations, field types and commands fall back to plain

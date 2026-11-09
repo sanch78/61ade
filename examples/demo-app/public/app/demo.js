@@ -1043,7 +1043,17 @@ function editor(app, host, view) {
   host.setTitle(`${view.title}: ${String(host.record.row.title ?? playlist2)}`);
   let settings = { transition: String(host.record.row.transition ?? "fade"), transition_ms: Number(host.record.row.transition_ms ?? 600) };
   let rows = [];
-  const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout });
+  const page = new app.components.PageLayout({
+    id: view.id,
+    tree: view.options.layout,
+    guard: ({ from }) => from !== "settings" || !settingsForm?.dirty() || app.ui.dialog({
+      mode: "confirm",
+      severity: "warning",
+      title: t("Nem mentett m\xF3dos\xEDt\xE1sok"),
+      message: t("A lista be\xE1ll\xEDt\xE1sainak nem mentett m\xF3dos\xEDt\xE1sai elvesznek."),
+      confirmLabel: t("Elvet\xE9s")
+    })
+  });
   host.attach(page);
   const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a list\xE1hoz"), icon: "dxi dxi-arrow-left" }] });
   bar.on("click", ({ id }) => {
@@ -1069,8 +1079,22 @@ function editor(app, host, view) {
   list.mount(page.cell("items"));
   const details = new app.components.RecordDetails({ view: listView, record: host.record.row, showId: false, signal });
   details.mount(page.cell("details"));
-  const settingsForm = view.actions.some((action) => action.name === "update") ? new app.components.RecordForm({ resource: host.record.resource, action: "update", id: playlist2, signal }) : void 0;
-  settingsForm?.mount(page.cell("settings"));
+  const editable = view.actions.some((action) => action.name === "update");
+  const createSettings = () => {
+    if (!editable) return void 0;
+    const form = new app.components.RecordForm({ resource: host.record.resource, action: "update", id: playlist2 });
+    form.mount(page.cell("settings"));
+    form.on("saved", () => void reload().then(show), { signal });
+    return form;
+  };
+  let settingsForm = createSettings();
+  page.tabsOf("settings")?.on("change", ({ id, previous }) => {
+    if (previous === "settings" && settingsForm?.dirty()) {
+      settingsForm.destroy();
+      settingsForm = void 0;
+    }
+    if (id === "settings" && !settingsForm) settingsForm = createSettings();
+  }, { signal });
   const reload = async () => {
     try {
       const row = await app.server.call(host.record.resource, "get", { id: playlist2, signal });
@@ -1080,7 +1104,6 @@ function editor(app, host, view) {
     } catch {
     }
   };
-  settingsForm?.on("saved", () => void reload().then(show), { signal });
   const preview2 = new Player({ app, signal, files, loop: true, muted: true, scenes: true });
   page.attach("preview", preview2.element);
   const show = () => preview2.show(rows.filter((row) => row.status === PLAYING && Number(row.length) > 0).map((row) => {
@@ -1102,7 +1125,10 @@ function editor(app, host, view) {
     void details.show(playlist2).catch(() => {
     });
   }, { signal });
-  signal.addEventListener("abort", () => page.destroy(), { once: true });
+  signal.addEventListener("abort", () => {
+    settingsForm?.destroy();
+    page.destroy();
+  }, { once: true });
   return {
     destroy: () => controller.abort(),
     // Unsaved input in the items list (a form or cell editor) or in the settings form.

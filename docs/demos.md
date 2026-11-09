@@ -333,7 +333,11 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   image, video, audio or animation asset (table, `Kártyák`, `Csempék`), or
   `Lejátszás` on the toolbar, opens `Médianéző` at
   `#view=demo.asset-viewer&record=<id>` (reload keeps it, Back returns); an
-  asset without a file opens its `Rekordadatok`. `reader@example.test` views too. Texts are
+  asset without a file opens its `Rekordadatok`. The list declares
+  [`detail_tabs`](workspaces.md#detail-tabs): its `Adatok` command (and that
+  details window) has an `Adatok` and a `Szerkesztés` tab, so an asset is
+  viewed and edited in one window (`tests/shell/tabs.spec.cjs`); the reader,
+  without `update`, gets the plain details. `reader@example.test` views too. Texts are
   Hungarian source keys with English in `resources/locales/en.json`; the demo
   offers no German ([FB-0052](feedback.md#fb-0052)), so German exists only in
   the framework catalogue (`Hang`).
@@ -514,10 +518,15 @@ dynamic playback).
     the item's form, marked rows share one bulk form, `Hozzáadás` adds an item
     by form.
   - **Összesítés** (`RecordDetails` of the playlist: settings, item count,
-    length, usage; refreshed after every change) and **Lista beállításai**
-    (`RecordForm` over `update`: title, transition, transition length,
-    shuffle). The reader sees the lists and details without commands, drops,
-    moves or the settings form.
+    length, usage; refreshed after every change, also while its tab is
+    hidden) and **Lista beállításai** (`RecordForm` over `update`: title,
+    transition, transition length, shuffle) are the two tabs of the right
+    column, a declared `tabs` branch of the page ([Tabs](toolkit.md#tabs)):
+    the page keeps the last open tab per user; leaving the settings with
+    unsaved changes asks first (the page's `guard`), and discarding them
+    gives the tab a fresh form with the stored values on its next opening.
+    The reader sees the lists and details without commands, drops, moves or
+    the settings form.
 - **Try:** `Digitális kijelző` → `Lejátszási listák`, double-click a list,
   drag assets from `Médiatár` into it, then pick it in a `Műsorterv` event.
 - **Checks:** `php8.4 tests/shell/signage.php` (the items resource: order,
@@ -529,7 +538,8 @@ dynamic playback).
   header filters and its `Szűrés` dialog in tiles; drops of one and of marked
   assets; dragging, Alt+↑/↓ and `Feljebb`/`Lejjebb`; the switch, the form
   with its validation and the bulk form; list settings; preview controls and
-  transition layer; reader; day programme).
+  transition layer; reader; day programme) and `tests/shell/tabs.spec.cjs`
+  (the tabs, their guard and the remembered tab).
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),

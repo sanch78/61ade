@@ -7,7 +7,7 @@ PRO capabilities are not in the installed package.
 This is an availability/edition/license/implementation inventory, not a coverage
 target. Projects use the implemented capabilities through the public
 [toolkit components](toolkit.md#components) (`ListView`, `RecordForm`,
-`RecordDetails`, `CommandBar`, `FileManager`, `FilePicker`, `Calendar`,
+`RecordDetails`, `CommandBar`, `PageLayout`, `Tabs`, `FileManager`, `FilePicker`, `Calendar`,
 `DiagramEditor`, `MediaPlayer`, `SandboxFrame`) and any other Standard widget
 through `app.dhx`, the shell's one Suite instance. [R3/R12](product-direction.md#1-elfogadott-termékkövetelmények) grow
 capabilities from real needs; unimplemented rows are candidates, not commitments.
@@ -20,7 +20,8 @@ capabilities from real needs; unimplemented rows are candidates, not commitments
 | Layout/window | Suite Standard | — | Shell/workspace/resizers/popups implemented | Complex multipanel flows |
 | Menu/toolbar | Suite Standard | — | Main/list menus, theme/language selectors | Navigation/capabilities |
 | DataView | Suite Standard | Detailed inventory version-dependent; no virtualization in Standard | Cards and media tiles implemented ([workspaces](workspaces.md#media-tiles)) | Templates/selection |
-| Tabs/popup/sidebar/ribbon/List | Suite Standard | Inventory on demand | No verified independent adapter | Shell/lifecycle |
+| Tabs | Suite Standard `Tabbar` | Tabbar content renders only the active cell and fails to re-show a widget that repainted while hidden; no tab roles in 9.3.12 ([pitfalls](toolkit.md#pitfalls)) | [`Tabs`](toolkit.md#tabs): the Tabbar as header only over always-rendered panels, guard, remembered tab, ARIA tab roles; `PageLayout` `tabs` branch; list [`detail_tabs`](workspaces.md#detail-tabs) | Closable/reorderable tabs, icons |
+| Popup/sidebar/ribbon/List | Suite Standard | Inventory on demand | No verified independent adapter | Shell/lifecycle |
 | Tree | Suite Standard | Advanced options need checking | `TreeAdapter` over a flat parent list, used by the [file manager](files.md) and the lists' [tree navigation](workspaces.md#tree-navigation) (children loaded on expansion); view.layout.tree remains a layout tree | Drag moves, live tree updates |
 | TreeGrid | Suite PRO | PRO-only | None | Licensed adapter/capability |
 | Chart | Suite Standard | PRO types/options separate | No framework adapter; projects use `app.dhx.Chart` (feature demo [readings dashboard](demos.md#readings-dashboard): bar chart in a Layout cell, theme colours on `app.theme.onChange`) | Scoped aggregates/drill-down |

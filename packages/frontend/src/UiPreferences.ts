@@ -4,7 +4,7 @@ import type { FieldDefinition } from "./FormValidation";
 
 type Region={id?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;collapsable?:boolean;collapsed?:boolean};
 type Mode="table"|"cards"|"tiles";
-type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>};
+type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>;tab?:string};
 const size=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value)&&value>=40&&value<=10000;
 const pixels=(value:unknown):number|undefined=>{
   const numeric=typeof value==="string"&&/^\d+(\.\d+)?px$/.test(value)?Number.parseFloat(value):value;
@@ -26,6 +26,9 @@ export class UiPreferences {
   /** The user's chosen presentation, else `fallback`. */
   mode(fallback:Mode="table"):Mode{const mode=this.state.mode;return mode==="table"||mode==="cards"||mode==="tiles"?mode:fallback;}
   setMode(mode:Mode):void{this.state.mode=mode;this.save();}
+  /** The last active tab of a `Tabs` (keyed by its `id`); the caller checks it against the declared tabs. */
+  tab():string|undefined{return typeof this.state.tab==="string"?this.state.tab:undefined;}
+  setTab(id:string):void{this.state.tab=id;this.save();}
   sort(allowed:string[]):Sort|undefined{
     const sort=this.state.sort;
     return sort&&allowed.includes(sort.field)&&(sort.direction==="asc"||sort.direction==="desc")?sort:undefined;
