@@ -188,6 +188,28 @@ body,
 .blade-navigation-row .dhx_menu-nav { height: 100%; box-sizing: border-box; padding-top: 0; padding-bottom: 0; align-items: center; }
 /* An icon-only CommandBar button: the label stays as hidden text (accessible name; shown again in the collapsed menu). */
 .dhx_toolbar-button.blade-command--icon > .dhx_toolbar-button__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* CommandBar view controls (docs/toolkit.md#commandbar). A bar below its content owns its upper rule. */
+.blade-command-row--bottom .dhx_toolbar { border-bottom: 0; border-top: 1px solid var(--dhx-border-color); }
+.dhx_layout-rows > .dhx_layout-cell:has(> .dhx_layout > .blade-command-row--bottom:only-child) { border-top: 0; }
+/* A pressed toggle or chosen segment: the primary colour on a tinted surface and an inset bar, not only the hover tint. */
+.dhx_toolbar .dhx_toolbar-button[aria-pressed="true"]:not(:disabled) { background-color: color-mix(in srgb, var(--dhx-color-primary) 16%, transparent); background-image: none; color: var(--dhx-font-color-primary); box-shadow: inset 0 -2px 0 var(--dhx-color-primary); }
+.dhx_toolbar .dhx_toolbar-button[aria-pressed="true"]:not(:disabled):is(:hover, :focus-visible) { background-color: color-mix(in srgb, var(--dhx-color-primary) 24%, transparent); box-shadow: inset 0 -2px 0 var(--dhx-color-primary), inset 0 0 0 1px var(--blade-hover-ring, var(--dhx-color-primary)); }
+.dhx_toolbar .dhx_toolbar-button[aria-pressed="true"] .dhx_toolbar-button__icon { color: var(--dhx-color-primary); }
+/* Grouped buttons and segments sit joined: no gap, one shared outline, rounded outer corners. */
+.dhx_toolbar__item:has(> .blade-command--grouped), .dhx_toolbar__item:has(> .blade-command--segment) { margin-left: 0; margin-right: 0; }
+.dhx_toolbar-button.blade-command--grouped, .dhx_toolbar-button.blade-command--segment { border: 1px solid var(--dhx-border-color); border-radius: 0; margin-left: -1px; }
+.dhx_toolbar-button.blade-command--grouped.blade-command--first, .dhx_toolbar-button.blade-command--segment.blade-command--first { margin-left: 0; border-radius: var(--dhx-border-radius) 0 0 var(--dhx-border-radius); }
+.dhx_toolbar-button.blade-command--grouped.blade-command--last, .dhx_toolbar-button.blade-command--segment.blade-command--last { border-radius: 0 var(--dhx-border-radius) var(--dhx-border-radius) 0; }
+.dhx_toolbar-button.blade-command--grouped:focus-visible, .dhx_toolbar-button.blade-command--segment:focus-visible { position: relative; z-index: 1; }
+.dhx_menu-button.blade-command--grouped, .dhx_menu-button.blade-command--segment { border: 0; margin: 0; border-radius: 0; box-shadow: none; }
+/* A range takes the remaining width of its bar (at least 120 px), also beside the collapsed menu. */
+.dhx_toolbar__item.blade-command--range { flex: 1 1 180px; min-width: 120px; }
+.blade-command-range { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 4px; box-sizing: border-box; }
+.blade-command-range__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.blade-command-range input[type="range"] { flex: 1 1 auto; min-width: 0; margin: 0; accent-color: var(--dhx-color-primary); }
+.blade-command-range input[type="range"]:focus-visible { outline: 2px solid var(--dhx-color-primary); outline-offset: 2px; }
+.blade-command-range__value { flex: none; min-width: 3ch; font-variant-numeric: tabular-nums; color: var(--dhx-font-color-primary); white-space: nowrap; }
+
 .blade-grid-content, .blade-grid-views { overflow: hidden; user-select: none; -webkit-user-select: none; }
 .blade-grid-content input, .blade-grid-content textarea, .blade-grid-content select { user-select: text; -webkit-user-select: text; }
 .blade-grid-row-marked { background: color-mix(in srgb, var(--dhx-color-primary, #0288d1) 18%, transparent) !important; }
