@@ -19,6 +19,8 @@ import readings from "./readings";
 import tasks from "./tasks";
 // D5 Signage Lejátszási listák: record view kind demo.playlist-editor (playlist-editor.ts)
 import playlistEditor from "./playlist-editor";
+// D7 Feladatlap: record view kind demo.task-page (task-page.ts)
+import taskPage from "./task-page";
 
 /**
  * Runs every part in D-row order. A failing part does not stop the later ones; the failures are rethrown together, so
@@ -26,7 +28,7 @@ import playlistEditor from "./playlist-editor";
  */
 const demo: ApplicationModule = async app => {
   const failures: unknown[] = [];
-  for (const part of [assets, playlist, readings, tasks, playlistEditor]) {
+  for (const part of [assets, playlist, readings, tasks, playlistEditor, taskPage]) {
     try { await part(app); } catch (error) { failures.push(error); }
   }
   if (failures.length) throw new AggregateError(failures, "61ade feature demo: a module part failed");

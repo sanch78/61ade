@@ -266,6 +266,17 @@ try {
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
     rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'menu: false on a JSON singleton accepted');
     unset($broken['resources']['tasks']['view']['menu'], $broken['resources']['tasks']['view']['singleton']);
+    // `view.sort`: the first sort, `{field, direction}`; a malformed one is refused.
+    $broken['resources']['tasks']['view']['sort'] = ['field' => 'id', 'direction' => 'asc'];
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    $sortViews = array_column(WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true)->registry->views(), null, 'resource');
+    verify($sortViews['tasks']->options['sort'] === ['field' => 'id', 'direction' => 'asc'] && !isset($sortViews['projects']->options['sort']), 'JSON view sort');
+    foreach (['asc', ['field' => 'id', 'direction' => 'sideways']] as $invalid) {
+        $broken['resources']['tasks']['view']['sort'] = $invalid;
+        file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+        rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Invalid JSON view sort accepted: '.json_encode($invalid));
+    }
+    unset($broken['resources']['tasks']['view']['sort']);
     // Registries (docs/toolkit.md#registries): `view.commands` and a field `editor` are dotted project names.
     unset($broken['resources']['projects']['view']['activate']);
     $broken['resources']['projects']['view']['commands'] = ['demo.copy-text'];

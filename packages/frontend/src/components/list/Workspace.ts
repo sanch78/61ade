@@ -101,7 +101,7 @@ export class Workspace implements ActionHost {
     if(view.order)view=this.view={...view,sortable:[]};
     if(scope?.compact)view=this.view={...view,filters:[],search:undefined,rowNumbers:false,selection:false,rowSelection:false,tiles:false,columns:view.columns.map(column=>({...column,secondary:false}))};
     this.preferences=new UiPreferences(user,scope?view.id+"@"+scope.field:view.id);
-    this.sort=view.order?{field:view.order.field,direction:"asc"}:this.preferences.sort(view.sortable??[])??this.sort;
+    this.sort=view.order?{field:view.order.field,direction:"asc"}:this.preferences.sort(view.sortable??[])??(view.sort&&(view.sortable??[]).includes(view.sort.field)?{...view.sort}:this.sort);
     this.details=new DetailsWindow(view,id=>this.call("get",id),()=>this.disposed,error=>this.error(error));
     this.actions=new ListActions(this);
     const secondaryColumns=view.columns.filter(column=>column.secondary);

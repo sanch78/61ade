@@ -185,7 +185,7 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array', 'menu' => 'boolean',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array', 'menu' => 'boolean', 'sort' => 'array',
         ], '$.resources.'.$name.'.view');
         // A string target or an `{field, map}` activation map; Registry::view() validates the targets.
         if (isset($view['activate']) && !is_string($view['activate']) && !is_array($view['activate'])) {
@@ -315,6 +315,7 @@ final class WorkspaceConfiguration
             guide: $view['guide'] ?? null,
             drop: $view['drop'] ?? null,
             menu: $view['menu'] ?? true,
+            sort: $view['sort'] ?? null,
         ));
     }
 

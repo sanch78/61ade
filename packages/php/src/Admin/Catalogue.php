@@ -20,7 +20,8 @@ final readonly class Catalogue
     public function entries(): array
     {
         $titles = [];
-        foreach ($this->registry->views() as $view) if ($view->resource !== null) $titles[$view->resource] = $view->title;
+        // A resource is named by its views, not by a record view (the page of one record, such as a viewer).
+        foreach ($this->registry->views() as $view) if ($view->resource !== null && $view->record === null) $titles[$view->resource] = $view->title;
         $out = [];
         foreach ($this->registry->all() as $action) {
             $out[] = [

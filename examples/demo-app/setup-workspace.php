@@ -23,6 +23,18 @@ if (!$db->query('SELECT COUNT(*) FROM demo_tasks')->fetchColumn()) {
     $labels = ['urgent', 'customer', 'internal,risk', '', 'customer,urgent'];
     for ($i = 1; $i <= 40; $i++) $task->execute(['1', sprintf('Synthetic task %02d', $i), $statuses[$i % 3], $i % 6, $i % 4 ? '+3612345'.sprintf('%03d', $i) : '', $labels[$i % 5], (int) ($i % 7 === 0), 'Synthetic description of task '.$i.'.']);
 }
+// Task notes (the task page's menu-less list, oldest first): a few per synthetic task, the first task's second note a
+// long text of several thousand characters (a 4-line preview on the cards).
+$db->exec("CREATE TABLE IF NOT EXISTS demo_task_notes(id INTEGER PRIMARY KEY AUTOINCREMENT,owner_id TEXT,task_id TEXT NOT NULL,body TEXT NOT NULL DEFAULT '')");
+if (!$db->query('SELECT COUNT(*) FROM demo_task_notes')->fetchColumn()) {
+    $note = $db->prepare('INSERT INTO demo_task_notes(owner_id,task_id,body) VALUES (?,?,?)');
+    $long = implode("\n\n", array_map(static fn($n) => "Paragraph $n of a long synthetic note. ".str_repeat('The text goes on with ordinary sentences, so the card shows only its first lines and the details show all of it. ', 6), range(1, 6)));
+    foreach ($db->query("SELECT id FROM demo_tasks ORDER BY id LIMIT 3")->fetchAll(PDO::FETCH_COLUMN) as $index => $task) {
+        $note->execute(['1', (string) $task, 'First note of the task: the oldest, so it is the first card.']);
+        $note->execute(['1', (string) $task, $index === 0 ? $long : 'Second note of the task.']);
+        $note->execute(['1', (string) $task, 'Latest note of the task.']);
+    }
+}
 // Large read-only list; insertion order differs from title order, so sorting is visibly server-side.
 $db->exec('CREATE TABLE IF NOT EXISTS demo_readings(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,reading TEXT NOT NULL)');
 if (!$db->query('SELECT COUNT(*) FROM demo_readings')->fetchColumn()) {
@@ -195,6 +207,8 @@ $rules[] = [$guest, 'demo_catalog', ['list', 'get']];
 // Read-only reader: tasks without the description field (field-level deny).
 $rules[] = [(string) $reader, 'demo_tasks', ['list', 'get']];
 $rules[] = [(string) $reader, 'demo_tasks', ['list', 'get'], 'deny', 'description'];
+$rules[] = ['1', 'demo_task_notes', ['list', 'get', 'create', 'update', 'delete']];
+$rules[] = [(string) $reader, 'demo_task_notes', ['list', 'get']];
 // Read-only file manager: browse, open text, view media and download (single files and ZIP), no write action.
 $rules[] = [(string) $reader, 'files', ['tree', 'list', 'text_get', 'content_get', 'content_stream', 'thumbnail_get', 'download', 'zip_prepare', 'zip_get']];
 // Shelves without their item list: the child is not offered, so double-click opens the shelf details.

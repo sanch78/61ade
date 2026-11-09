@@ -170,7 +170,8 @@ export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=f
     const content=escape(value==null||value===""?(field.options?.[String(value??"")]??"—"):optionText(field,value));
     // An icon is shown with its name as visible text, so the glyph itself stays decorative.
     const glyph=isIcon(field)?recordIcon(field,value,true):"";
-    return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
+    // Long text (`textarea`) is clamped to a few lines in a card (admin.css); the details show all of it.
+    return `<div class="blade-grid-card__field${field.type==="textarea"&&custom===undefined?" blade-grid-card__field--long":""}"><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
   }).join("")}</dl>`;
 }
 

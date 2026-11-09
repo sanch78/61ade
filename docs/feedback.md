@@ -626,3 +626,7 @@
 <a id="fb-0151"></a>
 
 ## FB-0151 — A settings form without a record action
+
+<a id="fb-0152"></a>
+
+## FB-0152 — First sort of a list and long text in cards

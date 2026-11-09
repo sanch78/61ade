@@ -693,8 +693,8 @@ function preview(app, host, view) {
   const controller = new AbortController(), signal = controller.signal;
   host.signal.addEventListener("abort", () => controller.abort(), { once: true });
   let day = calendarDate(host.filters.date) ?? today(), asking;
-  const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout });
-  host.attach(page);
+  const page2 = new app.components.PageLayout({ id: view.id, tree: view.options.layout });
+  host.attach(page2);
   const bar = new app.components.CommandBar({ signal, items: [
     { id: "previous-day", label: t("El\u0151z\u0151 nap"), icon: "dxi dxi-arrow-left" },
     { id: "day", label: day, disabled: true },
@@ -702,7 +702,7 @@ function preview(app, host, view) {
     { id: "today", label: t("Ma"), icon: "dxi dxi-calendar-today" },
     { id: "pick", label: t("Napt\xE1r\u2026"), icon: "dxi dxi-calendar-today" }
   ] });
-  bar.mount(page.cell("commands"));
+  bar.mount(page2.cell("commands"));
   const player = new Player({
     app,
     signal,
@@ -710,7 +710,7 @@ function preview(app, host, view) {
     scenes: view.actions.some((action) => action.name === "scene"),
     caption: (item) => [item.time, item.list !== void 0 ? t("Lej\xE1tsz\xE1si lista: {title}", { title: item.list }) : "", item.title, item.meta].filter(Boolean).join(" \xB7 ")
   });
-  page.attach("player", player.element);
+  page2.attach("player", player.element);
   const shown = (answer) => {
     const label = `${day}${typeof answer?.weekday_name === "string" ? ` \xB7 ${answer.weekday_name}` : ""}`;
     bar.update("day", { label });
@@ -751,7 +751,7 @@ function preview(app, host, view) {
     else if (id === "today") void choose(today());
     else if (id === "pick") pick();
   }, { signal });
-  signal.addEventListener("abort", () => page.destroy(), { once: true });
+  signal.addEventListener("abort", () => page2.destroy(), { once: true });
   void choose(day);
   return { destroy: () => controller.abort() };
 }
@@ -1077,7 +1077,7 @@ function editor(app, host, view) {
   host.setTitle(`${view.title}: ${String(host.record.row.title ?? playlist2)}`);
   let settings = { transition: String(host.record.row.transition ?? "fade"), transition_ms: Number(host.record.row.transition_ms ?? 600) };
   let rows = [];
-  const page = new app.components.PageLayout({
+  const page2 = new app.components.PageLayout({
     id: view.id,
     tree: view.options.layout,
     guard: ({ from }) => from !== "settings" || !settingsForm?.dirty() || app.ui.dialog({
@@ -1088,12 +1088,12 @@ function editor(app, host, view) {
       confirmLabel: t("Elvet\xE9s")
     })
   });
-  host.attach(page);
+  host.attach(page2);
   const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a list\xE1hoz"), icon: "dxi dxi-arrow-left" }] });
   bar.on("click", ({ id }) => {
     if (id === "back" && !app.navigate({ view: listView })) host.close();
   });
-  bar.mount(page.cell("commands"));
+  bar.mount(page2.cell("commands"));
   const source = library ? new app.components.ListView({ signal, dragSource: true, panel: false, showId: false, mode: "tiles", view: {
     ...library,
     id: `${view.id}.library`,
@@ -1108,21 +1108,21 @@ function editor(app, host, view) {
       columns: library.options.columns.filter((column) => LIBRARY_COLUMNS.includes(column.id)).map((column) => ({ ...column, editable: false }))
     }
   } }) : void 0;
-  source?.mount(page.cell("library"));
+  source?.mount(page2.cell("library"));
   const list = new app.components.ListView({ showId: false, view: itemsView, scope: { field: itemsView.options.subview?.field ?? "playlist_id", id: playlist2 }, signal });
-  list.mount(page.cell("items"));
+  list.mount(page2.cell("items"));
   const details = new app.components.RecordDetails({ view: listView, record: host.record.row, showId: false, signal });
-  details.mount(page.cell("details"));
+  details.mount(page2.cell("details"));
   const editable = view.actions.some((action) => action.name === "update");
   const createSettings = () => {
     if (!editable) return void 0;
     const form = new app.components.RecordForm({ resource: host.record.resource, action: "update", id: playlist2 });
-    form.mount(page.cell("settings"));
+    form.mount(page2.cell("settings"));
     form.on("saved", () => void reload().then(show), { signal });
     return form;
   };
   let settingsForm = createSettings();
-  page.tabsOf("settings")?.on("change", ({ id, previous }) => {
+  page2.tabsOf("settings")?.on("change", ({ id, previous }) => {
     if (previous === "settings" && settingsForm?.dirty()) {
       settingsForm.destroy();
       settingsForm = void 0;
@@ -1139,7 +1139,7 @@ function editor(app, host, view) {
     }
   };
   const preview2 = new Player({ app, signal, files, loop: true, muted: true, scenes: true });
-  page.attach("preview", preview2.element);
+  page2.attach("preview", preview2.element);
   const show = () => preview2.show(rows.filter((row) => row.status === PLAYING && Number(row.length) > 0).map((row) => {
     const asset = String(row.asset_id ?? ""), media = row._media?.file_id ?? null;
     const scene = media?.mime_type.toLowerCase() === SCENE_TYPE, kind = media?.mime_type.split("/")[0];
@@ -1161,7 +1161,7 @@ function editor(app, host, view) {
   }, { signal });
   signal.addEventListener("abort", () => {
     settingsForm?.destroy();
-    page.destroy();
+    page2.destroy();
   }, { once: true });
   return {
     destroy: () => controller.abort(),
@@ -1183,10 +1183,98 @@ var playlistEditor = (app) => {
 };
 var playlist_editor_default = playlistEditor;
 
+// examples/demo-app/frontend/src/task-page.ts
+var KIND5 = "demo.task-page";
+var PHONE2 = "(max-width: 767px)";
+function page(app, host, view) {
+  const t = (key, params) => app.i18n.t(key, params);
+  if (!host.record) throw new Error(t("A feladatlap egy feladathoz ny\xEDlik meg."));
+  const row = host.record.row, task = String(host.record.id);
+  const list = app.viewDefinition(view.options?.details ?? host.record.resource);
+  const notes = view.options?.notes ? app.viewDefinition(view.options.notes) : void 0;
+  const editable = !!list?.actions.some((action) => action.name === "update") && (!Array.isArray(row._actions) || row._actions.includes("update"));
+  const phone = matchMedia(PHONE2);
+  let build;
+  host.setTitle(`${view.title}: ${String(row.title ?? task)}`);
+  const root = document.createElement("div");
+  root.style.cssText = "width:100%;height:100%";
+  host.attach(root);
+  const render = () => {
+    if (host.signal.aborted) return;
+    const previous = build, controller = build = new AbortController(), signal = controller.signal;
+    host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
+    previous?.abort();
+    const control = { id: "control", header: t("Feladat"), collapsable: true };
+    const tabs = { tabs: [{ id: "notes", header: t("Jegyzetek") }] };
+    const layout = new app.components.PageLayout({
+      id: `${view.id}.${phone.matches ? "narrow" : "wide"}`,
+      tree: phone.matches ? { rows: [{ ...tabs, minHeight: 240 }, { ...control, height: 320, minHeight: 120, resizable: true }] } : { cols: [{ ...control, width: 360, minWidth: 260, resizable: true }, { ...tabs, minWidth: 320 }] }
+    });
+    layout.mount(root);
+    const sections = new app.components.Accordion({ id: `${view.id}.control`, sections: [
+      { id: "details", label: t("Adatok") },
+      { id: "edit", label: t("Szerkeszt\xE9s"), disabled: !editable }
+    ], open: ["details"] });
+    layout.attach("control", sections);
+    const details = list ? new app.components.RecordDetails({ view: list, record: row, signal, showId: false }) : void 0;
+    details?.mount(sections.cell("details"));
+    let form;
+    const edit = () => {
+      if (form || signal.aborted) return;
+      form = new app.components.RecordForm({ resource: host.record.resource, action: "update", id: task, cancel: false });
+      form.on("saved", () => {
+        const title = form?.values().title;
+        if (typeof title === "string" && title.trim()) host.setTitle(`${view.title}: ${title}`);
+        void details?.show(task).catch(() => {
+        });
+      });
+      form.mount(sections.cell("edit"));
+    };
+    sections.on("toggle", ({ id, open }) => {
+      if (open && id === "edit") edit();
+    }, { signal });
+    if (sections.isOpen("edit")) edit();
+    let noteList;
+    if (notes) {
+      noteList = new app.components.ListView({ view: notes, scope: { field: "task_id", id: task }, mode: "cards", panel: false, showId: false });
+      noteList.mount(layout.cell("notes"));
+    } else {
+      const empty = document.createElement("p");
+      empty.style.cssText = "margin:16px";
+      empty.textContent = t("A jegyzetek nem \xE9rhet\u0151k el.");
+      layout.attach("notes", empty);
+    }
+    signal.addEventListener("abort", () => {
+      form?.destroy();
+      form = void 0;
+      noteList?.destroy();
+      noteList = void 0;
+      sections.destroy();
+      layout.destroy();
+    }, { once: true });
+  };
+  render();
+  phone.addEventListener("change", render, { signal: host.signal });
+  return { destroy: () => build?.abort() };
+}
+var taskPage = (app) => {
+  app.kinds.register(KIND5, { create: (host, view) => page(app, host, view) });
+  app.commands.register("demo.task-page", {
+    label: "Feladatlap",
+    icon: "dxi dxi-file-document-outline",
+    placement: "record",
+    enabled: ({ row, rows }) => !!row && rows.length <= 1 && !!app.viewDefinition(KIND5),
+    run: ({ app: app2, row }) => {
+      if (row) app2.navigate({ view: KIND5, record: String(row.id) });
+    }
+  });
+};
+var task_page_default = taskPage;
+
 // examples/demo-app/frontend/src/index.ts
 var demo = async (app) => {
   const failures = [];
-  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default]) {
+  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default]) {
     try {
       await part(app);
     } catch (error) {

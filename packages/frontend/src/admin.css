@@ -93,6 +93,8 @@ body,
 .blade-grid-card dt { color: var(--dhx-font-color-secondary); font-weight: 500; }
 .blade-grid-card dd { margin: 0; color: var(--dhx-font-color-primary); white-space: pre-wrap; }
 .blade-grid-card dt, .blade-grid-card dd { overflow-wrap: anywhere; line-height: 1.5; }
+/* Long text (a `textarea` field) shows a 4-line preview in a card; the record details (`Adatok`) and the form show all of it. */
+.blade-grid-card .blade-grid-card__field--long dd { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 .blade-grid-card__media { position: relative; margin: -14px -16px 12px; }
 
 /* Tiles: native DataView widths (equal per row), media slot, title and one secondary line. */

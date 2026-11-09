@@ -29,6 +29,10 @@ $catalogue=$permissions->catalogue();
 check($catalogue->allows('notes','list','ui') && $catalogue->allows(Accounts::RESOURCE,'temporary_password','api'),'Catalogue lists registered actions');
 check(!$catalogue->allows('notes','delete','ui') && !$catalogue->allows(Permissions::ROLES,'delete','api'),'Catalogue rejects unregistered action and channel');
 check(isset($catalogue->resources()['notes']) && in_array('title',$catalogue->fields('notes'),true),'Catalogue resources and fields');
+// A record view (the page of one record) does not rename its resource in the catalogue.
+$named=new Registry();(new SqlResource('notes','notes','id',[new Field('title','Cím')]))->register($named,'Jegyzetek');
+$named->addView(new Blade\Feature\View('demo.page','demo.page','Jegyzetlap','notes',record:'notes',actions:['get']));
+check((new Blade\Admin\Catalogue($named))->resources()['notes']==='Jegyzetek (notes)','A record view does not name its resource');
 check($rules()===0 && $run('1',Permissions::ROLES,'list')['items']===[],'No automatic grant');
 fails(fn()=>$run('1','notes','get','1'),403,'Business resource denied by default');
 

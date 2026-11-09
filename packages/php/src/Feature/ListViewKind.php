@@ -7,12 +7,12 @@ use Blade\I18n\Translator;
 /**
  * Built-in kind `list` (`Registry::view`, `SqlResource::register`). Options: `columns`, `singleton`, `layout`
  * (ViewLayout), `rowNumbers`, `selection`, `rowSelection`, optional `rowHeight`, `tileMinWidth`, `tiles`, `activate`,
- * `commands` (project client commands of `app.commands`, docs/toolkit.md#registries);
+ * `commands` (project client commands of `app.commands`, docs/toolkit.md#registries), `sort` (the first sort);
  * `subview` is set only by `Registry::subview()`, `tree` only by `Registry::tree()`. Bootstrap options add `detailFields`, `filters`, `sortable`, `search` and `order` (manual order); `drop` (records dragged in from another list) is declared.
  */
 final class ListViewKind implements ViewKindProvider
 {
-    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'activate', 'commands', 'drop'];
+    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'activate', 'commands', 'drop', 'sort'];
     /** Most client commands one list declares. */
     private const COMMANDS = 20;
     private const TARGETS = ['details', 'subview', 'page'];
@@ -43,6 +43,22 @@ final class ListViewKind implements ViewKindProvider
         if(!is_array($commands)||!array_is_list($commands)||count($commands)>self::COMMANDS||count(array_unique($commands,SORT_REGULAR))!==count($commands)||array_filter($commands,static fn($name)=>!Field::projectName($name)))throw new \InvalidArgumentException('Invalid view commands: '.$view->id);
         $this->columns($registry,$view->resource,$o['columns']);
         $this->drop($registry,$view,$o['drop']??null);
+        $this->sort($registry,$view,$o['sort']??null);
+    }
+    /**
+     * `sort: {field, direction}`: the list's first sort until the user picks one (the browser keeps that choice).
+     * `field` is `id` or a registered field the list can sort by (not secret, a password, textarea or multiselect);
+     * a singleton or a list with a manual order (its position sorts it) refuses it.
+     */
+    private function sort(Registry $registry, View $view, mixed $sort): void
+    {
+        if($sort===null)return;
+        $field=is_array($sort)&&is_string($sort['field']??null)?$sort['field']:null;
+        $known=$field===null?null:($field==='id'?true:($registry->fields($view->resource)[$field]??null));
+        try{$list=$registry->get($view->resource,'list');}catch(Failure){$list=null;}
+        if(!is_array($sort)||array_diff(array_keys($sort),['field','direction'])||!in_array($sort['direction']??null,['asc','desc'],true)||!$known
+            ||($known instanceof Field&&($known->secret||in_array($known->type,['password','textarea','multiselect'],true)))
+            ||($view->options['singleton']??false)||$list?->listSource?->order)throw new \InvalidArgumentException('Invalid list sort: '.$view->id);
     }
     /**
      * `drop: {from, field}`: records dragged from a list of the resource `from` become new records of this one through
@@ -134,6 +150,8 @@ final class ListViewKind implements ViewKindProvider
         if($order=$list->listSource?->order)$options['order']=array_filter($order,static fn($value)=>$value!==null);
         // Drops create records: only when `create` is offered to the actor.
         if(isset($o['drop'])&&in_array('create',array_column($actions,'name'),true))$options['drop']=$o['drop'];
+        // The first sort, while the actor may sort by its field (an ACL may hide it).
+        if(isset($o['sort'])&&in_array($o['sort']['field'],$options['sortable'],true))$options['sort']=['field'=>$o['sort']['field'],'direction'=>$o['sort']['direction']];
         if(isset($o['subview']))$options['subview']=$o['subview'];
         if(isset($o['tree']))$options['tree']=$o['tree'];
         return ['actions'=>$actions,'options'=>$options];

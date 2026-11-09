@@ -1348,7 +1348,7 @@ public function updateView(View $view): View;                           // chang
 public function kind(string $kind, ViewKindProvider $provider): void;   // dotted, before its views; duplicate throws
 public function view(string $resource, string $title, array $columns, array $actions, /* … */
     string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null,
-    bool $menu = true): View;                                           // menu: false, see menu-less views
+    bool $menu = true, ?array $sort = null): View;                      // menu: false, see menu-less views; sort: workspaces.md#list-sort
 public function fileManager(/* … */, ?string $id = null, ?string $guide = null): View;
 public function diagram(/* … */, ?string $id = null, ?string $guide = null): View;
 public function calendar(/* … */, ?string $id = null, ?string $guide = null): View;
@@ -2298,6 +2298,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M38 | Tabs ([Tabs](#tabs)): `app.components.Tabs`, a `tabs` branch of `PageLayout` (region ids starting with `blade-` are now refused), `PageLayout` `guard`/`tabsOf`; `RecordForm.destroy()` destroys its Suite Form one redraw later | [FB-0145](feedback.md#fb-0145) | info: a `PageLayout` region id starting with `blade-` throws `TypeError` |
 | M39 | Accordion ([Accordion](#accordion)): `app.components.Accordion`, an `accordion` branch of `PageLayout` (`multiple`, a section's `open`), `PageLayout.accordionOf` | [FB-0148](feedback.md#fb-0148) | info: `open` and `multiple` were refused before as unsupported options and are now accepted only in an `accordion` branch |
 | M40 | Menu-less list views ([views](#menu-less-views)): `menu: false` on `View`, `View::list`, `Registry::view`, `SqlResource::register` and JSON `view.menu`; bootstrap `menu: false`; such a view has no menu entry and its address and `navigate` are refused | [FB-0149](feedback.md#fb-0149) | info: a bootstrap view may carry `menu`; code that lists `viewDefinitions()` as navigation targets skips `menu: false` |
+| M41 | First sort and long text in cards ([list sort](workspaces.md#list-sort), [long text](workspaces.md#long-text-in-cards)): `sort` on `View::list`, `Registry::view`, `SqlResource::register` and JSON `view.sort`; bootstrap `options.sort`; a `textarea` field shows at most 4 lines on a card | [FB-0152](feedback.md#fb-0152) | info: specs that read a long `textarea` value from a card's visible text see the first 4 lines (the DOM keeps the whole value) |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2387,6 +2388,7 @@ markup may change without notice.
 | 2026-11-09 | `ViewDefinition.menu` (`false` only); `Application.navigate` returns `false` for a `menu: false` view. PHP `View::$menu`, `menu` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.menu`. Additive (M40). | [FB-0149](feedback.md#fb-0149) |
 | 2026-11-09 | `CommandItem` adds `CommandToggle`, `CommandSelect`, `CommandSegmented`, `CommandRange`, `CommandGroup` (`CommandOption`); `CommandBarOptions.label`, `.placement`; `CommandBar.update(id, CommandChanges)`, `CommandBar.value(id)`; `CommandBarEvents.toggle`, `.change`. Additive; a project `switch` over every `CommandItem` type gets the new members. | [FB-0150](feedback.md#fb-0150) |
 | 2026-11-09 | `Components.SettingsForm` (`SettingsFormOptions`, `SettingsField`, `SettingsFieldType`, `SettingsGroup`, `SettingsChip`, `SettingsFormEvents`: `change`, `submit`). Additive. | [FB-0151](feedback.md#fb-0151) |
+| 2026-11-09 | `ListKindOptions.sort` (`{field, direction}`, the first sort). PHP `sort` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.sort`. A `textarea` field shows at most 4 lines on a card. Additive (M41). | [FB-0152](feedback.md#fb-0152) |
 
 <a id="resolved-decisions"></a>
 

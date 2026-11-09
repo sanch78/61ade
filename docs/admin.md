@@ -112,7 +112,7 @@ Administration views: Roles, Role memberships, Role permissions, Individual
 permissions. Resources: blade_roles, blade_memberships, blade_role_rules,
 blade_user_rules; both rule views use blade_rules separated by subject type.
 
-- Catalogue derives choices from registered definitions (`Blade\Admin\Catalogue`). Saving checks resource/action/channel, known field and object ID only for specific-object scope. Generation never grants rights.
+- Catalogue derives choices from registered definitions (`Blade\Admin\Catalogue`). A resource is labelled with the title of its last declared view that is not a record view; a record view (the page of one record) never renames it ([FB-0152](feedback.md#fb-0152)). Saving checks resource/action/channel, known field and object ID only for specific-object scope. Generation never grants rights.
 - Removed definitions leave marked orphans; unknown actions cannot execute and rules are manually removable.
 - role_key is immutable after creation. Roles with members/rules cannot be deleted; protected role never can.
 - Protected-role admin-resource rules cannot be edited/deleted in UI. At least one active member, enabled by both framework and consumer, must remain. Membership removal/disabling checks transactionally, with MySQL row locks. Self protected membership cannot be revoked.

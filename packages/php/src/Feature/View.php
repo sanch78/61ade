@@ -61,10 +61,10 @@ final readonly class View
      * The list view of $resource (kind `list`, id $id, default the resource) as Registry::view() declares it; see there
      * for the options. Not registered: for Registry::addView() or Registry::updateView().
      */
-    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true): self
+    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null): self
     {
         $options = ['columns' => $columns, 'singleton' => $singleton, 'layout' => $layout ?? new ViewLayout(), 'rowNumbers' => $rowNumbers, 'selection' => $selection, 'rowSelection' => $rowSelection,
-            ...array_filter(['rowHeight' => $rowHeight, 'tileMinWidth' => $tileMinWidth, 'tiles' => $tiles ?: null, 'activate' => $activate, 'commands' => $commands ?: null, 'drop' => $drop], static fn($v) => $v !== null)];
+            ...array_filter(['rowHeight' => $rowHeight, 'tileMinWidth' => $tileMinWidth, 'tiles' => $tiles ?: null, 'activate' => $activate, 'commands' => $commands ?: null, 'drop' => $drop, 'sort' => $sort], static fn($v) => $v !== null)];
         return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide, menu: $menu);
     }
 
