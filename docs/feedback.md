@@ -5768,4 +5768,5 @@ that exactly equals an option label lists every option. The managed
   fixture checked the `TypeError` cases, the aborted signal, the full
   height and the release. The 1366 px screenshot was inspected. Temporary
   cases and screenshots were removed.
+- **Commit:** `86ce2f8` on `main`.
 - **Status:** implemented.
