@@ -3,16 +3,10 @@
 .blade-audio-stage { box-sizing: border-box; height: 100%; overflow: auto; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 16px; padding: 24px 16px; background: var(--dhx-background-additional); color: var(--dhx-font-color-primary); }
 .blade-audio-stage__name { max-width: 100%; font-family: var(--dhx-font-family); font-size: var(--dhx-font-size-normal); font-weight: 500; text-align: center; overflow-wrap: anywhere; }
 .blade-audio-stage audio { width: min(100%, 640px); }
-.blade-audio-position { width: min(100%, 640px); display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 0.875rem; }
-.blade-audio-position__clock { font-variant-numeric: tabular-nums; }
-.blade-audio-position input { grid-column: 1 / -1; appearance: none; box-sizing: border-box; width: 100%; height: 32px; margin: 0; background: transparent; cursor: pointer; }
-.blade-audio-position input::-webkit-slider-runnable-track { height: 12px; border: 1px solid #fff; border-radius: 6px; background: linear-gradient(to right, #ff9d2e 0 var(--blade-audio-progress), #17212b var(--blade-audio-progress) 100%); }
-.blade-audio-position input::-moz-range-track { height: 10px; border: 1px solid #fff; border-radius: 6px; background: linear-gradient(to right, #ff9d2e 0 var(--blade-audio-progress), #17212b var(--blade-audio-progress) 100%); }
-.blade-audio-position input::-webkit-slider-thumb { appearance: none; width: 22px; height: 22px; margin-top: -6px; border: 3px solid #fff; border-radius: 50%; background: #17212b; box-shadow: 0 0 0 2px #17212b; }
-.blade-audio-position input::-moz-range-thumb { box-sizing: border-box; width: 22px; height: 22px; border: 3px solid #fff; border-radius: 50%; background: #17212b; box-shadow: 0 0 0 2px #17212b; }
-.blade-audio-position input:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: 2px; border-radius: 6px; }
-.blade-audio-position input:disabled { opacity: 0.5; cursor: default; }
-@media (forced-colors: active) { .blade-audio-position input { appearance: auto; } }
+/* Flatten the native translucent track before tinting; keep its original controls and geometry. */
+.blade-audio-stage audio::-webkit-media-controls-timeline { background: linear-gradient(#fff, #fff) center / calc(100% - 32px) 4px no-repeat; filter: invert(1) brightness(0.6) contrast(1.8) sepia(1) saturate(5) hue-rotate(-25deg); }
+[data-dhx-theme="dark"] .blade-audio-stage audio::-webkit-media-controls-timeline { background-image: linear-gradient(#000, #000); filter: brightness(0.6) contrast(1.8) sepia(1) saturate(5) hue-rotate(-25deg); }
+@media (forced-colors: active) { .blade-audio-stage audio::-webkit-media-controls-timeline { background: none; filter: none; } }
 .blade-audio-stage audio:focus-visible, .blade-video-stage video:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: 2px; }
 .blade-video-stage video:focus-visible { outline-offset: -2px; }
 .blade-view-slot.blade-player__slot { overflow: hidden; }

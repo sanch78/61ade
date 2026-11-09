@@ -751,10 +751,9 @@ existing stages. Repeat synchronization for composed players is documented in
 [MediaPlayer](toolkit.md#mediaplayer). This is a synthetic example; no consumer
 code or data is required.
 
-The audio position slider below the native controls shows played time in
-orange against a dark track, with a white-ringed thumb and elapsed/total time.
-Click, drag or use arrows and Home/End to seek. It remains visible in light,
-dark and application themes, including narrow screens.
+The original native audio timeline uses orange elapsed time, darker amber
+buffered time and black unbuffered time in browsers supporting WebKit media-control CSS. Its controls
+and dimensions remain unchanged; no additional timeline is displayed.
 
 <a id="korlátok"></a>
 

@@ -4912,3 +4912,31 @@ that exactly equals an option label lists every option. The managed
   screenshots were removed. Firefox/Safari and forced-colour rendering were
   not exercised; no full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0142"></a>
+
+## FB-0142 — Recolour the original timeline and remove the duplicate
+
+- **Date:** 2026-11-09.
+- **Correction:** the owner rejected FB-0141's additional slider. The original
+  upper control must remain, with only its timeline colours changed; buffered
+  time must remain visible.
+- **Implemented:** removed the extra slider, clock, listeners, styles and its
+  unused HU/EN/DE label. The original native audio timeline uses orange played
+  time, darker amber buffered time and black unbuffered time through scoped
+  media-control CSS. Its geometry and native interactions are unchanged.
+  Forced colours and browsers without the styling retain native appearance.
+  This supersedes FB-0141's UI, with no new option or event contract.
+- **Guides:** [toolkit](toolkit.md#mediaplayer), [usage](usage.md),
+  [files](files.md), [demo](demos.md#optional-audio-spectrum).
+- **Verification:** build, asset preparation, typecheck and i18n checks passed.
+  All three existing media cases passed. Four temporary Chromium cases cover
+  native seeking, absence of the extra slider and light/dark desktop/mobile
+  appearance. A partially appended MP3 in MediaSource verifies real buffered
+  and unbuffered ranges, separately visible from played time in screenshots.
+  Initial truncated HTTP fixtures could not initialize metadata; the buffer
+  verification uses a real partial MediaSource instead. Temporary additions
+  and screenshots were removed. Firefox/Safari and forced-colour rendering
+  were not exercised. No full-smoke claim.
+- **Status:** corrected and verified on the managed demo.

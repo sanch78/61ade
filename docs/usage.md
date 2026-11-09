@@ -151,8 +151,8 @@ follow this route through the
    `Calendar`, `DiagramEditor`, `MediaPlayer` in a Suite Layout from
    `app.dhx` ([components](toolkit.md#components),
    [Layout recipe](toolkit.md#layout-recipe)); `MediaPlayer` optionally shows an
-   audio frequency spectrum, provides a high-contrast audio position slider
-   with a time display, and exposes synchronized repeat state
+   audio frequency spectrum, colours the original native audio timeline for
+   contrast where supported, and exposes synchronized repeat state
    ([media options](toolkit.md#mediaplayer)); untrusted code only in
    `SandboxFrame` ([sandbox](toolkit.md#sandbox-protocol)).
 4. **Build** TypeScript against `admin.d.ts` with types-only imports
