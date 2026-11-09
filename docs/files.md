@@ -335,7 +335,9 @@ shows dimensions, format and size. The video and audio player use the
 browser's native controls, with loop and playback speed in the toolbar, and
 show dimensions (video), length, format and size; on the focused element
 Space/K plays or pauses, the arrows seek 5 s and Home/End jump. The audio
-stage shows the file name above the controls. Whether a format plays depends
+stage shows the file name above the controls and a high-contrast position
+slider with elapsed/total time below them; click, drag or use the slider's
+arrow and Home/End keys to seek. Whether a format plays depends
 on the browser (WebM is the portable video choice; Chromium plays MP3, WAV and
 AAC/M4A).
 

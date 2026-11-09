@@ -872,6 +872,14 @@ if (current) {
   the caller's `info`. Below 600 px the info text is hidden. The audio stage
   shows `name` on the theme's background. Colours come from the Suite theme
   variables, so Blade, Blade Night, light, dark and skins apply without code.
+- **Audio position.** With controls enabled, audio also has a labelled seek
+  slider and elapsed/total clock below the native controls. Its 12 px track
+  uses orange played time against dark remaining time (7.85:1 contrast), with
+  a 22 px white-ringed thumb across all themes. Click or drag to seek; Tab
+  focuses it, arrows move 0.1 s and Home/End jump. It follows native controls,
+  playback and `seek()`. Unknown/infinite duration or a media error disables
+  it; `controls: false` hides it. Forced-colour mode uses native appearance.
+  No new options, server actions or event contracts are required.
 - **Toolbar placement.** `toolbarPosition: "bottom"` places the player toolbar
   below its stage; default `"top"`. `toolbar: false` hides it in either position.
   Other placement values throw `TypeError`.

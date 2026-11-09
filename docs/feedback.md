@@ -4884,3 +4884,31 @@ that exactly equals an option label lists every option. The managed
   the desktop screenshot was visually inspected. Temporary assertion and task
   screenshots were removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0141"></a>
+
+## FB-0141 — Make audio playback position clearly visible
+
+- **Date:** 2026-11-09.
+- **Request:** significantly increase the player progress indicator's contrast.
+- **Implemented:** audio `MediaPlayer` adds a labelled position slider below
+  the native controls, with a 12 px orange/dark track (7.85:1 contrast),
+  a 22 px white-ringed thumb and elapsed/total time. Click, drag and native
+  range keyboard controls seek the existing media element. Playback, native
+  seeking and public `seek()` update it. Unknown/non-finite duration or errors
+  disable it; `controls: false` hides it. HU/EN/DE labels are included.
+  Existing options, events, file authorization and audit remain unchanged.
+- **Guides:** [toolkit](toolkit.md#mediaplayer), [usage](usage.md),
+  [files](files.md), [demo](demos.md#optional-audio-spectrum),
+  [event catalog](product-direction.md#4-eseménynapló-lefedési-katalógus).
+- **Verification:** build, asset preparation, typecheck and PHP i18n checks
+  passed. Four existing media/file-viewer/asset-viewer browser cases passed
+  on the managed demo. Six temporary Chromium cases passed in light, dark
+  and Blade at 1280/390 px: click/drag, keyboard, playback and seek
+  synchronization, non-finite duration, controls suppression and teardown.
+  Screenshots were inspected. An initial temporary assertion used Chromium's
+  unsupported computed-style read of range pseudo-elements; it was replaced
+  with position checks and visual inspection. Temporary test additions and
+  screenshots were removed. Firefox/Safari and forced-colour rendering were
+  not exercised; no full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

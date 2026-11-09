@@ -729,5 +729,6 @@
   "Beállítások": "Settings",
   "Vissza": "Back",
   "Újratöltés": "Reload",
-  "A vendégmunkamenet lejárt. A folytatáshoz töltsd újra a felületet; a nem mentett adatokat előbb másold ki.": "The guest session has expired. Reload to continue; copy any unsaved data first."
+  "A vendégmunkamenet lejárt. A folytatáshoz töltsd újra a felületet; a nem mentett adatokat előbb másold ki.": "The guest session has expired. Reload to continue; copy any unsaved data first.",
+  "Lejátszási pozíció": "Playback position"
 }
