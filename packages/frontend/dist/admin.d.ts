@@ -235,7 +235,7 @@ export interface AppWindow {
     /** Closes and destroys the window; idempotent. */
     close(): void;
 }
-/** Dialogs, toasts and windows (over `MessageDialog.ts`, Suite `message` and `WindowSizing.ts`). */
+/** Dialogs, toasts, windows and cell content (over `MessageDialog.ts`, Suite `message` and `WindowSizing.ts`). */
 export interface Ui {
     /** Modal alert/confirm; resolves `true` for OK/Confirm, `false` for Cancel/Escape. */
     dialog(options: DialogOptions): Promise<boolean>;
@@ -245,6 +245,18 @@ export interface Ui {
     toast(text: string, severity?: Severity): void;
     /** Opens a framework document window. */
     window(options: WindowOptions): AppWindow;
+    /**
+     * Puts content into any Suite Layout cell, a project's own `app.dhx.Layout` included (the Layout recipe's
+     * `type: "none"` box). A plain element fills the cell edge to edge (a full-size slot without padding or border; the
+     * element sets its own height, for example `height: 100%`) and keeps its node, listeners and focus when Suite
+     * redraws or resizes the cell; aborting `signal` (the build's, which also destroys the Layout) removes it. A Suite
+     * widget or a component is attached or mounted there as by `PageLayout.attach` and stays its owner's to destroy. A
+     * cell holds either attached content or mounted components. A missing signal or a target that is not a cell throws
+     * `TypeError`; an aborted signal attaches nothing.
+     */
+    attach(target: LayoutCell, content: Mountable, options: {
+        signal: AbortSignal;
+    }): void;
 }
 /** Browser part of a server `UploadPolicy` (`UploadPolicy::metadata()`); never contains server paths. */
 export interface UploadPolicy {

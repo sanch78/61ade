@@ -595,6 +595,17 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
   a scoped `ListView` (`task_id`, cards, `panel: false`, `showId: false`).
   New notes get the task. A long note shows a [4-line
   preview](workspaces.md#long-text-in-cards); `Adatok` shows all of it.
+- **`Vázlat` tab:** the module's own drawing surface, a canvas created
+  once per opening, between two `CommandBar`s in a borderless `type: "none"`
+  box Layout attached to the tab, put into the box's stage cell with
+  [`app.ui.attach`](toolkit.md#cell-content). It fills the stage edge to edge,
+  with no card or inset. The top bar has the colour (`Tinta`, `Kék`,
+  `Piros`) and `Törlés`; the bottom bar has the line width and
+  `Visszavonás`, also Ctrl+Z on the focused canvas. Strokes are kept
+  relative to the size and repainted in an animation frame after every
+  change and resize, so the drawing, its listeners and its focus survive a
+  panel resize, a tab switch and the phone rebuild. Nothing is saved; the
+  canvas leaves with the page.
 - **Data:** setup creates `demo_task_notes` and three notes for each of the
   first three synthetic tasks (the first task's second note is about 4,300
   characters). `demo@example.test` has every note action, the reader `list`

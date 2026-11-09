@@ -646,3 +646,7 @@
 <a id="fb-0156"></a>
 
 ## FB-0156 — One lower edge for toolbars and closed accordion sections
+
+<a id="fb-0157"></a>
+
+## FB-0157 — A project element filling a Layout cell edge to edge
