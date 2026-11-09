@@ -585,3 +585,8 @@
 <a id="fb-0141"></a>
 
 ## FB-0141 — Make audio playback position clearly visible
+
+
+<a id="fb-0142"></a>
+
+## FB-0142 — Recolour the original timeline and remove the duplicate

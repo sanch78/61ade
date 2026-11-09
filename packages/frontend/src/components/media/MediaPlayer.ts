@@ -123,7 +123,6 @@ export class MediaPlayer implements MediaPlayerContract {
       media.setAttribute("aria-label", this.name);
       if (options.visualizer === "spectrum") this.prepareSpectrum = spectrum(media, this.stage, signal);
       this.stage.append(media);
-      if (kind === "audio" && media.controls) this.audioTimeline(media, signal);
       this.playable(media, format, signal);
       media.src = url;
     }
@@ -153,34 +152,6 @@ export class MediaPlayer implements MediaPlayerContract {
   /** Updates a toolbar text only when it changed. */
   private label(id: string, value: string): void { if (this.toolbar && this.toolbar.data.getItem(id)?.value !== value) this.toolbar.data.update(id, { value }); }
   private failed(message: string): void { this.label("info", message); this.emit("error", { message }); }
-
-  /** A consistent, high-contrast seek control alongside the browser's native audio controls. */
-  private audioTimeline(media: HTMLMediaElement, signal: AbortSignal): void {
-    const box = document.createElement("label"), caption = document.createElement("span"), clock = document.createElement("span"), range = document.createElement("input");
-    box.className = "blade-audio-position";
-    caption.textContent = t("Lejátszási pozíció");
-    clock.className = "blade-audio-position__clock";
-    clock.setAttribute("aria-hidden", "true");
-    range.type = "range";
-    range.min = "0";
-    range.step = "0.1";
-    range.setAttribute("aria-label", t("Lejátszási pozíció"));
-    const update = () => {
-      const duration = this.duration(), at = Math.max(0, Math.min(media.currentTime || 0, duration));
-      range.disabled = duration <= 0 || !!media.error;
-      range.max = String(duration || 1);
-      range.value = String(at);
-      range.style.setProperty("--blade-audio-progress", `${duration ? at / duration * 100 : 0}%`);
-      const text = `${mediaClock(at)} / ${mediaClock(duration)}`;
-      range.setAttribute("aria-valuetext", text);
-      clock.textContent = text;
-    };
-    range.addEventListener("input", () => { this.seek(Number(range.value)); update(); }, { signal });
-    for (const event of ["loadedmetadata", "durationchange", "timeupdate", "seeked", "emptied", "error"]) media.addEventListener(event, update, { signal });
-    box.append(caption, clock, range);
-    this.stage.append(box);
-    update();
-  }
 
   /** Fitted to the stage (never enlarged) by default; zoom steps, 100 %, rotation, and scrolling when larger. */
   private zoomable(image: HTMLImageElement, signal: AbortSignal): void {
