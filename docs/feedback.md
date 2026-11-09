@@ -602,3 +602,7 @@
 <a id="fb-0145"></a>
 
 ## FB-0145 — Tabs for switching between viewing and editing
+
+<a id="fb-0146"></a>
+
+## FB-0146 — Remove the demo menu group separator

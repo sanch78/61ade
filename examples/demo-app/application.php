@@ -173,7 +173,6 @@ return new ApplicationDefinition(
     signInModules: ['branding/sign-in.js'],
     // View guides of the framework's own views (docs/workspaces.md#view-guide); the demo's views declare their own.
     guides: blade_demo_admin_guides(),
-    menuSeparators: ['Digitális kijelző'],
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [
         'admin' => __DIR__.'/admin-application.php',
         'tenants' => __DIR__.'/tenant-application.php',

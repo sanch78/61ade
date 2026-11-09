@@ -102,7 +102,7 @@ View declaration order still determines menu order. There is no leading
 separator when the group is first. The existing separator before logout
 stays, and both separators remain inside the compact `Menü`. Current-view
 marking is unchanged. With the default empty list, existing menus stay the
-same. The feature demo declares a separator before `Digitális kijelző`.
+same. The feature demo uses the default empty list.
 
 <a id="dhtmlx-megjelenítés-és-csomagolás"></a>
 
