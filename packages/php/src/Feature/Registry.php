@@ -152,10 +152,13 @@ final class Registry
      * $commands: project client commands (`app.commands` names, dotted, at most 20) on the list toolbar.
      * $guide: the view's guide text (View).
      * $menu: false offers the view without a menu entry or address of its own, for scoped `ListView`s in project pages (View).
+     * $sort: `['field' => f, 'direction' => 'asc'|'desc']`, the first sort before the user picks one (default `id`
+     * descending): `id` or a sortable field of the resource (not secret, a password, textarea or multiselect); not
+     * with a manual order or a singleton.
      */
-    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true): View
+    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null): View
     {
-        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$menu));
+        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$menu,$sort));
     }
     /**
      * Sub-view: every record of the $view list expands (grid sub-row or card) to the $child list filtered to

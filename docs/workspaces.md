@@ -195,6 +195,21 @@ Sortable metadata lists permitted public field names. Consumers need no frontend
 or sorting endpoint; they supply indexes for frequently sorted large tables.
 The framework does not alter schemas.
 
+<a id="list-sort"></a>
+
+**First sort** ([FB-0152](feedback.md#fb-0152)): a list view may declare
+the sort it starts with, `sort: ['field' => f, 'direction' => 'asc'|'desc']`
+(PHP `View::list`, `Registry::view`, `SqlResource::register`; JSON
+`resources.<name>.view.sort`, `{"field": "id", "direction": "asc"}` for
+oldest first). It applies until the user picks a sort, which the list keeps
+as before (per page and user; a scoped list under `<view id>@<field>`).
+`field` is `id` or a field the list can sort by (not secret, a password,
+textarea or multiselect); a singleton, a list with a [manual
+order](#manual-order) (its position sorts it), an unknown field or a
+malformed value throw `InvalidArgumentException` at definition time. The
+bootstrap carries `options.sort` only while the actor may sort by that field
+(a field ACL may hide it); then the list starts at `id` descending.
+
 Headers show ↑/↓ with aria-sort. Editable non-checkbox headers show ✎ plus
 editing tooltip, preserving editor/checkbox accessible names, and carry the
 `Szerkeszthető mező` accessible description. Header accessibility attributes are
@@ -419,6 +434,15 @@ Native DataView uses columns targeting 340 px according to panel width,
 one column on mobile. Cards show all registered fields readable in list responses,
 including fields omitted from the grid, excluding technical ACL/revision metadata
 and secrets.
+
+<a id="long-text-in-cards"></a>
+
+**Long text in cards** ([FB-0152](feedback.md#fb-0152)): a `textarea`
+field shows at most 4 lines on a card (CSS line clamp, the field's line
+height, keeping its line breaks); the rest is clipped. The record details
+(`Adatok`) and the edit form show the whole text. A field with a registered
+presentation or field-type display renders its own markup and is not
+clipped. Screen readers still read the whole value of the card.
 
 Lists default to a # ordinal column showing position in the complete authorized,
 filtered, sorted result across scrolling. It is not database ID and may change

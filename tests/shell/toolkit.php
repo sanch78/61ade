@@ -132,6 +132,26 @@ $menuSub->subview('assets','tracks','asset_id',embed:false);
 $grant('1','tracks','list');$grant('1','tracks','get');
 $subOffered=array_column((new Workspace($menuSub,$db))->views(new Identity('1','Egy')),null,'id');
 check(isset($subOffered['tracks'])&&!isset($subOffered['assets']['options']['subview']['page'])&&$subOffered['assets']['options']['subview']['view']['menu']===false,'A menu-less sub-view child has no page of its own');
+// `sort` (docs/workspaces.md#list-sort): the first sort of a list, `id` or a sortable field; refused on a singleton, a
+// manual order, an unsortable or unknown field and a malformed value; bootstrapped while the actor may sort by it.
+$sorted=new Registry();$resource()->register($sorted,'Médiatár',sort:['field'=>'id','direction'=>'asc']);
+check($sorted->viewById('assets')->options['sort']===['field'=>'id','direction'=>'asc'],'SqlResource::register(sort:)');
+$sorted->view('assets','Cím szerint',$columns,['get'],id:'assets.title',sort:['field'=>'title','direction'=>'desc']);
+$sorted->view('assets','Megjegyzés szerint',$columns,['get'],id:'assets.note',sort:['field'=>'note','direction'=>'asc']);
+foreach([['field'=>'secret','direction'=>'asc'],['field'=>'missing','direction'=>'asc'],['field'=>'title'],['field'=>'title','direction'=>'up'],
+    ['field'=>'title','direction'=>'asc','extra'=>1],['direction'=>'asc'],[]] as $invalid)
+    rejects(fn()=>$sorted->view('assets','X',$columns,['get'],id:'assets.bad',sort:$invalid),'Invalid list sort accepted: '.json_encode($invalid));
+rejects(fn()=>$sorted->view('assets','X',$columns,['get'],singleton:true,id:'assets.one',sort:['field'=>'id','direction'=>'asc']),'sort on a singleton accepted');
+$long=new Registry();(new SqlResource('notes','assets','id',[new Field('note','Megjegyzés','textarea')]))->register($long,'Jegyzetek');
+rejects(fn()=>$long->view('notes','X',[['id'=>'note','header'=>'M']],['get'],id:'notes.long',sort:['field'=>'note','direction'=>'asc']),'sort on a textarea accepted');
+$ordered=new Registry();(new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset'),new Field('position','Sorrend','number')],order:['field'=>'position']))->register($ordered,'Sávok');
+rejects(fn()=>$ordered->view('tracks','X',[['id'=>'asset_id','header'=>'A']],['get'],id:'tracks.sorted',sort:['field'=>'id','direction'=>'asc']),'sort with a manual order accepted');
+$grant('1','assets','list','all','deny','note');
+$sortOffered=array_column((new Workspace($sorted,$db))->views(new Identity('1','Egy')),null,'id');
+check($sortOffered['assets']['options']['sort']===['field'=>'id','direction'=>'asc']&&$sortOffered['assets.title']['options']['sort']===['field'=>'title','direction'=>'desc'],'Bootstrap: the declared sort');
+check(!isset($sortOffered['assets.note']['options']['sort'])&&!in_array('note',$sortOffered['assets.note']['options']['sortable'],true),'Bootstrap: no sort by a field the actor may not sort by');
+check(!isset($offered['assets']['options']['sort']),'Bootstrap: no sort without a declaration');
+$db->exec("DELETE FROM blade_rules WHERE subject_id='1' AND resource='assets' AND action='list' AND field_name='note'");
 $reader=array_column($workspace->views(new Identity('2','Kettő')),'id');
 check($reader===['assets','assets.audio'],'Record view needs the record resource get offered');
 check($workspace->views(new Identity('3','Három'))===[],'No offered action, no view');

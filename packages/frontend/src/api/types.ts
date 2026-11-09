@@ -783,6 +783,11 @@ export interface ListKindOptions {
   detailFields?: ColumnMetadata[];
   filters: FieldMetadata[];
   sortable?: string[];
+  /**
+   * The first sort (`Registry::view`/`SqlResource::register` `sort`, JSON `view.sort`) until the user picks one, which
+   * the list keeps; only while the actor may sort by `field`. Without it, `id` descending.
+   */
+  sort?: { field: string; direction: "asc" | "desc" };
   layout: { formMode: "overlay" | "panel"; tree: LayoutRegion };
   rowNumbers?: boolean;
   selection?: boolean;

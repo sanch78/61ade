@@ -184,6 +184,7 @@ starter admin and the tenant demo stay declarative and load no project module.
 | D4 | `Tasks` field type and command | `tasks.ts` | Implemented: field type `demo.rating` on `Prioritás` and record command `demo.copy-text` ([below](#toolkit-d4-tasks)) |
 | D5 | Signage `Lejátszási listák` playlist editor | `playlist-editor.ts` | Implemented: record view kind `demo.playlist-editor` and record command `demo.edit-playlist` ([below](#d5-playlist-editor)) |
 | D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` and `app/demo.css` on the feature demo |
+| D7 | `Feladatlap` task page | `task-page.ts` | Implemented: record view kind `demo.task-page` and record command `demo.task-page` ([below](#d7-task-page)) |
 
 <a id="readings-dashboard"></a>
 
@@ -559,6 +560,35 @@ dynamic playback).
   with its validation and the bulk form; list settings; preview controls and
   transition layer; reader; day programme) and `tests/shell/tabs.spec.cjs`
   (the tabs, their guard and the remembered tab).
+
+<a id="d7-task-page"></a>
+
+**D7 `Feladatlap` task page** ([task-page.ts](../examples/demo-app/frontend/src/task-page.ts),
+declared in [tasks.json](../examples/demo-app/modules/tasks.json)): the
+record view kind `demo.task-page` of `demo_tasks`, opened by the record
+command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
+`PageLayout` from public components only:
+
+- **Control region:** the collapsible leaf `Feladat` holds an `Accordion`
+  of its own: `Adatok` (`RecordDetails`, open) and `Szerkesztés` (the
+  `update` form, created when it first opens; disabled without `update`).
+  On a desktop it sits left of the tabs (360 px, resizable); below 768 px
+  the page is rows, the tabs above it.
+- **`Jegyzetek` tab:** the task's notes, `demo_task_notes`, a list view
+  with [`menu: false`](toolkit.md#menu-less-views) and the [first
+  sort](workspaces.md#list-sort) `id` ascending (oldest first), mounted as
+  a scoped `ListView` (`task_id`, cards, `panel: false`, `showId: false`).
+  New notes get the task. A long note shows a [4-line
+  preview](workspaces.md#long-text-in-cards); `Adatok` shows all of it.
+- **Data:** setup creates `demo_task_notes` and three notes for each of the
+  first three synthetic tasks (the first task's second note is about 4,300
+  characters). `demo@example.test` has every note action, the reader `list`
+  and `get`.
+- **Verification:** `npm run test:browser -- tests/shell/task-page.spec.cjs`
+  (the command opens the page; no menu entry; at 1366 and 390 px the cards
+  in declared order, the long note at most 4 lines and clipped, `Adatok`
+  with the whole text), `php8.4 tests/shell/toolkit.php` and
+  `configuration.php` (`sort`).
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),

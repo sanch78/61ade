@@ -1,7 +1,7 @@
 {
     "section_descriptions": {
         "purpose": "Feature demo: one synthetic module that exercises the declarative workspace capabilities.",
-        "covers": "panel form, filters, sorting, cards, inline grid editing (text, select, checkbox), related storage, pattern validation, multiple choice, delete, selection with bulk action, registered business action, business rule hook with a field error, a project field type (priority rating) and a client record command (copy as text)."
+        "covers": "panel form, filters, sorting, cards, inline grid editing (text, select, checkbox), related storage, pattern validation, multiple choice, delete, selection with bulk action, registered business action, business rule hook with a field error, a project field type (priority rating) and a client record command (copy as text), and a task page (record view) with a menu-less notes list sorted oldest first."
     },
     "resources": {
         "demo_tasks": {
@@ -190,12 +190,58 @@
                     "dialog_danger"
                 ],
                 "commands": [
-                    "demo.copy-text"
+                    "demo.copy-text",
+                    "demo.task-page"
                 ],
                 "layout": {
                     "form_mode": "panel"
                 },
                 "guide": "Egyetlen modulban a deklaratív lista szinte minden képessége: szűrőpanel, rendezés a fejlécre kattintva, táblázat és kártya nézet, valamint az oldalsó panelben nyíló szerkesztőűrlap.\n\nPróbáld ki: a táblázatban közvetlenül szerkeszthető a Megnevezés, az Állapot, a Prioritás és a kapcsolók; a Kapcsolattartó telefon mintára ellenőriz; a Prioritás egy projekt saját mezőtípusa (csillagok). Jelölj meg több sort, és futtass rajtuk tömeges műveletet; a Lezárás regisztrált üzleti művelet, a Párbeszéd műveletek a megerősítő és nyugtázó ablakokat mutatják.\n\nÜzleti szabály: folyamatban lévő feladatnál nem kapcsolható ki az Értesítés, a szerver mezőhibával utasítja el. A Másolás szövegként egy kliensoldali rekordparancs."
+            }
+        },
+        "demo_task_notes": {
+            "storage": {
+                "table": "demo_task_notes",
+                "key": "id",
+                "owner_column": "owner_id"
+            },
+            "fields": [
+                {
+                    "name": "task_id",
+                    "label": "Feladat",
+                    "type": "number",
+                    "required": true
+                },
+                {
+                    "name": "body",
+                    "label": "Jegyzet",
+                    "type": "textarea",
+                    "required": true,
+                    "max": 8000
+                }
+            ],
+            "operations": {
+                "delete": true
+            },
+            "view": {
+                "title": "Feladatjegyzetek",
+                "columns": [
+                    {
+                        "id": "body",
+                        "header": "Jegyzet"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update",
+                    "delete"
+                ],
+                "menu": false,
+                "sort": {
+                    "field": "id",
+                    "direction": "asc"
+                }
             }
         }
     },
@@ -268,5 +314,21 @@
                 "cancel_label": "Mégse"
             }
         }
-    ]
+    ],
+    "views": {
+        "demo.task-page": {
+            "kind": "demo.task-page",
+            "title": "Feladatlap",
+            "resource": "demo_tasks",
+            "record": "demo_tasks",
+            "actions": [
+                "get"
+            ],
+            "guide": "Rekordnézet egy feladathoz, a projekt saját nézettípusa a keretrendszer komponenseiből: bal oldalt a feladat adatai egy összecsukható vezérlőrégióban, jobb oldalt fülek.\n\nA Jegyzetek fülön a feladat jegyzetei kártyákon, a legrégebbi elöl (egy menüpont nélküli lista); a hosszú jegyzetnek csak az első sorai látszanak, a teljes szöveg az Adatok ablakban és a szerkesztő űrlapon olvasható.",
+            "options": {
+                "details": "demo_tasks",
+                "notes": "demo_task_notes"
+            }
+        }
+    }
 }

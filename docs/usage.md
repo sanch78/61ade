@@ -389,6 +389,10 @@ A list that only makes sense inside a project page (several scoped lists of a re
 [`menu: false`](toolkit.md#menu-less-views) (PHP `Registry::view`/`SqlResource::register`, JSON `view.menu`): it is
 offered like any list and mounted with `ListView`, but has no menu entry, and its `#view=` address and `navigate` are
 refused. A record view, a singleton or a view with a guide cannot set it.
+Such a list may also declare its [first sort](workspaces.md#list-sort)
+(`sort`, JSON `view.sort`, for example oldest first), which applies until
+the user picks one; a `textarea` field shows a [4-line
+preview](workspaces.md#long-text-in-cards) on its cards.
 
 A record page that shows one item large, like a media player, is a two-column `PageLayout`: a control panel of
 [`SettingsForm`](toolkit.md#settingsform)s (local view settings with switches, segmented choices, ranges, colours

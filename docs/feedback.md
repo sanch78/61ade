@@ -5425,3 +5425,71 @@ that exactly equals an option label lists every option. The managed
   390 px, no horizontal overflow at 390 px, measured text contrast of the
   chosen segment and chip ≥ 7:1 everywhere. The screenshots were inspected.
 - **Status:** implemented.
+
+<a id="fb-0152"></a>
+
+## FB-0152 — First sort of a list and long text in cards
+
+- **Date:** 2026-11-09.
+- **Request:** the follow-up of a consumer request (recorded without
+  consumer names or business terms; [FB-0149](#fb-0149) limits). The
+  side-panel list of a record page starts oldest first, and its entries are
+  long text of several thousand characters. A list started newest first
+  (`id` descending) until the user picked a sort, and a card showed every
+  value in full. Owner decision: a declared first sort, and a clamped
+  preview of a few lines on cards with the full text in the details and the
+  form.
+- **Implemented:**
+  - `sort: ['field' => f, 'direction' => 'asc'|'desc']` on `View::list`,
+    `Registry::view`, `SqlResource::register`; JSON `view.sort`. Validated
+    by the list kind: `id` or a field the list can sort by (not secret, a
+    password, textarea or multiselect); a singleton, a manual order, an
+    unknown field or a malformed value throw. The bootstrap carries
+    `options.sort` while the actor may sort by the field
+    (`ListKindOptions.sort`). `Workspace` starts with the kept sort of the
+    user, else the declared one, else `id` descending.
+  - Cards: a `textarea` field (without its own presentation or field-type
+    display) has `blade-grid-card__field--long`, clamped to 4 lines in
+    `.blade-grid-card` (`-webkit-line-clamp`); the record details are not
+    clamped.
+  - Demo D7 `Feladatlap` (`task-page.ts`, `tasks.json`): the record view
+    `demo.task-page` of a task, opened by the record command
+    `demo.task-page`. A collapsible control region (`Feladat`, with
+    `Adatok` and `Szerkesztés` in an Accordion) and a `Jegyzetek` tab with
+    `demo_task_notes` (`menu: false`, `sort` `id` ascending), a scoped card
+    list. Setup creates the table and synthetic notes (one about 4,300
+    characters). The texts have English translations.
+  - The FB-0149 change row named the consumer; it now says "a consumer
+    request".
+  - Found by the regression run: the ACL catalogue (`Blade\Admin\Catalogue`,
+    the role rules and API-key scopes) labelled a resource with its last
+    declared view, so the new record view renamed `demo_tasks` to
+    `Feladatlap` (and the asset viewer `signage_assets`). A record view no
+    longer names its resource ([admin](admin.md)); `permissions.php` checks
+    it.
+- **Guides:** [first sort](workspaces.md#list-sort),
+  [long text in cards](workspaces.md#long-text-in-cards),
+  [toolkit PHP signatures and changes](toolkit.md#changes) (M41),
+  [usage](usage.md), [demos D7](demos.md#d7-task-page).
+- **Verification:** `node tools/build.mjs`, `npm run typecheck`,
+  `npm run demo:assets`; PHP `toolkit` (new: `SqlResource::register(sort:)`,
+  a field and `id`, malformed values, secret, textarea, singleton and manual
+  order refused; bootstrap `sort`, none for a field the actor may not sort
+  by, none without a declaration), `configuration` (JSON `view.sort`, a
+  string and a bad direction refused), `i18n`, `contracts`, `lists`;
+  `tests/shell/task-page.spec.cjs` on the managed demo (the command opens
+  the page, no menu entry; at 1366 and 390 px three cards in id order, the
+  long note at most 4 lines and clipped, the short one not, `Adatok` with
+  the whole text unclipped). Browser regression on the managed demo:
+  `task-page`, `menuless-view`, `toolkit-demo-tasks`, `toolkit-demo`,
+  `toolkit-registries`, `grid-sort`, `workspace`, `preferences`, `i18n`,
+  `list-integration` (37 passed); `demo`, `grid-edit`, `subview-demos`,
+  `related-fields`, `mobile-grid`, `accordion`, `tabs` (22 passed, the
+  `demo` API-key case failed on the catalogue label above); after the fix
+  `demo`, `permissions`, `admin` 10 passed. PHP `permissions`, `admin`,
+  `signage`, `access`, `sorting`, `list-presentation`; node `toolkit-kernel`,
+  `toolkit-list`, `toolkit-components`, `toolkit-registries`.
+- **Limits:** the clamp is fixed at 4 lines (no per-field option). Cards
+  show every permitted field, so a scoped card list also shows its scope
+  field (here `Feladat`, the task id); unchanged.
+- **Status:** implemented.
