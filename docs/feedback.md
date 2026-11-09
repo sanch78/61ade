@@ -5604,3 +5604,73 @@ that exactly equals an option label lists every option. The managed
   or nested menus). The demo's `Törlés` is not exercised by the browser
   test (it deletes the seeded note); the `delete` action is the list's own.
 - **Status:** implemented.
+
+<a id="fb-0155"></a>
+
+## FB-0155 — Suite's English-only names and Escape in a non-modal window
+
+- **Date:** 2026-11-09.
+- **Request:** findings from a consumer's browser runs, sent with the
+  follow-up of [FB-0149](#fb-0149) (recorded without consumer names or
+  business terms), to be reproduced on the feature demo first: (1) the
+  header of a `collapsable` `PageLayout` region is a button named "click to
+  collapse" in the Hungarian UI; (2) an `app.ui.window` holding a plain
+  element with buttons stayed open after Escape, right after it opened and
+  after a click inside it, although the toolkit says Escape closes it;
+  (3) the window's close button is named "close".
+- **Reproduced (Chromium, managed demo, before the change):**
+  - (1) Suite writes `aria-label="click to collapse"` / `"click to expand"`
+    on a collapsable Layout cell header, fixed English text with no locale
+    key. Seen on D7 (`Feladat`, `Kijelölt jegyzet`); every Suite Layout of
+    the page has it, the list layout's panels included.
+  - (2) A modal window (the default) closed on Escape in every case tried:
+    right after opening, after a click on its text or button, opened from a
+    `CommandBar` button by click or Enter, and from a collapsed `Műveletek`
+    entry. A `modal: false` window stayed open in both cases the report
+    names. Cause: Suite registers Escape only with a modal window's overlay
+    (`_blockScreen`), so a non-modal window has no Escape at all. The
+    framework's view guide is such a window. A defect against the
+    documented contract, not a focus exception.
+  - (3) Suite names the close button by its item id `close` (no value or
+    tooltip).
+- **Implemented:**
+  - `SuiteLabels.ts`, started when the bundle loads (with or without the
+    shell; the texts follow the page's language): one page-wide observer renames those elements when Suite draws them or
+    changes the name. A collapsable header becomes `{header} összecsukása` /
+    `{header} kinyitása` (`Összecsukás` / `Kinyitás` without a header),
+    following the collapsed state; a window's close button becomes
+    `Ablak bezárása` (Close window), also as its tooltip: not `Bezárás`,
+    which several framework windows (the uploader) already use for their
+    own lower button. This also covers a project's own Suite
+    Layout or Window. The catalogue (hu, en, de) has the five new texts.
+  - `openWindow` (`app.ui.window`, the view guide): a `modal: false` window
+    closes on Escape while the focus is inside it; an Escape a menu or
+    popup in it already took (`defaultPrevented`) is left alone, and one
+    pressed elsewhere on the page does not close it.
+- **Guides:** [toolkit window](toolkit.md#app-window),
+  [PageLayout header name](toolkit.md#pagelayout-collapse), M44, the
+  `WindowOptions`/`AppWindow` types, [usage](usage.md).
+- **Verification:** `node tools/build.mjs`, `npm run typecheck`,
+  `npm run demo:assets`; PHP `i18n` (catalogue and placeholder parity),
+  `contracts`, `configuration`, `toolkit`. On the managed demo:
+  `tests/shell/suite-labels.spec.cjs` at 1366 and 390 px (a collapsable
+  region's header named `Oldalpanel összecsukása`, `… kinyitása` after
+  `collapse`, back after a header click, no "click to" name left; a modal
+  and a `modal: false` window: the close button `Ablak bezárása`, Escape
+  right after opening and after a click on its text and its button; a
+  non-modal window ignores an Escape with the focus outside it). The specs
+  that found the close button by "close"/"Close" or a header by "click to
+  collapse"/"click to expand" use the new names (13 files); the two that
+  bundle a single component (not the `admin.ts` entry, so no renaming)
+  accept either. Regression (27 files, among them `files`, `grid-edit`,
+  `list-presentation`, `mobile-grid`, `preferences`, `tenancy`,
+  `workspace`, `registry`, `admin`, `dialogs`, `i18n`, `accordion`, `tabs`,
+  `uploader`, `task-page`, `page-layout-collapse`, `command-menu`): 124
+  passed, 7 failed. Five were the component fixtures above, now 25 passed
+  with `files`. `files` "tiles with thumbnails, folder and parent tiles"
+  failed twice after other `files` cases (the mount menu stayed on
+  `Signage:/`); alone it passes with and without this change, and the
+  whole `files` spec then passed (11).
+- **Limits:** other English Suite names stay as Suite writes them (for
+  example a combobox without a label is "Select value"); none was reported.
+- **Status:** implemented.

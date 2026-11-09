@@ -220,6 +220,18 @@ and the caller still gets the failure. Event handlers
 that throw are logged and do not stop other handlers; emitting a framework
 event name (with `:`) throws.
 
+<a id="app-window"></a>
+
+`app.ui.window` opens a framework document window (`AppWindow`). Escape
+closes it while the focus is inside it: right after it opens (it takes the
+focus) and after a click inside it. Suite gives only a modal window this key;
+the framework adds it to a `modal: false` window, which leaves an Escape
+pressed elsewhere on the page alone ([FB-0155](feedback.md#fb-0155)). An
+Escape that a menu or popup inside the window already took closes only that.
+The close button is named `Ablak bezárása` (Close window) in the page's
+language, with the same tooltip; a window's own `Bezárás` button keeps its
+name.
+
 Every subscription takes its owner's signal the same way, as the last
 argument `{signal}` (`SignalOptions`): `events.on`, `live.subscribe`,
 `theme.onChange`, `server.form` and every component's `on`. Aborting it
@@ -956,6 +968,12 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   bar.on("toggle", ({ id, pressed }) => id === "side" && (pressed ? work.expand("side") : work.collapse("side")));
   work.on("collapse", ({ id, collapsed }) => id === "side" && bar.update("side", { pressed: !collapsed }), { signal });
   ```
+- **Header name:** the header of a `collapsable` leaf is a button named
+  after its region and its state, `‹header› összecsukása` /
+  `‹header› kinyitása` in the page's language (`Összecsukás` / `Kinyitás`
+  without a header), in place of Suite's English "click to collapse"
+  ([FB-0155](feedback.md#fb-0155)). The same holds for every Suite Layout of
+  the page, the list layout's panels included.
 - Destroy it after the components in its cells (the [Layout recipe](#layout-recipe)).
   A list placed in a region is created with `panel: false`, so the region is
   its panel.
@@ -2388,6 +2406,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M41 | First sort and long text in cards ([list sort](workspaces.md#list-sort), [long text](workspaces.md#long-text-in-cards)): `sort` on `View::list`, `Registry::view`, `SqlResource::register` and JSON `view.sort`; bootstrap `options.sort`; a `textarea` field shows at most 4 lines on a card | [FB-0152](feedback.md#fb-0152) | info: specs that read a long `textarea` value from a card's visible text see the first 4 lines (the DOM keeps the whole value) | none | none |
 | M42 | [PageLayout](#pagelayout-collapse) `collapse(id)`, `expand(id)`, `isCollapsed(id)` and the `collapse` event; `attach(id, component)` of `PageLayout`, `Tabs` and `Accordion` mounts the component (its events are delivered) | [FB-0153](feedback.md#fb-0153) | info: a component attached into a region and then mounted again (or attached twice) throws `already mounted`; mount it once | none | none |
 | M43 | [CommandBar menu](#commandbar-menu): `{type: "menu", id, label, icon, iconOnly, items}`, one *more actions* button whose entries report `click` (a submenu of `Műveletek` when collapsed) | [FB-0154](feedback.md#fb-0154) | none | none | none |
+| M44 | Suite's English-only names in the page's language ([window](#app-window), [PageLayout](#pagelayout-collapse)): a `collapsable` Layout header is `‹header› összecsukása` / `‹header› kinyitása`, a window's close button `Ablak bezárása`; Escape closes a `modal: false` `app.ui.window` while the focus is inside it | [FB-0155](feedback.md#fb-0155) | info: specs that find a header by "click to collapse"/"click to expand" or a close button by "close" use the localized names | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

@@ -19,7 +19,7 @@ test('details, cards and marked rows run the bulk business action through one en
  await only(page,stamp);await expect.poll(()=>count(page)).toMatch(/ \/ Találat: 2"$/);
  await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
  const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});await expect(detail).toContainText('E2E részletes leírás 2');
- await detail.getByRole('button',{name:/close/i}).click();
+ await detail.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  await view(page,'Kártyák');const cards=page.locator('.blade-grid-card');await expect(cards.first()).toContainText('Részletes leírás');
  // The pointer left over the first card after closing the details; the theme's hover lift would offset it.
  await page.mouse.move(0,0);
@@ -41,7 +41,7 @@ test('read-only account never receives denied detail values or bulk actions',asy
  const responses=[];page.on('response',async response=>{if(response.request().method()==='POST'&&response.url().includes('blade=1'))responses.push(await response.text());});
  await signIn(page,'reader@example.test');await openView(page,'Feladatok');
  await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
- const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});await expect(detail).toContainText('Synthetic task');await expect(detail).not.toContainText('Részletes leírás');await detail.getByRole('button',{name:/close/i}).click();
+ const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});await expect(detail).toContainText('Synthetic task');await expect(detail).not.toContainText('Részletes leírás');await detail.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  await expect(page.getByRole('button',{name:'Lezárás',exact:true})).toHaveCount(0);await expect(page.getByRole('menuitem',{name:'Lezárás',exact:true})).toHaveCount(0);
  await view(page,'Kártyák');await expect(page.locator('.blade-grid-card').first()).not.toContainText('Részletes leírás');
  await page.setViewportSize({width:390,height:844});await command(page,'Szűrés');

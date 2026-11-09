@@ -309,7 +309,7 @@ MessageDialog.ts; actions use confirm, while successful action results and revea
 secrets use a non-blocking toast. Destructive dialogs
 focus Cancel; Enter activates only focused button; Escape always cancels confirmation.
 Consumers cannot create their own modal. Demo: Tasks → Párbeszéd actions.
-General rule: every framework `Window` is `modal: true`; while one is open the main layout behind the DHTMLX overlay is not operable. A non-modal `Window` is a defect.
+General rule: every framework `Window` is `modal: true`; while one is open the main layout behind the DHTMLX overlay is not operable. The one exception is the [view guide](workspaces.md#view-guide) (M34); a project's own `app.ui.window` may pass `modal: false`. Escape closes either kind while the focus is inside it ([FB-0155](feedback.md#fb-0155)).
 Actions without input fields run directly and acknowledge success with a
 non-blocking gritter/toast; a dialog is reserved for a justified confirmation
 or an error.
@@ -404,6 +404,12 @@ The commands of a selected item that need not stay visible go into one
 *more actions* button: a [`menu` item](toolkit.md#commandbar-menu) of the
 `CommandBar` (1–12 buttons and separators, each reporting `click`; a
 submenu of `Műveletek` when the bar is narrow).
+
+A page's own [`app.ui.window`](toolkit.md#app-window) closes on Escape while
+the focus is inside it, also with `modal: false`. Suite's English-only names
+are in the page's language: a `collapsable` header is `‹header›
+összecsukása` / `‹header› kinyitása`, a window's close button `Ablak bezárása`
+([FB-0155](feedback.md#fb-0155)).
 
 A record page that shows one item large, like a media player, is a two-column `PageLayout`: a control panel of
 [`SettingsForm`](toolkit.md#settingsform)s (local view settings with switches, segmented choices, ranges, colours

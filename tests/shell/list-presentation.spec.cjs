@@ -1,4 +1,6 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
+// A component fixture bundles one module, not the admin.ts entry, so a window's close button keeps Suite's name
+// "close" there (pages loading admin.js name it `Ablak bezárása`, FB-0155).
 const path=require('node:path');
 const {signIn,openView}=require('./feature-demo.cjs');
 const {root,lazyBundle}=require('./fixture.cjs');
@@ -34,7 +36,7 @@ test('cards use multiple columns; details include fields outside the grid; marks
  await expect(page.locator('[data-dhx-col-id="_number"]').first()).toBeVisible();
  await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
  const dialog=page.getByRole('dialog');await expect(dialog).toContainText('Details <img');await expect(dialog.locator('img')).toHaveCount(0);
- await expect(dialog).toContainText('Aktív');await dialog.getByRole('button',{name:'Close',exact:false}).click();
+ await expect(dialog).toContainText('Aktív');await dialog.getByRole('button',{name:/^(close|Ablak bezárása)$/}).click();
  await page.getByLabel('Sor jelölése: 1',{exact:true}).filter({visible:true}).check();await page.getByLabel('Sor jelölése: 2',{exact:true}).filter({visible:true}).check();
  await expect(page.getByRole('button',{name:'Archiválás',exact:true})).toBeEnabled();
  await expect(page.getByRole('button',{name:'Archiválás — jelöltek',exact:true})).toHaveCount(0);
@@ -155,7 +157,7 @@ for(const theme of ['blade','light','dark'])test(`compact commands retain ACL st
   await menu.click();await expect(page.getByRole('menuitem',{name:'Adatok',exact:true})).not.toHaveAttribute('aria-disabled','true');await page.getByRole('menuitem',{name:'Adatok',exact:true}).click();
   const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();
   await expect.poll(()=>dialog.locator('.dhx_window-header').evaluate(element=>element.getBoundingClientRect().height)).toBe(40);
-  const close=dialog.getByRole('button',{name:/close/i});
+  const close=dialog.getByRole('button',{name:/^(close|Ablak bezárása)$/});
   expect(await close.evaluate(button=>{const outer=button.closest('.dhx_window-header').getBoundingClientRect(),box=button.getBoundingClientRect();return box.top>=outer.top&&box.bottom<=outer.bottom;})).toBe(true);
   await page.screenshot({path:path.join(process.env.BLADE_TMP_DIR,`mobile-compact-popup-${theme}.png`),animations:'disabled'});
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
@@ -287,7 +289,7 @@ test('feature demo catalog: static images in table, tiles and details; missing f
  // The first row (newest) holds an invalid extension: no image. A plain file name shows its image.
  await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
  await expect(detail).toContainText('Extension');await expect(detail.locator('img')).toHaveCount(0);
- await detail.getByRole('button',{name:/close/i}).click();
+ await detail.getByRole('button',{name:/^(close|Ablak bezárása)$/}).click();
  await page.locator('.dhx_grid-row').filter({hasText:'Triangle'}).locator('[data-dhx-col-id="_number"]').dblclick();
  await expect(detail.locator('img[data-blade-static-image]')).toHaveCount(1);
  expect(errors).toEqual([]);

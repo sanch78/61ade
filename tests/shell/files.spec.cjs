@@ -210,7 +210,7 @@ test('upload validation, conflict dialog and the TXT editor',async({page})=>{
  await bar.getByRole('button',{name:'Sortörés',exact:true}).click();await expect(area).toHaveAttribute('wrap','off');
  await area.fill('szerkesztett szöveg\n');
  await expect(save).toBeEnabled();await expect(bar).toContainText('Módosítva');await expect(bar).toContainText('Sor 2, oszlop 1');
- await editor.getByRole('button',{name:/close/i}).click();
+ await editor.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  await expect(dialog(page).getByRole('heading',{name:'Mentetlen módosítások'})).toBeVisible();
  await dialog(page).getByRole('button',{name:'Mégse',exact:true}).click();
  await expect(area).toHaveValue('szerkesztett szöveg\n');
@@ -225,7 +225,7 @@ test('upload validation, conflict dialog and the TXT editor',async({page})=>{
  await expect(dialog(page).getByRole('heading',{name:'Ütközés'})).toBeVisible();
  await dialog(page).getByRole('button',{name:'Aktuális változat betöltése',exact:true}).click();
  await expect(area).toHaveValue('külső módosítás\n');await expect(bar).toContainText('Mentve');
- await editor.getByRole('button',{name:/close/i}).click();await expect(editor).toHaveCount(0);
+ await editor.getByRole('button',{name:'Ablak bezárása',exact:true}).click();await expect(editor).toHaveCount(0);
  const stale=await multipart(page,'text_save',txt,{revision:saved.body.data.revision},[['content','x.txt','régi\n']]);
  expect(stale.status).toBe(409);expect(stale.body.details.conflict.revision).not.toBe(saved.body.data.revision);
 });
@@ -257,7 +257,7 @@ test('image viewer and video player over the content_stream GET transport',async
  await expect.poll(()=>viewer.locator('.blade-image-frame').evaluate(element=>[element.offsetWidth,element.offsetHeight].join())).toBe('941,1672');
  // The viewer loads the GET stream URL directly (no blob copy); the revision only keys the cache.
  const source=await picture.getAttribute('src');expect(source).toMatch(/\?blade=1&resource=files&action=content_stream&id=\d+&v=\d+$/);
- await viewer.getByRole('button',{name:/close/i}).click();await expect(viewer).toHaveCount(0);
+ await viewer.getByRole('button',{name:'Ablak bezárása',exact:true}).click();await expect(viewer).toHaveCount(0);
  // Range, conditional and HEAD requests; the thumbnail derivative is WebP; other sites are refused.
  const whole=await page.request.get(source);expect(whole.status()).toBe(200);
  const etag=whole.headers()['etag'],size=(await whole.body()).length;
@@ -289,7 +289,7 @@ test('image viewer and video player over the content_stream GET transport',async
  await controls.getByRole('button',{name:'Teljes méret',exact:true}).click();
  await expect.poll(async()=>(await player.boundingBox()).width).toBeGreaterThan(1300);
  await controls.getByRole('button',{name:'Eredeti méret',exact:true}).click();
- await player.getByRole('button',{name:/close/i}).click();await expect(player).toHaveCount(0);
+ await player.getByRole('button',{name:'Ablak bezárása',exact:true}).click();await expect(player).toHaveCount(0);
  expect(errors).toEqual([]);
 });
 
@@ -554,9 +554,9 @@ test('viewer previous and next across the images, videos and audio of the listin
  await expect(windows).toHaveCount(1);await expect(shown(first)).toBeVisible();
  await page.keyboard.press('PageDown');await expect(shown(next)).toBeVisible();await expect(windows).toHaveCount(1);
  // The panel cursor followed: the command reopens the shown file.
- await windowDialog(page).getByRole('button',{name:/close/i}).click();await expect(windows).toHaveCount(0);
+ await windowDialog(page).getByRole('button',{name:'Ablak bezárása',exact:true}).click();await expect(windows).toHaveCount(0);
  await command(page,'Megtekintés');await expect(shown(next)).toBeVisible();
- await windowDialog(page).getByRole('button',{name:/close/i}).click();
+ await windowDialog(page).getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  expect(errors).toEqual([]);
 });
 

@@ -223,6 +223,7 @@ export interface WindowOptions {
    * A Layout or a component keeps the requested size (a `RecordForm` fits the window once its fields show). Default true.
    */
   fit?: boolean;
+  /** Default true. Either way Escape closes the window while the focus is inside it (a modal one: Suite's own key). */
   modal?: boolean;
   resizable?: boolean;
   /** Aborting it closes the window (pass `host.signal` so the window closes with its view). */
@@ -230,7 +231,8 @@ export interface WindowOptions {
 }
 
 /**
- * A framework document window (`blade-content-window`: 40 px themed header, close button, Escape closes). The window
+ * A framework document window (`blade-content-window`: 40 px themed header, a close button named `Ablak bezárása`, Escape
+ * closes it while the focus is inside it, also a non-modal one). The window
  * adds no inset: a Layout or a component fills it edge to edge, a Form or an element brings its own padding.
  * Owned by its creator; `close()` or the close button destroys the window and its attached content.
  */

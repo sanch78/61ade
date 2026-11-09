@@ -101,7 +101,7 @@ test('the reading-bar presentation renders in the table, the cards and the detai
  await rows(page).first().locator('[data-dhx-col-id="title"]').dblclick();
  const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});
  await expect(detail).toContainText('Reading 0001');await expect(detail.locator('.demo-reading-bar--card')).toBeVisible();
- await detail.getByRole('button',{name:/close/i}).click();
+ await detail.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  // Cards: every card shows the bar.
  await view(page,'Kártyák');
  const card=page.locator('.blade-grid-card').first();

@@ -39,9 +39,9 @@ test('grid size, sorting, view and panel width survive reload',async({page})=>{
  await page.reload();await expect(header).toHaveAttribute('aria-sort','ascending');
  await expect.poll(async()=>Math.round((await header.boundingBox()).width)).toBe(Math.round(width));
  await expect.poll(async()=>Math.round((await filter.boundingBox()).width)).toBe(Math.round(panelWidth));
- await filter.getByRole('button',{name:'click to collapse',exact:true}).click();
+ await filter.getByRole('button',{name:/ összecsukása$/}).click();
  await page.reload();
- await filter.getByRole('button',{name:'click to expand',exact:true}).click();
+ await filter.getByRole('button',{name:/ kinyitása$/}).click();
  await expect.poll(async()=>Math.round((await filter.boundingBox()).width)).toBe(Math.round(panelWidth));
  const cards=page.locator('.blade-grid-card');
  await view(page,'Kártyák');

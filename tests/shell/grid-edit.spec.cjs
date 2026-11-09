@@ -54,7 +54,7 @@ test('cards edit and sort, fitted windows and resize reset survive mode changes'
  const title=await task(page,1600),dialog=page.getByRole('dialog');
  async function gap(selector){return dialog.evaluate((el,selector)=>{const last=el.querySelector(selector);return el.getBoundingClientRect().bottom-last.getBoundingClientRect().bottom;},selector);}
  const row=page.locator('.dhx_grid-row').filter({hasText:title});await expect(row).toBeVisible({timeout:10000});
- const number=row.locator('[data-dhx-col-id="_number"]');await number.dblclick();await expect(dialog).toBeVisible();expect(await page.evaluate(()=>getSelection().toString())).toBe('');expect(await gap('.blade-record-details')).toBeLessThan(40);await dialog.getByRole('button',{name:'Close',exact:false}).click();
+ const number=row.locator('[data-dhx-col-id="_number"]');await number.dblclick();await expect(dialog).toBeVisible();expect(await page.evaluate(()=>getSelection().toString())).toBe('');expect(await gap('.blade-record-details')).toBeLessThan(40);await dialog.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  const checkbox=row.getByRole('checkbox',{name:'Értesítés',exact:true});
  const checkboxSize=await checkbox.locator('xpath=..').locator('.dhx_checkbox__visual-input').evaluate(el=>({width:getComputedStyle(el).width,height:getComputedStyle(el).height}));
  let delayed=false;
@@ -95,7 +95,7 @@ test('cards edit and sort, fitted windows and resize reset survive mode changes'
  await expect.poll(async()=>(await dialog.boundingBox()).height).toBeLessThanOrEqual(396);
  await expect.poll(async()=>{const bounds=await dialog.boundingBox();return bounds.y+bounds.height;}).toBeLessThanOrEqual(408);
  expect((await dialog.boundingBox()).y).toBeGreaterThanOrEqual(12);
- await dialog.getByRole('button',{name:/close/i}).click();
+ await dialog.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  await page.unroute('**/?blade=1');
  expect(errors).toEqual([]);
 });
