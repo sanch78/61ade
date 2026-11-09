@@ -325,16 +325,9 @@ try {
     verify($clips['options']['rowHeight'] === 64 && $clips['options']['tileMinWidth'] === 240 && $clips['options']['tiles'] === true, 'JSON row_height, tile_min_width and tiles');
     verify($columns['file_id']['media'] === 'library' && $columns['kind']['presentation'] === 'icon', 'JSON column.media and column.presentation');
     verify($media->registry->get('clips', 'list')->listSource->searchMetadata(new Context($actor, 'ui', $media->acl, $db)) === ['fields' => ['title']], 'JSON declared search');
-    verify(!isset($clips['options']['detailTabs']), 'No detailTabs without JSON detail_tabs');
     $clipsDefinition = json_decode(file_get_contents($mediaModule), true, flags: JSON_THROW_ON_ERROR);
-    // `detail_tabs`: the details window gains the Szerkesztés tab (docs/workspaces.md#detail-tabs); browser metadata `detailTabs`.
-    $tabbed = $clipsDefinition;
-    $tabbed['resources']['clips']['view']['detail_tabs'] = true;
-    file_put_contents($directory.'/media-variant.json', json_encode($tabbed, JSON_THROW_ON_ERROR));
-    $tabbedViews = WorkspaceConfiguration::build($db, [$directory.'/media-variant.json'], static fn() => [])->views($actor);
-    verify(array_values(array_filter($tabbedViews, static fn($view) => $view['resource'] === 'clips'))[0]['options']['detailTabs'] === true, 'JSON detail_tabs');
     foreach ([
-        ['view', 'tile_width', 200], ['view', 'row_height', 20], ['view', 'row_height', '56'], ['view', 'tile_min_width', 500], ['view', 'tiles', 'yes'], ['view', 'detail_tabs', 'yes'], ['view', 'search', ['kind']], ['view', 'search', ['missing']], ['view', 'search', 'title'],
+        ['view', 'tile_width', 200], ['view', 'row_height', 20], ['view', 'row_height', '56'], ['view', 'tile_min_width', 500], ['view', 'tiles', 'yes'], ['view', 'search', ['kind']], ['view', 'search', ['missing']], ['view', 'search', 'title'],
     ] as [$section, $key, $value]) {
         $variant = $clipsDefinition;
         $variant['resources']['clips'][$section][$key] = $value;

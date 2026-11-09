@@ -794,8 +794,6 @@ export interface ListKindOptions {
     rowHeight?: number;
     tileMinWidth?: number;
     tiles?: boolean;
-    /** The details window has an `Adatok` and, for a record that offers `update`, a `Szerkesztés` tab (JSON `detail_tabs`). */
-    detailTabs?: boolean;
     activate?: Activation;
     search?: {
         fields: string[];

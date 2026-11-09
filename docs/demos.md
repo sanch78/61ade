@@ -333,11 +333,7 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   image, video, audio or animation asset (table, `Kártyák`, `Csempék`), or
   `Lejátszás` on the toolbar, opens `Médianéző` at
   `#view=demo.asset-viewer&record=<id>` (reload keeps it, Back returns); an
-  asset without a file opens its `Rekordadatok`. The list declares
-  [`detail_tabs`](workspaces.md#detail-tabs): its `Adatok` command (and that
-  details window) has an `Adatok` and a `Szerkesztés` tab, so an asset is
-  viewed and edited in one window (`tests/shell/tabs.spec.cjs`); the reader,
-  without `update`, gets the plain details. `reader@example.test` views too. Texts are
+  asset without a file opens its `Rekordadatok`. `reader@example.test` views too. Texts are
   Hungarian source keys with English in `resources/locales/en.json`; the demo
   offers no German ([FB-0052](feedback.md#fb-0052)), so German exists only in
   the framework catalogue (`Hang`).
@@ -471,6 +467,9 @@ dynamic playback).
   activation map opens every row in the record view (the editable title cell
   renames inline on double-click), and the record command
   `demo.edit-playlist` (`Lista szerkesztése`) does the same from the toolbar.
+  The shell inherits this list's menu context in the editor: `Digitális kijelző`
+  stays underlined, and compact desktop navigation keeps the list's siblings
+  with `Lejátszási listák` selected, also on a direct link or reload.
 - **Items as a resource** (`modules/signage.json`, [FB-0108](feedback.md#fb-0108)):
   `signage_playlist_items` is a JSON resource embedded in `signage_playlists`
   (its sub-view: no menu entry, the playlist rows expand to their items). Its

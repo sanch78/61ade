@@ -19,7 +19,7 @@ export type Column={id:string;header:string;type?:string;media?:string;presentat
   /** A registered field type of the column's field (`app.fieldTypes`). */
   editor?:string}&Resolved;
 /** The list kind's internal shape: the view's shared keys beside its `options` (definition.ts `listDefinition`). */
-export type ViewDefinition={id:string;resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:Column[];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;detailTabs?:boolean;
+export type ViewDefinition={id:string;resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:Column[];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;
   /** Double-click/Enter: one target or a per-row `{field, map}` (activation.ts). */
   activate?:Activation;search?:{fields:string[]};columns:Column[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
   /** Records expand to the `resource` list filtered to `field` = record id: its own `view`, or this view when `shared`. */

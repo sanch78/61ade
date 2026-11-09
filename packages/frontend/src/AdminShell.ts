@@ -165,10 +165,13 @@ export class AdminShell {
     // 16 px row inset; only the full menu reserves logout and its 17 px separator.
     const required=(items:any[],logout=this.definition.authenticated)=>items.reduce((sum:number,item:any,index:number)=>sum+itemWidth(item)+(index&&item.separatorBefore?17:0),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
     const compact = width < Math.max(768,required(this.menuItems));
-    const current="view:"+(parseRoute(location.hash).view??"");
+    const view=this.offered(parseRoute(location.hash).view??"");
+    // Record pages have no menu entry: inherit the first offered menu view of their record resource.
+    const menuView=view?.record?(this.definition.views??[]).find(candidate=>!candidate.record&&candidate.resource===view.record&&(!view.group||candidate.group===view.group)):view;
+    const current=menuView?"view:"+menuView.id:view?.group?"group:"+view.group:"";
     const siblings=(items:any[],nested=false):any[]|undefined=>{
       for(const item of items){
-        if(item.id===current)return nested?items:undefined;
+        if(item.id===current)return item.items??(nested?items:undefined);
         const found=item.items&&siblings(item.items,true);
         if(found)return found;
       }

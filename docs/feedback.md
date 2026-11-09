@@ -606,3 +606,7 @@
 <a id="fb-0146"></a>
 
 ## FB-0146 — Remove the demo menu group separator
+
+<a id="fb-0147"></a>
+
+## FB-0147 — Keep the menu context on record pages
