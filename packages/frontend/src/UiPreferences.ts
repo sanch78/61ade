@@ -65,7 +65,8 @@ export class UiPreferences {
     };
     return visit(tree) as T;
   }
-  bindLayout(layout:Layout,tree:Region):void{
+  /** Keeps sizes and collapsed panels; a collapse while $transient() returns true (a page's own call) is not kept. */
+  bindLayout(layout:Layout,tree:Region,transient:()=>boolean=()=>false):void{
     const nodes:Region[]=[];
     const visit=(node:Region)=>{if(node.id)nodes.push({...node});node.rows?.forEach(visit);node.cols?.forEach(visit);};visit(tree);
     const save=(id:string,collapse=false)=>{
@@ -96,8 +97,8 @@ export class UiPreferences {
       event.preventDefault();this.save();layout.paint();
     });
     layout.events.on("resize",id=>save(id));
-    layout.events.on("afterCollapse",id=>save(id,true));
-    layout.events.on("afterExpand",id=>save(id,true));
+    layout.events.on("afterCollapse",id=>{if(!transient())save(id,true);});
+    layout.events.on("afterExpand",id=>{if(!transient())save(id,true);});
   }
   bindGrid(grid:Grid):void{
     if(Array.isArray(this.state.columns))for(const saved of this.state.columns){

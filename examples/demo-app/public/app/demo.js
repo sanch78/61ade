@@ -1205,7 +1205,7 @@ function page(app, host, view) {
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     previous?.abort();
     const control = { id: "control", header: t("Feladat"), collapsable: true };
-    const tabs = { tabs: [{ id: "notes", header: t("Jegyzetek") }] };
+    const tabs = { tabs: [...notes ? [{ id: "work", header: t("Munka") }] : [], { id: "notes", header: t("Jegyzetek") }] };
     const layout = new app.components.PageLayout({
       id: `${view.id}.${phone.matches ? "narrow" : "wide"}`,
       tree: phone.matches ? { rows: [{ ...tabs, minHeight: 240 }, { ...control, height: 320, minHeight: 120, resizable: true }] } : { cols: [{ ...control, width: 360, minWidth: 260, resizable: true }, { ...tabs, minWidth: 320 }] }
@@ -1234,10 +1234,68 @@ function page(app, host, view) {
       if (open && id === "edit") edit();
     }, { signal });
     if (sections.isOpen("edit")) edit();
-    let noteList;
+    let noteList, workList, selected, work, bar;
     if (notes) {
       noteList = new app.components.ListView({ view: notes, scope: { field: "task_id", id: task }, mode: "cards", panel: false, showId: false });
       noteList.mount(layout.cell("notes"));
+      work = new app.components.PageLayout({
+        id: `${view.id}.work.${phone.matches ? "narrow" : "wide"}`,
+        tree: phone.matches ? { rows: [{ id: "commands", height: 56 }, { id: "main", minHeight: 160 }, { id: "side", header: t("Kijel\xF6lt jegyzet"), height: 240, minHeight: 120, collapsable: true, resizable: true }] } : { rows: [{ id: "commands", height: 56 }, { cols: [{ id: "main", minWidth: 240 }, { id: "side", header: t("Kijel\xF6lt jegyzet"), width: 340, minWidth: 220, collapsable: true, resizable: true }] }] }
+      });
+      layout.attach("work", work);
+      const side = work;
+      bar = new app.components.CommandBar({ label: t("Munka"), signal, items: [
+        { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "dxi dxi-border-right", pressed: !side.isCollapsed("side") }
+      ] });
+      bar.mount(side.cell("commands"));
+      side.on("collapse", ({ id, collapsed }) => {
+        if (id === "side") bar?.update("side", { pressed: !collapsed });
+      }, { signal });
+      bar.on("toggle", ({ id, pressed: pressed2 }) => {
+        if (id === "side") {
+          if (pressed2) side.expand("side");
+          else side.collapse("side");
+        }
+      });
+      workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, mode: "table", panel: false, showId: false });
+      workList.mount(side.cell("main"));
+      const panel = document.createElement("div"), hint = document.createElement("p");
+      panel.style.cssText = "width:100%;height:100%";
+      hint.style.cssText = "margin:16px";
+      hint.textContent = t("V\xE1lassz egy jegyzetet.");
+      panel.append(hint);
+      side.attach("side", panel);
+      workList.on("target", ({ row: note }) => {
+        if (!note) return;
+        if (selected) {
+          void selected.show(note).catch(() => {
+          });
+          return;
+        }
+        hint.remove();
+        selected = new app.components.RecordDetails({ view: notes, record: note, showId: false });
+        selected.mount(panel);
+      }, { signal });
+      if (phone.matches) {
+        const pages = layout.tabsOf("work");
+        let restore = false;
+        const follow = (active) => {
+          if (active === "work") {
+            if (!layout.isCollapsed("control")) {
+              restore = true;
+              layout.collapse("control");
+            }
+          } else if (restore) {
+            restore = false;
+            layout.expand("control");
+          }
+        };
+        layout.on("collapse", ({ id }) => {
+          if (id === "control" && pages.active() === "work" && !layout.isCollapsed("control")) restore = false;
+        }, { signal });
+        pages.on("change", ({ id }) => follow(id), { signal });
+        follow(pages.active());
+      }
     } else {
       const empty = document.createElement("p");
       empty.style.cssText = "margin:16px";
@@ -1249,6 +1307,10 @@ function page(app, host, view) {
       form = void 0;
       noteList?.destroy();
       noteList = void 0;
+      selected?.destroy();
+      workList?.destroy();
+      bar?.destroy();
+      work?.destroy();
       sections.destroy();
       layout.destroy();
     }, { once: true });

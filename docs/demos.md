@@ -574,6 +574,17 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
   `update` form, created when it first opens; disabled without `update`).
   On a desktop it sits left of the tabs (360 px, resizable); below 768 px
   the page is rows, the tabs above it.
+- **`Munka` tab** (first): a nested `PageLayout` attached into the tab: a
+  `CommandBar` above the task's notes as a table (the same list under the
+  page's own id `demo.task-page.work`, so it keeps a table beside the
+  cards), and the collapsible side panel `Kijelölt jegyzet` with the
+  selected note (`RecordDetails`; below the table on a phone). The bar's
+  toggle `Oldalpanel` collapses and opens it from code
+  ([collapse](toolkit.md#pagelayout-collapse)), and follows the panel's own
+  header through the `collapse` event. On a phone the control region
+  collapses to its header while `Munka` is shown and opens again on
+  `Jegyzetek`; a header click of the user while `Munka` is shown is kept as
+  the user's choice.
 - **`Jegyzetek` tab:** the task's notes, `demo_task_notes`, a list view
   with [`menu: false`](toolkit.md#menu-less-views) and the [first
   sort](workspaces.md#list-sort) `id` ascending (oldest first), mounted as
@@ -587,8 +598,10 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
 - **Verification:** `npm run test:browser -- tests/shell/task-page.spec.cjs`
   (the command opens the page; no menu entry; at 1366 and 390 px the cards
   in declared order, the long note at most 4 lines and clipped, `Adatok`
-  with the whole text), `php8.4 tests/shell/toolkit.php` and
-  `configuration.php` (`sort`).
+  with the whole text; `Munka`: the selected note in the panel, the toggle
+  and the header in step, the header collapse kept and the toggle's not,
+  the phone's control region), `tests/shell/page-layout-collapse.spec.cjs`,
+  `php8.4 tests/shell/toolkit.php` and `configuration.php` (`sort`).
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),

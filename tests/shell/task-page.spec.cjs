@@ -49,7 +49,8 @@ for(const [width,height] of [[1366,900],[390,844]])test(`notes at ${width} px: o
  await page.setViewportSize({width,height});
  await signIn(page,'demo@example.test',`/#view=demo.task-page&record=${task}`);
  await page.getByRole('tab',{name:'Jegyzetek',exact:true}).click();
- const cards=page.locator('.blade-grid-card');
+ const notesTab=page.getByRole('tabpanel',{name:'Jegyzetek',exact:true});
+ const cards=notesTab.locator('.blade-grid-card');
  await expect(cards).toHaveCount(3);
  // The declared sort: oldest first (id ascending), without any kept sort of the user.
  await expect(cards.nth(0)).toContainText(`${prefix} első`);
@@ -63,7 +64,7 @@ for(const [width,height] of [[1366,900],[390,844]])test(`notes at ${width} px: o
  expect((await clamp(cards.nth(0))).clipped).toBe(false);
  // Adatok of the long note shows the whole text.
  await cards.nth(1).click();
- const tab=page.getByRole('tabpanel').filter({has:cards.first()});
+ const tab=notesTab;
  await (await tab.getByRole('button',{name:'Műveletek'}).isVisible()?tab.getByRole('button',{name:'Műveletek'}).click().then(()=>page.getByRole('menuitem',{name:'Adatok',exact:true}).click()):tab.getByRole('button',{name:'Adatok',exact:true}).click());
  const details=page.locator('.blade-record-details').last();
  await expect(details).toContainText(`${prefix} bekezdés 8.`);
@@ -71,5 +72,67 @@ for(const [width,height] of [[1366,900],[390,844]])test(`notes at ${width} px: o
  expect(full.clipped).toBe(false);
  expect(full.length).toBe(long.length);
  await page.keyboard.press('Escape');
+ expect(errors).toEqual([]);
+});
+
+// Part of FB-0153 (docs/toolkit.md#pagelayout, collapse from code): the `Munka` tab's side panel follows the bar's
+// toggle and its own header; the user's header collapse is kept, the page's own call is not.
+const collapsed=cell=>cell.evaluate(e=>e.classList.contains('dhx_layout-cell--collapsed'));
+const region=(page,id)=>page.locator(`.dhx_layout-cell[data-cell-id="${id}"]`).first();
+for(const [width,height] of [[1366,900],[390,844]])test(`Munka at ${width} px: the side panel follows the toggle and its header; only the user's collapse is kept`,async({page})=>{
+ const errors=pageErrors(page);
+ await page.setViewportSize({width,height});
+ await signIn(page,'demo@example.test',`/#view=demo.task-page&record=${task}`);
+ await page.getByRole('tab',{name:'Munka',exact:true}).click();
+ // The bar's toggle: a pressed button, or a checked entry of its `Műveletek` menu when the bar is narrow.
+ const work=page.getByRole('tabpanel',{name:'Munka',exact:true});
+ const button=work.getByRole('button',{name:'Oldalpanel',exact:true});
+ const narrow=async()=>!(await button.isVisible());
+ const toggle={click:async()=>{if(await narrow()){await work.getByRole('button',{name:'Műveletek'}).first().click();await page.getByRole('menuitemcheckbox',{name:'Oldalpanel'}).click();}else await button.click();}};
+ const pressed=async()=>{if(!(await narrow()))return button.getAttribute('aria-pressed');await work.getByRole('button',{name:'Műveletek'}).first().click();const value=await page.getByRole('menuitemcheckbox',{name:'Oldalpanel'}).getAttribute('aria-checked');await page.keyboard.press('Escape');return value;};
+ const side=region(page,'side');
+ await expect.poll(pressed).toBe('true');
+ expect(await collapsed(side)).toBe(false);
+ // A selected note shows in the panel.
+ await page.getByRole('tabpanel',{name:'Munka',exact:true}).locator('.dhx_grid-row, .blade-grid-card').filter({hasText:`${prefix} harmadik`}).first().click();
+ await expect(side.locator('.blade-record-details')).toContainText(`${prefix} harmadik`);
+ // The toggle collapses it from code: not kept, a new opening shows the panel again.
+ await toggle.click();
+ await expect.poll(pressed).toBe('false');
+ await expect.poll(()=>collapsed(side)).toBe(true);
+ await page.reload();
+ await page.getByRole('tab',{name:'Munka',exact:true}).click();
+ await expect.poll(()=>collapsed(region(page,'side'))).toBe(false);
+ await expect.poll(pressed).toBe('true');
+ // The user's header collapse: the toggle follows, and it is kept.
+ await region(page,'side').locator('.dhx_layout-cell-header').first().click();
+ await expect.poll(()=>collapsed(region(page,'side'))).toBe(true);
+ await expect.poll(pressed).toBe('false');
+ await page.reload();
+ await page.getByRole('tab',{name:'Munka',exact:true}).click();
+ await expect.poll(()=>collapsed(region(page,'side'))).toBe(true);
+ await expect.poll(pressed).toBe('false');
+ // The toggle opens it again (from code; the kept choice stays collapsed until the user's header opens it).
+ await toggle.click();
+ await expect.poll(()=>collapsed(region(page,'side'))).toBe(false);
+ await region(page,'side').locator('.dhx_layout-cell-header').first().click();
+ await region(page,'side').locator('.dhx_layout-cell-header').first().click();
+ await expect.poll(()=>collapsed(region(page,'side'))).toBe(false);
+ if(width<768){
+  // On a phone the control region collapses while Munka is shown and comes back on another tab; never kept.
+  const control=region(page,'control');
+  await expect.poll(()=>collapsed(control)).toBe(true);
+  await page.getByRole('tab',{name:'Jegyzetek',exact:true}).click();
+  await expect.poll(()=>collapsed(control)).toBe(false);
+  await page.getByRole('tab',{name:'Munka',exact:true}).click();
+  await expect.poll(()=>collapsed(control)).toBe(true);
+  await page.getByRole('tab',{name:'Jegyzetek',exact:true}).click();
+  await page.reload();
+  await expect(page.getByRole('tab',{name:'Jegyzetek',exact:true})).toHaveAttribute('aria-selected','true');
+  await expect.poll(()=>collapsed(region(page,'control'))).toBe(false);
+ }else{
+  // On a desktop the control region stays as the user left it.
+  expect(await collapsed(region(page,'control'))).toBe(false);
+ }
  expect(errors).toEqual([]);
 });
