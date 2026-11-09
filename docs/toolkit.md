@@ -1025,7 +1025,9 @@ sections.on("toggle", ({ id, open }) => {
   and a chevron (down: open, right: closed).
 - Presentation (every skin, from the Suite and skin variables): the Suite
   Layout cell header (37 px, the header surface, Blade chrome and title type),
-  so sections read like the page's other panels.
+  so sections read like the page's other panels. A header after an open
+  section has a 1 px top border in the theme's border colour to separate it
+  from that section's content; consecutive closed sections keep one divider.
 - **Subdividing a section:** a section is a mount target like any cell, so
   an `Accordion` mounted into `cell(id)` divides it further (a control
   panel's `Megjelenés` section with its own `Rács` and `Háttér` parts).

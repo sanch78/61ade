@@ -5232,6 +5232,15 @@ that exactly equals an option label lists every option. The managed
   `i18n`, `layout-resizer`): 31 passed. Temporary screenshots in Blade,
   Blade Night, light and dark at 1400 px and Blade at 390 px were inspected
   and removed. No full-smoke claim.
+- **Presentation correction (2026-11-09):** a header following an open
+  section has a 1 px top border using the Suite theme's border colour, so it
+  does not merge with the preceding content. Consecutive closed headers keep
+  one divider. Implemented in `packages/frontend/src/admin.css` and documented
+  in [Accordion presentation](toolkit.md#accordion). Verification: build,
+  typecheck, demo assets and the managed-demo `accordion.spec.cjs` (2 passed);
+  temporary browser assertions checked the top border after an open section
+  and its absence on the first header and between closed sections. The
+  screenshot was inspected; temporary checks and screenshot were removed.
 - **Limits:** vertical sections only; no resizing between open sections
   (they share the height equally), no reordering, no header icons, no guard.
   A form divided into sections is one form per section.
