@@ -166,4 +166,12 @@ export const ui: Ui = {
     message({ text, css: "blade-toast" + (severity === "neutral" ? "" : " blade-toast--" + severity), expire: severity === "neutral" ? 4000 : 8000 });
   },
   window: options => openWindow(options),
+  attach(target, content, options) {
+    const signal = signalOf(options, "ui.attach");
+    if (!signal) throw new TypeError("61ade: ui.attach needs the owner's signal ({ signal }).");
+    if (!target || typeof target.attach !== "function" || typeof target.attachHTML !== "function")
+      throw new TypeError("61ade: ui.attach takes a Suite Layout cell (layout.getCell(id)).");
+    if (!content || typeof content !== "object") throw new TypeError("61ade: ui.attach takes a Suite widget, a component or an element.");
+    if (!signal.aborted) attachContent(target, content, signal);
+  },
 };

@@ -146,7 +146,11 @@ something silently looks plain.
 - Read the [pitfalls](../../../docs/toolkit.md#pitfalls) before the first page:
   - A cell that showed `attachHTML` markup and then gets `attach()` renders
     empty. Give alternating content a fresh one-cell box Layout.
-  - Only `ViewHost.attach` puts an element into a cell.
+  - Suite's `cell.attach(element)` throws. Put your own element (a canvas, a
+    drawn stage) into any cell with `app.ui.attach(cell, element, {signal})`
+    ([cell content](../../../docs/toolkit.md#cell-content)), edge to edge
+    between bars in a `type: "none"` box. Do not wrap it in a one-region
+    `PageLayout`, which draws a framed panel.
   - Suite Standard has no Form `container`, and `togglegroup` and Slider are
     not announced, so give them text and a keyboard route.
   - `ListView` preferences are keyed by the id of the definition it holds. A

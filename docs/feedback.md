@@ -5718,3 +5718,54 @@ that exactly equals an option label lists every option. The managed
   the shared composition was reproduced on the feature demo. Application
   borders or shadows declared by consumer CSS are outside this change.
 - **Status:** implemented.
+
+<a id="fb-0157"></a>
+
+## FB-0157 — A project element filling a Layout cell edge to edge
+
+- **Date:** 2026-11-09.
+- **Request:** a consumer shows a live, interactive project-drawn preview in
+  a tab of a `PageLayout`, with a `CommandBar` above and below it, like a
+  media player. The record-view recipe gives the bars a borderless
+  `type: "none"` Layout, but only `ViewHost.attach` and the `attach` of
+  `PageLayout`, `Tabs` and `Accordion` put an element into a cell. Suite's
+  `cell.attach(element)` throws (`this._ui.getRootView is not a function`)
+  and `attachHTML` is static markup, while the element keeps listeners,
+  focus and a frame loop. The only public route, a one-region `PageLayout`
+  in the stage cell, draws a framed panel inside the panel, which the owner
+  rejected. Requirement: a public way to put a plain element into any Suite
+  Layout cell with the wrapping `PageLayout.attach` already does, or a flush
+  `PageRegion`; the element fills the cell, keeps listeners and focus across
+  redraws and resizes, and is released with the layout.
+- **Decision:** the first option. The framework's existing internal
+  placement (`attachContent`, behind every `attach` above) becomes public as
+  `app.ui.attach(cell, content, {signal})`. It works in any Suite Layout,
+  the recipe's own box included. A flush `PageRegion` was not added: the
+  recipe's box already gives the borderless rows, and a second way to
+  compose the same bars would duplicate it.
+- **Implemented:** `Ui.attach(target: LayoutCell, content: Mountable,
+  {signal})`. A plain element sits in a full-size slot of the cell (no
+  padding or border) and keeps its node through Suite redraws. Aborting the
+  signal removes it. A widget or component is attached or mounted as by
+  `PageLayout.attach`. A missing signal, a target that is not a cell or
+  non-object content throws `TypeError`; an aborted signal attaches nothing.
+  Feature demo: the D7 task page's new `Vázlat` tab, a canvas the module
+  draws between a top and a bottom `CommandBar` in a `type: "none"` box.
+  Additive (M45).
+- **Guides:** [cell content](toolkit.md#cell-content) beside the Layout
+  recipe, the [pitfall](toolkit.md#pitfalls) updated, [usage](usage.md),
+  [D7](demos.md#d7-task-page), the toolkit [changes](toolkit.md#changes).
+- **Verification:** `npm run typecheck`, `npm run build`,
+  `npm run demo:assets`; PHP `i18n`, `contracts`, `configuration`,
+  `toolkit`; `node tests/shell/toolkit-kernel.mjs`, `toolkit-components.mjs`,
+  `toolkit-registries.mjs`; shell `task-page.spec.cjs`, `tabs.spec.cjs`,
+  `page-layout-collapse.spec.cjs` passed on the managed demo. Temporary browser
+  cases at 1366 and 390 px checked that the canvas equals the stage cell
+  (between the bars, panel-wide, zero border and padding). It stays the same
+  node, keeps its focus and drawing and still draws after a resizer drag or
+  height change, a tab switch and the phone rebuild. Ctrl+Z and
+  `Visszavonás` undo, and leaving the page disconnects it. A plain box Layout
+  fixture checked the `TypeError` cases, the aborted signal, the full
+  height and the release. The 1366 px screenshot was inspected. Temporary
+  cases and screenshots were removed.
+- **Status:** implemented.

@@ -418,6 +418,15 @@ and chips, kept per user with `key`, never written to the server) and a viewer w
 button groups and a range, all usable from the collapsed `Műveletek` menu). The page builds no panels, forms or
 toolbars of its own.
 
+A project's own rendering element (a canvas or other surface its code draws)
+goes between such bars edge to edge with
+[`app.ui.attach(cell, element, {signal})`](toolkit.md#cell-content): the
+recipe's borderless `type: "none"` Layout of commands, stage and footer, the
+element in the stage cell without a card, padding or border. It works in a
+tab as well. The element keeps its listeners and focus across redraws, resizes
+and tab switches and leaves with the build's signal
+([FB-0157](feedback.md#fb-0157)).
+
 A list view's [`activate`](workspaces.md#activation) (JSON `view.activate`)
 declares what double-click and Enter run on a record in table, cards and
 tiles: `details`, `subview` (the record's full child list, also when empty),

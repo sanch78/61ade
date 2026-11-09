@@ -1186,6 +1186,90 @@ var playlist_editor_default = playlistEditor;
 // examples/demo-app/frontend/src/task-page.ts
 var KIND5 = "demo.task-page";
 var PHONE2 = "(max-width: 767px)";
+var COLORS = { ink: "", blue: "#1f6feb", red: "#d1242f" };
+function sketchPad(label, signal) {
+  const canvas = document.createElement("canvas"), context = canvas.getContext("2d");
+  canvas.style.cssText = "display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;background:var(--dhx-background-primary)";
+  canvas.tabIndex = 0;
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", label);
+  canvas.dataset.demoSketch = "";
+  const strokes = [], pen = { color: "ink", width: 3 }, listeners = /* @__PURE__ */ new Set();
+  let frame = 0, current;
+  const paint = () => {
+    frame = 0;
+    const { width, height } = canvas.getBoundingClientRect(), ratio = devicePixelRatio || 1;
+    if (!width || !height) return;
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.lineCap = context.lineJoin = "round";
+    const ink = getComputedStyle(canvas).color;
+    for (const stroke of strokes) {
+      context.strokeStyle = COLORS[stroke.color] || ink;
+      context.lineWidth = stroke.width;
+      context.beginPath();
+      stroke.points.forEach(([x, y], n) => n ? context.lineTo(x * width, y * height) : context.moveTo(x * width, y * height));
+      if (stroke.points.length === 1) context.lineTo(stroke.points[0][0] * width, stroke.points[0][1] * height);
+      context.stroke();
+    }
+  };
+  const changed = () => {
+    if (!frame) frame = requestAnimationFrame(paint);
+    for (const listener of listeners) listener();
+  };
+  const point = (event) => {
+    const box = canvas.getBoundingClientRect();
+    return [(event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height];
+  };
+  canvas.addEventListener("pointerdown", (event) => {
+    canvas.focus();
+    canvas.setPointerCapture(event.pointerId);
+    strokes.push(current = { color: pen.color, width: pen.width, points: [point(event)] });
+    changed();
+  }, { signal });
+  canvas.addEventListener("pointermove", (event) => {
+    if (current) {
+      current.points.push(point(event));
+      changed();
+    }
+  }, { signal });
+  for (const type of ["pointerup", "pointercancel"]) canvas.addEventListener(type, () => {
+    current = void 0;
+  }, { signal });
+  canvas.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && strokes.length) {
+      event.preventDefault();
+      strokes.pop();
+      changed();
+    }
+  }, { signal });
+  const resize = new ResizeObserver(() => {
+    if (!frame) frame = requestAnimationFrame(paint);
+  });
+  resize.observe(canvas);
+  signal.addEventListener("abort", () => {
+    resize.disconnect();
+    cancelAnimationFrame(frame);
+  }, { once: true });
+  return {
+    element: canvas,
+    pen,
+    count: () => strokes.length,
+    undo: () => {
+      if (strokes.pop()) changed();
+    },
+    clear: () => {
+      strokes.length = 0;
+      changed();
+    },
+    /** Called after every change of the strokes (the bars' enabled state). */
+    onChange: (listener, options) => {
+      listeners.add(listener);
+      options.signal.addEventListener("abort", () => listeners.delete(listener), { once: true });
+    }
+  };
+}
 function page(app, host, view) {
   const t = (key, params) => app.i18n.t(key, params);
   if (!host.record) throw new Error(t("A feladatlap egy feladathoz ny\xEDlik meg."));
@@ -1195,6 +1279,7 @@ function page(app, host, view) {
   const editable = !!list?.actions.some((action) => action.name === "update") && (!Array.isArray(row._actions) || row._actions.includes("update"));
   const phone = matchMedia(PHONE2);
   let build;
+  const sketch = sketchPad(t("V\xE1zlat"), host.signal);
   host.setTitle(`${view.title}: ${String(row.title ?? task)}`);
   const root = document.createElement("div");
   root.style.cssText = "width:100%;height:100%";
@@ -1205,7 +1290,7 @@ function page(app, host, view) {
     host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
     previous?.abort();
     const control = { id: "control", header: t("Feladat"), collapsable: true };
-    const tabs = { tabs: [...notes ? [{ id: "work", header: t("Munka") }] : [], { id: "notes", header: t("Jegyzetek") }] };
+    const tabs = { tabs: [...notes ? [{ id: "work", header: t("Munka") }] : [], { id: "notes", header: t("Jegyzetek") }, { id: "sketch", header: t("V\xE1zlat") }] };
     const layout = new app.components.PageLayout({
       id: `${view.id}.${phone.matches ? "narrow" : "wide"}`,
       tree: phone.matches ? { rows: [{ ...tabs, minHeight: 240 }, { ...control, height: 320, minHeight: 120, resizable: true }] } : { cols: [{ ...control, width: 360, minWidth: 260, resizable: true }, { ...tabs, minWidth: 320 }] }
@@ -1332,6 +1417,42 @@ function page(app, host, view) {
       empty.textContent = t("A jegyzetek nem \xE9rhet\u0151k el.");
       layout.attach("notes", empty);
     }
+    const box = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "stage" }, { id: "footer", height: 48 }] });
+    layout.attach("sketch", box);
+    const tools = new app.components.CommandBar({ label: t("V\xE1zlat"), signal, items: [
+      {
+        type: "segmented",
+        id: "color",
+        label: t("Sz\xEDn"),
+        value: sketch.pen.color,
+        options: [{ value: "ink", label: t("Tinta") }, { value: "blue", label: t("K\xE9k") }, { value: "red", label: t("Piros") }]
+      },
+      { type: "spacer" },
+      { id: "clear", label: t("T\xF6rl\xE9s"), icon: "dxi dxi-delete", disabled: !sketch.count() }
+    ] });
+    tools.mount(box.getCell("commands"));
+    app.ui.attach(box.getCell("stage"), sketch.element, { signal });
+    const footer = new app.components.CommandBar({ label: t("Toll"), placement: "bottom", signal, items: [
+      { type: "range", id: "width", label: t("Vonalvastags\xE1g"), min: 1, max: 12, value: sketch.pen.width, valueLabel: true },
+      { id: "undo", label: t("Visszavon\xE1s"), icon: "dxi dxi-undo", disabled: !sketch.count() }
+    ] });
+    footer.mount(box.getCell("footer"));
+    tools.on("change", ({ id, value }) => {
+      if (id === "color") sketch.pen.color = String(value);
+    });
+    tools.on("click", ({ id }) => {
+      if (id === "clear") sketch.clear();
+    });
+    footer.on("change", ({ id, value }) => {
+      if (id === "width") sketch.pen.width = Number(value);
+    });
+    footer.on("click", ({ id }) => {
+      if (id === "undo") sketch.undo();
+    });
+    sketch.onChange(() => {
+      tools.update("clear", { disabled: !sketch.count() });
+      footer.update("undo", { disabled: !sketch.count() });
+    }, { signal });
     signal.addEventListener("abort", () => {
       form?.destroy();
       form = void 0;
@@ -1341,6 +1462,7 @@ function page(app, host, view) {
       workList?.destroy();
       bar?.destroy();
       work?.destroy();
+      box.destructor();
       sections.destroy();
       layout.destroy();
     }, { once: true });

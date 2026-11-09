@@ -178,7 +178,7 @@ each member with one example.
 | `apiVersion` | `1` ([O11](#resolved-decisions)); a value of `app` only, `admin.d.ts` declares just its type `ApiVersion` | — |
 | `dhx` | The Suite namespace the shell uses (one instance, Standard edition) | `@dhtmlx/suite` import of the bundle |
 | `server` | Action calls, raw responses, `__form`, GET URLs | six private `fetch` transports, `ActionUrl.ts` |
-| `ui` | `dialog`, `choice`, `toast`, `window` | `MessageDialog.ts`, Suite `message`, `WindowSizing.ts` |
+| `ui` | `dialog`, `choice`, `toast`, `window`, `attach` ([cell content](#cell-content)) | `MessageDialog.ts`, Suite `message`, `WindowSizing.ts` |
 | `uploads` | `open`, `reopen` of the shared uploader | `Uploader.ts` `uploads` |
 | `i18n` | `t`, `locale`, `languages` | `I18n.ts` |
 | `theme` | `current`, `skin`, `onChange(listener, {signal})` | AdminShell theme/skin handling |
@@ -202,6 +202,7 @@ if (await app.ui.dialog({ message: app.i18n.t("Biztosan?"), mode: "confirm", sev
 const choice = await app.ui.choice({ message: "…", choices: [{ value: "a", label: "A" }] });
 app.ui.toast(app.i18n.t("Másolva."));
 const win = app.ui.window({ title: "Előnézet", width: 720, signal: host.signal }); win.attach(layout);
+app.ui.attach(layout.getCell("stage"), canvas, { signal });  // an element into any Layout cell (#cell-content)
 app.uploads.open({ resource: "files", action: "upload", target: folderId, targetLabel: "Drive A:/", policy });
 app.i18n.t("{count} elem", { count: 3 }); app.i18n.locale();
 app.theme.onChange((theme, skin) => chart.paint(), { signal: host.signal });
@@ -1938,6 +1939,35 @@ new app.components.RecordDetails({ view: list, record: row, signal }).mount(layo
 signal.addEventListener("abort", () => layout.destructor(), { once: true });
 ```
 
+<a id="cell-content"></a>
+
+**A project element in a cell** ([FB-0157](feedback.md#fb-0157)):
+`app.ui.attach(cell, content, { signal })` puts a plain element (or a Suite
+widget or component) into any Suite Layout cell, the recipe's own
+`type: "none"` Layout included, with the wrapping that `PageLayout.attach`,
+`Tabs.attach`, `Accordion.attach` and `ViewHost.attach` use. The element sits in
+a full-size slot of the cell (no card, padding, border or gap), so a project's
+own drawing surface fills the stage between the bars edge to edge like
+`MediaPlayer` or `SandboxFrame`; the element sets its own size
+(`display: block; width: 100%; height: 100%`). It is the same node across
+Suite redraws, panel resizes and tab switches, so its listeners, focus and frame
+loop keep running; aborting `signal` removes it. Pass the build's signal, which
+also destroys the Layout. A widget or component is attached or mounted as by
+`PageLayout.attach` and stays its owner's to destroy. A missing signal, a target
+without `attach`/`attachHTML` or non-object content throws `TypeError`; an
+already aborted signal attaches nothing. Inside a tab, attach the box Layout to
+the tab's region and the element to the box's cell (the
+[task page's](demos.md#d7-task-page) `Vázlat` tab):
+
+```ts
+const box = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "stage" }, { id: "footer", height: 48 }] });
+page.attach("sketch", box);                                         // a tab region of a PageLayout
+new app.components.CommandBar({ label: t("Vázlat"), signal, items }).mount(box.getCell("commands"));
+app.ui.attach(box.getCell("stage"), canvas, { signal });            // edge to edge, kept across redraws
+new app.components.CommandBar({ placement: "bottom", signal, items: penItems }).mount(box.getCell("footer"));
+signal.addEventListener("abort", () => { box.destructor(); page.destroy(); }, { once: true });
+```
+
 <a id="pitfalls"></a>
 
 ### Pitfalls
@@ -1959,11 +1989,14 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
   in the same handler leaves the cell blank (Suite patches the old content's
   removed view). Mount the replacement on the next opening or user action, as
   the tabbed details window and the playlist editor's settings tab do.
-- **Elements into cells.** No public API puts an `HTMLElement` into a Layout
-  cell except `ViewHost.attach` (which wraps it). Use instead: the element
-  target of a component's `mount(target)` (an element with a height), a
-  nested Layout for widgets, or `attachHTML` for static markup whose events
-  are delegated and released with the build's signal.
+- **Elements into cells.** Suite's own `cell.attach(element)` throws
+  (`this._ui.getRootView is not a function`), and `attachHTML` takes static
+  markup only. Put a live element (listeners, focus, a frame loop) into a cell
+  with [`app.ui.attach`](#cell-content) or the `attach` of `ViewHost`,
+  `PageLayout`, `Tabs` or `Accordion`. A one-region `PageLayout` only to hold an
+  element draws a framed panel inside the panel. `attachHTML` stays right for
+  static markup whose events are delegated and released with the build's
+  signal.
 - **Suite Form `container` is PRO-only.** 61ade ships Suite Standard 9.3.12;
   a custom Form control is composed from Standard items (the demo's star strip
   is a `togglegroup`).
@@ -2414,6 +2447,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M42 | [PageLayout](#pagelayout-collapse) `collapse(id)`, `expand(id)`, `isCollapsed(id)` and the `collapse` event; `attach(id, component)` of `PageLayout`, `Tabs` and `Accordion` mounts the component (its events are delivered) | [FB-0153](feedback.md#fb-0153) | info: a component attached into a region and then mounted again (or attached twice) throws `already mounted`; mount it once | none | none |
 | M43 | [CommandBar menu](#commandbar-menu): `{type: "menu", id, label, icon, iconOnly, items}`, one *more actions* button whose entries report `click` (a submenu of `Műveletek` when collapsed) | [FB-0154](feedback.md#fb-0154) | none | none | none |
 | M44 | Suite's English-only names in the page's language ([window](#app-window), [PageLayout](#pagelayout-collapse)): a `collapsable` Layout header is `‹header› összecsukása` / `‹header› kinyitása`, a window's close button `Ablak bezárása`; Escape closes a `modal: false` `app.ui.window` while the focus is inside it | [FB-0155](feedback.md#fb-0155) | info: specs that find a header by "click to collapse"/"click to expand" or a close button by "close" use the localized names | none | none |
+| M45 | [Cell content](#cell-content): `app.ui.attach(cell, content, {signal})` puts a plain element, Suite widget or component into any Suite Layout cell (a `type: "none"` box included), edge to edge | [FB-0157](feedback.md#fb-0157) | info: a one-region `PageLayout` that only held an element can become a box Layout cell with `app.ui.attach` (no framed panel) | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2542,6 +2576,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-09 | `ListKindOptions.sort` (`{field, direction}`, the first sort). PHP `sort` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.sort`. A `textarea` field shows at most 4 lines on a card. Additive (M41). | A consumer's scoped side-panel list starts oldest first and holds long text entries. | [FB-0152](feedback.md#fb-0152) |
 | 2026-11-09 | `PageLayout.collapse(id)`, `expand(id)`, `isCollapsed(id)`, `PageLayoutEvents` (`collapse {id, collapsed}`; `PageLayout` extends `Component<PageLayoutEvents>`). A public component given to `attach` of `PageLayout`, `Tabs` or `Accordion` is mounted there, so its events arrive. Additive (M42). | A consumer's record page shows or hides a side panel from its command bar and collapses its control region on a phone while one tab is shown. | [FB-0153](feedback.md#fb-0153) |
 | 2026-11-09 | `CommandItem` adds `CommandMenu` (`type: "menu"`, `items`: 1–12 `CommandButton`s and `CommandSeparator`s); its entries report `click {id}` and take `update`. Additive (M43). | A consumer's command bar acts on the selected item with a few commands behind one *more actions* button. | [FB-0154](feedback.md#fb-0154) |
+| 2026-11-09 | `Ui.attach(target, content, {signal})`: a plain element, Suite widget or component into any Suite Layout cell, edge to edge, released by the signal. Additive (M45). | A consumer shows a project-drawn interactive preview between two command bars in a tab, without the framed panel of a one-region `PageLayout`. | [FB-0157](feedback.md#fb-0157) |
 
 <a id="resolved-decisions"></a>
 
