@@ -5835,6 +5835,7 @@ that exactly equals an option label lists every option. The managed
   moves, no search, no node actions in the component, not live (`refresh`).
   A node below a parent never expanded cannot be selected by id until its
   parent is loaded.
+- **Commit:** `15878c6` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0159"></a>
@@ -5875,6 +5876,7 @@ that exactly equals an option label lists every option. The managed
 - **Verification:** with [FB-0160](#fb-0160).
 - **Limits:** toolbar placement only; one boolean per command and view; the
   host decides what a mode means.
+- **Commit:** `15878c6` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0160"></a>
@@ -5972,4 +5974,5 @@ that exactly equals an option label lists every option. The managed
   `menu: false` views; each such view adds one one-row subscription per page
   (within the channel's 64 subscriptions); the branch's and `Menü`'s count is
   not in their accessible names.
+- **Commit:** `15878c6` on `main`.
 - **Status:** implemented and verified on the managed demo.
