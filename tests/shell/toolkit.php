@@ -85,6 +85,22 @@ rejects(fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.guided',g
 rejects(fn()=>$menuless->addView(new View('demo.hidden','demo.player','X','assets',record:'assets',actions:['get'],menu:false)),'menu: false on a record view accepted');
 rejects(fn()=>$menuless->addView(new View('demo.panel','demo.player','X',menu:false)),'menu: false on a project kind accepted');
 rejects(fn()=>$menuless->updateView($hidden->with(guide:'Útmutató')),'A guide added to a menu-less view accepted');
+// Menu attention (docs/shell.md#menu-attention): filters of filterable fields and a tone, on a list view with a menu entry.
+$watched=$menuless->view('assets','Figyelt',$columns,['get'],id:'assets.watched',attention:['filters'=>['kind'=>'audio','title'=>'x']]);
+check($watched->attention===['filters'=>['kind'=>'audio','title'=>'x']],'attention is kept as declared');
+check((new SqlResource('clips','clips','id',[new Field('state','Állapot','select',options:['new'=>'Új'])]))->register($menuless,'Klipek',attention:['filters'=>['state'=>'new'],'tone'=>'danger'])->attention['tone']==='danger','SqlResource::register(attention: …)');
+foreach([
+ 'a menu-less view'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a1',menu:false,attention:['filters'=>['kind'=>'audio']]),
+ 'a singleton'=>fn()=>$menuless->view('assets','X',$columns,['get'],singleton:true,id:'assets.a2',attention:['filters'=>['kind'=>'audio']]),
+ 'a project kind'=>fn()=>$menuless->addView(new View('demo.watch','demo.player','X',attention:['filters'=>['kind'=>'audio']])),
+ 'no filters'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a3',attention:['filters'=>[]]),
+ 'a list of filters'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a4',attention:['filters'=>['audio']]),
+ 'an unknown tone'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a5',attention:['filters'=>['kind'=>'audio'],'tone'=>'pink']),
+ 'an unknown key'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a6',attention:['filters'=>['kind'=>'audio'],'label'=>'x']),
+ 'an unknown field'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a7',attention:['filters'=>['nope'=>'1']]),
+ 'a secret field'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a8',attention:['filters'=>['secret'=>'1']]),
+ 'an empty value'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a9',attention:['filters'=>['kind'=>'']]),
+] as $case=>$declare)rejects($declare,'attention on '.$case.' accepted');
 // A page activation needs the child's own page: not a menu-less child, also when it leaves the menu later.
 $menuPages=new Registry();$resource()->register($menuPages,'Médiatár',activate:'page');
 (new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($menuPages,'Sávok',menu:false);
@@ -126,6 +142,7 @@ check($views['demo.player']['options']===['loop'=>true,'label'=>'Lejátszás']&&
 $menuWorkspace=new Workspace($menuless,$db);
 $offered=array_column($menuWorkspace->views(new Identity('1','Egy')),null,'id');
 check(isset($offered['assets.hidden'])&&$offered['assets.hidden']['menu']===false&&!array_key_exists('menu',$offered['assets']),'Bootstrap: menu: false only on the menu-less view');
+check(($offered['assets.watched']['attention']??null)===['filters'=>['kind'=>'audio','title'=>'x'],'tone'=>'warning']&&!array_key_exists('attention',$offered['assets'])&&array_search('attention',array_keys($offered['assets.watched']),true)<array_search('options',array_keys($offered['assets.watched']),true),'Bootstrap: attention with the default tone, only on its view');
 $menuSub=new Registry();$resource()->register($menuSub,'Médiatár');
 (new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($menuSub,'Sávok',menu:false);
 $menuSub->subview('assets','tracks','asset_id',embed:false);

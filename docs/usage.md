@@ -159,7 +159,7 @@ follow this route through the
    `app` before routing ([module loading](toolkit.md#module-loading)).
 3. **Register and compose:** view kinds, column presentations, field types
    and client commands ([registries](toolkit.md#registries)); `ListView`,
-   `RecordForm`, `SettingsForm`, `RecordDetails`, `CommandBar`, `FileManager`, `FilePicker`,
+   `RecordForm`, `SettingsForm`, `RecordDetails`, `Tree`, `CommandBar`, `FileManager`, `FilePicker`,
    `Calendar`, `DiagramEditor`, `MediaPlayer`, `PageLayout`, `Tabs` and `Accordion` in a Suite Layout from
    `app.dhx` ([components](toolkit.md#components),
    [Layout recipe](toolkit.md#layout-recipe)); `MediaPlayer` optionally shows an
@@ -175,6 +175,23 @@ A panel following a list's active record uses `list.on("target", ({view, row,
 rows}) => …)` and `list.target()`: these include selected expanded rows and
 the foremost child window, including on a phone. The main cursor remains
 available through `select` / `selected()` ([ListView](toolkit.md#listview)).
+
+A page built around a hierarchy mounts `app.components.Tree` over a list view
+with a sub-view on itself (`menu: false` when it has no page of its own) and
+drives its other panels from the tree's `select`; `activate` is Enter or a
+double-click, `select(id)` and `refresh(id?)` follow changes made elsewhere,
+and `id` keeps the expanded nodes and the selection. Keys: arrows, Home and
+End move, Space selects, Enter selects and activates
+([Tree](toolkit.md#tree), [FB-0158](feedback.md#fb-0158); demo:
+[key browser](demos.md#d8-key-browser)). A list-wide mode switch in a list's
+own toolbar is a client command with `type: "toggle"`: its state is kept per
+user and view id in `app.preferences.scope(<command name>)`, which the host
+reads before it mounts the list, and the list reports `toggle` so the host
+mounts the list of the other scope ([toggle command](toolkit.md#registries),
+[FB-0159](feedback.md#fb-0159)). A view whose records wait for someone
+declares `attention` (`filters`, `tone`): its menu entry, its branch and
+`Menü` show a live count ([menu attention](shell.md#menu-attention),
+[FB-0160](feedback.md#fb-0160)).
 
 Every server read and write is still a registered, ACL-checked action; a
 module gains no right. A failing module is reported (toast, `module:error`,

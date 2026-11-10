@@ -19,6 +19,7 @@ import { LIST, builtinCommands, type ListCommandContext } from "./commands";
 import { bindFieldTypes, errorText, escape, formActions, input } from "./fields";
 import { declaredTarget, resolveActivation, type ResolvedActivation } from "./activation";
 import { listCommands } from "./toolbar";
+import { preferences } from "../../api/services";
 import { ListFilters } from "./filters";
 import { ListSearch } from "./search";
 import { DetailsWindow } from "./details";
@@ -121,7 +122,7 @@ export class Workspace implements ActionHost {
     const builtin=!view.singleton&&scope?.select!==false?["details"]:[];
     const commands=this.clientCommands=resolveCommands(builtin,scope?.compact||scope?.shared?[]:view.commands,extensions.commands,builtinCommands);
     const ofToolbar=(fromBuiltin:boolean)=>commands.filter(command=>builtin.includes(command.name)===fromBuiltin);
-    this.commands=new ResponsiveToolbar(undefined,{data:listCommands(view,{scope,filter:this.hasRegion("filter")?"panel":view.filters.length&&!scope?.compact?"cards":false,tiles,secondary:secondaryColumns,visible:this.visibleColumns,commands:{builtin:ofToolbar(true),project:ofToolbar(false)}})});
+    this.commands=new ResponsiveToolbar(undefined,{data:listCommands(view,{scope,filter:this.hasRegion("filter")?"panel":view.filters.length&&!scope?.compact?"cards":false,tiles,secondary:secondaryColumns,visible:this.visibleColumns,commands:{builtin:ofToolbar(true),project:ofToolbar(false)},pressed:command=>this.pressed(command)})});
     this.commands.events.on("click",(id:string|number)=>{if(this.delegated&&(id===commandId("details")||view.actions.some(a=>a.name===id&&a.name!=="create"&&!a.upload)&&this.delegated.view.actions.some(a=>a.name===id))){this.delegated.command(String(id));return;}this.command(String(id));});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
@@ -197,14 +198,36 @@ export class Workspace implements ActionHost {
   }
   /** Whether client command $name belongs to this list: resolved here or declared by its view. */
   private hasCommand(name:string):boolean{return this.clientCommands.some(command=>command.name===name)||!!this.view.commands?.includes(name);}
-  /** Runs an enabled client command; a throw or rejection shows the error dialog (an abort stays silent). */
+  /**
+   * A toggle command's state for this view: the user's choice (`app.preferences.scope(<name>)`, keyed by the view id,
+   * whatever the scope), else its declared `pressed`.
+   */
+  private pressed(command:ListCommand):boolean{
+    try{const stored=preferences(this.user).scope(command.name).get(this.view.id);if(typeof stored==="boolean")return stored;}catch{}
+    return command.entry.pressed===true;
+  }
+  /**
+   * Runs an enabled client command; a throw or rejection shows the error dialog (an abort stays silent). A toggle
+   * flips and keeps its state, then calls its `toggle` in the list's own context and reports the list's `toggle`.
+   */
   private runCommand(name:string):void{
     const command=this.clientCommands.find(item=>item.name===name);
     if(!command||this.disposed)return;
-    const context=this.commandContext(name);
-    if(!commandEnabled(command.entry,context))return;
+    const toggle=command.entry.type==="toggle";
+    const context=toggle?this.ownContext():this.commandContext(name);
     const failed=(error:unknown)=>{if(!(error instanceof DOMException&&error.name==="AbortError"))void this.error(error);};
-    try{void Promise.resolve(command.entry.run(context)).catch(failed);}catch(error){failed(error);}
+    if(!commandEnabled(command.entry,context)){if(toggle)this.commands.setItem(command.id,{active:this.pressed(command)});return;}
+    if(!toggle){try{void Promise.resolve(command.entry.run!(context)).catch(failed);}catch(error){failed(error);}return;}
+    // Suite has flipped the item already; the kept state decides.
+    const pressed=!this.pressed(command);
+    try{preferences(this.user).scope(name).set(this.view.id,pressed);}catch{}
+    this.commands.setItem(command.id,{active:pressed});
+    // After the toolbar's own click handling: the host may replace this list in its handler.
+    queueMicrotask(()=>{
+      if(this.disposed)return;
+      try{if(command.entry.toggle)void Promise.resolve(command.entry.toggle(Object.freeze({...context,pressed}))).catch(failed);}catch(error){failed(error);}
+      this.hooks.emit?.("toggle",{command:name,pressed});
+    });
   }
   private async saveCell(row:Row,field:string,value:unknown):Promise<void>{
     const result=await this.call("__edit",String(row.id),{field,value,revision:row.revision});
@@ -433,7 +456,7 @@ export class Workspace implements ActionHost {
     // A selected preview record takes the toolbar over; its marks stay its own.
     const multiple=!this.delegated&&!!((this.view.selection||this.view.rowSelection)&&marked.length>1),target=this.toolbarTarget();
     // Client commands (the built-in `details` included) follow their `enabled` rule in their own context (commandContext).
-    for(const command of this.clientCommands){if(commandEnabled(command.entry,this.commandContext(command.name)))this.commands.enable(command.id);else this.commands.disable(command.id);}
+    for(const command of this.clientCommands){if(commandEnabled(command.entry,command.entry.type==="toggle"?this.ownContext():this.commandContext(command.name)))this.commands.enable(command.id);else this.commands.disable(command.id);}
     const parentRow=this.subviewTarget();
     if(this.view.subview){if(parentRow&&!multiple&&hasSubview(parentRow))this.commands.enable("blade-subview");else this.commands.disable("blade-subview");}
     if(this.reorders()){for(const direction of [-1,1] as const){const id=direction<0?"blade-move-up":"blade-move-down";if(!this.delegated&&!multiple&&this.neighbour(direction)!==null)this.commands.enable(id);else this.commands.disable(id);}}

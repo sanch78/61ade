@@ -310,5 +310,20 @@
   "Törlés": "Delete",
   "A jegyzet szövege a vágólapra került.": "The note's text is on the clipboard.",
   "A vágólap nem érhető el.": "The clipboard is not available.",
-  "Törlöd a kijelölt jegyzetet?": "Delete the selected note?"
+  "Törlöd a kijelölt jegyzetet?": "Delete the selected note?",
+  "Kulcsböngésző": "Key browser",
+  "Értékek": "Values",
+  "Kulcs adatai": "Key data",
+  "Érték adatai": "Value data",
+  "Válassz egy kulcsot a fában.": "Select a key in the tree.",
+  "Válassz egy értéket a listában.": "Select a value in the list.",
+  "A kulcsok nem érhetők el.": "The keys are not available.",
+  "Az értékek nem érhetők el.": "The values are not available.",
+  "Alkulcsok értékei": "Subkey values",
+  "Jóváhagyások": "Approvals",
+  "Jóváhagyásra vár": "Awaiting approval",
+  "Jóváhagyva": "Approved",
+  "Elutasítva": "Rejected",
+  "Egy projektoldal a nyilvános komponensekből: balra a kulcsok fája (Tree), középen fülek a kijelölt kulcs értékeivel és adataival, jobbra a listában kijelölt érték adatai. Az oldal a fa kijelölését követi; Enter vagy dupla kattintás egy kulcson a Kulcs adatai fület nyitja meg.\n\nAz értéklista eszköztárán az Alkulcsok értékei kapcsoló a kulcs saját értékei helyett a közvetlen alkulcsainak értékeit mutatja. A kapcsoló állása megmarad, a lista már az első betöltéskor annak megfelelően nyílik meg; a fa kinyitott kulcsai és a kijelölés is megmaradnak.\n\nKeretrendszer-képességek: Tree komponens és kétállású listaparancs (type: \"toggle\").": "A project page built from the public components: the keys as a tree (Tree) on the left, tabs with the selected key's values and data in the middle, and the data of the value selected in the list on the right. The page follows the tree's selection; Enter or a double-click on a key opens the Key data tab.\n\nOn the values list's toolbar, the Subkey values switch shows the values of the key's direct subkeys instead of its own. The switch keeps its state, and the list opens in that mode from its first load; the expanded keys and the selection of the tree are kept as well.\n\nFramework capabilities: the Tree component and a two-state list command (type: \"toggle\").",
+  "Jóváhagyásra váró tételek sora. Amíg van függő tétel, a menüpont mellett narancssárga szám mutatja, hány vár döntésre, a csoportja és a keskeny kijelzőn a Menü gomb is jelzi. A szám élőben frissül: ha egy tétel máshol (egy másik lapon vagy a szerveren) jóváhagyásra vár vagy eldől, a menü magától követi.\n\nAz Állapot a táblázatban közvetlenül szerkeszthető: válts Jóváhagyva vagy Elutasítva állapotra, és figyeld a menüpontot. Ha nincs függő tétel, a menüpont olyan, mint a többi.\n\nKeretrendszer-képesség: menüpont-figyelmeztetés (view.attention).": "A queue of items awaiting approval. While any is pending, an orange number beside the menu entry shows how many wait for a decision; its group and, on a narrow screen, the Menu button show it too. The number updates live: when an item starts waiting or is decided elsewhere (in another tab or on the server), the menu follows by itself.\n\nThe Status can be edited directly in the table: switch an item to Approved or Rejected and watch the menu entry. With nothing pending, the entry looks like every other one.\n\nFramework capability: menu entry attention (view.attention)."
 }

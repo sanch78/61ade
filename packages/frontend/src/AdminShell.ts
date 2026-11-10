@@ -1,7 +1,7 @@
 import { configureLanguage, languageIcon, type LanguageConfig, t } from "./I18n";
 import { widgetIcons } from "./WidgetIcons";
 import { externalSignInUnavailable, openExclusiveSignIn, openExternalSignIn } from "./ExternalAuth";
-import { LiveChannel } from "./Realtime";
+import { LiveChannel, Realtime } from "./Realtime";
 import { DesktopOnly } from "./DesktopOnly";
 import { splashLeft } from "./Splash";
 import { Form, Layout, Menu, Toolbar, Window, setTheme, awaitRedraw } from "@dhtmlx/suite";
@@ -87,6 +87,9 @@ const SIGNED_OUT="blade-signed-out";
 /** `sessionStorage` marks of the guides already shown in this sign-in session (AdminShell.guideKey). */
 const GUIDE_PREFIX="blade-guide:2:";
 
+/** Most urgent first: a branch and `Menü` show the tone of their most urgent entry. */
+const TONES=["danger","warning","primary"];
+
 /** Finish native popup/focus state before replacing a responsive menu tree. */
 class NavigationMenu extends Menu {
   replaceItems(items:object[]):void{
@@ -132,6 +135,9 @@ export class AdminShell {
   };
   private menuItems: object[] = [];
   private menuState?: string;
+  /** Live attention counts of menu entries (`ViewDefinition.attention`): view id → count, and its declared tone. */
+  private attention=new Map<string,number>();
+  private tones=new Map<string,string>();
   private loginWindow?: Window;
   private loginForm?: Form;
   private externalSignInOpen = false;
@@ -161,7 +167,8 @@ export class AdminShell {
     const button=this.root.querySelector<HTMLElement>(".blade-navigation-row .dhx_nav-menu-button"),
       style=getComputedStyle(button??this.root),measure=document.createElement("canvas").getContext("2d")!,label=document.createElement("span");
     measure.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const itemWidth=(item:any)=>{label.innerHTML=String(item.value??"");return 32+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+Math.ceil(measure.measureText(label.textContent??"").width);};
+    // An entry with attention (`html`) also holds its badge (the hidden count text takes no room).
+    const itemWidth=(item:any)=>{label.innerHTML=String(item.value??"");return 32+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+Math.ceil(measure.measureText(label.textContent??"").width)+(item.html?40:0);};
     // 16 px row inset; only the full menu reserves logout and its 17 px separator.
     const required=(items:any[],logout=this.definition.authenticated)=>items.reduce((sum:number,item:any,index:number)=>sum+itemWidth(item)+(index&&item.separatorBefore?17:0),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
     const compact = width < Math.max(768,required(this.menuItems));
@@ -193,8 +200,50 @@ export class AdminShell {
       { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" }] : []),
     ];
     const prefixed=(items:any[]):any[]=>items.map(item=>({...item,id:"sibling:"+item.id,...(item.items?{items:prefixed(item.items)}:{})}));
-    this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),icon:"dxi dxi-view-grid",items:entries},
+    this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),...this.menuHtml(this.mainMenu()),icon:"dxi dxi-view-grid",items:entries},
       ...(context.length?[{id:"blade-context-separator",type:"separator"},...context.map(marked).map(item=>prefixed([item])[0])]:[])]:entries.flatMap(item=>item.id==="blade-session-separator"?[{id:"blade-session-spacer",type:"spacer"},marked(item)]:[marked(item)]));
+  }
+
+  /** The collapsed `Menü` button: it holds every entry. */
+  private mainMenu():any{return {id:"blade-main-menu",value:t("Menü"),items:this.menuItems};}
+  /** The count and tone an entry holds: its view's live count, or the sum of its children's (the most urgent tone). */
+  private held(item:any):{count:number;tone?:string}{
+    const id=String(item.id??"");
+    if(id.startsWith("view:")){const count=this.attention.get(id.slice(5))??0;return count?{count,tone:this.tones.get(id.slice(5))}:{count:0};}
+    let count=0,tone:string|undefined;
+    for(const child of item.items??[]){const held=this.held(child);count+=held.count;if(held.tone&&(tone===undefined||TONES.indexOf(held.tone)<TONES.indexOf(tone)))tone=held.tone;}
+    return {count,tone};
+  }
+  /**
+   * An entry's attention markup (Suite's `html`, shown instead of the plain `value`): the label with a badge in the tone
+   * showing the count (hidden from screen readers). A view's own entry also carries the count as visually hidden text,
+   * so its accessible name is "Label, 3 függőben"; a branch and `Menü` keep their names (the entries inside carry the
+   * counts), and colour is never the only signal. `{html: undefined}` without attention (the plain entry).
+   */
+  private menuHtml(item:any):{html?:string}{
+    const {count,tone}=this.held(item);
+    if(!count)return {html:undefined};
+    const label=escape(String(item.value??"")),badge=`<span class="blade-menu-count blade-menu-count--${tone??"warning"}" aria-hidden="true">${count>99?"99+":count}</span>`;
+    if(!String(item.id).startsWith("view:"))return {html:`<span class="blade-menu-label">${label}</span>${badge}`};
+    // One hidden text names the entry ("Label, 3 függőben"): the visible parts would add gaps to the name.
+    return {html:`<span class="blade-menu-label" aria-hidden="true">${label}</span>${badge}<span class="blade-visually-hidden">${label}, ${escape(t("{count} függőben",{count}))}</span>`};
+  }
+  /** A view's attention count changed: the labels are rebuilt and the drawn entries updated in place (an open menu stays open). */
+  private attend(id:string,count:number):void{
+    const value=Number.isFinite(count)&&count>0?Math.floor(count):0;
+    if((this.attention.get(id)??0)===value)return;
+    this.attention.set(id,value);
+    const visit=(items:any[])=>{for(const item of items){if(item.type||item.value===undefined)continue;Object.assign(item,this.menuHtml(item));if(item.items)visit(item.items);}};
+    visit(this.menuItems);
+    const menu=this.menu;
+    if(!menu)return;
+    const find=(items:any[],wanted:string):any=>{for(const item of items){if(item.id===wanted)return item;const found=item.items&&find(item.items,wanted);if(found)return found;}};
+    menu.data.eachChild(menu.data.getRoot(),(drawn:any)=>{
+      const drawnId=String(drawn.id);
+      const source=drawnId==="blade-main-menu"?this.menuHtml(this.mainMenu()):find(this.menuItems,drawnId.replace(/^sibling:/,""));
+      if(source&&source.html!==drawn.html)menu.data.update(drawn.id,{html:source.html});
+    });
+    this.renderMenu();
   }
 
   /**
@@ -400,6 +449,13 @@ export class AdminShell {
       this.layout.getCell("main-menu").attach(menu);
       // Opened once after sign-in, before the first list: every list of the page subscribes on it.
       if((definition.views||[]).some(view=>view.kind==="list"))void this.live;
+      // Attention of menu entries: the ordinary list read of each such view with its filters (one row; the count is
+      // its `matched`), kept current by the live channel like a list. A refused read shows the plain entry.
+      for(const view of (definition.views||[]).filter(view=>view.attention&&view.kind==="list"&&view.menu!==false&&!view.record&&view.resource)){
+        this.tones.set(view.id,view.attention!.tone);
+        new Realtime(this.live,view.resource!,data=>this.attend(view.id,Number(data.matched??data.total??0)),()=>{},()=>this.attend(view.id,0))
+          .subscribe({limit:1,numbered:false,filters:{...view.attention!.filters}});
+      }
       this.kernel=createApplication({channel:()=>this.live,userId:definition.userId??"",displayName:definition.displayName??"",tenant:definition.tenant?.current??null,authenticated:definition.authenticated,
         views:definition.views??[],navigate:target=>this.navigate(target)});
       const start=()=>{if(this.listeners.signal.aborted)return;window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});this.route();};

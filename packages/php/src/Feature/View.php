@@ -23,6 +23,11 @@ namespace Blade\Feature;
  * $menu: false offers the view (bootstrap, `app.viewDefinition`, a scoped `ListView` in a project page) without a menu
  *   entry; the address `#view=<id>` and `app.navigate` refuse it like an unknown view. Only a list view that is not a
  *   singleton and has no guide (it never opens as a page) may leave the menu; a record view has no entry anyway.
+ * $attention: `['filters' => [field => value, …], 'tone' => 'warning'|'danger'|'primary']` (tone default `warning`):
+ *   the view's menu entry shows how many records of its list match these filters for the actor (the ordinary,
+ *   ACL-checked list read, kept current by the live channel) as a badge in that tone; zero shows the plain entry.
+ *   Only a list view with a menu entry that is not a singleton; 1–8 filters of the resource's filterable fields
+ *   (Registry checks them).
  */
 final readonly class View
 {
@@ -44,6 +49,7 @@ final readonly class View
         public string $open = 'page',
         public ?string $guide = null,
         public bool $menu = true,
+        public ?array $attention = null,
     ) {
         if (!preg_match(self::ID, $id)) throw new \InvalidArgumentException('Invalid view id.');
         if (!preg_match(self::ID, $kind) || (!in_array($kind, self::BUILTIN_KINDS, true) && !str_contains($kind, '.'))) throw new \InvalidArgumentException('Invalid view kind: '.$id);
@@ -54,18 +60,33 @@ final readonly class View
         if ($icon !== null && !preg_match('/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/D', $icon)) throw new \InvalidArgumentException('Invalid view icon: '.$id);
         if (!in_array($open, ['page', 'window'], true)) throw new \InvalidArgumentException('Invalid view open mode: '.$id);
         if (!$menu && ($kind !== 'list' || $record !== null || ($options['singleton'] ?? false) || $guide !== null)) throw new \InvalidArgumentException('Only a list view that is not a singleton and has no guide can leave the menu: '.$id);
+        if ($attention !== null) self::checkAttention($id, $kind, $record, $options, $menu, $attention);
         if ($guide !== null && (trim($guide) === '' || mb_strlen($guide) > 4000 || str_contains($guide, "\0") || preg_match('//u', $guide) !== 1)) throw new \InvalidArgumentException('Invalid view guide: '.$id);
+    }
+
+    public const TONES = ['warning', 'danger', 'primary'];
+
+    private static function checkAttention(string $id, string $kind, ?string $record, array $options, bool $menu, array $attention): void
+    {
+        $invalid = new \InvalidArgumentException('Invalid view attention: '.$id);
+        if ($kind !== 'list' || $record !== null || !$menu || ($options['singleton'] ?? false)) throw new \InvalidArgumentException('Only a list view with a menu entry that is not a singleton can show attention: '.$id);
+        if (array_diff(array_keys($attention), ['filters', 'tone']) || !in_array($attention['tone'] ?? 'warning', self::TONES, true)) throw $invalid;
+        $filters = $attention['filters'] ?? null;
+        if (!is_array($filters) || !$filters || count($filters) > 8 || array_is_list($filters)) throw $invalid;
+        foreach ($filters as $field => $value) {
+            if (!is_string($field) || !preg_match('/^[a-z_][a-z0-9_]*$/D', $field) || !is_string($value) || $value === '' || strlen($value) > 255 || str_contains($value, "\0")) throw $invalid;
+        }
     }
 
     /**
      * The list view of $resource (kind `list`, id $id, default the resource) as Registry::view() declares it; see there
      * for the options. Not registered: for Registry::addView() or Registry::updateView().
      */
-    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null): self
+    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null): self
     {
         $options = ['columns' => $columns, 'singleton' => $singleton, 'layout' => $layout ?? new ViewLayout(), 'rowNumbers' => $rowNumbers, 'selection' => $selection, 'rowSelection' => $rowSelection,
             ...array_filter(['rowHeight' => $rowHeight, 'tileMinWidth' => $tileMinWidth, 'tiles' => $tiles ?: null, 'activate' => $activate, 'commands' => $commands ?: null, 'drop' => $drop, 'sort' => $sort], static fn($v) => $v !== null)];
-        return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide, menu: $menu);
+        return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide, menu: $menu, attention: $attention);
     }
 
     /** A copy with the given constructor arguments replaced, e.g. `$view->with(icon: 'dxi dxi-key')`. */

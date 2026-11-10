@@ -5770,3 +5770,206 @@ that exactly equals an option label lists every option. The managed
   cases and screenshots were removed.
 - **Commit:** `86ce2f8` on `main`.
 - **Status:** implemented.
+
+<a id="fb-0158"></a>
+
+## FB-0158 — A public Tree component over a record hierarchy
+
+- **Date:** 2026-11-10.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms): a page built around a fixed hierarchy shows the tree on the
+  left and panels of its own beside it (tabs with a list scoped to the selected
+  node, the details of a record chosen there). [Tree navigation](workspaces.md#tree-navigation)
+  ([FB-0107](#fb-0107)) loads such a tree only inside its fixed tree + list
+  layout and reports no node event, and the consumer may not build one on the
+  raw Suite tree (loading, ACL and accessibility are the framework's). The
+  same need recurs for folders beside a preview, regions beside a dashboard,
+  categories beside several lists.
+- **Decision:** a public component, not an extension of tree navigation. The
+  request allowed either. Panel tabs and a details region declared on tree
+  navigation would duplicate what `PageLayout`, `Tabs`, `ListView` and
+  `RecordDetails` already compose, and would still fix one arrangement; a
+  component with `select`/`activate` lets any page arrange its own panels.
+  Tree navigation was rebuilt on the component's engine instead, so the
+  loading exists once.
+- **Implemented:**
+  - `app.components.Tree` (`RecordTree`, `components/list/RecordTree.ts`):
+    `view` (an offered list view with a sub-view on itself), `label`,
+    `initial` (`"first"`, `"none"`, `{id}`), `id` (the expanded nodes and the
+    selection per page and user, `UiPreferences.tree`), `signal`; events
+    `select {row}` (every change, also initial, restored and lost in a
+    refresh) and `activate {row}`; `selected()`, `select(id)` (`false` for a
+    node that is not loaded), `refresh(id?)` (keeps expansion, selection and
+    focus; reports a changed selected record). The view, label, initial and
+    key are checked (`Error`/`TypeError`).
+  - `NodeTree`, the engine shared with tree navigation: the loading moved
+    from `TreeNavigation` unchanged (roots with an empty parent, children on
+    first expansion through the ordinary `list` with the parent filter,
+    sorted by the label when sortable, `_subview` for the toggle, 1000
+    children in pages of 200), plus an older answer of a reloaded level
+    dropped and an empty-tree notice (`Nincs megjeleníthető elem.`).
+  - Accessibility of its own: Suite 9.3.12's Tree renders no roles, levels or
+    states, and its key navigation has no Home/End or activation. The tree
+    element is the `role="tree"` tab stop with `aria-activedescendant`; the
+    items get `treeitem`, `aria-level`, `aria-selected`, `aria-expanded` and
+    the nested lists `group` after every Suite redraw; ArrowUp/Down,
+    ArrowRight/Left (expand, first child; collapse, parent), Home, End move
+    the focus, Space selects, Enter selects and activates. Suite's key
+    navigation is off for it (`TreeAdapter` takes its own element). The
+    focus ring shows only with the keyboard focus.
+  - `TreeNavigation` uses `NodeTree` (no preferences, initial `first`): its
+    panel, toolbar, node actions and list are unchanged; its keys are now the
+    tree keys above (Suite's own handled the arrows and Enter before).
+  - Feature demo D8 `Kulcsböngésző` (`demo.registry-browser`): tree, tabs
+    with the scoped values list and the key's details, the value details;
+    two menu-less views declared in `application.php` (the registry editor's
+    node view is embedded, so not offered).
+- **Guides:** [toolkit Tree](toolkit.md#tree), the component and event
+  tables, [tree navigation](workspaces.md#tree-navigation), [usage](usage.md),
+  [D8](demos.md#d8-key-browser), [component matrix](component-matrix.md),
+  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md);
+  migration row M46 (additive, info only).
+- **Verification:** with [FB-0160](#fb-0160).
+- **Limits:** one label per node (no icons, counts or templates), no drag
+  moves, no search, no node actions in the component, not live (`refresh`).
+  A node below a parent never expanded cannot be selected by id until its
+  parent is loaded.
+- **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0159"></a>
+
+## FB-0159 — A two-state (toggle) client command for lists
+
+- **Date:** 2026-11-10.
+- **Request:** a consumer request (recorded without business terms): a
+  list-wide mode switch in a list's own toolbar, for example "include
+  sub-categories" on a list scoped to a category, served by existing
+  contracts (the list scoped by one field or another, both computed on the
+  server). Client commands were push buttons only, so the mode could be
+  neither shown nor kept. The same need recurs for "show archived", "only
+  mine", grouping or density switches.
+- **Decision:** accepted as requested. The state is keyed by the view id, not
+  by the scope (a scoped list's own preferences are `<view id>@<field>`, which
+  a mode that switches the field would lose), in the public
+  `app.preferences.scope(<command name>)` store, so a host reads it before
+  its first list without any new API. No new server or scope parameter: the
+  host gives the mode its meaning. A `record` toggle is unsupported (skipped
+  with a warning).
+- **Implemented:** `ClientCommand.type: "toggle"`, `pressed` (default state),
+  optional `toggle(ToggleContext)`; `run` is optional for a toggle.
+  `resolveCommands` accepts a toggle only with `placement: "toolbar"`. The
+  list's toolbar draws it as a Suite two-state item (`aria-pressed` and the
+  pressed look of the `CommandBar` toggle, `menuitemcheckbox` with
+  `aria-checked` in `Műveletek`) in its kept state from the first render. A
+  user change stores the state, then (after the toolbar's click handling, so
+  the host may replace the list) calls `toggle` with the list's own context
+  and reports `ListView` `toggle {command, pressed}`. A toggle is never
+  delegated to a sub-view record; a sub-view window keeps its own state (its
+  view id). Feature demo: `demo.subkey-values` on the D8 values list switches
+  between `key_id` and `parent_key_id` (a computed field of the registry
+  values).
+- **Guides:** [toolkit registries](toolkit.md#registries) (toggle command,
+  example), the event catalog, [workspaces](workspaces.md#project-presentations-field-types-and-client-commands),
+  [usage](usage.md), [D8](demos.md#d8-key-browser); migration row M47.
+- **Verification:** with [FB-0160](#fb-0160).
+- **Limits:** toolbar placement only; one boolean per command and view; the
+  host decides what a mode means.
+- **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0160"></a>
+
+## FB-0160 — A live attention count on a menu entry
+
+- **Date:** 2026-11-10.
+- **Request:** a consumer request (recorded without business terms): a view
+  of items waiting for a person, which background work adds, must be noticed
+  from any page while some are pending: a count and an attention colour on
+  its menu entry, its branch and the collapsed `Menü`, kept current through
+  the live channel, computed for the actor with the view's ACL, with the
+  count in the accessible name. Menu labels were static and consumers write
+  no shell markup.
+- **Decision:** of the two suggested sources, the count of the view's own
+  list with declared filters, not a server callback. It is the ordinary,
+  ACL-checked list read (row ACL, tenant, `where`, field query rights) with
+  one row, whose `matched` the live channel already delivers on WebSocket and
+  polling, so the live protocol, the server and the bridge need no change and
+  the count follows the view's own and anyone else's changes within the
+  interval. A per-actor value ("assigned to me") is expressed as a `where`,
+  the ACL or a dedicated view; a callback can be added when a real need
+  cannot be. Tones `warning` (default), `danger`, `primary`. The accessible
+  name of the entry carries the count; a branch and `Menü` keep their names
+  (their badge is hidden from screen readers), because the entries inside
+  carry the counts and specs and users find branches by name.
+- **Implemented:**
+  - PHP: `View::$attention` (`['filters' => [field => value], 'tone' => …]`,
+    checked: a list view with a menu entry that is not a singleton or record
+    view, 1–8 filters, known tones, string values), `Registry` checks the
+    fields (not secret, text/select/checkbox/number, not media; checkbox
+    `0`/`1`, number digits); `View::list`, `Registry::view`,
+    `SqlResource::register`, JSON `view.attention`. Bootstrap `attention
+    {filters, tone}`.
+  - Shell: one `Realtime` subscription per such view on the tab's
+    `LiveChannel` (`limit: 1`, `numbered: false`, the filters); its `matched`
+    count becomes the entry's Suite `html` (a Suite menu item's `value` is
+    plain text): the label hidden from screen readers, a badge in the tone
+    (`99+` above 99), and one visually hidden text `‹label›, n függőben`
+    as the accessible name. A branch and `Menü` (also the compact menu's
+    siblings) show the sum in the most urgent tone. Drawn items update in
+    place, so an open menu stays open; a refused read shows the plain entry.
+    The menu fit counts the badge. `warning` uses the warning dialog's accent
+    (`#b45309`, dark `#f59e0b`): Suite defines no warning colour.
+  - Framework text `{count} függőben` (en `{count} pending`, de
+    `{count} ausstehend`).
+  - Feature demo: `Jóváhagyások` (`modules/approvals.json`, table
+    `demo_approvals` from the web setup, three pending seed items; the
+    reader has no access).
+- **Guides:** [shell menu attention](shell.md#menu-attention),
+  [live channel](workspaces.md#live-channel), [configuration](configuration.md)
+  `view.attention`, [usage](usage.md), [demos](demos.md#approvals-attention),
+  [component matrix](component-matrix.md); migration row M48.
+- **Verification (FB-0158–FB-0160):** `npm run typecheck`, `npm run build`,
+  `npm run demo:assets`; the web setup created `demo_approvals`
+  (`BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`,
+  database backed up first). PHP `contracts`, `access`, `permissions`,
+  `configuration`, `toolkit` (new attention cases: kept and bootstrap shape
+  with the default tone, `SqlResource::register`, refused on a menu-less
+  view, a singleton, a project kind, empty or list filters, an unknown tone
+  or key, an unknown or secret field, an empty value), `lists`,
+  `tree-navigation`, `i18n`, `signage`, `sorting`, `list-presentation`,
+  `tenancy`; node `toolkit-kernel`, `toolkit-list`, `toolkit-components`,
+  `toolkit-registries`, `toolkit-sandbox`, `live-protocol` passed.
+  `tests/shell/ui-preferences.mjs` fails on its `mode` assertion with and
+  without this change (pre-existing, not addressed here). New browser specs
+  on the managed demo: `tree-component.spec.cjs` (4: the key browser at 1366
+  and 390 px with roles, levels, keys, selection driving the list and
+  details, activation, restore after a reload; the component's option
+  checks, `initial`, `select(id)`, double-click, `refresh(id)` of a key added
+  on the server with selection and focus kept, `refresh()` after its
+  deletion, destroy; the reader with the node view denied gets `Error` and
+  no key browser), `list-toggle.spec.cjs` (2: `aria-pressed`, the scope
+  switch, the first values load after a reload already scoped by
+  `parent_key_id`, off again; `menuitemcheckbox` with `aria-checked` at 390
+  px kept across a reload), `menu-attention.spec.cjs` (2: count, tone and
+  hidden badge on the branch, the entry's name, a server change reaching the
+  open menu, zero, back above zero matching the list; `Menü` and the branch
+  at 390 px; the reader sees neither). Affected existing specs: `registry`,
+  `browser`, `preferences`, `activation`, `toolkit-registries`,
+  `command-bar`, `menuless-view`, `workspace`, `subview`, `tabs`,
+  `page-layout-collapse`, `i18n`, `toolkit-demo-tasks`,
+  `toolkit-demo-assets`, `task-page`, `subview-demos`, `mobile-grid`,
+  `toolkit-components`, `files`, `toolkit-demo`, `toolkit-demo-readings`,
+  `layout-resizer` passed (one WebSocket spec skipped as before). Two
+  existing assertions were adapted to the seeded attention: `browser.spec`
+  reads the top buttons' visible text, where `Menü` now shows its badge
+  number; `workspace.spec`'s WebSocket check took the first `update` frame as
+  the notes list's, but the attention subscription is now first, so it finds
+  the notes subscription by its `subscribe` frame. Screenshots of the menu
+  and the key browser at 1366 and 390 px were inspected and removed. No
+  full-smoke claim.
+- **Limits:** declared filters only (no callback, no per-actor filter value);
+  one count per view; no attention on custom `Menu` items, record views or
+  `menu: false` views; each such view adds one one-row subscription per page
+  (within the channel's 64 subscriptions); the branch's and `Menü`'s count is
+  not in their accessible names.
+- **Status:** implemented and verified on the managed demo.

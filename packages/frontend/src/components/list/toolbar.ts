@@ -3,21 +3,25 @@ import { actionIcon, escape } from "./fields";
 import type { ListCommand } from "../../app/registries";
 import type { Column, ViewDefinition, WorkspaceScope } from "./types";
 
-/** Command bar items of client commands (`app.commands`): the translated, escaped label and the icon. */
-const clientItems=(commands:ListCommand[])=>commands.map(({id,entry})=>({id,value:escape(t(entry.label)),...(entry.icon?{icon:entry.icon}:{})}));
+/**
+ * Command bar items of client commands (`app.commands`): the translated, escaped label and the icon; a toggle is a
+ * Suite two-state item (`aria-pressed`, a checked entry in `Műveletek`) in its $pressed state.
+ */
+const clientItems=(commands:ListCommand[],pressed:(command:ListCommand)=>boolean)=>commands.map(command=>({id:command.id,value:escape(t(command.entry.label)),...(command.entry.icon?{icon:command.entry.icon}:{}),
+  ...(command.entry.type==="toggle"?{twoState:true,active:pressed(command),css:"blade-command--toggle"}:{})}));
 /**
  * The list's command bar items (one `ResponsiveToolbar`, the public `CommandBar`'s toolbar): the built-in client
  * commands (details), filter dialog (narrow screens), the view's actions, its declared client commands, the sub-view
  * window, then sort (cards), secondary columns and the view mode switch. Item ids are the toolbar commands of
  * `Workspace.command`.
  */
-export function listCommands(view:ViewDefinition,options:{scope?:WorkspaceScope;filter:"panel"|"cards"|false;tiles:boolean;secondary:Column[];visible:Set<string>;commands:{builtin:ListCommand[];project:ListCommand[]}}):any[]{
+export function listCommands(view:ViewDefinition,options:{scope?:WorkspaceScope;filter:"panel"|"cards"|false;tiles:boolean;secondary:Column[];visible:Set<string>;commands:{builtin:ListCommand[];project:ListCommand[]};pressed:(command:ListCommand)=>boolean}):any[]{
   const {scope,secondary}=options;
-  return [...clientItems(options.commands.builtin),
+  return [...clientItems(options.commands.builtin,options.pressed),
     // The filter dialog: the declared panel's on narrow screens, the header filters' in cards and tiles (shown by the list).
     ...(!view.singleton&&options.filter?[{id:"blade-filter",value:t("Szűrés"),icon:"dxi dxi-filter-variant",...(options.filter==="cards"?{hidden:true}:{})}]:[]),
     ...view.actions.filter(a=>a.name!=="get"&&a.name!=="move"&&!(view.singleton&&a.name==="update")&&(scope?.select!==false||a.name==="create"||!!a.upload)).map(a=>({id:a.name,value:escape(a.label),icon:actionIcon(a)})),
-    ...clientItems(options.commands.project),
+    ...clientItems(options.commands.project,options.pressed),
     // Manual order: the `move` action as two commands (also Alt+↑/↓ and dragging), never its form.
     ...(view.order&&view.actions.some(a=>a.name==="move")&&scope?.select!==false&&!scope?.compact?[{id:"blade-move-up",value:t("Feljebb"),icon:"dxi dxi-arrow-up"},{id:"blade-move-down",value:t("Lejjebb"),icon:"dxi dxi-arrow-down"}]:[]),
     ...(view.subview&&!scope?.compact&&(view.subview.shared||view.subview.view)?[{id:"blade-subview",value:escape(view.subview.view?.title??t("Alelemek")),icon:"dxi dxi-arrow-expand",tooltip:t("A kijelölt rekord kapcsolódó listája ablakban")}]:[]),

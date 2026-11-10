@@ -104,6 +104,63 @@ stays, and both separators remain inside the compact `Menü`. Current-view
 marking is unchanged. With the default empty list, existing menus stay the
 same. The feature demo uses the default empty list.
 
+<a id="menu-attention"></a>
+
+### Menu attention: a live count on a view's entry
+
+A list view's menu entry can show how many of its records wait for someone,
+for example items awaiting review that background work adds
+([FB-0160](feedback.md#fb-0160)). Opt in per view with the filters that
+select those records and a tone:
+
+```php
+$registry->view('proposals', 'Javaslatok', $columns, ['get', 'update'],
+    attention: ['filters' => ['status' => 'pending'], 'tone' => 'warning']);
+```
+
+JSON: `"view": {"title": "…", "attention": {"filters": {"status": "pending"}, "tone": "warning"}}`
+(also `SqlResource::register(…, attention: …)` and `View::list`).
+
+- **Count:** the number of the view's records matching `filters`, for the
+  actor: the view's ordinary, ACL-checked list read (row ACL, the tenant, the
+  resource's `where`) with those filters and one row, whose `matched` count is
+  shown. Only the number and the tone reach the browser; the filters are the
+  declaration, never record data. A field the actor may not query fails that
+  read, and the entry stays plain.
+- **Declaration rules:** a list view with a menu entry that is not a
+  singleton (not `menu: false`, not a record view); 1–8 filters on fields of
+  the view's resource that a list may filter: not secret, of type text
+  (`LIKE`, as in the list), select, checkbox (`0`/`1`) or number (digits),
+  not a media field; a non-empty value of at most 255 characters. `tone` is
+  `warning` (default), `danger` or `primary`. Anything else throws
+  `InvalidArgumentException` when the view is declared.
+- **Display:** with a count above zero, the entry shows the count as a badge
+  in the tone (`99+` above 99); its branch and, below the menu's width, the
+  collapsed `Menü` button show the sum of the counts they hold in the most
+  urgent tone (`danger`, then `warning`, then `primary`), also the compact
+  menu's sibling entries. At zero the entry is exactly like every other one.
+  The tones are theme colours (`warning` uses the warning dialog's accent,
+  which Suite does not define), and the number itself is always visible, so
+  colour is never the only signal.
+- **Accessible name:** the entry's name carries the count: `Javaslatok, 3
+  függőben` (`{count} függőben`, translated by 61ade: `3 pending`). The badge
+  itself is hidden from screen readers. A branch and `Menü` keep their names;
+  the entries inside them carry the counts.
+- **Live:** each such view holds one subscription of one row on the tab's
+  [live channel](workspaces.md#live-channel), WebSocket or polling, like a
+  list, so a change on the server (another user, background work, the view's
+  own saves) reaches open pages within the live interval, and an open menu
+  updates in place without closing. A hidden tab pauses it like every list.
+  The subscription counts against the channel's limits (64 subscriptions and
+  2000 rows per connection) with one row.
+- **Security:** an actor who is not offered the view gets neither the entry
+  nor the subscription; a refused read (`denied`) shows the plain entry.
+
+Limits: the count is that of the declared filters only (no server callback
+and no per-actor filter value such as "assigned to me", which a project
+expresses as a `where`, the ACL or a dedicated view); one count per view; no
+attention on custom `Menu` items, a record view or a `menu: false` view.
+
 <a id="dhtmlx-megjelenítés-és-csomagolás"></a>
 
 ## DHTMLX rendering and packaging

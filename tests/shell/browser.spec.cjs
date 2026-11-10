@@ -75,13 +75,14 @@ test('compact desktop menu shows the open feature\'s siblings beside Menü', asy
     await expect(page.getByRole('menuitem', { name: 'Menü', exact: true })).toBeVisible();
     await expect(top).toHaveCount(1);
     await page.goto('/#view=signage_assets');
-    await expect(top).toHaveText(['Menü', 'Médiatár', 'Alapértelmezett tartalom', 'Lejátszási listák', 'Műsorterv', 'Napi műsor']);
+    // `Menü` may carry the attention badge of the demo's pending approvals (view.attention).
+    await expect(top).toHaveText([/^Menü\d*$/, 'Médiatár', 'Alapértelmezett tartalom', 'Lejátszási listák', 'Műsorterv', 'Napi műsor']);
     await expect(current).toHaveText(['Médiatár']);
     await top.filter({ hasText: 'Műsorterv' }).click();
     await expect(page).toHaveURL(/#view=signage_schedule$/);
     await expect(current).toHaveText(['Műsorterv']);
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(top).toHaveText(['Menü']);
+    await expect(top).toHaveText([/^Menü\d*$/]);
 });
 test('invalid login returns to the DHTMLX form with safe feedback', async ({ page }) => {
     await page.goto('/');

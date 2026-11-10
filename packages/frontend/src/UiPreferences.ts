@@ -4,7 +4,7 @@ import type { FieldDefinition } from "./FormValidation";
 
 type Region={id?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;collapsable?:boolean;collapsed?:boolean};
 type Mode="table"|"cards"|"tiles";
-type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>;tab?:string;sections?:string[];settings?:Record<string,unknown>};
+type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>;tab?:string;sections?:string[];settings?:Record<string,unknown>;tree?:{expanded?:unknown;selected?:unknown}};
 const size=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value)&&value>=40&&value<=10000;
 const pixels=(value:unknown):number|undefined=>{
   const numeric=typeof value==="string"&&/^\d+(\.\d+)?px$/.test(value)?Number.parseFloat(value):value;
@@ -50,6 +50,13 @@ export class UiPreferences {
     return Object.fromEntries(Object.entries(saved).filter(([field,value])=>valid(definitions.find(definition=>definition.name===field),value)));
   }
   setFilters(filters:Record<string,string>):void{this.state.filters=Object.keys(filters).length?{...filters}:undefined;this.save();}
+  /** The expanded nodes and the selection of a `Tree` (keyed by its `id`); the tree drops the ids it cannot load. */
+  tree():{expanded:string[];selected?:string}{
+    const value=this.state.tree,id=(item:unknown):item is string=>typeof item==="string"&&item!==""&&item.length<=100;
+    const expanded=Array.isArray(value?.expanded)?value.expanded.filter(id).slice(0,200):[];
+    return {expanded,...(id(value?.selected)?{selected:value.selected}:{})};
+  }
+  setTree(state:{expanded:string[];selected?:string}):void{this.state.tree={expanded:state.expanded.slice(0,200),...(state.selected!==undefined?{selected:state.selected}:{})};this.save();}
   /** The values a `SettingsForm` keeps (keyed by its `key`); the form checks them against its fields. */
   settings():Record<string,unknown>{const value=this.state.settings;return value&&typeof value==="object"&&!Array.isArray(value)?{...value}:{};}
   /** Stores the form's values; undefined forgets them. */

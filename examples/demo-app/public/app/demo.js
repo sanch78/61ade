@@ -1372,12 +1372,12 @@ function page(app, host, view) {
       });
       workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, mode: "table", panel: false, showId: false });
       workList.mount(side.cell("main"));
-      const panel = document.createElement("div"), hint = document.createElement("p");
-      panel.style.cssText = "width:100%;height:100%";
+      const panel2 = document.createElement("div"), hint = document.createElement("p");
+      panel2.style.cssText = "width:100%;height:100%";
       hint.style.cssText = "margin:16px";
       hint.textContent = t("V\xE1lassz egy jegyzetet.");
-      panel.append(hint);
-      side.attach("side", panel);
+      panel2.append(hint);
+      side.attach("side", panel2);
       workList.on("target", ({ row: note }) => {
         current = note;
         for (const id of ["show", "copy", "delete"]) bar?.update(id, { disabled: !note });
@@ -1389,7 +1389,7 @@ function page(app, host, view) {
         }
         hint.remove();
         selected = new app.components.RecordDetails({ view: notes, record: note, showId: false });
-        selected.mount(panel);
+        selected.mount(panel2);
       }, { signal });
       if (phone.matches) {
         const pages = layout.tabsOf("work");
@@ -1485,10 +1485,131 @@ var taskPage = (app) => {
 };
 var task_page_default = taskPage;
 
+// examples/demo-app/frontend/src/registry-browser.ts
+var KIND6 = "demo.registry-browser";
+var TOGGLE = "demo.subkey-values";
+var PHONE3 = "(max-width: 767px)";
+function panel(text) {
+  const element = document.createElement("div"), hint = document.createElement("p");
+  element.style.cssText = "width:100%;height:100%;overflow:auto";
+  hint.style.cssText = "margin:16px";
+  hint.textContent = text;
+  element.append(hint);
+  return { element, hint };
+}
+function browser(app, host, view) {
+  const t = app.i18n.t, options = view.options ?? {};
+  const nodes = options.tree ? app.viewDefinition(options.tree) : void 0;
+  const values = options.values ? app.viewDefinition(options.values) : void 0;
+  if (!nodes) {
+    const empty = panel(t("A kulcsok nem \xE9rhet\u0151k el.")).element;
+    host.attach(empty);
+    return { destroy: () => empty.remove() };
+  }
+  const media = matchMedia(PHONE3);
+  let build, keys, list;
+  const root = document.createElement("div");
+  root.style.cssText = "width:100%;height:100%";
+  host.attach(root);
+  const render = () => {
+    if (host.signal.aborted) return;
+    const previous = build, controller = build = new AbortController(), signal = controller.signal;
+    host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
+    previous?.abort();
+    const phone = media.matches;
+    const center = { tabs: [{ id: "values", header: t("\xC9rt\xE9kek") }, { id: "key", header: t("Kulcs adatai") }], minWidth: 240 };
+    const tree = phone ? { rows: [{ id: "tree", header: nodes.title, height: 220, minHeight: 120, resizable: true, collapsable: true }, { ...center, minHeight: 200 }, { id: "value", header: t("\xC9rt\xE9k adatai"), height: 200, collapsable: true, collapsed: true }] } : { cols: [{ id: "tree", header: nodes.title, width: 280, minWidth: 180, resizable: true, collapsable: true }, center, { id: "value", header: t("\xC9rt\xE9k adatai"), width: 300, minWidth: 200, resizable: true, collapsable: true }] };
+    const layout = new app.components.PageLayout({ id: `${view.id}.${phone ? "narrow" : "wide"}`, tree });
+    layout.mount(root);
+    const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", id: `${view.id}.tree` });
+    nodeTree.mount(layout.cell("tree"));
+    const keyPanel = panel(t("V\xE1lassz egy kulcsot a f\xE1ban.")), valuePanel = panel(t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban."));
+    layout.attach("key", keyPanel.element);
+    layout.attach("value", valuePanel.element);
+    const valuesPanel = panel(values ? t("V\xE1lassz egy kulcsot a f\xE1ban.") : t("Az \xE9rt\xE9kek nem \xE9rhet\u0151k el."));
+    layout.attach("values", valuesPanel.element);
+    let keyDetails, valueDetails;
+    let node;
+    let subkeys = app.preferences.scope(TOGGLE).get(values?.id ?? "") === true;
+    const showValue = (row) => {
+      if (!values) return;
+      if (!row) {
+        valueDetails?.destroy();
+        valueDetails = void 0;
+        valuePanel.element.replaceChildren(valuePanel.hint);
+        return;
+      }
+      if (valueDetails) {
+        void valueDetails.show(row).catch(() => {
+        });
+        return;
+      }
+      valuePanel.element.replaceChildren();
+      valueDetails = new app.components.RecordDetails({ view: values, record: row, showId: false });
+      valueDetails.mount(valuePanel.element);
+    };
+    const showList = () => {
+      list?.destroy();
+      list = void 0;
+      showValue(void 0);
+      if (!values || !node) {
+        valuesPanel.element.replaceChildren(valuesPanel.hint);
+        return;
+      }
+      valuesPanel.element.replaceChildren();
+      list = new app.components.ListView({ view: values, scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) }, panel: false, showId: false });
+      list.on("select", ({ row }) => showValue(row));
+      list.on("toggle", ({ command, pressed: pressed2 }) => {
+        if (command === TOGGLE && pressed2 !== subkeys) {
+          subkeys = pressed2;
+          showList();
+        }
+      });
+      list.mount(valuesPanel.element);
+    };
+    nodeTree.on("select", ({ row }) => {
+      const changed = String(row?.id ?? "") !== String(node?.id ?? "");
+      node = row;
+      if (!row) {
+        keyDetails?.destroy();
+        keyDetails = void 0;
+        keyPanel.element.replaceChildren(keyPanel.hint);
+      } else if (keyDetails) void keyDetails.show(row).catch(() => {
+      });
+      else {
+        keyPanel.element.replaceChildren();
+        keyDetails = new app.components.RecordDetails({ view: nodes, record: row, showId: false });
+        keyDetails.mount(keyPanel.element);
+      }
+      if (changed) showList();
+    });
+    nodeTree.on("activate", () => layout.tabsOf("key")?.select("key"));
+    signal.addEventListener("abort", () => {
+      list?.destroy();
+      list = void 0;
+      keyDetails?.destroy();
+      valueDetails?.destroy();
+      nodeTree.destroy();
+      layout.destroy();
+    }, { once: true });
+  };
+  render();
+  media.addEventListener("change", render, { signal: host.signal });
+  return { destroy: () => build?.abort(), refresh: () => {
+    void keys?.refresh();
+    list?.refresh();
+  } };
+}
+var registryBrowser = (app) => {
+  app.kinds.register(KIND6, { create: (host, view) => browser(app, host, view) });
+  app.commands.register(TOGGLE, { type: "toggle", label: "Alkulcsok \xE9rt\xE9kei", icon: "dxi dxi-folder", placement: "toolbar", pressed: false });
+};
+var registry_browser_default = registryBrowser;
+
 // examples/demo-app/frontend/src/index.ts
 var demo = async (app) => {
   const failures = [];
-  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default]) {
+  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default]) {
     try {
       await part(app);
     } catch (error) {

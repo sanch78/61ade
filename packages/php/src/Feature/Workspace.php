@@ -47,8 +47,9 @@ final class Workspace
     /**
      * Views offered to $actor (bootstrap `views`, docs/toolkit.md#views); tenant-scoped ones only with an active $tenant
      * (membership checked), record views only with the record resource's `get` offered. Each entry is
-     * `{id, kind, title, resource?, record?, actions, group, icon, desktopOnly, open, menu?, guide?, options}` (`menu` only as
-     * `false`: offered without a menu entry or address of its own); the kind provider
+     * `{id, kind, title, resource?, record?, actions, group, icon, desktopOnly, open, menu?, attention?, guide?, options}` (`menu`
+     * only as `false`: offered without a menu entry or address of its own; `attention`: `{filters, tone}` of the menu
+     * entry's live count, View); the kind provider
      * decides whether the view is offered and builds `actions` and `options`.
      */
     public function views(Identity $actor,?string $tenant=null): array
@@ -63,6 +64,7 @@ final class Workspace
             $out[$view->id]=[...\Blade\I18n\Translator::presentation(['id'=>$view->id,'kind'=>$view->kind,'title'=>$view->title,
                 ...($view->resource!==null?['resource'=>$view->resource]:[]),...($view->record!==null?['record'=>$view->record]:[]),
                 'actions'=>$data['actions'],'group'=>$view->group,'icon'=>$view->icon,'desktopOnly'=>$view->desktopOnly,'open'=>$view->open,...($view->menu?[]:['menu'=>false])]),
+                ...($view->attention!==null?['attention'=>['filters'=>$view->attention['filters'],'tone'=>$view->attention['tone']??'warning']]:[]),
                 ...($view->guide!==null?['guide'=>\Blade\I18n\Translator::text($view->guide)]:[]),
                 // An empty options map stays a JSON object.
                 'options'=>$data['options']===[]?new \stdClass():\Blade\I18n\Translator::presentation($data['options'])];

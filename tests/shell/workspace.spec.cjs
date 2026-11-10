@@ -48,9 +48,11 @@ test('WebSocket delivers external writes as update frames',async({page})=>{
  await signIn(page);
  test.skip(await transport(page)!=='websocket','The demo polls; set BLADE_DEMO_LIVE_ENDPOINT to test WebSocket');
  const socket=await opened;
- const first=socket.waitForEvent('framereceived',{predicate:frame=>JSON.parse(frame.payload).type==='update',timeout:10000});
+ // The notes list's own subscription (a menu entry's attention count may subscribe first, view.attention).
+ const subscribed=socket.waitForEvent('framesent',{predicate:frame=>{const m=JSON.parse(frame.payload);return m.type==='subscribe'&&m.resource==='notes';},timeout:10000});
  await openMenu(page,'Jegyzetek');
- const id=JSON.parse((await first).payload).id;
+ const id=JSON.parse((await subscribed).payload).id;
+ await socket.waitForEvent('framereceived',{predicate:frame=>{const m=JSON.parse(frame.payload);return m.type==='update'&&m.id===id;},timeout:10000});
  const value='WebSocket '+Date.now();
  const update=socket.waitForEvent('framereceived',{predicate:frame=>{const m=JSON.parse(frame.payload);return m.type==='update'&&m.id===id&&m.upserts.some(row=>row.title===value);},timeout:10000});
  writeNote(value);

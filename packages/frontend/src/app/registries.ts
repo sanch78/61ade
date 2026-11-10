@@ -108,7 +108,8 @@ export const commandId = (name: string) => "blade-command:" + name;
 
 /**
  * The client commands a list shows: `builtin` names first (framework rules decide them), then the view's declared
- * `commands` in order. An unregistered name, or an entry without `run` or a `toolbar`/`record` placement, is skipped
+ * `commands` in order. An unregistered name, an entry without `run` (a toggle: with a `toolbar` placement and an optional
+ * `toggle` function) or without a `toolbar`/`record` placement is skipped
  * with one warning; a duplicate name appears once. A built-in
  * name falls back to `fallback` when no registry is bound (fixtures).
  */
@@ -117,7 +118,9 @@ export function resolveCommands(builtin: string[], declared: unknown, registry: 
   const out: ListCommand[] = [];
   for (const name of new Set(names)) {
     const entry = registry?.get(name) ?? (builtin.includes(name) && !registry ? fallback[name] : undefined);
-    if (!entry || typeof entry.run !== "function" || (entry.placement !== "toolbar" && entry.placement !== "record")) { warnOnce("command", name); continue; }
+    const toggle = entry?.type === "toggle";
+    if (!entry || (entry.type !== undefined && entry.type !== "button" && !toggle) || (toggle ? entry.placement !== "toolbar" || (entry.toggle !== undefined && typeof entry.toggle !== "function") : typeof entry.run !== "function")
+      || (entry.placement !== "toolbar" && entry.placement !== "record")) { warnOnce("command", name); continue; }
     out.push({ name, id: commandId(name), entry });
   }
   return out;

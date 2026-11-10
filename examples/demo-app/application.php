@@ -24,7 +24,7 @@ $languages = blade_demo_languages();
 
 // Business modules: declarative JSON with explicitly registered handlers, plus one PHP-registered resource.
 require_once __DIR__.'/signage.php';
-$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json', __DIR__.'/modules/catalog.json', __DIR__.'/modules/shelves.json', __DIR__.'/modules/registry.json'], static fn() => [
+$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json', __DIR__.'/modules/catalog.json', __DIR__.'/modules/shelves.json', __DIR__.'/modules/registry.json', __DIR__.'/modules/approvals.json'], static fn() => [
     ...blade_demo_signage_bindings(),
     'tasks.complete' => static function (Context $ctx, array $target): array {
         $ctx->db->prepare("UPDATE demo_tasks SET status = 'done' WHERE id = ?")->execute([$target['id']]);
@@ -65,6 +65,12 @@ $workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', 
     'tasks.dialog_warning' => static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Figyelmeztetés', 'value' => str_repeat('Hosszú figyelmeztető üzenet, amely természetesen tördelődik. ', 8), 'note' => 'Warning nyugtázás hosszú szöveggel.', 'severity' => 'warning']],
     'tasks.dialog_danger' => static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Hiba', 'value' => 'A művelet sikertelen: '.str_repeat('részletes_hibaüzenet_törés_nélkül_', 6), 'note' => "Második sor.\nHarmadik sor.", 'severity' => 'danger']],
 ]);
+// Key browser (registry.json `demo.registry-browser`): menu-less views for its public components. The keys as a Tree
+// need an offered list view with a hierarchy on itself (the tree navigation's node view is embedded); the values list
+// carries the toggle command `demo.subkey-values` and is read-only here (editing stays in the registry editor).
+$workspace->registry->view('demo_registry_keys', 'Kulcsok', [['id' => 'name', 'header' => 'Kulcs neve'], ['id' => 'parent_id', 'header' => 'Szülőkulcs']], ['get'], id: 'demo_registry_nodes', menu: false);
+$workspace->registry->subview('demo_registry_nodes', 'demo_registry_nodes', 'parent_id');
+$workspace->registry->view('demo_registry_values', 'Értékek', [['id' => 'name', 'header' => 'Név'], ['id' => 'type', 'header' => 'Típus', 'width' => 240], ['id' => 'data', 'header' => 'Adat']], ['get'], id: 'demo_registry_browser_values', menu: false, commands: ['demo.subkey-values']);
 $notes = new SqlResource('notes', 'notes', 'id', [new Field('title', 'Cím', required: true)], 'owner_id', ['owner_id' => '1']);
 $notes->register($workspace->registry, 'Jegyzetek', rowSelection: true, guide: 'A legegyszerűbb PHP-ban regisztrált erőforrás (SqlResource): egy kötelező mező, létrehozás, szerkesztés és sorjelöléssel tömeges törlés. A lista élő adat: ha a jegyzet máshol módosul, a lista magától frissül.'."\n\n".'Nyisd meg a nézetet két böngészőlapon, vegyél fel az egyiken egy jegyzetet, és figyeld a másikat.');
 $notes->registerDelete($workspace->registry);

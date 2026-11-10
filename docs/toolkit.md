@@ -436,6 +436,37 @@ command `demo.copy-text` ([example](#example-tasks)).
   server authorization: anything it reads or changes goes through
   `app.server.call`. Compact sub-view previews show no project commands; a
   full sub-view window shows its own view's.
+- **Toggle command** (`type: "toggle"`, [FB-0159](feedback.md#fb-0159)): a
+  two-state command of the list's own toolbar, like the
+  [CommandBar](#commandbar-view-controls) toggle: `aria-pressed` and the
+  pressed look in the bar, a checked entry (`menuitemcheckbox`) in
+  `Műveletek`. It takes `label`, `icon`, `enabled` as above, `pressed` (its
+  state until the user changes it for that view, default `false`) and an
+  optional `toggle(context)` instead of `run`; `placement` is `toolbar` only
+  (a `record` toggle is skipped with one warning). The state is kept per user
+  and **view id**, not per scope, in the public store
+  `app.preferences.scope(<command name>)` under the view id: a host reads it
+  before it mounts the list (`undefined` until the user changed it), and a list
+  mounted with another `scope` shows the same state; a sub-view window keeps
+  its own (its own view id). Every user change stores the state, then calls
+  `toggle` with the list's own context (never a sub-view's) and `pressed`, and
+  reports the list's `toggle {command, pressed}` event, both after the
+  toolbar's click handling, so a handler may destroy and replace the list. A
+  toggle changes nothing by itself: the host gives it its meaning with what
+  the list offers (another `scope`, `setFilters`, `refresh`), and anything it
+  reads goes through `app.server.call` like every command.
+
+  ```ts
+  app.commands.register("demo.subkey-values", { type: "toggle", label: "Alkulcsok értékei", icon: "dxi dxi-folder", placement: "toolbar" });
+  // The page: the kept state decides the first list's scope, a change mounts the list of the other scope.
+  let subkeys = app.preferences.scope("demo.subkey-values").get<boolean>("demo_registry_browser_values") === true;
+  const mountList = () => {
+    list?.destroy();
+    list = new app.components.ListView({ view: "demo_registry_browser_values", scope: { field: subkeys ? "parent_key_id" : "key_id", id: node }, panel: false });
+    list.on("toggle", ({ command, pressed }) => { if (command === "demo.subkey-values") { subkeys = pressed; mountList(); } });
+    list.mount(cell);
+  };
+  ```
 - **Unknown names never break a list.** A presentation or field type the
   module did not register renders the plain value (option label or text) and
   keeps the storage type's input; an undeclared or unregistered command is
@@ -465,6 +496,8 @@ list.on("select", ({ row }) => chart.show(row)); list.mount(layout.getCell("list
 const form = new C.RecordForm({ resource: "tasks", action: "update", id, signal: host.signal });
 form.on("saved", () => win.close());
 const details = new C.RecordDetails({ view: "signage_assets", record: host.record!.row });
+const tree = new C.Tree({ view: "categories_tree", label: "name", id: "demo.page.tree", signal: host.signal });
+tree.on("select", ({ row }) => details.show(row!)); tree.mount(layout.getCell("tree"));
 new C.FileManager({ view: "files" }).mount(host);
 const file = await C.FilePicker.pick({ field: fileField, title: "Kép" });
 new C.Calendar({ view: "events" }).mount(host);
@@ -478,10 +511,11 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 
 | Component | Wraps | Events / methods |
 | --- | --- | --- |
-| [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `target`, `activate`, `saved`, `changed`; `editing`, `refresh`, `selected`, `target`, `setFilters` |
+| [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `target`, `activate`, `saved`, `changed`, `toggle`; `editing`, `refresh`, `selected`, `target`, `setFilters` |
 | [`RecordForm`](#recordform) | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancelled`, `changed`; `submit`, `values`, `dirty` |
 | [`SettingsForm`](#settingsform) | the `RecordForm` field factory (`fields.ts`), `FormValidation`, native Suite Form items, `UiPreferences` (with `key`) | `change`, `submit`; `values`, `setValues`, `set`, `reset`, `update`, `validate` |
 | [`RecordDetails`](#recorddetails) | the `Adatok` details (`recordFields`) | `show(row \| id)` |
+| [`Tree`](#tree) | `NodeTree` (`components/list/RecordTree.ts`, also the panel of tree navigation) over the Suite Tree, `UiPreferences` (with `id`) | `select`, `activate`; `selected`, `select`, `refresh` |
 | [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `editing`; `pick()` resolves a `MediaDescriptor` or `null` |
 | [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; both `editing` |
 | [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `play`, `pause`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
@@ -495,7 +529,7 @@ Every event with its payload is in the [event catalog](#event-catalog); how
 to compose components in one page is the [Layout recipe](#layout-recipe).
 The list components live in `packages/frontend/src/components/list` and are
 offered as
-`app.components.ListView`, `RecordForm`, `RecordDetails` and `CommandBar`
+`app.components.ListView`, `RecordForm`, `RecordDetails`, `Tree` and `CommandBar`
 (the other components have their own subsections). Common rules: `mount(target)`
 takes an element (filled at 100 %), a Layout cell, an `AppWindow` or a
 `ViewHost`; a window or view host destroys the component when it closes, and
@@ -726,6 +760,78 @@ list.on("select", ({ row }) => { if (row) void details.show(row); });
 the view's `get` (a newer call wins). A failed load shows the error dialog and
 `show()` rejects. It has no events. `showId: false` leaves out the `ID · n`
 line.
+
+<a id="tree"></a>
+
+#### Tree
+
+The records of a list view with a hierarchy on itself as a tree, for a page
+that composes its own panels around a hierarchy: folders beside a preview,
+categories beside lists of their items, regions beside a dashboard. It is the
+engine of [tree navigation](workspaces.md#tree-navigation) as a component
+([FB-0158](feedback.md#fb-0158)); the feature demo's [key browser](demos.md#d8-key-browser)
+uses it.
+
+```ts
+const tree = new app.components.Tree({ view: "categories_tree", label: "name", id: `${view.id}.tree`, signal });
+tree.mount(layout.cell("tree"));
+tree.on("select", ({ row }) => showItems(row));          // also the initial and the restored selection
+tree.on("activate", () => layout.tabsOf("details")?.select("details"));
+```
+
+- `view`: an offered list view (or a held definition) whose resource has a
+  sub-view on itself (`Registry::subview($id, $id, 'parent_id')`, JSON
+  `view.subview` naming its own resource; the parent field is a select whose
+  options include `''`). Declare it with `menu: false` when it has no page of
+  its own. The node view of a tree navigation is embedded (not offered), so a
+  page declares its own view of the same resource. Not offered: `Error`;
+  another view or shape: `TypeError`. `label`: the column naming a node (a
+  readable text or select field), not the parent field.
+- **Loading**, as in tree navigation: roots are the records whose parent field
+  is empty; a node's children load the first time it is expanded, through the
+  resource's ordinary `list` with the parent filter, sorted by `label` when it
+  is sortable; the `_subview` count decides the expand toggle. At most 1000
+  children per node load (pages of 200); further ones are left out. A level
+  reloaded while an older load of it is pending keeps only the newer answer.
+  An empty tree says `Nincs megjeleníthető elem.`; a failed load shows the
+  error dialog.
+- **Selection:** `initial` is `"first"` (default, the first root), `"none"`
+  or `{id}` (that node when it is loaded once the roots and the remembered
+  levels are, otherwise none). `select {row}` reports every change: a click,
+  Space or Enter, `select(id)`, the initial or restored selection, and
+  `undefined` when the selected node disappeared in a `refresh`. `activate
+  {row}` is a double-click or Enter, after the node is selected. `selected()`
+  returns the row or `undefined`. Mount the tree in the same task that creates
+  it: events reach only a mounted component.
+- `select(id)` selects a loaded node, expands its ancestors and returns
+  `true`; an id that is not loaded (below a parent never expanded) returns
+  `false` and changes nothing.
+- `refresh()` reloads the roots and every expanded level, `refresh(id)` only
+  the children of a loaded node; the expansion, the selection and the keyboard
+  focus stay where their nodes still exist. A refresh that changes the
+  selected node's record reports `select` again with the new row. The tree is
+  not live: refresh it after a change made elsewhere.
+- **Preferences** with `id` (`[a-z][a-z0-9_.-]*`, per page and user,
+  `UiPreferences`): the expanded nodes (at most 200) and the selection,
+  restored on the next mount; ids that no longer load (deleted, no longer
+  readable) are dropped silently. Without `id` nothing is kept.
+- **Keyboard and screen readers:** one tab stop, `role="tree"` named by the
+  view's title, `aria-activedescendant` on the focused node; nodes are
+  `treeitem`s with `aria-level`, `aria-selected` and, with children,
+  `aria-expanded`; a nested level is a `group`. ArrowUp and ArrowDown move the
+  focus, ArrowRight expands (or moves to the first child), ArrowLeft collapses
+  (or moves to the parent), Home and End; Space selects, Enter selects and
+  activates. The focus moves without selecting, so a host does not reload its
+  panels while the user moves through the tree. The focus ring shows only
+  while the tree has the keyboard focus. Suite's own key navigation is off.
+- **Security:** every read is the resource's ordinary, ACL-checked `list`; a
+  node the actor cannot read is never loaded, and a child count is the
+  server's ACL-filtered `_subview`. The tree draws no panel of its own: the
+  host's region gives the title.
+
+Limits: one label column per node (no icons, counts or templates), no drag
+moves, no search, no node actions (tree navigation keeps its own toolbar), not
+live.
 
 <a id="commandbar"></a>
 
@@ -1890,6 +1996,9 @@ while mounted, never after `destroy()`):
 | | `activate` | `{row, target}` | double-click or Enter resolved to `target` (after the activation map and its fallbacks), before it runs; `details` also for a card or tile without a target and for the `#` cell |
 | | `saved` | `{action, row}` | a form of the list (create, update, record action with fields, singleton Save) or an inline cell or card edit (`action` `update`) saved; `row` is the server's answer |
 | | `changed` | `{rows, total?, matched?}` | the loaded window changed (load, scroll window, filter, live update, delete, revocation) |
+| | `toggle` | `{command, pressed}` | the user changed a [toggle command](#registries) of the list's toolbar, after its kept state and its `toggle` callback |
+| `Tree` | `select` | `{row}` (`undefined`: none) | the selected node changed: a click, Space or Enter, `select(id)`, the initial or restored selection, a refresh that removed or changed it |
+| | `activate` | `{row}` | double-click or Enter on a node, after it is selected |
 | `RecordForm` | `saved` | `{action, result}` | `submit` (or the submit button) succeeded |
 | | `cancelled` | `{}` | Cancel was pressed |
 | | `changed` | `{field, value}` | a field value was committed (on leaving the field) |
@@ -2448,6 +2557,9 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M43 | [CommandBar menu](#commandbar-menu): `{type: "menu", id, label, icon, iconOnly, items}`, one *more actions* button whose entries report `click` (a submenu of `Műveletek` when collapsed) | [FB-0154](feedback.md#fb-0154) | none | none | none |
 | M44 | Suite's English-only names in the page's language ([window](#app-window), [PageLayout](#pagelayout-collapse)): a `collapsable` Layout header is `‹header› összecsukása` / `‹header› kinyitása`, a window's close button `Ablak bezárása`; Escape closes a `modal: false` `app.ui.window` while the focus is inside it | [FB-0155](feedback.md#fb-0155) | info: specs that find a header by "click to collapse"/"click to expand" or a close button by "close" use the localized names | none | none |
 | M45 | [Cell content](#cell-content): `app.ui.attach(cell, content, {signal})` puts a plain element, Suite widget or component into any Suite Layout cell (a `type: "none"` box included), edge to edge | [FB-0157](feedback.md#fb-0157) | info: a one-region `PageLayout` that only held an element can become a box Layout cell with `app.ui.attach` (no framed panel) | none | none |
+| M46 | [Tree](#tree): `app.components.Tree` over a list view with a hierarchy on itself (`select`, `activate`; `selected`, `select(id)`, `refresh(id?)`; `initial`, `id`); tree navigation's panel is built on it and its keys follow the WAI-ARIA tree (Space selects, Enter selects and activates) | [FB-0158](feedback.md#fb-0158) | info: a tree navigation spec that relied on Suite's own key handling uses the documented keys | none | none |
+| M47 | Toggle command ([registries](#registries)): `ClientCommand.type: "toggle"`, `pressed`, `toggle(context)`; `run` is optional for a toggle; the state in `app.preferences.scope(<command name>)` under the view id; `ListView` event `toggle` | [FB-0159](feedback.md#fb-0159) | info: TypeScript code that calls `command.run(…)` on a `ClientCommand` handles the optional `run` | none | none |
+| M48 | [Menu attention](shell.md#menu-attention): `attention: ['filters' => […], 'tone' => …]` on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.attention`; bootstrap `attention`; a live count badge on the entry, its branch and `Menü` | [FB-0160](feedback.md#fb-0160) | info: an entry with a count has the accessible name `‹label›, n függőben`; its branch and `Menü` keep their names but their visible text gains the number; each such view adds one live subscription of one row per page | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2577,6 +2689,9 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-09 | `PageLayout.collapse(id)`, `expand(id)`, `isCollapsed(id)`, `PageLayoutEvents` (`collapse {id, collapsed}`; `PageLayout` extends `Component<PageLayoutEvents>`). A public component given to `attach` of `PageLayout`, `Tabs` or `Accordion` is mounted there, so its events arrive. Additive (M42). | A consumer's record page shows or hides a side panel from its command bar and collapses its control region on a phone while one tab is shown. | [FB-0153](feedback.md#fb-0153) |
 | 2026-11-09 | `CommandItem` adds `CommandMenu` (`type: "menu"`, `items`: 1–12 `CommandButton`s and `CommandSeparator`s); its entries report `click {id}` and take `update`. Additive (M43). | A consumer's command bar acts on the selected item with a few commands behind one *more actions* button. | [FB-0154](feedback.md#fb-0154) |
 | 2026-11-09 | `Ui.attach(target, content, {signal})`: a plain element, Suite widget or component into any Suite Layout cell, edge to edge, released by the signal. Additive (M45). | A consumer shows a project-drawn interactive preview between two command bars in a tab, without the framed panel of a one-region `PageLayout`. | [FB-0157](feedback.md#fb-0157) |
+| 2026-11-10 | `Components.Tree` (`TreeOptions`, `TreeEvents`: `select`, `activate`; `Tree.selected()`, `select(id)`, `refresh(id?)`). Additive (M46). | A page composes its own panels around a hierarchy that tree navigation shows only in its fixed tree + list layout (a consumer request, recorded without business terms). | [FB-0158](feedback.md#fb-0158) |
+| 2026-11-10 | `ClientCommand.type` (`"button"` \| `"toggle"`), `.pressed`, `.toggle(ToggleContext)`; `ClientCommand.run` is optional (required unless `type: "toggle"`); `ToggleContext`; `ListViewEvents.toggle`. Additive (M47). | A list-wide mode switch in the list's own toolbar, kept per view (a consumer request). | [FB-0159](feedback.md#fb-0159) |
+| 2026-11-10 | `ViewDefinition.attention` (`{filters, tone}`). PHP `View::$attention`, `attention` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.attention`. Additive (M48). | Pending work on a view must be noticed from any page (a consumer request). | [FB-0160](feedback.md#fb-0160) |
 
 <a id="resolved-decisions"></a>
 

@@ -607,6 +607,14 @@ export interface ViewDefinition<Options = unknown> {
      */
     menu?: false;
     /**
+     * A list view's menu entry shows the number of its records matching `filters` for the actor as a badge in `tone`
+     * (PHP `attention`, JSON `view.attention`), kept current by the live channel; absent for other views.
+     */
+    attention?: {
+        filters: Record<string, string>;
+        tone: "warning" | "danger" | "primary";
+    };
+    /**
      * What the user sees and can do in the view (plain text, localized; blank lines separate paragraphs). Opened as a
      * page, the shell shows it in a closable window until the user closes it once (per user and browser); the lower
      * bar's `Útmutató` button shows it again.
@@ -1024,7 +1032,23 @@ export interface ClientCommand {
      * command that acts on the marks declares its own rule). A throw disables it (logged).
      */
     enabled?(context: CommandContext): boolean;
-    run(context: CommandContext): void | Promise<void>;
+    /** The push command's action; required unless `type` is `toggle`. */
+    run?(context: CommandContext): void | Promise<void>;
+    /**
+     * `toggle`: a two-state command of the list's own toolbar (`placement: "toolbar"` only; a `record` toggle is skipped
+     * with a warning). It shows `aria-pressed` in the bar and a checked entry (`menuitemcheckbox`) in `Műveletek`; the
+     * state is kept per user and view id in `app.preferences.scope(<command name>)` under the view id, so a host reads it
+     * before it mounts the list and a list of another scope keeps it. Default: a push button (`run`).
+     */
+    type?: "button" | "toggle";
+    /** A toggle's state while the user has not changed it for that view. Default false. */
+    pressed?: boolean;
+    /** A toggle's action after every user change, with the new state (the list's `toggle` event follows it). */
+    toggle?(context: ToggleContext): void | Promise<void>;
+}
+/** Context of a toggle command's change: the list's own context (never a sub-view's) and the new state. */
+export interface ToggleContext extends CommandContext {
+    readonly pressed: boolean;
 }
 /** A Suite Layout cell (`layout.getCell(id)`), the usual mount target inside a project layout. */
 export type LayoutCell = ReturnType<Suite.Layout["getCell"]>;
@@ -1142,6 +1166,11 @@ export interface ListViewEvents {
         rows: readonly Row[];
         total?: number;
         matched?: number;
+    };
+    /** The user changed a toggle command of the list's toolbar (`command`: its registered name), after its callback. */
+    toggle: {
+        command: string;
+        pressed: boolean;
     };
 }
 /**
@@ -1317,6 +1346,55 @@ export interface RecordDetailsOptions extends ComponentOptions {
 export interface RecordDetails extends Component<Record<string, never>> {
     /** Shows another row (no request) or loads another id (a newer call wins); a failed load shows the error dialog and rejects. */
     show(record: Row | string): Promise<void>;
+}
+/** Options of `Tree`: the records of one list view with a hierarchy on itself, as a tree. */
+export interface TreeOptions extends ComponentOptions {
+    /**
+     * An offered list view (or a held definition) whose resource has a sub-view on itself (`subview(view, view, parent)`,
+     * `options.subview.shared`); `menu: false` keeps it out of the menu. Not offered: `Error`; another view `TypeError`.
+     */
+    view: ViewReference<ListKindOptions>;
+    /** The column that names a node (a readable text or select field of the view); another id throws `TypeError`. */
+    label: string;
+    /**
+     * The selection when the tree opens and nothing remembered applies: `"first"` (the first root, default), `"none"`,
+     * or a root id (a node that is not a loaded root falls back to none).
+     */
+    initial?: "first" | "none" | {
+        id: string;
+    };
+    /** Remembers the expanded nodes and the selection per page and user under this key (`[a-z][a-z0-9_.-]*`). */
+    id?: string;
+}
+/** Events of `Tree`. */
+export interface TreeEvents {
+    /** The selected node changed (a click, the keys, `select(id)`, the initial or restored selection); `undefined`: none. */
+    select: {
+        row: Row | undefined;
+    };
+    /** Double-click or Enter on a node (after it is selected). */
+    activate: {
+        row: Row;
+    };
+}
+/**
+ * The records of a self-hierarchy as a tree (`components/list/RecordTree.ts`, also the panel of tree navigation):
+ * roots are the records with an empty parent field, a node's children load through the resource's ordinary `list` when
+ * it is first expanded. Keyboard and screen-reader tree semantics; not live (`refresh` after a change elsewhere).
+ */
+export interface Tree extends Component<TreeEvents> {
+    /** The selected node's row, `undefined` without a selection. */
+    selected(): Row | undefined;
+    /**
+     * Selects a loaded node and expands its ancestors (reports `select` when it changed); false for an id that is not
+     * loaded (a node below a collapsed, never-expanded parent), which changes nothing.
+     */
+    select(id: string): boolean;
+    /**
+     * Reloads the roots and every expanded level (`id`: only that node's children) and keeps the expansion, the
+     * selection and the focus where the nodes still exist; a selection that disappeared reports `select` with `undefined`.
+     */
+    refresh(id?: string): Promise<void>;
 }
 /** Options of `FileManager` (implemented P3 C-2). */
 export interface FileManagerOptions extends ComponentOptions {
@@ -1916,6 +1994,7 @@ export interface Components {
     readonly RecordForm: ComponentClass<RecordFormOptions, RecordForm>;
     readonly SettingsForm: ComponentClass<SettingsFormOptions, SettingsForm>;
     readonly RecordDetails: ComponentClass<RecordDetailsOptions, RecordDetails>;
+    readonly Tree: ComponentClass<TreeOptions, Tree>;
     readonly FileManager: ComponentClass<FileManagerOptions, FileManager>;
     readonly FilePicker: FilePicker;
     readonly Calendar: ComponentClass<CalendarOptions, Calendar>;
