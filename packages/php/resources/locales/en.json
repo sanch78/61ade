@@ -734,5 +734,7 @@
   "{header} kinyitása": "Expand {header}",
   "Összecsukás": "Collapse",
   "Kinyitás": "Expand",
-  "Ablak bezárása": "Close window"
+  "Ablak bezárása": "Close window",
+  "{count} függőben": "{count} pending",
+  "Nincs megjeleníthető elem.": "Nothing to show."
 }

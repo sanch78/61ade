@@ -734,5 +734,7 @@
   "{header} kinyitása": "{header} ausklappen",
   "Összecsukás": "Einklappen",
   "Kinyitás": "Ausklappen",
-  "Ablak bezárása": "Fenster schließen"
+  "Ablak bezárása": "Fenster schließen",
+  "{count} függőben": "{count} ausstehend",
+  "Nincs megjeleníthető elem.": "Keine Einträge."
 }

@@ -100,6 +100,17 @@ project module registers its behaviour:
   parent's own cursor record, so `view` and `row` always belong to one
   resource (a hierarchy shares every command). Commands run in
   the browser; every server effect is an ordinary ACL-checked action call.
+- **Toggle commands:** a command registered with `type: "toggle"` (toolbar
+  placement only) is a two-state button with `aria-pressed`, a checked
+  `menuitemcheckbox` in `Műveletek`, for a list-wide mode such as "include
+  sub-categories", "show archived" or "only mine". Its state is a preference
+  of the user and the **view id**, not of the list's scope, so a host that
+  mounts the list with another `scope` (a scoped list's other preferences are
+  keyed `<view id>@<field>`) keeps it, and a host reads it before the first
+  load from `app.preferences.scope(<command name>)`. The toggle is never
+  delegated to a sub-view record; the host gives it its meaning through the
+  list's `toggle` event or the command's `toggle` callback
+  ([toggle command](toolkit.md#registries), [FB-0159](feedback.md#fb-0159)).
 - An unknown name never breaks a list: the plain value, the built-in input or
   no command, with one console warning per name.
 
@@ -368,6 +379,11 @@ writes. Only changes send packets: changed rows, deleted IDs and current order.
 The framework owns heartbeat/reconnect/stale-frame rejection. Hidden tabs
 unsubscribe and resubscribe on return. WebSocket selection does not silently
 fall back to polling.
+
+A menu entry with [attention](shell.md#menu-attention) holds one more
+subscription on the same channel: the view's list read with its declared
+filters and one row, whose `matched` count the entry shows
+([FB-0160](feedback.md#fb-0160)).
 
 Every observation rechecks authentication, expiry, account state, revocation
 and ACL. Subscriptions are audited technical reads; unchanged ticks do not
@@ -1106,6 +1122,17 @@ declares `"subview": {"resource": "keys", "field": "parent_id"}`.
   update, so a project that allows moves guards against cycles (the feature
   demo's `registry.key_guard`). Deleting a node with children is the node
   resource's business (the demo's `after_delete` removes the subtree).
+
+- **Keys:** the tree is a WAI-ARIA tree with one tab stop: the arrow keys,
+  Home and End move the focus, ArrowRight and ArrowLeft expand and collapse,
+  Space selects (the list follows), Enter selects too.
+- **As a component:** the tree panel is built on
+  [`app.components.Tree`](toolkit.md#tree) ([FB-0158](feedback.md#fb-0158)),
+  which a project page mounts in any cell with panels of its own (for
+  example tabs with a scoped `ListView` and a `RecordDetails`) and drives
+  through its `select` and `activate` events. Its node view is an offered
+  list view with the hierarchy on itself (`menu: false` when it has no page);
+  the node view of a tree navigation is embedded and cannot be reused there.
 
 Limits: the tree is not live (it reloads only after its own actions); no drag
 moves; no search inside the tree; a node shows its label field only.

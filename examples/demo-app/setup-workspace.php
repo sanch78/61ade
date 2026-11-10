@@ -72,6 +72,12 @@ if (!$db->query('SELECT COUNT(*) FROM demo_shelf_zones')->fetchColumn()) {
         foreach ($shelves as $shelf) $place->execute([$id, $shelf]);
     }
 }
+// Approval queue (modules/approvals.json): items awaiting review; the menu entry counts the pending ones live.
+$db->exec("CREATE TABLE IF NOT EXISTS demo_approvals(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending')");
+if (!$db->query('SELECT COUNT(*) FROM demo_approvals')->fetchColumn()) {
+    $approval = $db->prepare('INSERT INTO demo_approvals(title,status) VALUES (?,?)');
+    foreach ([['Új nyitóképernyő', 'pending'], ['Hétvégi nyitvatartás', 'pending'], ['Árlista frissítése', 'pending'], ['Téli dekoráció', 'approved'], ['Hangosbemondás szövege', 'rejected']] as $row) $approval->execute($row);
+}
 // Registry editor imitation (modules/registry.json): synthetic keys in a hierarchy and values of every type.
 $db->exec("CREATE TABLE IF NOT EXISTS demo_registry_keys(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,parent_id TEXT NOT NULL DEFAULT '')");
 $db->exec("CREATE TABLE IF NOT EXISTS demo_registry_values(id INTEGER PRIMARY KEY AUTOINCREMENT,key_id INTEGER NOT NULL,name TEXT NOT NULL,type TEXT NOT NULL DEFAULT 'REG_SZ',string_value TEXT NOT NULL DEFAULT '',multi_value TEXT NOT NULL DEFAULT '',dword_value TEXT NOT NULL DEFAULT '',qword_value TEXT NOT NULL DEFAULT '',binary_value TEXT NOT NULL DEFAULT '')");
@@ -218,6 +224,8 @@ $rules[] = ['1', 'demo_registry_keys', ['list', 'get', 'create', 'update', 'dele
 $rules[] = ['1', 'demo_registry_values', ['list', 'get', 'create', 'update', 'delete']];
 $rules[] = [(string) $reader, 'demo_registry_keys', ['list', 'get']];
 $rules[] = [(string) $reader, 'demo_registry_values', ['list', 'get']];
+// Approval queue: the demo account reviews; the reader has no access, so neither the entry nor its count.
+$rules[] = ['1', 'demo_approvals', ['list', 'get', 'update']];
 // Read-only topology viewer: opens diagrams, no editing.
 $rules[] = [(string) $reader, 'topology', ['list', 'get']];
 // Digital signage: calendar table, synthetic assets, weekday defaults and programme; the seeded asset media move into

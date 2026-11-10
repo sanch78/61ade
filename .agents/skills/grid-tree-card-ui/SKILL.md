@@ -165,6 +165,16 @@ tree as decoration for a flat list.
 - Give tree nodes the same keyboard/focus, localization, theme, loading,
   empty, error, and selection treatment as grids and cards. Do not use a tree
   merely to avoid designing a proper filter or list query.
+- A hierarchy that drives other panels is one reusable record tree with tree
+  semantics (one tab stop, `treeitem` levels and states, arrows/Home/End move
+  the focus, Space selects, Enter selects and activates). Keep the focus
+  separate from the selection, so moving through the tree does not reload the
+  panels it drives; report the selection (also the initial and restored one)
+  and the activation as events, and let the host compose the panels instead of
+  growing a fixed tree-plus-list layout ([FB-0158](../../../docs/feedback.md#fb-0158)).
+- A list-wide mode is a two-state command of the list's own toolbar whose state
+  belongs to the view identity, not to the scope it is mounted with, so a host
+  that swaps the scope keeps it ([FB-0159](../../../docs/feedback.md#fb-0159)).
 
 ## Card and detail rules
 

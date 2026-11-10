@@ -734,5 +734,7 @@
   "{header} kinyitása": "{header} kinyitása",
   "Összecsukás": "Összecsukás",
   "Kinyitás": "Kinyitás",
-  "Ablak bezárása": "Ablak bezárása"
+  "Ablak bezárása": "Ablak bezárása",
+  "{count} függőben": "{count} függőben",
+  "Nincs megjeleníthető elem.": "Nincs megjeleníthető elem."
 }

@@ -4,15 +4,25 @@ import { escape } from "./RecordPresentation";
 /** `folder: false` makes a leaf; `icon` is its Suite icon class. */
 export type TreeNode={id:string;parent:string;value:string;folder?:boolean;icon?:string};
 
-/** Suite Standard Tree over a flat parent-linked list; user selection, double-click and expansion are its events. */
+/**
+ * Suite Standard Tree over a flat parent-linked list; user selection, double-click, expansion and collapse are its
+ * events. With `element` the tree renders into that element and Suite's own key navigation is off (the owner handles
+ * the keys, `RecordTree`); otherwise it is attached to a Layout cell and Suite navigates.
+ */
 export class TreeAdapter {
   readonly widget:Tree;
   private quiet=false;
-  constructor(select:(id:string)=>void,open?:(id:string)=>void,expand?:(id:string)=>void){
-    this.widget=new Tree(null as unknown as HTMLElement,{selection:true,keyNavigation:true,css:"blade-tree",isFolder:(item:any)=>item.folder!==false,template:(item:any)=>escape(item.label)});
+  constructor(select:(id:string)=>void,open?:(id:string)=>void,expand?:(id:string)=>void,options:{element?:HTMLElement;collapse?:(id:string)=>void}={}){
+    this.widget=new Tree((options.element??null) as unknown as HTMLElement,{selection:true,keyNavigation:!options.element,css:"blade-tree",isFolder:(item:any)=>item.folder!==false,template:(item:any)=>escape(item.label)});
     this.widget.selection.events.on("afterSelect",(id:string|number)=>{if(!this.quiet)select(String(id));});
     if(open)this.widget.events.on("itemDblClick",(id:string|number)=>open(String(id)));
     if(expand)this.widget.events.on("afterExpand",(id:string|number)=>expand(String(id)));
+    if(options.collapse)this.widget.events.on("afterCollapse",(id:string|number)=>options.collapse!(String(id)));
+  }
+  /** Selects $id (or clears the selection) without reporting a user choice. */
+  choose(id:string|undefined):void{
+    this.quiet=true;
+    try{if(id===undefined)this.widget.selection.remove();else if(this.widget.data.exists(id))this.widget.selection.add(id);}finally{this.quiet=false;}
   }
   private static items(nodes:TreeNode[],root:string):object[]{
     const children=new Map<string,TreeNode[]>();

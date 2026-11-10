@@ -1,0 +1,71 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: an approval queue whose menu entry shows how many items wait for review.",
+        "covers": "menu attention (view.attention): a live count of the pending records on the menu entry, its branch and the collapsed Menü, in the warning tone; zero shows the plain entry; an actor without the view gets neither."
+    },
+    "resources": {
+        "demo_approvals": {
+            "storage": {
+                "table": "demo_approvals",
+                "key": "id",
+                "defaults": {
+                    "status": "pending"
+                }
+            },
+            "operations": {
+                "create": false
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 120
+                },
+                {
+                    "name": "status",
+                    "label": "Állapot",
+                    "type": "select",
+                    "required": true,
+                    "max": 20,
+                    "options": {
+                        "pending": "Jóváhagyásra vár",
+                        "approved": "Jóváhagyva",
+                        "rejected": "Elutasítva"
+                    },
+                    "default": "pending",
+                    "column": {
+                        "editable": true,
+                        "width": 200
+                    }
+                }
+            ],
+            "view": {
+                "title": "Jóváhagyások",
+                "group": "Feature demó",
+                "icon": "dxi dxi-checkbox-marked-circle",
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "status",
+                        "header": "Állapot"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "update"
+                ],
+                "attention": {
+                    "filters": {
+                        "status": "pending"
+                    },
+                    "tone": "warning"
+                },
+                "guide": "Jóváhagyásra váró tételek sora. Amíg van függő tétel, a menüpont mellett narancssárga szám mutatja, hány vár döntésre, a csoportja és a keskeny kijelzőn a Menü gomb is jelzi. A szám élőben frissül: ha egy tétel máshol (egy másik lapon vagy a szerveren) jóváhagyásra vár vagy eldől, a menü magától követi.\n\nAz Állapot a táblázatban közvetlenül szerkeszthető: válts Jóváhagyva vagy Elutasítva állapotra, és figyeld a menüpontot. Ha nincs függő tétel, a menüpont olyan, mint a többi.\n\nKeretrendszer-képesség: menüpont-figyelmeztetés (view.attention)."
+            }
+        }
+    }
+}

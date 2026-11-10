@@ -75,7 +75,7 @@ verify($app->accounts->oauthAllowed('5') && !$app->accounts->oauthAllowed('1') &
 $demoViews = $app->workspace->views($app->identities->find('1'));
 // Bootstrap views (docs/toolkit.md#views): id and kind always set, kind payloads under `options`, no placeholders.
 foreach ($demoViews as $view) {
-    verify(array_slice(array_keys($view), 0, 2) === ['id', 'kind'] && array_key_last($view) === 'options' && !array_diff(array_keys($view), ['id', 'kind', 'title', 'resource', 'record', 'actions', 'group', 'icon', 'desktopOnly', 'open', 'menu', 'guide', 'options']), 'Bootstrap view shape: '.$view['id']);
+    verify(array_slice(array_keys($view), 0, 2) === ['id', 'kind'] && array_key_last($view) === 'options' && !array_diff(array_keys($view), ['id', 'kind', 'title', 'resource', 'record', 'actions', 'group', 'icon', 'desktopOnly', 'open', 'menu', 'attention', 'guide', 'options']), 'Bootstrap view shape: '.$view['id']);
 }
 $demoKinds = array_column($demoViews, 'kind', 'id');
 verify($demoKinds['demo_tasks'] === 'list' && $demoKinds['files'] === 'files' && $demoKinds['topology'] === 'diagram' && $demoKinds['signage_schedule'] === 'calendar', 'Every built-in kind is named explicitly');

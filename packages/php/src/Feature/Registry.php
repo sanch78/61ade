@@ -91,6 +91,17 @@ final class Registry
         foreach($view->actions as $action)$this->get((string)$view->resource,$action);
         if($view->record!==null&&(in_array($view->kind,View::BUILTIN_KINDS,true)||!isset($this->actions[$view->record.'.get'])))throw new \InvalidArgumentException('A record view needs a project kind and the get action of its record resource: '.$view->id);
         $provider->validate($this,$view);
+        if($view->attention!==null)$this->attention($view);
+    }
+    /** Attention filters name filterable fields of the view's resource (not secret, textarea, multiselect or media) with a valid value. */
+    private function attention(View $view): void
+    {
+        $fields=$this->fields((string)$view->resource);
+        foreach($view->attention['filters'] as $name=>$value){
+            $field=$fields[$name]??null;
+            if(!$field||$field->secret||!in_array($field->type,['text','select','checkbox','number'],true)||$field->media()!==null
+                ||($field->type==='checkbox'&&!in_array($value,['0','1'],true))||($field->type==='number'&&!ctype_digit($value)))throw new \InvalidArgumentException('Invalid view attention filter: '.$view->id.'.'.$name);
+        }
     }
     /** `activate: 'page'` needs a child view with its own page: another resource's view kept in the menu (also checkViews()). */
     private function pageActivation(View $parent,bool $withoutPage): void
@@ -155,10 +166,11 @@ final class Registry
      * $sort: `['field' => f, 'direction' => 'asc'|'desc']`, the first sort before the user picks one (default `id`
      * descending): `id` or a sortable field of the resource (not secret, a password, textarea or multiselect); not
      * with a manual order or a singleton.
+     * $attention: a live count of the records matching `filters` on the view's menu entry, in a `tone` (View).
      */
-    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null): View
+    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null): View
     {
-        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$menu,$sort));
+        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$menu,$sort,$attention));
     }
     /**
      * Sub-view: every record of the $view list expands (grid sub-row or card) to the $child list filtered to

@@ -650,3 +650,15 @@
 <a id="fb-0157"></a>
 
 ## FB-0157 — A project element filling a Layout cell edge to edge
+
+<a id="fb-0158"></a>
+
+## FB-0158 — A public Tree component over a record hierarchy
+
+<a id="fb-0159"></a>
+
+## FB-0159 — A two-state (toggle) client command for lists
+
+<a id="fb-0160"></a>
+
+## FB-0160 — A live attention count on a menu entry

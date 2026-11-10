@@ -122,6 +122,8 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Network topology builder | Visual diagram editor: drag network elements from the palette, move them, connect them by the element handle with Ethernet/fibre/Wi-Fi/VPN/WAN connections, edit captions and details in the property form, save with revision check; define new element types (name, glyph, shape, colour) at runtime; two synthetic topologies; desktop only; [details](diagrams.md) | Feature demo → Hálózati topológia; `reader@example.test` views only |
 | Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
 | Registry editor (tree navigation, conditional fields) | `Regisztrációs adatbázis` ([registry.json](../examples/demo-app/modules/registry.json)): a Windows registry editor imitation. The key tree (`Registry::tree` over the `Kulcsok` hierarchy) loads children on expansion, its toolbar adds, edits (renames or moves, guarded against cycles) and deletes keys (with their subtree and values); the value list beside it is scoped to the selected key. The value form shows the editor of the chosen `Típus` only (`visible_when`): text, multi-line text, hexadecimal DWORD/QWORD or a byte string, each with its own pattern; the `Adat` column is computed SQL | Feature demo → Regisztrációs adatbázis; `reader@example.test` browses only |
+| Tree component and toggle command | `Kulcsböngésző` ([D8](#d8-key-browser)): the public `Tree` beside tabs of a scoped value list and key details, and value details; the list's toggle `Alkulcsok értékei` switches between the key's own values and its subkeys' | Feature demó → Kulcsböngésző: arrows, Space, Enter in the tree; the toggle in the values toolbar; reload |
+| Menu attention | `Jóváhagyások` ([approvals](#approvals-attention)): a live count of the pending items on the entry, its branch and `Menü`, in the warning tone; the plain entry at zero | Change an item's `Állapot` and watch the menu; `reader@example.test` sees no entry |
 | View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in the `Beállítások` controls menu below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Empty shelf`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `Zone C` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
 | Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the single-file `file` field with a native file dialog, clipboard paste/drop, background transfer and proportional preview, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date, an asset or a playlist (two selects clearing each other, [exclusive fields](workspaces.md#exclusive-fields); a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
@@ -185,6 +187,7 @@ starter admin and the tenant demo stay declarative and load no project module.
 | D5 | Signage `Lejátszási listák` playlist editor | `playlist-editor.ts` | Implemented: record view kind `demo.playlist-editor` and record command `demo.edit-playlist` ([below](#d5-playlist-editor)) |
 | D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` and `app/demo.css` on the feature demo |
 | D7 | `Feladatlap` task page | `task-page.ts` | Implemented: record view kind `demo.task-page` and record command `demo.task-page` ([below](#d7-task-page)) |
+| D8 | `Kulcsböngésző` key browser | `registry-browser.ts` | Implemented: view kind `demo.registry-browser` (the `Tree` component) and toggle command `demo.subkey-values` ([below](#d8-key-browser)) |
 
 <a id="readings-dashboard"></a>
 
@@ -619,6 +622,51 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
   selection, opening the panel and copying the selected note),
   `tests/shell/page-layout-collapse.spec.cjs`, `tests/shell/command-menu.spec.cjs`,
   `php8.4 tests/shell/toolkit.php` and `configuration.php` (`sort`).
+
+<a id="d8-key-browser"></a>
+
+**D8 `Kulcsböngésző` key browser** ([registry-browser.ts](../examples/demo-app/frontend/src/registry-browser.ts),
+declared in [registry.json](../examples/demo-app/modules/registry.json)
+`views` and, for its two menu-less list views, in
+[application.php](../examples/demo-app/application.php)): the view kind
+`demo.registry-browser` over the registry editor's keys, a three-column
+`PageLayout` (rows below 768 px, rebuilt when the breakpoint changes) driven
+only by the [Tree](toolkit.md#tree)'s `select`:
+
+- **Tree:** `app.components.Tree` over `demo_registry_nodes`, a `menu: false`
+  view of `demo_registry_keys` with the hierarchy on itself (the registry
+  editor's own node view is embedded by its tree navigation), with `id` so
+  the expanded keys and the selection come back on the next visit.
+- **Tabs:** `Értékek`, the selected key's values as a scoped `ListView` of
+  `demo_registry_browser_values` (`menu: false`, read-only here: `get`
+  only), and `Kulcs adatai`, the key's `RecordDetails`. Enter or a
+  double-click on a key (`activate`) opens `Kulcs adatai`.
+- **Value details:** the value selected in the list (`RecordDetails`), a
+  collapsible panel (collapsed at first on a phone).
+- **Toggle command** [`demo.subkey-values`](toolkit.md#registries)
+  (`Alkulcsok értékei`, `type: "toggle"`) on the values list's toolbar: on,
+  the list shows the values of the key's direct subkeys (scope
+  `parent_key_id`, a computed field of the values) instead of its own
+  (`key_id`). The page reads the kept state before the first list and mounts
+  the list of the other scope on the list's `toggle` event; the state
+  survives that change, a reload and the collapsed `Műveletek` at 390 px.
+
+Checks: `tests/shell/tree-component.spec.cjs` (roles, keys, selection and
+restore at 1366 and 390 px; the component's options, `select`, `activate`,
+`refresh(id)`, `refresh()` and destroy on a fixture; the actor without the
+node view) and `tests/shell/list-toggle.spec.cjs` (pressed state, scope
+switch, the first load after a reload, `menuitemcheckbox` at 390 px).
+
+<a id="approvals-attention"></a>
+
+**`Jóváhagyások` approval queue** ([approvals.json](../examples/demo-app/modules/approvals.json)):
+a small declarative view whose menu entry shows how many items wait for
+approval ([menu attention](shell.md#menu-attention)): `attention` with the
+filter `status: pending` and the tone `warning`. The seed has three pending
+items; changing an item's `Állapot` in the table (or on the server) updates
+the count on the entry, the `Feature demó` branch and the collapsed `Menü`
+live. The demo account may list and update; the reader has no access and sees
+neither the entry nor a count. Check: `tests/shell/menu-attention.spec.cjs`.
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
