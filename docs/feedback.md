@@ -7081,6 +7081,19 @@ that exactly equals an option label lists every option. The managed
   three `authentication.spec.cjs` browser cases passed on the managed demo.
   The provider callback was not exercised with a real provider; no full-smoke
   claim.
+- **Owner decision (same day):** a requested withdrawal (revert) of
+  `c2dec75`/`3c20bf5` was cancelled; both commits stand as the delivery and
+  the unused compensating-revert branch was deleted unmerged.
+- **Independent re-validation (same day):** the same four PHP checks passed
+  on a clean `3c20bf5` worktree and on `main` with FB-0175 (`0e61ec1`).
+  Removing the guard makes `oauth.php` and `configuration.php` fail, so both
+  the PHP and JSON paths are covered. A scratch constructor probe also
+  rejected `Strict` for OAuth with zero providers and with empty keys only,
+  and accepted `Lax` for each; these two cases are not in the committed
+  tests and follow from the `!== null` guard. `authentication.spec.cjs`
+  passed 3/3 on the managed demo, which sends `SameSite=Lax` with OAuth
+  declared. Strict rejection has no browser check (the demos stay `Lax`);
+  the real-provider limit above still applies.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0175"></a>
