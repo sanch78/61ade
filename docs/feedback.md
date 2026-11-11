@@ -7137,6 +7137,7 @@ that exactly equals an option label lists every option. The managed
   include the shared items) passed, 10 of 10. No full-smoke claim.
 - **Limits:** shared rows are no lookup choices; one shared realm per resource;
   a tenant's row may repeat a shared row's unique value.
+- **Commit:** `d55868c` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0176"></a>
