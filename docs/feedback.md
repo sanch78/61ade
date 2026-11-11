@@ -6206,3 +6206,100 @@ that exactly equals an option label lists every option. The managed
   in isolation twice (`--repeat-each=2`). No full-smoke claim.
 - **Commit:** `dda0271` on `main`.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0166"></a>
+
+## FB-0166 — Scope-only fields: a scope key offered on no list surface
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms): after [FB-0162](#fb-0162)–[FB-0165](#fb-0165) a page
+  scopes a list on computed helper keys (the ancestor of a record's group at
+  each tree level), declared `column: {details: false}` and left out of the
+  columns. They still reached users: every non-secret field was in the
+  view's `filters` and `sortable` metadata, so the cards' `Rendezés` menu
+  showed raw names (`cat1 ↑`) and the `Szűrés` dialog number inputs taking
+  raw ids. A field ACL deny is no remedy: it would also refuse the scope.
+  Requested: a declared flag meaning a scope key only (accepted as a
+  `ListView` scope and in the server's scope filter; excluded from columns,
+  details, header filters, the filter dialog, the sort menus and the accepted
+  sort fields), never access control, defaults unchanged; a `filters` or
+  `sort` request naming it refused like any non-filterable or non-sortable
+  field.
+- **Decision:** a field option `scopeOnly` (JSON `scope_only`), not a
+  `column` key: it narrows query surfaces, not only a presentation, so
+  `column.details` stays the presentation flag of FB-0165 and implies
+  nothing more. Refusing the field in `filters` while accepting it as a
+  scope needs the server to tell the two apart, and a scoped list sent its
+  scope as a filter: the list protocol gains `scope: {field, value}`, which
+  every scoped list (nested lists, sub-view previews and windows, tree
+  navigation lists, a page's `scope`) and the `Tree`'s levels now send. It
+  takes the same field checks, value checks and field ACL as a filter and
+  compares exactly (a scope is a key; a text filter still matches a part).
+  This changes the wire shape of scoped list calls (migration row M50): a
+  project's own `list` handler that read a scope from `filters` reads
+  `scope`. A scope-only field also may not be a view column (refused), a
+  first sort, an attention filter or a search field, and is left out of the
+  default columns of `SqlResource::register`.
+- **Implemented:**
+  - PHP `Field::$scopeOnly` (a text, number, select or checkbox field, not
+    secret, without `column`, `file`, `editor` or `bulk`, else
+    `InvalidArgumentException`); JSON `scope_only`.
+  - `ListSource`: `filterDefinitions` and `sortableFields` leave it out;
+    `read` accepts `scope: {field, value}` (one field, not also in
+    `filters`; `Hibás lista-hatókör.` otherwise) through the filter's checks
+    with exact matching, refuses a scope-only field in `filters` (`A mező
+    nem szűrhető.`, 403) and in `sort` (`A mező nem rendezhető.`, 403); a
+    scope counts towards `matched` as a filter did. Search declarations
+    refuse it.
+  - `ListViewKind`: no `detailFields` entry; a column naming it and a first
+    sort naming it are refused. `Registry` refuses it as an attention filter.
+    `SqlResource::register` leaves it out of the default columns.
+  - Frontend: `Workspace` sends the scope (and a shared sub-view's top level
+    as the scope `""` when the list has no other scope) as `scope`;
+    `NodeTree` loads levels with `scope`. The columns, header filters,
+    `Szűrés` dialog and `Rendezés` menu follow the metadata, which no longer
+    lists the field.
+  - Feature demo D8: `Szülőkulcs` (`parent_key_id`) is `scope_only`; the
+    raw `Kulcs` (`key_id`) keeps `column.details: false` (moved there from
+    `Szülőkulcs`) so the FB-0165 flag stays demonstrated.
+- **Guides:** [field presentation](field-presentation.md#scope-only),
+  [list protocol scope](workspaces.md#list-scope) and sorting,
+  [ListView](toolkit.md#listview) scope, [RecordDetails](toolkit.md#recorddetails),
+  [configuration](configuration.md) fields, [usage](usage.md),
+  [D8](demos.md#d8-key-browser), toolkit [changes](toolkit.md#changes),
+  migration row M50, [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:** `npm run typecheck`, `npm run build`
+  (`node tools/build.mjs --check` clean), `npm run demo:assets`; PHP
+  `contracts`, `access`, `permissions`, `configuration`, `toolkit`, `lists`,
+  `tree-navigation`, `sorting`, `tenancy`, `i18n`, `signage`, `grid-edit`,
+  `related-fields` and `list-presentation` (new cases: a scope-only field
+  is no column, detail, filter or sort field in the metadata; a list scoped
+  on a computed scope-only field, an exact text scope, an ordinary field as
+  scope, `matched`, the record still carries the value; `filters` or `sort`
+  naming it, a malformed `scope`, the same field in both, a bad number and
+  an unknown field refused; a field ACL deny refuses the scope; a secret,
+  textarea, multiselect or column-presented scope-only field, a view
+  column, first sort, attention filter or search field naming it refused,
+  each with a passing ordinary counterpart); node `toolkit-kernel`,
+  `toolkit-list`, `toolkit-components`, `toolkit-registries`,
+  `toolkit-sandbox`, `live-protocol` passed. `scoped-list.spec.cjs` now also
+  checks on D8 that the scoped values load while `Szülőkulcs` is no column
+  header or header filter, not in the cards' `Rendezés` menu (whose entries
+  include `Név`) and not in the `Szűrés` dialog, and that `Kulcs` is absent
+  from the value details. The mocked servers of `subview.spec.cjs` and
+  `toolkit-registries.spec.cjs` read the parent from `scope`. Affected specs
+  passed on the managed demo: `scoped-list`, `list-toggle`,
+  `tree-component`, `registry`, `subview`, `subview-demos`,
+  `toolkit-registries`, `workspace`, `activation`, `preferences`,
+  `toolkit-list`, `toolkit-components`, `files`, `tenancy`, `admin`,
+  `menuless-view`, `task-page`, `accordion`, `toolkit-demo`,
+  `toolkit-demo-tasks`, `toolkit-demo-playlist`,
+  `toolkit-demo-playlist-editor`, `mobile-grid`, `list-integration`,
+  `component-remount`, `grid-sort`, `menu-attention` (118 passed, one
+  WebSocket case skipped as before). No full-smoke claim.
+- **Limits:** one scope per list call; a scope-only field cannot be shown or
+  sorted anywhere (declare an ordinary field for that).
+- **Commit:** pending.
+- **Status:** implemented and verified on the managed demo.

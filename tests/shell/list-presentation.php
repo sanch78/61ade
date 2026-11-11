@@ -179,4 +179,44 @@ $helperCtx=new Context($actor,'ui',$helperWorkspace->acl,$helperDb);
 check((string)$helperWorkspace->executor->execute($helperCtx,'parts','get','1',[])['outer_id']==='107','A details: false field stays in the record');
 $refused=false;try{new Field('flag','Flag',column:['details'=>'no']);}catch(InvalidArgumentException){$refused=true;}
 check($refused,'A non-boolean details flag is refused');
+// `scopeOnly` (FB-0166): a scope key only. A list can be scoped on it through the protocol's `scope`; it is no column,
+// detail, filter, sort or search field, and `filters`/`sort` naming it are refused. The field ACL still applies.
+$scopeDb=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+Blade\Access\Schema::install($scopeDb);
+$scopeDb->exec("CREATE TABLE rows_(id INTEGER PRIMARY KEY,title TEXT,group_id INTEGER,path TEXT); INSERT INTO rows_ VALUES(1,'A',1,'x'),(2,'B',2,'xy'),(3,'C',2,'x')");
+$scopeRegistry=new Registry();
+(new SqlResource('rows_','rows_','id',[new Field('title','Title'),new Field('path','Path',scopeOnly:true),new Field('outer','Outer',type:'number',scopeOnly:true)],computed:['outer'=>'blade_base.group_id + 10']))->register($scopeRegistry,'Rows');
+$scopeWorkspace=new Workspace($scopeRegistry,$scopeDb);
+$scopeDb->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','rows_','list','ui','allow','all','',''),('user','1','rows_','get','ui','allow','all','','')");
+$scopeView=$scopeWorkspace->views($actor)[0];$o=$scopeView['options'];
+check(array_column($o['columns'],'id')===['title']&&array_column($o['detailFields'],'id')===['title'],'A scope-only field is no column and no detail');
+check(array_column($o['filters'],'name')===['title']&&$o['sortable']===['id','title'],'A scope-only field is no filter and no sort field');
+$scopeCtx=new Context($actor,'ui',$scopeWorkspace->acl,$scopeDb);
+$scopeRead=fn($values)=>$scopeWorkspace->executor->execute($scopeCtx,'rows_','list',null,['mode'=>'dynamic','limit'=>10,...$values]);
+check(array_column($scopeRead(['scope'=>['field'=>'outer','value'=>'12']])['items'],'title')===['C','B'],'A list scoped on a computed scope-only field');
+check(array_column($scopeRead(['scope'=>['field'=>'path','value'=>'x']])['items'],'title')===['C','A'],'A text scope compares exactly');
+check(array_column($scopeRead(['scope'=>['field'=>'title','value'=>'B']])['items'],'title')===['B'],'An ordinary field scopes too');
+check($scopeRead(['scope'=>['field'=>'outer','value'=>'12']])['matched']===2,'A scope counts as matched');
+check((string)$scopeWorkspace->executor->execute($scopeCtx,'rows_','get','2',[])['outer']==='12','The record carries a scope-only field');
+foreach([[['filters'=>['outer'=>'12']],'A mező nem szűrhető.'],[['filters'=>['path'=>'x']],'A mező nem szűrhető.'],[['sort'=>['field'=>'outer','direction'=>'asc']],'A mező nem rendezhető.'],
+  [['scope'=>['field'=>'outer']],'Hibás lista-hatókör.'],[['scope'=>['field'=>'outer','value'=>'12','x'=>1]],'Hibás lista-hatókör.'],[['scope'=>'outer'],'Hibás lista-hatókör.'],
+  [['scope'=>['field'=>'title','value'=>'B'],'filters'=>['title'=>'B']],'Hibás lista-hatókör.'],[['scope'=>['field'=>'outer','value'=>'x']],'Egész szám szükséges a szűréshez.'],[['scope'=>['field'=>'missing','value'=>'1']],'A mező nem szűrhető.']] as [$values,$message]){
+ $refused=null;try{$scopeRead($values);}catch(Failure $error){$refused=$error->getMessage();}
+ check($refused===$message,'Refused list input: '.json_encode($values));
+}
+// The field ACL still decides: a denied scope-only field refuses the scope as well.
+$scopeDb->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','rows_','list','ui','deny','all','','outer')");
+$refused=false;try{$scopeRead(['scope'=>['field'=>'outer','value'=>'12']]);}catch(Failure){$refused=true;}
+check($refused,'A denied scope-only field refuses the scope');
+// Declarations: a scope-only field is a plain filterable field without a column; no column, first sort, attention or search names it.
+$scopeRegistry->addView(Blade\Feature\View::list('rows_','Rows',[['id'=>'title','header'=>'Title']],['list'],id:'rows_ok',sort:['field'=>'title','direction'=>'asc'],attention:['filters'=>['title'=>'A']]));
+(new SqlResource('rows3','rows_','id',[new Field('path','Path')],search:['path']))->register(new Registry(),'Rows');
+foreach([fn()=>new Field('a','A',secret:true,scopeOnly:true),fn()=>new Field('a','A',type:'textarea',scopeOnly:true),fn()=>new Field('a','A',scopeOnly:true,column:['details'=>false]),fn()=>new Field('a','A',type:'multiselect',scopeOnly:true),
+  fn()=>$scopeRegistry->addView(Blade\Feature\View::list('rows_','Rows',[['id'=>'outer','header'=>'Outer']],['list'],id:'rows_columns')),
+  fn()=>$scopeRegistry->addView(Blade\Feature\View::list('rows_','Rows',[['id'=>'title','header'=>'Title']],['list'],id:'rows_sort',sort:['field'=>'outer','direction'=>'asc'])),
+  fn()=>$scopeRegistry->addView(Blade\Feature\View::list('rows_','Rows',[['id'=>'title','header'=>'Title']],['list'],id:'rows_attention',attention:['filters'=>['outer'=>'12']])),
+  fn()=>(new SqlResource('rows2','rows_','id',[new Field('path','Path',scopeOnly:true)],search:['path']))->register(new Registry(),'Rows')] as $index=>$declare){
+ $refused=false;try{$declare();}catch(InvalidArgumentException){$refused=true;}
+ check($refused,'Refused scope-only declaration '.$index);
+}
 echo "List presentation, bulk ACL and delete usage contracts passed.\n";

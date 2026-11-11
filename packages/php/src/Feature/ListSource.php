@@ -17,14 +17,14 @@ final readonly class ListSource
         if($tenant!==null&&!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$tenant))throw new \InvalidArgumentException('Invalid tenant column.');
         $known=array_column($fields,null,'name');
         if(!array_is_list($search)||count($search)>20||count(array_unique($search))!==count($search))throw new \InvalidArgumentException('Invalid list search declaration.');
-        foreach($search as $name){$field=is_string($name)?($known[$name]??null):null;if(!$field||$field->secret||!in_array($field->type,['text','textarea'],true)||$field->media()!==null)throw new \InvalidArgumentException('Invalid list search declaration.');}
+        foreach($search as $name){$field=is_string($name)?($known[$name]??null):null;if(!$field||$field->secret||$field->scopeOnly||!in_array($field->type,['text','textarea'],true)||$field->media()!==null)throw new \InvalidArgumentException('Invalid list search declaration.');}
     }
 
     public function filterDefinitions(Context $ctx):array
     {
         $out=[];
         foreach($this->fields as $field){
-            if($field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$field->name))continue;
+            if($field->secret||$field->scopeOnly||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$field->name))continue;
             if($field->media()!==null){
                 // A media column filters by MIME class; without a registered source it is not filterable.
                 $media=$this->registry?->mediaSource($field->media());
@@ -81,7 +81,7 @@ final readonly class ListSource
     public function sortableFields(Context $ctx):array
     {
         if($this->order)return [$this->order['field']];
-        return ['id',...array_values(array_map(static fn($field)=>$field->name,array_filter($this->fields,fn($field)=>!$field->secret&&!in_array($field->type,['textarea','multiselect'],true)&&$this->queryable($ctx,$field->name))))];
+        return ['id',...array_values(array_map(static fn($field)=>$field->name,array_filter($this->fields,fn($field)=>!$field->secret&&!$field->scopeOnly&&!in_array($field->type,['textarea','multiselect'],true)&&$this->queryable($ctx,$field->name))))];
     }
     private function cursor(array $position,string $direction):string
     {
@@ -110,7 +110,7 @@ final readonly class ListSource
     }
     public function read(Context $ctx,array $input):array
     {
-        foreach($input as $key=>$v)if(!in_array($key,['mode','limit','cursor','filters','first','front','sort','anchor','numbered','search'],true))throw new Failure('Ismeretlen listaparaméter.');
+        foreach($input as $key=>$v)if(!in_array($key,['mode','limit','cursor','filters','scope','first','front','sort','anchor','numbered','search'],true))throw new Failure('Ismeretlen listaparaméter.');
         $mode=$input['mode']??'dynamic';
         if(!in_array($mode,['dynamic','watch'],true))throw new Failure('Hibás listamód.');
         $limit=$input['limit']??100;
@@ -123,9 +123,11 @@ final readonly class ListSource
         $terms=["($scope)","({$this->where})"];
         if($this->tenant!==null){$terms[]="{$this->tenant} = :blade_tenant";$params['blade_tenant']=$ctx->tenant ?? throw new Failure('Nincs aktív tenant.',403);}
         $totalTerms=$terms;$totalParams=$params;$known=array_column($this->fields,null,'name');
-        foreach($filters as $key=>$value){
+        // One condition of a filter or of the scope. A scope-only field (Field::$scopeOnly) is a scope and never a filter;
+        // a scope compares exactly, also a text field.
+        $condition=function(string $key,mixed $value,bool $scope)use($ctx,$known,&$terms,&$params):void{
             $field=$known[$key]??null;
-            if(!$field||$field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$key))throw new Failure('A mező nem szűrhető.',403);
+            if(!$field||$field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$key)||($field->scopeOnly&&!$scope))throw new Failure('A mező nem szűrhető.',403);
             if(!is_string($value)||strlen($value)>255||str_contains($value,"\0"))throw new Failure('Hibás szűrőérték.');
             $param='f'.count($params);
             if($field->media()!==null){
@@ -138,9 +140,18 @@ final readonly class ListSource
             }elseif($field->type==='number'){
                 if(!ctype_digit($value))throw new Failure('Egész szám szükséges a szűréshez.');
                 $terms[]="$key = :$param";$params[$param]=$value;
+            }elseif($scope){
+                $terms[]="$key = :$param";$params[$param]=$value;
             }else{
                 $terms[]="$key LIKE :$param ESCAPE '!'";$params[$param]='%'.str_replace(['!','%','_'],['!!','!%','!_'],$value).'%';
             }
+        };
+        foreach($filters as $key=>$value)$condition((string)$key,$value,false);
+        // `scope: {field, value}`: the records of one value of a field (a scoped list, a tree's children).
+        $scope=$input['scope']??null;
+        if($scope!==null){
+            if(!is_array($scope)||array_diff(array_keys($scope),['field','value'])||!is_string($scope['field']??null)||!array_key_exists('value',$scope)||array_key_exists($scope['field'],$filters))throw new Failure('Hibás lista-hatókör.');
+            $condition($scope['field'],$scope['value'],true);
         }
         // Declared name search: OR over the searchable fields the actor may query (none: no match), bound and escaped.
         $search=$input['search']??'';
@@ -162,7 +173,7 @@ final readonly class ListSource
         $count=static function(array $terms,array $params)use($ctx,$from):int{
             $query=$ctx->db->prepare("SELECT COUNT(*) FROM $from WHERE ".implode(' AND ',$terms));$query->execute($params);return (int)$query->fetchColumn();
         };
-        $total=$count($totalTerms,$totalParams);$matched=$filters||$search!==''?$count($baseTerms,$baseParams):$total;
+        $total=$count($totalTerms,$totalParams);$matched=$filters||$scope!==null||$search!==''?$count($baseTerms,$baseParams):$total;
         $direction='next';$hasCursor=false;
         if($mode==='watch'){
             $front=$input['front']??true;$first=$input['first']??null;

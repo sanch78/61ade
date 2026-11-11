@@ -99,7 +99,7 @@ final class Registry
         $fields=$this->fields((string)$view->resource);
         foreach($view->attention['filters'] as $name=>$value){
             $field=$fields[$name]??null;
-            if(!$field||$field->secret||!in_array($field->type,['text','select','checkbox','number'],true)||$field->media()!==null
+            if(!$field||$field->secret||$field->scopeOnly||!in_array($field->type,['text','select','checkbox','number'],true)||$field->media()!==null
                 ||($field->type==='checkbox'&&!in_array($value,['0','1'],true))||($field->type==='number'&&!ctype_digit($value)))throw new \InvalidArgumentException('Invalid view attention filter: '.$view->id.'.'.$name);
         }
     }

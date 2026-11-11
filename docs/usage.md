@@ -196,10 +196,11 @@ mounts the list of the other scope ([toggle command](toolkit.md#registries),
 [FB-0159](feedback.md#fb-0159)). Such a page gives every list of the view one
 `preferencesKey` so they share their view choices, `pinned: true` keeps the
 toggle in view in a narrow panel, `createDefaults` presets the field a
-computed scope implies in the built-in create, and a helper field used only
-for scoping is declared `column.details: false` to stay out of the details
-([ListView](toolkit.md#listview), [field presentation](field-presentation.md),
-[FB-0162](feedback.md#fb-0162)–[FB-0165](feedback.md#fb-0165)). A view whose records wait for someone
+computed scope implies in the built-in create, a helper field used only for
+scoping is declared `scopeOnly: true` (JSON `scope_only`) so no list surface
+offers it, and a raw value the details need not show is `column.details:
+false` ([ListView](toolkit.md#listview), [field presentation](field-presentation.md#scope-only),
+[FB-0162](feedback.md#fb-0162)–[FB-0166](feedback.md#fb-0166)). A view whose records wait for someone
 declares `attention` (`filters`, `tone`): its menu entry, its branch and
 `Menü` show a live count ([menu attention](shell.md#menu-attention),
 [FB-0160](feedback.md#fb-0160)).

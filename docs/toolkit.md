@@ -575,7 +575,11 @@ current.mount(layout.getCell("list"));
 - `view`: an offered view id or a `ViewDefinition` of kind `list`; an id that
   is not offered throws `Error`, any other view or value `TypeError`. `filters` replaces the saved filter values once
   (declared filters only); `scope` and `compact` give the nested list of a
-  record (`compact` needs `scope`).
+  record (`compact` needs `scope`). The scope travels as the list protocol's
+  [`scope`](workspaces.md#list-scope), not as a filter, so it may name a
+  [scope-only field](field-presentation.md#scope-only) (`scopeOnly`, JSON
+  `scope_only`, [FB-0166](feedback.md#fb-0166)): a helper key the list is
+  scoped on that no list surface offers (no column, details, filter or sort).
 - Events: `select` (cursor record, `undefined` when it leaves the window),
   `activate` (the resolved target of a double-click or Enter, reported before
   it runs; `details` also for a card or tile without a declared target),
@@ -793,7 +797,8 @@ list.on("select", ({ row }) => { if (row) void details.show(row); });
 the view's `get` (a newer call wins). A field declared with
 `column: {details: false}` ([FB-0165](feedback.md#fb-0165),
 [field presentation](field-presentation.md)) is left out here, in `Adatok`
-and on cards, while the list can still filter and scope by it. A failed load shows the error dialog and
+and on cards, while the list can still filter and scope by it; a
+[scope-only field](field-presentation.md#scope-only) is never there either. A failed load shows the error dialog and
 `show()` rejects. It has no events. `showId: false` leaves out the `ID · n`
 line.
 
@@ -2585,6 +2590,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M47 | Toggle command ([registries](#registries)): `ClientCommand.type: "toggle"`, `pressed`, `toggle(context)`; `run` is optional for a toggle; the state in `app.preferences.scope(<command name>)` under the view id; `ListView` event `toggle` | [FB-0159](feedback.md#fb-0159) | info: TypeScript code that calls `command.run(…)` on a `ClientCommand` handles the optional `run` | none | none |
 | M48 | [Menu attention](shell.md#menu-attention): `attention: ['filters' => […], 'tone' => …]` on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.attention`; bootstrap `attention`; a live count badge on the entry, its branch and `Menü` | [FB-0160](feedback.md#fb-0160) | info: an entry with a count has the accessible name `‹label›, n függőben`; its branch and `Menü` keep their names but their visible text gains the number; each such view adds one live subscription of one row per page | none | none |
 | M49 | [ListView](#listview) `createDefaults` and `preferencesKey`; `ClientCommand.pinned` ([registries](#registries)); `column.details: false` on a field ([field presentation](field-presentation.md)), left out of `detailFields` | [FB-0162](feedback.md#fb-0162)–[FB-0165](feedback.md#fb-0165) | info: a consumer that strips helper fields from its own details, opens its own create form with a preset, keeps a toggle in `Műveletek` or keeps one preference set per scope can use these instead | none | none |
+| M50 | [List scope](workspaces.md#list-scope): a scoped list and a `Tree` send `scope: {field, value}` instead of the scope as a filter (exact, also for text); a field `scopeOnly: true` (JSON `scope_only`) is a scope key only: no column, details, filter or sort, and `filters`/`sort` naming it are refused | [FB-0166](feedback.md#fb-0166) | a project `list` action handler of its own (not `SqlResource`) that read a scope from `values.filters` reads `values.scope`; browser specs or mocks that inspect a scoped list's `filters` look at `scope`; a list scoped on a text field now matches it exactly | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2719,6 +2725,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-10 | `ViewDefinition.attention` (`{filters, tone}`). PHP `View::$attention`, `attention` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.attention`. Additive (M48). | Pending work on a view must be noticed from any page (a consumer request). | [FB-0160](feedback.md#fb-0160) |
 | 2026-11-11 | Destroy + mount of a component into the same Layout cell, tab, region, window or view host in one task shows the new component (it was empty until the next frame's work-around); a cell that showed markup (`attachHTML`, an element) takes a widget or component. No API change. | A page re-scoping its list and details from a tree replaces components in the same cells many times (a consumer request). | [FB-0161](feedback.md#fb-0161) |
 | 2026-11-11 | `ListViewOptions.createDefaults` (start values of the built-in create form), `ListViewOptions.preferencesKey` (the preference key instead of the view id, shared across scopes); `ClientCommand.pinned` (kept in the toolbar when the others collapse); PHP/JSON field `column.details: false` (left out of `detailFields`: `RecordDetails`, `Adatok`, cards). Additive (M49). | A page that scopes one list view on several fields, one of them computed, from a tree (a consumer request). | [FB-0162](feedback.md#fb-0162)–[FB-0165](feedback.md#fb-0165) |
+| 2026-11-11 | List protocol `scope: {field, value}` (a scoped list, a sub-view, a tree navigation's list and `Tree` levels send it instead of a filter; exact match); PHP `Field::$scopeOnly`, JSON `scope_only`: a scope key only, in no columns, `detailFields`, `filters` or `sortable` metadata, refused in `filters`, `sort`, view columns, first sort, attention and search; `SqlResource::register` leaves it out of the default columns. M50. | Helper keys a page scopes on still reached users as sort entries and number filters (a consumer request). | [FB-0166](feedback.md#fb-0166) |
 
 <a id="resolved-decisions"></a>
 
