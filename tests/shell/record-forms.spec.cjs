@@ -131,6 +131,9 @@ test('a collapsible section: closed on create, open with a stored file, opened b
  await expect(basics.getByRole('textbox',{name:'Megnevezés'})).toBeVisible();
  await expect(form.getByRole('button',{name:'Alapadatok'})).toHaveCount(0);
  await expect(body).toBeHidden();
+ // The frame clips the square header bar to its rounded inner edge (no page colour in the corners).
+ expect(await form.locator('.blade-form-section:not(.blade-form-section--fixed)').evaluate(element=>getComputedStyle(element).overflow)).toBe('hidden');
+ expect(await toggle.evaluate(element=>getComputedStyle(element).borderTopLeftRadius)).toBe('0px');
  await expect(toggle).toHaveAttribute('aria-controls',await body.evaluate(element=>element.id));
  const closedHeight=(await form.boundingBox()).height;
  await form.getByLabel('Indoklás',{exact:true}).focus();await page.keyboard.press('Tab');

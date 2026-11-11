@@ -7340,3 +7340,11 @@ that exactly equals an option label lists every option. The managed
   framework's (no option to change them); sections do not nest.
 - **Commit:** `d4008eb` on `main`.
 - **Status:** implemented and verified on the managed demo.
+- **Follow-up (2026-11-11, corner):** the owner found the panel corners
+  untidy. The header bar was rounded by itself inside the 1 px frame, so the
+  page colour showed between the frame's inner curve and the bar. The frame
+  now clips its content (`overflow: hidden` on the panel cell, which needs
+  the cell class to outweigh Suite's `.dhx_widget.dhx_form .dhx_layout-cell
+  { overflow: unset }`), and the bar is square. Verified with
+  `record-forms.spec.cjs` (the frame clips, the bar's radius is 0; 5 passed)
+  and a corner screenshot checked pixel by pixel and removed.
