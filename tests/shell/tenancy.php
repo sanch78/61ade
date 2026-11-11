@@ -234,4 +234,68 @@ $top=$run($ctxA,'nodes','list','',['limit'=>50,'filters'=>['parent_id'=>'']])['i
 check(array_column($top,'_subview','id')===['1'=>2],'Hierarchy: the root counts its direct children');
 check($counts($run($ctxA,'nodes','list','',['limit'=>50,'filters'=>['parent_id'=>'1']])['items'])===['3'=>0,'2'=>1],'Hierarchy: children count theirs');
 check($counts($run($ctxA,'bins','list','',['limit'=>50])['items'])===['1'=>1],'A hierarchy child counts its top-level records only (as it lists them)');
+// Shared rows (FB-0175): a tenant reads its own and the shared rows, never writes the shared ones; an actor without a
+// tenant holding a declared shared role reads and writes the shared rows only. Without the declaration nothing changes.
+foreach([['tenantColumn'=>null,'sharedTenant'=>''],['tenantColumn'=>'tenant_id','sharedTenant'=>'bad value'],['tenantColumn'=>'tenant_id','sharedRoles'=>['librarian']],['tenantColumn'=>'tenant_id','sharedTenant'=>'','sharedRoles'=>['Bad']]] as $invalid)
+    try{new SqlResource('docs','docs','id',[new Field('title','Cím')],...$invalid);throw new RuntimeException('An invalid shared declaration was accepted');}catch(InvalidArgumentException){}
+$sdb=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);Schema::install($sdb);Tenancy::install($sdb);$schema($sdb);
+$sdb->exec('CREATE TABLE docs (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL, node_id TEXT NOT NULL DEFAULT \'\')');
+$sdb->exec("CREATE TABLE nodes (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)");
+$shared=new Workspace(new Registry(),$sdb,tenancy:true);$define($shared);
+$docs=new SqlResource('docs','docs','id',[new Field('title','Cím',required:true,validation:['unique'=>true]),new Field('node_id','Csomópont',max:20)],tenantColumn:'tenant_id',sharedTenant:'',sharedRoles:['librarian']);
+$docs->register($shared->registry,'Leírások');$docs->registerDelete($shared->registry);
+(new SqlResource('nodes','nodes','id',[new Field('name','Név'),new Field('doc_count','Leírások','number')],counts:['doc_count'=>['resource'=>'docs','match'=>['node_id']]]))->register($shared->registry,'Csomópontok');
+$shared->registry->subview('nodes','docs','node_id');
+$sa=Tenancy::ensure($sdb,'Alfa');$sb=Tenancy::ensure($sdb,'Béta');
+foreach([[$sa,'1'],[$sb,'1'],[$sa,'2']] as [$tenant,$actor])Tenancy::join($sdb,$tenant,$actor);
+$sdb->exec("INSERT INTO nodes(name) VALUES ('Gyökér')");
+$sdb->exec("INSERT INTO docs(tenant_id,title,node_id) VALUES ('','Közös alap','1'),('$sa','Alfa saját','1'),('$sb','Béta saját','1')");
+$sdb->exec("INSERT INTO blade_roles(name,role_key) VALUES ('Könyvtáros','librarian')");
+$sdb->exec("INSERT INTO blade_memberships(actor_id,role_id) VALUES ('3',(SELECT id FROM blade_roles WHERE role_key='librarian'))");
+$sgrant=$sdb->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope) VALUES ('user',?,?,?,'ui','allow','all')");
+foreach(['1','2','3'] as $actor){foreach(['list','get','create','update','delete'] as $action)$sgrant->execute([$actor,'docs',$action]);foreach(['list','get'] as $action)$sgrant->execute([$actor,'nodes',$action]);}
+$srun=fn(Context $ctx,string $resource,string $action,?string $id=null,array $values=[])=>$shared->executor->execute($ctx,$resource,$action,$id,$values);
+$sA=$shared->context($one,'ui',$sa);$sB=$shared->context($two,'ui',$sb);$lib=$shared->context($none);
+$listed=$srun($sA,'docs','list','',['limit'=>50]);
+check(array_column($listed['items'],'title')===['Alfa saját','Közös alap']&&$listed['total']===2,'Shared: the tenant lists its own and the shared rows, never another tenant\'s');
+check(array_column($listed['items'],'_shared','title')===['Közös alap'=>true],'Shared: only the shared row carries _shared');
+$actions=array_column($listed['items'],'_actions','title');
+check(!array_intersect(['update','delete'],$actions['Közös alap'])&&in_array('get',$actions['Közös alap'],true)&&!array_diff(['update','delete'],$actions['Alfa saját']),'Shared: a shared row offers no update or delete to a tenant, its own row does');
+check(array_column($srun($sB,'docs','list','',['limit'=>50])['items'],'title')===['Béta saját','Közös alap'],'Shared: switching the tenant keeps the shared rows and swaps the tenant rows');
+check(array_column($shared->observe($sA,'docs',['limit'=>50])['items'],'title')===['Alfa saját','Közös alap'],'Shared: live watch includes the shared rows');
+check($srun($sA,'docs','list','',['filters'=>['title'=>'Közös']])['matched']===1&&array_column($srun($sA,'docs','list','',['scope'=>['field'=>'node_id','value'=>'1']])['items'],'title')===['Alfa saját','Közös alap'],'Shared: filters and scopes include the shared rows');
+check($srun($sA,'docs','get','1')['_shared']===true,'Shared: the tenant reads a shared row');
+fails(fn()=>$srun($sA,'docs','get','3'),404,'Shared: another tenant\'s row is still not found');
+check($srun($sA,'nodes','list','',['limit'=>50])['items'][0]['doc_count']===2&&$srun($sA,'nodes','list','',['limit'=>50])['items'][0]['_subview']===2,'Shared: count fields and sub-view counts include the shared rows');
+$rev=$srun($sA,'docs','get','1')['revision'];
+fails(fn()=>$srun($sA,'docs','update','1',['title'=>'Átírva','revision'=>$rev]),403,'Shared: a tenant cannot update a shared row');
+fails(fn()=>$shared->executor->edit($sA,'docs','1','title','Átírva',$rev),403,'Shared: nor edit one of its fields');
+fails(fn()=>$srun($sA,'docs','delete','1',['revision'=>$rev]),403,'Shared: nor delete it');
+check(!$shared->executor->bulk($sA,'docs','delete',[['id'=>'1','values'=>['revision'=>$rev]]])[0]['ok'],'Shared: nor delete it in bulk');
+fails(fn()=>$shared->describe($sA,$shared->registry->get('docs','update'),'1'),403,'Shared: nor open its update form');
+fails(fn()=>$srun($sA,'docs','create',null,['title'=>'Csempészett','tenant_id'=>'']),400,'Shared: a tenant cannot create a row with the shared value');
+$own=$srun($sA,'docs','create',null,['title'=>'Közös alap']);
+check($sdb->query('SELECT tenant_id FROM docs WHERE id='.(int)$own['id'])->fetchColumn()===$sa,'Shared: a tenant\'s create stays in its tenant, unique within the tenant only');
+check($sdb->query("SELECT tenant_id FROM docs WHERE id=1")->fetchColumn()===''&&$sdb->query("SELECT title FROM docs WHERE id=1")->fetchColumn()==='Közös alap','Shared: the refused writes left the shared row unchanged');
+check(str_contains((string)$sdb->query("SELECT detail FROM blade_audit WHERE resource='docs' AND action='update' AND outcome='rejected' ORDER BY id DESC LIMIT 1")->fetchColumn(),'"shared":true'),'Shared: the journal records a refused write as shared');
+// The shared role without a tenant: shared rows only, writes them; anyone else without a tenant fails closed.
+$subviewOf=fn(Identity $actor)=>array_column($shared->views($actor),null,'resource')['nodes']['options']['subview']['resource']??null;
+check($subviewOf($none)==='docs'&&$subviewOf($one)===null,'Shared: the shared role gets the view without a tenant, another actor without a tenant does not');
+check(array_column($srun($lib,'docs','list','',['limit'=>50])['items'],'title')===['Közös alap'],'Shared: the shared role lists the shared rows only');
+fails(fn()=>$srun($lib,'docs','get','2'),404,'Shared: a tenant row is not found for the shared role');
+$created=$srun($lib,'docs','create',null,['title'=>'Új közös','node_id'=>'1']);
+check($sdb->query('SELECT tenant_id FROM docs WHERE id='.(int)$created['id'])->fetchColumn()==='','Shared: the shared role\'s create stamps the shared value');
+fails(fn()=>$srun($lib,'docs','create',null,['title'=>'Új közös']),400,'Shared: uniqueness holds among the shared rows','title');
+$srun($lib,'docs','update','1',['title'=>'Közös alap v2','revision'=>$rev]);
+check($sdb->query("SELECT title FROM docs WHERE id=1")->fetchColumn()==='Közös alap v2'&&in_array('update',$srun($lib,'docs','get','1')['_actions'],true),'Shared: the shared role edits a shared row');
+$detail=$sdb->query("SELECT actor_id, tenant_id, detail FROM blade_audit WHERE resource='docs' AND action='update' AND outcome='success' ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+check($detail['actor_id']==='3'&&$detail['tenant_id']===''&&json_decode((string)$detail['detail'],true)['shared']===true,'Shared: the journal records the actor and that the row is shared');
+check(json_decode((string)$sdb->query("SELECT detail FROM blade_audit WHERE resource='docs' AND action='create' AND outcome='success' AND actor_id='3'")->fetchColumn(),true)['shared']===true,'Shared: a shared create is journaled as shared');
+check(array_column($srun($sA,'docs','list','',['limit'=>50])['items'],'title')===['Új közös','Közös alap','Alfa saját','Közös alap v2'],'Shared: the tenant sees the new shared row');
+check($srun($lib,'nodes','list','',['limit'=>50])['items'][0]['doc_count']===2,'Shared: the shared role\'s counts cover the shared rows');
+$sdb->exec("DELETE FROM blade_memberships WHERE actor_id='3'");
+fails(fn()=>$srun($shared->context($none),'docs','list','',[]),403,'Shared: without the role and without a tenant the resource fails closed');
+check($subviewOf($none)===null,'Shared: and its view is not offered');
+check($run($ctxA,'projects','list','',['limit'=>50])['items']&&!array_filter($run($ctxA,'projects','list','',['limit'=>50])['items'],fn($item)=>isset($item['_shared'])),'Shared: a resource without the declaration is unchanged');
+unset($sdb,$shared);
 echo "tenancy: ok\n";

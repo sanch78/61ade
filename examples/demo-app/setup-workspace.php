@@ -268,7 +268,7 @@ unset($db);
 $admin = require __DIR__.'/admin-application.php';
 Blade\Admin\Permissions::grantAdministration($admin->workspace->db, $admin->workspace->registry, '1', roleName: 'Administrator');
 
-// Tenant demo: two tenants; demo@ (admin) belongs to both, single@ to Alpha only, none@ to no tenant.
+// Tenant demo: two tenants; demo@ (admin) belongs to both, single@ to Alpha only, none@ and shared@ to no tenant.
 $db = blade_demo_db('tenants');
 Blade\Access\Schema::install($db);
 // A tenant demo created before 2026-10-30 drops the removed membership switch first (migration 0003; a no-op later).
@@ -289,7 +289,9 @@ blade_demo_accounts($db, [
     [1, 'demo@example.test', '61ade-demo', 'Demo Admin', 1, 1],
     [2, 'single@example.test', '61ade-demo', 'Single Tenant', 1, 0],
     [3, 'none@example.test', '61ade-demo', 'No Tenant', 1, 0],
+    [null, 'shared@example.test', '61ade-demo', 'Shared Editor', 1, 0],
 ]);
+$sharedEditor = (string) $db->query("SELECT id FROM accounts WHERE email = 'shared@example.test'")->fetchColumn();
 $alfa = Blade\Tenancy\Tenancy::ensure($db, 'Alpha');
 $beta = Blade\Tenancy\Tenancy::ensure($db, 'Beta');
 foreach ([[$alfa, '1'], [$beta, '1'], [$alfa, '2']] as [$tenant, $actor]) Blade\Tenancy\Tenancy::join($db, $tenant, $actor);
@@ -319,10 +321,23 @@ if (!$db->query('SELECT COUNT(*) FROM tenant_categories')->fetchColumn()) {
     foreach ([[$alfa, 'Style guide', 'Documentation', 'note'], [$alfa, 'Installation manual', 'Manuals', 'note'], [$alfa, 'Wiring diagram', 'Manuals', 'file'], [$alfa, 'Kick-off minutes', 'Minutes', 'note'],
         [$alfa, 'Supplier quote', 'Quotes', 'file'], [$beta, 'Beta manual', 'Manuals', 'note'], [$beta, 'Beta quote', 'Quotes', 'note']] as [$tenant, $title, $name, $kind]) $item->execute([$tenant, $title, $ids[$name], $kind]);
 }
+// Shared items (FB-0175): tenant '' rows every tenant reads beside its own; shared@ (role shared_editor, no tenant) edits them.
+if (!$db->query("SELECT COUNT(*) FROM tenant_items WHERE tenant_id = ''")->fetchColumn()) {
+    $category = $db->prepare('SELECT id FROM tenant_categories WHERE name = ?');
+    $item = $db->prepare("INSERT INTO tenant_items(tenant_id,title,category_id,kind) VALUES ('',?,?,?)");
+    foreach ([['Shared style guide', 'Documentation', 'note'], ['Shared quote template', 'Quotes', 'file']] as [$title, $name, $kind]) {
+        $category->execute([$name]);
+        $id = $category->fetchColumn();
+        $category->closeCursor();
+        if ($id) $item->execute([$title, (string) $id, $kind]);
+    }
+}
 // Editors: the global role works in each member tenant; tenant membership decides where.
 $db->exec("INSERT OR IGNORE INTO blade_roles(name, role_key) VALUES ('Editor', 'editor')");
 $editor = (string) $db->query("SELECT id FROM blade_roles WHERE role_key = 'editor'")->fetchColumn();
-foreach (['1', '2', '3'] as $actor) $db->prepare('INSERT OR IGNORE INTO blade_memberships(actor_id, role_id) VALUES (?, ?)')->execute([$actor, $editor]);
+$db->exec("INSERT OR IGNORE INTO blade_roles(name, role_key) VALUES ('Shared editor', 'shared_editor')");
+$sharedRole = (string) $db->query("SELECT id FROM blade_roles WHERE role_key = 'shared_editor'")->fetchColumn();
+foreach ([['1', $editor], ['2', $editor], ['3', $editor], [$sharedEditor, $editor], [$sharedEditor, $sharedRole]] as [$actor, $role]) $db->prepare('INSERT OR IGNORE INTO blade_memberships(actor_id, role_id) VALUES (?, ?)')->execute([$actor, $role]);
 $exists = $db->prepare("SELECT COUNT(*) FROM blade_rules WHERE subject_type=? AND subject_id=? AND resource=? AND action=? AND channel=? AND field_name=''");
 $grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES (?,?,?,?,?,'allow','all','','')");
 $rules = [['role', $editor, 'tenant_projects', ['list', 'get', 'create', 'update'], 'ui'], ['role', $editor, 'tenant_tasks', ['list', 'get', 'create', 'update', 'delete'], 'ui'], ['role', $editor, 'tenant_notices', ['list', 'get'], 'ui'],
@@ -332,7 +347,7 @@ foreach ($rules as [$type, $subject, $resource, $actions, $channel]) foreach ($a
     $exists->execute([$type, $subject, $resource, $action, $channel]);
     if (!$exists->fetchColumn()) $grant->execute([$type, $subject, $resource, $action, $channel]);
 }
-unset($exists, $grant, $project, $task, $db);
+unset($exists, $grant, $project, $task, $category, $item, $db);
 $tenantDemo = require __DIR__.'/tenant-application.php';
 Blade\Admin\Permissions::grantAdministration($tenantDemo->workspace->db, $tenantDemo->workspace->registry, '1', roleName: 'Administrator');
 // The web server's instance (public/.htaccess) also gets the developer key and a fresh seed of the visitor sandboxes.

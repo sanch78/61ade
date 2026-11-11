@@ -7,6 +7,7 @@ declare(strict_types=1);
  * global notice board next to them. Sub-views: a project expands to its tasks (the task list keeps its own menu
  * entry), a task to its subtasks (a hierarchy: the toolbar acts on a selected subtask), and in the administration
  * a tenant to its members. Global categories count the tenant-scoped items each actor could list (count fields).
+ * Shared items (tenant '') are read by every tenant beside its own and edited by shared@, who works without a tenant.
  */
 
 use Blade\Admin\{Accounts, Administration};
@@ -64,8 +65,11 @@ $items = new SqlResource('tenant_items', 'tenant_items', 'id', [
     new Field('kind', 'Fajta', 'select', required: true, options: ['note' => 'Jegyzet', 'file' => 'Fájl'], defaultValue: 'note'),
     // The category's parent: a scope key of the recursive count only, offered on no list surface.
     new Field('category_parent', 'Szülőkategória', scopeOnly: true),
-], computed: ['category_parent' => "(SELECT c.parent_id FROM tenant_categories c WHERE CAST(c.id AS CHAR) = blade_base.category_id)"], tenantColumn: 'tenant_id');
-$items->register($workspace->registry, 'Tételek', group: 'Tenant demó', guide: 'Tenanthoz kötött tételek a globális kategóriafa mellett: a fában kijelölt kategória tételei látszanak. Egy új vagy archivált tétel a Kategóriák számait is változtatja.');
+    // Shared items (FB-0175): the list marks them with a read-only text (rows carry `_shared` for a project presentation).
+    new Field('origin', 'Forrás', column: ['width' => 110]),
+], computed: ['category_parent' => "(SELECT c.parent_id FROM tenant_categories c WHERE CAST(c.id AS CHAR) = blade_base.category_id)", 'origin' => "CASE WHEN blade_base.tenant_id = '' THEN 'Shared' ELSE 'Own' END"],
+    tenantColumn: 'tenant_id', sharedTenant: '', sharedRoles: ['shared_editor']);
+$items->register($workspace->registry, 'Tételek', group: 'Tenant demó', guide: 'Tenanthoz kötött tételek a globális kategóriafa mellett: a fában kijelölt kategória tételei látszanak. Egy új vagy archivált tétel a Kategóriák számait is változtatja.'."\n\n".'A Shared jelű közös tételeket minden tenant látja a sajátjai mellett, de csak olvashatja: kijelölve a szerkesztés és a törlés nem érhető el. Tenant nélkül a shared@example.test fiók csak a közös tételeket látja, és ő hozza létre és szerkeszti őket.');
 $items->registerDelete($workspace->registry, 'archive');
 // The tree beside the items is a view of its own (a tree's node view has no menu entry); `Kategóriák` keeps its page.
 $workspace->registry->view('tenant_categories', 'Kategóriák', [['id' => 'name', 'header' => 'Megnevezés']], ['get'], id: 'tenant_category_tree', menu: false);

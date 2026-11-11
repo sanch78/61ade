@@ -66,6 +66,7 @@ Tenants `Alfa` and `Béta`; password `61ade-demo`:
 | `demo@example.test` (admin, editor) | Alfa, Béta | Tenant selector in the navigation row; Administration → Tenantok, `Tenantok` on Users, tenant on API keys |
 | `single@example.test` (editor) | Alfa | No selector; Alfa projects and tasks only |
 | `none@example.test` (editor) | none | "Nincs hozzárendelt tenant" in the lower bar; only `Közös hirdetőtábla` |
+| `shared@example.test` (editor, shared editor) | none | Only the [shared](tenancy.md#shared-rows) `Tételek`, which it creates and edits (role key `shared_editor`) |
 
 `Tenant demó` → `Projektek` and `Feladatok` are tenant-scoped (the task's project
 choice is a scoped lookup); `Közös hirdetőtábla` is global. The editor role is
@@ -76,9 +77,14 @@ global, and membership decides where it applies.
 the tenant-scoped `Tételek` of the category and its subcategories (the item's
 category or that category's parent, a scope-only computed field), and
 `Jegyzetek (közvetlenül)` the notes attached directly. Switching the tenant
-changes the counts (Alfa: Documentation 4 / 1; Béta: 1 / 0); an archived item
-stops counting; `none@` sees the categories without counts. `Tételek` sits
-beside the category tree ([tree navigation](workspaces.md#tree-navigation)).
+changes the counts (Alfa: Documentation 5 / 2; Béta: 2 / 1, both with the
+shared items); an archived item stops counting; `none@` sees the categories
+without counts. `Tételek` sits beside the category tree
+([tree navigation](workspaces.md#tree-navigation)). It declares
+[shared rows](tenancy.md#shared-rows): two shared items (tenant `''`, `Forrás`
+`Shared`, a computed column over the tenant column) appear in every tenant
+beside its own, read-only (`Módosítás` and `Törlés` disabled), and `shared@`
+edits them without a tenant.
 Checks: `php8.4 tests/shell/counts.php`, shell `count-fields.spec.cjs`.
 
 [Sub-views](workspaces.md#sub-views), one per kind:

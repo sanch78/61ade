@@ -57,7 +57,7 @@ final class Workspace
         $this->registry->checkViews();$this->registry->checkFileFields();
         $out=[];$ctx=$this->context($actor,'ui',$tenant);$meta=new ViewMetadata($this->registry);
         foreach($this->registry->views() as $view){
-            if($ctx->tenant===null&&array_filter([$view->resource,$view->record],fn($name)=>$name!==null&&$this->registry->tenantScoped($name)))continue;
+            if(array_filter([$view->resource,$view->record],fn($name)=>$name!==null&&!$this->registry->tenantReady($ctx,$name)))continue;
             if($view->record!==null&&!$meta->offered($ctx,$view->record,'get'))continue;
             $data=$this->registry->provider($view->kind)->metadata($ctx,$view);
             if($data===null)continue;
@@ -103,6 +103,7 @@ final class Workspace
     {
         $actor=$ctx->actor->id;
         $t=$action->resolve?($action->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
+        Executor::sharedWrite($ctx,$action,$t);
         if(!$this->acl->allows($actor,$action->resource,$action->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
         $values=$action->formValues?($action->formValues)($ctx,$t):($id!==null?$this->executor->execute($ctx,$action->resource,'get',$id,[]):[]);
         $shown=fn(Field $f)=>!$f->secret&&$f->type!=='password'&&is_array($values)&&array_key_exists($f->name,$values);
@@ -261,8 +262,8 @@ final class Workspace
                 if($channel!=='ui' || !is_string($data['values']['operation']??null))throw new Failure('Érvénytelen űrlapkérés.',403);
                 $a=$this->registry->get($data['resource'],$data['values']['operation']);
                 if(!in_array('ui',$a->channels,true))throw new Failure('Nem érhető el.',403);
-                if($tenant===null&&$this->registry->tenantScoped($a->resource))throw new Failure('Nincs aktív tenant.',403);
                 $ctx=new Context($actor,$channel,$this->acl,$this->db,owner:$owner,tenant:$tenant);
+                if(!$this->registry->tenantReady($ctx,$a->resource))throw new Failure('Nincs aktív tenant.',403);
                 $described=$this->describe($ctx,$a,$id);
                 $this->journal->record($actor->id,'ui',$a->resource,'describe',$id??'','success',tenant:$tenant);
                 echo json_encode(['ok'=>true,'data'=>$described],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;

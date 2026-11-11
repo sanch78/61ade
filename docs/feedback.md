@@ -7082,3 +7082,80 @@ that exactly equals an option label lists every option. The managed
   The provider callback was not exercised with a real provider; no full-smoke
   claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0175"></a>
+
+## FB-0175 — Shared rows in tenant-scoped resources
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request, recorded without consumer names or business
+  terms (the owner noted that it had not been fulfilled). A tenant-scoped
+  resource should hold rows that belong to no tenant: every tenant reads them
+  in the same lists, cards and details as its own rows, read-only, and a
+  declared role that works without a tenant creates, edits and reviews them
+  through the same resource and forms. The consumer mirrored such rows into
+  every tenant (the copies drift) or would need a second list from a second
+  resource.
+- **Decision (tenancy contract change):**
+  - Declaration on the scoped resource: `sharedTenant` (the tenant column value
+    of the shared rows, usually `''`) and `sharedRoles` (role keys); JSON
+    `storage.shared_tenant`, `storage.shared_roles`. Without it nothing changes.
+  - The realm of a request (`Registry::realm()`): with an active tenant, its own
+    rows and the shared rows are read, its own rows written; without a tenant,
+    an actor holding a shared role reads and writes the shared rows only;
+    anyone else fails closed as before. The administrator, who works without a
+    tenant, gets the shared role. An actor with a tenant stays a tenant actor.
+  - With a tenant, every write action on a shared row is refused by the
+    executor (403 `A közös adat csak olvasható.`), whatever the rules, also its
+    update form, field edits and bulk items; it is left out of the row's
+    `_actions` (create stays). No write grant for tenant actors. The tenant
+    column stays server-owned, so no row is created with the shared value or
+    moved into or out of it by a tenant.
+  - Rows carry `_shared: true`. Uniqueness and the manual order scope work per
+    realm. The journal records `shared: true` in the detail, with the actor.
+  - Not part of it: lookup choices (a scoped `Lookup` still offers the active
+    tenant's rows only).
+- **Implemented:** `Acl::holds()` (role keys of an actor), `Registry::scopeToTenant()`
+  with the shared value and roles, `Registry::realm()`/`tenantReady()`; the
+  executor, `views()`, `__form` and `describe()` use the realm;
+  `ListSource` reads, `countBy()` (sub-view counts) and `countMatching()`
+  (count fields) filter by the realm's values; `SqlResource` `sharedTenant`,
+  `sharedRoles` (target, projection with `_shared` and `_actions`, create
+  stamp, uniqueness, order scope, audit detail); JSON
+  `storage.shared_tenant`/`shared_roles`; the new message in hu/en/de. Tenant
+  demo: `Tételek` declares shared rows (two shared items, a `Forrás` column),
+  new account `shared@example.test` with the role `shared_editor` and no tenant.
+- **Guides:** [tenancy shared rows](tenancy.md#shared-rows) (with limits and
+  verification), [access and actions](access-and-actions.md#bővítési-határ),
+  [configuration](configuration.md), [usage](usage.md#multi-tenancy),
+  [demos](demos.md#tenant-demo-tenants), toolkit [changes](toolkit.md#changes)
+  and migration row M57.
+- **Verification:** PHP `tenancy.php` (new shared-row block), `configuration.php`
+  (new JSON case), `counts.php`, `lists.php`, `access.php`, `api-keys.php`,
+  `permissions.php`, `contracts.php`, `i18n.php` passed. On the managed demo
+  `tenancy.spec.cjs` (two new cases) and `count-fields.spec.cjs` (counts now
+  include the shared items) passed, 10 of 10. No full-smoke claim.
+- **Limits:** shared rows are no lookup choices; one shared realm per resource;
+  a tenant's row may repeat a shared row's unique value.
+- **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0176"></a>
+
+## FB-0176 — A collapsed region empty after a tab change on a phone (not reproduced)
+
+- **Date:** 2026-11-11.
+- **Report:** a consumer observation, not a request: on a phone, a `PageLayout`
+  `collapsable` region that was collapsed across a tab change of a sibling
+  `tabs` branch once opened empty, with a Suite `_node` of null error. The
+  consumer works around it by emptying the region when it collapses and filling
+  it when it opens, and offered to reproduce it before filing a request.
+- **Checked:** at 390 px, the consumer's layout (`rows`: a collapsable tree
+  region, a `tabs` branch, a collapsable region declared `collapsed: true`),
+  with a nested `PageLayout` holding a Grid and a DataView, a `RecordDetails`,
+  or a Grid in the region; collapse by its header and from code, a tab change
+  both ways, expand. Also a Grid and a DataView repainted while their region was
+  collapsed, and a widget attached into a collapsed region. No page error, and
+  the region showed its content every time. The temporary spec was removed.
+- **Decision:** no change without a reproduction: a fix would be speculative.
+- **Status:** open; waiting for the consumer's reproduction steps (sequence,
+  content, console stack).

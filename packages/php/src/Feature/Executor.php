@@ -38,6 +38,7 @@ final class Executor
         $ctx->acl->invalidate();
         $this->channel($ctx,$action);
         $target=$action->resolve ? ($action->resolve)($ctx,$id) : ['id'=>$id,'owner'=>null];
+        self::sharedWrite($ctx,$action,$target);
         $object=isset($target['id']) ? (string)$target['id'] : null;
         if (!$action->collection) self::allowed($ctx,$action,$object,isset($target['acl_id']) ? (string)$target['acl_id'] : $object,isset($target['owner']) ? (string)$target['owner'] : null);
         return $target;
@@ -45,8 +46,13 @@ final class Executor
     private function channel(Context $ctx, Action $action): void
     {
         // A tenant-scoped resource needs an active, membership-checked tenant; there is no unscoped fallback.
-        if ($ctx->tenant === null && $this->registry->tenantScoped($action->resource)) throw new Failure('Nincs aktív tenant.',403);
+        if (!$this->registry->tenantReady($ctx,$action->resource)) throw new Failure('Nincs aktív tenant.',403);
         if (!in_array($ctx->channel,$action->channels,true) || ($ctx->channel==='api' && !in_array($action->resource.'.'.$action->name,$ctx->scopes,true))) throw new Failure('Nincs hozzáférés.',403);
+    }
+    /** A shared row (FB-0175, the resolver's `shared`) is read-only for an actor with a tenant: no write action on it. */
+    public static function sharedWrite(Context $ctx, Action $action, array $target): void
+    {
+        if ($action->write && ($target['shared'] ?? false) === true && $ctx->tenant !== null) throw new Failure('A közös adat csak olvasható.',403);
     }
     /** API callers learn nothing about objects they may not use (404); UI callers get 403. */
     private static function allowed(Context $ctx, Action $action, ?string $object, ?string $aclObject, ?string $owner): void
@@ -104,6 +110,7 @@ final class Executor
             $owner=isset($target['owner']) ? (string)$target['owner'] : null;
             $aclObject=isset($target['acl_id']) ? (string)$target['acl_id'] : $object;
             $detail=$target['audit'] ?? [];
+            self::sharedWrite($ctx,$action,$target);
             // Collection handlers must use the kernel SQL scope; no raw collection result is allowed.
             if (!$action->collection) self::allowed($ctx,$action,$object,$aclObject,$owner);
             $known=array_column($action->fields,null,'name');

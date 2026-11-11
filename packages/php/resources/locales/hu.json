@@ -691,6 +691,7 @@
   "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.": "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.",
   "{count} elem előnézete nem sikerült.": "{count} elem előnézete nem sikerült.",
   "Nincs aktív tenant.": "Nincs aktív tenant.",
+  "A közös adat csak olvasható.": "A közös adat csak olvasható.",
   "Nincs hozzáférés a tenanthoz.": "Nincs hozzáférés a tenanthoz.",
   "Ez a tenant nem érhető el.": "Ez a tenant nem érhető el.",
   "Tenantok": "Tenantok",

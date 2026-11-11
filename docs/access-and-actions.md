@@ -53,7 +53,9 @@ Without tenancy an application uses one realm. Optional [multi-tenancy](tenancy.
 adds explicit tenant membership and the `SqlResource`/`Lookup` scope adapters.
 Isolation is claimed only for resources whose adapter applies the tenant
 (`Registry::tenantScoped()`); other kinds stay global and are documented as
-limits there. Roles and rules are global and apply in every member tenant. Complex ABAC requires typed registered condition adapters, never
+limits there. A scoped resource may declare [shared rows](tenancy.md#shared-rows):
+tenants read them, and the executor refuses every write action on them with a
+tenant (403, left out of `_actions`); a declared role without a tenant writes them. Roles and rules are global and apply in every member tenant. Complex ABAC requires typed registered condition adapters, never
 UI-authored PHP/SQL/JavaScript expressions.
 
 <a id="használati-felület-első-implementáció"></a>

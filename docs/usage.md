@@ -552,7 +552,10 @@ a JSON `"tenancy": {}`, then `Tenancy::install()`. Scoped resources declare
 Roles stay global. Membership is assigned in Users or in Tenants. The shell
 shows a selector only for several memberships, and the server resolves and
 rechecks the tenant on every request; without a membership, scoped resources
-fail closed. API keys are bound to a tenant or are global. Workers use
+fail closed. A scoped resource may declare [shared rows](tenancy.md#shared-rows)
+(`sharedTenant`, `sharedRoles`; JSON `shared_tenant`, `shared_roles`): every
+tenant reads them read-only beside its own rows (`_shared: true`), and a
+declared role without a tenant writes them. API keys are bound to a tenant or are global. Workers use
 `Workspace::context($actor, $channel, $tenant)`. The guide includes the consumer
 integration and migration steps. Demo: [/tenants/](demos.md#tenant-demo-tenants).
 

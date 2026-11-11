@@ -9,7 +9,8 @@ final readonly class ListSource
     private array $fields;
     /**
      * $search: declared name-search fields (non-secret text/textarea); $registry resolves `column.media` sources.
-     * $tenant: tenant column; every read, count and watch is limited to the Context's tenant and fails closed without one.
+     * $tenant: tenant column; every read, count and watch is limited to the Context's tenant realm (Registry::realm(): the
+     * active tenant and the declared shared rows, FB-0175) and fails closed without one.
      * $countWhere: trusted developer SQL that a parent's sub-view count (countBy) adds to the listing scope, for a
      * list that shows more rows than it counts (an access list counts only the accounts with access).
      * $order: manual order `{field, scope}` (SqlResource): the list is sorted by that field only, ascending by default.
@@ -126,7 +127,7 @@ final readonly class ListSource
         if(!is_array($filters)||count($filters)>count($this->fields))throw new Failure('Hibás szűrők.');
         [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
         $terms=["($scope)","({$this->where})"];
-        if($this->tenant!==null){$terms[]="{$this->tenant} = :blade_tenant";$params['blade_tenant']=$ctx->tenant ?? throw new Failure('Nincs aktív tenant.',403);}
+        if($this->tenant!==null)$terms[]=$this->realm($ctx,$params) ?? throw new Failure('Nincs aktív tenant.',403);
         $totalTerms=$terms;$totalParams=$params;$known=array_column($this->fields,null,'name');
         // One condition of a filter or of the scope. A scope-only field (Field::$scopeOnly) is a scope and never a filter;
         // a scope compares exactly, also a text field.
@@ -261,14 +262,14 @@ final readonly class ListSource
     public function countMatching(Context $ctx,array $match,array $values,array $filters):?array
     {
         $known=array_column($this->fields,null,'name');
-        if(($this->tenant!==null&&$ctx->tenant===null)||!$this->listable($ctx))return null;
+        if(!$this->listable($ctx))return null;
         foreach([...$match,...array_keys($filters)] as $name){$field=$known[$name]??null;if(!$field||$field->secret||!$this->queryable($ctx,(string)$name))return null;}
         // Without any list allow (or with a deny of the whole action) nothing is counted: no value rather than 0.
         $rules=$ctx->acl->rules($ctx->actor->id,$this->resource,'list',$ctx->channel);
         if(!array_filter($rules,static fn($r)=>$r['effect']==='allow'&&$r['field_name']==='')||array_filter($rules,static fn($r)=>$r['effect']==='deny'&&$r['scope']==='all'&&$r['field_name']===''))return null;
         [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
         $terms=["($scope)","({$this->where})","({$this->countWhere})"];
-        if($this->tenant!==null){$terms[]="{$this->tenant} = :blade_tenant";$params['blade_tenant']=$ctx->tenant;}
+        if($this->tenant!==null&&($terms[]=$this->realm($ctx,$params))===null)return null;
         $i=0;foreach($filters as $name=>$value){$terms[]="COALESCE(CAST($name AS CHAR),'') = :blade_cf$i";$params["blade_cf$i"]=(string)$value;$i++;}
         $on=implode(' OR ',array_map(static fn($name)=>"CAST($name AS CHAR) = blade_values.blade_v",$match));
         $from=$this->source?($this->source)($ctx):$this->table;
@@ -283,6 +284,18 @@ final readonly class ListSource
         }
         return $out;
     }
+    /**
+     * The tenant condition of $ctx (bound into $params): the tenant column within the values of its realm (the active
+     * tenant, and the shared rows when declared), or null when $ctx has no realm here. Without a registry: the active tenant.
+     */
+    private function realm(Context $ctx,array &$params):?string
+    {
+        try{$realm=$this->registry?->realm($ctx,$this->resource);}catch(Failure){return null;}
+        $values=$realm['read']??($ctx->tenant!==null?[$ctx->tenant]:null);
+        if($values===null)return null;
+        $in=[];foreach($values as $i=>$value){$in[]=":blade_tenant$i";$params["blade_tenant$i"]=$value;}
+        return "{$this->tenant} IN (".implode(',',$in).')';
+    }
     /** Whether the channel of $ctx may call this resource's `list` (an API token also needs that scope), as the executor requires. */
     private function listable(Context $ctx):bool
     {
@@ -293,10 +306,10 @@ final readonly class ListSource
     public function countBy(Context $ctx,string $field,array $values):?array
     {
         $known=array_column($this->fields,null,'name')[$field]??null;
-        if(!$known||$known->secret||!$this->queryable($ctx,$field)||($this->tenant!==null&&$ctx->tenant===null)||($this->registry&&!$this->listable($ctx)))return null;
+        if(!$known||$known->secret||!$this->queryable($ctx,$field)||($this->registry&&!$this->listable($ctx)))return null;
         [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
         $terms=["($scope)","({$this->where})","({$this->countWhere})"];
-        if($this->tenant!==null){$terms[]="{$this->tenant} = :blade_tenant";$params['blade_tenant']=$ctx->tenant;}
+        if($this->tenant!==null&&($terms[]=$this->realm($ctx,$params))===null)return null;
         // A hierarchy child lists its top-level records only (as its view does), so only those are counted.
         $own=$this->registry?->subviewOf($this->resource);
         if($own&&$own['child']===$this->resource&&$own['field']!==$field)$terms[]="COALESCE(CAST({$own['field']} AS CHAR),'') = ''";
