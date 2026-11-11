@@ -6449,5 +6449,5 @@ that exactly equals an option label lists every option. The managed
     project collects them);
   - a claim is bound to the session, so a form reopened after signing in
     again needs a new upload.
-- **Commit:** pending.
-- **Status:** implemented.
+- **Commit:** `d833520` on `main`.
+- **Status:** implemented and verified on the managed demo.
