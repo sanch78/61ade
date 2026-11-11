@@ -99,8 +99,10 @@ tree as decoration for a flat list.
 - A page that scopes one list view on several fields shares one
   `preferencesKey` across them, pins its mode toggle (`pinned: true`), presets
   the field a computed scope implies with `createDefaults`, and declares a
-  helper field used only for scoping `column.details: false`
-  ([FB-0162](../../../docs/feedback.md#fb-0162)–[FB-0165](../../../docs/feedback.md#fb-0165)).
+  helper field used only for scoping `scopeOnly: true` (no column, details,
+  filter or sort offers it; `column.details: false` only hides a value from
+  the details)
+  ([FB-0162](../../../docs/feedback.md#fb-0162)–[FB-0166](../../../docs/feedback.md#fb-0166)).
 - A composed list's saved presentation state (mode, sort, columns, filters)
   belongs to the view identity it is given. Reuse the menu page's identity
   only when sharing its state is intended; otherwise give the composed list

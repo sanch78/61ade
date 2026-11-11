@@ -114,7 +114,7 @@ final class WorkspaceConfiguration
                 'type' => 'string', 'required' => 'boolean', 'max' => 'integer',
                 'options' => 'array', 'secret' => 'boolean',
                 'options_lookup' => 'string', 'options_binding' => 'string',
-                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array', 'editor' => 'string', 'visible_when' => 'array', 'clears' => 'array',
+                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array', 'editor' => 'string', 'visible_when' => 'array', 'clears' => 'array', 'scope_only' => 'boolean',
             ], '$.fields');
             if (isset($definition['visible_when'])) {
                 Shape::check($definition['visible_when'], ['field' => 'string', 'in' => 'array'], [], '$.fields.'.$definition['name'].'.visible_when');
@@ -153,6 +153,7 @@ final class WorkspaceConfiguration
                 editor: $definition['editor'] ?? null,
                 visibleWhen: $definition['visible_when'] ?? null,
                 clears: $definition['clears'] ?? [],
+                scopeOnly: $definition['scope_only'] ?? false,
             );
         }
         return $fields;

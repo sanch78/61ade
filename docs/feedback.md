@@ -682,3 +682,7 @@
 <a id="fb-0165"></a>
 
 ## FB-0165 — Fields hidden from the details
+
+<a id="fb-0166"></a>
+
+## FB-0166 — Scope-only fields: a scope key offered on no list surface

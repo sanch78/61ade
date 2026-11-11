@@ -269,10 +269,16 @@ export class Workspace implements ActionHost {
     });
   }
   // A hierarchy (same-resource sub-view) lists its records without a parent at the top, also inside another record.
+  /**
+   * The list query: the user's filters and search, and the scope as the protocol's `scope` (a scope-only field is
+   * never a filter, FB-0166). The top level of a shared sub-view (a hierarchy on itself) is the scope "no parent";
+   * a list scoped on another field keeps that as a filter.
+   */
   private query():Record<string,unknown>{
-    const root=this.view.subview?.shared&&this.scope?.field!==this.view.subview.field?{[this.view.subview.field]:""}:{};
+    const parent=this.view.subview?.shared&&this.scope?.field!==this.view.subview.field?this.view.subview.field:undefined;
+    const scope=this.scope?{field:this.scope.field,value:this.scope.id}:parent?{field:parent,value:""}:undefined;
     const search=this.search?.value??"";
-    return {filters:{...this.filters,...root,...(this.scope?{[this.scope.field]:this.scope.id}:{})},...(search?{search}:{})};}
+    return {filters:{...this.filters,...(parent&&this.scope?{[parent]:""}:{})},...(scope?{scope}:{}),...(search?{search}:{})};}
   private fitObserver?:ResizeObserver;
   /**
    * A compact preview reports the height its records need: its own frame (layout borders) plus the measured table,

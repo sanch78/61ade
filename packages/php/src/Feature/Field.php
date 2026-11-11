@@ -41,11 +41,21 @@ final readonly class Field
          * both with a value.
          */
         public array $clears = [],
+        /**
+         * A scope key only (FB-0166): a list can be scoped on the field (`ListView` `scope`, the list protocol's
+         * `scope`), but no list surface offers it: no column, details, filter, sort or search. A text, number, select
+         * or checkbox field without a column presentation, not secret. Presentation and query surface only: the field
+         * ACL, the tenant and the value checks still apply to the scope, and the record still carries the value.
+         */
+        public bool $scopeOnly = false,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
             || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'date', 'file'], true)
             || $max < 1 || ($type === 'date' && ($max < 10 || $secret))) {
             throw new InvalidArgumentException('Invalid field definition.');
+        }
+        if ($scopeOnly && ($secret || !in_array($type, ['text', 'number', 'select', 'checkbox'], true) || $column !== [] || $file !== null || $editor !== null || $bulk)) {
+            throw new InvalidArgumentException('A scope-only field is a text, number, select or checkbox field without a column presentation.');
         }
         // `file`: the value is a file id of that file manager's mount; the column is a media column of that resource.
         if (($type === 'file') !== ($file !== null)) throw new InvalidArgumentException('File settings belong to file fields only.');

@@ -122,7 +122,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Network topology builder | Visual diagram editor: drag network elements from the palette, move them, connect them by the element handle with Ethernet/fibre/Wi-Fi/VPN/WAN connections, edit captions and details in the property form, save with revision check; define new element types (name, glyph, shape, colour) at runtime; two synthetic topologies; desktop only; [details](diagrams.md) | Feature demo → Hálózati topológia; `reader@example.test` views only |
 | Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
 | Registry editor (tree navigation, conditional fields) | `Regisztrációs adatbázis` ([registry.json](../examples/demo-app/modules/registry.json)): a Windows registry editor imitation. The key tree (`Registry::tree` over the `Kulcsok` hierarchy) loads children on expansion, its toolbar adds, edits (renames or moves, guarded against cycles) and deletes keys (with their subtree and values); the value list beside it is scoped to the selected key. The value form shows the editor of the chosen `Típus` only (`visible_when`): text, multi-line text, hexadecimal DWORD/QWORD or a byte string, each with its own pattern; the `Adat` column is computed SQL | Feature demo → Regisztrációs adatbázis; `reader@example.test` browses only |
-| Tree component and toggle command | `Kulcsböngésző` ([D8](#d8-key-browser)): the public `Tree` beside tabs of a scoped value list and key details, and value details; the list's pinned toggle `Alkulcsok értékei` switches between the key's own values and its subkeys' with one shared set of view choices; on the subkey scope `Hozzáadás` presets the key; the computed parent is not in the details | Feature demó → Kulcsböngésző: arrows, Space, Enter in the tree; the toggle in the values toolbar; reload |
+| Tree component and toggle command | `Kulcsböngésző` ([D8](#d8-key-browser)): the public `Tree` beside tabs of a scoped value list and key details, and value details; the list's pinned toggle `Alkulcsok értékei` switches between the key's own values and its subkeys' with one shared set of view choices; on the subkey scope `Hozzáadás` presets the key; the computed parent is a scope-only field | Feature demó → Kulcsböngésző: arrows, Space, Enter in the tree; the toggle in the values toolbar; reload |
 | Menu attention | `Jóváhagyások` ([approvals](#approvals-attention)): a live count of the pending items on the entry, its branch and `Menü`, in the warning tone; the plain entry at zero | Change an item's `Állapot` and watch the menu; `reader@example.test` sees no entry |
 | View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in the `Beállítások` controls menu below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Empty shelf`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `Zone C` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
@@ -654,8 +654,12 @@ only by the [Tree](toolkit.md#tree)'s `select`:
   (`demo.registry-browser.values`: mode, sort, columns), the toggle is
   `pinned` (it stays beside `Műveletek` at 390 px), on the subkey scope
   `Hozzáadás` presets `Kulcs` with the selected key (`createDefaults`; the
-  server still checks the key and the unique name), and the computed
-  `Szülőkulcs` is `column.details: false`, absent from `Érték adatai`.
+  server still checks the key and the unique name), the computed
+  `Szülőkulcs` is a [scope-only field](field-presentation.md#scope-only)
+  (`scope_only`, [FB-0166](feedback.md#fb-0166)): the subkey scope uses it, and
+  no column, header filter, card sort, `Szűrés` entry or details show it; and
+  `Kulcs` (the raw key id) is `column.details: false`, absent from
+  `Érték adatai`.
 - **Regions as mount targets:** each panel shows a hint (`app.ui.attach`)
   until it has a record, then its component is mounted into the region
   itself and replaced there on every selection or toggle change
@@ -668,7 +672,8 @@ node view), `tests/shell/list-toggle.spec.cjs` (pressed state, scope
 switch, the first load after a reload, an unpinned toggle's
 `menuitemcheckbox` at 390 px, the option checks) and
 `tests/shell/scoped-list.spec.cjs` (the create preset and its server
-validation, the shared sort, the hidden parent, the pinned toggle at 390 px).
+validation, the shared sort, the scope-only parent offered nowhere, the key
+hidden from the details, the pinned toggle at 390 px).
 
 <a id="approvals-attention"></a>
 

@@ -19,7 +19,7 @@ async function mount(page,framed=false){
   window.requests=[];
   window.fetch=async(url,config)=>{
    const request=JSON.parse(config.body);requests.push(request);
-   const snapshot=values=>{const parent=values?.filters?.parent_id??'',items=rows.filter(row=>row.parent_id===parent);return {items,previous:null,next:null,version:'v1',total:rows.length,matched:items.length};};
+   const snapshot=values=>{const parent=(values?.scope?.field==='parent_id'?values.scope.value:values?.filters?.parent_id)??'',items=rows.filter(row=>row.parent_id===parent);return {items,previous:null,next:null,version:'v1',total:rows.length,matched:items.length};};
    let data;
    if(request.action==='list')data=snapshot(request.values);
    // The shell's live channel polls every subscription in one batched __watch.
@@ -77,9 +77,9 @@ test('a same-resource sub-view shares the parent toolbar: its cursor record take
  const nested=page.locator('.blade-subview-host .blade-subview');
  await expect(nested.locator('.dhx_grid-row')).toHaveCount(2);
  // The nested list is scoped to its parent and has no toolbar or scope column of its own.
- expect(await page.evaluate(()=>requests.some(request=>request.action==='list'&&request.values.filters?.parent_id==='1'))).toBe(true);
+ expect(await page.evaluate(()=>requests.some(request=>request.action==='list'&&request.values.scope?.field==='parent_id'&&request.values.scope.value==='1'))).toBe(true);
  // Polling transport: one batched __watch carries the parent list and its preview, each under its own id.
- await expect.poll(()=>page.evaluate(()=>requests.filter(request=>request.action==='__watch').map(request=>request.values.subscriptions.map(s=>s.query.filters?.parent_id??'')).find(list=>list.length===2))).toEqual(['','1']);
+ await expect.poll(()=>page.evaluate(()=>requests.filter(request=>request.action==='__watch').map(request=>request.values.subscriptions.map(s=>(s.query.scope?.field==='parent_id'?s.query.scope.value:s.query.filters?.parent_id)??'')).find(list=>list.length===2))).toEqual(['','1']);
  expect(await page.evaluate(()=>requests.filter(request=>request.action==='__watch').every(request=>request.resource===''&&new Set(request.values.subscriptions.map(s=>s.id)).size===request.values.subscriptions.length))).toBe(true);
  await expect(nested.getByRole('button',{name:'Archiválás',exact:true})).toHaveCount(0);
  await expect(nested.getByText('Szülő',{exact:true})).toHaveCount(0);

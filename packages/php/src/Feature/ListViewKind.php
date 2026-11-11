@@ -57,7 +57,7 @@ final class ListViewKind implements ViewKindProvider
         $known=$field===null?null:($field==='id'?true:($registry->fields($view->resource)[$field]??null));
         try{$list=$registry->get($view->resource,'list');}catch(Failure){$list=null;}
         if(!is_array($sort)||array_diff(array_keys($sort),['field','direction'])||!in_array($sort['direction']??null,['asc','desc'],true)||!$known
-            ||($known instanceof Field&&($known->secret||in_array($known->type,['password','textarea','multiselect'],true)))
+            ||($known instanceof Field&&($known->secret||$known->scopeOnly||in_array($known->type,['password','textarea','multiselect'],true)))
             ||($view->options['singleton']??false)||$list?->listSource?->order)throw new \InvalidArgumentException('Invalid list sort: '.$view->id);
     }
     /**
@@ -105,6 +105,7 @@ final class ListViewKind implements ViewKindProvider
         $fields=$registry->fields($resource);
         foreach($columns as $column){
             if(!is_array($column)||!is_string($column['id']??null))throw new \InvalidArgumentException('Invalid view column.');
+            if(($fields[$column['id']]??null)?->scopeOnly)throw new \InvalidArgumentException('A scope-only field is no column: '.$column['id']);
             if(!isset($column['media_of'])&&!isset($column['part']))continue;
             $source=is_string($column['media_of']??null)?($fields[$column['media_of']]??null):null;
             if(isset($fields[$column['id']])||!$source||$source->media()===null||!in_array($column['part']??null,['type','resolution','duration'],true))throw new \InvalidArgumentException('Invalid derived media column.');
@@ -136,7 +137,7 @@ final class ListViewKind implements ViewKindProvider
             if(!$field)return self::wire($column);
             return self::wire([...array_diff_key($field->column,['details'=>true]),...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']]);
         },$o['columns']);
-        $detailFields=array_values(array_map(static fn($field)=>self::wire(['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true])]),array_filter($fields,static fn($field)=>!$field->secret&&$field->type!=='password'&&($field->column['details']??true))));
+        $detailFields=array_values(array_map(static fn($field)=>self::wire(['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true])]),array_filter($fields,static fn($field)=>!$field->secret&&!$field->scopeOnly&&$field->type!=='password'&&($field->column['details']??true))));
         $list=$this->registry->get($view->resource,$singleton?'get':'list');
         $activate=$o['activate']??null;
         $options=['columns'=>$columns,'detailFields'=>$detailFields,'singleton'=>$singleton,'layout'=>$o['layout']->metadata(),

@@ -180,6 +180,23 @@ Textarea is not a basic filter. Complex/domain filters require extending the
 typed query contract first. Header clicks request server ascending/descending
 sort, never sorting only a loaded subset.
 
+<a id="list-scope"></a>
+
+**Scope** ([FB-0166](feedback.md#fb-0166)): `"scope": {"field": "group_id",
+"value": "7"}` limits the list to one value of one field: a scoped `ListView`
+(a nested list, a sub-view preview or window, a tree navigation's list, a
+page's `scope`) and a `Tree`'s levels send it, the top level of a hierarchy on
+itself as the scope `""`. It takes the same fields and value checks as a
+filter (select options, checkbox `0`/`1`, number digits, media classes) and
+the same field ACL, but compares exactly, also a text field. The same field
+may not also be in `filters`. A field declared **scope-only**
+(`scopeOnly: true`, JSON `scope_only`, [field presentation](field-presentation.md))
+is accepted only here: `filters` and `sort` naming it are refused (`A mező nem
+szűrhető.`, `A mező nem rendezhető.`, 403), and it is in no `filters`,
+`sortable`, `columns` or `detailFields` metadata. The scope counts like a
+filter (`matched`; `total` stays the unfiltered count). A project's own
+`list` handler that read a scope from `filters` reads `values.scope` instead.
+
 ### Integrated grid header filters
 
 Every filterable field that is present in a view's grid receives a native DHTMLX
@@ -201,7 +218,8 @@ Optional sort: `{"field":"title","direction":"asc"}` or desc. Default: public
 id descending. SQL sorts the complete authorized/filtered result. One field
 at a time; unique key breaks ties in the same direction, NULL last both ways.
 Numbers sort numerically, strings by database collation, select/checkbox by stored
-value. Secret, textarea, unknown and partially denied fields cannot sort.
+value. Secret, textarea, scope-only, unknown and partially denied fields cannot
+sort.
 Sortable metadata lists permitted public field names. Consumers need no frontend
 or sorting endpoint; they supply indexes for frequently sorted large tables.
 The framework does not alter schemas.

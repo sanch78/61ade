@@ -67,16 +67,38 @@ Use business meanings such as Active/Archived where possible.
 
 `details: false` ([FB-0165](feedback.md#fb-0165)) leaves a field out of every
 details surface: `RecordDetails`, the list's `Adatok` window and cards (the
-view's `detailFields`). It is meant for helper fields that only scope or
-filter a list, such as a computed ancestor id: the field stays in the record,
-the list's filters and a `scope`, and a list column still shows it when the
-view declares one. It hides a value from a presentation, not from the user;
-access control remains the field ACL and `secret`. A non-boolean value is
-refused (`InvalidArgumentException`).
+view's `detailFields`), for a raw value the details need not show, such as a
+record's numeric parent id: the field stays in the record, the list's filters,
+sort and a `scope`, and a list column still shows it when the view declares
+one. It hides a value from a presentation, not from the user; access control
+remains the field ACL and `secret`. A non-boolean value is refused
+(`InvalidArgumentException`).
+
+```json
+{"name": "key_id", "label": "Kulcs", "type": "number",
+ "column": {"details": false}}
+```
+
+<a id="scope-only"></a>
+
+**Scope-only fields** ([FB-0166](feedback.md#fb-0166)): `scopeOnly: true` (PHP
+`Field`, JSON `scope_only`) declares a helper key that only scopes a list,
+such as a computed ancestor at a tree level, a path or an owner bucket. A
+`ListView` `scope` and the list protocol's [`scope`](workspaces.md#list-scope)
+accept it; no list surface offers it: it is no column (also not by default in
+`SqlResource::register`; a declared column naming it is refused), not in the
+details, the header filters, the filter panel or `Szűrés` dialog, the
+`Rendezés` menu or the accepted `sort` fields, and `filters` or `sort` naming
+it are refused like any field that is not filterable or sortable. A first
+sort, an attention filter or a search field naming it is refused at
+definition. It is a text, number, select or checkbox field, not secret,
+without a `column` presentation, a file, an editor or `bulk`. It narrows query
+surfaces only: the field ACL (a denied field refuses the scope too), the
+tenant, the value checks and the record's value stay as for any field.
 
 ```json
 {"name": "parent_key_id", "label": "Szülőkulcs", "type": "number",
- "column": {"details": false}}
+ "scope_only": true}
 ```
 
 PHP Field takes type checkbox, column width/alignment and defaultValue.

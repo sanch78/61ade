@@ -123,7 +123,7 @@ export class NodeTree {
     const rows:Row[]=[];let cursor:string|null=null;
     try{
       do{
-        const data:Snapshot=await server.call(view.resource!,"list",{values:{mode:"dynamic",limit:200,filters:{[this.source.parent]:parent},...(sortable?{sort:{field:label,direction:"asc"}}:{}),...(cursor?{cursor}:{})},signal:this.abort.signal});
+        const data:Snapshot=await server.call(view.resource!,"list",{values:{mode:"dynamic",limit:200,scope:{field:this.source.parent,value:parent},...(sortable?{sort:{field:label,direction:"asc"}}:{}),...(cursor?{cursor}:{})},signal:this.abort.signal});
         rows.push(...data.items);cursor=data.next;
       }while(cursor&&rows.length<CHILDREN);
     }catch(error){

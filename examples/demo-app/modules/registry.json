@@ -105,7 +105,10 @@
                     "name": "key_id",
                     "label": "Kulcs",
                     "type": "number",
-                    "max": 20
+                    "max": 20,
+                    "column": {
+                        "details": false
+                    }
                 },
                 {
                     "name": "name",
@@ -217,9 +220,7 @@
                     "label": "Szülőkulcs",
                     "type": "number",
                     "max": 20,
-                    "column": {
-                        "details": false
-                    }
+                    "scope_only": true
                 }
             ],
             "view": {
