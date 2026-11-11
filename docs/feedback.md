@@ -7347,7 +7347,8 @@ that exactly equals an option label lists every option. The managed
   the cell class to outweigh Suite's `.dhx_widget.dhx_form .dhx_layout-cell
   { overflow: unset }`), and the bar is square. Verified with
   `record-forms.spec.cjs` (the frame clips, the bar's radius is 0; 5 passed)
-  and a corner screenshot checked pixel by pixel and removed.
+  and a corner screenshot checked pixel by pixel and removed. Commit
+  `16ba150`.
 
 <a id="fb-0178"></a>
 
@@ -7474,4 +7475,5 @@ that exactly equals an option label lists every option. The managed
 - **Limits:** the open sections are not remembered; an accordion form in a
   host without a height shows every section at its own height; sections do
   not nest; no `Accordion` with attached form parts.
+- **Commit:** `f3a19d5` on `main`.
 - **Status:** implemented and verified on the managed demo.
