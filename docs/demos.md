@@ -650,6 +650,10 @@ only by the [Tree](toolkit.md#tree)'s `select`:
   (`key_id`). The page reads the kept state before the first list and mounts
   the list of the other scope on the list's `toggle` event; the state
   survives that change, a reload and the collapsed `Műveletek` at 390 px.
+- **Regions as mount targets:** each panel shows a hint (`app.ui.attach`)
+  until it has a record, then its component is mounted into the region
+  itself and replaced there on every selection or toggle change
+  ([FB-0161](feedback.md#fb-0161)); the page keeps no elements of its own.
 
 Checks: `tests/shell/tree-component.spec.cjs` (roles, keys, selection and
 restore at 1366 and 390 px; the component's options, `select`, `activate`,

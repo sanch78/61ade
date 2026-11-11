@@ -91,10 +91,10 @@ tree as decoration for a flat list.
   shell layer to obtain a visual tweak.
 - When project code composes a list into its own page, build one layout and
   mount the framework list component into a cell; do not nest a second frame
-  around it. A layout cell holds either static markup or widgets for its whole
-  life: content that alternates between a notice and a widget gets a fresh
-  one-cell layout per content, because a cell that showed markup can lose a
-  widget attached later. Attach the new content before releasing the old, and
+  around it. Content that changes (a notice, then a list; another scope) is
+  replaced in the same cell: destroy the old component and mount the new one
+  there right away ([FB-0161](../../../docs/feedback.md#fb-0161)). A
+  rebuilt page Layout is attached before the old one is released, and
   release components before the layout that holds them.
 - A composed list's saved presentation state (mode, sort, columns, filters)
   belongs to the view identity it is given. Reuse the menu page's identity

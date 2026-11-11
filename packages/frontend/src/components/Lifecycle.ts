@@ -6,6 +6,29 @@ import { signalOf } from "../api/Events";
 const hosted = (target: MountTarget): target is AppWindow | ViewHost =>
   !(target instanceof HTMLElement) && "signal" in target && target.signal instanceof AbortSignal && typeof target.attach === "function";
 
+type Redrawable = { getRootView?(): { node?: unknown; redraw(sync: boolean): void } | undefined; getParent?(): Redrawable | undefined; config?: { html?: unknown }; detach?(): void };
+
+/** Cells a component's `destroy()` emptied whose Suite redraw has not run yet (until the next frame). */
+const emptied = new WeakSet<object>();
+
+/**
+ * Prepares a Suite Layout cell for a widget (FB-0161) and redraws its view at once when it needs to:
+ * - after a component in the cell was destroyed in this frame: Suite repaints the cell on the next frame, but the
+ *   component unmounted its view already, so that patch would replace a view no longer in the document and the new
+ *   widget would never show;
+ * - when the cell shows HTML, which is detached first: Suite turns HTML into a widget in one patch that clears the old
+ *   `innerHTML` after inserting the widget, which wipes it.
+ */
+export function prepareCell(cell: object): void {
+  const target = cell as Redrawable, markup = !!target.config?.html && typeof target.detach === "function";
+  if (!markup && !emptied.has(cell)) return;
+  emptied.delete(cell);
+  if (markup) target.detach!();
+  let view: Redrawable | undefined = target;
+  while (view && !view.getRootView?.()?.node) view = view.getParent?.();
+  view?.getRootView?.()?.redraw(true);
+}
+
 /** The `signal` option of a component: absent or an `AbortSignal`, otherwise `TypeError` (check it before creating anything). */
 export function optionSignal(options: ComponentOptions | undefined): AbortSignal | undefined {
   const signal = options?.signal;
@@ -54,7 +77,7 @@ export class Lifecycle<Events extends object> {
       if (target.signal.aborted) { this.destroy(); return false; }
       target.attach(layout);
       target.signal.addEventListener("abort", () => this.destroy(), { once: true, signal: this.release.signal });
-    } else if (target && typeof (target as LayoutCell).attach === "function") (target as LayoutCell).attach(layout);
+    } else if (target && typeof (target as LayoutCell).attach === "function") { prepareCell(target); (target as LayoutCell).attach(layout); }
     else throw new TypeError("61ade: a component mounts into an element, a Layout cell, an AppWindow or a ViewHost.");
     this.target = target;
     this.state = "mounted";
@@ -95,7 +118,12 @@ export class Lifecycle<Events extends object> {
     this.target = undefined;
     if (target && !(target instanceof HTMLElement)) {
       if (hosted(target)) { if (!target.signal.aborted) target.attach(document.createElement("div")); }
-      else if ((target as LayoutCell).getWidget?.() === layout) (target as Partial<LayoutCell>).detach?.();
+      else if ((target as LayoutCell).getWidget?.() === layout) {
+        (target as Partial<LayoutCell>).detach?.();
+        // Something mounted there before the next frame redraws the cell first (`prepareCell`).
+        emptied.add(target);
+        if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => emptied.delete(target));
+      }
     }
     return true;
   }

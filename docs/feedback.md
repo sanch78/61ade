@@ -662,3 +662,7 @@
 <a id="fb-0160"></a>
 
 ## FB-0160 — A live attention count on a menu entry
+
+<a id="fb-0161"></a>
+
+## FB-0161 — Destroy and mount into the same cell shows an empty cell
