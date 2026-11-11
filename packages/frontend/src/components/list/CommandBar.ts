@@ -118,13 +118,17 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
       default:throw invalid(`unknown command item type "${String((item as {type?:unknown}).type)}".`);
     }
   }
-  /** An icon-only button keeps its label as the (visually hidden) text: the accessible name and the collapsed menu's text. */
+  /**
+   * An icon-only button keeps its label as the (visually hidden) text: the accessible name and the collapsed menu's text.
+   * A pinned one stays in the bar beside the collapsed menu.
+   */
   private button(id:string,item:CommandButton|CommandToggle):any{
     if(typeof item.label!=="string")throw invalid(`command "${id}" needs a label.`);
+    if(item.pinned!==undefined&&typeof item.pinned!=="boolean")throw invalid(`the pinned flag of command "${id}" is true or false.`);
     if(item.iconOnly)this.iconOnly.add(id);
     return {id,value:escape(item.label),...(item.icon?{icon:item.icon}:{}),
       css:[item.type==="toggle"?"blade-command--toggle":"",item.iconOnly?"blade-command--icon":""].filter(Boolean).join(" ")||undefined,
-      ...(item.iconOnly?{tooltip:item.label}:{}),...(item.disabled?{disabled:true}:{}),...(item.hidden?{hidden:true}:{})};
+      ...(item.iconOnly?{tooltip:item.label}:{}),...(item.disabled?{disabled:true}:{}),...(item.hidden?{hidden:true}:{}),...(item.pinned?{bladePinned:true}:{})};
   }
   private options(options:unknown):CommandOption[]{
     if(!Array.isArray(options)||options.length<2||options.length>20)throw invalid("a command choice needs 2–20 options.");

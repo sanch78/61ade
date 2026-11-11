@@ -6627,7 +6627,8 @@ that exactly equals an option label lists every option. The managed
   - a bulk expansion is not a search, and the control's cap notice is a
     toast, not a persistent message.
 - **Commit:** `f66f5b0` on `main`.
-- **Status:** implemented and verified on the managed demo.
+- **Status:** implemented and verified on the managed demo. The control
+  became two pinned icon buttons in [FB-0177](#fb-0177).
 
 <a id="fb-0169"></a>
 
@@ -6996,7 +6997,10 @@ that exactly equals an option label lists every option. The managed
   window, the bulk form and grid or card editors show no sections;
   `SettingsForm` keeps its own groups.
 - **Commit:** `f56e669` on `main`.
-- **Status:** implemented and verified on the managed demo.
+- **Status:** implemented and verified on the managed demo. Extended by
+  [FB-0177](#fb-0177): framed panels, fixed sections, the fieldset border
+  removed, and the sections now group the cards and `Adatok` (the limit above
+  no longer holds for them).
 
 <a id="fb-0173"></a>
 
@@ -7173,3 +7177,165 @@ that exactly equals an option label lists every option. The managed
 - **Decision:** no change without a reproduction: a fix would be speculative.
 - **Status:** open; waiting for the consumer's reproduction steps (sequence,
   content, console stack).
+
+<a id="fb-0177"></a>
+
+## FB-0177 — Professional form sections, card groups, fitted windows and an icon tree control
+
+- **Date:** 2026-11-11.
+- **Request:** the owner's review of a consumer's screens (recorded without
+  consumer names or business terms), four framework-level complaints:
+  1. The Tree's `expandControl` ([FB-0168](#fb-0168)), two text buttons
+     `Mindet kinyit` / `Mindet bezár` in a toolbar row, is "terrible": is
+     there an ideal solution, an icon one?
+  2. A full-width card ([FB-0169](#fb-0169)) of many short fields is one long
+     label/value column with the long text clipped at the bottom. The project
+     should be able to divide the values into inner cards that arrange
+     themselves by the available width (four groups side by side at that
+     width) with the long text (a prompt) below them across the card, its
+     size configurable by the project.
+  3. The form sections ([FB-0172](#fb-0172)) are ad hoc: real, visually
+     readable sections are wanted, as in professional multi-section forms;
+     an accordion would be better, and with it a fixed section for fields
+     that must show in every case.
+  4. No huge full-height windows unless the project builds one on purpose: a
+     form in a centred window has a fixed header, a fixed bottom button row
+     and scrolling content between them, all configurable; if the system can
+     already do it, the consumer is to be told to use it.
+- **Decision:**
+  - **Tree control:** two icon buttons, a plus box (`Mindet kinyit`) and a
+    minus box (`Mindet bezár`), the labels their accessible names and
+    tooltips, pinned so they never collapse into a `Műveletek` menu (the row
+    held a menu of two entries on a phone). While a bulk expansion loads the
+    expand icon spins and its name reads `Betöltés…`. A single toggle was not
+    chosen: a partly expanded tree has no one state to show. The new
+    `CommandButton.pinned` (a button or toggle that stays beside the
+    collapsed menu, like a range; a bar of pinned items alone has no menu) is
+    the general capability behind it.
+  - **One declaration for forms, cards and details:** the field's `section`
+    also groups the cards, the `Adatok` window and `RecordDetails`, so a
+    project declares its sections once. Groups are framed, titled by the
+    section, placed at their first field, in a CSS grid of 240 px columns
+    (`auto-fit`: as many as the card is wide, one on a phone); the short
+    fields outside sections form one untitled group; a group holding a long
+    text spans the row; a long text outside every section follows the groups
+    across the width with its label above it. Without sections the card is
+    unchanged. A label beside its value takes at most 220 px of a wide card
+    (it took two fifths of any width).
+  - **Card lines:** a field's `column.cardLines` (JSON `card_lines`), a whole
+    number 0–50 on a `textarea` field, the lines of its card preview; `0` is
+    the whole text; default 4 as before. A field option rather than a view
+    option: the text is the field's, and one resource can hold two texts.
+  - **Form sections are framed panels:** a bordered panel with a header bar,
+    the accordion look. Collapsible stays the default (its state rule of
+    FB-0172 unchanged); `sectionCollapsible: false` (JSON
+    `section_collapsible: false`) makes a fixed section, always open, headed
+    by its fieldset legend (a group named by it), with no button. A flat
+    field flag rather than a separate section list: the field already
+    carries the section, so `SqlResource`'s generated create and update
+    actions share it; every field of one section declares the same value and
+    the registry refuses a mix (in a resource's fields and in an action's
+    fields), and the flag without `section` is refused. The Suite fieldset
+    kept its own border inside the panel (the FB-0172 rule lost to Suite's
+    selector): fixed.
+  - **Fitted windows:** a fitted window (the list's form windows, a
+    `RecordForm` or a fitted `app.ui.window`) grows to its content up to
+    800 px and the viewport minus 24 px (it was the viewport alone).
+    `WindowOptions.maxHeight` (px from 120, `Infinity` for the viewport) lets
+    a project fit higher; an unfitted window keeps its requested `height`. The
+    header was already the fixed Suite header; the form's action row
+    (`Mégse` beside the submit button) now sticks to the lower edge of the
+    form's scroll area with a full-width rule above it, so the buttons stay
+    visible and keep working the form while the fields scroll behind them. No
+    second button bar: the row stays inside the one Form, so validation, the
+    disabled state during a save and every existing form keep working, and a
+    short form shows the row right below its last field. `fitWindow` pauses
+    the sticking while it measures.
+  - **Found on the way:** `fitWindow`'s pause of the textarea growth never
+    applied, because the measure flag is on the window element itself and
+    the rule expected it on a descendant: a form window kept the height it
+    opened with (650 px for the list's forms) and its textarea filled it.
+    Fixed with the selector; such windows now shrink to their content.
+- **Implemented:**
+  - Frontend: `fields.ts` `formRows` (fixed sections: a fieldset with its
+    legend; collapsible ones unchanged in behavior) and `bindSections` (fixed
+    ones have no disclosure); `form-section.css` (panels, header bars, the
+    fieldset border removed with Suite's specificity);
+    `RecordPresentation.ts` `recordFields` (groups, wide long text,
+    `cardLines` as `--blade-card-lines`); `admin.css` (groups, the label cap,
+    the sticky action row with a `border-image` outset, which paints the
+    rule and background to the form's edges without scrollable overflow, and
+    the measure selectors); `WindowSizing.ts` `fitWindow(win, maxHeight)`,
+    `FIT_MAX_HEIGHT`; `api/services.ts` `openWindow` `maxHeight`;
+    `CommandBar` `pinned`; `ResponsiveToolbar` (no menu without unpinned
+    items); `RecordTree` (icon buttons). Types: `FieldMetadata` and
+    `ColumnMetadata` `sectionCollapsible`, `ColumnMetadata.cardLines`,
+    `WindowOptions.maxHeight`, `CommandButton.pinned`.
+  - PHP: `Field::$sectionCollapsible`, `Field::sectionMetadata()`,
+    `Field::checkSections()` (called by `Registry::registerFields` and
+    `Registry::add`), column option `cardLines`/`card_lines` (textarea only,
+    0–50, one spelling); `ListViewKind` sends the section with the detail
+    fields and `card_lines` as `cardLines`; JSON field
+    `section_collapsible`.
+  - Demo `Mellékletek`: the title and the role form the fixed `Alapadatok`
+    section, `Fájlnév` is in `Képek`, the reason shows six card lines, and
+    the view shows one card per row (`cardColumns: 1`).
+- **Guides:** [form sections](workspaces.md#form-sections),
+  [card groups](workspaces.md#card-groups),
+  [long text in cards](workspaces.md#long-text-in-cards),
+  [window sizing](workspaces.md#window-sizing),
+  [Tree expansion](toolkit.md#tree-expansion), [CommandBar](toolkit.md#commandbar),
+  [app.ui.window](toolkit.md#app-window), [RecordForm](toolkit.md#recordform),
+  toolkit [changes](toolkit.md#changes) and migration row M58,
+  [configuration](configuration.md) fields, [usage](usage.md),
+  [demos](demos.md), [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md)
+  and its [ledger](../.agents/skills/grid-tree-card-ui/references/accepted-rules.md),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:**
+  - **Build and static checks:** `npm run typecheck`, `npm run build`
+    (`node tools/build.mjs --check` clean), `npm run demo:assets`;
+    `git diff --check`; internal links of the changed guides and skills.
+  - **PHP checks passed:** `record-forms` (new: the fixed section's wire
+    flag and its absence for a collapsible one; the flag without a section,
+    a mixed section in a resource and in an action refused, an agreeing one
+    accepted; `cardLines`/`card_lines` 0 and 50 accepted, on a text field,
+    −1, 51, a string and both spellings refused; the detail fields carry
+    `section` and `cardLines`; JSON `section_collapsible` read, a string and
+    the camelCase key refused), `stored-file`, `contracts`, `configuration`,
+    `list-presentation`, `lists`, `i18n`, `toolkit`, `tree-navigation`,
+    `validation`; node `toolkit-kernel`, `toolkit-list`,
+    `toolkit-components`, `toolkit-registries`, `ui-preferences`.
+  - **Browser, retained cases:** `record-forms.spec.cjs` (the fixed
+    `Alapadatok` group named by its legend with no button; with `Képek` open
+    the window is at most 800 px, its form scrolls and `Mentés` sits at the
+    window's lower edge; an `app.ui.window` with `maxHeight: 420` fits to
+    420 px with the action row at its edge scrolled to either end; `maxHeight`
+    100, NaN and `"800"` throw `TypeError`; the cards show `Alapadatok` and
+    `Képek` side by side, the reason below them across both with a 6-line
+    clamp, `Adatok` the same groups, a phone stacks them; 5 passed),
+    `tree-component.spec.cjs` (at 1366 and 390 px no `Műveletek` in the tree's
+    bar and both buttons icon-wide; 11 passed with `command-bar.spec.cjs`,
+    whose new case refuses a non-boolean `pinned`). Light and dark theme
+    screenshots of the form, cards, details and tree checked by eye and
+    removed.
+  - **Browser, affected specs on the managed demo:** `stored-file`,
+    `record-forms`, `tree-component`, `command-bar`, `list-presentation`,
+    `toolkit-list` (32 passed; `list-presentation` "cards use multiple
+    columns" timed out once on a mark checkbox and passed in isolation), then
+    `stored-file`, `list-presentation`, `workspace`, `dialogs`,
+    `mobile-grid`, `toolkit-components`, `task-page`, `scoped-list`,
+    `list-toggle`, `settings-form`, `files`, `calendar`, `subview`, `admin`,
+    `toolkit-demo-playlist`, `toolkit-demo-assets`, `list-integration`,
+    `grid-edit` (102 passed, one skipped as before, two failed).
+    `calendar` "weekly series rule" passed in isolation with
+    `--repeat-each=4`. `toolkit-demo-playlist` "Naptár… picks a day" failed
+    two of four repeats on the build before this change too: Suite opens a
+    date's calendar a moment after the input takes the focus, and the spec's
+    Tab right after `fill` came before it, leaving it open over the buttons.
+    The spec now waits for the calendar before the Tab (4 of 4 passed). No
+    full-smoke claim.
+- **Limits:** a section's group in a card has no collapse; the 800 px
+  default cap applies to fitted windows only (document windows and a
+  `fit: false` window keep their size); the Tree control's icons are the
+  framework's (no option to change them); sections do not nest.
+- **Status:** implemented and verified on the managed demo.

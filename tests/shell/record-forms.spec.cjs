@@ -3,7 +3,8 @@ const {execFileSync}=require('node:child_process');
 const {signIn,api}=require('./feature-demo.cjs');
 // Record action forms on the feature demo's `Mellékletek` (examples/demo-app/attachments.php): read-only fields
 // (FB-0171: the role is create-only, so the update form shows it read-only; a RecordForm's `readOnly` preset) and a
-// collapsible field section (FB-0172: the two images form `Képek`). A fixture module hands `app` to the page for the
+// collapsible field section (FB-0172: the two images form `Képek`), a fixed section, the sticky action row of a tall
+// window and the section groups of cards and details (FB-0177). A fixture module hands `app` to the page for the
 // RecordForm cases. Records and files of the run start with the run prefix and are removed afterwards.
 const prefix='rf'+Date.now().toString(36);
 const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'demo';
@@ -54,6 +55,13 @@ const mountForm=(page,options)=>page.evaluate(options=>{
  window.__form=new app.components.RecordForm(options);window.__form.mount(host);
 },options);
 const fixtureWindow=page=>page.getByRole('dialog',{name:'Fixture',exact:true});
+/** The save button sits at the lower edge of the window (the sticky action row, FB-0177). */
+async function saveAtBottom(win){
+ await expect.poll(async()=>{
+  const frame=await win.boundingBox(),button=await win.getByRole('button',{name:'Mentés',exact:true}).boundingBox();
+  const gap=frame.y+frame.height-(button.y+button.height);return gap>=0&&gap<40;
+ }).toBe(true);
+}
 /** A paste of one image onto the first file field's name input. */
 const paste=(form,name)=>form.locator('.blade-file-field__body input').first().evaluate((element,[name,bytes])=>{
  const data=new DataTransfer();data.items.add(new File([new Uint8Array(bytes)],name,{type:'image/png'}));
@@ -116,7 +124,12 @@ test('a collapsible section: closed on create, open with a stored file, opened b
  const toggle=form.getByRole('button',{name:'Képek',exact:true});
  await expect(toggle).toHaveAttribute('aria-expanded','false');
  // The fieldset by role while shown (a hidden one has no computed name), by its place while closed.
- const group=form.getByRole('group',{name:'Képek',exact:true}),body=form.locator('.blade-form-section fieldset');
+ const group=form.getByRole('group',{name:'Képek',exact:true}),body=form.locator('.blade-form-section:not(.blade-form-section--fixed) fieldset');
+ // The fixed section (FB-0177): a group named by its legend, always open, with no disclosure button.
+ const basics=form.getByRole('group',{name:'Alapadatok',exact:true});
+ await expect(basics).toBeVisible();
+ await expect(basics.getByRole('textbox',{name:'Megnevezés'})).toBeVisible();
+ await expect(form.getByRole('button',{name:'Alapadatok'})).toHaveCount(0);
  await expect(body).toBeHidden();
  await expect(toggle).toHaveAttribute('aria-controls',await body.evaluate(element=>element.id));
  const closedHeight=(await form.boundingBox()).height;
@@ -127,6 +140,11 @@ test('a collapsible section: closed on create, open with a stored file, opened b
  await expect(group).toBeVisible();
  await expect(group.getByRole('textbox',{name:'Kép',exact:true})).toBeVisible();
  await expect.poll(async()=>(await form.boundingBox()).height).toBeGreaterThan(closedHeight+100);
+ // A tall form (FB-0177): the window stops at 800 px; the fields scroll between its header and the action row, which
+ // stays at the window's lower edge.
+ await expect.poll(async()=>(await form.boundingBox()).height).toBeLessThanOrEqual(800);
+ expect(await form.locator('.dhx_form').evaluate(element=>element.scrollHeight>element.clientHeight+100)).toBe(true);
+ await saveAtBottom(form);
  await page.keyboard.press('Space');
  await expect(toggle).toHaveAttribute('aria-expanded','false');
  await expect(body).toBeHidden();
@@ -168,6 +186,67 @@ test('a collapsible section: closed on create, open with a stored file, opened b
  await expect(win.locator('.blade-file-field').first()).toContainText('A kiválasztott fájl nem érhető el.');
  await expect(win.locator('.blade-file-field__body input').first()).toBeFocused();
  await page.evaluate(()=>window.__window.close());
+ expect(errors).toEqual([]);
+});
+
+test('a fitted window stops at its maxHeight with the action row at its lower edge; an invalid maxHeight throws',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await open(page);
+ const invalid=await page.evaluate(()=>[100,Number.NaN,'800'].map(maxHeight=>{try{window.__bladeApp.ui.window({title:'Invalid',maxHeight}).close();return 'accepted';}catch(error){return error instanceof TypeError;}}));
+ expect(invalid).toEqual([true,true,true]);
+ await expect(page.getByRole('dialog',{name:'Invalid'})).toHaveCount(0);
+ await page.evaluate(()=>{
+  const app=window.__bladeApp,host=window.__window=app.ui.window({title:'Fixture',width:560,height:640,maxHeight:420});
+  window.__form=new app.components.RecordForm({resource:'demo_attachments',action:'create'});window.__form.mount(host);
+ });
+ const win=fixtureWindow(page);
+ await expect(win.getByRole('group',{name:'Alapadatok',exact:true})).toBeVisible();
+ await expect.poll(async()=>Math.round((await win.boundingBox()).height)).toBe(420);
+ await saveAtBottom(win);
+ // Scrolled to the end and back, the action row stays where it is; the last field scrolls into view above it.
+ const scroller=win.locator('.dhx_form');
+ await scroller.evaluate(element=>{element.scrollTop=element.scrollHeight;});
+ await saveAtBottom(win);
+ await expect(win.getByRole('button',{name:'Képek',exact:true})).toBeInViewport();
+ await scroller.evaluate(element=>{element.scrollTop=0;});
+ await saveAtBottom(win);
+ await page.evaluate(()=>window.__window.close());
+ expect(errors).toEqual([]);
+});
+
+test('cards and details group the fields by section, the long text below them across the card',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await open(page);
+ await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
+ try{
+  const card=page.locator('article.blade-grid-card').filter({hasText:'Mintakép helye'}),groups=card.locator('.blade-record-group');
+  await expect(groups).toHaveCount(2);
+  await expect(groups.locator('.blade-record-group__title')).toHaveText(['Alapadatok','Képek']);
+  await expect(groups.nth(0)).toContainText('Megnevezés');await expect(groups.nth(0)).toContainText('Szerep');
+  await expect(groups.nth(1)).toContainText('Fájlnév');
+  // Side by side in the full-width card; the reason (outside every section) below them across the card, six lines.
+  const [one,two]=[await groups.nth(0).boundingBox(),await groups.nth(1).boundingBox()];
+  expect(Math.abs(one.y-two.y)).toBeLessThan(2);expect(two.x).toBeGreaterThan(one.x+one.width);
+  const wide=card.locator('.blade-record-wide');
+  await expect(wide).toContainText('Indoklás');
+  const text=await wide.boundingBox();
+  expect(text.y).toBeGreaterThan(Math.max(one.y+one.height,two.y+two.height));
+  expect(Math.round(text.width)).toBeGreaterThanOrEqual(Math.round(two.x+two.width-one.x)-1);
+  expect(await wide.locator('dd').evaluate(element=>getComputedStyle(element).webkitLineClamp)).toBe('6');
+  // The details window shows the same groups.
+  await card.dblclick();
+  const details=page.getByRole('dialog',{name:'Rekordadatok'});
+  await expect(details.locator('.blade-record-group__title')).toHaveText(['Alapadatok','Képek']);
+  await expect(details.locator('.blade-record-wide')).toContainText('Ide kerül a referenciakép.');
+  await page.keyboard.press('Escape');await expect(details).toHaveCount(0);
+  // A phone stacks the groups.
+  await page.setViewportSize({width:390,height:844});
+  await expect.poll(async()=>(await groups.nth(1).boundingBox()).y-(await groups.nth(0).boundingBox()).y).toBeGreaterThan(40);
+ }finally{
+  await page.setViewportSize({width:1366,height:900});
+  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Táblázat',{exact:true}).click();
+  await expect(page.locator('[data-cell-id="grid"] .dhx_grid-row').first()).toBeVisible();
+ }
  expect(errors).toEqual([]);
 });
 

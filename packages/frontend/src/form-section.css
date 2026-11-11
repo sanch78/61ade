@@ -1,7 +1,23 @@
-/* Collapsible field sections of action forms (fields.ts formRows; docs/workspaces.md#form-sections). */
-.blade-form-section { border-top: 1px solid var(--dhx-border-color); margin-top: 8px; padding-top: 4px; }
-.blade-form-section__toggle .dhx_button { width: 100%; justify-content: flex-start; padding-left: 0; padding-right: 0; font-weight: 600; color: var(--dhx-font-color-primary); }
-.blade-form-section__toggle .dhx_button:focus-visible { outline: 2px solid var(--dhx-color-primary); outline-offset: 2px; }
-.blade-form-section__body .dhx_form-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-.blade-form-section__body .dhx_form-fieldset-legend:empty { display: none; }
-.blade-form-section__body--closed { display: none !important; }
+/* Field sections of action forms (fields.ts formRows; docs/workspaces.md#form-sections): one framed panel each, with a
+   header bar: a disclosure button (collapsible, the accordion look) or the fieldset legend (fixed, always open). */
+.dhx_widget.dhx_form .blade-form-section { border: var(--dhx-border); border-radius: var(--dhx-border-radius); margin: 4px 0 12px; background: var(--dhx-background-primary); }
+.dhx_widget.dhx_form .blade-form-section__toggle .dhx_button,
+.dhx_widget.dhx_form .blade-form-section--fixed .dhx_form-fieldset-legend {
+  display: flex; align-items: center; box-sizing: border-box; width: 100%; min-height: 40px; margin: 0; padding: 8px 12px;
+  border-radius: var(--dhx-border-radius) var(--dhx-border-radius) 0 0; background: var(--dhx-background-secondary);
+  font-size: var(--dhx-font-size-normal); line-height: var(--dhx-line-height-normal); font-weight: var(--dhx-font-weight-medium); color: var(--dhx-font-color-primary);
+}
+.dhx_widget.dhx_form .blade-form-section__toggle .dhx_button { justify-content: flex-start; gap: 4px; border: 0; text-align: left; text-decoration: none; }
+.dhx_widget.dhx_form .blade-form-section__toggle .dhx_button:hover { background: var(--dhx-color-secondary-light-hover, var(--dhx-background-secondary)); }
+.dhx_widget.dhx_form .blade-form-section__toggle .dhx_button:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
+/* A closed section is its header alone; an open one separates the header from its fields. */
+.dhx_widget.dhx_form .blade-form-section:has(.blade-form-section__body--closed) .blade-form-section__toggle .dhx_button { border-radius: var(--dhx-border-radius); }
+.dhx_widget.dhx_form .blade-form-section:not(:has(.blade-form-section__body--closed)) .blade-form-section__toggle .dhx_button,
+.dhx_widget.dhx_form .blade-form-section--fixed .dhx_form-fieldset-legend { border-bottom: var(--dhx-border); }
+.dhx_widget.dhx_form .blade-form-section__body .dhx_form-fieldset { border: 0; border-radius: 0; margin: 0; padding: 4px 16px 12px; min-width: 0; }
+.dhx_widget.dhx_form .blade-form-section__body .dhx_form-fieldset-legend:empty { display: none; }
+/* The legend heads the fixed panel edge to edge (a legend otherwise sits in the fieldset's border). */
+.dhx_widget.dhx_form .blade-form-section--fixed .dhx_form-fieldset { padding-top: 0; }
+.dhx_widget.dhx_form .blade-form-section--fixed .dhx_form-fieldset-legend { float: left; width: calc(100% + 32px); margin: 0 -16px 4px; }
+.dhx_widget.dhx_form .blade-form-section--fixed .dhx_form-fieldset-legend + * { clear: both; }
+.dhx_widget.dhx_form .blade-form-section__body--closed { display: none !important; }

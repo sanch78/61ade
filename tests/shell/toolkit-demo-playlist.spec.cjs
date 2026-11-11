@@ -196,7 +196,11 @@ test('a day change fetches that day and rebuilds the timeline and the stage; Nap
  await act(page,'Naptár…','commands');
  const picker=page.locator('.dhx_window').filter({hasText:'Nap választása'});
  await expect(picker.getByLabel('Dátum')).toHaveValue(DAY);
- await picker.getByLabel('Dátum').fill(NEXT);await picker.getByLabel('Dátum').press('Tab');
+ // Suite opens the date's calendar a moment after the input takes the focus; a Tab before it is shown leaves it open
+ // over the buttons, so the Tab waits for it and closes it.
+ const calendar=page.locator('.dhx_popup .dhx_calendar');
+ await picker.getByLabel('Dátum').fill(NEXT);await expect(calendar).toBeVisible();
+ await picker.getByLabel('Dátum').press('Tab');await expect(calendar).toHaveCount(0);
  await picker.getByRole('button',{name:'Napi műsor',exact:true}).click();
  await expect(picker).toHaveCount(0);
  await expect(shownDay(page)).toHaveText(new RegExp(`^${NEXT}`));

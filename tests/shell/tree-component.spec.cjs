@@ -90,6 +90,9 @@ for(const [width,height] of [[1366,900],[390,844]])test(`key browser at ${width}
  // The built-in control (expandControl): every level opens (DemoService is level 5), then every node closes; the
  // selection stays (the values list keeps Desktop's values).
  const panel=page.locator('[data-cell-id="tree"]');
+ // Two pinned icon buttons (FB-0177): named by their labels, never collapsed into a menu, also on a phone.
+ await expect(panel.getByRole('button',{name:/^(Műveletek|Actions)$/})).toHaveCount(0);
+ for(const name of ['Mindet kinyit','Mindet bezár'])expect((await panel.getByRole('button',{name,exact:true}).boundingBox()).width).toBeLessThan(48);
  await control(page,panel,'Mindet kinyit');
  await expect(item(page,'DemoService')).toHaveAttribute('aria-level','5');
  await expect(item(page,'Services')).toHaveAttribute('aria-expanded','true');

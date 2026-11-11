@@ -231,7 +231,12 @@ pressed elsewhere on the page alone ([FB-0155](feedback.md#fb-0155)). An
 Escape that a menu or popup inside the window already took closes only that.
 The close button is named `Ablak bezárása` (Close window) in the page's
 language, with the same tooltip; a window's own `Bezárás` button keeps its
-name.
+name. A fitted window (`fit`, a `RecordForm`) grows to its content up to
+`maxHeight` (default 800 px, at most the viewport minus 24 px; `Infinity`
+for the viewport; a number below 120 throws `TypeError`); a taller form
+scrolls between the fixed header and its action row, which sticks to the
+window's lower edge ([window sizing](workspaces.md#window-sizing),
+[FB-0177](feedback.md#fb-0177)).
 
 Every subscription takes its owner's signal the same way, as the last
 argument `{signal}` (`SignalOptions`): `events.on`, `live.subscribe`,
@@ -731,9 +736,11 @@ form.mount(win);
   The action's own `display` fields and the fields read-only by ACL are shown
   and never sent; `values()` leaves them out.
 - [Form sections](workspaces.md#form-sections) (a field's `section`,
-  FB-0172) are collapsible fieldsets inside the form; a section opens by
-  itself when one of its fields has a value or an error, and the window
-  refits when one opens or closes.
+  FB-0172, FB-0177) are framed panels inside the form: collapsible ones open
+  by themselves when one of their fields has a value or an error, fixed ones
+  (`sectionCollapsible: false`) are always open; the window refits when one
+  opens or closes. In a window, the action row sticks to the window's lower
+  edge while a tall form scrolls ([window sizing](workspaces.md#window-sizing)).
 - The submit button is the action's `submitLabel` from an offered view, else
   its label (`Mentés` only without either), so a project view's query action
   submits under its own name. A read-only action (`write: false`) shows no
@@ -988,11 +995,14 @@ await tree.collapseAll();
   nodes with children, the next mount restores the upper part and leaves the
   deepest levels collapsed.
 - `expandControl: true` puts a [CommandBar](#commandbar) above the tree with
-  `Mindet kinyit` and `Mindet bezár` (English `Expand all`, `Collapse all`),
-  named by the view's title: native toolbar buttons (keyboard reachable,
-  Enter or Space), in the collapsed `Műveletek` menu below 768 px or when the
-  panel is too narrow. While a bulk expansion loads, the expand button reads
-  `Betöltés…` and keeps the focus, and a second click does nothing;
+  two pinned icon buttons ([FB-0177](feedback.md#fb-0177)): a plus box
+  `Mindet kinyit` and a minus box `Mindet bezár` (English `Expand all`,
+  `Collapse all`), the labels being their accessible names and tooltips; the
+  bar is named by the view's title. They are native toolbar buttons
+  (keyboard reachable, Enter or Space) and stay in the bar at every width,
+  with no `Műveletek` menu. While a bulk expansion loads, the expand button
+  spins, its name reads `Betöltés…` and it keeps the focus, and a second
+  click does nothing;
   `Mindet bezár` cancels it. Stopped at a cap, the control reports it with a
   non-blocking warning toast (`Nem nyílt ki minden elem: legfeljebb 2000
   elem, 10 szint és elemenként 1000 gyermek tölthető be.`). Without the
@@ -1039,7 +1049,7 @@ player.on("pause", () => { playing = false; bar.update("play", { label: t("Lejá
 ```
 
 `CommandItem` is a button (`CommandButton`: `id`, `label`, `icon`,
-`iconOnly`, `disabled`, `hidden`; `type` omitted or `"button"`), one of the
+`iconOnly`, `pinned`, `disabled`, `hidden`; `type` omitted or `"button"`), one of the
 [view controls](#commandbar-view-controls), a separator
 (`CommandSeparator`, `{ type: "separator" }`, no id), a divider line between
 groups that stays in the collapsed menu, or a spacer (`CommandSpacer`,
@@ -1047,7 +1057,10 @@ groups that stays in the collapsed menu, or a spacer (`CommandSpacer`,
 and is left out of the collapsed menu. An `iconOnly` button shows only its
 icon in the bar, like a player's transport control: the label stays its
 accessible name and tooltip (visually hidden text) and is the item's text in
-the collapsed menu; `update` of its label changes the tooltip too. Labels are
+the collapsed menu; `update` of its label changes the tooltip too. A
+`pinned` button (or toggle) stays in the bar beside the collapsed `Műveletek`
+menu, like a range ([FB-0177](feedback.md#fb-0177)); a bar whose items are all
+pinned has no menu (a non-boolean `pinned` throws `TypeError`). Labels are
 plain text (escaped). Button ids match `[A-Za-z0-9_.:-]+`, are unique and
 `blade-command-menu` is reserved; otherwise the constructor throws
 `TypeError`. `update(id, changes)` changes the label, icon, disabled or hidden
@@ -2729,6 +2742,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M55 | [Form sections](workspaces.md#form-sections): a field's `section` (PHP `Field`, JSON `section`) groups fields into a collapsible fieldset of the action forms; `FieldMetadata.section`, `ColumnMetadata.section` | [FB-0172](feedback.md#fb-0172) | none (additive) | none | none |
 | M56 | [Count fields](workspaces.md#count-fields): `SqlResource` `counts` (JSON `storage.counts`): a declared number field counting the records of another list resource the actor could list (its list ACL, `where`, tenant and archive policy), on list rows, `get` and live snapshots; not input, filter or sort. [Tenancy](tenancy.md): `computed` SQL receives no tenant (the guide said it did) | [FB-0173](feedback.md#fb-0173) | info: a computed count over another table's tenant-scoped rows on a global resource counts every tenant; use a count field | none | none |
 | M57 | [Shared rows](tenancy.md#shared-rows): `SqlResource` `sharedTenant`, `sharedRoles` (JSON `storage.shared_tenant`, `storage.shared_roles`); rows carry `_shared: true`; a tenant's write actions on a shared row are refused (403 `A közös adat csak olvasható.`) and left out of `_actions`; `Acl::holds()`, `Registry::realm()`/`tenantReady()`, `Registry::scopeToTenant()` takes the shared value and roles | [FB-0175](feedback.md#fb-0175) | info: shared content mirrored into every tenant can move into one shared row set | none | none |
+| M58 | [Form sections](workspaces.md#form-sections) as framed panels: `sectionCollapsible: false` (JSON `section_collapsible`) makes a fixed, always open section (`FieldMetadata.sectionCollapsible`, `ColumnMetadata.sectionCollapsible`); the sections also [group cards and details](workspaces.md#card-groups); `column.cardLines` (JSON `card_lines`) sets a long text's card lines; a fitted window stops at `WindowOptions.maxHeight` (default 800 px) with its action row sticking to its lower edge ([window sizing](workspaces.md#window-sizing)); `CommandButton.pinned`; the Tree's `expandControl` is two pinned icon buttons | [FB-0177](feedback.md#fb-0177) | info: a section that holds fields which must always show declares `sectionCollapsible: false`; cards and the `Adatok` window of a resource with sections show groups; a tall form window is at most 800 px high (pass `maxHeight` for more); a spec that looked for the tree control in `Műveletek` at 390 px finds the buttons in the bar; a spec that counted `.blade-form-section fieldset` finds fixed sections too | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2872,6 +2886,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-11 | `FieldMetadata.section`, `ColumnMetadata.section`; PHP `Field::$section`, JSON field `section`: collapsible form sections (M55). | Optional bulky fields lengthened every form. | [FB-0172](feedback.md#fb-0172) |
 | 2026-11-11 | PHP `SqlResource` `counts`, JSON `storage.counts`: count fields (number fields filled from the counted resource's ACL-scoped list count; left out when they cannot be counted). No browser type change (M56). | A global resource could not show counts of tenant-scoped records without counting every tenant's rows. | [FB-0173](feedback.md#fb-0173) |
 | 2026-11-11 | PHP `SqlResource` `sharedTenant`/`sharedRoles`, JSON `storage.shared_tenant`/`shared_roles`: shared rows of a tenant-scoped resource, read by every tenant beside its own (`_shared: true`), written only without a tenant by a declared role (M57). No browser change: `_actions` disables the commands. | Shared content had to be copied into every tenant or shown from a second resource (a consumer request). | [FB-0175](feedback.md#fb-0175) |
+| 2026-11-11 | PHP `Field` `sectionCollapsible`, JSON field `section_collapsible`, `FieldMetadata.sectionCollapsible`, `ColumnMetadata.sectionCollapsible`, `ColumnMetadata.cardLines` (field `column.cardLines`/`card_lines`), `WindowOptions.maxHeight`, `CommandButton.pinned`; form sections are framed panels, cards and details group by section, a fitted window stops at 800 px with a sticky action row, the Tree control is two icon buttons (M58). Additive, except the 800 px default cap. | Owner review of a consumer's screens: the text expand control, the ad-hoc form sections, a long one-column card of short fields and full-height form windows. | [FB-0177](feedback.md#fb-0177) |
 
 <a id="resolved-decisions"></a>
 

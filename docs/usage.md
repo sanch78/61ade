@@ -419,9 +419,18 @@ application's own static files, outside every ACL.
 A list of long text (notes, comments, messages) declares `modes: ['cards']`
 and `cardColumns: 1` (JSON `view.modes`, `view.card_columns`; a
 `ListView` takes the same options and they win): no `Nézet` menu, one card
-per row across the panel, a 4-line text preview with the whole text in
+per row across the panel, a 4-line text preview (`column.cardLines` for
+another count) with the whole text in
 `Adatok` ([cards only and full-width cards](workspaces.md#cards-only-and-full-width-cards),
-[FB-0169](feedback.md#fb-0169)).
+[FB-0169](feedback.md#fb-0169)). A full-width card of many short fields
+declares field sections: the [groups](workspaces.md#card-groups) then sit side
+by side ([FB-0177](feedback.md#fb-0177)).
+
+A form window fits its content up to 800 px (`app.ui.window` `maxHeight`
+for more); a taller form scrolls between the window header and its action
+row, which stays at the window's lower edge
+([window sizing](workspaces.md#window-sizing)). A Tree's `expandControl` is
+two icon buttons ([Tree expansion](toolkit.md#tree-expansion)).
 
 A project page shows tabbed panels with [`app.components.Tabs`](toolkit.md#tabs) or a declared `tabs` branch of
 its [`PageLayout`](toolkit.md#pagelayout) tree (folder tabs in the panel's header), with a `guard` for unsaved
@@ -595,8 +604,11 @@ A list can sit beside a data tree of another resource
 ([exclusive fields](workspaces.md#exclusive-fields): `clears`), an action
 form can show values read-only ([read-only fields](workspaces.md#read-only-fields):
 `createOnly`, JSON `storage.create_only`, `Action::$display`, `RecordForm`
-`readOnly`) and group fields into collapsible
-[form sections](workspaces.md#form-sections) (`section`), a field can count
+`readOnly`) and group fields into framed
+[form sections](workspaces.md#form-sections) (`section`; collapsible, or
+fixed with `sectionCollapsible: false`), which also group the
+[cards and details](workspaces.md#card-groups) side by side with a long text
+below them (`column.cardLines` sets its card lines), a field can count
 the related records the actor may list ([count fields](workspaces.md#count-fields):
 `counts`, JSON `storage.counts`), and every view can explain itself in a closable
 [view guide](workspaces.md#view-guide) (`guide`, or by view id in the

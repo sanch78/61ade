@@ -28,6 +28,18 @@ function failed(Closure $work, int $status, string $message): void
 verify((new Field('x', 'X', section: 'Képek'))->metadata()['section'] === 'Képek', 'Section in field metadata');
 verify(!array_key_exists('section', (new Field('x', 'X'))->metadata()), 'No section key without a section');
 foreach (['', '   ', str_repeat('a', 101), "a\nb", "a\tb"] as $bad) rejected(static fn() => new Field('x', 'X', section: $bad), 'Invalid section accepted: '.json_encode($bad));
+// Fixed sections (FB-0177): `sectionCollapsible: false` on the wire only for a fixed one; never without a section; one
+// value per section label in a resource and in an action.
+verify((new Field('x', 'X', section: 'Alap', sectionCollapsible: false))->metadata()['sectionCollapsible'] === false, 'Fixed section in field metadata');
+verify(!array_key_exists('sectionCollapsible', (new Field('x', 'X', section: 'Alap'))->metadata()), 'No collapsible key for a collapsible section');
+rejected(static fn() => new Field('x', 'X', sectionCollapsible: false), 'A fixed section without a label accepted');
+rejected(static fn() => (new Registry())->registerFields('mixed', [new Field('a', 'A', section: 'S'), new Field('b', 'B', section: 'S', sectionCollapsible: false)]), 'A section both collapsible and fixed accepted');
+rejected(static fn() => (new Registry())->add(new Action('mixed', 'run', 'Run', [new Field('a', 'A', section: 'S', sectionCollapsible: false), new Field('b', 'B', section: 'S')], static fn() => [])), 'An action section both collapsible and fixed accepted');
+(new Registry())->registerFields('agreed', [new Field('a', 'A', section: 'S', sectionCollapsible: false), new Field('b', 'B', section: 'S', sectionCollapsible: false), new Field('c', 'C', section: 'T')]);
+// Card lines of a long text (FB-0177): a textarea column option 0–50, one spelling.
+verify((new Field('x', 'X', 'textarea', column: ['cardLines' => 0]))->column['cardLines'] === 0 && (new Field('x', 'X', 'textarea', column: ['card_lines' => 50]))->column['card_lines'] === 50, 'Card lines accepted');
+foreach ([['text', ['cardLines' => 4]], ['textarea', ['cardLines' => -1]], ['textarea', ['cardLines' => 51]], ['textarea', ['cardLines' => '4']], ['textarea', ['cardLines' => 4, 'card_lines' => 4]]] as [$type, $column])
+    rejected(static fn() => new Field('x', 'X', $type, column: $column), 'Invalid card lines accepted: '.json_encode([$type, $column]));
 // Display fields: readable, not an input of the action, unique.
 $noop = static fn() => [];
 rejected(static fn() => new Action('r', 'a', 'A', [], $noop, display: [new Field('s', 'S', secret: true)]), 'Secret display field accepted');
@@ -49,7 +61,7 @@ $registry = new Registry();
     new Field('parent_id', 'Parent', 'select', required: true, options: ['1' => 'Root', '2' => 'Branch']),
     new Field('kind', 'Kind', 'select', required: true, options: ['a' => 'Alpha', 'b' => 'Beta']),
     new Field('title', 'Title', required: true),
-    new Field('note', 'Note', 'textarea', section: 'More'),
+    new Field('note', 'Note', 'textarea', column: ['card_lines' => 2], section: 'More'),
     new Field('image', 'Image', section: 'More'),
 ], createOnly: ['parent_id', 'kind']))->register($registry, 'Items');
 $workspace = new Workspace($registry, $db);
@@ -89,6 +101,9 @@ verify(!in_array('note', $names($workspace->describe($context, $registry->get('i
 // The list column metadata carries the section (the singleton's details form groups by it).
 $columns = array_column($registry->provider('list')->metadata($context, $registry->views()[0])['options']['columns'], null, 'id');
 verify(($columns['note']['section'] ?? null) === 'More' && !isset($columns['title']['section']), 'Column section');
+// The cards and details group by the detail fields' sections and clamp a long text to its card lines (FB-0177).
+$details = array_column($registry->provider('list')->metadata($context, $registry->views()[0])['options']['detailFields'], null, 'id');
+verify(($details['note']['section'] ?? null) === 'More' && ($details['note']['cardLines'] ?? null) === 2 && !isset($details['note']['card_lines']) && !isset($details['title']['section'], $details['title']['cardLines']), 'Detail field section and card lines');
 
 // JSON: storage.create_only and a field's section.
 $directory = sys_get_temp_dir().'/blade-record-forms-'.bin2hex(random_bytes(4));
@@ -99,7 +114,10 @@ try {
     file_put_contents($directory.'/module.json', json_encode($module, JSON_THROW_ON_ERROR));
     $json = WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => []);
     verify($names($json->registry->get('items', 'update')->display) === ['kind'] && $json->registry->fields('items')['title']->section === 'More', 'JSON create_only and section');
-    foreach ([['storage', 'create_only', 'kind'], ['storage', 'create_only', ['missing']], ['field', 'section', ['More']], ['field', 'section', '']] as [$where, $key, $value]) {
+    $fixed = $module;$fixed['resources']['items']['fields'][1]['section_collapsible'] = false;
+    file_put_contents($directory.'/module.json', json_encode($fixed, JSON_THROW_ON_ERROR));
+    verify(WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry->fields('items')['title']->sectionCollapsible === false, 'JSON section_collapsible');
+    foreach ([['storage', 'create_only', 'kind'], ['storage', 'create_only', ['missing']], ['field', 'section', ['More']], ['field', 'section', ''], ['field', 'section_collapsible', 'no'], ['field', 'sectionCollapsible', false]] as [$where, $key, $value]) {
         $broken = $module;
         if ($where === 'storage') $broken['resources']['items']['storage'][$key] = $value; else $broken['resources']['items']['fields'][1][$key] = $value;
         file_put_contents($directory.'/module.json', json_encode($broken, JSON_THROW_ON_ERROR));

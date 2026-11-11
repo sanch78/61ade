@@ -234,10 +234,24 @@ tree as decoration for a flat list.
   asynchronous redraw, live refresh, mode switches, and responsive toolbar
   replacement, not only on an initial fast response.
 - Size every form or details window with the shared `fitWindow` (content-fitted,
-  capped at the viewport, remeasured after validation). Never give a control a
-  fixed pixel height in a window that can be larger than its content: a Form
-  textarea takes the extra height when the window is capped or enlarged, so no
-  empty band remains below the actions (FB-0058).
+  capped at 800 px and the viewport unless the project passes `maxHeight`,
+  remeasured after validation). A taller form scrolls between the fixed window
+  header and its action row, which sticks to the window's lower edge; never
+  let the buttons scroll away or build a second button bar for them. Never
+  give a control a fixed pixel height in a window that can be larger than its
+  content: a Form textarea takes the extra height when the window is capped or
+  enlarged, so no empty band remains below the actions (FB-0058,
+  [FB-0177](../../../docs/feedback.md#fb-0177)).
+- Group a long form with declared field sections, never with hand-made
+  headings or fieldsets: framed panels, collapsible (the accordion look) for
+  optional groups, fixed (`sectionCollapsible: false`) for fields that must
+  always show; prefer putting every field of a sectioned form in a section.
+  The same sections group the cards and details: framed groups side by side
+  by the available width, a long text outside the sections below them across
+  the width ([FB-0177](../../../docs/feedback.md#fb-0177)).
+- A small control of a panel (expand/collapse all) is a pair of named icon
+  buttons that stay in the bar (`iconOnly`, `pinned`), not text buttons or a
+  collapsed menu of two entries ([FB-0177](../../../docs/feedback.md#fb-0177)).
 - Open a file or document (text editor, image viewer, video player) in a
   document window: one Layout fills the Window, a native Toolbar row holds its
   commands (at least Save for an editable document, with Ctrl+S) and state, and

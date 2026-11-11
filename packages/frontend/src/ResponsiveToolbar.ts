@@ -156,7 +156,8 @@ export class ResponsiveToolbar extends Toolbar {
     const shown=compact?entries.filter(item=>item.type!=="spacer"&&!item.bladePinned):entries.flatMap(item=>!item.bladeInline?[item]:item.hidden?[]:item.items.map(({type,...child}:any)=>({...child,...(item.disabled?{disabled:true}:{})})));
     const menuEntries=withBack(shown,menu);
     this.data.removeAll();
-    this.data.parse(compact?[{id:menu,value:this.collapse?.value??t("Műveletek"),icon:this.collapse?.icon??"dxi dxi-view-grid",css:this.collapse?.css,tooltip:this.collapse?.value,items:menuEntries},
+    // With every item pinned the collapsed bar has no menu.
+    this.data.parse(compact?[...(shown.length?[{id:menu,value:this.collapse?.value??t("Műveletek"),icon:this.collapse?.icon??"dxi dxi-view-grid",css:this.collapse?.css,tooltip:this.collapse?.value,items:menuEntries}]:[]),
       ...entries.filter(item=>item.bladePinned)]:menuEntries);
   }
   /**

@@ -158,21 +158,42 @@ export function withDerived<T extends {id:string}>(fields:T[],columns:(Column&{h
   if(!derived.length)return fields;
   return fields.flatMap(field=>[field,...derived.filter(column=>derivedOf(column)===field.id) as unknown as T[]]);
 }
-/** Only declared fields present in the ACL-projected record are rendered; every media and icon field shows its media or icon. */
+/** A long text field (`textarea` without a custom display): clamped in a card to its `cardLines` (0: all of it). */
+const longText=(field:ViewDefinition["columns"][number])=>field.type==="textarea"&&!(!isMedia(field)&&!isImage(field)&&field.render);
+/**
+ * Only declared fields present in the ACL-projected record are rendered; every media and icon field shows its media or
+ * icon. With field sections (`section`, FB-0177) the fields form groups: one framed group per section at the place of
+ * its first field (the other short fields one untitled group at the place of the first of them), laid out in as many
+ * columns as the card or details are wide enough for (240 px each), and a long text outside every section below them
+ * across the whole width. Without sections the fields stay one list in their order.
+ */
 export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=false):string{
-  return `<dl>${fields.filter(field=>Object.hasOwn(row,field.id)||hasDerived(field,row)).map(field=>{
-    const derived=derivedText(field,row);
-    if(derived!==null)return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd>${escape(derived||"—")}</dd></div>`;
-    const writable=editable&&field.editable&&row._editable?.includes(field.id);
-    const value=row[field.id];
-    // A registered presentation or field-type display (`column.render`) shows the value; a field type edits in the edit window, also a checkbox.
-    const custom=!isMedia(field)&&!isImage(field)&&field.render?field.render(row,"card"):undefined;
-    const content=escape(value==null||value===""?(field.options?.[String(value??"")]??"—"):optionText(field,value));
-    // An icon is shown with its name as visible text, so the glyph itself stays decorative.
-    const glyph=isIcon(field)?recordIcon(field,value,true):"";
-    // Long text (`textarea`) is clamped to a few lines in a card (admin.css); the details show all of it.
-    return `<div class="blade-grid-card__field${field.type==="textarea"&&custom===undefined?" blade-grid-card__field--long":""}"><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
-  }).join("")}</dl>`;
+  const shown=fields.filter(field=>Object.hasOwn(row,field.id)||hasDerived(field,row));
+  const item=(field:ViewDefinition["columns"][number])=>recordField(row,field,editable);
+  if(!shown.some(field=>field.section))return `<dl>${shown.map(item).join("")}</dl>`;
+  const groups=new Map<string,ViewDefinition["columns"]>(),wide:ViewDefinition["columns"]=[];
+  for(const field of shown){
+    if(!field.section&&longText(field)){wide.push(field);continue;}
+    const key=field.section?"s:"+field.section:"";
+    groups.set(key,[...(groups.get(key)??[]),field]);
+  }
+  const group=([key,members]:[string,ViewDefinition["columns"]])=>`<section class="blade-record-group${members.some(longText)?" blade-record-group--wide":""}">${key?`<div class="blade-record-group__title">${escape(key.slice(2))}</div>`:""}<dl>${members.map(item).join("")}</dl></section>`;
+  return `<div class="blade-record-groups">${[...groups].map(group).join("")}</div>${wide.length?`<dl class="blade-record-wide">${wide.map(item).join("")}</dl>`:""}`;
+}
+/** One field of `recordFields`: its label and its presented value (an editable one opens its editor). */
+function recordField(row:Row,field:ViewDefinition["columns"][number],editable:boolean):string{
+  const derived=derivedText(field,row);
+  if(derived!==null)return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd>${escape(derived||"—")}</dd></div>`;
+  const writable=editable&&field.editable&&row._editable?.includes(field.id);
+  const value=row[field.id];
+  // A registered presentation or field-type display (`column.render`) shows the value; a field type edits in the edit window, also a checkbox.
+  const custom=!isMedia(field)&&!isImage(field)&&field.render?field.render(row,"card"):undefined;
+  const content=escape(value==null||value===""?(field.options?.[String(value??"")]??"—"):optionText(field,value));
+  // An icon is shown with its name as visible text, so the glyph itself stays decorative.
+  const glyph=isIcon(field)?recordIcon(field,value,true):"";
+  // Long text (`textarea`) is clamped to its `cardLines` (default 4, 0 all of it) in a card (admin.css); the details show all of it.
+  const lines=field.type==="textarea"&&custom===undefined?field.cardLines??4:0;
+  return `<div class="blade-grid-card__field${lines?" blade-grid-card__field--long":""}"${lines&&lines!==4?` style="--blade-card-lines:${Math.trunc(lines)}"`:""}><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
 }
 
 /** One reference count of a usage provider (`label` is already translated by the server). */
