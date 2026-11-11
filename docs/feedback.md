@@ -7338,4 +7338,5 @@ that exactly equals an option label lists every option. The managed
   default cap applies to fitted windows only (document windows and a
   `fit: false` window keep their size); the Tree control's icons are the
   framework's (no option to change them); sections do not nest.
+- **Commit:** `d4008eb` on `main`.
 - **Status:** implemented and verified on the managed demo.
