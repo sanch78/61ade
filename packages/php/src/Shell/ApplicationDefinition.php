@@ -93,6 +93,7 @@ final readonly class ApplicationDefinition
             throw new \InvalidArgumentException('Invalid 61ade session lifetime.');
         }
         if ($sameSite !== 'Lax' && $sameSite !== 'Strict') throw new \InvalidArgumentException('Invalid 61ade SameSite policy.');
+        if ($sameSite === 'Strict' && $oauth !== null) throw new \InvalidArgumentException('61ade OAuth requires SameSite=Lax.');
         if ($publicIdentity !== null && ($publicIdentity === '' || strlen($publicIdentity) > 100 || preg_match('/[\x00-\x1f\x7f]/', $publicIdentity))) {
             throw new \InvalidArgumentException('Invalid 61ade public identity.');
         }

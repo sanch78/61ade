@@ -30,6 +30,11 @@ check($login(['Google'=>['enabled'=>false,'keys'=>['id'=>'g','secret'=>'s']]])->
 $bridge=$login(['Google'=>['keys'=>['id'=>'g','secret'=>'s']],'Facebook'=>['keys'=>['id'=>'f','secret'=>'']],'Custom'=>['adapter'=>'X\\Y'],'Twitter'=>['enabled'=>false]]);
 check($bridge->providers()===['Google','Facebook','Custom'],'Listed providers shown');
 check($bridge->configured('Google') && $bridge->configured('Custom') && !$bridge->configured('Facebook') && !$bridge->configured('Twitter'),'Keys (or an adapter) make a provider usable');
+foreach ([$bridge, $login(['Google'=>['enabled'=>false]])] as $oauth) {
+    try { new ApplicationDefinition('App',$identities,new Menu([]),'/tmp',oauth:$oauth,sameSite:'Strict'); throw new RuntimeException('Strict SameSite with OAuth accepted'); }
+    catch (InvalidArgumentException) {}
+}
+check((new ApplicationDefinition('App',$identities,new Menu([]),'/tmp',oauth:$bridge))->sameSite==='Lax','OAuth keeps default Lax SameSite');
 
 // A provider without keys never reaches AuthHandler/Hybridauth: the user gets a notice instead.
 FakeAuthHandler::$config=null;$_GET=['ah_action'=>'provider','provider'=>'facebook'];

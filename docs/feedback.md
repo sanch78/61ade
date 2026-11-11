@@ -714,3 +714,8 @@
 <a id="fb-0173"></a>
 
 ## FB-0173 — Count fields: related records the actor may list
+
+
+<a id="fb-0174"></a>
+
+## FB-0174 — Reject Strict cookies with OAuth
