@@ -1,7 +1,7 @@
 import { Layout, Window, awaitRedraw, message } from "@dhtmlx/suite";
 import { languages, locale, t } from "../I18n";
 import { requestChoice, showDialog } from "../MessageDialog";
-import { fitWindow } from "../WindowSizing";
+import { FIT_MAX_HEIGHT, fitWindow } from "../WindowSizing";
 import { uploads as uploader } from "../Uploader";
 import { Realtime, type LiveChannel } from "../Realtime";
 import { NAME } from "../app/registries";
@@ -127,6 +127,8 @@ export function attachContent(target: { attach(content: any): unknown; attachHTM
 
 /** A framework document window (`Ui.window`, record views with `open: "window"`); full screen below 768 px. */
 export function openWindow(options: WindowOptions & { css?: string }): AppWindow {
+  const maxHeight = options.maxHeight ?? FIT_MAX_HEIGHT;
+  if (typeof maxHeight !== "number" || Number.isNaN(maxHeight) || maxHeight < 120) throw new TypeError("61ade: window `maxHeight` is a number of px from 120 (Infinity: the viewport).");
   const mobile = innerWidth < 768, controller = new AbortController();
   const win = new Window({ css: options.css ?? "blade-content-window", title: escape(options.title), ariaLabel: options.title,
     width: mobile ? innerWidth : Math.min(options.width ?? 720, innerWidth - 24), height: mobile ? innerHeight : Math.min(options.height ?? 560, innerHeight - 24),
@@ -145,10 +147,10 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
     attach(content) {
       if (closed) return;
       attachContent(cell, content, controller.signal);
-      if (fit && (content instanceof HTMLElement || !(content instanceof Layout || ("destroy" in content && "layout" in content)))) void fitWindow(win);
+      if (fit && (content instanceof HTMLElement || !(content instanceof Layout || ("destroy" in content && "layout" in content)))) void fitWindow(win, maxHeight);
     },
     setTitle(text) { if (closed) return; win.config.title = escape(text); win.header?.data.update("title", { value: escape(text) }); },
-    fit: () => closed ? Promise.resolve() : fitWindow(win),
+    fit: () => closed ? Promise.resolve() : fitWindow(win, maxHeight),
     close() { if (closed) return; if (win.isVisible()) win.hide(); else finish(); },
   };
   // Suite closes only a modal window on Escape; a non-modal one closes while the focus is inside it (FB-0155). An

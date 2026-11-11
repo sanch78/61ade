@@ -223,6 +223,13 @@ export interface WindowOptions {
    * A Layout or a component keeps the requested size (a `RecordForm` fits the window once its fields show). Default true.
    */
   fit?: boolean;
+  /**
+   * The largest fitted height in px (FB-0177): default 800, always at most the viewport minus 24 px; `Infinity` lets a
+   * fitted window grow to the viewport. A taller form scrolls between the fixed header and its action row, which sticks
+   * to the window's lower edge. A number below 120 (or not a number) throws `TypeError`. The requested `height` of a
+   * window that does not fit is not capped by it.
+   */
+  maxHeight?: number;
   /** Default true. Either way Escape closes the window while the focus is inside it (a modal one: Suite's own key). */
   modal?: boolean;
   resizable?: boolean;
@@ -702,10 +709,13 @@ export interface FieldMetadata {
    */
   readOnly?: boolean;
   /**
-   * The label of the collapsible form section holding the field (server `Field` `section`, JSON `section`, FB-0172),
-   * translated. The fields with the same label form one section at the place of the first one.
+   * The label of the form section holding the field (server `Field` `section`, JSON `section`, FB-0172), translated.
+   * The fields with the same label form one framed section at the place of the first one, and one group of the cards
+   * and details (FB-0177).
    */
   section?: string;
+  /** `false`: the section is fixed (always open, a plain heading); absent: collapsible (server `sectionCollapsible`, JSON `section_collapsible`, FB-0177). */
+  sectionCollapsible?: false;
 }
 
 /** Confirmation the server declares for an action (`Action::$confirm`). Plain text. */
@@ -752,8 +762,12 @@ export interface ColumnMetadata {
   presentation?: string;
   /** The field's `editor` (a `fieldTypes` name): its `display` renders the value unless a presentation does. */
   editor?: string;
-  /** The field's form section label (`FieldMetadata.section`). */
+  /** The field's section label (`FieldMetadata.section`): the singleton's details form and the card and details groups follow it. */
   section?: string;
+  /** `false`: a fixed section (`FieldMetadata.sectionCollapsible`). */
+  sectionCollapsible?: false;
+  /** A long text's lines in a card (field `column.cardLines`, JSON `card_lines`, FB-0177): 0 all of it; default 4. */
+  cardLines?: number;
   /**
    * Static image column (`presentation: "image"`): page-relative directory of the image files (configuration also
    * accepts `image_base`; the server always sends `imageBase`).
@@ -1711,6 +1725,8 @@ export interface CommandButton {
   icon?: string;
   /** Only the icon shows in the bar (a transport control); the label is the tooltip and accessible name, and the text in the collapsed menu. */
   iconOnly?: boolean;
+  /** Stays in the bar beside the collapsed `Műveletek` menu (below 768 px or when the bar is full); with every item pinned there is no menu. Default false. */
+  pinned?: boolean;
   disabled?: boolean;
   hidden?: boolean;
 }

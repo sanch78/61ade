@@ -76,6 +76,7 @@ test('CommandBar: toggles, selects, segmented choices, groups and ranges in two 
  await expect(position).toHaveValue('90');
  expect(await log(page)).toEqual([]);
  expect(await page.evaluate(()=>{try{new window.__bladeApp.components.CommandBar({items:[{type:'select',id:'x',label:'X',options:[{value:'a',label:'A'}]}]});return 'no error';}catch(error){return error.constructor.name;}})).toBe('TypeError');
+ expect(await page.evaluate(()=>{try{new window.__bladeApp.components.CommandBar({items:[{id:'x',label:'X',pinned:'yes'}]});return 'no error';}catch(error){return error.constructor.name;}})).toBe('TypeError');
  // Escape closes an open menu of either bar.
  await bottom.getByRole('button',{name:'Sebesség: 1×'}).click();
  await expect(page.getByRole('menuitemradio',{name:'2×'})).toBeVisible();

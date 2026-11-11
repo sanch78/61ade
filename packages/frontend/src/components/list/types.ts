@@ -18,8 +18,10 @@ export type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];col
 export type Column={id:string;header:string;type?:string;media?:string;presentation?:string;imageBase?:string;altOf?:string;mediaOf?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right";
   /** A registered field type of the column's field (`app.fieldTypes`). */
   editor?:string;
-  /** The field's form section label (the singleton's details form groups by it). */
-  section?:string}&Resolved;
+  /** The field's section label (the singleton's details form, the card and details groups follow it); `false`: a fixed section. */
+  section?:string;sectionCollapsible?:false;
+  /** A long text's lines in a card: 0 all of it; default 4. */
+  cardLines?:number}&Resolved;
 /** The list kind's internal shape: the view's shared keys beside its `options` (definition.ts `listDefinition`). */
 export type ViewDefinition={id:string;resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:Column[];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;
   /** The presentations the view offers (api ListKindOptions `modes`) and at most this many card columns (`cardColumns`). */

@@ -727,3 +727,7 @@
 <a id="fb-0176"></a>
 
 ## FB-0176 — A collapsed region empty after a tab change on a phone (not reproduced)
+
+<a id="fb-0177"></a>
+
+## FB-0177 — Professional form sections, card groups, fitted windows and an icon tree control

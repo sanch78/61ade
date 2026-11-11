@@ -55,11 +55,17 @@ final readonly class Field
          */
         public bool $scopeOnly = false,
         /**
-         * A collapsible form section (FB-0172): its plain-text, translatable label. The fields with the same label form
-         * one section of the action forms, at the place of its first field; it starts closed unless one of its fields
-         * holds a value or an error. Presentation only: closed fields are still submitted and validated.
+         * A field section (FB-0172, FB-0177): its plain-text, translatable label. The fields with the same label form one
+         * framed section of the action forms, at the place of its first field, and one group of the cards and details.
+         * A collapsible section starts closed unless one of its fields holds a value or an error. Presentation only:
+         * closed fields are still submitted and validated.
          */
         public ?string $section = null,
+        /**
+         * false: the section is fixed, always open with a plain heading instead of a disclosure (FB-0177). Every field of
+         * one section declares the same value (Registry refuses a mix). Only with $section.
+         */
+        public bool $sectionCollapsible = true,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
             || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'date', 'file'], true)
@@ -92,7 +98,7 @@ final readonly class Field
             }
         }
         foreach ($column as $property => $value) {
-            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'details', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of'], true)
+            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'details', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of', 'cardLines', 'card_lines'], true)
                 || match ($property) {
                     'editable', 'secondary', 'details' => !is_bool($value),
                     'align' => !in_array($value, ['left', 'center', 'right'], true),
@@ -101,6 +107,8 @@ final readonly class Field
                     'presentation' => !is_string($value) || (!in_array($value, ['icon', 'image'], true) && !self::projectName($value)),
                     'imageBase', 'image_base' => !is_string($value) || !preg_match('~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*/$~D', $value),
                     'altOf', 'alt_of' => !is_string($value) || !preg_match('/^[a-z][a-z0-9_]*$/D', $value),
+                    // Lines of a long text in a card (FB-0177): 0 shows all of it, default 4; textarea fields only (below).
+                    'cardLines', 'card_lines' => !is_int($value) || $value < 0 || $value > 50,
                     default => !is_int($value) || $value < 1 || $value > 10000,
                 }) {
                 throw new InvalidArgumentException('Invalid field column presentation.');
@@ -131,7 +139,8 @@ final readonly class Field
             || array_filter($clears, static fn($other) => !is_string($other) || !preg_match('/^[a-z][a-z0-9_]*$/D', $other) || $other === $name)) {
             throw new InvalidArgumentException('Invalid exclusive field: '.$name);
         }
-        if ($section !== null && (trim($section) === '' || strlen($section) > 100 || preg_match('/[\x00-\x1f\x7f]/', $section))) throw new InvalidArgumentException('Invalid field section: '.$name);
+        if (($section !== null && (trim($section) === '' || strlen($section) > 100 || preg_match('/[\x00-\x1f\x7f]/', $section))) || ($section === null && !$sectionCollapsible)) throw new InvalidArgumentException('Invalid field section: '.$name);
+        if (count(array_intersect_key($column, ['cardLines' => 1, 'card_lines' => 1])) > ($type === 'textarea' ? 1 : 0)) throw new InvalidArgumentException('Card lines belong to one textarea column option.');
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
         if ($type === 'checkbox' && $defaultValue !== null && !in_array($defaultValue, ['0', '1'], true)) {
@@ -286,7 +295,22 @@ final readonly class Field
             ...($this->editor !== null ? ['editor' => $this->editor] : []),
             ...($this->visibleWhen !== null ? ['visibleWhen' => $this->visibleWhen] : []),
             ...($this->clears ? ['clears' => $this->clears] : []),
-            ...($this->section !== null ? ['section' => \Blade\I18n\Translator::text($this->section)] : []),
+            ...$this->sectionMetadata(),
         ];
+    }
+    /** The wire form of the section: `section` (translated label), `sectionCollapsible: false` for a fixed one. */
+    public function sectionMetadata(): array
+    {
+        return $this->section === null ? [] : ['section' => \Blade\I18n\Translator::text($this->section), ...($this->sectionCollapsible ? [] : ['sectionCollapsible' => false])];
+    }
+    /** Refuses $fields where one section label is declared both collapsible and fixed. */
+    public static function checkSections(array $fields): void
+    {
+        $seen = [];
+        foreach ($fields as $field) {
+            if (!$field instanceof self || $field->section === null) continue;
+            if (($seen[$field->section] ?? $field->sectionCollapsible) !== $field->sectionCollapsible) throw new InvalidArgumentException('Field section declared both collapsible and fixed: '.$field->section);
+            $seen[$field->section] = $field->sectionCollapsible;
+        }
     }
 }

@@ -475,12 +475,31 @@ and secrets.
 
 <a id="long-text-in-cards"></a>
 
-**Long text in cards** ([FB-0152](feedback.md#fb-0152)): a `textarea`
-field shows at most 4 lines on a card (CSS line clamp, the field's line
-height, keeping its line breaks); the rest is clipped. The record details
-(`Adatok`) and the edit form show the whole text. A field with a registered
-presentation or field-type display renders its own markup and is not
-clipped. Screen readers still read the whole value of the card.
+**Long text in cards** ([FB-0152](feedback.md#fb-0152),
+[FB-0177](feedback.md#fb-0177)): a `textarea` field shows at most 4 lines on
+a card (CSS line clamp, the field's line height, keeping its line breaks);
+the rest is clipped. The field's `column.cardLines` (JSON `column.card_lines`,
+a whole number 0–50, textarea fields only) sets another count, `0` the whole
+text. The record details (`Adatok`) and the edit form show the whole text. A
+field with a registered presentation or field-type display renders its own
+markup and is not clipped. Screen readers still read the whole value of the
+card. A label beside its value takes two fifths of a narrow card and at most
+220 px of a wide one.
+
+<a id="card-groups"></a>
+
+**Field groups in cards and details** ([FB-0177](feedback.md#fb-0177)): the
+fields' [form sections](#form-sections) also group the cards, the `Adatok`
+window and `RecordDetails`. Each section is a framed group with its label as
+the heading, at the place of its first field; the other short fields form one
+untitled group at the place of the first of them. The groups sit side by side
+in as many 240 px columns as the card or details are wide (CSS grid, so a
+full-width card of four sections shows four columns and a phone one), a group
+holding a long text spans the row, and a long text outside every section
+(the prompt or description of the record) follows the groups across the whole
+width with its label above it. Without any section the fields stay one list
+in their order, as before. A section's open or fixed state does not matter
+here; the same ACL-projected fields are shown as without groups.
 
 Lists default to a # ordinal column showing position in the complete authorized,
 filtered, sorted result across scrolling. It is not database ID and may change
@@ -769,7 +788,7 @@ descriptions, messages) can be held to cards and shown one card per row:
   `cards`, the enabled `Táblázat` entry leads from tiles back to the cards
   that stand in for the table.
 - **Long text:** a `textarea` keeps its
-  [4-line card preview](#long-text-in-cards) at full width too; `Adatok` and
+  [4-line card preview](#long-text-in-cards) (or its `cardLines`) at full width too; `Adatok` and
   the edit form show all of it. A card's media slot keeps its aspect ratio, so
   a full-width card with an image or video is tall: use it for text records.
 - **Validation:** an empty or non-list `modes`, an unknown or repeated entry,
@@ -1139,16 +1158,28 @@ clears that axis's saved size preference; dragging/collapse remain independent.
 Feature-triggering grid/card double-clicks do not select display text; inputs
 retain text selection.
 
-Filter/CRUD/bulk/detail windows size to rendered content, capped at viewport
-height minus 24 px. Forms retain 24 px below the final button; details retain
-24 px beyond article padding. Native scrolling handles long content;
-validation remeasures; manual resize remains available. A Form textarea
-directly in a content window takes any height the window has beyond its
-fitted content: Suite sizes the textarea from its cell, which grows
-(`admin.css`), so a capped or manually enlarged window has no empty band
-below its actions. `fitWindow` pauses that growth while it measures. Every
-form and details window is sized by `fitWindow`; no window keeps a fixed pixel
-control height beside spare space. Document windows (the file manager's text
+<a id="window-sizing"></a>
+
+Filter/CRUD/bulk/detail windows size to rendered content, capped at 800 px
+and at the viewport height minus 24 px ([FB-0177](feedback.md#fb-0177)): a
+centred dialog, not a full-height one. Forms retain 24 px below the final
+button; details retain 24 px beyond article padding. A taller form scrolls
+between the fixed window header and its action row: the row (`Mégse` beside
+the submit button) sticks to the lower edge of the form's scroll area with
+one rule above it, so the buttons stay visible and keep working the form
+while the fields scroll behind them; a short form shows the same row right
+below its last field. Validation remeasures; manual resize remains available.
+`app.ui.window` takes `maxHeight` (px from 120; `Infinity` grows to the
+viewport) for a project that wants a taller fitted window; its requested
+`height` without fitting is not capped. A Form textarea directly in a content
+window takes any height the window has beyond its fitted content: Suite sizes
+the textarea from its cell, which grows (`admin.css`), so a capped or
+manually enlarged window has no empty band below its actions. `fitWindow`
+pauses that growth and the sticking while it measures (the measure flag is on
+the window element itself; before FB-0177 the pause did not apply, so a
+window kept the height it was opened with and its textarea filled it). Every
+form and details window is sized by `fitWindow`; no window keeps a fixed
+pixel control height beside spare space. Document windows (the file manager's text
 editor, image viewer and video player) are not fitted: one Layout fills the
 Window, so the content cell follows every window size ([files](files.md#behavior)).
 
@@ -1427,18 +1458,27 @@ new app.components.RecordForm({ resource: "items", action: "create", values: { p
 
 ## Form sections
 
-A record action form can group fields into collapsible sections, so optional,
-bulky fields (file fields with their previews) do not lengthen the form until
-they are needed ([FB-0172](feedback.md#fb-0172)). The sections are inside the
-one Suite Form, a fieldset under a disclosure button; one `RecordForm` stays
-one Form and no layout cells are added ([FB-0148](feedback.md#fb-0148)).
+A record action form can group its fields into framed sections, like the
+sections of a multi-section form: each is a bordered panel with a header bar
+([FB-0172](feedback.md#fb-0172), [FB-0177](feedback.md#fb-0177)). A
+**collapsible** section (the default, the accordion look) keeps optional,
+bulky fields (file fields with their previews) out of the way until they are
+needed; a **fixed** section is always open, with its label as a plain heading,
+for fields that must stay visible in every case. The sections are inside the
+one Suite Form, each a fieldset under a disclosure button (collapsible) or
+under its legend (fixed); one `RecordForm` stays one Form and no layout cells
+are added ([FB-0148](feedback.md#fb-0148)). The same sections group the
+[cards and details](#card-groups).
 
 ```php
+new Field('title', 'Megnevezés', required: true, section: 'Alapadatok', sectionCollapsible: false),
+new Field('role', 'Szerep', 'select', options: $roles, section: 'Alapadatok', sectionCollapsible: false),
 new Field('file', 'Kép', 'file', file: $image, section: 'Képek'),
 new Field('detail', 'Részletkép', 'file', file: $image, section: 'Képek'),
 ```
 
 ```json
+{"name": "title", "label": "Megnevezés", "required": true, "section": "Alapadatok", "section_collapsible": false},
 {"name": "file", "label": "Kép", "type": "file", "file": {"upload": "items.file_upload", "accept": ["image"]}, "section": "Képek"}
 ```
 
@@ -1449,26 +1489,36 @@ new Field('detail', 'Részletkép', 'file', file: $image, section: 'Képek'),
   of the first of them; a field is in at most one section by construction;
   the fields outside sections keep their order. The declaration is the
   field's, so the create, update and details forms of a resource share it.
-- **State:** a section starts closed unless one of its fields holds a value
-  in the form (a stored value, a host preset, a file; a field's `default`
-  and an unchecked checkbox do not count). A client or server validation
-  error in a closed section opens it and puts the focus on its first
-  erroneous field. Closing only hides: the values stay, are submitted and
-  validated.
+  `sectionCollapsible: false` (JSON `section_collapsible: false`) makes the
+  section fixed; every field of one section declares the same value (a
+  resource's fields or an action's fields that mix them, or the flag without
+  a `section`, are refused with `InvalidArgumentException`). The wire
+  metadata carries `sectionCollapsible: false` only for a fixed section.
+- **Layout:** a form that uses sections reads best when every field is in
+  one: a fixed first section for the main data, collapsible ones for optional
+  groups. Fields outside sections stay plain rows between the panels.
+- **State:** a collapsible section starts closed unless one of its fields
+  holds a value in the form (a stored value, a host preset, a file; a field's
+  `default` and an unchecked checkbox do not count). A client or server
+  validation error in a closed section opens it and puts the focus on its
+  first erroneous field. Closing only hides: the values stay, are submitted
+  and validated. A fixed section never closes.
 - **Where:** `RecordForm`, the built-in create and update forms (window and
   panel) and the singleton's details form (from the list's column metadata
   `section` when the actor has no update right). Conditional fields and file
   fields work inside a section, read-only fields too. A form window
   (`AppWindow` or the list's form window) refits when a section opens or
   closes.
-- **Keyboard and accessibility:** the header is a native button in the tab
-  order, operated with Enter, Space or a click, with `aria-expanded` and
-  `aria-controls` (the fieldset); the fieldset is a group named by the button
-  (`aria-labelledby`). A closed section's fields are not in the tab order.
-- **Limits:** sections do not nest and have no per-action variant; the
-  `Adatok` details window (a read-only record view, not a form), the bulk
+- **Keyboard and accessibility:** a collapsible section's header is a native
+  button in the tab order, operated with Enter, Space or a click, with
+  `aria-expanded` and `aria-controls` (the fieldset); the fieldset is a group
+  named by the button (`aria-labelledby`). A closed section's fields are not
+  in the tab order. A fixed section is a fieldset named by its legend, with
+  no button.
+- **Limits:** sections do not nest and have no per-action variant; the bulk
   form and grid or card editors show no sections; `SettingsForm` keeps its
-  own non-collapsible groups. The open state is not stored.
+  own groups. The open state is not stored. The `Adatok` window shows the
+  sections as [groups](#card-groups), not as panels.
 
 <a id="count-fields"></a>
 

@@ -36,14 +36,17 @@ function blade_demo_attachments_setup(PDO $db): void
 function blade_demo_attachments_register(Workspace $workspace): void
 {
     $attachments = new SqlResource('demo_attachments', 'demo_attachments', 'id', [
-        new Field('title', 'Megnevezés', required: true, max: 120),
-        new Field('role', 'Szerep', 'select', required: true, options: ['reference' => 'Referencia', 'attachment' => 'Melléklet', 'evidence' => 'Bizonyíték']),
-        new Field('reason', 'Indoklás', 'textarea', max: 500),
+        // A fixed section (FB-0177): always open under a plain heading; in cards and details a group of its own.
+        new Field('title', 'Megnevezés', required: true, max: 120, section: 'Alapadatok', sectionCollapsible: false),
+        new Field('role', 'Szerep', 'select', required: true, options: ['reference' => 'Referencia', 'attachment' => 'Melléklet', 'evidence' => 'Bizonyíték'], section: 'Alapadatok', sectionCollapsible: false),
+        // A long text outside the sections: below the groups across the card, six lines of it (FB-0177).
+        new Field('reason', 'Indoklás', 'textarea', max: 500, column: ['cardLines' => 6]),
         // Both images form one collapsible section (FB-0172): closed while the record holds none.
         new Field('file', 'Kép', 'file', file: ['upload' => 'demo_attachments.file_upload', 'get' => 'demo_attachments.file', 'accept' => ['image']], section: 'Képek'),
         new Field('detail', 'Részletkép', 'file', file: ['upload' => 'demo_attachments.file_upload', 'get' => 'demo_attachments.file', 'accept' => ['image']], section: 'Képek'),
-        // The list and the details show the file's name from the project's own rows (the stored field is a form field).
-        new Field('file_name', 'Fájlnév'),
+        // The list and the details show the file's name from the project's own rows (the stored field is a form field);
+        // in cards and details it is the `Képek` group.
+        new Field('file_name', 'Fájlnév', section: 'Képek'),
     ], computed: ['file_name' => "(SELECT name FROM demo_attachment_files f WHERE f.id = blade_base.file AND f.state = 'committed')"],
         // The role is chosen at create and fixed afterwards (FB-0171): the update form shows it read-only.
         createOnly: ['role'],
@@ -51,7 +54,8 @@ function blade_demo_attachments_register(Workspace $workspace): void
             // The executor accepted the tokens (the actor's own unexpired uploads); the project commits their pending rows.
             foreach (['file', 'detail'] as $name) if (($values[$name] ?? '') !== '') $ctx->db->prepare("UPDATE demo_attachment_files SET state = 'committed' WHERE id = ? AND state = 'pending'")->execute([$values[$name]]);
         });
-    $attachments->register($workspace->registry, 'Mellékletek', group: 'Feature demó',
+    // One card per row (FB-0169): the field sections show as groups side by side, the reason below them (FB-0177).
+    $attachments->register($workspace->registry, 'Mellékletek', group: 'Feature demó', cardColumns: 1,
         guide: 'Saját tárolású fájlmező: a kép a projekt saját tárolójába kerül, nem a fájlkezelőbe. A feltöltés a háttérben fut, és a kép a rekord többi mezőjével egy mentésben rögzül; a Mégse nem hoz létre rekordot.'."\n\n".'Vegyél fel egy mellékletet: adj meg szerepet és indoklást, nyisd ki a Képek szakaszt, majd húzz egy képet a mezőre, vagy illeszd be Ctrl+V-vel. A szerep a létrehozás után nem változik: a Módosítás csak megmutatja.');
     $attachments->registerDelete($workspace->registry);
     // The upload action of the field: stores the bytes and a pending row, returns its token. No fields, one file.

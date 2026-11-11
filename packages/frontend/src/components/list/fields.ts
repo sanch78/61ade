@@ -49,12 +49,15 @@ const SECTION="__section";
 const BODY="blade-form-section__body",CLOSED=" blade-form-section__body--closed";
 /** The section labels of $fields in form order. */
 const sectionsOf=(fields:FieldDefinition[])=>[...new Set(fields.map(field=>field.section).filter((label):label is string=>!!label))];
+/** Whether the section $label of $fields is fixed (always open, a plain heading; the server keeps one value per section). */
+const fixedSection=(fields:FieldDefinition[],label:string)=>fields.some(field=>field.section===label&&field.sectionCollapsible===false);
 /** Whether $value fills a field: a non-empty value; an unchecked checkbox and an empty choice count as empty. */
 const filled=(field:FieldDefinition,value:unknown)=>Array.isArray(value)?value.length>0:value!==undefined&&value!==null&&value!==false&&String(value).trim()!==""&&!(field.type==="checkbox"&&String(value)==="0");
 /**
  * The Form rows of $fields: each field's $item, the fields of one `section` gathered at the place of its first field in
- * a fieldset under a disclosure button (docs/workspaces.md#form-sections). A section starts open when one of its fields
- * holds a value in $values (the stored or preset values; a default does not count), else closed.
+ * one framed panel (docs/workspaces.md#form-sections): a fieldset under a disclosure button (collapsible), or under its
+ * legend as the heading (fixed, `sectionCollapsible: false`, always open). A collapsible section starts open when one
+ * of its fields holds a value in $values (the stored or preset values; a default does not count), else closed.
  */
 export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>any,values:Record<string,unknown>={}):any[]{
   const rows:any[]=[],bodies=new Map<string,any[]>(),labels=sectionsOf(fields);
@@ -62,12 +65,18 @@ export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>
     if(!field.section){rows.push(item(field));continue;}
     let body=bodies.get(field.section);
     if(!body){
-      const n=labels.indexOf(field.section)+1,open=fields.some(other=>other.section===field.section&&filled(other,values[other.name]));
+      const n=labels.indexOf(field.section)+1;
       bodies.set(field.section,body=[]);
-      rows.push({css:"blade-form-section",rows:[
-        {type:"button",name:SECTION+n,text:field.section,view:"link",color:"secondary",icon:open?"dxi dxi-chevron-down":"dxi dxi-chevron-right",css:"blade-form-section__toggle"},
-        {type:"fieldset",name:SECTION+n+"_body",css:BODY+(open?"":CLOSED),rows:body},
+      if(fixedSection(fields,field.section))rows.push({css:"blade-form-section blade-form-section--fixed",rows:[
+        {type:"fieldset",name:SECTION+n+"_body",label:field.section,css:BODY,rows:body},
       ]});
+      else{
+        const open=fields.some(other=>other.section===field.section&&filled(other,values[other.name]));
+        rows.push({css:"blade-form-section",rows:[
+          {type:"button",name:SECTION+n,text:field.section,view:"link",color:"secondary",icon:open?"dxi dxi-chevron-down":"dxi dxi-chevron-right",css:"blade-form-section__toggle"},
+          {type:"fieldset",name:SECTION+n+"_body",css:BODY+(open?"":CLOSED),rows:body},
+        ]});
+      }
     }
     body.push(item(field));
   }
@@ -79,13 +88,15 @@ export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>
  * focuses its first erroneous field. Closing only hides: the values stay, are submitted and validated.
  */
 function bindSections(form:Form,fields:FieldDefinition[],signal:AbortSignal,toggled?:()=>void):void{
-  const labels=sectionsOf(fields);
-  if(!labels.length)return;
+  // A fixed section has no disclosure: its legend names its group and it never closes.
+  const labels=sectionsOf(fields).map(label=>fixedSection(fields,label)?"":label);
+  if(!labels.some(Boolean))return;
   const button=(n:number)=>(form.getItem(SECTION+n) as any)?.getRootNode?.() as HTMLElement|undefined;
   const isOpen=(n:number)=>!String((form.getItem(SECTION+n+"_body") as any)?.getProperties?.().css??"").includes(CLOSED.trim());
   const decorate=()=>{
     if(signal.aborted)return;
-    labels.forEach((_,index)=>{
+    labels.forEach((label,index)=>{
+      if(!label)return;
       const n=index+1,element=button(n),body=element?.closest(".blade-form-section")?.querySelector("fieldset");
       if(!element||!body)return;
       if(!body.id)body.id=(element.id||SECTION+n)+"-body";
@@ -107,7 +118,7 @@ function bindSections(form:Form,fields:FieldDefinition[],signal:AbortSignal,togg
   });
   sectionReveal.set(form,names=>{
     if(signal.aborted)return;
-    const opened=labels.filter((label,index)=>fields.some(field=>field.section===label&&names.includes(field.name))&&set(index+1,true));
+    const opened=labels.filter((label,index)=>!!label&&fields.some(field=>field.section===label&&names.includes(field.name))&&set(index+1,true));
     if(!opened.length)return;
     changed();
     // The first erroneous field of a section that was closed takes the focus (a file field: its name input).

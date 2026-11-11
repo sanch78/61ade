@@ -60,8 +60,9 @@ export type FieldDefinition = {
   clears?: string[];
   /** Shown with its value, never sent: an action's `display` field or one the actor may read but not write. */
   readOnly?: boolean;
-  /** The label of the collapsible form section the field belongs to. */
+  /** The label of the form section the field belongs to; `sectionCollapsible: false` makes it fixed (always open). */
   section?: string;
+  sectionCollapsible?: false;
 };
 /** Opens the form sections holding these fields (registered by `bindFieldTypes`, fields.ts); FormValidation calls it. */
 export const sectionReveal=new WeakMap<Form,(names:string[])=>void>();

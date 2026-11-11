@@ -91,13 +91,24 @@ body,
 /* A window holding one framework feature shows the feature edge to edge: the window header is its only header. */
 .blade-feature-window .dhx_window-content { padding: 0; }
 .blade-grid-card dl { margin: 0; }
-.blade-grid-card__field { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 12px; padding: 9px 0; }
+/* Label and value side by side: the label takes two fifths of a narrow card and at most 220 px of a wide one. */
+.blade-grid-card__field { display: grid; grid-template-columns: minmax(0, min(40%, 220px)) minmax(0, 1fr); gap: 12px; padding: 9px 0; }
 .blade-grid-card__field + .blade-grid-card__field { border-top: 1px solid var(--dhx-border-color); }
 .blade-grid-card dt { color: var(--dhx-font-color-secondary); font-weight: 500; }
 .blade-grid-card dd { margin: 0; color: var(--dhx-font-color-primary); white-space: pre-wrap; }
 .blade-grid-card dt, .blade-grid-card dd { overflow-wrap: anywhere; line-height: 1.5; }
 /* Long text (a `textarea` field) shows a 4-line preview in a card; the record details (`Adatok`) and the form show all of it. */
-.blade-grid-card .blade-grid-card__field--long dd { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
+.blade-grid-card .blade-grid-card__field--long dd { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--blade-card-lines, 4); line-clamp: var(--blade-card-lines, 4); overflow: hidden; }
+/* Field sections in cards and details (RecordPresentation recordFields, FB-0177): framed groups in as many 240 px
+   columns as the card is wide, a group with a long text across the row, a long text outside the sections below them
+   across the whole width with its label above it. */
+.blade-record-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; align-items: start; }
+.blade-record-group { min-width: 0; padding: 0 12px; border: var(--dhx-border); border-radius: var(--dhx-border-radius); }
+.blade-record-group--wide { grid-column: 1 / -1; }
+.blade-record-group__title { margin: 0 -12px; padding: 6px 12px; border-bottom: var(--dhx-border); border-radius: var(--dhx-border-radius) var(--dhx-border-radius) 0 0;
+  background: var(--dhx-background-secondary); color: var(--dhx-font-color-primary); font-weight: var(--dhx-font-weight-medium); line-height: 1.5; overflow-wrap: anywhere; }
+.blade-record-groups + .blade-record-wide { margin: 12px 0 0; }
+:is(.blade-record-wide, .blade-record-group--wide) .blade-grid-card__field--long { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 .blade-grid-card__media { position: relative; margin: -14px -16px 12px; }
 
 /* Tiles: native DataView widths (equal per row), media slot, title and one secondary line. */
@@ -360,6 +371,15 @@ body,
 [data-dhx-theme="dark"] .blade-grid-views .dhx_grid-header { box-shadow: 0 3px 8px rgb(0 0 0 / 55%); }
 /* Native Form columns remain a horizontal action group at every theme size. */
 .blade-form-actions { flex-wrap: nowrap; justify-content: flex-end; gap: 8px; }
+/* The action row of a form that scrolls (a fitted window at its maxHeight, a short panel) stays on the lower edge of
+   the form's scroll area while the fields scroll behind it (FB-0177): a footer with one rule above it across the
+   whole form (the form's overflow clips the band to its edges). fitWindow pauses it while measuring. */
+.dhx_form > .blade-form-actions {
+  position: sticky; bottom: 0; z-index: 2; padding-top: 12px;
+  /* A painted outset (no scrollable overflow): the rule and the background reach the form's edges and below. */
+  border-image: linear-gradient(var(--dhx-border-color) 0 1px, var(--dhx-background-primary) 1px) 0 fill / 0 / 0 100vw 100px;
+}
+[data-blade-measure] .dhx_form > .blade-form-actions { position: static; }
 .blade-form-actions .dhx_button { white-space: nowrap; }
 .blade-multiselect-field .dhx_combobox-input-list { padding-top: 4px; padding-bottom: 4px; }
 .blade-filter-actions { flex-wrap: nowrap; }
@@ -400,7 +420,8 @@ body,
 /* Suite sizes a textarea from its Form cell: the cell takes the window height beyond the fitted
    content, so a clamped or resized window has no gap below its actions. fitWindow pauses it. */
 .blade-content-window .dhx_form > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 1; }
-.blade-content-window [data-blade-measure] .dhx_form > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 0; }
+/* The measure flag is on the window element itself (fitWindow: `win.getContainer()`). */
+.blade-content-window[data-blade-measure] .dhx_form > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 0; }
 /* Non-blocking success notice (Suite message); themes override the accent through the Suite variable. */
 .blade-toast { border-left: 4px solid var(--dhx-color-success); }
 /* `app.ui.toast(text, severity)`: the text carries the meaning, the accent only repeats it. */

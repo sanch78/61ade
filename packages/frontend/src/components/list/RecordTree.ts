@@ -460,6 +460,7 @@ export class NodeTree {
  * `app.components.Tree` (docs/toolkit.md#tree): the records of a list view with a hierarchy on itself as a tree, in its
  * own borderless Layout (the host's region gives the title). `select` and `activate` tell the host which node it is.
  */
+const EXPAND_ICON="dxi dxi-plus-box";
 export class RecordTree extends Component<TreeEvents> implements TreeApi{
   readonly layout:Layout;
   private nodes:NodeTree;
@@ -480,15 +481,16 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
     const preferences=options.id!==undefined?new UiPreferences(context.user,options.id):undefined;
     this.layout=new Layout(this.host,{type:"none",rows:[...(options.expandControl?[{id:"commands",height:48}]:[]),{id:"tree",css:"blade-tree-cell"}]});
     if(options.expandControl){
-      const bar=this.bar=new CommandBar({label:view.title,items:[{id:"expand",label:t("Mindet kinyit"),icon:"dxi dxi-chevron-double-down"},{id:"collapse",label:t("Mindet bezár"),icon:"dxi dxi-chevron-double-up"}]});
+      // Two pinned icon buttons (the label is the tooltip and accessible name); they never collapse into a menu.
+      const bar=this.bar=new CommandBar({label:view.title,items:[{id:"expand",label:t("Mindet kinyit"),icon:EXPAND_ICON,iconOnly:true,pinned:true},{id:"collapse",label:t("Mindet bezár"),icon:"dxi dxi-minus-box",iconOnly:true,pinned:true}]});
       bar.on("click",({id})=>void(id==="expand"?this.expandFromControl():this.collapseAll()));
       bar.mount(this.layout.getCell("commands"));
     }
     this.nodes=new NodeTree({view,parent:hierarchy.field,label:options.label},{
       select:id=>this.emit("select",{row:id===undefined?undefined:this.nodes.row(id)}),
       activate:id=>{const row=this.nodes.row(id);if(row)this.emit("activate",{row});},
-      // The control's busy state: the label says it loads (the button keeps the focus; a click meanwhile does nothing).
-      busy:busy=>this.bar?.update("expand",{label:t(busy?"Betöltés…":"Mindet kinyit")}),
+      // The control's busy state: a spinning icon, and the name says it loads (the button keeps the focus; a click meanwhile does nothing).
+      busy:busy=>this.bar?.update("expand",{label:t(busy?"Betöltés…":"Mindet kinyit"),icon:busy?"dxi dxi-loading dxi-spin":EXPAND_ICON}),
     },view.title,preferences,true);
     attachContent(this.layout.getCell("tree"),this.nodes.element,this.abort.signal);
     void this.nodes.start(initial,preferences?.tree()??{},depth);
