@@ -938,6 +938,13 @@ await tree.collapseAll();
   on a later mount (they load only then). A remembered selection below a
   collapsed node is not loaded on the next mount: `initial` applies (the
   ancestors of a loaded selection still open, as `select(id)` does).
+- **A selection made during the start wins** ([FB-0170](feedback.md#fb-0170)):
+  the remembered selection and `initial` apply only when the roots, the
+  `expand` levels or the restored expansion have finished loading and nothing
+  was selected or cleared meanwhile. A node the user clicks or reaches by
+  keyboard, or that `select(id)` chooses, while the start still loads stays
+  selected: no second `select` follows, and that node is stored. The
+  ancestors the restore opens afterwards do not move or clear it.
 - `expandAll()` opens every node down to 10 levels, loading what is not
   loaded (four loads at a time), and stores the result as the user's
   expansion. `collapseAll()` closes every node, cancels a running
@@ -2841,6 +2848,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-11 | PHP/JSON `file` field option `{upload: 'resource.action', get?: 'resource.action', accept}`: a file the project stores itself. The form control (native dialog, paste, drop, background upload, preview) uploads to the project's upload action, which returns `['id' => token]`; the executor checks the detected type and records an upload claim (actor, session, tenant, upload action, TTL); the record save accepts a new token only for such a claim and removes it after the commit; the edit form shows the stored file through the GET action. A form field only (no column, details, filter, sort or scope). `StoredFileFieldConfig`, `Registry::storedFileFields()`, `Registry::checkFileFields()`. M51. | Domain records whose files the project owns could not take a file in the same save as their other fields (a consumer request). | [FB-0167](feedback.md#fb-0167) |
 | 2026-11-11 | `TreeOptions.expand` (levels opened while no expansion is stored, 0–10), `TreeOptions.expandControl`; `Tree.expandAll()` (→ `TreeExpansion`: `complete`, `nodes`, `reason`), `Tree.collapseAll()`; key `*`. The stored expansion is written only after the user changed it. Additive (M52). | A hierarchy should open its upper levels on first display and open or close as a whole (a consumer request). | [FB-0168](feedback.md#fb-0168) |
 | 2026-11-11 | `ListKindOptions.modes`/`cardColumns`, `ListViewOptions.modes`/`cardColumns`; PHP `modes` and `cardColumns` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.modes`, `view.card_columns`. The offered presentations (one hides the `Nézet` menu; a kept choice outside them is ignored, not overwritten) and at most this many card columns (1: one card per row). Additive (M53). | A list of notes could always be switched to a table and its cards were cut into narrow columns (a consumer request). | [FB-0169](feedback.md#fb-0169) |
+| 2026-11-11 | `Tree`: the remembered selection and `initial` apply at the end of the start only when nothing was selected meanwhile; a selection made while the roots, the `expand` levels or a restored expansion load stays and is stored, with no second `select`. | The start selected `initial` over the user's choice about 2 s after it. | [FB-0170](feedback.md#fb-0170) |
 
 <a id="resolved-decisions"></a>
 

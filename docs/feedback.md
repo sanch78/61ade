@@ -6762,3 +6762,42 @@ that exactly equals an option label lists every option. The managed
   start); `modes` cannot leave out the phone's forced cards for a table.
 - **Commit:** `f66f5b0` on `main`.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0170"></a>
+
+## FB-0170 — Tree: the initial selection overrode a selection made while the start loaded
+
+- **Date:** 2026-11-11.
+- **Report:** a consumer report on [FB-0168](#fb-0168) (`f66f5b0`),
+  recorded without consumer names. `RecordTree.ts` `begin()` loaded the
+  roots, awaited the `expand` levels (or the restore of a stored expansion)
+  and then selected the remembered node or `initial` unconditionally. With
+  `expand: 2` the upper levels are visible and clickable about 2 s before the
+  start settles; a node the user selected in that window was reported by
+  `select`, and 1–2 s later a second `select` moved the selection to the
+  first root without any user action. The same race existed for a stored
+  expansion's restore.
+- **Decision:** accepted as reported. The start applies the remembered
+  selection or `initial` only when the selection did not change (user click,
+  keyboard, `select(id)`, cleared) after the start began; otherwise it keeps
+  that selection, emits no extra `select` and stores it. The ancestors the
+  restore opens afterwards neither move nor clear it (the restore only loads
+  levels not loaded yet, and every load keeps the current selection).
+- **Implemented:** `NodeTree` (`components/list/RecordTree.ts`) counts
+  selection changes; `begin()` compares the count from before the loads.
+- **Guides:** [toolkit Tree expansion](toolkit.md#tree-expansion) (a
+  selection made during the start wins), toolkit [changes](toolkit.md#changes).
+- **Verification:** `npm run typecheck`, `npm run build`,
+  `npm run demo:assets`. Retained spec `tree-component.spec.cjs`, new case
+  (list answers delayed 1.5 s): with `expand: 2` and `initial` default, a
+  click on the second-level `SOFTWARE` while the third level loads
+  (`aria-busy`) stays selected after the start settles, the first root is
+  not selected, exactly one `select` was reported, and a remount selects
+  `SOFTWARE`; with a stored expansion (HKCU, HKLM, SOFTWARE) and a stored
+  selection (HKLM), a click on `Control Panel` while SOFTWARE's children load
+  stays selected after SOFTWARE opens, one `select`, and it is stored. The
+  case failed with the guard removed (SOFTWARE not selected) and passed with
+  it; the whole spec passed on the managed demo (9 passed). No full-smoke
+  claim.
+- **Limits:** none known.
+- **Status:** implemented and verified on the managed demo.
