@@ -459,6 +459,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Diagram editor | `php8.4 tests/shell/diagram.php`; shell `diagram.spec.cjs` |
 | Event calendar | `php8.4 tests/shell/calendar.php`; shell `calendar.spec.cjs` |
 | File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |
+| File fields, upload claims | PHP `stored-file.php`, `files.php`, `signage.php`; shell `stored-file.spec.cjs`, `signage.spec.cjs`, `uploader.spec.cjs` |
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
 | Tree navigation, conditional fields, view guides | `php8.4 tests/shell/tree-navigation.php`, `contracts.php`, `configuration.php`, `i18n.php`; `npm run typecheck`; shell `registry.spec.cjs` |
 | Feature demo module (`examples/demo-app/frontend`) | `npm run typecheck`, `npm run build` (`node tools/build.mjs --check`); PHP `contracts.php`, `signage.php`; shell `toolkit-demo*.spec.cjs` of the changed area (`tabs.spec.cjs` for the playlist editor's tabs) |
@@ -475,7 +476,7 @@ There is **no pre-deploy or post-deploy smoke gate** here. When a full developme
 regression is actually warranted, the existing broad commands are:
 
 ```sh
-(for check in contracts access admin api-keys permissions tenancy authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation files diagram calendar signage toolkit tree-navigation; do
+(for check in contracts access admin api-keys permissions tenancy authentication oauth mail configuration validation i18n lists sorting grid-edit related-fields list-presentation files stored-file diagram calendar signage toolkit tree-navigation; do
     php8.4 "tests/shell/$check.php" || exit
 done)
 npm run typecheck

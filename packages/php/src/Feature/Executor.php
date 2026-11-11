@@ -88,7 +88,7 @@ final class Executor
     }
     public function execute(Context $ctx, string $resource, string $name, ?string $id, array $input, bool $fieldEdit = false, bool $partial = false): mixed
     {
-        $fields=[];$detail=[];
+        $fields=[];$detail=[];$claimed=[];
         $ctx->acl->invalidate();
         try {
             $action=$this->registry->get($resource,$name);
@@ -129,7 +129,13 @@ final class Executor
                     $values[$field->name]=$field->validate($input[$field->name] ?? '',$ctx,($fieldEdit||$partial)?array_replace($target['row']??[],$input):$input);
                     // An unchanged stored file id is not re-validated (a file moved out of the mount, or no longer readable, does not block saving other fields).
                     $unchanged=is_array($target['row']??null)&&array_key_exists($field->name,$target['row'])&&(string)$target['row'][$field->name]===(string)$values[$field->name];
-                    if($field->type==='file'&&$values[$field->name]!==''&&!$unchanged&&($problem=$this->fileProblem($ctx,$field,$values[$field->name]))!==null)$field->reject($problem);
+                    // A stored file (FB-0167): a new value is a token of the actor's own unexpired upload (FileClaims).
+                    if($field->type==='file'&&$values[$field->name]!==''&&!$unchanged){
+                        $claim=null;
+                        $problem=$field->stored()?FileClaims::problem($ctx,$this->registry,$field,(string)$values[$field->name],$claim):$this->fileProblem($ctx,$field,$values[$field->name]);
+                        if($problem!==null)$field->reject($problem);
+                        if($claim!==null)$claimed[]=$claim;
+                    }
                 } catch (Failure $error) {
                     if (!$error->fieldErrors) throw $error;
                     $fieldErrors = array_replace($fieldErrors, $error->fieldErrors);
@@ -150,6 +156,14 @@ final class Executor
             if($action->upload instanceof UploadPolicy && $ctx->uploads){
                 [$ctx,$rejected]=self::uploads($ctx,$action->upload,is_string($values['relative_path']??null)?$values['relative_path']:'');
             }
+            // The upload action of a stored file field takes one file of a class some such field accepts (detected from the bytes).
+            $stored=$action->upload instanceof UploadPolicy?$this->registry->storedFileFields($resource,$name):[];
+            if($stored){
+                if(!$ctx->uploads)throw new Failure('Válassz feltöltendő fájlt.');
+                if(count($ctx->uploads)!==1)throw new Failure('Ebbe a mezőbe egy fájlt illessz be vagy húzz.',400,[],['code'=>'quota']);
+                $mime=FileClaims::detect($ctx->uploads[0]->path);
+                if(!array_filter($stored,static fn(Field $field)=>FileClaims::accepts($field->file['accept'],$mime)))throw new Failure('A fájl típusa ehhez a mezőhöz nem engedélyezett.',400,[],['code'=>'type']);
+            }
             $handler=$fieldEdit?$action->editHandler:$action->handler;
             try{$result=$handler($ctx,$target,$values);}
             catch(Failure $error){
@@ -157,6 +171,11 @@ final class Executor
                 if(!$rejected||!is_array($error->details['failed']??null))throw $error;
                 $failed=[...$rejected,...$error->details['failed']];
                 throw new Failure($error->getMessage(),$error->status,$error->fieldErrors,[...$error->details,'failed'=>$failed,...(isset($error->details['code'])?['code'=>$failed[0]['code']]:[])]);
+            }
+            if($stored){
+                $token=is_array($result)?($result['id']??null):null;
+                if(!is_string($token)||!preg_match('/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/D',$token))throw new \LogicException('The upload action of a stored file field returns [\'id\' => token].');
+                FileClaims::issue($ctx,$action->upload,$action,$token,$ctx->uploads[0],$mime);
             }
             if($rejected&&is_array($result))$result['failed']=[...$rejected,...(is_array($result['failed']??null)?$result['failed']:[])];
             if($rejected)$detail=[...$detail,'rejected_files'=>count($rejected)];
@@ -171,6 +190,7 @@ final class Executor
             }
             $this->journal->record($ctx->actor->id,$ctx->channel,$resource,$audited,$auditObject, 'success',$fields,$detail,$ctx->tenant);
             $this->db->commit();
+            FileClaims::release($claimed);
             return $result;
         } catch (\Throwable $error) {
             if ($this->db->inTransaction()) $this->db->rollBack();

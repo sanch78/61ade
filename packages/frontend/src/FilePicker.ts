@@ -4,7 +4,7 @@ import { ResponsiveGrid } from "./ResponsiveGrid";
 import { escape, mediaLabel, mediaPart, mediaTypeIcon, type MediaDescriptor } from "./RecordPresentation";
 import { actionUrl } from "./ActionUrl";
 import { uploads, type UploadResult } from "./Uploader";
-import { fileDisplay, fileUploadPending, fieldActive, type FieldDefinition, type FileFieldConfig } from "./FormValidation";
+import { fileDisplay, fileUploadPending, fieldActive, type FieldDefinition, type FileFieldConfig, type MountFileFieldConfig, type StoredFileFieldConfig } from "./FormValidation";
 import "./file-field.css";
 import type { Row } from "./Realtime";
 import type { ViewDefinition } from "./components/list/types";
@@ -35,7 +35,7 @@ const offered=(config:FileFieldConfig,mime:string)=>!config.accept?.length||conf
 const descriptor=(entry:Partial<Entry>&{id:string;name:string}):MediaDescriptor=>({id:String(entry.id),name:String(entry.name),mime_type:String(entry.mime_type??""),revision:String(entry.revision??""),
   duration_ms:typeof entry.duration_ms==="number"?entry.duration_ms:null,width:typeof entry.width==="number"?entry.width:null,height:typeof entry.height==="number"?entry.height:null,thumbnail:entry.thumbnail??"none"});
 /** The field's declared folder (`folderId`) or its mount root, with its path (for the upload target label). */
-export async function fieldFolder(config:FileFieldConfig,call:ResourceCall):Promise<Directory>{
+export async function fieldFolder(config:MountFileFieldConfig,call:ResourceCall):Promise<Directory>{
   const id=config.folderId||String((await call(config.resource,"tree",config.mount)).root);
   return (await call(config.resource,"list",id,{limit:1}) as Listing).directory;
 }
@@ -43,6 +43,25 @@ export async function fieldFolder(config:FileFieldConfig,call:ResourceCall):Prom
 const directoryLabel=(directory:Directory)=>{const names=directory.path.map(part=>part.name);return (names[0]??directory.mount)+":/"+names.slice(1).join("/");};
 /** Type glyph of the thumbnail item while no thumbnail image is ready. */
 const mediaIcon=(media?:MediaDescriptor)=>media?mediaTypeIcon(media.mime_type):"dxi dxi-file-outline";
+/** The stored file field's GET URL of the file $id (FB-0167), when the actor may read it. */
+const storedUrl=(config:StoredFileFieldConfig,id:string)=>config.get&&config.canPreview?actionUrl(config.get.resource,config.get.action,id):undefined;
+/** The name of a `Content-Disposition` header: the RFC 8187 UTF-8 name, else the quoted fallback. */
+const dispositionName=(header:string|null):string|undefined=>{
+  const extended=/filename\*\s*=\s*UTF-8''([^;]+)/i.exec(header??"");
+  if(extended)try{return decodeURIComponent(extended[1].trim());}catch{}
+  return /filename\s*=\s*"([^"]*)"/i.exec(header??"")?.[1]||undefined;
+};
+/**
+ * Name and type of a stored file through its GET action (a HEAD request: `Content-Disposition`, `Content-Type`); null
+ * when it cannot be read. The preview of an image is the same URL.
+ */
+async function describeStored(config:StoredFileFieldConfig,id:string):Promise<MediaDescriptor|null>{
+  const url=storedUrl(config,id);if(!url)return null;
+  const response=await fetch(url,{method:"HEAD",credentials:"same-origin"}).catch(()=>null);
+  if(!response?.ok)return null;
+  const mime=(response.headers.get("Content-Type")??"").split(";")[0].trim().toLowerCase();
+  return descriptor({id,name:dispositionName(response.headers.get("Content-Disposition"))??t("Mentett fájl"),mime_type:mime,thumbnail:mime.startsWith("image/")?"ready":"none"});
+}
 /** Same Cancel + submit row as the workspace forms. */
 const actions=(submit:{name:string;text:string;icon:string}):any=>({css:"blade-form-actions",cols:[
   {type:"button",name:"cancel",text:t("Mégse"),icon:"dxi dxi-close",view:"flat",color:"secondary",width:"content"},
@@ -85,6 +104,7 @@ class FileField{
     const value=String(form.getValue()[field.name]??"");
     this.media=media&&media.id===value?media:undefined;
     this.paint();
+    if(value&&!this.media&&this.stored)void this.describe(value);
     if(readOnly)return;
     form.events.on("click",(name:string)=>{
       if(name===field.name+"__browse")this.browse();
@@ -125,6 +145,15 @@ class FileField{
       !this.form.isDisabled(fileDisplay(this.field.name))&&fieldActive(this.field,this.form.getValue());
   }
   private get value():string{return String(this.form.getValue()[this.field.name]??"");}
+  /** A file in the project's storage (`file.upload`, FB-0167) instead of a file manager reference. */
+  private get stored():StoredFileFieldConfig|undefined{return this.config.upload?this.config as StoredFileFieldConfig:undefined;}
+  /** The stored file's name and type through the GET action; the field keeps its value whatever the answer. */
+  private async describe(value:string):Promise<void>{
+    const stored=this.stored,epoch=this.epoch;if(!stored)return;
+    const media=await describeStored(stored,value);
+    if(!media||this.disposed||epoch!==this.epoch||this.value!==value)return;
+    this.media=media;this.paint();
+  }
   private paint():void{
     if(this.disposed)return;
     const value=this.value,media=this.media;
@@ -132,11 +161,11 @@ class FileField{
     const avatar=this.form.getItem(this.field.name+"__media");
     if(avatar){
       avatar.setProperties({icon:mediaIcon(media),alt:media?mediaLabel(media):this.field.label});
-      if(this.preview)avatar.setValue({src:this.preview});
-      else if(media?.thumbnail==="ready")avatar.setValue({src:actionUrl(this.config.resource,"thumbnail_get",media.id,media.revision)});else avatar.clear();
+      const stored=this.stored,source=this.preview??(media?.thumbnail!=="ready"?undefined:stored?storedUrl(stored,media.id):actionUrl((this.config as MountFileFieldConfig).resource,"thumbnail_get",media.id,media.revision));
+      if(source)avatar.setValue({src:source});else avatar.clear();
     }
     // Without a readable descriptor (a file the actor may not see) the field still names the reference.
-    this.form.getItem(fileDisplay(this.field.name))?.setValue(media?.name??(value?t("Fájl #{id}",{id:value}):""));
+    this.form.getItem(fileDisplay(this.field.name))?.setValue(media?.name??(value?this.stored?t("Mentett fájl"):t("Fájl #{id}",{id:value}):""));
     const clear=this.form.getItem(this.field.name+"__clear");
     if(clear){if(value&&!fileUploadPending(this.form,this.field.name))clear.enable();else clear.disable();}
     const browse=this.form.getItem(this.field.name+"__browse");
@@ -155,7 +184,7 @@ class FileField{
   }
   /** The declared folder (`folderId`) or the mount root, with its path for the upload target label. */
   private directory():Promise<Directory>{
-    return this.folder??=fieldFolder(this.config,this.call).catch(error=>{this.folder=undefined;throw error;});
+    return this.folder??=fieldFolder(this.config as MountFileFieldConfig,this.call).catch(error=>{this.folder=undefined;throw error;});
   }
   private browse():void{
     if(this.disposed||!this.config.canUpload||!this.config.policy||this.form.isDisabled(fileDisplay(this.field.name))||fileUploadPending(this.form,this.field.name))return;
@@ -191,10 +220,25 @@ class FileField{
       display.setProperties({preMessage:escape(error??"")});
       this.paint();
     };
+    // A stored file goes to the project's upload action; its answer `{id}` is the token the save hands to the record action.
+    const stored=this.stored;
+    if(stored){
+      uploads.open({resource:stored.upload.resource,action:stored.upload.action,target:null,targetLabel:this.field.label,policy:stored.policy!,files,background:true,onUploaded:(result:UploadResult)=>{
+        if(epoch!==this.epoch)return;
+        const first=result.succeeded[0];
+        settled(result.failed[0]?.error??(!result.succeeded.length?t("Kihagyva"):!first?.id?t("Sikertelen művelet."):undefined));
+        if(this.disposed)return;
+        if(!first?.id||this.value!==previous){this.releasePreview();this.paint();return;}
+        const preview=this.preview;this.preview=undefined;
+        this.set(descriptor({id:String(first.id),name:file.name,mime_type:file.type,thumbnail:"none"}));
+        this.preview=preview;this.paint();
+      }});
+      return;
+    }
     let directory:Directory;
     try{directory=await this.directory();}catch(error){if(this.disposed||epoch!==this.epoch)return;settled(error instanceof Error?error.message:t("Sikertelen művelet."));this.releasePreview();this.paint();return;}
     if(this.disposed||epoch!==this.epoch)return;
-    uploads.open({resource:this.config.resource,action:"upload",target:directory.id,targetLabel:directoryLabel(directory),policy:this.config.policy,
+    uploads.open({resource:(this.config as MountFileFieldConfig).resource,action:"upload",target:directory.id,targetLabel:directoryLabel(directory),policy:this.config.policy,
       files,background:true,onUploaded:(result:UploadResult)=>{
       if(epoch!==this.epoch)return;
       settled(result.failed[0]?.error??(!result.succeeded.length?t("Kihagyva"):undefined));
@@ -249,7 +293,7 @@ export class FilePicker{
   private searchTimer?:ReturnType<typeof setTimeout>;
   private closed=false;
 
-  constructor(private config:FileFieldConfig,title:string,private call:ResourceCall,private folder:()=>Promise<Directory>,private current=""){
+  constructor(private config:MountFileFieldConfig,title:string,private call:ResourceCall,private folder:()=>Promise<Directory>,private current=""){
     this.result=new Promise(resolve=>{this.resolve=resolve;});
     this.kinds=accepted(config);
     // One accepted class is a fixed filter; several offer "all accepted" and each class.

@@ -116,7 +116,7 @@ final class SqlResource
                 $actions[]='move';
             }
         }
-        return $registry->view($this->resource,$title,array_values(array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],array_filter($this->fields,static fn($f)=>!$f->scopeOnly))),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands,guide:$guide,menu:$menu,sort:$sort,attention:$attention);
+        return $registry->view($this->resource,$title,array_values(array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],array_filter($this->fields,static fn($f)=>!$f->scopeOnly&&!$f->stored()))),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands,guide:$guide,menu:$menu,sort:$sort,attention:$attention);
     }
     /**
      * Bulk-capable delete with the definition's policy: `delete` (default; needs no extra columns) removes the row and its

@@ -736,5 +736,6 @@
   "Kinyitás": "Expand",
   "Ablak bezárása": "Close window",
   "{count} függőben": "{count} pending",
-  "Nincs megjeleníthető elem.": "Nothing to show."
+  "Nincs megjeleníthető elem.": "Nothing to show.",
+  "Mentett fájl": "Saved file"
 }

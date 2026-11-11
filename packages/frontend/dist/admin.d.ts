@@ -662,6 +662,29 @@ export interface FileFieldConfig {
     /** The actor may browse the field's folder (`list` on the mount). */
     canChoose?: boolean;
 }
+/**
+ * Browser metadata of a `file` field whose bytes the project stores itself (`file.upload`, FB-0167;
+ * docs/workspaces.md#stored-file-field). The value is the upload's token until the save, then the project's file id.
+ */
+export interface StoredFileFieldConfig {
+    /** The project's upload action (with an `UploadPolicy`); its handler stores the bytes and returns `{id: token}`. */
+    upload: {
+        resource: string;
+        action: string;
+    };
+    /** The GET action streaming the file whose id is the value (the form's preview), or `null`. */
+    get: {
+        resource: string;
+        action: string;
+    } | null;
+    accept: string[];
+    policy: UploadPolicy | null;
+    /** The actor is offered the upload action. */
+    canUpload: boolean;
+    /** The actor is offered the GET action. */
+    canPreview: boolean;
+    canChoose: false;
+}
 /** One form field (`Field::metadata()`; `FormValidation.ts` `FieldDefinition`). */
 export interface FieldMetadata {
     name: string;
@@ -674,7 +697,8 @@ export interface FieldMetadata {
     defaultValue?: string | null;
     validation?: ValidationRules;
     bulk?: boolean;
-    file?: FileFieldConfig;
+    /** A file manager reference (`FileFieldConfig`) or a file in the project's storage (`StoredFileFieldConfig`, `"upload" in file`). */
+    file?: FileFieldConfig | StoredFileFieldConfig;
     /** Registered `fieldTypes` name rendering this field (server `Field` `editor`, JSON `editor`; a dotted name). */
     editor?: string;
     /**

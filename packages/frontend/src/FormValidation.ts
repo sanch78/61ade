@@ -17,7 +17,7 @@ export type ValidationRules = {
  * (`folderId`, the mount root when absent), accepted MIME classes, the file manager's upload policy
  * and whether the actor may upload there (`canUpload`) and browse it (`canChoose`). The value is the file id.
  */
-export type FileFieldConfig = {
+export type MountFileFieldConfig = {
   resource: string;
   mount: string;
   folderId?: string | null;
@@ -25,7 +25,23 @@ export type FileFieldConfig = {
   policy?: UploadPolicy;
   canUpload?: boolean;
   canChoose?: boolean;
+  upload?: undefined;
 };
+/**
+ * A file in the project's own storage (FB-0167): the project's upload action (its `policy`), the optional GET action
+ * streaming the file whose id is the value, accepted MIME classes and the actor's offering of both actions. The value
+ * is the upload's token until the save, then the project's file id.
+ */
+export type StoredFileFieldConfig = {
+  upload: { resource: string; action: string };
+  get?: { resource: string; action: string } | null;
+  accept?: string[];
+  policy?: UploadPolicy | null;
+  canUpload?: boolean;
+  canPreview?: boolean;
+  canChoose?: false;
+};
+export type FileFieldConfig = MountFileFieldConfig | StoredFileFieldConfig;
 export type FieldDefinition = {
   name: string;
   label: string;

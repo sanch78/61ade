@@ -39,6 +39,13 @@ final class ViewMetadata
     {
         $out=$field->metadata($ctx);
         if($field->file===null)return $out;
+        // A stored file (FB-0167): the policy is the upload action's own (no file manager narrows it); `canUpload`
+        // and `canPreview` are the actor's offering of the upload and the GET action.
+        if($field->stored()){
+            [$resource,$action]=$field->fileAction('upload');$upload=$this->registry->get($resource,$action);$get=$field->fileAction('get');
+            return [...$out,'file'=>[...$out['file'],'policy'=>$upload->upload instanceof UploadPolicy?$upload->upload->metadata():null,
+                'canUpload'=>$upload->upload instanceof UploadPolicy&&$this->offered($ctx,$resource,$action),'canPreview'=>$get!==null&&$this->offered($ctx,$get[0],$get[1]),'canChoose'=>false]];
+        }
         $source=$this->registry->mediaSource($field->file['resource']);
         $folder=$source instanceof FileSource?$source->folder($field->file['mount'],$field->file['folder']??''):null;
         return [...$out,'file'=>[...$out['file'],'folderId'=>$folder,'policy'=>$source instanceof FileSource?$source->uploadPolicy($field->file['accept']):null,

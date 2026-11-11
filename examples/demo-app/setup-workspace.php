@@ -224,6 +224,11 @@ $rules[] = ['1', 'demo_registry_keys', ['list', 'get', 'create', 'update', 'dele
 $rules[] = ['1', 'demo_registry_values', ['list', 'get', 'create', 'update', 'delete']];
 $rules[] = [(string) $reader, 'demo_registry_keys', ['list', 'get']];
 $rules[] = [(string) $reader, 'demo_registry_values', ['list', 'get']];
+// Attachments with a file in the project's own storage (FB-0167): full rights for the demo account, reading for the reader.
+require_once __DIR__.'/attachments.php';
+blade_demo_attachments_setup($db);
+$rules[] = ['1', 'demo_attachments', ['list', 'get', 'create', 'update', 'delete', 'file_upload', 'file']];
+$rules[] = [(string) $reader, 'demo_attachments', ['list', 'get', 'file']];
 // Approval queue: the demo account reviews; the reader has no access, so neither the entry nor its count.
 $rules[] = ['1', 'demo_approvals', ['list', 'get', 'update']];
 // Read-only topology viewer: opens diagrams, no editing.

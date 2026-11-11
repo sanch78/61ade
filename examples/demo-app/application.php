@@ -74,6 +74,9 @@ $workspace->registry->view('demo_registry_values', 'Értékek', [['id' => 'name'
 $notes = new SqlResource('notes', 'notes', 'id', [new Field('title', 'Cím', required: true)], 'owner_id', ['owner_id' => '1']);
 $notes->register($workspace->registry, 'Jegyzetek', rowSelection: true, guide: 'A legegyszerűbb PHP-ban regisztrált erőforrás (SqlResource): egy kötelező mező, létrehozás, szerkesztés és sorjelöléssel tömeges törlés. A lista élő adat: ha a jegyzet máshol módosul, a lista magától frissül.'."\n\n".'Nyisd meg a nézetet két böngészőlapon, vegyél fel az egyiken egy jegyzetet, és figyeld a másikat.');
 $notes->registerDelete($workspace->registry);
+// A record with a file in the project's own storage (FB-0167): upload and GET actions of the project, one save.
+require_once __DIR__.'/attachments.php';
+blade_demo_attachments_register($workspace);
 // Two-panel virtual file manager (framework capability); mounts and upload limits are demo configuration.
 $files = blade_demo_files();
 $files->register($workspace);

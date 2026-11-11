@@ -21,7 +21,13 @@ final readonly class Field
         public array $column = [],
         public ?string $defaultValue = null,
         public bool $bulk = false,
-        /** Type `file` only: ['resource' => file manager resource, 'mount' => mount key, 'folder' => optional path below the mount, 'accept' => MIME classes]. */
+        /**
+         * Type `file` only. A file manager reference: ['resource' => file manager resource, 'mount' => mount key,
+         * 'folder' => optional path below the mount, 'accept' => MIME classes]. A file in the project's own storage
+         * (FB-0167): ['upload' => 'resource.action' with an UploadPolicy, whose handler stores the bytes and returns
+         * ['id' => token], 'get' => optional 'resource.action', a GET action streaming the file whose id is the value,
+         * 'accept' => MIME classes]; the record action's handler receives the token and commits the file with the record.
+         */
         public ?array $file = null,
         /**
          * A project field type (`app.fieldTypes`, docs/toolkit.md#registries) that renders this field in forms, grid and
@@ -59,7 +65,15 @@ final readonly class Field
         }
         // `file`: the value is a file id of that file manager's mount; the column is a media column of that resource.
         if (($type === 'file') !== ($file !== null)) throw new InvalidArgumentException('File settings belong to file fields only.');
-        if ($file !== null) {
+        // A file in the project's storage: the value is the upload's token, then the project's own file id; a form field only.
+        if ($file !== null && array_key_exists('upload', $file)) {
+            $accept = $file['accept'] ?? null;
+            if (array_diff(array_keys($file), ['upload', 'get', 'accept']) || !self::actionReference($file['upload']) || (array_key_exists('get', $file) && !self::actionReference($file['get']))
+                || !is_array($accept) || !$accept || !array_is_list($accept) || array_filter($accept, static fn($class) => !is_string($class) || !preg_match('/^[a-z]{1,32}$/D', $class)) || count(array_unique($accept)) !== count($accept)
+                || $secret || array_diff(array_keys($column), ['width', 'minWidth', 'maxWidth', 'align', 'secondary', 'details']) || $bulk) {
+                throw new InvalidArgumentException('Invalid stored file field.');
+            }
+        } elseif ($file !== null) {
             $folder = $file['folder'] ?? '';
             $accept = $file['accept'] ?? null;
             if (array_diff(array_keys($file), ['resource', 'mount', 'folder', 'accept'])
@@ -142,7 +156,8 @@ final readonly class Field
             $this->reject($error);
         }
         // A file id; that it is a live, readable file of the declared mount and class is checked by the executor (FileSource).
-        if ($value !== '' && $this->type === 'file' && !preg_match('/^[1-9][0-9]{0,17}$/D', $value)) {
+        // A stored file's value is an opaque token or project file id; the executor checks a new token's upload claim.
+        if ($value !== '' && $this->type === 'file' && !preg_match($this->stored() ? '/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/D' : '/^[1-9][0-9]{0,17}$/D', $value)) {
             $this->reject('A kiválasztott fájl nem érhető el.');
         }
         if ($value !== '' && ($this->column['presentation'] ?? null) === 'image' && !self::imageFile($value)) {
@@ -176,6 +191,27 @@ final readonly class Field
     public function active(array $values): bool
     {
         return $this->visibleWhen === null || in_array((string) ($values[$this->visibleWhen['field']] ?? ''), $this->visibleWhen['in'], true);
+    }
+
+    /** A `file` field whose bytes the project stores itself (`file.upload`), not a file manager reference. */
+    public function stored(): bool
+    {
+        return $this->file !== null && isset($this->file['upload']);
+    }
+
+    /** [resource, action] of a stored file field's `upload` or `get` reference ('resource.action', split at the last dot). */
+    public function fileAction(string $key): ?array
+    {
+        $reference = $this->stored() ? ($this->file[$key] ?? null) : null;
+        if (!is_string($reference)) return null;
+        $dot = strrpos($reference, '.');
+        return [substr($reference, 0, $dot), substr($reference, $dot + 1)];
+    }
+
+    /** 'resource.action': a resource name, a dot, an action name (no leading `__`). */
+    private static function actionReference(mixed $reference): bool
+    {
+        return is_string($reference) && preg_match('/^[a-z][a-z0-9_.-]*\.[a-z][a-z0-9_]*$/D', $reference) === 1;
     }
 
     /** MediaSource resource of the column: `column.media`, or the file manager of a `file` field. */
@@ -237,7 +273,9 @@ final readonly class Field
             'defaultValue' => $this->defaultValue,
             'bulk' => $this->bulk,
             // Workspace adds the resolved folder, the upload policy and the actor's upload right; the folder path stays server-side.
-            ...($this->file !== null ? ['file' => ['resource' => $this->file['resource'], 'mount' => $this->file['mount'], 'accept' => $this->file['accept']]] : []),
+            ...($this->file !== null ? ['file' => $this->stored()
+                ? ['upload' => ['resource' => $this->fileAction('upload')[0], 'action' => $this->fileAction('upload')[1]], 'get' => ($get = $this->fileAction('get')) ? ['resource' => $get[0], 'action' => $get[1]] : null, 'accept' => $this->file['accept']]
+                : ['resource' => $this->file['resource'], 'mount' => $this->file['mount'], 'accept' => $this->file['accept']]] : []),
             ...($this->editor !== null ? ['editor' => $this->editor] : []),
             ...($this->visibleWhen !== null ? ['visibleWhen' => $this->visibleWhen] : []),
             ...($this->clears ? ['clears' => $this->clears] : []),

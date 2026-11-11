@@ -54,7 +54,7 @@ final class Workspace
      */
     public function views(Identity $actor,?string $tenant=null): array
     {
-        $this->registry->checkViews();
+        $this->registry->checkViews();$this->registry->checkFileFields();
         $out=[];$ctx=$this->context($actor,'ui',$tenant);$meta=new ViewMetadata($this->registry);
         foreach($this->registry->views() as $view){
             if($ctx->tenant===null&&array_filter([$view->resource,$view->record],fn($name)=>$name!==null&&$this->registry->tenantScoped($name)))continue;

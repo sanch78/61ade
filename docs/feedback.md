@@ -6303,3 +6303,151 @@ that exactly equals an option label lists every option. The managed
   sorted anywhere (declare an ordinary field for that).
 - **Commit:** `1f76e6c` on `main`.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0167"></a>
+
+## FB-0167 — A file field backed by the project's own storage
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms): a record form should take a file into a field whose
+  bytes the project stores itself (its own content-addressed store and
+  rows), with the control, preview, paste/drop and background upload of the
+  [file field](workspaces.md#file-field), and save it with the record's
+  other fields in one save. A `file` field could only reference a file
+  manager mount, which has no tenant-scoped spaces and keeps the bytes
+  outside the project's store. The workaround saved a pending record first
+  and then opened the uploader for it, which left half-finished records when
+  the upload failed or was cancelled. The need recurs for attachments of
+  domain records (reference images, documents of a case, media of a
+  catalogue item). Requested:
+  - a declaration naming a project upload action (with an `UploadPolicy`)
+    and a GET action for the preview, instead of a mount;
+  - an upload that returns an opaque token, which the record action commits
+    with the other values and revision;
+  - an unsaved form that leaves no committed record;
+  - a wrong type, an oversize file, a foreign token or another tenant's file
+    reported as field errors;
+  - the mount-backed field unchanged.
+- **Decision:** the `file` option takes a second shape,
+  `{upload: 'resource.action', get?: 'resource.action', accept}`. No new
+  field type and no new route:
+  - **Where the bytes live.** The project's upload action stores them and
+    returns `['id' => token]`. The framework does not stage them, so the
+    project's store and rules (deduplication, tenant, expiry) stay its own.
+  - **Who checks the token.** "The token belongs to the actor's pending
+    upload" is checked by the framework, not left to each handler. After the
+    upload the executor records a claim under the upload policy's `tempRoot`.
+    The claim binds actor, channel, session hash, tenant, upload action,
+    detected type and TTL, and holds no token and no bytes. The record save
+    accepts a new value only for a matching claim and removes it after the
+    commit, so every foreign, reused, expired, made-up or other-tenant value
+    gets one field error that reveals nothing.
+  - **Type and size.** The type is detected from the bytes at upload time
+    (any accepting field) and checked again at save time (the field's own
+    `accept`). The policy keeps the size and extension rules.
+  - **Preview.** It uses the GET action. A `HEAD` request gives the name and
+    type, the same URL gives the image, so the project needs no descriptor
+    API.
+  - **A form field only.** The value is the project's opaque id, so the field
+    is no column, detail, filter, sort or scope; a project column shows the
+    file, as the demo's computed `Fájlnév` does.
+  - **Types.** `FieldMetadata.file` becomes a union (M51, a TypeScript
+    narrowing only).
+- **Implemented:**
+  - PHP:
+    - `Field` accepts the stored shape (`stored()`, `fileAction()`); a token
+      value is `[A-Za-z0-9][A-Za-z0-9._:-]{0,199}`; the `media`, `editable`
+      and `presentation` column keys, `bulk` and `secret` are refused.
+    - JSON `file: {upload, get?, accept}`.
+    - `Registry::storedFileFields()`; `Registry::checkFileFields()`
+      (`ApplicationDefinition`, `Workspace::views()`, after every action is
+      registered) refuses an upload action without a policy, a `tempRoot` or
+      with fields, and a `get` that is no GET action.
+    - `ViewMetadata` sends `upload`, `get`, `policy`, `canUpload`,
+      `canPreview`, `canChoose: false`.
+    - New `FileClaims`: issue, check, release and a bounded sweep.
+    - `Executor`:
+      - on the upload action: one file, the type check (code `type`), a token
+        answer (otherwise a 500 developer error), the claim before the commit;
+      - on the record save: the claim check for a changed value, then release
+        after the commit.
+    - `ListSource`, `ListViewKind` and `SqlResource` leave the field out of
+      filters, sort, scope, columns, details and the default columns.
+  - Frontend:
+    - `FileField` uploads a stored field to the project's action (target
+      `null`); its result's `id` is the value;
+    - on update it reads the name and type through the GET action (`HEAD`)
+      and previews an image from the same URL; `Mentett fájl` when the file
+      cannot be read;
+    - `StoredFileFieldConfig` (public and internal).
+  - Feature demo `Mellékletek` (`examples/demo-app/attachments.php`; tables
+    `demo_attachments`, `demo_attachment_files`; a content-addressed
+    directory; `afterSave` commits the pending row; the GET action serves a
+    committed file of a record or the actor's own pending upload; unclaimed
+    uploads expire after a day).
+- **Guides:** [stored file field](workspaces.md#stored-file-field),
+  [uploader](uploader.md), [configuration](configuration.md) fields,
+  [usage](usage.md), [demos](demos.md), toolkit [changes](toolkit.md#changes)
+  and migration row M51, [development](development.md) checks,
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:**
+  - **Build and static checks:** `npm run typecheck`, `npm run build`
+    (`node tools/build.mjs --check` clean), `npm run demo:assets`; the web
+    demo instance was set up first
+    (`BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`).
+  - **New PHP check `stored-file.php`:**
+    - declaration and refusals: mount keys mixed in, a bad reference, no or a
+      bad `accept`, the `media`, `editable` and `presentation` column keys,
+      bulk, secret; JSON, including an action registered after the build;
+      `checkFileFields()` without a transfer root or with a non-GET `get`;
+    - metadata with and without the rights; no column, details, sort, filter
+      or scope, and a view column refused;
+    - uploads directly and through the chunked transfer protocol: the token,
+      a claim without the token, the type by the bytes, oversize at the
+      upload and at the transfer begin, two files, no file, a handler without
+      a token (500);
+    - one save with the other fields: committed by `afterSave`, the claim
+      removed, a reuse refused; a save refused for another field keeps the
+      claim;
+    - foreign tokens: another actor, another session, no session, another
+      tenant, unknown, malformed, expired; a claim of another class;
+    - updates: an unchanged value, a replacement with a new revision, a stale
+      revision that keeps the claim, a cleared value; the GET stream inline
+      with its name.
+  - **Existing PHP checks passed:** `contracts`, `access`, `admin`,
+    `api-keys`, `permissions`, `tenancy`, `configuration`, `validation`,
+    `i18n`, `lists`, `sorting`, `grid-edit`, `related-fields`,
+    `list-presentation`, `files`, `signage`, `toolkit`, `tree-navigation`.
+  - **Node checks passed:** `toolkit-kernel`, `toolkit-list`,
+    `toolkit-components`, `toolkit-registries`, `toolkit-sandbox`.
+  - **New browser spec `stored-file.spec.cjs`** on the demo's `Mellékletek`:
+    - create: the native dialog, then `Mégse` leaves no record and an
+      unclaimed pending upload; a paste while the transfer is held shows
+      `Feltöltés…` and the local preview, saving waits (`Várd meg a fájl
+      feltöltését.`), no upload window opens, and one create carries the
+      token with the role and reason; the list shows the file name, not the
+      token; a reused token is a field error;
+    - update: the name and an image preview through the GET action; a
+      wrong-type file and an oversize drop keep the current file with the
+      field's message; a drop replaces it with a new revision; a made-up id
+      or the record's former file id is a field error.
+  - **Regression on the managed demo:** `signage`, `mobile-grid`,
+    `toolkit-demo-assets`, `uploader`, `uploader-reopen`, `files`,
+    `workspace`, `admin`, `task-page`, `list-presentation`,
+    `toolkit-components`, `registry`, `i18n`, `scoped-list`, `toolkit-media`:
+    90 passed, one WebSocket case skipped as before. One `uploader` case
+    (a retry while a cancelled begin is pending) timed out once at 33 s. It
+    passed alone, and then `uploader`, `stored-file` and `signage` passed
+    together (24 passed).
+  - No full-smoke claim.
+- **Limits:**
+  - one file per field;
+  - no stored-file picker (the project owns its listing);
+  - no grid or bulk editing;
+  - the bytes of a replaced or cleared file stay in the project's store (the
+    project collects them);
+  - a claim is bound to the session, so a form reopened after signing in
+    again needs a new upload.
+- **Commit:** pending.
+- **Status:** implemented.

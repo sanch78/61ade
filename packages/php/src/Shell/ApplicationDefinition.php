@@ -115,6 +115,7 @@ final readonly class ApplicationDefinition
         }
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();
+        $workspace?->registry->checkFileFields();
     }
 
     /** Resolve on every request: a missing or disabled public account grants no access, and is never a sign-in. */

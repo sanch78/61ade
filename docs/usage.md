@@ -396,6 +396,12 @@ one local file through `Fájl megadása…`, paste (Ctrl+V / Cmd+V) or drop, wit
 a proportional preview and background transfer. It opens neither the full
 uploader nor a stored-file picker. Saving waits for the upload to settle; the form
 stores the resulting file id. Use `accept: ["image"]` for an image-only field.
+When the project's domain owns its files (its own store and rows, tenant
+rules), declare a [stored file field](workspaces.md#stored-file-field)
+(`file: {upload, get?, accept}`) instead of a file manager mount. The project's
+upload action stores the bytes and returns a token. The record action receives
+the token with the other values and commits the file in the same save, so no
+two-step "save, then upload" flow and no half-finished record remain.
 
 Lists gain [media columns, tiles, row height and search](workspaces.md#media-tiles):
 `column.media` renders file thumbnails with a type-stating accessible name,

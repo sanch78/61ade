@@ -1385,7 +1385,7 @@ if (media) preview.show(media);                                      // MediaDes
   also closes the windows it opened, removes its document and upload
   listeners and aborts its pending reads (writes already sent complete).
   Theme and skin changes apply through the Suite variables.
-- **FilePicker.** `field` is a `file` field's `FieldMetadata.file` (as
+- **FilePicker.** `field` is a file manager `file` field's `FieldMetadata.file` (as
   `app.server.form` or a list action describes it), `title` the field label
   (`Fájl kiválasztása: {title}`), `current` a preselected file id. The picker
   lists the field's folder (`folderId`, otherwise the mount root) with
@@ -2179,7 +2179,7 @@ The rules of API version 1 (closed out on 2026-10-30, [changes](#changes)):
   (`rowHeight`, `nodeTypes`, `maxDepth`, `defaultView`), `ColumnMetadata`
   (`imageBase`, `altOf`, `mediaOf`), `FieldMetadata` with its `validation`
   (`minLength`, `matchesField`) and `file` (`folderId`, `canUpload`,
-  `canChoose`), `UploadPolicy` (`maxSizeBytes`, `chunkBytes`; a files view's
+  `canChoose`; a stored file's `upload`, `get`, `canPreview`), `UploadPolicy` (`maxSizeBytes`, `chunkBytes`; a files view's
   `options.upload` is `{policy}` only), action metadata
   and event payloads (`opened` `{id, mimeType}`). The server normalises it;
   PHP and JSON configuration keep their own spelling (JSON snake-case, a
@@ -2591,6 +2591,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M48 | [Menu attention](shell.md#menu-attention): `attention: ['filters' => […], 'tone' => …]` on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.attention`; bootstrap `attention`; a live count badge on the entry, its branch and `Menü` | [FB-0160](feedback.md#fb-0160) | info: an entry with a count has the accessible name `‹label›, n függőben`; its branch and `Menü` keep their names but their visible text gains the number; each such view adds one live subscription of one row per page | none | none |
 | M49 | [ListView](#listview) `createDefaults` and `preferencesKey`; `ClientCommand.pinned` ([registries](#registries)); `column.details: false` on a field ([field presentation](field-presentation.md)), left out of `detailFields` | [FB-0162](feedback.md#fb-0162)–[FB-0165](feedback.md#fb-0165) | info: a consumer that strips helper fields from its own details, opens its own create form with a preset, keeps a toggle in `Műveletek` or keeps one preference set per scope can use these instead | none | none |
 | M50 | [List scope](workspaces.md#list-scope): a scoped list and a `Tree` send `scope: {field, value}` instead of the scope as a filter (exact, also for text); a field `scopeOnly: true` (JSON `scope_only`) is a scope key only: no column, details, filter or sort, and `filters`/`sort` naming it are refused | [FB-0166](feedback.md#fb-0166) | a project `list` action handler of its own (not `SqlResource`) that read a scope from `values.filters` reads `values.scope`; browser specs or mocks that inspect a scoped list's `filters` look at `scope`; a list scoped on a text field now matches it exactly | none | none |
+| M51 | [Stored file field](workspaces.md#stored-file-field): PHP/JSON `file: {upload, get?, accept}` (a file in the project's own storage, uploaded through the project's upload action and saved with the record); `FieldMetadata.file` is `FileFieldConfig \| StoredFileFieldConfig` | [FB-0167](feedback.md#fb-0167) | info: TypeScript code that reads `field.file.resource` or `.mount` of any field narrows first (`"upload" in field.file`); a two-step "save, then upload" flow can become one save | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2726,6 +2727,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-11 | Destroy + mount of a component into the same Layout cell, tab, region, window or view host in one task shows the new component (it was empty until the next frame's work-around); a cell that showed markup (`attachHTML`, an element) takes a widget or component. No API change. | A page re-scoping its list and details from a tree replaces components in the same cells many times (a consumer request). | [FB-0161](feedback.md#fb-0161) |
 | 2026-11-11 | `ListViewOptions.createDefaults` (start values of the built-in create form), `ListViewOptions.preferencesKey` (the preference key instead of the view id, shared across scopes); `ClientCommand.pinned` (kept in the toolbar when the others collapse); PHP/JSON field `column.details: false` (left out of `detailFields`: `RecordDetails`, `Adatok`, cards). Additive (M49). | A page that scopes one list view on several fields, one of them computed, from a tree (a consumer request). | [FB-0162](feedback.md#fb-0162)–[FB-0165](feedback.md#fb-0165) |
 | 2026-11-11 | List protocol `scope: {field, value}` (a scoped list, a sub-view, a tree navigation's list and `Tree` levels send it instead of a filter; exact match); PHP `Field::$scopeOnly`, JSON `scope_only`: a scope key only, in no columns, `detailFields`, `filters` or `sortable` metadata, refused in `filters`, `sort`, view columns, first sort, attention and search; `SqlResource::register` leaves it out of the default columns. M50. | Helper keys a page scopes on still reached users as sort entries and number filters (a consumer request). | [FB-0166](feedback.md#fb-0166) |
+| 2026-11-11 | PHP/JSON `file` field option `{upload: 'resource.action', get?: 'resource.action', accept}`: a file the project stores itself. The form control (native dialog, paste, drop, background upload, preview) uploads to the project's upload action, which returns `['id' => token]`; the executor checks the detected type and records an upload claim (actor, session, tenant, upload action, TTL); the record save accepts a new token only for such a claim and removes it after the commit; the edit form shows the stored file through the GET action. A form field only (no column, details, filter, sort or scope). `StoredFileFieldConfig`, `Registry::storedFileFields()`, `Registry::checkFileFields()`. M51. | Domain records whose files the project owns could not take a file in the same save as their other fields (a consumer request). | [FB-0167](feedback.md#fb-0167) |
 
 <a id="resolved-decisions"></a>
 
