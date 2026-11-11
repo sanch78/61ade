@@ -46,9 +46,34 @@ final class Registry
     /**
      * Marks $resource as tenant-scoped. Only adapters that apply the tenant to every read and write call this
      * (SqlResource with a tenant column); the executor and views then refuse the resource without an active tenant.
+     * $shared: the tenant column value of shared rows (FB-0175), read by every tenant and written only without a tenant
+     * by an actor holding one of the $sharedRoles keys (realm()).
      */
-    public function scopeToTenant(string $resource): void { $this->tenantScoped[$resource] = true; }
+    public function scopeToTenant(string $resource, ?string $shared = null, array $sharedRoles = []): void { $this->tenantScoped[$resource] = ['shared' => $shared, 'roles' => $sharedRoles]; }
     public function tenantScoped(string $resource): bool { return isset($this->tenantScoped[$resource]); }
+    /**
+     * Tenant realm of $ctx on $resource: null for a resource without tenant scope, otherwise `read` (the tenant column
+     * values $ctx reads), `write` (the value it creates and changes rows in) and `shared` (the declared shared value or
+     * null). With an active tenant: its rows and the shared rows (FB-0175) are read, its own rows written. Without one, an
+     * actor holding a declared shared role reads and writes the shared rows only. Anyone else fails closed (403).
+     */
+    public function realm(Context $ctx, string $resource): ?array
+    {
+        $scope=$this->tenantScoped[$resource]??null;
+        if($scope===null)return null;
+        $shared=$scope['shared'];
+        if($ctx->tenant!==null){
+            if($ctx->tenant===$shared)throw new \LogicException("The shared tenant value of $resource is a tenant id.");
+            return ['read'=>$shared===null?[$ctx->tenant]:[$ctx->tenant,$shared],'write'=>$ctx->tenant,'shared'=>$shared];
+        }
+        if($shared!==null&&$ctx->acl->holds($ctx->actor->id,$scope['roles']))return ['read'=>[$shared],'write'=>$shared,'shared'=>$shared];
+        throw new Failure('Nincs aktív tenant.',403);
+    }
+    /** Whether $ctx may use $resource at all as far as tenancy goes (realm() without the failure). */
+    public function tenantReady(Context $ctx, string $resource): bool
+    {
+        try{$this->realm($ctx,$resource);return true;}catch(Failure){return false;}
+    }
     /** Media lookup for `column.media` fields naming $resource; one source per resource. */
     public function media(string $resource, MediaSource $source): void
     {

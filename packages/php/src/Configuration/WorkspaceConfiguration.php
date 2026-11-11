@@ -175,7 +175,7 @@ final class WorkspaceConfiguration
         $operations = $definition['operations'] ?? [];
         $view = $definition['view'];
         Shape::check($storage, ['table' => 'string', 'key' => 'string'], [
-            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array', 'tenant_column' => 'string', 'order' => 'array', 'create_only' => 'array', 'counts' => 'array',
+            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array', 'tenant_column' => 'string', 'order' => 'array', 'create_only' => 'array', 'counts' => 'array', 'shared_tenant' => 'string', 'shared_roles' => 'array',
         ], '$.resources.'.$name.'.storage');
         Shape::check($hooks, [], [
             'guard' => 'string', 'normalize' => 'string', 'after_save' => 'string', 'delete_guard' => 'string', 'after_delete' => 'string',
@@ -227,6 +227,8 @@ final class WorkspaceConfiguration
             order: $storage['order'] ?? null,
             createOnly: $storage['create_only'] ?? [],
             counts: $storage['counts'] ?? [],
+            sharedTenant: $storage['shared_tenant'] ?? null,
+            sharedRoles: $storage['shared_roles'] ?? [],
         );
         $resource->register(
             registry: $this->registry,

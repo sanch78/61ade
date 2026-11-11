@@ -161,3 +161,68 @@ test('on a phone a tenant card opens its access list full screen from the card b
  await full.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  expect(errors).toEqual([]);
 });
+
+// Shared rows (FB-0175): `Tételek` holds shared items (tenant '') every tenant reads beside its own, read-only;
+// shared@ (role shared_editor, no tenant) sees only the shared items and edits them.
+test('shared rows: a tenant reads them read-only beside its own and switching keeps them',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.setViewportSize({width:1366,height:900});
+ await signIn(page,'demo@example.test','/tenants/');
+ const selector=page.locator('.blade-navigation-row').getByRole('button',{name:/^(Alpha|Beta)$/});
+ const choose=async name=>{if(await selector.innerText()!==name){await selector.click();await page.getByRole('menuitem',{name,exact:true}).click();await expect(selector).toHaveText(name);}};
+ await choose('Alpha');
+ const documentation=async()=>{
+  await openMenu(page,'Tételek','Tenant demó');
+  await page.getByRole('tree',{name:'Kategóriák',exact:true}).getByRole('treeitem',{name:'Documentation',exact:true}).locator('.dhx_tree-list-item__text, .dhx_tree-template__wrapper').first().click();
+ };
+ await documentation();
+ const cell=name=>page.getByRole('gridcell',{name,exact:true});
+ await expect(cell('Shared style guide')).toBeVisible();
+ await expect(cell('Style guide')).toBeVisible();
+ await expect(cell('Beta manual')).toHaveCount(0);
+ const row=name=>page.locator('.dhx_grid-row').filter({has:cell(name)});
+ await expect(row('Shared style guide').getByRole('gridcell',{name:'Shared',exact:true})).toBeVisible();
+ const update=page.getByRole('button',{name:'Módosítás',exact:true}),remove=page.getByRole('button',{name:'Törlés',exact:true});
+ await cell('Shared style guide').click();
+ await expect(update).toBeDisabled();await expect(remove).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Adatok',exact:true})).toBeEnabled();
+ await cell('Style guide').click();
+ await expect(update).toBeEnabled();await expect(remove).toBeEnabled();
+ // The server refuses the shared row's writes; the row says it is shared.
+ const items=(await api(page,'tenant_items','list','',{limit:50})).body.data.items;
+ const shared=items.find(item=>item.title==='Shared style guide');
+ expect(shared._shared).toBe(true);
+ expect(items.find(item=>item.title==='Style guide')._shared).toBeUndefined();
+ expect(shared._actions).not.toContain('update');expect(shared._actions).not.toContain('delete');
+ expect((await api(page,'tenant_items','update',String(shared.id),{title:'Changed',revision:shared.revision})).status).toBe(403);
+ expect((await api(page,'tenant_items','delete',String(shared.id),{revision:shared.revision})).status).toBe(403);
+ // Beta: the shared items stay, Alpha's go.
+ await choose('Beta');
+ await documentation();
+ await expect(cell('Shared style guide')).toBeVisible();
+ await expect(cell('Style guide')).toHaveCount(0);
+ await choose('Alpha');
+ expect(errors).toEqual([]);
+});
+
+test('shared rows: the shared role without a tenant lists only the shared items and edits them',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.setViewportSize({width:1366,height:900});
+ await signIn(page,'shared@example.test','/tenants/');
+ await expect(page.locator('.blade-session-bar').getByText('Nincs hozzárendelt tenant',{exact:true})).toBeVisible();
+ await openMenu(page,'Tételek','Tenant demó');
+ const items=(await api(page,'tenant_items','list','',{limit:50})).body.data.items;
+ expect(items.map(item=>item.title).sort()).toEqual(['Shared quote template','Shared style guide']);
+ await page.getByRole('tree',{name:'Kategóriák',exact:true}).getByRole('treeitem',{name:'Documentation',exact:true}).locator('.dhx_tree-list-item__text, .dhx_tree-template__wrapper').first().click();
+ await page.getByRole('gridcell',{name:'Shared style guide',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Módosítás',exact:true})).toBeEnabled();
+ // A write through the same resource: rename and restore (journaled as shared).
+ const shared=items.find(item=>item.title==='Shared style guide');
+ const renamed=await api(page,'tenant_items','update',String(shared.id),{title:'Shared style guide v2',category_id:shared.category_id,kind:shared.kind,revision:shared.revision});
+ expect(renamed.status).toBe(200);
+ const fresh=(await api(page,'tenant_items','get',String(shared.id))).body.data;
+ expect(fresh.title).toBe('Shared style guide v2');expect(fresh._shared).toBe(true);
+ expect((await api(page,'tenant_items','update',String(shared.id),{title:'Shared style guide',category_id:shared.category_id,kind:shared.kind,revision:fresh.revision})).status).toBe(200);
+ expect((await api(page,'tenant_projects','list','',{limit:10})).status).toBe(403);
+ expect(errors).toEqual([]);
+});

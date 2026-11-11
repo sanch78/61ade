@@ -203,7 +203,7 @@ try {
     verify($app->workspace->tenancy === null && !in_array('blade_tenants', array_column($app->workspace->registry->views(), 'resource'), true), 'No tenancy without the tenancy section');
     file_put_contents($directory.'/tenant-module.json', json_encode(['lookups' => ['projects' => ['resource' => 'projects', 'table' => 'projects', 'key' => 'id', 'label' => 'title', 'tenant_column' => 'tenant_id']],
         'resources' => ['projects' => ['storage' => ['table' => 'projects', 'key' => 'id', 'tenant_column' => 'tenant_id'], 'fields' => [['name' => 'title', 'label' => 'Title', 'required' => true]], 'view' => ['title' => 'Projects', 'subview' => ['resource' => 'tasks', 'field' => 'project_id', 'embed' => false]]],
-            'tasks' => ['storage' => ['table' => 'tasks', 'key' => 'id', 'tenant_column' => 'tenant_id'], 'fields' => [['name' => 'project_id', 'label' => 'Project', 'type' => 'select', 'options_lookup' => 'projects']], 'view' => ['title' => 'Tasks']]]], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+            'tasks' => ['storage' => ['table' => 'tasks', 'key' => 'id', 'tenant_column' => 'tenant_id', 'shared_tenant' => '', 'shared_roles' => ['librarian']], 'fields' => [['name' => 'project_id', 'label' => 'Project', 'type' => 'select', 'options_lookup' => 'projects']], 'view' => ['title' => 'Tasks']]]], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
     $tenantDb = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     Schema::install($tenantDb);
     Blade\Tenancy\Tenancy::install($tenantDb);
@@ -219,9 +219,17 @@ try {
     $tenantDb->exec("INSERT INTO blade_tenants (name) VALUES ('One')");$tenantDb->exec("INSERT INTO blade_tenant_members (tenant_id, actor_id) VALUES ('1', '1')");
     $choices = $registry->fields('tasks')['project_id']->metadata($tenantApp->workspace->context(new Blade\Shell\Identity('1', 'Synthetic'), 'ui', '1'))['options'];
     verify(array_values($choices) === ['One'], 'JSON lookup tenant_column scopes choices');
+    $tenantDb->exec("INSERT INTO tasks (tenant_id, project_id) VALUES ('', '1'), ('1', '1'), ('2', '2')");
+    $tenantDb->exec("INSERT INTO blade_rules(subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('user', '1', 'tasks', 'list', 'ui', 'allow', 'all', '', '')");
+    $tasks = $tenantApp->workspace->executor->execute($tenantApp->workspace->context(new Blade\Shell\Identity('1', 'Synthetic'), 'ui', '1'), 'tasks', 'list', null, [])['items'];
+    verify(array_column($tasks, 'id') === ['2', '1'] && array_column($tasks, '_shared', 'id') === ['1' => true], 'JSON storage shared_tenant: the tenant reads its own and the shared rows');
     $views = array_column($registry->views(), null, 'resource');
     verify($views['projects']->options['subview'] === ['child' => 'tasks', 'field' => 'project_id'] && !$registry->embedded('tasks'), 'JSON view subview (child kept in the menu)');
     $broken = json_decode(file_get_contents($directory.'/tenant-module.json'), true);
+    $broken['resources']['tasks']['storage']['shared_roles'] = ['Not a key'];
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Invalid shared_roles accepted');
+    $broken['resources']['tasks']['storage']['shared_roles'] = ['librarian'];
     $broken['resources']['projects']['view']['subview']['columns'] = [];
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
     rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Unknown subview key accepted');

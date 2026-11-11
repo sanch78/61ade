@@ -17,6 +17,17 @@ final class Acl
         return $this->cache[$key]=$q->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    /** Whether $actor holds a role with one of the $roles keys (`blade_roles.role_key`), read fresh per action like the rules. */
+    public function holds(string $actor, array $roles): bool
+    {
+        if(!$roles)return false;
+        $key=json_encode(['holds',$actor,...$roles],JSON_THROW_ON_ERROR);
+        if(isset($this->cache[$key]))return $this->cache[$key];
+        $q=$this->db->prepare('SELECT COUNT(*) FROM blade_memberships m JOIN blade_roles r ON r.id = m.role_id WHERE m.actor_id = ? AND r.role_key IN ('.implode(',',array_fill(0,count($roles),'?')).')');
+        $q->execute([$actor,...array_values($roles)]);
+        return $this->cache[$key]=(int)$q->fetchColumn()>0;
+    }
+
     public function allows(string $actor, string $resource, string $action, string $channel, ?string $id = null, ?string $owner = null, string $field = ''): bool
     {
         $allow = false;

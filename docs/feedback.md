@@ -719,3 +719,11 @@
 <a id="fb-0174"></a>
 
 ## FB-0174 — Reject Strict cookies with OAuth
+
+<a id="fb-0175"></a>
+
+## FB-0175 — Shared rows in tenant-scoped resources
+
+<a id="fb-0176"></a>
+
+## FB-0176 — A collapsed region empty after a tab change on a phone (not reproduced)

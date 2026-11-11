@@ -20,6 +20,10 @@ final class SqlResource
      * Context's active tenant; create stamps it, a client cannot send it, and another tenant's row is not found.
      * Without an active tenant (tenancy off or no membership) the resource fails closed. Computed SQL is trusted and
      * must itself stay within the row's tenant.
+     * $sharedTenant: the tenant column value of shared rows (FB-0175; needs $tenantColumn; never a tenant id, '' is
+     * usual). Every tenant reads them beside its own rows (`_shared: true`), and no write action reaches them with an
+     * active tenant (403; they are left out of `_actions`). An actor without a tenant who holds one of the $sharedRoles
+     * (role keys) reads and writes the shared rows only: create stamps the shared value. A row never changes realm.
      * $order: manual order, `['field' => number field, 'scope' => field or null]`. The server owns the position: it
      * is read-only, a new record goes last within its scope (the rows with the same scope value), the list is sorted by
      * it, and the registered `move` action (`before`: the id the record moves in front of, '' = last) renumbers the
@@ -33,7 +37,7 @@ final class SqlResource
      * to the row's key (or `on`), one grouped count per page and field; left out when it cannot be counted for the actor.
      * A count field is a declared number field: read-only, not part of the revision, not filterable or sortable.
      */
-    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [], private ?string $tenantColumn = null, private ?array $order = null, private array $createOnly = [], private array $counts = [])
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [], private ?string $tenantColumn = null, private ?array $order = null, private array $createOnly = [], private array $counts = [], private ?string $sharedTenant = null, private array $sharedRoles = [])
     {
         $known=array_column($fields,null,'name');
         foreach($computed as $name=>$sql){
@@ -70,17 +74,27 @@ final class SqlResource
         // Composite unique keys: each entry lists field, default or owner columns that together must be unique.
         $declared=[...array_map(static fn($f)=>$f->name,$fields),...array_keys($defaults),...($ownerColumn?[$ownerColumn]:[])];
         foreach ($unique as $columns) if (!is_array($columns) || !array_is_list($columns) || !$columns || array_diff($columns,$declared) || count(array_unique($columns))!==count($columns)) throw new \InvalidArgumentException('Invalid unique key');
+        if (($sharedTenant !== null && ($tenantColumn === null || !preg_match('/^[a-zA-Z0-9_.:-]{0,100}$/D', $sharedTenant))) || ($sharedRoles && $sharedTenant === null)
+            || !array_is_list($sharedRoles) || count($sharedRoles) > 20 || count(array_unique($sharedRoles)) !== count($sharedRoles)
+            || array_filter($sharedRoles, static fn($role) => !is_string($role) || !preg_match('/^[a-z][a-z0-9_]*$/D', $role))) throw new \InvalidArgumentException('Invalid shared tenant declaration.');
         if ($tenantColumn !== null && (in_array($tenantColumn,[$key,$ownerColumn,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields)],true) || in_array($tenantColumn,array_merge(...$unique ?: [[]]),true))) throw new \InvalidArgumentException('The tenant column is set by the server only.');
         foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[]),...($tenantColumn!==null?[$tenantColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
     }
     /** `archived_at`/`archived_by` verified once (first archive-aware read or delete) on the connection in use. */
     private bool $archiveColumns=false;
     private function archive(): bool { return $this->deletePolicy==='archive'; }
-    /** The active tenant of a tenant-scoped resource (null when unscoped); fails closed without one. */
-    private function tenant(Context $ctx): ?string
+    /** The tenant realm of $ctx (Registry::realm(): `read` values, `write` value); null when unscoped; fails closed. */
+    private function realm(Context $ctx): ?array
     {
         if($this->tenantColumn===null)return null;
-        return $ctx->tenant ?? throw new Failure('Nincs aktív tenant.',403);
+        if(($realm=$this->registry?->realm($ctx,$this->resource))!==null)return $realm;
+        $tenant=$ctx->tenant ?? throw new Failure('Nincs aktív tenant.',403);
+        return ['read'=>[$tenant],'write'=>$tenant,'shared'=>null];
+    }
+    /** Whether $row is a shared row (FB-0175). */
+    private function shared(array $row): bool
+    {
+        return $this->sharedTenant!==null&&array_key_exists($this->tenantColumn,$row)&&(string)$row[$this->tenantColumn]===$this->sharedTenant;
     }
     /**
      * Policy `archive` needs the consumer columns; checked lazily on first use (registration has no database) with a
@@ -121,7 +135,7 @@ final class SqlResource
                 $mapped[$field] = true;
             }
         }
-        if($this->tenantColumn!==null)$registry->scopeToTenant($this->resource);
+        if($this->tenantColumn!==null)$registry->scopeToTenant($this->resource,$this->sharedTenant,$this->sharedRoles);
         if($this->counts)$registry->counts($this->resource,$this->counts);
         $source=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'),fn($c)=>$this->source($c),$this->search,$registry,$this->tenantColumn,order:$this->order,counts:$this->counts);
         // The cursor API only: a list takes no object id (the removed offset paging used one).
@@ -130,7 +144,7 @@ final class SqlResource
         $actions=['get'];
         $writable=array_values(array_filter($this->fields,fn($f)=>!in_array($f->name,$this->readOnly,true)));
         if($create) {
-            $registry->add(new Action($this->resource,'create','Új', $writable, fn($c,$t,$v)=>$this->save($c,null,$v),resolve:fn($c)=>['id'=>null,'owner'=>$this->ownerColumn?$c->actor->id:null],write:true));
+            $registry->add(new Action($this->resource,'create','Új', $writable, fn($c,$t,$v)=>$this->save($c,null,$v),resolve:fn($c)=>['id'=>null,'owner'=>$this->ownerColumn?$c->actor->id:null,...($this->sharedTenant!==null&&($this->realm($c)['write']??null)===$this->sharedTenant?['audit'=>['shared'=>true]]:[])],write:true));
             $actions[]='create';
         }
         if($update) {
@@ -187,16 +201,17 @@ final class SqlResource
         if($this->selfOnly) { if($id!==$ctx->actor->id && $id!=='self')throw new Failure('Csak a saját profil érhető el.',403); $id=$ctx->actor->id; }
         if($id===null || !preg_match('/^[a-zA-Z0-9_.:-]{1,100}$/D',$id)) throw new Failure('Hiányzó objektum.',404);
         $this->archiveReady($ctx->db);
-        $tenant=$this->tenant($ctx);
-        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($tenant!==null?" AND {$this->tenantColumn} = ?":'').($this->archive()?' AND archived_at IS NULL':'').($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
-        $q->execute($tenant!==null?[$id,$tenant]:[$id]); $row=$q->fetch(\PDO::FETCH_ASSOC);
+        $tenants=$this->realm($ctx)['read']??[];
+        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($tenants?" AND {$this->tenantColumn} IN (".implode(',',array_fill(0,count($tenants),'?')).')':'').($this->archive()?' AND archived_at IS NULL':'').($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
+        $q->execute([$id,...$tenants]); $row=$q->fetch(\PDO::FETCH_ASSOC);
         if(!$row)throw new Failure('Nem található objektum.',404);
         if($this->computed){
             $q=$ctx->db->prepare('SELECT '.implode(', ',array_map(static fn($name,$sql)=>"CAST(($sql) AS CHAR) AS $name",array_keys($this->computed),$this->computed))." FROM {$this->table} blade_base WHERE blade_base.{$this->key} = ?");
             $q->execute([$row[$this->key]]);$row=array_replace($row,$q->fetch(\PDO::FETCH_ASSOC)?:[]);
         }
         foreach ($this->related as $storage) $row = array_replace($row, $storage->read($ctx->db, (string)$row[$this->key]));
-        return ['id'=>(string)$row[$this->key],'owner'=>$this->ownerColumn?(string)$row[$this->ownerColumn]:null,'row'=>$row];
+        // A shared row: the executor refuses its write actions with a tenant, and the journal records it as shared.
+        return ['id'=>(string)$row[$this->key],'owner'=>$this->ownerColumn?(string)$row[$this->ownerColumn]:null,'row'=>$row,...($this->shared($row)?['shared'=>true,'audit'=>['shared'=>true]]:[])];
     }
     public function project(Context $ctx,array $row,string $action): array
     {
@@ -204,9 +219,12 @@ final class SqlResource
         $out=['id'=>$id,'revision'=>$this->revision($row)];
         // A count field the actor may read gets its value from ListSource::counted() (left out when it cannot be counted).
         foreach($this->fields as $field) if(!$field->secret && $ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,$action,$ctx->channel,$id,$owner,$field->name))$out[$field->name]=isset($this->counts[$field->name])?null:$row[$field->name];
+        // A shared row is marked; with an active tenant it offers no write action but create (Executor::sharedWrite()).
+        $shared=$this->shared($row);
+        if($shared)$out['_shared']=true;
         $out['_actions']=[];
         $out['_editable']=[];
-        foreach($this->registry?->all()??[] as $action)if($action->resource===$this->resource && in_array($ctx->channel,$action->channels,true) && $ctx->acl->allows($ctx->actor->id,$this->resource,$action->name,$ctx->channel,$id,$owner))$out['_actions'][]=$action->name;
+        foreach($this->registry?->all()??[] as $action)if($action->resource===$this->resource && !($shared && $action->write && $action->name!=='create' && $ctx->tenant!==null) && in_array($ctx->channel,$action->channels,true) && $ctx->acl->allows($ctx->actor->id,$this->resource,$action->name,$ctx->channel,$id,$owner))$out['_actions'][]=$action->name;
         if(in_array('update',$out['_actions'],true))foreach($this->fields as $field){
             if(($field->column['editable']??false)&&!$field->secret&&array_key_exists($field->name,$out)&&$ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,'update',$ctx->channel,$id,$owner,$field->name))$out['_editable'][]=$field->name;
         }
@@ -223,7 +241,7 @@ final class SqlResource
     {
         $terms=["({$this->where})"];$params=[];
         if($this->order['scope']!==null){$terms[]="COALESCE(CAST({$this->order['scope']} AS CHAR),'') = ?";$params[]=(string)($row[$this->order['scope']]??'');}
-        if(($tenant=$this->tenant($ctx))!==null){$terms[]="{$this->tenantColumn} = ?";$params[]=$tenant;}
+        if(($tenant=$this->realm($ctx)['write']??null)!==null){$terms[]="{$this->tenantColumn} = ?";$params[]=$tenant;}
         if($this->archive())$terms[]='archived_at IS NULL';
         return [implode(' AND ',$terms),$params];
     }
@@ -251,8 +269,8 @@ final class SqlResource
         if($target && !hash_equals($this->revision($target['row']),$values['revision'] ?? ''))throw new Failure('Az adat közben módosult. Nyisd meg újra.',409);
         unset($values['revision']);
         $this->archiveReady($ctx->db);
-        // Uniqueness is per tenant: another tenant's values are neither visible nor in the way.
-        $tenant=$this->tenant($ctx);
+        // Uniqueness is per tenant (shared rows are a tenant of their own): another tenant's values are neither visible nor in the way.
+        $tenant=$this->realm($ctx)['write']??null;
         $inTenant=$tenant!==null?" AND {$this->tenantColumn} = ?":'';
         $ruleValues=$target?array_replace(array_intersect_key($target['row'],array_column($this->fields,null,'name')),$values):$values;
         if($this->guard)($this->guard)($ctx,$target,$ruleValues);

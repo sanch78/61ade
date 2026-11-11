@@ -691,6 +691,7 @@
   "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.": "Referencing items are kept; their file reference is cleared.",
   "{count} elem előnézete nem sikerült.": "Preview failed for {count} items.",
   "Nincs aktív tenant.": "No active tenant.",
+  "A közös adat csak olvasható.": "Shared data is read-only.",
   "Nincs hozzáférés a tenanthoz.": "No access to this tenant.",
   "Ez a tenant nem érhető el.": "This tenant is not available.",
   "Tenantok": "Tenants",

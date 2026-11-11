@@ -691,6 +691,7 @@
   "A hivatkozó elemek megmaradnak, a fájlhivatkozásuk törlődik.": "Verweisende Elemente bleiben erhalten, ihr Dateiverweis wird entfernt.",
   "{count} elem előnézete nem sikerült.": "Die Vorschau von {count} Elementen ist fehlgeschlagen.",
   "Nincs aktív tenant.": "Kein aktiver Mandant.",
+  "A közös adat csak olvasható.": "Gemeinsame Daten sind schreibgeschützt.",
   "Nincs hozzáférés a tenanthoz.": "Kein Zugriff auf diesen Mandanten.",
   "Ez a tenant nem érhető el.": "Dieser Mandant ist nicht verfügbar.",
   "Tenantok": "Mandanten",

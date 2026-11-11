@@ -3,7 +3,8 @@ const {execFileSync}=require('node:child_process');
 const {signIn,openMenu,api}=require('./feature-demo.cjs');
 // Count fields (FB-0173) on the tenant demo (/tenants/): the global `Kategóriák` count the tenant-scoped `Tételek` each
 // account could list in the active tenant (all items of a category and its subcategories; the notes attached directly).
-// Seed (Alpha): Documentation 4 / 1, Manuals 2 / 1; (Beta): Documentation 1 / 0, Manuals 1 / 1. Items of the run start
+// Seed (Alpha): Documentation 5 / 2, Manuals 2 / 1; (Beta): Documentation 2 / 1, Manuals 1 / 1, both with the shared items
+// (FB-0175: a note in Documentation and a file in Quotes, read by every tenant). Items of the run start
 // with the run prefix and are removed afterwards.
 const prefix='cf'+Date.now().toString(36);
 const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'demo';
@@ -34,8 +35,8 @@ test('a global category counts the tenant-scoped items of the active tenant; swi
  try{
   await tenant(page,'Alpha');
   await categories(page);
-  expect(await counts(page,'Documentation')).toEqual(['4','1']);
-  expect(await counts(page,'Purchasing')).toEqual(['1','0']);
+  expect(await counts(page,'Documentation')).toEqual(['5','2']);
+  expect(await counts(page,'Purchasing')).toEqual(['2','0']);
   // The details show both counts; get and the list give the same values.
   await row(page,'Documentation').getByRole('gridcell',{name:'Documentation',exact:true}).click();
   await page.getByRole('button',{name:'Adatok',exact:true}).click();
@@ -44,23 +45,23 @@ test('a global category counts the tenant-scoped items of the active tenant; swi
   await expect(details).toContainText('Jegyzetek (közvetlenül)');
   await page.keyboard.press('Escape');await expect(details).toHaveCount(0);
   const alpha=await listed(page);
-  expect(alpha).toMatchObject({Documentation:[4,1],Manuals:[2,1],Minutes:[1,1],Purchasing:[1,0],Quotes:[1,0]});
+  expect(alpha).toMatchObject({Documentation:[5,2],Manuals:[2,1],Minutes:[1,1],Purchasing:[2,0],Quotes:[2,0]});
   const documentation=(await api(page,'tenant_categories','list','',{limit:50})).body.data.items.find(item=>item.name==='Documentation');
   const got=(await api(page,'tenant_categories','get',String(documentation.id))).body.data;
-  expect([got.item_count,got.note_count]).toEqual([4,1]);
+  expect([got.item_count,got.note_count]).toEqual([5,2]);
   // A new note below a subcategory counts for the subcategory and, recursively, its parent; archived, it no longer counts.
   const minutes=(await api(page,'tenant_categories','list','',{limit:50})).body.data.items.find(item=>item.name==='Minutes');
   const created=await api(page,'tenant_items','create',null,{title:prefix+' note',category_id:String(minutes.id),kind:'note'});
   expect(created.status).toBe(200);
-  expect(await listed(page)).toMatchObject({Documentation:[5,1],Minutes:[2,2]});
+  expect(await listed(page)).toMatchObject({Documentation:[6,2],Minutes:[2,2]});
   const form=await api(page,'tenant_items','__form',String(created.body.data.id),{operation:'delete'});
   expect((await api(page,'tenant_items','delete',String(created.body.data.id),{revision:form.body.data.values.revision})).status).toBe(200);
-  expect(await listed(page)).toMatchObject({Documentation:[4,1],Minutes:[1,1]});
+  expect(await listed(page)).toMatchObject({Documentation:[5,2],Minutes:[1,1]});
   // Beta: the same categories, Beta's counts.
   await tenant(page,'Beta');
   await categories(page);
-  expect(await counts(page,'Documentation')).toEqual(['1','0']);
-  expect(await listed(page)).toMatchObject({Documentation:[1,0],Manuals:[1,1],Purchasing:[1,0],Quotes:[1,1]});
+  expect(await counts(page,'Documentation')).toEqual(['2','1']);
+  expect(await listed(page)).toMatchObject({Documentation:[2,1],Manuals:[1,1],Purchasing:[2,0],Quotes:[2,1]});
   // Counts are no filter or sort field.
   expect((await api(page,'tenant_categories','list','',{limit:10,filters:{item_count:'1'}})).status).toBe(403);
   expect((await api(page,'tenant_categories','list','',{limit:10,sort:{field:'item_count',direction:'asc'}})).status).toBe(403);
@@ -72,7 +73,7 @@ test('an account with one tenant sees that tenant\'s counts; the items list besi
  await page.setViewportSize({width:1366,height:900});
  await signIn(page,'single@example.test','/tenants/');
  await categories(page);
- expect(await counts(page,'Documentation')).toEqual(['4','1']);
+ expect(await counts(page,'Documentation')).toEqual(['5','2']);
  await openMenu(page,'Tételek','Tenant demó');
  const tree=page.getByRole('tree',{name:'Kategóriák',exact:true});
  await tree.getByRole('treeitem',{name:'Documentation',exact:true}).locator('.dhx_tree-list-item__text, .dhx_tree-template__wrapper').first().click();

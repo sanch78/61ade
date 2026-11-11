@@ -1,6 +1,7 @@
 # Multi-tenancy
 
-Status: stage 1 implemented and verified on 2026-10-29 ([FB-0069](feedback.md#fb-0069)).
+Status: stage 1 implemented and verified on 2026-10-29 ([FB-0069](feedback.md#fb-0069));
+[shared rows](#shared-rows) implemented and verified on 2026-11-11 ([FB-0175](feedback.md#fb-0175)).
 Tenant-scoped file spaces, cross-tenant administration of tenant data and
 per-tenant roles are later stages (see [limits](#limits-and-later-stages)).
 
@@ -119,6 +120,66 @@ File managers, diagrams and calendars have no tenant adapter yet. With tenancy
 on they stay global and must not hold tenant data (see
 [limits](#limits-and-later-stages)).
 
+<a id="shared-rows"></a>
+
+## Shared rows
+
+Status: implemented and verified on 2026-11-11 ([FB-0175](feedback.md#fb-0175)).
+
+A tenant-scoped resource can hold rows that belong to no tenant: defaults or a
+library every tenant uses but does not own. Tenants read them in the same
+lists, cards and details as their own rows, read-only. A declared role that
+works without a tenant creates, edits and reviews them through the same
+resource and forms, so a page needs no second "shared" list and no per-tenant
+copies.
+
+```php
+$docs = new SqlResource('docs', 'docs', 'id', [
+    new Field('title', 'Title', required: true),
+], tenantColumn: 'tenant_id', sharedTenant: '', sharedRoles: ['shared_editor']);
+```
+
+JSON: `storage.shared_tenant` and `storage.shared_roles` beside
+`storage.tenant_column`.
+
+- **Declaration.** `sharedTenant` is the tenant column value of the shared rows
+  (`''` is usual; up to 100 characters of `[a-zA-Z0-9_.:-]`). It must never be
+  a tenant id: a context whose tenant equals it is a developer error. It needs
+  `tenantColumn`. `sharedRoles` lists role keys (`blade_roles.role_key`, at most
+  20) and needs `sharedTenant`. Without `sharedTenant` nothing changes.
+- **Actor with an active tenant.** `list`, `get`, counts (the list total, the
+  sub-view `_subview` count, [count fields](workspaces.md#count-fields)),
+  filters, search, `scope`, sorting, cursors, live watch (polling and
+  WebSocket) and menu attention cover the tenant's rows and the shared rows,
+  never another tenant's rows. Object and field ACL apply to both. A shared
+  row carries `_shared: true`, so a presentation can mark it.
+- **Writes with a tenant.** No write action (`update`, `delete`, `move`,
+  `__edit`, bulk items and every custom action with `write: true` resolved
+  through `target()`) reaches a shared row: the executor refuses it with 403
+  `A közös adat csak olvasható.` whatever the actor's rules. Its update form
+  (`__form`) is refused as well. Such actions are left out of the row's
+  `_actions`, so toolbars, cards and editable cells disable them; `create`
+  stays and creates a row of the active tenant. The tenant column is never a
+  field, so a tenant can neither create a row with the shared value nor move a
+  row into or out of it. There is no write grant for tenant actors.
+- **Actor without a tenant holding a shared role.** The resource is offered
+  (views, `__form`, executor): this actor reads and writes the shared rows only,
+  under its ordinary ACL, and create stamps the shared value. Another
+  tenant-less actor, also one with the same rules but without the role, still
+  fails closed (403). An actor with an active tenant is a tenant actor even if
+  it holds a shared role. Shared rows are edited without a tenant.
+- **Uniqueness and order.** `validation.unique`, `unique` keys and the manual
+  `order` scope work per realm: within the active tenant for its rows, within
+  the shared rows for the shared role. A tenant's row may repeat a shared row's
+  unique value.
+- **Audit.** Every action on a shared row, including a refused one, and a create
+  by the shared role, records `{"shared": true}` in `blade_audit.detail`, with
+  the actor and the active tenant (empty for the shared role).
+
+Limits: a scoped `Lookup` still offers the active tenant's rows only, so shared
+rows are no choices of another resource's select; the shared rows have one
+realm, not one per group of tenants.
+
 ## Memberships and administration
 
 - **Tenants** (`blade_tenants` resource, admin group): create, rename and deactivate
@@ -190,7 +251,8 @@ possible in this stage.
 
 API keys (`blade_tokens.tenant_id`): with tenancy on, the API-key form has a
 `Tenant` field. A key is bound to one tenant its owner belongs to, or it is
-global (`''`), which reaches global resources only. The binding cannot change
+global (`''`), which reaches global resources and, when its owner holds a
+declared shared role, the [shared rows](#shared-rows). The binding cannot change
 after issue. Every request rechecks that the owner is still a member; if not,
 the key is refused (403). Scope, owner rights and tenant must all allow the
 action.
@@ -249,6 +311,8 @@ re-issued.
 - **Diagrams, calendars, custom non-SQL actions:** no tenant adapter. Custom
   handlers can use `Context::$tenant`, but such a resource is not marked as
   scoped and gets no automatic fail-closed check.
+- **Shared rows** ([above](#shared-rows)) are no lookup choices, and a tenant
+  has no write grant on them.
 - **Per-tenant roles** and an explicit, audited **cross-tenant read** capability
   are later extensions, as stated in the owner decisions.
 - Exports exist only as file downloads; list exports do not exist yet.
@@ -275,5 +339,16 @@ re-issued.
   expands to its access list (every user, rows not selectable, the toolbar stays
   on the tenant, the switch persists after a reload, full list in a window); on a
   phone the card's `Hozzáférések (n)` button opens the list full screen, and the tenant
-  choice is in the right-hand controls menu.
+  choice is in the right-hand controls menu. Shared rows: in Alfa `Tételek`
+  shows the shared items beside Alfa's, marked `Shared`; a selected shared item
+  disables `Módosítás` and `Törlés`, while Alfa's own item enables them; the API refuses
+  their update and delete (403); in Béta the shared items stay and Alfa's go;
+  `shared@example.test` (no tenant) lists only the shared items and edits one.
+- `php8.4 tests/shell/tenancy.php` also covers shared rows: the declaration
+  checks; reads, counts, filters, scopes, watch, sub-view and count fields with
+  a tenant; refused update, field edit, delete, bulk and update form; refused
+  shared value on create; per-realm uniqueness; the shared role's reads,
+  create and update; the journal; fail closed without the role; an undeclared
+  resource unchanged. `configuration.php` covers `storage.shared_tenant` and
+  `shared_roles`.
 - Demo: https://demo.61ade.com/tenants/, see [demos](demos.md#tenant-demo-tenants).
