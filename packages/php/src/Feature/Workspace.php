@@ -93,6 +93,26 @@ final class Workspace
         }
         return array_values(array_filter($out,fn($view)=>!$this->registry->embedded($view['id'])));
     }
+    /**
+     * The form of $action for the actor of $ctx (`__form`, after the channel and tenant checks): `fields` (metadata) and
+     * `values`. The action's `display` fields come first, then its input fields the actor may write; an input field
+     * the actor may not write but whose value $values carry (an update's record read through `get`, with that read's
+     * field ACL) stays in place. Both are `readOnly: true` and shown, never sent (FB-0171). Denied object: 403.
+     */
+    public function describe(Context $ctx,Action $action,?string $id):array
+    {
+        $actor=$ctx->actor->id;
+        $t=$action->resolve?($action->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
+        if(!$this->acl->allows($actor,$action->resource,$action->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
+        $values=$action->formValues?($action->formValues)($ctx,$t):($id!==null?$this->executor->execute($ctx,$action->resource,'get',$id,[]):[]);
+        $shown=fn(Field $f)=>!$f->secret&&$f->type!=='password'&&is_array($values)&&array_key_exists($f->name,$values);
+        $fields=array_map(fn($f)=>[...$this->fieldMetadata($ctx,$f),'readOnly'=>true],array_values(array_filter($action->display,$shown)));
+        foreach(ViewMetadata::formFields($action) as $f){
+            if($this->acl->fieldAllowed($actor,$action->resource,$action->name,'ui',$t['id']??'',$t['owner']??null,$f->name))$fields[]=$this->fieldMetadata($ctx,$f);
+            elseif($id!==null&&$f->name!=='revision'&&$shown($f))$fields[]=[...$this->fieldMetadata($ctx,$f),'readOnly'=>true];
+        }
+        return ['fields'=>$fields,'values'=>$values];
+    }
     /** Field metadata of $field for the actor of $ctx (ViewMetadata::field). */
     public function fieldMetadata(Context $ctx,Field $field):array { return (new ViewMetadata($this->registry))->field($ctx,$field); }
     /** Technical observation; unchanged snapshots do not create business read events. */
@@ -243,12 +263,9 @@ final class Workspace
                 if(!in_array('ui',$a->channels,true))throw new Failure('Nem érhető el.',403);
                 if($tenant===null&&$this->registry->tenantScoped($a->resource))throw new Failure('Nincs aktív tenant.',403);
                 $ctx=new Context($actor,$channel,$this->acl,$this->db,owner:$owner,tenant:$tenant);
-                $t=$a->resolve?($a->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
-                if(!$this->acl->allows($actor->id,$a->resource,$a->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
-                $fields=array_values(array_filter(ViewMetadata::formFields($a),fn($f)=>$this->acl->fieldAllowed($actor->id,$a->resource,$a->name,'ui',$t['id']??'',$t['owner']??null,$f->name)));
-                $values=$a->formValues?($a->formValues)($ctx,$t):($id!==null?$this->executor->execute($ctx,$a->resource,'get',$id,[]):[]);
+                $described=$this->describe($ctx,$a,$id);
                 $this->journal->record($actor->id,'ui',$a->resource,'describe',$id??'','success',tenant:$tenant);
-                echo json_encode(['ok'=>true,'data'=>['fields'=>array_map(fn($f)=>$this->fieldMetadata($ctx,$f),$fields),'values'=>$values]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
+                echo json_encode(['ok'=>true,'data'=>$described],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             $handled=true;
             $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner,$tenant),$data['resource'],$data['action'],$id,$data['values']??[]);

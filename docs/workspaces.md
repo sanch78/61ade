@@ -1335,7 +1335,7 @@ editor that depends on the value's type ([FB-0107](feedback.md#fb-0107)).
 Fields of a record can be an exclusive choice: a value in one empties the
 others. `clears` (server `Field` `clears`, JSON `clears`) lists the fields a
 value of this field empties; each field of the choice names the others
-([FB-0113](feedback.md#fb-0113)). The demo's `Alapértelmezett tartalom`
+([FB-0113](feedback.md#fb-0113--playlist-as-default-content)). The demo's `Alapértelmezett tartalom`
 offers an asset or a playlist this way.
 
 ```json
@@ -1357,6 +1357,186 @@ offers an asset or a playlist this way.
 - **Declaration rules:** up to 10 distinct other field names of the same
   action; the cleared fields are optional and not secret, and a secret field
   clears nothing.
+
+<a id="read-only-fields"></a>
+
+## Read-only fields in action forms
+
+An action form (`RecordForm`, the built-in create and update forms, the
+singleton's details form) can show a field with its value read-only
+([FB-0171](feedback.md#fb-0171)): a value fixed after create stays visible
+in the update form, and a value the host presets from its context cannot be
+changed in that form.
+
+```php
+// Chosen at create, fixed afterwards: create writes them, update shows them read-only and refuses them.
+new SqlResource('items', 'items', 'id', $fields, createOnly: ['parent_id', 'kind']);
+// Any action: fields shown before its inputs, with the values of `formValues` or the record's `get`.
+new Action('items', 'rename', 'Átnevezés', [new Field('title', 'Megnevezés', required: true)], $handler,
+    resolve: $resolve, write: true, display: [new Field('kind', 'Fajta', 'select', options: $kinds)]);
+```
+
+```json
+"storage": {"table": "items", "key": "id", "create_only": ["parent_id", "kind"]}
+```
+
+```ts
+// The host fixes the parent it presets from the selected node; the value is still submitted.
+new app.components.RecordForm({ resource: "items", action: "create", values: { parent_id: node.id }, readOnly: ["parent_id"] });
+```
+
+- **Sources:** an action's `display` fields (`Action::$display`; `SqlResource`
+  `createOnly`, JSON `storage.create_only`, sets the update's), a
+  `RecordForm`'s `readOnly` names (see [RecordForm](toolkit.md#recordform)),
+  and the field ACL: in a form of a record (an update or another action with
+  an id), an input field the actor may read but not write in this action is
+  shown read-only in place instead of disappearing. Readable means its value
+  is in the form's values (the record's `get`, with that read's own field ACL,
+  or the action's `formValues`); a field the actor may not read stays absent,
+  and a create form leaves a write-denied field out as before. This matches
+  the singleton's details form, which already showed unwritable fields
+  read-only.
+- **Order:** the `display` fields come first (where the record belongs), then
+  the inputs in their order, a read-only one by ACL in its place. `__form`
+  marks every read-only field `readOnly: true` (`FieldMetadata.readOnly`).
+- **Rendering** (the details form's): a readonly input named by the field's
+  label, reachable by Tab and read by screen readers (`readonly`, not
+  `disabled`), without a required mark; a select, multiselect or checkbox
+  shows its option label (`Igen`/`Nem` for a checkbox without options) while a
+  hidden item keeps the raw value for conditions (`visibleWhen`) and for a
+  host preset's submission; a long text stays a multi-line textarea; a file
+  field shows its preview without upload or clearing; a registered field
+  type receives `readOnly`. Keyboard input, paste and a click change nothing.
+- **Never input:** a `display` field and a field read-only by ACL are not
+  sent. A request that sends a `display` field is refused like any unknown
+  field (`Ismeretlen vagy nem írható mező.`, 400), a write-denied one with 403;
+  the server's validation and ACL are unchanged. A `RecordForm` `readOnly`
+  field is the host's choice only: it is sent with its value and validated
+  by the server as any input, so the host cannot widen a right with it.
+- **Declaration rules:** a `display` field is a `Field`, not secret, not a
+  password, not one of the action's inputs, unique by name. A `createOnly`
+  field is a declared field that is written (not read-only, computed or a
+  manual order position), not secret or a password, not grid-editable and
+  not `bulk`. Otherwise `InvalidArgumentException`.
+- **Limits:** grid cells, cards and the bulk form never show read-only
+  fields (they edit the update's inputs only); a `RecordForm` `readOnly` file
+  field ignores `setValues`; a `display` field without a value in the form's
+  values is left out.
+
+<a id="form-sections"></a>
+
+## Form sections
+
+A record action form can group fields into collapsible sections, so optional,
+bulky fields (file fields with their previews) do not lengthen the form until
+they are needed ([FB-0172](feedback.md#fb-0172)). The sections are inside the
+one Suite Form, a fieldset under a disclosure button; one `RecordForm` stays
+one Form and no layout cells are added ([FB-0148](feedback.md#fb-0148)).
+
+```php
+new Field('file', 'Kép', 'file', file: $image, section: 'Képek'),
+new Field('detail', 'Részletkép', 'file', file: $image, section: 'Képek'),
+```
+
+```json
+{"name": "file", "label": "Kép", "type": "file", "file": {"upload": "items.file_upload", "accept": ["image"]}, "section": "Képek"}
+```
+
+- **Declaration:** a field's `section` (PHP `Field` `section`, JSON
+  `section`) is the section's plain-text, translatable label (translated by
+  the catalogues like a field label; 1–100 characters, no control
+  characters). The fields with the same label form one section at the place
+  of the first of them; a field is in at most one section by construction;
+  the fields outside sections keep their order. The declaration is the
+  field's, so the create, update and details forms of a resource share it.
+- **State:** a section starts closed unless one of its fields holds a value
+  in the form (a stored value, a host preset, a file; a field's `default`
+  and an unchecked checkbox do not count). A client or server validation
+  error in a closed section opens it and puts the focus on its first
+  erroneous field. Closing only hides: the values stay, are submitted and
+  validated.
+- **Where:** `RecordForm`, the built-in create and update forms (window and
+  panel) and the singleton's details form (from the list's column metadata
+  `section` when the actor has no update right). Conditional fields and file
+  fields work inside a section, read-only fields too. A form window
+  (`AppWindow` or the list's form window) refits when a section opens or
+  closes.
+- **Keyboard and accessibility:** the header is a native button in the tab
+  order, operated with Enter, Space or a click, with `aria-expanded` and
+  `aria-controls` (the fieldset); the fieldset is a group named by the button
+  (`aria-labelledby`). A closed section's fields are not in the tab order.
+- **Limits:** sections do not nest and have no per-action variant; the
+  `Adatok` details window (a read-only record view, not a form), the bulk
+  form and grid or card editors show no sections; `SettingsForm` keeps its
+  own non-collapsible groups. The open state is not stored.
+
+<a id="count-fields"></a>
+
+## Count fields: related records the actor may list
+
+A resource can declare a read-only number field whose value, per row, is the
+number of records of another list resource that the same actor, channel and
+tenant could list and that match the row ([FB-0173](feedback.md#fb-0173)).
+The count obeys the counted resource's own list ACL, so a global resource can
+show counts of tenant-scoped records without revealing another tenant's rows
+or rows the actor may not read. It is the [sub-view count](#sub-views)
+(`_subview`) generalised to any declared field, several match fields and fixed
+filters.
+
+```php
+new SqlResource('categories', 'categories', 'id', [
+    new Field('name', 'Megnevezés', required: true),
+    new Field('item_count', 'Tételek (alkategóriákkal)', 'number'),
+    new Field('note_count', 'Jegyzetek (közvetlenül)', 'number'),
+], counts: [
+    // Items whose category or whose category's parent is this row (scope-only helper fields of the items).
+    'item_count' => ['resource' => 'items', 'match' => ['category_id', 'category_parent']],
+    'note_count' => ['resource' => 'items', 'match' => ['category_id'], 'filters' => ['kind' => 'note']],
+]);
+```
+
+```json
+"storage": {"table": "categories", "key": "id", "counts": {
+  "note_count": {"resource": "items", "match": ["category_id"], "filters": {"kind": "note"}}}}
+```
+
+- **Declaration** (PHP `SqlResource` `counts`, JSON `storage.counts`): the
+  key names a declared `number` field of this resource; `resource` a
+  registered resource with an SQL list source; `match` 1–10 of its fields
+  (scope-only fields allowed; not secret, not a long text, multiple choice or
+  file); `filters` at most 10 fixed exact values of its filterable fields, as
+  in [menu attention](shell.md#menu-attention); `on` optionally another field
+  of this row to match instead of its key. A record counts once per row when
+  any `match` field equals the row's key (or `on` value). The shape is checked
+  when the resource is defined, the references by `Registry::checkViews()`
+  (`InvalidArgumentException`).
+- **Visibility:** the count runs through the counted resource's list source
+  exactly as a sub-view count: its `list` ACL predicate for the actor and
+  channel (object and owner rules), its `where`, tenant scope and row source
+  with the archive policy. The value is left out, not `0`, when the actor has
+  no `list` on the counted resource or the channel may not call it (an API
+  token also needs the counted `<resource>.list` in its scopes, as the
+  executor requires), when it is tenant-scoped and no tenant is
+  active, when a `match` or `filters` field is not queryable for the actor
+  (a list field deny), or when the actor cannot read the row's `on` field. A
+  deny on the count field itself hides it as any field.
+- **Reads:** list rows (one grouped `COUNT` per page and count field), `get`
+  and the resource's live updates (`__watch` snapshots) carry it; a change of
+  a counted record does not push an update of the counting list by itself
+  (the next read or snapshot shows it). It is never input (not in create,
+  update, bulk or cell edits), not part of the revision, and not a filter,
+  scope or sort field (refused with 403; the view's `filters` and `sortable`
+  leave it out).
+- **Presentation:** a number field like any other: list columns, cards,
+  `Adatok`, `RecordDetails`, `column.details` and `secondary` apply.
+- **Recursion:** a count over a hierarchy matches one helper field per level
+  (the record's category, that category's parent, …), typically
+  [scope-only](field-presentation.md#scope-only) computed fields of the
+  counted resource; the demo's two-level tree uses two.
+- **Limits:** no sorting or filtering by a count; one SQL `COUNT` per count
+  field and page (an `OR` over the match fields, so an index on each match
+  field helps); a project-built list adapter is no counted resource (it needs
+  an SQL list source).
 
 <a id="sub-views"></a>
 
@@ -1405,8 +1585,10 @@ JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "proje
   actor could list with the filter `{field: id}` (child ACL, `where` and tenant
   scope; a hierarchy child counts its top-level records only, as it lists them),
   from one grouped `COUNT` per page. At `0` the toggle and the card button are hidden; it is
-  left out (toggle shown) when the child has no SQL list source or the actor may
-  not filter on the field.
+  left out (toggle shown) when the child has no SQL list source, the actor may
+  not filter on the field, or the channel (an API token's scopes) may not list
+  the child ([FB-0173](feedback.md#fb-0173)). A declared field can carry the same kind of count of
+  any list resource ([count fields](#count-fields)).
 - **Full view:** the toolbar command named after the child list (`Alelemek` for
   a hierarchy) opens the child list of the record the toolbar acts on, in a
   window, full screen below 768 px. A window holding one framework feature shows

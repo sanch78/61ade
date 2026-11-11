@@ -38,6 +38,8 @@ test('the feature demo login offers password, OAuth, remember me and the languag
  await expect(language).toBeVisible();
  expect((await language.boundingBox()).x).toBeLessThan((await theme.boundingBox()).x);
  await language.click();await page.getByText('Magyar',{exact:true}).click();
+ // The page reloads in Hungarian; the menu is checked once it has.
+ await expect(page.locator('.blade-navigation-row').getByRole('button',{name:'Magyar',exact:true})).toBeVisible();
  // The Hungarian sign-out entry; the collapsed desktop menu keeps it under "Menü".
  const burger=page.getByRole('menuitem',{name:'Menü',exact:true});if(await burger.isVisible())await burger.click();
  await expect(page.getByRole('menuitem',{name:'Kijelentkezés',exact:true})).toBeVisible();

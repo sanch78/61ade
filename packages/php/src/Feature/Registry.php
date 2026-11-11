@@ -15,6 +15,8 @@ final class Registry
     private array $media = [];
     private array $usages = [];
     private array $tenantScoped = [];
+    /** @var array<string, array<string, array>> count fields per resource (SqlResource `counts`, FB-0173) */
+    private array $counts = [];
     public function __construct()
     {
         $meta=new ViewMetadata($this);
@@ -23,6 +25,9 @@ final class Registry
     }
     public function registerFields(string $resource, array $fields): void { $this->fields[$resource] = array_column($fields, null, 'name'); }
     public function fields(string $resource): array { return $this->fields[$resource] ?? []; }
+    /** Count fields of $resource (name => {resource, match, filters?, on?}); checked against the counted resource by checkViews(). */
+    public function counts(string $resource, array $counts): void { $this->counts[$resource] = $counts; }
+    public function countFields(string $resource): array { return $this->counts[$resource] ?? []; }
     public function add(Action $action): void
     {
         $key=$action->resource.'.'.$action->name;
@@ -106,9 +111,14 @@ final class Registry
         $fields=$this->fields((string)$view->resource);
         foreach($view->attention['filters'] as $name=>$value){
             $field=$fields[$name]??null;
-            if(!$field||$field->secret||$field->scopeOnly||!in_array($field->type,['text','select','checkbox','number'],true)||$field->media()!==null
-                ||($field->type==='checkbox'&&!in_array($value,['0','1'],true))||($field->type==='number'&&!ctype_digit($value)))throw new \InvalidArgumentException('Invalid view attention filter: '.$view->id.'.'.$name);
+            if(!self::filterable($field,$value)||isset($this->counts[(string)$view->resource][$name]))throw new \InvalidArgumentException('Invalid view attention filter: '.$view->id.'.'.$name);
         }
+    }
+    /** A fixed exact filter value of a filterable field (not secret, scope-only, stored, media; text, select, checkbox or number). */
+    private static function filterable(?Field $field,mixed $value): bool
+    {
+        return $field&&is_string($value)&&!$field->secret&&!$field->scopeOnly&&!$field->stored()&&in_array($field->type,['text','select','checkbox','number'],true)&&$field->media()===null
+            &&!($field->type==='checkbox'&&!in_array($value,['0','1'],true))&&!($field->type==='number'&&!ctype_digit($value));
     }
     /** `activate: 'page'` needs a child view with its own page: another resource's view kept in the menu (also checkViews()). */
     private function pageActivation(View $parent,bool $withoutPage): void
@@ -138,6 +148,15 @@ final class Registry
      */
     public function checkViews(): void
     {
+        // Count fields (FB-0173): the counted resource has an SQL list source; `match` names its queryable fields (scope-only
+        // allowed), `filters` exact values of its filterable fields; none of them is a count field itself.
+        foreach($this->counts as $resource=>$counts)foreach($counts as $name=>$count){
+            $fields=$this->fields($count['resource']);$theirs=$this->counts[$count['resource']]??[];
+            $bad=!(($this->actions[$count['resource'].'.list']??null)?->listSource);
+            foreach($count['match'] as $match){$field=$fields[$match]??null;if(!$field||$field->secret||$field->stored()||in_array($field->type,['textarea','multiselect','password','file'],true)||isset($theirs[$match]))$bad=true;}
+            foreach($count['filters']??[] as $filter=>$value)if(!self::filterable($fields[$filter]??null,$value)||isset($theirs[$filter]))$bad=true;
+            if($bad)throw new \InvalidArgumentException('Invalid count field: '.$resource.'.'.$name);
+        }
         foreach($this->views as $view){
             if($view->kind!=='list')continue;
             $child=$view->options['subview']['child']??null;

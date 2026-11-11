@@ -282,6 +282,9 @@ $db->exec('CREATE TABLE IF NOT EXISTS tenant_notices(id INTEGER PRIMARY KEY AUTO
 $taskColumns = array_column($db->query('PRAGMA table_info(tenant_tasks)')->fetchAll(PDO::FETCH_ASSOC), 'name');
 if (!in_array('parent_id', $taskColumns, true)) $db->exec("ALTER TABLE tenant_tasks ADD COLUMN parent_id TEXT NOT NULL DEFAULT ''");
 if (!in_array('done', $taskColumns, true)) $db->exec('ALTER TABLE tenant_tasks ADD COLUMN done INTEGER NOT NULL DEFAULT 0');
+// Count fields (FB-0173): global categories (two levels) and tenant-scoped items (archived on delete).
+$db->exec("CREATE TABLE IF NOT EXISTS tenant_categories(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, parent_id TEXT NOT NULL DEFAULT '')");
+$db->exec("CREATE TABLE IF NOT EXISTS tenant_items(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, title TEXT NOT NULL, category_id TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'note', archived_at TEXT, archived_by TEXT)");
 blade_demo_accounts($db, [
     [1, 'demo@example.test', '61ade-demo', 'Demo Admin', 1, 1],
     [2, 'single@example.test', '61ade-demo', 'Single Tenant', 1, 0],
@@ -305,6 +308,17 @@ if (!$db->query("SELECT COUNT(*) FROM tenant_tasks WHERE parent_id <> ''")->fetc
     $sub = $db->prepare('INSERT INTO tenant_tasks(tenant_id,title,project_id,parent_id,done) VALUES (?,?,?,?,?)');
     if ($parent) foreach ([['Prepare the measuring site', 1], ['Data entry', 0]] as [$title, $done]) $sub->execute([$parent['tenant_id'], $title, $parent['project_id'], (string) $parent['id'], $done]);
 }
+if (!$db->query('SELECT COUNT(*) FROM tenant_categories')->fetchColumn()) {
+    $category = $db->prepare('INSERT INTO tenant_categories(name,parent_id) VALUES (?,?)');
+    $ids = [];
+    foreach ([['Documentation', ''], ['Manuals', 'Documentation'], ['Minutes', 'Documentation'], ['Purchasing', ''], ['Quotes', 'Purchasing']] as [$name, $parent]) {
+        $category->execute([$name, $parent === '' ? '' : $ids[$parent]]);
+        $ids[$name] = (string) $db->lastInsertId();
+    }
+    $item = $db->prepare('INSERT INTO tenant_items(tenant_id,title,category_id,kind) VALUES (?,?,?,?)');
+    foreach ([[$alfa, 'Style guide', 'Documentation', 'note'], [$alfa, 'Installation manual', 'Manuals', 'note'], [$alfa, 'Wiring diagram', 'Manuals', 'file'], [$alfa, 'Kick-off minutes', 'Minutes', 'note'],
+        [$alfa, 'Supplier quote', 'Quotes', 'file'], [$beta, 'Beta manual', 'Manuals', 'note'], [$beta, 'Beta quote', 'Quotes', 'note']] as [$tenant, $title, $name, $kind]) $item->execute([$tenant, $title, $ids[$name], $kind]);
+}
 // Editors: the global role works in each member tenant; tenant membership decides where.
 $db->exec("INSERT OR IGNORE INTO blade_roles(name, role_key) VALUES ('Editor', 'editor')");
 $editor = (string) $db->query("SELECT id FROM blade_roles WHERE role_key = 'editor'")->fetchColumn();
@@ -312,6 +326,7 @@ foreach (['1', '2', '3'] as $actor) $db->prepare('INSERT OR IGNORE INTO blade_me
 $exists = $db->prepare("SELECT COUNT(*) FROM blade_rules WHERE subject_type=? AND subject_id=? AND resource=? AND action=? AND channel=? AND field_name=''");
 $grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES (?,?,?,?,?,'allow','all','','')");
 $rules = [['role', $editor, 'tenant_projects', ['list', 'get', 'create', 'update'], 'ui'], ['role', $editor, 'tenant_tasks', ['list', 'get', 'create', 'update', 'delete'], 'ui'], ['role', $editor, 'tenant_notices', ['list', 'get'], 'ui'],
+    ['role', $editor, 'tenant_categories', ['list', 'get'], 'ui'], ['role', $editor, 'tenant_items', ['list', 'get', 'create', 'update', 'delete'], 'ui'],
     ['user', '1', 'tenant_projects', ['list', 'get', 'create'], 'api'], ['user', '1', 'tenant_notices', ['list', 'get'], 'api']];
 foreach ($rules as [$type, $subject, $resource, $actions, $channel]) foreach ($actions as $action) {
     $exists->execute([$type, $subject, $resource, $action, $channel]);

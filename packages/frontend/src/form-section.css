@@ -1,0 +1,7 @@
+/* Collapsible field sections of action forms (fields.ts formRows; docs/workspaces.md#form-sections). */
+.blade-form-section { border-top: 1px solid var(--dhx-border-color); margin-top: 8px; padding-top: 4px; }
+.blade-form-section__toggle .dhx_button { width: 100%; justify-content: flex-start; padding-left: 0; padding-right: 0; font-weight: 600; color: var(--dhx-font-color-primary); }
+.blade-form-section__toggle .dhx_button:focus-visible { outline: 2px solid var(--dhx-color-primary); outline-offset: 2px; }
+.blade-form-section__body .dhx_form-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.blade-form-section__body .dhx_form-fieldset-legend:empty { display: none; }
+.blade-form-section__body--closed { display: none !important; }

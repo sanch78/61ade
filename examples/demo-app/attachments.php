@@ -8,7 +8,8 @@ declare(strict_types=1);
  * stores the token with the record's other fields and the `afterSave` hook commits the pending row in the same
  * transaction. The GET action streams a committed file of a record, or the actor's own pending upload. Unclaimed uploads
  * expire after a day (the project's rule). A cancelled form leaves no record. The bytes of a replaced file stay in the
- * store, which collects nothing in the demo.
+ * store, which collects nothing in the demo. The two images form one collapsible form section (FB-0172), and the role is
+ * fixed after create (`createOnly`, FB-0171).
  */
 
 use Blade\Feature\{Action, Context, DownloadStream, Failure, Field, SqlResource, UploadPolicy, Workspace};
@@ -22,6 +23,8 @@ function blade_demo_attachments_store(): string
 function blade_demo_attachments_setup(PDO $db): void
 {
     $db->exec("CREATE TABLE IF NOT EXISTS demo_attachments(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'reference',reason TEXT NOT NULL DEFAULT '',file TEXT NOT NULL DEFAULT '')");
+    // A second stored image (FB-0172: the two images form one collapsible form section).
+    if (!in_array('detail', array_column($db->query('PRAGMA table_info(demo_attachments)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true)) $db->exec("ALTER TABLE demo_attachments ADD COLUMN detail TEXT NOT NULL DEFAULT ''");
     // Pending (uploaded, not yet saved with a record) and committed files; `id` is the token the upload returned.
     $db->exec("CREATE TABLE IF NOT EXISTS demo_attachment_files(id TEXT PRIMARY KEY,sha256 TEXT NOT NULL,name TEXT NOT NULL,mime_type TEXT NOT NULL,size INTEGER NOT NULL,state TEXT NOT NULL DEFAULT 'pending',actor_id TEXT NOT NULL,created_at INTEGER NOT NULL)");
     // The store and the transfer root exist before the web server needs them (group-shared, as every runtime directory).
@@ -36,16 +39,20 @@ function blade_demo_attachments_register(Workspace $workspace): void
         new Field('title', 'Megnevezés', required: true, max: 120),
         new Field('role', 'Szerep', 'select', required: true, options: ['reference' => 'Referencia', 'attachment' => 'Melléklet', 'evidence' => 'Bizonyíték']),
         new Field('reason', 'Indoklás', 'textarea', max: 500),
-        new Field('file', 'Kép', 'file', file: ['upload' => 'demo_attachments.file_upload', 'get' => 'demo_attachments.file', 'accept' => ['image']]),
+        // Both images form one collapsible section (FB-0172): closed while the record holds none.
+        new Field('file', 'Kép', 'file', file: ['upload' => 'demo_attachments.file_upload', 'get' => 'demo_attachments.file', 'accept' => ['image']], section: 'Képek'),
+        new Field('detail', 'Részletkép', 'file', file: ['upload' => 'demo_attachments.file_upload', 'get' => 'demo_attachments.file', 'accept' => ['image']], section: 'Képek'),
         // The list and the details show the file's name from the project's own rows (the stored field is a form field).
         new Field('file_name', 'Fájlnév'),
     ], computed: ['file_name' => "(SELECT name FROM demo_attachment_files f WHERE f.id = blade_base.file AND f.state = 'committed')"],
+        // The role is chosen at create and fixed afterwards (FB-0171): the update form shows it read-only.
+        createOnly: ['role'],
         afterSave: static function (Context $ctx, string $id, ?array $target, array $values): void {
-            // The executor accepted the token (the actor's own unexpired upload); the project commits its pending row.
-            if (($values['file'] ?? '') !== '') $ctx->db->prepare("UPDATE demo_attachment_files SET state = 'committed' WHERE id = ? AND state = 'pending'")->execute([$values['file']]);
+            // The executor accepted the tokens (the actor's own unexpired uploads); the project commits their pending rows.
+            foreach (['file', 'detail'] as $name) if (($values[$name] ?? '') !== '') $ctx->db->prepare("UPDATE demo_attachment_files SET state = 'committed' WHERE id = ? AND state = 'pending'")->execute([$values[$name]]);
         });
     $attachments->register($workspace->registry, 'Mellékletek', group: 'Feature demó',
-        guide: 'Saját tárolású fájlmező: a kép a projekt saját tárolójába kerül, nem a fájlkezelőbe. A feltöltés a háttérben fut, és a kép a rekord többi mezőjével egy mentésben rögzül; a Mégse nem hoz létre rekordot.'."\n\n".'Vegyél fel egy mellékletet: adj meg szerepet és indoklást, majd húzz egy képet a mezőre, vagy illeszd be Ctrl+V-vel.');
+        guide: 'Saját tárolású fájlmező: a kép a projekt saját tárolójába kerül, nem a fájlkezelőbe. A feltöltés a háttérben fut, és a kép a rekord többi mezőjével egy mentésben rögzül; a Mégse nem hoz létre rekordot.'."\n\n".'Vegyél fel egy mellékletet: adj meg szerepet és indoklást, nyisd ki a Képek szakaszt, majd húzz egy képet a mezőre, vagy illeszd be Ctrl+V-vel. A szerep a létrehozás után nem változik: a Módosítás csak megmutatja.');
     $attachments->registerDelete($workspace->registry);
     // The upload action of the field: stores the bytes and a pending row, returns its token. No fields, one file.
     $workspace->registry->add(new Action('demo_attachments', 'file_upload', 'Kép feltöltése', [], static function (Context $ctx): array {
@@ -71,7 +78,7 @@ function blade_demo_attachments_register(Workspace $workspace): void
         $row = $target['row'];
         return new DownloadStream($row['mime_type'], blade_demo_attachments_store().'/'.$row['sha256'], (int) $row['size'], '"'.$row['sha256'].'"', disposition: 'inline', filename: $row['name'], maxAge: 0);
     }, resolve: static function (Context $ctx, ?string $id): array {
-        $query = $ctx->db->prepare("SELECT * FROM demo_attachment_files f WHERE f.id = ? AND ((f.state = 'committed' AND EXISTS (SELECT 1 FROM demo_attachments a WHERE a.file = f.id)) OR (f.state = 'pending' AND f.actor_id = ?))");
+        $query = $ctx->db->prepare("SELECT * FROM demo_attachment_files f WHERE f.id = ? AND ((f.state = 'committed' AND EXISTS (SELECT 1 FROM demo_attachments a WHERE a.file = f.id OR a.detail = f.id)) OR (f.state = 'pending' AND f.actor_id = ?))");
         $query->execute([(string) $id, $ctx->actor->id]);
         $row = $query->fetch(PDO::FETCH_ASSOC) ?: throw new Failure('Nem található objektum.', 404);
         return ['id' => $id, 'owner' => null, 'row' => $row];

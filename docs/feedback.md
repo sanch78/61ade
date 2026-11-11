@@ -702,3 +702,15 @@
 <a id="fb-0170"></a>
 
 ## FB-0170 — Tree: the initial selection overrode a selection made while the start loaded
+
+<a id="fb-0171"></a>
+
+## FB-0171 — Read-only fields in record action forms
+
+<a id="fb-0172"></a>
+
+## FB-0172 — Collapsible field sections in record forms
+
+<a id="fb-0173"></a>
+
+## FB-0173 — Count fields: related records the actor may list

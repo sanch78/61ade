@@ -6,7 +6,7 @@ import { FormValidation, fieldError, fileUploadPending } from "../../FormValidat
 import { failure, server } from "../../api/Server";
 import type { ActionMetadata, FormDescription, MountTarget, RecordForm as RecordFormApi, RecordFormEvents, RecordFormOptions } from "../../api/types";
 import { Component } from "./component";
-import { DECLINED, bindFieldTypes, errorText, formActions, input } from "./fields";
+import { DECLINED, bindFieldTypes, errorText, formActions, formRows, input, setShown, shownOnly } from "./fields";
 import { confirmed, resultNotice } from "./actions";
 import type { ListContext } from "./ListView";
 import type { FieldDefinition } from "./types";
@@ -22,6 +22,8 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
   readonly layout:Layout;
   private form?:Form;
   private fields:FieldDefinition[]=[];
+  /** The fields shown and not edited: the action's read-only ones and this form's `readOnly` (still submitted). */
+  private fixed=new Set<string>();
   private schema?:FormDescription;
   private validation?:FormValidation;
   private files?:FileFields;
@@ -39,6 +41,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
   constructor(private context:ListContext,private options:RecordFormOptions){
     super(options);
     if(typeof options?.resource!=="string"||typeof options.action!=="string")throw new TypeError("61ade: RecordForm needs a resource and an action.");
+    if(options.readOnly!==undefined&&!(Array.isArray(options.readOnly)&&options.readOnly.every(name=>typeof name==="string"&&name!=="")))throw new TypeError("61ade: RecordForm `readOnly` is a list of field names.");
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"form"}]});
     this.action=context.app().viewDefinitions().filter(view=>view.resource===options.resource).flatMap(view=>view.actions).find(action=>action.name===options.action);
     // A failed load has shown the error dialog; `submit` rejects with it.
@@ -52,12 +55,18 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       if(this.destroyed)return;
       const fields=this.fields=(schema.fields as FieldDefinition[]).filter(field=>field.name!=="revision");
       const values={...schema.values,...(this.options.values??{})};
-      const form=this.form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(f=>input(f,f.type==="password"?"":values[f.name])),
+      // The host's read-only fields (a preset from its context): shown like the action's, submitted with their value.
+      const named=this.options.readOnly??[],inputs=new Set(fields.filter(field=>!shownOnly(field)&&field.type!=="password").map(field=>field.name));
+      const unknown=named.filter(name=>!inputs.has(name));
+      if(unknown.length)console.warn(`61ade: RecordForm readOnly names no input field of ${resource}.${action}: ${unknown.join(", ")}.`);
+      this.fixed=new Set([...fields.filter(shownOnly).map(field=>field.name),...named.filter(name=>inputs.has(name))]);
+      const fixed=(field:FieldDefinition)=>this.fixed.has(field.name),editable=fields.filter(field=>!fixed(field));
+      const form=this.form=new Form(document.createElement("div"),{padding:20,rows:[...formRows(fields,f=>input(f,f.type==="password"?"":values[f.name],fixed(f)),values),
         formActions({name:"submit",text:this.action?.submitLabel??this.action?.label??t("Mentés"),icon:this.action?.icon??"dxi dxi-content-save",color:"primary"},this.options.cancel!==false)]} as any);
-      this.files=new FileFields(form,schema.fields as FieldDefinition[],(resource,action,id,values={})=>server.call(resource,action,{id,values}),[schema.values as Row]);
-      this.validation=new FormValidation(form,fields);
-      this.releaseTypes=bindFieldTypes(form,fields,undefined,()=>this.fit?.());
-      form.events.on("change",(name:string,value:unknown)=>{if(this.setting||!fields.some(field=>field.name===name))return;this.changedFields=true;this.emit("changed",{field:name,value});});
+      this.files=new FileFields(form,schema.fields as FieldDefinition[],(resource,action,id,values={})=>server.call(resource,action,{id,values}),[schema.values as Row],fixed);
+      this.validation=new FormValidation(form,editable);
+      this.releaseTypes=bindFieldTypes(form,fields,fixed,()=>this.fit?.());
+      form.events.on("change",(name:string,value:unknown)=>{if(this.setting||!editable.some(field=>field.name===name))return;this.changedFields=true;this.emit("changed",{field:name,value});});
       form.events.on("click",(name:string)=>{
         if(name==="cancel")this.emit("cancelled",{});
         else if(name==="submit")void this.submit().catch(()=>{});
@@ -77,7 +86,8 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
   }
   values():Record<string,unknown>{
     const raw=(this.form?.getValue()??{}) as Record<string,unknown>,values:Record<string,unknown>={};
-    for(const field of this.fields)if(raw[field.name]!==undefined)values[field.name]=raw[field.name];
+    // The action's read-only fields are never sent; the host's `readOnly` ones keep their shown value.
+    for(const field of this.fields)if(!shownOnly(field)&&raw[field.name]!==undefined)values[field.name]=raw[field.name];
     return values;
   }
   dirty():boolean{return !this.destroyed&&this.changedFields;}
@@ -89,9 +99,13 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
     await this.ready;
     const form=this.form;
     if(this.destroyed||!form)return;
-    const known=Object.fromEntries(Object.entries(values??{}).filter(([name])=>this.fields.some(field=>field.name===name)));
+    // The action's read-only fields keep their value; the host's `readOnly` ones show the new one.
+    const fields=Object.keys(values??{}).map(name=>this.fields.find(field=>field.name===name)).filter((field):field is FieldDefinition=>!!field&&!shownOnly(field));
     this.setting=true;
-    try{form.setValue(known);}finally{this.setting=false;}
+    try{
+      form.setValue(Object.fromEntries(fields.filter(field=>!this.fixed.has(field.name)).map(field=>[field.name,values[field.name]])));
+      for(const field of fields)if(this.fixed.has(field.name)&&field.type!=="file")setShown(form,field,values[field.name]);
+    }finally{this.setting=false;}
     this.changedFields=false;
   }
   /**
@@ -116,7 +130,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       this.commit();
       if(!validation.validate()){
         const raw=form.getValue() as Record<string,unknown>,errors:Record<string,string>={};
-        for(const field of this.fields){const error=fileUploadPending(form,field.name)?t("Várd meg a fájl feltöltését."):fieldError(field,raw[field.name],raw);if(error)errors[field.name]=error;}
+        for(const field of this.fields.filter(field=>!this.fixed.has(field.name))){const error=fileUploadPending(form,field.name)?t("Várd meg a fájl feltöltését."):fieldError(field,raw[field.name],raw);if(error)errors[field.name]=error;}
         throw failure(400,{error:t("Javítsd a megjelölt mezőket."),fieldErrors:errors});
       }
       const values=this.values();

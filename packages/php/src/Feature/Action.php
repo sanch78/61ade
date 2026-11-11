@@ -9,8 +9,10 @@ final readonly class Action
      * $upload: multipart transport limit in bytes, or an UploadPolicy (direct multipart up to maxSizeBytes × maxFiles
      * plus the chunked transfer protocol `__upload`); null keeps the action JSON-only.
      * $get: field-free read that is also served over GET/HEAD (e.g. an <img> or <video> source).
+     * $display: fields its form shows read-only before its input fields (FB-0171), with their values from $formValues
+     * or the record's `get`; never input: a request that sends one is refused like any unknown field.
      */
-    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false)
+    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false, public array $display = [])
     {
         if ($confirm !== null) self::checkConfirm($confirm);
         if ($upload !== null && ((is_int($upload) && $upload < 1) || $bulk || $collection)) throw new \InvalidArgumentException('Invalid upload action.');
@@ -19,6 +21,12 @@ final readonly class Action
         if ($bulk && ($name === 'create' || !$resolve || $collection || array_filter($fields, static fn($field) => $field->secret || $field->type === 'password'))) throw new \InvalidArgumentException('Bulk actions must target individual objects without secret inputs.');
         foreach ([$resource,$name] as $id) if (!preg_match('/^[a-z][a-z0-9_.-]*$/D',$id)) throw new \InvalidArgumentException('Invalid action');
         foreach ($fields as $field) if (!$field instanceof Field) throw new \InvalidArgumentException('Invalid field');
+        // A displayed value is readable: never a secret, a password or one of the inputs; names are unique.
+        $shown = [];
+        foreach ($display as $field) {
+            if (!$field instanceof Field || $field->secret || $field->type === 'password' || isset($shown[$field->name]) || in_array($field->name, array_map(static fn($f) => $f->name, $fields), true)) throw new \InvalidArgumentException('Invalid display field');
+            $shown[$field->name] = true;
+        }
         // A condition names another field of the record; one the action carries must not be conditional itself.
         $known = array_column($fields, null, 'name');
         foreach ($fields as $field) if ($field->visibleWhen !== null && ($known[$field->visibleWhen['field']] ?? null)?->visibleWhen !== null) throw new \InvalidArgumentException('A field condition cannot depend on a conditional field.');

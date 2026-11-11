@@ -8,7 +8,7 @@ import { FileFields, type ResourceCall } from "../../FilePicker";
 import { uploads } from "../../Uploader";
 import { FormValidation } from "../../FormValidation";
 import type { ResponsiveGrid } from "../../ResponsiveGrid";
-import { DECLINED, actionIcon, bindFieldTypes, escape, formActions, input, technical } from "./fields";
+import { DECLINED, actionIcon, bindFieldTypes, escape, formActions, formRows, input, shownOnly, technical } from "./fields";
 import type { ActionDefinition, FieldDefinition, ViewDefinition, WorkspaceScope } from "./types";
 
 /** What the action forms need from their list (`Workspace` implements it). */
@@ -157,10 +157,11 @@ export class ListActions{
       const schema=await list.call("__form",id??null,{operation:action.name});if(list.disposed||epoch!==this.epoch)return;
       const allowed=schema.fields as FieldDefinition[];
       const start=action.name==="create"?this.createValues(schema.values,allowed):schema.values;
-      const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field).map(f=>input(f,f.type==="password"?"":start[f.name])),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
+      const shown=allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field);
+      const form=new Form(document.createElement("div"),{padding:20,rows:[...formRows(shown,f=>input(f,f.type==="password"?"":start[f.name],shownOnly(f)),start),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
       this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.releaseTypes();this.editor=form;
-      const files=this.fileFields=new FileFields(form,allowed,list.resourceCall,[schema.values,id?list.rows.find(row=>String(row.id)===id):undefined]);
-      const types=this.fieldTypes=bindFieldTypes(form,allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field),undefined,()=>{if(this.dialog?.isVisible())void fitWindow(this.dialog);});
+      const files=this.fileFields=new FileFields(form,allowed,list.resourceCall,[schema.values,id?list.rows.find(row=>String(row.id)===id):undefined],shownOnly);
+      const types=this.fieldTypes=bindFieldTypes(form,shown,shownOnly,()=>{if(this.dialog?.isVisible())void fitWindow(this.dialog);});
       const close=()=>{
         files.destroy();if(this.fileFields===files)this.fileFields=undefined;
         types();if(this.fieldTypes===types)this.fieldTypes=undefined;
@@ -184,7 +185,7 @@ export class ListActions{
    */
   private createValues(values:Row,allowed:FieldDefinition[]):Row{
     const defaults=this.list.createDefaults;if(!defaults)return values;
-    const usable=new Set(allowed.filter(f=>f.name!=="revision"&&f.name!==this.list.scope?.field&&f.type!=="password"&&f.type!=="file").map(f=>f.name));
+    const usable=new Set(allowed.filter(f=>f.name!=="revision"&&f.name!==this.list.scope?.field&&f.type!=="password"&&f.type!=="file"&&!shownOnly(f)).map(f=>f.name));
     const ignored=Object.keys(defaults).filter(name=>!usable.has(name));
     if(ignored.length)console.warn(`61ade: createDefaults of ${this.list.view.id} names no field of its create form: ${ignored.join(", ")}.`);
     return {...values,...Object.fromEntries(Object.entries(defaults).filter(([name])=>usable.has(name)))};
@@ -215,14 +216,15 @@ export class ListActions{
   }
   bindSave(form:Form,action:ActionDefinition,id:string|null,current:Row,allowed:FieldDefinition[],complete:()=>void,cancel?:()=>void):void{
     const list=this.list;let saving=false;
-    const validation=new FormValidation(form,allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field));
+    const validation=new FormValidation(form,allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field&&!shownOnly(f)));
     form.events.on("click",(name:string)=>{
       if(name==="cancel"){cancel?.();return;}
       if(name!=="submit"||saving||!validation.validate())return;saving=true;form.disable();
       const raw=form.getValue() as Record<string,unknown>;const values:Record<string,unknown>={};
-      for(const f of allowed)if(f.name!=="revision"&&raw[f.name]!==undefined)values[f.name]=raw[f.name];
+      // Read-only fields (`display`, or readable but not writable) are shown, never sent.
+      for(const f of allowed)if(f.name!=="revision"&&!shownOnly(f)&&raw[f.name]!==undefined)values[f.name]=raw[f.name];
       // A nested view's record belongs to its parent record: known, not editable, always sent as that record.
-      if(list.scope&&allowed.some(f=>f.name===list.scope!.field)){values[list.scope.field]=list.scope.id;}
+      if(list.scope&&allowed.some(f=>f.name===list.scope!.field&&!shownOnly(f))){values[list.scope.field]=list.scope.id;}
       if(allowed.some(f=>f.name==="revision"))values.revision=current.revision;
       void confirmed(action).then(ok=>ok?list.call(action.name,id,values):Promise.reject(DECLINED)).then(async result=>{
         await awaitRedraw();if(list.disposed)return;complete();
