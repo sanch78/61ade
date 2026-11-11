@@ -1,0 +1,207 @@
+const {test,expect}=require('../../tools/playwright-test.cjs');
+const {execFileSync}=require('node:child_process');
+const {signIn}=require('./feature-demo.cjs');
+// Accordion form sections (FB-0178) on the feature demo's `Kapcsolatok` (examples/demo-app/contacts.php, `formSections:
+// 'accordion'`): the Accordion component's header, one section open at a time, a window whose size never changes when
+// a section opens, the keys, an error opening its section, values of closed sections saved; `accordion-multiple` by a
+// rewritten form description; a phone. A fixture module hands `app` to the page (an Accordion to compare with).
+// Records of the run start with the run prefix and are removed afterwards.
+const prefix='fa'+Date.now().toString(36);
+const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'demo';
+const php=code=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${runtime}/${instance}/features.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');${code}`],{encoding:'utf8'});
+const query=sql=>JSON.parse(php(`echo json_encode($db->query(${JSON.stringify(sql)})->fetchAll(PDO::FETCH_ASSOC));`));
+const cleanup=()=>php(`$db->exec("DELETE FROM demo_contacts WHERE name LIKE '${prefix}%'");`);
+const MODULE='/form-accordion-fixture.mjs';
+test.describe.configure({mode:'serial'});
+test.beforeAll(cleanup);
+test.afterAll(cleanup);
+
+const editor=(page,label)=>page.getByRole('dialog',{name:new RegExp('^Kapcsolatok — '+label+'$')});
+const header=(form,name)=>form.getByRole('button',{name,exact:true});
+const height=async form=>Math.round((await form.boundingBox()).height);
+async function fixture(page){
+ await page.route(url=>url.pathname===MODULE,route=>route.fulfill({contentType:'text/javascript',body:'export default app=>{window.__bladeApp=app;};'}));
+ await page.route(url=>url.pathname==='/'&&!url.searchParams.has('blade'),async route=>{
+  const request=route.request();
+  if(request.method()!=='GET'||request.resourceType()!=='document')return route.fallback();
+  const response=await route.fetch();
+  const body=(await response.text()).replace(/(<script type="application\/json" id="blade-config">)([\s\S]*?)(<\/script>)/,(all,open,json,close)=>{
+   const config=JSON.parse(json);if(!config.authenticated)return all;
+   config.modules=[...(config.modules??[]),MODULE];
+   return open+JSON.stringify(config).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026')+close;
+  });
+  await route.fulfill({response,body});
+ });
+}
+async function open(page,width=1366){
+ await fixture(page);
+ await page.setViewportSize({width,height:width<768?844:900});
+ await signIn(page,'demo@example.test','/#view=demo_contacts');
+ try{await page.waitForFunction(()=>!!window.__bladeApp,null,{timeout:5000});}
+ catch{await page.reload();await page.waitForFunction(()=>!!window.__bladeApp);}
+ await expect(page.locator('[data-cell-id="grid"]')).toBeVisible();
+}
+/** `Hozzáadás`, also from the responsive `Műveletek` menu of a phone. */
+async function add(page){
+ const menu=page.locator('[data-cell-id="grid"]').getByRole('button',{name:'Műveletek',exact:true}),button=page.getByRole('button',{name:'Hozzáadás',exact:true});
+ await expect(menu.or(button).first()).toBeVisible();
+ if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name:'Hozzáadás',exact:true}).click();}
+ else await button.click();
+}
+/** The sections' open state in order. */
+const expanded=form=>form.locator('.blade-form-section__heading button').evaluateAll(buttons=>buttons.map(button=>button.textContent.trim()+':'+button.getAttribute('aria-expanded')));
+/** Computed styles of a header box, its title and its chevron, once the transitions (Suite's title colour) have ended. */
+const look=(element,title,chevron,pseudo)=>element.evaluate(async(element,[title,chevron,pseudo])=>{
+ await Promise.all(document.getAnimations().filter(animation=>animation instanceof CSSTransition).map(animation=>animation.finished.catch(()=>{})));
+ const pick=(node,names,which)=>{const style=getComputedStyle(node,which);return Object.fromEntries(names.map(name=>[name,style.getPropertyValue(name)]));};
+ return {box:pick(element,['height','background-image','background-color','border-bottom-width','border-bottom-color','box-shadow']),
+  title:pick(element.querySelector(title),['font-size','font-weight','line-height','color','text-shadow']),
+  chevron:pick(element.querySelector(chevron),['width','height','border-right','border-bottom','transform','color'],pseudo)};
+},[title,chevron,pseudo]);
+
+test('an accordion form: the Accordion header, one section open, a window that keeps its size; the keys; an error opens its section; closed values are saved',async({page})=>{
+ await open(page);
+ await add(page);
+ const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
+ // The fixed section: a group named by its header, no button; the first collapsible section is open and stays open.
+ await expect(form.getByRole('group',{name:'Alapadatok',exact:true}).getByRole('textbox',{name:'Név'})).toBeVisible();
+ await expect(header(form,'Alapadatok')).toHaveCount(0);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false']);
+ await expect(header(form,'Elérhetőség')).toHaveAttribute('aria-disabled','true');
+ await expect(header(form,'Cím')).not.toHaveAttribute('aria-disabled','true');
+ const controls=await header(form,'Cím').getAttribute('aria-controls');
+ expect(await form.locator(`fieldset[id="${controls}"]`).count()).toBe(1);
+ await expect(form.getByRole('group',{name:'Elérhetőség',exact:true}).getByRole('textbox',{name:'Telefon'})).toBeVisible();
+ // The header is the Accordion component's: the same box, title and chevron as an Accordion's cell header.
+ await page.evaluate(()=>{
+  const app=window.__bladeApp,host=window.__window=app.ui.window({title:'Fixture',width:360,height:240});
+  window.__accordion=new app.components.Accordion({sections:[{id:'a',label:'Első'},{id:'b',label:'Második'}]});window.__accordion.mount(host);
+ });
+ const fixtureWindow=page.getByRole('dialog',{name:'Fixture',exact:true});
+ const openHeader=fixtureWindow.getByRole('button',{name:'Első'}),closedHeader=fixtureWindow.getByRole('button',{name:'Második'});
+ await expect(closedHeader).toBeVisible();
+ const chevron='.dhx_layout-cell-header__collapse-icon';
+ const reference={open:await look(openHeader,'.dhx_layout-cell-header__title',chevron,'::before'),closed:await look(closedHeader,'.dhx_layout-cell-header__title',chevron,'::before')};
+ await page.evaluate(()=>{window.__accordion.destroy();window.__window.close();});
+ const heading=name=>form.locator('.blade-form-section__heading').filter({has:page.getByRole('button',{name,exact:true})});
+ const mine={open:await look(heading('Elérhetőség'),'.dhx_button__text','.dhx_button','::after'),closed:await look(heading('Cím'),'.dhx_button__text','.dhx_button','::after')};
+ for(const state of ['open','closed']){
+  const {box,title,chevron:mark}=mine[state],{box:refBox,title:refTitle,chevron:refMark}=reference[state];
+  // A closed section's header leaves the lower rule (1 px of its height) to the stack's frame.
+  if(state==='closed')for(const name of ['height','border-bottom-width','border-bottom-color']){delete box[name];delete refBox[name];}
+  expect({box,title,mark},state).toEqual({box:refBox,title:refTitle,mark:refMark});
+ }
+ // Opening another section closes the open one; the window keeps its size.
+ const size=await height(form);
+ await header(form,'Cím').click();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false']);
+ await expect(form.getByRole('group',{name:'Cím',exact:true}).getByRole('textbox',{name:'Település'})).toBeVisible();
+ await expect(form.getByRole('textbox',{name:'Telefon'})).toBeHidden();
+ expect(await height(form)).toBe(size);
+ await header(form,'Beállítások').click();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:true']);
+ expect(await height(form)).toBe(size);
+ // Clicking the open section keeps it open (one stays open; its header says so with aria-disabled).
+ await header(form,'Beállítások').click({force:true});
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:true']);
+ // The keys: the arrows, Home and End move between the headers; Enter opens one.
+ await header(form,'Beállítások').focus();
+ await page.keyboard.press('ArrowDown');await expect(header(form,'Elérhetőség')).toBeFocused();
+ await page.keyboard.press('End');await expect(header(form,'Beállítások')).toBeFocused();
+ await page.keyboard.press('ArrowUp');await expect(header(form,'Cím')).toBeFocused();
+ await page.keyboard.press('Home');await expect(header(form,'Elérhetőség')).toBeFocused();
+ await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false']);
+ expect(await height(form)).toBe(size);
+ // A missing e-mail in the closed `Elérhetőség` opens it (closing `Cím`) and takes the focus.
+ await form.getByRole('textbox',{name:'Név'}).fill(prefix+' Kapcsolat');
+ await form.getByRole('textbox',{name:'Település'}).fill('Szeged');
+ await form.getByRole('button',{name:'Mentés',exact:true}).click();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false']);
+ await expect(form.getByRole('textbox',{name:'E-mail'})).toBeFocused();
+ // The values of the closed sections are saved with the open one's.
+ await form.getByRole('textbox',{name:'E-mail'}).fill(prefix+'@example.test');
+ await form.getByRole('button',{name:'Mentés',exact:true}).click();
+ await expect(form).toBeHidden();
+ await expect.poll(()=>query(`SELECT email, city, channel FROM demo_contacts WHERE name = '${prefix} Kapcsolat'`)).toEqual([{email:prefix+'@example.test',city:'Szeged',channel:'email'}]);
+});
+
+test('accordion-multiple: several sections open, an open one closes, the window keeps its size',async({page})=>{
+ await open(page);
+ // The form description of this run asks for several open sections.
+ await page.route(url=>url.pathname==='/',async route=>{
+  const request=route.request();let body;
+  try{body=request.postDataJSON();}catch{}
+  if(request.method()!=='POST'||body?.action!=='__form')return route.fallback();
+  const response=await route.fetch(),json=await response.json();
+  json.data.formSections='accordion-multiple';
+  await route.fulfill({response,json});
+ });
+ await add(page);
+ const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false']);
+ await expect(header(form,'Elérhetőség')).not.toHaveAttribute('aria-disabled','true');
+ const size=await height(form);
+ await header(form,'Cím').click();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:true','Beállítások:false']);
+ await expect(form.getByRole('textbox',{name:'Telefon'})).toBeAttached();
+ expect(await height(form)).toBe(size);
+ await header(form,'Elérhetőség').click();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false']);
+ await header(form,'Cím').click();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false']);
+ expect(await height(form)).toBe(size);
+ // The action row stays at the window's lower edge with every section closed.
+ const frame=await form.boundingBox(),save=await form.getByRole('button',{name:'Mentés',exact:true}).boundingBox();
+ expect(frame.y+frame.height-(save.y+save.height)).toBeLessThan(40);
+});
+
+test('an accordion form on a phone: the window fits the screen, an open section scrolls its own fields',async({page})=>{
+ await open(page,390);
+ await add(page);
+ const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
+ const box=await form.boundingBox();
+ expect(box.height).toBeLessThanOrEqual(844-24);
+ const size=await height(form);
+ await header(form,'Beállítások').click();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:true']);
+ expect(await height(form)).toBe(size);
+ const note=form.getByRole('textbox',{name:'Megjegyzés'});
+ await note.scrollIntoViewIfNeeded();await expect(note).toBeInViewport();
+ await expect(form.getByRole('button',{name:'Mentés',exact:true})).toBeInViewport();
+});
+
+test('a RecordForm in a region (an Accordion section, like the media viewer edit form): the sections share its height; in a fitted window it keeps the fitted size',async({page})=>{
+ await open(page);
+ // A region of a fixed height: the open section fills what the fixed section and the headers leave.
+ await page.evaluate(()=>{
+  const app=window.__bladeApp,host=window.__window=app.ui.window({title:'Fixture',width:560,height:560,fit:false});
+  const side=window.__side=new app.components.Accordion({sections:[{id:'edit',label:'Szerkesztés'}]});side.mount(host);
+  window.__form=new app.components.RecordForm({resource:'demo_contacts',action:'create'});side.attach('edit',window.__form);
+ });
+ const region=page.getByRole('dialog',{name:'Fixture',exact:true});
+ await expect.poll(()=>expanded(region)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false']);
+ const bottom=async()=>{const frame=await region.boundingBox(),save=await region.getByRole('button',{name:'Mentés',exact:true}).boundingBox();return Math.round(frame.y+frame.height-(save.y+save.height));};
+ const gap=await bottom();expect(gap).toBeLessThan(40);
+ expect(await height(region)).toBe(560);
+ await header(region,'Beállítások').click();
+ await expect.poll(()=>expanded(region)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:true']);
+ expect(await height(region)).toBe(560);expect(await bottom()).toBe(gap);
+ // The open section scrolls its own fields within its share.
+ const body=region.locator('.blade-form-section--accordion:not(.blade-form-section--still) > .blade-form-section__body:not(.blade-form-section__body--closed)');
+ expect(await body.evaluate(element=>element.scrollHeight>element.clientHeight)).toBe(true);
+ await page.evaluate(()=>{window.__side.destroy();window.__window.close();});
+ // A fitted window: the RecordForm fits it once, and opening another section keeps that size.
+ await page.evaluate(()=>{
+  const app=window.__bladeApp,host=window.__window=app.ui.window({title:'Fixture',width:560,height:300});
+  window.__form=new app.components.RecordForm({resource:'demo_contacts',action:'create'});window.__form.mount(host);
+ });
+ const fitted=page.getByRole('dialog',{name:'Fixture',exact:true});
+ await expect.poll(()=>expanded(fitted)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false']);
+ await expect.poll(()=>height(fitted)).toBeGreaterThan(300);
+ const size=await height(fitted);
+ await header(fitted,'Cím').click();
+ await expect.poll(()=>expanded(fitted)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false']);
+ expect(await height(fitted)).toBe(size);
+ await page.evaluate(()=>{window.__form.destroy();window.__window.close();});
+});

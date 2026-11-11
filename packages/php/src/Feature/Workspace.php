@@ -97,7 +97,8 @@ final class Workspace
      * The form of $action for the actor of $ctx (`__form`, after the channel and tenant checks): `fields` (metadata) and
      * `values`. The action's `display` fields come first, then its input fields the actor may write; an input field
      * the actor may not write but whose value $values carry (an update's record read through `get`, with that read's
-     * field ACL) stays in place. Both are `readOnly: true` and shown, never sent (FB-0171). Denied object: 403.
+     * field ACL) stays in place. Both are `readOnly: true` and shown, never sent (FB-0171). `formSections` names a
+     * section presentation other than 'panels' (Action::$formSections). Denied object: 403.
      */
     public function describe(Context $ctx,Action $action,?string $id):array
     {
@@ -112,7 +113,7 @@ final class Workspace
             if($this->acl->fieldAllowed($actor,$action->resource,$action->name,'ui',$t['id']??'',$t['owner']??null,$f->name))$fields[]=$this->fieldMetadata($ctx,$f);
             elseif($id!==null&&$f->name!=='revision'&&$shown($f))$fields[]=[...$this->fieldMetadata($ctx,$f),'readOnly'=>true];
         }
-        return ['fields'=>$fields,'values'=>$values];
+        return ['fields'=>$fields,'values'=>$values,...($action->formSections!=='panels'?['formSections'=>$action->formSections]:[])];
     }
     /** Field metadata of $field for the actor of $ctx (ViewMetadata::field). */
     public function fieldMetadata(Context $ctx,Field $field):array { return (new ViewMetadata($this->registry))->field($ctx,$field); }

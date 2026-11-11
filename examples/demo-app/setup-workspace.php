@@ -229,6 +229,11 @@ require_once __DIR__.'/attachments.php';
 blade_demo_attachments_setup($db);
 $rules[] = ['1', 'demo_attachments', ['list', 'get', 'create', 'update', 'delete', 'file_upload', 'file']];
 $rules[] = [(string) $reader, 'demo_attachments', ['list', 'get', 'file']];
+// Contacts in accordion form sections (FB-0178): full rights for the demo account, reading for the reader.
+require_once __DIR__.'/contacts.php';
+blade_demo_contacts_setup($db);
+$rules[] = ['1', 'demo_contacts', ['list', 'get', 'create', 'update', 'delete']];
+$rules[] = [(string) $reader, 'demo_contacts', ['list', 'get']];
 // Approval queue: the demo account reviews; the reader has no access, so neither the entry nor its count.
 $rules[] = ['1', 'demo_approvals', ['list', 'get', 'update']];
 // Read-only topology viewer: opens diagrams, no editing.

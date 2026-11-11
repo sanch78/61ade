@@ -178,10 +178,19 @@ export interface Server {
   url(resource: string, action: string, id: string, version?: string): string;
 }
 
+/**
+ * How a form shows its fields' sections (docs/workspaces.md#form-sections): framed panels sized to their content
+ * ("panels", the default), or accordion sections that share a fixed height, one open at a time ("accordion") or
+ * several ("accordion-multiple").
+ */
+export type FormSections = "panels" | "accordion" | "accordion-multiple";
+
 /** Answer of `Server.form`. */
 export interface FormDescription {
   fields: FieldMetadata[];
   values: Record<string, unknown>;
+  /** The action's section presentation when it is not "panels" (PHP `Action::$formSections`). */
+  formSections?: FormSections;
 }
 
 /** Severity of a dialog or toast; meaning never depends on colour alone. Same values as `DialogSeverity`. */

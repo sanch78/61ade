@@ -248,7 +248,11 @@ tree as decoration for a flat list.
   always show; prefer putting every field of a sectioned form in a section.
   The same sections group the cards and details: framed groups side by side
   by the available width, a long text outside the sections below them across
-  the width ([FB-0177](../../../docs/feedback.md#fb-0177)).
+  the width ([FB-0177](../../../docs/feedback.md#fb-0177)). When opening a
+  section must not resize the window, the action declares accordion sections
+  (`formSections: 'accordion'`): the `Accordion` component's header and fixed
+  geometry inside the one form, never one form per `Accordion` section
+  ([FB-0178](../../../docs/feedback.md#fb-0178)).
 - A small control of a panel (expand/collapse all) is a pair of named icon
   buttons that stay in the bar (`iconOnly`, `pinned`), not text buttons or a
   collapsed menu of two entries ([FB-0177](../../../docs/feedback.md#fb-0177)).

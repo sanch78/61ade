@@ -7348,3 +7348,130 @@ that exactly equals an option label lists every option. The managed
   { overflow: unset }`), and the bar is square. Verified with
   `record-forms.spec.cjs` (the frame clips, the bar's radius is 0; 5 passed)
   and a corner screenshot checked pixel by pixel and removed.
+
+<a id="fb-0178"></a>
+
+## FB-0178 — Accordion form sections beside the framed panels
+
+- **Date:** 2026-11-11.
+- **Request:** the owner finds the framed form sections ([FB-0177](#fb-0177))
+  not enough: a form window changes its geometry as sections open and close,
+  which is disturbing. A real accordion variant is wanted as well, exactly
+  like an accordion layout such as the media viewer's side panel; the
+  existing panels stay. The owner offered two ways: divide the one form into
+  visual sections, or allow an `Accordion` in a window with form parts
+  attached to its sections and handled as one form. Asked first why the
+  existing DHTMLX accordion was not used: Suite 9 has no accordion widget;
+  61ade's `Accordion` is Layout cells, one mounted component each, so a form
+  in it would be one Suite Form per section.
+- **Decision:** the first way, chosen by the owner: accordion sections inside
+  the one Suite Form, so validation, the value set, the save, the dirty
+  state, conditional fields, the tab order and the action row stay the one
+  form's. One form split over `Accordion` sections would need a new layer
+  joining several forms; it stays out until a page needs form parts mixed
+  with other content in one accordion.
+  - **Declaration:** the action's `formSections`: `'panels'` (default, the
+    FB-0177 panels), `'accordion'` (one open at a time) or
+    `'accordion-multiple'`; `SqlResource::register(formSections:)` for its
+    create and update actions; JSON `operations.form_sections` and an
+    action's `form_sections`. An action option rather than a field flag: the
+    presentation is the whole form's, and the form description (`__form`)
+    already reaches every form of the action (window, panel, details,
+    `RecordForm`). The wire carries `formSections` only when it is not
+    `'panels'`.
+  - **Look:** the header of a collapsible section is the section's Suite Form
+    button in a cell that carries the Suite cell header classes
+    (`dhx_layout-cell-header`), so the theme's header applies as to an
+    `Accordion`; the title takes Suite's header title rules and the Blade
+    emboss, the chevron is the `Accordion`'s own rule (admin.css), down while
+    open. A fixed section's legend has the same header box without chevron.
+    Consecutive sections form one framed stack. Suite's form `container`
+    item, which could hold the `Accordion`'s header markup itself, exists
+    only in the PRO Form (`ProForm`), so the standard Form's button is used.
+  - **Geometry:** the open sections share the form's height and scroll their
+    own fields (a minimum of 120 px each); a fixed section and the plain rows
+    keep their height; the action row stays at the lower edge. `fitWindow`
+    measures every section shown and, without `multiple`, subtracts all but
+    the tallest section, so the window's height does not depend on which
+    sections are open. Toggling does not refit; a conditional field or a
+    validation message still does.
+  - **State and keys:** without `multiple` the first collapsible section is
+    open and one always stays open (`aria-disabled` on its header, as the
+    `Accordion`); with it the sections holding a value open, else the first.
+    An error in a closed section opens it (without `multiple` only when the
+    open section holds none) and focuses its first erroneous field. Arrow
+    Up/Down, Home and End move between the headers.
+- **Implemented:**
+  - PHP: `Action::$formSections`, `Action::FORM_SECTIONS` (refuses another
+    value); `SqlResource::register` `formSections`; `Workspace::describe`
+    adds `formSections`; JSON `operations.form_sections` and an action's
+    `form_sections` (`WorkspaceConfiguration`).
+  - Frontend: `fields.ts` `formRows(..., mode)` (accordion rows: the header
+    button with the cell header classes, a fixed section's legend) and
+    `bindAccordion` (state, `aria-*`, keys, error reveal); `form-section.css`
+    (stack, header, geometry, measuring rules); `admin.css` (the
+    `Accordion` chevron rules shared); `blade-chrome.css` (the Blade header
+    chrome and emboss on the fixed legend and the button title);
+    `WindowSizing.ts` `fitWindow` (state-independent height); `actions.ts`,
+    `RecordForm.ts`, `Workspace.ts` pass `formSections`. Types:
+    `FormSections`, `FormDescription.formSections`.
+  - Demo: `Kapcsolatok` ([contacts.php](../examples/demo-app/contacts.php),
+    group `Feature demó`): `Alapadatok` fixed, `Elérhetőség` (a required
+    e-mail), `Cím`, `Beállítások`; `formSections: 'accordion'`; the schema
+    step in `setup-workspace.php`, rights for the demo account and the
+    reader. `Mellékletek` keeps the panels.
+- **Guides:** [accordion form sections](workspaces.md#form-accordion),
+  [form sections](workspaces.md#form-sections),
+  [RecordForm](toolkit.md#recordform), toolkit [changes](toolkit.md#changes)
+  and migration row M59, [configuration](configuration.md) (`operations` and
+  `actions`), [demos](demos.md), [development](development.md) test matrix,
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md),
+  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md) and
+  its [ledger](../.agents/skills/grid-tree-card-ui/references/accepted-rules.md).
+- **Verification:**
+  - **Build and static checks:** `npm run typecheck`, `npm run build`
+    (`node tools/build.mjs --check` clean), `npm run demo:assets`,
+    `git diff --check`; the web demo's schema step
+    (`BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`,
+    the database backed up first).
+  - **PHP checks passed:** `record-forms` (new: the default and the two
+    accordion values, four invalid values refused; `SqlResource::register`
+    gives create and update the value, an invalid one refused; no
+    `formSections` on the wire for panels, the value in an action's form
+    description; JSON `operations.form_sections` read, `tabs`, a boolean and
+    the camelCase key refused), `configuration` (new: a JSON action's
+    `form_sections` read, `tabs` refused), `stored-file`, `contracts`,
+    `list-presentation`, `lists`, `i18n`, `toolkit`, `validation`; node
+    `toolkit-kernel`, `toolkit-list`, `toolkit-components`,
+    `toolkit-registries`, `ui-preferences`.
+  - **Browser, new cases:** `form-accordion.spec.cjs` on `Kapcsolatok` (4
+    passed): the fixed `Alapadatok` group with no button, `Elérhetőség` open
+    and `aria-disabled`; the header's box, title and chevron (open and
+    closed) computed equal to an `Accordion`'s cell header; opening `Cím`
+    and `Beállítások` closes the open one and keeps the window's height to
+    the pixel; the arrows, Home, End and Enter; a missing e-mail opens
+    `Elérhetőség` from `Cím` and focuses it; the closed sections' values
+    saved. `accordion-multiple` (by a rewritten form description): two open,
+    every one closes, the height kept, the action row at the lower edge. A
+    phone (390 px): the window within the screen, its size kept, the open
+    section's last field and `Mentés` reachable. A `RecordForm` in an
+    `Accordion` section of a 560 px window: the sections share it, the
+    action row stays, the open section scrolls; in a fitted `AppWindow` the
+    fitted size is kept. Blade, Blade Night, light and a phone checked by
+    eye on screenshots, removed.
+  - **Browser, affected specs on the managed demo:** `record-forms`,
+    `stored-file`, `accordion`, `task-page`, `toolkit-demo-assets`,
+    `toolkit-list`, `workspace`, `toolkit-components`, `dialogs`,
+    `settings-form`, `admin`, `list-presentation` (79 passed, one skipped as
+    before), then `calendar`, `files`, `subview`, `tree-component`,
+    `mobile-grid`, `list-integration`, `suite-labels`,
+    `toolkit-demo-playlist` (49 passed). No full-smoke claim.
+- **Found on the way (not changed):** `RecordForm` fits an `AppWindow`
+  through its `fit()` also when the window was opened with `fit: false`,
+  although the toolkit guide says `fit: false` keeps the requested size.
+  Changing it would resize existing consumers' windows; left for an owner
+  decision.
+- **Limits:** the open sections are not remembered; an accordion form in a
+  host without a height shows every section at its own height; sections do
+  not nest; no `Accordion` with attached form parts.
+- **Status:** implemented and verified on the managed demo.

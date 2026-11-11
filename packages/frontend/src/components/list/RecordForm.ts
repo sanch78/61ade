@@ -61,7 +61,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       if(unknown.length)console.warn(`61ade: RecordForm readOnly names no input field of ${resource}.${action}: ${unknown.join(", ")}.`);
       this.fixed=new Set([...fields.filter(shownOnly).map(field=>field.name),...named.filter(name=>inputs.has(name))]);
       const fixed=(field:FieldDefinition)=>this.fixed.has(field.name),editable=fields.filter(field=>!fixed(field));
-      const form=this.form=new Form(document.createElement("div"),{padding:20,rows:[...formRows(fields,f=>input(f,f.type==="password"?"":values[f.name],fixed(f)),values),
+      const form=this.form=new Form(document.createElement("div"),{padding:20,rows:[...formRows(fields,f=>input(f,f.type==="password"?"":values[f.name],fixed(f)),values,schema.formSections),
         formActions({name:"submit",text:this.action?.submitLabel??this.action?.label??t("Mentés"),icon:this.action?.icon??"dxi dxi-content-save",color:"primary"},this.options.cancel!==false)]} as any);
       this.files=new FileFields(form,schema.fields as FieldDefinition[],(resource,action,id,values={})=>server.call(resource,action,{id,values}),[schema.values as Row],fixed);
       this.validation=new FormValidation(form,editable);

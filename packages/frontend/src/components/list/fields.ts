@@ -4,7 +4,7 @@ import "../../form-section.css";
 import { fileInput } from "../../FilePicker";
 import { type Form, awaitRedraw } from "@dhtmlx/suite";
 import { extensions, fieldTypeOf } from "../../app/registries";
-import type { FieldMetadata } from "../../api/types";
+import type { FieldMetadata, FormSections } from "../../api/types";
 import { calendarDate, dateValue, fieldActive, fileDisplay, sectionReveal } from "../../FormValidation";
 import type { ActionDefinition, FieldDefinition } from "./types";
 
@@ -54,20 +54,44 @@ const fixedSection=(fields:FieldDefinition[],label:string)=>fields.some(field=>f
 /** Whether $value fills a field: a non-empty value; an unchecked checkbox and an empty choice count as empty. */
 const filled=(field:FieldDefinition,value:unknown)=>Array.isArray(value)?value.length>0:value!==undefined&&value!==null&&value!==false&&String(value).trim()!==""&&!(field.type==="checkbox"&&String(value)==="0");
 /**
+ * Accordion sections (`formSections` other than "panels"): the section cell; its header, the disclosure button's cell
+ * carrying the Suite cell header classes of the Accordion component (theme and chevron, admin.css); a still (fixed) one.
+ */
+const ACCORDION="blade-form-section--accordion",HEADING="dhx_layout-cell-header dhx_layout-cell-header--row blade-form-section__heading",MULTIPLE=" blade-form-section__heading--multiple",STILL=" blade-form-section--still";
+/** The sections of an accordion form that start open: without `multiple` the first collapsible one; with it those holding a value, else the first. */
+function openedAt(fields:FieldDefinition[],values:Record<string,unknown>,multiple:boolean):Set<string>{
+  const collapsible=sectionsOf(fields).filter(label=>!fixedSection(fields,label));
+  const filledOnes=multiple?collapsible.filter(label=>fields.some(field=>field.section===label&&filled(field,values[field.name]))):[];
+  return new Set(filledOnes.length?filledOnes:collapsible.slice(0,1));
+}
+/**
  * The Form rows of $fields: each field's $item, the fields of one `section` gathered at the place of its first field in
  * one framed panel (docs/workspaces.md#form-sections): a fieldset under a disclosure button (collapsible), or under its
  * legend as the heading (fixed, `sectionCollapsible: false`, always open). A collapsible section starts open when one
  * of its fields holds a value in $values (the stored or preset values; a default does not count), else closed.
+ * With $mode "accordion" or "accordion-multiple" the sections are accordion sections instead: the disclosure button
+ * as the Accordion component's cell header (a fixed one: its legend) above the fieldset; the open sections share the
+ * form's height, a fixed one keeps its own (`openedAt` names the open ones).
  */
-export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>any,values:Record<string,unknown>={}):any[]{
+export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>any,values:Record<string,unknown>={},mode:FormSections="panels"):any[]{
   const rows:any[]=[],bodies=new Map<string,any[]>(),labels=sectionsOf(fields);
+  const accordion=mode==="accordion"||mode==="accordion-multiple",opened=accordion?openedAt(fields,values,mode==="accordion-multiple"):undefined;
   for(const field of fields){
     if(!field.section){rows.push(item(field));continue;}
     let body=bodies.get(field.section);
     if(!body){
       const n=labels.indexOf(field.section)+1;
       bodies.set(field.section,body=[]);
-      if(fixedSection(fields,field.section))rows.push({css:"blade-form-section blade-form-section--fixed",rows:[
+      if(opened){
+        const still=fixedSection(fields,field.section),open=still||opened.has(field.section);
+        rows.push({css:"blade-form-section "+ACCORDION+(still?STILL:""),rows:still?[
+          {type:"fieldset",name:SECTION+n+"_body",label:field.section,css:BODY,rows:body},
+        ]:[
+          {type:"button",name:SECTION+n,text:field.section,view:"link",color:"secondary",css:HEADING+(mode==="accordion-multiple"?MULTIPLE:"")},
+          {type:"fieldset",name:SECTION+n+"_body",css:BODY+(open?"":CLOSED),rows:body},
+        ]});
+      }
+      else if(fixedSection(fields,field.section))rows.push({css:"blade-form-section blade-form-section--fixed",rows:[
         {type:"fieldset",name:SECTION+n+"_body",label:field.section,css:BODY,rows:body},
       ]});
       else{
@@ -88,6 +112,9 @@ export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>
  * focuses its first erroneous field. Closing only hides: the values stay, are submitted and validated.
  */
 function bindSections(form:Form,fields:FieldDefinition[],signal:AbortSignal,toggled?:()=>void):void{
+  // Accordion sections (formRows in an accordion mode) are told by their header's classes.
+  const headings=sectionsOf(fields).map((_,index)=>String((form.getItem(SECTION+(index+1)) as any)?.config?.css??"")).filter(css=>css.includes("blade-form-section__heading"));
+  if(headings.length){bindAccordion(form,fields,headings[0].includes(MULTIPLE.trim()),signal);return;}
   // A fixed section has no disclosure: its legend names its group and it never closes.
   const labels=sectionsOf(fields).map(label=>fixedSection(fields,label)?"":label);
   if(!labels.some(Boolean))return;
@@ -123,6 +150,72 @@ function bindSections(form:Form,fields:FieldDefinition[],signal:AbortSignal,togg
     changed();
     // The first erroneous field of a section that was closed takes the focus (a file field: its name input).
     const first=fields.find(field=>names.includes(field.name)&&opened.includes(field.section!));
+    if(first)void awaitRedraw().then(()=>{if(!signal.aborted)(form.getItem(first.type==="file"?fileDisplay(first.name):first.name) as any)?.focus?.();});
+  });
+  signal.addEventListener("abort",()=>sectionReveal.delete(form),{once:true});
+  decorate();void awaitRedraw().then(decorate);
+  form.events.on("change",decorate);
+}
+/**
+ * The accordion sections of a Form built by `formRows` in an accordion mode: the header button controls its labelled
+ * fieldset (`aria-expanded`, `aria-controls`); a click, Enter or Space opens a closed section and, without $multiple,
+ * closes the open one (one stays open: its header says `aria-disabled`); with $multiple it also closes an open one. The
+ * arrows, Home and End move between the headers. A fixed section is headed by its legend and never closes. An error in
+ * a closed section opens it (without $multiple: the first one, unless the open section holds an error) and focuses its
+ * first erroneous field. Toggling never resizes a window: its fitted height does not depend on the open sections
+ * (`fitWindow`).
+ */
+function bindAccordion(form:Form,fields:FieldDefinition[],multiple:boolean,signal:AbortSignal):void{
+  const labels=sectionsOf(fields),numbers=labels.map((_,index)=>index+1),toggles=numbers.filter(n=>!fixedSection(fields,labels[n-1]));
+  const body=(n:number)=>form.getItem(SECTION+n+"_body") as any;
+  const isOpen=(n:number)=>!String(body(n)?.getProperties?.().css??"").includes(CLOSED.trim());
+  const button=(n:number)=>(form.getItem(SECTION+n) as any)?.getRootNode?.() as HTMLElement|undefined;
+  const set=(element:Element|null|undefined,name:string,value:string|null)=>{
+    if(!element)return;
+    if(value===null){if(element.hasAttribute(name))element.removeAttribute(name);}
+    else if(element.getAttribute(name)!==value)element.setAttribute(name,value);
+  };
+  const decorate=()=>{
+    if(signal.aborted)return;
+    for(const n of toggles){
+      const element=button(n),fieldset=element?.closest(".blade-form-section")?.querySelector("fieldset");
+      if(!element||!fieldset)continue;
+      if(!fieldset.id)fieldset.id=(element.id||SECTION+n)+"-body";
+      set(fieldset,"aria-labelledby",element.id);
+      set(element,"aria-expanded",String(isOpen(n)));set(element,"aria-controls",fieldset.id);
+      set(element,"aria-disabled",!multiple&&isOpen(n)?"true":null);
+    }
+  };
+  const show=(n:number,open:boolean)=>body(n).setProperties({css:BODY+(open?"":CLOSED)});
+  /** Opens $n (without `multiple` closing the open one); whether anything changed. */
+  const open=(n:number)=>{
+    if(isOpen(n))return false;
+    if(!multiple)for(const other of toggles)if(other!==n&&isOpen(other))show(other,false);
+    show(n,true);return true;
+  };
+  const changed=()=>{decorate();void awaitRedraw().then(decorate);};
+  form.events.on("click",(name:string)=>{
+    if(signal.aborted||!name?.startsWith(SECTION)||name.endsWith("_body"))return;
+    const n=Number(name.slice(SECTION.length));
+    if(!toggles.includes(n))return;
+    if(isOpen(n)?multiple&&(show(n,false),true):open(n))changed();
+  });
+  // The arrows, Home and End between the headers (Enter and Space are the native button's click).
+  document.addEventListener("keydown",event=>{
+    if(event.altKey||event.ctrlKey||event.metaKey)return;
+    const index=toggles.findIndex(n=>button(n)===event.target);
+    if(index<0)return;
+    const next=event.key==="ArrowDown"?toggles[(index+1)%toggles.length]:event.key==="ArrowUp"?toggles[(index-1+toggles.length)%toggles.length]
+      :event.key==="Home"?toggles[0]:event.key==="End"?toggles[toggles.length-1]:undefined;
+    if(next!==undefined){event.preventDefault();button(next)?.focus();}
+  },{signal});
+  sectionReveal.set(form,names=>{
+    if(signal.aborted)return;
+    const erroneous=toggles.filter(n=>fields.some(field=>field.section===labels[n-1]&&names.includes(field.name)));
+    const opened=(multiple?erroneous:erroneous.some(isOpen)?[]:erroneous.slice(0,1)).filter(open);
+    if(!opened.length)return;
+    changed();
+    const first=fields.find(field=>names.includes(field.name)&&opened.some(n=>labels[n-1]===field.section));
     if(first)void awaitRedraw().then(()=>{if(!signal.aborted)(form.getItem(first.type==="file"?fileDisplay(first.name):first.name) as any)?.focus?.();});
   });
   signal.addEventListener("abort",()=>sectionReveal.delete(form),{once:true});
