@@ -13,7 +13,7 @@ import { FileFields } from "../../FilePicker";
 import { ResponsiveGrid, previewRows, hasSubview } from "../../ResponsiveGrid";
 import { FormValidation } from "../../FormValidation";
 import { server } from "../../api/Server";
-import type { Application, ListTarget, ListViewEvents } from "../../api/types";
+import type { Application, FormSections, ListTarget, ListViewEvents } from "../../api/types";
 import { commandEnabled, commandId, extensions, fieldTypeOf, resolveCommands, type ListCommand } from "../../app/registries";
 import { LIST, builtinCommands, type ListCommandContext } from "./commands";
 import { bindFieldTypes, errorText, escape, formActions, formRows, input, shownOnly } from "./fields";
@@ -588,15 +588,15 @@ export class Workspace implements ActionHost {
   }
   private async mountDetail(row:Row):Promise<void>{
     const action=this.view.actions.find(a=>a.name==="update"&&row._actions?.includes("update"));
-    let allowed:FieldDefinition[]=[];
-    if(action){const schema=await this.call("__form",String(row.id),{operation:"update"});allowed=schema.fields;}
+    let allowed:FieldDefinition[]=[],sections:FormSections|undefined;
+    if(action){const schema=await this.call("__form",String(row.id),{operation:"update"});allowed=schema.fields;sections=schema.formSections;}
     if(this.disposed)return;
     this.layout.getCell("detail").detach();this.detail?.destructor();await awaitRedraw();if(this.disposed)return;
     // Derived media columns have no field of their own: the detail form shows the fields only.
     // A field of the update form that the actor may write is edited; every other one is shown read-only.
     const fields=this.view.columns.filter(c=>!derivedOf(c)).map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:c.type==="select"||c.type==="checkbox"||c.type==="multiselect"?c.type:"text",required:false,max:255,options:c.options??{},...(c.section?{section:c.section}:{})});
     const fixed=(f:FieldDefinition)=>shownOnly(f)||!allowed.some(a=>a.name===f.name);
-    const form=new Form(document.createElement("div"),{padding:24,rows:[...formRows(fields,f=>input(f,row[f.name],fixed(f)),row),...(action?[formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save",color:"primary"})]:[])]} as any);
+    const form=new Form(document.createElement("div"),{padding:24,rows:[...formRows(fields,f=>input(f,row[f.name],fixed(f)),row,sections),...(action?[formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save",color:"primary"})]:[])]} as any);
     this.detailFiles?.destroy();this.detailFiles=new FileFields(form,fields,this.resourceCall,[row],fixed);
     this.detailTypes?.();this.detailTypes=bindFieldTypes(form,fields,fixed);
     this.detail=form;this.detailDirty=false;this.detailConflictShown=false;

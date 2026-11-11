@@ -1468,7 +1468,9 @@ for fields that must stay visible in every case. The sections are inside the
 one Suite Form, each a fieldset under a disclosure button (collapsible) or
 under its legend (fixed); one `RecordForm` stays one Form and no layout cells
 are added ([FB-0148](feedback.md#fb-0148)). The same sections group the
-[cards and details](#card-groups).
+[cards and details](#card-groups). A form can instead show its sections as
+[accordion sections](#form-accordion): the look and the fixed geometry of the
+`Accordion` component, so opening a section never resizes the window.
 
 ```php
 new Field('title', 'Megnevezés', required: true, section: 'Alapadatok', sectionCollapsible: false),
@@ -1515,10 +1517,75 @@ new Field('detail', 'Részletkép', 'file', file: $image, section: 'Képek'),
   named by the button (`aria-labelledby`). A closed section's fields are not
   in the tab order. A fixed section is a fieldset named by its legend, with
   no button.
-- **Limits:** sections do not nest and have no per-action variant; the bulk
-  form and grid or card editors show no sections; `SettingsForm` keeps its
-  own groups. The open state is not stored. The `Adatok` window shows the
-  sections as [groups](#card-groups), not as panels.
+- **Limits:** sections do not nest; the bulk form and grid or card editors
+  show no sections; `SettingsForm` keeps its own groups. The open state is not
+  stored. The `Adatok` window shows the sections as [groups](#card-groups),
+  not as panels.
+
+<a id="form-accordion"></a>
+
+### Accordion form sections
+
+The panels above size the form to its content, so a form window grows and
+shrinks as a section opens or closes. An action that declares
+`formSections: 'accordion'` shows its sections like the
+[`Accordion`](toolkit.md#accordion) component instead (the side panel of the
+feature demo's media viewer): a stack of sections under the same cell header,
+sharing a fixed height ([FB-0178](feedback.md#fb-0178)). Opening a section
+closes the open one, and the window keeps its size; a section taller than its
+share scrolls its own fields. `'accordion-multiple'` lets several sections be
+open; they share the height. The default, `'panels'`, is the framed panels
+above.
+
+```php
+// SqlResource: its create and update forms.
+$contacts->register($registry, 'Kapcsolatok', formSections: 'accordion');
+// Any action.
+new Action('contacts', 'review', 'Átnézés', $fields, $handler, write: true, formSections: 'accordion-multiple');
+```
+
+```json
+{"resources": {"contacts": {"operations": {"form_sections": "accordion"}}}}
+{"actions": [{"resource": "contacts", "name": "review", "label": "Átnézés", "handler": "contacts.review", "form_sections": "accordion-multiple"}]}
+```
+
+- **Declaration:** the action's `formSections` (PHP `Action`, the
+  `formSections` parameter of `SqlResource::register` for its create and
+  update actions; JSON `operations.form_sections` of a resource and
+  `form_sections` of an action): `'panels'`, `'accordion'` or
+  `'accordion-multiple'`; another value is refused with
+  `InvalidArgumentException`. The form description (`__form`,
+  `FormDescription.formSections`) carries it when it is not `'panels'`, so
+  every form of the action uses it: the list's window and panel, the
+  singleton's details form (the update action's) and `RecordForm`.
+- **Look:** a collapsible section's header is the `Accordion` component's
+  Suite cell header (the theme's header, its title and the same chevron,
+  turned down while open). A fixed section (`sectionCollapsible: false`) has
+  the same header without a chevron and keeps its own height. Consecutive
+  sections form one framed stack; fields outside sections stay plain rows.
+- **Geometry:** the open sections share the height the fixed sections and the
+  plain rows leave; a closed section is its header alone; the action row
+  stays at the form's lower edge. A fitted window (the list's form window, an
+  `AppWindow`) measures every section shown, so its height (up to its
+  `maxHeight`, 800 px by default, and the viewport) does not depend on which
+  sections are open: without `multiple` it fits the tallest open section,
+  with it all of them. Only a conditional field appearing or a validation
+  message refits it. In a region (`RecordForm` in a page or an `Accordion`
+  section, the list's form panel) the sections share the region's height.
+- **State:** without `multiple` the first collapsible section is open and one
+  always stays open (its header says `aria-disabled`); with `multiple` the
+  sections holding a value are open, else the first, and every one can close.
+  A validation error in a closed section opens it (without `multiple` only
+  when the open section holds none, closing it) and focuses its first
+  erroneous field. Closed sections' values are submitted and validated.
+- **Keyboard and accessibility:** the header is a native button (Enter,
+  Space, click) with `aria-expanded` and `aria-controls`; Arrow Up and Down,
+  Home and End move between the headers, as in the `Accordion`. The fieldset
+  is a group named by its header.
+- **Limits:** the open sections are not remembered (the `Accordion`
+  component's `id` preference has no form counterpart); an accordion form
+  needs the height of its host: in a host without a height it shows every
+  section at its own height. Sections do not nest.
 
 <a id="count-fields"></a>
 

@@ -77,6 +77,8 @@ $notes->registerDelete($workspace->registry);
 // A record with a file in the project's own storage (FB-0167): upload and GET actions of the project, one save.
 require_once __DIR__.'/attachments.php';
 blade_demo_attachments_register($workspace);
+require_once __DIR__.'/contacts.php';
+blade_demo_contacts_register($workspace);
 // Two-panel virtual file manager (framework capability); mounts and upload limits are demo configuration.
 $files = blade_demo_files();
 $files->register($workspace);

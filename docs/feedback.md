@@ -731,3 +731,7 @@
 <a id="fb-0177"></a>
 
 ## FB-0177 — Professional form sections, card groups, fitted windows and an icon tree control
+
+<a id="fb-0178"></a>
+
+## FB-0178 — Accordion form sections beside the framed panels

@@ -5,6 +5,7 @@
 :where([data-blade-theme|="blade"]) .dhx_menu-nav,
 :where([data-blade-theme|="blade"]) .dhx_toolbar,
 :where([data-blade-theme|="blade"]) .dhx_layout-cell-header,
+:where([data-blade-theme|="blade"]) .blade-form-section--still .dhx_form-fieldset-legend,
 :where([data-blade-theme|="blade"]) .dhx_grid-header-cell,
 :where([data-blade-theme|="blade"]) .dhx_grid-footer-cell,
 :where([data-blade-theme|="blade"]) .dhx_window-header,
@@ -13,6 +14,8 @@
   box-shadow: inset 0 1px 0 var(--blade-highlight);
 }
 :where([data-blade-theme|="blade"]) .dhx_layout-cell-header__title,
+:where([data-blade-theme|="blade"]) .blade-form-section__heading .dhx_button__text,
+:where([data-blade-theme|="blade"]) .blade-form-section--still .dhx_form-fieldset-legend,
 :where([data-blade-theme|="blade"]) .dhx_grid-header-cell,
 :where([data-blade-theme|="blade"]) .blade-tabs .dhx_tabbar-tab-button:not(.dhx_tabbar-tab-button--active) {
   text-shadow: var(--blade-emboss);

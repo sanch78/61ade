@@ -23,3 +23,48 @@
 .dhx_widget.dhx_form .blade-form-section--fixed .dhx_form-fieldset-legend { float: left; width: calc(100% + 32px); margin: 0 -16px 4px; }
 .dhx_widget.dhx_form .blade-form-section--fixed .dhx_form-fieldset-legend + * { clear: both; }
 .dhx_widget.dhx_form .blade-form-section__body--closed { display: none !important; }
+/* Accordion sections (`formSections` "accordion" / "accordion-multiple", docs/workspaces.md#form-sections): the
+   Accordion component's look and geometry inside one Form. A section's header is its disclosure button in a cell that
+   carries the Suite cell header classes (the theme's header; the chevron from admin.css), a fixed one's its legend in
+   the same look; consecutive sections form one framed stack; the open sections share the form's height and scroll
+   their own fields, a closed one is its header alone and a still (fixed) one keeps its own height. The action row
+   stays at the lower edge. While a window is measured every section shows at its own height (WindowSizing.ts). */
+.dhx_widget.dhx_form .blade-form-section.blade-form-section--accordion { border-radius: 0; margin: 0; }
+.dhx_widget.dhx_form .blade-form-section--accordion:not(.blade-form-section--accordion + .blade-form-section--accordion) { margin-top: 4px; border-top-left-radius: var(--dhx-border-radius); border-top-right-radius: var(--dhx-border-radius); }
+.dhx_widget.dhx_form .blade-form-section--accordion + .blade-form-section--accordion { margin-top: -1px; }
+.dhx_widget.dhx_form .blade-form-section--accordion:not(:has(+ .blade-form-section--accordion)) { margin-bottom: 12px; border-bottom-left-radius: var(--dhx-border-radius); border-bottom-right-radius: var(--dhx-border-radius); }
+/* The cell is the header (Suite's padding moves to the button, so the whole header is the button and its focus ring). */
+.dhx_widget.dhx_form .blade-form-section__heading { padding: 0; margin: 0; }
+.dhx_widget.dhx_form .blade-form-section__heading .dhx_button {
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px; box-sizing: border-box; width: 100%; min-height: 0; height: auto;
+  margin: 0; padding: 8px 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: left; text-decoration: none; cursor: pointer; user-select: none;
+}
+.dhx_widget.dhx_form .blade-form-section__heading .dhx_button:hover,
+.dhx_widget.dhx_form .blade-form-section__heading .dhx_button:active { background: transparent; box-shadow: none; }
+.dhx_widget.dhx_form .blade-form-section__heading .dhx_button[aria-disabled="true"] { cursor: default; }
+.dhx_widget.dhx_form .blade-form-section__heading .dhx_button:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
+/* The title: Suite's `.dhx_layout-cell-header__title`. */
+.dhx_widget.dhx_form .blade-form-section__heading .dhx_button__text,
+.dhx_widget.dhx_form .blade-form-section--still .dhx_form-fieldset-legend {
+  flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: var(--dhx-font-size-normal); line-height: var(--dhx-line-height-normal); font-weight: var(--dhx-font-weight-medium); color: var(--dhx-font-color-primary);
+}
+.dhx_widget.dhx_form .blade-form-section__heading .dhx_button::after { margin: 0 0 0 auto; flex: 0 0 auto; color: var(--dhx-font-color-secondary); }
+/* A fixed section's legend in the header's look (Suite's `.dhx_layout-cell-header` box), edge to edge above its fields. */
+.dhx_widget.dhx_form .blade-form-section--still .dhx_form-fieldset { padding-top: 0; }
+.dhx_widget.dhx_form .blade-form-section--still .dhx_form-fieldset-legend {
+  display: flex; align-items: center; box-sizing: border-box; float: left; width: calc(100% + 32px); margin: 0 -16px 12px; padding: 8px 12px;
+  border-bottom: var(--dhx-border); background-color: var(--dhx-background-primary);
+}
+.dhx_widget.dhx_form .blade-form-section--still .dhx_form-fieldset-legend + * { clear: both; }
+.dhx_widget.dhx_form .blade-form-section--accordion:has(> .blade-form-section__body--closed) .blade-form-section__heading { border-bottom: 0; }
+.dhx_widget.dhx_form .blade-form-section--accordion:where(:not(.blade-form-section--still):not(:has(> .blade-form-section__body--closed))) { flex: 1 1 0 !important; min-height: 120px; }
+/* Low specificity (`:where`), so the measuring rules below win. */
+.dhx_widget.dhx_form .blade-form-section--accordion:where(:not(.blade-form-section--still)) > .blade-form-section__body { flex: 1 1 0 !important; min-height: 0; overflow: auto; }
+.dhx_widget.dhx_form .blade-form-section--accordion:not(.blade-form-section--still) > .blade-form-section__body .dhx_form-fieldset { padding-top: 12px; }
+.dhx_widget.dhx_form:has(> .blade-form-section--accordion) > .blade-form-actions { margin-top: auto; }
+.blade-content-window .dhx_widget.dhx_form:has(> .blade-form-section--accordion) > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 0; }
+[data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion { flex: 0 0 auto !important; min-height: 0; }
+[data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion > .blade-form-section__body { flex: 0 0 auto !important; overflow: visible; }
+[data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion > .blade-form-section__body--closed { display: flex !important; }
+[data-blade-measure] .dhx_widget.dhx_form:has(> .blade-form-section--accordion) > .blade-form-actions { margin-top: 0; }

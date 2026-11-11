@@ -3,6 +3,8 @@ declare(strict_types=1);
 namespace Blade\Feature;
 final readonly class Action
 {
+    /** The presentations of a form's field sections (`formSections`). */
+    public const FORM_SECTIONS = ['panels', 'accordion', 'accordion-multiple'];
     /**
      * Resolver returns backend target ['id','owner',...] before permission evaluation; an optional
      * 'acl_id' separates the ACL object from the audited object, 'audit' adds non-sensitive IDs.
@@ -11,9 +13,13 @@ final readonly class Action
      * $get: field-free read that is also served over GET/HEAD (e.g. an <img> or <video> source).
      * $display: fields its form shows read-only before its input fields (FB-0171), with their values from $formValues
      * or the record's `get`; never input: a request that sends one is refused like any unknown field.
+     * $formSections: how its form shows the fields' sections (docs/workspaces.md#form-sections): 'panels' (framed
+     * panels that size the form to its content), 'accordion' (one section open at a time, sharing a fixed height, like
+     * the Accordion component) or 'accordion-multiple' (several open sections share it).
      */
-    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false, public array $display = [])
+    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false, public array $display = [], public string $formSections = 'panels')
     {
+        if (!in_array($formSections, self::FORM_SECTIONS, true)) throw new \InvalidArgumentException('Invalid form sections: '.$formSections);
         if ($confirm !== null) self::checkConfirm($confirm);
         if ($upload !== null && ((is_int($upload) && $upload < 1) || $bulk || $collection)) throw new \InvalidArgumentException('Invalid upload action.');
         if ($get && ($write || $upload !== null || $bulk || $collection || $fields)) throw new \InvalidArgumentException('GET actions must be field-free reads.');

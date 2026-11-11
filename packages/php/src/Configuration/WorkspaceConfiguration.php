@@ -182,7 +182,7 @@ final class WorkspaceConfiguration
             'guard' => 'string', 'normalize' => 'string', 'after_save' => 'string', 'delete_guard' => 'string', 'after_delete' => 'string',
         ], '$.resources.'.$name.'.hooks');
         Shape::check($operations, [], [
-            'create' => 'boolean', 'update' => 'boolean', 'delete' => 'boolean', 'delete_policy' => 'string',
+            'create' => 'boolean', 'update' => 'boolean', 'delete' => 'boolean', 'delete_policy' => 'string', 'form_sections' => 'string',
         ], '$.resources.'.$name.'.operations');
         if (isset($operations['delete_policy']) && !($operations['delete'] ?? false)) {
             throw new InvalidArgumentException('A delete policy needs operations.delete: '.$name);
@@ -239,6 +239,7 @@ final class WorkspaceConfiguration
             group: $view['group'] ?? null,
             layout: $this->layout($view),
             id: $view['id'] ?? null,
+            formSections: $operations['form_sections'] ?? 'panels',
         );
         if ($operations['delete'] ?? false) {
             $resource->registerDelete($this->registry, $operations['delete_policy'] ?? 'delete');
@@ -251,7 +252,7 @@ final class WorkspaceConfiguration
         Shape::check($definition, [
             'resource' => 'string', 'name' => 'string', 'label' => 'string', 'handler' => 'string',
         ], [
-            'icon' => 'string', 'bulk' => 'boolean', 'confirm' => 'array', 'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array', 'form_values' => 'string',
+            'icon' => 'string', 'bulk' => 'boolean', 'confirm' => 'array', 'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array', 'form_values' => 'string', 'form_sections' => 'string',
         ], '$.actions');
         if (!isset($this->resources[$definition['resource']])) {
             throw new InvalidArgumentException('Unknown action resource: '.$definition['resource']);
@@ -285,6 +286,7 @@ final class WorkspaceConfiguration
             icon: $definition['icon'] ?? null,
             bulk: $definition['bulk'] ?? false,
             confirm: $definition['confirm'] ?? null,
+            formSections: $definition['form_sections'] ?? 'panels',
         ));
     }
 

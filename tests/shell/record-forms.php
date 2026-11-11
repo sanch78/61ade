@@ -47,6 +47,14 @@ rejected(static fn() => new Action('r', 'a', 'A', [], $noop, display: [new Field
 rejected(static fn() => new Action('r', 'a', 'A', [new Field('x', 'X')], $noop, display: [new Field('x', 'X')]), 'Display field that is an input accepted');
 rejected(static fn() => new Action('r', 'a', 'A', [], $noop, display: [new Field('x', 'X'), new Field('x', 'X')]), 'Repeated display field accepted');
 rejected(static fn() => new Action('r', 'a', 'A', [], $noop, display: ['x']), 'Display entry that is no Field accepted');
+// Form sections (FB-0178): 'panels' by default, 'accordion' or 'accordion-multiple'; anything else is refused.
+verify((new Action('r', 'a', 'A', [], $noop))->formSections === 'panels' && (new Action('r', 'a', 'A', [], $noop, formSections: 'accordion-multiple'))->formSections === 'accordion-multiple', 'Form sections accepted');
+foreach (['', 'Accordion', 'tabs', 'accordion_multiple'] as $bad) rejected(static fn() => new Action('r', 'a', 'A', [], $noop, formSections: $bad), 'Invalid form sections accepted: '.$bad);
+// SqlResource::register gives its create and update actions the presentation.
+$sections = new Registry();
+(new SqlResource('things', 'things', 'id', [new Field('title', 'Title', section: 'S')]))->register($sections, 'Things', formSections: 'accordion');
+verify($sections->get('things', 'create')->formSections === 'accordion' && $sections->get('things', 'update')->formSections === 'accordion', 'SqlResource form sections');
+rejected(static fn() => (new SqlResource('things', 'things', 'id', [new Field('title', 'Title')]))->register(new Registry(), 'Things', formSections: 'tabs'), 'Invalid SqlResource form sections accepted');
 // createOnly: a written, readable field no update path changes.
 $fields = static fn() => [new Field('title', 'Title', required: true), new Field('kind', 'Kind', 'select', options: ['a' => 'Alpha', 'b' => 'Beta']), new Field('secret', 'Secret', secret: true),
     new Field('cell', 'Cell', column: ['editable' => true]), new Field('mass', 'Mass', bulk: true), new Field('total', 'Total', 'number')];
@@ -80,6 +88,12 @@ verify($form['values']['parent_id'] === '2' && $form['values']['kind'] === 'b' &
 verify(($form['fields'][3]['section'] ?? null) === 'More' && ($form['fields'][4]['section'] ?? null) === 'More' && !isset($form['fields'][2]['section']), 'Sections in the form metadata');
 $create = $workspace->describe($context, $registry->get('items', 'create'), null);
 verify($names($create['fields']) === ['parent_id', 'kind', 'title', 'note', 'image'] && !array_filter($create['fields'], static fn($field) => $field['readOnly'] ?? false), 'Create form: everything editable');
+// The default section presentation is not on the wire; another one is (`formSections`).
+verify(!array_key_exists('formSections', $create) && !array_key_exists('formSections', $form), 'No formSections for panels');
+$registry->add(new Action('items', 'survey', 'Survey', [new Field('answer', 'Answer', section: 'More')], $noop, write: true, formSections: 'accordion'));
+$rule->execute(['survey', 'allow', '']);
+$workspace->acl->invalidate();
+verify(($workspace->describe($context, $registry->get('items', 'survey'), null)['formSections'] ?? null) === 'accordion', 'formSections in the form description');
 // A save that sends a display field is refused, nothing changes; without it the update saves.
 $revision = $form['values']['revision'];
 failed(static fn() => $workspace->executor->execute($context, 'items', 'update', $id, ['title' => 'Two', 'kind' => 'a', 'revision' => $revision]), 400, 'A display field sent');
@@ -117,9 +131,14 @@ try {
     $fixed = $module;$fixed['resources']['items']['fields'][1]['section_collapsible'] = false;
     file_put_contents($directory.'/module.json', json_encode($fixed, JSON_THROW_ON_ERROR));
     verify(WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry->fields('items')['title']->sectionCollapsible === false, 'JSON section_collapsible');
-    foreach ([['storage', 'create_only', 'kind'], ['storage', 'create_only', ['missing']], ['field', 'section', ['More']], ['field', 'section', ''], ['field', 'section_collapsible', 'no'], ['field', 'sectionCollapsible', false]] as [$where, $key, $value]) {
+    // operations.form_sections gives the create and update forms their section presentation (FB-0178).
+    $accordion = $module;$accordion['resources']['items']['operations'] = ['form_sections' => 'accordion-multiple'];
+    file_put_contents($directory.'/module.json', json_encode($accordion, JSON_THROW_ON_ERROR));
+    $built = WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry;
+    verify($built->get('items', 'create')->formSections === 'accordion-multiple' && $built->get('items', 'update')->formSections === 'accordion-multiple', 'JSON operations.form_sections');
+    foreach ([['operations', 'form_sections', 'tabs'], ['operations', 'form_sections', true], ['operations', 'formSections', 'accordion'], ['storage', 'create_only', 'kind'], ['storage', 'create_only', ['missing']], ['field', 'section', ['More']], ['field', 'section', ''], ['field', 'section_collapsible', 'no'], ['field', 'sectionCollapsible', false]] as [$where, $key, $value]) {
         $broken = $module;
-        if ($where === 'storage') $broken['resources']['items']['storage'][$key] = $value; else $broken['resources']['items']['fields'][1][$key] = $value;
+        if ($where === 'field') $broken['resources']['items']['fields'][1][$key] = $value; else $broken['resources']['items'][$where][$key] = $value;
         file_put_contents($directory.'/module.json', json_encode($broken, JSON_THROW_ON_ERROR));
         rejected(static fn() => WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => []), 'Invalid JSON '.$key.' accepted: '.json_encode($value));
     }
