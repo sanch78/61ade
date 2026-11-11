@@ -1,17 +1,19 @@
 /* Field sections of action forms (fields.ts formRows; docs/workspaces.md#form-sections): one framed panel each, with a
-   header bar: a disclosure button (collapsible, the accordion look) or the fieldset legend (fixed, always open). */
+   header bar: a disclosure button (collapsible, the accordion look) or the fieldset legend (fixed, always open). The
+   frame clips the bar to its rounded inner edge; a bar rounded by itself would leave the page colour in the corners
+   (the cell class outweighs Suite's `.dhx_widget.dhx_form .dhx_layout-cell { overflow: unset }`). */
 .dhx_widget.dhx_form .blade-form-section { border: var(--dhx-border); border-radius: var(--dhx-border-radius); margin: 4px 0 12px; background: var(--dhx-background-primary); }
+.dhx_widget.dhx_form .dhx_layout-cell.blade-form-section { overflow: hidden; }
 .dhx_widget.dhx_form .blade-form-section__toggle .dhx_button,
 .dhx_widget.dhx_form .blade-form-section--fixed .dhx_form-fieldset-legend {
   display: flex; align-items: center; box-sizing: border-box; width: 100%; min-height: 40px; margin: 0; padding: 8px 12px;
-  border-radius: var(--dhx-border-radius) var(--dhx-border-radius) 0 0; background: var(--dhx-background-secondary);
+  border-radius: 0; background: var(--dhx-background-secondary);
   font-size: var(--dhx-font-size-normal); line-height: var(--dhx-line-height-normal); font-weight: var(--dhx-font-weight-medium); color: var(--dhx-font-color-primary);
 }
 .dhx_widget.dhx_form .blade-form-section__toggle .dhx_button { justify-content: flex-start; gap: 4px; border: 0; text-align: left; text-decoration: none; }
 .dhx_widget.dhx_form .blade-form-section__toggle .dhx_button:hover { background: var(--dhx-color-secondary-light-hover, var(--dhx-background-secondary)); }
 .dhx_widget.dhx_form .blade-form-section__toggle .dhx_button:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
 /* A closed section is its header alone; an open one separates the header from its fields. */
-.dhx_widget.dhx_form .blade-form-section:has(.blade-form-section__body--closed) .blade-form-section__toggle .dhx_button { border-radius: var(--dhx-border-radius); }
 .dhx_widget.dhx_form .blade-form-section:not(:has(.blade-form-section__body--closed)) .blade-form-section__toggle .dhx_button,
 .dhx_widget.dhx_form .blade-form-section--fixed .dhx_form-fieldset-legend { border-bottom: var(--dhx-border); }
 .dhx_widget.dhx_form .blade-form-section__body .dhx_form-fieldset { border: 0; border-radius: 0; margin: 0; padding: 4px 16px 12px; min-width: 0; }
