@@ -188,7 +188,11 @@ double-click, `select(id)` and `refresh(id?)` follow changes made elsewhere,
 and `id` keeps the expanded nodes and the selection. Keys: arrows, Home and
 End move, Space selects, Enter selects and activates
 ([Tree](toolkit.md#tree), [FB-0158](feedback.md#fb-0158); demo:
-[key browser](demos.md#d8-key-browser)). A list-wide mode switch in a list's
+[key browser](demos.md#d8-key-browser)). `expand: n` opens `n` levels while
+the user has not changed the expansion (a stored one wins), `expandAll()` and
+`collapseAll()` open or close the whole tree within 10 levels and 2000 loaded
+nodes, and `expandControl: true` offers both above the tree
+([expansion](toolkit.md#tree-expansion), [FB-0168](feedback.md#fb-0168)). A list-wide mode switch in a list's
 own toolbar is a client command with `type: "toggle"`: its state is kept per
 user and view id in `app.preferences.scope(<command name>)`, which the host
 reads before it mounts the list, and the list reports `toggle` so the host
@@ -410,6 +414,13 @@ drives all paging math, and a declared `search` adds a server-side text
 search box. A text field of static image file names shows as an image with
 `column.presentation: "image"` and `image_base`; the images are the
 application's own static files, outside every ACL.
+
+A list of long text (notes, comments, messages) declares `modes: ['cards']`
+and `cardColumns: 1` (JSON `view.modes`, `view.card_columns`; a
+`ListView` takes the same options and they win): no `Nézet` menu, one card
+per row across the panel, a 4-line text preview with the whole text in
+`Adatok` ([cards only and full-width cards](workspaces.md#cards-only-and-full-width-cards),
+[FB-0169](feedback.md#fb-0169)).
 
 A project page shows tabbed panels with [`app.components.Tabs`](toolkit.md#tabs) or a declared `tabs` branch of
 its [`PageLayout`](toolkit.md#pagelayout) tree (folder tabs in the panel's header), with a `guard` for unsaved

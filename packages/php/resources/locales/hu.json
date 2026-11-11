@@ -737,5 +737,8 @@
   "Ablak bezárása": "Ablak bezárása",
   "{count} függőben": "{count} függőben",
   "Nincs megjeleníthető elem.": "Nincs megjeleníthető elem.",
+  "Mindet kinyit": "Mindet kinyit",
+  "Mindet bezár": "Mindet bezár",
+  "Nem nyílt ki minden elem: legfeljebb {nodes} elem, {depth} szint és elemenként {children} gyermek tölthető be.": "Nem nyílt ki minden elem: legfeljebb {nodes} elem, {depth} szint és elemenként {children} gyermek tölthető be.",
   "Mentett fájl": "Mentett fájl"
 }

@@ -663,7 +663,29 @@ current.mount(layout.getCell("list"));
 - **`mode`:** `table` (default), `cards` or `tiles`: the presentation the
   list opens in until its user picks one in the `Nézet` menu (that choice is
   kept per list and wins). `tiles` needs a view that offers tiles; a phone
-  always shows cards.
+  always shows cards. With `modes` the default is their first entry, and a
+  `mode` outside them throws `TypeError`.
+- **`modes`** ([FB-0169](feedback.md#fb-0169)): the presentations the user
+  may choose, distinct `table`, `cards` and `tiles` (`tiles` only where the
+  view offers tiles), instead of the view's declared
+  [`modes`](workspaces.md#cards-only-and-full-width-cards) (the component
+  option wins). The `Nézet` menu offers only these; with one it is not shown
+  at all, and a kept choice of another presentation is ignored, not
+  overwritten (the same key under other options keeps it). A phone still
+  shows a table as cards, also for `modes: ["table"]`. An empty list, an
+  unknown or repeated entry or `tiles` without tiles throws `TypeError`. A
+  `compact` preview is always a table.
+- **`cardColumns`** ([FB-0169](feedback.md#fb-0169)): at most this many
+  card columns, an integer 1–6 (else `TypeError`), instead of the view's
+  `cardColumns`; `1` shows one card per row across the list's width (notes,
+  comments, messages). Without it the cards take as many 340 px columns as
+  fit; a phone has one. Long text keeps its
+  [4-line card preview](workspaces.md#long-text-in-cards); the details show
+  all of it. Tiles are not affected.
+  ```ts
+  new app.components.ListView({ view: "demo_task_notes", scope: { field: "task_id", id: task },
+    modes: ["cards"], cardColumns: 1, panel: false });
+  ```
 
 <a id="recordform"></a>
 
@@ -837,8 +859,8 @@ tree.on("activate", () => layout.tabsOf("details")?.select("details"));
   An empty tree says `Nincs megjeleníthető elem.`; a failed load shows the
   error dialog.
 - **Selection:** `initial` is `"first"` (default, the first root), `"none"`
-  or `{id}` (that node when it is loaded once the roots and the remembered
-  levels are, otherwise none). `select {row}` reports every change: a click,
+  or `{id}` (that node when it is loaded once the roots and the remembered or
+  `expand` levels are, otherwise none). `select {row}` reports every change: a click,
   Space or Enter, `select(id)`, the initial or restored selection, and
   `undefined` when the selected node disappeared in a `refresh`. `activate
   {row}` is a double-click or Enter, after the node is selected. `selected()`
@@ -847,32 +869,119 @@ tree.on("activate", () => layout.tabsOf("details")?.select("details"));
 - `select(id)` selects a loaded node, expands its ancestors and returns
   `true`; an id that is not loaded (below a parent never expanded) returns
   `false` and changes nothing.
-- `refresh()` reloads the roots and every expanded level, `refresh(id)` only
-  the children of a loaded node; the expansion, the selection and the keyboard
+- `refresh()` reloads the roots and every expanded level (four loads at a
+  time; the first failed load stops it with one error dialog), `refresh(id)`
+  only the children of a loaded node; it cancels a running bulk expansion,
+  and an `expandAll` or `collapseAll` given meanwhile runs after it. The expansion, the selection and the keyboard
   focus stay where their nodes still exist. A refresh that changes the
   selected node's record reports `select` again with the new row. The tree is
   not live: refresh it after a change made elsewhere.
 - **Preferences** with `id` (`[a-z][a-z0-9_.-]*`, per page and user,
-  `UiPreferences`): the expanded nodes (at most 200) and the selection,
-  restored on the next mount; ids that no longer load (deleted, no longer
-  readable) are dropped silently. Without `id` nothing is kept.
+  `UiPreferences`): the selection and, once the user has changed the
+  expansion, the expanded nodes (at most 200), restored on the next mount. An
+  id that does not load (deleted, no longer readable, or below a collapsed
+  node) is not shown; it stays stored after the loaded ones until the 200-id
+  cap pushes it out, and opens when its parent loads.
+  Without `id` nothing is kept. See [expansion](#tree-expansion) for the
+  rule between a stored expansion and `expand`.
 - **Keyboard and screen readers:** one tab stop, `role="tree"` named by the
   view's title, `aria-activedescendant` on the focused node; nodes are
   `treeitem`s with `aria-level`, `aria-selected` and, with children,
   `aria-expanded`; a nested level is a `group`. ArrowUp and ArrowDown move the
   focus, ArrowRight expands (or moves to the first child), ArrowLeft collapses
-  (or moves to the parent), Home and End; Space selects, Enter selects and
-  activates. The focus moves without selecting, so a host does not reload its
-  panels while the user moves through the tree. The focus ring shows only
-  while the tree has the keyboard focus. Suite's own key navigation is off.
+  (or moves to the parent), Home and End; `*` expands the focused node and its
+  siblings (one level, within the [caps](#tree-expansion)); Space selects,
+  Enter selects and activates. The focus moves without selecting, so a host
+  does not reload its panels while the user moves through the tree. The focus
+  ring shows only while the tree has the keyboard focus. Suite's own key
+  navigation is off. The states, `aria-expanded` included, are set again after
+  every change, also after a bulk one; the tree is `aria-busy="true"` while
+  a bulk expansion loads.
 - **Security:** every read is the resource's ordinary, ACL-checked `list`; a
   node the actor cannot read is never loaded, and a child count is the
   server's ACL-filtered `_subview`. The tree draws no panel of its own: the
   host's region gives the title.
 
+<a id="tree-expansion"></a>
+
+**Expansion** ([FB-0168](feedback.md#fb-0168)): the upper levels can open on
+the first display, the whole tree can open or close from code, and a built-in
+control can offer both to the user.
+
+```ts
+const tree = new app.components.Tree({ view: "categories_tree", label: "name", id: `${view.id}.tree`,
+  expand: 2, expandControl: true, signal });
+const result = await tree.expandAll();   // { complete, nodes, reason? }
+if (!result.complete) console.info("partly expanded", result.reason);
+await tree.collapseAll();
+```
+
+- `expand` (whole number `0`–`10`, default `0`): the levels opened while no
+  expansion is stored. `1` opens the roots (their children show), `2` the roots
+  and their children (three levels show). The children still load lazily,
+  level by level, through the ordinary `list`: one request (one per 200
+  children, at most five) for the roots, then one for each node with children
+  on the opened levels, four at a time. `expand: 2` over 5 roots of which 4
+  have children, with 12 children having children of their own, costs
+  1 + 4 + 12 = 17 requests. A leaf (`_subview` 0) costs none.
+- **Stored expansion versus `expand`:** with `id`, the tree stores the
+  expansion only after the user changed it (a toggle click, ArrowRight or
+  ArrowLeft, `*`, `select(id)` opening a collapsed ancestor, `expandAll`,
+  `collapseAll`), also while the initial expansion or a restore still loads;
+  until then it stores only the selection. A stored expansion
+  always wins: `expand` applies on a first mount, without `id`, and after a
+  preference reset (the stored `blade-ui:1:` entry removed), never over an
+  expansion the user made, not even one where everything is collapsed. A node
+  the user collapsed is not stored as expanded, so it stays collapsed on the
+  next mount, and a running expansion or restore does not open it again; its
+  expanded descendants stay stored and open again when it is expanded, also
+  on a later mount (they load only then). A remembered selection below a
+  collapsed node is not loaded on the next mount: `initial` applies (the
+  ancestors of a loaded selection still open, as `select(id)` does).
+- `expandAll()` opens every node down to 10 levels, loading what is not
+  loaded (four loads at a time), and stores the result as the user's
+  expansion. `collapseAll()` closes every node, cancels a running
+  `expandAll` or initial `expand` at once (also before the roots have
+  arrived) and stores that too. Both run after a pending start or `refresh`,
+  so they act on its result. `expandAll()` on a tree whose roots failed to
+  load resolves `{complete: false, nodes: 0, reason: "error"}`. Both settle when their work is done; the
+  selection stays (no `select` event), the document focus stays where it was,
+  and a tree focus hidden by `collapseAll` moves to its root node.
+- **Caps** (the same for `expand`, `expandAll` and `*`): at most 1000
+  children load per node (per node, not per level: a level may hold more), at
+  most 10 levels open, and a bulk expansion starts no child load that would
+  bring the tree past 2000 loaded nodes. The check uses the server's
+  ACL-filtered child count (`_subview`), so with an SQL list source the tree
+  never passes 2000; with a source that gives no count, the load that crosses
+  the cap is the last. At a cap the expansion stops and leaves the rest
+  collapsed (unloaded). `expandAll()` resolves `{complete: true, nodes}` or
+  `{complete: false, nodes, reason}`, `reason` being `"nodes"`, `"depth"`
+  (nodes below the tenth opened level have children), `"children"` (a node
+  has more than 1000 children), `"cancelled"` (`refresh()`, `collapseAll()`,
+  another expansion or `destroy()` stopped it; their pending loads are
+  aborted) or `"error"` (a load failed: the first failure aborts the other
+  pending loads and shows one error dialog, after which the promise settles).
+- **Stored size:** at most 200 expanded ids are kept, upper levels first (the
+  roots, then their children, …). After an `expandAll` of more than 200
+  nodes with children, the next mount restores the upper part and leaves the
+  deepest levels collapsed.
+- `expandControl: true` puts a [CommandBar](#commandbar) above the tree with
+  `Mindet kinyit` and `Mindet bezár` (English `Expand all`, `Collapse all`),
+  named by the view's title: native toolbar buttons (keyboard reachable,
+  Enter or Space), in the collapsed `Műveletek` menu below 768 px or when the
+  panel is too narrow. While a bulk expansion loads, the expand button reads
+  `Betöltés…` and keeps the focus, and a second click does nothing;
+  `Mindet bezár` cancels it. Stopped at a cap, the control reports it with a
+  non-blocking warning toast (`Nem nyílt ki minden elem: legfeljebb 2000
+  elem, 10 szint és elemenként 1000 gyermek tölthető be.`). Without the
+  option no control is drawn. Tree navigation has no control, no `*` and no
+  depth option, and it never restores an expansion (no `id`, no `refresh`),
+  so its requests are unchanged: one load per node the user expands.
+
 Limits: one label column per node (no icons, counts or templates), no drag
 moves, no search, no node actions (tree navigation keeps its own toolbar), not
-live.
+live. A bulk expansion is not a search: it is bounded by the caps above, and
+it reloads nothing already loaded (`refresh` does).
 
 <a id="commandbar"></a>
 
@@ -2592,6 +2701,8 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M49 | [ListView](#listview) `createDefaults` and `preferencesKey`; `ClientCommand.pinned` ([registries](#registries)); `column.details: false` on a field ([field presentation](field-presentation.md)), left out of `detailFields` | [FB-0162](feedback.md#fb-0162)–[FB-0165](feedback.md#fb-0165) | info: a consumer that strips helper fields from its own details, opens its own create form with a preset, keeps a toggle in `Műveletek` or keeps one preference set per scope can use these instead | none | none |
 | M50 | [List scope](workspaces.md#list-scope): a scoped list and a `Tree` send `scope: {field, value}` instead of the scope as a filter (exact, also for text); a field `scopeOnly: true` (JSON `scope_only`) is a scope key only: no column, details, filter or sort, and `filters`/`sort` naming it are refused | [FB-0166](feedback.md#fb-0166) | a project `list` action handler of its own (not `SqlResource`) that read a scope from `values.filters` reads `values.scope`; browser specs or mocks that inspect a scoped list's `filters` look at `scope`; a list scoped on a text field now matches it exactly | none | none |
 | M51 | [Stored file field](workspaces.md#stored-file-field): PHP/JSON `file: {upload, get?, accept}` (a file in the project's own storage, uploaded through the project's upload action and saved with the record); `FieldMetadata.file` is `FileFieldConfig \| StoredFileFieldConfig` | [FB-0167](feedback.md#fb-0167) | info: TypeScript code that reads `field.file.resource` or `.mount` of any field narrows first (`"upload" in field.file`); a two-step "save, then upload" flow can become one save | none | none |
+| M52 | [Tree expansion](#tree-expansion): `Tree` options `expand` (levels opened while no expansion is stored) and `expandControl` (`Mindet kinyit` / `Mindet bezár`), methods `expandAll()` (→ `TreeExpansion`) and `collapseAll()`, key `*`; caps of 10 levels and 2000 loaded nodes; the stored expansion is written only once the user changed it, upper levels first | [FB-0168](feedback.md#fb-0168) | info: a spec that read a `Tree`'s stored `expanded` before any expansion change finds only `selected`; a state stored before this change still counts as the user's expansion | none | none |
+| M53 | [Cards only and full-width cards](workspaces.md#cards-only-and-full-width-cards): `modes` and `cardColumns` on `View::list`, `Registry::view`, `SqlResource::register` (JSON `view.modes`, `view.card_columns`), `ListKindOptions` and `ListViewOptions` (the component option wins); one mode hides the `Nézet` menu and ignores a kept other choice | [FB-0169](feedback.md#fb-0169) | info: a page that forced cards with `mode: "cards"` and its own CSS or layout for long text can declare cards only and one column instead; a `ListView` `mode` outside its `modes` throws `TypeError`; a kept `tiles` on a view without tiles now opens in the `ListView`'s `mode` (for example `cards`) instead of the table | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2728,6 +2839,8 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-11 | `ListViewOptions.createDefaults` (start values of the built-in create form), `ListViewOptions.preferencesKey` (the preference key instead of the view id, shared across scopes); `ClientCommand.pinned` (kept in the toolbar when the others collapse); PHP/JSON field `column.details: false` (left out of `detailFields`: `RecordDetails`, `Adatok`, cards). Additive (M49). | A page that scopes one list view on several fields, one of them computed, from a tree (a consumer request). | [FB-0162](feedback.md#fb-0162)–[FB-0165](feedback.md#fb-0165) |
 | 2026-11-11 | List protocol `scope: {field, value}` (a scoped list, a sub-view, a tree navigation's list and `Tree` levels send it instead of a filter; exact match); PHP `Field::$scopeOnly`, JSON `scope_only`: a scope key only, in no columns, `detailFields`, `filters` or `sortable` metadata, refused in `filters`, `sort`, view columns, first sort, attention and search; `SqlResource::register` leaves it out of the default columns. M50. | Helper keys a page scopes on still reached users as sort entries and number filters (a consumer request). | [FB-0166](feedback.md#fb-0166) |
 | 2026-11-11 | PHP/JSON `file` field option `{upload: 'resource.action', get?: 'resource.action', accept}`: a file the project stores itself. The form control (native dialog, paste, drop, background upload, preview) uploads to the project's upload action, which returns `['id' => token]`; the executor checks the detected type and records an upload claim (actor, session, tenant, upload action, TTL); the record save accepts a new token only for such a claim and removes it after the commit; the edit form shows the stored file through the GET action. A form field only (no column, details, filter, sort or scope). `StoredFileFieldConfig`, `Registry::storedFileFields()`, `Registry::checkFileFields()`. M51. | Domain records whose files the project owns could not take a file in the same save as their other fields (a consumer request). | [FB-0167](feedback.md#fb-0167) |
+| 2026-11-11 | `TreeOptions.expand` (levels opened while no expansion is stored, 0–10), `TreeOptions.expandControl`; `Tree.expandAll()` (→ `TreeExpansion`: `complete`, `nodes`, `reason`), `Tree.collapseAll()`; key `*`. The stored expansion is written only after the user changed it. Additive (M52). | A hierarchy should open its upper levels on first display and open or close as a whole (a consumer request). | [FB-0168](feedback.md#fb-0168) |
+| 2026-11-11 | `ListKindOptions.modes`/`cardColumns`, `ListViewOptions.modes`/`cardColumns`; PHP `modes` and `cardColumns` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.modes`, `view.card_columns`. The offered presentations (one hides the `Nézet` menu; a kept choice outside them is ignored, not overwritten) and at most this many card columns (1: one card per row). Additive (M53). | A list of notes could always be switched to a table and its cards were cut into narrow columns (a consumer request). | [FB-0169](feedback.md#fb-0169) |
 
 <a id="resolved-decisions"></a>
 

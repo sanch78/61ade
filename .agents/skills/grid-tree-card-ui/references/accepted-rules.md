@@ -33,6 +33,7 @@ contract and current limitations.
 | [FB-0081](../../../../docs/feedback.md#fb-0081) | Project code composes the framework list component in its own layout; a layout cell holds either markup or widgets, alternating content gets a fresh layout per content; a composed list's saved state follows the view identity it is given; marks and the cursor row are transient; a custom column presentation escapes values and carries a text alternative. | Public contract and pitfalls: [toolkit](../../../../docs/toolkit.md#layout-recipe). |
 | [FB-0122](../../../../docs/feedback.md#fb-0122), [FB-0124](../../../../docs/feedback.md#fb-0124) | Ordinary toolbars share a common widget inset and own their bottom separator regardless of whether a list or layout hosts them; basic spacing and separation must not depend on a list-only wrapper or the next widget. | Shell navigation, status bars and window headers keep geometry appropriate to their roles. |
 | [FB-0125](../../../../docs/feedback.md#fb-0125) | A panel follows the framework's active record context across main lists, expanded previews and child windows, rather than rebuilding toolbar delegation. Each list keeps its own cursor; keyboard focus is separate. | `ListView.target` event and `target()` query; existing `select` and command-specific delegation keep their meaning. |
+| [FB-0169](../../../../docs/feedback.md#fb-0169) | A list whose records are long text is held to its readable presentation and column count by declaration (offered `modes`, `cardColumns`), not by a project layout; with one offered presentation the view switch is absent and a kept choice outside the offer is ignored, not overwritten. | View declaration or `ListView` option (the option wins); a phone still shows a table as cards; the card text preview stays clamped, the details show the whole text. |
 
 ## Known boundaries
 
@@ -40,7 +41,7 @@ contract and current limitations.
   children, drag/move, and large-tree virtualization are demand-driven work;
   treat them as contracts to design and qualify, not as existing guarantees.
 - The exact current card target is approximately 340 px columns, one column on
-  mobile; the exact list window is bounded (100-row browser chunks and up to 600
+  mobile, capped by a declared `cardColumns` (1–6); the exact list window is bounded (100-row browser chunks and up to 600
   retained rows in the current workspace). Choose and document different limits
   only when the owning adapter and tests support them.
 - Public behavior and limitations belong in [workspaces](../../../../docs/workspaces.md),

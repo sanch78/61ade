@@ -15,6 +15,8 @@ export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSel
   tileMinWidth?:number;
   /** Offer the tiles mode (default: when a column is a media column). */
   tiles?:boolean;
+  /** At most this many card columns (1: one card per row across the panel); default as many 340 px columns as fit. */
+  cardColumns?:number;
   /** Arrow/Home/End/PageUp/PageDown move the cursor row, Enter opens, Space toggles the mark (default true). */
   keyNavigation?:boolean;
   /** Records expand to this nested view in tables; cards and tiles open its full window. */
@@ -413,7 +415,7 @@ export class ResponsiveGrid {
     if(this.disposed||!root)return;
     // A detached root (not yet attached by its host) still selects the view; widths follow once it is measured.
     const width=root.clientWidth;
-    const counts=width?{cards:Math.max(1,Math.floor((width-24)/340)),tiles:Math.max(1,Math.floor((width-8)/(this.tileMinWidth+8)))}:{cards:this.perRow.cards||1,tiles:this.perRow.tiles||1};
+    const counts=width?{cards:Math.max(1,Math.min(this.options.cardColumns??Infinity,Math.floor((width-24)/340))),tiles:Math.max(1,Math.floor((width-8)/(this.tileMinWidth+8)))}:{cards:this.perRow.cards||1,tiles:this.perRow.tiles||1};
     const changed={cards:counts.cards!==this.perRow.cards,tiles:counts.tiles!==this.perRow.tiles};
     for(const kind of ["cards","tiles"] as const)if(changed[kind]){this.perRow[kind]=counts[kind];this.list(kind).config.itemsInRow=counts[kind];}
     const mobile=innerWidth<768;

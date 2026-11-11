@@ -179,6 +179,14 @@ tree as decoration for a flat list.
   panels it drives; report the selection (also the initial and restored one)
   and the activation as events, and let the host compose the panels instead of
   growing a fixed tree-plus-list layout ([FB-0158](../../../docs/feedback.md#fb-0158)).
+- Bulk expansion (an initial depth, expand/collapse all) stays lazy and
+  bounded: it loads level by level through the same authorized child request,
+  a few at a time, under explicit depth, per-node and total-node caps, stops
+  at a cap leaving the rest collapsed and reports it, and is cancelled by a
+  refresh or teardown. An automatic expansion is not the user's: a stored
+  expansion is written only after the user changed it, so "nothing stored"
+  and "everything collapsed" stay distinguishable, and the stored list keeps
+  upper levels first when it is capped ([FB-0168](../../../docs/feedback.md#fb-0168)).
 - A list-wide mode is a two-state command of the list's own toolbar whose state
   belongs to the view identity, not to the scope it is mounted with, so a host
   that swaps the scope keeps it ([FB-0159](../../../docs/feedback.md#fb-0159)).
@@ -188,6 +196,11 @@ tree as decoration for a flat list.
 - Render cards with the native DataView. Choose a readable minimum width and
   let the framework determine columns from the available panel; the 61ade
   workspace default targets roughly 340 px columns and one column on mobile.
+  Records of long text (notes, comments, messages) declare cards only and one
+  column (`modes: ["cards"]`, `cardColumns: 1`; the `ListView` option wins
+  over the view's) instead of a project layout; with one offered mode there
+  is no view switch and a kept other choice is ignored, not overwritten
+  ([FB-0169](../../../docs/feedback.md#fb-0169)).
   Every card in a row has equal border-box width, wraps long unbroken text, and
   remains readable in all themes.
 - Child-list buttons overlay existing media without increasing item height:

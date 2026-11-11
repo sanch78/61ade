@@ -831,6 +831,13 @@ export interface ListKindOptions {
   rowHeight?: number;
   tileMinWidth?: number;
   tiles?: boolean;
+  /**
+   * The presentations the view offers (`Registry::view`/`SqlResource::register` `modes`, JSON `view.modes`), the
+   * first one the start: one hides the `Nézet` menu. Absent: table, cards and (when offered) tiles.
+   */
+  modes?: ("table" | "cards" | "tiles")[];
+  /** At most this many card columns, 1–6 (`cardColumns`, JSON `view.card_columns`); absent: as many 340 px columns as fit. */
+  cardColumns?: number;
   activate?: Activation;
   search?: { fields: string[] };
   subview?: SubviewMetadata;
@@ -1133,9 +1140,21 @@ export interface ListViewOptions extends ComponentOptions {
   showId?: boolean;
   /**
    * The presentation the list opens in until its user picks one (the `Nézet` menu's choice is kept per list):
-   * `tiles` only where the view offers tiles, a phone always shows cards. Default `table`.
+   * `tiles` only where the view offers tiles, a phone always shows cards. Default: the first of the list's `modes`,
+   * else `table`. Outside the list's `modes` it throws `TypeError`.
    */
   mode?: "table" | "cards" | "tiles";
+  /**
+   * The presentations the user may choose instead of the view's `modes` (distinct `table`, `cards`, `tiles`; `tiles`
+   * only where the view offers tiles; else `TypeError`). With one the `Nézet` menu is not shown and a kept choice of
+   * another presentation is ignored, not overwritten. A phone still shows a table as cards. Default: the view's.
+   */
+  modes?: readonly ("table" | "cards" | "tiles")[];
+  /**
+   * At most this many card columns, an integer 1–6 (else `TypeError`), instead of the view's `cardColumns`: `1` shows
+   * one card per row across the list's width. Default: as many 340 px columns as fit.
+   */
+  cardColumns?: number;
 }
 
 /** Active record context of a list, including its selected preview or foremost open sub-view window. */
@@ -1355,8 +1374,32 @@ export interface TreeOptions extends ComponentOptions {
    * or a root id (a node that is not a loaded root falls back to none).
    */
   initial?: "first" | "none" | { id: string };
-  /** Remembers the expanded nodes and the selection per page and user under this key (`[a-z][a-z0-9_.-]*`). */
+  /**
+   * Remembers the selection and, once the user changed it, the expansion per page and user under this key
+   * (`[a-z][a-z0-9_.-]*`).
+   */
   id?: string;
+  /**
+   * Levels opened while no expansion is remembered (docs/toolkit.md#tree-expansion): `0` (default) none, `1` the roots,
+   * `2` the roots and their children, at most `10`; the children still load level by level. Another value: `TypeError`.
+   */
+  expand?: number;
+  /** Shows `Mindet kinyit` / `Mindet bezár` (a `CommandBar`) above the tree. */
+  expandControl?: boolean;
+}
+
+/** What `Tree.expandAll()` reached (docs/toolkit.md#tree-expansion). */
+export interface TreeExpansion {
+  /** Every node is loaded and expanded. */
+  complete: boolean;
+  /** The nodes loaded in the tree when it settled. */
+  nodes: number;
+  /**
+   * Why it is not complete: `"nodes"` (the next load would pass 2000 loaded nodes), `"depth"` (nodes below 10 opened
+   * levels have children), `"children"` (a node has more than the 1000 children one node loads), `"cancelled"`
+   * (`refresh`, `collapseAll`, another expansion or `destroy`), `"error"` (a load failed; its dialog was shown).
+   */
+  reason?: "nodes" | "depth" | "children" | "cancelled" | "error";
 }
 
 /** Events of `Tree`. */
@@ -1385,6 +1428,14 @@ export interface Tree extends Component<TreeEvents> {
    * selection and the focus where the nodes still exist; a selection that disappeared reports `select` with `undefined`.
    */
   refresh(id?: string): Promise<void>;
+  /**
+   * Expands every node down to 10 levels, loading what is not loaded (4 loads at a time, within 2000 loaded nodes),
+   * and stores the result as the user's expansion; settles when the loading has finished or stopped. The selection
+   * and the focus stay.
+   */
+  expandAll(): Promise<TreeExpansion>;
+  /** Collapses every node (cancels a running `expandAll`) and stores it; the selection stays, a hidden focus moves to its root. */
+  collapseAll(): Promise<void>;
 }
 
 /** Options of `FileManager` (implemented P3 C-2). */

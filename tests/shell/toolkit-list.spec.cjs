@@ -46,7 +46,7 @@ async function mount(page){
   for(const name of ['select','activate','saved','changed'])list.on(name,payload=>events.push({name,row:payload.row?.id,target:payload.target,action:payload.action,count:payload.rows?.length}));
   list.mount(layout.getCell('list'));
  });
- await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
+ await expect(page.locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
 }
 const row=(page,title)=>page.locator('.dhx_grid-row').filter({hasText:title}).first().locator('[data-dhx-col-id="title"]');
 const activations=page=>page.evaluate(()=>events.filter(event=>event.name==='activate').map(event=>[event.row,event.target]));
@@ -185,5 +185,58 @@ test('destroy releases the DOM, the cell and the live subscription; RecordDetail
  const count=await page.evaluate(()=>events.length);
  await page.evaluate(()=>{list.refresh();list.setFilters({});});
  expect(await page.evaluate(()=>events.length)).toBe(count);
+ expect(errors).toEqual([]);
+});
+
+// FB-0169 (docs/toolkit.md#listview, `modes` and `cardColumns`): a scoped list restricted to cards, one per row, has
+// no `Nézet` menu, and a kept table choice neither switches it to a table nor is overwritten; a list without the
+// options still offers every presentation and the 340 px card columns. Invalid options are developer errors.
+const cardBoxes=page=>page.locator('[data-cell-id="list"] .dhx_dataview-item').evaluateAll(items=>items.filter(item=>item.offsetParent).map(item=>{const box=item.getBoundingClientRect(),list=item.closest('.blade-grid-cards');return {x:Math.round(box.x),width:box.width,list:list?.clientWidth??0};}));
+for(const [width,height] of [[1366,900],[390,844]])test(`ListView modes and cardColumns at ${width} px: cards only, one per row, the kept table choice ignored`,async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.setViewportSize({width,height});await mount(page);
+ // Developer errors: TypeError for every invalid option, before anything is mounted.
+ const rejected=await page.evaluate(()=>{
+  const plain={...app.viewDefinition('assets'),id:'plain',options:{...app.viewDefinition('assets').options,tiles:false}};
+  return [{modes:[]},{modes:['grid']},{modes:['cards','cards']},{modes:'cards'},{view:plain,modes:['cards','tiles']},{modes:['cards'],mode:'table'},{cardColumns:0},{cardColumns:7},{cardColumns:1.5}]
+   .map(options=>{try{new app.components.ListView({view:'assets',...options});return 'created';}catch(error){return error instanceof TypeError;}});
+ });
+ expect(rejected).toEqual(Array(9).fill(true));
+ const menu=page.locator('[data-cell-id="list"]').getByRole('button',{name:'Műveletek',exact:true});
+ const choices=async()=>{
+  // The bar settles (its own buttons, or all of them in `Műveletek`) before it is read.
+  await expect(menu.or(page.locator('[data-cell-id="list"]').getByRole('button',{name:'Adatok',exact:true}))).toBeVisible();
+  if(await menu.isVisible()){await menu.click();const entry=page.getByRole('menuitem',{name:/^Nézet:/});if(!(await entry.count())){await page.keyboard.press('Escape');return null;}await entry.click();}
+  else{const button=page.locator('[data-cell-id="list"]').getByRole('button',{name:/^Nézet:/});if(!(await button.count()))return null;await button.click();}
+  const items=await page.getByRole('menuitem',{name:/^(Táblázat|Kártyák|Csempék)$/}).allTextContents();
+  await page.keyboard.press('Escape');await page.keyboard.press('Escape');
+  return items.map(item=>item.trim());
+ };
+ // Without the options: every presentation; cards in as many 340 px columns as fit (one on a phone).
+ await page.evaluate(()=>layout.getCell('side').hide());
+ expect(await choices()).toEqual(['Táblázat','Kártyák','Csempék']);
+ if(width>=768)await view(page,'Kártyák');
+ await expect(page.locator('[data-cell-id="list"] .blade-grid-card').first()).toBeVisible();
+ await expect.poll(async()=>{const boxes=await cardBoxes(page);return new Set(boxes.map(box=>box.x)).size;}).toBe(Math.max(1,Math.min(4,Math.floor(((await cardBoxes(page))[0].list-24)/340))));
+ if(width>=768)expect(new Set((await cardBoxes(page)).map(box=>box.x)).size).toBeGreaterThan(1);
+ if(width>=768)await view(page,'Táblázat');
+ // A scoped list with cards only and one card per row; the user's kept choice for its key is the table.
+ const key=await page.evaluate(()=>{
+  list.destroy();
+  const key='blade-ui:1:'+JSON.stringify([location.pathname,'toolkit-list','toolkit.cards']);
+  localStorage.setItem(key,JSON.stringify({mode:'table'}));
+  window.list=new app.components.ListView({view:'assets',scope:{field:'kind',id:'audio'},modes:['cards'],cardColumns:1,preferencesKey:'toolkit.cards'});
+  list.mount(layout.getCell('list'));
+  return key;
+ });
+ await expect(page.locator('[data-cell-id="list"] .blade-grid-card').first()).toBeVisible();
+ await expect(page.locator('[data-cell-id="list"] .dhx_grid-row')).toHaveCount(0);
+ expect(await choices()).toBeNull();
+ await expect.poll(async()=>(await cardBoxes(page)).length).toBe(4);
+ const boxes=await cardBoxes(page);
+ expect(new Set(boxes.map(box=>box.x)).size).toBe(1);
+ for(const box of boxes)expect(box.width).toBeGreaterThan(box.list-32);
+ expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).mode,key)).toBe('table');
+ await page.evaluate(key=>{list.destroy();localStorage.removeItem(key);},key);
  expect(errors).toEqual([]);
 });

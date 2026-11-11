@@ -20,6 +20,8 @@ export type Column={id:string;header:string;type?:string;media?:string;presentat
   editor?:string}&Resolved;
 /** The list kind's internal shape: the view's shared keys beside its `options` (definition.ts `listDefinition`). */
 export type ViewDefinition={id:string;resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:Column[];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;
+  /** The presentations the view offers (api ListKindOptions `modes`) and at most this many card columns (`cardColumns`). */
+  modes?:("table"|"cards"|"tiles")[];cardColumns?:number;
   /** Double-click/Enter: one target or a per-row `{field, map}` (activation.ts). */
   activate?:Activation;search?:{fields:string[]};columns:Column[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];sort?:{field:string;direction:"asc"|"desc"};group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
   /** Records expand to the `resource` list filtered to `field` = record id: its own `view`, or this view when `shared`. */
@@ -64,6 +66,10 @@ export type WorkspaceHooks={
   showId?:boolean;
   /** The presentation until the user picks one (public `ListViewOptions.mode`). */
   mode?:"table"|"cards"|"tiles";
+  /** The presentations the list offers instead of the view's (public `ListViewOptions.modes`). */
+  modes?:readonly ("table"|"cards"|"tiles")[];
+  /** At most this many card columns instead of the view's (public `ListViewOptions.cardColumns`). */
+  cardColumns?:number;
   /** Start values of the built-in create form (public `ListViewOptions.createDefaults`). */
   createDefaults?:Readonly<Record<string,string>>;
   /** The preference key instead of the view id (public `ListViewOptions.preferencesKey`). */

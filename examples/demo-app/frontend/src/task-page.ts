@@ -6,7 +6,8 @@
 // the control region collapses to its header while `Munka` is shown, without changing the user's own choice. The bar's
 // `További műveletek` menu (`type: "menu"`) holds the commands of the selected note, enabled while one is selected.
 // `Jegyzetek` holds the task's notes, a list without a menu entry (`demo_task_notes`, `menu: false`) sorted oldest
-// first (`view.sort`) as cards, whose long text shows a 4-line preview. `Vázlat` is the module's own drawing surface (a
+// first (`view.sort`), declared as cards only, one per row (`view.modes`, `view.card_columns`: no `Nézet` menu), whose
+// long text shows a 4-line preview; `Munka` offers its table and cards (the list's `modes` win over the view's). `Vázlat` is the module's own drawing surface (a
 // canvas) between two command bars in a borderless box Layout, edge to edge (`app.ui.attach`).
 import type { Accordion, Application, ApplicationModule, CommandBar, ListKindOptions, ListView, PageLayout, PageRegion, RecordDetails, RecordForm, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 
@@ -137,10 +138,11 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
     sections.on("toggle", ({ id, open }) => { if (open && id === "edit") edit(); }, { signal });
     if (sections.isOpen("edit")) edit();
 
-    // The task's notes: cards, oldest first (the view's declared sort), new notes get this task.
+    // The task's notes: full-width cards only, oldest first (the view's declared modes, card columns and sort), new
+    // notes get this task.
     let noteList: ListView | undefined, workList: ListView | undefined, selected: RecordDetails | undefined, work: PageLayout | undefined, bar: CommandBar | undefined;
     if (notes) {
-      noteList = new app.components.ListView({ view: notes, scope: { field: "task_id", id: task }, mode: "cards", panel: false, showId: false });
+      noteList = new app.components.ListView({ view: notes, scope: { field: "task_id", id: task }, panel: false, showId: false });
       noteList.mount(layout.cell("notes"));
 
       // `Munka`: the bar above the notes table (its own preferences: the page keeps a table beside the cards) and the
@@ -180,7 +182,7 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
           workList?.refresh(); noteList?.refresh();
         })();
       });
-      workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, mode: "table", panel: false, showId: false });
+      workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, modes: ["table", "cards"], mode: "table", panel: false, showId: false });
       workList.mount(side.cell("main"));
       // The panel holds one element of the page: a hint until a note is selected, then that note's details.
       const panel = document.createElement("div"), hint = document.createElement("p");

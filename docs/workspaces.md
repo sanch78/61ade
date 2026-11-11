@@ -467,7 +467,9 @@ across themes and drags with the mouse. FB-0013; wide layouts FB-0058.
 ## Cards, record details, numbering and marks
 
 Native DataView uses columns targeting 340 px according to panel width,
-one column on mobile. Cards show all registered fields readable in list responses,
+one column on mobile; a view or `ListView` may cap the columns
+(`cardColumns`, one card per row with `1`,
+[cards only and full-width cards](#cards-only-and-full-width-cards)). Cards show all registered fields readable in list responses,
 including fields omitted from the grid, excluding technical ACL/revision metadata
 and secrets.
 
@@ -734,6 +736,52 @@ disabled and the desktop preference is restored when the window widens; when
 tiles are offered they stay available on mobile. The chosen mode persists per
 user, view id and page (`UiPreferences`, unknown stored values read as table).
 Singleton views have none. This replaces FB-0019's two buttons per FB-0020.
+A view or `ListView` that declares `modes` offers only those; with a single
+one the dropdown is left out
+([cards only and full-width cards](#cards-only-and-full-width-cards)).
+
+<a id="cards-only-and-full-width-cards"></a>
+
+### Cards only and full-width cards
+
+[FB-0169](feedback.md#fb-0169). A list of long text (notes, comments,
+descriptions, messages) can be held to cards and shown one card per row:
+
+- **`modes`** (PHP `View::list`, `Registry::view`, `SqlResource::register`
+  `modes: ['cards']`; JSON `view.modes`; `ListViewOptions.modes`): the
+  presentations the user may choose, distinct `table`, `cards` and `tiles`,
+  in the order given; the first is the start (a `ListView` `mode` may pick
+  another of them). The `Nézet` dropdown offers only these; with one it is
+  not shown, also inside `Műveletek` on a narrow bar. A kept choice of
+  another presentation is ignored and left as it is, so the same preference
+  key used without the restriction still finds it. `tiles` requires a view
+  that offers tiles (`tiles` or a media or static image column).
+- **`cardColumns`** (PHP `cardColumns: 1`, JSON `view.card_columns`,
+  `ListViewOptions.cardColumns`): at most this many card columns, 1–6. With
+  `1` each card fills the list's width; with more the 340 px rule still
+  applies below that number. Tiles keep their own `tileMinWidth`.
+- **Precedence:** a `ListView` option wins over the view's declaration; a
+  menu page, a sub-view window and a tree navigation's list use the view's.
+  A compact preview (an expanded row or card) is always a table.
+- **Phone:** unchanged. A phone shows a table as cards, also when `table` is
+  the only mode, in one column; the dropdown stays hidden with one mode and,
+  as before, disabled without tiles. With `table` and `tiles` but no
+  `cards`, the enabled `Táblázat` entry leads from tiles back to the cards
+  that stand in for the table.
+- **Long text:** a `textarea` keeps its
+  [4-line card preview](#long-text-in-cards) at full width too; `Adatok` and
+  the edit form show all of it. A card's media slot keeps its aspect ratio, so
+  a full-width card with an image or video is tall: use it for text records.
+- **Validation:** an empty or non-list `modes`, an unknown or repeated entry,
+  `tiles` where the view offers none, `cardColumns` outside 1–6 or either
+  key on a singleton is a developer error (`InvalidArgumentException`
+  `Invalid view presentation.`; JSON keys of the wrong type fail the
+  configuration check). The same `ListView` options and a `mode` outside its
+  `modes` throw `TypeError`.
+
+Demo: `Feladatlap` → `Jegyzetek` ([D7](demos.md#d7-task-page)): the notes view
+`demo_task_notes` declares `"modes": ["cards"], "card_columns": 1`, while the
+same notes in `Munka` pass `modes: ["table", "cards"]`.
 
 <a id="media-tiles"></a>
 
@@ -1126,7 +1174,9 @@ a toggle), as a `CommandBar` range does ([FB-0163](feedback.md#fb-0163)).
 
 DataView uses native itemsInRow widths with border-box and no content-driven
 flex shrinking. Long unbroken words wrap; every mobile card has equal width.
-FB-0028.
+FB-0028. The same holds for a capped column count (`cardColumns`): with one
+column every card has the list's full width
+([FB-0169](feedback.md#fb-0169)).
 
 <a id="megerősítés-művelet-előtt"></a>
 

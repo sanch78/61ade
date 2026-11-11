@@ -175,6 +175,9 @@ final class Registry
     /**
      * Adds the list view of $resource (kind `list`, id $id, default the resource; built by View::list()) and returns it.
      * $rowHeight (32–160 px, default 40), $tileMinWidth (120–480 px) and $tiles are list presentation only; absent keys keep the client defaults.
+     * $modes: the presentations the user may choose, distinct `table`, `cards`, `tiles` (tiles only when the view offers
+     * them: $tiles or a media/static image column), the first one the start; one hides the `Nézet` menu. Absent: all.
+     * $cardColumns: at most this many card columns (1–6; 1 is one card per row across the list). Not for a singleton.
      * $activate: what double-click and Enter on a record run, as the toolbar command of that name does: `details`,
      * `subview` (the full child list of that record, also at a count of 0), `page` (the child view's own page, kept by
      * `subview(…, embed: false)`, with its sub-view field filtered to the record; a window where the page is not
@@ -191,9 +194,9 @@ final class Registry
      * with a manual order or a singleton.
      * $attention: a live count of the records matching `filters` on the view's menu entry, in a `tone` (View).
      */
-    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null): View
+    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null): View
     {
-        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$menu,$sort,$attention));
+        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$menu,$sort,$attention,$modes,$cardColumns));
     }
     /**
      * Sub-view: every record of the $view list expands (grid sub-row or card) to the $child list filtered to

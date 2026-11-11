@@ -50,13 +50,16 @@ export class UiPreferences {
     return Object.fromEntries(Object.entries(saved).filter(([field,value])=>valid(definitions.find(definition=>definition.name===field),value)));
   }
   setFilters(filters:Record<string,string>):void{this.state.filters=Object.keys(filters).length?{...filters}:undefined;this.save();}
-  /** The expanded nodes and the selection of a `Tree` (keyed by its `id`); the tree drops the ids it cannot load. */
-  tree():{expanded:string[];selected?:string}{
+  /**
+   * The expanded nodes and the selection of a `Tree` (keyed by its `id`); the tree drops the ids it cannot load.
+   * `expanded` is left out while none is stored (the tree stores it once the user changed the expansion), so an empty
+   * list means "everything collapsed", not "nothing remembered".
+   */
+  tree():{expanded?:string[];selected?:string}{
     const value=this.state.tree,id=(item:unknown):item is string=>typeof item==="string"&&item!==""&&item.length<=100;
-    const expanded=Array.isArray(value?.expanded)?value.expanded.filter(id).slice(0,200):[];
-    return {expanded,...(id(value?.selected)?{selected:value.selected}:{})};
+    return {...(Array.isArray(value?.expanded)?{expanded:value.expanded.filter(id).slice(0,200)}:{}),...(id(value?.selected)?{selected:value.selected}:{})};
   }
-  setTree(state:{expanded:string[];selected?:string}):void{this.state.tree={expanded:state.expanded.slice(0,200),...(state.selected!==undefined?{selected:state.selected}:{})};this.save();}
+  setTree(state:{expanded?:string[];selected?:string}):void{this.state.tree={...(state.expanded?{expanded:state.expanded.slice(0,200)}:{}),...(state.selected!==undefined?{selected:state.selected}:{})};this.save();}
   /** The values a `SettingsForm` keeps (keyed by its `key`); the form checks them against its fields. */
   settings():Record<string,unknown>{const value=this.state.settings;return value&&typeof value==="object"&&!Array.isArray(value)?{...value}:{};}
   /** Stores the form's values; undefined forgets them. */

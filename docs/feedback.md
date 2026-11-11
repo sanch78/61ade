@@ -6451,3 +6451,314 @@ that exactly equals an option label lists every option. The managed
     again needs a new upload.
 - **Commit:** `d833520` on `main`.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0168"></a>
+
+## FB-0168 — Tree: initial expansion depth, expand and collapse all
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms): `app.components.Tree` ([FB-0158](#fb-0158)) should open
+  its upper levels on first display, open and close as a whole from code,
+  and optionally offer an accessible built-in control for it above the tree.
+  Requested in detail:
+  - an initial depth option (`expand: 2`: the roots and their children
+    open), children still loaded lazily through the ordinary ACL-checked
+    `list`, with the request count documented;
+  - with `id`, a stored expansion wins once the user changed it; the depth
+    applies only while none is stored (first mount, preference reset), and a
+    node the user collapsed stays collapsed. `UiPreferences.tree()` returned
+    `expanded: []` both for "nothing stored" and "everything collapsed";
+  - `expandAll()` and `collapseAll()` settling when the loading has
+    finished, selection and focus unchanged, the result stored like a manual
+    change;
+  - `expandControl: true`: `Mindet kinyit` / `Mindet bezár` (English
+    `Expand all` / `Collapse all`) from the catalogues, keyboard reachable,
+    named, busy while loading, through the framework's toolbar/command
+    capabilities;
+  - cost bounds: the 1000-children limit (per node), a documented depth and
+    total-node cap that stops, leaves the rest collapsed and reports it;
+    pending loads cancelled by `destroy()` and `refresh()`;
+  - `aria-expanded` correct after bulk changes, the keyboard documented
+    (`*` optional).
+- **Decision:** accepted as requested, with these choices:
+  - **Stored-state marker:** `UiPreferences.tree()` leaves `expanded` out
+    while none is stored; the tree writes `expanded` only once the user (or
+    `expandAll`/`collapseAll`/`*`) changed the expansion, and before that
+    stores only the selection. A stored `expanded`, an empty one included,
+    is the user's and wins over `expand`. No extra flag: the presence of the
+    key is the marker. A state stored before this change (the tree wrote
+    `expanded` on every save since FB-0158, one day earlier) counts as the
+    user's expansion.
+  - **The 200-id cap stays:** a larger stored list would grow every save
+    and restore with no bound. The tree stores the expanded ids upper levels
+    first (by depth, stable within a level), so a restore after a large
+    `expandAll` reopens the upper part of the tree and leaves the deepest
+    levels collapsed rather than a random subset; documented.
+  - **Caps:** 10 levels (also the largest `expand`), 2000 loaded nodes,
+    checked before each child load with the server's ACL-filtered child
+    count `_subview`, plus the existing 1000 children per node. A bulk
+    expansion runs four loads at a time; the restore of a stored expansion
+    (mount, `refresh`) uses the same pool instead of one load after another.
+  - **Report:** `expandAll()` resolves `TreeExpansion` (`complete`, `nodes`,
+    `reason`: `nodes`, `depth`, `children`, `cancelled`, `error`); no new
+    event. The control reports a cap with the framework's non-blocking
+    warning toast, the precedent of the file manager's truncated tree: the
+    command bar has no text item, and a hand-made status line beside it
+    would be the ad-hoc DOM the request excludes.
+  - **Busy state:** the tree is `aria-busy="true"` while a bulk expansion
+    loads and the expand button reads `Betöltés…` (it is not disabled, so a
+    keyboard user keeps the focus on it; a second click does nothing).
+  - **Tree navigation unchanged:** no control, no depth option and no `*`
+    there (the engine's `*` is enabled only for the component). It never
+    restores an expansion (no `id`, no `refresh`), so the parallel restore
+    does not change its requests.
+  - **After an independent review** (same day): the user's change wins over
+    running bulk work. Expansions and collapses made by code are marked
+    (`toggle`); every other one is the user's and sets the marker, also while
+    the initial expansion or a restore loads, and a node the user collapsed
+    meanwhile is not opened again by it. `collapseAll` cancels the initial
+    expansion at once (its controller exists before the roots load);
+    `expandAll` and `collapseAll` wait for a pending start or `refresh`.
+    `expandAll` on failed roots reports `error`. Stored ids that do not load
+    yet stay in the expansion and open when their parent loads (also on a
+    later mount), and a stored expansion counts as the user's even when the
+    roots fail on that mount. The first failed load of a bulk expansion or
+    restore aborts the others and shows one dialog. `AbortSignal.any` (no
+    documented browser baseline covers it) was replaced by a controller
+    linked to the tree's own.
+- **Implemented:**
+  - `NodeTree` (`components/list/RecordTree.ts`): `start(…, depth)`,
+    `expandAll()`, `collapseAll()`, `busy`; a bulk expansion level by level
+    under the caps with its own abort controller (cancelled by a newer one,
+    `collapseAll`, `refresh`, `destroy`), `load` taking that signal (a
+    cancelled load shows no error), the per-node cut recorded, saves
+    suppressed during the bulk and done once at the end; `collapseAll`
+    closes every expanded node, keeps the selection and moves a hidden tree
+    focus to its root; `*` expands the focused node's siblings (one level);
+    `aria-expanded` is set again after every change.
+  - `RecordTree`: options `expand` (whole number 0–10, else `TypeError`)
+    and `expandControl` (boolean, else `TypeError`), the latter a
+    `CommandBar` in a 48 px row above the tree (named by the view's title,
+    collapsed into `Műveletek` below 768 px or when it does not fit);
+    `expandAll()`, `collapseAll()`; the cap toast. Without `id`, `expand`
+    applies on every mount.
+  - `UiPreferences.tree()`/`setTree()`: `expanded` optional, as above.
+  - Types: `TreeOptions.expand`, `.expandControl`, `TreeExpansion`,
+    `Tree.expandAll()`, `Tree.collapseAll()`.
+  - Catalogues (hu, en, de): `Mindet kinyit`, `Mindet bezár` and the cap
+    notice.
+  - Feature demo D8 `Kulcsböngésző`: `expandControl: true`.
+- **Guides:** [toolkit Tree expansion](toolkit.md#tree-expansion) (options,
+  methods, control, caps, request count, stored-state rule) and the Tree
+  preference and keyboard bullets, the API change log and migration row M52
+  (additive, info only), [usage](usage.md), [D8](demos.md#d8-key-browser)
+  and the capability table, [component matrix](component-matrix.md),
+  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:**
+  - **Build and static checks:** `npm run typecheck`, `npm run build`,
+    `npm run demo:assets`; `git diff --check`; internal links of the changed
+    guides.
+  - **PHP checks passed:** `tree-navigation`, `toolkit`, `contracts`,
+    `configuration`, `i18n` (catalogue parity with the new keys).
+  - **Node checks passed:** `toolkit-components`, `toolkit-kernel`,
+    `toolkit-list`, `toolkit-registries`; the new tree assertions of
+    `ui-preferences.mjs` (no `expanded` until stored, an empty stored list
+    kept, 200 ids) passed on their own. The file as a whole failed at that
+    time because it read `mode` as a property since `38b1ef3` (it failed at
+    HEAD as well); [FB-0169](#fb-0169) fixed that.
+  - **Retained spec `tree-component.spec.cjs`, extended:** 7 passed on the
+    managed demo, and 8 after the review fixes (with `registry`,
+    `scoped-list`, `list-toggle`, `component-remount` and
+    `toolkit-components`: 23 passed in one run; PHP `tree-navigation`,
+    `toolkit`, `contracts`, `i18n` and node `toolkit-components`,
+    `ui-preferences` passed again):
+    - review fixes (list answers delayed by a route): `collapseAll()` right
+      after a mount with `expand: 3` opens nothing; clicking HKLM's toggle
+      while the second level still loads (`aria-busy`) keeps HKLM collapsed
+      after the loading and on the next mount; SYSTEM, stored below it,
+      opens again when HKLM is expanded on that mount; failed roots give one
+      dialog, `expandAll()` resolves `{complete: false, nodes: 0, reason:
+      "error"}`, and the stored expansion comes back with the next
+      `refresh()` and mount; failing child loads of an `expandAll` give one
+      dialog, then `reason: "error"`;
+    - D8 at 1366 and 390 px (Hungarian): `Mindet kinyit` opens every level
+      (DemoService at level 5), `Mindet bezár` closes them, the values list
+      keeps the selection; the collapse is kept after a reload;
+    - fixture `expand: 2` with `id`: two levels open on the first mount
+      with exactly 7 `list` requests (the roots and the six nodes with
+      children); the user collapses HKLM and on a remount the stored
+      expansion wins (HKLM collapsed, selected); `collapseAll()` keeps the
+      selection and the tree focus and is kept (a remount opens nothing);
+      after the stored state is removed the depth applies again;
+      `expandAll()` resolves `{complete: true, nodes}` equal to the table's
+      row count, reports no `select` and is kept; `*` opens the roots only;
+      option checks for `expand` (11, 1.5) and `expandControl`;
+    - caps (list answers delayed 150 ms): `refresh()` and `destroy()` during
+      `expandAll()` settle as `cancelled`; a 12-key chain gives `depth` (level
+      10 open, 11 collapsed); a root with 3 × 1000 children in English:
+      Enter on `Expand all` shows `aria-busy` and `Loading…`, stops with the
+      toast `Not everything was expanded: at most 2000 items, 10 levels and
+      1000 children per item are loaded.`, keeps the focus on the button,
+      leaves the second and third child collapsed; `expandAll()` then
+      resolves `nodes` with 1000 < `nodes` ≤ 2000; `Collapse all` closes it;
+    - ACL: the reader with a `list` deny on one key (`SYSTEM`): `expand: 10`
+      and `expandAll()` complete without that key or anything below it and
+      with no `list` request for its children.
+  - **Regression on the managed demo:** `registry`, `scoped-list`,
+    `list-toggle`, `component-remount`, `toolkit-components`,
+    `preferences`, `toolkit-demo`, `toolkit-demo-tasks`,
+    `toolkit-demo-assets`, `toolkit-demo-playlist-editor`,
+    `toolkit-demo-readings`: passed. `toolkit-demo-playlist` failed twice in
+    the same case (the day picker's calendar popup covers `Napi műsor`)
+    while the FB-0169 sources were still being edited; on the final build of
+    both changes it passed in isolation (8 passed).
+  - Final build of FB-0168 and FB-0169 together, in one run with the list
+    suites (see [FB-0169](#fb-0169)): 72 passed.
+  - No full-smoke claim.
+- **Limits:**
+  - at most 10 levels, 2000 loaded nodes and 1000 children per node in one
+    bulk expansion; with a list source that gives no child count the load
+    that crosses 2000 is the last (an SQL source never passes it);
+  - at most 200 expanded ids are stored (upper levels first);
+  - a remembered selection below a node collapsed when the tree was left is
+    not loaded on the next mount, so `initial` applies;
+  - a bulk expansion is not a search, and the control's cap notice is a
+    toast, not a persistent message.
+- **Commit:** pending.
+- **Status:** implemented and verified on the managed demo (targeted).
+
+<a id="fb-0169"></a>
+
+## FB-0169 — ListView: cards only and full-width cards
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms). A list of long text (notes, comments, descriptions,
+  messages) should stay cards and show one card per row across the panel,
+  per component instance and, where sensible, per view declaration. The
+  `Nézet` menu (`Táblázat` / `Kártyák` / `Csempék`) was always offered on a
+  desktop and `mode` only set the start, so a user could switch to a table
+  and a kept table choice overrode the host's choice; cards took as many
+  340 px columns as fit, which cut long text into narrow columns.
+- **Decision:**
+  - `modes`: the offered presentations, distinct `table`, `cards`, `tiles`
+    in the given order, the first the start. With one the `Nézet` menu is
+    left out (also from `Műveletek`) and a kept choice outside the offer is
+    ignored and left in storage, never overwritten. Declared on the view
+    (PHP `View::list`, `Registry::view`, `SqlResource::register`; JSON
+    `view.modes`) because a menu page has no other route, and as
+    `ListViewOptions.modes`; the component option wins.
+  - `cardColumns` (JSON `card_columns`): a cap, at most this many card
+    columns (1–6), rather than an exact count or a `cardWidth: "full"`
+    flag: `1` is the requested one card per row, and the 340 px rule still
+    decides below the cap, so a narrow panel is never squeezed. Same
+    declaration places and precedence.
+  - Phone: unchanged. A table still shows as cards, also when `table` is the
+    only mode; the menu stays hidden with one mode and disabled without
+    tiles, as before. With `table` and `tiles` but no `cards`, `Táblázat`
+    stays enabled on a phone so tiles lead back to the cards that stand in
+    for the table.
+  - Long text keeps the 4-line card preview of [FB-0152](#fb-0152) at full
+    width too; `Adatok` and the form show the whole text. No separate
+    option.
+  - Validation follows `tileMinWidth`/`tiles`: an empty or non-list
+    `modes`, an unknown or repeated entry, `tiles` where the view offers
+    none (`tiles` or a media or static image column), `cardColumns` outside
+    1–6 and either key on a singleton are `InvalidArgumentException`
+    (`Invalid view presentation.`); the `ListView` options and a `ListView`
+    `mode` outside the effective `modes` throw `TypeError`. A view's
+    declared modes are trusted from the server; the browser drops an entry
+    it cannot offer instead of failing the page. Server and browser share
+    one "offers tiles" rule: `tiles`, or a column as the browser receives it
+    with a media source or a static image presentation with its
+    `imageBase` (a field's image presentation always has one; a view column
+    marked `presentation: image` without it offers no tiles and is refused
+    with `modes: ['tiles']`). The browser's extra `type: "media"` case is
+    never sent by the server.
+  - A kept choice outside the offered modes falls back to the start mode.
+    This also changes one case without `modes`: a kept `tiles` (for example
+    through a shared `preferencesKey`) on a view without tiles now opens in
+    the `ListView`'s `mode` (`cards`) instead of the table it showed
+    before.
+  - A compact preview (expanded row or card) stays a table.
+- **Implemented:**
+  - PHP: `modes` and `cardColumns` parameters (appended, nullable) of
+    `View::list`, `Registry::view`, `SqlResource::register`; validated by
+    `ListViewKind` and sent as `options.modes`/`options.cardColumns`; JSON
+    `view.modes` (array) and `view.card_columns` (integer) in
+    `WorkspaceConfiguration`.
+  - Frontend: `ListKindOptions.modes`/`cardColumns`,
+    `ListViewOptions.modes`/`cardColumns` (`api/types.ts`), `ViewDefinition`
+    and `WorkspaceHooks` (`components/list/types.ts`); `ListView` validates;
+    `Workspace` computes the offered modes (component, else view, else
+    table, cards and the offered tiles), builds the `Nézet` items from them
+    (none with one), starts with `mode`, else the first, and uses a kept
+    mode only when offered; `ResponsiveGrid` caps the card columns.
+  - Demo D7: `demo_task_notes` declares `"modes": ["cards"],
+    "card_columns": 1` (`tasks.json`), so `Jegyzetek` drops its own
+    `mode: "cards"`; `Munka` passes `modes: ["table", "cards"]`, which win
+    over the view's.
+  - `tests/shell/ui-preferences.mjs` read `mode` as a property since
+    `38b1ef3` (it is a method) and failed at HEAD; it now calls `mode()`.
+- **Guides:** [cards only and full-width cards](workspaces.md#cards-only-and-full-width-cards),
+  [cards](workspaces.md#cards-record-details-numbering-and-marks),
+  [view selection](workspaces.md#nézetválasztás-és-fejlécjelzések),
+  [uniform card width](workspaces.md#responsive-command-bar-and-uniform-card-width),
+  [ListView](toolkit.md#listview) `mode`, `modes`, `cardColumns`,
+  [configuration](configuration.md) `view`, [usage](usage.md),
+  [D7](demos.md#d7-task-page), [component matrix](component-matrix.md),
+  toolkit [changes](toolkit.md#changes), migration row M53,
+  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md) and
+  its [ledger](../.agents/skills/grid-tree-card-ui/references/accepted-rules.md),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:** `npm run typecheck`, `npm run build`
+  (`node tools/build.mjs --check` clean at each browser run),
+  `npm run demo:assets`; PHP `list-presentation` (new: `modes` and
+  `cardColumns` reach the wire and are absent by default; an empty, unknown,
+  repeated, keyed or non-string mode, `cardColumns` 0 or 7, either on a
+  singleton, `tiles` on a view without tiles and on a view column
+  `presentation: image` without its base refused; declared tiles, a static
+  image field, one mode and the bound 6 accepted), `configuration` (new:
+  JSON `modes` and `card_columns` reach the wire; a string, empty, unknown
+  or repeated `modes`, `card_columns` 0 or `"1"` and the camelCase key refused),
+  `contracts`, `toolkit`, `lists`, `sorting`, `i18n`, `tree-navigation`,
+  `signage`, `files` passed; node `toolkit-kernel`, `toolkit-list`,
+  `toolkit-components`, `toolkit-registries`, `ui-preferences` passed.
+  Retained browser cases: `toolkit-list.spec.cjs` (at 1366 and 390 px: the
+  `TypeError` cases; a list without the options offers `Táblázat`,
+  `Kártyák`, `Csempék` and as many 340 px card columns as fit, more than one
+  on the desktop; a scoped `ListView` with `modes: ["cards"]`,
+  `cardColumns: 1` and a kept `table` for its key shows cards, no grid rows,
+  no `Nézet` menu in the bar or `Műveletek`, one card per row at the list's
+  width, and the kept `table` is still stored; also passed with
+  `--repeat-each=3`) and `task-page.spec.cjs` (the view declaration: at 1366
+  and 390 px, in Hungarian and English, the notes with a kept table choice
+  show three cards one per row and no `Nézet`/`View` menu, the choice stays
+  stored; `Munka` offers `Table` and `Cards` only). Affected specs on the
+  managed demo: `list-presentation`, `mobile-grid`, `preferences`,
+  `scoped-list`, `command-bar`, `toolkit-list`, `toolkit-components`,
+  `task-page`, `workspace` (58 passed, one WebSocket case skipped as
+  before; the one failure was the new 390 px case reading the bar before it
+  settled, fixed in the spec), then `files`, `signage`, `settings-form`,
+  `toolkit-demo-assets`, `toolkit-demo-playlist-editor`, `subview`,
+  `activation`, `list-integration`, `menuless-view`, `task-page` (60 passed;
+  `toolkit-demo-assets` "activation by MIME type or class" timed out once
+  waiting for the `Nézet` button to become stable after a viewer round
+  trip on a view without `modes`; the spec passed in isolation with
+  `--repeat-each=2`, 8 passed). After the review's alignment of the tiles
+  rule (PHP only): PHP `list-presentation`, `configuration`, `contracts`,
+  `toolkit`, `lists` and `list-presentation.spec.cjs` with
+  `toolkit-list.spec.cjs` (19 passed). Final build of FB-0168 and FB-0169
+  together: `tree-component`, `toolkit-list`, `list-presentation`,
+  `task-page`, `mobile-grid`, `preferences`, `command-bar`, `scoped-list`,
+  `toolkit-components`, `toolkit-demo-playlist`, `toolkit-demo-assets`,
+  `registry` in one run (72 passed). No full-smoke claim.
+- **Limits:** `cardColumns` caps cards only (tiles keep `tileMinWidth`); a
+  full-width card keeps its media slot's aspect ratio, so cards with images
+  or video become tall (meant for text records); a compact preview ignores
+  both options; there is no view-level `mode` (the first of `modes` is the
+  start); `modes` cannot leave out the phone's forced cards for a table.
+- **Commit:** pending.
+- **Status:** implemented and verified on the managed demo.

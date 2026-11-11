@@ -353,12 +353,19 @@ try {
     $clipsDefinition = json_decode(file_get_contents($mediaModule), true, flags: JSON_THROW_ON_ERROR);
     foreach ([
         ['view', 'tile_width', 200], ['view', 'row_height', 20], ['view', 'row_height', '56'], ['view', 'tile_min_width', 500], ['view', 'tiles', 'yes'], ['view', 'search', ['kind']], ['view', 'search', ['missing']], ['view', 'search', 'title'],
+        ['view', 'modes', 'cards'], ['view', 'modes', []], ['view', 'modes', ['grid']], ['view', 'modes', ['cards', 'cards']], ['view', 'card_columns', 0], ['view', 'card_columns', '1'], ['view', 'cardColumns', 1],
     ] as [$section, $key, $value]) {
         $variant = $clipsDefinition;
         $variant['resources']['clips'][$section][$key] = $value;
         file_put_contents($directory.'/media-variant.json', json_encode($variant, JSON_THROW_ON_ERROR));
         rejected(static fn() => WorkspaceConfiguration::build($db, [$directory.'/media-variant.json'], static fn() => []), 'Invalid media view key accepted: '.$key);
     }
+    // FB-0169: the offered presentations and the card columns of a JSON view.
+    $variant = $clipsDefinition;
+    $variant['resources']['clips']['view'] += ['modes' => ['cards', 'tiles'], 'card_columns' => 1];
+    file_put_contents($directory.'/media-variant.json', json_encode($variant, JSON_THROW_ON_ERROR));
+    $clips = array_values(array_filter(WorkspaceConfiguration::build($db, [$directory.'/media-variant.json'], static fn() => [])->views($actor), static fn($view) => $view['resource'] === 'clips'))[0];
+    verify($clips['options']['modes'] === ['cards', 'tiles'] && $clips['options']['cardColumns'] === 1, 'JSON modes and card_columns');
     foreach ([['media' => 'library', 'editable' => true], ['media' => 'Library'], ['presentation' => 'thumbnail'], ['thumbnail' => true]] as $column) {
         $variant = $clipsDefinition;
         $variant['resources']['clips']['fields'][2]['column'] = $column;
