@@ -146,8 +146,9 @@ something silently looks plain.
   `layout.destructor()` on it **after** the components
   ([Layout recipe](../../../docs/toolkit.md#layout-recipe)).
 - Read the [pitfalls](../../../docs/toolkit.md#pitfalls) before the first page:
-  - A cell that showed `attachHTML` markup and then gets `attach()` renders
-    empty. Give alternating content a fresh one-cell box Layout.
+  - Replacing a component is `destroy()` then `mount()` into the same cell,
+    tab, region or window, in the same handler; no plain mount elements or
+    deferred mounts are needed, also after markup in that cell.
   - Suite's `cell.attach(element)` throws. Put your own element (a canvas, a
     drawn stage) into any cell with `app.ui.attach(cell, element, {signal})`
     ([cell content](../../../docs/toolkit.md#cell-content)), edge to edge

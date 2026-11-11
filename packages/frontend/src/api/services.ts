@@ -6,6 +6,7 @@ import { uploads as uploader } from "../Uploader";
 import { Realtime, type LiveChannel } from "../Realtime";
 import { NAME } from "../app/registries";
 import { signalOf, tieTo } from "./Events";
+import { prepareCell } from "../components/Lifecycle";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
 
 /**
@@ -104,13 +105,14 @@ export const uploads: Uploads = {
 
 let slots = 0;
 /**
- * Attaches a Suite widget, a component (its root `layout`) or a plain element to a Layout cell or Window. An element
+ * Attaches a Suite widget, a component (its root `layout`) or a plain element to a Layout cell. An element
  * lives in a slot of the target's HTML content and is put back whenever a repaint replaces that slot.
  */
 export function attachContent(target: { attach(content: any): unknown; attachHTML(html: string): void }, content: Mountable, signal: AbortSignal): void {
-  // A public component is mounted there, so it is placed once and its events are delivered (FB-0153); a Suite widget
-  // is attached as it is.
   if (!(content instanceof HTMLElement)) {
+    prepareCell(target);
+    // A public component is mounted there, so it is placed once and its events are delivered (FB-0153); a Suite widget
+    // is attached as it is.
     if ("destroy" in content && "layout" in content && typeof (content as { mount?: unknown }).mount === "function") { (content as { mount(target: unknown): void }).mount(target); return; }
     target.attach("destroy" in content && "layout" in content ? content.layout : content); return;
   }
@@ -133,13 +135,16 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
   const finish = () => { if (closed) return; closed = true; controller.abort(); void awaitRedraw().then(() => win.destructor()); };
   win.events.on("afterHide", finish);
   const fit = options.fit !== false && !mobile;
+  // Suite's `Window.attach` and `attachHTML` fill this cell; content goes to it directly, so it can be emptied
+  // (`detach`) between HTML and a widget.
+  const cell = (win as unknown as { _layout: Layout })._layout.getCell("content");
   const api: AppWindow = {
     window: win,
     signal: controller.signal,
     // A Layout (a component's included) fills the requested size; a form inside it fits the window itself (RecordForm).
     attach(content) {
       if (closed) return;
-      attachContent(win, content, controller.signal);
+      attachContent(cell, content, controller.signal);
       if (fit && (content instanceof HTMLElement || !(content instanceof Layout || ("destroy" in content && "layout" in content)))) void fitWindow(win);
     },
     setTitle(text) { if (closed) return; win.config.title = escape(text); win.header?.data.update("title", { value: escape(text) }); },

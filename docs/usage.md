@@ -171,6 +171,11 @@ follow this route through the
    ([recipe](toolkit.md#typescript-recipe)) and deploy the sandbox files when
    used ([packaging](toolkit.md#packaging)).
 
+A page that changes what a panel shows destroys the component there and
+mounts a new one into the same cell, tab, region or window right away, as
+often as needed; a cell that showed markup takes a component too
+([components](toolkit.md#components), [FB-0161](feedback.md#fb-0161)).
+
 A panel following a list's active record uses `list.on("target", ({view, row,
 rows}) => …)` and `list.target()`: these include selected expanded rows and
 the foremost child window, including on a phone. The main cursor remains

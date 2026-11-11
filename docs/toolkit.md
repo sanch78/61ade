@@ -539,7 +539,11 @@ the `signal` option does the same. Mounting twice or after `destroy()` throws
 `TypeError`. A view id that is not offered throws `Error`, a view of the wrong
 kind or shape `TypeError`. `destroy()` is idempotent, detaches the
 component from the cell it was mounted in and releases its widgets, the
-windows it opened, its requests and its live subscription. Handlers registered
+windows it opened, its requests and its live subscription. Another component
+(or widget) can be mounted into the same cell, region, tab, window or view
+host right away, in the same handler, any number of times; a cell that showed
+markup (`attachHTML`, an element) takes a widget as well
+([FB-0161](feedback.md#fb-0161)). Handlers registered
 with `on` run in registration order (a throwing one is logged); events are
 delivered only while the component is mounted and never after `destroy()`.
 
@@ -1153,8 +1157,8 @@ tabs.on("change", ({ id }) => {
   content like a folder. Suite's sliding underline is not used. The DOM ids Suite derives from tab
   ids are prefixed per instance, so two `Tabs` may use the same tab ids.
 - Create the content of a tab when the tab first opens if it costs a request
-  (the example's form); recreate a discarded form on the next opening rather
-  than in the same `change` handler that destroyed it ([pitfalls](#pitfalls)).
+  (the example's form). A discarded form may be recreated at once, in the same
+  `change` handler that destroyed it ([components](#components)).
 - The feature demo's playlist editor declares a `tabs` branch in its
   [`PageLayout`](#pagelayout) ([demos](demos.md#toolkit-consumer)).
   Verification: `tests/shell/tabs.spec.cjs`.
@@ -2081,23 +2085,11 @@ signal.addEventListener("abort", () => { box.destructor(); page.destroy(); }, { 
 
 ### Pitfalls
 
-- **`attachHTML` then `attach` in one cell renders empty.** A painted Suite
-  Layout cell that first showed `attachHTML` markup and is then given a widget
-  with `attach()` shows nothing: the widget's markup is wiped. Let a cell hold
-  either markup or widgets for its whole life. Content that alternates between
-  a notice and a widget gets a fresh one-cell box Layout per content, attached
-  to the outer cell, with the notice or widget in the box's cell
-  ([scene stage example](#example-sandbox)).
 - **Suite Tabbar content shows only the active cell.** A widget in an
   inactive tab of a plain Suite `Tabbar` that repaints while hidden (a
   `RecordDetails.show`, a form's `enable`) throws on the next opening and the
   tab stays empty. Use [`Tabs`](#tabs) (or a `tabs` branch of
   [`PageLayout`](#pagelayout)), which keeps every panel rendered.
-- **A component mounted into a cell right after the previous one renders
-  empty.** Destroying a component and mounting a new one into the same cell
-  in the same handler leaves the cell blank (Suite patches the old content's
-  removed view). Mount the replacement on the next opening or user action, as
-  the tabbed details window and the playlist editor's settings tab do.
 - **Elements into cells.** Suite's own `cell.attach(element)` throws
   (`this._ui.getRootView is not a function`), and `attachHTML` takes static
   markup only. Put a live element (listeners, focus, a frame loop) into a cell
@@ -2692,6 +2684,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-10 | `Components.Tree` (`TreeOptions`, `TreeEvents`: `select`, `activate`; `Tree.selected()`, `select(id)`, `refresh(id?)`). Additive (M46). | A page composes its own panels around a hierarchy that tree navigation shows only in its fixed tree + list layout (a consumer request, recorded without business terms). | [FB-0158](feedback.md#fb-0158) |
 | 2026-11-10 | `ClientCommand.type` (`"button"` \| `"toggle"`), `.pressed`, `.toggle(ToggleContext)`; `ClientCommand.run` is optional (required unless `type: "toggle"`); `ToggleContext`; `ListViewEvents.toggle`. Additive (M47). | A list-wide mode switch in the list's own toolbar, kept per view (a consumer request). | [FB-0159](feedback.md#fb-0159) |
 | 2026-11-10 | `ViewDefinition.attention` (`{filters, tone}`). PHP `View::$attention`, `attention` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.attention`. Additive (M48). | Pending work on a view must be noticed from any page (a consumer request). | [FB-0160](feedback.md#fb-0160) |
+| 2026-11-11 | Destroy + mount of a component into the same Layout cell, tab, region, window or view host in one task shows the new component (it was empty until the next frame's work-around); a cell that showed markup (`attachHTML`, an element) takes a widget or component. No API change. | A page re-scoping its list and details from a tree replaces components in the same cells many times (a consumer request). | [FB-0161](feedback.md#fb-0161) |
 
 <a id="resolved-decisions"></a>
 

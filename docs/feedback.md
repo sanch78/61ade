@@ -5976,3 +5976,83 @@ that exactly equals an option label lists every option. The managed
   not in their accessible names.
 - **Commit:** `15878c6` on `main`.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0161"></a>
+
+## FB-0161 — Destroy and mount into the same cell shows an empty cell
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms): a page of a `Tree`, tabs with a scoped `ListView` and a
+  `RecordDetails` re-scopes its list and details on every selection and
+  toggle change, so it destroys a component and mounts the next one into the
+  same Layout cell many times. The cell stayed empty (a `ListView` in a tab
+  cell, a `RecordDetails` in a region). The [pitfall](toolkit.md#pitfalls)
+  recorded since [FB-0145](#fb-0145) told pages to mount the replacement on
+  a later user action; the consumer, like the D8 key browser, mounted into
+  plain elements of its own instead.
+- **Cause:** Suite repaints a cell on the next animation frame (`detach()`
+  and `attach()` only schedule a redraw), but a component's `destroy()`
+  destroys its Layout at once, which unmounts its view from the DOM. The
+  next frame's patch of the cell then replaces a view that is no longer in
+  the document, and the new component's view never reaches it. Reproduced on
+  the managed demo: after the first replacement in the same task, both cells
+  were empty and the new Layouts were not connected; with one frame in
+  between, or with the cell's view redrawn at once, every round showed its
+  content. A related Suite behaviour: a cell that turns from HTML into a
+  widget is patched in one step that clears the old `innerHTML` after
+  inserting the widget, which wipes it (the other pitfall, "`attachHTML`
+  then `attach`"); a window emptied by its component's `destroy()` (the
+  framework puts an empty element there) failed the same way.
+- **Decision:** accepted as a defect, fixed at the common boundary rather
+  than documented: destroy + mount into the same place works any number of
+  times, in one task, for every component and place, and a cell that showed
+  markup takes a widget. Both pitfalls are removed.
+- **Implemented:**
+  - `prepareCell` (`components/Lifecycle.ts`), called before a widget goes
+    into a Layout cell by `Lifecycle.mount` (every component) and by
+    `attachContent` (behind `app.ui.attach` and the `attach` of `PageLayout`,
+    `Tabs`, `Accordion`, view hosts and windows): a cell that a component's
+    `destroy()` emptied in this frame (`Lifecycle.end()` marks it until the
+    next frame) is redrawn at once, and a cell that shows HTML is detached
+    and redrawn at once. The redraw happens at the mount, not at the destroy:
+    redrawing at every destroy also repainted sibling cells whose widgets a
+    page tear-down had already destroyed (`Cannot read properties of null
+    (reading 'render')` in the accordion, task-page and asset specs of the
+    first run).
+  - `AppWindow` puts its content into the Suite window's content cell (what
+    `Window.attach` does), so the window can be emptied the same way.
+  - Feature demo D8 mounts its list and details into the page's regions
+    directly, with a hint (`app.ui.attach`) in a region without a record; it
+    keeps no elements of its own.
+- **Guides:** [components](toolkit.md#components) (common rules),
+  [Tabs](toolkit.md#tabs), [pitfalls](toolkit.md#pitfalls) (two removed),
+  [usage](usage.md), [D8](demos.md#d8-key-browser), the toolkit
+  [changes](toolkit.md#changes),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md),
+  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
+  No API change.
+- **Verification:** reproduced first on the managed demo with a temporary
+  case (both cells empty after the first replacement, no console error).
+  `npm run typecheck`, `npm run build` (`node tools/build.mjs --check`
+  clean), `npm run demo:assets`; PHP `contracts`, `i18n`, `configuration`,
+  `toolkit`; node `toolkit-kernel`, `toolkit-list`, `toolkit-components`,
+  `toolkit-registries`, `toolkit-sandbox` passed (`ui-preferences.mjs` fails
+  as before, see [FB-0160](#fb-0160)). New browser spec
+  `component-remount.spec.cjs`: four rounds of destroy + mount in one
+  handler of a `ListView` in a tab cell, a `RecordDetails` in a region, in a
+  plain Suite Layout cell, in an `AppWindow`, and in a cell that showed drawn
+  markup just before (`app.ui.attach` element, Suite `attachHTML`), each
+  showing its content, no page error; it fails without the fix. Affected
+  specs passed on the managed demo: `accordion`, `task-page`,
+  `toolkit-demo-assets`, `tree-component` (the reworked D8), `list-toggle`,
+  `tabs`, `page-layout-collapse`, `toolkit-components`, `workspace`,
+  `activation`, `subview`, `subview-demos`, `menuless-view`, `registry`,
+  `settings-form`, `sandbox`, `toolkit-sandbox`, `toolkit-demo`,
+  `toolkit-demo-tasks`, `toolkit-demo-playlist-editor`,
+  `toolkit-demo-readings`, `toolkit-media`, `files`, `dialogs`, `browser`,
+  `mobile-grid`, `command-bar`, `toolkit-list`, `toolkit-registries`,
+  `preferences` (141 passed, one WebSocket case skipped as before). No
+  full-smoke claim.
+- **Commit:** pending.
+- **Status:** implemented and verified on the managed demo.

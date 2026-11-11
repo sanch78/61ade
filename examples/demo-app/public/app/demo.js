@@ -1372,12 +1372,12 @@ function page(app, host, view) {
       });
       workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, mode: "table", panel: false, showId: false });
       workList.mount(side.cell("main"));
-      const panel2 = document.createElement("div"), hint = document.createElement("p");
-      panel2.style.cssText = "width:100%;height:100%";
-      hint.style.cssText = "margin:16px";
-      hint.textContent = t("V\xE1lassz egy jegyzetet.");
-      panel2.append(hint);
-      side.attach("side", panel2);
+      const panel = document.createElement("div"), hint2 = document.createElement("p");
+      panel.style.cssText = "width:100%;height:100%";
+      hint2.style.cssText = "margin:16px";
+      hint2.textContent = t("V\xE1lassz egy jegyzetet.");
+      panel.append(hint2);
+      side.attach("side", panel);
       workList.on("target", ({ row: note }) => {
         current = note;
         for (const id of ["show", "copy", "delete"]) bar?.update(id, { disabled: !note });
@@ -1387,9 +1387,9 @@ function page(app, host, view) {
           });
           return;
         }
-        hint.remove();
+        hint2.remove();
         selected = new app.components.RecordDetails({ view: notes, record: note, showId: false });
-        selected.mount(panel2);
+        selected.mount(panel);
       }, { signal });
       if (phone.matches) {
         const pages = layout.tabsOf("work");
@@ -1489,20 +1489,18 @@ var task_page_default = taskPage;
 var KIND6 = "demo.registry-browser";
 var TOGGLE = "demo.subkey-values";
 var PHONE3 = "(max-width: 767px)";
-function panel(text) {
-  const element = document.createElement("div"), hint = document.createElement("p");
-  element.style.cssText = "width:100%;height:100%;overflow:auto";
-  hint.style.cssText = "margin:16px";
-  hint.textContent = text;
-  element.append(hint);
-  return { element, hint };
+function hint(text) {
+  const element = document.createElement("p");
+  element.style.cssText = "margin:16px";
+  element.textContent = text;
+  return element;
 }
 function browser(app, host, view) {
   const t = app.i18n.t, options = view.options ?? {};
   const nodes = options.tree ? app.viewDefinition(options.tree) : void 0;
   const values = options.values ? app.viewDefinition(options.values) : void 0;
   if (!nodes) {
-    const empty = panel(t("A kulcsok nem \xE9rhet\u0151k el.")).element;
+    const empty = hint(t("A kulcsok nem \xE9rhet\u0151k el."));
     host.attach(empty);
     return { destroy: () => empty.remove() };
   }
@@ -1523,11 +1521,21 @@ function browser(app, host, view) {
     layout.mount(root);
     const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", id: `${view.id}.tree` });
     nodeTree.mount(layout.cell("tree"));
-    const keyPanel = panel(t("V\xE1lassz egy kulcsot a f\xE1ban.")), valuePanel = panel(t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban."));
-    layout.attach("key", keyPanel.element);
-    layout.attach("value", valuePanel.element);
-    const valuesPanel = panel(values ? t("V\xE1lassz egy kulcsot a f\xE1ban.") : t("Az \xE9rt\xE9kek nem \xE9rhet\u0151k el."));
-    layout.attach("values", valuesPanel.element);
+    const hints = /* @__PURE__ */ new Map();
+    const clear = (id) => {
+      hints.get(id)?.abort();
+      hints.delete(id);
+    };
+    const show = (id, text) => {
+      clear(id);
+      const shown = new AbortController();
+      hints.set(id, shown);
+      signal.addEventListener("abort", () => shown.abort(), { once: true, signal: shown.signal });
+      app.ui.attach(layout.cell(id), hint(text), { signal: shown.signal });
+    };
+    show("key", t("V\xE1lassz egy kulcsot a f\xE1ban."));
+    show("value", t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban."));
+    show("values", values ? t("V\xE1lassz egy kulcsot a f\xE1ban.") : t("Az \xE9rt\xE9kek nem \xE9rhet\u0151k el."));
     let keyDetails, valueDetails;
     let node;
     let subkeys = app.preferences.scope(TOGGLE).get(values?.id ?? "") === true;
@@ -1536,7 +1544,7 @@ function browser(app, host, view) {
       if (!row) {
         valueDetails?.destroy();
         valueDetails = void 0;
-        valuePanel.element.replaceChildren(valuePanel.hint);
+        show("value", t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban."));
         return;
       }
       if (valueDetails) {
@@ -1544,19 +1552,19 @@ function browser(app, host, view) {
         });
         return;
       }
-      valuePanel.element.replaceChildren();
+      clear("value");
       valueDetails = new app.components.RecordDetails({ view: values, record: row, showId: false });
-      valueDetails.mount(valuePanel.element);
+      valueDetails.mount(layout.cell("value"));
     };
     const showList = () => {
       list?.destroy();
       list = void 0;
       showValue(void 0);
       if (!values || !node) {
-        valuesPanel.element.replaceChildren(valuesPanel.hint);
+        show("values", values ? t("V\xE1lassz egy kulcsot a f\xE1ban.") : t("Az \xE9rt\xE9kek nem \xE9rhet\u0151k el."));
         return;
       }
-      valuesPanel.element.replaceChildren();
+      clear("values");
       list = new app.components.ListView({ view: values, scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) }, panel: false, showId: false });
       list.on("select", ({ row }) => showValue(row));
       list.on("toggle", ({ command, pressed: pressed2 }) => {
@@ -1565,7 +1573,7 @@ function browser(app, host, view) {
           showList();
         }
       });
-      list.mount(valuesPanel.element);
+      list.mount(layout.cell("values"));
     };
     nodeTree.on("select", ({ row }) => {
       const changed = String(row?.id ?? "") !== String(node?.id ?? "");
@@ -1573,13 +1581,13 @@ function browser(app, host, view) {
       if (!row) {
         keyDetails?.destroy();
         keyDetails = void 0;
-        keyPanel.element.replaceChildren(keyPanel.hint);
+        show("key", t("V\xE1lassz egy kulcsot a f\xE1ban."));
       } else if (keyDetails) void keyDetails.show(row).catch(() => {
       });
       else {
-        keyPanel.element.replaceChildren();
+        clear("key");
         keyDetails = new app.components.RecordDetails({ view: nodes, record: row, showId: false });
-        keyDetails.mount(keyPanel.element);
+        keyDetails.mount(layout.cell("key"));
       }
       if (changed) showList();
     });

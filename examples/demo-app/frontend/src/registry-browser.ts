@@ -5,7 +5,9 @@
 // event; Enter or a double-click on a key (`activate`) opens its data. The values list's toggle command
 // `demo.subkey-values` (`Alkulcsok értékei`) switches the list between the key's own values (`key_id`) and the values
 // of its direct subkeys (`parent_key_id`, a computed field): the page reads the kept state before the first list, so
-// the first load already uses it, and mounts the list of the other scope on every change.
+// the first load already uses it, and mounts the list of the other scope on every change. Each panel is a region of
+// the page: a hint while it has no record, then the component mounted into the same region, replaced there as often
+// as the selection changes.
 import type { Application, ApplicationModule, ListKindOptions, ListView, PageLayout, PageRegion, RecordDetails, Row, Tree, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 
 /** `views.demo.registry-browser.options` of registry.json: the tree's node view and the values view (both `menu: false`). */
@@ -15,14 +17,12 @@ const KIND = "demo.registry-browser";
 const TOGGLE = "demo.subkey-values";
 const PHONE = "(max-width: 767px)";
 
-/** A hint paragraph in a panel element of the page (a plain element, replaced by details once there is a record). */
-function panel(text: string): { element: HTMLElement; hint: HTMLElement } {
-  const element = document.createElement("div"), hint = document.createElement("p");
-  element.style.cssText = "width:100%;height:100%;overflow:auto";
-  hint.style.cssText = "margin:16px";
-  hint.textContent = text;
-  element.append(hint);
-  return { element, hint };
+/** A hint paragraph for a panel without a record. */
+function hint(text: string): HTMLElement {
+  const element = document.createElement("p");
+  element.style.cssText = "margin:16px";
+  element.textContent = text;
+  return element;
 }
 
 function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserOptions>): ViewInstance {
@@ -31,7 +31,7 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
   const values = options.values ? app.viewDefinition(options.values) as ViewDefinition<ListKindOptions> | undefined : undefined;
   if (!nodes) {
     // Without the node view (ACL) there is no tree: the page says so instead.
-    const empty = panel(t("A kulcsok nem érhetők el.")).element;
+    const empty = hint(t("A kulcsok nem érhetők el."));
     host.attach(empty);
     return { destroy: () => empty.remove() };
   }
@@ -58,11 +58,19 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
     const nodeTree: Tree = keys = new app.components.Tree({ view: nodes, label: "name", id: `${view.id}.tree` });
     nodeTree.mount(layout.cell("tree"));
 
-    const keyPanel = panel(t("Válassz egy kulcsot a fában.")), valuePanel = panel(t("Válassz egy értéket a listában."));
-    layout.attach("key", keyPanel.element);
-    layout.attach("value", valuePanel.element);
-    const valuesPanel = panel(values ? t("Válassz egy kulcsot a fában.") : t("Az értékek nem érhetők el."));
-    layout.attach("values", valuesPanel.element);
+    // A region's hint until a component is mounted there; the next component or hint replaces it.
+    const hints = new Map<string, AbortController>();
+    const clear = (id: string) => { hints.get(id)?.abort(); hints.delete(id); };
+    const show = (id: string, text: string) => {
+      clear(id);
+      const shown = new AbortController();
+      hints.set(id, shown);
+      signal.addEventListener("abort", () => shown.abort(), { once: true, signal: shown.signal });
+      app.ui.attach(layout.cell(id), hint(text), { signal: shown.signal });
+    };
+    show("key", t("Válassz egy kulcsot a fában."));
+    show("value", t("Válassz egy értéket a listában."));
+    show("values", values ? t("Válassz egy kulcsot a fában.") : t("Az értékek nem érhetők el."));
     let keyDetails: RecordDetails | undefined, valueDetails: RecordDetails | undefined;
     let node: Row | undefined;
     // The kept state of the toggle, read before the first list: the first load already uses the right scope.
@@ -70,29 +78,29 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
 
     const showValue = (row: Row | undefined) => {
       if (!values) return;
-      if (!row) { valueDetails?.destroy(); valueDetails = undefined; valuePanel.element.replaceChildren(valuePanel.hint); return; }
+      if (!row) { valueDetails?.destroy(); valueDetails = undefined; show("value", t("Válassz egy értéket a listában.")); return; }
       if (valueDetails) { void valueDetails.show(row).catch(() => { /* the error dialog was shown */ }); return; }
-      valuePanel.element.replaceChildren();
+      clear("value");
       valueDetails = new app.components.RecordDetails({ view: values, record: row, showId: false });
-      valueDetails.mount(valuePanel.element);
+      valueDetails.mount(layout.cell("value"));
     };
     /** The values list of the selected key in the current mode: a fresh scoped list (its scope is fixed at creation). */
     const showList = () => {
       list?.destroy(); list = undefined;
       showValue(undefined);
-      if (!values || !node) { valuesPanel.element.replaceChildren(valuesPanel.hint); return; }
-      valuesPanel.element.replaceChildren();
+      if (!values || !node) { show("values", values ? t("Válassz egy kulcsot a fában.") : t("Az értékek nem érhetők el.")); return; }
+      clear("values");
       list = new app.components.ListView({ view: values, scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) }, panel: false, showId: false });
       list.on("select", ({ row }) => showValue(row));
       list.on("toggle", ({ command, pressed }) => { if (command === TOGGLE && pressed !== subkeys) { subkeys = pressed; showList(); } });
-      list.mount(valuesPanel.element);
+      list.mount(layout.cell("values"));
     };
     nodeTree.on("select", ({ row }) => {
       const changed = String(row?.id ?? "") !== String(node?.id ?? "");
       node = row;
-      if (!row) { keyDetails?.destroy(); keyDetails = undefined; keyPanel.element.replaceChildren(keyPanel.hint); }
+      if (!row) { keyDetails?.destroy(); keyDetails = undefined; show("key", t("Válassz egy kulcsot a fában.")); }
       else if (keyDetails) void keyDetails.show(row).catch(() => { /* the error dialog was shown */ });
-      else { keyPanel.element.replaceChildren(); keyDetails = new app.components.RecordDetails({ view: nodes, record: row, showId: false }); keyDetails.mount(keyPanel.element); }
+      else { clear("key"); keyDetails = new app.components.RecordDetails({ view: nodes, record: row, showId: false }); keyDetails.mount(layout.cell("key")); }
       if (changed) showList();
     });
     // Enter or a double-click on a key opens its data.
