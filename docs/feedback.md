@@ -6301,5 +6301,5 @@ that exactly equals an option label lists every option. The managed
   WebSocket case skipped as before). No full-smoke claim.
 - **Limits:** one scope per list call; a scope-only field cannot be shown or
   sorted anywhere (declare an ordinary field for that).
-- **Commit:** pending.
+- **Commit:** `1f76e6c` on `main`.
 - **Status:** implemented and verified on the managed demo.
