@@ -102,9 +102,14 @@ For such a resource the framework:
 Relations: `Lookup` takes `tenantColumn` (JSON `lookups.<name>.tenant_column`).
 Its choices come from the active tenant, so a related ID of another tenant fails
 field validation. A scoped resource's `select` options should always use a scoped
-lookup. Field option closures, guards, hooks, usage providers and `computed` SQL
-receive `Context::$tenant` and are trusted consumer code. They must stay
-within the row's tenant themselves.
+lookup. Field option closures, guards, hooks and usage providers receive
+`Context::$tenant` and are trusted consumer code. They must stay within the
+row's tenant themselves. `computed` SQL is a static expression over the row
+(`blade_base`) and receives no tenant: on a resource without a tenant column it
+sees every tenant's rows, so it must never count or read another table's
+tenant-scoped rows. Counts of tenant-scoped records on a global resource use
+[count fields](workspaces.md#count-fields), which apply the counted resource's
+tenant scope and ACL ([FB-0173](feedback.md#fb-0173)).
 
 Global resources (no tenant column) sit next to scoped ones unchanged.
 

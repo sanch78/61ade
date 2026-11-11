@@ -18,7 +18,7 @@ test.beforeAll(cleanup);
 test.afterAll(cleanup);
 
 const editor=(page,label)=>page.getByRole('dialog',{name:new RegExp(' — '+label+'$')});
-const field=form=>form.locator('.blade-file-field');
+const field=form=>form.locator('.blade-file-field').first();
 const fileName=form=>form.locator('.blade-file-field__body input').first();
 const uploader=page=>page.getByRole('dialog').filter({has:page.locator('.blade-uploader')});
 const row=(page,title)=>page.locator('[data-cell-id="grid"] .dhx_grid-row').filter({has:page.getByRole('gridcell',{name:title,exact:true})});
@@ -39,6 +39,8 @@ async function fill(form,title){
  await form.getByLabel('Megnevezés',{exact:true}).fill(title);
  await form.getByLabel('Szerep',{exact:true}).selectOption({label:'Bizonyíték'});
  await form.getByLabel('Indoklás',{exact:true}).fill(prefix+' indok');
+ // The images are in the closed `Képek` section of the create form (FB-0172).
+ await form.getByRole('button',{name:'Képek',exact:true}).click();
 }
 
 test('create: the file uploads in the background and is saved with the other fields in one save; Cancel leaves no record',async({page})=>{
@@ -49,7 +51,7 @@ test('create: the file uploads in the background and is saved with the other fie
  let form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
  await fill(form,prefix+' elvetett');
  const chosen=page.waitForEvent('filechooser');
- await form.getByRole('button',{name:'Fájl megadása…',exact:true}).click();
+ await form.getByRole('button',{name:'Fájl megadása…',exact:true}).first().click();
  const chooser=await chosen;expect(chooser.isMultiple()).toBe(false);
  await chooser.setFiles([{name:prefix+'-elvetett.png',mimeType:'image/png',buffer:png}]);
  await expect(fileName(form)).toHaveValue(prefix+'-elvetett.png',{timeout:20000});
@@ -104,7 +106,7 @@ test('update: the stored file is shown through the GET action and replaced by a 
  await expect.poll(()=>image.evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
  expect(await image.getAttribute('src')).toContain('action=file');
  await expect(form.getByRole('button',{name:'Fájl cseréje…',exact:true})).toBeVisible();
- await expect(form.getByRole('button',{name:'Törlés',exact:true})).toBeEnabled();
+ await expect(form.getByRole('button',{name:'Törlés',exact:true}).first()).toBeEnabled();
  // Refused files keep the current one: a wrong type (by its bytes) and an oversize file.
  await give(form,'drop',prefix+'-szoveg.png',Buffer.from('nem kép\n'),'image/png');
  await expect(field(form)).toContainText('A fájl típusa ehhez a mezőhöz nem engedélyezett.',{timeout:20000});
@@ -130,7 +132,7 @@ test('update: the stored file is shown through the GET action and replaced by a 
  // A made-up or other record's committed id is no upload of this actor: a field error, the record unchanged.
  const revision=(await api(page,'demo_attachments','__form',String(record.id),{operation:'update'})).body.data.values.revision;
  for(const value of ['0'.repeat(32),record.file]){
-  const refused=await api(page,'demo_attachments','update',String(record.id),{title:prefix+' új',role:'evidence',file:value,revision});
+  const refused=await api(page,'demo_attachments','update',String(record.id),{title:prefix+' új',file:value,revision});
   expect(refused.status).toBe(400);expect(refused.body.fieldErrors?.file).toBe('A kiválasztott fájl nem érhető el.');
  }
  expect(query(`SELECT file FROM demo_attachments WHERE id=${record.id}`)).toEqual([{file:after.file}]);

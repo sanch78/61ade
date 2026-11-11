@@ -5,15 +5,20 @@ namespace Blade\Feature;
 /** ACL-scoped keyset data source, shared by scrolling, filtering and live observation. */
 final readonly class ListSource
 {
+    /** The fields with a column (the declared ones without the count fields). */
+    private array $fields;
     /**
      * $search: declared name-search fields (non-secret text/textarea); $registry resolves `column.media` sources.
      * $tenant: tenant column; every read, count and watch is limited to the Context's tenant and fails closed without one.
      * $countWhere: trusted developer SQL that a parent's sub-view count (countBy) adds to the listing scope, for a
      * list that shows more rows than it counts (an access list counts only the accounts with access).
      * $order: manual order `{field, scope}` (SqlResource): the list is sorted by that field only, ascending by default.
+     * $counts: count fields (SqlResource `counts`, FB-0173): filled by counted(), never a column to filter or sort by.
      */
-    public function __construct(private string $resource,private string $table,private string $key,private array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null, private array $search = [], private ?Registry $registry = null, private ?string $tenant = null, private string $countWhere = '1=1', public ?array $order = null)
+    public function __construct(private string $resource,private string $table,private string $key,array $fields,private ?string $owner,private string $where,private \Closure $project, private ?\Closure $source = null, private array $search = [], private ?Registry $registry = null, private ?string $tenant = null, private string $countWhere = '1=1', public ?array $order = null, private array $counts = [])
     {
+        // A count field has no column: it is never filtered, sorted or counted by.
+        $this->fields=$fields=array_values(array_filter($fields,static fn($field)=>!isset($counts[$field->name])));
         if($tenant!==null&&!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$tenant))throw new \InvalidArgumentException('Invalid tenant column.');
         $known=array_column($fields,null,'name');
         if(!array_is_list($search)||count($search)>20||count(array_unique($search))!==count($search))throw new \InvalidArgumentException('Invalid list search declaration.');
@@ -201,7 +206,7 @@ final readonly class ListSource
             $rank=$ctx->db->prepare("SELECT COUNT(*) FROM $from WHERE ".implode(' AND ',[...$baseTerms,$before]));$rank->execute($baseParams);
             $offset=(int)$rank->fetchColumn();
         }
-        $items=$this->subviews($ctx,$this->media($ctx,array_map(fn($row)=>($this->project)($ctx,$row),$rows)));
+        $items=$this->counted($ctx,$this->subviews($ctx,$this->media($ctx,array_map(fn($row)=>($this->project)($ctx,$row),$rows))));
         return ['total'=>$total,'matched'=>$matched,'items'=>array_map(fn($item,$row,$index)=>[...$item,'_position'=>$position($row),...($numbered?['_number'=>$offset+$index+1]:[])],$items,$rows,array_keys($rows)),
             'previous'=>$first!==null&&($direction==='previous'?$more:$hasCursor)?$this->cursor($first,'previous'):null,
             'next'=>$last!==null&&($direction==='previous'?$hasCursor:$more)?$this->cursor($last,'next'):null];
@@ -224,11 +229,71 @@ final readonly class ListSource
         unset($item);
         return $items;
     }
-    /** Listable records per $field value among $values (string keys); null when $field is not queryable here. */
+    /**
+     * Fills the count fields (FB-0173) of projected $items that carry them (the field ACL let them through): one grouped
+     * count per field over the counted resource's list source (countMatching). An item whose `on` value it cannot read
+     * and every item of a field that cannot be counted for the actor leave the field out, never a misleading 0.
+     */
+    public function counted(Context $ctx,array $items):array
+    {
+        foreach($this->counts as $name=>$count){
+            $on=$count['on']??'id';
+            $values=[];foreach($items as $item)if(array_key_exists($name,$item)&&isset($item[$on])&&(string)$item[$on]!=='')$values[]=(string)$item[$on];
+            $counted=null;
+            if($values){
+                try{$source=$this->registry?->get($count['resource'],'list')->listSource;}catch(Failure){$source=null;}
+                $counted=$source?->countMatching($ctx,$count['match'],$values,$count['filters']??[]);
+            }
+            foreach($items as &$item){
+                if(!array_key_exists($name,$item))continue;
+                if(!array_key_exists($on,$item)||($counted===null&&(string)$item[$on]!==''))unset($item[$name]);
+                else $item[$name]=(string)$item[$on]===''?0:($counted[(string)$item[$on]]??0);
+            }
+            unset($item);
+        }
+        return $items;
+    }
+    /**
+     * Listable records (list ACL predicate, `where`, $countWhere, tenant, row source with the archive policy) whose `$match`
+     * fields equal a value of $values, once per value even when several fields match, with the fixed exact $filters;
+     * keyed by value. Null when the actor has no `list` here, a needed tenant is missing, or a field is not queryable.
+     */
+    public function countMatching(Context $ctx,array $match,array $values,array $filters):?array
+    {
+        $known=array_column($this->fields,null,'name');
+        if(($this->tenant!==null&&$ctx->tenant===null)||!$this->listable($ctx))return null;
+        foreach([...$match,...array_keys($filters)] as $name){$field=$known[$name]??null;if(!$field||$field->secret||!$this->queryable($ctx,(string)$name))return null;}
+        // Without any list allow (or with a deny of the whole action) nothing is counted: no value rather than 0.
+        $rules=$ctx->acl->rules($ctx->actor->id,$this->resource,'list',$ctx->channel);
+        if(!array_filter($rules,static fn($r)=>$r['effect']==='allow'&&$r['field_name']==='')||array_filter($rules,static fn($r)=>$r['effect']==='deny'&&$r['scope']==='all'&&$r['field_name']===''))return null;
+        [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
+        $terms=["($scope)","({$this->where})","({$this->countWhere})"];
+        if($this->tenant!==null){$terms[]="{$this->tenant} = :blade_tenant";$params['blade_tenant']=$ctx->tenant;}
+        $i=0;foreach($filters as $name=>$value){$terms[]="COALESCE(CAST($name AS CHAR),'') = :blade_cf$i";$params["blade_cf$i"]=(string)$value;$i++;}
+        $on=implode(' OR ',array_map(static fn($name)=>"CAST($name AS CHAR) = blade_values.blade_v",$match));
+        $from=$this->source?($this->source)($ctx):$this->table;
+        $out=[];
+        // At most 200 values per query: SQLite allows 500 terms in one compound SELECT, a watch window has up to 600 rows.
+        foreach(array_chunk(array_values(array_unique(array_map('strval',$values))),200) as $chunk){
+            $rows=[];$bound=$params;
+            foreach($chunk as $j=>$value){$rows[]="SELECT :blade_cv$j AS blade_v";$bound["blade_cv$j"]=$value;}
+            $q=$ctx->db->prepare("SELECT blade_values.blade_v AS blade_parent, COUNT(*) AS blade_count FROM $from JOIN (".implode(' UNION ALL ',$rows).") blade_values ON ($on) WHERE ".implode(' AND ',$terms).' GROUP BY blade_values.blade_v');
+            $q->execute($bound);
+            foreach($q->fetchAll(\PDO::FETCH_ASSOC) as $row)$out[(string)$row['blade_parent']]=(int)$row['blade_count'];
+        }
+        return $out;
+    }
+    /** Whether the channel of $ctx may call this resource's `list` (an API token also needs that scope), as the executor requires. */
+    private function listable(Context $ctx):bool
+    {
+        try{$list=$this->registry?->get($this->resource,'list');}catch(Failure){return false;}
+        return $list!==null&&in_array($ctx->channel,$list->channels,true)&&($ctx->channel!=='api'||in_array($this->resource.'.list',$ctx->scopes,true));
+    }
+    /** Listable records per $field value among $values (string keys); null when $field is not queryable here or on this channel. */
     public function countBy(Context $ctx,string $field,array $values):?array
     {
         $known=array_column($this->fields,null,'name')[$field]??null;
-        if(!$known||$known->secret||!$this->queryable($ctx,$field)||($this->tenant!==null&&$ctx->tenant===null))return null;
+        if(!$known||$known->secret||!$this->queryable($ctx,$field)||($this->tenant!==null&&$ctx->tenant===null)||($this->registry&&!$this->listable($ctx)))return null;
         [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
         $terms=["($scope)","({$this->where})","({$this->countWhere})"];
         if($this->tenant!==null){$terms[]="{$this->tenant} = :blade_tenant";$params['blade_tenant']=$ctx->tenant;}

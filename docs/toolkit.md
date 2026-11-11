@@ -719,6 +719,21 @@ form.mount(win);
 - `cancel: false` leaves out Cancel (a form that stays on its page, such as a
   query's parameters). `setValues(values)` fills the action's fields once the
   form is shown, without submitting or `changed`; the form is unchanged after it.
+- `readOnly: ["parent_id"]` shows those input fields of the action read-only
+  ([read-only fields](workspaces.md#read-only-fields), FB-0171): a value the
+  host fixes from its context (a parent preset through `values`) is shown like
+  the action's own read-only fields (a select by its option label), cannot be
+  changed by keyboard or mouse, and is still submitted with its value (the
+  described one, from `values`, or one `setValues` puts there; a file field
+  ignores `setValues`). The server validates it as any input, so the host
+  cannot widen a right. A name that is no input field of the form is ignored
+  with a console warning; anything but a list of names throws `TypeError`.
+  The action's own `display` fields and the fields read-only by ACL are shown
+  and never sent; `values()` leaves them out.
+- [Form sections](workspaces.md#form-sections) (a field's `section`,
+  FB-0172) are collapsible fieldsets inside the form; a section opens by
+  itself when one of its fields has a value or an error, and the window
+  refits when one opens or closes.
 - The submit button is the action's `submitLabel` from an offered view, else
   its label (`Mentés` only without either), so a project view's query action
   submits under its own name. A read-only action (`write: false`) shows no
@@ -2710,6 +2725,9 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M51 | [Stored file field](workspaces.md#stored-file-field): PHP/JSON `file: {upload, get?, accept}` (a file in the project's own storage, uploaded through the project's upload action and saved with the record); `FieldMetadata.file` is `FileFieldConfig \| StoredFileFieldConfig` | [FB-0167](feedback.md#fb-0167) | info: TypeScript code that reads `field.file.resource` or `.mount` of any field narrows first (`"upload" in field.file`); a two-step "save, then upload" flow can become one save | none | none |
 | M52 | [Tree expansion](#tree-expansion): `Tree` options `expand` (levels opened while no expansion is stored) and `expandControl` (`Mindet kinyit` / `Mindet bezár`), methods `expandAll()` (→ `TreeExpansion`) and `collapseAll()`, key `*`; caps of 10 levels and 2000 loaded nodes; the stored expansion is written only once the user changed it, upper levels first | [FB-0168](feedback.md#fb-0168) | info: a spec that read a `Tree`'s stored `expanded` before any expansion change finds only `selected`; a state stored before this change still counts as the user's expansion | none | none |
 | M53 | [Cards only and full-width cards](workspaces.md#cards-only-and-full-width-cards): `modes` and `cardColumns` on `View::list`, `Registry::view`, `SqlResource::register` (JSON `view.modes`, `view.card_columns`), `ListKindOptions` and `ListViewOptions` (the component option wins); one mode hides the `Nézet` menu and ignores a kept other choice | [FB-0169](feedback.md#fb-0169) | info: a page that forced cards with `mode: "cards"` and its own CSS or layout for long text can declare cards only and one column instead; a `ListView` `mode` outside its `modes` throws `TypeError`; a kept `tiles` on a view without tiles now opens in the `ListView`'s `mode` (for example `cards`) instead of the table | none | none |
+| M54 | [Read-only fields](workspaces.md#read-only-fields): `Action::$display` and `SqlResource` `createOnly` (JSON `storage.create_only`); `__form` marks them `readOnly: true` and lists them first; an input field the actor may read but not write in a form of a record is now shown read-only instead of left out; `RecordFormOptions.readOnly`; a read-only select, multiselect or checkbox shows its option label (the singleton's details form showed a select's key), a read-only long text stays multi-line | [FB-0171](feedback.md#fb-0171) | info: a spec that expected a write-denied field to be absent from an update form finds it read-only; a spec that read a read-only select's value finds its label | none | none |
+| M55 | [Form sections](workspaces.md#form-sections): a field's `section` (PHP `Field`, JSON `section`) groups fields into a collapsible fieldset of the action forms; `FieldMetadata.section`, `ColumnMetadata.section` | [FB-0172](feedback.md#fb-0172) | none (additive) | none | none |
+| M56 | [Count fields](workspaces.md#count-fields): `SqlResource` `counts` (JSON `storage.counts`): a declared number field counting the records of another list resource the actor could list (its list ACL, `where`, tenant and archive policy), on list rows, `get` and live snapshots; not input, filter or sort. [Tenancy](tenancy.md): `computed` SQL receives no tenant (the guide said it did) | [FB-0173](feedback.md#fb-0173) | info: a computed count over another table's tenant-scoped rows on a global resource counts every tenant; use a count field | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2849,6 +2867,9 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-11 | `TreeOptions.expand` (levels opened while no expansion is stored, 0–10), `TreeOptions.expandControl`; `Tree.expandAll()` (→ `TreeExpansion`: `complete`, `nodes`, `reason`), `Tree.collapseAll()`; key `*`. The stored expansion is written only after the user changed it. Additive (M52). | A hierarchy should open its upper levels on first display and open or close as a whole (a consumer request). | [FB-0168](feedback.md#fb-0168) |
 | 2026-11-11 | `ListKindOptions.modes`/`cardColumns`, `ListViewOptions.modes`/`cardColumns`; PHP `modes` and `cardColumns` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.modes`, `view.card_columns`. The offered presentations (one hides the `Nézet` menu; a kept choice outside them is ignored, not overwritten) and at most this many card columns (1: one card per row). Additive (M53). | A list of notes could always be switched to a table and its cards were cut into narrow columns (a consumer request). | [FB-0169](feedback.md#fb-0169) |
 | 2026-11-11 | `Tree`: the remembered selection and `initial` apply at the end of the start only when nothing was selected meanwhile; a selection made while the roots, the `expand` levels or a restored expansion load stays and is stored, with no second `select`. | The start selected `initial` over the user's choice about 2 s after it. | [FB-0170](feedback.md#fb-0170) |
+| 2026-11-11 | `RecordFormOptions.readOnly` (host-fixed input fields, still submitted); `FieldMetadata.readOnly` (`__form`: an action's `display` field or a readable field the actor may not write, shown and never sent); PHP `Action::$display`, `SqlResource` `createOnly`, JSON `storage.create_only` (M54). | Values fixed after create stayed editable (then refused) or disappeared from the update form. | [FB-0171](feedback.md#fb-0171) |
+| 2026-11-11 | `FieldMetadata.section`, `ColumnMetadata.section`; PHP `Field::$section`, JSON field `section`: collapsible form sections (M55). | Optional bulky fields lengthened every form. | [FB-0172](feedback.md#fb-0172) |
+| 2026-11-11 | PHP `SqlResource` `counts`, JSON `storage.counts`: count fields (number fields filled from the counted resource's ACL-scoped list count; left out when they cannot be counted). No browser type change (M56). | A global resource could not show counts of tenant-scoped records without counting every tenant's rows. | [FB-0173](feedback.md#fb-0173) |
 
 <a id="resolved-decisions"></a>
 

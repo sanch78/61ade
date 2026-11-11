@@ -114,7 +114,7 @@ final class WorkspaceConfiguration
                 'type' => 'string', 'required' => 'boolean', 'max' => 'integer',
                 'options' => 'array', 'secret' => 'boolean',
                 'options_lookup' => 'string', 'options_binding' => 'string',
-                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array', 'editor' => 'string', 'visible_when' => 'array', 'clears' => 'array', 'scope_only' => 'boolean',
+                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array', 'editor' => 'string', 'visible_when' => 'array', 'clears' => 'array', 'scope_only' => 'boolean', 'section' => 'string',
             ], '$.fields');
             if (isset($definition['visible_when'])) {
                 Shape::check($definition['visible_when'], ['field' => 'string', 'in' => 'array'], [], '$.fields.'.$definition['name'].'.visible_when');
@@ -156,6 +156,7 @@ final class WorkspaceConfiguration
                 visibleWhen: $definition['visible_when'] ?? null,
                 clears: $definition['clears'] ?? [],
                 scopeOnly: $definition['scope_only'] ?? false,
+                section: $definition['section'] ?? null,
             );
         }
         return $fields;
@@ -174,7 +175,7 @@ final class WorkspaceConfiguration
         $operations = $definition['operations'] ?? [];
         $view = $definition['view'];
         Shape::check($storage, ['table' => 'string', 'key' => 'string'], [
-            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array', 'tenant_column' => 'string', 'order' => 'array',
+            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array', 'tenant_column' => 'string', 'order' => 'array', 'create_only' => 'array', 'counts' => 'array',
         ], '$.resources.'.$name.'.storage');
         Shape::check($hooks, [], [
             'guard' => 'string', 'normalize' => 'string', 'after_save' => 'string', 'delete_guard' => 'string', 'after_delete' => 'string',
@@ -224,6 +225,8 @@ final class WorkspaceConfiguration
             computed: $storage['computed'] ?? [],
             tenantColumn: $storage['tenant_column'] ?? null,
             order: $storage['order'] ?? null,
+            createOnly: $storage['create_only'] ?? [],
+            counts: $storage['counts'] ?? [],
         );
         $resource->register(
             registry: $this->registry,

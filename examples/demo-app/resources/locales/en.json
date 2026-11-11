@@ -333,6 +333,19 @@
   "Bizonyíték": "Evidence",
   "Indoklás": "Reason",
   "Fájlnév": "File name",
+  "Képek": "Images",
+  "Részletkép": "Detail image",
   "Kép feltöltése": "Upload image",
-  "Saját tárolású fájlmező: a kép a projekt saját tárolójába kerül, nem a fájlkezelőbe. A feltöltés a háttérben fut, és a kép a rekord többi mezőjével egy mentésben rögzül; a Mégse nem hoz létre rekordot.\n\nVegyél fel egy mellékletet: adj meg szerepet és indoklást, majd húzz egy képet a mezőre, vagy illeszd be Ctrl+V-vel.": "A file field with the project's own storage: the image goes to the project's own store, not to the file manager. The upload runs in the background, and the image is saved in one save with the record's other fields; Cancel creates no record.\n\nAdd an attachment: set a role and a reason, then drop an image onto the field or paste one with Ctrl+V."
+  "Saját tárolású fájlmező: a kép a projekt saját tárolójába kerül, nem a fájlkezelőbe. A feltöltés a háttérben fut, és a kép a rekord többi mezőjével egy mentésben rögzül; a Mégse nem hoz létre rekordot.\n\nVegyél fel egy mellékletet: adj meg szerepet és indoklást, nyisd ki a Képek szakaszt, majd húzz egy képet a mezőre, vagy illeszd be Ctrl+V-vel. A szerep a létrehozás után nem változik: a Módosítás csak megmutatja.": "A file field with the project's own storage: the image goes to the project's own store, not to the file manager. The upload runs in the background, and the image is saved in one save with the record's other fields; Cancel creates no record.\n\nAdd an attachment: set a role and a reason, open the Images section, then drop an image onto the field or paste one with Ctrl+V. The role does not change after create: Edit only shows it.",
+  "Kategóriák": "Categories",
+  "Tételek": "Items",
+  "Tétel": "Item",
+  "Kategória": "Category",
+  "Fajta": "Kind",
+  "Szülőkategória": "Parent category",
+  "Nincs (fő kategória)": "None (top category)",
+  "Tételek (alkategóriákkal)": "Items (with subcategories)",
+  "Jegyzetek (közvetlenül)": "Notes (directly)",
+  "Tenanttól független kategóriák, tenanthoz kötött számokkal: a Tételek oszlop a kategória és alkategóriái tételeit, a Jegyzetek oszlop a közvetlenül hozzá tartozó jegyzeteket számolja, mindig csak az aktív tenantban és csak azokat, amelyeket a fiók listázhat.\n\nVálts tenantot: a kategóriák ugyanazok, a számok a másik tenantéi. Az Adatok is mutatja őket.": "Categories independent of the tenant, with tenant-bound counts: the Items column counts the items of the category and its subcategories, the Notes column the notes attached directly, always only in the active tenant and only those the account may list.\n\nSwitch tenants: the categories stay the same, the counts are the other tenant's. Details shows them too.",
+  "Tenanthoz kötött tételek a globális kategóriafa mellett: a fában kijelölt kategória tételei látszanak. Egy új vagy archivált tétel a Kategóriák számait is változtatja.": "Tenant-bound items beside the global category tree: the items of the category selected in the tree are shown. A new or archived item also changes the counts of Categories."
 }

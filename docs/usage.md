@@ -588,7 +588,13 @@ A list can sit beside a data tree of another resource
 `view.tree`), a field can depend on another field's value
 ([conditional fields](workspaces.md#conditional-fields): `visibleWhen`, JSON
 `visible_when`), fields can be an exclusive choice
-([exclusive fields](workspaces.md#exclusive-fields): `clears`), and every view can explain itself in a closable
+([exclusive fields](workspaces.md#exclusive-fields): `clears`), an action
+form can show values read-only ([read-only fields](workspaces.md#read-only-fields):
+`createOnly`, JSON `storage.create_only`, `Action::$display`, `RecordForm`
+`readOnly`) and group fields into collapsible
+[form sections](workspaces.md#form-sections) (`section`), a field can count
+the related records the actor may list ([count fields](workspaces.md#count-fields):
+`counts`, JSON `storage.counts`), and every view can explain itself in a closable
 [view guide](workspaces.md#view-guide) (`guide`, or by view id in the
 application's `guides`), shown once per sign-in session and again from the
 top row's `Útmutató` button. Prerequisites, examples,

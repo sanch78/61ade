@@ -16,7 +16,7 @@ import { server } from "../../api/Server";
 import type { Application, ListTarget, ListViewEvents } from "../../api/types";
 import { commandEnabled, commandId, extensions, fieldTypeOf, resolveCommands, type ListCommand } from "../../app/registries";
 import { LIST, builtinCommands, type ListCommandContext } from "./commands";
-import { bindFieldTypes, errorText, escape, formActions, input } from "./fields";
+import { bindFieldTypes, errorText, escape, formActions, formRows, input, shownOnly } from "./fields";
 import { declaredTarget, resolveActivation, type ResolvedActivation } from "./activation";
 import { listCommands } from "./toolbar";
 import { preferences } from "../../api/services";
@@ -593,10 +593,12 @@ export class Workspace implements ActionHost {
     if(this.disposed)return;
     this.layout.getCell("detail").detach();this.detail?.destructor();await awaitRedraw();if(this.disposed)return;
     // Derived media columns have no field of their own: the detail form shows the fields only.
-    const fields=this.view.columns.filter(c=>!derivedOf(c)).map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:"text",required:false,max:255,options:{}});
-    const form=new Form(document.createElement("div"),{padding:24,rows:[...fields.map(f=>input(f,row[f.name],!allowed.some(a=>a.name===f.name))),...(action?[formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save",color:"primary"})]:[])]} as any);
-    this.detailFiles?.destroy();this.detailFiles=new FileFields(form,fields,this.resourceCall,[row],f=>!allowed.some(a=>a.name===f.name));
-    this.detailTypes?.();this.detailTypes=bindFieldTypes(form,fields,f=>!allowed.some(a=>a.name===f.name));
+    // A field of the update form that the actor may write is edited; every other one is shown read-only.
+    const fields=this.view.columns.filter(c=>!derivedOf(c)).map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:c.type==="select"||c.type==="checkbox"||c.type==="multiselect"?c.type:"text",required:false,max:255,options:c.options??{},...(c.section?{section:c.section}:{})});
+    const fixed=(f:FieldDefinition)=>shownOnly(f)||!allowed.some(a=>a.name===f.name);
+    const form=new Form(document.createElement("div"),{padding:24,rows:[...formRows(fields,f=>input(f,row[f.name],fixed(f)),row),...(action?[formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save",color:"primary"})]:[])]} as any);
+    this.detailFiles?.destroy();this.detailFiles=new FileFields(form,fields,this.resourceCall,[row],fixed);
+    this.detailTypes?.();this.detailTypes=bindFieldTypes(form,fields,fixed);
     this.detail=form;this.detailDirty=false;this.detailConflictShown=false;
     form.events.on("change",()=>{this.detailDirty=true;});
     if(action)this.actions.bindSave(form,action,String(row.id),row,allowed,()=>{this.detailDirty=false;},()=>{void this.mountDetail(this.rows[0]??row);});

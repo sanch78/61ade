@@ -6801,3 +6801,260 @@ that exactly equals an option label lists every option. The managed
   claim.
 - **Limits:** none known.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0171"></a>
+
+## FB-0171 — Read-only fields in record action forms
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms). Records whose place and kind (a parent, a key, a kind) are
+  chosen at create and never change: the update form offered editable selects
+  whose change the server refused, or left them out so the user no longer saw
+  where the record belongs. A create form opened from a context (a selected
+  tree node) presets the parent through `RecordFormOptions.values`, and the
+  user could still change it. `RecordForm` rendered every `__form` field
+  editable, the field ACL only removed fields, and `SqlResource` `readOnly`
+  dropped a field from create as well.
+- **Decision:**
+  - **Per action:** `Action::$display` (fields shown read-only before the
+    inputs, values from `formValues` or the record's `get`; never input).
+    `SqlResource` `createOnly` (JSON `storage.create_only`) is the resource
+    form of it: create writes those fields, update does not take them and
+    lists them as its `display` fields. A field-level flag was not chosen: a
+    `Field` is shared by every action of a resource, and a per-action list
+    keeps the generic `Action` meaningful on its own.
+  - **Per form instance:** `RecordFormOptions.readOnly` (field names of the
+    action): shown read-only and still submitted with their value; the
+    server's validation and ACL are unchanged, so the host cannot widen a
+    right. A name that is no input field is ignored with a console warning
+    (the `createDefaults` precedent); a non-list throws `TypeError`.
+  - **Field ACL (requirement 3): part of this change.** In a form of a record
+    (an action with an id), an input field the actor may read but not write
+    is shown read-only in place instead of disappearing. Readable means its
+    value is in the form's values (the `get` read with its own field ACL, or
+    `formValues`); a field the actor may not read stays absent, and create
+    forms are unchanged. The singleton's details form already showed
+    unwritable fields read-only, so every action form now agrees with it.
+  - **Rendering:** the details form's read-only rendering, completed: a
+    select, multiselect or checkbox shows its option label (the details form
+    showed a select's key) in a readonly input while a hidden item keeps the
+    raw value (for `visibleWhen` conditions and for submitting a host
+    preset); a long text stays multi-line; a checkbox is a readonly text
+    (`Igen`/`Nem`), reachable by Tab, instead of a disabled checkbox; file
+    fields show their preview without upload or clearing. `readonly`, not
+    `disabled`; the label stays the accessible name; no required mark.
+  - **Order:** display fields first, then the inputs (a field read-only by
+    ACL in its place).
+- **Implemented:**
+  - PHP: `Action` `display` (validated: `Field`s, not secret or password, not
+    an input, unique); `SqlResource` `createOnly` (validated: a declared,
+    written field, not read-only, computed or an order position, not secret,
+    password, grid-editable or bulk); `Workspace::describe()` (the `__form`
+    body, now callable from PHP checks) marks `readOnly: true`; JSON
+    `storage.create_only`.
+  - Frontend: `FieldMetadata.readOnly`, `RecordFormOptions.readOnly`;
+    `fields.ts` `shownOnly`, `setShown` and the read-only items; `RecordForm`
+    (rendering, validation, `values()`, `setValues`), the list's create and
+    update forms (`actions.ts`: not sent, not validated, not in
+    `createDefaults`) and the singleton's details form use them.
+  - Demo: `Mellékletek` declares `createOnly: ['role']`; the update form shows
+    `Szerep` read-only.
+- **Guides:** [read-only fields](workspaces.md#read-only-fields),
+  [RecordForm](toolkit.md#recordform) `readOnly`,
+  [configuration](configuration.md) `storage.create_only`,
+  [usage](usage.md), [demos](demos.md), toolkit [changes](toolkit.md#changes)
+  and migration row M54, [development](development.md) checks,
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification** (FB-0171, FB-0172 and FB-0173 together):
+  - **Build and static checks:** `npm run typecheck`, `npm run build`
+    (`node tools/build.mjs --check` clean at each browser run),
+    `npm run demo:assets`; the web demo instance was set up first for the new
+    `demo_attachments.detail` column and the tenant demo's
+    `tenant_categories`/`tenant_items` tables
+    (`BLADE_DEMO_INSTANCE=web php8.4 examples/demo-app/setup-workspace.php`).
+  - **New PHP check `record-forms.php`** (FB-0171, FB-0172): section label
+    rules and metadata; `display` and `createOnly` refusals; create takes the
+    create-only fields, update displays them; `describe()` order, `readOnly`
+    marks, values and options; a save sending a display field refused (400)
+    and nothing changed; a write-denied field read-only in place, a
+    read-denied one and its display field absent, a write-denied one sent
+    refused (403); create leaves a write-denied field out; the column
+    `section`; JSON `storage.create_only` and `section` and their refusals.
+  - **New PHP check `counts.php`** (FB-0173): declaration refusals at
+    definition and at `checkViews()`; count fields never input; per-tenant
+    recursive and filtered counts; `get` equal to the list and the revision
+    unchanged; watch snapshots; no tenant, no `list` right, a match field deny
+    and an API token without the counted list's scope give no value; an
+    archived item and an object `list` deny are not counted; a count field
+    deny; filter, scope and sort by a count refused and absent from `filters`
+    and `sortable`; 650 values counted in chunks; `on`; JSON `storage.counts`.
+  - **PHP checks passed:** the complete list of
+    [development](development.md#existing-full-smoke-and-coverage-limits)
+    (with `record-forms` and `counts`); node `toolkit-kernel`, `toolkit-list`,
+    `toolkit-components`, `toolkit-registries`, `toolkit-sandbox`,
+    `ui-preferences`, `live-protocol`.
+  - **New retained specs** on the managed demo: `record-forms.spec.cjs`
+    (a `RecordForm` create in an `AppWindow` with `values: {role:
+    'evidence'}`, `readOnly: ['role']`: `Szerep` shows `Bizonyíték`,
+    `readonly`, no required mark, reached by Tab, typing and a click change
+    nothing, the save sends `evidence`; `readOnly: 'role'` throws
+    `TypeError`; the list's update form shows the create-only role first and
+    read-only, its save does not send it, a direct update sending it is
+    refused (400) and the role is unchanged. `Képek`: closed on create with
+    `aria-expanded="false"` and `aria-controls` naming the fieldset, opened by
+    Enter from the keyboard (the window grows) and closed by Space; an image
+    given before closing is saved; open on update with a stored image, closed
+    again the save still sends the stored value; a server field error
+    (`setValues` with a foreign token) opens the closed section of a
+    `RecordForm` and focuses the image's name. In English at 390 px: `Role`
+    shows `Evidence` read-only, `Images` opens and closes by keyboard inside
+    the viewport) and `count-fields.spec.cjs` (tenant demo: Alpha
+    Documentation 4 / 1 in the columns and `Adatok`, the list and `get` equal,
+    a new note counts recursively and stops counting once archived, Beta shows
+    Beta's counts, filter and sort by a count refused; `single@` sees Alpha's;
+    `Tételek` beside the category tree; `none@` gets the categories without
+    counts). `stored-file.spec.cjs` adapted to the demo (opens `Képek`; the
+    update no longer sends the create-only role).
+  - **Full browser run** (once, the change reaches every action form and SQL
+    list): 252 passed, 3 failed, 10 not run, 1 skipped. Failures:
+    `demo.spec.cjs` sign-in case (the spec checked `isVisible()` on the
+    collapsed `Menü` before the Hungarian reload had settled; it failed three
+    times right after PHP files changed and passed at HEAD and 4/4 warm; the
+    spec now waits for the `Magyar` button first);
+    `toolkit-demo-assets.spec.cjs` activation case (the `Nézet` button not
+    stable, as in [FB-0169](#fb-0169); passed on rerun) and
+    `uploader.spec.cjs` (a folder of the run not found after a reload; folders
+    an earlier, stopped run of this session left in the demo drive were
+    removed with the spec's own cleanup, then 14 passed).
+  - **Independent review** (same day) found and the change fixed: the
+    values table of a count exceeded SQLite's 500 compound terms above 500
+    rows (a watch window takes up to 600; now chunked by 200); a read-only
+    choice with `visibleWhen` toggled its hidden raw item instead of its
+    label (and `clears` left the label; both use the label item now); counts
+    ignored the channel and an API token's scopes (now required as the
+    executor does, also for the sub-view count); the reveal focused an error
+    in a section that was already open.
+  - **Final run** after the fixes: `record-forms`, `stored-file`,
+    `count-fields`, `registry`, `tenancy`, `subview`, `signage`,
+    `toolkit-list`, `workspace`, `tree-component`, `toolkit-demo-assets`,
+    `demo` (66 passed, the existing WebSocket case skipped). No full-smoke
+    claim after the fixes.
+- **Limits:** grid cells, cards and the bulk form never show read-only
+  fields; a `RecordForm` `readOnly` file field ignores `setValues`; a display
+  field without a value in the form's values is left out.
+- **Commit:** COMMIT on `main`.
+- **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0172"></a>
+
+## FB-0172 — Collapsible field sections in record forms
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms). An item form with a long text and two optional file
+  fields: most records hold no file, yet the previews took most of the
+  window. `SettingsForm` has non-collapsible groups; `RecordForm` and the list
+  forms had no grouping; `Accordion` ([FB-0148](#fb-0148)) divides a layout,
+  and FB-0148 kept one `RecordForm` as one Suite Form.
+- **Decision:**
+  - **Declaration on the field:** `Field::$section` (JSON `section`), the
+    section's plain-text, translatable label; the fields with the same label
+    form one section at the place of the first. The request offered an
+    action-level list or a field property; the field property was chosen
+    because `SqlResource` generates its create and update actions, so one
+    declaration serves the create, update and details forms, and a field is
+    in at most one section by construction (there are no unknown references
+    to refuse). Labels: 1–100 characters, no control characters.
+  - **Inside the one Form:** a fieldset under a Suite button item; the closed
+    state is a CSS class set through the fieldset's `setProperties`, so the
+    fields stay rendered and file previews keep their state; values are
+    submitted and validated while closed.
+  - **State:** closed unless a field holds a value (stored, preset, a file;
+    a `default` or an unchecked checkbox does not count); an error in a
+    closed section (client or server) opens it and focuses its first
+    erroneous field. The open state is not stored.
+  - **Accessibility:** a native button in the tab order with `aria-expanded`
+    and `aria-controls`; the fieldset is a group named by the button
+    (`aria-labelledby`).
+- **Implemented:** `Field` `section` (metadata translated), JSON `section`,
+  the list column metadata `section` (for the singleton's details form
+  without an update right); `fields.ts` `formRows()` and the section binding
+  inside `bindFieldTypes()` (refit callback), `FormValidation` reveal hook;
+  `form-section.css`; used by `RecordForm`, the list's create and update
+  forms and the singleton's details form. Demo: `Mellékletek` gains a second
+  stored image `Részletkép` (column `detail`, migrated by the setup) and both
+  images form the `Képek` section; `stored-file.spec.cjs` opens it.
+- **Guides:** [form sections](workspaces.md#form-sections),
+  [RecordForm](toolkit.md#recordform), [configuration](configuration.md)
+  fields, [usage](usage.md), [demos](demos.md), toolkit
+  [changes](toolkit.md#changes) and migration row M55,
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:** see [FB-0171](#fb-0171) (shared checks).
+- **Limits:** no nested sections and no per-action variant; the `Adatok`
+  window, the bulk form and grid or card editors show no sections;
+  `SettingsForm` keeps its own groups.
+- **Commit:** COMMIT on `main`.
+- **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0173"></a>
+
+## FB-0173 — Count fields: related records the actor may list
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request (recorded without consumer names or
+  business terms). A page of a global category tree beside tenant-scoped
+  records should show per category how many records it holds, recursively,
+  and how many items of a kind are attached directly. `computed` is a static
+  SQL expression without context: on a global resource it counted every
+  tenant's rows, `:blade_tenant` failed on the list path (unbound) and on
+  `get` (mixed parameters), and hand-written SQL bypassed the counted
+  resource's object and field rules. `docs/tenancy.md` claimed that
+  `computed` SQL receives the tenant.
+- **Decision:**
+  - The requested declaration rather than the `:blade_tenant` stop-gap:
+    `SqlResource` `counts` (JSON `storage.counts`), `name => {resource,
+    match, filters?, on?}` on a declared number field. The count runs through
+    the counted resource's own list source like the sub-view count
+    (`countBy`): its list ACL predicate, `where`, `countWhere`, tenant and row
+    source with the archive policy. A record counts once per row when any
+    match field equals the row's key (`on`: another readable field of the
+    row).
+  - **No misleading 0:** the value is left out when the actor has no `list`
+    allow on the counted resource (or a whole-action deny), when it is
+    tenant-scoped and no tenant is active, when a match or filter field is
+    not queryable for the actor, or when the row's `on` field is not
+    readable. A deny on the count field hides it as any field.
+  - **Reads:** list rows (one grouped count per page and field: the page's
+    values as a derived table joined with an `OR` over the match fields),
+    `get` and live snapshots; never input, not in the revision; filtering,
+    scoping and sorting by a count are refused (403) and the view's
+    `filters`/`sortable` leave it out.
+  - **Validation:** the shape at definition; the counted resource (an SQL
+    list source), its match fields (scope-only allowed; not secret, long
+    text, multiple choice or file; not a count) and filters (the menu
+    attention rule, shared as `Registry::filterable`) at `checkViews()`.
+  - The tenancy guide is corrected: `computed` SQL receives no tenant.
+- **Implemented:** `SqlResource` `counts` (count fields read-only, projected
+  as placeholders the actor may read, excluded from the revision),
+  `ListSource` `counted()`/`countMatching()` (count fields kept out of its
+  filter, scope and sort fields), `Registry::counts()`/`countFields()` and
+  their check in `checkViews()`, JSON `storage.counts`. No browser change: a
+  count is a number field. Tenant demo: global `Kategóriák` (two levels,
+  `tenant_categories`) with `Tételek (alkategóriákkal)` and `Jegyzetek
+  (közvetlenül)` over the tenant-scoped `Tételek` (`tenant_items`, archive
+  delete, a scope-only computed parent category), which sits beside the
+  category tree.
+- **Guides:** [count fields](workspaces.md#count-fields) and the sub-view
+  count, [tenancy](tenancy.md) (the computed SQL sentence),
+  [configuration](configuration.md) `storage.counts`, [usage](usage.md),
+  [demos](demos.md#tenant-demo-tenants), toolkit [changes](toolkit.md#changes)
+  and migration row M56, [development](development.md) checks,
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:** see [FB-0171](#fb-0171) (shared checks).
+- **Limits:** no sorting or filtering by a count; one `COUNT` per count field
+  and page; a counted resource needs an SQL list source; a change of a
+  counted record does not push an update of the counting list by itself; a
+  recursive count needs one helper field per hierarchy level.
+- **Commit:** COMMIT on `main`.
+- **Status:** implemented and verified on the managed demo.

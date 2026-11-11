@@ -695,6 +695,17 @@ export interface FieldMetadata {
    * forms empty them at once, the server on every save that sends this field with a value.
    */
   clears?: string[];
+  /**
+   * Shown with its value, never input (`__form` only, FB-0171): a field of the action's `display` (server
+   * `Action::$display`, `SqlResource` `createOnly`, JSON `storage.create_only`), or an input field the actor may read
+   * but not write in this action. Rendered like the details form; a request that sends it is refused.
+   */
+  readOnly?: boolean;
+  /**
+   * The label of the collapsible form section holding the field (server `Field` `section`, JSON `section`, FB-0172),
+   * translated. The fields with the same label form one section at the place of the first one.
+   */
+  section?: string;
 }
 
 /** Confirmation the server declares for an action (`Action::$confirm`). Plain text. */
@@ -741,6 +752,8 @@ export interface ColumnMetadata {
   presentation?: string;
   /** The field's `editor` (a `fieldTypes` name): its `display` renders the value unless a presentation does. */
   editor?: string;
+  /** The field's form section label (`FieldMetadata.section`). */
+  section?: string;
   /**
    * Static image column (`presentation: "image"`): page-relative directory of the image files (configuration also
    * accepts `image_base`; the server always sends `imageBase`).
@@ -1218,6 +1231,13 @@ export interface RecordFormOptions extends ComponentOptions {
   values?: Record<string, unknown>;
   /** false: no Cancel button (a form that stays on its page, such as a query's parameters). Default true. */
   cancel?: boolean;
+  /**
+   * Input fields of the action shown read-only in this form (FB-0171), for a value the host's context fixes (a parent
+   * preset through `values`): rendered like the action's read-only fields, kept by user input, and still submitted with
+   * their value (described, from `values`, or set by `setValues`, which a file field ignores). The server's validation and ACL are unchanged. A name
+   * that is no input field of the form is ignored with a console warning; not a list of names: `TypeError`.
+   */
+  readOnly?: string[];
 }
 
 /**

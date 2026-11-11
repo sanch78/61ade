@@ -24,8 +24,16 @@ final class SqlResource
      * is read-only, a new record goes last within its scope (the rows with the same scope value), the list is sorted by
      * it, and the registered `move` action (`before`: the id the record moves in front of, '' = last) renumbers the
      * scope. Positions never take part in a record's revision, so moving one record does not make the others stale.
+     * $createOnly: fields chosen at create and fixed afterwards (FB-0171): create writes them, update does not take
+     * them (a save that sends one is refused) and its form shows them read-only (`Action::$display`).
+     * $counts: count fields (FB-0173), name => ['resource' => a registered resource with an SQL list source, 'match' =>
+     * its queryable fields, 'filters' => optional fixed exact values of its filterable fields, 'on' => optional field of
+     * this row instead of its key]. The value is the number of the counted resource's records that the same actor,
+     * channel and tenant could list (its list ACL, `where`, tenant scope and archive policy) with any `match` field equal
+     * to the row's key (or `on`), one grouped count per page and field; left out when it cannot be counted for the actor.
+     * A count field is a declared number field: read-only, not part of the revision, not filterable or sortable.
      */
-    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [], private ?string $tenantColumn = null, private ?array $order = null)
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [], private ?string $tenantColumn = null, private ?array $order = null, private array $createOnly = [], private array $counts = [])
     {
         $known=array_column($fields,null,'name');
         foreach($computed as $name=>$sql){
@@ -40,9 +48,25 @@ final class SqlResource
                 ||($scope!==null&&(!is_string($scope)||!isset($known[$scope])||isset($computed[$scope])||$scope===$field->name)))throw new \InvalidArgumentException('Invalid manual order.');
             $this->order=['field'=>$field->name,'scope'=>$scope];
         }
-        $this->readOnly=$readOnly=array_values(array_unique([...$readOnly,...array_keys($computed),...($this->order?[$this->order['field']]:[])]));
+        foreach($counts as $name=>$count){
+            $field=is_string($name)?($known[$name]??null):null;$filters=is_array($count)?($count['filters']??[]):null;
+            if(!$field||$field->type!=='number'||$field->secret||$field->scopeOnly||($field->column['editable']??false)||$field->media()!==null||$field->bulk||($field->validation['unique']??false)
+                ||isset($computed[$name])||isset($defaults[$name])||$name===$ownerColumn||in_array($name,array_merge(...$unique ?: [[]]),true)||($order['field']??null)===$name
+                ||!is_array($count)||array_diff(array_keys($count),['resource','match','filters','on'])||!is_string($count['resource']??null)||!preg_match('/^[a-z][a-z0-9_.-]*$/D',$count['resource'])
+                ||!is_array($count['match']??null)||!$count['match']||!array_is_list($count['match'])||count($count['match'])>10||count(array_unique($count['match']))!==count($count['match'])
+                ||array_filter($count['match'],static fn($match)=>!is_string($match)||!preg_match('/^[a-z][a-z0-9_]*$/D',$match))
+                ||!is_array($filters)||($filters&&array_is_list($filters))||count($filters)>10||array_filter(array_keys($filters),static fn($key)=>!preg_match('/^[a-z][a-z0-9_]*$/D',(string)$key))||array_filter($filters,static fn($value)=>!is_string($value)||strlen($value)>255)
+                ||(array_key_exists('on',$count)&&(!is_string($count['on'])||($count['on']!=='id'&&(!isset($known[$count['on']])||isset($counts[$count['on']])||$known[$count['on']]->secret)))))throw new \InvalidArgumentException('Invalid count field.');
+        }
+        $this->readOnly=$readOnly=array_values(array_unique([...$readOnly,...array_keys($computed),...($this->order?[$this->order['field']]:[]),...array_keys($counts)]));
         // Read-only fields are listed and revisioned but never part of create/update input.
         if (array_diff($readOnly, array_map(static fn($f)=>$f->name,$fields))) throw new \InvalidArgumentException('Unknown read-only field');
+        // A create-only field is a written, readable field that no update path (form, cell, bulk) can change.
+        foreach($createOnly as $name){
+            $field=is_string($name)?($known[$name]??null):null;
+            if(!$field||in_array($name,$readOnly,true)||$field->secret||$field->type==='password'||($field->column['editable']??false)||$field->bulk)throw new \InvalidArgumentException('Invalid create-only field.');
+        }
+        if(!array_is_list($createOnly)||count(array_unique($createOnly))!==count($createOnly))throw new \InvalidArgumentException('Invalid create-only field.');
         // Composite unique keys: each entry lists field, default or owner columns that together must be unique.
         $declared=[...array_map(static fn($f)=>$f->name,$fields),...array_keys($defaults),...($ownerColumn?[$ownerColumn]:[])];
         foreach ($unique as $columns) if (!is_array($columns) || !array_is_list($columns) || !$columns || array_diff($columns,$declared) || count(array_unique($columns))!==count($columns)) throw new \InvalidArgumentException('Invalid unique key');
@@ -93,15 +117,16 @@ final class SqlResource
         foreach ($this->related as $storage) {
             if (!$storage instanceof RelatedStorage && !$storage instanceof RelatedSet) throw new \InvalidArgumentException('Invalid related storage.');
             foreach ($storage->fields as $field => $column) {
-                if (!isset($known[$field]) || isset($mapped[$field]) || isset($this->computed[$field]) || $field === $this->key || $field === $this->ownerColumn || isset($this->defaults[$field]) || ($known[$field]->validation['unique'] ?? false) || in_array($field, array_merge(...$this->unique ?: [[]]), true)) throw new \InvalidArgumentException('Invalid related field mapping.');
+                if (!isset($known[$field]) || isset($mapped[$field]) || isset($this->computed[$field]) || isset($this->counts[$field]) || $field === $this->key || $field === $this->ownerColumn || isset($this->defaults[$field]) || ($known[$field]->validation['unique'] ?? false) || in_array($field, array_merge(...$this->unique ?: [[]]), true)) throw new \InvalidArgumentException('Invalid related field mapping.');
                 $mapped[$field] = true;
             }
         }
         if($this->tenantColumn!==null)$registry->scopeToTenant($this->resource);
-        $source=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'),fn($c)=>$this->source($c),$this->search,$registry,$this->tenantColumn,order:$this->order);
+        if($this->counts)$registry->counts($this->resource,$this->counts);
+        $source=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'),fn($c)=>$this->source($c),$this->search,$registry,$this->tenantColumn,order:$this->order,counts:$this->counts);
         // The cursor API only: a list takes no object id (the removed offset paging used one).
         $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t,$values)=>($t['id']??'')==='' ? $source->read($c,$values) : throw new Failure('Hibás lapozás.'),collection:true,listSource:$source));
-        $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$source->media($c,[$this->project($c,$t['row'],'get')])[0],resolve:fn($c,$id)=>$this->target($c,$id)));
+        $registry->add(new Action($this->resource,'get','Megnyitás',[],fn(Context $c,$t)=>$source->counted($c,$source->media($c,[$this->project($c,$t['row'],'get')]))[0],resolve:fn($c,$id)=>$this->target($c,$id)));
         $actions=['get'];
         $writable=array_values(array_filter($this->fields,fn($f)=>!in_array($f->name,$this->readOnly,true)));
         if($create) {
@@ -109,7 +134,9 @@ final class SqlResource
             $actions[]='create';
         }
         if($update) {
-            $registry->add(new Action($this->resource,'update','Mentés',[...$writable,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,editHandler:fn($c,$t,$v)=>$this->save($c,$t,$v,true),bulk:(bool) array_filter($writable,static fn($field)=>$field->bulk)));
+            $fixed=fn($f)=>in_array($f->name,$this->createOnly,true);
+            $changeable=array_values(array_filter($writable,fn($f)=>!$fixed($f)));
+            $registry->add(new Action($this->resource,'update','Mentés',[...$changeable,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,editHandler:fn($c,$t,$v)=>$this->save($c,$t,$v,true),bulk:(bool) array_filter($changeable,static fn($field)=>$field->bulk),display:array_values(array_filter($writable,$fixed))));
             $actions[]='update';
             if($this->order){
                 $registry->add(new Action($this->resource,'move','Áthelyezés',[new Field('before','Elé',max:100),new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->move($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,channels:['ui']));
@@ -175,7 +202,8 @@ final class SqlResource
     {
         $id=(string)$row[$this->key];$owner=$this->ownerColumn?(string)$row[$this->ownerColumn]:null;
         $out=['id'=>$id,'revision'=>$this->revision($row)];
-        foreach($this->fields as $field) if(!$field->secret && $ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,$action,$ctx->channel,$id,$owner,$field->name))$out[$field->name]=$row[$field->name];
+        // A count field the actor may read gets its value from ListSource::counted() (left out when it cannot be counted).
+        foreach($this->fields as $field) if(!$field->secret && $ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,$action,$ctx->channel,$id,$owner,$field->name))$out[$field->name]=isset($this->counts[$field->name])?null:$row[$field->name];
         $out['_actions']=[];
         $out['_editable']=[];
         foreach($this->registry?->all()??[] as $action)if($action->resource===$this->resource && in_array($ctx->channel,$action->channels,true) && $ctx->acl->allows($ctx->actor->id,$this->resource,$action->name,$ctx->channel,$id,$owner))$out['_actions'][]=$action->name;
@@ -187,7 +215,7 @@ final class SqlResource
     private function revision(array $row): string
     {
         // Computed values and manual positions change with other records; they never make a stored revision stale.
-        $columns=[$this->key,...array_diff(array_map(static fn($f)=>$f->name,$this->fields),array_keys($this->computed),$this->order?[$this->order['field']]:[]),...($this->ownerColumn?[$this->ownerColumn]:[])];
+        $columns=[$this->key,...array_diff(array_map(static fn($f)=>$f->name,$this->fields),array_keys($this->computed),array_keys($this->counts),$this->order?[$this->order['field']]:[]),...($this->ownerColumn?[$this->ownerColumn]:[])];
         return hash('sha256',json_encode(array_map(static fn($value)=>$value===null?null:(string)$value,array_intersect_key($row,array_flip($columns))),JSON_THROW_ON_ERROR));
     }
     /** SQL condition and parameters of the rows sharing $row's manual-order scope (same scope value, tenant, not archived). */

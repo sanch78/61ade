@@ -54,6 +54,12 @@ final readonly class Field
          * ACL, the tenant and the value checks still apply to the scope, and the record still carries the value.
          */
         public bool $scopeOnly = false,
+        /**
+         * A collapsible form section (FB-0172): its plain-text, translatable label. The fields with the same label form
+         * one section of the action forms, at the place of its first field; it starts closed unless one of its fields
+         * holds a value or an error. Presentation only: closed fields are still submitted and validated.
+         */
+        public ?string $section = null,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
             || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'date', 'file'], true)
@@ -125,6 +131,7 @@ final readonly class Field
             || array_filter($clears, static fn($other) => !is_string($other) || !preg_match('/^[a-z][a-z0-9_]*$/D', $other) || $other === $name)) {
             throw new InvalidArgumentException('Invalid exclusive field: '.$name);
         }
+        if ($section !== null && (trim($section) === '' || strlen($section) > 100 || preg_match('/[\x00-\x1f\x7f]/', $section))) throw new InvalidArgumentException('Invalid field section: '.$name);
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
         if ($type === 'checkbox' && $defaultValue !== null && !in_array($defaultValue, ['0', '1'], true)) {
@@ -279,6 +286,7 @@ final readonly class Field
             ...($this->editor !== null ? ['editor' => $this->editor] : []),
             ...($this->visibleWhen !== null ? ['visibleWhen' => $this->visibleWhen] : []),
             ...($this->clears ? ['clears' => $this->clears] : []),
+            ...($this->section !== null ? ['section' => \Blade\I18n\Translator::text($this->section)] : []),
         ];
     }
 }

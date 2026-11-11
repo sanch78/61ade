@@ -1,10 +1,11 @@
 import { t } from "../../I18n";
 import { optionText } from "../../RecordPresentation";
+import "../../form-section.css";
 import { fileInput } from "../../FilePicker";
-import type { Form } from "@dhtmlx/suite";
+import { type Form, awaitRedraw } from "@dhtmlx/suite";
 import { extensions, fieldTypeOf } from "../../app/registries";
 import type { FieldMetadata } from "../../api/types";
-import { calendarDate, dateValue, fieldActive } from "../../FormValidation";
+import { calendarDate, dateValue, fieldActive, fileDisplay, sectionReveal } from "../../FormValidation";
 import type { ActionDefinition, FieldDefinition } from "./types";
 
 /** Form item factories and action helpers shared by the list, its forms and the public `RecordForm`. */
@@ -30,14 +31,103 @@ export const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>{
   }
   return builtinInput(f,value,readOnly);
 };
+/** A field shown with its value and never sent (`readOnly` metadata: a display field or one the actor may not write). */
+export const shownOnly=(field:FieldDefinition)=>field.readOnly===true;
+/** The item showing a read-only choice's option label beside its hidden raw value. */
+const shownName=(name:string)=>name+"__shown";
+const choice=(field:FieldDefinition)=>field.type==="select"||field.type==="multiselect"||field.type==="checkbox";
+const checked=(value:unknown)=>value===true||String(value)==="1";
+const rawChoice=(field:FieldDefinition,value:unknown)=>Array.isArray(value)?value.join(","):field.type==="checkbox"?(checked(value)?"1":"0"):String(value??"");
+const choiceText=(field:FieldDefinition,value:unknown)=>field.type==="checkbox"?field.options[checked(value)?"1":"0"]??t(checked(value)?"Igen":"Nem"):optionText(field,rawChoice(field,value));
+/** Sets a field rendered read-only by `input` (a choice: its raw value and its shown label). */
+export function setShown(form:Form,field:FieldDefinition,value:unknown):void{
+  if(!choice(field)){(form.getItem(field.name) as any)?.setValue(value??"");return;}
+  (form.getItem(field.name) as any)?.setValue(rawChoice(field,value));(form.getItem(shownName(field.name)) as any)?.setValue(choiceText(field,value));
+}
+/** Name prefix of a section's disclosure button (`<prefix><n>`) and fieldset (`<prefix><n>_body`); no field name starts with `_`. */
+const SECTION="__section";
+const BODY="blade-form-section__body",CLOSED=" blade-form-section__body--closed";
+/** The section labels of $fields in form order. */
+const sectionsOf=(fields:FieldDefinition[])=>[...new Set(fields.map(field=>field.section).filter((label):label is string=>!!label))];
+/** Whether $value fills a field: a non-empty value; an unchecked checkbox and an empty choice count as empty. */
+const filled=(field:FieldDefinition,value:unknown)=>Array.isArray(value)?value.length>0:value!==undefined&&value!==null&&value!==false&&String(value).trim()!==""&&!(field.type==="checkbox"&&String(value)==="0");
+/**
+ * The Form rows of $fields: each field's $item, the fields of one `section` gathered at the place of its first field in
+ * a fieldset under a disclosure button (docs/workspaces.md#form-sections). A section starts open when one of its fields
+ * holds a value in $values (the stored or preset values; a default does not count), else closed.
+ */
+export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>any,values:Record<string,unknown>={}):any[]{
+  const rows:any[]=[],bodies=new Map<string,any[]>(),labels=sectionsOf(fields);
+  for(const field of fields){
+    if(!field.section){rows.push(item(field));continue;}
+    let body=bodies.get(field.section);
+    if(!body){
+      const n=labels.indexOf(field.section)+1,open=fields.some(other=>other.section===field.section&&filled(other,values[other.name]));
+      bodies.set(field.section,body=[]);
+      rows.push({css:"blade-form-section",rows:[
+        {type:"button",name:SECTION+n,text:field.section,view:"link",color:"secondary",icon:open?"dxi dxi-chevron-down":"dxi dxi-chevron-right",css:"blade-form-section__toggle"},
+        {type:"fieldset",name:SECTION+n+"_body",css:BODY+(open?"":CLOSED),rows:body},
+      ]});
+    }
+    body.push(item(field));
+  }
+  return rows;
+}
+/**
+ * Makes the sections of a Form built by `formRows` disclosures: the button toggles its fieldset (Enter/Space, click),
+ * carries `aria-expanded`/`aria-controls`, names the fieldset (a group); an error in a closed section opens it and
+ * focuses its first erroneous field. Closing only hides: the values stay, are submitted and validated.
+ */
+function bindSections(form:Form,fields:FieldDefinition[],signal:AbortSignal,toggled?:()=>void):void{
+  const labels=sectionsOf(fields);
+  if(!labels.length)return;
+  const button=(n:number)=>(form.getItem(SECTION+n) as any)?.getRootNode?.() as HTMLElement|undefined;
+  const isOpen=(n:number)=>!String((form.getItem(SECTION+n+"_body") as any)?.getProperties?.().css??"").includes(CLOSED.trim());
+  const decorate=()=>{
+    if(signal.aborted)return;
+    labels.forEach((_,index)=>{
+      const n=index+1,element=button(n),body=element?.closest(".blade-form-section")?.querySelector("fieldset");
+      if(!element||!body)return;
+      if(!body.id)body.id=(element.id||SECTION+n)+"-body";
+      element.setAttribute("aria-expanded",String(isOpen(n)));element.setAttribute("aria-controls",body.id);
+      body.setAttribute("aria-labelledby",element.id);
+    });
+  };
+  const set=(n:number,open:boolean)=>{
+    if(isOpen(n)===open)return false;
+    (form.getItem(SECTION+n+"_body") as any).setProperties({css:BODY+(open?"":CLOSED)});
+    (form.getItem(SECTION+n) as any).setProperties({icon:open?"dxi dxi-chevron-down":"dxi dxi-chevron-right"});
+    return true;
+  };
+  const changed=()=>{decorate();void awaitRedraw().then(()=>{decorate();toggled?.();});};
+  form.events.on("click",(name:string)=>{
+    if(signal.aborted||!name?.startsWith(SECTION)||name.endsWith("_body"))return;
+    const n=Number(name.slice(SECTION.length));
+    if(set(n,!isOpen(n)))changed();
+  });
+  sectionReveal.set(form,names=>{
+    if(signal.aborted)return;
+    const opened=labels.filter((label,index)=>fields.some(field=>field.section===label&&names.includes(field.name))&&set(index+1,true));
+    if(!opened.length)return;
+    changed();
+    // The first erroneous field of a section that was closed takes the focus (a file field: its name input).
+    const first=fields.find(field=>names.includes(field.name)&&opened.includes(field.section!));
+    if(first)void awaitRedraw().then(()=>{if(!signal.aborted)(form.getItem(first.type==="file"?fileDisplay(first.name):first.name) as any)?.focus?.();});
+  });
+  signal.addEventListener("abort",()=>sectionReveal.delete(form),{once:true});
+  decorate();void awaitRedraw().then(decorate);
+  form.events.on("change",decorate);
+}
 /**
  * Runs `bind` of the registered field types among $fields once their Form exists, shows each conditional field
  * (`visibleWhen`) only while its condition holds and empties the fields an exclusive field `clears` once it gets a
- * value; `toggled` runs after a field appeared or disappeared (a window refits).
+ * value, and makes the `formRows` sections disclosures; `toggled` runs after a field or section appeared or disappeared
+ * (a window refits).
  * The returned release aborts their `signal`; the owner calls it when the form closes or is replaced.
  */
 export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(field:FieldDefinition)=>boolean=()=>false,toggled?:()=>void):()=>void{
   const controller=new AbortController(),app=extensions.app;
+  bindSections(form,fields,controller.signal,toggled);
   const conditional=fields.filter(field=>field.visibleWhen&&form.getItem(field.name));
   if(conditional.length){
     const shown=new Map<string,boolean>();
@@ -49,7 +139,8 @@ export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(fiel
         if(shown.get(field.name)===active)continue;
         if(shown.has(field.name))changed=true;
         shown.set(field.name,active);
-        const item=form.getItem(field.name) as any;
+        // A read-only choice shows its label item; its raw value item stays hidden.
+        const item=(form.getItem(shownName(field.name))??form.getItem(field.name)) as any;
         if(active)item.show();else item.hide();
       }
       if(changed)toggled?.();
@@ -61,7 +152,12 @@ export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(fiel
   if(exclusive.size)form.events.on("change",(name:string,value:unknown)=>{
     const others=exclusive.get(name);
     if(controller.signal.aborted||!others||value===undefined||value===null||value===""||value===false)return;
-    for(const other of others){const item=form.getItem(other) as any;if(item&&String(item.getValue()??"")!=="")item.setValue("");}
+    for(const other of others){
+      const item=form.getItem(other) as any,field=fields.find(field=>field.name===other);
+      if(!item||String(item.getValue()??"")==="")continue;
+      // A read-only choice empties its raw value and its shown label together.
+      if(field&&form.getItem(shownName(other)))setShown(form,field,"");else item.setValue("");
+    }
   });
   for(const field of fields){
     if(field.type==="date"&&!readOnly(field)&&!fieldTypeOf(field))keepTypedDate(form,field,controller.signal);
@@ -94,7 +190,12 @@ const builtinInput=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type=
   // Native Suite Combo with multiple selection; the kernel accepts the list or its comma-joined form.
   type:"combo",name:f.name,label:f.label,labelPosition:"top",required:f.required,multiselection:true,selectAllButton:false,css:"blade-multiselect-field",
   data:Object.entries(f.options).map(([id,value])=>({id,value})),value:String(value??f.defaultValue??"").split(",").filter(Boolean),
-}:f.type==="multiselect"?{type:"input",name:f.name,label:f.label,labelPosition:"top",readOnly:true,value:optionText(f,value)}:f.type==="checkbox"?{
+}:readOnly&&choice(f)?{rows:[
+  // Read-only choice: the raw value in a hidden item (conditions and a preset's submission read it), its option label in
+  // a readonly input (reachable, announced with the field's label; no required mark).
+  {type:"input",name:f.name,hidden:true,value:rawChoice(f,value)},
+  {type:"input",name:shownName(f.name),label:f.label,labelPosition:"top",readOnly:true,value:choiceText(f,value)},
+]}:f.type==="checkbox"?{
   width:"100%",cols:[
     // The hidden label names the checkbox; Suite otherwise announces it as "checkbox <text>".
     {type:"checkbox",name:f.name,text:f.label,label:f.label,hiddenLabel:true,width:"content",checked:String(value??f.defaultValue??"0")==="1"||value===true,disabled:readOnly},
@@ -104,7 +205,7 @@ const builtinInput=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type=
   type:"datepicker",name:f.name,label:f.label,labelPosition:"top",required:f.required,dateFormat:"%Y-%m-%d",valueFormat:"string",
   weekStart:"monday",editable:true,value:String(value??f.defaultValue??""),
 }:({
-  type:readOnly?"input":f.type==="select"?"select":f.type==="textarea"?"textarea":"input",
+  type:f.type==="select"&&!readOnly?"select":f.type==="textarea"?"textarea":"input",
   name:f.name,label:f.label,labelPosition:"top",required:!readOnly&&f.required,maxlength:f.max,
   inputType:f.type==="password"?"password":"text",readOnly,
   // Suite otherwise measures an empty textarea at zero height while the panel

@@ -58,7 +58,13 @@ export type FieldDefinition = {
   visibleWhen?: { field: string; in: string[] };
   /** Exclusive choice: a value of this field empties these fields of the record. */
   clears?: string[];
+  /** Shown with its value, never sent: an action's `display` field or one the actor may read but not write. */
+  readOnly?: boolean;
+  /** The label of the collapsible form section the field belongs to. */
+  section?: string;
 };
+/** Opens the form sections holding these fields (registered by `bindFieldTypes`, fields.ts); FormValidation calls it. */
+export const sectionReveal=new WeakMap<Form,(names:string[])=>void>();
 /**
  * Whether a conditional field takes part for the form's values; a condition whose field is not in $values (not on the
  * form) leaves the decision to the server, which reads the stored value.
@@ -179,6 +185,9 @@ export class FormValidation {
       if (item) item.setProperties({errorMessage:error??""});
     }
     const nativeValid=this.form.validate();
+    // A field with an error in a closed section opens it.
+    const invalid=this.fields.filter(field=>this.error(field,values[field.name])).map(field=>field.name);
+    if(invalid.length)sectionReveal.get(this.form)?.(invalid);
     // Suite 9 Checkbox only renders validation captions when it requires a checked value.
     // Keep unchecked valid and show checkbox rule errors with the native Alert instead.
     const checkboxErrors=this.fields.filter(field=>field.type === "checkbox")
