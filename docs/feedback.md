@@ -6054,7 +6054,7 @@ that exactly equals an option label lists every option. The managed
   `mobile-grid`, `command-bar`, `toolkit-list`, `toolkit-registries`,
   `preferences` (141 passed, one WebSocket case skipped as before). No
   full-smoke claim.
-- **Commit:** pending.
+- **Commit:** `e1752a0` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0162"></a>
@@ -6090,7 +6090,7 @@ that exactly equals an option label lists every option. The managed
   [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
 - **Verification:** with [FB-0165](#fb-0165).
 - **Limits:** the built-in create form only; string values.
-- **Commit:** pending.
+- **Commit:** `dda0271` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0163"></a>
@@ -6118,7 +6118,7 @@ that exactly equals an option label lists every option. The managed
 - **Verification:** with [FB-0165](#fb-0165).
 - **Limits:** pinned items still need their width; a bar with many pinned
   commands still runs out of room.
-- **Commit:** pending.
+- **Commit:** `dda0271` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0164"></a>
@@ -6146,7 +6146,7 @@ that exactly equals an option label lists every option. The managed
   [D8](demos.md#d8-key-browser), toolkit [changes](toolkit.md#changes),
   migration row M49.
 - **Verification:** with [FB-0165](#fb-0165).
-- **Commit:** pending.
+- **Commit:** `dda0271` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0165"></a>
@@ -6204,5 +6204,5 @@ that exactly equals an option label lists every option. The managed
   skipped as before). `grid-sort`'s virtual scrolling case failed once in
   that run (the eighth wheel step brought no request within 5 s) and passed
   in isolation twice (`--repeat-each=2`). No full-smoke claim.
-- **Commit:** pending.
+- **Commit:** `dda0271` on `main`.
 - **Status:** implemented and verified on the managed demo.
