@@ -7077,7 +7077,8 @@ that exactly equals an option label lists every option. The managed
 - **Guides:** [authentication](authentication.md#cookie-samesite),
   [configuration](configuration.md), [usage](usage.md).
 - **Verification:** in an isolated worktree, PHP `contracts`,
-  `configuration`, `authentication` and `oauth` passed; the managed demo browser
-  check follows landing. The provider callback was not exercised with a real
-  provider.
-- **Status:** implemented; managed demo verification pending.
+  `configuration`, `authentication` and `oauth` passed. After landing, all
+  three `authentication.spec.cjs` browser cases passed on the managed demo.
+  The provider callback was not exercised with a real provider; no full-smoke
+  claim.
+- **Status:** implemented and verified on the managed demo.
