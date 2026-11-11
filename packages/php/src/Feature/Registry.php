@@ -31,6 +31,13 @@ final class Registry
     }
     public function get(string $resource, string $action): Action { return $this->actions[$resource.'.'.$action] ?? throw new Failure('Ismeretlen művelet.',404); }
     public function all(): array { return array_values($this->actions); }
+    /** Stored `file` fields of every action naming $resource.$action as their `upload` (FB-0167); one per field name. */
+    public function storedFileFields(string $resource, string $action): array
+    {
+        $out=[];
+        foreach($this->actions as $candidate)foreach($candidate->fields as $field)if($field->stored()&&$field->fileAction('upload')===[$resource,$action])$out[$candidate->resource.'.'.$field->name]=$field;
+        return array_values($out);
+    }
     /**
      * Marks $resource as tenant-scoped. Only adapters that apply the tenant to every read and write call this
      * (SqlResource with a tenant column); the executor and views then refuse the resource without an active tenant.
@@ -140,6 +147,22 @@ final class Registry
                 $record=$this->views[substr($target,5)]??null;
                 if(!$record||$record->record!==$view->resource)throw new \InvalidArgumentException('Unknown record view target '.$target.' of '.$view->id);
             }
+        }
+    }
+    /**
+     * Checks the actions that stored file fields name (FB-0167) once every action is registered (ApplicationDefinition
+     * and every `Workspace::views()` call it; a JSON module may name an action that PHP registers after the build): the
+     * upload action has an UploadPolicy with a tempRoot and no fields, the `get` action is a GET action.
+     */
+    public function checkFileFields(): void
+    {
+        foreach($this->actions as $action)foreach($action->fields as $field){
+            if(!$field->stored())continue;
+            [$resource,$name]=$field->fileAction('upload');
+            $upload=$this->actions[$resource.'.'.$name]??null;
+            if(!$upload||!$upload->upload instanceof UploadPolicy||$upload->upload->tempRoot===''||$upload->fields)throw new \InvalidArgumentException('The upload action of a stored file field needs an UploadPolicy with a tempRoot and no fields: '.$resource.'.'.$name);
+            $get=$field->fileAction('get');
+            if($get!==null&&!($this->actions[$get[0].'.'.$get[1]]->get??false))throw new \InvalidArgumentException('The get action of a stored file field must be a GET action: '.implode('.',$get));
         }
     }
     /** Appends registered actions to the existing view $view (id), keeping every other view option and its sub-view. */

@@ -892,6 +892,97 @@ Consumers that store uploads themselves use `FileManagerDefinition::files()`
 (`MountStorage::folder()`/`store()`), which applies the file manager's
 validation, metadata and thumbnails.
 
+<a id="stored-file-field"></a>
+
+### Stored file field (the project's own storage)
+
+A `file` field whose bytes the project stores itself (its own store, rows and
+tenant rules) names two project actions instead of a file manager mount
+([FB-0167](feedback.md#fb-0167)):
+
+```php
+new Field('file', 'Kép', 'file', file: [
+    'upload' => 'items.file_upload', // an action with an UploadPolicy (tempRoot set), no fields
+    'get' => 'items.file',           // optional: a GET action streaming the file whose id is the value
+    'accept' => ['image'],           // MIME classes, checked on the bytes
+]);
+```
+
+JSON uses the same keys (`"file": {"upload": "items.file_upload", "get":
+"items.file", "accept": ["image"]}`); the actions are PHP-registered, because
+an `UploadPolicy` is PHP-only. `upload` and `get` are `resource.action`, split
+at the last dot. Once every action is registered (`ApplicationDefinition`,
+every `Workspace::views()`; a JSON module may name actions that PHP registers
+after the build), `Registry::checkFileFields()` refuses an upload action
+without an `UploadPolicy`, without a `tempRoot` or with fields, and a `get`
+action that is not a GET action.
+
+The flow, with the form's other fields saved in the same action and revision:
+
+1. **Upload.** The form control is the one of the [file field](#file-field):
+   `Fájl megadása…`/`Fájl cseréje…` with the native single-file dialog,
+   paste and drop, a background transfer through the shared
+   [uploader](uploader.md) (no upload window), status and a local image
+   preview, `Törlés` on an optional field. It uploads to the upload action
+   (target `null`). Before the handler runs, the executor takes exactly one
+   file. The MIME type detected from the bytes must belong to an `accept`
+   class of a field that names the action; otherwise the upload fails with
+   code `type` (`A fájl típusa ehhez a mezőhöz nem engedélyezett.`). The
+   policy still applies its extension and size rules (`too_large`). The handler
+   stores the bytes (for example in a content-addressed store and a pending
+   row) and returns `['id' => token]`: an opaque string of 1–200 characters,
+   `[A-Za-z0-9][A-Za-z0-9._:-]*`. Any other answer is a developer error (500).
+   The executor records an **upload claim** for the token. The claim binds the
+   actor, channel, session (the hash of the session id or bearer token), tenant,
+   upload action, detected type, name and size, and lasts until the policy's
+   TTL. It is stored under `<tempRoot>/claims/`; it never holds the token and
+   never the bytes.
+2. **Save.** The field's value is the token until the save; the record
+   action's handler receives it with the other values and commits the file
+   with the record (for example `afterSave` marks the pending row committed
+   and the column keeps the token, or the handler stores another file id).
+   A new value is accepted only for an unexpired claim of the same actor,
+   session, tenant and upload action, of a class the field accepts. Every
+   other value (a made-up id, another record's file id, another user's,
+   session's or tenant's token, a used or expired one) is the field error
+   `A kiválasztott fájl nem érhető el.`, and a claim of another class is the
+   field error `A fájl típusa ehhez a mezőhöz nem engedélyezett.`. The claim is
+   removed after the save commits, so a token is claimed once; a save refused
+   for any reason keeps it. As for every `file` field, an unchanged stored
+   value is not checked again, and `''` clears an optional field.
+3. **Cancel.** A form closed without saving creates no record. The project's
+   pending upload stays unclaimed: the project owns the bytes and expires
+   them by its own rule; the claim expires with the TTL.
+4. **Preview.** On update the control asks the `get` action for the stored
+   value with a `HEAD` request: its `Content-Disposition` file name and
+   `Content-Type` give the name and type. An image is shown from the same URL
+   (a `DownloadStream`: inline, `Range`, `ETag` as usual). The URL is
+   `?blade=1&resource=…&action=…&id=<value>`. Without the `get` action or its
+   right (`canPreview`), or when the file cannot be read, the control names
+   the value `Mentett fájl` and shows no preview.
+
+Browser metadata of the field is `file: {upload: {resource, action}, get:
+{resource, action} | null, accept, policy, canUpload, canPreview, canChoose:
+false}` (`StoredFileFieldConfig`; `policy` is the upload action's
+`UploadPolicy` metadata, `canUpload` and `canPreview` the actor's offering of
+the two actions). It is a form field only:
+- it is never a view column (a declared column naming it is refused), never in
+  `detailFields`, the filters, the `sortable` fields, a first sort or a scope,
+  and `SqlResource::register` leaves it out of the default columns;
+- a `filters`, `sort` or `scope` request naming it is refused (`403`);
+- show the file elsewhere with a column of the project's own data, as the demo's
+  computed `Fájlnév` does.
+
+Grid editing, bulk editing, a `secret` field and the `media`, `editable` and
+`presentation` column keys are refused. Every call is an ordinary action
+with its channel, API token scope, ACL and tenant checks. The GET action
+decides which files it serves (the demo: a committed file of a record, or the
+actor's own pending upload).
+
+The feature demo's `Mellékletek` (`examples/demo-app/attachments.php`)
+implements it; `tests/shell/stored-file.php` and `stored-file.spec.cjs`
+cover it. The mount-backed `file` field above is unchanged.
+
 <a id="delete-usages"></a>
 
 ### Record delete policy and usages

@@ -120,7 +120,9 @@ final class WorkspaceConfiguration
                 Shape::check($definition['visible_when'], ['field' => 'string', 'in' => 'array'], [], '$.fields.'.$definition['name'].'.visible_when');
             }
             if (isset($definition['file'])) {
-                Shape::check($definition['file'], ['resource' => 'string', 'mount' => 'string', 'accept' => 'array'], ['folder' => 'string'], '$.fields.'.$definition['name'].'.file');
+                // A file manager reference, or a file in the project's storage (`upload`, optional `get`; FB-0167).
+                if (is_array($definition['file']) && array_key_exists('upload', $definition['file'])) Shape::check($definition['file'], ['upload' => 'string', 'accept' => 'array'], ['get' => 'string'], '$.fields.'.$definition['name'].'.file');
+                else Shape::check($definition['file'], ['resource' => 'string', 'mount' => 'string', 'accept' => 'array'], ['folder' => 'string'], '$.fields.'.$definition['name'].'.file');
             }
             if (isset($names[$definition['name']])) {
                 throw new InvalidArgumentException('Duplicate field: '.$definition['name']);

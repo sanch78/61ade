@@ -24,7 +24,7 @@ final readonly class ListSource
     {
         $out=[];
         foreach($this->fields as $field){
-            if($field->secret||$field->scopeOnly||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$field->name))continue;
+            if($field->secret||$field->scopeOnly||$field->stored()||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$field->name))continue;
             if($field->media()!==null){
                 // A media column filters by MIME class; without a registered source it is not filterable.
                 $media=$this->registry?->mediaSource($field->media());
@@ -81,7 +81,7 @@ final readonly class ListSource
     public function sortableFields(Context $ctx):array
     {
         if($this->order)return [$this->order['field']];
-        return ['id',...array_values(array_map(static fn($field)=>$field->name,array_filter($this->fields,fn($field)=>!$field->secret&&!$field->scopeOnly&&!in_array($field->type,['textarea','multiselect'],true)&&$this->queryable($ctx,$field->name))))];
+        return ['id',...array_values(array_map(static fn($field)=>$field->name,array_filter($this->fields,fn($field)=>!$field->secret&&!$field->scopeOnly&&!$field->stored()&&!in_array($field->type,['textarea','multiselect'],true)&&$this->queryable($ctx,$field->name))))];
     }
     private function cursor(array $position,string $direction):string
     {
@@ -127,7 +127,7 @@ final readonly class ListSource
         // a scope compares exactly, also a text field.
         $condition=function(string $key,mixed $value,bool $scope)use($ctx,$known,&$terms,&$params):void{
             $field=$known[$key]??null;
-            if(!$field||$field->secret||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$key)||($field->scopeOnly&&!$scope))throw new Failure('A mező nem szűrhető.',403);
+            if(!$field||$field->secret||$field->stored()||in_array($field->type,['textarea','multiselect'],true)||!$this->queryable($ctx,$key)||($field->scopeOnly&&!$scope))throw new Failure('A mező nem szűrhető.',403);
             if(!is_string($value)||strlen($value)>255||str_contains($value,"\0"))throw new Failure('Hibás szűrőérték.');
             $param='f'.count($params);
             if($field->media()!==null){

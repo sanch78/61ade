@@ -68,6 +68,12 @@ List views open it automatically for actions that declare an `UploadPolicy`
 (the signage `Feltöltés` command). A [file field](workspaces.md#file-field)
 sends one local file to the same queue in the background, through its native
 file dialog, drop or paste; it does not open the full upload window.
+A [stored file field](workspaces.md#stored-file-field) does the same with
+the project's own upload action (target `null`). For such an action the
+executor takes one file of a class the field accepts (detected from the
+bytes, otherwise code `type`), and expects `['id' => token]` from the handler.
+It then records the token's upload claim, which the record save checks
+([FB-0167](feedback.md#fb-0167)).
 
 Client: open the shared uploader from a command; never build another upload
 dialog. Project modules use `app.uploads` and `app.events`
