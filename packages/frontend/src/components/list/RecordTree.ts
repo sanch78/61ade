@@ -1,4 +1,4 @@
-import { Layout } from "@dhtmlx/suite";
+import { Layout, message } from "@dhtmlx/suite";
 import { t } from "../../I18n";
 import { TreeAdapter, type TreeNode } from "../../TreeAdapter";
 import { UiPreferences } from "../../UiPreferences";
@@ -6,8 +6,9 @@ import { acknowledge } from "../../MessageDialog";
 import { attachContent } from "../../api/services";
 import { server } from "../../api/Server";
 import { optionText } from "../../RecordPresentation";
-import type { ListKindOptions, Row, Tree as TreeApi, TreeEvents, TreeOptions, ViewDefinition as PublicDefinition } from "../../api/types";
+import type { ListKindOptions, Row, Tree as TreeApi, TreeEvents, TreeExpansion, TreeOptions, ViewDefinition as PublicDefinition } from "../../api/types";
 import type { Snapshot } from "../../Realtime";
+import { CommandBar } from "./CommandBar";
 import { Component } from "./component";
 import { resolveListView } from "./definition";
 import { errorText } from "./fields";
@@ -15,6 +16,12 @@ import type { ListContext } from "./ListView";
 
 /** Most children one node loads (in pages of 200); further ones are left out. */
 const CHILDREN=1000;
+/** Most levels a bulk expansion opens (`expandAll`, the largest `expand`). */
+const DEPTH=10;
+/** Most nodes a bulk expansion lets the tree hold: it starts no child load the server's child count says would exceed it. */
+const NODES=2000;
+/** Child loads a bulk expansion or a restore runs at a time. */
+const PARALLEL=4;
 /** Child of a node whose children are not loaded yet: it gives the node its expand toggle. */
 const PENDING="\u0000pending";
 const KEY=/^[a-z][a-z0-9_.-]*$/;
@@ -48,7 +55,29 @@ export class NodeTree {
   private ids=new Map<string,string>();
   /** The latest load per level: an older answer (a reload overtook it) is dropped. */
   private loads=new Map<string,number>();
-  constructor(private source:NodeSource,private hooks:{select(id:string|undefined):void;activate?(id:string):void},name:string,private preferences?:UiPreferences){
+  /** Parents ("" the roots) with more children than one node loads. */
+  private cut=new Set<string>();
+  /**
+   * The user (or `expandAll`/`collapseAll`, or a stored expansion found at start) changed the expansion: it is stored;
+   * until then only the selection is, and the next mount opens the `expand` depth again.
+   */
+  private changed=false;
+  /** Bulk changes running (no save per node). */
+  private batch=0;
+  private running=0;
+  /** Expansions and collapses made by code (`toggle`, a restored selection), not by the user. */
+  private quiet=0;
+  /** Nodes the user collapsed while a restore or bulk expansion runs: it does not open them again. */
+  private closed=new Set<string>();
+  /** The running bulk expansion; a newer one, `collapseAll`, `refresh` and `destroy` cancel it. */
+  private bulk?:AbortController;
+  /** The start and the latest refresh; a bulk command waits for them, so it acts on their result. Never rejects. */
+  private settled:Promise<void>=Promise.resolve();
+  /**
+   * $bulk: the component's tree (`*` expands the focused node's siblings); tree navigation keeps its keys. `busy` tells
+   * the host when a bulk expansion starts and ends.
+   */
+  constructor(private source:NodeSource,private hooks:{select(id:string|undefined):void;activate?(id:string):void;busy?(busy:boolean):void},name:string,private preferences?:UiPreferences,private bulkKeys=false){
     const signal=this.abort.signal;
     this.element.className="blade-record-tree";
     this.element.tabIndex=0;
@@ -60,15 +89,31 @@ export class NodeTree {
     this.element.addEventListener("focus",()=>{if(this.focused===undefined||!this.exists(this.focused))this.focusOn(this.current??this.visible()[0]);},{signal});
     this.observer.observe(this.element,{childList:true,subtree:true});
   }
-  /** Loads the roots, opens $remembered expanded nodes that load and selects the remembered node, else $initial. */
-  async start(initial:Initial,remembered:{expanded:string[];selected?:string}):Promise<void>{
+  /**
+   * Loads the roots, opens the $remembered expanded nodes that load (or, with nothing remembered, $depth levels) and
+   * selects the remembered node, else $initial.
+   */
+  start(initial:Initial,remembered:{expanded?:string[];selected?:string},depth=0):Promise<void>{
+    // The initial expansion's controller exists at once, so `collapseAll` before the roots arrive cancels it.
+    const bulk=!remembered.expanded&&depth>0?this.newBulk():undefined;
+    return this.settled=this.begin(initial,remembered,depth,bulk).catch(error=>console.error("61ade: Tree start failed",error));
+  }
+  private async begin(initial:Initial,remembered:{expanded?:string[];selected?:string},depth:number,bulk?:AbortController):Promise<void>{
+    // A stored expansion is the user's even when the roots fail now (a later `refresh` restores it).
+    if(remembered.expanded){this.changed=true;for(const id of remembered.expanded)this.opened.add(id);}
     this.restoring=true;
     let roots:Row[]|undefined;
-    try{roots=await this.load("");if(roots)await this.reopen(remembered.expanded);}finally{this.restoring=false;}
+    try{
+      roots=await this.load("");
+      if(roots&&remembered.expanded)await this.reopen([...this.opened]);
+      else if(roots&&bulk)await this.expandTo(depth,bulk);
+    }finally{this.restoring=false;}
     if(!roots)return;
     const wanted=remembered.selected!==undefined&&this.exists(remembered.selected)?remembered.selected
       :initial==="first"?(roots[0]?String(roots[0].id):undefined):typeof initial==="object"?initial.id:undefined;
-    if(wanted===undefined||!this.select(wanted))this.save();
+    // The ancestors a restored selection opens are not the user's change.
+    this.quiet++;
+    try{if(wanted===undefined||!this.select(wanted))this.save();}finally{this.quiet--;}
   }
   row(id:string):Row|undefined{return this.exists(id)?this.rows.get(id):undefined;}
   get selected():string|undefined{return this.current;}
@@ -88,14 +133,20 @@ export class NodeTree {
   /** Clears the selection (reported when there was one). */
   clear():void{this.choose(undefined);}
   /** Reloads the roots and every expanded level, or only the children of $id; the selection stays where it still exists. */
-  async refresh(id?:string):Promise<void>{
-    if(id!==undefined&&(!this.exists(id)||!this.loaded.has(id)))return;
-    const opened=[...this.opened];
+  refresh(id?:string):Promise<void>{
+    if(id!==undefined&&(!this.exists(id)||!this.loaded.has(id)))return Promise.resolve();
+    this.bulk?.abort();
+    const run=this.reloadLevels(id),previous=this.settled;
+    this.settled=Promise.all([previous,run]).then(()=>{},()=>{});
+    return run;
+  }
+  private async reloadLevels(id?:string):Promise<void>{
+    this.closed.clear();
     this.restoring=true;
     try{
       if(!await this.load(id??""))return;
-      if(id!==undefined&&this.opened.has(id))this.adapter.widget.expand(id);
-      await this.reopen(opened);
+      if(id!==undefined&&this.opened.has(id))this.toggle(id,true);
+      await this.reopen([...this.opened]);
     }finally{this.restoring=false;}
     const current=this.current;
     if(current!==undefined&&!this.exists(current))this.choose(undefined);
@@ -116,21 +167,25 @@ export class NodeTree {
     // Unknown (`_subview` left out) or positive: the node gets its toggle; its children load on expansion.
     return [{id,parent,value:this.label(row)},...(count===undefined||Number(count)>0?[{id:id+PENDING,parent:id,value:t("Betöltés…"),folder:false}]:[])];
   }
-  /** Loads the children of $parent ("" for the roots) into the tree; undefined after a failure (shown). */
-  private async load(parent:string):Promise<Row[]|undefined>{
+  /**
+   * Loads the children of $parent ("" for the roots) into the tree; undefined after a failure (shown, or given to
+   * $failed) or a cancel.
+   */
+  private async load(parent:string,signal=this.abort.signal,failed?:(error:unknown)=>void):Promise<Row[]|undefined>{
     const {view,label}=this.source,sortable=view.options.sortable?.includes(label);
     const generation=(this.loads.get(parent)??0)+1;this.loads.set(parent,generation);
     const rows:Row[]=[];let cursor:string|null=null;
     try{
       do{
-        const data:Snapshot=await server.call(view.resource!,"list",{values:{mode:"dynamic",limit:200,scope:{field:this.source.parent,value:parent},...(sortable?{sort:{field:label,direction:"asc"}}:{}),...(cursor?{cursor}:{})},signal:this.abort.signal});
+        const data:Snapshot=await server.call(view.resource!,"list",{values:{mode:"dynamic",limit:200,scope:{field:this.source.parent,value:parent},...(sortable?{sort:{field:label,direction:"asc"}}:{}),...(cursor?{cursor}:{})},signal});
         rows.push(...data.items);cursor=data.next;
       }while(cursor&&rows.length<CHILDREN);
     }catch(error){
-      if(!this.abort.signal.aborted)await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,[])});
+      if(!signal.aborted){if(failed)failed(error);else await this.failed(error);}
       return undefined;
     }
-    if(this.abort.signal.aborted||this.loads.get(parent)!==generation)return undefined;
+    if(signal.aborted||this.loads.get(parent)!==generation)return undefined;
+    if(cursor||rows.length>CHILDREN)this.cut.add(parent);else this.cut.delete(parent);
     const data=this.adapter.widget.data;
     // The replaced levels below $parent are loaded again when they open.
     if(parent==="")this.loaded.clear();else if(data.exists(parent))data.eachChild(parent,item=>{this.loaded.delete(String(item.id));});
@@ -144,26 +199,148 @@ export class NodeTree {
     if(this.current!==undefined&&this.exists(this.current))this.adapter.choose(this.current);
     return shown;
   }
-  /** Opens the $ids that exist (parents first, as their levels load); ids that never appear are dropped. */
-  private async reopen(ids:string[]):Promise<void>{
-    let pending=ids.filter(id=>!id.endsWith(PENDING));
-    for(let progress=true;progress&&pending.length&&!this.abort.signal.aborted;){
-      progress=false;
-      for(const id of [...pending]){
-        if(!this.exists(id))continue;
-        pending=pending.filter(other=>other!==id);progress=true;
-        if(!this.loaded.has(id)&&!await this.load(id))continue;
-        if(this.adapter.widget.data.haveItems(id))this.adapter.widget.expand(id);
-      }
-    }
+  private async failed(error:unknown):Promise<void>{
+    if(!this.abort.signal.aborted)await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,[])});
   }
+  /**
+   * Opens the expanded $ids that exist (parents first, as their levels load, PARALLEL at a time); the others stay
+   * expanded-to-be until their parent loads. A node the user collapsed meanwhile stays collapsed; the first failed
+   * load stops it with one error dialog.
+   */
+  private async reopen(ids:string[]):Promise<void>{
+    const pending=new Set(ids.filter(id=>!id.endsWith(PENDING)));
+    const control=this.linked();let failure:{error:unknown}|undefined;
+    try{
+      while(pending.size&&!control.signal.aborted){
+        const ready=[...pending].filter(id=>this.exists(id));
+        if(!ready.length)break;
+        for(const id of ready)pending.delete(id);
+        await this.pool(ready,async id=>{
+          if(!this.opened.has(id))return;
+          if(!this.loaded.has(id)&&!await this.load(id,control.signal,error=>{failure??={error};control.abort();}))return !failure;
+          if(this.opened.has(id)&&this.adapter.widget.data.haveItems(id))this.toggle(id,true);
+        });
+      }
+    }finally{control.abort();}
+    if(failure)await this.failed(failure.error);
+  }
+  /** Expands or collapses $id from code (not the user's change). */
+  private toggle(id:string,open:boolean):void{
+    this.quiet++;
+    try{if(open)this.adapter.widget.expand(id);else this.adapter.widget.collapse(id);}finally{this.quiet--;}
+  }
+  /** A controller that `destroy` aborts too; abort it when done (that also releases its listener). */
+  private linked():AbortController{
+    const control=new AbortController();
+    if(this.abort.signal.aborted)control.abort();
+    else this.abort.signal.addEventListener("abort",()=>control.abort(),{once:true,signal:control.signal});
+    return control;
+  }
+  /** Waits for the start and a running refresh. */
+  private async idle():Promise<void>{for(let wait=this.settled;;wait=this.settled){await wait;if(wait===this.settled)return;}}
+  /** Runs $task over $ids in order, PARALLEL at a time; a task returning false starts no further one. */
+  private async pool(ids:string[],task:(id:string)=>Promise<boolean|void>):Promise<void>{
+    const queue=[...ids];let stop=false;
+    await Promise.all(Array.from({length:Math.min(PARALLEL,queue.length)},async()=>{
+      for(let id=queue.shift();id!==undefined&&!stop;id=queue.shift())if(await task(id)===false)stop=true;
+    }));
+  }
+  private children(id:string):string[]{
+    const data=this.adapter.widget.data;
+    return (data.getItems(id===""?data.getRoot():id) as any[]).map(item=>String(item.id)).filter(id=>!id.endsWith(PENDING));
+  }
+  private isOpen(id:string):boolean{return !!(this.adapter.widget.data.getItem(id) as any)?.opened;}
+  /** The nodes loaded in the tree. */
+  private count(id=""):number{return this.children(id).reduce((sum,child)=>sum+1+this.count(child),0);}
+  /** A new bulk expansion's controller: it cancels the previous one; `destroy` cancels it too. */
+  private newBulk():AbortController{this.bulk?.abort();this.closed.clear();return this.bulk=this.linked();}
+  /**
+   * Opens the nodes of levels 1…$depth below $level (the roots: level 1), level by level, loading children PARALLEL at a
+   * time within NODES (docs/toolkit.md#tree-expansion). "depth" means nodes below the last opened level have children.
+   */
+  private async expandTo(depth:number,bulk:AbortController,level=this.children("")):Promise<TreeExpansion>{
+    const data=this.adapter.widget.data,signal=bulk.signal;
+    let total=this.count(),reason:TreeExpansion["reason"],failure:{error:unknown}|undefined;
+    // The first failed load stops the others (one error dialog).
+    const failed=(error:unknown)=>{failure??={error};bulk.abort();};
+    this.batch++;this.running++;
+    if(this.running===1){this.element.setAttribute("aria-busy","true");this.hooks.busy?.(true);}
+    try{
+      for(let current=1;current<=depth&&level.length&&!reason;current++){
+        await this.pool(level,async id=>{
+          if(signal.aborted)return false;
+          if(!this.exists(id)||!data.haveItems(id)||this.closed.has(id))return;
+          if(!this.loaded.has(id)){
+            // The server's child count (`_subview`, ACL-filtered); unknown: the load that crosses the cap is the last.
+            const count=Number(this.rows.get(id)?._subview),expected=Number.isFinite(count)&&count>0?Math.min(count,CHILDREN):1;
+            if(total+expected>NODES){reason="nodes";return false;}
+            total+=expected;
+            const rows=await this.load(id,signal,failed);
+            if(!rows)return false;
+            total+=rows.length-expected;
+            if(total>NODES)reason="nodes";
+          }
+          // Not a node the user collapsed while its children loaded.
+          if(data.haveItems(id)&&!this.closed.has(id))this.toggle(id,true);
+          return !reason&&!signal.aborted;
+        });
+        level=level.flatMap(id=>this.exists(id)&&this.isOpen(id)?this.children(id):[]);
+      }
+      if(failure)reason="error";
+      else if(signal.aborted)reason="cancelled";
+      else if(!reason&&level.some(id=>data.haveItems(id)))reason="depth";
+      else if(!reason&&[...this.cut].some(id=>id===""||this.exists(id)))reason="children";
+    }finally{
+      this.batch--;this.running--;
+      if(!this.running){this.element.removeAttribute("aria-busy");this.hooks.busy?.(false);}
+    }
+    this.annotate();
+    if(failure)await this.failed(failure.error);
+    return {complete:!reason,nodes:this.count(),...(reason?{reason}:{})};
+  }
+  /** Expands every node down to DEPTH levels; the result is kept as the user's expansion. */
+  async expandAll():Promise<TreeExpansion>{
+    await this.idle();
+    if(this.abort.signal.aborted)return {complete:false,nodes:0,reason:"cancelled"};
+    // The roots failed to load (their dialog was shown): nothing to expand.
+    if(!this.loaded.has(""))return {complete:false,nodes:0,reason:"error"};
+    const result=await this.expandTo(DEPTH,this.newBulk());
+    if(!this.abort.signal.aborted){this.changed=true;this.save();}
+    return result;
+  }
+  /** `*`: expands the siblings of $id (one level, like `expandAll` within its caps). */
+  private async siblings(id:string):Promise<void>{
+    const parent=this.parentOf(id);
+    if(parent===undefined)return;
+    await this.expandTo(1,this.newBulk(),this.children(parent));
+    if(!this.abort.signal.aborted){this.changed=true;this.save();}
+  }
+  /** Collapses every node (cancels a running bulk expansion); the selection stays, a hidden focus moves to its root. */
+  async collapseAll():Promise<void>{
+    // Cancels a running expansion (the initial one too) at once, then acts on the finished start or refresh.
+    this.bulk?.abort();
+    await this.idle();
+    if(this.abort.signal.aborted)return;
+    this.batch++;
+    try{for(const id of [...this.opened].reverse())if(this.exists(id)&&this.isOpen(id))this.toggle(id,false);}finally{this.batch--;}
+    this.opened.clear();this.changed=true;
+    this.annotate();this.save();
+  }
+  get busy():boolean{return this.running>0;}
   private async expanded(id:string):Promise<void>{
     if(id.endsWith(PENDING))return;
-    this.opened.add(id);this.save();
-    if(!this.loaded.has(id))await this.load(id);
+    // Suite reports an already open node again (an ancestor `reveal` opens): no change then.
+    if(!this.opened.has(id)){this.opened.add(id);if(!this.quiet)this.changed=true;}
+    if(!this.quiet)this.closed.delete(id);
+    this.save();
+    if(this.loaded.has(id)||!await this.load(id))return;
+    // Its stored expanded descendants (kept while it was collapsed, also from an earlier mount) open again.
+    if(this.children(id).some(child=>this.opened.has(child)))await this.reopen([...this.opened].filter(other=>!this.exists(other)||!this.isOpen(other)));
   }
   private collapsed(id:string):void{
-    this.opened.delete(id);this.save();
+    this.opened.delete(id);
+    if(!this.quiet){this.changed=true;this.closed.add(id);}
+    this.save();
     // The focus does not stay on a node the collapse hid.
     for(let node=this.focused;node!==undefined&&node!=="";node=this.parentOf(node))if(node===id&&this.focused!==id){this.focusOn(id);break;}
   }
@@ -186,9 +363,19 @@ export class NodeTree {
     if(id!==undefined&&this.exists(id))this.adapter.widget.focusItem(id);
     this.annotate();
   }
+  /**
+   * The selection and, once changed, the expansion, upper levels first: of more than 200 expanded nodes the stored
+   * (restored) ones are the upper levels.
+   */
   private save():void{
-    if(this.restoring||!this.preferences)return;
-    this.preferences.setTree({expanded:[...this.opened].filter(id=>this.exists(id)),...(this.current!==undefined?{selected:this.current}:{})});
+    if(this.restoring||this.batch||!this.preferences)return;
+    let expanded:string[]|undefined;
+    if(this.changed){
+      const levels=new Map<string,number>(),level=(id:string):number=>{let value=levels.get(id);if(value===undefined){const parent=this.parentOf(id);levels.set(id,value=parent?level(parent)+1:0);}return value;};
+      // Stored ids below a node not loaded yet stay, after the loaded ones (the 200-id cap drops them first).
+      expanded=[...[...this.opened].filter(id=>this.exists(id)).sort((a,b)=>level(a)-level(b)),...[...this.opened].filter(id=>!this.exists(id))];
+    }
+    this.preferences.setTree({...(expanded?{expanded}:{}),...(this.current!==undefined?{selected:this.current}:{})});
   }
   /** The nodes in display order (expanded levels only, without the loading placeholders). */
   private visible():string[]{
@@ -224,6 +411,7 @@ export class NodeTree {
         if(open){this.adapter.widget.collapse(focused);next=focused;}
         else next=this.parentOf(focused)||focused;
         break;
+      case "*":if(!this.bulkKeys)return;event.preventDefault();void this.siblings(focused);return;
       case " ":event.preventDefault();this.choose(focused);return;
       case "Enter":event.preventDefault();this.activate(focused);return;
       default:return;
@@ -270,6 +458,7 @@ export class NodeTree {
 export class RecordTree extends Component<TreeEvents> implements TreeApi{
   readonly layout:Layout;
   private nodes:NodeTree;
+  private bar?:CommandBar;
   private abort=new AbortController();
   constructor(context:ListContext,options:TreeOptions){
     super(options);
@@ -280,14 +469,24 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
     const initial=options.initial??"first";
     if(initial!=="first"&&initial!=="none"&&!(initial&&typeof initial==="object"&&typeof initial.id==="string"&&initial.id!==""))throw new TypeError("61ade: Tree `initial` is \"first\", \"none\" or {id}.");
     if(options.id!==undefined&&(typeof options.id!=="string"||!KEY.test(options.id)))throw new TypeError("61ade: Tree `id` must match [a-z][a-z0-9_.-]*.");
+    const depth=options.expand??0;
+    if(!Number.isInteger(depth)||depth<0||depth>DEPTH)throw new TypeError(`61ade: Tree \`expand\` is a whole number of levels from 0 to ${DEPTH}.`);
+    if(options.expandControl!==undefined&&typeof options.expandControl!=="boolean")throw new TypeError("61ade: Tree `expandControl` is true or false.");
     const preferences=options.id!==undefined?new UiPreferences(context.user,options.id):undefined;
-    this.layout=new Layout(this.host,{type:"none",rows:[{id:"tree",css:"blade-tree-cell"}]});
+    this.layout=new Layout(this.host,{type:"none",rows:[...(options.expandControl?[{id:"commands",height:48}]:[]),{id:"tree",css:"blade-tree-cell"}]});
+    if(options.expandControl){
+      const bar=this.bar=new CommandBar({label:view.title,items:[{id:"expand",label:t("Mindet kinyit"),icon:"dxi dxi-chevron-double-down"},{id:"collapse",label:t("Mindet bezár"),icon:"dxi dxi-chevron-double-up"}]});
+      bar.on("click",({id})=>void(id==="expand"?this.expandFromControl():this.collapseAll()));
+      bar.mount(this.layout.getCell("commands"));
+    }
     this.nodes=new NodeTree({view,parent:hierarchy.field,label:options.label},{
       select:id=>this.emit("select",{row:id===undefined?undefined:this.nodes.row(id)}),
       activate:id=>{const row=this.nodes.row(id);if(row)this.emit("activate",{row});},
-    },view.title,preferences);
+      // The control's busy state: the label says it loads (the button keeps the focus; a click meanwhile does nothing).
+      busy:busy=>this.bar?.update("expand",{label:t(busy?"Betöltés…":"Mindet kinyit")}),
+    },view.title,preferences,true);
     attachContent(this.layout.getCell("tree"),this.nodes.element,this.abort.signal);
-    void this.nodes.start(initial,preferences?.tree()??{expanded:[]});
+    void this.nodes.start(initial,preferences?.tree()??{},depth);
     this.bind(options.signal);
   }
   selected():Row|undefined{return this.destroyed||this.nodes.selected===undefined?undefined:this.nodes.row(this.nodes.selected);}
@@ -299,5 +498,14 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
     // A changed record of the same selected node is reported too (the host shows its data).
     if(!this.destroyed&&before!==undefined&&this.nodes.selected===before&&JSON.stringify(this.selected()??null)!==row)this.emit("select",{row:this.selected()});
   }
-  protected dispose():void{this.abort.abort();this.nodes.destroy();this.layout.destructor();}
+  expandAll():Promise<TreeExpansion>{return this.destroyed?Promise.resolve({complete:false,nodes:0,reason:"cancelled"}):this.nodes.expandAll();}
+  collapseAll():Promise<void>{return this.destroyed?Promise.resolve():this.nodes.collapseAll();}
+  /** The control's expand-all; a stop at a cap is a non-blocking notice (an error has had its dialog). */
+  private async expandFromControl():Promise<void>{
+    if(this.nodes.busy)return;
+    const result=await this.nodes.expandAll();
+    if(this.destroyed||result.complete||result.reason==="cancelled"||result.reason==="error")return;
+    message({text:t("Nem nyílt ki minden elem: legfeljebb {nodes} elem, {depth} szint és elemenként {children} gyermek tölthető be.",{nodes:NODES,depth:DEPTH,children:CHILDREN}),css:"blade-toast blade-toast--warning",expire:8000});
+  }
+  protected dispose():void{this.abort.abort();this.nodes.destroy();this.bar?.destroy();this.layout.destructor();}
 }

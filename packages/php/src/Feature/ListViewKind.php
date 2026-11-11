@@ -6,13 +6,13 @@ use Blade\I18n\Translator;
 
 /**
  * Built-in kind `list` (`Registry::view`, `SqlResource::register`). Options: `columns`, `singleton`, `layout`
- * (ViewLayout), `rowNumbers`, `selection`, `rowSelection`, optional `rowHeight`, `tileMinWidth`, `tiles`, `activate`,
+ * (ViewLayout), `rowNumbers`, `selection`, `rowSelection`, optional `rowHeight`, `tileMinWidth`, `tiles`, `modes`, `cardColumns`, `activate`,
  * `commands` (project client commands of `app.commands`, docs/toolkit.md#registries), `sort` (the first sort);
  * `subview` is set only by `Registry::subview()`, `tree` only by `Registry::tree()`. Bootstrap options add `detailFields`, `filters`, `sortable`, `search` and `order` (manual order); `drop` (records dragged in from another list) is declared.
  */
 final class ListViewKind implements ViewKindProvider
 {
-    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'activate', 'commands', 'drop', 'sort'];
+    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'modes', 'cardColumns', 'activate', 'commands', 'drop', 'sort'];
     /** Most client commands one list declares. */
     private const COMMANDS = 20;
     private const TARGETS = ['details', 'subview', 'page'];
@@ -42,8 +42,28 @@ final class ListViewKind implements ViewKindProvider
         $commands=$o['commands']??[];
         if(!is_array($commands)||!array_is_list($commands)||count($commands)>self::COMMANDS||count(array_unique($commands,SORT_REGULAR))!==count($commands)||array_filter($commands,static fn($name)=>!Field::projectName($name)))throw new \InvalidArgumentException('Invalid view commands: '.$view->id);
         $this->columns($registry,$view->resource,$o['columns']);
+        $this->modes($registry,$view);
         $this->drop($registry,$view,$o['drop']??null);
         $this->sort($registry,$view,$o['sort']??null);
+    }
+    /**
+     * `modes`: distinct `table`, `cards` and `tiles` (tiles only when the view offers them: `tiles`, or a column with a
+     * media source or a static image presentation with its `imageBase`, as the browser decides), at least one; `cardColumns`: at most this many card columns, 1–6. Neither for a singleton.
+     */
+    private function modes(Registry $registry, View $view): void
+    {
+        $o=$view->options;$modes=$o['modes']??null;$columns=$o['cardColumns']??null;
+        if($modes===null&&$columns===null)return;
+        $fields=$registry->fields($view->resource);
+        // The browser's rule (`isMedia`, `isImage`) over the column as `metadata()` sends it: a media source, or a
+        // static image with its base (a field's image presentation always has one; a view column may lack it).
+        $tiles=($o['tiles']??false)||array_filter($o['columns'],static function($column) use ($fields){
+            $field=$fields[$column['id']]??null;$sent=[...($field?->column??[]),...($field?->media()!==null?['media'=>$field->media()]:[]),...$column];
+            return is_string($sent['media']??null)&&$sent['media']!==''||($sent['presentation']??null)==='image'&&is_string($sent['imageBase']??$sent['image_base']??null);
+        });
+        if(($o['singleton']??false)||($columns!==null&&(!is_int($columns)||$columns<1||$columns>6))
+            ||($modes!==null&&(!is_array($modes)||!$modes||!array_is_list($modes)||array_filter($modes,static fn($mode)=>!in_array($mode,$tiles?['table','cards','tiles']:['table','cards'],true))||count(array_unique($modes))!==count($modes))))
+            throw new \InvalidArgumentException('Invalid view presentation.');
     }
     /**
      * `sort: {field, direction}`: the list's first sort until the user picks one (the browser keeps that choice).
@@ -144,7 +164,7 @@ final class ListViewKind implements ViewKindProvider
         $activate=$o['activate']??null;
         $options=['columns'=>$columns,'detailFields'=>$detailFields,'singleton'=>$singleton,'layout'=>$o['layout']->metadata(),
             'rowNumbers'=>$o['rowNumbers']??true,'selection'=>$o['selection']??false,'rowSelection'=>$o['rowSelection']??false,
-            ...array_intersect_key($o,['rowHeight'=>1,'tileMinWidth'=>1,'tiles'=>1]),...(($o['commands']??[])!==[]?['commands'=>$o['commands']]:[]),
+            ...array_intersect_key($o,['rowHeight'=>1,'tileMinWidth'=>1,'tiles'=>1,'modes'=>1,'cardColumns'=>1]),...(($o['commands']??[])!==[]?['commands'=>$o['commands']]:[]),
             // A map is always a JSON object, also for consecutive integer keys.
             ...($activate!==null?['activate'=>is_array($activate)?['field'=>$activate['field'],'map'=>(object)$activate['map']]:$activate]:[]),
             'filters'=>$list->listSource?->filterDefinitions($ctx)??[],'sortable'=>$list->listSource?->sortableFields($ctx)??[]];

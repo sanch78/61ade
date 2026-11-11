@@ -1321,7 +1321,7 @@ function page(app, host, view) {
     if (sections.isOpen("edit")) edit();
     let noteList, workList, selected, work, bar;
     if (notes) {
-      noteList = new app.components.ListView({ view: notes, scope: { field: "task_id", id: task }, mode: "cards", panel: false, showId: false });
+      noteList = new app.components.ListView({ view: notes, scope: { field: "task_id", id: task }, panel: false, showId: false });
       noteList.mount(layout.cell("notes"));
       work = new app.components.PageLayout({
         id: `${view.id}.work.${phone.matches ? "narrow" : "wide"}`,
@@ -1370,7 +1370,7 @@ function page(app, host, view) {
           noteList?.refresh();
         })();
       });
-      workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, mode: "table", panel: false, showId: false });
+      workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, modes: ["table", "cards"], mode: "table", panel: false, showId: false });
       workList.mount(side.cell("main"));
       const panel = document.createElement("div"), hint2 = document.createElement("p");
       panel.style.cssText = "width:100%;height:100%";
@@ -1519,7 +1519,7 @@ function browser(app, host, view) {
     const tree = phone ? { rows: [{ id: "tree", header: nodes.title, height: 220, minHeight: 120, resizable: true, collapsable: true }, { ...center, minHeight: 200 }, { id: "value", header: t("\xC9rt\xE9k adatai"), height: 200, collapsable: true, collapsed: true }] } : { cols: [{ id: "tree", header: nodes.title, width: 280, minWidth: 180, resizable: true, collapsable: true }, center, { id: "value", header: t("\xC9rt\xE9k adatai"), width: 300, minWidth: 200, resizable: true, collapsable: true }] };
     const layout = new app.components.PageLayout({ id: `${view.id}.${phone ? "narrow" : "wide"}`, tree });
     layout.mount(root);
-    const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", id: `${view.id}.tree` });
+    const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", id: `${view.id}.tree`, expandControl: true });
     nodeTree.mount(layout.cell("tree"));
     const hints = /* @__PURE__ */ new Map();
     const clear = (id) => {

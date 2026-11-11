@@ -737,5 +737,8 @@
   "Ablak bezárása": "Close window",
   "{count} függőben": "{count} pending",
   "Nincs megjeleníthető elem.": "Nothing to show.",
+  "Mindet kinyit": "Expand all",
+  "Mindet bezár": "Collapse all",
+  "Nem nyílt ki minden elem: legfeljebb {nodes} elem, {depth} szint és elemenként {children} gyermek tölthető be.": "Not everything was expanded: at most {nodes} items, {depth} levels and {children} children per item are loaded.",
   "Mentett fájl": "Saved file"
 }

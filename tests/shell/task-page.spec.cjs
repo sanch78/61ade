@@ -174,3 +174,58 @@ for(const [width,height] of [[1366,900],[390,844]])test(`Munka at ${width} px: t
  await expect.poll(()=>collapsed(region(page,'side'))).toBe(false);
  expect(errors).toEqual([]);
 });
+
+// FB-0169 (docs/workspaces.md#cards-only-and-full-width-cards): the notes view declares cards only, one per row
+// (`view.modes`, `view.card_columns`), so the scoped notes list has no `Nézet` menu, a kept table choice of the user
+// neither switches it to a table nor is overwritten, and on a phone it stays one column; in Hungarian and English.
+// `Munka` passes its own `modes` (table and cards), which win over the view's.
+const language=(page,locale)=>page.evaluate(async locale=>{
+ const csrf=document.querySelector('#blade-command input[name="csrf"]').value;
+ await fetch('./',{method:'POST',body:new URLSearchParams({action:'language',csrf,locale})});
+},locale);
+for(const [width,height] of [[1366,900],[390,844]])test(`notes at ${width} px: cards only, one per row, the kept table choice ignored, in Hungarian and English`,async({page})=>{
+ const errors=pageErrors(page);
+ await page.setViewportSize({width,height});
+ await signIn(page,'demo@example.test',`/#view=demo.task-page&record=${task}`);
+ const key=await page.evaluate(()=>{
+  const user=JSON.parse(document.getElementById('blade-config').textContent).userId;if(!user)throw new Error('No user id in the page configuration.');
+  const key='blade-ui:1:'+JSON.stringify([location.pathname,user,'demo_task_notes@task_id']);
+  localStorage.setItem(key,JSON.stringify({mode:'table'}));return key;
+ });
+ try{
+  for(const [locale,notes,selector,actions] of [['hu','Jegyzetek',/^Nézet:/,'Műveletek'],['en','Notes',/^View:/,'Actions']]){
+   await language(page,locale);await page.reload();
+   await expect(page.locator('html')).toHaveAttribute('lang',locale);
+   await page.getByRole('tab',{name:notes,exact:true}).click();
+   const tab=page.getByRole('tabpanel',{name:notes,exact:true});
+   await expect(tab.locator('.blade-grid-card')).toHaveCount(3);
+   await expect(tab.locator('.dhx_grid-row')).toHaveCount(0);
+   // No view menu: neither in the bar nor in its `Műveletek` menu.
+   await expect(tab.getByRole('button',{name:selector})).toHaveCount(0);
+   const menu=tab.getByRole('button',{name:actions,exact:true});
+   if(await menu.isVisible()){await menu.click();await expect(page.getByRole('menuitem').first()).toBeVisible();await expect(page.getByRole('menuitem',{name:selector})).toHaveCount(0);await page.keyboard.press('Escape');}
+   // One card per row across the panel.
+   const boxes=await tab.locator('.dhx_dataview-item').evaluateAll(items=>items.map(item=>{const box=item.getBoundingClientRect();return {x:Math.round(box.x),width:box.width,list:item.closest('.blade-grid-cards').clientWidth};}));
+   expect(boxes).toHaveLength(3);
+   expect(new Set(boxes.map(box=>box.x)).size).toBe(1);
+   for(const box of boxes)expect(box.width).toBeGreaterThan(box.list-32);
+   expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).mode,key)).toBe('table');
+  }
+  if(width>=768){
+   // Munka: the list's own modes (table and cards) instead of the view's cards only.
+   await page.getByRole('tab',{name:'Work',exact:true}).click();
+   const work=page.getByRole('tabpanel',{name:'Work',exact:true});
+   await expect(work.locator('.dhx_grid-row').first()).toBeVisible();
+   const menu=work.getByRole('button',{name:'Actions',exact:true});
+   if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name:/^View:/}).click();}
+   else await work.getByRole('button',{name:/^View:/}).click();
+   expect((await page.getByRole('menuitem',{name:/^(Table|Cards|Tiles)$/}).allTextContents()).map(text=>text.trim())).toEqual(['Table','Cards']);
+   await page.keyboard.press('Escape');await page.keyboard.press('Escape');
+  }
+ }finally{
+  // Back to Hungarian: the account keeps the choice and other specs expect the default.
+  await language(page,'hu');
+  await page.evaluate(key=>localStorage.removeItem(key),key);
+ }
+ expect(errors).toEqual([]);
+});

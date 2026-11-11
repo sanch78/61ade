@@ -108,7 +108,12 @@ export class Workspace implements ActionHost {
     this.details=new DetailsWindow(view,id=>this.call("get",id),()=>this.disposed,error=>this.error(error));
     this.actions=new ListActions(this);
     const secondaryColumns=view.columns.filter(column=>column.secondary);
-    const tiles=view.tiles??view.columns.some(column=>isMedia(column)||isImage(column));
+    // The offered presentations: the list's `modes`, else the view's, else table, cards and (when offered) tiles. With
+    // one presentation the `Nézet` menu is left out; a kept choice outside them is ignored, never overwritten.
+    const offered=view.tiles??view.columns.some(column=>isMedia(column)||isImage(column));
+    const declared=(hooks.modes??view.modes)?.filter(mode=>mode==="table"||mode==="cards"||mode==="tiles"&&offered);
+    const modes:readonly ("table"|"cards"|"tiles")[]=declared?.length?declared:["table","cards",...(offered?["tiles" as const]:[])];
+    const tiles=modes.includes("tiles"),selector=modes.length>1;
     const secondary=secondaryColumns.map(column=>column.id);
     this.visibleColumns=this.preferences.visibleColumns(secondary);
     const inner=!!scope||hosted;
@@ -124,7 +129,7 @@ export class Workspace implements ActionHost {
     const builtin=!view.singleton&&scope?.select!==false?["details"]:[];
     const commands=this.clientCommands=resolveCommands(builtin,scope?.compact||scope?.shared?[]:view.commands,extensions.commands,builtinCommands);
     const ofToolbar=(fromBuiltin:boolean)=>commands.filter(command=>builtin.includes(command.name)===fromBuiltin);
-    this.commands=new ResponsiveToolbar(undefined,{data:listCommands(view,{scope,filter:this.hasRegion("filter")?"panel":view.filters.length&&!scope?.compact?"cards":false,tiles,secondary:secondaryColumns,visible:this.visibleColumns,commands:{builtin:ofToolbar(true),project:ofToolbar(false)},pressed:command=>this.pressed(command)})});
+    this.commands=new ResponsiveToolbar(undefined,{data:listCommands(view,{scope,filter:this.hasRegion("filter")?"panel":view.filters.length&&!scope?.compact?"cards":false,modes:selector?modes:[],secondary:secondaryColumns,visible:this.visibleColumns,commands:{builtin:ofToolbar(true),project:ofToolbar(false)},pressed:command=>this.pressed(command)})});
     this.commands.events.on("click",(id:string|number)=>{if(this.delegated&&(id===commandId("details")||view.actions.some(a=>a.name===id&&a.name!=="create"&&!a.upload)&&this.delegated.view.actions.some(a=>a.name===id))){this.delegated.command(String(id));return;}this.command(String(id));});
     if(view.singleton)this.layout.getCell("commands").attach(this.commands);
     else{
@@ -145,13 +150,15 @@ export class Workspace implements ActionHost {
         if(cards&&(view.sortable??[]).length)this.commands.show("blade-sort");else this.commands.hide("blade-sort");
         // Header filters only: cards and tiles have no table headers, so the filters move into the `Szűrés` dialog.
         if(!this.hasRegion("filter")&&view.filters.length){if(cards)this.commands.show("blade-filter");else this.commands.hide("blade-filter");}
+        if(!selector)return;
         this.commands.data.update("blade-view",{value:mode==="tiles"?t("Nézet: Csempék"):cards?t("Nézet: Kártyák"):t("Nézet: Táblázat"),icon:mode==="tiles"?"dxi dxi-border-all":cards?"dxi dxi-view-grid":"dxi dxi-table-check"});
-        // Mobile forces cards for the table without changing the stored preference; tiles remain selectable.
+        // Mobile forces cards for the table without changing the stored preference; tiles remain selectable. Without
+        // `Kártyák` the enabled `Táblázat` leads from tiles back to the forced cards.
         if(mobile&&!tiles)this.commands.disable("blade-view");else this.commands.enable("blade-view");
-        if(mode==="cards")this.commands.disable("blade-cards");else this.commands.enable("blade-cards");
-        if(mode==="table"||mobile)this.commands.disable("blade-table");else this.commands.enable("blade-table");
+        if(modes.includes("cards")){if(mode==="cards")this.commands.disable("blade-cards");else this.commands.enable("blade-cards");}
+        if(modes.includes("table")){if(mode==="table"||mobile&&modes.includes("cards"))this.commands.disable("blade-table");else this.commands.enable("blade-table");}
         if(tiles){if(mode==="tiles")this.commands.disable("blade-tiles");else this.commands.enable("blade-tiles");}
-      },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,subview:scope?.compact?undefined:this.subviewOptions(),select:scope?.select,...(scope?.compact?{table:true,idColumn:false}:{}),...(hooks.showId===false?{idColumn:false}:{}),
+      },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,cardColumns:hooks.cardColumns??view.cardColumns,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,subview:scope?.compact?undefined:this.subviewOptions(),select:scope?.select,...(scope?.compact?{table:true,idColumn:false}:{}),...(hooks.showId===false?{idColumn:false}:{}),
         // Per row: the declared target's description; a map without an entry for the row keeps the default (no description, cards open the details).
         activation:view.activate?row=>declaredTarget(view.activate,row)===undefined?undefined:t("Megnyitás: {target}",{target:this.activation(row).label}):undefined,
         details:id=>{const row=this.rows.find(r=>String(r.id)===id);if(row)this.hooks.emit?.("activate",{row,target:"details"});void this.showResults(id);},marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field),
@@ -163,7 +170,8 @@ export class Workspace implements ActionHost {
       this.headerFilters();
       this.preferences.bindGrid(this.grid.table);
       for(const column of view.columns.filter(column=>column.secondary))if(!this.visibleColumns.has(column.id))this.grid.setColumnVisible(column.id,false);
-      this.grid.setMode(this.preferences.mode(this.hooks.mode));
+      const start=this.hooks.mode??modes[0],kept=this.preferences.mode(start);
+      this.grid.setMode(modes.includes(kept)?kept:start);
       this.gridEditing=new GridEditing(this.grid.table,view.actions.find(a=>a.name==="update")?.fields??[],()=>this.rows,
         (row,field,value)=>this.saveCell(row,field,value),error=>this.error(error),active=>{this.cellEditing=active;if(!active&&!this.disposed)this.watch();});
       this.content.getCell("data").attach(this.grid.layout);

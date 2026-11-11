@@ -87,6 +87,30 @@ check(!isset($view['options']['rowHeight'])&&!isset($view['options']['tileMinWid
 foreach([['rowHeight'=>31],['rowHeight'=>161],['tileMinWidth'=>119],['tileMinWidth'=>481]] as $options){try{$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[],['get'],...$options));throw new RuntimeException('Out-of-range view presentation accepted');}catch(InvalidArgumentException){}}
 $mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[],['get'],rowHeight:32,tileMinWidth:480));$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[],['get'],rowHeight:160,tileMinWidth:120));
 check($mediaRegistry->views()[0]->options['rowHeight']===160&&!isset($mediaRegistry->views()[0]->options['tiles']),'Range bounds accepted; tiles off is absent');
+// Offered presentations and card columns (FB-0169): reach the wire, absent by default; tiles only where the view
+// offers them (tiles or a media or static image column); unknown, repeated or empty modes, an out-of-range column
+// count and either on a singleton are developer errors.
+$modeRegistry=new Registry();
+$modeColumns=[['id'=>'title','header'=>'Title'],['id'=>'file','header'=>'File']];
+(new SqlResource('assets','items','id',[new Field('title','Title'),new Field('file','File','number',column:['media'=>'files'])]))->register($modeRegistry,'Assets',modes:['cards','tiles'],cardColumns:1);
+(new SqlResource('items','items','id',[new Field('title','Title')]))->register($modeRegistry,'Items');
+$modeWorkspace=new Workspace($modeRegistry,$db);
+$db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items','list','ui','allow','all','','')");
+$modeViews=array_column($modeWorkspace->views($actor),null,'id');
+check($modeViews['assets']['options']['modes']===['cards','tiles']&&$modeViews['assets']['options']['cardColumns']===1,'Modes and card columns reach the wire');
+check(!isset($modeViews['items']['options']['modes'])&&!isset($modeViews['items']['options']['cardColumns']),'Modes and card columns absent by default');
+foreach([['modes'=>[]],['modes'=>['grid']],['modes'=>['cards','cards']],['modes'=>['first'=>'cards']],['modes'=>[1]],['modes'=>[['cards']]],['cardColumns'=>0],['cardColumns'=>7],['singleton'=>true,'modes'=>['cards']],['singleton'=>true,'cardColumns'=>1]] as $options){
+ try{$modeRegistry->updateView(Blade\Feature\View::list('assets','Assets',$modeColumns,['get'],...$options));throw new RuntimeException('Invalid view modes accepted: '.json_encode($options));}catch(InvalidArgumentException $e){check($e->getMessage()==='Invalid view presentation.','Invalid view modes rejected: '.json_encode($options));}
+}
+try{$modeRegistry->updateView(Blade\Feature\View::list('items','Items',[['id'=>'title','header'=>'Title']],['get'],modes:['cards','tiles']));throw new RuntimeException('Tiles without tiles accepted');}catch(InvalidArgumentException $e){check($e->getMessage()==='Invalid view presentation.','Tiles need a view that offers them');}
+// The browser's rule decides: a view column presented as an image without its base offers no tiles there either.
+try{$modeRegistry->updateView(Blade\Feature\View::list('items','Items',[['id'=>'title','header'=>'Title','presentation'=>'image']],['get'],modes:['tiles']));throw new RuntimeException('Image column without a base accepted as tiles');}catch(InvalidArgumentException $e){check($e->getMessage()==='Invalid view presentation.','An image column without imageBase offers no tiles');}
+$imageRegistry=new Registry();
+(new SqlResource('pictures','items','id',[new Field('title','Title',column:['presentation'=>'image','image_base'=>'../demo-images/'])]))->register($imageRegistry,'Pictures',modes:['tiles']);
+check($imageRegistry->viewById('pictures')->options['modes']===['tiles'],'A static image field offers tiles');
+$modeRegistry->updateView(Blade\Feature\View::list('items','Items',[['id'=>'title','header'=>'Title']],['get'],tiles:true,modes:['tiles']));
+$modeRegistry->updateView(Blade\Feature\View::list('items','Items',[['id'=>'title','header'=>'Title']],['get'],modes:['table'],cardColumns:6));
+check($modeRegistry->viewById('items')->options['modes']===['table']&&$modeRegistry->viewById('items')->options['cardColumns']===6,'Declared tiles, one mode and the column bound accepted');
 // Static image column: option validation, the single-file-name rule and the server-side projection.
 check(Field::imageFile('a-b_c.1.PNG')&&Field::imageFile('x.svg')&&Field::imageFile('x.JpEg')&&Field::imageFile('x.webp')&&Field::imageFile('x.gif')&&Field::imageFile('x.jpg'),'Image file names accepted');
 foreach(['','a','a.exe','a.png.exe','../a.png','a/../a.png','dir/a.png','dir\\a.png','/a.png','https://x.test/a.png','data:image/png;base64,AAAA','.png','.hidden.png','a..png','a b.png',"a.png\n",'a.png?x=1','a%2fb.png',str_repeat('a',256).'.png',null,7] as $bad)check(!Field::imageFile($bad),'Image file name rejected: '.var_export($bad,true));

@@ -122,7 +122,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Network topology builder | Visual diagram editor: drag network elements from the palette, move them, connect them by the element handle with Ethernet/fibre/Wi-Fi/VPN/WAN connections, edit captions and details in the property form, save with revision check; define new element types (name, glyph, shape, colour) at runtime; two synthetic topologies; desktop only; [details](diagrams.md) | Feature demo → Hálózati topológia; `reader@example.test` views only |
 | Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
 | Registry editor (tree navigation, conditional fields) | `Regisztrációs adatbázis` ([registry.json](../examples/demo-app/modules/registry.json)): a Windows registry editor imitation. The key tree (`Registry::tree` over the `Kulcsok` hierarchy) loads children on expansion, its toolbar adds, edits (renames or moves, guarded against cycles) and deletes keys (with their subtree and values); the value list beside it is scoped to the selected key. The value form shows the editor of the chosen `Típus` only (`visible_when`): text, multi-line text, hexadecimal DWORD/QWORD or a byte string, each with its own pattern; the `Adat` column is computed SQL | Feature demo → Regisztrációs adatbázis; `reader@example.test` browses only |
-| Tree component and toggle command | `Kulcsböngésző` ([D8](#d8-key-browser)): the public `Tree` beside tabs of a scoped value list and key details, and value details; the list's pinned toggle `Alkulcsok értékei` switches between the key's own values and its subkeys' with one shared set of view choices; on the subkey scope `Hozzáadás` presets the key; the computed parent is a scope-only field | Feature demó → Kulcsböngésző: arrows, Space, Enter in the tree; the toggle in the values toolbar; reload |
+| Tree component and toggle command | `Kulcsböngésző` ([D8](#d8-key-browser)): the public `Tree` beside tabs of a scoped value list and key details, and value details; the list's pinned toggle `Alkulcsok értékei` switches between the key's own values and its subkeys' with one shared set of view choices; on the subkey scope `Hozzáadás` presets the key; the computed parent is a scope-only field | Feature demó → Kulcsböngésző: arrows, Space, Enter, `*` and `Mindet kinyit` / `Mindet bezár` in the tree; the toggle in the values toolbar; reload |
 | Stored file field | `Mellékletek` ([attachments.php](../examples/demo-app/attachments.php)): a record with a role, a reason and an image the project stores itself (a content-addressed directory and pending rows), not in a file manager mount; the image uploads in the background by the native dialog, paste or drop and is saved with the other fields in one save; `Mégse` leaves no record; the edit form shows the stored image through the project's GET action; the list's `Fájlnév` is a computed column of the project's rows ([stored file field](workspaces.md#stored-file-field)) | Feature demó → Mellékletek: `Hozzáadás`, paste an image with Ctrl+V, `Mentés`; `Módosítás`, drop another image |
 | Menu attention | `Jóváhagyások` ([approvals](#approvals-attention)): a live count of the pending items on the entry, its branch and `Menü`, in the warning tone; the plain entry at zero | Change an item's `Állapot` and watch the menu; `reader@example.test` sees no entry |
 | View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in the `Beállítások` controls menu below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
@@ -581,7 +581,8 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
 - **`Munka` tab** (first): a nested `PageLayout` attached into the tab: a
   `CommandBar` above the task's notes as a table (the same list under the
   page's own id `demo.task-page.work`, so it keeps a table beside the
-  cards), and the collapsible side panel `Kijelölt jegyzet` with the
+  cards; its `modes: ["table", "cards"]` win over the view's cards only),
+  and the collapsible side panel `Kijelölt jegyzet` with the
   selected note (`RecordDetails`; below the table on a phone). The bar's
   toggle `Oldalpanel` collapses and opens it from code
   ([collapse](toolkit.md#pagelayout-collapse)), and follows the panel's own
@@ -596,7 +597,9 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
 - **`Jegyzetek` tab:** the task's notes, `demo_task_notes`, a list view
   with [`menu: false`](toolkit.md#menu-less-views) and the [first
   sort](workspaces.md#list-sort) `id` ascending (oldest first), mounted as
-  a scoped `ListView` (`task_id`, cards, `panel: false`, `showId: false`).
+  a scoped `ListView` (`task_id`, `panel: false`, `showId: false`). The
+  view declares [cards only, one per row](workspaces.md#cards-only-and-full-width-cards)
+  (`"modes": ["cards"], "card_columns": 1`), so there is no `Nézet` menu.
   New notes get the task. A long note shows a [4-line
   preview](workspaces.md#long-text-in-cards); `Adatok` shows all of it.
 - **`Vázlat` tab:** the module's own drawing surface, a canvas created
@@ -620,7 +623,9 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
   with the whole text; `Munka`: the selected note in the panel, the toggle
   and the header in step, the header collapse kept and the toggle's not,
   the phone's control region; the menu's entries disabled without a
-  selection, opening the panel and copying the selected note),
+  selection, opening the panel and copying the selected note; the notes
+  without a `Nézet` menu, one card per row and a kept table choice ignored,
+  in Hungarian and English, `Munka` offering table and cards),
   `tests/shell/page-layout-collapse.spec.cjs`, `tests/shell/command-menu.spec.cjs`,
   `php8.4 tests/shell/toolkit.php` and `configuration.php` (`sort`).
 
@@ -637,7 +642,9 @@ only by the [Tree](toolkit.md#tree)'s `select`:
 - **Tree:** `app.components.Tree` over `demo_registry_nodes`, a `menu: false`
   view of `demo_registry_keys` with the hierarchy on itself (the registry
   editor's own node view is embedded by its tree navigation), with `id` so
-  the expanded keys and the selection come back on the next visit.
+  the expanded keys and the selection come back on the next visit, and
+  `expandControl` for `Mindet kinyit` / `Mindet bezár` above it
+  ([expansion](toolkit.md#tree-expansion)).
 - **Tabs:** `Értékek`, the selected key's values as a scoped `ListView` of
   `demo_registry_browser_values` (`menu: false`, `get` and `create`), and `Kulcs adatai`, the key's `RecordDetails`. Enter or a
   double-click on a key (`activate`) opens `Kulcs adatai`.

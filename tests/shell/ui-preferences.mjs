@@ -9,11 +9,11 @@ globalThis.innerWidth=1280;globalThis.innerHeight=720;
 const storage=new Map();globalThis.localStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)};
 const first=new UiPreferences('user-a','items');
 first.setMode('cards');first.setSort({field:'title',direction:'asc'});
-assert.equal(new UiPreferences('user-a','items').mode,'cards');
-assert.equal(new UiPreferences('user-b','items').mode,'table');
-assert.equal(new UiPreferences('user-a','other').mode,'table');
-first.setMode('tiles');assert.equal(new UiPreferences('user-a','items').mode,'tiles');assert.equal(new UiPreferences('user-b','items').mode,'table');first.setMode('cards');
-location.pathname='/other/';assert.equal(new UiPreferences('user-a','items').mode,'table');location.pathname='/synthetic/';
+assert.equal(new UiPreferences('user-a','items').mode(),'cards');
+assert.equal(new UiPreferences('user-b','items').mode(),'table');
+assert.equal(new UiPreferences('user-a','other').mode(),'table');
+first.setMode('tiles');assert.equal(new UiPreferences('user-a','items').mode(),'tiles');assert.equal(new UiPreferences('user-b','items').mode(),'table');first.setMode('cards');
+location.pathname='/other/';assert.equal(new UiPreferences('user-a','items').mode(),'table');location.pathname='/synthetic/';
 assert.deepEqual(first.sort(['title']),{field:'title',direction:'asc'});assert.equal(first.sort(['id']),undefined);
 const key=[...storage.keys()][0];
 storage.set(key,JSON.stringify({columns:[null,{id:'gone',width:500},{id:'title',width:2000}],regions:{filter:{width:9000,collapsed:true},form:{collapsed:false}},sort:{field:'title',direction:'invalid'}}));
@@ -44,8 +44,13 @@ assert.deepEqual(new UiPreferences('user-a','filtered').filters(definitions),{})
 storage.set(filterKey,JSON.stringify({filters:{zone:'1',done:'0',qty:'12',title:'a'}}));
 assert.deepEqual(new UiPreferences('user-a','filtered').filters(definitions),{zone:'1',done:'0',qty:'12',title:'a'});
 for(const malformed of [null,[],'x']){storage.set(filterKey,JSON.stringify({filters:malformed}));assert.deepEqual(new UiPreferences('user-a','filtered').filters(definitions),{});}
-for(const unknown of ['grid','TILES',7,null]){storage.set(key,JSON.stringify({mode:unknown}));assert.equal(new UiPreferences('user-a','items').mode,'table');}
-for(const invalid of ['invalid','null','[]']){storage.set(key,invalid);assert.equal(new UiPreferences('user-a','items').mode,'table');}
+// A Tree's stored expansion (FB-0168): absent until stored, an empty list is "everything collapsed", at most 200 ids.
+const treePreferences=new UiPreferences('user-a','tree.key');assert.deepEqual(treePreferences.tree(),{});
+treePreferences.setTree({selected:'1'});assert.deepEqual(new UiPreferences('user-a','tree.key').tree(),{selected:'1'});
+treePreferences.setTree({expanded:[],selected:'1'});assert.deepEqual(new UiPreferences('user-a','tree.key').tree(),{expanded:[],selected:'1'});
+treePreferences.setTree({expanded:Array.from({length:250},(_,index)=>String(index+1))});assert.equal(new UiPreferences('user-a','tree.key').tree().expanded.length,200);
+for(const unknown of ['grid','TILES',7,null]){storage.set(key,JSON.stringify({mode:unknown}));assert.equal(new UiPreferences('user-a','items').mode(),'table');}
+for(const invalid of ['invalid','null','[]']){storage.set(key,invalid);assert.equal(new UiPreferences('user-a','items').mode(),'table');}
 globalThis.localStorage={getItem(){throw Error('Denied');},setItem(){throw Error('Quota');}};
-const denied=new UiPreferences('user-a','items');denied.setMode('cards');assert.equal(denied.mode,'cards');denied.setMode('tiles');assert.equal(denied.mode,'tiles');
+const denied=new UiPreferences('user-a','items');denied.setMode('cards');assert.equal(denied.mode(),'cards');denied.setMode('tiles');assert.equal(denied.mode(),'tiles');
 console.log('UI preferences: isolation, tiles mode, filters, stale schema, bounds, malformed/denied storage PASS');
