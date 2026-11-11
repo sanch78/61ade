@@ -380,9 +380,11 @@ linking or redirecting to the application. A remembered login, not sent on
 that request either, restores a session on the next same-site request. An
 OAuth provider's callback is such a navigation with its redirects. The session
 created at the end of that chain is not sent to the chain's final redirect,
-which starts a new session over it. Applications with
-[OAuth](#oauth-login-authhandler) or other cross-site entry points keep `Lax`.
-The OAuth outcome follows from the browsers' SameSite rules and is not
+which starts a new session over it. An application definition with both `Strict`
+and [OAuth](#oauth-login-authhandler) is rejected at startup, even when every
+provider is disabled or lacks credentials. OAuth applications use `Lax`.
+Other cross-site entry points also need `Lax` if they rely on the existing
+session. The OAuth outcome follows from the browsers' SameSite rules and is not
 verified with a real provider ([FB-0143](feedback.md#fb-0143)). Navigation
 started from the application, the JSON channel, uploads and the live channel
 are same-site and unaffected.
@@ -417,9 +419,10 @@ the account may sign in again from the new address. An open page follows the
   next observation. The WebSocket server sees only the proxy's connection and
   compares no addresses itself. Polling `__watch` requests are HTTP requests
   and are checked directly.
-- The remembered-login credential is not bound. It belongs to the device and
-  restores at any address until it expires or is revoked; remember is offered
-  whenever `authentication` is configured. With several open tabs, their
+- **Known limitation — concurrent remembered-login restore:** the credential
+  is not bound. It belongs to the device and restores at any address until it
+  expires or is revoked; remember is offered whenever `authentication` is
+  configured. With several open tabs, their
   first requests after an address change (for example the live channels'
   reconnection) can arrive together with the same remember secret. The first
   one restores and rotates it; a later one presents the previous secret,

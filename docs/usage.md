@@ -42,8 +42,9 @@ No upper application-title header; one lower bar has user left, application/vers
 right. Session idle timeout and persistent cookie lifetime are [configurable](authentication.md#session-lifetime), with unchanged 30-minute/browser-session defaults.
 Three security options are opt-in, with unchanged defaults: `sameSite: 'Strict'`
 (JSON `session.same_site`) for the session and remember cookies
-([cookie SameSite](authentication.md#cookie-samesite); visitors arriving from
-another site, OAuth callbacks included, come without them), `bindSessionToClientAddress` (JSON `session.bind_to_client_address`)
+([cookie SameSite](authentication.md#cookie-samesite); a definition combining
+`Strict` and OAuth is rejected at startup; other cross-site arrivals come
+without the cookies), `bindSessionToClientAddress` (JSON `session.bind_to_client_address`)
 to end a signed-in session used from another address
 ([binding](authentication.md#client-address-binding)), and `HttpEntrypoint::run`'s
 `$trustProxy` list of proxy networks ([trusted proxies](shell.md#trusted-proxies)).

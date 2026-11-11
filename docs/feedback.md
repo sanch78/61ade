@@ -7059,3 +7059,25 @@ that exactly equals an option label lists every option. The managed
   recursive count needs one helper field per hierarchy level.
 - **Commit:** `f56e669` on `main`.
 - **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0174"></a>
+
+## FB-0174 — Reject Strict cookies with OAuth
+
+- **Date:** 2026-11-11.
+- **Request:** FB-0143 left `SameSite=Strict` and OAuth accepted together,
+  although the OAuth callback chain cannot keep the session. Reject that
+  combination at startup. Make the existing multi-tab remembered-login race
+  under client-address binding explicit as a known limitation.
+- **Implemented:** `ApplicationDefinition` rejects any non-null OAuth
+  configuration with `sameSite: 'Strict'`, including disabled or unconfigured
+  providers. JSON definitions use the same guard. OAuth with the default
+  `Lax` policy and `Strict` without OAuth still work.
+- **Guides:** [authentication](authentication.md#cookie-samesite),
+  [configuration](configuration.md), [usage](usage.md).
+- **Verification:** in an isolated worktree, PHP `contracts`,
+  `configuration`, `authentication` and `oauth` passed; the managed demo browser
+  check follows landing. The provider callback was not exercised with a real
+  provider.
+- **Status:** implemented; managed demo verification pending.

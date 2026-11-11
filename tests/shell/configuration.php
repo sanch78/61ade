@@ -186,6 +186,8 @@ try {
     $write([...$settings, 'oauth' => $oauth, 'admin' => [], 'i18n' => ['default' => 'hu', 'languages' => ['hu' => 'Magyar', 'en' => 'English'], 'selector' => true]]);
     $app = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
     verify($app->oauth->providers() === ['Google', 'Facebook'] && !$app->oauth->configured('Google') && $app->oauth->configured('Facebook') && $app->oauth->assets === 'lib/_AuthHandler', 'AuthHandler providers from JSON; empty credentials shown, not usable');
+    $write([...$settings, 'oauth' => $oauth, 'admin' => [], 'session' => [...$settings['session'], 'same_site' => 'Strict']]);
+    rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'JSON Strict SameSite with OAuth accepted');
     $users = array_values(array_filter($app->workspace->registry->views(), static fn($view) => $view->resource === 'blade_users'))[0];
     verify(in_array('blade_oauth', array_column($users->options['columns'], 'id'), true) && in_array('blade_locale', array_column($users->options['columns'], 'id'), true), 'OAuth and language switches in the user admin');
     verify(in_array('blade_api_keys', array_column($app->workspace->registry->views(), 'resource'), true), 'JSON admin includes API keys');
