@@ -6800,6 +6800,7 @@ that exactly equals an option label lists every option. The managed
   it; the whole spec passed on the managed demo (9 passed). No full-smoke
   claim.
 - **Limits:** none known.
+- **Commit:** `030c863` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0171"></a>
@@ -6943,7 +6944,7 @@ that exactly equals an option label lists every option. The managed
 - **Limits:** grid cells, cards and the bulk form never show read-only
   fields; a `RecordForm` `readOnly` file field ignores `setValues`; a display
   field without a value in the form's values is left out.
-- **Commit:** COMMIT on `main`.
+- **Commit:** `f56e669` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0172"></a>
@@ -6994,7 +6995,7 @@ that exactly equals an option label lists every option. The managed
 - **Limits:** no nested sections and no per-action variant; the `Adatok`
   window, the bulk form and grid or card editors show no sections;
   `SettingsForm` keeps its own groups.
-- **Commit:** COMMIT on `main`.
+- **Commit:** `f56e669` on `main`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0173"></a>
@@ -7056,5 +7057,5 @@ that exactly equals an option label lists every option. The managed
   and page; a counted resource needs an SQL list source; a change of a
   counted record does not push an update of the counting list by itself; a
   recursive count needs one helper field per hierarchy level.
-- **Commit:** COMMIT on `main`.
+- **Commit:** `f56e669` on `main`.
 - **Status:** implemented and verified on the managed demo.
