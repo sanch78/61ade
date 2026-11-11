@@ -698,3 +698,7 @@
 <a id="fb-0169"></a>
 
 ## FB-0169 — ListView: cards only and full-width cards
+
+<a id="fb-0170"></a>
+
+## FB-0170 — Tree: the initial selection overrode a selection made while the start loaded

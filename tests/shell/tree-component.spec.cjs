@@ -342,6 +342,56 @@ test('the user wins over bulk work: collapseAll before the depth loads, a collap
  expect(failures).toEqual([]);
 });
 
+test('a selection made while the start loads stays: the depth and a stored expansion',async({page})=>{
+ const failures=errors(page);
+ await start(page);
+ let delay=0;
+ await page.route(url=>url.searchParams.get('blade')==='1',async route=>{if(delay)await new Promise(resolve=>setTimeout(resolve,delay));await route.fallback();});
+ const box=page.locator('#tree-fixture'),tree=box.getByRole('tree');
+ const click=locator=>locator.locator('.dhx_tree-list-item__text, .dhx_tree-template__wrapper').first().click();
+ // expand: 2 (initial "first"): the user selects a second-level node while the third level loads; the first root is
+ // not selected afterwards, exactly one `select` is reported, and the selection is stored.
+ delay=1500;
+ await mount(page,{id:'tc.race',expand:2});
+ await expect(level(box,'SOFTWARE',2)).toBeVisible({timeout:10000});
+ await expect(tree).toHaveAttribute('aria-busy','true');
+ await click(level(box,'SOFTWARE',2));
+ await expect(tree).not.toHaveAttribute('aria-busy','true',{timeout:15000});
+ await page.waitForTimeout(300);
+ await expect(level(box,'SOFTWARE',2)).toHaveAttribute('aria-selected','true');
+ await expect(level(box,'HKEY_CURRENT_USER',1)).toHaveAttribute('aria-selected','false');
+ expect(await events(page)).toEqual([['select','SOFTWARE']]);
+ await unmount(page);delay=0;
+ await mount(page,{id:'tc.race',expand:2});
+ await expect(level(box,'SOFTWARE',2)).toHaveAttribute('aria-selected','true');
+ expect(await events(page)).toEqual([['select','SOFTWARE']]);
+ await unmount(page);
+ // A stored expansion (HKCU, HKLM, SOFTWARE) and selection (HKLM): the user selects Control Panel while SOFTWARE's
+ // children still load; the restore opens SOFTWARE without moving the selection back to HKLM.
+ await mount(page,{id:'tc.reopen',initial:'none'});
+ for(const name of ['HKEY_CURRENT_USER','HKEY_LOCAL_MACHINE'])await level(box,name,1).locator('.dhx_tree-toggle-button').first().click();
+ await level(box,'SOFTWARE',2).locator('.dhx_tree-toggle-button').first().click();
+ await expect(level(box,'SOFTWARE',2)).toHaveAttribute('aria-expanded','true');
+ await click(level(box,'HKEY_LOCAL_MACHINE',1));
+ await expect(level(box,'HKEY_LOCAL_MACHINE',1)).toHaveAttribute('aria-selected','true');
+ await unmount(page);delay=1500;
+ await mount(page,{id:'tc.reopen',initial:'none'});
+ await expect(level(box,'Control Panel',2)).toBeVisible({timeout:10000});
+ await expect(level(box,'SOFTWARE',2)).not.toHaveAttribute('aria-expanded','true');
+ await click(level(box,'Control Panel',2));
+ await expect(level(box,'SOFTWARE',2)).toHaveAttribute('aria-expanded','true',{timeout:15000});
+ await page.waitForTimeout(300);
+ await expect(level(box,'Control Panel',2)).toHaveAttribute('aria-selected','true');
+ await expect(level(box,'HKEY_LOCAL_MACHINE',1)).toHaveAttribute('aria-selected','false');
+ expect(await events(page)).toEqual([['select','Control Panel']]);
+ await unmount(page);delay=0;
+ await mount(page,{id:'tc.reopen',initial:'none'});
+ await expect(level(box,'Control Panel',2)).toHaveAttribute('aria-selected','true');
+ await expect(level(box,'SOFTWARE',2)).toHaveAttribute('aria-expanded','true');
+ await unmount(page);
+ expect(failures).toEqual([]);
+});
+
 test('expansion caps: depth and loaded nodes, reported by the result and the control (English); busy state',async({page})=>{
  const failures=errors(page);
  // A chain of 12 keys below one root (deeper than the 10 opened levels).

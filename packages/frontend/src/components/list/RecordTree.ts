@@ -67,6 +67,8 @@ export class NodeTree {
   private running=0;
   /** Expansions and collapses made by code (`toggle`, a restored selection), not by the user. */
   private quiet=0;
+  /** Selection changes; the start applies its remembered or initial selection only when none happened meanwhile. */
+  private picks=0;
   /** Nodes the user collapsed while a restore or bulk expansion runs: it does not open them again. */
   private closed=new Set<string>();
   /** The running bulk expansion; a newer one, `collapseAll`, `refresh` and `destroy` cancel it. */
@@ -91,7 +93,7 @@ export class NodeTree {
   }
   /**
    * Loads the roots, opens the $remembered expanded nodes that load (or, with nothing remembered, $depth levels) and
-   * selects the remembered node, else $initial.
+   * selects the remembered node, else $initial, unless the selection changed meanwhile (docs/toolkit.md#tree-expansion).
    */
   start(initial:Initial,remembered:{expanded?:string[];selected?:string},depth=0):Promise<void>{
     // The initial expansion's controller exists at once, so `collapseAll` before the roots arrive cancels it.
@@ -102,6 +104,7 @@ export class NodeTree {
     // A stored expansion is the user's even when the roots fail now (a later `refresh` restores it).
     if(remembered.expanded){this.changed=true;for(const id of remembered.expanded)this.opened.add(id);}
     this.restoring=true;
+    const picks=this.picks;
     let roots:Row[]|undefined;
     try{
       roots=await this.load("");
@@ -109,6 +112,8 @@ export class NodeTree {
       else if(roots&&bulk)await this.expandTo(depth,bulk);
     }finally{this.restoring=false;}
     if(!roots)return;
+    // The user (or `select`) chose while the start loaded: that selection stays, and is stored now.
+    if(this.picks!==picks){this.save();return;}
     const wanted=remembered.selected!==undefined&&this.exists(remembered.selected)?remembered.selected
       :initial==="first"?(roots[0]?String(roots[0].id):undefined):typeof initial==="object"?initial.id:undefined;
     // The ancestors a restored selection opens are not the user's change.
@@ -348,7 +353,7 @@ export class NodeTree {
     if(id!==undefined&&!this.exists(id))return;
     if(id!==undefined)this.focusOn(id);
     if(id===this.current){this.adapter.choose(id);this.annotate();return;}
-    this.current=id;
+    this.current=id;this.picks++;
     this.adapter.choose(id);
     this.annotate();this.save();
     this.hooks.select(id);
