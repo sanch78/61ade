@@ -82,6 +82,10 @@ try{
  assert.deepEqual(resolveCommands([],['demo.copy'],undefined,builtinCommands),[],'no registry: no project command');
  const replaced={label:'Saját adatok',placement:'toolbar',run(){}};commands.register('details',replaced,{replace:true});
  assert.equal(resolveCommands(['details'],[],commands)[0].entry,replaced,'a replaced built-in is used');
+ // `pinned` (FB-0163): a boolean keeps the command; anything else skips it with a warning.
+ commands.register('demo.pinned',{label:'P',placement:'toolbar',pinned:true,run(){}});commands.register('demo.badpin',{label:'B',placement:'toolbar',pinned:'yes',run(){}});
+ assert.deepEqual(resolveCommands([],['demo.pinned','demo.badpin'],commands).map(command=>command.name),['demo.pinned']);
+ assert.ok(warnings.some(line=>line.includes('command "demo.badpin"')),'a non-boolean pinned is skipped');
  // Enabled rules: `toolbar` default on; `record` default like the built-in record actions:
  // a cursor record and at most one mark; an own rule decides alone; a throw disables (logged).
  const context=(extra={})=>({app:{},view:{id:'v'},rows:[],signal:new AbortController().signal,...extra});

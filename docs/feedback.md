@@ -6056,3 +6056,153 @@ that exactly equals an option label lists every option. The managed
   full-smoke claim.
 - **Commit:** pending.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0162"></a>
+
+## FB-0162 — Create defaults on a list scoped on a computed field
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request (recorded without business terms): the
+  built-in create of a scoped `ListView` presets only the scope field, and
+  only when the create action has it. A list scoped on a computed field (an
+  ancestor per level) cannot preset the writable field the scope implies, so
+  the page had to open its own `RecordForm` with the value. Requested: a
+  `ListView` option such as `createDefaults: {field: value}`, checked
+  against the form's fields, still ACL-checked and server-validated, so the
+  built-in create, its right and its submit label stay in use.
+- **Decision:** accepted as requested. The values are start values of the
+  form's inputs, shown and changeable (a hidden fixed value is what a writable
+  scope field already is); they are ordinary input, so the server's field
+  ACL and validation apply without a server change. String values only, as
+  the `filters` option and the form inputs (a checkbox `"1"`/`"0"`). The
+  built-in create form only; a drop into the list and a project's
+  `RecordForm` (which has `setValues`) are unchanged.
+- **Implemented:** `ListViewOptions.createDefaults` (checked: an object of
+  field names to strings, else `TypeError`); the create form starts with the
+  server's values, then these for the fields of the `__form` answer that are
+  not the scope field, a password or a file; another name is ignored with a
+  console warning. Feature demo D8: on the subkey scope (`parent_key_id`,
+  computed) `Hozzáadás` presets `Kulcs` with the selected key; the values
+  view gained `create`.
+- **Guides:** [ListView](toolkit.md#listview), [usage](usage.md),
+  [D8](demos.md#d8-key-browser), toolkit [changes](toolkit.md#changes),
+  migration row M49, [61ade-application skill](../.agents/skills/61ade-application/SKILL.md),
+  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
+- **Verification:** with [FB-0165](#fb-0165).
+- **Limits:** the built-in create form only; string values.
+- **Commit:** pending.
+- **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0163"></a>
+
+## FB-0163 — A pinned client command
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request: in a narrow region the list toolbar
+  collapses every command into `Műveletek`, and a mode switch (a toggle) then
+  disappears from view. Requested: a `pinned` option for client commands, as
+  ranges of the `CommandBar` have, kept visible before other items collapse.
+- **Decision:** accepted. The list toolbar is a `ResponsiveToolbar`, which
+  already keeps `bladePinned` items after the `Műveletek` button; a client
+  command maps `pinned` onto it. A toggle and a push button may be pinned
+  (`toolbar` and `record` placement); the collapse stays all or nothing for
+  the rest.
+- **Implemented:** `ClientCommand.pinned` (`resolveCommands` skips a
+  non-boolean with one warning); the list's toolbar item carries
+  `bladePinned`. A pinned toggle keeps `aria-pressed` in the bar. Feature
+  demo D8: `demo.subkey-values` is pinned.
+- **Guides:** [registries](toolkit.md#registries) (pinned command),
+  [responsive command bar](workspaces.md#responsive-command-bar-and-uniform-card-width),
+  [usage](usage.md), [D8](demos.md#d8-key-browser), toolkit
+  [changes](toolkit.md#changes), migration row M49.
+- **Verification:** with [FB-0165](#fb-0165).
+- **Limits:** pinned items still need their width; a bar with many pinned
+  commands still runs out of room.
+- **Commit:** pending.
+- **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0164"></a>
+
+## FB-0164 — One preference key for several scopes of a view
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request: a scoped `ListView` keeps its view mode,
+  sort, columns and panel sizes under `<view id>@<scope field>`. A page that
+  switches one view between several scope fields (five in the request) keeps
+  one set per field, so a sort chosen in one mode is gone in the next.
+  Requested: a `preferencesKey` option (or equivalent) so the host can share
+  one preference set across scopes.
+- **Decision:** accepted as requested: `preferencesKey` replaces the key; the
+  per-field key stays the default, and filter values of a scoped list stay
+  unsaved (the scope decides them). The FB-0159 toggle state is unaffected
+  (already per view id).
+- **Implemented:** `ListViewOptions.preferencesKey`
+  (`[a-z][a-z0-9_.-]*`, at most 80 characters, else `TypeError`); the list
+  keeps its `UiPreferences` under it (also the lists of a tree navigation).
+  Feature demo D8: both scopes of the values list use
+  `demo.registry-browser.values`.
+- **Guides:** [ListView](toolkit.md#listview) preferences,
+  [workspaces](workspaces.md) first sort, [usage](usage.md),
+  [D8](demos.md#d8-key-browser), toolkit [changes](toolkit.md#changes),
+  migration row M49.
+- **Verification:** with [FB-0165](#fb-0165).
+- **Commit:** pending.
+- **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0165"></a>
+
+## FB-0165 — Fields hidden from the details
+
+- **Date:** 2026-11-11.
+- **Request:** a consumer request: computed helper fields used only for
+  scoping (number ids) appear in `RecordDetails` and in the built-in `Adatok`
+  window. Requested: a field flag such as `details: false` (or a computed
+  `select` with options, so the value shows as a label), honoured by every
+  details surface.
+- **Decision:** the flag, as a presentation key of the field's `column`
+  (`column: {details: false}`, beside `secondary`), because it decides a
+  presentation and not access. The computed `select` was not added: it
+  would need options for a derived value and a second validation path, while
+  the flag already removes the helper. Every details surface reads the view's
+  `detailFields`, so the server leaves the field out there once.
+- **Implemented:** `Field` accepts `column.details` (boolean, else
+  `InvalidArgumentException`; JSON `column.details`); `ListViewKind` leaves
+  such a field out of `detailFields` (so `RecordDetails`, `Adatok` and cards)
+  and does not send the key with the columns. The field stays in records,
+  filters and scopes, and a declared list column still shows it. Feature
+  demo D8: `Szülőkulcs` (`parent_key_id`) is hidden from `Érték adatai`.
+- **Guides:** [field presentation](field-presentation.md),
+  [RecordDetails](toolkit.md#recorddetails), [workspaces](workspaces.md)
+  secondary columns, [usage](usage.md), [D8](demos.md#d8-key-browser),
+  toolkit [changes](toolkit.md#changes), migration row M49.
+- **Verification (FB-0162–FB-0165):** `npm run typecheck`, `npm run build`
+  (`node tools/build.mjs --check` clean), `npm run demo:assets`; PHP
+  `contracts`, `access`, `permissions`, `configuration`, `toolkit`, `lists`,
+  `tree-navigation`, `i18n`, `sorting`, `signage` and `list-presentation`
+  (new cases: a `details: false` computed field is absent from
+  `detailFields`, the key is not sent with the columns, the field stays a
+  filter and in the record, a non-boolean flag is refused); node
+  `toolkit-kernel`, `toolkit-list`, `toolkit-components`,
+  `toolkit-registries` (new: a pinned command kept, a non-boolean `pinned`
+  skipped with a warning), `toolkit-sandbox` passed. New browser spec
+  `scoped-list.spec.cjs` (2: on D8's computed subkey scope `Hozzáadás`
+  presets `Kulcs` with the selected key and saves it, the same name under
+  that key is refused in place by the server's unique check (`Ilyen
+  bejegyzés már létezik.`), `Szülőkulcs` absent from the value details and
+  the form, a sort chosen on one scope is the other scope's, one preference
+  key and no `@field` key in the browser; at 390 px the pinned toggle stays
+  beside `Műveletek` with `aria-pressed` while `Hozzáadás` is collapsed).
+  `list-toggle.spec.cjs` now unpins the demo toggle through a fixture module
+  for its `menuitemcheckbox` case and checks the `createDefaults` and
+  `preferencesKey` `TypeError`s. Affected specs passed on the managed demo:
+  `tree-component`, `component-remount`, `registry`, `list-presentation`,
+  `list-integration`, `grid-sort`, `command-bar`, `command-menu`,
+  `mobile-grid`, `workspace`, `preferences`, `subview`, `subview-demos`,
+  `activation`, `toolkit-list`, `toolkit-registries`, `toolkit-components`,
+  `toolkit-demo`, `toolkit-demo-tasks`, `toolkit-demo-assets`,
+  `menuless-view`, `grid-edit`, `browser` (102 passed, one WebSocket case
+  skipped as before). `grid-sort`'s virtual scrolling case failed once in
+  that run (the eighth wheel step brought no request within 5 s) and passed
+  in isolation twice (`--repeat-each=2`). No full-smoke claim.
+- **Commit:** pending.
+- **Status:** implemented and verified on the managed demo.

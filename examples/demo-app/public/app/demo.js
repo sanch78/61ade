@@ -1565,7 +1565,14 @@ function browser(app, host, view) {
         return;
       }
       clear("values");
-      list = new app.components.ListView({ view: values, scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) }, panel: false, showId: false });
+      list = new app.components.ListView({
+        view: values,
+        scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) },
+        panel: false,
+        showId: false,
+        preferencesKey: `${view.id}.values`,
+        ...subkeys ? { createDefaults: { key_id: String(node.id) } } : {}
+      });
       list.on("select", ({ row }) => showValue(row));
       list.on("toggle", ({ command, pressed: pressed2 }) => {
         if (command === TOGGLE && pressed2 !== subkeys) {
@@ -1610,7 +1617,7 @@ function browser(app, host, view) {
 }
 var registryBrowser = (app) => {
   app.kinds.register(KIND6, { create: (host, view) => browser(app, host, view) });
-  app.commands.register(TOGGLE, { type: "toggle", label: "Alkulcsok \xE9rt\xE9kei", icon: "dxi dxi-folder", placement: "toolbar", pressed: false });
+  app.commands.register(TOGGLE, { type: "toggle", label: "Alkulcsok \xE9rt\xE9kei", icon: "dxi dxi-folder", placement: "toolbar", pressed: false, pinned: true });
 };
 var registry_browser_default = registryBrowser;
 

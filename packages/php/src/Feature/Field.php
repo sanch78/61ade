@@ -62,9 +62,9 @@ final readonly class Field
             }
         }
         foreach ($column as $property => $value) {
-            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of'], true)
+            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'details', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of'], true)
                 || match ($property) {
-                    'editable', 'secondary' => !is_bool($value),
+                    'editable', 'secondary', 'details' => !is_bool($value),
                     'align' => !in_array($value, ['left', 'center', 'right'], true),
                     'media' => !is_string($value) || !preg_match('/^[a-z][a-z0-9_.-]*$/D', $value),
                     // `icon`, `image` or a project presentation (`app.presentations`): a dotted name the browser resolves.

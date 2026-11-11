@@ -455,9 +455,16 @@ command `demo.copy-text` ([example](#example-tasks)).
   toggle changes nothing by itself: the host gives it its meaning with what
   the list offers (another `scope`, `setFilters`, `refresh`), and anything it
   reads goes through `app.server.call` like every command.
+- **Pinned command** (`pinned: true`, [FB-0163](feedback.md#fb-0163)): a client
+  command (a toggle or a push button) that stays in the list's toolbar when a
+  narrow region or a phone collapses the other commands into `Műveletek`,
+  after its menu button, as a `CommandBar` range does. A toggle keeps
+  `aria-pressed` there. Pin only what must stay in view, such as a mode
+  switch: pinned items still need their width. A `pinned` that is not a
+  boolean skips the command with one warning.
 
   ```ts
-  app.commands.register("demo.subkey-values", { type: "toggle", label: "Alkulcsok értékei", icon: "dxi dxi-folder", placement: "toolbar" });
+  app.commands.register("demo.subkey-values", { type: "toggle", label: "Alkulcsok értékei", icon: "dxi dxi-folder", placement: "toolbar", pinned: true });
   // The page: the kept state decides the first list's scope, a change mounts the list of the other scope.
   let subkeys = app.preferences.scope("demo.subkey-values").get<boolean>("demo_registry_browser_values") === true;
   const mountList = () => {
@@ -587,7 +594,13 @@ current.mount(layout.getCell("list"));
   list) the filter values, exactly as for the menu page of that id. Passing an offered id shares the
   menu page's state; a page that must keep its own passes the held definition
   under its own view id (`{ ...app.viewDefinition("demo_readings"), id:
-  view.id }`, [example](#example-readings)). Marks and the cursor record are
+  view.id }`, [example](#example-readings)). **`preferencesKey`**
+  (`[a-z][a-z0-9_.-]*`, at most 80 characters; [FB-0164](feedback.md#fb-0164))
+  replaces that key: a page that switches one view between several scope
+  fields (`key_id`, `parent_key_id`) gives every list the same key, so they
+  share one mode, sort, columns and panel sizes instead of one set per field;
+  filter values of a scoped list stay unsaved. Any other value throws
+  `TypeError`. Marks and the cursor record are
   transient: they are never stored, so a reload or a new instance starts
   without them.
 - **Active context (`target`):** a panel following the active record subscribes
@@ -622,6 +635,22 @@ current.mount(layout.getCell("list"));
   menu page).
 - **`showId: false`:** no ID column and no `ID · n` line on cards (a page whose
   users do not work with record ids).
+- **`createDefaults`** ([FB-0162](feedback.md#fb-0162)): the values the
+  built-in create form (`Hozzáadás`) starts with, `{field: value}` with string
+  values (a checkbox `"1"`/`"0"`). A scoped list presets its scope field only
+  when the create action has that field; a list scoped on a computed field
+  (an ancestor per level, a derived group) presets the writable field the
+  scope implies this way, and keeps the built-in create, its right and its
+  submit label. Only fields of that form take part (not the scope field, a
+  password or a file); another name is ignored with one console warning. The
+  values are ordinary input: the user may change them, the action's ACL and
+  field ACL apply and the server validates them on save. A value that is not
+  a string, or a name that is not a field name, throws `TypeError`. Other
+  creates (a drop into the list, a project's `RecordForm`) are not affected.
+  ```ts
+  new app.components.ListView({ view: "demo_registry_browser_values", scope: { field: "parent_key_id", id: node },
+    createDefaults: { key_id: node }, preferencesKey: "demo.registry-browser.values", panel: false });
+  ```
 - **`dragSource: true`:** the rows can be dragged into another list of the page
   that declares `drop` from this view's resource
   ([manual order and drops](workspaces.md#manual-order)); the dragged record,
@@ -761,7 +790,10 @@ list.on("select", ({ row }) => { if (row) void details.show(row); });
 ```
 
 `record` (and `show`) take a row, shown as given, or an id, loaded through
-the view's `get` (a newer call wins). A failed load shows the error dialog and
+the view's `get` (a newer call wins). A field declared with
+`column: {details: false}` ([FB-0165](feedback.md#fb-0165),
+[field presentation](field-presentation.md)) is left out here, in `Adatok`
+and on cards, while the list can still filter and scope by it. A failed load shows the error dialog and
 `show()` rejects. It has no events. `showId: false` leaves out the `ID · n`
 line.
 
@@ -2552,6 +2584,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M46 | [Tree](#tree): `app.components.Tree` over a list view with a hierarchy on itself (`select`, `activate`; `selected`, `select(id)`, `refresh(id?)`; `initial`, `id`); tree navigation's panel is built on it and its keys follow the WAI-ARIA tree (Space selects, Enter selects and activates) | [FB-0158](feedback.md#fb-0158) | info: a tree navigation spec that relied on Suite's own key handling uses the documented keys | none | none |
 | M47 | Toggle command ([registries](#registries)): `ClientCommand.type: "toggle"`, `pressed`, `toggle(context)`; `run` is optional for a toggle; the state in `app.preferences.scope(<command name>)` under the view id; `ListView` event `toggle` | [FB-0159](feedback.md#fb-0159) | info: TypeScript code that calls `command.run(…)` on a `ClientCommand` handles the optional `run` | none | none |
 | M48 | [Menu attention](shell.md#menu-attention): `attention: ['filters' => […], 'tone' => …]` on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.attention`; bootstrap `attention`; a live count badge on the entry, its branch and `Menü` | [FB-0160](feedback.md#fb-0160) | info: an entry with a count has the accessible name `‹label›, n függőben`; its branch and `Menü` keep their names but their visible text gains the number; each such view adds one live subscription of one row per page | none | none |
+| M49 | [ListView](#listview) `createDefaults` and `preferencesKey`; `ClientCommand.pinned` ([registries](#registries)); `column.details: false` on a field ([field presentation](field-presentation.md)), left out of `detailFields` | [FB-0162](feedback.md#fb-0162)–[FB-0165](feedback.md#fb-0165) | info: a consumer that strips helper fields from its own details, opens its own create form with a preset, keeps a toggle in `Műveletek` or keeps one preference set per scope can use these instead | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2685,6 +2718,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-10 | `ClientCommand.type` (`"button"` \| `"toggle"`), `.pressed`, `.toggle(ToggleContext)`; `ClientCommand.run` is optional (required unless `type: "toggle"`); `ToggleContext`; `ListViewEvents.toggle`. Additive (M47). | A list-wide mode switch in the list's own toolbar, kept per view (a consumer request). | [FB-0159](feedback.md#fb-0159) |
 | 2026-11-10 | `ViewDefinition.attention` (`{filters, tone}`). PHP `View::$attention`, `attention` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.attention`. Additive (M48). | Pending work on a view must be noticed from any page (a consumer request). | [FB-0160](feedback.md#fb-0160) |
 | 2026-11-11 | Destroy + mount of a component into the same Layout cell, tab, region, window or view host in one task shows the new component (it was empty until the next frame's work-around); a cell that showed markup (`attachHTML`, an element) takes a widget or component. No API change. | A page re-scoping its list and details from a tree replaces components in the same cells many times (a consumer request). | [FB-0161](feedback.md#fb-0161) |
+| 2026-11-11 | `ListViewOptions.createDefaults` (start values of the built-in create form), `ListViewOptions.preferencesKey` (the preference key instead of the view id, shared across scopes); `ClientCommand.pinned` (kept in the toolbar when the others collapse); PHP/JSON field `column.details: false` (left out of `detailFields`: `RecordDetails`, `Adatok`, cards). Additive (M49). | A page that scopes one list view on several fields, one of them computed, from a tree (a consumer request). | [FB-0162](feedback.md#fb-0162)–[FB-0165](feedback.md#fb-0165) |
 
 <a id="resolved-decisions"></a>
 

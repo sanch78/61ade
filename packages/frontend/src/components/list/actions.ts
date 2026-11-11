@@ -15,6 +15,8 @@ import type { ActionDefinition, FieldDefinition, ViewDefinition, WorkspaceScope 
 export interface ActionHost{
   readonly view:ViewDefinition;
   readonly scope?:WorkspaceScope;
+  /** Start values of the built-in create form (`ListViewOptions.createDefaults`). */
+  readonly createDefaults?:Readonly<Record<string,string>>;
   readonly layout:Layout;
   readonly disposed:boolean;
   /** A load or command is running (shared with the list's data window). */
@@ -154,7 +156,8 @@ export class ListActions{
     try{
       const schema=await list.call("__form",id??null,{operation:action.name});if(list.disposed||epoch!==this.epoch)return;
       const allowed=schema.fields as FieldDefinition[];
-      const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field).map(f=>input(f,f.type==="password"?"":schema.values[f.name])),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
+      const start=action.name==="create"?this.createValues(schema.values,allowed):schema.values;
+      const form=new Form(document.createElement("div"),{padding:20,rows:[...allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field).map(f=>input(f,f.type==="password"?"":start[f.name])),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
       this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.releaseTypes();this.editor=form;
       const files=this.fileFields=new FileFields(form,allowed,list.resourceCall,[schema.values,id?list.rows.find(row=>String(row.id)===id):undefined]);
       const types=this.fieldTypes=bindFieldTypes(form,allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field),undefined,()=>{if(this.dialog?.isVisible())void fitWindow(this.dialog);});
@@ -174,6 +177,17 @@ export class ListActions{
       }
       this.bindSave(form,action,id??null,schema.values,allowed,close,close);
     }catch(e){await list.error(e);}
+  }
+  /**
+   * The create form's start values: the server's, then the list's `createDefaults` for the fields of that form (not
+   * the scope field, a password or a file; another name is ignored with a warning). The server validates them on save.
+   */
+  private createValues(values:Row,allowed:FieldDefinition[]):Row{
+    const defaults=this.list.createDefaults;if(!defaults)return values;
+    const usable=new Set(allowed.filter(f=>f.name!=="revision"&&f.name!==this.list.scope?.field&&f.type!=="password"&&f.type!=="file").map(f=>f.name));
+    const ignored=Object.keys(defaults).filter(name=>!usable.has(name));
+    if(ignored.length)console.warn(`61ade: createDefaults of ${this.list.view.id} names no field of its create form: ${ignored.join(", ")}.`);
+    return {...values,...Object.fromEntries(Object.entries(defaults).filter(([name])=>usable.has(name)))};
   }
   /**
    * An upload action (`upload` policy, for example "upload as asset"): the shared uploader sends the files
