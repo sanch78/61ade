@@ -5,10 +5,11 @@ import type { Column, ViewDefinition, WorkspaceScope } from "./types";
 
 /**
  * Command bar items of client commands (`app.commands`): the translated, escaped label and the icon; a toggle is a
- * Suite two-state item (`aria-pressed`, a checked entry in `Műveletek`) in its $pressed state.
+ * Suite two-state item (`aria-pressed`, a checked entry in `Műveletek`) in its $pressed state; a pinned one stays in the
+ * bar when the others collapse (`bladePinned`, ResponsiveToolbar).
  */
 const clientItems=(commands:ListCommand[],pressed:(command:ListCommand)=>boolean)=>commands.map(command=>({id:command.id,value:escape(t(command.entry.label)),...(command.entry.icon?{icon:command.entry.icon}:{}),
-  ...(command.entry.type==="toggle"?{twoState:true,active:pressed(command),css:"blade-command--toggle"}:{})}));
+  ...(command.entry.type==="toggle"?{twoState:true,active:pressed(command),css:"blade-command--toggle"}:{}),...(command.entry.pinned?{bladePinned:true}:{})}));
 /**
  * The list's command bar items (one `ResponsiveToolbar`, the public `CommandBar`'s toolbar): the built-in client
  * commands (details), filter dialog (narrow screens), the view's actions, its declared client commands, the sub-view

@@ -91,6 +91,8 @@ export class Workspace implements ActionHost {
    * only, removable like any other. A menu page keeps its filter values across reloads (UiPreferences).
    * $hooks: the public `ListView` events (top-level list only) and the application for `view:<id>` activation.
    */
+  /** Start values of the built-in create form (`ListViewOptions.createDefaults`, the top-level list only). */
+  get createDefaults():Readonly<Record<string,string>>|undefined{return this.hooks.createDefaults;}
   constructor(host:HTMLElement,readonly view:ViewDefinition,private channel:LiveChannel,private user="",readonly scope?:WorkspaceScope,preset:Record<string,string>={},private hooks:WorkspaceHooks={}){
     // A nested view: the scope field is implied (no column, filter or input), one grid region, overlay forms.
     if(scope)view=this.view={...view,columns:view.columns.filter(column=>column.id!==scope.field),filters:view.filters.filter(filter=>filter.name!==scope.field),sortable:(view.sortable??[]).filter(field=>field!==scope.field),layout:{formMode:"overlay",tree:{rows:[{id:"grid"}]}}};
@@ -101,7 +103,7 @@ export class Workspace implements ActionHost {
     // A manual order sorts by its position only: no header or card sorting.
     if(view.order)view=this.view={...view,sortable:[]};
     if(scope?.compact)view=this.view={...view,filters:[],search:undefined,rowNumbers:false,selection:false,rowSelection:false,tiles:false,columns:view.columns.map(column=>({...column,secondary:false}))};
-    this.preferences=new UiPreferences(user,scope?view.id+"@"+scope.field:view.id);
+    this.preferences=new UiPreferences(user,hooks.preferencesKey??(scope?view.id+"@"+scope.field:view.id));
     this.sort=view.order?{field:view.order.field,direction:"asc"}:this.preferences.sort(view.sortable??[])??(view.sort&&(view.sortable??[]).includes(view.sort.field)?{...view.sort}:this.sort);
     this.details=new DetailsWindow(view,id=>this.call("get",id),()=>this.disposed,error=>this.error(error));
     this.actions=new ListActions(this);

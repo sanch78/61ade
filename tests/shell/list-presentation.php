@@ -162,4 +162,21 @@ check($db->query("SELECT COUNT(*) FROM blade_audit WHERE resource='shelves' AND 
 $mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[['id'=>'file','header'=>'File'],['id'=>'m_type','header'=>'Type','media_of'=>'file','part'=>'type'],['id'=>'m_size','header'=>'Resolution','media_of'=>'file','part'=>'resolution']],['get']));
 check(array_column($mediaRegistry->views()[0]->options['columns'],'part')===['type','resolution'],'Derived media columns kept');
 foreach([[['id'=>'x','media_of'=>'title','part'=>'type']],[['id'=>'x','media_of'=>'file','part'=>'size']],[['id'=>'x','media_of'=>'missing','part'=>'type']],[['id'=>'title','media_of'=>'file','part'=>'type']],[['id'=>'x','part'=>'duration']]] as $columns){try{$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',$columns,['get']));throw new RuntimeException('Invalid derived media column accepted');}catch(InvalidArgumentException $e){check($e->getMessage()==='Invalid derived media column.','Invalid derived media column rejected');}}
+// `column.details: false` (FB-0165): a computed helper field leaves every details surface (detailFields) but stays a
+// filterable, readable field of the list; a non-boolean value is refused.
+$helperDb=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+Blade\Access\Schema::install($helperDb);
+$helperDb->exec("CREATE TABLE parts(id INTEGER PRIMARY KEY,title TEXT,group_id INTEGER); INSERT INTO parts VALUES(1,'Bolt',7)");
+$helperRegistry=new Registry();
+(new SqlResource('parts','parts','id',[new Field('title','Title'),new Field('group_id','Group',type:'number'),new Field('outer_id','Outer group',type:'number',column:['details'=>false])],computed:['outer_id'=>'blade_base.group_id + 100']))->register($helperRegistry,'Parts');
+$helperWorkspace=new Workspace($helperRegistry,$helperDb);
+$helperDb->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','parts','list','ui','allow','all','',''),('user','1','parts','get','ui','allow','all','','')");
+$helperView=$helperWorkspace->views($actor)[0];
+check(array_column($helperView['options']['detailFields'],'id')===['title','group_id'],'A details: false field is left out of the details');
+check(!array_filter($helperView['options']['columns'],static fn($column)=>array_key_exists('details',$column)),'The details flag is not sent with the columns');
+check(in_array('outer_id',array_column($helperView['options']['filters'],'name'),true),'A details: false field stays filterable');
+$helperCtx=new Context($actor,'ui',$helperWorkspace->acl,$helperDb);
+check((string)$helperWorkspace->executor->execute($helperCtx,'parts','get','1',[])['outer_id']==='107','A details: false field stays in the record');
+$refused=false;try{new Field('flag','Flag',column:['details'=>'no']);}catch(InvalidArgumentException){$refused=true;}
+check($refused,'A non-boolean details flag is refused');
 echo "List presentation, bulk ACL and delete usage contracts passed.\n";

@@ -96,6 +96,11 @@ tree as decoration for a flat list.
   there right away ([FB-0161](../../../docs/feedback.md#fb-0161)). A
   rebuilt page Layout is attached before the old one is released, and
   release components before the layout that holds them.
+- A page that scopes one list view on several fields shares one
+  `preferencesKey` across them, pins its mode toggle (`pinned: true`), presets
+  the field a computed scope implies with `createDefaults`, and declares a
+  helper field used only for scoping `column.details: false`
+  ([FB-0162](../../../docs/feedback.md#fb-0162)–[FB-0165](../../../docs/feedback.md#fb-0165)).
 - A composed list's saved presentation state (mode, sort, columns, filters)
   belongs to the view identity it is given. Reuse the menu page's identity
   only when sharing its state is intended; otherwise give the composed list

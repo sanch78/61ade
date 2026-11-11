@@ -666,3 +666,19 @@
 <a id="fb-0161"></a>
 
 ## FB-0161 — Destroy and mount into the same cell shows an empty cell
+
+<a id="fb-0162"></a>
+
+## FB-0162 — Create defaults on a list scoped on a computed field
+
+<a id="fb-0163"></a>
+
+## FB-0163 — A pinned client command
+
+<a id="fb-0164"></a>
+
+## FB-0164 — One preference key for several scopes of a view
+
+<a id="fb-0165"></a>
+
+## FB-0165 — Fields hidden from the details

@@ -65,6 +65,20 @@ Use business meanings such as Active/Archived where possible.
  "column": {"secondary": true}}
 ```
 
+`details: false` ([FB-0165](feedback.md#fb-0165)) leaves a field out of every
+details surface: `RecordDetails`, the list's `Adatok` window and cards (the
+view's `detailFields`). It is meant for helper fields that only scope or
+filter a list, such as a computed ancestor id: the field stays in the record,
+the list's filters and a `scope`, and a list column still shows it when the
+view declares one. It hides a value from a presentation, not from the user;
+access control remains the field ACL and `secret`. A non-boolean value is
+refused (`InvalidArgumentException`).
+
+```json
+{"name": "parent_key_id", "label": "Szülőkulcs", "type": "number",
+ "column": {"details": false}}
+```
+
 PHP Field takes type checkbox, column width/alignment and defaultValue.
 The JSON compiler produces the same definition.
 

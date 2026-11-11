@@ -64,4 +64,8 @@ export type WorkspaceHooks={
   showId?:boolean;
   /** The presentation until the user picks one (public `ListViewOptions.mode`). */
   mode?:"table"|"cards"|"tiles";
+  /** Start values of the built-in create form (public `ListViewOptions.createDefaults`). */
+  createDefaults?:Readonly<Record<string,string>>;
+  /** The preference key instead of the view id (public `ListViewOptions.preferencesKey`). */
+  preferencesKey?:string;
 };

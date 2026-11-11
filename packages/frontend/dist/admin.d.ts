@@ -1043,6 +1043,11 @@ export interface ClientCommand {
     type?: "button" | "toggle";
     /** A toggle's state while the user has not changed it for that view. Default false. */
     pressed?: boolean;
+    /**
+     * true: the command stays in the list's toolbar when a narrow toolbar collapses the others into `Műveletek` (as a
+     * `CommandBar` range does). Keep it to the few commands that must stay in view, such as a mode switch. Default false.
+     */
+    pinned?: boolean;
     /** A toggle's action after every user change, with the new state (the list's `toggle` event follows it). */
     toggle?(context: ToggleContext): void | Promise<void>;
 }
@@ -1105,6 +1110,18 @@ export interface ListViewOptions extends ComponentOptions {
     };
     /** Filters the list opens with instead of the saved ones (declared filters only). */
     filters?: Record<string, string>;
+    /**
+     * Values the built-in create form starts with (field name → value; a checkbox `"1"`/`"0"`), for a field the scope
+     * implies but cannot set itself (a scope on a computed field). Only fields of that form take part (another name is
+     * ignored with a warning); the user may change them, and the server checks and validates them as typed values.
+     */
+    createDefaults?: Record<string, string>;
+    /**
+     * The key of the user's saved mode, sort, columns and panel sizes (`[a-z][a-z0-9_.-]*`, at most 80 characters)
+     * instead of the view id (a scoped list: `<view id>@<scope field>`), so lists of several scopes of one view share
+     * them. Filter values stay unsaved for a scoped list.
+     */
+    preferencesKey?: string;
     /**
      * The rows can be dragged (copied) into a list on the page that declares `drop` from this view's resource
      * (`ListKindOptions.drop`); the dragged record, or every marked record when it is marked. Default false.

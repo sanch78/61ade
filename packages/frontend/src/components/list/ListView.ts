@@ -22,9 +22,13 @@ export class ListView extends Component<ListViewEvents> implements ListViewApi{
   constructor(context:ListContext,options:ListViewOptions){
     super(options);
     if(options.compact&&!options.scope)throw new TypeError("61ade: a compact ListView needs a scope.");
+    const defaults=options.createDefaults,key=options.preferencesKey;
+    if(defaults!==undefined&&(defaults===null||typeof defaults!=="object"||Array.isArray(defaults)||Object.entries(defaults).some(([name,value])=>!/^[a-z][a-z0-9_]*$/.test(name)||typeof value!=="string")))
+      throw new TypeError("61ade: ListView option `createDefaults` maps field names to string values.");
+    if(key!==undefined&&(typeof key!=="string"||!/^[a-z][a-z0-9_.-]{0,79}$/.test(key)))throw new TypeError("61ade: ListView option `preferencesKey` must match [a-z][a-z0-9_.-]* (at most 80 characters).");
     const app=context.app(),view=listDefinition(resolveListView(app,options.view));
     const scope=options.scope?{field:String(options.scope.field),id:String(options.scope.id),...(options.scope.select===false?{select:false}:{}),...(options.compact?{compact:{height:(pixels:number)=>options.compact!.height(pixels)}}:{})}:undefined;
-    const hooks={emit:<K extends keyof ListViewEvents>(event:K,payload:ListViewEvents[K])=>this.emit(event,payload),app,view:resolveListView(app,options.view),...(options.dragSource?{dragSource:true}:{}),...(options.panel===false?{panel:false}:{}),...(options.showId===false?{showId:false}:{}),...(options.mode?{mode:options.mode}:{})};
+    const hooks={emit:<K extends keyof ListViewEvents>(event:K,payload:ListViewEvents[K])=>this.emit(event,payload),app,view:resolveListView(app,options.view),...(options.dragSource?{dragSource:true}:{}),...(options.panel===false?{panel:false}:{}),...(options.showId===false?{showId:false}:{}),...(options.mode?{mode:options.mode}:{}),...(defaults?{createDefaults:Object.freeze({...defaults})}:{}),...(key?{preferencesKey:key}:{})};
     const tree=scope?undefined:view.tree;
     if(tree){
       this.navigation=new TreeNavigation(this.host,context,tree as any,view.title,view.id,node=>{

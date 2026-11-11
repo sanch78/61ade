@@ -213,7 +213,9 @@ the sort it starts with, `sort: ['field' => f, 'direction' => 'asc'|'desc']`
 (PHP `View::list`, `Registry::view`, `SqlResource::register`; JSON
 `resources.<name>.view.sort`, `{"field": "id", "direction": "asc"}` for
 oldest first). It applies until the user picks a sort, which the list keeps
-as before (per page and user; a scoped list under `<view id>@<field>`).
+as before (per page and user; a scoped list under `<view id>@<field>`, or the
+`ListView` option `preferencesKey` that several scopes share,
+[ListView](toolkit.md#listview)).
 `field` is `id` or a field the list can sort by (not secret, a password,
 textarea or multiselect); a singleton, a list with a [manual
 order](#manual-order) (its position sorts it), an unknown field or a
@@ -921,7 +923,8 @@ Toolbar dropdown as accessible toggle items. The grid uses the native
 `showColumn`/`hideColumn` methods, and each user's choices persist with the
 existing view preferences. The dropdown is rendered only when the view declares
 at least one secondary column. Cards and record details continue to include all
-permitted fields.
+permitted fields except those declared `column.details: false`
+([field presentation](field-presentation.md)).
 
 The pencil stays beside the title. Hover sort icon has its own 24 px right area.
 Only one direction indicator reflects server SQL order. Titles ellipsize as
@@ -1008,7 +1011,9 @@ Below 768 px viewport or when panel width cannot fit buttons, the entire native
 Toolbar moves into Actions dropdown: Details, Filter, business actions, sorting
 and views. Original IDs, hidden/disabled state and events remain; backend ACL
 still checks. Wide panels restore horizontal layout/right selectors. Forced
-mobile cards keep their selector disabled.
+mobile cards keep their selector disabled. A client command registered with
+`pinned: true` stays in the bar after the Actions button (a mode switch such as
+a toggle), as a `CommandBar` range does ([FB-0163](feedback.md#fb-0163)).
 
 DataView uses native itemsInRow widths with border-box and no content-driven
 flex shrinking. Long unbroken words wrap; every mobile card has equal width.

@@ -7,7 +7,9 @@
 // of its direct subkeys (`parent_key_id`, a computed field): the page reads the kept state before the first list, so
 // the first load already uses it, and mounts the list of the other scope on every change. Each panel is a region of
 // the page: a hint while it has no record, then the component mounted into the same region, replaced there as often
-// as the selection changes.
+// as the selection changes. The values list of both scopes shares its view choices (`preferencesKey`); on the computed
+// scope its `Hozzáadás` presets the selected key (`createDefaults`); the key's computed parent is hidden from the
+// value details (`column.details: false`).
 import type { Application, ApplicationModule, ListKindOptions, ListView, PageLayout, PageRegion, RecordDetails, Row, Tree, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 
 /** `views.demo.registry-browser.options` of registry.json: the tree's node view and the values view (both `menu: false`). */
@@ -90,7 +92,9 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
       showValue(undefined);
       if (!values || !node) { show("values", values ? t("Válassz egy kulcsot a fában.") : t("Az értékek nem érhetők el.")); return; }
       clear("values");
-      list = new app.components.ListView({ view: values, scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) }, panel: false, showId: false });
+      // Both scopes share one set of view choices; on the computed scope the built-in create presets the key itself.
+      list = new app.components.ListView({ view: values, scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) }, panel: false, showId: false,
+        preferencesKey: `${view.id}.values`, ...(subkeys ? { createDefaults: { key_id: String(node.id) } } : {}) });
       list.on("select", ({ row }) => showValue(row));
       list.on("toggle", ({ command, pressed }) => { if (command === TOGGLE && pressed !== subkeys) { subkeys = pressed; showList(); } });
       list.mount(layout.cell("values"));
@@ -118,6 +122,7 @@ const registryBrowser: ApplicationModule = app => {
   app.kinds.register(KIND, { create: (host, view: ViewDefinition<BrowserOptions>) => browser(app, host, view) });
   // A two-state command of the values list's own toolbar; its state is kept per view, so the page above reads it
   // before it creates the list and keeps it when it mounts the list of the other scope.
-  app.commands.register(TOGGLE, { type: "toggle", label: "Alkulcsok értékei", icon: "dxi dxi-folder", placement: "toolbar", pressed: false });
+  // Pinned: it stays in the bar of the narrow values panel when the other commands collapse into `Műveletek`.
+  app.commands.register(TOGGLE, { type: "toggle", label: "Alkulcsok értékei", icon: "dxi dxi-folder", placement: "toolbar", pressed: false, pinned: true });
 };
 export default registryBrowser;
