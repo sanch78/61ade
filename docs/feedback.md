@@ -6626,8 +6626,8 @@ that exactly equals an option label lists every option. The managed
     not loaded on the next mount, so `initial` applies;
   - a bulk expansion is not a search, and the control's cap notice is a
     toast, not a persistent message.
-- **Commit:** pending.
-- **Status:** implemented and verified on the managed demo (targeted).
+- **Commit:** `f66f5b0` on `main`.
+- **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0169"></a>
 
@@ -6760,5 +6760,5 @@ that exactly equals an option label lists every option. The managed
   or video become tall (meant for text records); a compact preview ignores
   both options; there is no view-level `mode` (the first of `modes` is the
   start); `modes` cannot leave out the phone's forced cards for a table.
-- **Commit:** pending.
+- **Commit:** `f66f5b0` on `main`.
 - **Status:** implemented and verified on the managed demo.
