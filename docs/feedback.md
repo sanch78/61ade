@@ -7552,3 +7552,97 @@ that exactly equals an option label lists every option. The managed
   matching connection collation, which is a documented prerequisite. Equality
   follows the column collation; no binary comparison is enforced.
 - **Status:** implemented; MySQL re-qualification pending.
+
+<a id="fb-0180"></a>
+
+## FB-0180 — Delegated access through consumer-owned relationship tables
+
+- **Date:** 2026-11-12.
+- **Request:** a person may see records through an ownership relationship
+  without being allowed to change them. Provide an opt-in resource
+  declaration with independent read and write link sets, plus the ACL scope
+  `delegated`.
+  - Links of one set are OR-combined; an empty set grants nothing.
+  - An optional single intermediate join reaches a parent through ownership
+    of a child.
+  - The server enforces it on every path that returns or changes the
+    resource's rows, and fails closed on a missing declaration.
+  - Delegated write allows on stored rows also need the row's effective
+    `get`. Create and changed destinations are decided on the final values.
+  - Delegated denies use the raw link set.
+  - A synthetic feature-demo example.
+- **Implemented:**
+  - **Declaration:** `Blade\Feature\Delegation(read, write)`,
+    `DelegationLink(table, objectColumn, actorColumn, resourceColumn, via)`
+    and `DelegationVia(table, key, parentColumn)`, passed as the
+    `SqlResource` `delegation` argument; JSON `storage.delegation`.
+  - **Binding:** `SqlResource::register()` validates the resource columns
+    and binds a `DelegationScope` (`Registry::delegate()`/`delegation()`),
+    which `Acl` reads through its new provider argument.
+  - **Rule evaluation:** `Acl::allows()`/`fieldAllowed()` evaluate
+    `delegated` against the stored row or a `destination`, and `deferred`
+    lets a create wait for its final values. `Acl::predicate()` correlates
+    with an explicit `qualifier`, which `ListSource` and `Lookup` pass.
+  - **Executor:** `Executor::permit()` re-resolves the ACL object through
+    the resource's resolver and returns whether the decision is deferred.
+    `SqlResource` checks create/update on the final row, including every
+    written field, and authorizes renumbered peers of `move`.
+  - **Administration:** offers `Delegált objektum` and refuses it for a
+    resource without a declaration.
+  - **Fail closed:** a deny with an unknown scope now denies.
+- **Guides:** [access and actions](access-and-actions.md#delegated-access),
+  [configuration](configuration.md), [usage](usage.md),
+  [toolkit](toolkit.md) M62, [demos](demos.md).
+- **Demo:** `Gyűjtemények` (`modules/collections.json`): synthetic
+  collections A, B and C and the link tables `demo_collection_readers` and
+  `demo_collection_writers`. The new `delegate@example.test` account has
+  `delegated` `list`/`get`/`update` rules: it lists A and B and edits only
+  A. The demo account keeps ordinary `all` grants. The setup is idempotent:
+  a second run adds no row, link or rule, and the existing accounts, data
+  and grants are unchanged.
+- **Verification (SQLite):**
+  - **`delegation.php`:**
+    - lists, totals, filters, cursors (also a forged one), gets and forged
+      ids, the API channel with token scopes;
+    - the via link, write links with and without `get` visibility, row
+      `_actions` and forms (including the deferred create form);
+    - parent-FK create, normalized and changed destinations, inline edit,
+      bulk, upload authorization, custom actions with a forged row, a
+      missing row or no object;
+    - object and field denies against the final destination, manual-order
+      peers;
+    - `Lookup` choices, count fields, observe/watch, tenant composition and
+      revocation;
+    - fail-closed object/field/declaration-removal cases, an unknown-scope
+      deny, the disabled state and the JSON declaration and its errors.
+  - **Mutations:** ten mutations were each caught: no `get` visibility, no
+    create or update destination check, no destination field check, no
+    authoritative verify, an unqualified correlation, no move peer check,
+    an ignored unknown deny, a no-subject allow and no deferral.
+  - **`permissions.php`:** covers the admin refusal.
+  - **Regression:** all 27 PHP checks of the broad list passed. `signage`
+    needs the ignored demo media, which were linked into the worktree for
+    that check.
+- **Limits:** one `via` level; at most ten links per set. Link tables are
+  global, so relationship keys must be unique across the realms involved.
+  Key types must be compatible, and on MySQL string keys need matching
+  collations. Custom exports must use the scoped `ListSource`. A
+  generated-key `resourceColumn` cannot authorize a create.
+- **Independent review (same day):** fixed, each with a test and a caught
+  mutation:
+  - a consumer `create` was deferred without a final-value check; deferral
+    is now limited to SqlResource's own create;
+  - a custom resolver of another resource's row was decided on the
+    same-id row; a resolver's `row` must now equal the stored row;
+  - a delegated deny without a verified object was dropped; it now denies;
+  - the API `get` requirement ignored token scopes; it now needs
+    `<resource>.get`;
+  - upload staging for a deferred create needed no link; it now needs a
+    write link;
+  - destination decisions were cached through `json_encode`; they are no
+    longer cached;
+  - the stored-row check used an alias, so a `where` naming the table
+    failed; it now uses the bare table;
+  - a scope query over another table was not refused; it now fails closed.
+- **Status:** implemented; MySQL qualification and the managed-demo browser
+  check pending.

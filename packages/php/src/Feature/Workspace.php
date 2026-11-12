@@ -21,7 +21,7 @@ final class Workspace
     public function __construct(public readonly Registry $registry,public readonly \PDO $db,bool $tenancy=false)
     {
         $this->tenancy=$tenancy?new \Blade\Tenancy\Tenancy($db):null;
-        $this->acl=new Acl($db);$this->journal=new Journal($db);$this->executor=new Executor($registry,$db,$this->journal);$this->tasks=new TaskQueue($db);$this->transfers=new Transfers($registry,$this->executor,$this->journal);
+        $this->acl=new Acl($db,$registry->delegation(...));$this->journal=new Journal($db);$this->executor=new Executor($registry,$db,$this->journal);$this->tasks=new TaskQueue($db);$this->transfers=new Transfers($registry,$this->executor,$this->journal);
     }
     public function version(string $actor): int
     {
@@ -106,12 +106,14 @@ final class Workspace
         $actor=$ctx->actor->id;
         $t=$action->resolve?($action->resolve)($ctx,$id):['id'=>$id,'owner'=>null];
         Executor::sharedWrite($ctx,$action,$t);
-        if(!$this->acl->allows($actor,$action->resource,$action->name,'ui',$t['id']??null,$t['owner']??null))throw new Failure('Nincs hozzáférés.',403);
+        $object=isset($t['id'])?(string)$t['id']:null;
+        try{$deferred=$this->executor->permit($ctx,$action,$object,isset($t['acl_id'])?(string)$t['acl_id']:$object,isset($t['owner'])?(string)$t['owner']:null,$t);}
+        catch(Failure $e){throw $e->status===404&&$ctx->channel!=='api'?new Failure('Nincs hozzáférés.',403):$e;}
         $values=$action->formValues?($action->formValues)($ctx,$t):($id!==null?$this->executor->execute($ctx,$action->resource,'get',$id,[]):[]);
         $shown=fn(Field $f)=>!$f->secret&&$f->type!=='password'&&is_array($values)&&array_key_exists($f->name,$values);
         $fields=array_map(fn($f)=>[...$this->fieldMetadata($ctx,$f),'readOnly'=>true],array_values(array_filter($action->display,$shown)));
         foreach(ViewMetadata::formFields($action) as $f){
-            if($this->acl->fieldAllowed($actor,$action->resource,$action->name,'ui',$t['id']??'',$t['owner']??null,$f->name))$fields[]=$this->fieldMetadata($ctx,$f);
+            if($this->acl->fieldAllowed($actor,$action->resource,$action->name,'ui',isset($t['acl_id'])?(string)$t['acl_id']:(string)($t['id']??''),$t['owner']??null,$f->name,null,$deferred))$fields[]=$this->fieldMetadata($ctx,$f);
             elseif($id!==null&&$f->name!=='revision'&&$shown($f))$fields[]=[...$this->fieldMetadata($ctx,$f),'readOnly'=>true];
         }
         return ['fields'=>$fields,'values'=>$values,...($action->formSections!=='panels'?['formSections'=>$action->formSections]:[]),...($action->flushSections?['flushSections'=>true]:[])];

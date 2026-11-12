@@ -1,0 +1,66 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: collections a dedicated account reaches through consumer-owned reader and writer tables (delegated access).",
+        "covers": "SqlResource delegation (storage.delegation) with the ACL scope delegated: delegate@example.test lists and opens A and B, edits only A and cannot reach C; the demo account's ordinary all grants see and edit all three."
+    },
+    "resources": {
+        "demo_collections": {
+            "storage": {
+                "table": "demo_collections",
+                "key": "id",
+                "delegation": {
+                    "read": [
+                        {
+                            "table": "demo_collection_readers",
+                            "object_column": "collection_id",
+                            "actor_column": "actor_id",
+                            "resource_column": "id"
+                        }
+                    ],
+                    "write": [
+                        {
+                            "table": "demo_collection_writers",
+                            "object_column": "collection_id",
+                            "actor_column": "actor_id",
+                            "resource_column": "id"
+                        }
+                    ]
+                }
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 120
+                },
+                {
+                    "name": "description",
+                    "label": "Leírás",
+                    "max": 500
+                }
+            ],
+            "view": {
+                "title": "Gyűjtemények",
+                "group": "Feature demó",
+                "icon": "dxi dxi-folder",
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "description",
+                        "header": "Leírás"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create",
+                    "update"
+                ],
+                "guide": "Gyűjtemények, amelyeket egy fiók kapcsolótáblákon keresztül ér el (delegált hozzáférés). Az alkalmazás saját táblái mondják meg, ki olvashat és ki írhat egy gyűjteményt; a jogosultsági szabály hatóköre ilyenkor „Delegált objektum”.\n\nJelentkezz be a delegate@example.test fiókkal (jelszó: 61ade-demo): a lista csak az A és a B gyűjteményt mutatja, az A módosítható, a B csak olvasható, a C nem érhető el. A demo@example.test fiók szokásos, minden objektumra szóló jogaival mindhármat látja és szerkeszti.\n\nKeretrendszer-képesség: delegált hozzáférés (storage.delegation, delegated hatókör)."
+            }
+        }
+    }
+}

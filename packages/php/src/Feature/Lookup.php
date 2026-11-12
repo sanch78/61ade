@@ -15,7 +15,7 @@ final readonly class Lookup
     }
     public function options(Context $ctx):array
     {
-        [$where,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
+        [$where,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner,$this->table);
         if($this->tenantColumn!==null){
             if($ctx->tenant===null)return $this->extra;
             $where="($where) AND {$this->tenantColumn} = :blade_tenant";$params['blade_tenant']=$ctx->tenant;

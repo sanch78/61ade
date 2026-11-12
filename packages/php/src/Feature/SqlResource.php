@@ -36,8 +36,12 @@ final class SqlResource
      * channel and tenant could list (its list ACL, `where`, tenant scope and archive policy) with any `match` field equal
      * to the row's key (or `on`), one grouped count per page and field; left out when it cannot be counted for the actor.
      * A count field is a declared number field: read-only, not part of the revision, not filterable or sortable.
+     * $delegation: opt-in delegated access (FB-0180): ACL rules with scope `delegated` match the rows the actor reaches
+     * through the declared consumer link tables (Delegation). Each link's `resourceColumn` is a stored column of this
+     * resource (the key, a stored field such as a parent foreign key, a default or the owner column); computed, related,
+     * count and secret fields are not. Without a declaration a `delegated` rule fails the operation.
      */
-    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [], private ?string $tenantColumn = null, private ?array $order = null, private array $createOnly = [], private array $counts = [], private ?string $sharedTenant = null, private array $sharedRoles = [])
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [], private ?string $tenantColumn = null, private ?array $order = null, private array $createOnly = [], private array $counts = [], private ?string $sharedTenant = null, private array $sharedRoles = [], private ?Delegation $delegation = null)
     {
         $known=array_column($fields,null,'name');
         foreach($computed as $name=>$sql){
@@ -139,6 +143,16 @@ final class SqlResource
         }
         if($this->tenantColumn!==null)$registry->scopeToTenant($this->resource,$this->sharedTenant,$this->sharedRoles);
         if($this->counts)$registry->counts($this->resource,$this->counts);
+        if($this->delegation!==null){
+            // Ownership keys are stored columns of this table only; the outer row is never one of the link tables.
+            $stored=[$this->key,...array_keys($this->defaults),...($this->ownerColumn?[$this->ownerColumn]:[]),...array_map(static fn($f)=>$f->name,array_filter($this->fields,fn($f)=>!$f->secret&&$f->type!=='password'&&!isset($this->computed[$f->name])&&!isset($this->counts[$f->name])&&!isset($mapped[$f->name])))];
+            foreach([...$this->delegation->read,...$this->delegation->write] as $link){
+                if(!in_array($link->resourceColumn,$stored,true))throw new \InvalidArgumentException('Invalid delegation resource column: '.$this->resource.'.'.$link->resourceColumn);
+                foreach([$link->table,$link->via?->table] as $table)if($table!==null&&strcasecmp($table,$this->table)===0)throw new \InvalidArgumentException('A delegation link table is not the resource table: '.$this->resource);
+            }
+            $registry->delegate($this->resource,new DelegationScope($this->delegation,$this->resource,$this->table,$this->key,
+                fn()=>"({$this->where})".($this->archive()?' AND archived_at IS NULL':''),fn(Context $c,string $id)=>$this->target($c,$id),$registry,$create?['create']:[]));
+        }
         $source=new ListSource($this->resource,$this->table,$this->key,$this->fields,$this->ownerColumn,$this->where,fn($c,$row)=>$this->project($c,$row,'list'),fn($c)=>$this->source($c),$this->search,$registry,$this->tenantColumn,order:$this->order,counts:$this->counts);
         // The cursor API only: a list takes no object id (the removed offset paging used one).
         $registry->add(new Action($this->resource,'list','Lista',[],fn(Context $c,$t,$values)=>($t['id']??'')==='' ? $source->read($c,$values) : throw new Failure('Hibás lapozás.'),collection:true,listSource:$source));
@@ -226,7 +240,8 @@ final class SqlResource
         if($shared)$out['_shared']=true;
         $out['_actions']=[];
         $out['_editable']=[];
-        foreach($this->registry?->all()??[] as $action)if($action->resource===$this->resource && !($shared && $action->write && $action->name!=='create' && $ctx->tenant!==null) && in_array($ctx->channel,$action->channels,true) && $ctx->acl->allows($ctx->actor->id,$this->resource,$action->name,$ctx->channel,$id,$owner))$out['_actions'][]=$action->name;
+        $readable=$ctx->channel!=='api'||in_array($this->resource.'.get',$ctx->scopes,true);
+        foreach($this->registry?->all()??[] as $action)if($action->resource===$this->resource && !($shared && $action->write && $action->name!=='create' && $ctx->tenant!==null) && in_array($ctx->channel,$action->channels,true) && $ctx->acl->allows($ctx->actor->id,$this->resource,$action->name,$ctx->channel,$id,$owner,'',null,false,$readable))$out['_actions'][]=$action->name;
         if(in_array('update',$out['_actions'],true))foreach($this->fields as $field){
             if(($field->column['editable']??false)&&!$field->secret&&array_key_exists($field->name,$out)&&$ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,'update',$ctx->channel,$id,$owner,$field->name))$out['_editable'][]=$field->name;
         }
@@ -254,7 +269,8 @@ final class SqlResource
         $this->archiveReady($ctx->db);
         [$where,$params]=$this->orderScope($ctx,$target['row']);
         $field=$this->order['field'];
-        $q=$ctx->db->prepare("SELECT {$this->key} AS id, $field AS position FROM {$this->table} WHERE $where ORDER BY CAST($field AS INTEGER), {$this->key}");$q->execute($params);
+        $owner=$this->ownerColumn?", {$this->ownerColumn} AS owner":'';
+        $q=$ctx->db->prepare("SELECT {$this->key} AS id, $field AS position$owner FROM {$this->table} WHERE $where ORDER BY CAST($field AS INTEGER), {$this->key}");$q->execute($params);
         $rows=$q->fetchAll(\PDO::FETCH_ASSOC);
         $current=array_column($rows,'position','id');
         $ids=array_values(array_filter(array_map('strval',array_column($rows,'id')),static fn($id)=>$id!==$target['id']));
@@ -262,9 +278,30 @@ final class SqlResource
         $at=$before===''?count($ids):array_search($before,$ids,true);
         if($at===false)throw new Failure('Javítsd a megjelölt mezőket.',400,['before'=>'Ez az elem nincs ebben a listában.']);
         array_splice($ids,$at,0,[$target['id']]);
+        // Delegated move rules (FB-0180): every peer whose position changes must itself be movable, before any write.
+        if($this->delegation!==null&&$ctx->acl->delegates($ctx->actor->id,$this->resource,'move',$ctx->channel)){
+            $owners=$this->ownerColumn?array_column($rows,'owner','id'):[];
+            foreach($ids as $index=>$id)if($id!==$target['id']&&(string)($current[$id]??'')!==(string)($index+1)
+                &&!$ctx->acl->allows($ctx->actor->id,$this->resource,'move',$ctx->channel,(string)$id,isset($owners[$id])?(string)$owners[$id]:null))throw new Failure('Nincs hozzáférés.',403);
+        }
         $update=$ctx->db->prepare("UPDATE {$this->table} SET $field = ? WHERE {$this->key} = ?");
         foreach($ids as $index=>$id)if((string)($current[$id]??'')!==(string)($index+1))$update->execute([$index+1,$id]);
         return ['id'=>$target['id'],'position'=>$at+1,'audit'=>['before'=>$before,'position'=>$at+1]];
+    }
+    /**
+     * Delegated create/update rules (FB-0180) against the final row $final (normalized, defaulted and server-stamped
+     * values, over the stored row for an update): the object decision and the field decision of each written field.
+     * The stored row of an update was checked by the executor; an unchanged destination gives the same answer.
+     */
+    private function delegatedWrite(Context $ctx, ?array $target, array $final, array $written): void
+    {
+        $name=$target?'update':'create';
+        if($this->delegation===null||!$ctx->acl->delegates($ctx->actor->id,$this->resource,$name,$ctx->channel))return;
+        $id=$target['id']??null;
+        $owner=$this->ownerColumn?(isset($final[$this->ownerColumn])?(string)$final[$this->ownerColumn]:null):null;
+        if(!$ctx->acl->allows($ctx->actor->id,$this->resource,$name,$ctx->channel,$id,$owner,'',$final))throw new Failure('Nincs hozzáférés.',403);
+        $known=array_column($this->fields,null,'name');
+        foreach(array_keys($written) as $field)if(isset($known[$field])&&!$ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,$name,$ctx->channel,$id??'',$owner,(string)$field,$final))throw new Failure('A mező nem módosítható.',403);
     }
     public function save(Context $ctx, ?array $target, array $values, bool $fieldEdit = false): array
     {
@@ -309,6 +346,7 @@ final class SqlResource
         foreach ($this->related as $storage) $values = array_diff_key($values, $storage->fields);
         if($target){
             if(!$allValues)throw new Failure('Nincs módosítás.');
+            $this->delegatedWrite($ctx,$target,array_replace($target['row'],$allValues),$allValues);
             if($values){$q=$ctx->db->prepare("UPDATE {$this->table} SET ".implode(',',array_map(static fn($k)=>"$k = ?",array_keys($values)))." WHERE {$this->key} = ?");
             $q->execute([...array_values($values),$target['id']]);}$id=$target['id'];
         }else{
@@ -320,6 +358,7 @@ final class SqlResource
                 $q=$ctx->db->prepare("SELECT COALESCE(MAX(CAST({$this->order['field']} AS INTEGER)),0)+1 FROM {$this->table} WHERE $where");$q->execute($params);
                 $values[$this->order['field']]=(int)$q->fetchColumn();
             }
+            $this->delegatedWrite($ctx,null,array_replace($values,array_diff_key($allValues,$values)),$allValues);
             $q=$ctx->db->prepare("INSERT INTO {$this->table} (".implode(',',array_keys($values)).') VALUES ('.implode(',',array_fill(0,count($values),'?')).')');$q->execute(array_values($values));$id=$ctx->db->lastInsertId();
         }
         foreach ($this->related as $storage) $storage->save($ctx->db,(string)$id,$allValues);

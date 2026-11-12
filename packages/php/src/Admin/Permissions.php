@@ -76,7 +76,7 @@ final class Permissions
                 new Field('action', 'Művelet', 'select', required: true, max: 100, options: fn(Context $ctx) => $this->choices($ctx, 'action', $this->catalogue->actions())),
                 new Field('channel', 'Csatorna', 'select', required: true, max: 10, options: ['ui' => 'Felület (ui)', 'api' => 'API']),
                 new Field('effect', 'Hatás', 'select', required: true, max: 10, options: ['allow' => 'Engedély', 'deny' => 'Tiltás']),
-                new Field('scope', 'Hatókör', 'select', required: true, max: 10, options: ['all' => 'Minden objektum', 'own' => 'Saját objektum', 'id' => 'Konkrét objektum']),
+                new Field('scope', 'Hatókör', 'select', required: true, max: 10, options: ['all' => 'Minden objektum', 'own' => 'Saját objektum', 'id' => 'Konkrét objektum', 'delegated' => 'Delegált objektum']),
                 new Field('object_id', 'Objektumazonosító', max: 100),
                 new Field('field_name', 'Mező', max: 100),
             ], defaults: ['subject_type' => $type],
@@ -146,6 +146,9 @@ final class Permissions
         $field = (string) ($rule['field_name'] ?? '');
         if ($field !== '' && !in_array($field, $this->catalogue->fields((string) $rule['resource']), true)) {
             throw new Failure('Ismeretlen mező ezen az erőforráson.', 400, ['field_name' => 'Ismeretlen mező ezen az erőforráson.']);
+        }
+        if ($rule['scope'] === 'delegated' && $this->workspace->registry->delegation((string) $rule['resource']) === null) {
+            throw new Failure('Ennek az erőforrásnak nincs delegálási deklarációja.', 400, ['scope' => 'Ennek az erőforrásnak nincs delegálási deklarációja.']);
         }
         $object = (string) ($rule['object_id'] ?? '');
         if (($rule['scope'] === 'id') !== ($object !== '')) {

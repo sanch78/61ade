@@ -40,7 +40,9 @@ final class Executor
         $target=$action->resolve ? ($action->resolve)($ctx,$id) : ['id'=>$id,'owner'=>null];
         self::sharedWrite($ctx,$action,$target);
         $object=isset($target['id']) ? (string)$target['id'] : null;
-        if (!$action->collection) self::allowed($ctx,$action,$object,isset($target['acl_id']) ? (string)$target['acl_id'] : $object,isset($target['owner']) ? (string)$target['owner'] : null);
+        // An upload staged for a deferred create (FB-0180) needs at least one write link; the create itself decides later.
+        if (!$action->collection && $this->permit($ctx,$action,$object,isset($target['acl_id']) ? (string)$target['acl_id'] : $object,isset($target['owner']) ? (string)$target['owner'] : null,$target)
+            && !$this->registry->delegation($action->resource)?->anyLink($this->db,'write',$ctx->actor->id)) throw new Failure('Nincs hozzáférés.',403);
         return $target;
     }
     private function channel(Context $ctx, Action $action): void
@@ -54,11 +56,25 @@ final class Executor
     {
         if ($action->write && ($target['shared'] ?? false) === true && $ctx->tenant !== null) throw new Failure('A közös adat csak olvasható.',403);
     }
-    /** API callers learn nothing about objects they may not use (404); UI callers get 403. */
-    private static function allowed(Context $ctx, Action $action, ?string $object, ?string $aclObject, ?string $owner): void
+    /**
+     * Object decision of $action. API callers learn nothing about objects they may not use (404); UI callers get 403.
+     * With `delegated` rules on a resource declaring a Delegation (FB-0180) the ACL object is first resolved again
+     * by that resource's authoritative resolver (tenant realm, `where`, archive), and a row the action's own resolver
+     * supplies in $target must be that stored row, so a custom action's row context grants nothing it does not verify.
+     * Returns whether the decision is deferred: SqlResource's own `create`, whose handler checks the final values; its
+     * field decisions then use the same mode. On the API a delegated write allow also needs the token's `get` scope.
+     */
+    public function permit(Context $ctx, Action $action, ?string $object, ?string $aclObject, ?string $owner, ?array $target = null): bool
     {
-        if (!$ctx->acl->allows($ctx->actor->id,$action->resource,$action->name,$ctx->channel,$aclObject,$owner)) throw new Failure($ctx->channel==='api' && $object!==null ? 'Nem található objektum.' : 'Nincs hozzáférés.',$ctx->channel==='api' && $object!==null ? 404 : 403);
+        $scope=$this->registry->delegation($action->resource);
+        $delegates=$scope!==null&&$ctx->acl->delegates($ctx->actor->id,$action->resource,$action->name,$ctx->channel);
+        if($delegates&&$aclObject!==null)$scope->verify($ctx,$aclObject,$target);
+        $deferred=$delegates&&$aclObject===null&&$scope->defers($action->name);
+        if (!$ctx->acl->allows($ctx->actor->id,$action->resource,$action->name,$ctx->channel,$aclObject,$owner,'',null,$deferred,self::readable($ctx,$action->resource))) throw new Failure($ctx->channel==='api' && $object!==null ? 'Nem található objektum.' : 'Nincs hozzáférés.',$ctx->channel==='api' && $object!==null ? 404 : 403);
+        return $deferred;
     }
+    /** Whether a delegated write allow may rely on the row's `get`: always in the UI, with the token's `get` scope on the API. */
+    public static function readable(Context $ctx, string $resource): bool { return $ctx->channel!=='api'||in_array($resource.'.get',$ctx->scopes,true); }
     /**
      * UploadPolicy of the action on the direct multipart path: batch quota, a relative path for one part only,
      * then per part the PHP upload error and the policy's name/type/size/folder rules on the received bytes.
@@ -112,7 +128,8 @@ final class Executor
             $detail=$target['audit'] ?? [];
             self::sharedWrite($ctx,$action,$target);
             // Collection handlers must use the kernel SQL scope; no raw collection result is allowed.
-            if (!$action->collection) self::allowed($ctx,$action,$object,$aclObject,$owner);
+            $deferred=!$action->collection&&$this->permit($ctx,$action,$object,$aclObject,$owner,$target);
+            $readable=self::readable($ctx,$resource);
             $known=array_column($action->fields,null,'name');
             if($fieldEdit){
                 $edited=array_keys(array_diff_key($input,['revision'=>true]));
@@ -123,7 +140,7 @@ final class Executor
             $fieldErrors = [];
             foreach ($action->fields as $field) {
                 if(($fieldEdit||$partial)&&$field->name!=='revision'&&!array_key_exists($field->name,$input)&&!($field->visibleWhen!==null&&array_key_exists($field->visibleWhen['field'],$input)))continue;
-                $allowed=$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$aclObject ?? '',$owner,$field->name);
+                $allowed=$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$aclObject ?? '',$owner,$field->name,null,$deferred,$readable);
                 if(!$allowed){if(array_key_exists($field->name,$input) || ($name==='create' && $field->required))throw new Failure('A mező nem módosítható.',403);continue;}
                 // An inactive conditional field is not validated; a save that sends it or its condition field stores it empty.
                 if(!$field->active(array_replace(is_array($target['row']??null)?$target['row']:[],$input))){
@@ -154,7 +171,7 @@ final class Executor
                 if(!$field->clears||!array_key_exists($field->name,$input)||($values[$field->name]??'')==='')continue;
                 foreach($field->clears as $other){
                     if(is_scalar($input[$other]??null)&&trim((string)$input[$other])!==''){$fieldErrors[$other]=\Blade\I18n\Translator::text('Nem adható meg együtt ezzel: {field}.',['field'=>\Blade\I18n\Translator::text($field->label)]);continue;}
-                    if(!$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$aclObject ?? '',$owner,$other))throw new Failure('A mező nem módosítható.',403);
+                    if(!$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$aclObject ?? '',$owner,$other,null,$deferred,$readable))throw new Failure('A mező nem módosítható.',403);
                     $values[$other]='';if(!in_array($other,$fields,true))$fields[]=$other;
                 }
             }
