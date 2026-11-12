@@ -630,6 +630,11 @@ top row's `Útmutató` button. Prerequisites, examples,
 limits and checks are in those sections; the feature demo's
 `Regisztrációs adatbázis` uses all three.
 
+In [accordion forms](workspaces.md#form-accordion), a fixed section keeps its
+header visible while its fields scroll when the available height is too small.
+This also applies to `flushSections`; no consumer stylesheet or new option is
+needed ([FB-0188](feedback.md#fb-0188)).
+
 No list or page region is a bare blank area
 ([loading and empty states](toolkit.md#loading-and-empty-states)): every list
 shows a loading indicator (`aria-busy`) while it loads and says when it has

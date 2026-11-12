@@ -8046,3 +8046,40 @@ that exactly equals an option label lists every option. The managed
   full-smoke claim.
 - **Status:** implemented and build-checked; browser qualification blocked
   by another running guarded development check.
+
+<a id="fb-0188"></a>
+
+## FB-0188 — Fixed accordion form headers stay above scrolling fields
+
+- **Date:** 2026-11-12.
+- **Request:** a fixed `Alapadatok` section in an accordion form scrolled its
+  title together with its fields; the owner asked for a framework fix.
+- **Cause:** the fixed section's label is the native fieldset legend inside
+  the Suite fieldset wrapper. That wrapper could scroll, taking the legend
+  with it. The collapsible section already has a separate header button.
+- **Implemented:** `form-section.css` makes the fixed fieldset a column:
+  its native legend keeps its height and only the content below it scrolls.
+  A fixed section retains its natural height when it fits and can shrink
+  when constrained. The field inset moves to that content (16 px framed,
+  20 px flush); a section-filling textarea remains edge to edge. No new
+  PHP/JSON option, DOM rewriting, event or server/validation change.
+- **Guides:** [accordion forms](workspaces.md#form-accordion), [usage](usage.md),
+  [toolkit](toolkit.md) M67 and Changes. This refines the fixed-section
+  geometry of [FB-0178](#fb-0178).
+- **Verification:** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets` and `git diff --check` passed. An isolated build of the staged
+  frontend source changes only `admin.css`; the other frontend artifacts
+  match HEAD, excluding concurrent work from this commit.
+  - Four task-only browser cases passed on the managed demo: framed Blade,
+    flush dark in a fitted window capped at 640 px, framed light at 390 px,
+    and flush Blade Night at 390 px with `accordion-multiple`.
+  - The legend stays at exactly the same coordinates after scrolling to
+    either end, focusing the first/last field and opening another section;
+    the window and action row keep their geometry. The fields' inset is
+    16 px framed and 20 px flush. Screenshots of all four were checked.
+  - The retained `form-accordion`, `record-forms`, `stored-file` and
+    `settings-form` specs could not start in four attempts: the shared
+    development check lock was held by another run (exit 75). Their broader
+    regression coverage is not claimed. Task-only cases and artifacts were
+    removed. No full-smoke claim.
+- **Status:** implemented and verified by the four targeted browser cases.
