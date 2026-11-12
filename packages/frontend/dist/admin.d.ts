@@ -749,6 +749,13 @@ export interface FieldMetadata {
     section?: string;
     /** `false`: the section is fixed (always open, a plain heading); absent: collapsible (server `sectionCollapsible`, JSON `section_collapsible`, FB-0177). */
     sectionCollapsible?: false;
+    /**
+     * The field is its section's whole content (server `Field` `sectionFill`, JSON `section_fill`, FB-0181): a textarea or
+     * file field alone in its section, named by the section's header (its own label stays its accessible name) that
+     * carries its required mark; in an accordion form the textarea is the open section's body and a file field's drop
+     * area fills it.
+     */
+    sectionFill?: true;
 }
 /** Confirmation the server declares for an action (`Action::$confirm`). Plain text. */
 export interface ActionConfirmation {

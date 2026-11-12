@@ -85,3 +85,31 @@
 [data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion > .blade-form-section__body { flex: 0 0 auto !important; overflow: visible; }
 [data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion > .blade-form-section__body--closed { display: flex !important; }
 [data-blade-measure] .dhx_widget.dhx_form:has(> .blade-form-section--accordion) > .blade-form-actions { margin-top: 0; }
+/* A section-filling field (`sectionFill`, fields.ts formRows; docs/workspaces.md#form-section-fill): the section's header
+   names it (its own label stays for screen readers, Suite `hiddenLabel`) and carries its required mark (visual only: the
+   input's own `required` announces it, so the header's name stays the label). A textarea is
+   the section's body: edge to edge, without a frame (its focus and error rings stay). In an open accordion section
+   (not a still one) the textarea, or a file field's drop area, takes the section's share; while a window is measured
+   it keeps its own height (the measuring rules above stop the share). */
+.dhx_widget.dhx_form .blade-form-section--required :is(.blade-form-section__heading, .blade-form-section__toggle) .dhx_button__text::after,
+.dhx_widget.dhx_form .blade-form-section--required .dhx_form-fieldset-legend::after { content: "*"; content: "*" / ""; padding-left: 4px; color: var(--dhx-font-color-additional); }
+.dhx_widget.dhx_form .blade-form-section--fill:has(.dhx_form-group--textarea) > .blade-form-section__body .dhx_form-fieldset { padding: 0; }
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--fixed:has(.dhx_form-group--textarea) .dhx_form-fieldset-legend,
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--still:has(.dhx_form-group--textarea) .dhx_form-fieldset-legend { width: 100%; margin: 0; }
+.dhx_widget.dhx_form .blade-form-section--fill .dhx_form-group--textarea { margin: 0; }
+.dhx_widget.dhx_form .blade-form-section--fill .dhx_form-group--textarea .dhx_input--textarea { border: 0; border-radius: 0; padding: 12px 16px; }
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--flush .dhx_form-group--textarea .dhx_input--textarea { padding: 12px 20px; }
+.dhx_widget.dhx_form .blade-form-section--fill .dhx_form-group--textarea:not(.dhx_form-group--state_error) .dhx_input--textarea:not(:focus) { box-shadow: none; }
+.dhx_widget.dhx_form .blade-form-section--fill .dhx_form-group--textarea .dhx_input__caption { padding: 4px 16px 8px; }
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) > .blade-form-section__body > .dhx_form-fieldset,
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) > .blade-form-section__body > .dhx_form-fieldset > .dhx_layout-cell-content,
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) .dhx_layout-cell:has(> .dhx_form-group--textarea),
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) .dhx_form-group--textarea,
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) .dhx_form-group--textarea .dhx_input__wrapper,
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) :is(.blade-file-field, .blade-file-field__row, .blade-file-field__body, .blade-file-field__media, .dhx_form-group--avatar) {
+  display: flex; flex-direction: column; flex: 1 0 auto !important; height: auto; min-height: 0;
+}
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) .dhx_form-group--textarea .dhx_input--textarea { flex: 1 0 auto; height: auto; min-height: 96px; }
+/* The drop area's geometry is fixed by the section, never by the file: the image fits inside it (contain). */
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) .blade-file-field__media .dhx_avatar { position: relative; flex: 1 1 0; height: auto !important; min-height: 180px; }
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) .blade-file-field__media .dhx_avatar__image { position: absolute; inset: 0; }

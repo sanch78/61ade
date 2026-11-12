@@ -1604,6 +1604,52 @@ $contacts->register($registry, 'Kapcsolatok', formSections: 'accordion', flushSe
   needs the height of its host: in a host without a height it shows every
   section at its own height. Sections do not nest.
 
+<a id="form-section-fill"></a>
+
+### Section-filling fields
+
+A section can consist of one field: a long text or a file, named by the
+section's header instead of a label of its own
+([FB-0181](feedback.md#fb-0181)). In an accordion form the open section
+then *is* the input: the textarea is its body edge to edge, and a file
+field is the file name, a drop area taking the section's height and the
+buttons.
+
+```php
+new Field('note', 'Megjegyzés', 'textarea', max: 1000, section: 'Megjegyzés', sectionFill: true),
+new Field('photo', 'Fénykép', 'file', file: $image, section: 'Fénykép', sectionFill: true),
+```
+
+```json
+{"name": "note", "label": "Megjegyzés", "type": "textarea", "section": "Megjegyzés", "section_fill": true}
+```
+
+- **Declaration:** `sectionFill: true` (PHP `Field`, JSON `section_fill`)
+  on a `textarea` or `file` field with a `section`, without an `editor`; the
+  field is the only one of its section in the resource's fields and in an
+  action's fields. Otherwise `InvalidArgumentException`. The form metadata
+  carries `sectionFill: true` (`FieldMetadata.sectionFill`); a column's
+  section does not.
+- **Look:** the field's own label is for screen readers only (Suite
+  `hiddenLabel`: still the input's accessible name), so the visible name is
+  the section's header: give the section the label the field should show.
+  The header carries the required mark of a required field. A textarea has
+  no frame of its own and no inset: the section's body is the text area
+  (Suite's focus and error rings stay). This holds in every section
+  presentation (panels, fixed, accordion).
+- **Geometry:** in an open collapsible accordion section the textarea, or
+  the file field's drop area, takes the section's share of the height (at
+  least 96 px of text, 180 px of drop area); a fitted window measures the
+  textarea at its own 120 px and the drop area at its 180 px, as for any
+  field, so opening the section never resizes the window. The file never
+  changes the geometry: an uploaded or stored image is fitted into the drop
+  area (scaled down, whole, centred). In panels and fixed sections the field
+  keeps its own height.
+- **Unchanged:** the value, validation, upload flow, paste and drop, the
+  error reveal (an error opens the section and focuses the textarea or the
+  file name) and the cards and details, which show the field under its
+  label in the section's group.
+
 <a id="count-fields"></a>
 
 ## Count fields: related records the actor may list
