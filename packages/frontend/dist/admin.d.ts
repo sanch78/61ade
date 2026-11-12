@@ -705,6 +705,11 @@ export interface StoredFileFieldConfig {
     /** The actor is offered the GET action. */
     canPreview: boolean;
     canChoose: false;
+    /**
+     * 2–20 (server `file.multiple`, FB-0181): the field holds that many files at most. Its value is the comma-joined list
+     * of tokens and file ids, and the form shows an upload queue (the uploader's drop zone and list) instead of one preview.
+     */
+    multiple?: number;
 }
 /** One form field (`Field::metadata()`; `FormValidation.ts` `FieldDefinition`). */
 export interface FieldMetadata {

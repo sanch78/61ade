@@ -27,6 +27,8 @@ final readonly class Field
          * (FB-0167): ['upload' => 'resource.action' with an UploadPolicy, whose handler stores the bytes and returns
          * ['id' => token], 'get' => optional 'resource.action', a GET action streaming the file whose id is the value,
          * 'accept' => MIME classes]; the record action's handler receives the token and commits the file with the record.
+         * 'multiple' => 2–20 (FB-0181) makes a stored field hold that many files at most: its value is the comma-joined
+         * list of tokens and file ids (each new token is checked against its upload claim), shown as an upload queue.
          */
         public ?array $file = null,
         /**
@@ -86,7 +88,7 @@ final readonly class Field
         // A file in the project's storage: the value is the upload's token, then the project's own file id; a form field only.
         if ($file !== null && array_key_exists('upload', $file)) {
             $accept = $file['accept'] ?? null;
-            if (array_diff(array_keys($file), ['upload', 'get', 'accept']) || !self::actionReference($file['upload']) || (array_key_exists('get', $file) && !self::actionReference($file['get']))
+            if (array_diff(array_keys($file), ['upload', 'get', 'accept', 'multiple']) || (array_key_exists('multiple', $file) && (!is_int($file['multiple']) || $file['multiple'] < 2 || $file['multiple'] > 20)) || !self::actionReference($file['upload']) || (array_key_exists('get', $file) && !self::actionReference($file['get']))
                 || !is_array($accept) || !$accept || !array_is_list($accept) || array_filter($accept, static fn($class) => !is_string($class) || !preg_match('/^[a-z]{1,32}$/D', $class)) || count(array_unique($accept)) !== count($accept)
                 || $secret || array_diff(array_keys($column), ['width', 'minWidth', 'maxWidth', 'align', 'secondary', 'details']) || $bulk) {
                 throw new InvalidArgumentException('Invalid stored file field.');
@@ -162,8 +164,8 @@ final readonly class Field
     public function validate(mixed $value, ?Context $context = null, array $values = []): string
     {
         if ($this->type === 'checkbox' && is_bool($value)) $value = (int) $value;
-        // Multiple choices travel as a list or as one comma-separated string; keys never contain commas.
-        if ($this->type === 'multiselect' && is_array($value)) {
+        // Multiple choices (and several stored files) travel as a list or as one comma-separated string; keys and tokens never contain commas.
+        if (($this->type === 'multiselect' || $this->multiple() > 1) && is_array($value)) {
             if (!array_is_list($value) || array_filter($value, static fn($item) => !is_string($item))) $this->reject('Hibás érték.');
             $value = implode(',', $value);
         }
@@ -180,8 +182,14 @@ final readonly class Field
         }
         // A file id; that it is a live, readable file of the declared mount and class is checked by the executor (FileSource).
         // A stored file's value is an opaque token or project file id; the executor checks a new token's upload claim.
-        if ($value !== '' && $this->type === 'file' && !preg_match($this->stored() ? '/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/D' : '/^[1-9][0-9]{0,17}$/D', $value)) {
-            $this->reject('A kiválasztott fájl nem érhető el.');
+        if ($value !== '' && $this->type === 'file') {
+            // Several stored files: distinct tokens or file ids, at most `multiple` of them.
+            $items = $this->multiple() > 1 ? array_map('trim', explode(',', $value)) : [$value];
+            if (array_filter($items, fn($item) => !preg_match($this->stored() ? '/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/D' : '/^[1-9][0-9]{0,17}$/D', $item)) || count(array_unique($items)) !== count($items)) {
+                $this->reject('A kiválasztott fájl nem érhető el.');
+            }
+            if (count($items) > $this->multiple()) $this->reject(\Blade\I18n\Translator::text('Legfeljebb {count} fájl adható meg.', ['count' => $this->multiple()]));
+            $value = implode(',', $items);
         }
         if ($value !== '' && ($this->column['presentation'] ?? null) === 'image' && !self::imageFile($value)) {
             $this->reject('Érvénytelen képfájlnév.');
@@ -220,6 +228,12 @@ final readonly class Field
     public function stored(): bool
     {
         return $this->file !== null && isset($this->file['upload']);
+    }
+
+    /** How many files the field holds at most: a stored field's `multiple`, otherwise 1. */
+    public function multiple(): int
+    {
+        return $this->stored() ? ($this->file['multiple'] ?? 1) : 1;
     }
 
     /** [resource, action] of a stored file field's `upload` or `get` reference ('resource.action', split at the last dot). */
@@ -297,7 +311,7 @@ final readonly class Field
             'bulk' => $this->bulk,
             // Workspace adds the resolved folder, the upload policy and the actor's upload right; the folder path stays server-side.
             ...($this->file !== null ? ['file' => $this->stored()
-                ? ['upload' => ['resource' => $this->fileAction('upload')[0], 'action' => $this->fileAction('upload')[1]], 'get' => ($get = $this->fileAction('get')) ? ['resource' => $get[0], 'action' => $get[1]] : null, 'accept' => $this->file['accept']]
+                ? ['upload' => ['resource' => $this->fileAction('upload')[0], 'action' => $this->fileAction('upload')[1]], 'get' => ($get = $this->fileAction('get')) ? ['resource' => $get[0], 'action' => $get[1]] : null, 'accept' => $this->file['accept'], ...($this->multiple() > 1 ? ['multiple' => $this->multiple()] : [])]
                 : ['resource' => $this->file['resource'], 'mount' => $this->file['mount'], 'accept' => $this->file['accept']]] : []),
             ...($this->editor !== null ? ['editor' => $this->editor] : []),
             ...($this->visibleWhen !== null ? ['visibleWhen' => $this->visibleWhen] : []),

@@ -1050,6 +1050,44 @@ The feature demo's `Mellékletek` (`examples/demo-app/attachments.php`)
 implements it; `tests/shell/stored-file.php` and `stored-file.spec.cjs`
 cover it. The mount-backed `file` field above is unchanged.
 
+<a id="stored-file-multiple"></a>
+
+#### Several stored files
+
+`'multiple' => n` (2–20, JSON `"multiple": n`) lets a stored file field hold
+up to n files ([FB-0181](feedback.md#fb-0181)):
+
+```php
+new Field('gallery', 'Galéria', 'file', file: ['upload' => 'items.file_upload', 'get' => 'items.file', 'accept' => ['image'], 'multiple' => 6], section: 'Galéria', sectionFill: true),
+```
+
+- **Value:** the comma-joined list of tokens and file ids (a request may send
+  a list); distinct, each of the single field's shape, at most n
+  (`Legfeljebb {count} fájl adható meg.`). The whole value counts against the
+  field's `max` (default 255): raise it for long ids. The handler receives the
+  list string and commits the files (the demo's `afterSave` splits it).
+- **Claims:** only the ids the stored value does not hold are new, and each new
+  one needs its own unexpired claim, exactly as for one file; a kept id needs
+  none, a removed one is simply left out. The claims are removed after the
+  save commits. The upload action still takes one file per request.
+- **Form:** the uploader's look inside the form instead of one preview: a
+  count line (`3 / 6 fájl`, the field's label, required mark, errors and
+  focus), under it the uploader's drop zone (hint, the allowed types and size,
+  `Egyszerre legfeljebb n fájl tölthető fel.`, `Fájlok kiválasztása` with a
+  multiple-file dialog; drop and paste) and its queue (Előnézet, Név, Állapot,
+  Műveletek). The record's files are rows `Mentve` with their name and image
+  preview from the GET action; each new file is a background upload of its
+  own through the shared uploader (progress, cancel, retry) and, once done,
+  a row `Feltöltve, mentésre vár` in the value. `Eltávolítás` takes a row out
+  of the value; nothing is deleted before the save. More files than the limit
+  and files of another type are refused on the count line. Saving waits for
+  running uploads (`Várd meg a fájl feltöltését.`).
+- **Geometry:** the zone and the queue have a fixed height (340 px; in a
+  [section-filling](#form-section-fill) accordion section the section's share,
+  at least 200 px); the queue scrolls inside, the form never grows with the
+  files.
+- **Read-only:** the queue without the zone and without commands.
+
 <a id="delete-usages"></a>
 
 ### Record delete policy and usages
@@ -1641,8 +1679,9 @@ new Field('photo', 'Fénykép', 'file', file: $image, section: 'Fénykép', sect
   the file field's drop area, takes the section's share of the height (at
   least 96 px of text, 180 px of drop area); a fitted window measures the
   textarea at its own 120 px and the drop area at its 180 px, as for any
-  field, so opening the section never resizes the window. The file never
-  changes the geometry: an uploaded or stored image is fitted into the drop
+  field, so opening the section never resizes the window. A field of
+  [several files](#stored-file-multiple) gives its queue the share (at least
+  200 px). The file never changes the geometry: an uploaded or stored image is fitted into the drop
   area (scaled down, whole, centred). In panels and fixed sections the field
   keeps its own height.
 - **Unchanged:** the value, validation, upload flow, paste and drop, the

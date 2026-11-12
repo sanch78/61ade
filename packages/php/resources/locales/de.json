@@ -743,5 +743,8 @@
   "Nem nyílt ki minden elem: legfeljebb {nodes} elem, {depth} szint és elemenként {children} gyermek tölthető be.": "Nicht alles wurde aufgeklappt: höchstens {nodes} Einträge, {depth} Ebenen und {children} Untereinträge je Eintrag werden geladen.",
   "Mentett fájl": "Gespeicherte Datei",
   "Delegált objektum": "Delegiertes Objekt",
-  "Ennek az erőforrásnak nincs delegálási deklarációja.": "Diese Ressource hat keine Delegierungsdeklaration."
+  "Ennek az erőforrásnak nincs delegálási deklarációja.": "Diese Ressource hat keine Delegierungsdeklaration.",
+  "Feltöltve, mentésre vár": "Hochgeladen, wartet auf Speichern",
+  "Legfeljebb {count} fájl adható meg.": "Höchstens {count} Dateien sind möglich.",
+  "{count} / {limit} fájl": "{count} / {limit} Dateien"
 }

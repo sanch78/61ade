@@ -7710,18 +7710,72 @@ that exactly equals an option label lists every option. The managed
   its [ledger](../.agents/skills/grid-tree-card-ui/references/accepted-rules.md).
 - **Limits:** panels and fixed sections keep the field at its own height (no
   height to share); the cards and details show the field under its own
-  label; a project field type (`editor`) cannot fill a section.
+  label; a project field type (`editor`) cannot fill a section. Several files
+  are for stored file fields only; their order is the upload order (no
+  reordering); the read-only queue and a several-file field outside a
+  section-filling accordion section were not checked in the browser.
 - **Follow-up (same day, fixed geometry):** the owner asked that the
   geometry of such an upload stay fixed and that an uploaded image fit the
   preview. The drop area's height now comes from the section only (flex
   basis 0, at least 180 px) and the image is laid over it (`contain`), so a
-  tall image no longer grows the area or the window. A field expecting
-  several files (the owner: like the media library's uploader) is a separate
-  question: no form field holds several files today.
+  tall image no longer grows the area or the window.
+- **Follow-up (same day, several files):** the owner wants a field that
+  expects several files to look like the media library's uploader (its
+  screenshot: the drop zone with the rules and `Fájlok kiválasztása`, the
+  queue Előnézet, Név, Állapot, Műveletek), and chose that the files belong
+  to the record, saved with it (asked: the record's field, or an upload
+  action that keeps each file at once, only for an existing record).
+  - **Declaration:** a stored file field's `multiple` (2–20, PHP and JSON
+    `file.multiple`; refused elsewhere and outside the range); the value is
+    the comma-joined list of distinct ids (a list is accepted), at most
+    `multiple` (`Legfeljebb {count} fájl adható meg.`), the whole value
+    within `max`. Only for stored files: a file manager reference keeps one
+    file (the file manager is the place for many).
+  - **Server:** `Field::multiple()`, the list rule in `Field::validate`; the
+    executor checks a claim for each id the stored value does not hold
+    (previously the whole value was compared), so kept files need none.
+  - **Form:** `MultiFileField` (FilePicker.ts): a count line (the field's
+    label, errors and focus, as the single field's name line), the
+    uploader's zone and queue in a Layout mounted into a `spacer` item. Suite's
+    standard Form has no usable `container` item (`attach` is missing, checked
+    in the browser); a repaint keeps the spacer's node, and the field mounts
+    the panel again if a node is ever replaced. Each file is a background
+    upload of its own through the shared uploader, which now reports a
+    batch's file changes to `onFile` and takes row commands by id
+    (`uploads.act`); the window and the field share `queueGrid` and
+    `uploadRules`. Saved files are `Mentve` rows (name and preview by the GET
+    action's `HEAD`), finished uploads `Feltöltve, mentésre vár`; a removed
+    row leaves the value.
+  - **Geometry:** fixed: 340 px, or the share of a section-filling accordion
+    section (at least 200 px); the queue scrolls inside (the Grid draws the
+    rows in view).
+  - **Demo:** `Kapcsolatok` gains `Galéria` (up to six images, the same
+    store; the `afterSave` commits every token of the list, the GET action
+    serves a contact's gallery images); the schema step adds `gallery`.
 - **Verification:**
   - **Build and static checks:** `npm run typecheck`, `npm run build`
     (`node tools/build.mjs --check` clean), `npm run demo:assets`,
     `git diff --check`; the web demo's schema step (backed up first).
+  - **Several files, PHP:** `stored-file` (new: `multiple` accepted 2–20 on
+    a stored field, refused as 1, 21, a string, a boolean, 0 and on a mount
+    field, in the metadata only when set; a list or comma-joined value
+    normalised, duplicates, an empty item, too many and a malformed item
+    refused, a single field refuses a list; a create with two tokens claims
+    and commits both, a used or foreign token in a list is a field error, an
+    update keeping one id (its claim gone), dropping one and adding one checks
+    only the new one, an unchanged list saves), `record-forms`,
+    `configuration`, `contracts`, `i18n`.
+  - **Several files, browser on the managed demo:** `form-accordion.spec.cjs`
+    (new: the zone with the field's limit and the queue columns, a
+    multiple-file dialog, seven images give six finished rows and the limit
+    message, the window's height unchanged, the section not scrolling while
+    the queue does, a removed row leaves the value, the save commits five;
+    the edit form shows them as `Mentve` rows with name and preview, one
+    removed and saved leaves four); 7 passed, the new case 3 of 3 with
+    `--repeat-each=3`. The uploader's shared parts: `uploader`,
+    `uploader-reopen`, `stored-file`, `record-forms`, `files` (33 passed),
+    then `form-accordion`, `toolkit-demo-assets`, `signage`, `toolkit-media`
+    (22 passed). Screenshots checked by eye and removed.
   - **PHP checks passed:** `record-forms` (new: metadata with and without
     `sectionFill`, none in a column's section, a file field accepted; refused
     without a section, on a text field, with an editor, beside another field
@@ -7742,9 +7796,9 @@ that exactly equals an option label lists every option. The managed
     `stored-file.spec.cjs` 13 passed. The region case failed once in a run
     while another session used the demo and passed alone and in the next
     full runs. Screenshots checked by eye and removed. No full-smoke claim.
-- **Commit:** on `main` (this entry's commit).
-- **Status:** implemented and verified on the managed demo; a several-file
-  field open.
+- **Commit:** `06e7d00` on `main` (section filling and the fixed geometry);
+  several files in the next commit.
+- **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0182"></a>
 

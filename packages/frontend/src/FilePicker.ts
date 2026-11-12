@@ -3,7 +3,8 @@ import { Form, Layout, Toolbar, Window, awaitRedraw, message } from "@dhtmlx/sui
 import { ResponsiveGrid } from "./ResponsiveGrid";
 import { escape, mediaLabel, mediaPart, mediaTypeIcon, type MediaDescriptor } from "./RecordPresentation";
 import { actionUrl } from "./ActionUrl";
-import { uploads, type UploadResult } from "./Uploader";
+import { queueGrid, uploadActive, uploadRules, uploads, type UploadResult, type UploadRow } from "./Uploader";
+import "./uploader.css";
 import { fileDisplay, fileUploadPending, fieldActive, type FieldDefinition, type FileFieldConfig, type MountFileFieldConfig, type StoredFileFieldConfig } from "./FormValidation";
 import "./file-field.css";
 import type { Row } from "./Realtime";
@@ -75,6 +76,12 @@ const actions=(submit:{name:string;text:string;icon:string}):any=>({css:"blade-f
  */
 export function fileInput(field:FieldDefinition,value:unknown,readOnly=false):any{
   const config=field.file as PickerConfig|undefined,upload=!readOnly&&!!config?.canUpload&&!!config.policy;
+  // Several stored files (FB-0181): the count line (the field's label, its errors and focus) above the upload queue.
+  if(filesOf(field)>1)return {css:"blade-file-field blade-file-field--multiple"+(upload?" blade-file-field--upload":""),rows:[
+    {type:"input",name:field.name,hidden:true,value:String(value??"")},
+    {type:"input",name:fileDisplay(field.name),label:field.label,labelPosition:"top",readOnly:true,required:!readOnly&&field.required,placeholder:t("Nincs megadott fájl"),value:""},
+    {type:"spacer",name:field.name+"__queue",css:"blade-file-field__queue"},
+  ]};
   return {css:"blade-file-field"+(upload?" blade-file-field--upload":""),rows:[
     {type:"input",name:field.name,hidden:true,value:String(value??"")},
     {css:"blade-file-field__row",rows:[
@@ -254,12 +261,148 @@ class FileField{
   destroy():void{this.disposed=true;this.abort.abort();this.input?.remove();fileUploadPending(this.form,this.field.name,false);this.releasePreview();}
 }
 
+/** How many files a field holds at most: a stored field's `multiple`, otherwise 1. */
+const filesOf=(field:FieldDefinition)=>Number((field.file as StoredFileFieldConfig|undefined)?.multiple??1);
+/** A row of a field's queue: a saved file of the record (`stored`) or one of the field's uploads; `value` is its id or token. */
+type QueueRow=UploadRow&{value?:string;readOnly?:boolean};
+
+/**
+ * Several stored files of one field (FB-0181, `file.multiple`): the uploader's drop zone and queue (Előnézet, Név,
+ * Állapot, Műveletek) inside the form, in a Layout mounted into the field's spacer item (Suite's standard Form has no
+ * container item; a repaint keeps the node, and a replaced one gets the panel back). The record's files are rows of
+ * their own (`Mentve`), each upload goes to the shared uploader in the background as a batch of one file and becomes a
+ * row; a finished one is in the value (`Feltöltve, mentésre vár`) until the save commits it. Removing a row takes it out
+ * of the value. The hidden item holds the comma-joined ids, so validation, dirty state and saving treat it like any field.
+ */
+class MultiFileField{
+  private rows=new Map<string,QueueRow>();
+  private panel=document.createElement("div");
+  private layout?:Layout;
+  private grid=queueGrid(event=>this.action(event));
+  private input?:HTMLInputElement;
+  private disposed=false;
+  private abort=new AbortController();
+  private sequence=0;
+  constructor(private form:Form,private field:FieldDefinition,private config:StoredFileFieldConfig,private readOnly:boolean){
+    this.panel.className="blade-file-field__panel blade-uploader";
+    const upload=!readOnly&&!!config.canUpload&&!!config.policy;
+    this.layout=new Layout(this.panel,{type:"none",rows:[...(upload?[{id:"zone",height:"content",css:"blade-uploader__zone-cell"}]:[]),{id:"queue",css:"blade-uploader__queue"}]} as any);
+    this.layout.getCell("queue").attach(this.grid);
+    if(upload)this.layout.getCell("zone").attachHTML(this.zone());
+    for(const value of this.value.split(",").filter(Boolean)){
+      const row:QueueRow={id:"s"+ ++this.sequence,name:t("Mentett fájl"),path:"",type:"",state:"stored",status:t("Mentve"),percent:100,retry:false,preview:"",target:"",value,readOnly};
+      this.rows.set(row.id,row);void this.describe(row);
+    }
+    this.paint();
+    this.mount();void awaitRedraw().then(()=>this.mount());
+    form.events.on("change",()=>void awaitRedraw().then(()=>this.mount()));
+    if(!upload)return;
+    const signal=this.abort.signal,inside=(event:Event)=>!this.disposed&&event.target instanceof Node&&this.panel.contains(event.target)&&!this.form.isDisabled(fileDisplay(field.name))&&fieldActive(field,form.getValue());
+    document.addEventListener("click",event=>{if(inside(event)&&(event.target as Element).closest("[data-blade-field-pick]"))this.browse();},{signal});
+    document.addEventListener("keydown",event=>{if(inside(event)&&(event.key==="Enter"||event.key===" ")&&(event.target as Element).matches(".blade-uploader__zone")){event.preventDefault();this.browse();}},{signal});
+    document.addEventListener("paste",event=>{
+      if(!inside(event))return;
+      const data=event.clipboardData,files=Array.from(data?.files??[]);
+      if(!files.length)for(const item of Array.from(data?.items??[])){const file=item.kind==="file"?item.getAsFile():null;if(file)files.push(file);}
+      if(!files.length)return;
+      event.preventDefault();this.add(files);
+    },{signal});
+    const zone=()=>this.panel.querySelector(".blade-uploader__zone");
+    for(const type of ["dragenter","dragover"] as const)document.addEventListener(type,event=>{
+      if(!inside(event)||!event.dataTransfer?.types.includes("Files"))return;
+      event.preventDefault();event.dataTransfer.dropEffect="copy";zone()?.classList.add("blade-uploader__zone--over");
+    },{signal,capture:true});
+    document.addEventListener("dragleave",event=>{if(!this.panel.contains(event.relatedTarget as Node|null))zone()?.classList.remove("blade-uploader__zone--over");},{signal});
+    document.addEventListener("drop",event=>{
+      zone()?.classList.remove("blade-uploader__zone--over");
+      if(!inside(event)||!event.dataTransfer?.types.includes("Files"))return;
+      event.preventDefault();this.add(Array.from(event.dataTransfer.files));
+    },{signal,capture:true});
+  }
+  private get value():string{return String(this.form.getValue()[this.field.name]??"");}
+  private get limit():number{return filesOf(this.field);}
+  /** The panel in the spacer item's node (again, when a repaint replaced it). */
+  private mount():void{
+    if(this.disposed)return;
+    const root=this.form.getItem(this.field.name+"__queue")?.getRootNode?.() as HTMLElement|undefined;
+    if(root&&this.panel.parentElement!==root)root.append(this.panel);
+  }
+  private zone():string{
+    const policy=this.config.policy!;
+    return `<div class="blade-uploader__zone" tabindex="0" role="group" aria-label="${escape(t("Feltöltési terület"))}">
+      <p class="blade-uploader__hint">${escape(t("Húzd ide a fájlokat, vagy illeszd be őket Ctrl+V-vel."))}</p>
+      <p class="blade-uploader__rules">${escape(uploadRules(policy,this.limit))}</p>
+      <div class="blade-uploader__buttons"><button type="button" class="dhx_button dhx_button--size_medium dhx_button--view_flat dhx_button--color_primary blade-uploader__pick" data-blade-field-pick="${escape(this.field.name)}"><span class="dhx_button__icon dxi dxi-file-import" aria-hidden="true"></span><span class="dhx_button__text">${escape(t("Fájlok kiválasztása"))}</span></button></div>
+    </div>`;
+  }
+  /** The saved file's name and type (its preview when it is an image) through the GET action. */
+  private async describe(row:QueueRow):Promise<void>{
+    const media=await describeStored(this.config,row.value!);
+    if(!media||this.disposed||!this.rows.has(row.id))return;
+    Object.assign(row,{name:media.name,type:media.mime_type,preview:media.mime_type.startsWith("image/")?storedUrl(this.config,row.value!)??"":""});
+    this.paint();
+  }
+  private browse():void{
+    if(this.disposed)return;
+    if(!this.input){
+      const input=this.input=Object.assign(document.createElement("input"),{type:"file",multiple:true,tabIndex:-1,className:"blade-file-field__input",accept:this.config.policy!.extensions.map(ext=>"."+ext).join(",")});
+      input.setAttribute("aria-hidden","true");input.dataset.bladeFileInput=this.field.name;document.body.append(input);
+      input.addEventListener("change",()=>{const files=Array.from(input.files??[]);input.value="";if(files.length)this.add(files);},{signal:this.abort.signal});
+    }
+    this.input.click();
+  }
+  /** Each allowed file as an upload of its own, up to the field's limit; the rest is refused on the count line. */
+  private add(files:File[]):void{
+    const display=this.form.getItem(fileDisplay(this.field.name)),policy=this.config.policy!;
+    const taken=[...this.rows.values()].filter(row=>row.state==="stored"||row.state==="done"||uploadActive(row.state)).length;
+    const allowed=files.filter(file=>policy.extensions.includes(file.name.split(".").pop()?.toLowerCase()??""));
+    const message=allowed.length<files.length?t("A fájl típusa ehhez a mezőhöz nem engedélyezett."):taken+allowed.length>this.limit?t("Legfeljebb {count} fájl adható meg.",{count:this.limit}):"";
+    display.setProperties({preMessage:escape(message)});
+    for(const file of allowed.slice(0,Math.max(0,this.limit-taken)))uploads.open({resource:this.config.upload.resource,action:this.config.upload.action,target:null,targetLabel:this.field.label,
+      policy,files:[file],background:true,onFile:row=>this.update(row)});
+  }
+  /** A change of one of the field's uploads. */
+  private update(upload:UploadRow):void{
+    if(this.disposed)return;
+    const row:QueueRow={...this.rows.get(upload.id),...upload,target:""};
+    if(upload.state==="done"){row.value=upload.result?.id||undefined;row.status=t("Feltöltve, mentésre vár");}
+    this.rows.set(upload.id,row);
+    this.paint();
+  }
+  private action(event:Event):void{
+    const button=(event.target as HTMLElement|null)?.closest<HTMLElement>("[data-blade-upload-action]");
+    const row=this.rows.get(button?.dataset.bladeUploadRow??""),action=button?.dataset.bladeUploadAction;
+    if(!row||!action||this.readOnly)return;
+    if(action==="remove"){
+      if(uploadActive(row.state))return;
+      if(row.state!=="stored")uploads.act(row.id,"remove");
+      this.rows.delete(row.id);this.paint();
+    }else uploads.act(row.id,action==="retry"?"retry":"cancel");
+    // Keyboard users stay in the queue: the row's next command, otherwise the drop zone.
+    void awaitRedraw().then(()=>(this.panel.querySelector<HTMLElement>(`button[data-blade-upload-row="${CSS.escape(row.id)}"]`)??this.panel.querySelector<HTMLElement>(".blade-uploader__zone"))?.focus({preventScroll:true}));
+  }
+  /** The queue, the value (the saved and the finished uploads' ids, in order), the pending state and the count line. */
+  private paint():void{
+    if(this.disposed)return;
+    const rows=[...this.rows.values()];
+    for(const row of rows)if(this.grid.data.exists(row.id))this.grid.data.update(row.id,row);else this.grid.data.add(row);
+    for(const id of this.grid.data.map(item=>String(item.id)) as unknown as string[])if(!this.rows.has(id))this.grid.data.remove(id);
+    const ids=rows.filter(row=>row.value&&(row.state==="stored"||row.state==="done")).map(row=>row.value!).join(",");
+    fileUploadPending(this.form,this.field.name,rows.some(row=>uploadActive(row.state)));
+    if(ids!==this.value){this.form.getItem(this.field.name).setValue(ids);this.form.getItem(fileDisplay(this.field.name))?.clearValidate();}
+    const count=ids?ids.split(",").length:0;
+    this.form.getItem(fileDisplay(this.field.name))?.setValue(count?t("{count} / {limit} fájl",{count,limit:this.limit}):"");
+  }
+  destroy():void{this.disposed=true;this.abort.abort();this.input?.remove();fileUploadPending(this.form,this.field.name,false);this.layout?.destructor();this.panel.remove();}
+}
+
 /** Every `file` field of a Form; `values._media` (or the list row's) describes the current files. */
 export class FileFields{
-  private fields:FileField[]=[];
+  private fields:(FileField|MultiFileField)[]=[];
   constructor(form:Form,fields:FieldDefinition[],call:ResourceCall,sources:(Row|undefined)[]=[],readOnly:(field:FieldDefinition)=>boolean=()=>false){
     for(const field of fields){
       if(field.type!=="file"||!field.file||!form.getItem(field.name))continue;
+      if(filesOf(field)>1){this.fields.push(new MultiFileField(form,field,field.file as StoredFileFieldConfig,readOnly(field)));continue;}
       const media=sources.map(row=>row?._media as Record<string,MediaDescriptor|null>|undefined).map(media=>media?.[field.name]).find(media=>media&&typeof media.id==="string")??undefined;
       this.fields.push(new FileField(form,field,field.file,media,call,readOnly(field)));
     }

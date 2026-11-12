@@ -151,14 +151,17 @@ final class Executor
                 if (!array_key_exists($field->name,$input) && !$field->required) continue;
                 try {
                     $values[$field->name]=$field->validate($input[$field->name] ?? '',$ctx,($fieldEdit||$partial)?array_replace($target['row']??[],$input):$input);
-                    // An unchanged stored file id is not re-validated (a file moved out of the mount, or no longer readable, does not block saving other fields).
-                    $unchanged=is_array($target['row']??null)&&array_key_exists($field->name,$target['row'])&&(string)$target['row'][$field->name]===(string)$values[$field->name];
-                    // A stored file (FB-0167): a new value is a token of the actor's own unexpired upload (FileClaims).
-                    if($field->type==='file'&&$values[$field->name]!==''&&!$unchanged){
-                        $claim=null;
-                        $problem=$field->stored()?FileClaims::problem($ctx,$this->registry,$field,(string)$values[$field->name],$claim):$this->fileProblem($ctx,$field,$values[$field->name]);
-                        if($problem!==null)$field->reject($problem);
-                        if($claim!==null)$claimed[]=$claim;
+                    // An unchanged stored file id is not re-validated (a file moved out of the mount, or no longer readable, does not block saving other fields);
+                    // of several stored files (`multiple`) only the ids the stored value does not hold are new.
+                    if($field->type==='file'&&$values[$field->name]!==''){
+                        $kept=is_array($target['row']??null)&&array_key_exists($field->name,$target['row'])?explode(',',(string)$target['row'][$field->name]):[];
+                        foreach(array_diff(explode(',',(string)$values[$field->name]),$kept) as $new){
+                            // A stored file (FB-0167): a new value is a token of the actor's own unexpired upload (FileClaims).
+                            $claim=null;
+                            $problem=$field->stored()?FileClaims::problem($ctx,$this->registry,$field,$new,$claim):$this->fileProblem($ctx,$field,$new);
+                            if($problem!==null)$field->reject($problem);
+                            if($claim!==null)$claimed[]=$claim;
+                        }
                     }
                 } catch (Failure $error) {
                     if (!$error->fieldErrors) throw $error;

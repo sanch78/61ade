@@ -19,6 +19,7 @@ action's handler, like any other registered action.
 | `Blade\Feature\UploadPolicy` | `packages/php/src/Feature/UploadPolicy.php` | Typed rules: extensions, size, file count, chunk size, folders, depth, duplicate policy, temporary root, TTL, optional domain preflight. Canonical safe-name and folder-segment rules. |
 | `Blade\Feature\Transfers` | `packages/php/src/Feature/Transfers.php` | The `__upload` transfer protocol: preflight, resumable chunked transfers bound to their owner, assembly, finish through the executor, TTL sweep. |
 | `Action::$upload` | `packages/php/src/Feature/Action.php` | `int` (direct multipart limit), `UploadPolicy` (protocol plus direct multipart) or `null`. |
+| `queueGrid`, `uploadRules` | `packages/frontend/src/Uploader.ts` | The queue Grid (Előnézet, Név, Állapot, Műveletek) and the rules line, shared by the window and a [field of several stored files](workspaces.md#stored-file-multiple), which follows its uploads through the internal `onFile` option and runs row commands with `uploads.act` (FB-0181). |
 | `uploads` | `packages/frontend/src/Uploader.ts`, `uploader.css` | Page-lifetime service: modal window, drop zone, queue grid, parallel chunked transfers, conflict decisions, resume, shell indicator, toasts, events. |
 | `requestChoiceAll` | `packages/frontend/src/MessageDialog.ts` | Shared choice dialog with an "apply to all" checkbox ([dialogs](dialogs.md)). |
 

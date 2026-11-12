@@ -84,8 +84,8 @@ test('an accordion form: the Accordion header, one section open, a window that k
  // collapsible section is open and stays open.
  await expect(form.getByRole('textbox',{name:'Név'})).toBeVisible();
  expect((await form.getByRole('textbox',{name:'Szervezet'}).boundingBox()).y).toBeLessThan((await form.locator('.blade-form-section').first().boundingBox()).y);
- await expect(form.locator('.blade-form-section')).toHaveCount(5);
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect(form.locator('.blade-form-section')).toHaveCount(6);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await expect(header(form,'Elérhetőség')).toHaveAttribute('aria-disabled','true');
  await expect(header(form,'Cím')).not.toHaveAttribute('aria-disabled','true');
  const controls=await header(form,'Cím').getAttribute('aria-controls');
@@ -113,30 +113,30 @@ test('an accordion form: the Accordion header, one section open, a window that k
  // Opening another section closes the open one; the window keeps its size.
  const size=await height(form);
  await header(form,'Cím').click();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await expect(form.getByRole('group',{name:'Cím',exact:true}).getByRole('textbox',{name:'Település'})).toBeVisible();
  await expect(form.getByRole('textbox',{name:'Telefon'})).toBeHidden();
  expect(await height(form)).toBe(size);
  await header(form,'Beállítások').click();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:true','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:true','Megjegyzés:false','Fénykép:false','Galéria:false']);
  expect(await height(form)).toBe(size);
  // Clicking the open section keeps it open (one stays open; its header says so with aria-disabled).
  await header(form,'Beállítások').click({force:true});
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:true','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:true','Megjegyzés:false','Fénykép:false','Galéria:false']);
  // The keys: the arrows, Home and End move between the headers; Enter opens one.
- await header(form,'Fénykép').focus();
+ await header(form,'Galéria').focus();
  await page.keyboard.press('ArrowDown');await expect(header(form,'Elérhetőség')).toBeFocused();
- await page.keyboard.press('End');await expect(header(form,'Fénykép')).toBeFocused();
- await page.keyboard.press('ArrowUp');await expect(header(form,'Megjegyzés')).toBeFocused();
+ await page.keyboard.press('End');await expect(header(form,'Galéria')).toBeFocused();
+ await page.keyboard.press('ArrowUp');await expect(header(form,'Fénykép')).toBeFocused();
  await page.keyboard.press('Home');await expect(header(form,'Elérhetőség')).toBeFocused();
  await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  expect(await height(form)).toBe(size);
  // A missing e-mail in the closed `Elérhetőség` opens it (closing `Cím`) and takes the focus.
  await form.getByRole('textbox',{name:'Név'}).fill(prefix+' Kapcsolat');
  await form.getByRole('textbox',{name:'Település'}).fill('Szeged');
  await form.getByRole('button',{name:'Mentés',exact:true}).click();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await expect(form.getByRole('textbox',{name:'E-mail'})).toBeFocused();
  // The values of the closed sections are saved with the open one's.
  await form.getByRole('textbox',{name:'E-mail'}).fill(prefix+'@example.test');
@@ -151,17 +151,17 @@ test('accordion-multiple: several sections open, an open one closes, the window 
  await rewrite(page,data=>{data.formSections='accordion-multiple';});
  await add(page);
  const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await expect(header(form,'Elérhetőség')).not.toHaveAttribute('aria-disabled','true');
  const size=await height(form);
  await header(form,'Cím').click();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await expect(form.getByRole('textbox',{name:'Telefon'})).toBeAttached();
  expect(await height(form)).toBe(size);
  await header(form,'Elérhetőség').click();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await header(form,'Cím').click();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  expect(await height(form)).toBe(size);
  // The action row stays at the window's lower edge with every section closed.
  const frame=await form.boundingBox(),save=await form.getByRole('button',{name:'Mentés',exact:true}).boundingBox();
@@ -176,7 +176,7 @@ test('an accordion form on a phone: the window fits the screen, an open section 
  expect(box.height).toBeLessThanOrEqual(844-24);
  const size=await height(form);
  await header(form,'Fénykép').click();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:true']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:true','Galéria:false']);
  expect(await height(form)).toBe(size);
  const note=form.getByRole('button',{name:'Fájl megadása…',exact:true});
  await note.scrollIntoViewIfNeeded();await expect(note).toBeInViewport();
@@ -192,12 +192,12 @@ test('a RecordForm in a region (an Accordion section, like the media viewer edit
   window.__form=new app.components.RecordForm({resource:'demo_contacts',action:'create'});side.attach('edit',window.__form);
  });
  const region=page.getByRole('dialog',{name:'Fixture',exact:true});
- await expect.poll(()=>expanded(region)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(region)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  const bottom=async()=>{const frame=await region.boundingBox(),save=await region.getByRole('button',{name:'Mentés',exact:true}).boundingBox();return Math.round(frame.y+frame.height-(save.y+save.height));};
  const gap=await bottom();expect(gap).toBeLessThan(40);
  expect(await height(region)).toBe(560);
  await header(region,'Cím').click();
- await expect.poll(()=>expanded(region)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(region)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  expect(await height(region)).toBe(560);expect(await bottom()).toBe(gap);
  // The open section scrolls its own fields within its share.
  const body=region.locator('.blade-form-section--accordion:not(.blade-form-section--still) > .blade-form-section__body:not(.blade-form-section__body--closed)');
@@ -209,11 +209,11 @@ test('a RecordForm in a region (an Accordion section, like the media viewer edit
   window.__form=new app.components.RecordForm({resource:'demo_contacts',action:'create'});window.__form.mount(host);
  });
  const fitted=page.getByRole('dialog',{name:'Fixture',exact:true});
- await expect.poll(()=>expanded(fitted)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(fitted)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await expect.poll(()=>height(fitted)).toBeGreaterThan(300);
  const size=await height(fitted);
  await header(fitted,'Cím').click();
- await expect.poll(()=>expanded(fitted)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(fitted)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  expect(await height(fitted)).toBe(size);
  await page.evaluate(()=>{window.__form.destroy();window.__window.close();});
 });
@@ -234,7 +234,7 @@ test('flush sections fill the form edge to edge; framed ones keep an even 20 px 
  // `Kapcsolatok` declares flushSections: the headers span the window under its header, the fields keep a 20 px inset.
  await add(page);
  let form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await settled(page,form);
  const frame=await box(form),content=await box(form.locator('.dhx_form'));
  const heading=await box(form.locator('.blade-form-section__heading').first()),name=await box(form.getByRole('textbox',{name:'Név'}));
@@ -253,7 +253,7 @@ test('flush sections fill the form edge to edge; framed ones keep an even 20 px 
  });
  await add(page);
  form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await settled(page,form);
  const inner=await box(form.locator('.dhx_form')),sections=form.locator('.blade-form-section');
  const top=await box(sections.first()),bottom=await box(sections.last()),actions=await box(form.locator('.blade-form-actions'));
@@ -263,7 +263,7 @@ test('flush sections fill the form edge to edge; framed ones keep an even 20 px 
  expect(await sections.first().evaluate(element=>getComputedStyle(element).borderLeftWidth)).toBe('1px');
  await expect(form.getByRole('group',{name:'Alapadatok',exact:true}).getByRole('textbox',{name:'Név'})).toBeVisible();
  await expect(header(form,'Alapadatok')).toHaveCount(0);
- await expect(sections).toHaveCount(6);
+ await expect(sections).toHaveCount(7);
 });
 
 test('a section-filling field: the note is the open section\'s body, the photo\'s drop area fills its section; the header names them; both are saved',async({page})=>{
@@ -274,7 +274,7 @@ test('a section-filling field: the note is the open section\'s body, the photo\'
  const size=await height(form);
  // The note: no visible label of its own (still its accessible name), the textarea takes the open section's body.
  await header(form,'Megjegyzés').click();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:true','Fénykép:false']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:true','Fénykép:false','Galéria:false']);
  const note=form.getByRole('textbox',{name:'Megjegyzés',exact:true});await expect(note).toBeVisible();
  await expect(section('Megjegyzés').locator('label')).not.toBeVisible();
  const body=await section('Megjegyzés').locator('.blade-form-section__body').boundingBox(),area=await note.boundingBox();
@@ -284,7 +284,7 @@ test('a section-filling field: the note is the open section\'s body, the photo\'
  await note.fill(prefix+' első sor\nmásodik sor');
  // The photo: the file name without a label, the drop area takes what the name and the buttons leave.
  await header(form,'Fénykép').click();
- await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:true']);
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:true','Galéria:false']);
  expect(await height(form)).toBe(size);
  const photo=section('Fénykép'),drop=await photo.locator('.dhx_avatar').boundingBox(),frame=await photo.boundingBox();
  await expect(photo.getByRole('textbox',{name:'Fénykép',exact:true})).toBeVisible();
@@ -319,4 +319,57 @@ test('a section-filling field: the note is the open section\'s body, the photo\'
  await expect(header(again,'Megjegyzés')).toHaveCount(1);
  expect(await again.locator('textarea[name="note"]').evaluate(element=>element.required||element.getAttribute('aria-required')==='true')).toBe(true);
  expect(await mark('Fénykép')).toBe('none');
+});
+
+test('several files: the uploader\'s zone and queue in the section, a fixed geometry, the limit, removal; saved with the record and shown again',async({page})=>{
+ await open(page);
+ await add(page);
+ const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
+ const size=await height(form);
+ await header(form,'Galéria').click();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:true']);
+ const gallery=form.locator('.blade-form-section').filter({has:page.getByRole('button',{name:'Galéria',exact:true})});
+ const body=gallery.locator('.blade-form-section__body'),count=gallery.getByRole('textbox',{name:'Galéria',exact:true});
+ // The uploader's zone (hint, rules with the field's limit, the pick button) and its queue columns.
+ await expect(gallery.getByRole('group',{name:'Feltöltési terület'})).toContainText('Egyszerre legfeljebb 6 fájl tölthető fel.');
+ await expect(gallery.locator('.dhx_grid-header-cell')).toHaveText(['Előnézet','Név','Állapot','Műveletek']);
+ await expect(count).toHaveValue('');
+ const chosen=page.waitForEvent('filechooser');
+ await gallery.getByRole('button',{name:'Fájlok kiválasztása',exact:true}).click();
+ const chooser=await chosen;expect(chooser.isMultiple()).toBe(true);
+ await chooser.setFiles([1,2,3,4,5,6,7].map(n=>({name:`${prefix}-g${n}.png`,mimeType:'image/png',buffer:png(n*10,n*10)})));
+ // Six are taken, the seventh is refused on the count line; each becomes a finished row waiting for the save.
+ await expect(gallery).toContainText('Legfeljebb 6 fájl adható meg.');
+ await expect(count).toHaveValue('6 / 6 fájl',{timeout:30000});
+ await expect(gallery.locator('.blade-uploader__status--done').first()).toContainText('Feltöltve, mentésre vár');
+ // The geometry is the section's: the window keeps its size, the section does not scroll, the queue scrolls inside.
+ expect(await height(form)).toBe(size);
+ expect(await body.evaluate(element=>element.scrollHeight<=element.clientHeight+1)).toBe(true);
+ expect(await gallery.locator('.dhx_grid-body').first().evaluate(element=>element.scrollHeight>element.clientHeight)).toBe(true);
+ // Removing a row takes it out of the value (the queue draws the rows in view only).
+ await gallery.getByRole('button',{name:`Eltávolítás: ${prefix}-g1.png`}).click();
+ await expect(count).toHaveValue('5 / 6 fájl');
+ await form.getByRole('textbox',{name:'Név'}).fill(prefix+' Galéria');
+ await header(form,'Elérhetőség').click();
+ await form.getByRole('textbox',{name:'E-mail'}).fill(prefix+'-g@example.test');
+ await form.getByRole('button',{name:'Mentés',exact:true}).click();
+ await expect(form).toBeHidden();
+ const saved=()=>query(`SELECT c.id, c.gallery FROM demo_contacts c WHERE c.name = '${prefix} Galéria'`)[0];
+ await expect.poll(()=>saved()?.gallery.split(',').length).toBe(5);
+ expect(query(`SELECT COUNT(*) AS n FROM demo_attachment_files WHERE state = 'committed' AND name LIKE '${prefix}-g%'`)).toEqual([{n:5}]);
+ // The edit form shows the saved files (name, preview) as rows of their own; one removed and the save stores the rest.
+ const id=String(saved().id);
+ await page.locator('[data-cell-id="grid"] .dhx_grid-row').filter({hasText:prefix+' Galéria'}).first().dblclick();
+ const edit=editor(page,'Módosítás');await expect(edit).toBeVisible();
+ await header(edit,'Galéria').click();
+ const again=edit.locator('.blade-form-section').filter({has:page.getByRole('button',{name:'Galéria',exact:true})});
+ await expect(again.getByRole('textbox',{name:'Galéria',exact:true})).toHaveValue('5 / 6 fájl');
+ await expect(again.locator('.dhx_grid-row').first()).toContainText(`${prefix}-g2.png`);
+ await expect(again.locator('.dhx_grid-row').first()).toContainText('Mentve');
+ await expect(again.locator('.blade-uploader__thumb').first()).toBeVisible();
+ await again.getByRole('button',{name:`Eltávolítás: ${prefix}-g2.png`}).click();
+ await expect(again.getByRole('textbox',{name:'Galéria',exact:true})).toHaveValue('4 / 6 fájl');
+ await edit.getByRole('button',{name:'Mentés',exact:true}).click();
+ await expect(edit).toBeHidden();
+ await expect.poll(()=>query(`SELECT gallery FROM demo_contacts WHERE id = ${id}`)[0].gallery.split(',').length).toBe(4);
 });

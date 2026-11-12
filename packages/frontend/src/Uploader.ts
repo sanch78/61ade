@@ -50,12 +50,21 @@ export type UploadOpenOptions = {
   background?: boolean;
   /** Called once per batch when every file of it has settled; the caller refreshes its view. */
   onUploaded?: (result: UploadResult) => void;
+  /** Called on every change of a file of the batch (state, progress, preview), for a caller's own queue (FB-0181). */
+  onFile?: (row: UploadRow) => void;
 };
+/** One queued file as the queue shows it (`queueGrid`); `result` is the target's answer once it is done. */
+export type UploadRow = {
+  id: string; name: string; path: string; size?: number; type: string; state: string; status: string; percent: number;
+  retry: boolean; preview: string; target: string; result?: { id: string; name: string };
+};
+/** A row command of the queue (`queueGrid`), carried out with `uploads.act`. */
+export type UploadRowAction = "cancel" | "retry" | "remove";
 /** Shell lower-bar indicator: text while transfers run with the window closed, `null` otherwise. */
 export type UploadIndicator = { text: string; label: string } | null;
 
 type State = "checking" | "queued" | "uploading" | "finishing" | "conflict" | "done" | "skipped" | "failed" | "cancelled" | "interrupted";
-type Batch = { decision?: string; onUploaded?: (result: UploadResult) => void; items: Item[]; reported?: boolean };
+type Batch = { decision?: string; onUploaded?: (result: UploadResult) => void; onFile?: (row: UploadRow) => void; items: Item[]; reported?: boolean };
 type Item = {
   id: string; file?: File; name: string; size: number; type: string; lastModified: number; relativePath: string;
   resource: string; action: string; target: string | null; targetLabel: string; fingerprint: string;
@@ -79,6 +88,8 @@ class Aborted extends Error {}
 
 const PARALLEL = 3, ATTEMPTS = 3, STORAGE = "blade-uploads";
 const ACTIVE: State[] = ["checking", "queued", "uploading", "finishing", "conflict"];
+/** Whether an `UploadRow.state` is still being checked, waiting or transferred. */
+export const uploadActive = (state: string) => (ACTIVE as string[]).includes(state);
 const SETTLED: State[] = ["done", "skipped", "failed", "cancelled"];
 /** Permanent per-file reasons: a retry would get the same answer. */
 const PERMANENT = new Set(["too_large", "type", "content_mismatch", "conflict", "depth", "name", "quota"]);
@@ -110,6 +121,60 @@ const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, 
   const timer = setTimeout(resolve, ms);
   signal?.addEventListener("abort", () => { clearTimeout(timer); reject(new Aborted()); }, { once: true });
 });
+
+
+// ---------------------------------------------------------------- the queue's look, shared with a field's own queue
+
+function previewCell(row: any): string {
+  if (row.preview) return `<img class="blade-uploader__thumb" src="${escape(row.preview)}" data-blade-upload-row="${escape(row.id)}" alt="${escape(t("Előnézet: {name}", { name: row.name }))}">`;
+  const { icon, label } = typeIcon(String(row.type), String(row.name));
+  return recordIcon({ options: { [icon]: label } }, icon);
+}
+function nameCell(row: any): string {
+  const folder = folderOf(String(row.path || ""));
+  const meta = [typeof row.size === "number" ? sizeLabel(row.size) : "", folder, row.target ? "→ " + row.target : ""].filter(Boolean).join(" · ");
+  return `<div class="blade-uploader__name"><span class="blade-uploader__file" title="${escape(row.path || row.name)}">${escape(row.name)}</span><span class="blade-uploader__meta">${escape(meta)}</span></div>`;
+}
+function statusCell(row: any): string {
+  const percent = Number(row.percent) || 0;
+  return `<div class="blade-uploader__status blade-uploader__status--${escape(row.state)}"><span class="blade-uploader__state">${escape(row.status)}</span>` +
+    `<div class="blade-uploader__progress" role="progressbar" aria-label="${escape(t("{name} feltöltése", { name: row.name }))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" aria-valuetext="${escape(percentLabel(percent / 100))}"><span class="blade-uploader__bar" style="width:${percent}%"></span></div></div>`;
+}
+/** Only state changes rewrite this cell, so a focused button survives progress updates. */
+function actionsCell(row: any): string {
+  // A read-only queue (a field shown read-only) offers no command; a saved file of a field (`stored`) can be removed.
+  if (row.readOnly) return "";
+  const name = String(row.path || row.name), state = String(row.state) as State | "stored";
+  const button = (action: string, icon: string, label: string) =>
+    `<button type="button" class="dhx_button dhx_button--size_small dhx_button--view_link dhx_button--color_secondary dhx_button--icon blade-uploader__action" data-blade-upload-action="${action}" data-blade-upload-row="${escape(row.id)}" aria-label="${escape(label)}" title="${escape(label)}"><span class="dhx_button__icon ${icon}" aria-hidden="true"></span></button>`;
+  const buttons: string[] = [];
+  if (["checking", "queued", "uploading"].includes(state)) buttons.push(button("cancel", "dxi dxi-close", t("Megszakítás: {name}", { name })));
+  if (row.retry) buttons.push(button("retry", "dxi dxi-undo", t("Újrapróbálás: {name}", { name })));
+  if (SETTLED.includes(state as State) || state === "interrupted" || state === "stored") buttons.push(button("remove", "dxi dxi-delete-outline", t("Eltávolítás: {name}", { name })));
+  return `<div class="blade-uploader__actions">${buttons.join("")}</div>`;
+}
+
+/**
+ * The queue Grid (Előnézet, Név, Állapot, Műveletek) of `UploadRow`s; $onAction gets a click on a row command
+ * (`data-blade-upload-action`, `data-blade-upload-row`). The uploader window and a multi-file field (FilePicker) share it.
+ */
+export function queueGrid(onAction: (event: Event) => void): Grid {
+  return new Grid(null, {
+    columns: [
+      { id: "preview", header: [{ text: t("Előnézet") }], width: 88, htmlEnable: true, sortable: false, resizable: false, template: (_: unknown, row: any) => previewCell(row) },
+      { id: "name", header: [{ text: t("Név") }], minWidth: 120, gravity: 2, htmlEnable: true, sortable: false, template: (_: unknown, row: any) => nameCell(row) },
+      { id: "status", header: [{ text: t("Állapot") }], minWidth: 130, gravity: 1, htmlEnable: true, sortable: false, template: (_: unknown, row: any) => statusCell(row) },
+      { id: "actions", header: [{ text: t("Műveletek") }], width: 92, htmlEnable: true, sortable: false, resizable: false, template: (_: unknown, row: any) => actionsCell(row) },
+    ] as any,
+    data: [], rowHeight: 56, autoWidth: true, resizable: false, sortable: false, keyNavigation: false, htmlEnable: false, css: "blade-uploader__grid",
+    eventHandlers: { onclick: { "blade-uploader__action": onAction } },
+  });
+}
+/** The rules line of a drop zone: the allowed types, the size and the count. */
+export const uploadRules = (policy: Pick<UploadPolicy, "extensions" | "maxSizeBytes">, count: number) => [
+  t("Engedélyezett típusok: {types}. Legfeljebb {size} fájlonként.", { types: policy.extensions.join(", "), size: sizeLabel(policy.maxSizeBytes) }),
+  t("Egyszerre legfeljebb {count} fájl tölthető fel.", { count }),
+].join(" ");
 
 /**
  * Page-lifetime uploader: one modal Suite Window (drop zone with the rules, queue Grid, summary
@@ -216,6 +281,15 @@ class UploadService {
     void awaitRedraw().then(() => this.zoneNode()?.focus({ preventScroll: true }));
   }
 
+  /** A row command for a queued file by its `UploadRow.id` (a caller's own queue, FB-0181); an unknown id does nothing. */
+  act(id: string, action: UploadRowAction): void {
+    const item = this.items.get(id);
+    if (!item) return;
+    if (action === "cancel") this.cancel(item);
+    else if (action === "retry") this.retry(item);
+    else this.remove(item);
+  }
+
   /** True while any file is being checked, waiting or transferred. */
   get busy(): boolean { return [...this.items.values()].some(item => ACTIVE.includes(item.state)); }
 
@@ -235,16 +309,7 @@ class UploadService {
       { id: "summary", height: "content", css: "blade-uploader__summary-cell" },
       { id: "commands", height: "content", css: "blade-uploader__commands" },
     ] });
-    const grid = new Grid(null, {
-      columns: [
-        { id: "preview", header: [{ text: t("Előnézet") }], width: 88, htmlEnable: true, sortable: false, resizable: false, template: (_: unknown, row: any) => this.previewCell(row) },
-        { id: "name", header: [{ text: t("Név") }], minWidth: 120, gravity: 2, htmlEnable: true, sortable: false, template: (_: unknown, row: any) => this.nameCell(row) },
-        { id: "status", header: [{ text: t("Állapot") }], minWidth: 130, gravity: 1, htmlEnable: true, sortable: false, template: (_: unknown, row: any) => this.statusCell(row) },
-        { id: "actions", header: [{ text: t("Műveletek") }], width: 92, htmlEnable: true, sortable: false, resizable: false, template: (_: unknown, row: any) => this.actionsCell(row) },
-      ] as any,
-      data: [], rowHeight: 56, autoWidth: true, resizable: false, sortable: false, keyNavigation: false, htmlEnable: false, css: "blade-uploader__grid",
-      eventHandlers: { onclick: { "blade-uploader__action": (event: Event) => this.rowAction(event) } },
-    });
+    const grid = queueGrid(event => this.rowAction(event));
     // The shared window action row (as formActions): the secondary command flat, Close as the primary one.
     const commands = new Form(document.createElement("div"), { padding: "8px 16px 16px", rows: [{ css: "blade-form-actions", cols: [
       { type: "button", name: "clear", text: t("Befejezettek törlése"), icon: "dxi dxi-delete-outline", view: "flat", color: "secondary", width: "content", disabled: true },
@@ -342,11 +407,7 @@ class UploadService {
   private renderZone(): void {
     const context = this.context!, policy = context.policy;
     const folders = policy.folders && "webkitdirectory" in HTMLInputElement.prototype;
-    const rules = [
-      t("Engedélyezett típusok: {types}. Legfeljebb {size} fájlonként.", { types: policy.extensions.join(", "), size: sizeLabel(policy.maxSizeBytes) }),
-      t("Egyszerre legfeljebb {count} fájl tölthető fel.", { count: policy.maxFiles }),
-      ...(policy.folders ? [t("Mappák is feltölthetők.")] : []),
-    ].join(" ");
+    const rules = [uploadRules(policy, policy.maxFiles), ...(policy.folders ? [t("Mappák is feltölthetők.")] : [])].join(" ");
     const accept = policy.extensions.map(extension => "." + extension).join(",");
     const button = (pick: string, icon: string, label: string, kind: string) =>
       `<button type="button" class="dhx_button dhx_button--size_medium dhx_button--view_flat dhx_button--color_${kind} blade-uploader__pick" data-blade-upload-pick="${pick}"><span class="dhx_button__icon ${icon}" aria-hidden="true"></span><span class="dhx_button__text">${escape(label)}</span></button>`;
@@ -407,45 +468,20 @@ class UploadService {
     }
   }
   private ratio(item: Item): number { return item.state === "done" ? 1 : item.size ? Math.min(1, item.received / item.size) : 0; }
-  private row(item: Item): Record<string, unknown> {
+  private row(item: Item): UploadRow {
     const percent = Math.floor(this.ratio(item) * 100);
     item.percent = percent;
     return { id: item.id, name: item.name, path: item.relativePath, size: item.size, type: item.type, state: item.state, status: this.statusText(item), percent,
       retry: !!(item.file && (item.state === "cancelled" || (item.state === "failed" && item.retry))), preview: item.preview ?? "",
-      target: item.target !== this.context?.target || item.resource !== this.context?.resource ? item.targetLabel : "" };
+      target: item.target !== this.context?.target || item.resource !== this.context?.resource ? item.targetLabel : "", ...(item.result ? { result: item.result } : {}) };
   }
   private paint(item: Item): void {
-    if (!this.grid || !this.items.has(item.id)) return;
+    if (!this.items.has(item.id)) return;
     const row = this.row(item);
+    if (item.batch.onFile) try { item.batch.onFile(row); } catch (error) { console.error(error); }
+    if (!this.grid) return;
     if (this.grid.data.exists(item.id)) this.grid.data.update(item.id, row);
     else this.grid.data.add(row);
-  }
-
-  private previewCell(row: any): string {
-    if (row.preview) return `<img class="blade-uploader__thumb" src="${escape(row.preview)}" data-blade-upload-row="${escape(row.id)}" alt="${escape(t("Előnézet: {name}", { name: row.name }))}">`;
-    const { icon, label } = typeIcon(String(row.type), String(row.name));
-    return recordIcon({ options: { [icon]: label } }, icon);
-  }
-  private nameCell(row: any): string {
-    const folder = folderOf(String(row.path || ""));
-    const meta = [sizeLabel(Number(row.size)), folder, row.target ? "→ " + row.target : ""].filter(Boolean).join(" · ");
-    return `<div class="blade-uploader__name"><span class="blade-uploader__file" title="${escape(row.path || row.name)}">${escape(row.name)}</span><span class="blade-uploader__meta">${escape(meta)}</span></div>`;
-  }
-  private statusCell(row: any): string {
-    const percent = Number(row.percent) || 0;
-    return `<div class="blade-uploader__status blade-uploader__status--${escape(row.state)}"><span class="blade-uploader__state">${escape(row.status)}</span>` +
-      `<div class="blade-uploader__progress" role="progressbar" aria-label="${escape(t("{name} feltöltése", { name: row.name }))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" aria-valuetext="${escape(percentLabel(percent / 100))}"><span class="blade-uploader__bar" style="width:${percent}%"></span></div></div>`;
-  }
-  /** Only state changes rewrite this cell, so a focused button survives progress updates. */
-  private actionsCell(row: any): string {
-    const name = String(row.path || row.name), state = String(row.state) as State;
-    const button = (action: string, icon: string, label: string) =>
-      `<button type="button" class="dhx_button dhx_button--size_small dhx_button--view_link dhx_button--color_secondary dhx_button--icon blade-uploader__action" data-blade-upload-action="${action}" data-blade-upload-row="${escape(row.id)}" aria-label="${escape(label)}" title="${escape(label)}"><span class="dhx_button__icon ${icon}" aria-hidden="true"></span></button>`;
-    const buttons: string[] = [];
-    if (["checking", "queued", "uploading"].includes(state)) buttons.push(button("cancel", "dxi dxi-close", t("Megszakítás: {name}", { name })));
-    if (row.retry) buttons.push(button("retry", "dxi dxi-undo", t("Újrapróbálás: {name}", { name })));
-    if (SETTLED.includes(state) || state === "interrupted") buttons.push(button("remove", "dxi dxi-delete-outline", t("Eltávolítás: {name}", { name })));
-    return `<div class="blade-uploader__actions">${buttons.join("")}</div>`;
   }
 
   private rowAction(event: Event): void {
@@ -542,7 +578,7 @@ class UploadService {
   private async add(files: Added[]): Promise<void> {
     const context = this.context;
     if (!context || !files.length) return;
-    const batch: Batch = { items: [], onUploaded: context.onUploaded }, fresh: Item[] = [];
+    const batch: Batch = { items: [], onUploaded: context.onUploaded, onFile: context.onFile }, fresh: Item[] = [];
     let ignored = 0;
     for (const added of files) {
       const fingerprint = await fingerprintOf(added.file, added.relativePath);
@@ -820,7 +856,7 @@ class UploadService {
 
   private retry(item: Item): void {
     if (!item.file || !(item.state === "cancelled" || (item.state === "failed" && item.retry))) return;
-    if (item.batch.reported) item.batch = { items: [item], onUploaded: item.batch.onUploaded, decision: item.batch.decision };
+    if (item.batch.reported) item.batch = { items: [item], onUploaded: item.batch.onUploaded, onFile: item.batch.onFile, decision: item.batch.decision };
     item.userSkipped = false;
     this.join(item);
     this.enqueue(item);
