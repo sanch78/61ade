@@ -7509,7 +7509,7 @@ that exactly equals an option label lists every option. The managed
 - **Limits:** the open sections are not remembered; an accordion form in a
   host without a height shows every section at its own height; sections do
   not nest; no `Accordion` with attached form parts.
-- **Commit:** `f3a19d5` on `main`; the `fit()` fix `e878404`.
+- **Commit:** `f3a19d5` on `main`; the `fit()` fix `e878404`; the margin and `flushSections` `affe871`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0179"></a>
