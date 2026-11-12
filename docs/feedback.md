@@ -747,3 +747,7 @@
 <a id="fb-0181"></a>
 
 ## FB-0181 — Section-filling text and file fields in accordion forms
+
+<a id="fb-0182"></a>
+
+## FB-0182 — Uploader double divider and empty window after a cancelled form
