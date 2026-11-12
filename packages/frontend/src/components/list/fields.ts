@@ -209,11 +209,24 @@ function bindAccordion(form:Form,fields:FieldDefinition[],multiple:boolean,signa
     show(n,true);return true;
   };
   const changed=()=>{decorate();void awaitRedraw().then(decorate);};
+  /** A section that is a text input takes the caret at its end as soon as opening has redrawn, during the motion. */
+  const focusText=(n:number)=>{
+    const field=fields.find(field=>field.section===labels[n-1]&&field.sectionFill&&field.type==="textarea");
+    if(!field)return;
+    void awaitRedraw().then(()=>{
+      if(signal.aborted||!isOpen(n)||document.activeElement!==button(n))return;
+      // Suite's focus() waits for another redraw; the native control is already rendered here.
+      const input=button(n)?.closest(".blade-form-section")?.querySelector("textarea");
+      if(!input||input.disabled||!input.getClientRects().length)return;
+      input.focus({preventScroll:true});
+      input.setSelectionRange(input.value.length,input.value.length);input.scrollTop=input.scrollHeight;
+    });
+  };
   form.events.on("click",(name:string)=>{
     if(signal.aborted||!name?.startsWith(SECTION)||name.endsWith("_body"))return;
     const n=Number(name.slice(SECTION.length));
     if(!toggles.includes(n))return;
-    if(isOpen(n)?multiple&&(show(n,false),true):open(n))changed();
+    if(isOpen(n)?multiple&&(show(n,false),true):open(n)){changed();if(isOpen(n))focusText(n);}
   });
   // The arrows, Home and End between the headers (Enter and Space are the native button's click).
   document.addEventListener("keydown",event=>{

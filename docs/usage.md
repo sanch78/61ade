@@ -635,6 +635,10 @@ header visible while its fields scroll when the available height is too small.
 This also applies to `flushSections`; no consumer stylesheet or new option is
 needed ([FB-0188](feedback.md#fb-0188)).
 
+Opening a [section-filling textarea](workspaces.md#form-section-fill) in an
+accordion form focuses it with the caret at the end of its text, by click,
+Enter or Space. It works in both accordion modes without a new option.
+
 No list or page region is a bare blank area
 ([loading and empty states](toolkit.md#loading-and-empty-states)): every list
 shows a loading indicator (`aria-busy`) while it loads and says when it has

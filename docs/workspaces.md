@@ -1733,6 +1733,12 @@ new Field('photo', 'Fénykép', 'file', file: $image, section: 'Fénykép', sect
   no frame of its own and no inset: the section's body is the text area
   (Suite's focus and error rings stay). This holds in every section
   presentation (panels, fixed, accordion).
+- **Focus on opening:** opening a section-filling textarea in an accordion
+  form (`accordion` or `accordion-multiple`) by click, Enter or Space focuses
+  the textarea with the caret at the end of its current text, including an
+  empty value. This happens on the opening redraw, without waiting for the
+  theme motion. Closing the section keeps focus on its header; initial form
+  focus and validation's focus on the erroneous field keep their own rules.
 - **Geometry:** in an open collapsible accordion section the textarea, or
   the file field's drop area, takes the section's share of the height (at
   least 96 px of text, 180 px of drop area); a fitted window measures the

@@ -8083,3 +8083,33 @@ that exactly equals an option label lists every option. The managed
     regression coverage is not claimed. Task-only cases and artifacts were
     removed. No full-smoke claim.
 - **Status:** implemented and verified by the four targeted browser cases.
+
+<a id="fb-0190"></a>
+
+## FB-0190 — Focus the end of an accordion section's text on opening
+
+- **Date:** 2026-11-12.
+- **Request:** opening a text-input section in an accordion form puts the
+  focus at the end of its text immediately.
+- **Implemented:** the shared form section binding focuses a section-filling
+  textarea on a user opening its header by click, Enter or Space, with the
+  selection collapsed at the value's end and its last line in view. Both
+  `accordion` and `accordion-multiple` use this, including an empty value.
+  Focus follows the opening redraw, without waiting for theme motion. An
+  aborted form, a section closed again, or focus already moved away from
+  its header cancels the pending focus. Closing, initial focus and validation
+  error reveal keep their existing behavior. No new option, event, server
+  operation or authorization/validation change.
+- **Guides:** [section-filling fields](workspaces.md#form-section-fill),
+  [usage](usage.md), [feature demo](demos.md) (`Kapcsolatok` → `Megjegyzés`).
+- **Verification:** typecheck, build, asset preparation and the isolated
+  candidate's reproducible build check passed. On the managed demo, three
+  temporary cases passed: single accordion by click, multiple accordion by
+  Enter at 390 px, and Space with reduced motion. They check empty and
+  populated values, multiline Unicode text, a caret reset to the start before
+  reopening, typing at the end, the last line in view, unchanged window size
+  and focus on the header after closing in multiple mode. The three existing
+  accordion form, multiple mode and section-filling field cases also passed,
+  including validation reveal and saving. Task-only test source and output
+  were removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo.
