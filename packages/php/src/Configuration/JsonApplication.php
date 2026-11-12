@@ -59,7 +59,7 @@ final class JsonApplication
             'charset' => 'string',
             'user' => 'string',
             'password' => 'string',
-        ], [], '$.database');
+        ], ['collation' => 'string'], '$.database');
         $db ??= Database::connect($database);
         $identities = IdentityConfiguration::build($db, $config->section('identity'), $identityBindings);
         $builtWorkspace = WorkspaceConfiguration::build(

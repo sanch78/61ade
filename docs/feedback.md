@@ -7477,3 +7477,44 @@ that exactly equals an option label lists every option. The managed
   not nest; no `Accordion` with attached form parts.
 - **Commit:** `f3a19d5` on `main`.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0179"></a>
+
+## FB-0179 — MySQL connection collation and role-rule lookup
+
+- **Date:** 2026-11-12.
+- **Request:** qualify the ACL queries with native prepared statements on a
+  `utf8mb4_unicode_ci` MySQL schema, both with the default DSN-only
+  connection and with an explicit connection collation. Report every error
+  and every required connection prerequisite.
+- **Found (2026-11-11):** on an isolated MySQL 8.0.46 test schema
+  (`utf8mb4_unicode_ci`), a DSN-only connection got `utf8mb4_general_ci`.
+  Under it, `Acl::rules` failed with error 1267 (*Illegal mix of
+  collations*): its `CAST(role_id AS CHAR)` takes the connection collation,
+  and that does not match `subject_id`. The same column-versus-`CAST`
+  comparison pattern failed in a standalone probe; `RelatedSet`, the
+  `Accounts` name/visible-account SQL and the tenant-access admin use it.
+  Bound string parameters and direct numeric comparisons worked. With
+  `collation_connection=utf8mb4_unicode_ci`, every pattern worked.
+- **Implemented:**
+  - `Acl::rules` reads the actor's role ids first and binds them as string
+    parameters, so the rule lookup no longer depends on the connection
+    collation.
+  - `Database::connect` accepts an optional `collation` of the configured
+    charset and applies it with `SET NAMES charset COLLATE collation`.
+    `fromEnvironment` reads an optional `PREFIX_COLLATION`, and JSON
+    accepts an optional `database.collation`. An invalid value, or one that
+    does not belong to the charset, is rejected before connecting.
+  - The connection-collation prerequisite and the case-insensitive key
+    limit are documented.
+- **Guides:** [shell](shell.md#database-connection),
+  [configuration](configuration.md).
+- **Verification:** all 26 PHP checks of the broad list passed on SQLite.
+  Removing the role branch makes `permissions.php` fail. `configuration.php`
+  covers rejected and accepted `collation` values. The fixed `Acl::rules` and
+  `SET NAMES` were not yet re-run on MySQL, because the isolated test
+  instance had expired.
+- **Limits:** the remaining `CAST(... AS CHAR)` comparisons still need a
+  matching connection collation, which is a documented prerequisite. Equality
+  follows the column collation; no binary comparison is enforced.
+- **Status:** implemented; MySQL re-qualification pending.
