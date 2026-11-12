@@ -590,7 +590,9 @@ current.mount(layout.getCell("list"));
   scoped on that no list surface offers (no column, details, filter or sort).
 - Events: `select` (cursor record, `undefined` when it leaves the window),
   `activate` (the resolved target of a double-click or Enter, reported before
-  it runs; `details` also for a card or tile without a declared target),
+  it runs; `details` also for a card or tile without a declared target; call
+  `preventDefault()` synchronously to handle the activation in the project
+  instead of running the default),
   `saved` (the list's create, update, record-action and singleton forms and
   inline cell or card edits; `action` is `update` for an edit), `changed` (the
   loaded window after a load, scroll window, live update or revocation, with
@@ -2190,7 +2192,7 @@ while mounted, never after `destroy()`):
 | --- | --- | --- | --- |
 | `ListView` | `select` | `{row}` (`undefined`: none) | the cursor record changed, also when it left the loaded window |
 | | `target` | `{view, row, rows}` (`ListTarget`) | active selection, marks or record data changed, including previews and foremost sub-view windows; opening/closing a window restores the corresponding context |
-| | `activate` | `{row, target}` | double-click or Enter resolved to `target` (after the activation map and its fallbacks), before it runs; `details` also for a card or tile without a target and for the `#` cell |
+| | `activate` | `{row, target, preventDefault()}` | double-click or Enter resolved to `target` (after the activation map and its fallbacks), before it runs; synchronous `preventDefault()` skips it; `details` also for a card or tile without a target and for the `#` cell |
 | | `saved` | `{action, row}` | a form of the list (create, update, record action with fields, singleton Save) or an inline cell or card edit (`action` `update`) saved; `row` is the server's answer |
 | | `changed` | `{rows, total?, matched?}` | the loaded window changed (load, scroll window, filter, live update, delete, revocation) |
 | | `toggle` | `{command, pressed}` | the user changed a [toggle command](#registries) of the list's toolbar, after its kept state and its `toggle` callback |
@@ -2911,6 +2913,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-12 | PHP `SqlResource` `delegation`, `Delegation`/`DelegationLink`/`DelegationVia`, JSON `storage.delegation`, ACL scope `delegated`: rows reached through consumer-owned relationship tables, read links for reads and write links for writes (M62). No browser change: `_actions` and the forms follow the decision. | A person had to see records through an ownership relationship without being allowed to change them (a consumer request). | [FB-0180](feedback.md#fb-0180) |
 | 2026-11-12 | PHP `Field` `sectionFill`, JSON `section_fill`, `FieldMetadata.sectionFill`: a textarea or file field that is its section's whole content, named by the header; in an accordion form the open section is the text area or the drop area (M63). Additive. | Owner: a long text whose open accordion section is the input, and a simpler file upload section. | [FB-0181](feedback.md#fb-0181) |
 | 2026-11-12 | PHP and JSON `file.multiple` of a stored file field, `StoredFileFieldConfig.multiple`: up to 20 files as a comma-joined list, each new token claimed with the record; the form shows the uploader's zone and queue at a fixed height (M64). Additive. | Owner: a field expecting several files looks like the media library's uploader; the files belong to the record. | [FB-0181](feedback.md#fb-0181) |
+| 2026-11-12 | `ListView.activate.preventDefault()` synchronously skips default activation, including the `#` cell; existing listeners and uncancelled dispatch stay unchanged. | A composed page may open its own editor or explanation without duplicate details. | [FB-0184](feedback.md#fb-0184) |
 
 <a id="resolved-decisions"></a>
 

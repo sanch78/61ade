@@ -721,3 +721,13 @@ Toolbar icon; see [source/packaging](flag-assets.md).
 The project does not require gitpush after changes (2026-10-21, FB-0043).
 Checks/documentation remain required. Follow [commit/push](development.md#commit-és-push)
 and preserve unrelated staged/unstaged changes.
+
+### Handling a list activation in a project
+
+A composed `ListView` can handle double-click and Enter through its `activate`
+event. Call `event.preventDefault()` synchronously, then open the project's
+existing editor or dialog. The event still carries `row` and the resolved
+`target`; cancellation changes no ACL or toolbar action. No cancellation
+keeps the default. The readings dashboard demonstrates this by keeping its
+selected reading in the existing summary instead of opening duplicate details.
+See [ListView](toolkit.md#listview) and [record activation](workspaces.md#activation).

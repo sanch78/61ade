@@ -1234,8 +1234,9 @@ export interface ListViewEvents {
   /**
    * Double-click/Enter resolved to `target` for `row` (after the activation map and its fallbacks), reported before it
    * runs; `details` also for a card or tile without a declared target and for the `#` cell.
+   * Call `preventDefault()` synchronously to skip the default action and handle it in the project.
    */
-  activate: { row: Row; target: ActivationTarget };
+  activate: { row: Row; target: ActivationTarget; preventDefault(): void };
   /**
    * A form of the list (create, update, a record action with fields, the singleton's Save) or an inline cell/card edit
    * (`action` `update`) saved; `row` is the server's answer (for an edit: the row with the saved values).

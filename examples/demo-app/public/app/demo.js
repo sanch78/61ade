@@ -888,6 +888,7 @@ function dashboard(app, host, view) {
       if (list === current) list = void 0;
     }, { once: true });
     current = list = new app.components.ListView({ view: listView, filters: presets, signal });
+    current.on("activate", (event) => event.preventDefault());
     presets = {};
     current.on("changed", (event) => {
       rows = event.rows;

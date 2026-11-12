@@ -7863,3 +7863,21 @@ that exactly equals an option label lists every option. The managed
   at 390 px kept its name and focus ring. Screenshots were visually checked;
   task-only test source and output were removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0184"></a>
+
+## FB-0184 — Cancellable activation of a composed list
+
+- **Date:** 2026-11-12.
+- **Need:** a project listening to activation could open its editor or an
+  acknowledgement, but the default details/action also ran. The public event
+  gave no way to replace it without intercepting the widget's DOM.
+- **Implemented:** `ListView.activate` adds `preventDefault()`. Calling it
+  synchronously skips Workspace's default dispatch; no listener or no
+  cancellation preserves existing behavior. All listeners still receive the
+  row and resolved target. No server or toolbar behavior changes. The
+  readings dashboard keeps its selection in its existing summary this way.
+- **Guides:** [ListView](toolkit.md#listview),
+  [activation](workspaces.md#activation), [usage](usage.md),
+  [feature demo](demos.md).
+- **Verification:** pending focused type, build and browser checks.

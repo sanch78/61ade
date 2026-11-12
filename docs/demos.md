@@ -242,6 +242,10 @@ starter admin and the tenant demo stay declarative and load no project module.
   definition it gets, so the dashboard passes the offered `demo_readings`
   definition under its own view id (`demo.readings-dashboard`), and a filter
   set here never changes the `Mérések` page.
+- **Activation:** the dashboard handles `activate` with synchronous
+  `preventDefault()`: double-click and Enter keep the selected reading in
+  its summary instead of opening duplicate details. The ordinary readings
+  list keeps its default activation.
 - **Themes and mobile:** chart colours are read from `--dhx-color-primary` and
   `--dhx-color-success` and repainted through `app.theme.onChange`, so Blade,
   light, dark and skins apply; axis text follows the Suite CSS. Below 768 px
