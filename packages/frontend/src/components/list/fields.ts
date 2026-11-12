@@ -58,6 +58,13 @@ const filled=(field:FieldDefinition,value:unknown)=>Array.isArray(value)?value.l
  * carrying the Suite cell header classes of the Accordion component (theme and chevron, admin.css); a still (fixed) one.
  */
 const FLUSH=" blade-form-section--flush",ACCORDION="blade-form-section--accordion",HEADING="dhx_layout-cell-header dhx_layout-cell-header--row blade-form-section__heading",MULTIPLE=" blade-form-section__heading--multiple",STILL=" blade-form-section--still";
+/** A section-filling field's section (`sectionFill`, form-section.css) and its required mark on the header. */
+const FILL=" blade-form-section--fill",REQUIRED=" blade-form-section--required";
+/** $item with the label of its item $name for screen readers only (Suite `hiddenLabel`): the section's header shows it. */
+const labelHidden=(item:any,name:string):any=>!item||typeof item!=="object"?item:item.name===name?{...item,hiddenLabel:true}:{...item,
+  ...(Array.isArray(item.rows)?{rows:item.rows.map((child:any)=>labelHidden(child,name))}:{}),...(Array.isArray(item.cols)?{cols:item.cols.map((child:any)=>labelHidden(child,name))}:{})};
+/** Whether a Suite Form item (or a nested one) is required. */
+const requiredIn=(item:any):boolean=>!!item&&typeof item==="object"&&(item.required===true||[...(Array.isArray(item.rows)?item.rows:[]),...(Array.isArray(item.cols)?item.cols:[])].some(requiredIn));
 /** The sections of an accordion form that start open: without `multiple` the first collapsible one; with it those holding a value, else the first. */
 function openedAt(fields:FieldDefinition[],values:Record<string,unknown>,multiple:boolean):Set<string>{
   const collapsible=sectionsOf(fields).filter(label=>!fixedSection(fields,label));
@@ -79,31 +86,34 @@ export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>
   const accordion=mode==="accordion"||mode==="accordion-multiple",opened=accordion?openedAt(fields,values,mode==="accordion-multiple"):undefined;
   for(const field of fields){
     if(!field.section){rows.push(item(field));continue;}
+    // A section-filling field (`sectionFill`, alone in its section): the header names it and carries its required mark.
+    const made=field.sectionFill?labelHidden(item(field),field.type==="file"?fileDisplay(field.name):field.name):item(field);
+    const fill=field.sectionFill?FILL+(requiredIn(made)?REQUIRED:""):"";
     let body=bodies.get(field.section);
     if(!body){
       const n=labels.indexOf(field.section)+1;
       bodies.set(field.section,body=[]);
       if(opened){
         const still=fixedSection(fields,field.section),open=still||opened.has(field.section);
-        rows.push({css:"blade-form-section "+ACCORDION+(still?STILL:"")+(flush?FLUSH:""),rows:still?[
+        rows.push({css:"blade-form-section "+ACCORDION+(still?STILL:"")+(flush?FLUSH:"")+fill,rows:still?[
           {type:"fieldset",name:SECTION+n+"_body",label:field.section,css:BODY,rows:body},
         ]:[
           {type:"button",name:SECTION+n,text:field.section,view:"link",color:"secondary",css:HEADING+(mode==="accordion-multiple"?MULTIPLE:"")},
           {type:"fieldset",name:SECTION+n+"_body",css:BODY+(open?"":CLOSED),rows:body},
         ]});
       }
-      else if(fixedSection(fields,field.section))rows.push({css:"blade-form-section blade-form-section--fixed",rows:[
+      else if(fixedSection(fields,field.section))rows.push({css:"blade-form-section blade-form-section--fixed"+fill,rows:[
         {type:"fieldset",name:SECTION+n+"_body",label:field.section,css:BODY,rows:body},
       ]});
       else{
         const open=fields.some(other=>other.section===field.section&&filled(other,values[other.name]));
-        rows.push({css:"blade-form-section",rows:[
+        rows.push({css:"blade-form-section"+fill,rows:[
           {type:"button",name:SECTION+n,text:field.section,view:"link",color:"secondary",icon:open?"dxi dxi-chevron-down":"dxi dxi-chevron-right",css:"blade-form-section__toggle"},
           {type:"fieldset",name:SECTION+n+"_body",css:BODY+(open?"":CLOSED),rows:body},
         ]});
       }
     }
-    body.push(item(field));
+    body.push(made);
   }
   return rows;
 }

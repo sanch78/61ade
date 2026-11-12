@@ -66,6 +66,12 @@ final readonly class Field
          * one section declares the same value (Registry refuses a mix). Only with $section.
          */
         public bool $sectionCollapsible = true,
+        /**
+         * The field is its section's whole content (a textarea or a file field, the only field of its section): the
+         * section's header names it instead of its own label (still its accessible name) and carries its required
+         * mark; in an accordion form the textarea is the open section's body and a file field's drop area fills it.
+         */
+        public bool $sectionFill = false,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
             || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'date', 'file'], true)
@@ -140,6 +146,7 @@ final readonly class Field
             throw new InvalidArgumentException('Invalid exclusive field: '.$name);
         }
         if (($section !== null && (trim($section) === '' || strlen($section) > 100 || preg_match('/[\x00-\x1f\x7f]/', $section))) || ($section === null && !$sectionCollapsible)) throw new InvalidArgumentException('Invalid field section: '.$name);
+        if ($sectionFill && ($section === null || !in_array($type, ['textarea', 'file'], true) || $editor !== null)) throw new InvalidArgumentException('A section-filling field is a textarea or file field of a section, without an editor: '.$name);
         if (count(array_intersect_key($column, ['cardLines' => 1, 'card_lines' => 1])) > ($type === 'textarea' ? 1 : 0)) throw new InvalidArgumentException('Card lines belong to one textarea column option.');
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
@@ -296,6 +303,8 @@ final readonly class Field
             ...($this->visibleWhen !== null ? ['visibleWhen' => $this->visibleWhen] : []),
             ...($this->clears ? ['clears' => $this->clears] : []),
             ...$this->sectionMetadata(),
+            // The form's presentation only; columns carry the section alone.
+            ...($this->sectionFill ? ['sectionFill' => true] : []),
         ];
     }
     /** The wire form of the section: `section` (translated label), `sectionCollapsible: false` for a fixed one. */
@@ -303,14 +312,17 @@ final readonly class Field
     {
         return $this->section === null ? [] : ['section' => \Blade\I18n\Translator::text($this->section), ...($this->sectionCollapsible ? [] : ['sectionCollapsible' => false])];
     }
-    /** Refuses $fields where one section label is declared both collapsible and fixed. */
+    /** Refuses $fields where one section label is declared both collapsible and fixed, or a section-filling field shares its section. */
     public static function checkSections(array $fields): void
     {
-        $seen = [];
+        $seen = $count = $fill = [];
         foreach ($fields as $field) {
             if (!$field instanceof self || $field->section === null) continue;
             if (($seen[$field->section] ?? $field->sectionCollapsible) !== $field->sectionCollapsible) throw new InvalidArgumentException('Field section declared both collapsible and fixed: '.$field->section);
             $seen[$field->section] = $field->sectionCollapsible;
+            $count[$field->section] = ($count[$field->section] ?? 0) + 1;
+            if ($field->sectionFill) $fill[$field->section] = true;
         }
+        foreach ($fill as $section => $_) if ($count[$section] > 1) throw new InvalidArgumentException('A section-filling field is the only field of its section: '.$section);
     }
 }

@@ -63,6 +63,8 @@ export type FieldDefinition = {
   /** The label of the form section the field belongs to; `sectionCollapsible: false` makes it fixed (always open). */
   section?: string;
   sectionCollapsible?: false;
+  /** The field is its section's whole content (a textarea or file field alone in its section): the header names it. */
+  sectionFill?: true;
 };
 /** Opens the form sections holding these fields (registered by `bindFieldTypes`, fields.ts); FormValidation calls it. */
 export const sectionReveal=new WeakMap<Form,(names:string[])=>void>();

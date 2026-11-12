@@ -749,7 +749,10 @@ form.mount(win);
   [accordion sections](workspaces.md#form-accordion) instead: the
   `Accordion` component's header and geometry, sharing the window's or the
   region's height; opening one never refits the window; `flushSections`
-  runs them edge to edge of the form.
+  runs them edge to edge of the form. A field declaring `sectionFill` (`FieldMetadata.sectionFill`,
+  FB-0181) is its section's whole content, named by the header: an open
+  accordion section is the textarea, or the file field's drop area fills
+  it ([section-filling fields](workspaces.md#form-section-fill)).
 - The submit button is the action's `submitLabel` from an offered view, else
   its label (`Mentés` only without either), so a project view's query action
   submits under its own name. A read-only action (`write: false`) shows no
@@ -2756,6 +2759,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M60 | [`app.ui.window`](#app-window) `fit()` does nothing for a window that does not fit (`fit: false`, a full-screen window below 768 px): a `RecordForm` or `SettingsForm` in it no longer resizes it | [FB-0178](feedback.md#fb-0178) | info: a `RecordForm` in a `fit: false` window kept the requested size only until its fields showed and then fitted; it now keeps it (drop `fit: false` to fit); on a phone the window stays full screen | none | none |
 | M61 | [Accordion form sections](workspaces.md#form-accordion) edge to edge: an action's `flushSections` (PHP `Action`, `SqlResource::register`; JSON `flush_sections`), `FormDescription.flushSections`; the framed stack keeps an even 20 px margin | [FB-0178](feedback.md#fb-0178) | none (additive; the framed stack moved 4 px up and its lower margin grew to 20 px) | none | none |
 | M62 | [Delegated access](access-and-actions.md#delegated-access): `SqlResource` `delegation` (`Delegation`, `DelegationLink`, `DelegationVia`; JSON `storage.delegation`), ACL scope `delegated` (admin `Delegált objektum`, refused for a resource without a declaration); `Acl::allows()`/`fieldAllowed()` take optional `destination` and `deferred`, `Acl::predicate()` an optional `qualifier`, `Acl::delegates()`, `Registry::delegate()`/`delegation()`, `Executor::permit()`. A `delegated` rule without a declaration fails the operation, and a deny with an unknown scope now denies everything | [FB-0180](feedback.md#fb-0180) | info: stored rules with a scope other than all/own/id now deny when they are denies | none | none |
+| M63 | [Section-filling fields](workspaces.md#form-section-fill): a field's `sectionFill` (PHP `Field`, JSON `section_fill`), `FieldMetadata.sectionFill`: a textarea or file field alone in its section, named by the section's header; an open accordion section is the textarea, or the drop area fills it | [FB-0181](feedback.md#fb-0181) | none (additive) | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2904,6 +2908,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-12 | `AppWindow.fit()` keeps the size of a window that does not fit (`fit: false`, below 768 px); a `RecordForm` or `SettingsForm` in it no longer resizes it (M60). Behaviour fix. | The guide said `fit: false` keeps the requested size, but a `RecordForm` fitted the window through `fit()`; owner decision. | [FB-0178](feedback.md#fb-0178) |
 | 2026-11-12 | PHP `Action::$flushSections`, `SqlResource::register` `flushSections`, JSON `flush_sections`; `FormDescription.flushSections`: accordion form sections edge to edge of the form; the framed stack's margin is an even 20 px (M61). Additive. | Owner: the margin around the accordion form was uneven; an option for the form to fill its layout without a border. | [FB-0178](feedback.md#fb-0178) |
 | 2026-11-12 | PHP `SqlResource` `delegation`, `Delegation`/`DelegationLink`/`DelegationVia`, JSON `storage.delegation`, ACL scope `delegated`: rows reached through consumer-owned relationship tables, read links for reads and write links for writes (M62). No browser change: `_actions` and the forms follow the decision. | A person had to see records through an ownership relationship without being allowed to change them (a consumer request). | [FB-0180](feedback.md#fb-0180) |
+| 2026-11-12 | PHP `Field` `sectionFill`, JSON `section_fill`, `FieldMetadata.sectionFill`: a textarea or file field that is its section's whole content, named by the header; in an accordion form the open section is the text area or the drop area (M63). Additive. | Owner: a long text whose open accordion section is the input, and a simpler file upload section. | [FB-0181](feedback.md#fb-0181) |
 
 <a id="resolved-decisions"></a>
 

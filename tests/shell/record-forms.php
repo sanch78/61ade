@@ -36,6 +36,18 @@ rejected(static fn() => new Field('x', 'X', sectionCollapsible: false), 'A fixed
 rejected(static fn() => (new Registry())->registerFields('mixed', [new Field('a', 'A', section: 'S'), new Field('b', 'B', section: 'S', sectionCollapsible: false)]), 'A section both collapsible and fixed accepted');
 rejected(static fn() => (new Registry())->add(new Action('mixed', 'run', 'Run', [new Field('a', 'A', section: 'S', sectionCollapsible: false), new Field('b', 'B', section: 'S')], static fn() => [])), 'An action section both collapsible and fixed accepted');
 (new Registry())->registerFields('agreed', [new Field('a', 'A', section: 'S', sectionCollapsible: false), new Field('b', 'B', section: 'S', sectionCollapsible: false), new Field('c', 'C', section: 'T')]);
+// Section-filling fields (FB-0181): a textarea or file field of a section, without an editor, alone in its section;
+// `sectionFill: true` in the form metadata only, not in a column's section.
+$image = ['upload' => 'r.upload', 'accept' => ['image']];
+verify((new Field('x', 'X', 'textarea', section: 'S', sectionFill: true))->metadata()['sectionFill'] === true && !array_key_exists('sectionFill', (new Field('x', 'X', 'textarea', section: 'S'))->metadata()), 'Section fill in field metadata');
+verify(!array_key_exists('sectionFill', (new Field('x', 'X', 'textarea', section: 'S', sectionFill: true))->sectionMetadata()), 'No section fill in a column');
+new Field('x', 'X', 'file', file: $image, section: 'S', sectionFill: true);
+rejected(static fn() => new Field('x', 'X', 'textarea', sectionFill: true), 'A section fill without a section accepted');
+rejected(static fn() => new Field('x', 'X', section: 'S', sectionFill: true), 'A text field filling its section accepted');
+rejected(static fn() => new Field('x', 'X', 'textarea', editor: 'p.editor', section: 'S', sectionFill: true), 'A section fill with an editor accepted');
+rejected(static fn() => (new Registry())->registerFields('shared', [new Field('a', 'A', 'textarea', section: 'S', sectionFill: true), new Field('b', 'B', section: 'S')]), 'A section-filling field sharing its section accepted');
+rejected(static fn() => (new Registry())->add(new Action('shared', 'run', 'Run', [new Field('a', 'A', section: 'S'), new Field('b', 'B', 'textarea', section: 'S', sectionFill: true)], static fn() => [])), 'An action section-filling field sharing its section accepted');
+(new Registry())->registerFields('alone', [new Field('a', 'A', 'textarea', section: 'S', sectionFill: true), new Field('b', 'B', section: 'T')]);
 // Card lines of a long text (FB-0177): a textarea column option 0–50, one spelling.
 verify((new Field('x', 'X', 'textarea', column: ['cardLines' => 0]))->column['cardLines'] === 0 && (new Field('x', 'X', 'textarea', column: ['card_lines' => 50]))->column['card_lines'] === 50, 'Card lines accepted');
 foreach ([['text', ['cardLines' => 4]], ['textarea', ['cardLines' => -1]], ['textarea', ['cardLines' => 51]], ['textarea', ['cardLines' => '4']], ['textarea', ['cardLines' => 4, 'card_lines' => 4]]] as [$type, $column])
@@ -136,12 +148,15 @@ try {
     $fixed = $module;$fixed['resources']['items']['fields'][1]['section_collapsible'] = false;
     file_put_contents($directory.'/module.json', json_encode($fixed, JSON_THROW_ON_ERROR));
     verify(WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry->fields('items')['title']->sectionCollapsible === false, 'JSON section_collapsible');
+    $filling = $module;$filling['resources']['items']['fields'][1] += ['type' => 'textarea', 'section_fill' => true];
+    file_put_contents($directory.'/module.json', json_encode($filling, JSON_THROW_ON_ERROR));
+    verify(WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry->fields('items')['title']->sectionFill === true, 'JSON section_fill');
     // operations.form_sections gives the create and update forms their section presentation (FB-0178).
     $accordion = $module;$accordion['resources']['items']['operations'] = ['form_sections' => 'accordion-multiple', 'flush_sections' => true];
     file_put_contents($directory.'/module.json', json_encode($accordion, JSON_THROW_ON_ERROR));
     $built = WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry;
     verify($built->get('items', 'create')->formSections === 'accordion-multiple' && $built->get('items', 'update')->formSections === 'accordion-multiple' && $built->get('items', 'update')->flushSections, 'JSON operations.form_sections and flush_sections');
-    foreach ([['operations', 'form_sections', 'tabs'], ['operations', 'form_sections', true], ['operations', 'formSections', 'accordion'], ['operations', 'flush_sections', 'yes'], ['operations', 'flush_sections', true], ['storage', 'create_only', 'kind'], ['storage', 'create_only', ['missing']], ['field', 'section', ['More']], ['field', 'section', ''], ['field', 'section_collapsible', 'no'], ['field', 'sectionCollapsible', false]] as [$where, $key, $value]) {
+    foreach ([['operations', 'form_sections', 'tabs'], ['operations', 'form_sections', true], ['operations', 'formSections', 'accordion'], ['operations', 'flush_sections', 'yes'], ['operations', 'flush_sections', true], ['storage', 'create_only', 'kind'], ['storage', 'create_only', ['missing']], ['field', 'section', ['More']], ['field', 'section', ''], ['field', 'section_collapsible', 'no'], ['field', 'sectionCollapsible', false], ['field', 'section_fill', 'yes'], ['field', 'section_fill', true], ['field', 'sectionFill', true]] as [$where, $key, $value]) {
         $broken = $module;
         if ($where === 'field') $broken['resources']['items']['fields'][1][$key] = $value; else $broken['resources']['items'][$where][$key] = $value;
         file_put_contents($directory.'/module.json', json_encode($broken, JSON_THROW_ON_ERROR));

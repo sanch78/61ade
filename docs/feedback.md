@@ -7658,3 +7658,90 @@ that exactly equals an option label lists every option. The managed
 - **Commit:** `e1d81796361292efeec718e5a2b9e785264b0474` on `main`.
 - **Status:** implemented and verified on SQLite and on the managed demo;
   MySQL qualification pending (the isolated test instance had expired).
+
+<a id="fb-0181"></a>
+
+## FB-0181 — Section-filling text and file fields in accordion forms
+
+- **Date:** 2026-11-12.
+- **Request:** the owner (two screenshots of a consumer's accordion form)
+  asks for a text field in an accordion form where the open section itself
+  is the text input, and for a simplified file upload section. Seen: a
+  section `Szöveg` holding one textarea labelled `Szöveg *` with empty space
+  below it, and a section `Fájlok` repeating a label (`Referencia`) above the
+  file name and a drop area that overflows into a scrollbar.
+- **Decision:** a field option, not a section or action option: the field
+  declares that it is its section's whole content (`sectionFill`), which
+  needs a textarea or file field, alone in its section, without a project
+  editor (an editor's item is not the framework's to stretch). Implicit
+  detection (any section of one field) was rejected: it would hide a label
+  that differs from the section's header without the project asking. The
+  header is the visible name and carries the required mark; the field's
+  label stays its accessible name (Suite `hiddenLabel`). The file name stays
+  above the drop area: it is the keyboard target (Enter/Space opens the
+  dialog, paste), shows the status and the field error, and names the file.
+- **Implemented:**
+  - PHP: `Field::$sectionFill` and its declaration rule;
+    `Field::checkSections` refuses a filling field that shares its section
+    (resource and action fields); `metadata()` carries `sectionFill: true`,
+    the column's `sectionMetadata()` does not; JSON `section_fill`
+    (`WorkspaceConfiguration`).
+  - Frontend: `fields.ts` `formRows` hides the filling field's label
+    (the textarea, or the file name item) and marks the section
+    `blade-form-section--fill` (`--required` when its item is required);
+    `form-section.css`: the required mark on the header (accordion, panel
+    toggle, fixed legend), the frameless edge-to-edge textarea (focus and
+    error rings kept), and in an open collapsible accordion section the
+    textarea or the drop area takes the section's share (the measuring rules
+    keep their own heights, so the window's fitted size does not change).
+    Types: `FieldMetadata.sectionFill`, `FieldDefinition.sectionFill`.
+  - Demo: `Kapcsolatok` ([contacts.php](../examples/demo-app/contacts.php)):
+    the note moves from `Beállítások` to its own `Megjegyzés` section, and a
+    new stored image `photo` in a `Fénykép` section (the `Mellékletek` upload
+    and GET actions, committed by the contacts' `afterSave`; the GET action
+    also serves a contact's committed photo). The schema step adds the
+    column; the web demo's setup ran before the declaration (database backed
+    up first).
+- **Guides:** [section-filling fields](workspaces.md#form-section-fill),
+  [RecordForm](toolkit.md#recordform), toolkit changes and migration row
+  M63, [configuration](configuration.md) (`fields`), [demos](demos.md),
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md),
+  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md) and
+  its [ledger](../.agents/skills/grid-tree-card-ui/references/accepted-rules.md).
+- **Limits:** panels and fixed sections keep the field at its own height (no
+  height to share); the cards and details show the field under its own
+  label; a project field type (`editor`) cannot fill a section.
+- **Follow-up (same day, fixed geometry):** the owner asked that the
+  geometry of such an upload stay fixed and that an uploaded image fit the
+  preview. The drop area's height now comes from the section only (flex
+  basis 0, at least 180 px) and the image is laid over it (`contain`), so a
+  tall image no longer grows the area or the window. A field expecting
+  several files (the owner: like the media library's uploader) is a separate
+  question: no form field holds several files today.
+- **Verification:**
+  - **Build and static checks:** `npm run typecheck`, `npm run build`
+    (`node tools/build.mjs --check` clean), `npm run demo:assets`,
+    `git diff --check`; the web demo's schema step (backed up first).
+  - **PHP checks passed:** `record-forms` (new: metadata with and without
+    `sectionFill`, none in a column's section, a file field accepted; refused
+    without a section, on a text field, with an editor, beside another field
+    of its section in a resource and in an action; JSON `section_fill` read,
+    `'yes'`, a text field and the camelCase key refused), `configuration`,
+    `contracts`, `stored-file`.
+  - **Browser on the managed demo:** `form-accordion.spec.cjs` (6 passed; the
+    existing cases updated for the two new sections; new: the note's
+    textarea covers the open section's body within 1 px and keeps its
+    accessible name without a visible label, the photo's file name without a
+    label, the drop area over 150 px with the buttons at the section's lower
+    edge, the window's height unchanged on both; a 40×1600 px image through
+    the native dialog leaves the drop area's box and the window unchanged and
+    is fitted (`contain`); the save stores the note and commits the photo; a
+    required note by a rewritten description shows the header's mark while
+    the header keeps its name and the textarea is required), the new case 3
+    of 3 with `--repeat-each=3`; with `record-forms.spec.cjs` and
+    `stored-file.spec.cjs` 13 passed. The region case failed once in a run
+    while another session used the demo and passed alone and in the next
+    full runs. Screenshots checked by eye and removed. No full-smoke claim.
+- **Commit:** on `main` (this entry's commit).
+- **Status:** implemented and verified on the managed demo; a several-file
+  field open.

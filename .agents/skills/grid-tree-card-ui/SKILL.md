@@ -252,7 +252,10 @@ tree as decoration for a flat list.
   section must not resize the window, the action declares accordion sections
   (`formSections: 'accordion'`): the `Accordion` component's header and fixed
   geometry inside the one form, never one form per `Accordion` section
-  ([FB-0178](../../../docs/feedback.md#fb-0178)).
+  ([FB-0178](../../../docs/feedback.md#fb-0178)). A long text or a file that
+  forms a section alone declares `sectionFill`: the header is its visible
+  name and the open section is the input, never a repeated label inside the
+  section ([FB-0181](../../../docs/feedback.md#fb-0181)).
 - A small control of a panel (expand/collapse all) is a pair of named icon
   buttons that stay in the bar (`iconOnly`, `pinned`), not text buttons or a
   collapsed menu of two entries ([FB-0177](../../../docs/feedback.md#fb-0177)).
