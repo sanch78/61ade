@@ -17,6 +17,9 @@ foreach([[1,'one@example.test','One'],[2,'two@example.test','Two'],[3,'three@exa
 $db->exec('CREATE TABLE notes (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT)');$db->exec("INSERT INTO notes(title) VALUES ('Synthetic')");
 $registry=new Registry();$workspace=new Workspace($registry,$db);
 (new SqlResource('notes','notes','id',[new Field('title','Cím',required:true)]))->register($registry,'Jegyzetek');
+// A resource with a delegation declaration (FB-0180): only its rules may use the `delegated` scope.
+$db->exec('CREATE TABLE note_readers (note_id INTEGER NOT NULL, actor_id TEXT NOT NULL)');
+(new SqlResource('shared_notes','notes','id',[new Field('title','Cím',required:true)],delegation:new Blade\Feature\Delegation(read:[new Blade\Feature\DelegationLink('note_readers','note_id','actor_id','id')])))->register($registry,'Megosztott jegyzetek');
 $accounts=new Accounts($workspace,'accounts','id','email','display_name','password_hash');$accounts->register($registry);
 $identities=$accounts->identities(new SqlIdentityProvider($db,'accounts','id','email','password_hash','display_name'));
 $permissions=new Permissions($workspace,$accounts,$identities);$permissions->register($registry);
@@ -63,6 +66,9 @@ fails(fn()=>$run('1',Permissions::ROLE_RULES,'create',null,[...$base,'channel'=>
 fails(fn()=>$run('1',Permissions::ROLE_RULES,'create',null,[...$base,'field_name'=>'missing']),400,'Unknown field','field_name');
 fails(fn()=>$run('1',Permissions::ROLE_RULES,'create',null,[...$base,'scope'=>'id']),400,'Object scope needs id','object_id');
 fails(fn()=>$run('1',Permissions::ROLE_RULES,'create',null,[...$base,'object_id'=>'1']),400,'Object id only for object scope','object_id');
+fails(fn()=>$run('1',Permissions::ROLE_RULES,'create',null,[...$base,'scope'=>'delegated']),400,'Delegated scope needs a delegation declaration','scope');
+$delegatedRule=$run('1',Permissions::ROLE_RULES,'create',null,[...$base,'resource'=>'shared_notes','scope'=>'delegated'])['id'];
+$run('1',Permissions::ROLE_RULES,'delete',$delegatedRule,['revision'=>$run('1',Permissions::ROLE_RULES,'get',$delegatedRule)['revision']]);
 fails(fn()=>$run('1',Permissions::ROLE_RULES,'create',null,[...$base,'resource'=>Accounts::RESOURCE,'effect'=>'deny']),403,'No deny on admin resources');
 fails(fn()=>$run('1',Permissions::ROLE_RULES,'create',null,[...$base,'subject_id'=>'999']),400,'Unknown role','subject_id');
 $rule=$run('1',Permissions::ROLE_RULES,'create',null,$base)['id'];

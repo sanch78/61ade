@@ -17,6 +17,8 @@ final class Registry
     private array $tenantScoped = [];
     /** @var array<string, array<string, array>> count fields per resource (SqlResource `counts`, FB-0173) */
     private array $counts = [];
+    /** @var array<string, DelegationScope> delegated access per resource (SqlResource `delegation`, FB-0180) */
+    private array $delegations = [];
     public function __construct()
     {
         $meta=new ViewMetadata($this);
@@ -28,6 +30,14 @@ final class Registry
     /** Count fields of $resource (name => {resource, match, filters?, on?}); checked against the counted resource by checkViews(). */
     public function counts(string $resource, array $counts): void { $this->counts[$resource] = $counts; }
     public function countFields(string $resource): array { return $this->counts[$resource] ?? []; }
+    /** Binds the delegated access of $resource (SqlResource::register); one per resource. */
+    public function delegate(string $resource, DelegationScope $scope): void
+    {
+        if (isset($this->delegations[$resource])) throw new \InvalidArgumentException('Duplicate delegation: '.$resource);
+        $this->delegations[$resource] = $scope;
+    }
+    /** The DelegationScope of $resource, or null when it declares no delegated access. */
+    public function delegation(string $resource): ?DelegationScope { return $this->delegations[$resource] ?? null; }
     public function add(Action $action): void
     {
         $key=$action->resource.'.'.$action->name;

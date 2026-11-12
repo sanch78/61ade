@@ -741,5 +741,7 @@
   "Mindet kinyit": "Alle aufklappen",
   "Mindet bezár": "Alle zuklappen",
   "Nem nyílt ki minden elem: legfeljebb {nodes} elem, {depth} szint és elemenként {children} gyermek tölthető be.": "Nicht alles wurde aufgeklappt: höchstens {nodes} Einträge, {depth} Ebenen und {children} Untereinträge je Eintrag werden geladen.",
-  "Mentett fájl": "Gespeicherte Datei"
+  "Mentett fájl": "Gespeicherte Datei",
+  "Delegált objektum": "Delegiertes Objekt",
+  "Ennek az erőforrásnak nincs delegálási deklarációja.": "Diese Ressource hat keine Delegierungsdeklaration."
 }

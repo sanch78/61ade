@@ -509,6 +509,14 @@ validation inventory and documented deviations, not just required fields.
 
 ## ACL and action execution
 
+[Delegated access](access-and-actions.md#delegated-access) is opt-in per
+resource (`SqlResource` `delegation: new Delegation(read: [...], write: [...])`
+with `DelegationLink` and an optional `DelegationVia`; JSON
+`storage.delegation`). Rules with scope `delegated` then grant or deny the
+rows the actor reaches through the application's own relationship tables:
+the read links for reads, the write links for writes. `delegation.php`
+covers it on SQLite and, with the `BLADE_TEST_MYSQL_*` variables, on MySQL.
+
 <a id="multi-tenancy"></a>
 
 ## Multi-tenancy (optional)

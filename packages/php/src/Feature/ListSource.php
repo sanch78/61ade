@@ -125,7 +125,7 @@ final readonly class ListSource
         if(!is_bool($numbered))throw new Failure('Hibás sorszámozás.');
         $filters=$input['filters']??[];
         if(!is_array($filters)||count($filters)>count($this->fields))throw new Failure('Hibás szűrők.');
-        [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
+        [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner,$this->qualifier($ctx));
         $terms=["($scope)","({$this->where})"];
         if($this->tenant!==null)$terms[]=$this->realm($ctx,$params) ?? throw new Failure('Nincs aktív tenant.',403);
         $totalTerms=$terms;$totalParams=$params;$known=array_column($this->fields,null,'name');
@@ -267,7 +267,7 @@ final readonly class ListSource
         // Without any list allow (or with a deny of the whole action) nothing is counted: no value rather than 0.
         $rules=$ctx->acl->rules($ctx->actor->id,$this->resource,'list',$ctx->channel);
         if(!array_filter($rules,static fn($r)=>$r['effect']==='allow'&&$r['field_name']==='')||array_filter($rules,static fn($r)=>$r['effect']==='deny'&&$r['scope']==='all'&&$r['field_name']===''))return null;
-        [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
+        [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner,$this->qualifier($ctx));
         $terms=["($scope)","({$this->where})","({$this->countWhere})"];
         if($this->tenant!==null&&($terms[]=$this->realm($ctx,$params))===null)return null;
         $i=0;foreach($filters as $name=>$value){$terms[]="COALESCE(CAST($name AS CHAR),'') = :blade_cf$i";$params["blade_cf$i"]=(string)$value;$i++;}
@@ -296,6 +296,16 @@ final readonly class ListSource
         $in=[];foreach($values as $i=>$value){$in[]=":blade_tenant$i";$params["blade_tenant$i"]=$value;}
         return "{$this->tenant} IN (".implode(',',$in).')';
     }
+    /**
+     * The name that qualifies the outer row in correlated scope SQL (delegated rules, FB-0180): the alias of the
+     * resource's row source, or the bare table; null for another source.
+     */
+    private function qualifier(Context $ctx):?string
+    {
+        $from=$this->source?($this->source)($ctx):$this->table;
+        if(str_ends_with($from,') blade_source'))return 'blade_source';
+        return preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$from)?$from:null;
+    }
     /** Whether the channel of $ctx may call this resource's `list` (an API token also needs that scope), as the executor requires. */
     private function listable(Context $ctx):bool
     {
@@ -307,7 +317,7 @@ final readonly class ListSource
     {
         $known=array_column($this->fields,null,'name')[$field]??null;
         if(!$known||$known->secret||!$this->queryable($ctx,$field)||($this->registry&&!$this->listable($ctx)))return null;
-        [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner);
+        [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner,$this->qualifier($ctx));
         $terms=["($scope)","({$this->where})","({$this->countWhere})"];
         if($this->tenant!==null&&($terms[]=$this->realm($ctx,$params))===null)return null;
         // A hierarchy child lists its top-level records only (as its view does), so only those are counted.

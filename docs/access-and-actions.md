@@ -18,7 +18,8 @@ account's `own` scope; the guest has no active tenant. Its actions retain their
 normal audit actor id, with no login success event for a guest page.
 
 Rules contain subject (user/role), resource, action, channel (ui/api), effect
-(allow/deny), object scope (all/own/id), optional object ID and field (whole action
+(allow/deny), object scope (all/own/id, and [delegated](#delegated-access) on a
+resource that declares it), optional object ID and field (whole action
 or named field). The backend data provider determines ownership. Explicit deny
 wins; no matching allow means deny. A field allow alone cannot authorize an
 action. API token scopes only restrict. UI and API share one executor.
@@ -57,6 +58,127 @@ limits there. A scoped resource may declare [shared rows](tenancy.md#shared-rows
 tenants read them, and the executor refuses every write action on them with a
 tenant (403, left out of `_actions`); a declared role without a tenant writes them. Roles and rules are global and apply in every member tenant. Complex ABAC requires typed registered condition adapters, never
 UI-authored PHP/SQL/JavaScript expressions.
+
+<a id="delegated-access"></a>
+
+## Delegated access
+
+A person can see records through an ownership relationship that the
+application keeps in its own tables, and may be refused changes to them
+([FB-0180](feedback.md#fb-0180)). The feature is opt-in per `SqlResource`.
+Rules with scope `delegated` grant or deny the rows the actor reaches through
+the declared links.
+
+```php
+use Blade\Feature\{Delegation, DelegationLink, DelegationVia};
+
+new SqlResource('collections', 'collections', 'id', $fields, delegation: new Delegation(
+    read: [
+        new DelegationLink(table: 'collection_readers', objectColumn: 'collection_id', actorColumn: 'actor_id', resourceColumn: 'id'),
+        // A collection is also visible to the owner of one of its items:
+        // item_owners.item_id = items.id, items.collection_id = collections.id.
+        new DelegationLink('item_owners', 'item_id', 'actor_id', 'id', via: new DelegationVia(table: 'items', key: 'id', parentColumn: 'collection_id')),
+    ],
+    write: [new DelegationLink('collection_writers', 'collection_id', 'actor_id', 'id')],
+));
+```
+
+JSON: `storage.delegation` with `read` and `write` lists of
+`{table, object_column, actor_column, resource_column, via?: {table, key, parent_column}}`.
+
+**Declaration**
+
+- A link row matches when `link.actorColumn` equals the authenticated actor
+  and `link.objectColumn` equals the row's `resourceColumn`. With `via`, the
+  conditions are `link.objectColumn = via.key` and
+  `via.parentColumn = resource.resourceColumn`. Only one intermediate level
+  is supported.
+- `resourceColumn` is a stored column of the resource: its key, a stored
+  field such as a parent foreign key, a default column or the owner column.
+  Computed, related, count, secret and password fields are rejected when the
+  resource is registered.
+- Identifiers are plain SQL names. Link and intermediate tables may not be
+  `blade_` tables (in any case) or the resource table itself.
+- The links of one set are OR-combined, and an empty set grants nothing. A
+  set holds at most ten links.
+- The framework binds the actor and all values, and qualifies each
+  correlation with the outer row's alias or table name. The link subqueries
+  use their own aliases, so a link table with the same column names never
+  shadows the resource row.
+
+**Evaluation**
+
+- **Read set:** non-write actions use it (`list`, `get`, custom read
+  actions), as do the SQL scopes of lists, totals, cursors, filters,
+  searches, related `Lookup` choices, count fields, sub-view counts and
+  live/watch/singleton observations.
+- **Write set:** write actions use it.
+- **Write allow on a stored row:** a delegated write allow also requires
+  the effective `get` of that row on the same channel. That `get` may come
+  from any rule, including an ordinary `all`/`own`/`id` grant. On the API it
+  also requires the token's `<resource>.get` scope.
+- **Create:** a delegated `create` of the `SqlResource` itself is decided
+  on the final normalized, defaulted and server-stamped values, without a
+  readable stored row. A consumer's own `create` action (for example with
+  `create: false`) has no final-value check, so a delegated allow grants it
+  nothing. Upload staging for a deferred create (`Executor::authorize`)
+  needs the actor to hold at least one write link.
+- **Update:** checks the stored row first and then the final destination,
+  together with the field rules of every written field. Moving a row into a
+  collection that is not writable is refused, and a field deny applies to
+  the final values too.
+- **Generated keys:** a primary-key `resourceColumn` cannot authorize a
+  create, because the key does not exist yet. That check fails closed. An
+  independent `all`/`own` create grant still works; the framework never
+  falls back to it automatically after a delegated check fails.
+- **Deny:** a delegated deny (object or field) uses the raw link set of the
+  action, so another allow never bypasses it. Deny precedence, field rules,
+  channel and token scopes, the tenant realm, the archive policy and the
+  resource's `where` all apply as before.
+- **Custom actions:** the stored row is read again from the resource table,
+  and the ACL object is first checked by the resource's own resolver
+  (tenant realm, `where`, archive policy; 404 otherwise). A `row` returned
+  by the action's resolver must be that stored row, with every stored column
+  present and equal; otherwise the action fails closed (403). This covers a
+  forged or partial row and a row of another resource. A resolver may
+  return only the id, or the resource's own `target()`.
+- **No verified object:** for an action without a verified object, a
+  delegated allow grants nothing and a delegated deny denies.
+- **Bulk, inline edit and upload:** bulk items, inline cell edits and the
+  upload authorization (`Executor::authorize`) use the same decision.
+- **Manual order:** with delegated `move` rules, every peer that a move
+  renumbers must itself be movable before anything is written.
+- **Missing declaration:** a `delegated` rule on a resource without a valid
+  declaration is a configuration error. The operation fails (500, logged)
+  instead of skipping the rule. This also covers an `all` allow combined
+  with a delegated deny whose declaration was removed. The administration
+  refuses to save such a rule. A deny with an unknown scope now denies
+  everything.
+- **Opting out:** a resource without the option, or one whose actors have
+  no `delegated` rules, behaves as before.
+
+**Limits and prerequisites**
+
+- **Global links:** link tables are not tenant-filtered. Their relationship
+  keys must be globally unique across the realms involved. Tenant-local
+  values reused in another tenant need explicit realm-aware links, because
+  filtering only the resource row does not tell such links apart. FB-0175
+  shared rows stay read-only for a tenant even when a write link matches.
+- **Custom exports:** use the resource's `ListSource`, which applies the
+  scoped predicate, rather than their own SQL. A `Lookup` (or any scope
+  query) must read the delegated resource's own table; another table fails
+  closed. A resource `where` may name its table.
+- **Key types and collations:** the link and resource columns compared with
+  each other need compatible types. On MySQL, string keys also need the same
+  charset and collation, and the connection collation must match the schema
+  ([connection collation](shell.md#database-connection)). Under a
+  case-insensitive collation, string actor or object keys that differ only
+  in case match each other.
+- **Per-row checks:** row actions (`_actions`) read the links once per row
+  and set. Index the consumer's link tables on (actor, object).
+
+Demo: `Gyűjtemények` in the [feature demo](demos.md), with
+`delegate@example.test`.
 
 <a id="használati-felület-első-implementáció"></a>
 

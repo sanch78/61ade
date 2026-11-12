@@ -199,6 +199,8 @@ blade_demo_accounts($db, [
     [null, 'skins@example.test', '61ade-demo', 'Skins Demo', 1, 0],
     // Public UI: a dedicated account, no known password, only explicitly granted catalogue reads.
     [null, 'guest@example.test', bin2hex(random_bytes(32)), 'Guest', 1, 0],
+    // Delegated access (modules/collections.json, FB-0180): reaches collections only through the link tables.
+    [null, 'delegate@example.test', '61ade-demo', 'Delegated Demo', 1, 0],
 ]);
 $reader = $db->query("SELECT id FROM accounts WHERE email = 'reader@example.test'")->fetchColumn();
 $guest = (string) $db->query("SELECT id FROM accounts WHERE email = 'guest@example.test'")->fetchColumn();
@@ -236,6 +238,20 @@ $rules[] = ['1', 'demo_contacts', ['list', 'get', 'create', 'update', 'delete']]
 $rules[] = [(string) $reader, 'demo_contacts', ['list', 'get']];
 // Approval queue: the demo account reviews; the reader has no access, so neither the entry nor its count.
 $rules[] = ['1', 'demo_approvals', ['list', 'get', 'update']];
+// Delegated access (modules/collections.json, FB-0180): synthetic collections A, B and C and consumer-owned link
+// tables. delegate@ reads A and B and writes A through them (scope `delegated`); the demo account keeps ordinary
+// `all` grants and sees all three. Idempotent: rows, links and rules are added only when missing.
+$db->exec('CREATE TABLE IF NOT EXISTS demo_collections(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT \'\')');
+foreach (['demo_collection_readers', 'demo_collection_writers'] as $table) $db->exec("CREATE TABLE IF NOT EXISTS $table(collection_id INTEGER NOT NULL,actor_id INTEGER NOT NULL,PRIMARY KEY(collection_id,actor_id))");
+$collection = $db->prepare('INSERT INTO demo_collections(title,description) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM demo_collections WHERE title = ?)');
+foreach ([['A', 'Olvasható és szerkeszthető a delegált fióknak.'], ['B', 'Csak olvasható a delegált fióknak.'], ['C', 'A delegált fiók nem éri el.']] as [$title, $description]) $collection->execute([$title, $description, $title]);
+$delegate = (string) $db->query("SELECT id FROM accounts WHERE email = 'delegate@example.test'")->fetchColumn();
+$collectionId = static fn(string $title): string => (string) $db->query('SELECT id FROM demo_collections WHERE title = '.$db->quote($title))->fetchColumn();
+foreach ([['demo_collection_readers', 'A'], ['demo_collection_readers', 'B'], ['demo_collection_writers', 'A']] as [$table, $title]) $db->exec("INSERT OR IGNORE INTO $table(collection_id,actor_id) VALUES (".(int) $collectionId($title).','.(int) $delegate.')');
+$delegated = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) SELECT 'user',?,'demo_collections',?,'ui','allow','delegated','','' WHERE NOT EXISTS (SELECT 1 FROM blade_rules WHERE subject_type='user' AND subject_id=? AND resource='demo_collections' AND action=? AND channel='ui' AND scope='delegated' AND field_name='')");
+foreach (['list', 'get', 'update'] as $action) $delegated->execute([$delegate, $action, $delegate, $action]);
+unset($collection, $collectionId, $delegated);
+$rules[] = ['1', 'demo_collections', ['list', 'get', 'create', 'update']];
 // Read-only topology viewer: opens diagrams, no editing.
 $rules[] = [(string) $reader, 'topology', ['list', 'get']];
 // Digital signage: calendar table, synthetic assets, weekday defaults and programme; the seeded asset media move into

@@ -739,3 +739,7 @@
 <a id="fb-0179"></a>
 
 ## FB-0179 — MySQL connection collation and role-rule lookup
+
+<a id="fb-0180"></a>
+
+## FB-0180 — Delegated access through application-owned relationship tables

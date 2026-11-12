@@ -163,6 +163,26 @@ final class WorkspaceConfiguration
         return $fields;
     }
 
+    /** `storage.delegation` (FB-0180): `{read: [link], write: [link]}`, link `{table, object_column, actor_column, resource_column, via?: {table, key, parent_column}}`. */
+    private static function delegation(array $definition, string $where): \Blade\Feature\Delegation
+    {
+        Shape::check($definition, [], ['read' => 'array', 'write' => 'array'], $where);
+        $links = [];
+        foreach (['read', 'write'] as $set) {
+            $links[$set] = [];
+            if (!array_is_list($definition[$set] ?? [])) throw new InvalidArgumentException('Invalid delegation links at '.$where.'.'.$set);
+            foreach ($definition[$set] ?? [] as $index => $link) {
+                $at = $where.'.'.$set.'.'.$index;
+                if (!is_array($link)) throw new InvalidArgumentException('Invalid delegation link at '.$at);
+                Shape::check($link, ['table' => 'string', 'object_column' => 'string', 'actor_column' => 'string', 'resource_column' => 'string'], ['via' => 'array'], $at);
+                if (isset($link['via'])) Shape::check($link['via'], ['table' => 'string', 'key' => 'string', 'parent_column' => 'string'], [], $at.'.via');
+                $links[$set][] = new \Blade\Feature\DelegationLink($link['table'], $link['object_column'], $link['actor_column'], $link['resource_column'],
+                    isset($link['via']) ? new \Blade\Feature\DelegationVia($link['via']['table'], $link['via']['key'], $link['via']['parent_column']) : null);
+            }
+        }
+        return new \Blade\Feature\Delegation($links['read'], $links['write']);
+    }
+
     private function resource(string $name, array $definition): void
     {
         Shape::check($definition, ['storage' => 'array', 'fields' => 'array', 'view' => 'array'], [
@@ -176,7 +196,7 @@ final class WorkspaceConfiguration
         $operations = $definition['operations'] ?? [];
         $view = $definition['view'];
         Shape::check($storage, ['table' => 'string', 'key' => 'string'], [
-            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array', 'tenant_column' => 'string', 'order' => 'array', 'create_only' => 'array', 'counts' => 'array', 'shared_tenant' => 'string', 'shared_roles' => 'array',
+            'owner_column' => 'string', 'defaults' => 'array', 'where' => 'string', 'self_only' => 'boolean', 'related' => 'array', 'unique' => 'array', 'computed' => 'array', 'tenant_column' => 'string', 'order' => 'array', 'create_only' => 'array', 'counts' => 'array', 'shared_tenant' => 'string', 'shared_roles' => 'array', 'delegation' => 'array',
         ], '$.resources.'.$name.'.storage');
         Shape::check($hooks, [], [
             'guard' => 'string', 'normalize' => 'string', 'after_save' => 'string', 'delete_guard' => 'string', 'after_delete' => 'string',
@@ -230,6 +250,7 @@ final class WorkspaceConfiguration
             counts: $storage['counts'] ?? [],
             sharedTenant: $storage['shared_tenant'] ?? null,
             sharedRoles: $storage['shared_roles'] ?? [],
+            delegation: isset($storage['delegation']) ? self::delegation($storage['delegation'], '$.resources.'.$name.'.storage.delegation') : null,
         );
         $resource->register(
             registry: $this->registry,
