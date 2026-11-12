@@ -135,6 +135,9 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 
 ## 5. Open design questions and proposed work
 
+Accepted capabilities still to be introduced are kept in the [to-do](todo.md)
+list (for example [T1 tree table](todo.md#tree-table)).
+
 <a id="eldöntve-az-első-adminszelethez--2026-10-21"></a>
 
 ### Decisions for the first admin slice — 2026-10-21

@@ -768,15 +768,30 @@
 
 ## FB-0186 — Equal-height section groups and project column sizing with CSS
 
+<a id="fb-0187"></a>
+
+## FB-0187 — Theme motion: accordion and layout regions ease on open and close
+
 <a id="fb-0188"></a>
 
 ## FB-0188 — Fixed accordion form headers stay above scrolling fields
+
+<a id="fb-0189"></a>
+
+## FB-0189 — Card and tile hover without moving the card
 
 <a id="fb-0190"></a>
 
 ## FB-0190 — Focus the end of an accordion section's text on opening
 
+## FB-0191 — Tree control in the list's command row, no scrollbar over it
+
 
 <a id="fb-0192"></a>
 
 ## FB-0192 — No filename search control for static image columns
+
+
+<a id="fb-0193"></a>
+
+## FB-0193 — Tree rows like grid rows, optional stripes and classic lines

@@ -1,6 +1,8 @@
-import { Layout, Toolbar } from "@dhtmlx/suite";
+import { Layout } from "@dhtmlx/suite";
+import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { t } from "../../I18n";
 import { UiPreferences } from "../../UiPreferences";
+import { collapseMotion } from "../../Motion";
 import { acknowledge, noticeMarkup } from "../../MessageDialog";
 import { attachContent, openWindow } from "../../api/services";
 import { server } from "../../api/Server";
@@ -23,7 +25,7 @@ export class TreeNavigation {
   readonly layout:Layout;
   private nodes:Layout;
   private tree:NodeTree;
-  private toolbar:Toolbar;
+  private toolbar:ResponsiveToolbar;
   /** The element the list panel shows; the scoped list renders into its own element inside it. */
   private slot=document.createElement("div");
   private content?:{layout:Layout;destroy():void};
@@ -36,10 +38,12 @@ export class TreeNavigation {
     const tree={cols:[{id:"tree",header:this.view.title,width:300,minWidth:180,resizable:true,collapsable:true},{id:"list",header:title}]};
     this.layout=new Layout(host,{type:"space",...this.preferences.layoutTree(tree)} as any);
     this.preferences.bindLayout(this.layout,tree);
+    collapseMotion(this.layout);
     this.nodes=new Layout(document.createElement("div"),{type:"none",rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"nodes",css:"blade-tree-cell"}]});
-    this.toolbar=new Toolbar(undefined,{data:this.actions().map(action=>({id:action.name,value:escape(action.label),icon:actionIcon(action)}))});
+    // The list's command bar: the actions collapse into `Műveletek` when the panel is narrow.
+    this.toolbar=new ResponsiveToolbar(undefined,{data:this.actions().map(action=>({id:action.name,value:escape(action.label),icon:actionIcon(action)}))});
     this.toolbar.events.on("click",(id:string|number)=>{const action=this.actions().find(action=>action.name===String(id));if(action)void this.run(action);});
-    this.tree=new NodeTree({view:this.view,parent:config.parent,label:config.label},{select:()=>{this.show();this.commands();}},this.view.title);
+    this.tree=new NodeTree({view:this.view,parent:config.parent,label:config.label},{select:()=>{this.show();this.commands();}},this.view.title,undefined,false,{striped:config.striped,lines:config.lines});
     this.nodes.getCell("commands").attach(this.toolbar);
     attachContent(this.nodes.getCell("nodes"),this.tree.element,this.abort.signal);
     this.layout.getCell("tree").attach(this.nodes);
@@ -111,6 +115,6 @@ export class TreeNavigation {
   destroy():void{
     this.abort.abort();
     this.content?.destroy();
-    this.tree.destroy();this.toolbar.destructor();this.nodes.destructor();this.layout.destructor();
+    this.tree.destroy();this.toolbar.disposeResponsive();this.toolbar.destructor();this.nodes.destructor();this.layout.destructor();
   }
 }

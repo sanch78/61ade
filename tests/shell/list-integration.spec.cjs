@@ -21,8 +21,6 @@ test('details, cards and marked rows run the bulk business action through one en
  const detail=page.getByRole('dialog',{name:'Rekordadatok',exact:true});await expect(detail).toContainText('E2E részletes leírás 2');
  await detail.getByRole('button',{name:'Ablak bezárása',exact:true}).click();
  await view(page,'Kártyák');const cards=page.locator('.blade-grid-card');await expect(cards.first()).toContainText('Részletes leírás');
- // The pointer left over the first card after closing the details; the theme's hover lift would offset it.
- await page.mouse.move(0,0);
  await expect.poll(async()=>(await cards.nth(1).boundingBox()).y-(await cards.first().boundingBox()).y).toBe(0);
  const apply=await page.getByRole('button',{name:'Szűrés',exact:true}).boundingBox(),clear=await page.getByRole('button',{name:'Alaphelyzet',exact:true}).boundingBox();
  expect(clear.y).toBe(apply.y);expect(clear.x-apply.x-apply.width).toBeGreaterThanOrEqual(8);

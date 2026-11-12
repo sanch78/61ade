@@ -864,6 +864,10 @@ export interface TreeMetadata {
   parent: string;
   /** The node view's field naming a node. */
   label: string;
+  /** `false` when the tree has no alternating rows (docs/toolkit.md#tree-presentation). */
+  striped?: boolean;
+  /** `false` when the tree has no connecting lines and +/- boxes. */
+  lines?: boolean;
 }
 
 /** `options` of kind `list`: today's list-specific top-level keys of `components/list/types.ts` `ViewDefinition`, unchanged. */
@@ -1452,8 +1456,18 @@ export interface TreeOptions extends ComponentOptions {
    * `2` the roots and their children, at most `10`; the children still load level by level. Another value: `TypeError`.
    */
   expand?: number;
-  /** Shows `Mindet kinyit` / `Mindet bezár` (a `CommandBar`) above the tree. */
-  expandControl?: boolean;
+  /**
+   * One icon button in a `CommandBar` (docs/toolkit.md#tree-expansion): `Mindet kinyit` while a node is collapsed,
+   * `Mindet bezár` once everything is open. `true` puts the bar above the tree, `{placement: "bottom"}` below it.
+   */
+  expandControl?: boolean | { placement?: "top" | "bottom" };
+  /**
+   * Alternating row backgrounds in displayed order, like the grid's (docs/toolkit.md#tree-presentation); default `true`.
+   * Another value than a boolean: `TypeError`.
+   */
+  striped?: boolean;
+  /** Dotted lines connecting the nodes and a dashed +/- box on an expandable node instead of the arrow; default `true`. */
+  lines?: boolean;
 }
 
 /** What `Tree.expandAll()` reached (docs/toolkit.md#tree-expansion). */

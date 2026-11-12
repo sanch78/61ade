@@ -383,6 +383,66 @@ stays inside that header below the expand icon; the entire strip remains the
 native mouse/keyboard toggle. Expanded and horizontally collapsed headers keep
 their Suite geometry ([FB-0134](feedback.md#fb-0134)).
 
+Cards and tiles of the list views stay in place under the pointer in every
+theme: no transform, size or border-width change. The edge lights up (border
+colour, an outer ring and `--blade-lift-shadow`, drawn outside the layout)
+and one light sweep crosses the card on an overlay above its content; the
+cursor and the focused card keep their own rings. The edge colour is
+`--blade-card-hover-edge` (the theme's `--blade-hover-ring` in Blade and
+Blade Night); reduced motion turns the sweep off ([FB-0189](feedback.md#fb-0189)).
+
+The grid's cursor row and the selected row of every tree look the same in a
+skin: the selection tint (`--blade-select-tint`), a thin blue frame, a
+straight 3 px gradient bar (`--blade-gradient-vertical`) on the left edge and
+one light sweep (off under reduced motion); the slanted tile stays the mark of
+marked rows ([FB-0193](feedback.md#fb-0193)).
+
+<a id="theme-motion"></a>
+
+**Theme motion** ([FB-0187](feedback.md#fb-0187)): in Blade and Blade Night,
+opening and closing a layout region eases to its new size in 200 ms instead
+of jumping: [Accordion](toolkit.md#accordion) sections (also a `PageLayout`
+`accordion` branch), `collapsable` Layout cells of `PageLayout`, list
+workspaces and tree navigation (header click, keys, `collapse`/`expand`, the
+list's form panel), [accordion form sections](workspaces.md#form-accordion),
+and the folders of every Suite Tree (`RecordTree`, tree navigation, the key
+browser, the file manager; a click, the keys, children loaded on opening).
+A closing accordion section keeps showing its content while it shrinks; a
+collapsing Layout cell shrinks with its header only (Suite leaves a collapsed
+cell's content out); a tree folder's children slide out from under its row
+and back under it, with their lines and stripes, while the folder's connector
+and the rows below follow ([FB-0193](feedback.md#fb-0193)). Several folders changing at once (`expandAll`, revealing
+a node's ancestors) change without motion. Only the size moves: state, events, `aria-expanded`
+and focus change at once, and a second toggle during the motion continues
+from the current size.
+
+- The theme switches it on with `--blade-motion-duration` (`200ms` on
+  `[data-blade-theme|="blade"]`); `light`, `dark` and skins on those bases
+  have none. A skin on a Blade base may set its own value (`0s` turns it
+  off, at most `1000ms`); a skin on `light` or `dark` may set one to opt in.
+- `prefers-reduced-motion: reduce` sets it to `0s` and also stops Blade's
+  decorative header corners and sheen.
+- Trees: `treeMotion` eases only the folder's children list (inline
+  `!important` height, rows at the bottom, `data-blade-sliding`); Suite
+  removes a closed folder's children at once, so an inert, `aria-hidden` copy
+  of them (`.blade-tree-ghost`) slides back under the row and is removed. The
+  slide starts in the microtask of Suite's redraw, before that frame is
+  painted; children loaded on opening continue the slide to their height
+  (`treeChildrenMotion`, used by `TreeAdapter`). A tree's stripes are
+  recomputed once the slide has settled and crossfade.
+- Implementation: `Motion.ts` (`resizeMotion`, `collapseMotion`) pins the
+  moving regions with inline `!important` sizes, measures them after the
+  change has painted, eases from the old to the new size and releases the
+  pins (Suite's own inline sizes stay). Region content reflows during the
+  motion like during a resizer drag; a pinned region clips (`overflow:
+  clip`), so a field focused while it grows leaves no scroll offset.
+  `finishMotion(element)` ends the motions inside an element at once; a
+  fitted window (`fitWindow`, also after validation) calls it before it
+  measures its form. A motion starting inside a running one (a folder
+  opened in a growing folder) ends the enclosing one first.
+- Not animated: tabs, windows, popups, panel-mode form sections (their
+  window refits to the new height at once) and expanded grid rows.
+
 <a id="application-skins"></a>
 
 ### Application skins (optional)

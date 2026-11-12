@@ -1,4 +1,5 @@
 import {type Window,awaitRedraw} from "@dhtmlx/suite";
+import {finishMotion} from "./Motion";
 
 /** Default cap of a fitted window's height in px (FB-0177): a centred dialog, not a full-height one; the viewport caps it too. */
 export const FIT_MAX_HEIGHT=800;
@@ -13,6 +14,8 @@ export async function fitWindow(win:Window,maxHeight=FIT_MAX_HEIGHT,selector=".d
   await awaitRedraw();
   if(!win.isVisible())return;
   const container=win.getContainer();
+  // A section still easing to its size (theme motion) would be measured at its pinned size.
+  finishMotion(container);
   container.dataset.bladeMeasure="";
   const content=Array.from(container.querySelectorAll<HTMLElement>(selector)).filter(node=>node.getBoundingClientRect().height>0);
   const outer=(container.closest<HTMLElement>('[role="dialog"]')??container).getBoundingClientRect();

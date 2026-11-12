@@ -3,6 +3,7 @@ import type { Accordion as AccordionApi, LayoutCell, Mountable, PageLayout as Pa
 import { placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
+import { collapseMotion } from "../../Motion";
 import { Component } from "../list/component";
 import { Accordion } from "./Accordion";
 import { Tabs } from "./Tabs";
@@ -113,6 +114,7 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
       ...(node.cols?{cols:node.cols.map(child=>config(child,"width"))}:{})});
     this.layout=new Layout(this.host,{type:"space",css:"blade-page-layout",...config(preferences.layoutTree(tree))} as any);
     preferences.bindLayout(this.layout,tree,()=>this.transient);
+    collapseMotion(this.layout);
     // Every change of a collapsible leaf: a header click, its keys or the page's own call.
     for(const [event,collapsed] of [["afterCollapse",true],["afterExpand",false]] as const)
       this.layout.events.on(event,(id:string|number)=>{if(this.collapsable.has(String(id)))this.emit("collapse",{id:String(id),collapsed});});

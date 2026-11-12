@@ -285,9 +285,10 @@ final class Registry
      * parent)`): its roots are the records with an empty parent field and a node's children load when it is expanded,
      * by the ordinary, ACL-checked `list` of that resource. $label (a readable text or select field of $tree) names a
      * node. The tree panel's toolbar runs the $tree view's actions on the selected node (a new one under it). $tree is
-     * embedded: it has no menu entry of its own. Declare both views and the hierarchy first.
+     * embedded: it has no menu entry of its own. Declare both views and the hierarchy first. $striped (alternating rows)
+     * and $lines (connecting lines with +/- boxes) set the tree's look (docs/toolkit.md#tree-presentation).
      */
-    public function tree(string $view, string $tree, string $field, string $label): void
+    public function tree(string $view, string $tree, string $field, string $label, bool $striped=true, bool $lines=true): void
     {
         $list=$this->views[$view]??null;$nodes=$this->views[$tree]??null;
         $invalid=new \InvalidArgumentException('Invalid tree navigation.');
@@ -296,7 +297,7 @@ final class Registry
         if(!$hierarchy||$hierarchy['child']!==$tree)throw $invalid;
         $known=$this->fields((string)$list->resource)[$field]??null;$name=$this->fields((string)$nodes->resource)[$label]??null;
         if(!$known||!in_array($known->type,['select','number','text'],true)||$known->secret||!$name||!in_array($name->type,['text','select'],true)||$name->secret)throw $invalid;
-        $this->views[$view]=$list->with(options:[...$list->options,'tree'=>['view'=>$tree,'field'=>$field,'label'=>$label]]);
+        $this->views[$view]=$list->with(options:[...$list->options,'tree'=>['view'=>$tree,'field'=>$field,'label'=>$label,...($striped?[]:['striped'=>false]),...($lines?[]:['lines'=>false])]]);
         $this->embedded[$tree]=$view;
     }
     /** File manager view (kind `files`): `$files` is browser configuration only (mounts, limits); handlers stay server-side. */

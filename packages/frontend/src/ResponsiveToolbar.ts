@@ -156,9 +156,10 @@ export class ResponsiveToolbar extends Toolbar {
     const shown=compact?entries.filter(item=>item.type!=="spacer"&&!item.bladePinned):entries.flatMap(item=>!item.bladeInline?[item]:item.hidden?[]:item.items.map(({type,...child}:any)=>({...child,...(item.disabled?{disabled:true}:{})})));
     const menuEntries=withBack(shown,menu);
     this.data.removeAll();
-    // With every item pinned the collapsed bar has no menu.
+    // With every item pinned the collapsed bar has no menu. A pinned item keeps its side: a spacer before a pinned item stays.
+    const pinned=entries.filter((item,index)=>item.bladePinned||(item.type==="spacer"&&entries.slice(index+1).some(next=>next.bladePinned)));
     this.data.parse(compact?[...(shown.length?[{id:menu,value:this.collapse?.value??t("Műveletek"),icon:this.collapse?.icon??"dxi dxi-view-grid",css:this.collapse?.css,tooltip:this.collapse?.value,items:menuEntries}]:[]),
-      ...entries.filter(item=>item.bladePinned)]:menuEntries);
+      ...pinned]:menuEntries);
   }
   /**
    * Replaces an item's children (a submenu, an inline item's buttons) in the stored order and redraws the toolbar from

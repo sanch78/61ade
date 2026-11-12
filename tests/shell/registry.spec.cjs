@@ -16,6 +16,10 @@ const values=page=>page.locator('[data-cell-id="list"]');
 // One tree row: the toggle button and the content (icon, text) are siblings in `.dhx_tree-folder`.
 const node=(page,name)=>tree(page).locator('.dhx_tree-folder').filter({has:page.locator('.dhx_tree-template__wrapper',{hasText:new RegExp('^'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$')})});
 const expand=async(page,name)=>{await node(page,name).locator('> .dhx_tree-toggle-button').click();};
+// The tree panel's command bar collapses its actions into `Műveletek` when the panel is narrow (as a list's does).
+const treeCommand=async(page,name)=>{const menu=tree(page).getByRole('button',{name:'Műveletek',exact:true});
+ if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name,exact:true}).click();}
+ else await tree(page).getByRole('button',{name,exact:true}).click();};
 const guide=page=>page.getByRole('dialog',{name:/^Útmutató: Regisztrációs adatbázis/});
 
 // The guide stays with the top-row controls, below 768 px inside their settings menu.
@@ -99,7 +103,7 @@ test('a new key goes under the selected one; deleting it removes its values',asy
  await signIn(page);
  await openMenu(page,'Regisztrációs adatbázis','Feature demó');
  await expand(page,'HKEY_CURRENT_USER');await node(page,'Software').click();
- await tree(page).getByRole('button',{name:'Hozzáadás'}).click();
+ await treeCommand(page,'Hozzáadás');
  const form=page.getByRole('dialog',{name:/Kulcsok — Hozzáadás/});
  await expect(form.getByLabel('Szülőkulcs')).toHaveValue(/.+/);
  await form.getByLabel('Kulcs neve').fill(prefix+'key');
@@ -127,7 +131,7 @@ test('a new key goes under the selected one; deleting it removes its values',asy
  await expect(values(page).locator('.dhx_grid-row').filter({hasText:prefix+'dword'})).toContainText('0x0000002a');
 
  await node(page,prefix+'key').click();
- await tree(page).getByRole('button',{name:'Törlés'}).click();
+ await treeCommand(page,'Törlés');
  const confirm=page.getByRole('alertdialog');
  if(await confirm.isVisible().catch(()=>false))await confirm.getByRole('button',{name:/Törlés|Megerősítés/}).click();
  await expect(node(page,prefix+'key')).toHaveCount(0);

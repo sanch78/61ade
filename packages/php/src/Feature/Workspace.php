@@ -89,7 +89,7 @@ final class Workspace
             if($tree===null)continue;
             $nodes=$out[$tree['view']]??null;
             if($nodes===null||!isset($nodes['options']['subview']['shared'])){unset($out[$key]['options']['tree']);continue;}
-            $out[$key]['options']['tree']=['view'=>$nodes,'field'=>$tree['field'],'parent'=>$nodes['options']['subview']['field'],'label'=>$tree['label']];
+            $out[$key]['options']['tree']=['view'=>$nodes,'field'=>$tree['field'],'parent'=>$nodes['options']['subview']['field'],'label'=>$tree['label'],...array_intersect_key($tree,['striped'=>0,'lines'=>0])];
         }
         return array_values(array_filter($out,fn($view)=>!$this->registry->embedded($view['id'])));
     }

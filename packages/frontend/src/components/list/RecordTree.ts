@@ -1,6 +1,6 @@
 import { Layout, message } from "@dhtmlx/suite";
 import { t } from "../../I18n";
-import { TreeAdapter, type TreeNode } from "../../TreeAdapter";
+import { TreeAdapter, type TreeLook, type TreeNode } from "../../TreeAdapter";
 import { UiPreferences } from "../../UiPreferences";
 import { acknowledge } from "../../MessageDialog";
 import { attachContent } from "../../api/services";
@@ -73,19 +73,23 @@ export class NodeTree {
   private closed=new Set<string>();
   /** The running bulk expansion; a newer one, `collapseAll`, `refresh` and `destroy` cancel it. */
   private bulk?:AbortController;
+  /** The last `expandAll` opened what its caps allow; the next collapse or refresh ends it. */
+  private full=false;
+  /** The last reported `expansion` (everything open). */
+  private reported?:boolean;
   /** The start and the latest refresh; a bulk command waits for them, so it acts on their result. Never rejects. */
   private settled:Promise<void>=Promise.resolve();
   /**
    * $bulk: the component's tree (`*` expands the focused node's siblings); tree navigation keeps its keys. `busy` tells
    * the host when a bulk expansion starts and ends.
    */
-  constructor(private source:NodeSource,private hooks:{select(id:string|undefined):void;activate?(id:string):void;busy?(busy:boolean):void},name:string,private preferences?:UiPreferences,private bulkKeys=false){
+  constructor(private source:NodeSource,private hooks:{select(id:string|undefined):void;activate?(id:string):void;busy?(busy:boolean):void;expansion?(open:boolean):void},name:string,private preferences?:UiPreferences,private bulkKeys=false,look:TreeLook={}){
     const signal=this.abort.signal;
     this.element.className="blade-record-tree";
     this.element.tabIndex=0;
     this.element.setAttribute("role","tree");
     this.element.setAttribute("aria-label",name);
-    this.adapter=new TreeAdapter(id=>this.choose(id),id=>this.activate(id),id=>void this.expanded(id),{element:this.element,collapse:id=>this.collapsed(id)});
+    this.adapter=new TreeAdapter(id=>this.choose(id),id=>this.activate(id),id=>void this.expanded(id),{element:this.element,collapse:id=>this.collapsed(id),...look});
     this.element.addEventListener("keydown",event=>this.key(event),{signal});
     // Entering the tree puts the focus on the selection (or the first node).
     this.element.addEventListener("focus",()=>{if(this.focused===undefined||!this.exists(this.focused))this.focusOn(this.current??this.visible()[0]);},{signal});
@@ -146,7 +150,7 @@ export class NodeTree {
     return run;
   }
   private async reloadLevels(id?:string):Promise<void>{
-    this.closed.clear();
+    this.closed.clear();this.full=false;
     this.restoring=true;
     try{
       if(!await this.load(id??""))return;
@@ -311,6 +315,8 @@ export class NodeTree {
     if(!this.loaded.has(""))return {complete:false,nodes:0,reason:"error"};
     const result=await this.expandTo(DEPTH,this.newBulk());
     if(!this.abort.signal.aborted){this.changed=true;this.save();}
+    // Stopped at a cap, the tree is as open as it gets: the control offers the collapse.
+    if(result.reason!=="cancelled"&&result.reason!=="error"){this.full=true;this.report();}
     return result;
   }
   /** `*`: expands the siblings of $id (one level, like `expandAll` within its caps). */
@@ -343,7 +349,7 @@ export class NodeTree {
     if(this.children(id).some(child=>this.opened.has(child)))await this.reopen([...this.opened].filter(other=>!this.exists(other)||!this.isOpen(other)));
   }
   private collapsed(id:string):void{
-    this.opened.delete(id);
+    this.opened.delete(id);this.full=false;
     if(!this.quiet){this.changed=true;this.closed.add(id);}
     this.save();
     // The focus does not stay on a node the collapse hid.
@@ -429,6 +435,24 @@ export class NodeTree {
     if(value===undefined)this.ids.set(id,value=this.prefix+this.ids.size);
     return value;
   }
+  /**
+   * Tells the host whether everything is open: at least one node with children and none collapsed (a node whose
+   * children are not loaded counts as collapsed), or the last `expandAll` stopped at a cap.
+   */
+  private report():void{
+    if(!this.hooks.expansion)return;
+    const data=this.adapter.widget.data;let open=false,closed=false;
+    const walk=(parent:string|number)=>{
+      for(const item of data.getItems(parent) as any[]){
+        if(closed)return;
+        if(String(item.id).endsWith(PENDING)||!data.haveItems(item.id))continue;
+        if(item.opened){open=true;walk(item.id);}else closed=true;
+      }
+    };
+    if(!this.full)walk(data.getRoot());
+    const all=this.full||(open&&!closed);
+    if(all!==this.reported){this.reported=all;this.hooks.expansion(all);}
+  }
   /** Tree roles, levels and states on Suite's items (it redraws them without), and the active descendant. */
   private annotate():void{
     if(this.annotating)return;
@@ -452,6 +476,7 @@ export class NodeTree {
       if(active&&this.element.querySelector("#"+CSS.escape(active)))set(this.element,"aria-activedescendant",active);
       else this.element.removeAttribute("aria-activedescendant");
     }finally{this.annotating=false;}
+    this.report();
   }
   destroy():void{this.abort.abort();this.observer.disconnect();this.adapter.destroy();}
 }
@@ -460,12 +485,15 @@ export class NodeTree {
  * `app.components.Tree` (docs/toolkit.md#tree): the records of a list view with a hierarchy on itself as a tree, in its
  * own borderless Layout (the host's region gives the title). `select` and `activate` tell the host which node it is.
  */
-const EXPAND_ICON="dxi dxi-plus-box";
+const EXPAND_ICON="dxi blade-icon blade-icon--expand-all",COLLAPSE_ICON="dxi blade-icon blade-icon--collapse-all";
 export class RecordTree extends Component<TreeEvents> implements TreeApi{
   readonly layout:Layout;
   private nodes:NodeTree;
   private bar?:CommandBar;
   private abort=new AbortController();
+  /** Everything is open (the control offers the collapse); a bulk expansion loads. */
+  private open=false;
+  private loading=false;
   constructor(context:ListContext,options:TreeOptions){
     super(options);
     if(!options||typeof options!=="object")throw new TypeError("61ade: Tree needs options.");
@@ -477,21 +505,28 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
     if(options.id!==undefined&&(typeof options.id!=="string"||!KEY.test(options.id)))throw new TypeError("61ade: Tree `id` must match [a-z][a-z0-9_.-]*.");
     const depth=options.expand??0;
     if(!Number.isInteger(depth)||depth<0||depth>DEPTH)throw new TypeError(`61ade: Tree \`expand\` is a whole number of levels from 0 to ${DEPTH}.`);
-    if(options.expandControl!==undefined&&typeof options.expandControl!=="boolean")throw new TypeError("61ade: Tree `expandControl` is true or false.");
+    const control=options.expandControl,placement=control&&typeof control==="object"?control.placement??"top":"top";
+    if(control!==undefined&&typeof control!=="boolean"&&!(control&&typeof control==="object"&&(placement==="top"||placement==="bottom")))
+      throw new TypeError("61ade: Tree `expandControl` is true, false or {placement: \"top\"|\"bottom\"}.");
+    for(const key of ["striped","lines"] as const)if(options[key]!==undefined&&typeof options[key]!=="boolean")throw new TypeError(`61ade: Tree \`${key}\` is true or false.`);
     const preferences=options.id!==undefined?new UiPreferences(context.user,options.id):undefined;
-    this.layout=new Layout(this.host,{type:"none",rows:[...(options.expandControl?[{id:"commands",height:48}]:[]),{id:"tree",css:"blade-tree-cell"}]});
-    if(options.expandControl){
-      // Two pinned icon buttons (the label is the tooltip and accessible name); they never collapse into a menu.
-      const bar=this.bar=new CommandBar({label:view.title,items:[{id:"expand",label:t("Mindet kinyit"),icon:EXPAND_ICON,iconOnly:true,pinned:true},{id:"collapse",label:t("Mindet bezár"),icon:"dxi dxi-minus-box",iconOnly:true,pinned:true}]});
-      bar.on("click",({id})=>void(id==="expand"?this.expandFromControl():this.collapseAll()));
-      bar.mount(this.layout.getCell("commands"));
+    const bar=control?[{id:"commands",height:48}]:[];
+    this.layout=new Layout(this.host,{type:"none",rows:[...(placement==="top"?bar:[]),{id:"tree",css:"blade-tree-cell"},...(placement==="bottom"?bar:[])]});
+    if(control){
+      // The list's command row with one icon button on the right, where a list keeps its view controls: it opens
+      // everything while a node is collapsed and closes everything once all is open (the label is its tooltip and
+      // accessible name); pinned, it never collapses into a menu.
+      this.bar=new CommandBar({label:view.title,placement,items:[{type:"spacer"},{id:"expand",label:t("Mindet kinyit"),icon:EXPAND_ICON,iconOnly:true,pinned:true}]});
+      this.bar.on("click",()=>void(this.nodes.busy?undefined:this.open?this.collapseAll():this.expandFromControl()));
+      this.bar.mount(this.layout.getCell("commands"));
     }
     this.nodes=new NodeTree({view,parent:hierarchy.field,label:options.label},{
       select:id=>this.emit("select",{row:id===undefined?undefined:this.nodes.row(id)}),
       activate:id=>{const row=this.nodes.row(id);if(row)this.emit("activate",{row});},
-      // The control's busy state: a spinning icon, and the name says it loads (the button keeps the focus; a click meanwhile does nothing).
-      busy:busy=>this.bar?.update("expand",{label:t(busy?"Betöltés…":"Mindet kinyit"),icon:busy?"dxi dxi-loading dxi-spin":EXPAND_ICON}),
-    },view.title,preferences,true);
+      // While a bulk expansion loads, the icon spins and the name says so (the button keeps the focus; a click does nothing).
+      busy:busy=>{this.loading=busy;this.paintControl();},
+      expansion:open=>{this.open=open;this.paintControl();},
+    },view.title,preferences,true,{striped:options.striped,lines:options.lines});
     attachContent(this.layout.getCell("tree"),this.nodes.element,this.abort.signal);
     void this.nodes.start(initial,preferences?.tree()??{},depth);
     this.bind(options.signal);
@@ -507,6 +542,10 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
   }
   expandAll():Promise<TreeExpansion>{return this.destroyed?Promise.resolve({complete:false,nodes:0,reason:"cancelled"}):this.nodes.expandAll();}
   collapseAll():Promise<void>{return this.destroyed?Promise.resolve():this.nodes.collapseAll();}
+  private paintControl():void{
+    this.bar?.update("expand",this.loading?{label:t("Betöltés…"),icon:"dxi dxi-loading dxi-spin"}
+      :this.open?{label:t("Mindet bezár"),icon:COLLAPSE_ICON}:{label:t("Mindet kinyit"),icon:EXPAND_ICON});
+  }
   /** The control's expand-all; a stop at a cap is a non-blocking notice (an error has had its dialog). */
   private async expandFromControl():Promise<void>{
     if(this.nodes.busy)return;

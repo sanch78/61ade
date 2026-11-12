@@ -84,6 +84,31 @@ $registry = $workspace->registry;
 rejected(static fn() => $registry->tree('demo_registry_values', 'demo_registry_keys', 'key_id', 'name'), 'Second tree accepted');
 rejected(static fn() => $registry->tree('demo_registry_keys', 'demo_registry_keys', 'parent_id', 'name'), 'Tree of its own resource accepted');
 
+// The tree's look (docs/toolkit.md#tree-presentation): JSON `tree.striped`/`tree.lines` reach the resolved tree only
+// when switched off; another type is rejected.
+$look = static function (array $tree) use ($admin): array {
+    $module = json_decode((string) file_get_contents(dirname(__DIR__, 2).'/examples/demo-app/modules/registry.json'), true, flags: JSON_THROW_ON_ERROR);
+    foreach ($module['resources'] as &$resource) if (isset($resource['view']['tree'])) $resource['view']['tree'] = [...$resource['view']['tree'], ...$tree];
+    unset($resource);
+    $file = tempnam(sys_get_temp_dir(), 'blade-tree-look');
+    file_put_contents($file, json_encode($module, JSON_THROW_ON_ERROR));
+    try {
+        $db = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        Schema::install($db);
+        $db->exec("CREATE TABLE demo_registry_keys(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,parent_id TEXT NOT NULL DEFAULT '')");
+        $db->exec("CREATE TABLE demo_registry_values(id INTEGER PRIMARY KEY AUTOINCREMENT,key_id INTEGER NOT NULL,name TEXT NOT NULL,type TEXT NOT NULL DEFAULT 'REG_SZ',string_value TEXT NOT NULL DEFAULT '',multi_value TEXT NOT NULL DEFAULT '',dword_value TEXT NOT NULL DEFAULT '',qword_value TEXT NOT NULL DEFAULT '',binary_value TEXT NOT NULL DEFAULT '')");
+        $built = WorkspaceConfiguration::build($db, [$file], static fn() => ['registry.key_guard' => static fn() => null, 'registry.key_after_delete' => static fn() => null]);
+        $grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,?,?,'ui','allow','all','','')");
+        foreach (['demo_registry_keys', 'demo_registry_values'] as $resource) foreach (['list', 'get', 'create', 'update', 'delete'] as $action) $grant->execute(['1', $resource, $action]);
+        return array_column($built->views($admin), null, 'id')['demo_registry_values']['options']['tree'];
+    } finally { unlink($file); }
+};
+$off = $look(['striped' => false, 'lines' => false]);
+verify($off['striped'] === false && $off['lines'] === false, 'Tree look switched off');
+$on = $look(['striped' => true]);
+verify(!isset($on['striped']) && !isset($on['lines']), 'Default tree look sends nothing');
+rejected(static fn() => $look(['lines' => 'no']), 'Tree `lines` of another type accepted');
+
 // Nodes: roots and children through the ordinary list with the parent filter; a key cannot move below itself.
 $root = (string) $call('demo_registry_keys', 'create', null, ['name' => 'HKEY_TEST', 'parent_id' => ''])['id'];
 $child = (string) $call('demo_registry_keys', 'create', null, ['name' => 'Software', 'parent_id' => $root])['id'];
