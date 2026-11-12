@@ -15,9 +15,10 @@ test('uploader reopened across routes stays modal and keeps its content',async({
     const content=win.querySelector('.dhx_window-content').getBoundingClientRect(),cell=win.querySelector('.blade-uploader__commands'),box=cell.getBoundingClientRect();
     return {toolbars:win.querySelectorAll('.dhx_window-content .dhx_toolbar').length,actions:!!cell.querySelector('.blade-form-actions'),gap:Math.round(content.bottom-box.bottom),
      inset:Math.round(box.left-content.left),below:getComputedStyle(cell).borderBottomWidth,above:getComputedStyle(cell).borderTopWidth,
+     rule:getComputedStyle(cell.querySelector('.blade-form-actions')).borderImageSource.includes('linear-gradient'),
      primary:cell.querySelector('.dhx_button--color_primary')?.textContent.trim()};
    });
-   expect(footer).toEqual({toolbars:0,actions:true,gap:0,inset:0,below:'0px',above:'1px',primary:'Bezárás'});
+   expect(footer).toEqual({toolbars:0,actions:true,gap:0,inset:0,below:'0px',above:'0px',rule:true,primary:'Bezárás'});
    // The resize handles straddle the window edge; the window does not clip their outer half (the overlay would take the press).
    const outside=await page.locator('.blade-uploader-window').evaluate(win=>{const box=win.getBoundingClientRect(),at=(x,y)=>document.elementFromPoint(x,y)?.className??'';
     return [at(box.left+box.width/2,box.bottom+3),at(box.right+3,box.top+box.height/2)];});

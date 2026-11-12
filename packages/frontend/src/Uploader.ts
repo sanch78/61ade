@@ -262,7 +262,7 @@ class UploadService {
       if (this.opener?.isConnected) this.opener.focus({ preventScroll: true });
       this.opener = undefined;
     });
-    win.events.on("afterShow", () => this.updateIndicator());
+    win.events.on("afterShow", () => { this.paintSummary(); this.updateIndicator(); });
     Object.assign(this, { win, layout, grid, commands });
     for (const item of this.items.values()) this.paint(item);
     this.paintSummary();
@@ -887,7 +887,8 @@ class UploadService {
   }
 
   private paintSummary(): void {
-    if (!this.layout) return;
+    // Repainting a hidden Suite Layout can leave its Window empty on reopen. Refresh afterShow instead.
+    if (!this.layout || !this.win?.isVisible()) return;
     const items = [...this.items.values()];
     let text: string;
     if (this.run.some(item => ACTIVE.includes(item.state))) {

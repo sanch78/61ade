@@ -19,7 +19,6 @@
 /* The Layout fills the window edge to edge; each cell brings its own inset. The action row is the
    shared window footer (Form + blade-form-actions) with one rule above it and none below. */
 .blade-uploader-window .dhx_window-content { padding: 0; }
-.blade-uploader__commands { border-top: 1px solid var(--dhx-border-color); }
 .blade-uploader__zone-cell { padding: 12px 16px 8px; }
 .blade-uploader__zone {
   display: flex;

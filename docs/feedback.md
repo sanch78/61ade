@@ -7745,3 +7745,38 @@ that exactly equals an option label lists every option. The managed
 - **Commit:** on `main` (this entry's commit).
 - **Status:** implemented and verified on the managed demo; a several-file
   field open.
+
+<a id="fb-0182"></a>
+
+## FB-0182 — Uploader double divider and empty window after a cancelled form
+
+- **Date:** 2026-11-12.
+- **Report:** two horizontal rules below the upload summary; in `Médiatár`
+  (`#view=signage_assets`), upload a file through `Hozzáadás`, cancel the
+  form and open `Feltöltés`: the window's content can be empty.
+- **Causes:**
+  - The uploader's command cell retained its own top border after the shared
+    `blade-form-actions` style gained a painted rule. The Form's 8 px top
+    inset separated the two rules.
+  - When the uploader had already been opened and closed, a file field's
+    background upload updated the summary through `Layout.attachHTML` while
+    the window was hidden. That repaint left the whole content absent on
+    reopen. Reproduced on the managed demo; a fresh page without a previously
+    opened uploader did not show the defect.
+- **Implemented:** removed the command cell's border; the shared action row
+  owns the only divider. `Uploader.paintSummary()` updates the UI only while
+  visible, and `afterShow` refreshes the summary and clear button from the
+  current queue. Transfers, queue data, events and the shell indicator keep
+  updating while the window is closed.
+- **Guide:** [uploader](uploader.md), transfer behavior and the window footer.
+- **Verification:** typecheck, build and `git diff --check` passed.
+  `npm run test:browser --` on the managed demo: `uploader`,
+  `uploader-reopen`, `signage`, `stored-file` and four temporary reproduction
+  cases passed (29/29). The reproduction cases cover a fresh or previously
+  opened uploader, cancelling the form after the upload or while its finish
+  request is held, three reopens with the uploaded row and summary, and
+  clearing the queue. The existing footer assertion checks the shared
+  painted rule and the absence of a border on its containing cell. The
+  Blade footer screenshot was visually checked; task-only test source and
+  output were removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

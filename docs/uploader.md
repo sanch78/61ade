@@ -118,6 +118,11 @@ The background path does not construct a hidden Window/Layout/Grid. The
 first normal `open()` or `reopen()` constructs the interface and fills its
 grid from the existing queue. This keeps a form's transfer independent of
 the later multi-file upload window and its target.
+An already constructed but closed window keeps its summary unchanged while
+transfers run; opening it refreshes the summary and the clear button from the
+current queue. Repainting the summary's Suite Layout while hidden can leave
+the whole window empty on reopen. Cancelling the originating record form
+does not discard the shared queue or prevent opening the full uploader.
 An all-duplicate batch whose files are already in flight reports them as
 skipped to its `onUploaded` callback, so callers can release their pending
 state. The original transfer keeps its original callback.
@@ -177,7 +182,8 @@ handler failure); when no part remains the request is `400` with
   (a native Form with `blade-form-actions`, as the file picker and record
   forms): `Befejezettek törlése` as the flat secondary button and `Bezárás`
   as the primary one, one rule above and the window's lower edge below (the
-  window content has no inset; every cell brings its own).
+  window content has no inset; every cell brings its own). The shared
+  `blade-form-actions` style owns that rule; the containing cell adds none.
 - **Flow.** Choosing files starts the upload immediately (no second
   confirmation). A preflight runs first; rejected files become failed rows
   with their reason and send no bytes. Three transfers run in parallel, chunk
