@@ -691,10 +691,16 @@ only by the [Tree](toolkit.md#tree)'s `select`:
   no column, header filter, card sort, `Szűrés` entry or details show it; and
   `Kulcs` (the raw key id) is `column.details: false`, absent from
   `Érték adatai`.
-- **Regions as mount targets:** each panel shows a hint (`app.ui.attach`)
-  until it has a record, then its component is mounted into the region
-  itself and replaced there on every selection or toggle change
-  ([FB-0161](feedback.md#fb-0161)); the page keeps no elements of its own.
+- **Regions as mount targets:** each panel shows its region's
+  [placeholder](toolkit.md#loading-and-empty-states) until it has a record:
+  the tabs `Válassz egy kulcsot a fában.`, the value panel
+  `Válassz egy értéket a listában.` ([FB-0185](feedback.md#fb-0185)). Its
+  component is then mounted into the region itself and replaced there on
+  every selection or toggle change ([FB-0161](feedback.md#fb-0161)); the page
+  keeps no elements of its own. An empty values list says
+  `A kulcsnak nincs saját értéke.` or, on the subkey scope,
+  `Az alkulcsoknak nincs értéke.` (`emptyText`); Control Panel has no values
+  of its own.
 
 Checks: `tests/shell/tree-component.spec.cjs` (roles, keys, selection and
 restore at 1366 and 390 px; the component's options, `select`, `activate`,

@@ -341,6 +341,8 @@ export class ResponsiveGrid {
     return container.clientHeight-(Number.parseFloat(style.paddingTop)||0)-(Number.parseFloat(style.paddingBottom)||0)-drawn;
   }
   get rowPixels():number{return this.rowHeight;}
+  /** The table's header height (its rows, filters included); 0 for cards and tiles. */
+  headerHeight():number{return this.compact?0:this.grid.getRootNode()?.querySelector<HTMLElement>(".dhx_header-wrapper")?.offsetHeight??0;}
   private unmount(id:string):void{const entry=this.mounted.get(id);if(!entry)return;this.mounted.delete(id);entry.view.destroy();entry.host.remove();}
   /**
    * The nested views' layer lives in the window holding the grid (its popup wrapper: the window's stacking context),

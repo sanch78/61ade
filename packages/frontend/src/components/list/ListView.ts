@@ -27,6 +27,8 @@ export class ListView extends Component<ListViewEvents> implements ListViewApi{
     if(defaults!==undefined&&(defaults===null||typeof defaults!=="object"||Array.isArray(defaults)||Object.entries(defaults).some(([name,value])=>!/^[a-z][a-z0-9_]*$/.test(name)||typeof value!=="string")))
       throw new TypeError("61ade: ListView option `createDefaults` maps field names to string values.");
     if(key!==undefined&&(typeof key!=="string"||!/^[a-z][a-z0-9_.-]{0,79}$/.test(key)))throw new TypeError("61ade: ListView option `preferencesKey` must match [a-z][a-z0-9_.-]* (at most 80 characters).");
+    const empty=options.emptyText;
+    if(empty!==undefined&&(typeof empty!=="string"||!empty.trim()||empty.length>200))throw new TypeError("61ade: ListView option `emptyText` is plain text of 1 to 200 characters.");
     const app=context.app(),view=listDefinition(resolveListView(app,options.view));
     const modes=options.modes,offered=view.tiles??view.columns.some(column=>isMedia(column)||isImage(column));
     if(modes!==undefined&&(!Array.isArray(modes)||!modes.length||new Set(modes).size!==modes.length||modes.some(mode=>mode!=="table"&&mode!=="cards"&&mode!=="tiles"||mode==="tiles"&&!offered)))
@@ -34,7 +36,7 @@ export class ListView extends Component<ListViewEvents> implements ListViewApi{
     if(options.mode!==undefined&&(modes??view.modes)&&!(modes??view.modes)!.includes(options.mode))throw new TypeError("61ade: ListView option `mode` must be one of the list's `modes`.");
     if(options.cardColumns!==undefined&&(!Number.isInteger(options.cardColumns)||options.cardColumns<1||options.cardColumns>6))throw new TypeError("61ade: ListView option `cardColumns` is an integer from 1 to 6.");
     const scope=options.scope?{field:String(options.scope.field),id:String(options.scope.id),...(options.scope.select===false?{select:false}:{}),...(options.compact?{compact:{height:(pixels:number)=>options.compact!.height(pixels)}}:{})}:undefined;
-    const hooks={emit:<K extends keyof ListViewEvents>(event:K,payload:ListViewEvents[K])=>this.emit(event,payload),app,view:resolveListView(app,options.view),...(options.dragSource?{dragSource:true}:{}),...(options.panel===false?{panel:false}:{}),...(options.showId===false?{showId:false}:{}),...(options.mode?{mode:options.mode}:{}),...(modes?{modes:Object.freeze([...modes])}:{}),...(options.cardColumns?{cardColumns:options.cardColumns}:{}),...(defaults?{createDefaults:Object.freeze({...defaults})}:{}),...(key?{preferencesKey:key}:{})};
+    const hooks={emit:<K extends keyof ListViewEvents>(event:K,payload:ListViewEvents[K])=>this.emit(event,payload),app,view:resolveListView(app,options.view),...(options.dragSource?{dragSource:true}:{}),...(options.panel===false?{panel:false}:{}),...(options.showId===false?{showId:false}:{}),...(options.mode?{mode:options.mode}:{}),...(modes?{modes:Object.freeze([...modes])}:{}),...(options.cardColumns?{cardColumns:options.cardColumns}:{}),...(defaults?{createDefaults:Object.freeze({...defaults})}:{}),...(key?{preferencesKey:key}:{}),...(empty!==undefined?{emptyText:empty}:{})};
     const tree=scope?undefined:view.tree;
     if(tree){
       this.navigation=new TreeNavigation(this.host,context,tree as any,view.title,view.id,node=>{

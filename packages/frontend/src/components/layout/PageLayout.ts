@@ -1,5 +1,6 @@
 import { Layout } from "@dhtmlx/suite";
-import type { Accordion as AccordionApi, LayoutCell, Mountable, PageLayout as PageLayoutApi, PageLayoutEvents, PageLayoutOptions, PageRegion, Tabs as TabsApi } from "../../api/types";
+import type { Accordion as AccordionApi, LayoutCell, Mountable, PageLayout as PageLayoutApi, PageLayoutEvents, PageLayoutOptions, PageRegion, RegionPlaceholder, Tabs as TabsApi } from "../../api/types";
+import { placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
 import { Component } from "../list/component";
@@ -87,6 +88,8 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
   /** One `Accordion` per `accordion` branch, in a framework cell `blade-accordion-<n>`; region id → its accordion. */
   private accordions:Accordion[]=[];
   private sectioned=new Map<string,Accordion>();
+  /** The placeholder of each region of the Layout itself (tabs and sections have their component's). */
+  private statuses=new Map<string,CellStatus>();
   constructor(context:{user:string},options:PageLayoutOptions){
     super(options);
     if(typeof options?.id!=="string"||!/^[a-z][a-z0-9_.-]*$/.test(options.id))throw new TypeError("61ade: PageLayout needs an id (the preference key, usually the view id).");
@@ -129,6 +132,7 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
       this.accordions.push(accordion);
       for(const section of stack.sections)this.sectioned.set(section.id!,accordion);
     }
+    for(const id of this.ids)if(!this.tabbed.has(id)&&!this.sectioned.has(id))this.statuses.set(id,regionStatus(this.layout.getCell(id)));
     this.bind(options.signal);
   }
   /** The cell of a declared region (a mount target of every component); an undeclared id throws `Error`. */
@@ -141,6 +145,17 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
    * when Suite redraws it, released with this layout). A region holds either attached content or mounted components.
    */
   attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.released.signal);}
+  /**
+   * What a region without content shows (nothing mounted or attached, also after its component was destroyed): the
+   * default text, the region's own text, or while busy the loading indicator; content replaces it. A tab or section
+   * region is its component's.
+   */
+  placeholder(id:string,options:RegionPlaceholder):void{
+    if(!this.ids.has(id))throw new Error(`61ade: PageLayout has no region "${id}".`);
+    if(this.destroyed)return;
+    const owner=this.tabbed.get(id)??this.sectioned.get(id);
+    if(owner)owner.placeholder(id,options);else applyPlaceholder("PageLayout",this.statuses.get(id)!,options);
+  }
   /** Whether a `collapsable` leaf is collapsed; another id throws `Error`. */
   isCollapsed(id:string):boolean{return this.collapsible(id).config.collapsed===true;}
   /** Collapses a `collapsable` leaf to its header for now (not kept); unchanged when it is collapsed. Returns `true`. */
@@ -164,5 +179,5 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
   tabsOf(id:string):TabsApi|undefined{return this.tabbed.get(id);}
   /** The accordion of the `accordion` branch holding region $id. */
   accordionOf(id:string):AccordionApi|undefined{return this.sectioned.get(id);}
-  protected dispose():void{this.released.abort();for(const tabs of this.tabGroups)tabs.destroy();for(const accordion of this.accordions)accordion.destroy();this.layout.destructor();}
+  protected dispose():void{this.released.abort();for(const tabs of this.tabGroups)tabs.destroy();for(const accordion of this.accordions)accordion.destroy();for(const status of this.statuses.values())status.destroy();this.layout.destructor();}
 }

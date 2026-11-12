@@ -4,6 +4,7 @@ import { acknowledge } from "../../MessageDialog";
 import { server } from "../../api/Server";
 import type { RecordDetails as RecordDetailsApi, RecordDetailsOptions, Row } from "../../api/types";
 import { Component } from "./component";
+import { CellStatus } from "../CellStatus";
 import { detailsHtml } from "./details";
 import { errorText } from "./fields";
 import { listDefinition, resolveListView } from "./definition";
@@ -21,11 +22,14 @@ export class RecordDetails extends Component<Record<string,never>> implements Re
   private epoch=0;
   private abort?:AbortController;
   private showId:boolean;
+  /** Loading while a record id loads; a failed first load says so (docs/toolkit.md#loading-and-empty-states). */
+  private status:CellStatus;
   constructor(context:ListContext,options:RecordDetailsOptions){
     super(options);
     this.view=listDefinition(resolveListView(context.app(),options.view));
     this.showId=options.showId!==false;
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"details"}]});
+    this.status=new CellStatus(this.layout.getCell("details"));
     void this.show(options.record).catch(()=>{});
     this.bind(options.signal);
   }
@@ -36,14 +40,20 @@ export class RecordDetails extends Component<Record<string,never>> implements Re
     let row:Row;
     if(typeof record!=="object"||record===null){
       const abort=this.abort=new AbortController();
+      this.status.busy(true);
       try{row=await server.call<Row>(this.view.resource,"get",{id:String(record),signal:abort.signal});}
       catch(error){
-        if(!this.destroyed&&epoch===this.epoch&&!(error instanceof DOMException&&error.name==="AbortError"))await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,[])});
+        if(!this.destroyed&&epoch===this.epoch&&!(error instanceof DOMException&&error.name==="AbortError")){
+          this.status.busy(false);
+          if(!this.layout.getCell("details").config.html)this.status.text(t("Az adatok nem érhetők el."),"error");
+          await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,[])});
+        }
         throw error;
       }
     }else row=record;
     if(this.destroyed||epoch!==this.epoch)return;
+    this.status.busy(false);this.status.text(undefined);
     this.layout.getCell("details").attachHTML(`<div class="blade-view-slot">${detailsHtml(row,this.view,this.showId)}</div>`);
   }
-  protected dispose():void{this.epoch++;this.abort?.abort();this.layout.destructor();}
+  protected dispose():void{this.epoch++;this.abort?.abort();this.status.destroy();this.layout.destructor();}
 }

@@ -275,8 +275,16 @@ tree as decoration for a flat list.
   declared meaningful risk; report successful actions and secret reveals with a
   non-blocking toast.
 - Keep loading, empty, denied, validation, conflict, and server-error states
-  explicit. Do not replace an authorization or validation failure with an empty
-  grid/tree/card.
+  explicit. No list, region, tab, or section is a bare blank area: a list
+  shows a delayed loading indicator and tells "no records" from "no match for
+  the filters or search", and a region without content shows a placeholder
+  (its waiting hint, or busy while content is known to be coming). Nothing
+  there is a blank surface with a centred picture above the text; data still
+  on its way is loading, never an empty message. All of it comes from
+  the framework's one status element; a page builds no overlay or hint
+  element of its own ([FB-0185](../../../docs/feedback.md#fb-0185)). Do not
+  replace an authorization or validation failure with an empty grid, tree or
+  card; a failed load says that the items are not available.
 - Localize all visible text and accessible descriptions; theme colors and focus
   indicators through the existing token system. Never use a glyph, color, or
   hover affordance as the only meaning.

@@ -719,6 +719,22 @@ body,
 .blade-record-tree:focus-visible .dhx_tree-folder--focused, .blade-record-tree:focus-visible .dhx_tree-list-item--focused { box-shadow: inset 0 0 0 2px var(--dhx-border-color-focused); }
 .blade-record-tree:focus-visible:not([aria-activedescendant]) { box-shadow: inset 0 0 0 2px var(--dhx-border-color-focused); }
 .blade-record-tree:not([data-blade-empty=""])[data-blade-empty]::before { content: attr(data-blade-empty); display: block; padding: 12px 16px; color: var(--dhx-font-color-secondary); }
+/* Loading and empty states (`CellStatus`): over a region's content or a list's row area (below a table's header);
+   while loading (once the spinner shows), Suite's spinner over the rows, faded to the theme's
+   surface, which take no clicks meanwhile. */
+.blade-status { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 2; box-sizing: border-box; padding: 12px 16px; color: var(--dhx-font-color-secondary); pointer-events: none; overflow-wrap: anywhere; }
+/* Nothing to say: still rendered for assistive technology, so the next text is announced. */
+.blade-status--idle { top: auto; right: auto; bottom: auto; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.blade-status__spinner { display: none; }
+/* Nothing there (no records, no match, not available): a blank surface with a centred picture above the text. */
+.blade-status--empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; background-color: var(--dhx-background-secondary); }
+.blade-status__icon:empty { display: none; }
+.blade-status__icon { display: flex; color: var(--dhx-font-color-secondary); opacity: .55; }
+.blade-status__icon svg { width: 56px; height: 56px; }
+.blade-status__icon .dxi::before { font-size: 56px; color: inherit; }
+.blade-status__text { max-width: 36em; }
+.blade-status--busy { pointer-events: auto; background-color: color-mix(in srgb, var(--dhx-background-primary) 60%, transparent); }
+.blade-status--busy .blade-status__spinner { display: block; z-index: auto; }
 
 
 /* Draggable rows (a manual order, a drag source): the grip column and the cards' and tiles' grip. */

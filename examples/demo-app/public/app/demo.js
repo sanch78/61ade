@@ -1373,11 +1373,11 @@ function page(app, host, view) {
       });
       workList = new app.components.ListView({ view: { ...notes, id: `${view.id}.work` }, scope: { field: "task_id", id: task }, modes: ["table", "cards"], mode: "table", panel: false, showId: false });
       workList.mount(side.cell("main"));
-      const panel = document.createElement("div"), hint2 = document.createElement("p");
+      const panel = document.createElement("div"), hint = document.createElement("p");
       panel.style.cssText = "width:100%;height:100%";
-      hint2.style.cssText = "margin:16px";
-      hint2.textContent = t("V\xE1lassz egy jegyzetet.");
-      panel.append(hint2);
+      hint.style.cssText = "margin:16px";
+      hint.textContent = t("V\xE1lassz egy jegyzetet.");
+      panel.append(hint);
       side.attach("side", panel);
       workList.on("target", ({ row: note }) => {
         current = note;
@@ -1388,7 +1388,7 @@ function page(app, host, view) {
           });
           return;
         }
-        hint2.remove();
+        hint.remove();
         selected = new app.components.RecordDetails({ view: notes, record: note, showId: false });
         selected.mount(panel);
       }, { signal });
@@ -1490,18 +1490,14 @@ var task_page_default = taskPage;
 var KIND6 = "demo.registry-browser";
 var TOGGLE = "demo.subkey-values";
 var PHONE3 = "(max-width: 767px)";
-function hint(text) {
-  const element = document.createElement("p");
-  element.style.cssText = "margin:16px";
-  element.textContent = text;
-  return element;
-}
 function browser(app, host, view) {
   const t = app.i18n.t, options = view.options ?? {};
   const nodes = options.tree ? app.viewDefinition(options.tree) : void 0;
   const values = options.values ? app.viewDefinition(options.values) : void 0;
   if (!nodes) {
-    const empty = hint(t("A kulcsok nem \xE9rhet\u0151k el."));
+    const empty = document.createElement("p");
+    empty.style.cssText = "margin:16px";
+    empty.textContent = t("A kulcsok nem \xE9rhet\u0151k el.");
     host.attach(empty);
     return { destroy: () => empty.remove() };
   }
@@ -1522,21 +1518,9 @@ function browser(app, host, view) {
     layout.mount(root);
     const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", id: `${view.id}.tree`, expandControl: true });
     nodeTree.mount(layout.cell("tree"));
-    const hints = /* @__PURE__ */ new Map();
-    const clear = (id) => {
-      hints.get(id)?.abort();
-      hints.delete(id);
-    };
-    const show = (id, text) => {
-      clear(id);
-      const shown = new AbortController();
-      hints.set(id, shown);
-      signal.addEventListener("abort", () => shown.abort(), { once: true, signal: shown.signal });
-      app.ui.attach(layout.cell(id), hint(text), { signal: shown.signal });
-    };
-    show("key", t("V\xE1lassz egy kulcsot a f\xE1ban."));
-    show("value", t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban."));
-    show("values", values ? t("V\xE1lassz egy kulcsot a f\xE1ban.") : t("Az \xE9rt\xE9kek nem \xE9rhet\u0151k el."));
+    layout.placeholder("key", { text: t("V\xE1lassz egy kulcsot a f\xE1ban.") });
+    layout.placeholder("value", { text: t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban.") });
+    layout.placeholder("values", { text: values ? t("V\xE1lassz egy kulcsot a f\xE1ban.") : t("Az \xE9rt\xE9kek nem \xE9rhet\u0151k el.") });
     let keyDetails, valueDetails;
     let node;
     let subkeys = app.preferences.scope(TOGGLE).get(values?.id ?? "") === true;
@@ -1545,7 +1529,6 @@ function browser(app, host, view) {
       if (!row) {
         valueDetails?.destroy();
         valueDetails = void 0;
-        show("value", t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban."));
         return;
       }
       if (valueDetails) {
@@ -1553,7 +1536,6 @@ function browser(app, host, view) {
         });
         return;
       }
-      clear("value");
       valueDetails = new app.components.RecordDetails({ view: values, record: row, showId: false });
       valueDetails.mount(layout.cell("value"));
     };
@@ -1561,17 +1543,14 @@ function browser(app, host, view) {
       list?.destroy();
       list = void 0;
       showValue(void 0);
-      if (!values || !node) {
-        show("values", values ? t("V\xE1lassz egy kulcsot a f\xE1ban.") : t("Az \xE9rt\xE9kek nem \xE9rhet\u0151k el."));
-        return;
-      }
-      clear("values");
+      if (!values || !node) return;
       list = new app.components.ListView({
         view: values,
         scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) },
         panel: false,
         showId: false,
         preferencesKey: `${view.id}.values`,
+        emptyText: subkeys ? t("Az alkulcsoknak nincs \xE9rt\xE9ke.") : t("A kulcsnak nincs saj\xE1t \xE9rt\xE9ke."),
         ...subkeys ? { createDefaults: { key_id: String(node.id) } } : {}
       });
       list.on("select", ({ row }) => showValue(row));
@@ -1589,11 +1568,9 @@ function browser(app, host, view) {
       if (!row) {
         keyDetails?.destroy();
         keyDetails = void 0;
-        show("key", t("V\xE1lassz egy kulcsot a f\xE1ban."));
       } else if (keyDetails) void keyDetails.show(row).catch(() => {
       });
       else {
-        clear("key");
         keyDetails = new app.components.RecordDetails({ view: nodes, record: row, showId: false });
         keyDetails.mount(layout.cell("key"));
       }

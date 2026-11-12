@@ -23,6 +23,7 @@ import { preferences } from "../../api/services";
 import { ListFilters } from "./filters";
 import { ListSearch } from "./search";
 import { DetailsWindow } from "./details";
+import { CellStatus } from "../CellStatus";
 import { ListActions, type ActionHost } from "./actions";
 import type { FieldDefinition, Region, ViewDefinition, WorkspaceHooks, WorkspaceScope } from "./types";
 
@@ -85,6 +86,8 @@ export class Workspace implements ActionHost {
   private closed=new AbortController();
   /** Releases the field types of the singleton detail form. */
   private detailTypes?:()=>void;
+  /** The row area's loading and empty state (not for a singleton). */
+  private status?:CellStatus;
 
   /**
    * $preset: filters the view opens with (a navigation, `activate: 'page'`) instead of the saved ones; declared filters
@@ -176,6 +179,8 @@ export class Workspace implements ActionHost {
         (row,field,value)=>this.saveCell(row,field,value),error=>this.error(error),active=>{this.cellEditing=active;if(!active&&!this.disposed)this.watch();});
       this.content.getCell("data").attach(this.grid.layout);
       this.layout.getCell("grid").attach(this.content);
+      // Loading and empty states over the rows, below a table's header (its filters stay usable).
+      this.status=new CellStatus(this.content.getCell("data"),{inset:()=>this.grid?.headerHeight()??0});
       // The declared panel, or for header filters only the dialog that cards and tiles offer (`Szűrés`).
       if(this.hasRegion("filter")||view.filters.length)this.filterPanel=new ListFilters(view,this.hasRegion("filter")?this.layout:undefined,this.commands,filters=>{this.filters=filters;this.keepFilters();this.headerFilters();void this.load();});
     }
@@ -529,7 +534,7 @@ export class Workspace implements ActionHost {
     this.layout.getRootNode()?.style.setProperty("--blade-list-count",JSON.stringify(text));
   }
   async load():Promise<boolean>{
-    const epoch=++this.epoch;this.abort?.abort();this.abort=new AbortController();this.busy=true;
+    const epoch=++this.epoch;this.abort?.abort();this.abort=new AbortController();this.busy=true;this.status?.busy(true);
     try{
       if(this.view.singleton){const row=await this.call("get","self",{},this.abort.signal);if(this.disposed||epoch!==this.epoch)return false;this.rows=[row];this.selected=String(row.id);await this.mountDetail(row);this.reportRows();}
       else{
@@ -537,8 +542,15 @@ export class Workspace implements ActionHost {
         if(this.disposed||epoch!==this.epoch)return false;this.counts(data);this.previous=data.previous;this.next=data.next;await this.render(data.items,false);
       }
       this.watch();return true;
-    }catch(e){if(!this.disposed&&epoch===this.epoch&&!(e instanceof DOMException&&e.name==="AbortError"))await this.error(e);return false;}
-    finally{if(epoch===this.epoch)this.busy=false;}
+    }catch(e){
+      if(!this.disposed&&epoch===this.epoch&&!(e instanceof DOMException&&e.name==="AbortError")){
+        // The error dialog as before; a list that has no rows then says that they could not be loaded.
+        this.status?.busy(false);if(!this.rows.length)this.status?.text(t("Az elemek nem érhetők el."),"error");
+        await this.error(e);
+      }
+      return false;
+    }
+    finally{if(epoch===this.epoch){this.busy=false;this.status?.busy(false);}}
   }
   private async more(direction:"next"|"previous"):Promise<void>{
     const token=direction==="next"?this.next:this.previous;if(!token||this.busy)return;
@@ -574,9 +586,16 @@ export class Workspace implements ActionHost {
     if(this.disposed)return;
     this.grid.restore(position,preserve,this.selected);
     this.rendering=false;
+    this.showStatus();
     this.fitPreview();
     if(left)this.hooks.emit?.("select",{row:undefined});
     this.reportRows();
+  }
+  /** The empty result's text: none with rows, another one while a filter or the search narrows the list. */
+  private showStatus():void{
+    if(this.rows.length)this.status?.text(undefined);
+    else if(Object.keys(this.filters).length||this.search?.value)this.status?.text(t("Nincs a szűrésnek vagy a keresésnek megfelelő elem."),"search");
+    else this.status?.text(this.hooks.emptyText??t("Nincs megjeleníthető elem."));
   }
   private async changed(data:Snapshot):Promise<void>{
     if(this.disposed||this.busy||this.cellEditing)return;
@@ -611,7 +630,7 @@ export class Workspace implements ActionHost {
     this.layout.getCell("detail").attach(form);this.capabilities();
   }
   private showResults(id:string):Promise<void>{return this.details.show(id);}
-  private revoke():void{this.actions.revoke();this.detailFiles?.destroy();this.cardEditor?.destructor();this.cardEditor=undefined;this.cellEditing=false;this.details.close();this.rows=[];this.grid?.setRows([]);this.detail?.clear();this.detail?.disable();this.capabilities();this.reportRows();}
+  private revoke():void{this.actions.revoke();this.detailFiles?.destroy();this.cardEditor?.destructor();this.cardEditor=undefined;this.cellEditing=false;this.details.close();this.rows=[];this.grid?.setRows([]);this.status?.text(t("Az elemek nem érhetők el."),"error");this.detail?.clear();this.detail?.disable();this.capabilities();this.reportRows();}
   /** Releases everything, including open sub-view windows and dialogs; idempotent. */
   destroy():void{
     if(this.disposed)return;
@@ -619,5 +638,5 @@ export class Workspace implements ActionHost {
     this.cardEditor?.destructor();this.cardEditor=undefined;this.releaseIcons();this.details.close();this.filterPanel?.destroy();this.epoch++;this.actions.destroy();this.abort?.abort();this.live.destroy();
     // An open full sub-view window closes with its list (its afterHide destroys the nested view).
     for(const dialog of [...this.windows.values()])dialog.hide();
-    this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.fitObserver?.disconnect();this.layout.destructor();}
+    this.gridEditing?.destroy();this.gridHeaders?.destroy();this.grid?.destroy();this.status?.destroy();this.fitObserver?.disconnect();this.layout.destructor();}
 }
