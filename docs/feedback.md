@@ -7797,7 +7797,7 @@ that exactly equals an option label lists every option. The managed
     while another session used the demo and passed alone and in the next
     full runs. Screenshots checked by eye and removed. No full-smoke claim.
 - **Commit:** `06e7d00` on `main` (section filling and the fixed geometry);
-  several files in the next commit.
+  several files `f43623d`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0182"></a>
