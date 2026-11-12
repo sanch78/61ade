@@ -7480,10 +7480,36 @@ that exactly equals an option label lists every option. The managed
   `toolkit-list`, `toolkit-demo-playlist` (35 passed; `toolkit-list` "ListView
   modes and cardColumns at 390 px" failed once and passed alone, 3 of 3 with
   `--repeat-each=3`).
+- **Follow-up (2026-11-12, margin and edge to edge):** the owner found the
+  margin around the accordion form uneven (24 px above the stack, 20 px at
+  the sides, 12 px to the action row's rule) and asked for an option to fill
+  the layout without a border, and whether the fixed part needs its header
+  (the window's title would do). The framed stack now keeps 20 px on every
+  side (no top margin as the first row, 20 px to the action row).
+  `flushSections` (PHP `Action`, `SqlResource::register`; JSON
+  `flush_sections`; `FormDescription.flushSections`; refused with
+  `'panels'`) runs the sections edge to edge: the form loses its padding and
+  the frame, a rule separates the sections and a section from a plain row
+  above it, the plain rows, the fields and the action row keep a 20 px inset.
+  A header-less top part needs no new option: fields outside sections are
+  plain rows (in cards an untitled group). The demo `Kapcsolatok` now uses
+  `flushSections` with the name and the organization outside the sections.
+  The scrollbar of a tall open section is the section's own (asked by the
+  owner; covered by the region case). Verified with
+  `form-accordion.spec.cjs` (new: flush headers span the window, the fields
+  and the plain rows 20 px in, no frame; framed, by a rewritten description
+  with a fixed `Alapadatok`, 20 px to the form's edges and the action row's
+  rule; 5 passed, the new case 3 of 3 with `--repeat-each=3`), PHP
+  `record-forms` (flush accepted with an accordion value, refused alone,
+  carried by `SqlResource` and the description, JSON `flush_sections` read,
+  `'yes'` and a flush without accordion refused) and `configuration` (a JSON
+  action's `flush_sections`), then `record-forms`, `stored-file`,
+  `accordion`, `workspace`, `toolkit-demo-assets`, `task-page` with it (38
+  passed, one skipped as before). Screenshots checked by eye and removed.
 - **Limits:** the open sections are not remembered; an accordion form in a
   host without a height shows every section at its own height; sections do
   not nest; no `Accordion` with attached form parts.
-- **Commit:** `f3a19d5` on `main`.
+- **Commit:** `f3a19d5` on `main`; the `fit()` fix `e878404`.
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0179"></a>

@@ -57,7 +57,7 @@ const filled=(field:FieldDefinition,value:unknown)=>Array.isArray(value)?value.l
  * Accordion sections (`formSections` other than "panels"): the section cell; its header, the disclosure button's cell
  * carrying the Suite cell header classes of the Accordion component (theme and chevron, admin.css); a still (fixed) one.
  */
-const ACCORDION="blade-form-section--accordion",HEADING="dhx_layout-cell-header dhx_layout-cell-header--row blade-form-section__heading",MULTIPLE=" blade-form-section__heading--multiple",STILL=" blade-form-section--still";
+const FLUSH=" blade-form-section--flush",ACCORDION="blade-form-section--accordion",HEADING="dhx_layout-cell-header dhx_layout-cell-header--row blade-form-section__heading",MULTIPLE=" blade-form-section__heading--multiple",STILL=" blade-form-section--still";
 /** The sections of an accordion form that start open: without `multiple` the first collapsible one; with it those holding a value, else the first. */
 function openedAt(fields:FieldDefinition[],values:Record<string,unknown>,multiple:boolean):Set<string>{
   const collapsible=sectionsOf(fields).filter(label=>!fixedSection(fields,label));
@@ -71,9 +71,10 @@ function openedAt(fields:FieldDefinition[],values:Record<string,unknown>,multipl
  * of its fields holds a value in $values (the stored or preset values; a default does not count), else closed.
  * With $mode "accordion" or "accordion-multiple" the sections are accordion sections instead: the disclosure button
  * as the Accordion component's cell header (a fixed one: its legend) above the fieldset; the open sections share the
- * form's height, a fixed one keeps its own (`openedAt` names the open ones).
+ * form's height, a fixed one keeps its own (`openedAt` names the open ones). $flush runs them edge to edge of the form
+ * without the frame and the form's margin (form-section.css).
  */
-export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>any,values:Record<string,unknown>={},mode:FormSections="panels"):any[]{
+export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>any,values:Record<string,unknown>={},mode:FormSections="panels",flush=false):any[]{
   const rows:any[]=[],bodies=new Map<string,any[]>(),labels=sectionsOf(fields);
   const accordion=mode==="accordion"||mode==="accordion-multiple",opened=accordion?openedAt(fields,values,mode==="accordion-multiple"):undefined;
   for(const field of fields){
@@ -84,7 +85,7 @@ export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>
       bodies.set(field.section,body=[]);
       if(opened){
         const still=fixedSection(fields,field.section),open=still||opened.has(field.section);
-        rows.push({css:"blade-form-section "+ACCORDION+(still?STILL:""),rows:still?[
+        rows.push({css:"blade-form-section "+ACCORDION+(still?STILL:"")+(flush?FLUSH:""),rows:still?[
           {type:"fieldset",name:SECTION+n+"_body",label:field.section,css:BODY,rows:body},
         ]:[
           {type:"button",name:SECTION+n,text:field.section,view:"link",color:"secondary",css:HEADING+(mode==="accordion-multiple"?MULTIPLE:"")},

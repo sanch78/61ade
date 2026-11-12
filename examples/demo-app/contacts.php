@@ -5,7 +5,8 @@ declare(strict_types=1);
  * Feature-demo contacts (FB-0178): a record of many short fields in accordion form sections. The create and update
  * forms declare `formSections: 'accordion'` (docs/workspaces.md#form-sections): the sections share a window of a
  * fixed height like the Accordion component of the media viewer, one open at a time, and opening another one never
- * changes the window's size. `Alapadatok` is a fixed section, always open; the others are collapsible.
+ * changes the window's size. The name and the organization are plain rows above the sections, without a header of
+ * their own; the sections run edge to edge of the window (`flushSections`).
  */
 
 use Blade\Feature\{Field, SqlResource, Workspace};
@@ -19,9 +20,9 @@ function blade_demo_contacts_setup(PDO $db): void
 function blade_demo_contacts_register(Workspace $workspace): void
 {
     $contacts = new SqlResource('demo_contacts', 'demo_contacts', 'id', [
-        // A fixed section: always open at its own height above the collapsible ones.
-        new Field('name', 'Név', required: true, max: 120, section: 'Alapadatok', sectionCollapsible: false),
-        new Field('organization', 'Szervezet', max: 120, section: 'Alapadatok', sectionCollapsible: false),
+        // Outside the sections: plain rows above them, headed by the window's title (in cards an untitled group).
+        new Field('name', 'Név', required: true, max: 120),
+        new Field('organization', 'Szervezet', max: 120),
         new Field('role', 'Beosztás', max: 80, section: 'Elérhetőség'),
         new Field('email', 'E-mail', required: true, max: 160, section: 'Elérhetőség'),
         new Field('phone', 'Telefon', max: 40, section: 'Elérhetőség'),
@@ -34,7 +35,7 @@ function blade_demo_contacts_register(Workspace $workspace): void
         new Field('newsletter', 'Hírlevelet kér', 'checkbox', section: 'Beállítások'),
         new Field('note', 'Megjegyzés', 'textarea', max: 1000, section: 'Beállítások'),
     ]);
-    $contacts->register($workspace->registry, 'Kapcsolatok', group: 'Feature demó', formSections: 'accordion',
-        guide: 'Accordion űrlapszakaszok: a Hozzáadás és a Módosítás ablaka fix magasságú, a szakaszok egymás alatt, a Médiatár oldalsávjához hasonlóan nyílnak, egyszerre egy. Másik szakasz kinyitásakor az ablak mérete nem változik; a hosszabb szakasz a saját helyén görget. Az Alapadatok szakasz mindig nyitva van.');
+    $contacts->register($workspace->registry, 'Kapcsolatok', group: 'Feature demó', formSections: 'accordion', flushSections: true,
+        guide: 'Accordion űrlapszakaszok: a Hozzáadás és a Módosítás ablaka fix magasságú, a szakaszok egymás alatt, a Médiatár oldalsávjához hasonlóan nyílnak, egyszerre egy. Másik szakasz kinyitásakor az ablak mérete nem változik; a hosszabb szakasz a saját helyén görget. A név és a szervezet a szakaszok fölött, saját fejléc nélkül áll.');
     $contacts->registerDelete($workspace->registry);
 }

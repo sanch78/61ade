@@ -362,9 +362,9 @@ try {
     // A JSON action's `form_sections` (FB-0178): its form's section presentation; an unknown one fails at load.
     $notes = json_decode((string) file_get_contents($module), true, flags: JSON_THROW_ON_ERROR);
     foreach (['accordion' => true, 'tabs' => false] as $sections => $valid) {
-        $notes['actions'][0]['form_sections'] = $sections;
+        $notes['actions'][0]['form_sections'] = $sections;$notes['actions'][0]['flush_sections'] = true;
         file_put_contents($directory.'/sections.json', json_encode($notes, JSON_THROW_ON_ERROR));
-        if ($valid) verify(WorkspaceConfiguration::build($db, [$directory.'/sections.json'], $callbacks)->registry->get('notes', 'mark')->formSections === 'accordion', 'JSON action form_sections');
+        if ($valid) { $mark = WorkspaceConfiguration::build($db, [$directory.'/sections.json'], $callbacks)->registry->get('notes', 'mark'); verify($mark->formSections === 'accordion' && $mark->flushSections, 'JSON action form_sections and flush_sections'); }
         else rejected(static fn() => WorkspaceConfiguration::build($db, [$directory.'/sections.json'], $callbacks), 'Invalid JSON action form_sections accepted');
     }
     unlink($directory.'/sections.json');
