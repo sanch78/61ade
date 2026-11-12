@@ -40,6 +40,12 @@ contract and current limitations.
 
 ## Known boundaries
 
+- [FB-0186](../../../../docs/feedback.md#fb-0186): section groups in one
+  row stretch to equal heights with their content at the top. Project
+  stylesheets configure their column sizing and ratios through the shared
+  CSS properties, and the record's own width controls narrow stacking.
+  Keep this distinct from the count of complete record cards per row.
+
 - The current Tree adapter handles a flat parent list and the file manager. Lazy
   children, drag/move, and large-tree virtualization are demand-driven work;
   treat them as contracts to design and qualify, not as existing guarantees.

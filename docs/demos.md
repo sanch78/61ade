@@ -130,6 +130,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | ACL | Roles, memberships and catalog-based rules | Administration |
 | API keys | Once-only secret, multiselect action scope, revocation checkbox | Root menu → API keys |
 | Workspace | Filters, sorting, panel forms, cards, inline text/select/checkbox edits, related storage, pattern validation, multiselect, delete, marks and bulk business action | Feature demo → Tasks; Notes |
+| Section column sizing | The project's `record-groups.css` sets the shared section columns to `1:2`; unequal amounts of content keep equal section heights in a row, with content at the top. Below 492 px of record content, the sections stack using CSS alone ([section columns](workspaces.md#card-group-columns)) | Feature demo → Mellékletek → Kártyák and Adatok; narrow the panel or viewport |
 | Business rule hook | `after_save` rule across main and related storage: an in-progress task cannot turn notifications off; the field error rolls the save back (form and inline edit) | Tasks → set `Folyamatban` with `Értesítés` off |
 | Project field type and command (toolkit D4) | The demo module's `demo.rating` editor/display on `Prioritás` (forms, table cell and card edit windows, details) and the `Másolás szövegként` record command ([D4](#toolkit-d4-tasks)) | Tasks → `Prioritás` stars; select or mark tasks → `Másolás szövegként` |
 | Large list | 1801 read-only rows: server-side sorting/filtering, virtual scrolling with a bounded client window | Feature demo → Mérések |

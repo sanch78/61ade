@@ -248,7 +248,11 @@ tree as decoration for a flat list.
   always show; prefer putting every field of a sectioned form in a section.
   The same sections group the cards and details: framed groups side by side
   by the available width, a long text outside the sections below them across
-  the width ([FB-0177](../../../docs/feedback.md#fb-0177)). When opening a
+  the width ([FB-0177](../../../docs/feedback.md#fb-0177)). Groups in one row
+  have equal outer heights with content at the top, using CSS stretch rather
+  than height observers. Expose column sizing and ratios through the shared
+  presentation's CSS properties, with stacking based on the record's own
+  width ([FB-0186](../../../docs/feedback.md#fb-0186)). When opening a
   section must not resize the window, the action declares accordion sections
   (`formSections: 'accordion'`): the `Accordion` component's header and fixed
   geometry inside the one form, never one form per `Accordion` section

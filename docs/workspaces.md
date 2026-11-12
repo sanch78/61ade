@@ -501,6 +501,50 @@ width with its label above it. Without any section the fields stay one list
 in their order, as before. A section's open or fixed state does not matter
 here; the same ACL-projected fields are shown as without groups.
 
+Groups in the same row stretch to the tallest group's height, with their
+headings and fields at the top. Each row is sized independently, using CSS
+only; there is no height measurement or section reordering.
+
+<a id="card-group-columns"></a>
+
+**Project section-column sizing** ([FB-0186](feedback.md#fb-0186)): the
+project's [stylesheet](toolkit.md#module-loading) can set inherited CSS
+properties on `:root` for the application, or on a containing project element
+for a composed list or details panel:
+
+```css
+/* Automatic equal-width columns, with a preferred minimum of 280 px instead of 240 px. */
+:root {
+  --blade-record-group-min-width: 280px;
+}
+
+/* Or explicit columns: the right column gets twice the width of the left. */
+.project-record-panel {
+  --blade-record-group-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+```
+
+`--blade-record-group-columns` accepts a CSS Grid track list and overrides
+automatic column sizing. For a fixed left width and a flexible right column,
+use `260px minmax(0, 1fr)`. Remove the property (or set it to `initial`) to
+return to automatic columns; `--blade-record-group-min-width` then controls
+their minimum width (default `240px`, capped at the available width).
+
+Below **492 px of the record's content width**, the section grid becomes one
+column, including when an explicit track list is set. A CSS container query
+uses the record's width, so a narrow panel on a desktop stacks too. This
+threshold is fixed; it also applies when the automatic minimum is changed.
+The 12 px gap, long-text groups spanning all columns, and the full-width text
+below the groups are preserved. This configures sections inside a record,
+independently of `cardColumns` (the number of complete records per row).
+It applies to cards, the `Adatok` window and `RecordDetails`, without changing
+forms or adding PHP/JSON options. Use track widths that fit the panel;
+`minmax(0, …fr)` tracks allow long content to wrap within a declared ratio.
+
+The feature demo's `record-groups.css` sets `1:2` columns through this same
+project stylesheet interface; `Mellékletek` shows the two unequal-height field
+groups with equal outer heights and the long text below them.
+
 Lists default to a # ordinal column showing position in the complete authorized,
 filtered, sorted result across scrolling. It is not database ID and may change
 with ordering, filtering or insert/delete. Double-click opens a fresh ACL-checked
