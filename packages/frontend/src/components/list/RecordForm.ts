@@ -6,6 +6,7 @@ import { FormValidation, fieldError, fileUploadPending } from "../../FormValidat
 import { failure, server } from "../../api/Server";
 import type { ActionMetadata, FormDescription, MountTarget, RecordForm as RecordFormApi, RecordFormEvents, RecordFormOptions } from "../../api/types";
 import { Component } from "./component";
+import { CellStatus } from "../CellStatus";
 import { DECLINED, bindFieldTypes, errorText, formActions, formRows, input, setShown, shownOnly } from "./fields";
 import { confirmed, resultNotice } from "./actions";
 import type { ListContext } from "./ListView";
@@ -33,6 +34,8 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
   private setting=false;
   private saving?:Promise<unknown>;
   private abort=new AbortController();
+  /** Loading until the form's fields have arrived; a failed load says so (docs/toolkit.md#loading-and-empty-states). */
+  private status?:CellStatus;
   private releaseTypes?:()=>void;
   /** The action's offered metadata (label, icon, confirmation) from any view of the resource, if any. */
   private action?:ActionMetadata;
@@ -43,6 +46,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
     if(typeof options?.resource!=="string"||typeof options.action!=="string")throw new TypeError("61ade: RecordForm needs a resource and an action.");
     if(options.readOnly!==undefined&&!(Array.isArray(options.readOnly)&&options.readOnly.every(name=>typeof name==="string"&&name!=="")))throw new TypeError("61ade: RecordForm `readOnly` is a list of field names.");
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"form"}]});
+    this.status=new CellStatus(this.layout.getCell("form"));this.status.busy(true);
     this.action=context.app().viewDefinitions().filter(view=>view.resource===options.resource).flatMap(view=>view.actions).find(action=>action.name===options.action);
     // A failed load has shown the error dialog; `submit` rejects with it.
     this.ready=this.load();this.ready.catch(()=>{});
@@ -71,10 +75,12 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
         if(name==="cancel")this.emit("cancelled",{});
         else if(name==="submit")void this.submit().catch(()=>{});
       });
+      this.status?.busy(false);
       this.layout.getCell("form").attach(form);
       this.fit?.();
     }catch(error){
       if(this.destroyed||(error instanceof DOMException&&error.name==="AbortError"))return;
+      this.status?.busy(false);this.status?.text(t("Az adatok nem érhetők el."),"error");
       await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,[])});
       throw error;
     }
@@ -158,6 +164,7 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
     return saving;
   }
   protected dispose():void{
+    this.status?.destroy();this.status=undefined;
     this.abort.abort();this.releaseTypes?.();this.files?.destroy();
     // Suite 9.3.12 still repaints a form's buttons after a pending enable, disable or blur (a save, Cancel or a tab
     // change destroys the form at once): the Form is taken out of its cell and destroyed once that redraw has run. The

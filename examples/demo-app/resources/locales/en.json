@@ -319,6 +319,8 @@
   "Válassz egy értéket a listában.": "Select a value in the list.",
   "A kulcsok nem érhetők el.": "The keys are not available.",
   "Az értékek nem érhetők el.": "The values are not available.",
+  "A kulcsnak nincs saját értéke.": "This key has no values of its own.",
+  "Az alkulcsoknak nincs értéke.": "Its subkeys have no values.",
   "Alkulcsok értékei": "Subkey values",
   "Jóváhagyások": "Approvals",
   "Jóváhagyásra vár": "Awaiting approval",

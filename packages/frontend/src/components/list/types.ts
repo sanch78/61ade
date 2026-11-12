@@ -78,4 +78,6 @@ export type WorkspaceHooks={
   createDefaults?:Readonly<Record<string,string>>;
   /** The preference key instead of the view id (public `ListViewOptions.preferencesKey`). */
   preferencesKey?:string;
+  /** The text of the loaded list without records (public `ListViewOptions.emptyText`). */
+  emptyText?:string;
 };

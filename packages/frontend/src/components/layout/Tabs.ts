@@ -1,5 +1,6 @@
 import { Layout, Tabbar, awaitRedraw } from "@dhtmlx/suite";
-import type { LayoutCell, Mountable, MountTarget, TabDefinition, Tabs as TabsApi, TabsEvents, TabsOptions } from "../../api/types";
+import type { LayoutCell, Mountable, MountTarget, RegionPlaceholder, TabDefinition, Tabs as TabsApi, TabsEvents, TabsOptions } from "../../api/types";
+import { placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
 import { Component } from "../list/component";
@@ -48,6 +49,8 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
   private allowed?:string;
   private pending?:Promise<boolean>;
   private observer?:MutationObserver;
+  /** Each tab's placeholder while it holds nothing. */
+  private statuses=new Map<string,CellStatus>();
   constructor(context:{user:string},private options:TabsOptions){
     super(options);
     this.tabs=checkTabs(options?.tabs);
@@ -66,6 +69,7 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
       disabled:this.tabs.filter(tab=>tab.disabled).map(tab=>this.cellId(tab.id)),
       views:this.tabs.map(tab=>({id:this.cellId(tab.id),tab:tab.label}))} as any);
     this.layout.getCell(this.prefix+"row").attach(this.tabbar);
+    for(const tab of this.tabs)this.statuses.set(tab.id,regionStatus(this.layout.getCell(this.cellId(tab.id))));
     this.tabbar.events.on("beforeChange",(to:string,from:string)=>this.beforeChange(this.tabId(to),this.tabId(from)));
     this.tabbar.events.on("change",(to:string,from:string)=>{
       const id=this.tabId(to),previous=this.tabId(from);
@@ -144,6 +148,8 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
   cell(id:string):LayoutCell{this.known(id);return this.layout.getCell(this.cellId(id));}
   /** Puts a Suite widget, a public component or a plain element into a tab (released with the tabs). */
   attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.released.signal);}
+  /** What a tab without content shows: the default text, its own text or the loading indicator. */
+  placeholder(id:string,options:RegionPlaceholder):void{this.known(id);if(!this.destroyed)applyPlaceholder("Tabs",this.statuses.get(id)!,options);}
   /** The active tab's id. */
   active():string{return this.tabId(this.tabbar.getActive());}
   /**
@@ -177,5 +183,5 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
     else if(changes.disabled===false)this.tabbar.enableTab(this.cellId(id));
     this.tabbar.paint();
   }
-  protected dispose():void{this.pending=undefined;this.observer?.disconnect();this.released.abort();this.tabbar.destructor();this.layout.destructor();}
+  protected dispose():void{this.pending=undefined;this.observer?.disconnect();this.released.abort();for(const status of this.statuses.values())status.destroy();this.tabbar.destructor();this.layout.destructor();}
 }

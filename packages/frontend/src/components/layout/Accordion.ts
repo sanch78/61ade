@@ -1,5 +1,6 @@
 import { Layout, awaitRedraw } from "@dhtmlx/suite";
-import type { Accordion as AccordionApi, AccordionEvents, AccordionOptions, AccordionSection, LayoutCell, Mountable, MountTarget } from "../../api/types";
+import { placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
+import type { Accordion as AccordionApi, AccordionEvents, AccordionOptions, AccordionSection, LayoutCell, Mountable, MountTarget, RegionPlaceholder } from "../../api/types";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
 import { Component } from "../list/component";
@@ -44,6 +45,8 @@ export class Accordion extends Component<AccordionEvents> implements AccordionAp
   private released=new AbortController();
   private preferences?:UiPreferences;
   private observer?:MutationObserver;
+  /** Each section's placeholder while it holds nothing. */
+  private statuses=new Map<string,CellStatus>();
   constructor(context:{user:string},options:AccordionOptions){
     super(options);
     this.sections=checkSections(options?.sections);
@@ -64,6 +67,7 @@ export class Accordion extends Component<AccordionEvents> implements AccordionAp
     this.opened=new Set(open);
     this.layout=new Layout(this.host,{type:"none",css:"blade-accordion",
       rows:this.sections.map(section=>({id:this.cellId(section.id),header:section.label,css:this.sectionCss(section.id)}))} as any);
+    for(const section of this.sections)this.statuses.set(section.id,regionStatus(this.layout.getCell(this.cellId(section.id))));
     this.bind(options.signal);
   }
   private sectionCss(id:string):string{return "blade-accordion__section"+(this.opened.has(id)?" blade-accordion__section--open":" blade-accordion__section--closed");}
@@ -148,6 +152,8 @@ export class Accordion extends Component<AccordionEvents> implements AccordionAp
   cell(id:string):LayoutCell{this.known(id);return this.layout.getCell(this.cellId(id));}
   /** Puts a Suite widget, a public component or a plain element into a section (released with the accordion). */
   attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.released.signal);}
+  /** What a section without content shows: the default text, its own text or the loading indicator. */
+  placeholder(id:string,options:RegionPlaceholder):void{this.known(id);if(!this.destroyed)applyPlaceholder("Accordion",this.statuses.get(id)!,options);}
   /** The open sections' ids in display order. */
   openSections():string[]{return this.sections.filter(section=>this.opened.has(section.id)).map(section=>section.id);}
   /** Whether section $id is open; an undeclared id throws `Error`. */
@@ -181,5 +187,5 @@ export class Accordion extends Component<AccordionEvents> implements AccordionAp
     this.layout.paint();
     void awaitRedraw().then(()=>{if(!this.destroyed)this.roles();});
   }
-  protected dispose():void{this.observer?.disconnect();this.released.abort();this.layout.destructor();}
+  protected dispose():void{this.observer?.disconnect();this.released.abort();for(const status of this.statuses.values())status.destroy();this.layout.destructor();}
 }

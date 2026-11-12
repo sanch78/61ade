@@ -630,6 +630,15 @@ top row's `Útmutató` button. Prerequisites, examples,
 limits and checks are in those sections; the feature demo's
 `Regisztrációs adatbázis` uses all three.
 
+No list or page region is a bare blank area
+([loading and empty states](toolkit.md#loading-and-empty-states)): every list
+shows a loading indicator (`aria-busy`) while it loads and says when it has
+no records (`ListView` `emptyText` gives a page's own text) or no record
+matches its filters or search; a `PageLayout` region, tab or section without
+content shows a default text, its own text or the loading indicator
+(`placeholder(id, {text, busy})`). A page builds no hint or overlay element
+of its own for these states.
+
 <a id="url-és-helyi-felületbeállítások"></a>
 
 ## URLs and local UI preferences

@@ -608,6 +608,10 @@ current.mount(layout.getCell("list"));
   list. `target` also follows nested previews and sub-view windows (below).
 - Methods: `editing()`, `refresh()`, `selected()`, `target()`, `setFilters(filters)`
   (replaces all values; undeclared fields are ignored).
+- **Loading and empty result** ([states](#loading-and-empty-states)): the list
+  shows the loading indicator with `aria-busy` while it loads or reloads and
+  says when it has no records (`emptyText` replaces that text) or no record
+  matches its filters or search.
 - The [activation map](#activation-map) is chosen per row; a `view:<id>`
   target calls `app.navigate({view, record})`.
 - **Preferences** are keyed by the `id` of the definition the component gets
@@ -1256,6 +1260,10 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   mounted components. An attached public component is mounted there (its
   events are delivered; it can be attached or mounted once), the same for
   `Tabs.attach` and `Accordion.attach`.
+- A region without content shows a placeholder: `Nincs megjeleníthető
+  tartalom.`, its own text or the loading indicator with
+  `placeholder(id, {text, busy})` ([states](#loading-and-empty-states)), also
+  `Tabs.placeholder` and `Accordion.placeholder`.
 
 <a id="pagelayout-collapse"></a>
 
@@ -1342,6 +1350,8 @@ tabs.on("change", ({ id }) => {
 - `cell(id)` is a tab's Layout cell, the mount target of every component;
   `attach(id, content)` puts a Suite widget, a public component or a plain
   element there (released with the tabs). An undeclared id throws `Error`.
+  A tab without content shows its placeholder (`placeholder(id, {text,
+  busy})`, [states](#loading-and-empty-states)).
 - `active()` is the open tab's id; `select(id)` opens a tab as a click does
   (guard included) and resolves whether it is open afterwards (a disabled tab
   resolves `false`); `update(id, {label, disabled})` changes a tab, and
@@ -1469,6 +1479,101 @@ sections.on("toggle", ({ id, open }) => {
   into sections is one form per section, each with its own submit.
 
 <a id="calendar-and-diagrameditor"></a>
+
+<a id="loading-and-empty-states"></a>
+
+#### Loading and empty states
+
+No list, region, tab or section is a bare blank area ([FB-0185](feedback.md#fb-0185)).
+It shows that content is loading, that nothing is there yet, or that a list
+has no records. One framework status element (`role="status"`) lies over the
+content. When nothing is there, the area is a blank surface
+(`--dhx-background-secondary`) with a centred picture above the text in the
+secondary text colour: an empty tray for no content or no records, the
+search icon for no match, the alert icon when the data is not available.
+Every theme and the phone layout use the skin variables. It stays rendered (visually hidden when it has nothing to say), so a
+new text is announced politely. While loading it is Suite's spinner over the
+area faded to the theme's surface. The spinner appears only after 300 ms, so
+a short load does not flash it; `aria-busy="true"` is set on the loading
+content at once, not on the status. Suite's own `progressShow()` is not
+used: it covers the cell's header at the page's top overlay level, without
+a delay or ARIA.
+
+**Lists (default, no option):** every `ListView` and the built-in `list`
+kind, in table, cards and tiles, in its own panel, a window or `panel: false`:
+
+- **Loading:** the first load and every reload that replaces the rows (a
+  filter, the search, the sort, `setFilters`, `refresh()`; a page that
+  changes the scope mounts a new list, which loads) mark the row area
+  `aria-busy` and show the indicator over it. Rows from before stay under it
+  and, once it shows, take no clicks or wheel scrolling. The command bar and
+  a table's header (its header filters) stay usable, so neither moves. A scroll window and a live
+  update show nothing.
+- **Empty result:** a loaded list without records says
+  `Nincs megjeleníthető elem.` (the tree's text) below a table's header, or
+  `emptyText` of the `ListView` (plain text, 1–200 characters, for example
+  what adds one; anything else throws `TypeError`). With a filter or the
+  search active it says `Nincs a szűrésnek vagy a keresésnek megfelelő elem.`
+  instead, under the search icon. With rows there is no text.
+- **Failure:** a failed load keeps the error dialog; a list without rows then
+  says `Az elemek nem érhetők el.`, as does a list whose live channel was
+  revoked. It never claims an empty result it did not load.
+
+**Regions:** a [`PageLayout`](#pagelayout) region, a [`Tabs`](#tabs) tab or
+an [`Accordion`](#accordion) section that holds nothing (no component
+mounted, no widget or element attached) shows `Nincs megjeleníthető tartalom.`.
+Mounting or attaching content replaces it; destroying the component there
+(or `cell.detach()` of a widget) brings it back. `placeholder(id, {text,
+busy})` of the component that owns the region changes it, and
+`PageLayout.placeholder` passes a tab or section region to its `Tabs` or
+`Accordion`:
+
+- `text`: the region's own text (plain text, 1–200 characters), such as the
+  selection it waits for; `null` restores the default. It stays for the
+  next time the region is empty.
+- `busy: true`: content is known to be coming but is not mounted yet. The
+  region shows the indicator after the delay; its text waits meanwhile.
+  Content mounted into the region ends it, as does `busy: false`; on a
+  region that holds content it is ignored. Use it only where the page
+  itself ends the wait (its own request before it mounts the component),
+  not while waiting for another component's event that may never come.
+- An undeclared id throws `Error`, any other key or value `TypeError`.
+
+```ts
+// examples/demo-app/frontend/src/registry-browser.ts (D8): each region says what it waits for.
+layout.placeholder("values", { text: t("Válassz egy kulcsot a fában.") });
+layout.placeholder("value", { text: t("Válassz egy értéket a listában.") });
+nodeTree.on("select", ({ row }) => {
+  list?.destroy(); list = undefined;                                   // the region's text shows again
+  if (!row) return;
+  list = new app.components.ListView({ view: values, scope: { field: "key_id", id: String(row.id) }, panel: false,
+    emptyText: t("A kulcsnak nincs saját értéke.") });
+  list.mount(layout.cell("values"));                                   // replaces the placeholder
+});
+
+// A page that fetches before it mounts marks the region busy meanwhile.
+page.placeholder("chart", { busy: true });
+const data = await app.server.call(resource, "summary", { signal });
+chart.mount(page.cell("chart"));                                       // ends busy
+```
+
+- A component brings its own states: a `ListView` mounted into a busy region
+  ends the region's indicator and shows its own while it loads, and a
+  `RecordDetails` loading a record id or a `RecordForm` loading its fields
+  shows the indicator until the data arrives (after a failed load
+  `Az adatok nem érhetők el.` under the error dialog). A page does not build
+  its own overlay or hint element for any of these states.
+- Limits: a Suite widget attached directly and destroyed without
+  `cell.detach()` still holds its region, as does the slot of an element
+  attached with a signal that was aborted (`app.ui.attach`); mount the next
+  content or use a component. The view host itself, a singleton
+  list's form and a `Tree` have no indicator of this kind (the tree keeps its
+  own empty text and `aria-busy`). A `Tree` reports no event when its start ends without a
+  selection (roots failed to load or none), so a page cannot mark regions
+  busy until the tree's first selection; it shows their hint instead. A
+  compact sub-view preview is one row high when empty, so a long text is
+  cut.
+- Verification: `tests/shell/empty-states.spec.cjs`.
 
 #### Calendar and DiagramEditor
 
@@ -2771,6 +2876,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M62 | [Delegated access](access-and-actions.md#delegated-access): `SqlResource` `delegation` (`Delegation`, `DelegationLink`, `DelegationVia`; JSON `storage.delegation`), ACL scope `delegated` (admin `Delegált objektum`, refused for a resource without a declaration); `Acl::allows()`/`fieldAllowed()` take optional `destination` and `deferred`, `Acl::predicate()` an optional `qualifier`, `Acl::delegates()`, `Registry::delegate()`/`delegation()`, `Executor::permit()`. A `delegated` rule without a declaration fails the operation, and a deny with an unknown scope now denies everything | [FB-0180](feedback.md#fb-0180) | info: stored rules with a scope other than all/own/id now deny when they are denies | none | none |
 | M63 | [Section-filling fields](workspaces.md#form-section-fill): a field's `sectionFill` (PHP `Field`, JSON `section_fill`), `FieldMetadata.sectionFill`: a textarea or file field alone in its section, named by the section's header; an open accordion section is the textarea, or the drop area fills it | [FB-0181](feedback.md#fb-0181) | none (additive) | none | none |
 | M64 | [Several stored files](workspaces.md#stored-file-multiple): a stored file field's `multiple` (2–20; PHP and JSON `file.multiple`), `StoredFileFieldConfig.multiple`: a comma-joined list of ids, each new token claimed, the uploader's zone and queue in the form at a fixed height | [FB-0181](feedback.md#fb-0181) | none (additive) | none | none |
+| M65 | [Loading and empty states](#loading-and-empty-states): every list shows a loading indicator (`aria-busy`) and an empty-result text (`Nincs megjeleníthető elem.`, with a filter or search `Nincs a szűrésnek vagy a keresésnek megfelelő elem.`, after a failure `Az elemek nem érhetők el.`), `ListViewOptions.emptyText`; `RecordDetails` and `RecordForm` show the indicator while their data loads; a `PageLayout` region, tab or section without content shows `Nincs megjeleníthető tartalom.` on a blank surface with a centred picture, `placeholder(id, {text, busy})` of `PageLayout`, `Tabs` and `Accordion`, type `RegionPlaceholder` | [FB-0185](feedback.md#fb-0185) | info: an empty region shows the default text instead of white space, and a page's own hint element in it can go | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2923,6 +3029,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-12 | PHP `Field` `sectionFill`, JSON `section_fill`, `FieldMetadata.sectionFill`: a textarea or file field that is its section's whole content, named by the header; in an accordion form the open section is the text area or the drop area (M63). Additive. | Owner: a long text whose open accordion section is the input, and a simpler file upload section. | [FB-0181](feedback.md#fb-0181) |
 | 2026-11-12 | PHP and JSON `file.multiple` of a stored file field, `StoredFileFieldConfig.multiple`: up to 20 files as a comma-joined list, each new token claimed with the record; the form shows the uploader's zone and queue at a fixed height (M64). Additive. | Owner: a field expecting several files looks like the media library's uploader; the files belong to the record. | [FB-0181](feedback.md#fb-0181) |
 | 2026-11-12 | `ListView.activate.preventDefault()` synchronously skips default activation, including the `#` cell; existing listeners and uncancelled dispatch stay unchanged. | A composed page may open its own editor or explanation without duplicate details. | [FB-0184](feedback.md#fb-0184) |
+| 2026-11-12 | Loading and empty states: lists, `RecordDetails` and `RecordForm` show a delayed loading indicator with `aria-busy`; lists and regions show an empty or unmatched result or a failed load as a blank surface with a centred picture and text; `ListViewOptions.emptyText`; `PageLayout`, `Tabs` and `Accordion` `placeholder(id, {text, busy})` (`RegionPlaceholder`) for a region without content, which shows a default text (M65). Additive. | A tree, tabs and details page showed white areas while it opened and lists gave no feedback when loading or empty (a consumer request). | [FB-0185](feedback.md#fb-0185) |
 
 <a id="resolved-decisions"></a>
 

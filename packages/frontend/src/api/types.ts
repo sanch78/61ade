@@ -1209,6 +1209,12 @@ export interface ListViewOptions extends ComponentOptions {
    * one card per row across the list's width. Default: as many 340 px columns as fit.
    */
   cardColumns?: number;
+  /**
+   * The text of the loaded list without records instead of `Nincs megjeleníthető elem.` (a hint of the page, such as
+   * what adds one): plain text of 1–200 characters, else `TypeError`. With an active filter or search the list says
+   * `Nincs a szűrésnek vagy a keresésnek megfelelő elem.` either way (docs/toolkit.md#loading-and-empty-states).
+   */
+  emptyText?: string;
 }
 
 /** Active record context of a list, including its selected preview or foremost open sub-view window. */
@@ -1957,11 +1963,31 @@ export interface PageLayoutEvents {
   collapse: { id: string; collapsed: boolean };
 }
 
+/**
+ * What a region without content shows (`placeholder` of `PageLayout`, `Tabs` and `Accordion`,
+ * docs/toolkit.md#loading-and-empty-states). Keys left out keep their value.
+ */
+export interface RegionPlaceholder {
+  /** The region's own text (plain text, 1–200 characters), such as the selection it waits for; `null`: the default. */
+  text?: string | null;
+  /**
+   * Content is coming: the loading indicator after a short delay (the text waits meanwhile). Content mounted into the
+   * region ends it; on a region that holds content it is ignored.
+   */
+  busy?: boolean;
+}
+
 export interface PageLayout extends Component<PageLayoutEvents> {
   /** The cell of a declared region, a mount target of every component; an undeclared id throws `Error`. */
   cell(id: string): LayoutCell;
   /** Puts a Suite widget, a public component or a plain element into a declared region (released with the layout). */
   attach(id: string, content: Mountable): void;
+  /**
+   * A region without content (nothing mounted or attached, also after its component was destroyed) shows
+   * `Nincs megjeleníthető tartalom.`, its own `text`, or while `busy` the loading indicator; content replaces it. A
+   * tab or section region is its `Tabs` or `Accordion`'s. An undeclared id throws `Error`, other options `TypeError`.
+   */
+  placeholder(id: string, placeholder: RegionPlaceholder): void;
   /** The `Tabs` of the `tabs` branch that holds region $id (to `select` it or follow `change`), else `undefined`. */
   tabsOf(id: string): Tabs | undefined;
   /** The `Accordion` of the `accordion` branch that holds region $id (to `open` a section or follow `toggle`), else `undefined`. */
@@ -2016,6 +2042,8 @@ export interface Accordion extends Component<AccordionEvents> {
   cell(id: string): LayoutCell;
   /** Puts a Suite widget, a public component or a plain element into a section (released with the accordion). */
   attach(id: string, content: Mountable): void;
+  /** What a section without content shows (as `PageLayout.placeholder`); an undeclared id throws `Error`. */
+  placeholder(id: string, placeholder: RegionPlaceholder): void;
   /** The open sections' ids in display order. */
   openSections(): string[];
   /** Whether a section is open; an undeclared id throws `Error`. */
@@ -2071,6 +2099,8 @@ export interface Tabs extends Component<TabsEvents> {
   cell(id: string): LayoutCell;
   /** Puts a Suite widget, a public component or a plain element into a tab (released with the tabs). */
   attach(id: string, content: Mountable): void;
+  /** What a tab without content shows (as `PageLayout.placeholder`); an undeclared id throws `Error`. */
+  placeholder(id: string, placeholder: RegionPlaceholder): void;
   /** The active tab's id. */
   active(): string;
   /** Opens a tab like a click (guard included); resolves whether it is active. A disabled tab resolves `false`. */

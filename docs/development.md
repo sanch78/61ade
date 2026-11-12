@@ -445,7 +445,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | --- | --- |
 | Documentation/entrypoints | Internal file/fragment links, skill symlinks, `git diff --check`; no artificial runtime test |
 | Shell/bootstrap/theme | `php8.4 tests/shell/contracts.php`, `configuration.php`; `npm run test:browser -- --project=shell tests/shell/browser.spec.cjs tests/shell/skins.spec.cjs` |
-| Workspace/layout/live lists | `php8.4 tests/shell/lists.php`; `node tools/build.mjs` then `node tests/shell/live-protocol.mjs` (live protocol 2 against the bundled server on a free loopback port, own throw-away demo instance under `tmp/`; `BLADE_LIVE_SERVER` may name another bundle); shell `workspace.spec.cjs`, `layout-resizer.spec.cjs`, `mobile-grid.spec.cjs`, `preferences.spec.cjs` |
+| Workspace/layout/live lists | `php8.4 tests/shell/lists.php`; `node tools/build.mjs` then `node tests/shell/live-protocol.mjs` (live protocol 2 against the bundled server on a free loopback port, own throw-away demo instance under `tmp/`; `BLADE_LIVE_SERVER` may name another bundle); shell `workspace.spec.cjs`, `layout-resizer.spec.cjs`, `mobile-grid.spec.cjs`, `preferences.spec.cjs`, `empty-states.spec.cjs` (loading and empty states) |
 | ACL/action/API permissions | PHP `access.php`, `permissions.php`, `api-keys.php`; shell `admin.spec.cjs` or the relevant `demo.spec.cjs` selector |
 | Accounts/admin | PHP `admin.php`, `permissions.php`; shell `admin.spec.cjs` |
 | Tenancy (tenants, scoped resources, keys) | PHP `tenancy.php`, `configuration.php`, `api-keys.php`; shell `tenancy.spec.cjs`, `admin.spec.cjs` |
@@ -465,7 +465,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
 | Tree navigation, conditional fields, view guides | `php8.4 tests/shell/tree-navigation.php`, `contracts.php`, `configuration.php`, `i18n.php`; `npm run typecheck`; shell `registry.spec.cjs` |
 | Feature demo module (`examples/demo-app/frontend`) | `npm run typecheck`, `npm run build` (`node tools/build.mjs --check`); PHP `contracts.php`, `signage.php`; shell `toolkit-demo*.spec.cjs` of the changed area (`tabs.spec.cjs` for the playlist editor's tabs) |
-| Toolkit (modules, views, registries, routing) | PHP `toolkit.php`, `contracts.php`, `configuration.php`, `lists.php`; `node tests/shell/toolkit-kernel.mjs`, `toolkit-list.mjs`, `toolkit-components.mjs`, `toolkit-registries.mjs`, `toolkit-sandbox.mjs`, `ui-preferences.mjs`; shell `browser.spec.cjs`, `preferences.spec.cjs`, `activation.spec.cjs`, `toolkit-*.spec.cjs`; `tabs.spec.cjs` for `Tabs` and `PageLayout` tabs |
+| Toolkit (modules, views, registries, routing) | PHP `toolkit.php`, `contracts.php`, `configuration.php`, `lists.php`; `node tests/shell/toolkit-kernel.mjs`, `toolkit-list.mjs`, `toolkit-components.mjs`, `toolkit-registries.mjs`, `toolkit-sandbox.mjs`, `ui-preferences.mjs`; shell `browser.spec.cjs`, `preferences.spec.cjs`, `activation.spec.cjs`, `toolkit-*.spec.cjs`; `tabs.spec.cjs` for `Tabs` and `PageLayout` tabs ; `empty-states.spec.cjs` for region placeholders and list states |
 
 PHP shorthand in the table means `php8.4 tests/shell/<name>.php`.
 Inspect affected dependencies: `npm ls --depth=0`, relevant Composer manifest/

@@ -6,8 +6,9 @@
 // `demo.subkey-values` (`Alkulcsok értékei`) switches the list between the key's own values (`key_id`) and the values
 // of its direct subkeys (`parent_key_id`, a computed field): the page reads the kept state before the first list, so
 // the first load already uses it, and mounts the list of the other scope on every change. Each panel is a region of
-// the page: a hint while it has no record, then the component mounted into the same region, replaced there as often
-// as the selection changes. The values list of both scopes shares its view choices (`preferencesKey`); on the computed
+// the page: its placeholder with a hint while it has no record, then the component mounted into the same region,
+// replaced there as often as the selection changes; an empty
+// values list says which scope has no values (`emptyText`). The values list of both scopes shares its view choices (`preferencesKey`); on the computed
 // scope its `Hozzáadás` presets the selected key (`createDefaults`); the key's computed parent is hidden from the
 // value details (`column.details: false`).
 import type { Application, ApplicationModule, ListKindOptions, ListView, PageLayout, PageRegion, RecordDetails, Row, Tree, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
@@ -19,21 +20,15 @@ const KIND = "demo.registry-browser";
 const TOGGLE = "demo.subkey-values";
 const PHONE = "(max-width: 767px)";
 
-/** A hint paragraph for a panel without a record. */
-function hint(text: string): HTMLElement {
-  const element = document.createElement("p");
-  element.style.cssText = "margin:16px";
-  element.textContent = text;
-  return element;
-}
-
 function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserOptions>): ViewInstance {
   const t = app.i18n.t, options = view.options ?? {};
   const nodes = options.tree ? app.viewDefinition(options.tree) as ViewDefinition<ListKindOptions> | undefined : undefined;
   const values = options.values ? app.viewDefinition(options.values) as ViewDefinition<ListKindOptions> | undefined : undefined;
   if (!nodes) {
     // Without the node view (ACL) there is no tree: the page says so instead.
-    const empty = hint(t("A kulcsok nem érhetők el."));
+    const empty = document.createElement("p");
+    empty.style.cssText = "margin:16px";
+    empty.textContent = t("A kulcsok nem érhetők el.");
     host.attach(empty);
     return { destroy: () => empty.remove() };
   }
@@ -60,19 +55,11 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
     const nodeTree: Tree = keys = new app.components.Tree({ view: nodes, label: "name", id: `${view.id}.tree`, expandControl: true });
     nodeTree.mount(layout.cell("tree"));
 
-    // A region's hint until a component is mounted there; the next component or hint replaces it.
-    const hints = new Map<string, AbortController>();
-    const clear = (id: string) => { hints.get(id)?.abort(); hints.delete(id); };
-    const show = (id: string, text: string) => {
-      clear(id);
-      const shown = new AbortController();
-      hints.set(id, shown);
-      signal.addEventListener("abort", () => shown.abort(), { once: true, signal: shown.signal });
-      app.ui.attach(layout.cell(id), hint(text), { signal: shown.signal });
-    };
-    show("key", t("Válassz egy kulcsot a fában."));
-    show("value", t("Válassz egy értéket a listában."));
-    show("values", values ? t("Válassz egy kulcsot a fában.") : t("Az értékek nem érhetők el."));
+    // A region's placeholder shows while no component is mounted there. Not `busy` while the tree starts: a tree whose
+    // roots fail to load or are empty selects nothing and reports no `select` that would end it.
+    layout.placeholder("key", { text: t("Válassz egy kulcsot a fában.") });
+    layout.placeholder("value", { text: t("Válassz egy értéket a listában.") });
+    layout.placeholder("values", { text: values ? t("Válassz egy kulcsot a fában.") : t("Az értékek nem érhetők el.") });
     let keyDetails: RecordDetails | undefined, valueDetails: RecordDetails | undefined;
     let node: Row | undefined;
     // The kept state of the toggle, read before the first list: the first load already uses the right scope.
@@ -80,9 +67,8 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
 
     const showValue = (row: Row | undefined) => {
       if (!values) return;
-      if (!row) { valueDetails?.destroy(); valueDetails = undefined; show("value", t("Válassz egy értéket a listában.")); return; }
+      if (!row) { valueDetails?.destroy(); valueDetails = undefined; return; }
       if (valueDetails) { void valueDetails.show(row).catch(() => { /* the error dialog was shown */ }); return; }
-      clear("value");
       valueDetails = new app.components.RecordDetails({ view: values, record: row, showId: false });
       valueDetails.mount(layout.cell("value"));
     };
@@ -90,11 +76,11 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
     const showList = () => {
       list?.destroy(); list = undefined;
       showValue(undefined);
-      if (!values || !node) { show("values", values ? t("Válassz egy kulcsot a fában.") : t("Az értékek nem érhetők el.")); return; }
-      clear("values");
+      if (!values || !node) return;
       // Both scopes share one set of view choices; on the computed scope the built-in create presets the key itself.
       list = new app.components.ListView({ view: values, scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) }, panel: false, showId: false,
-        preferencesKey: `${view.id}.values`, ...(subkeys ? { createDefaults: { key_id: String(node.id) } } : {}) });
+        preferencesKey: `${view.id}.values`, emptyText: subkeys ? t("Az alkulcsoknak nincs értéke.") : t("A kulcsnak nincs saját értéke."),
+        ...(subkeys ? { createDefaults: { key_id: String(node.id) } } : {}) });
       list.on("select", ({ row }) => showValue(row));
       list.on("toggle", ({ command, pressed }) => { if (command === TOGGLE && pressed !== subkeys) { subkeys = pressed; showList(); } });
       list.mount(layout.cell("values"));
@@ -102,9 +88,9 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
     nodeTree.on("select", ({ row }) => {
       const changed = String(row?.id ?? "") !== String(node?.id ?? "");
       node = row;
-      if (!row) { keyDetails?.destroy(); keyDetails = undefined; show("key", t("Válassz egy kulcsot a fában.")); }
+      if (!row) { keyDetails?.destroy(); keyDetails = undefined; }
       else if (keyDetails) void keyDetails.show(row).catch(() => { /* the error dialog was shown */ });
-      else { clear("key"); keyDetails = new app.components.RecordDetails({ view: nodes, record: row, showId: false }); keyDetails.mount(layout.cell("key")); }
+      else { keyDetails = new app.components.RecordDetails({ view: nodes, record: row, showId: false }); keyDetails.mount(layout.cell("key")); }
       if (changed) showList();
     });
     // Enter or a double-click on a key opens its data.

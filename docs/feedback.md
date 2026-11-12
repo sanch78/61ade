@@ -7893,6 +7893,121 @@ that exactly equals an option label lists every option. The managed
 - **Status:** implemented; existing regressions passed, additional narrow
   synthetic qualification remains unverified.
 
+<a id="fb-0185"></a>
+
+## FB-0185 — Loading and empty states for regions and lists
+
+- **Date:** 2026-11-12.
+- **Request:** no surface shows a bare blank area. A consumer page with a tree,
+  tabs and details showed white space below the tab bar while it opened. Its
+  lists showed the command bar above white space, whether they were loading
+  or empty. A region, tab or list must say one of three things: content is
+  loading, nothing is attached yet, or a loaded list has no records. It
+  must tell "no records" from "no match for the filters or search". The
+  behaviour is framework-wide, without consumer overlays.
+- **Owner follow-up (same day):** a text in the corner is far too little. A
+  really empty element gets a blank background with a centred icon that
+  means emptiness. An element that is not empty but whose data has not
+  arrived yet shows loading.
+- **Premises checked:**
+  - Suite 9.3.12 Standard has no Grid or DataView empty or loading support.
+  - A Layout cell's `progressShow()` covers the header at the global overlay
+    z-index, has no ARIA and no delay, so it is not used.
+  - `Workspace` had only an internal `busy` flag.
+  - Suite leaves a foreign node in a cell's node across its repaints and its
+    tab and view switches. A collapsed header cell drops its content node.
+- **Implemented:**
+  - **One status element** (`components/CellStatus.ts`): a `role="status"`
+    element over a cell's content, below its header. It stays rendered,
+    visually hidden when idle, so a new text is announced.
+    - Nothing there: a blank `--dhx-background-secondary` surface, with a
+      centred picture above the text: an empty tray, the search icon for no
+      match, or the alert icon when the data is unavailable.
+    - Loading: Suite's spinner over the content faded to the theme surface.
+      It shows after 300 ms. `aria-busy` goes on the loading content at once.
+    - One page observer puts the element back when Suite recreates the
+      cell's node. For regions, it follows content coming and going.
+  - **Lists:** every `Workspace` except a singleton shows the status over the
+    row area, below a table's header. Header filters and the command bar stay
+    usable and in place. It shows on every load and on a failure; a scroll
+    window and a live update show nothing. Texts:
+    - `Nincs megjeleníthető elem.` (or `ListViewOptions.emptyText`) for no
+      records;
+    - `Nincs a szűrésnek vagy a keresésnek megfelelő elem.` with a filter or
+      search;
+    - `Az elemek nem érhetők el.` after a failed load or a revoked live
+      channel.
+  - **Components that load:** `RecordDetails` (a record id) and `RecordForm`
+    (its fields) show the indicator until their data arrives. After a failed
+    load they say `Az adatok nem érhetők el.`
+  - **Regions:** every `PageLayout` region, `Tabs` tab and `Accordion`
+    section shows `Nincs megjeleníthető tartalom.` while it holds nothing.
+    - `placeholder(id, {text, busy})` (`RegionPlaceholder`) is available on
+      all three; `PageLayout` passes tab and section regions to their
+      component.
+    - `busy` hides the text, ends when content is mounted, and is ignored on
+      a region that holds content.
+  - **Demo D8** (`Kulcsböngésző`): the page's own hint elements are replaced
+    by region texts, and the values list has an `emptyText` for each scope.
+- **Independent review (same day), fixed:**
+  - the demo's tabs stayed busy forever if the tree loaded no roots, so the
+    demo no longer uses `busy` to wait for the tree;
+  - the live region was hidden and inside the `aria-busy` subtree;
+  - `busy` on a filled region dimmed its content indefinitely;
+  - the waiting text flashed before the spinner;
+  - the header inset was measured on every page mutation; it is now
+    measured once per frame.
+- **Not done:**
+  - the view host, a singleton list and `Tree` loading;
+  - the slot of an element whose `app.ui.attach` signal was aborted still
+    holds its region (emptying the cell there broke the accordion form's
+    file sections, so `attachContent` stays unchanged);
+  - the tree keeps its own empty text, as the request asked;
+  - a `Tree` reports nothing when its start ends without a selection, so a
+    page cannot wait with `busy` for its first `select`. A start signal on
+    `Tree` would close this; it was not requested.
+- **Guides:** [toolkit](toolkit.md#loading-and-empty-states) (also
+  `ListView`, `PageLayout`, `Tabs`, M65, Changes), [usage](usage.md),
+  [demos](demos.md#d8-key-browser), [development](development.md) focused
+  groups, and the grid-tree-card-ui skill.
+- **Verification (managed demo, 2026-11-12):**
+  - `npm run typecheck`, `npm run build`, `php8.4 tests/shell/i18n.php`
+    (catalogue parity) and `contracts.php` passed.
+  - The new `tests/shell/empty-states.spec.cjs` passed 3/3, and again in
+    every later run. It covers:
+    - region, tab and section placeholders: the default and own texts, the
+      blank surface with its centred picture, busy timing, option errors,
+      destroy and collapse restoring the placeholder, and busy ignored on
+      content;
+    - `RecordDetails` and `RecordForm` loading;
+    - list states: loading with `aria-busy` on the content, no-records,
+      no-match and failure texts with their pictures, the text below the
+      table header, an unmoved command bar, table and cards, `panel: false`,
+      a window, and a reload keeping its rows;
+    - the D8 hints and `emptyText`.
+  - Affected groups, in a 27-spec run on the final design: tabs, page
+    layout, accordion, form accordion, lists, sub-views, tree, record forms,
+    stored files, settings form, toolkit list and the demos.
+    - The fixture-module start timed out once in `form-accordion` and once
+      in `empty-states`; both passed on a re-run.
+    - The playlist day programme and the live-socket count passed in
+      isolation.
+    - `component-remount` failed, which revealed a defect in an
+      `attachContent` change; that change was reverted.
+    - The final targeted run passed 37/37: empty-states, component-remount,
+      tabs, accordion, list-toggle, scoped-list, workspace, playlist editor,
+      record-forms and page-layout-collapse.
+  - `form-accordion`'s accordion-form test fails repeatedly against the
+    shared working tree. Its Save button lies outside the viewport because
+    the window is placed off-screen while another session's uncommitted
+    section animation (`resizeMotion` in `fields.ts`) runs. It passed
+    earlier with this change and no form code is touched here.
+  - Light, dark (Blade Night) and 390 px phone screenshots of the loading,
+    empty and no-match states were visually checked. The task-only probe
+    was then removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo, except for the
+  `form-accordion` interaction noted above.
+
 <a id="fb-0186"></a>
 
 ## FB-0186 — Equal-height section groups and project column sizing with CSS
