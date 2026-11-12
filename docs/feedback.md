@@ -7834,3 +7834,32 @@ that exactly equals an option label lists every option. The managed
   Blade footer screenshot was visually checked; task-only test source and
   output were removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0183"></a>
+
+## FB-0183 — Distinct control appearance for read-only form fields
+
+- **Date:** 2026-11-12.
+- **Request:** make a form field's read-only state clearly visible through
+  the field's own style. Keep the labels and headings as they are.
+- **Implemented:** the shared field factory marks a read-only field's Suite
+  item `blade-field--readonly`, keeping its existing classes. Its native
+  input (including textareas and the displayed choice or file name) has a
+  flat, muted theme background, a transparent border and no inset shadow.
+  The normal text colour, keyboard focus ring, selection and copying remain.
+  The marker follows the semantic field state: an editable file field's
+  internally readonly name input keeps its editable appearance. Registered
+  field types keep their controls and receive the same marker.
+- **Guides:** [read-only fields](workspaces.md#read-only-fields),
+  [usage](usage.md).
+- **Verification:** build, typecheck and the reproducible build check passed.
+  On the managed demo, `record-forms`, `form-accordion`, `stored-file` and
+  `toolkit-registries` passed (18 cases). A temporary appearance case passed
+  for text, number, select, multiselect, checkbox, textarea, single-file,
+  several-file and registered fields in Blade, Blade Night, light and dark:
+  distinct background, transparent border, flat unfocused surface, native
+  focus ring, unchanged accessible names and values, text selection, and no
+  read-only styling on an editable file field. A section-filling textarea
+  at 390 px kept its name and focus ring. Screenshots were visually checked;
+  task-only test source and output were removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

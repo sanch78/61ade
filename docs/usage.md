@@ -612,7 +612,8 @@ A list can sit beside a data tree of another resource
 ([exclusive fields](workspaces.md#exclusive-fields): `clears`), an action
 form can show values read-only ([read-only fields](workspaces.md#read-only-fields):
 `createOnly`, JSON `storage.create_only`, `Action::$display`, `RecordForm`
-`readOnly`) and group fields into framed
+`readOnly`; a flat, filled control distinguishes the read-only value) and
+group fields into framed
 [form sections](workspaces.md#form-sections) (`section`; collapsible, or
 fixed with `sectionCollapsible: false`), which also group the
 [cards and details](workspaces.md#card-groups) side by side with a long text
