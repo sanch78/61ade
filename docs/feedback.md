@@ -7880,4 +7880,15 @@ that exactly equals an option label lists every option. The managed
 - **Guides:** [ListView](toolkit.md#listview),
   [activation](workspaces.md#activation), [usage](usage.md),
   [feature demo](demos.md).
-- **Verification:** pending focused type, build and browser checks.
+- **Verification:** typecheck, build, the pure activation check and
+  `git diff --check` passed. On the managed demo, all ten existing cases of
+  `toolkit-list.spec.cjs` and `toolkit-demo-readings.spec.cjs` passed. An
+  additional temporary cancellation case completed its table, card and tile
+  double-click/Enter assertions with no default navigation or details, then
+  failed at its phone setup because the fixture's fixed sidebar covered the
+  list. The fixture was corrected to hide that sidebar; the guarded rerun
+  stayed blocked by another check, including eight bounded retries. The
+  independent narrow fixture is therefore not reported as passed. Task-only
+  test source and output were removed. No full-smoke claim.
+- **Status:** implemented; existing regressions passed, additional narrow
+  synthetic qualification remains unverified.
