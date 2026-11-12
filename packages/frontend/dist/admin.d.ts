@@ -215,7 +215,8 @@ export interface WindowOptions {
     height?: number;
     /**
      * Fits the height to the rendered form actions or content (`fitWindow`) after each `attach` of a Form or an element.
-     * A Layout or a component keeps the requested size (a `RecordForm` fits the window once its fields show). Default true.
+     * A Layout or a component keeps the requested size (a `RecordForm` fits the window once its fields show). Default true;
+     * with `false` (and below 768 px, where the window is full screen) the window keeps its size, `fit()` included.
      */
     fit?: boolean;
     /**
@@ -245,7 +246,10 @@ export interface AppWindow {
     /** Attaches a Suite widget (Layout, Form, …) or an element as the window body (replaces the previous one). */
     attach(content: Mountable): void;
     setTitle(text: string): void;
-    /** Remeasures the content height (see `WindowOptions.fit`). */
+    /**
+     * Remeasures the content height (see `WindowOptions.fit`); nothing for a window that does not fit (`fit: false`, a
+     * full-screen window below 768 px), which keeps its size also when its content (a `RecordForm`) asks to fit.
+     */
     fit(): Promise<void>;
     /** Closes and destroys the window; idempotent. */
     close(): void;

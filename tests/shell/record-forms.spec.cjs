@@ -214,6 +214,15 @@ test('a fitted window stops at its maxHeight with the action row at its lower ed
  await scroller.evaluate(element=>{element.scrollTop=0;});
  await saveAtBottom(win);
  await page.evaluate(()=>window.__window.close());
+ // `fit: false` keeps the requested size, also when the RecordForm asks its window to fit once its fields show.
+ await page.evaluate(()=>{
+  const app=window.__bladeApp,host=window.__window=app.ui.window({title:'Fixture',width:560,height:640,fit:false});
+  window.__form=new app.components.RecordForm({resource:'demo_attachments',action:'create'});window.__form.mount(host);
+ });
+ await expect(win.getByRole('group',{name:'Alapadatok',exact:true})).toBeVisible();
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ expect(Math.round((await win.boundingBox()).height)).toBe(640);
+ await page.evaluate(()=>window.__window.close());
  expect(errors).toEqual([]);
 });
 
@@ -262,6 +271,10 @@ test('the section and a read-only preset in English at 390 px',async({page})=>{
   await page.waitForFunction(()=>!!window.__bladeApp);
   await mountForm(page,{resource:'demo_attachments',action:'create',values:{role:'evidence'},readOnly:['role']});
   const win=fixtureWindow(page),toggle=win.getByRole('button',{name:'Images',exact:true});
+  // Below 768 px the window is full screen and stays so when the RecordForm asks it to fit.
+  await expect(win.getByLabel('Role',{exact:true})).toBeVisible();
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  expect(Math.round((await win.boundingBox()).height)).toBe(844);
   // The read-only preset shows its English option label.
   await expect(win.getByLabel('Role',{exact:true})).toHaveValue('Evidence');
   await expect(win.getByLabel('Role',{exact:true})).toHaveAttribute('readonly','');

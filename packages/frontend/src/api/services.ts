@@ -150,7 +150,8 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
       if (fit && (content instanceof HTMLElement || !(content instanceof Layout || ("destroy" in content && "layout" in content)))) void fitWindow(win, maxHeight);
     },
     setTitle(text) { if (closed) return; win.config.title = escape(text); win.header?.data.update("title", { value: escape(text) }); },
-    fit: () => closed ? Promise.resolve() : fitWindow(win, maxHeight),
+    // A window that does not fit (`fit: false`, a full-screen phone window) keeps its size, also when its content asks.
+    fit: () => closed || !fit ? Promise.resolve() : fitWindow(win, maxHeight),
     close() { if (closed) return; if (win.isVisible()) win.hide(); else finish(); },
   };
   // Suite closes only a modal window on Escape; a non-modal one closes while the focus is inside it (FB-0155). An

@@ -7467,11 +7467,19 @@ that exactly equals an option label lists every option. The managed
     before), then `calendar`, `files`, `subview`, `tree-component`,
     `mobile-grid`, `list-integration`, `suite-labels`,
     `toolkit-demo-playlist` (49 passed). No full-smoke claim.
-- **Found on the way (not changed):** `RecordForm` fits an `AppWindow`
-  through its `fit()` also when the window was opened with `fit: false`,
-  although the toolkit guide says `fit: false` keeps the requested size.
-  Changing it would resize existing consumers' windows; left for an owner
-  decision.
+- **Found on the way:** `RecordForm` (and `SettingsForm`) fitted an
+  `AppWindow` through its `fit()` also when the window was opened with
+  `fit: false`, and shrank the full-screen window of a phone, although the
+  toolkit guide says `fit: false` keeps the requested size and a window below
+  768 px is full screen. Reported to the owner, who decided to fix it
+  (2026-11-12): `fit()` now does nothing for a window that does not fit
+  (`services.ts` `openWindow`), migration row M60. Verified with
+  `record-forms.spec.cjs` (a `RecordForm` in a 640 px `fit: false` window
+  stays 640 px; at 390 px the window stays 844 px, the viewport; 5 passed), then the specs that use `app.ui.window`: `component-remount`,
+  `form-accordion`, `toolkit-components`, `suite-labels`, `settings-form`,
+  `toolkit-list`, `toolkit-demo-playlist` (35 passed; `toolkit-list` "ListView
+  modes and cardColumns at 390 px" failed once and passed alone, 3 of 3 with
+  `--repeat-each=3`).
 - **Limits:** the open sections are not remembered; an accordion form in a
   host without a height shows every section at its own height; sections do
   not nest; no `Accordion` with attached form parts.
