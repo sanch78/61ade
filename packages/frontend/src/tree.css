@@ -1,0 +1,97 @@
+/*
+ * Tree rows (TreeAdapter, docs/toolkit.md#tree-presentation): every Suite Tree row is as high as a grid row, its text
+ * one line cut with an ellipsis like a grid cell. `blade-tree--striped` alternates the row background in displayed
+ * order like the grid (`data-blade-alternate`, set by TreeAdapter); `blade-tree--lines` draws the classic dotted
+ * connectors and a dashed +/- box for an expandable node instead of Suite's arrow.
+ */
+.blade-tree {
+  --blade-tree-row-height: 40px;
+  --blade-tree-indent: var(--dhx-icon-size-normal, 20px);
+  --blade-tree-line: color-mix(in srgb, var(--dhx-font-color-secondary) 60%, transparent);
+}
+.blade-tree.dhx_tree .dhx_tree-folder,
+.blade-tree.dhx_tree .dhx_tree-list-item:not(.dhx_tree-list-item--parent) {
+  box-sizing: border-box; height: var(--blade-tree-row-height); padding-top: 0; padding-bottom: 0;
+}
+.blade-tree.dhx_tree .dhx_tree-list-item__content { min-width: 0; height: 100%; }
+.blade-tree.dhx_tree .dhx_tree-template__wrapper { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blade-tree.dhx_tree .dhx_tree-list-item__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blade-tree.dhx_tree .dhx_tree-template__wrapper { padding-left: 4px; }
+.blade-tree.dhx_tree .dhx_tree-toggle-button {
+  flex: 0 0 var(--blade-tree-indent); align-self: stretch; display: flex; align-items: center; justify-content: center;
+  width: var(--blade-tree-indent); position: relative;
+}
+
+/* Stripes: the grid's alternate row colour (the same token, so the same themes stripe), under hover, focus and selection. */
+.blade-tree--striped [data-blade-alternate]:not(:hover, .dhx_tree-folder--focused, .dhx_tree-folder--selected, .dhx_tree-list-item--focused, .dhx_tree-list-item--selected)::before {
+  background-color: var(--blade-row-alternate, transparent);
+}
+
+/*
+ * Lines. A nested node's ::after starts on its parent's toggle centre (half an indent left of the node) and draws the
+ * vertical line down its whole subtree to the next sibling (to its own row's middle for the last child) and the
+ * horizontal stub to its own box or icon. An open box continues the line down to its first child.
+ */
+.blade-tree--lines .dhx_tree-list > li[data-dhx-id]::after {
+  content: ""; position: absolute; top: 0; left: calc(var(--blade-tree-indent) / -2);
+  width: calc(var(--blade-tree-indent) * 1.3); height: 100%; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, var(--blade-tree-line) 0 1px, transparent 1px 2px) 0 0 / 1px 100% no-repeat,
+    repeating-linear-gradient(to right, var(--blade-tree-line) 0 1px, transparent 1px 2px) 0 calc(var(--blade-tree-row-height) / 2) / 100% 1px no-repeat;
+}
+.blade-tree--lines .dhx_tree-list > li[data-dhx-id]:last-child::after { height: calc(var(--blade-tree-row-height) / 2 + 1px); }
+/* A node with a box: the stub ends at the box's left edge. */
+.blade-tree--lines .dhx_tree-list > li[data-dhx-id]:has(> .dhx_tree-folder > .dhx_tree-toggle-button)::after { width: calc(var(--blade-tree-indent) - 5px); }
+
+/* The box: 11 px, a thin solid frame, the sign drawn with gradients (minus open, plus closed); the arrow glyph is replaced. */
+.blade-tree--lines.dhx_tree .dhx_tree-toggle-button::before {
+  content: ""; box-sizing: border-box; width: 11px; height: 11px; border: 1px solid var(--blade-tree-line); border-radius: 2px;
+  background: linear-gradient(var(--dhx-font-color-secondary), var(--dhx-font-color-secondary)) center / 5px 1px no-repeat,
+    linear-gradient(var(--dhx-font-color-secondary), var(--dhx-font-color-secondary)) center / 1px 5px no-repeat,
+    var(--dhx-background-primary);
+}
+.blade-tree--lines.dhx_tree .dhx_tree-toggle-button--open::before {
+  background: linear-gradient(var(--dhx-font-color-secondary), var(--dhx-font-color-secondary)) center / 5px 1px no-repeat,
+    var(--dhx-background-primary);
+}
+.blade-tree--lines.dhx_tree .dhx_tree-toggle-button:hover::before { border-color: var(--dhx-color-primary); }
+.blade-tree--lines .dhx_tree-toggle-button--open::after {
+  content: ""; position: absolute; left: 50%; top: calc(50% + 6px); bottom: 0; width: 1px; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, var(--blade-tree-line) 0 1px, transparent 1px 2px);
+}
+
+/*
+ * Theme motion (Motion.ts `treeMotion`): a folder's children slide out from under its row and back under it. Their
+ * list (or, when closing, a copy of it in `.blade-tree-ghost`, since Suite removes the children at once) is eased in
+ * height with its rows at the bottom; nothing else is clipped, so the folder's connector follows. While the copy
+ * slides, the open box keeps its line down to the children.
+ */
+.blade-tree ul[data-blade-sliding], .blade-tree .blade-tree-ghost { display: flex !important; flex-direction: column; justify-content: flex-end; overflow: clip; }
+.blade-tree ul[data-blade-sliding="down"] { justify-content: flex-start; }
+.blade-tree ul[data-blade-sliding] > li, .blade-tree .blade-tree-ghost > ul { flex-shrink: 0; }
+.blade-tree .blade-tree-ghost { pointer-events: none; }
+.blade-tree--lines li:has(> .blade-tree-ghost) > .dhx_tree-folder > .dhx_tree-toggle-button::after {
+  content: ""; position: absolute; left: 50%; top: calc(50% + 6px); bottom: 0; width: 1px; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, var(--blade-tree-line) 0 1px, transparent 1px 2px);
+}
+
+/*
+ * The selected row is the grid's cursor row of the same skin (themes/character.css `.dhx_grid-selected-row`): the
+ * selection tint, a thin blue frame, a straight 3 px gradient bar on the left and one light sweep, from the same tokens.
+ */
+.blade-tree.dhx_tree :is(.dhx_tree-folder--selected, .dhx_tree-list-item--selected)::before,
+.blade-tree.dhx_tree :is(.dhx_tree-folder--selected, .dhx_tree-list-item--selected):hover::before {
+  background:
+    linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--blade-glint, #fff) 40%, transparent) 50%, transparent 70%) -100% 0 / 50% 100% no-repeat,
+    var(--blade-gradient-vertical, var(--dhx-color-primary)) 0 0 / 3px 100% no-repeat,
+    var(--blade-select-tint, var(--dhx-background-secondary));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blade-blue, var(--dhx-color-primary)) 35%, transparent);
+  animation: blade-tree-sweep .9s ease-out .05s 1 forwards;
+}
+@keyframes blade-tree-sweep {
+  from { background-position: -100% 0, 0 0, 0 0; }
+  to { background-position: 300% 0, 0 0, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blade-tree.dhx_tree :is(.dhx_tree-folder--selected, .dhx_tree-list-item--selected)::before { animation: none; background-position: 300% 0, 0 0, 0 0; }
+}

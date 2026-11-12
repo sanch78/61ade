@@ -410,8 +410,7 @@ test('tiles with thumbnails, folder and parent tiles',async({page})=>{
  // Rows without a media descriptor fall back to the icon column with its accessible name.
  await expect(folder.locator('.blade-grid-tile__media .blade-record-icon[role="img"]')).toHaveAttribute('aria-label','Mappa');
  // Tiles reflow with the panel: several per row.
- // The pointer left over a tile would lift it 3 px (hover, themes/character.css).
- await page.mouse.move(0,0);await expect.poll(()=>tiles.evaluateAll(nodes=>new Set(nodes.slice(0,3).map(node=>Math.round(node.getBoundingClientRect().top))).size)).toBe(1);
+ await expect.poll(()=>tiles.evaluateAll(nodes=>new Set(nodes.slice(0,3).map(node=>Math.round(node.getBoundingClientRect().top))).size)).toBe(1);
  await view(page,left,'Fájllista');await expect(row(left,'Documents')).toBeVisible();
  // Videos carry the video icon ("Videó") in the listing and in the tree, as the media fallback does.
  await mount(page,left,'Signage');await find(left,VIDEO);await expect(row(left,VIDEO).getByRole('img',{name:'Videó',exact:true})).toBeVisible();

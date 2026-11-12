@@ -3,6 +3,7 @@ import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { fitWindow } from "../../WindowSizing";
 import { widgetIcons } from "../../WidgetIcons";
 import { UiPreferences } from "../../UiPreferences";
+import { collapseMotion } from "../../Motion";
 import { Form, Layout, Window, message, awaitRedraw } from "@dhtmlx/suite";
 import { acknowledge } from "../../MessageDialog";
 import { Realtime, type LiveChannel, type Row, type Snapshot } from "../../Realtime";
@@ -127,6 +128,7 @@ export class Workspace implements ActionHost {
       ?{rows:[{id:"body",header:view.title,rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"detail"}]}]}
       :region(inner?view.layout.tree:this.preferences.layoutTree(view.layout.tree)))});
     if(!view.singleton&&!inner)this.preferences.bindLayout(this.layout,view.layout.tree);
+    collapseMotion(this.layout);
     // Client commands: the built-in `details` of every selectable list (also a hidden preview toolbar: the parent
     // delegates it), then the view's declared commands where the list has its own toolbar.
     const builtin=!view.singleton&&scope?.select!==false?["details"]:[];

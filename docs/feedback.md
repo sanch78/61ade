@@ -8047,6 +8047,64 @@ that exactly equals an option label lists every option. The managed
 - **Status:** implemented and build-checked; browser qualification blocked
   by another running guarded development check.
 
+<a id="fb-0187"></a>
+
+## FB-0187 — Theme motion: accordion and layout regions ease on open and close
+
+- **Date:** 2026-11-12.
+- **Request:** in the Blade theme, animate what can be animated, starting
+  with the open and close of accordion and layout elements.
+- **Implemented:** `Motion.ts` (`resizeMotion`, `collapseMotion`,
+  `finishMotion`) eases a region from its old to its new size in 200 ms.
+  It covers `Accordion` sections (also a `PageLayout` `accordion` branch),
+  `collapsable` Layout cells of `PageLayout`, list workspaces and tree
+  navigation (header click, keys, `collapse`/`expand`, the list's form
+  panel), accordion form sections and, on a follow-up request the same
+  day, the folders of every Suite Tree (`treeMotion` in `TreeAdapter`:
+  `RecordTree`, tree navigation, the file manager; children loaded on
+  opening ease in too; a bulk change such as `expandAll` stays instant; a
+  motion inside a running one ends the enclosing one first). The theme
+  switches it on with
+  `--blade-motion-duration` (`200ms` on `[data-blade-theme|="blade"]`);
+  `prefers-reduced-motion: reduce` sets it to `0s` and now also stops
+  Blade's decorative header corners and sheen. A closing accordion section
+  shows its content until it is shut; a second toggle mid-motion continues
+  from the current size; state, events, ARIA and focus change at once.
+- **Pitfalls found:** Suite redraws a Layout in a later animation frame and
+  writes its own inline sizes over a pin, so the pins are reasserted after
+  that redraw (otherwise one frame shows the final size). The browser
+  serializes pinned values (`0.2`, rounded lengths), so release compares the
+  read-back value. A pinned `overflow: hidden` region could be scrolled by a
+  field focused while it grew; the pin uses `overflow: clip` and restores
+  scroll offsets. `fitWindow` (also after validation) measured a form while
+  its sections were pinned and placed the window off-screen; it now calls
+  `finishMotion` first.
+- **Scope and limits:** theme presentation only; no PHP/JSON options,
+  events or ACL. Light, dark and skins on those bases have no motion (a skin
+  may set the variable). A collapsing Suite Layout cell shrinks with its
+  header only (Suite leaves its content out). Not animated: tabs, windows,
+  popups, panel-mode form sections (their window refits at once) and
+  expanded grid rows. Browser tests that read a region's size
+  right after a toggle in Blade must wait for it to settle (Changes M66).
+- **Guides:** [theme motion](shell.md#theme-motion),
+  [Accordion](toolkit.md#accordion), [PageLayout](toolkit.md#pagelayout-collapse),
+  [accordion form sections](workspaces.md#form-accordion), [usage](usage.md),
+  [demos](demos.md), [development](development.md) focused groups, Changes M66.
+- **Verification:** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`; `theme-motion.spec.cjs` (accordion branch, column both ways
+  and toggled mid-motion, reduced motion, accordion form sections; frame
+  samples show in-between sizes and no leftover pins) and
+  `form-accordion.spec.cjs` passed (11/11); `accordion`, `page-layout-collapse`,
+  `layout-resizer`, `preferences`, `list-toggle`, `workspace`, `tabs`,
+  `record-forms`, `registry`, `skins`, `browser` and `mobile-grid` specs
+  passed (51, one transport-dependent skip in `workspace.spec.cjs`). Tree
+  follow-up: `theme-motion.spec.cjs` with its tree case (open and close
+  twice, the first with children loaded on opening) and the
+  `tree-component`, `list-toggle`, `scoped-list`, `empty-states`,
+  `count-fields`, `registry` and `files` specs passed (39). Not a
+  full-smoke claim.
+- **Status:** implemented; verified as above.
+
 <a id="fb-0188"></a>
 
 ## FB-0188 — Fixed accordion form headers stay above scrolling fields
@@ -8084,6 +8142,39 @@ that exactly equals an option label lists every option. The managed
     removed. No full-smoke claim.
 - **Status:** implemented and verified by the four targeted browser cases.
 
+<a id="fb-0189"></a>
+
+## FB-0189 — Card and tile hover without moving the card
+
+- **Date:** 2026-11-12.
+- **Request:** the card hover lifted the card (`translateY(-3px)`). It looked
+  good, but even that small shift moved the structure; find a hover in which
+  the card and its content stay fixed.
+- **Implemented:** `themes/character.css` no longer moves a hovered card or
+  tile. Its edge lights up instead: the border colour changes (same width),
+  an outer 1 px ring and the theme's `--blade-lift-shadow` are drawn with
+  `box-shadow` outside the layout, and one light sweep crosses the surface on
+  a `::before` overlay (`pointer-events: none`), above the content without
+  touching it. New token `--blade-card-hover-edge`: brand blue at 45 % on
+  `light`/`dark`, the theme's `--blade-hover-ring` (gold in Blade, cyan in
+  Blade Night). The cursor (selected) and the focused card keep their own
+  rings under the pointer; the hovered card is raised in the stacking order
+  only (`z-index`), so its halo is not covered by its neighbours.
+  `prefers-reduced-motion: reduce` turns the sweep off.
+- **Scope and limits:** theme presentation only; no options, events or ACL.
+  Cards and tiles of the list views; grid rows keep their 1 px hover
+  rise. A skin may override `--blade-card-hover-edge`.
+- **Guides:** [61ade character](shell.md#61ade-character),
+  [toolkit](toolkit.md) M68 and Changes, grid-tree-card-ui skill (card rules).
+- **Verification:** `npm run build`, `npm run demo:assets`; new
+  `list-presentation.spec.cjs` test in Blade, light and dark (the boxes of the
+  card and all its descendants, transform and border width are unchanged
+  during the hover and the sweep; the shadow changes); screenshots reviewed
+  in Blade and dark. `list-presentation`, `files` and `list-integration`
+  specs passed (30/30) after the pointer workarounds for the old lift were
+  removed. Not a full-smoke claim.
+- **Status:** implemented; verified as above.
+
 <a id="fb-0190"></a>
 
 ## FB-0190 — Focus the end of an accordion section's text on opening
@@ -8114,6 +8205,78 @@ that exactly equals an option label lists every option. The managed
   were removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
 
+## FB-0191 — Tree control in the list's command row, no scrollbar over it
+
+- **Date:** 2026-11-12.
+- **Request:** the owner's review of a consumer's tree panel (recorded without
+  consumer names or business terms): the Tree's `expandControl` toolbar
+  ([FB-0177](#fb-0177), the second attempt) is still "terrible": the region's
+  scrollbar runs over it, it has no shadow and looks like an ad-hoc element
+  instead of the toolbar lists use. Research how others place whole-tree
+  expand/collapse, and build it from the framework's components.
+- **Research:** SAP Fiori's tree toolbar sits above the tree, uses icon-only
+  Collapse All / Expand All and groups them with the view settings; IDE tree
+  panels (VS Code's Explorer, JetBrains, Eclipse) put them as small icons on
+  the right of the panel's bar, beside other view actions; WAI-ARIA keeps `*`
+  for the keyboard. None draws a second, differently styled row.
+- **Diagnosis (managed demo, key browser):** the bar was a `CommandBar` in its
+  own one-row Layout inside a 48 px cell; both clip overflow, so the command
+  row's shadow never reached the tree (a list's bar is a row of the content's
+  own Layout). The scrollbar came from the region's idle `CellStatus`
+  ([FB-0185](#fb-0185)): its visually hidden live region
+  kept `top: auto`, sat after the content and made the cell 1 px higher than
+  its box, so the whole cell, toolbar included, scrolled. The tree
+  navigation's toolbar was a plain Suite Toolbar and clipped `Törlés` in a
+  300 px panel instead of collapsing.
+- **Decision and implementation:**
+  - **Follow-up (owner, same day):** one button instead of two, shown by a
+    sample icon: lines over a down chevron while not everything is open (it
+    opens everything), an up chevron over lines once everything is open (it
+    closes everything); the bar stays above the tree, and the tree should be
+    able to take it below as well. FB-0177's objection to a single toggle (a
+    partly open tree has no one state) is answered by the rule: anything
+    collapsed means "open everything".
+  - `RecordTree`: one pinned icon button after a `spacer`, on the right of
+    the bar where a list keeps its view controls (`Rendezés`, `Oszlopok`,
+    `Nézet`); `expandControl: {placement: "top"|"bottom"}` (the `CommandBar`
+    placement). `NodeTree` reports whether everything is open (a node with
+    children open and none collapsed, an unloaded node counting as
+    collapsed) after every redraw; an `expandAll` stopped at a cap counts as
+    open until the next collapse or `refresh`, so the button can always close
+    what it opened. A click while a bulk expansion loads does nothing (it
+    cancelled through `Mindet bezár` before).
+  - Icons: two 61ade glyphs `blade-icon--expand-all` / `--collapse-all` (the
+    Suite font has no such pair); in a command row a 61ade glyph takes the
+    toolbar icon colour.
+  - `admin.css`: a `CommandBar` mounted in the upper cell of a rows Layout
+    stacks above the next cell and does not clip the command row's shadow
+    (also for a project page's bar); the idle status sits at the cell's top
+    left (`top: 0`).
+  - `ResponsiveToolbar`: in the collapsed bar a spacer before a pinned item
+    stays, so a right-hand pinned item stays right below 768 px (the tree
+    control, a range after a spacer); a pinned item before any spacer is
+    unchanged (the list's pinned toggle).
+  - `TreeNavigation`: its toolbar is the list's `ResponsiveToolbar`, the
+    actions collapse into `Műveletek` when the panel is too narrow.
+  - Guides: [Tree expansion](toolkit.md#tree-expansion),
+    [CommandBar](toolkit.md#commandbar), [tree navigation](workspaces.md#tree-navigation),
+    [usage](usage.md), the grid-tree-card skill; migration M69.
+- **Verification:** typecheck, build and demo assets passed. On the managed
+  demo at 1400 and 420 px the tree control is at the bar's right edge, the
+  bar casts the list's shadow, and no tree region scrolls (the cell was
+  664/665 px, now no overflow); the tree navigation bar at 300 px shows
+  `Műveletek`. `tree-component` (with a new right-edge check), `registry`
+  (its tree actions through `Műveletek` when collapsed), `command-bar`,
+  `list-toggle`, `scoped-list` and `empty-states` specs passed (25 tests).
+  After the follow-up: typecheck, build, demo assets; `tree-component` passed
+  (10 tests, with a new case: an `expand` depth that opens everything shows
+  `Mindet bezár`, a user collapse turns it into `Mindet kinyit`, which opens
+  everything again, the bar below the tree; the cap case ends on `Collapse
+  all`); both icon states checked on screenshots of the key browser.
+  No full-smoke claim; the consumer screen itself was not opened.
+- **Status:** implemented and verified on the managed demo; owner acceptance
+  pending.
+
 
 <a id="fb-0192"></a>
 
@@ -8142,3 +8305,88 @@ that exactly equals an option label lists every option. The managed
   changes followed. Task-only probe and artifacts removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo; owner acceptance
   pending. The reported consumer screen itself was not opened.
+
+
+<a id="fb-0193"></a>
+
+## FB-0193 — Tree rows like grid rows, optional stripes and classic lines
+
+- **Date:** 2026-11-12.
+- **Request (owner):** redesign the tree to look closer to grid rows: a row
+  exactly as high as a grid row, alternating row colours (optional, can be
+  switched off), and tree lines with +/- open/close boxes (also optional):
+  the classic look where dotted lines follow the items and a folder has its
+  +/- in a dashed square.
+- **Diagnosis (managed demo, key browser and file manager):** Suite Standard
+  Tree rows were 24 px (2 px padding around a 20 px line) against the grid's
+  40 px default `rowHeight`; labels wrapped (`pre-wrap`), so rows had no fixed
+  geometry; the toggle was Suite's `dxi-menu-down` arrow glyph. Suite's nested
+  `ul`/`li` markup gives no displayed index, so `:nth-child` cannot stripe in
+  displayed order.
+- **Decision and implementation:**
+  - `tree.css` (imported by `TreeAdapter`, so every Suite Tree of 61ade gets
+    it): rows 40 px (`--blade-tree-row-height`), one line with an ellipsis.
+  - Stripes: `TreeAdapter` marks every second displayed row
+    `data-blade-alternate` after each render (a `MutationObserver` on the
+    tree's root; rows under a closed folder do not count, also while the
+    theme motion closes it). An attribute rather than a class, because Suite
+    rewrites a row's class when it patches it. The colour is the grid's
+    `--blade-row-alternate`, so trees stripe exactly in the themes where grids
+    do; hover, focus and selection draw over it.
+  - Lines: pure CSS on Suite's markup. Each nested `li::after` draws the
+    vertical dotted line from its parent's toggle centre down its subtree
+    (to its own middle for the last child) and the horizontal stub to its box
+    or icon; an open box continues the line down to its first child. The box
+    replaces the arrow glyph on the same toggle element (11 px, dashed border,
+    `+`/`−` drawn with gradients), so clicks, keys and `aria-expanded` are
+    unchanged.
+  - Options: `TreeOptions.striped` / `lines` (default `true`, non-boolean
+    `TypeError`), `Registry::tree(..., striped:, lines:)`, JSON
+    `tree.striped` / `tree.lines` (configuration shape check),
+    `TreeMetadata.striped` / `lines` sent only when `false`. One `lines`
+    switch covers lines and boxes: they are one look, and without lines
+    Suite's arrow stays.
+  - Guides: [Tree presentation](toolkit.md#tree-presentation),
+    [tree navigation](workspaces.md#tree-navigation), [usage](usage.md), the
+    grid-tree-card skill; migration M70.
+- **Verification:** typecheck, build and demo assets passed; PHP
+  `tree-navigation` (new: JSON `striped`/`lines` reach the resolved tree only
+  when `false`, a string is rejected), `configuration`, `contracts`, `files`
+  passed. Browser: `tree-component` 13 passed with a new presentation case
+  (every displayed row 40 px, stripes alternate in displayed order and again
+  after a collapse, dashed box and connectors on; both off: no marks, no
+  connectors, the arrow back; non-boolean options throw); `files` and
+  `registry` 15 passed. Screenshots of the key browser in Blade and Blade
+  Night and of the file manager's folder tree (folders and file leaves)
+  checked. No full-smoke claim; the consumer screen itself was not opened.
+- **Follow-up (owner, same day):** opening and closing "flickered": the
+  folder's line vanished and came back sharply, the stripes jumped. Closing
+  should slide the children under the parent's visible row as they are, and
+  opening the reverse. The +/- box should not be dashed. The selected row
+  should match the grid's, consistently within a skin, and the grid's cursor
+  row itself looked bad (a slanted bar with a lower glow).
+  - Diagnosis: theme motion pinned the whole folder `li` with `overflow:
+    clip`, which cut its connector (drawn half an indent left of it); Suite
+    removes a closed folder's children at once, so there was nothing to slide;
+    the stripes were recomputed on every DOM change while rows still moved;
+    and the slide started one frame after Suite's redraw (`awaitRedraw`), so
+    one painted frame showed the end state (sampled: 40 px, then 160 px).
+  - `treeMotion` (Motion.ts) now eases only the children list, its rows at
+    the bottom (`data-blade-sliding`), and on close slides an inert,
+    `aria-hidden` copy of the removed children (`.blade-tree-ghost`) back
+    under the row; it starts in the mutation microtask of Suite's redraw,
+    before paint; `treeChildrenMotion` continues the slide when the children
+    arrive. `TreeAdapter` keeps the stripes while a folder slides and
+    restripes when it settled (Suite's transition crossfades). Sampled per
+    frame: opening 40 → 160 px and closing 160 → 40 px, monotonic, no jump.
+  - The box has a thin solid frame (2 px radius). The selected tree row and
+    the grid's cursor row (`themes/character.css`) share the skin's
+    selection tint, a thin blue frame and a straight 3 px gradient bar, plus
+    the one sweep; marked rows keep their slanted tile.
+  - Verification: typecheck, build, demo assets; `theme-motion`,
+    `tree-component`, `files`, `registry`, `list-presentation` passed (48
+    tests, the presentation case expecting a solid box); screenshots of the
+    slide (slowed to 1 s) and of the tree and grid selection in Blade and
+    light checked.
+- **Status:** implemented and verified on the managed demo; owner acceptance
+  pending.

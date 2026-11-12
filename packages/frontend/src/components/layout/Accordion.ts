@@ -3,6 +3,7 @@ import { placeholder as applyPlaceholder, regionStatus, type CellStatus } from "
 import type { Accordion as AccordionApi, AccordionEvents, AccordionOptions, AccordionSection, LayoutCell, Mountable, MountTarget, RegionPlaceholder } from "../../api/types";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
+import { resizeMotion } from "../../Motion";
 import { Component } from "../list/component";
 
 const SECTION=/^[a-z][a-z0-9_-]{0,63}$/;
@@ -140,9 +141,15 @@ export class Accordion extends Component<AccordionEvents> implements AccordionAp
   }
   private apply(next:Set<string>):void{
     const before=this.opened;
+    // Theme motion (Motion.ts): the sections ease to their new heights, a closing one's content shown until then.
+    const root=this.layout.getRootNode() as HTMLElement|null|undefined;
+    const node=(id:string)=>root?.querySelector?.<HTMLElement>(`[data-cell-id="${this.cellId(id)}"]`);
+    const play=resizeMotion(this.sections.map(section=>node(section.id)),"height",
+      this.sections.filter(section=>before.has(section.id)&&!next.has(section.id)).map(section=>node(section.id)?.querySelector<HTMLElement>(":scope > .dhx_layout-cell-content")));
     this.opened=next;
     for(const section of this.sections)this.layout.getCell(this.cellId(section.id)).config.css=this.sectionCss(section.id);
     this.layout.paint();
+    play?.();
     this.preferences?.setSections([...next]);
     for(const section of this.sections)if(before.has(section.id)&&!next.has(section.id))this.emit("toggle",{id:section.id,open:false});
     for(const section of this.sections)if(!before.has(section.id)&&next.has(section.id))this.emit("toggle",{id:section.id,open:true});

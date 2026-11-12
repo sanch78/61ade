@@ -121,6 +121,22 @@ test('columns dropdown appears only when a secondary column is configured',async
 });
 
 
+for(const theme of ['blade','light','dark'])test(`card hover lights the edge without moving the card or its content (${theme})`,async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.setViewportSize({width:1400,height:900});await mount(page);
+ await page.evaluate(theme=>fixture.setTheme(theme,document.documentElement),theme);
+ await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
+ const item=page.locator('.blade-grid-cards .dhx_dataview-item').nth(1);await expect(item).toBeVisible();await page.mouse.move(0,0);
+ // Card, its content and every descendant keep their boxes; only the edge (border colour, outer shadow) and an overlay change.
+ const state=()=>item.evaluate(element=>({boxes:[element,...element.querySelectorAll('*')].map(node=>{const r=node.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*100)/100).join();}),transform:getComputedStyle(element).transform,shadow:getComputedStyle(element).boxShadow,border:getComputedStyle(element).borderTopWidth}));
+ await expect.poll(async()=>(await state()).transform).toBe('none');const before=await state();
+ await item.hover();await page.waitForTimeout(250);
+ await page.locator('.blade-grid-cards').screenshot({path:path.join(process.env.BLADE_TMP_DIR,`card-hover-${theme}.png`)});
+ for(let i=0;i<3;i++){const during=await state();expect(during.boxes).toEqual(before.boxes);expect(during.transform).toBe('none');expect(during.border).toBe(before.border);await page.waitForTimeout(120);}
+ expect((await state()).shadow).not.toBe(before.shadow);
+ await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
+});
+
 test('view switching keeps the natural top inset and does not transfer row pixels to cards',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.setViewportSize({width:1400,height:900});await mount(page);
@@ -137,8 +153,7 @@ test('view switching keeps the natural top inset and does not transfer row pixel
  await switchTo(true);
  await expect.poll(()=>page.evaluate(()=>workspace.grid.capture().id)).toBe('1');
  // The first card row contains records 1–3, so record 3 remains fully visible.
- // The pointer left over the card from the menu would lift it 3 px (hover, themes/character.css).
- const card=page.locator('[data-blade-row="3"]');await expect(card).toBeInViewport();await page.mouse.move(0,0);
+ const card=page.locator('[data-blade-row="3"]');await expect(card).toBeInViewport();
  await expect.poll(()=>card.evaluate(element=>element.getBoundingClientRect().top-element.closest('.blade-grid-cards').getBoundingClientRect().top)).toBeGreaterThanOrEqual(0);
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });

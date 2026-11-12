@@ -61,7 +61,10 @@ to return there from the first-step native header X; defaults are unchanged
 ([sign-in content](shell.md#sign-in-content)).
 Collapsed column headers in Blade and Blade Night use a full-height glossy
 strip with the vertical caption inside, preserving the original width
-([theme details](shell.md#61ade-character)).
+([theme details](shell.md#61ade-character)). In Blade and Blade Night,
+accordion sections, accordion form sections, collapsable panels and tree folders ease to
+their new size on open and close (`--blade-motion-duration`, off under
+reduced motion; [theme motion](shell.md#theme-motion)).
 
 Optional [multi-tenancy](tenancy.md) (organizations) has its stage 1:
 tenant-scoped SQL resources and lookups, memberships, switching, tenant-bound
@@ -196,8 +199,14 @@ End move, Space selects, Enter selects and activates
 [key browser](demos.md#d8-key-browser)). `expand: n` opens `n` levels while
 the user has not changed the expansion (a stored one wins), `expandAll()` and
 `collapseAll()` open or close the whole tree within 10 levels and 2000 loaded
-nodes, and `expandControl: true` offers both above the tree
-([expansion](toolkit.md#tree-expansion), [FB-0168](feedback.md#fb-0168)). A list-wide mode switch in a list's
+nodes, and `expandControl: true` offers them as one icon button on the right
+of the tree's command row, above or (`{placement: "bottom"}`) below the tree
+([FB-0191](feedback.md#fb-0191))
+([expansion](toolkit.md#tree-expansion), [FB-0168](feedback.md#fb-0168)).
+Tree rows are as high as grid rows, alternate their background and show
+dotted lines with framed +/- boxes (the selected row is the grid's cursor row); `striped: false` and `lines: false` switch
+the stripes or the lines off, for tree navigation too
+([presentation](toolkit.md#tree-presentation), [FB-0193](feedback.md#fb-0193)). A list-wide mode switch in a list's
 own toolbar is a client command with `type: "toggle"`: its state is kept per
 user and view id in `app.preferences.scope(<command name>)`, which the host
 reads before it mounts the list, and the list reports `toggle` so the host

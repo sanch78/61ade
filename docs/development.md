@@ -444,7 +444,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Change | Focused checks |
 | --- | --- |
 | Documentation/entrypoints | Internal file/fragment links, skill symlinks, `git diff --check`; no artificial runtime test |
-| Shell/bootstrap/theme | `php8.4 tests/shell/contracts.php`, `configuration.php`; `npm run test:browser -- --project=shell tests/shell/browser.spec.cjs tests/shell/skins.spec.cjs` |
+| Shell/bootstrap/theme | `php8.4 tests/shell/contracts.php`, `configuration.php`; `npm run test:browser -- --project=shell tests/shell/browser.spec.cjs tests/shell/skins.spec.cjs`; theme motion (`Motion.ts`, Accordion, collapsable cells, accordion form sections): `theme-motion.spec.cjs` |
 | Workspace/layout/live lists | `php8.4 tests/shell/lists.php`; `node tools/build.mjs` then `node tests/shell/live-protocol.mjs` (live protocol 2 against the bundled server on a free loopback port, own throw-away demo instance under `tmp/`; `BLADE_LIVE_SERVER` may name another bundle); shell `workspace.spec.cjs`, `layout-resizer.spec.cjs`, `mobile-grid.spec.cjs`, `preferences.spec.cjs`, `empty-states.spec.cjs` (loading and empty states) |
 | ACL/action/API permissions | PHP `access.php`, `permissions.php`, `api-keys.php`; shell `admin.spec.cjs` or the relevant `demo.spec.cjs` selector |
 | Accounts/admin | PHP `admin.php`, `permissions.php`; shell `admin.spec.cjs` |

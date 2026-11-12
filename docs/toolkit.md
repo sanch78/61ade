@@ -945,6 +945,10 @@ tree.on("activate", () => layout.tabsOf("details")?.select("details"));
   navigation is off. The states, `aria-expanded` included, are set again after
   every change, also after a bulk one; the tree is `aria-busy="true"` while
   a bulk expansion loads.
+- **Motion:** in Blade and Blade Night an opening or closing folder eases to
+  its new height, also when its children arrive after opening; several
+  folders changing in one step (a level of `expandAll` or `*`,
+  `collapseAll`) change at once ([theme motion](shell.md#theme-motion)).
 - **Security:** every read is the resource's ordinary, ACL-checked `list`; a
   node the actor cannot read is never loaded, and a child count is the
   server's ACL-filtered `_subview`. The tree draws no panel of its own: the
@@ -1020,21 +1024,67 @@ await tree.collapseAll();
   roots, then their children, …). After an `expandAll` of more than 200
   nodes with children, the next mount restores the upper part and leaves the
   deepest levels collapsed.
-- `expandControl: true` puts a [CommandBar](#commandbar) above the tree with
-  two pinned icon buttons ([FB-0177](feedback.md#fb-0177)): a plus box
-  `Mindet kinyit` and a minus box `Mindet bezár` (English `Expand all`,
-  `Collapse all`), the labels being their accessible names and tooltips; the
-  bar is named by the view's title. They are native toolbar buttons
-  (keyboard reachable, Enter or Space) and stay in the bar at every width,
-  with no `Műveletek` menu. While a bulk expansion loads, the expand button
-  spins, its name reads `Betöltés…` and it keeps the focus, and a second
-  click does nothing;
-  `Mindet bezár` cancels it. Stopped at a cap, the control reports it with a
+- `expandControl: true` puts a [CommandBar](#commandbar) above the tree,
+  `expandControl: {placement: "bottom"}` below it (`"top"` is the default;
+  another value throws `TypeError`). The bar is the list's command row (its
+  shadow over the scrolling tree) with one pinned icon button on its right,
+  where a list keeps its view controls ([FB-0191](feedback.md#fb-0191)):
+  while a node with children is collapsed (a node whose children are not
+  loaded counts) it is `Mindet kinyit` (lines over a down chevron) and runs
+  `expandAll()`; once every node with children is open, or the last
+  `expandAll()` stopped at a cap, it is `Mindet bezár` (an up chevron over
+  lines) and runs `collapseAll()` (English `Expand all`, `Collapse all`).
+  The label is its accessible name and tooltip and follows the state, also
+  after the user's own expansions, an `expand` depth that opened everything,
+  a collapse or a `refresh`; the bar is named by the view's title. It is a
+  native toolbar button (keyboard reachable, Enter or Space) and stays in the
+  bar at every width, with no `Műveletek` menu. While a bulk expansion
+  (`expandAll`, the initial depth) loads, the icon spins, its name reads
+  `Betöltés…` and it keeps the focus, and a click does nothing. Stopped at a
+  cap, the control reports it with a
   non-blocking warning toast (`Nem nyílt ki minden elem: legfeljebb 2000
   elem, 10 szint és elemenként 1000 gyermek tölthető be.`). Without the
   option no control is drawn. Tree navigation has no control, no `*` and no
   depth option, and it never restores an expansion (no `id`, no `refresh`),
   so its requests are unchanged: one load per node the user expands.
+
+<a id="tree-presentation"></a>
+
+##### Tree presentation
+
+Every Suite Tree of 61ade (`Tree`, [tree navigation](workspaces.md#tree-navigation),
+the [file manager](#filemanager-and-filepicker)'s folder tree) draws its rows like grid rows
+([FB-0193](feedback.md#fb-0193)): each row is 40 px high (the grid's default
+`rowHeight`) and its text is one line cut with an ellipsis. Two parts of the
+look are on by default and can be switched off:
+
+- `striped` (default `true`): every second displayed row has the grid's
+  alternate background (`--blade-row-alternate`, so it stripes in the themes
+  where grids stripe, Blade and Blade Night), counted in displayed order:
+  opening or closing a node restripes the rows below it. Hover, focus and
+  selection draw over it.
+- `lines` (default `true`): dotted lines connect each node to its parent (the
+  vertical line runs to the last child's middle) and an expandable node shows
+  a small framed box with `+` (closed) or `−` (open) instead of Suite's arrow. The
+  box is the same toggle (click; the keys and ARIA states are unchanged), and
+  its meaning is also in `aria-expanded`. Roots have no connector.
+- The selected row is the grid's cursor row of the same skin (tint, thin
+  frame, straight gradient bar, one sweep; [61ade character](shell.md#61ade-character)).
+- With [theme motion](shell.md#theme-motion) a folder's children slide out
+  from under its row and back under it, lines and stripes included; the
+  stripes are recomputed when the slide has settled.
+
+```ts
+new app.components.Tree({ view: "categories_tree", label: "name", striped: false, lines: false, signal });
+```
+
+Tree navigation takes them as `Registry::tree(..., striped: false, lines:
+false)` or JSON `"tree": {..., "striped": false, "lines": false}`. A value
+other than a boolean is a `TypeError` (component) or a configuration error
+(JSON). The file manager's tree keeps both on. CSS: the root is
+`.blade-tree` with `.blade-tree--striped` / `.blade-tree--lines`; tokens
+`--blade-tree-row-height` (40 px; geometry of stripes and lines follows it)
+and `--blade-tree-line` (line and box colour).
 
 Limits: one label column per node (no icons, counts or templates), no drag
 moves, no search, no node actions (tree navigation keeps its own toolbar), not
@@ -1085,7 +1135,9 @@ icon in the bar, like a player's transport control: the label stays its
 accessible name and tooltip (visually hidden text) and is the item's text in
 the collapsed menu; `update` of its label changes the tooltip too. A
 `pinned` button (or toggle) stays in the bar beside the collapsed `Műveletek`
-menu, like a range ([FB-0177](feedback.md#fb-0177)); a bar whose items are all
+menu, like a range ([FB-0177](feedback.md#fb-0177)), on its side: a spacer
+before a pinned item stays, so it remains on the right
+([FB-0191](feedback.md#fb-0191)); a bar whose items are all
 pinned has no menu (a non-boolean `pinned` throws `TypeError`). Labels are
 plain text (escaped). Button ids match `[A-Za-z0-9_.:-]+`, are unique and
 `blade-command-menu` is reserved; otherwise the constructor throws
@@ -1275,7 +1327,10 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   `isCollapsed(id)`. Any other id (a region that is not `collapsable`, a tab,
   a section, an unknown id) throws `Error`. `collapse {id, collapsed}`
   reports every change of such a leaf: the header click, its keys and the
-  page's own call; a call that changes nothing reports nothing.
+  page's own call; a call that changes nothing reports nothing. In Blade and
+  Blade Night the leaf eases to its new size, also from code
+  ([theme motion](shell.md#theme-motion)); the state and the event are
+  immediate.
 - **Kept or not:** the user's collapse (header click) stays in
   `UiPreferences` as before and applies when the page is built again. A
   call from code is not kept: it is the page's state, such as a phone
@@ -1444,7 +1499,10 @@ sections.on("toggle", ({ id, open }) => {
   from that section's content; consecutive closed sections keep one divider.
   The last closed section has no bottom header rule against the enclosing
   panel's frame ([FB-0156](feedback.md#fb-0156)); opening it restores the rule
-  between its header and content.
+  between its header and content. In Blade and Blade Night the sections ease
+  to their new heights, a closing one showing its content until it is shut
+  ([theme motion](shell.md#theme-motion)); the state, `toggle` and the
+  ARIA attributes change at once.
 - **Subdividing a section:** a section is a mount target like any cell, so
   an `Accordion` mounted into `cell(id)` divides it further (a control
   panel's `Megjelenés` section with its own `Rács` and `Háttér` parts).
@@ -2877,7 +2935,11 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M63 | [Section-filling fields](workspaces.md#form-section-fill): a field's `sectionFill` (PHP `Field`, JSON `section_fill`), `FieldMetadata.sectionFill`: a textarea or file field alone in its section, named by the section's header; an open accordion section is the textarea, or the drop area fills it | [FB-0181](feedback.md#fb-0181) | none (additive) | none | none |
 | M64 | [Several stored files](workspaces.md#stored-file-multiple): a stored file field's `multiple` (2–20; PHP and JSON `file.multiple`), `StoredFileFieldConfig.multiple`: a comma-joined list of ids, each new token claimed, the uploader's zone and queue in the form at a fixed height | [FB-0181](feedback.md#fb-0181) | none (additive) | none | none |
 | M65 | [Loading and empty states](#loading-and-empty-states): every list shows a loading indicator (`aria-busy`) and an empty-result text (`Nincs megjeleníthető elem.`, with a filter or search `Nincs a szűrésnek vagy a keresésnek megfelelő elem.`, after a failure `Az elemek nem érhetők el.`), `ListViewOptions.emptyText`; `RecordDetails` and `RecordForm` show the indicator while their data loads; a `PageLayout` region, tab or section without content shows `Nincs megjeleníthető tartalom.` on a blank surface with a centred picture, `placeholder(id, {text, busy})` of `PageLayout`, `Tabs` and `Accordion`, type `RegionPlaceholder` | [FB-0185](feedback.md#fb-0185) | info: an empty region shows the default text instead of white space, and a page's own hint element in it can go | none | none |
+| M66 | [Theme motion](shell.md#theme-motion): in Blade and Blade Night, `Accordion` sections, accordion form sections, `collapsable` Layout cells (`PageLayout`, list workspaces, tree navigation) and the folders of every Suite Tree (`RecordTree`, file manager) ease to their new size in 200 ms (`--blade-motion-duration`; `0s` under `prefers-reduced-motion`); state, events and ARIA change at once | [FB-0187](feedback.md#fb-0187) | info: a browser test that reads a region's size right after a toggle waits for the size to settle (`expect.poll`, or `page.emulateMedia({reducedMotion: "reduce"})`) | none | none |
 | M67 | [Accordion forms](workspaces.md#form-accordion): fixed sections (`sectionCollapsible: false`) keep their legend above their own scrolling fields and shrink when constrained; natural height is kept when it fits | [FB-0188](feedback.md#fb-0188) | info: applies to framed and flush forms; no declaration change | none | none |
+| M68 | [Card hover](shell.md#61ade-character): a hovered card or tile no longer rises; its edge lights up (border colour, outer ring, `--blade-lift-shadow`) and one light sweep crosses it on an overlay, the card and its content keep their boxes; token `--blade-card-hover-edge` | [FB-0189](feedback.md#fb-0189) | info: a browser test no longer has to move the pointer off a card before reading its geometry | none | none |
+| M69 | [Tree](#tree) `expandControl` is one toggle icon button on the right of the bar (`Mindet kinyit` until everything is open, then `Mindet bezár`), `expandControl: {placement: "top"|"bottom"}`; a [CommandBar](#commandbar) mounted above content casts the command row's shadow; a pinned item after a `spacer` stays on the right in the collapsed bar; tree navigation's toolbar collapses into `Műveletek`; a region's idle status no longer makes its cell 1 px too high (no scrollbar over a toolbar) | [FB-0191](feedback.md#fb-0191) | info: a spec that looked for both `Mindet kinyit` and `Mindet bezár` finds one button whose name follows the state; a spec that clicked a tree navigation action in a narrow panel opens `Műveletek` first | none | none |
+| M70 | [Tree presentation](#tree-presentation): every Suite Tree row is 40 px high (a grid row) with one ellipsized line; `TreeOptions.striped` and `TreeOptions.lines` (default `true`), `Registry::tree(..., striped:, lines:)`, JSON `tree.striped` / `tree.lines`, `TreeMetadata.striped` / `.lines` (sent only when `false`) | [FB-0193](feedback.md#fb-0193) | info: a spec or screenshot that measured tree rows finds 40 px instead of about 24 px, and the toggle of an expandable node is a framed +/- box (the arrow with `lines: false`); a node label no longer wraps; the selected tree row and the grid's cursor row have a straight 3 px bar and a thin frame (no slanted bar, no lower glow) | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3032,6 +3094,8 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-12 | `ListView.activate.preventDefault()` synchronously skips default activation, including the `#` cell; existing listeners and uncancelled dispatch stay unchanged. | A composed page may open its own editor or explanation without duplicate details. | [FB-0184](feedback.md#fb-0184) |
 | 2026-11-12 | Loading and empty states: lists, `RecordDetails` and `RecordForm` show a delayed loading indicator with `aria-busy`; lists and regions show an empty or unmatched result or a failed load as a blank surface with a centred picture and text; `ListViewOptions.emptyText`; `PageLayout`, `Tabs` and `Accordion` `placeholder(id, {text, busy})` (`RegionPlaceholder`) for a region without content, which shows a default text (M65). Additive. | A tree, tabs and details page showed white areas while it opened and lists gave no feedback when loading or empty (a consumer request). | [FB-0185](feedback.md#fb-0185) |
 | 2026-11-12 | Fixed accordion form sections keep their legend stationary while their fields scroll in a constrained form (M67). No configuration change. | A fixed section's legend was inside the scrolling fieldset wrapper, so the header scrolled away with its fields. | [FB-0188](feedback.md#fb-0188) |
+| 2026-11-12 | The Tree's expand control is one toggle icon button on the right of a command row with the list's shadow, `TreeOptions.expandControl` also `{placement}`; a `CommandBar` mounted above content casts that shadow; a pinned item keeps its side in the collapsed bar; tree navigation's toolbar collapses into `Műveletek`; an idle region status no longer overflows its cell (M69). Additive. | Owner review: the tree control looked like an ad-hoc element with no shadow and a scrollbar over it; one button that opens or closes everything. | [FB-0191](feedback.md#fb-0191) |
+| 2026-11-12 | Tree rows as high as grid rows (40 px, one line); `TreeOptions.striped` / `lines` (default on), the same for tree navigation (`Registry::tree` named arguments, JSON `tree.striped` / `tree.lines`) (M70). Additive; the row height changes for every tree. | Owner request: bring the tree visually closer to grid rows, with optional stripes and the classic dotted lines with +/- boxes; the selected row like the grid's cursor row. | [FB-0193](feedback.md#fb-0193) |
 
 <a id="resolved-decisions"></a>
 

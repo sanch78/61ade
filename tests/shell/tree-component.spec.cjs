@@ -90,15 +90,25 @@ for(const [width,height] of [[1366,900],[390,844]])test(`key browser at ${width}
  // The built-in control (expandControl): every level opens (DemoService is level 5), then every node closes; the
  // selection stays (the values list keeps Desktop's values).
  const panel=page.locator('[data-cell-id="tree"]');
- // Two pinned icon buttons (FB-0177): named by their labels, never collapsed into a menu, also on a phone.
+ // One pinned icon button (FB-0191), never collapsed into a menu, also on a phone: with a node collapsed it opens
+ // everything, once everything is open it closes everything; named by its current label.
  await expect(panel.getByRole('button',{name:/^(Műveletek|Actions)$/})).toHaveCount(0);
- for(const name of ['Mindet kinyit','Mindet bezár'])expect((await panel.getByRole('button',{name,exact:true}).boundingBox()).width).toBeLessThan(48);
+ await expect(panel.getByRole('button',{name:'Mindet bezár',exact:true})).toHaveCount(0);
+ const toggle=panel.getByRole('toolbar').getByRole('button');
+ await expect(toggle).toHaveCount(1);
+ expect((await toggle.boundingBox()).width).toBeLessThan(48);
+ // On the right of the bar above the tree, where a list keeps its view controls.
+ {const bar=await panel.getByRole('toolbar').boundingBox(),button=await toggle.boundingBox(),tree=await panel.getByRole('tree').boundingBox();
+  expect(bar.x+bar.width-(button.x+button.width)).toBeLessThan(24);expect(bar.y).toBeLessThan(tree.y);}
  await control(page,panel,'Mindet kinyit');
  await expect(item(page,'DemoService')).toHaveAttribute('aria-level','5');
  await expect(item(page,'Services')).toHaveAttribute('aria-expanded','true');
  await expect(item(page,'Settings')).toHaveAttribute('aria-level','5');
+ // Everything open: the same button now closes everything.
+ await expect(toggle).toHaveAccessibleName('Mindet bezár');
  await control(page,panel,'Mindet bezár');
  await expect(item(page,'HKEY_CURRENT_USER')).toHaveAttribute('aria-expanded','false');
+ await expect(toggle).toHaveAccessibleName('Mindet kinyit');
  await expect(item(page,'HKEY_LOCAL_MACHINE')).toHaveAttribute('aria-expanded','false');
  await expect(item(page,'DemoService')).toHaveCount(0);
  await expect(values(page)).toContainText('Wallpaper');
@@ -158,9 +168,9 @@ test('methods, options and events of the component; the fallback without the nod
   const C=window.__bladeApp.components,attempt=options=>{try{new C.Tree(options);return 'created';}catch(error){return error.constructor.name;}};
   return [attempt({view:'demo_tasks',label:'title'}),attempt({view:'demo_registry_nodes',label:'nope'}),attempt({view:'demo_registry_nodes',label:'parent_id'}),
    attempt({view:'demo_registry_nodes',label:'name',initial:'last'}),attempt({view:'demo_registry_nodes',label:'name',id:'Bad key'}),attempt({view:'not_offered',label:'name'}),
-   attempt({view:'demo_registry_nodes',label:'name',expand:11}),attempt({view:'demo_registry_nodes',label:'name',expand:1.5}),attempt({view:'demo_registry_nodes',label:'name',expandControl:'yes'})];
+   attempt({view:'demo_registry_nodes',label:'name',expand:11}),attempt({view:'demo_registry_nodes',label:'name',expand:1.5}),attempt({view:'demo_registry_nodes',label:'name',expandControl:'yes'}),attempt({view:'demo_registry_nodes',label:'name',expandControl:{placement:'left'}})];
  });
- expect(thrown).toEqual(['TypeError','TypeError','TypeError','TypeError','TypeError','Error','TypeError','TypeError','TypeError']);
+ expect(thrown).toEqual(['TypeError','TypeError','TypeError','TypeError','TypeError','Error','TypeError','TypeError','TypeError','TypeError']);
  // initial "none": nothing selected, nothing reported.
  await mount(page,{initial:'none'});
  const box=page.locator('#tree-fixture'),node=name=>box.getByRole('treeitem',{name,exact:true});
@@ -428,9 +438,8 @@ test('expansion caps: depth and loaded nodes, reported by the result and the con
   await language(page,'en');
   await page.reload();await page.waitForFunction(()=>!!window.__bladeApp);
   await mount(page,{initial:'none',expandControl:true},420);
-  const expand=box.getByRole('button',{name:'Expand all',exact:true});
-  await expect(expand).toBeVisible();
-  await expect(box.getByRole('button',{name:'Collapse all',exact:true})).toBeVisible();
+  const expand=box.getByRole('toolbar').getByRole('button');
+  await expect(expand).toHaveAccessibleName('Expand all');
   // Keyboard: the control is a native toolbar button; Enter starts it, the button keeps the focus.
   await expand.focus();await page.keyboard.press('Enter');
   await expect(box.getByRole('tree')).toHaveAttribute('aria-busy','true');
@@ -438,6 +447,8 @@ test('expansion caps: depth and loaded nodes, reported by the result and the con
   await expect(page.locator('.blade-toast').filter({hasText:'Not everything was expanded: at most 2000 items, 10 levels and 1000 children per item are loaded.'})).toBeVisible({timeout:30000});
   await expect(box.getByRole('tree')).not.toHaveAttribute('aria-busy','true');
   await expect(expand).toBeFocused();
+  // Opened as far as the caps allow: the button offers the collapse.
+  await expect(expand).toHaveAccessibleName('Collapse all');
   // Stopped before the load that would pass the cap: wa is open, wb and wc stay collapsed with their children unloaded.
   await expect(level(box,`${prefix} wa`,2)).toHaveAttribute('aria-expanded','true');
   for(const part of ['b','c'])await expect(level(box,`${prefix} w${part}`,2)).toHaveAttribute('aria-expanded','false');
@@ -455,6 +466,28 @@ test('expansion caps: depth and loaded nodes, reported by the result and the con
  expect(failures).toEqual([]);
 });
 
+test('the control follows the expansion and can sit below the tree',async({page})=>{
+ const failures=errors(page);
+ await start(page);
+ const box=page.locator('#tree-fixture');
+ // The depth opens every level (5): everything is open without expandAll, so the button closes everything.
+ await mount(page,{initial:'none',expand:10,expandControl:{placement:'bottom'}});
+ const toggle=box.getByRole('toolbar').getByRole('button');
+ await expect(level(box,'DemoService',5)).toBeVisible();
+ await expect(toggle).toHaveAccessibleName('Mindet bezár');
+ {const bar=await box.getByRole('toolbar').boundingBox(),tree=await box.getByRole('tree').boundingBox();expect(bar.y).toBeGreaterThan(tree.y);}
+ // One node closed by the user: the button opens everything again.
+ await page.evaluate(()=>{const id=[...document.querySelectorAll('#tree-fixture [role="treeitem"][aria-label="SYSTEM"]')][0].dataset.dhxId;window.__tree.select(id);});
+ await box.getByRole('tree').focus();await page.keyboard.press('ArrowLeft');
+ await expect(level(box,'SYSTEM',2)).toHaveAttribute('aria-expanded','false');
+ await expect(toggle).toHaveAccessibleName('Mindet kinyit');
+ await toggle.click();
+ await expect(level(box,'SYSTEM',2)).toHaveAttribute('aria-expanded','true');
+ await expect(toggle).toHaveAccessibleName('Mindet bezár');
+ await unmount(page);
+ expect(failures).toEqual([]);
+});
+
 test('ACL: expandAll and the depth load only readable keys',async({page})=>{
  const ids=keyIds(),parents=lists(page);
  php(`$reader=$db->query("SELECT id FROM accounts WHERE email='reader@example.test'")->fetchColumn();
@@ -469,6 +502,40 @@ test('ACL: expandAll and the depth load only readable keys',async({page})=>{
  await expect(level(box,'SOFTWARE',2)).toBeVisible();
  expect(parents).not.toContain(ids.SYSTEM);
  php(`$db->exec("DELETE FROM blade_rules WHERE resource='demo_registry_keys' AND effect='deny' AND scope='id'");`);
+});
+
+test('presentation: grid-high rows, stripes in displayed order, lines and framed +/- boxes, both switchable',async({page})=>{
+ const failures=errors(page);
+ await start(page);
+ const thrown=await page.evaluate(()=>['striped','lines'].map(key=>{try{new window.__bladeApp.components.Tree({view:'demo_registry_nodes',label:'name',[key]:'yes'});return 'created';}catch(error){return error.constructor.name;}}));
+ expect(thrown).toEqual(['TypeError','TypeError']);
+ const box=page.locator('#tree-fixture');
+ /** The displayed rows: height, alternate mark, whether a box replaces the arrow. */
+ const rows=()=>box.evaluate(root=>[...root.querySelectorAll('.dhx_tree-folder, li.dhx_tree-list-item:not(.dhx_tree-list-item--parent)')]
+  .filter(row=>row.getClientRects().length).map(row=>({name:row.textContent,height:row.getBoundingClientRect().height,alternate:row.hasAttribute('data-blade-alternate')})));
+ const look=()=>box.evaluate(root=>{const tree=root.querySelector('.dhx_tree'),toggle=root.querySelector('.dhx_tree-toggle-button');const before=toggle&&getComputedStyle(toggle,'::before');
+  return {striped:tree.classList.contains('blade-tree--striped'),lines:tree.classList.contains('blade-tree--lines'),box:before?.borderTopStyle,connector:getComputedStyle(root.querySelector('.dhx_tree-list > li'),'::after').content};});
+ const alternating=list=>list.every((row,index)=>row.alternate===(index%2===1));
+ await mount(page,{expand:3});
+ await expect(item(page,'Environment')).toBeVisible();
+ await expect.poll(async()=>alternating(await rows())).toBe(true);
+ // As high as a grid row (ResponsiveGrid's 40 px default).
+ expect(new Set((await rows()).map(row=>row.height))).toEqual(new Set([40]));
+ expect(await look()).toEqual({striped:true,lines:true,box:'solid',connector:'""'});
+ // Collapsing a node restripes the rows below it.
+ const before=(await rows()).length;
+ await item(page,'HKEY_CURRENT_USER').locator('.dhx_tree-toggle-button').first().click();
+ await expect.poll(async()=>(await rows()).length).toBeLessThan(before);
+ await expect.poll(async()=>alternating(await rows())).toBe(true);
+ await unmount(page);
+ // Both off: no marks, no connectors, Suite's arrow.
+ await mount(page,{expand:2,striped:false,lines:false});
+ await expect(item(page,'Environment')).toBeVisible();
+ expect((await rows()).some(row=>row.alternate)).toBe(false);
+ const off=await look();
+ expect([off.striped,off.lines,off.box,off.connector]).toEqual([false,false,'none','none']);
+ await unmount(page);
+ expect(failures).toEqual([]);
 });
 
 test('an actor without the node view: no view to build the tree from, and no key browser',async({page})=>{

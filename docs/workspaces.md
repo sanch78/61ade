@@ -1373,7 +1373,11 @@ $registry->tree('values', 'keys', 'key_id', 'name');   // list view, node view, 
 
 JSON: `"view": {"title": "…", "tree": {"resource": "keys", "field": "key_id", "label": "name"}}`
 on the list's resource (`resource` names the node view id); the node resource
-declares `"subview": {"resource": "keys", "field": "parent_id"}`.
+declares `"subview": {"resource": "keys", "field": "parent_id"}`. The tree
+has the [tree look](toolkit.md#tree-presentation) of every 61ade tree:
+grid-high rows, alternating backgrounds and dotted lines with +/- boxes;
+`"striped": false` / `"lines": false` in `tree` (PHP `striped: false`,
+`lines: false`) switch them off.
 
 - **Layout:** the tree panel (header: the node view's title, 300 px,
   resizable and collapsible; its width is a preference of the list view) sits
@@ -1384,7 +1388,9 @@ declares `"subview": {"resource": "keys", "field": "parent_id"}`.
   ordinary `list` with the parent filter, sorted by the label field when it is
   sortable. The hierarchy's `_subview` child count decides which nodes get an
   expand toggle. At most 1000 children per node load (pages of 200).
-- **Node actions:** the panel's toolbar holds the node view's actions except
+- **Node actions:** the panel's toolbar, the list's command row (its shadow over
+  the tree; the actions collapse into `Műveletek` when the panel is too narrow
+  for them, [FB-0191](feedback.md#fb-0191)), holds the node view's actions except
   `get` and uploads. `create` opens its form with the parent field preset to
   the selected node (a root without a selection); `update` and other record
   actions with fields open their form for the selected node; a field-free
@@ -1689,6 +1695,9 @@ $contacts->register($registry, 'Kapcsolatok', formSections: 'accordion', flushSe
   with it all of them. Only a conditional field appearing or a validation
   message refits it. In a region (`RecordForm` in a page or an `Accordion`
   section, the list's form panel) the sections share the region's height.
+  In Blade and Blade Night the sections ease to their new heights
+  ([theme motion](shell.md#theme-motion)); framed panels (`'panels'`) change
+  at once, since their window refits.
 - **State:** without `multiple` the first collapsible section is open and one
   always stays open (its header says `aria-disabled`); with `multiple` the
   sections holding a value are open, else the first, and every one can close.

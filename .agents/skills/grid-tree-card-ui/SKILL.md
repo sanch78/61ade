@@ -189,6 +189,22 @@ tree as decoration for a flat list.
   expansion is written only after the user changed it, so "nothing stored"
   and "everything collapsed" stay distinguishable, and the stored list keeps
   upper levels first when it is capped ([FB-0168](../../../docs/feedback.md#fb-0168)).
+- Whole-tree controls (expand/collapse all) are view controls: one icon-only
+  toggle whose icon and name follow the state (open everything while anything
+  is collapsed, close everything once all is open or a cap stopped the
+  opening), on the right of the same command row a list uses (its height, separator and
+  shadow over the scrolling content, its collapse rules), never a separate
+  unstyled row. The tree content is the only scroller below the bar
+  ([FB-0191](../../../docs/feedback.md#fb-0191)).
+- Tree rows read like grid rows: the grid's row height and one ellipsized
+  line, stripes in displayed order with the grid's alternate token (never
+  `:nth-child` on nested markup; restripe after every expansion), and the
+  connector lines and +/- boxes drawn by CSS on the native toggle, so clicks,
+  keys and ARIA stay native. The selected row is the grid's cursor row of the
+  skin. A folder's motion moves only its children (sliding under its row, a
+  copy when the vendor removes them at once), never clips the row or its
+  connector, and starts before the vendor's redraw is painted. Stripes and lines are on by default and each can
+  be switched off per tree ([FB-0193](../../../docs/feedback.md#fb-0193)).
 - A list-wide mode is a two-state command of the list's own toolbar whose state
   belongs to the view identity, not to the scope it is mounted with, so a host
   that swaps the scope keeps it ([FB-0159](../../../docs/feedback.md#fb-0159)).
@@ -205,6 +221,9 @@ tree as decoration for a flat list.
   ([FB-0169](../../../docs/feedback.md#fb-0169)).
   Every card in a row has equal border-box width, wraps long unbroken text, and
   remains readable in all themes.
+- Hovering a card or tile never moves or resizes it or its content (no
+  transform, size or border-width change): signal it with the edge colour, an
+  outer shadow or an overlay ([FB-0189](../../../docs/feedback.md#fb-0189)).
 - Child-list buttons overlay existing media without increasing item height:
   upper right on cards, full width along the bottom on tiles. Cards without
   media retain the footer button ([FB-0144](../../../docs/feedback.md#fb-0144)).

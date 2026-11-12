@@ -3,6 +3,7 @@ import { optionText } from "../../RecordPresentation";
 import "../../form-section.css";
 import { fileInput } from "../../FilePicker";
 import { type Form, awaitRedraw } from "@dhtmlx/suite";
+import { resizeMotion } from "../../Motion";
 import { extensions, fieldTypeOf } from "../../app/registries";
 import type { FieldMetadata, FormSections } from "../../api/types";
 import { calendarDate, dateValue, fieldActive, fileDisplay, sectionReveal } from "../../FormValidation";
@@ -222,11 +223,17 @@ function bindAccordion(form:Form,fields:FieldDefinition[],multiple:boolean,signa
       input.setSelectionRange(input.value.length,input.value.length);input.scrollTop=input.scrollHeight;
     });
   };
+  /** Runs $change with the theme motion (Motion.ts): the sections ease to their new heights, a closing one's fields shown until then. */
+  const section=(n:number)=>button(n)?.closest<HTMLElement>(".blade-form-section");
+  const moving=(change:()=>boolean)=>{
+    const play=resizeMotion(toggles.map(section),"height",toggles.filter(isOpen).map(n=>section(n)?.querySelector<HTMLElement>(":scope > .blade-form-section__body")));
+    const result=change();play?.();return result;
+  };
   form.events.on("click",(name:string)=>{
     if(signal.aborted||!name?.startsWith(SECTION)||name.endsWith("_body"))return;
     const n=Number(name.slice(SECTION.length));
     if(!toggles.includes(n))return;
-    if(isOpen(n)?multiple&&(show(n,false),true):open(n)){changed();if(isOpen(n))focusText(n);}
+    if(moving(()=>isOpen(n)?multiple&&(show(n,false),true):open(n))){changed();if(isOpen(n))focusText(n);}
   });
   // The arrows, Home and End between the headers (Enter and Space are the native button's click).
   document.addEventListener("keydown",event=>{
@@ -240,7 +247,8 @@ function bindAccordion(form:Form,fields:FieldDefinition[],multiple:boolean,signa
   sectionReveal.set(form,names=>{
     if(signal.aborted)return;
     const erroneous=toggles.filter(n=>fields.some(field=>field.section===labels[n-1]&&names.includes(field.name)));
-    const opened=(multiple?erroneous:erroneous.some(isOpen)?[]:erroneous.slice(0,1)).filter(open);
+    let opened:number[]=[];
+    moving(()=>(opened=(multiple?erroneous:erroneous.some(isOpen)?[]:erroneous.slice(0,1)).filter(open)).length>0);
     if(!opened.length)return;
     changed();
     const first=fields.find(field=>names.includes(field.name)&&opened.some(n=>labels[n-1]===field.section));
