@@ -735,3 +735,7 @@
 <a id="fb-0178"></a>
 
 ## FB-0178 — Accordion form sections beside the framed panels
+
+<a id="fb-0179"></a>
+
+## FB-0179 — MySQL connection collation and role-rule lookup

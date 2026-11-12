@@ -56,9 +56,28 @@ never enter attributes. Default verification is `password_verify`; server-side
 account state. This is business adaptation, not an application login flow.
 The provider only reads.
 
+<a id="database-connection"></a>
+
 `Database::fromEnvironment(file,prefix,readOnly)` opens PDO MySQL from
-`PREFIX_HOST/PORT/NAME/CHARSET/USER/PASSWORD`. Process env overrides the file.
+`PREFIX_HOST/PORT/NAME/CHARSET/USER/PASSWORD` and an optional
+`PREFIX_COLLATION`. Process env overrides the file.
 `readOnly: true` starts read-only transactions. Demo and unit tests use isolated PDO SQLite.
+`Database::connect` uses native prepared statements.
+
+**Connection collation prerequisite.** The connection collation must match
+the collation of the schema's string columns. 61ade compares stored string
+columns with expressions such as `CAST(id AS CHAR)`, which take the
+connection collation. If the two differ, for example a
+`utf8mb4_general_ci` connection on a `utf8mb4_unicode_ci` schema, MySQL
+rejects those queries with error 1267 (*Illegal mix of collations*). Set
+`collation` (JSON `database.collation`, env `PREFIX_COLLATION`) to the
+schema's collation, for example `utf8mb4_unicode_ci`. The value must belong
+to `charset` and is applied with `SET NAMES charset COLLATE collation`.
+Without it, the server's default collation for the charset applies. A host
+that opens its own PDO connection sets the same collation itself.
+Comparisons follow the column collation, so under a case-insensitive
+collation, string keys that differ only in case compare equal. Stored
+identifiers must not rely on case.
 
 <a id="deklarált-menü"></a>
 

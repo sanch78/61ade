@@ -12,8 +12,14 @@ final class Acl
     {
         $key=json_encode([$actor,$resource,$action,$channel],JSON_THROW_ON_ERROR);
         if(isset($this->cache[$key]))return $this->cache[$key];
-        $q = $this->db->prepare("SELECT * FROM blade_rules WHERE resource = ? AND action = ? AND channel = ? AND ((subject_type = 'user' AND subject_id = ?) OR (subject_type = 'role' AND subject_id IN (SELECT CAST(role_id AS CHAR) FROM blade_memberships WHERE actor_id = ?)))");
-        $q->execute([$resource, $action, $channel, $actor, $actor]);
+        // Role ids are bound as strings rather than compared through CAST(role_id AS CHAR): on MySQL that expression
+        // takes the connection collation and fails against a differently collated subject_id column (FB-0179).
+        $roles = $this->db->prepare('SELECT role_id FROM blade_memberships WHERE actor_id = ?');
+        $roles->execute([$actor]);
+        $roles = array_map('strval', $roles->fetchAll(\PDO::FETCH_COLUMN));
+        $byRole = $roles ? " OR (subject_type = 'role' AND subject_id IN (".implode(',', array_fill(0, count($roles), '?')).'))' : '';
+        $q = $this->db->prepare("SELECT * FROM blade_rules WHERE resource = ? AND action = ? AND channel = ? AND ((subject_type = 'user' AND subject_id = ?)$byRole)");
+        $q->execute([$resource, $action, $channel, $actor, ...$roles]);
         return $this->cache[$key]=$q->fetchAll(\PDO::FETCH_ASSOC);
     }
 

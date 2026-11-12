@@ -93,6 +93,16 @@ try {
     $actor = $app->identities->authenticate('synthetic', 'synthetic-password');
     verify($actor !== null, 'JSON identity adapter');
     verify($app->version === '2.3.4', 'Application release version from JSON');
+    // Optional connection collation (FB-0179): validated before any connection is attempted.
+    foreach (['utf8mb4_unicode_ci;', 'latin1_swedish_ci', '', 'utf8mb4 unicode_ci', 7] as $collation) {
+        try { Blade\Infrastructure\Database::connect([...$settings['database'], 'collation' => $collation]); throw new RuntimeException('Invalid collation accepted'); }
+        catch (RuntimeException $e) { verify($e->getMessage() === 'Invalid database configuration.', 'Invalid collation rejected before connecting: '.var_export($collation, true)); }
+    }
+    $write([...$settings, 'database' => [...$settings['database'], 'collation' => 7]]);
+    rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Non-string JSON database.collation accepted');
+    $write([...$settings, 'database' => [...$settings['database'], 'collation' => 'utf8mb4_unicode_ci']]);
+    verify(JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->version === '2.3.4', 'JSON database.collation accepted');
+    $write($settings);
     verify($app->skins === null, 'No application skins without application.skins');
     $skin = new Blade\Shell\Skin('brand', 'Brand', 'skins/brand.css');
     $write([...$settings, 'application' => [...$settings['application'], 'skins' => 'app.skins']]);
