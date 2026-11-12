@@ -126,6 +126,8 @@ tree as decoration for a flat list.
   field from the request; changing it reloads the server window and counts.
   Keep the declared filter panel for filterable fields that are not visible in
   the grid. The server's typed query and ACL remain authoritative.
+  Do not offer a text filter for a static image presentation merely because its
+  stored value is a file name; derive the offered controls from its presentation.
 - Keep row identity, active/editor row, and marked rows separate. Marks survive
   grid/card switching and same-row live updates, while rows leaving the bounded
   window may drop their marks. Marks and the cursor row are transient: never

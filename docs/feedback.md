@@ -775,3 +775,8 @@
 <a id="fb-0190"></a>
 
 ## FB-0190 — Focus the end of an accordion section's text on opening
+
+
+<a id="fb-0192"></a>
+
+## FB-0192 — No filename search control for static image columns

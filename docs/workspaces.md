@@ -200,7 +200,11 @@ filter (`matched`; `total` stays the unfiltered count). A project's own
 ### Integrated grid header filters
 
 Every filterable field that is present in a view's grid receives a native DHTMLX
-header filter above its title. Text and number fields use an input; select and
+header filter above its title. Static image presentations offer no filter in the
+header, filter panel or cards/tiles filter dialog, whether declared on the field
+or the view column. Programmatic filename filters remain supported by the list
+action; this changes only the offered controls. Text and number fields use an
+input; select and
 checkbox fields use an option picker whose values come from the declared field
 options; the picker shows option labels, sends option keys and lists every
 option again when reopened. A leading `Mind` item clears the option filter.
