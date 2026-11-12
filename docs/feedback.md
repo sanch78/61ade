@@ -7920,7 +7920,14 @@ that exactly equals an option label lists every option. The managed
 - **Guides:** [section columns](workspaces.md#card-group-columns),
   [ListView](toolkit.md#listview), [usage](usage.md), [demos](demos.md), and
   the grid/tree/card skill and accepted-rule ledger.
-- **Verification:** frontend build, local asset preparation and TypeScript
-  checks passed. Focused managed-browser verification is pending the shared
-  development-check lock.
-- **Status:** implemented; browser qualification pending.
+- **Verification:** `npm run build`, `npm run demo:assets` and
+  `npm run typecheck` passed. Both changed CSS assets also match a fresh
+  build of the isolated staged sources. The managed demo serves the new
+  section CSS. Six attempts at the focused `record-forms` card/details and
+  `list-presentation` card selectors were refused by the shared development
+  check lock (exit 75); no browser launched, so equal-height geometry,
+  ratios, themes and narrow stacking are not browser-qualified. Temporary
+  verification edits and the isolated source snapshot were removed. No
+  full-smoke claim.
+- **Status:** implemented and build-checked; browser qualification blocked
+  by another running guarded development check.
