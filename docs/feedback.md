@@ -8113,3 +8113,32 @@ that exactly equals an option label lists every option. The managed
   including validation reveal and saving. Task-only test source and output
   were removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+
+<a id="fb-0192"></a>
+
+## FB-0192 — No filename search control for static image columns
+
+- **Date:** 2026-11-12.
+- **Request:** an unnecessary search input above a static image column.
+- **Diagnosis:** the list offered the underlying text field as a filter even
+  though the column displayed only its static image. The synthetic gallery
+  advertised both `image` and `title` as filters before this fix.
+- **Implementation:** `ListViewKind` derives offered filters from the effective
+  column presentation, including field declarations and view overrides. Static
+  images offer no header, panel or cards/tiles dialog filter. Ordinary text,
+  option and media-class filters keep their controls. Existing programmatic
+  filename queries remain supported; no query/ACL contract changes.
+- **Guides:** [header filters](workspaces.md#integrated-grid-header-filters),
+  [usage](usage.md#virtuális-fájlkezelő) and the grid-tree-card skill.
+- **Verification:** PHP lint, `list-presentation`, `lists`, `sorting`,
+  `configuration` and `toolkit` passed; temporary assertions verified field and
+  view image declarations, a JSON list of remaining filters and preserved
+  filename filtering. Build consistency passed. On the managed demo the two
+  existing `grid-sort` browser tests passed; the temporary catalog probe passed
+  for the header, desktop filter panel, cards and mobile filter dialog with the
+  image filter absent and the title filter available. The probe's initial
+  locator/panel assumptions were corrected before its passing run; no runtime
+  changes followed. Task-only probe and artifacts removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo; owner acceptance
+  pending. The reported consumer screen itself was not opened.

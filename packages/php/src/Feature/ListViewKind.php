@@ -161,13 +161,16 @@ final class ListViewKind implements ViewKindProvider
         },$o['columns']);
         $detailFields=array_values(array_map(static fn($field)=>self::wire(['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true,'cardLines'=>true,'card_lines'=>true]),...$field->sectionMetadata()]),array_filter($fields,static fn($field)=>!$field->secret&&!$field->scopeOnly&&!$field->stored()&&$field->type!=='password'&&($field->column['details']??true))));
         $list=$this->registry->get($view->resource,$singleton?'get':'list');
+        // Static images expose no useful text filter; keep filename queries available to programmatic callers.
+        $presentations=array_column($columns,'presentation','id');
+        $filters=array_values(array_filter($list->listSource?->filterDefinitions($ctx)??[],static fn($filter)=>($presentations[$filter['name']]??($fields[$filter['name']]->column['presentation']??null))!=='image'));
         $activate=$o['activate']??null;
         $options=['columns'=>$columns,'detailFields'=>$detailFields,'singleton'=>$singleton,'layout'=>$o['layout']->metadata(),
             'rowNumbers'=>$o['rowNumbers']??true,'selection'=>$o['selection']??false,'rowSelection'=>$o['rowSelection']??false,
             ...array_intersect_key($o,['rowHeight'=>1,'tileMinWidth'=>1,'tiles'=>1,'modes'=>1,'cardColumns'=>1]),...(($o['commands']??[])!==[]?['commands'=>$o['commands']]:[]),
             // A map is always a JSON object, also for consecutive integer keys.
             ...($activate!==null?['activate'=>is_array($activate)?['field'=>$activate['field'],'map'=>(object)$activate['map']]:$activate]:[]),
-            'filters'=>$list->listSource?->filterDefinitions($ctx)??[],'sortable'=>$list->listSource?->sortableFields($ctx)??[]];
+            'filters'=>$filters,'sortable'=>$list->listSource?->sortableFields($ctx)??[]];
         if($search=$list->listSource?->searchMetadata($ctx))$options['search']=$search;
         // Manual order (SqlResource `order`): the list is sorted by the position; `move` (when offered) reorders it.
         if($order=$list->listSource?->order)$options['order']=array_filter($order,static fn($value)=>$value!==null);

@@ -418,7 +418,9 @@ filters by MIME class, `tiles`/`tileMinWidth` add a tile mode, `rowHeight`
 drives all paging math, and a declared `search` adds a server-side text
 search box. A text field of static image file names shows as an image with
 `column.presentation: "image"` and `image_base`; the images are the
-application's own static files, outside every ACL.
+application's own static files, outside every ACL. Static image presentations
+offer no filename filter in the header or filter form; programmatic list filters
+remain available ([header filters](workspaces.md#integrated-grid-header-filters)).
 
 A list of long text (notes, comments, messages) declares `modes: ['cards']`
 and `cardColumns: 1` (JSON `view.modes`, `view.card_columns`; a
