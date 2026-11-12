@@ -24,10 +24,20 @@ foreach([
  'bad get'=>fn()=>$file(['get'=>'file']),'no accept'=>fn()=>$file(['accept'=>[]]),'bad accept'=>fn()=>$file(['accept'=>['image/*']]),'media column'=>fn()=>$file([],['media'=>'files']),
  'editable'=>fn()=>$file([],['editable'=>true]),'presentation'=>fn()=>$file([],['presentation'=>'image']),'bulk'=>fn()=>$file([],[],true),'secret'=>fn()=>$file([],[],false,true),
 ] as $case=>$invalid)refused($invalid,'Invalid stored file field: '.$case);
+// Several files (FB-0181): `multiple` 2–20 on a stored field only; the value is a comma-joined list of distinct ids.
+check($file(['multiple'=>5])->multiple()===5&&$file()->multiple()===1&&(new Field('m','M','file',file:['resource'=>'files','mount'=>'a','accept'=>['image']]))->multiple()===1,'Stored file multiple');
+check($file(['multiple'=>3])->metadata()['file']['multiple']===3&&!array_key_exists('multiple',$file()->metadata()['file']),'Multiple in the metadata');
+foreach([1,21,'3',true,0] as $bad)refused(fn()=>$file(['multiple'=>$bad]),'Invalid multiple accepted: '.json_encode($bad));
+refused(fn()=>new Field('m','M','file',file:['resource'=>'files','mount'=>'a','accept'=>['image'],'multiple'=>3]),'Multiple on a file manager reference');
+$several=$file(['multiple'=>3]);
+check($several->validate(['a1','b2'])==='a1,b2'&&$several->validate(' a1 , b2 ')==='a1,b2'&&$several->validate('')==='','A list or a comma-joined value');
+foreach(['a1,a1','a1,,b2','a1,b2,c3,d4','a1,../x'] as $bad){try{$several->validate($bad);throw new RuntimeException('Invalid list accepted: '.$bad);}catch(Failure){}}
+try{$file()->validate('a1,b2');throw new RuntimeException('A single field accepted a list');}catch(Failure){}
 
 $db=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
 Blade\Access\Schema::install($db);Blade\Tenancy\Tenancy::install($db);
 $db->exec("CREATE TABLE items(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,role TEXT NOT NULL DEFAULT '',reason TEXT NOT NULL DEFAULT '',file TEXT NOT NULL DEFAULT '');
+ CREATE TABLE albums(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL DEFAULT '',images TEXT NOT NULL DEFAULT '');
  CREATE TABLE item_files(id TEXT PRIMARY KEY,sha256 TEXT NOT NULL,name TEXT NOT NULL,mime_type TEXT NOT NULL,size INTEGER NOT NULL,state TEXT NOT NULL DEFAULT 'pending',actor_id TEXT NOT NULL)");
 $uploaded=[];
 $build=function(?UploadPolicy $policy=null,bool $getAction=true,bool $returnsToken=true) use ($db,$store,$tempRoot,&$uploaded):Workspace{
@@ -35,6 +45,9 @@ $build=function(?UploadPolicy $policy=null,bool $getAction=true,bool $returnsTok
     (new SqlResource('items','items','id',[new Field('title','Megnevezés',required:true),new Field('role','Szerep','select',required:true,options:['reference'=>'Referencia','evidence'=>'Bizonyíték']),
         new Field('reason','Indoklás','textarea'),new Field('file','Kép','file',file:['upload'=>'items.file_upload','get'=>'items.file','accept'=>['image']])],
         afterSave:static function(Context $ctx,string $id,?array $target,array $values):void{if(($values['file']??'')!=='')$ctx->db->prepare("UPDATE item_files SET state='committed' WHERE id=? AND state='pending'")->execute([$values['file']]);}))->register($registry,'Items');
+    // Several files of the same upload action (FB-0181).
+    (new SqlResource('albums','albums','id',[new Field('title','Cím'),new Field('images','Képek','file',max:1000,file:['upload'=>'items.file_upload','get'=>'items.file','accept'=>['image'],'multiple'=>3])],
+        afterSave:static function(Context $ctx,string $id,?array $target,array $values):void{foreach(array_filter(explode(',',$values['images']??''))as$t)$ctx->db->prepare("UPDATE item_files SET state='committed' WHERE id=? AND state='pending'")->execute([$t]);}))->register($registry,'Albums');
     $registry->add(new Action('items','file_upload','Kép feltöltése',[],static function(Context $ctx) use ($store,$returnsToken,&$uploaded):array{
         $part=$ctx->uploads[0];$sha=hash_file('sha256',$part->path);copy($part->path,"$store/$sha");
         $token=bin2hex(random_bytes(16));$uploaded[]=$token;
@@ -52,6 +65,8 @@ refused(fn()=>$build(null,false)->registry->checkFileFields(),'A get action that
 $workspace=$build();$workspace->registry->checkFileFields();
 $rules=$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,'items',?,'ui','allow','all','','')");
 foreach(['1','2'] as $actor)foreach(['list','get','create','update','file_upload','file'] as $a)$rules->execute([$actor,$a]);
+$albumRules=$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user',?,'albums',?,'ui','allow','all','','')");
+foreach(['1','2'] as $actor)foreach(['list','get','create','update'] as $a)$albumRules->execute([$actor,$a]);
 $rules->execute(['3','create']);$rules->execute(['3','list']);
 $session=Transfers::owner('session-1');
 $ctx=fn(string $actor='1',array $uploads=[],?string $owner=null,?string $tenant=null)=>new Context(new Identity($actor,'Actor '.$actor),'ui',$workspace->acl,$db,[],$uploads,$owner??$session,$tenant);
@@ -144,6 +159,25 @@ check($db->query("SELECT file FROM items WHERE id=$id")->fetchColumn()==='','Opt
 // The preview is the project's GET action over the stored value.
 $stream=$exec('file',$replacement,[]);
 check($stream instanceof DownloadStream&&$stream->disposition==='inline'&&$stream->contentDisposition()==='inline; filename="csere.png"; filename*=UTF-8\'\'csere.png','GET action streams the file inline with its name');
+// Several files (FB-0181): each new token is claimed once with the record; kept ids need no claim; one save.
+$album=fn(string $action,?string $id,array $values,?Context $c=null)=>$workspace->executor->execute($c??$ctx(),'albums',$action,$id,$values);
+[$first,$second2,$third]=[$upload('a1.png')['id'],$upload('a2.png')['id'],$upload('a3.png')['id']];
+$before=count($claims());
+$made=$album('create',null,['title'=>'Album','images'=>[$first,$second2]]);
+$images=fn()=>$db->query('SELECT images FROM albums WHERE id='.(int)$made['id'])->fetchColumn();
+check($images()===$first.','.$second2&&count($claims())===$before-2&&$db->query("SELECT COUNT(*) FROM item_files WHERE state='committed' AND id IN ('$first','$second2')")->fetchColumn()==2,'Several files saved and claimed once');
+$e=fails(fn()=>$album('create',null,['title'=>'Újra','images'=>$first]),400,'A used token in a list');
+check(($e->fieldErrors['images']??null)==='A kiválasztott fájl nem érhető el.','A used token is a field error');
+fails(fn()=>$album('create',null,['title'=>'Sok','images'=>[$third,'b1','b2','b3']]),400,'More files than multiple');
+$e=fails(fn()=>$album('create',null,['title'=>'Idegen','images'=>[$third]],$ctx('2')),400,'A foreign token in a list');
+$current=$album('get',(string)$made['id'],[]);
+// Keep the first (its claim is gone), drop the second, add the third: only the third is checked and claimed.
+$album('update',(string)$made['id'],['title'=>'Album','images'=>$first.','.$third,'revision'=>$current['revision']]);
+check($images()===$first.','.$third&&$db->query("SELECT state FROM item_files WHERE id='$third'")->fetchColumn()==='committed','Kept ids pass, a new one is claimed');
+$current=$album('get',(string)$made['id'],[]);
+$album('update',(string)$made['id'],['title'=>'Átnevezve','images'=>$first.','.$third,'revision'=>$current['revision']]);
+check($db->query('SELECT title FROM albums WHERE id='.(int)$made['id'])->fetchColumn()==='Átnevezve','An unchanged list saves the other fields');
+
 // JSON: the same shape; the module may name actions that PHP registers after the build (checked by checkFileFields()).
 $db->exec("CREATE TABLE jitems(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL DEFAULT '',file TEXT NOT NULL DEFAULT '')");
 file_put_contents($tmp.'/jitems.json',json_encode(['resources'=>['jitems'=>['storage'=>['table'=>'jitems','key'=>'id'],'fields'=>[['name'=>'title','label'=>'Cím'],

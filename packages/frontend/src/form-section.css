@@ -113,3 +113,5 @@
 /* The drop area's geometry is fixed by the section, never by the file: the image fits inside it (contain). */
 .dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) .blade-file-field__media .dhx_avatar { position: relative; flex: 1 1 0; height: auto !important; min-height: 180px; }
 .dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) .blade-file-field__media .dhx_avatar__image { position: absolute; inset: 0; }
+/* Several files: the queue takes what the count line leaves; its list scrolls inside. */
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--accordion:not(.blade-form-section--still) .blade-file-field__queue { flex: 1 1 0 !important; height: auto; min-height: 200px; }

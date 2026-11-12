@@ -77,12 +77,12 @@ function blade_demo_attachments_register(Workspace $workspace): void
         return ['id' => $token, 'audit' => ['size' => $part->size]];
     }, resolve: static fn() => ['id' => null, 'owner' => null], write: true,
         upload: new UploadPolicy(['png', 'jpg', 'jpeg', 'webp', 'gif'], 2097152, 1, duplicatePolicy: 'rename', tempRoot: blade_demo_runtime('attachment-transfers'))));
-    // The preview: a committed file of a record (also a contact's photo, contacts.php), or the actor's own pending upload.
+    // The preview: a committed file of a record (also a contact's photo or gallery image, contacts.php), or the actor's own pending upload.
     $workspace->registry->add(new Action('demo_attachments', 'file', 'Kép', [], static function (Context $ctx, array $target): DownloadStream {
         $row = $target['row'];
         return new DownloadStream($row['mime_type'], blade_demo_attachments_store().'/'.$row['sha256'], (int) $row['size'], '"'.$row['sha256'].'"', disposition: 'inline', filename: $row['name'], maxAge: 0);
     }, resolve: static function (Context $ctx, ?string $id): array {
-        $query = $ctx->db->prepare("SELECT * FROM demo_attachment_files f WHERE f.id = ? AND ((f.state = 'committed' AND (EXISTS (SELECT 1 FROM demo_attachments a WHERE a.file = f.id OR a.detail = f.id) OR EXISTS (SELECT 1 FROM demo_contacts c WHERE c.photo = f.id))) OR (f.state = 'pending' AND f.actor_id = ?))");
+        $query = $ctx->db->prepare("SELECT * FROM demo_attachment_files f WHERE f.id = ? AND ((f.state = 'committed' AND (EXISTS (SELECT 1 FROM demo_attachments a WHERE a.file = f.id OR a.detail = f.id) OR EXISTS (SELECT 1 FROM demo_contacts c WHERE c.photo = f.id OR (',' || c.gallery || ',') LIKE ('%,' || f.id || ',%')))) OR (f.state = 'pending' AND f.actor_id = ?))");
         $query->execute([(string) $id, $ctx->actor->id]);
         $row = $query->fetch(PDO::FETCH_ASSOC) ?: throw new Failure('Nem található objektum.', 404);
         return ['id' => $id, 'owner' => null, 'row' => $row];

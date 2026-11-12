@@ -743,5 +743,8 @@
   "Nem nyílt ki minden elem: legfeljebb {nodes} elem, {depth} szint és elemenként {children} gyermek tölthető be.": "Not everything was expanded: at most {nodes} items, {depth} levels and {children} children per item are loaded.",
   "Mentett fájl": "Saved file",
   "Delegált objektum": "Delegated object",
-  "Ennek az erőforrásnak nincs delegálási deklarációja.": "This resource has no delegation declaration."
+  "Ennek az erőforrásnak nincs delegálási deklarációja.": "This resource has no delegation declaration.",
+  "Feltöltve, mentésre vár": "Uploaded, waiting for save",
+  "Legfeljebb {count} fájl adható meg.": "At most {count} files can be given.",
+  "{count} / {limit} fájl": "{count} / {limit} files"
 }

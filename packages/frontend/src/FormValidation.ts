@@ -40,6 +40,8 @@ export type StoredFileFieldConfig = {
   canUpload?: boolean;
   canPreview?: boolean;
   canChoose?: false;
+  /** 2–20: the field holds that many files at most; its value is the comma-joined list (FB-0181). */
+  multiple?: number;
 };
 export type FileFieldConfig = MountFileFieldConfig | StoredFileFieldConfig;
 export type FieldDefinition = {
