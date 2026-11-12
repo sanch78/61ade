@@ -121,9 +121,10 @@ final class SqlResource
     /**
      * Registers `list`, `get`, optional `create`/`update` and the list view (id $id, default the resource; see
      * Registry::view() for the presentation options ($modes, $cardColumns among them), $activate, $commands, $guide, $menu, $sort and $attention) and returns that View.
-     * $formSections: the section presentation of the create and update forms (Action::$formSections).
+     * $formSections, $flushSections: the section presentation of the create and update forms (Action::$formSections,
+     * Action::$flushSections).
      */
-    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, string $formSections = 'panels'): View
+    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, string $formSections = 'panels', bool $flushSections = false): View
     {
         $this->registry=$registry;
         $registry->registerFields($this->resource,$this->fields);
@@ -145,13 +146,13 @@ final class SqlResource
         $actions=['get'];
         $writable=array_values(array_filter($this->fields,fn($f)=>!in_array($f->name,$this->readOnly,true)));
         if($create) {
-            $registry->add(new Action($this->resource,'create','Új', $writable, fn($c,$t,$v)=>$this->save($c,null,$v),resolve:fn($c)=>['id'=>null,'owner'=>$this->ownerColumn?$c->actor->id:null,...($this->sharedTenant!==null&&($this->realm($c)['write']??null)===$this->sharedTenant?['audit'=>['shared'=>true]]:[])],write:true,formSections:$formSections));
+            $registry->add(new Action($this->resource,'create','Új', $writable, fn($c,$t,$v)=>$this->save($c,null,$v),resolve:fn($c)=>['id'=>null,'owner'=>$this->ownerColumn?$c->actor->id:null,...($this->sharedTenant!==null&&($this->realm($c)['write']??null)===$this->sharedTenant?['audit'=>['shared'=>true]]:[])],write:true,formSections:$formSections,flushSections:$flushSections));
             $actions[]='create';
         }
         if($update) {
             $fixed=fn($f)=>in_array($f->name,$this->createOnly,true);
             $changeable=array_values(array_filter($writable,fn($f)=>!$fixed($f)));
-            $registry->add(new Action($this->resource,'update','Mentés',[...$changeable,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,editHandler:fn($c,$t,$v)=>$this->save($c,$t,$v,true),bulk:(bool) array_filter($changeable,static fn($field)=>$field->bulk),display:array_values(array_filter($writable,$fixed)),formSections:$formSections));
+            $registry->add(new Action($this->resource,'update','Mentés',[...$changeable,new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->save($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,editHandler:fn($c,$t,$v)=>$this->save($c,$t,$v,true),bulk:(bool) array_filter($changeable,static fn($field)=>$field->bulk),display:array_values(array_filter($writable,$fixed)),formSections:$formSections,flushSections:$flushSections));
             $actions[]='update';
             if($this->order){
                 $registry->add(new Action($this->resource,'move','Áthelyezés',[new Field('before','Elé',max:100),new Field('revision','Verzió',required:true,max:64)],fn($c,$t,$v)=>$this->move($c,$t,$v),resolve:fn($c,$id)=>$this->target($c,$id),write:true,channels:['ui']));

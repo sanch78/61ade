@@ -16,9 +16,12 @@ final readonly class Action
      * $formSections: how its form shows the fields' sections (docs/workspaces.md#form-sections): 'panels' (framed
      * panels that size the form to its content), 'accordion' (one section open at a time, sharing a fixed height, like
      * the Accordion component) or 'accordion-multiple' (several open sections share it).
+     * $flushSections: accordion sections run edge to edge of the form, without the frame and the form's margin, as an
+     * Accordion fills its region (needs an accordion $formSections).
      */
-    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false, public array $display = [], public string $formSections = 'panels')
+    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false, public array $display = [], public string $formSections = 'panels', public bool $flushSections = false)
     {
+        if ($flushSections && $formSections === 'panels') throw new \InvalidArgumentException('Flush sections need accordion form sections.');
         if (!in_array($formSections, self::FORM_SECTIONS, true)) throw new \InvalidArgumentException('Invalid form sections: '.$formSections);
         if ($confirm !== null) self::checkConfirm($confirm);
         if ($upload !== null && ((is_int($upload) && $upload < 1) || $bulk || $collection)) throw new \InvalidArgumentException('Invalid upload action.');

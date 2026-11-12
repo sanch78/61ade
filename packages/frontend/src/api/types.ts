@@ -191,6 +191,8 @@ export interface FormDescription {
   values: Record<string, unknown>;
   /** The action's section presentation when it is not "panels" (PHP `Action::$formSections`). */
   formSections?: FormSections;
+  /** Accordion sections edge to edge of the form, without frame and margin (PHP `Action::$flushSections`). */
+  flushSections?: boolean;
 }
 
 /** Severity of a dialog or toast; meaning never depends on colour alone. Same values as `DialogSeverity`. */

@@ -1544,6 +1544,17 @@ $contacts->register($registry, 'Kapcsolatok', formSections: 'accordion');
 new Action('contacts', 'review', 'Átnézés', $fields, $handler, write: true, formSections: 'accordion-multiple');
 ```
 
+`flushSections: true` (JSON `flush_sections: true`, beside `form_sections`)
+runs the accordion sections edge to edge of the form, as an `Accordion` fills
+its region: no frame and no form margin, a rule between the sections, the
+fields and the action row inset by 20 px. Fields that need no header of their
+own (a contact's name above its sections) stay outside the sections: plain
+rows at the top, headed by the window's title.
+
+```php
+$contacts->register($registry, 'Kapcsolatok', formSections: 'accordion', flushSections: true);
+```
+
 ```json
 {"resources": {"contacts": {"operations": {"form_sections": "accordion"}}}}
 {"actions": [{"resource": "contacts", "name": "review", "label": "Átnézés", "handler": "contacts.review", "form_sections": "accordion-multiple"}]}
@@ -1558,11 +1569,17 @@ new Action('contacts', 'review', 'Átnézés', $fields, $handler, write: true, f
   `FormDescription.formSections`) carries it when it is not `'panels'`, so
   every form of the action uses it: the list's window and panel, the
   singleton's details form (the update action's) and `RecordForm`.
+  `flushSections` (PHP `Action`, `SqlResource::register`; JSON
+  `flush_sections`, a boolean) needs an accordion value (with `'panels'` it
+  is refused); the description carries `flushSections: true`.
 - **Look:** a collapsible section's header is the `Accordion` component's
   Suite cell header (the theme's header, its title and the same chevron,
   turned down while open). A fixed section (`sectionCollapsible: false`) has
   the same header without a chevron and keeps its own height. Consecutive
-  sections form one framed stack; fields outside sections stay plain rows.
+  sections form one framed stack, 20 px from the form's edges and from the
+  action row's rule; with `flushSections` they run edge to edge without the
+  frame. Fields outside sections stay plain rows (above the sections they
+  need no section of their own: the window's title heads them).
 - **Geometry:** the open sections share the height the fixed sections and the
   plain rows leave; a closed section is its header alone; the action row
   stays at the form's lower edge. A fitted window (the list's form window, an

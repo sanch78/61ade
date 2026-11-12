@@ -48,6 +48,15 @@ async function add(page){
  if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name:'Hozzáadás',exact:true}).click();}
  else await button.click();
 }
+/** Rewrites the form descriptions of this page (`__form`) with $change. */
+const rewrite=(page,change)=>page.route(url=>url.pathname==='/',async route=>{
+ const request=route.request();let body;
+ try{body=request.postDataJSON();}catch{}
+ if(request.method()!=='POST'||body?.action!=='__form')return route.fallback();
+ const response=await route.fetch(),json=await response.json();
+ change(json.data);
+ await route.fulfill({response,json});
+});
 /** The sections' open state in order. */
 const expanded=form=>form.locator('.blade-form-section__heading button').evaluateAll(buttons=>buttons.map(button=>button.textContent.trim()+':'+button.getAttribute('aria-expanded')));
 /** Computed styles of a header box, its title and its chevron, once the transitions (Suite's title colour) have ended. */
@@ -63,9 +72,11 @@ test('an accordion form: the Accordion header, one section open, a window that k
  await open(page);
  await add(page);
  const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
- // The fixed section: a group named by its header, no button; the first collapsible section is open and stays open.
- await expect(form.getByRole('group',{name:'Alapadatok',exact:true}).getByRole('textbox',{name:'Név'})).toBeVisible();
- await expect(header(form,'Alapadatok')).toHaveCount(0);
+ // The name and the organization are plain rows above the sections, with no header of their own; the first
+ // collapsible section is open and stays open.
+ await expect(form.getByRole('textbox',{name:'Név'})).toBeVisible();
+ expect((await form.getByRole('textbox',{name:'Szervezet'}).boundingBox()).y).toBeLessThan((await form.locator('.blade-form-section').first().boundingBox()).y);
+ await expect(form.locator('.blade-form-section')).toHaveCount(3);
  await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false']);
  await expect(header(form,'Elérhetőség')).toHaveAttribute('aria-disabled','true');
  await expect(header(form,'Cím')).not.toHaveAttribute('aria-disabled','true');
@@ -129,14 +140,7 @@ test('an accordion form: the Accordion header, one section open, a window that k
 test('accordion-multiple: several sections open, an open one closes, the window keeps its size',async({page})=>{
  await open(page);
  // The form description of this run asks for several open sections.
- await page.route(url=>url.pathname==='/',async route=>{
-  const request=route.request();let body;
-  try{body=request.postDataJSON();}catch{}
-  if(request.method()!=='POST'||body?.action!=='__form')return route.fallback();
-  const response=await route.fetch(),json=await response.json();
-  json.data.formSections='accordion-multiple';
-  await route.fulfill({response,json});
- });
+ await rewrite(page,data=>{data.formSections='accordion-multiple';});
  await add(page);
  const form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
  await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false']);
@@ -204,4 +208,52 @@ test('a RecordForm in a region (an Accordion section, like the media viewer edit
  await expect.poll(()=>expanded(fitted)).toEqual(['Elérhetőség:false','Cím:true','Beállítások:false']);
  expect(await height(fitted)).toBe(size);
  await page.evaluate(()=>{window.__form.destroy();window.__window.close();});
+});
+
+/** Waits until $form stays in place over two frames (a fitted window is resized and centred after it shows). */
+async function settled(page,form){
+ for(let attempt=0;attempt<30;attempt++){
+  const before=JSON.stringify(await form.boundingBox());
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  if(JSON.stringify(await form.boundingBox())===before)return;
+ }
+ throw new Error('the window did not settle');
+}
+
+test('flush sections fill the form edge to edge; framed ones keep an even 20 px margin',async({page})=>{
+ await open(page);
+ const box=locator=>locator.boundingBox();
+ // `Kapcsolatok` declares flushSections: the headers span the window under its header, the fields keep a 20 px inset.
+ await add(page);
+ let form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false']);
+ await settled(page,form);
+ const frame=await box(form),content=await box(form.locator('.dhx_form'));
+ const heading=await box(form.locator('.blade-form-section__heading').first()),name=await box(form.getByRole('textbox',{name:'Név'}));
+ expect(Math.round(heading.x-frame.x)).toBeLessThanOrEqual(1);expect(Math.round(frame.x+frame.width-(heading.x+heading.width))).toBeLessThanOrEqual(1);
+ expect(Math.round(name.x-content.x)).toBe(20);expect(Math.round(content.x+content.width-(name.x+name.width))).toBe(20);
+ expect(await form.locator('.blade-form-section').first().evaluate(element=>getComputedStyle(element).borderLeftWidth)).toBe('0px');
+ // The plain rows above the sections: 20 px below the window's header, no header of their own.
+ const title=await box(form.locator('.dhx_window-header')),label=await box(form.getByText('Név',{exact:true}));
+ expect(Math.round(label.y-(title.y+title.height))).toBeGreaterThanOrEqual(16);expect(Math.round(label.y-(title.y+title.height))).toBeLessThanOrEqual(24);
+ await form.getByRole('button',{name:'Mégse',exact:true}).click();await expect(form).toBeHidden();
+ // Without flushSections, and with the name and the organization in a fixed section: the stack is framed, 20 px
+ // from the form's edges and from the action row's rule; the fixed section is a group named by its header, no button.
+ await rewrite(page,data=>{
+  delete data.flushSections;
+  for(const field of data.fields)if(field.name==='name'||field.name==='organization')Object.assign(field,{section:'Alapadatok',sectionCollapsible:false});
+ });
+ await add(page);
+ form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
+ await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false']);
+ await settled(page,form);
+ const inner=await box(form.locator('.dhx_form')),sections=form.locator('.blade-form-section');
+ const top=await box(sections.first()),bottom=await box(sections.last()),actions=await box(form.locator('.blade-form-actions'));
+ expect(Math.round(top.y-inner.y)).toBe(20);
+ expect(Math.round(top.x-inner.x)).toBe(20);expect(Math.round(inner.x+inner.width-(top.x+top.width))).toBe(20);
+ expect(Math.round(actions.y-(bottom.y+bottom.height))).toBe(20);
+ expect(await sections.first().evaluate(element=>getComputedStyle(element).borderLeftWidth)).toBe('1px');
+ await expect(form.getByRole('group',{name:'Alapadatok',exact:true}).getByRole('textbox',{name:'Név'})).toBeVisible();
+ await expect(header(form,'Alapadatok')).toHaveCount(0);
+ await expect(sections).toHaveCount(4);
 });

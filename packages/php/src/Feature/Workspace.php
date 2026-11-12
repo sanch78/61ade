@@ -98,7 +98,8 @@ final class Workspace
      * `values`. The action's `display` fields come first, then its input fields the actor may write; an input field
      * the actor may not write but whose value $values carry (an update's record read through `get`, with that read's
      * field ACL) stays in place. Both are `readOnly: true` and shown, never sent (FB-0171). `formSections` names a
-     * section presentation other than 'panels' (Action::$formSections). Denied object: 403.
+     * section presentation other than 'panels' (Action::$formSections), `flushSections: true` edge-to-edge
+     * accordion sections. Denied object: 403.
      */
     public function describe(Context $ctx,Action $action,?string $id):array
     {
@@ -113,7 +114,7 @@ final class Workspace
             if($this->acl->fieldAllowed($actor,$action->resource,$action->name,'ui',$t['id']??'',$t['owner']??null,$f->name))$fields[]=$this->fieldMetadata($ctx,$f);
             elseif($id!==null&&$f->name!=='revision'&&$shown($f))$fields[]=[...$this->fieldMetadata($ctx,$f),'readOnly'=>true];
         }
-        return ['fields'=>$fields,'values'=>$values,...($action->formSections!=='panels'?['formSections'=>$action->formSections]:[])];
+        return ['fields'=>$fields,'values'=>$values,...($action->formSections!=='panels'?['formSections'=>$action->formSections]:[]),...($action->flushSections?['flushSections'=>true]:[])];
     }
     /** Field metadata of $field for the actor of $ctx (ViewMetadata::field). */
     public function fieldMetadata(Context $ctx,Field $field):array { return (new ViewMetadata($this->registry))->field($ctx,$field); }
