@@ -99,10 +99,13 @@ body,
 .blade-grid-card dt, .blade-grid-card dd { overflow-wrap: anywhere; line-height: 1.5; }
 /* Long text (a `textarea` field) shows a 4-line preview in a card; the record details (`Adatok`) and the form show all of it. */
 .blade-grid-card .blade-grid-card__field--long dd { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--blade-card-lines, 4); line-clamp: var(--blade-card-lines, 4); overflow: hidden; }
-/* Field sections in cards and details (RecordPresentation recordFields, FB-0177): framed groups in as many 240 px
-   columns as the card is wide, a group with a long text across the row, a long text outside the sections below them
-   across the whole width with its label above it. */
-.blade-record-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; align-items: start; }
+/* Field sections in cards and details: equal-height groups per row, with their content at the top. Projects may
+   set the automatic minimum column width or an explicit track list. The record's own width controls stacking. */
+.blade-grid-card, .blade-record-details { container: blade-record / inline-size; }
+.blade-record-groups { display: grid; grid-template-columns: var(--blade-record-group-columns, repeat(auto-fit, minmax(min(100%, var(--blade-record-group-min-width, 240px)), 1fr))); gap: 12px; align-items: stretch; }
+@container blade-record (width < 492px) {
+  .blade-record-groups { grid-template-columns: minmax(0, 1fr); }
+}
 .blade-record-group { min-width: 0; padding: 0 12px; border: var(--dhx-border); border-radius: var(--dhx-border-radius); }
 .blade-record-group--wide { grid-column: 1 / -1; }
 .blade-record-group__title { margin: 0 -12px; padding: 6px 12px; border-bottom: var(--dhx-border); border-radius: var(--dhx-border-radius) var(--dhx-border-radius) 0 0;

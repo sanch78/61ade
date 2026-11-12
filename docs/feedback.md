@@ -7892,3 +7892,35 @@ that exactly equals an option label lists every option. The managed
   test source and output were removed. No full-smoke claim.
 - **Status:** implemented; existing regressions passed, additional narrow
   synthetic qualification remains unverified.
+
+<a id="fb-0186"></a>
+
+## FB-0186 — Equal-height section groups and project column sizing with CSS
+
+- **Date:** 2026-11-12.
+- **Request:** keep the current card section grid, make the groups in one
+  row equally tall with their content at the top, and let projects configure
+  the inner section columns' widths and ratios. Use CSS without a height
+  observer. The configuration concerns sections inside a record, not the
+  columns of complete record cards.
+- **Implemented:** the common card/details grid stretches its groups within
+  each row. Inherited CSS properties `--blade-record-group-min-width`
+  (automatic columns, default `240px`) and `--blade-record-group-columns`
+  (an explicit Grid track list) are supported in the project's stylesheet.
+  The record is an inline-size query container; below 492 px of content
+  width its section grid has one column. The feature demo's own
+  `record-groups.css` sets `minmax(0, 1fr) minmax(0, 2fr)`.
+- **Scope and limits:** cards, the `Adatok` window and `RecordDetails` share
+  the presentation. Forms, field order, field authorization and record-card
+  counts are unchanged. Long-text groups still span every column and text
+  outside the sections stays below them. Rows size independently; sections
+  are not packed into gaps or redistributed by content height. The narrow
+  threshold is fixed even with a custom automatic minimum. No new
+  JavaScript, PHP/JSON options, events or audit operations.
+- **Guides:** [section columns](workspaces.md#card-group-columns),
+  [ListView](toolkit.md#listview), [usage](usage.md), [demos](demos.md), and
+  the grid/tree/card skill and accepted-rule ledger.
+- **Verification:** frontend build, local asset preparation and TypeScript
+  checks passed. Focused managed-browser verification is pending the shared
+  development-check lock.
+- **Status:** implemented; browser qualification pending.

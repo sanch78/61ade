@@ -2,6 +2,7 @@
 // (docs/toolkit.md#typescript-recipe). Built by tools/build.mjs into public/app/demo.js and declared in
 // application.php `modules`; it imports 61ade types only and gets everything else from `app`.
 import type { ApplicationModule } from "@61ade/admin";
+import "./record-groups.css";
 
 /** One D-row of docs/toolkit-plan.md#6-feature-demo-transformation: registers its kinds, presentations, field types and commands. */
 type Part = ApplicationModule;

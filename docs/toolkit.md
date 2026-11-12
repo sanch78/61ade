@@ -571,6 +571,14 @@ and the filter panel, search, the view's action forms and bulk commands,
 details, sub-views, live updates and the user's saved mode, sort, columns and
 filters. The built-in `list` kind is this component mounted in the view host.
 
+Sections inside cards and details stretch to equal heights in each row, with
+their content at the top. The project stylesheet can configure the section
+columns with `--blade-record-group-min-width` (automatic columns) or
+`--blade-record-group-columns` (an explicit CSS Grid track list, including
+ratios). A record narrower than 492 px of content stacks its sections through
+CSS; see [section-column sizing](workspaces.md#card-group-columns). These
+properties are independent of the complete-record `cardColumns` option.
+
 ```ts
 // examples/demo-app/frontend/src/readings.ts (the dashboard's list in a page Layout)
 current = list = new app.components.ListView({ view: listView, filters: presets, signal });
@@ -2818,6 +2826,7 @@ feedback reference; once the transition closes, changes follow
 
 | Date | Change | Reason | Feedback |
 | --- | --- | --- | --- |
+| 2026-11-12 | Section groups in cards/details have equal heights per row and top-aligned content. Project CSS properties `--blade-record-group-min-width` and `--blade-record-group-columns` configure inner column widths and ratios; a record content width below 492 px stacks the groups using a container query. | Owner requested CSS-only height alignment and project configuration of the section columns. | [FB-0186](feedback.md#fb-0186) |
 | 2026-10-29 | `ServerFailure.status` is 0 only for a network failure or a 2xx answer without JSON; an error answer without JSON keeps its HTTP status. | Keeps the live channel's 401/403/5xx handling unchanged. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `preferences.scope(name)` keys are `blade-ui:1:[path, user, "scope:<name>"]`; the name must contain a dot. | Cannot collide with a dotted list view id. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `app.components` is an empty frozen object until P3. Superseded in P3 (2026-10-29): it holds the ten component classes. | Components are P3 work. | [FB-0081](feedback.md#fb-0081) |

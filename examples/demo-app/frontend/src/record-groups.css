@@ -1,0 +1,4 @@
+/* Project stylesheet configuration of the framework's section columns (docs/workspaces.md#card-group-columns). */
+:root {
+  --blade-record-group-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
