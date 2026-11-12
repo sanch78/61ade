@@ -241,6 +241,29 @@ every window below 768 px (full screen there), keeps its size: `fit()` does
 nothing for it, so a `RecordForm` or `SettingsForm` in it fills it instead
 of resizing it ([FB-0178](feedback.md#fb-0178)).
 
+<a id="window-title"></a>
+
+A title wider than the header stays on one line and never covers the close
+button. By default (`titleOverflow: "end"`, Suite's own title) it is cut at
+its end with a trailing `…`. `titleOverflow: "start"` cuts it at its start
+instead, so the end of a path-like title stays visible:
+`… / Karakter / Alapprompt`. `titlePrefix` is plain text before the title
+that is never cut (`Elem szerkesztése:`); only the title after it is, in
+either mode, and `setTitle` replaces only the title. The window's accessible
+name is always the full `<titlePrefix> <title>`, also after `setTitle`; with
+`"start"` or a prefix, a cut header shows that full title as its tooltip,
+updated as the window is resized or retitled. The cut follows the window's
+width at any viewport, the full-screen phone window included. Right-to-left
+text is shown isolated in the same line; `"start"` then cuts its visual
+left, which is not a supported right-to-left layout. Another
+`titleOverflow` or a non-string `titlePrefix` throws `TypeError`
+([FB-0194](feedback.md#fb-0194)).
+
+```ts
+const win = app.ui.window({ titlePrefix: t("Elem szerkesztése:"), title: path.join(" / "), titleOverflow: "start", signal: host.signal });
+win.setTitle(nextPath.join(" / "));  // still "Elem szerkesztése: … / <end of the new path>"
+```
+
 Every subscription takes its owner's signal the same way, as the last
 argument `{signal}` (`SignalOptions`): `events.on`, `live.subscribe`,
 `theme.onChange`, `server.form` and every component's `on`. Aborting it
@@ -2940,6 +2963,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M68 | [Card hover](shell.md#61ade-character): a hovered card or tile no longer rises; its edge lights up (border colour, outer ring, `--blade-lift-shadow`) and one light sweep crosses it on an overlay, the card and its content keep their boxes; token `--blade-card-hover-edge` | [FB-0189](feedback.md#fb-0189) | info: a browser test no longer has to move the pointer off a card before reading its geometry | none | none |
 | M69 | [Tree](#tree) `expandControl` is one toggle icon button on the right of the bar (`Mindet kinyit` until everything is open, then `Mindet bezár`), `expandControl: {placement: "top"|"bottom"}`; a [CommandBar](#commandbar) mounted above content casts the command row's shadow; a pinned item after a `spacer` stays on the right in the collapsed bar; tree navigation's toolbar collapses into `Műveletek`; a region's idle status no longer makes its cell 1 px too high (no scrollbar over a toolbar) | [FB-0191](feedback.md#fb-0191) | info: a spec that looked for both `Mindet kinyit` and `Mindet bezár` finds one button whose name follows the state; a spec that clicked a tree navigation action in a narrow panel opens `Műveletek` first | none | none |
 | M70 | [Tree presentation](#tree-presentation): every Suite Tree row is 40 px high (a grid row) with one ellipsized line; `TreeOptions.striped` and `TreeOptions.lines` (default `true`), `Registry::tree(..., striped:, lines:)`, JSON `tree.striped` / `tree.lines`, `TreeMetadata.striped` / `.lines` (sent only when `false`) | [FB-0193](feedback.md#fb-0193) | info: a spec or screenshot that measured tree rows finds 40 px instead of about 24 px, and the toggle of an expandable node is a framed +/- box (the arrow with `lines: false`); a node label no longer wraps; the selected tree row and the grid's cursor row have a straight 3 px bar and a thin frame (no slanted bar, no lower glow) | none | none |
+| M71 | [Window title](#window-title): `WindowOptions.titleOverflow` (`"end"` default, `"start"`: a leading `…`, the end stays visible) and `titlePrefix` (never cut); a cut title shows the full title as its tooltip; `AppWindow.setTitle` also renames the window's accessible name | [FB-0194](feedback.md#fb-0194) | info: a spec that read the dialog's name after `setTitle` finds the new title instead of the opening one | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3096,6 +3120,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-12 | Fixed accordion form sections keep their legend stationary while their fields scroll in a constrained form (M67). No configuration change. | A fixed section's legend was inside the scrolling fieldset wrapper, so the header scrolled away with its fields. | [FB-0188](feedback.md#fb-0188) |
 | 2026-11-12 | The Tree's expand control is one toggle icon button on the right of a command row with the list's shadow, `TreeOptions.expandControl` also `{placement}`; a `CommandBar` mounted above content casts that shadow; a pinned item keeps its side in the collapsed bar; tree navigation's toolbar collapses into `Műveletek`; an idle region status no longer overflows its cell (M69). Additive. | Owner review: the tree control looked like an ad-hoc element with no shadow and a scrollbar over it; one button that opens or closes everything. | [FB-0191](feedback.md#fb-0191) |
 | 2026-11-12 | Tree rows as high as grid rows (40 px, one line); `TreeOptions.striped` / `lines` (default on), the same for tree navigation (`Registry::tree` named arguments, JSON `tree.striped` / `tree.lines`) (M70). Additive; the row height changes for every tree. | Owner request: bring the tree visually closer to grid rows, with optional stripes and the classic dotted lines with +/- boxes; the selected row like the grid's cursor row. | [FB-0193](feedback.md#fb-0193) |
+| 2026-11-12 | `WindowOptions.titleOverflow` (`"end"` default, `"start"`) and `titlePrefix`: a long window title is cut at its start with the prefix kept, the full title as tooltip and accessible name; `setTitle` updates the accessible name (M71). Additive. | A consumer titles its editor windows with a path whose end names what is edited; the title was cut at its end. | [FB-0194](feedback.md#fb-0194) |
 
 <a id="resolved-decisions"></a>
 

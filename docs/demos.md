@@ -427,7 +427,9 @@ declared in [tasks.json](../examples/demo-app/modules/tasks.json)):
   `CommandBar` `Előző nap`, the shown day (`YYYY-MM-DD · weekday`),
   `Következő nap`, `Ma` and `Naptár…`, which opens a framework window with the
   `day` action's own `RecordForm` (the date with its date picker, submit
-  `Napi műsor`); its answer is the day shown. The day is today by default;
+  `Napi műsor`); its answer is the day shown. Its title `Nap választása: <view> /
+  <day>` keeps the prefix and is cut at its start
+  ([`titleOverflow`](toolkit.md#app-window)), so the day stays visible. The day is today by default;
   `#view=demo.playlist-preview&filter.date=YYYY-MM-DD` presets it. The page
   asks the day through `signage_playlist.day`; the request and its JSON answer
   are the calendar's `Napi műsor (API)` window, not repeated here.

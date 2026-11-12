@@ -129,8 +129,12 @@ export function attachContent(target: { attach(content: any): unknown; attachHTM
 export function openWindow(options: WindowOptions & { css?: string }): AppWindow {
   const maxHeight = options.maxHeight ?? FIT_MAX_HEIGHT;
   if (typeof maxHeight !== "number" || Number.isNaN(maxHeight) || maxHeight < 120) throw new TypeError("61ade: window `maxHeight` is a number of px from 120 (Infinity: the viewport).");
+  const { titleOverflow = "end", titlePrefix } = options;
+  if (titleOverflow !== "end" && titleOverflow !== "start") throw new TypeError('61ade: window `titleOverflow` is "end" or "start".');
+  if (titlePrefix !== undefined && typeof titlePrefix !== "string") throw new TypeError("61ade: window `titlePrefix` is a plain text.");
+  const shaped = titleOverflow === "start" || titlePrefix !== undefined, full = (text: string) => titlePrefix ? titlePrefix + " " + text : text;
   const mobile = innerWidth < 768, controller = new AbortController();
-  const win = new Window({ css: options.css ?? "blade-content-window", title: escape(options.title), ariaLabel: options.title,
+  const win = new Window({ css: options.css ?? "blade-content-window", title: escape(options.title), ariaLabel: full(options.title),
     width: mobile ? innerWidth : Math.min(options.width ?? 720, innerWidth - 24), height: mobile ? innerHeight : Math.min(options.height ?? 560, innerHeight - 24),
     modal: options.modal ?? true, closable: true, resizable: !mobile && (options.resizable ?? true), movable: !mobile });
   let closed = false;
@@ -140,6 +144,22 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
   // Suite's `Window.attach` and `attachHTML` fill this cell; content goes to it directly, so it can be emptied
   // (`detach`) between HTML and a widget.
   const cell = (win as unknown as { _layout: Layout })._layout.getCell("content");
+  const dialog = () => win.getContainer()?.closest<HTMLElement>('[role="dialog"]');
+  let title = options.title;
+  // A shaped title (FB-0194) is the header item's HTML: the prefix keeps its width, the rest is one line cut at its end
+  // or, `direction: rtl` around an isolated `<bdi>`, at its start; the full title is its tooltip only while it is cut.
+  const tooltip = () => {
+    const box = dialog()?.querySelector<HTMLElement>(".blade-window-title"), rest = box?.querySelector<HTMLElement>(".blade-window-title__text");
+    if (box && rest) { if (rest.scrollWidth > rest.clientWidth) box.title = full(title); else box.removeAttribute("title"); }
+  };
+  const showTitle = (text: string) => {
+    title = text; win.config.title = escape(text); dialog()?.setAttribute("aria-label", full(text));
+    if (!shaped) { win.header?.data.update("title", { value: escape(text) }); return; }
+    win.header?.data.update("title", { value: full(text), html: `<span class="blade-window-title blade-window-title--${titleOverflow}">`
+      + (titlePrefix ? `<span class="blade-window-title__prefix">${escape(titlePrefix)}</span>` : "")
+      + `<span class="blade-window-title__text"><bdi>${escape(text)}</bdi></span></span>` });
+    void awaitRedraw().then(tooltip);
+  };
   const api: AppWindow = {
     window: win,
     signal: controller.signal,
@@ -149,7 +169,7 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
       attachContent(cell, content, controller.signal);
       if (fit && (content instanceof HTMLElement || !(content instanceof Layout || ("destroy" in content && "layout" in content)))) void fitWindow(win, maxHeight);
     },
-    setTitle(text) { if (closed) return; win.config.title = escape(text); win.header?.data.update("title", { value: escape(text) }); },
+    setTitle(text) { if (!closed) showTitle(String(text)); },
     // A window that does not fit (`fit: false`, a full-screen phone window) keeps its size, also when its content asks.
     fit: () => closed || !fit ? Promise.resolve() : fitWindow(win, maxHeight),
     close() { if (closed) return; if (win.isVisible()) win.hide(); else finish(); },
@@ -162,6 +182,12 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
     if (dialog && document.activeElement && dialog.contains(document.activeElement)) { event.preventDefault(); api.close(); }
   }, { signal: controller.signal });
   win.show();
+  if (shaped) {
+    showTitle(title);
+    const observer = new ResizeObserver(tooltip), box = dialog();
+    if (box) observer.observe(box);
+    controller.signal.addEventListener("abort", () => observer.disconnect(), { once: true });
+  }
   if (options.signal?.aborted) api.close();
   else options.signal?.addEventListener("abort", () => api.close(), { once: true });
   return api;

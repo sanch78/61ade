@@ -569,6 +569,15 @@ body,
 .dhx_window .dhx_window-header .dhx_toolbar .dhx_navbar { height: 100%; box-sizing: border-box; padding: 4px 12px; align-items: center; }
 .dhx_window-header .dhx_navbar-title { font-size: 16px; }
 .dhx_window-header .dhx_button { width: 32px; height: 32px; min-height: 0; }
+/* `titleOverflow: "start"` / `titlePrefix` (FB-0194): the title item takes the room up to the close button; the prefix
+   keeps its width, the rest is one line cut at its end or, `direction: rtl` around an isolated `<bdi>`, at its start. */
+.dhx_window-header .dhx_toolbar__item:has(> .dhx_navbar-title > .blade-window-title) { flex: 1 1 0; min-width: 0; max-width: none; }
+.dhx_window-header .dhx_navbar:has(.blade-window-title) > .dhx_toolbar__item--spacer { display: none; }
+.dhx_window-header .dhx_navbar-title:has(> .blade-window-title) { display: block; }
+.blade-window-title { display: flex; gap: 0.25em; min-width: 0; }
+.blade-window-title__prefix { flex: none; white-space: nowrap; }
+.blade-window-title__text { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.blade-window-title--start .blade-window-title__text { direction: rtl; text-align: left; }
 
 /* Native language toolbar inside the authentication Form container. */
 /* _AuthHandler overlay (Bootstrap-compatible markup) above the modal sign-in window, theme-aware. */

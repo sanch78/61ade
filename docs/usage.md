@@ -480,7 +480,10 @@ A page's own [`app.ui.window`](toolkit.md#app-window) closes on Escape while
 the focus is inside it, also with `modal: false`. Suite's English-only names
 are in the page's language: a `collapsable` header is `‹header›
 összecsukása` / `‹header› kinyitása`, a window's close button `Ablak bezárása`
-([FB-0155](feedback.md#fb-0155)).
+([FB-0155](feedback.md#fb-0155)). A long window title stays on one line;
+`titleOverflow: "start"` cuts it at its start so its end stays visible, and
+`titlePrefix` keeps a leading text whole
+([window title](toolkit.md#window-title), [FB-0194](feedback.md#fb-0194)).
 
 A record page that shows one item large, like a media player, is a two-column `PageLayout`: a control panel of
 [`SettingsForm`](toolkit.md#settingsform)s (local view settings with switches, segmented choices, ranges, colours

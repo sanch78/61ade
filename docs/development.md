@@ -456,6 +456,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Sorting/list presentation | PHP `sorting.php`, `list-presentation.php`, `lists.php`; shell `list-presentation.spec.cjs`, `list-integration.spec.cjs`, `grid-sort.spec.cjs` |
 | Localization | `php8.4 tests/shell/i18n.php`; shell `i18n.spec.cjs` |
 | Dialogs | `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs` |
+| Window header and title (`app.ui.window`) | shell `window-title.spec.cjs`, `suite-labels.spec.cjs` |
 | Diagram editor | `php8.4 tests/shell/diagram.php`; shell `diagram.spec.cjs` |
 | Event calendar | `php8.4 tests/shell/calendar.php`; shell `calendar.spec.cjs` |
 | File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |

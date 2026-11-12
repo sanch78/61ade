@@ -117,9 +117,12 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
       player.wait(error instanceof Error ? error.message : String(error));
     }
   };
-  /** `Naptár…`: the `day` action's form in a framework window; its answer is the day to show. */
+  /**
+   * `Naptár…`: the `day` action's form in a framework window; its answer is the day to show. The title keeps its prefix
+   * and is cut at its start, so the shown day stays visible (`titleOverflow`, FB-0194).
+   */
   const pick = () => {
-    const win = app.ui.window({ title: t("Nap választása"), width: 360, signal });
+    const win = app.ui.window({ titlePrefix: t("Nap választása") + ":", title: `${view.title} / ${day}`, titleOverflow: "start", width: 360, signal });
     const form = new app.components.RecordForm({ resource: view.resource!, action: "day", values: { date: day }, signal: win.signal });
     form.on("saved", ({ result }) => {
       const answer = result as DayAnswer, date = calendarDate(answer?.date);

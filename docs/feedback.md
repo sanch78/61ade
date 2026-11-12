@@ -8390,3 +8390,51 @@ that exactly equals an option label lists every option. The managed
     light checked.
 - **Status:** implemented and verified on the managed demo; owner acceptance
   pending.
+
+<a id="fb-0194"></a>
+
+## FB-0194 — Window title: keep the end visible when it does not fit
+
+- **Date:** 2026-11-12.
+- **Request (owner, from a consumer's need):** a consumer titles its editor
+  windows with a path (`Elem szerkesztése: <world> / … / <item>`); the end
+  names what is edited. A long title should stay on one line, be cut at its
+  start with a leading `…`, never cover the close button, follow resizes and
+  the phone width, keep the full title as accessible name and tooltip, and
+  `setTitle` should shorten a changed title the same way. Optionally a prefix
+  that is never cut.
+- **Diagnosis (managed demo):** Suite already keeps the header title on one
+  line and cuts it at its end (`title_max`: max-width 90 %, trailing `…`);
+  there was no way to keep the end. The dialog's accessible name was the
+  opening title and did not follow `setTitle`.
+- **Decision:** `WindowOptions.titleOverflow` `"end"` (default, unchanged for
+  existing windows) or `"start"`, and `WindowOptions.titlePrefix`, plain text
+  that is never cut, in either mode; `setTitle` replaces only the title after
+  it. The accessible name and tooltip are `<titlePrefix> <title>`.
+  Right-to-left text is isolated and stays on one line, but `"start"` is not
+  a right-to-left layout.
+- **Implementation:** `openWindow` (`api/services.ts`) gives a shaped title
+  (`"start"` or a prefix) to the header's Suite title item as HTML: a prefix
+  span that keeps its width and the rest, one line with `text-overflow:
+  ellipsis`, for `"start"` `direction: rtl` around an isolated `<bdi>`, so
+  the cut and the `…` fall at its start. The item fills the row up to the
+  close button (the header's spacer is left out). A `ResizeObserver` on the
+  window sets the tooltip only while the title is cut. `setTitle` updates the
+  dialog's `aria-label` in every mode. The feature demo's playlist `Naptár…`
+  window uses it (`Nap választása: <view> / <day>`).
+- **Guides:** [window title](toolkit.md#window-title),
+  [usage](usage.md), [demos](demos.md), focused checks in
+  [development](development.md#focused-task-groups); migration M71.
+- **Verification:** typecheck, build and demo assets passed. Browser: the new
+  retained `window-title.spec.cjs` at 1366 and 390 px (one line, `rtl` +
+  ellipsis, the end flush with the visible box and the start cut, the prefix
+  whole, the title before the close button, tooltip and accessible name the
+  full title, `setTitle` to a longer and to a fitting title, a window resize
+  that removes and restores the tooltip, right-to-left text, the unchanged
+  default, `TypeError` for bad options) and `toolkit-demo-playlist`,
+  `suite-labels`, `dialogs`, `settings-form` passed (30 tests). Screenshot at
+  390 px checked. No full-smoke claim; the consumer screen itself was not
+  opened.
+- **Status:** implemented and verified on the managed demo; owner acceptance
+  and the consumer's adoption (its editor windows pass the option, its specs
+  check the cut title at phone width) pending.
