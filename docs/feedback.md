@@ -767,3 +767,7 @@
 <a id="fb-0186"></a>
 
 ## FB-0186 — Equal-height section groups and project column sizing with CSS
+
+<a id="fb-0188"></a>
+
+## FB-0188 — Fixed accordion form headers stay above scrolling fields

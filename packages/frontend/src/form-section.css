@@ -27,7 +27,7 @@
    Accordion component's look and geometry inside one Form. A section's header is its disclosure button in a cell that
    carries the Suite cell header classes (the theme's header; the chevron from admin.css), a fixed one's its legend in
    the same look; consecutive sections form one framed stack; the open sections share the form's height and scroll
-   their own fields, a closed one is its header alone and a still (fixed) one keeps its own height. The action row
+   their own fields, a closed one is its header alone and a still (fixed) one prefers its natural height. The action row
    stays at the lower edge. While a window is measured every section shows at its own height (WindowSizing.ts). */
 /* The framed stack (not flush): the form's padding around it, 20 px on every side (4 px above it after a plain row,
    20 px to the action row's rule below it). */
@@ -54,13 +54,17 @@
   font-size: var(--dhx-font-size-normal); line-height: var(--dhx-line-height-normal); font-weight: var(--dhx-font-weight-medium); color: var(--dhx-font-color-primary);
 }
 .dhx_widget.dhx_form .blade-form-section__heading .dhx_button::after { margin: 0 0 0 auto; flex: 0 0 auto; color: var(--dhx-font-color-secondary); }
-/* A fixed section's legend in the header's look (Suite's `.dhx_layout-cell-header` box), edge to edge above its fields. */
-.dhx_widget.dhx_form .blade-form-section--still .dhx_form-fieldset { padding-top: 0; }
+/* A fixed section keeps its natural height when it fits. When constrained, only the fields below its legend scroll. */
+.dhx_widget.dhx_form .blade-form-section--still { flex: 0 1 auto !important; min-height: calc(var(--dhx-line-height-normal) + 20px); }
+.dhx_widget.dhx_form .blade-form-section--still > .blade-form-section__body { flex: 0 1 auto !important; min-height: 0; overflow: hidden; }
+.dhx_widget.dhx_form .blade-form-section--still > .blade-form-section__body > .dhx_form-fieldset { display: flex; flex-direction: column; min-height: 0; padding: 0; }
 .dhx_widget.dhx_form .blade-form-section--still .dhx_form-fieldset-legend {
-  display: flex; align-items: center; box-sizing: border-box; float: left; width: calc(100% + 32px); margin: 0 -16px 12px; padding: 8px 12px;
+  display: flex; align-items: center; box-sizing: border-box; flex: 0 0 auto; float: left; width: 100%; margin: 0; padding: 8px 12px;
   border-bottom: var(--dhx-border); background-color: var(--dhx-background-primary);
 }
-.dhx_widget.dhx_form .blade-form-section--still .dhx_form-fieldset-legend + * { clear: both; }
+.dhx_widget.dhx_form .blade-form-section--still > .blade-form-section__body > .dhx_form-fieldset > .dhx_layout-cell-content {
+  flex: 0 1 auto !important; min-height: 0; height: auto; box-sizing: border-box; overflow: auto; padding: 12px 16px;
+}
 .dhx_widget.dhx_form .blade-form-section--accordion:has(> .blade-form-section__body--closed) .blade-form-section__heading { border-bottom: 0; }
 .dhx_widget.dhx_form .blade-form-section--accordion:where(:not(.blade-form-section--still):not(:has(> .blade-form-section__body--closed))) { flex: 1 1 0 !important; min-height: 120px; }
 /* Low specificity (`:where`), so the measuring rules below win. */
@@ -79,8 +83,8 @@
 .dhx_widget.dhx_form .blade-form-section.blade-form-section--flush { border: 0; border-radius: 0; margin: 0; }
 .dhx_widget.dhx_form .blade-form-section.blade-form-section--flush:not(:first-child) { border-top: var(--dhx-border); }
 .dhx_widget.dhx_form .blade-form-section.blade-form-section--flush:not(:has(+ .blade-form-section--flush)):has(> .blade-form-section__body--closed):not(:has(+ .blade-form-actions)) { border-bottom: var(--dhx-border); }
-.dhx_widget.dhx_form .blade-form-section--flush > .blade-form-section__body .dhx_form-fieldset { padding-left: 20px; padding-right: 20px; }
-.dhx_widget.dhx_form .blade-form-section--flush.blade-form-section--still .dhx_form-fieldset-legend { width: calc(100% + 40px); margin: 0 -20px 12px; }
+.dhx_widget.dhx_form .blade-form-section--flush:not(.blade-form-section--still) > .blade-form-section__body .dhx_form-fieldset { padding-left: 20px; padding-right: 20px; }
+.dhx_widget.dhx_form .blade-form-section--flush.blade-form-section--still > .blade-form-section__body > .dhx_form-fieldset > .dhx_layout-cell-content { padding-left: 20px; padding-right: 20px; }
 [data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion { flex: 0 0 auto !important; min-height: 0; }
 [data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion > .blade-form-section__body { flex: 0 0 auto !important; overflow: visible; }
 [data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion > .blade-form-section__body--closed { display: flex !important; }
@@ -96,6 +100,7 @@
 .dhx_widget.dhx_form .blade-form-section--fill:has(.dhx_form-group--textarea) > .blade-form-section__body .dhx_form-fieldset { padding: 0; }
 .dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--fixed:has(.dhx_form-group--textarea) .dhx_form-fieldset-legend,
 .dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--still:has(.dhx_form-group--textarea) .dhx_form-fieldset-legend { width: 100%; margin: 0; }
+.dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--still:has(.dhx_form-group--textarea) > .blade-form-section__body > .dhx_form-fieldset > .dhx_layout-cell-content { padding: 0; }
 .dhx_widget.dhx_form .blade-form-section--fill .dhx_form-group--textarea { margin: 0; }
 .dhx_widget.dhx_form .blade-form-section--fill .dhx_form-group--textarea .dhx_input--textarea { border: 0; border-radius: 0; padding: 12px 16px; }
 .dhx_widget.dhx_form .blade-form-section--fill.blade-form-section--flush .dhx_form-group--textarea .dhx_input--textarea { padding: 12px 20px; }

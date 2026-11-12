@@ -1668,17 +1668,20 @@ $contacts->register($registry, 'Kapcsolatok', formSections: 'accordion', flushSe
 - **Look:** a collapsible section's header is the `Accordion` component's
   Suite cell header (the theme's header, its title and the same chevron,
   turned down while open). A fixed section (`sectionCollapsible: false`) has
-  the same header without a chevron and keeps its own height. Consecutive
+  the same header without a chevron. It keeps its natural height when it
+  fits; in a constrained form only its fields scroll below the stationary
+  legend. `sectionCollapsible: false` means always open. Consecutive
   sections form one framed stack, 20 px from the form's edges and from the
   action row's rule; with `flushSections` they run edge to edge without the
   frame. Fields outside sections stay plain rows (above the sections they
   need no section of their own: the window's title heads them).
 - **Geometry:** the open sections share the height the fixed sections and the
-  plain rows leave; a closed section is its header alone; the action row
-  stays at the form's lower edge. A fitted window (the list's form window, an
-  `AppWindow`) measures every section shown, so its height (up to its
-  `maxHeight`, 800 px by default, and the viewport) does not depend on which
-  sections are open: without `multiple` it fits the tallest open section,
+  plain rows leave; fixed sections can shrink when that space is too small,
+  keeping their header above their own scrolling fields. A closed section is
+  its header alone; the action row stays at the form's lower edge. A fitted
+  window (the list's form window, an `AppWindow`) measures every section shown,
+  so its height (up to its `maxHeight`, 800 px by default, and the viewport)
+  does not depend on which sections are open: without `multiple` it fits the tallest open section,
   with it all of them. Only a conditional field appearing or a validation
   message refits it. In a region (`RecordForm` in a page or an `Accordion`
   section, the list's form panel) the sections share the region's height.
