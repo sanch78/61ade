@@ -236,7 +236,10 @@ name. A fitted window (`fit`, a `RecordForm`) grows to its content up to
 for the viewport; a number below 120 throws `TypeError`); a taller form
 scrolls between the fixed header and its action row, which sticks to the
 window's lower edge ([window sizing](workspaces.md#window-sizing),
-[FB-0177](feedback.md#fb-0177)).
+[FB-0177](feedback.md#fb-0177)). A window opened with `fit: false`, and
+every window below 768 px (full screen there), keeps its size: `fit()` does
+nothing for it, so a `RecordForm` or `SettingsForm` in it fills it instead
+of resizing it ([FB-0178](feedback.md#fb-0178)).
 
 Every subscription takes its owner's signal the same way, as the last
 argument `{signal}` (`SignalOptions`): `events.on`, `live.subscribe`,
@@ -2731,6 +2734,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M57 | [Shared rows](tenancy.md#shared-rows): `SqlResource` `sharedTenant`, `sharedRoles` (JSON `storage.shared_tenant`, `storage.shared_roles`); rows carry `_shared: true`; a tenant's write actions on a shared row are refused (403 `A közös adat csak olvasható.`) and left out of `_actions`; `Acl::holds()`, `Registry::realm()`/`tenantReady()`, `Registry::scopeToTenant()` takes the shared value and roles | [FB-0175](feedback.md#fb-0175) | info: shared content mirrored into every tenant can move into one shared row set |
 | M58 | [Form sections](workspaces.md#form-sections) as framed panels: `sectionCollapsible: false` (JSON `section_collapsible`) makes a fixed, always open section (`FieldMetadata.sectionCollapsible`, `ColumnMetadata.sectionCollapsible`); the sections also [group cards and details](workspaces.md#card-groups); `column.cardLines` (JSON `card_lines`) sets a long text's card lines; a fitted window stops at `WindowOptions.maxHeight` (default 800 px) with its action row sticking to its lower edge ([window sizing](workspaces.md#window-sizing)); `CommandButton.pinned`; the Tree's `expandControl` is two pinned icon buttons | [FB-0177](feedback.md#fb-0177) | info: a section that holds fields which must always show declares `sectionCollapsible: false`; cards and the `Adatok` window of a resource with sections show groups; a tall form window is at most 800 px high (pass `maxHeight` for more); a spec that looked for the tree control in `Műveletek` at 390 px finds the buttons in the bar; a spec that counted `.blade-form-section fieldset` finds fixed sections too |
 | M59 | [Accordion form sections](workspaces.md#form-accordion): an action's `formSections` (PHP `Action`, `SqlResource::register`; JSON `operations.form_sections`, an action's `form_sections`): `'panels'` (default), `'accordion'` or `'accordion-multiple'`; `FormDescription.formSections`, type `FormSections` | [FB-0178](feedback.md#fb-0178) | none (additive) |
+| M60 | [`app.ui.window`](#app-window) `fit()` does nothing for a window that does not fit (`fit: false`, a full-screen window below 768 px): a `RecordForm` or `SettingsForm` in it no longer resizes it | [FB-0178](feedback.md#fb-0178) | info: a `RecordForm` in a `fit: false` window kept the requested size only until its fields showed and then fitted; it now keeps it (drop `fit: false` to fit); on a phone the window stays full screen |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -2840,6 +2844,7 @@ markup may change without notice.
 | 2026-11-11 | PHP `SqlResource` `sharedTenant`/`sharedRoles`, JSON `storage.shared_tenant`/`shared_roles`: shared rows of a tenant-scoped resource, read by every tenant beside its own (`_shared: true`), written only without a tenant by a declared role (M57). No browser change: `_actions` disables the commands. | [FB-0175](feedback.md#fb-0175) |
 | 2026-11-11 | PHP `Field` `sectionCollapsible`, JSON field `section_collapsible`, `FieldMetadata.sectionCollapsible`, `ColumnMetadata.sectionCollapsible`, `ColumnMetadata.cardLines` (field `column.cardLines`/`card_lines`), `WindowOptions.maxHeight`, `CommandButton.pinned`; form sections are framed panels, cards and details group by section, a fitted window stops at 800 px with a sticky action row, the Tree control is two icon buttons (M58). Additive, except the 800 px default cap. | [FB-0177](feedback.md#fb-0177) |
 | 2026-11-11 | PHP `Action::$formSections` (`Action::FORM_SECTIONS`), `SqlResource::register` `formSections`, JSON `operations.form_sections` and an action's `form_sections`; `FormDescription.formSections`, type `FormSections`: accordion form sections with the `Accordion` component's header and a window size that does not change when a section opens (M59). Additive. | [FB-0178](feedback.md#fb-0178) |
+| 2026-11-12 | `AppWindow.fit()` keeps the size of a window that does not fit (`fit: false`, below 768 px); a `RecordForm` or `SettingsForm` in it no longer resizes it (M60). Behaviour fix. | [FB-0178](feedback.md#fb-0178) |
 
 <a id="resolved-decisions"></a>
 
