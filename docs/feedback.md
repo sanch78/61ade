@@ -795,3 +795,7 @@
 <a id="fb-0193"></a>
 
 ## FB-0193 — Tree rows like grid rows, optional stripes and classic lines
+
+<a id="fb-0194"></a>
+
+## FB-0194 — Window title: keep the end visible when it does not fit

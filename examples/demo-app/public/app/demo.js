@@ -733,7 +733,7 @@ function preview(app, host, view) {
     }
   };
   const pick = () => {
-    const win = app.ui.window({ title: t("Nap v\xE1laszt\xE1sa"), width: 360, signal });
+    const win = app.ui.window({ titlePrefix: t("Nap v\xE1laszt\xE1sa") + ":", title: `${view.title} / ${day}`, titleOverflow: "start", width: 360, signal });
     const form = new app.components.RecordForm({ resource: view.resource, action: "day", values: { date: day }, signal: win.signal });
     form.on("saved", ({ result }) => {
       const answer = result, date = calendarDate(answer?.date);

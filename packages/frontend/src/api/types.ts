@@ -226,6 +226,18 @@ export interface ChoiceOptions {
 export interface WindowOptions {
   /** Plain-text title (escaped by the framework). */
   title: string;
+  /**
+   * How a title wider than the header is shortened, always on one line, never over the close button: `"end"` (default,
+   * Suite's own trailing `…`) or `"start"`: a leading `…`, so the end of a path-like title stays visible
+   * (`… / Karakter / Alapprompt`). Either way the window's accessible name is the full title; with `"start"` or a
+   * `titlePrefix` a shortened header shows the full title as its tooltip. Another value throws `TypeError`.
+   */
+  titleOverflow?: "end" | "start";
+  /**
+   * Plain text shown before `title` that is never shortened (`Elem szerkesztése:`); only the title after it is.
+   * `setTitle` keeps it. The accessible name and tooltip are `<titlePrefix> <title>`. A non-string throws `TypeError`.
+   */
+  titlePrefix?: string;
   /** Initial size; clamped to the viewport minus 24 px. Below 768 px the window is full screen. */
   width?: number;
   height?: number;
@@ -262,6 +274,7 @@ export interface AppWindow {
   readonly signal: AbortSignal;
   /** Attaches a Suite widget (Layout, Form, …) or an element as the window body (replaces the previous one). */
   attach(content: Mountable): void;
+  /** Replaces the title (after `titlePrefix`, shortened as `titleOverflow` says) and the window's accessible name. */
   setTitle(text: string): void;
   /**
    * Remeasures the content height (see `WindowOptions.fit`); nothing for a window that does not fit (`fit: false`, a
