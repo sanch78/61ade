@@ -615,7 +615,10 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
   record whose map has no entry and no `*` carries none. A child window or
   the details opened this way take the focus, so Escape closes them.
 - **Toolkit:** a `ListView` reports each activation as its `activate` event
-  with the resolved target before it runs
+  with the resolved target before it runs. A listener can call
+  `preventDefault()` synchronously to skip that default and run project
+  behavior instead; returning a value or cancelling after an `await` has no
+  effect. With no cancellation the behavior is unchanged
   ([ListView](toolkit.md#listview)).
 - **Security:** nothing new runs: the action goes through the ordinary
   executor (ACL, confirmation metadata, audit), the child window through the

@@ -755,3 +755,7 @@
 <a id="fb-0183"></a>
 
 ## FB-0183 — Distinct control appearance for read-only form fields
+
+<a id="fb-0184"></a>
+
+## FB-0184 — Cancellable activation of a composed list

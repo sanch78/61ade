@@ -161,7 +161,7 @@ export class Workspace implements ActionHost {
       },{rowHeight:view.rowHeight,tileMinWidth:view.tileMinWidth,tiles,cardColumns:hooks.cardColumns??view.cardColumns,rowNumbers:view.rowNumbers,selection:view.selection,rowSelection:view.rowSelection,fields:view.detailFields??view.columns,filters:view.filters,subview:scope?.compact?undefined:this.subviewOptions(),select:scope?.select,...(scope?.compact?{table:true,idColumn:false}:{}),...(hooks.showId===false?{idColumn:false}:{}),
         // Per row: the declared target's description; a map without an entry for the row keeps the default (no description, cards open the details).
         activation:view.activate?row=>declaredTarget(view.activate,row)===undefined?undefined:t("Megnyitás: {target}",{target:this.activation(row).label}):undefined,
-        details:id=>{const row=this.rows.find(r=>String(r.id)===id);if(row)this.hooks.emit?.("activate",{row,target:"details"});void this.showResults(id);},marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field),
+        details:id=>{const row=this.rows.find(r=>String(r.id)===id);if(row&&this.activationPrevented(row,"details"))return;void this.showResults(id);},marked:()=>this.capabilities(),edit:(id,field)=>void this.editCard(id,field),
         drag:this.dragOptions()});
       this.sortLabel();
       // Grid column ids of reserved record keys are aliases (ResponsiveGrid): headers speak in column ids, requests in fields.
@@ -343,10 +343,16 @@ export class Workspace implements ActionHost {
       subview:sub?{shared:sub.shared,field:sub.field,page:sub.page,view:sub.view}:undefined,scoped:!!this.scope,compact:!!this.scope?.compact,
       viewDefinition:app?id=>app.viewDefinition(id):undefined,labels:{details:t("Adatok"),children:t("Alelemek")}});
   }
+  /** Projects may synchronously replace activation; listeners still receive the resolved target. */
+  private activationPrevented(row:Row,target:ListViewEvents["activate"]["target"]):boolean{
+    let prevented=false;
+    this.hooks.emit?.("activate",{row,target,preventDefault:()=>{prevented=true;}});
+    return prevented;
+  }
   /** Runs the activation of $row and reports it (`activate`). */
   private activate(row:Row):void{
     const resolved=this.activation(row),id=String(row.id);
-    this.hooks.emit?.("activate",{row,target:resolved.target});
+    if(this.activationPrevented(row,resolved.target))return;
     switch(resolved.kind){
       // Only a menu page navigates: a window (a scoped view) would stay open over the new page.
       case "page":location.hash=new URLSearchParams({view:resolved.view,["filter."+resolved.field]:id}).toString();return;

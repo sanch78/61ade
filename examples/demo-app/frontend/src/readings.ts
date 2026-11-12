@@ -194,6 +194,8 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
       if (list === current) list = undefined;
     }, { once: true });
     current = list = new app.components.ListView({ view: listView, filters: presets, signal });
+    // The dashboard already presents the selection in its summary; activation stays here instead of duplicating the details.
+    current.on("activate", event => event.preventDefault());
     presets = {};
     current.on("changed", event => { rows = event.rows; matched = event.matched; if (selected && !rows.some(row => String(row.id) === String(selected!.id))) selected = undefined; render(); });
     current.on("select", ({ row }) => { selected = row; render(); });

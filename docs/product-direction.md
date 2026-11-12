@@ -106,6 +106,7 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 
 | Event | Category | State |
 | --- | --- | --- |
+| Project-handled list activation (`preventDefault`) | UI navigation | Browser-only `ListView.activate`; no server operation or audit by itself; project actions retain their executor checks. |
 | Registered action success/deny/error, UI/API | Audit | Implemented, Executor. |
 | Record/form describe and live subscription | Audit | Implemented, Workspace. |
 | First-step header close to a declared destination | UI navigation | No authentication or state mutation; no audit event. Required/public defaults remain unchanged ([sign-in content](shell.md#sign-in-content)). |
