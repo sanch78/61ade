@@ -7644,5 +7644,17 @@ that exactly equals an option label lists every option. The managed
   - the stored-row check used an alias, so a `where` naming the table
     failed; it now uses the bare table;
   - a scope query over another table was not refused; it now fails closed.
-- **Status:** implemented; MySQL qualification and the managed-demo browser
-  check pending.
+- **Managed demo (2026-11-12):** after the web setup,
+  `npm run test:browser -- tests/shell/delegation.spec.cjs` passed 2/2:
+  - `delegate@example.test` lists A and B but not C, and `Módosítás` is
+    disabled on B. Editing A through the form is saved.
+  - Updating B, getting C by its id and a create without a grant each
+    answer 403.
+  - Removing the B reader link hides B on the next request (`get` 403), and
+    restoring the link shows it again.
+  - `demo@example.test` lists all three with `get`/`update`.
+  - The run restores the demo data. `admin`, `tenancy`, `count-fields`,
+    `list-integration` and `menu-attention` passed 17/17.
+- **Commit:** `e1d81796361292efeec718e5a2b9e785264b0474` on `main`.
+- **Status:** implemented and verified on SQLite and on the managed demo;
+  MySQL qualification pending (the isolated test instance had expired).
