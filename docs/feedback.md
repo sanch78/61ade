@@ -771,3 +771,7 @@
 <a id="fb-0188"></a>
 
 ## FB-0188 — Fixed accordion form headers stay above scrolling fields
+
+<a id="fb-0190"></a>
+
+## FB-0190 — Focus the end of an accordion section's text on opening
