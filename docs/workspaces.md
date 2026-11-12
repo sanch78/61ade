@@ -1476,6 +1476,14 @@ new app.components.RecordForm({ resource: "items", action: "create", values: { p
   host preset's submission; a long text stays a multi-line textarea; a file
   field shows its preview without upload or clearing; a registered field
   type receives `readOnly`. Keyboard input, paste and a click change nothing.
+- **Appearance:** a read-only control has a flat, muted theme background,
+  a transparent border and no inset shadow. Its text keeps the normal
+  contrast, selection and copying, and keyboard focus keeps a visible ring.
+  This follows the field's read-only state (including a registered editor's
+  native controls), so an editable file field's readonly file-name input
+  keeps its editable appearance. A section-filling textarea uses the same
+  background. Labels and section headings keep their usual appearance
+  ([FB-0183](feedback.md#fb-0183)).
 - **Never input:** a `display` field and a field read-only by ACL are not
   sent. A request that sends a `display` field is refused like any unknown
   field (`Ismeretlen vagy nem írható mező.`, 400), a write-denied one with 403;

@@ -24,6 +24,10 @@ const named=(item:any,name:string):boolean=>!!item&&typeof item==="object"&&(ite
  * type's built-in item. The server validates the value by the storage type either way.
  */
 export const input=(f:FieldDefinition,value:unknown,readOnly=false):any=>{
+  const item=fieldInput(f,value,readOnly);
+  return readOnly?{...item,css:[item.css,"blade-field--readonly"].filter(Boolean).join(" ")}:item;
+};
+const fieldInput=(f:FieldDefinition,value:unknown,readOnly:boolean):any=>{
   const type=fieldTypeOf(f);
   if(type){
     try{const item=type.input(f as FieldMetadata,value,readOnly);if(named(item,f.name))return item;console.error(`61ade: field type "${(f as FieldMetadata).editor}" returned no Form item named "${f.name}".`);}

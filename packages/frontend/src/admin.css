@@ -384,6 +384,14 @@ body,
 }
 [data-blade-measure] .dhx_form > .blade-form-actions { position: static; }
 .blade-form-actions .dhx_button { white-space: nowrap; }
+/* Semantic field state (fields.ts input), not every readonly DOM input: an editable file field's name is readonly too.
+   A flat, filled surface distinguishes read-only values while keeping their contrast and copyable text. */
+.blade-field--readonly :is(.dhx_input, .dhx_select, .dhx_combobox-input-box) {
+  background: color-mix(in srgb, var(--dhx-background-secondary), var(--dhx-font-color-primary) 8%); color: var(--dhx-font-color-primary); border-color: transparent;
+}
+.blade-field--readonly :is(.dhx_input, .dhx_select, .dhx_combobox-input-box):not(:focus-within) {
+  box-shadow: none;
+}
 .blade-multiselect-field .dhx_combobox-input-list { padding-top: 4px; padding-bottom: 4px; }
 .blade-filter-actions { flex-wrap: nowrap; }
 .blade-filter-actions .dhx_button { white-space: nowrap; }

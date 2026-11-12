@@ -751,3 +751,7 @@
 <a id="fb-0182"></a>
 
 ## FB-0182 — Uploader double divider and empty window after a cancelled form
+
+<a id="fb-0183"></a>
+
+## FB-0183 — Distinct control appearance for read-only form fields
