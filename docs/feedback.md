@@ -8438,3 +8438,60 @@ that exactly equals an option label lists every option. The managed
 - **Status:** implemented and verified on the managed demo; owner acceptance
   and the consumer's adoption (its editor windows pass the option, its specs
   check the cut title at phone width) pending.
+
+<a id="fb-0195"></a>
+
+## FB-0195 — Empty-valued select filters: no filter versus the empty value
+
+- **Date:** 2026-11-13.
+- **Request (owner, from a consumer's list):** a select field's option
+  `'' => 'Főasset'` (no parent) appeared in the header filter of an
+  unfiltered list, and choosing it did not filter. Distinguish "no filter"
+  from "filter for the empty value" in header filters, filter panels,
+  requests and saved state, and keep hierarchy scoping.
+- **Diagnosis:** `GridHeaders.setFilterValues()` restored an absent filter as
+  `""`, and `restoreFilter()` showed the label of the option whose key is
+  `""`; `Workspace.setFilter()` deleted every empty value, the initial
+  (saved/preset) and `setFilters` paths skipped it and `UiPreferences`
+  refused to restore it. The header picker had no item id for the empty
+  option, so picking it mapped to "no filter". Restoring "no filter" with
+  `ComboFilter.setValue("")` also selected DHTMLX's own item of empty cells;
+  the picker then cleared that value on its next opening and lost the first
+  choice. The filter panel already encoded the empty option as `eq:`.
+- **Implementation:** a key present in the list's filters is a condition, an
+  absent key none. `Workspace.setFilter` keeps `""` only for a select filter
+  that declares an empty option (text, number, checkbox and other selects
+  treat it as no filter); the initial, preset and `setFilters` paths and the
+  saved preferences follow the same rule. `GridHeaders` gives the empty option
+  its own picker item (`blade-filter-empty`), reports `Mind`, a cleared
+  control or an empty text as no condition, and restores no condition with
+  `clear` (ignoring the change events of its own writes) instead of
+  `setValue("")`. `ListFilters.setValue` maps no condition to `Bármely` and
+  `""` to `eq:`. At the top of a hierarchy (shared sub-view) a user filter on
+  the parent field replaces the implicit `scope {parent, ""}`, which the
+  server refuses beside a filter on the same field, and inside another record
+  it takes precedence over the implied `parent: ""` filter; without such a
+  filter the scoping is unchanged. No server or protocol change.
+- **Guides:** [header filters](workspaces.md#integrated-grid-header-filters),
+  [hierarchy sub-views](workspaces.md#sub-views),
+  [ListView](toolkit.md#listview) `setFilters`, migration M72, and the
+  grid-tree-card skill.
+- **Verification:** typecheck, build and demo assets passed. A temporary
+  browser probe passed on the managed demo: a fixture list with a header
+  select `'' => 'Főasset'` (empty control and `filters: {}` initially; picking
+  `Főasset` requested `{parent: ""}` and listed only the root row; a remount
+  restored the saved condition and label; another option, `Mind`, a remount
+  after `Mind` and `setFilters({parent: "", title: ""})`), and the tenant
+  demo's task hierarchy panel (`Bármely` and the root scope initially;
+  `Nincs (fő feladat)` requested `{parent_id: ""}` without the scope, again
+  after a reload; a parent listed its children; `Alaphelyzet` and a reload
+  returned to no filter and the root scope). A separate probe confirmed the
+  tenant grid's header picker requests `{parent_id: ""}` on the first choice.
+  Existing `grid-sort`, `list-presentation`, `list-integration`,
+  `preferences`, `subview-demos`, `subview`, `activation`, `empty-states`,
+  `workspace`, `tenancy`, `toolkit-list` and `mobile-grid` specs passed (69,
+  one existing skip), and `toolkit-list.mjs`, `ui-preferences.mjs`. Task-only
+  probes removed. No full-smoke claim; the consumer screen itself was not
+  opened.
+- **Status:** implemented and verified on the managed demo; owner acceptance
+  pending.

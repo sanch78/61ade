@@ -4,12 +4,16 @@ export type Sort={field:string;direction:"asc"|"desc"};
 export type Filter={name:string;label:string;type?:string;options?:Record<string,string>};
 type Column={id:string;header:string;type?:string;editable?:boolean;filter?:Filter};
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
-/** The leading "all" item clears an option filter; DHTMLX needs a non-empty id, so it maps back to the empty value. */
-const ALL="blade-filter-all";
-const filterOptions=(filter:Filter)=>[{id:ALL,value:t("Mind")},...Object.entries(filter.options??{}).map(([id,value])=>({id,value}))];
+/**
+ * The leading "all" item clears an option filter (no condition). DHTMLX needs non-empty ids, so a declared option
+ * whose value is empty (for example "no parent") gets its own id and maps back to the empty value, a real condition.
+ */
+const ALL="blade-filter-all",EMPTY="blade-filter-empty";
+const filterOptions=(filter:Filter)=>[{id:ALL,value:t("Mind")},...Object.entries(filter.options??{}).map(([id,value])=>({id:id===""?EMPTY:id,value}))];
+const choice=(filter?:Filter):filter is Filter=>filter?.type==="select"||filter?.type==="checkbox";
 const filterHeader=(column:Column):any=>{
   const filter=column.filter;if(!filter)return undefined;
-  if(filter.type==="select"||filter.type==="checkbox"){
+  if(choice(filter)){
     // Items carry the visible label as value, which DHTMLX shows in the input; an exact label keeps every option listed for reselection.
     const labels=[t("Mind"),...Object.values(filter.options??{})];
     return {content:"comboFilter",filterConfig:{data:filterOptions(filter),filter:(item:any,input:string)=>!input||labels.includes(input)||String(item.value).toLowerCase().includes(input.toLowerCase())}};
@@ -29,9 +33,12 @@ export class GridHeaders {
   private disposed=false;
   private columns:Column[];
   private filterColumns=new Set<string>();
+  /** Active conditions by field; an absent field has none, an empty string is the condition "empty value". */
   private filterValues:Record<string,string>={};
   private boundCombos=new WeakSet<object>();
-  constructor(private grid:Grid,columns:Column[],private sortable:string[],change:(sort:Sort)=>void,filters:Filter[]=[],private filterChange?:(field:string,value:string)=>void){
+  /** Set while the list writes a filter's value; DHTMLX's own change events from that write are no user choice. */
+  private restoring=false;
+  constructor(private grid:Grid,columns:Column[],private sortable:string[],change:(sort:Sort)=>void,filters:Filter[]=[],private filterChange?:(field:string,value:string|undefined)=>void){
     const definitions=new Map(filters.map(filter=>[filter.name,filter]));
     this.columns=[{id:"id",header:"ID"},...columns.map(column=>({...column,filter:definitions.get(column.id)}))];
     for(const filter of filters)this.filterColumns.add(filter.name);
@@ -41,15 +48,16 @@ export class GridHeaders {
     });
     grid.events.on("beforeFilter",(_value:any,column:any)=>!this.disposed&&this.filterColumns.has(String(column))?false:undefined);
     grid.events.on("filterChange",(value:any,column:any,_content:any,silent?:boolean)=>{
-      const field=String(column);if(this.disposed||!this.filterColumns.has(field))return;
+      const field=String(column);if(this.disposed||this.restoring||!this.filterColumns.has(field))return;
       const normalized=Array.isArray(value)?String(value[0]??""):value==null?"":String(value);
       const definition=this.columns.find(item=>item.id===field)?.filter;
-      const canonical=definition&&(definition.type==="select"||definition.type==="checkbox")
-        ?normalized===ALL||normalized===t("Mind")?"":Object.hasOwn(definition.options??{},normalized)?normalized:Object.entries(definition.options??{}).find(([,label])=>label===normalized)?.[0]??normalized
+      // A cleared control, `Mind` or an empty text is no condition; only the empty option's item filters for "".
+      const canonical=normalized===""?undefined:choice(definition)
+        ?normalized===ALL||normalized===t("Mind")?undefined:normalized===EMPTY?"":Object.hasOwn(definition.options??{},normalized)?normalized:Object.entries(definition.options??{}).find(([,label])=>label===normalized)?.[0]??normalized
         :normalized;
-      this.filterValues[field]=canonical;
+      if(canonical===undefined)delete this.filterValues[field];else this.filterValues[field]=canonical;
       if(!silent)this.filterChange?.(field,canonical);
-      if(!silent&&definition&&(definition.type==="select"||definition.type==="checkbox")){
+      if(!silent&&choice(definition)){
         this.restoreFilter(field,canonical);
         setTimeout(()=>{if(!this.disposed)this.restoreFilter(field,canonical);},50);
       }
@@ -65,20 +73,28 @@ export class GridHeaders {
   setFilterValues(filters:Record<string,string>):void{
     this.filterValues={...filters};
     for(const field of this.filterColumns){
-      const value=this.filterValues[field]??"";
+      const value=Object.hasOwn(this.filterValues,field)?this.filterValues[field]:undefined;
       const restore=()=>{if(this.disposed)return;try{this.restoreFilter(field,value);}catch{}};
       restore();setTimeout(restore,500);
     }
   }
-  /** ComboFilter.setValue matches item values, so option filters are restored by their visible label. */
-  private restoreFilter(field:string,value:string):void{
+  /**
+   * ComboFilter.setValue matches item values, so option filters are restored by their visible label. No condition
+   * clears the control: setValue("") would select DHTMLX's own item of empty cells, and the picker clears an empty
+   * value when it next opens, which loses that first choice. `clear` acts only on a set value: a silent clear of an
+   * empty control would leave the filter silent and swallow the next choice.
+   */
+  private restoreFilter(field:string,value:string|undefined):void{
     const definition=this.columns.find(item=>item.id===field)?.filter;
-    const label=definition?.options?.[value]??value;
-    this.syncFilterOptions(field);this.grid.getHeaderFilter(field)?.setValue(label,true);this.setFilterDisplay(field,label);
+    const label=value===undefined?undefined:definition?.options?.[value]??value;
+    this.syncFilterOptions(field);
+    const filter=this.grid.getHeaderFilter(field);
+    this.restoring=true;try{if(label===undefined)filter?.clear(true);else filter?.setValue(label,true);}finally{this.restoring=false;}
+    this.setFilterDisplay(field,label??"");
   }
   private syncFilterOptions(field:string):void{
     const definition=this.columns.find(item=>item.id===field)?.filter;
-    if(!definition||!((definition.type==="select")||(definition.type==="checkbox")))return;
+    if(!choice(definition))return;
     const filter:any=this.grid.getHeaderFilter(field);const combo=filter?.getFilter?.();
     if(!combo?.data)return;
     // Adding only the missing items keeps the current selection; removing it would clear the filter.
@@ -88,7 +104,7 @@ export class GridHeaders {
   private bindFilterOptions():void{
     for(const field of this.filterColumns){
       const definition=this.columns.find(item=>item.id===field)?.filter;
-      if(!definition||!((definition.type==="select")||(definition.type==="checkbox")))continue;
+      if(!choice(definition))continue;
       const combo:any=(this.grid.getHeaderFilter(field) as any)?.getFilter?.();
       if(!combo?.popup||this.boundCombos.has(combo))continue;
       this.boundCombos.add(combo);
