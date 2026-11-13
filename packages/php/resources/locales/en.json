@@ -750,5 +750,7 @@
   "Ennek az erőforrásnak nincs delegálási deklarációja.": "This resource has no delegation declaration.",
   "Feltöltve, mentésre vár": "Uploaded, waiting for save",
   "Legfeljebb {count} fájl adható meg.": "At most {count} files can be given.",
-  "{count} / {limit} fájl": "{count} / {limit} files"
+  "{count} / {limit} fájl": "{count} / {limit} files",
+  "Ablak maximalizálása": "Maximize window",
+  "Ablak visszaállítása": "Restore window"
 }

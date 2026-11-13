@@ -164,6 +164,10 @@ final class Application
                 $bootstrap['csrf'] = $csrf;
                 $bootstrap['live'] = $definition->live->metadata();
             }
+            // Menu-row commands offered to the actor; `attention` only names a view the actor is offered.
+            $views = array_column($bootstrap['views'] ?? [], 'id');
+            $commands = array_values(array_filter(array_map(static fn($command) => $command->project($actor, $views), $definition->menuCommands)));
+            if ($commands) $bootstrap['menuCommands'] = $commands;
         }
         session_write_close();
         require dirname(__DIR__, 2).'/templates/shell.php';

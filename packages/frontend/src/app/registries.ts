@@ -1,4 +1,4 @@
-import type { Application, ClientCommand, ColumnMetadata, CommandContext, ColumnPresentation, FieldMetadata, FieldType, MediaType, PresentationSize, RegisterOptions, Registry, Row } from "../api/types";
+import type { Application, ClientCommand, MenuCommand, ColumnMetadata, CommandContext, ColumnPresentation, FieldMetadata, FieldType, MediaType, PresentationSize, RegisterOptions, Registry, Row } from "../api/types";
 
 /** Registry and view names: lower-case start, then `a-z 0-9 _ . -`. */
 export const NAME = /^[a-z][a-z0-9_.-]*$/;
@@ -40,7 +40,7 @@ export const extensions: {
   app?: Application;
   presentations?: Registry<ColumnPresentation>;
   fieldTypes?: Registry<FieldType>;
-  commands?: Registry<ClientCommand>;
+  commands?: Registry<ClientCommand | MenuCommand>;
   mediaTypes?: Registry<MediaType>;
 } = {};
 
@@ -109,15 +109,17 @@ export const commandId = (name: string) => "blade-command:" + name;
 /**
  * The client commands a list shows: `builtin` names first (framework rules decide them), then the view's declared
  * `commands` in order. An unregistered name, an entry without `run` (a toggle: with a `toolbar` placement and an optional
- * `toggle` function), without a `toolbar`/`record` placement or with a non-boolean `pinned` is skipped
+ * `toggle` function), without a `toolbar`/`record` placement (a `menu` command too) or with a non-boolean `pinned` is skipped
  * with one warning; a duplicate name appears once. A built-in
  * name falls back to `fallback` when no registry is bound (fixtures).
  */
-export function resolveCommands(builtin: string[], declared: unknown, registry: Registry<ClientCommand> | undefined, fallback: Record<string, ClientCommand> = {}): ListCommand[] {
+export function resolveCommands(builtin: string[], declared: unknown, registry: Registry<ClientCommand | MenuCommand> | undefined, fallback: Record<string, ClientCommand> = {}): ListCommand[] {
   const names = [...builtin, ...(Array.isArray(declared) ? declared.filter((name): name is string => typeof name === "string") : [])];
   const out: ListCommand[] = [];
   for (const name of new Set(names)) {
-    const entry = registry?.get(name) ?? (builtin.includes(name) && !registry ? fallback[name] : undefined);
+    const found = registry?.get(name) ?? (builtin.includes(name) && !registry ? fallback[name] : undefined);
+    // A menu-row command (`placement: "menu"`) is not a list command.
+    const entry = found?.placement === "menu" ? undefined : found as ClientCommand | undefined;
     const toggle = entry?.type === "toggle";
     if (!entry || (entry.type !== undefined && entry.type !== "button" && !toggle) || (toggle ? entry.placement !== "toolbar" || (entry.toggle !== undefined && typeof entry.toggle !== "function") : typeof entry.run !== "function")
       || (entry.placement !== "toolbar" && entry.placement !== "record") || (entry.pinned !== undefined && typeof entry.pinned !== "boolean")) { warnOnce("command", name); continue; }

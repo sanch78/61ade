@@ -27,7 +27,8 @@ const entry=(page,count)=>page.getByRole('menuitem',{name:count?`Jóváhagyások
 
 test('count, tone and accessible name on the entry and its branch; live changes; zero restores the plain entry',async({page})=>{
  const failures=[];page.on('pageerror',error=>failures.push(error.message));
- await page.setViewportSize({width:1366,height:900});
+ // Wide enough for the full menu beside the demo's menu command `Munkaasztal` (docs/shell.md#menu-commands).
+ await page.setViewportSize({width:1600,height:900});
  await signIn(page);
  const count=pending();
  expect(count).toBe(seeded.length+2);

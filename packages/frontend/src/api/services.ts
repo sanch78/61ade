@@ -7,6 +7,7 @@ import { Realtime, type LiveChannel } from "../Realtime";
 import { NAME } from "../app/registries";
 import { signalOf, tieTo } from "./Events";
 import { prepareCell } from "../components/Lifecycle";
+import { UiPreferences, type WindowGeometry } from "../UiPreferences";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
 
 /**
@@ -125,22 +126,45 @@ export function attachContent(target: { attach(content: any): unknown; attachHTM
   place();
 }
 
-/** A framework document window (`Ui.window`, record views with `open: "window"`); full screen below 768 px. */
-export function openWindow(options: WindowOptions & { css?: string }): AppWindow {
+/** The workspace between the menu row and the lower bar: a maximized window's box (the viewport without a shell). */
+function workspaceBox(): { left: number; top: number; width: number; height: number } {
+  const box = document.querySelector<HTMLElement>(".blade-workspace")?.getBoundingClientRect();
+  return box && box.width > 0 && box.height > 0 ? { left: box.left, top: box.top, width: box.width, height: box.height } : { left: 0, top: 0, width: innerWidth, height: innerHeight };
+}
+
+/** $box inside the viewport with a 12 px margin, its size at most the viewport minus 24 px. */
+function clampBox(box: { left: number; top: number; width: number; height: number }) {
+  const width = Math.min(box.width, innerWidth - 24), height = Math.min(box.height, innerHeight - 24);
+  return { width, height, left: Math.max(12, Math.min(box.left, innerWidth - width - 12)), top: Math.max(12, Math.min(box.top, innerHeight - height - 12)) };
+}
+
+/**
+ * A framework document window (`Ui.window`, record views with `open: "window"`); full screen below 768 px. `user`
+ * keys a remembered window (`id`) like the other UI preferences.
+ */
+export function openWindow(options: WindowOptions & { css?: string }, user = ""): AppWindow {
   const maxHeight = options.maxHeight ?? FIT_MAX_HEIGHT;
   if (typeof maxHeight !== "number" || Number.isNaN(maxHeight) || maxHeight < 120) throw new TypeError("61ade: window `maxHeight` is a number of px from 120 (Infinity: the viewport).");
   const { titleOverflow = "end", titlePrefix } = options;
   if (titleOverflow !== "end" && titleOverflow !== "start") throw new TypeError('61ade: window `titleOverflow` is "end" or "start".');
   if (titlePrefix !== undefined && typeof titlePrefix !== "string") throw new TypeError("61ade: window `titlePrefix` is a plain text.");
   const shaped = titleOverflow === "start" || titlePrefix !== undefined, full = (text: string) => titlePrefix ? titlePrefix + " " + text : text;
+  const { id, maximizable = false } = options;
+  if (id !== undefined && (typeof id !== "string" || !NAME.test(id))) throw new TypeError("61ade: window `id` is the preference key ([a-z][a-z0-9_.-]*).");
+  if (typeof maximizable !== "boolean") throw new TypeError("61ade: window `maximizable` is a boolean.");
   const mobile = innerWidth < 768, controller = new AbortController();
+  // A remembered window (FB-0199) opens where it was left, clamped to the viewport; a phone's full-screen window has
+  // no geometry of its own. The `window:` prefix cannot be a view id, so it never meets a list's preferences.
+  const remembered = id !== undefined && !mobile ? new UiPreferences(user, "window:" + id) : undefined;
+  const saved = remembered?.window(), start = saved && clampBox(saved);
   const win = new Window({ css: options.css ?? "blade-content-window", title: escape(options.title), ariaLabel: full(options.title),
-    width: mobile ? innerWidth : Math.min(options.width ?? 720, innerWidth - 24), height: mobile ? innerHeight : Math.min(options.height ?? 560, innerHeight - 24),
+    width: mobile ? innerWidth : start?.width ?? Math.min(options.width ?? 720, innerWidth - 24), height: mobile ? innerHeight : start?.height ?? Math.min(options.height ?? 560, innerHeight - 24),
     modal: options.modal ?? true, closable: true, resizable: !mobile && (options.resizable ?? true), movable: !mobile });
   let closed = false;
   const finish = () => { if (closed) return; closed = true; controller.abort(); void awaitRedraw().then(() => win.destructor()); };
   win.events.on("afterHide", finish);
-  const fit = options.fit !== false && !mobile;
+  // A remembered size is the user's: the window no longer fits its content.
+  const fit = options.fit !== false && !mobile && !saved;
   // Suite's `Window.attach` and `attachHTML` fill this cell; content goes to it directly, so it can be emptied
   // (`detach`) between HTML and a widget.
   const cell = (win as unknown as { _layout: Layout })._layout.getCell("content");
@@ -173,7 +197,42 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
     // A window that does not fit (`fit: false`, a full-screen phone window) keeps its size, also when its content asks.
     fit: () => closed || !fit ? Promise.resolve() : fitWindow(win, maxHeight),
     close() { if (closed) return; if (win.isVisible()) win.hide(); else finish(); },
+    get maximized() { return maximized; },
+    maximize(next) { toggle(next === true); },
   };
+  // Maximize/restore (FB-0199): the maximized window fills the workspace, so the menu row stays reachable; the restored
+  // box is kept (and remembered) while it is maximized. Phones have no button: their window is full screen.
+  const zoomable = maximizable && !mobile;
+  let maximized = false, restored: WindowGeometry | undefined;
+  const box = () => ({ ...win.getPosition(), ...win.getSize() });
+  const remember = () => { if (remembered && !closed) remembered.setWindow({ ...(maximized ? restored! : box()), maximized }); };
+  const fill = () => { const area = workspaceBox(); win.setSize(area.width, area.height); win.setPosition(area.left, area.top); };
+  const label = () => t(maximized ? "Ablak visszaállítása" : "Ablak maximalizálása");
+  const toggle = (next: boolean) => {
+    if (!zoomable || closed || next === maximized) return;
+    if (next) restored = { ...box(), maximized: false };
+    maximized = next;
+    if (next) fill(); else { const back = clampBox(restored!); win.setSize(back.width, back.height); win.setPosition(back.left, back.top); }
+    win.config.movable = !next;
+    dialog()?.classList.toggle("blade-window--maximized", next);
+    win.header?.data.update("blade-maximize", { icon: next ? "dxi dxi-arrow-collapse" : "dxi dxi-arrow-expand", tooltip: label() });
+    remember();
+  };
+  if (zoomable) {
+    const header = win.header;
+    header?.data.add({ id: "blade-maximize", type: "button", view: "link", size: "medium", color: "secondary", circle: true, icon: "dxi dxi-arrow-expand", tooltip: label() }, header.data.getIndex("close"));
+    header?.events.on("click", (item: string | number) => { if (item === "blade-maximize") toggle(!maximized); });
+    win.events.on("headerDoubleClick", () => toggle(!maximized));
+    addEventListener("resize", () => { if (maximized) fill(); }, { signal: controller.signal });
+  }
+  // Only the user's drag (`move`) and resize handles (one side or corner; `setSize`/`setPosition` and the content fit
+  // report all four) are remembered, never the maximized box.
+  if (remembered) {
+    win.events.on("move", () => { if (!maximized) remember(); });
+    win.events.on("resize", (_state: unknown, _old: unknown, sides?: { left?: boolean; right?: boolean; top?: boolean; bottom?: boolean }) => {
+      if (!maximized && sides && !(sides.left && sides.right && sides.top && sides.bottom)) remember();
+    });
+  }
   // Suite closes only a modal window on Escape; a non-modal one closes while the focus is inside it (FB-0155). An
   // Escape already taken (a menu or popup inside the window closed first) is left alone.
   if (!(options.modal ?? true)) document.addEventListener("keydown", event => {
@@ -181,7 +240,8 @@ export function openWindow(options: WindowOptions & { css?: string }): AppWindow
     const dialog = win.getContainer()?.closest<HTMLElement>('[role="dialog"]');
     if (dialog && document.activeElement && dialog.contains(document.activeElement)) { event.preventDefault(); api.close(); }
   }, { signal: controller.signal });
-  win.show();
+  if (start) win.show(start.left, start.top); else win.show();
+  if (saved?.maximized) toggle(true);
   if (shaped) {
     showTitle(title);
     const observer = new ResizeObserver(tooltip), box = dialog();

@@ -121,6 +121,15 @@ try {
         $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
         rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid application module path accepted: '.json_encode($bad));
     }
+    // Menu-row commands (docs/shell.md#menu-commands): `visible` names an identity binding.
+    verify($app->menuCommands === [], 'No menu commands by default');
+    $write([...$settings, 'application' => [...$settings['application'], 'menu_commands' => [['id' => 'app.workbench', 'label' => 'Munkaasztal', 'icon' => 'dxi dxi-pencil', 'tooltip' => 'Nyitva marad', 'emphasized' => false, 'visible' => 'app.members']]]]);
+    $commanded = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active'], 'app.members' => static fn() => true], $callbacks, $db)->menuCommands;
+    verify(count($commanded) === 1 && $commanded[0]->id === 'app.workbench' && $commanded[0]->tooltip === 'Nyitva marad' && $commanded[0]->emphasized === false && $commanded[0]->visible instanceof Closure && ($commanded[0]->project($actor, [])['label'] ?? null) === 'Munkaasztal', 'JSON application.menu_commands');
+    foreach ([['menu_commands' => ['id' => 'app.x', 'label' => 'X']], ['menu_commands' => [['id' => 'workbench', 'label' => 'X']]], ['menu_commands' => [['id' => 'app.x', 'label' => 'X', 'emphasized' => 'yes']]], ['menu_commands' => [['id' => 'app.x', 'label' => 'X', 'color' => 'red']]], ['menu_commands' => [['id' => 'app.x', 'label' => 'X', 'visible' => 'app.unknown']]], ['menu_commands' => [['id' => 'app.x', 'label' => 'X', 'attention' => 'tasks']]]] as $bad) {
+        $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
+        rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid JSON menu command accepted: '.json_encode($bad));
+    }
     // Session cookie policy and client-address binding (docs/authentication.md#cookie-samesite): opt-in session keys.
     verify($app->sameSite === 'Lax' && $app->bindSessionToClientAddress === false, 'Lax and unbound sessions by default');
     $write([...$settings, 'session' => [...$settings['session'], 'same_site' => 'Strict', 'bind_to_client_address' => true]]);

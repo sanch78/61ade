@@ -1,6 +1,7 @@
 import { AdminShell, type ShellDefinition } from "./AdminShell";
 import { releaseSplash } from "./Splash";
 import { installSuiteLabels } from "./SuiteLabels";
+import { installWindowEscape } from "./WindowEscape";
 import "@dhtmlx/suite/codebase/suite.min.css";
 import "./themes/blade-chrome.css";
 import "./admin.css";
@@ -13,6 +14,8 @@ import "./splash.css";
 // Suite's English-only names (a collapsable header, a window's close button) in the page's language, on every page
 // that loads the bundle, with or without the shell (FB-0155).
 installSuiteLabels();
+// A modal window above a non-modal one closes on Escape, which Suite leaves undone (FB-0199).
+installWindowEscape();
 const root = document.querySelector<HTMLElement>("#blade-application");
 const command = document.querySelector<HTMLFormElement>("#blade-command");
 const config = document.querySelector("#blade-config");

@@ -71,8 +71,11 @@ export interface Application {
   readonly presentations: Registry<ColumnPresentation>;
   /** Field editors: name → form item factory and display renderer (`field.editor`); no built-in entries. */
   readonly fieldTypes: Registry<FieldType>;
-  /** Client-side commands: name → handler, placed on list toolbars (`ListKindOptions.commands`). Built-in `details`. */
-  readonly commands: Registry<ClientCommand>;
+  /**
+   * Client-side commands: name → handler, placed on list toolbars (`ListKindOptions.commands`, `ClientCommand`) or in
+   * the menu row (a server-declared `MenuCommand` with `placement: "menu"`). Built-in `details`.
+   */
+  readonly commands: Registry<ClientCommand | MenuCommand>;
   /**
    * Media types: name → label and fallback icon of files by MIME type (media slots, the derived `type` column, file
    * pickers, activation). Built-ins `image`, `video`, `audio` (`image/*`, `video/*`, `audio/*`); a project adds its own
@@ -257,8 +260,24 @@ export interface WindowOptions {
   /** Default true. Either way Escape closes the window while the focus is inside it (a modal one: Suite's own key). */
   modal?: boolean;
   resizable?: boolean;
-  /** Aborting it closes the window (pass `host.signal` so the window closes with its view). */
+  /**
+   * Aborting it closes the window (pass `host.signal` so the window closes with its view). Without it a window stays
+   * open across view navigation, Back/Forward and record windows, keeping its content, until its close button, Escape,
+   * `close()`, sign-out or a tenant switch (docs/toolkit.md#long-lived-windows).
+   */
   signal?: AbortSignal;
+  /**
+   * Adds a maximize/restore button before the close button (`Ablak maximalizálása` / `Ablak visszaállítása`; a
+   * header double-click toggles too): maximized, the window fills the workspace between the menu row and the lower
+   * bar, so the menu stays reachable. Not below 768 px, where the window is full screen anyway. Default false.
+   */
+  maximizable?: boolean;
+  /**
+   * Remembers the window's size, position and maximized state per user and page path under this id (like `Tabs` `id`,
+   * `[a-z][a-z0-9_.-]*`): the next window with the id opens as it was left, clamped to the viewport. Phones (full screen)
+   * neither read nor write it. Without it the window opens at `width`/`height`, centred. An invalid id throws `TypeError`.
+   */
+  id?: string;
 }
 
 /**
@@ -283,6 +302,10 @@ export interface AppWindow {
   fit(): Promise<void>;
   /** Closes and destroys the window; idempotent. */
   close(): void;
+  /** Maximized (`maximizable` windows only; a phone's full-screen window is not maximized). */
+  readonly maximized: boolean;
+  /** Maximizes (`true`) or restores (`false`) a `maximizable` window; nothing for another window or below 768 px. */
+  maximize(maximized: boolean): void;
 }
 
 /** Dialogs, toasts, windows and cell content (over `MessageDialog.ts`, Suite `message` and `WindowSizing.ts`). */
@@ -1119,6 +1142,24 @@ export interface ClientCommand {
   pinned?: boolean;
   /** A toggle's action after every user change, with the new state (the list's `toggle` event follows it). */
   toggle?(context: ToggleContext): void | Promise<void>;
+}
+
+/** Context of a menu-row command's run. */
+export interface MenuCommandContext {
+  readonly app: Application;
+  /** The view open on the workspace page (not one in a window), or `undefined` on the empty workspace. */
+  readonly view?: ViewDefinition;
+}
+
+/**
+ * The handler of an application command of the menu row (docs/shell.md#menu-commands). The server declares the entry
+ * (PHP `MenuCommand`, JSON `application.menu_commands`): its label, icon, tooltip, tone, visibility and attention; the
+ * entry shows once a module registers this handler under the declared id. A run does not change the address or the
+ * open view; a rejection shows the error dialog. Anything it changes on the server goes through `app.server.call`.
+ */
+export interface MenuCommand {
+  placement: "menu";
+  run(context: MenuCommandContext): void | Promise<void>;
 }
 
 /** Context of a toggle command's change: the list's own context (never a sub-view's) and the new state. */

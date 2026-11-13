@@ -30,7 +30,7 @@ final class JsonApplication
         $session = $config->section('session');
         $live = $config->section('live');
         $workspace = $config->section('workspace');
-        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'any', 'sign_in_stylesheets' => 'array', 'sign_in' => 'array', 'sign_in_modules' => 'array', 'guides' => 'array', 'menu_separators' => 'array', 'public_identity' => 'string'], '$.application');
+        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'any', 'sign_in_stylesheets' => 'array', 'sign_in' => 'array', 'sign_in_modules' => 'array', 'guides' => 'array', 'menu_separators' => 'array', 'menu_commands' => 'array', 'public_identity' => 'string'], '$.application');
         if (isset($application['guides']) && array_is_list($application['guides']) && $application['guides'] !== []) throw new \InvalidArgumentException('Invalid configuration type: $.application.guides');
         // `false`: no logo (Logo::none()); an object, `image` optional (without it the product logo); absent: the default.
         $logo = $application['logo'] ?? null;
@@ -44,6 +44,16 @@ final class JsonApplication
                 if (!is_array($link)) throw new \InvalidArgumentException('Invalid configuration type: $.application.sign_in.links.'.$index);
                 Shape::check($link, ['label' => 'string', 'href' => 'string'], [], '$.application.sign_in.links.'.$index);
             }
+        }
+        // Menu-row commands (docs/shell.md#menu-commands): `visible` names an identity binding, Closure(Identity): bool.
+        $menuCommands = $application['menu_commands'] ?? [];
+        if (!array_is_list($menuCommands)) throw new \InvalidArgumentException('Invalid configuration type: $.application.menu_commands');
+        $visibility = new Bindings($identityBindings);
+        foreach ($menuCommands as $index => $command) {
+            if (!is_array($command)) throw new \InvalidArgumentException('Invalid configuration type: $.application.menu_commands.'.$index);
+            Shape::check($command, ['id' => 'string', 'label' => 'string'], ['icon' => 'string', 'tooltip' => 'string', 'emphasized' => 'boolean', 'visible' => 'string', 'attention' => 'string'], '$.application.menu_commands.'.$index);
+            $menuCommands[$index] = new \Blade\Navigation\MenuCommand($command['id'], $command['label'], $command['icon'] ?? null, $command['tooltip'] ?? null,
+                $command['emphasized'] ?? true, $visibility->get($command['visible'] ?? null), $command['attention'] ?? null);
         }
         Shape::check($session, ['name' => 'string', 'cookie_path' => 'string'], ['idle_timeout' => 'integer', 'cookie_lifetime' => 'integer', 'same_site' => 'string', 'bind_to_client_address' => 'boolean'], '$.session');
         Shape::check($live, [
@@ -118,6 +128,7 @@ final class JsonApplication
             // View guides by view id, the framework's own views too (docs/workspaces.md#view-guide).
             guides: $application['guides'] ?? [],
             menuSeparators: $application['menu_separators'] ?? [],
+            menuCommands: $menuCommands,
             publicIdentity: $application['public_identity'] ?? null,
             documentRoot: match ($application['document_root'] ?? null) { null => null, '' => '', default => $config->path($application['document_root']) },
         );
