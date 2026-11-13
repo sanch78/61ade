@@ -9086,8 +9086,15 @@ that exactly equals an option label lists every option. The managed
   100 px from the right edge lies within 8–382 px with `scrollWidth` 390, and
   at 1366 px it keeps an edge on the anchor's. The original 390 px test used
   only anchors where Suite's alignment fits. With the fix, the spec passed 5 of 5 on the managed demo (the served build also held another session's uncommitted icon work); `npm run typecheck`, `npm run build`, `npm run demo:assets` passed. The new case was not run against the build before the fix; the consumer's measurement is the evidence of the defect.
-- **Status:** implemented and verified on the managed demo; consumer
-  migration (StoryBloX replaces its interim menu) pending.
+- **Consumer verification (2026-11-13):** StoryBloX adopted `e300479`: its
+  local menu left `workshop.js`, and `Előzmények`, the model picker and the
+  thread's ⋮ menu use `app.ui.menu` (StoryBloX `3f08bc1`, its complete browser
+  suite 21/21). After `0ab8964` it confirmed the right-hand `Előzmények` menu
+  within the viewport at 390 px with no sideways scroll; its
+  `tests/workshop.spec.cjs` asserts this (2/2). Both requests are marked
+  resolved there. Its rules page's `Mód` popover stays local: its card
+  buttons are redrawn on every update, and a menu is bound to one element.
+- **Status:** implemented, verified on the managed demo and by the consumer.
 
 <a id="fb-0204"></a>
 
