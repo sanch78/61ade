@@ -57,6 +57,24 @@ class AnchoredMenu extends ContextMenu {
     this.visible = true;
     current = this;
   }
+  /**
+   * Suite asks for the mode after inserting the list and before placing it, from this rectangle (held by reference).
+   * It aligns the list's left edge with the anchor's, or its right edge, whichever fits; when neither does (a wide
+   * list at a right-hand button on a phone) it would keep the left edge and run past the viewport. Then the list is
+   * placed as far right-aligned to the anchor as the viewport allows, 8 px from its edges.
+   */
+  protected _getMode(item: any, root: any, active: boolean): "bottom" | "right" {
+    const mode = super._getMode(item, root, active), at = this._activePosition;
+    const list = this.popup?.querySelector<HTMLElement>('[role="menu"]');
+    if (active && at && list) {
+      const width = list.getBoundingClientRect().width, start = scrollX, end = scrollX + document.documentElement.clientWidth;
+      if (at.left + width > end && at.right - width < start) {
+        const left = Math.max(start + 8, Math.min(at.right - width, end - 8 - width));
+        Object.assign(at, { left, right: left + width });
+      }
+    }
+    return mode;
+  }
   /** Closes the open popup as an outside click would. */
   shut(): void { if (this.visible || this._popupActive) this._close(new MouseEvent("click")); }
   protected _close(event: MouseEvent | TouchEvent): void {

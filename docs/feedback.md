@@ -9073,6 +9073,19 @@ that exactly equals an option label lists every option. The managed
   `toolkit-media`, `toolkit-menu`, `toolkit-registries`, `toolkit-sandbox`,
   `dialogs`, `suite-labels`, `menu-commands` and `modal-windows`, 78 passed.
   No full-smoke claim.
+- **Follow-up (2026-11-13, consumer report after adopting `e300479`):** at
+  390 × 844 a wide menu at a right-hand icon button (StoryBloX `Előzmények`,
+  x 246, 371 px wide) opened with its left edge on the anchor and ran to
+  617 px, so the page scrolled sideways. Suite aligns the list's left or right
+  edge with the anchor's, whichever fits, and otherwise keeps the left edge.
+  `AnchoredMenu._getMode` (Suite asks for the mode after inserting the list and
+  before placing it, from the anchor rectangle it holds by reference) now
+  moves that rectangle in exactly this case, so the list is right-aligned to
+  the anchor and clamped 8 px inside the viewport. Verified by a new case in
+  `toolkit-menu.spec.cjs`: a five-entry list of long titles at a 44 px button
+  100 px from the right edge lies within 8–382 px with `scrollWidth` 390, and
+  at 1366 px it keeps an edge on the anchor's. The original 390 px test used
+  only anchors where Suite's alignment fits. With the fix, the spec passed 5 of 5 on the managed demo (the served build also held another session's uncommitted icon work); `npm run typecheck`, `npm run build`, `npm run demo:assets` passed. The new case was not run against the build before the fix; the consumer's measurement is the evidence of the defect.
 - **Status:** implemented and verified on the managed demo; consumer
   migration (StoryBloX replaces its interim menu) pending.
 
