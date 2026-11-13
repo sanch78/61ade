@@ -134,11 +134,11 @@ export class MediaPlayer implements MediaPlayerContract {
     if (this.kind === "image") {
       const percent = (scale: number) => new Intl.NumberFormat(locale(), { style: "percent", maximumFractionDigits: 0 }).format(scale);
       return [
-        { id: "zoom-out", icon: "dxi dxi-minus", tooltip: t("Kicsinyítés") },
+        { id: "zoom-out", icon: "bi bi-dash-lg", tooltip: t("Kicsinyítés") },
         { id: "zoom", value: t("Illesztés"), items: [{ id: "zoom:fit", value: t("Illesztés") }, ...[0.5, 1, 2].map(level => ({ id: "zoom:" + level, value: percent(level) }))] },
-        { id: "zoom-in", icon: "dxi dxi-plus", tooltip: t("Nagyítás") },
+        { id: "zoom-in", icon: "bi bi-plus-lg", tooltip: t("Nagyítás") },
         { type: "separator" },
-        { id: "rotate", icon: "dxi dxi-rotate-right", tooltip: t("Forgatás jobbra") },
+        { id: "rotate", icon: "bi bi-arrow-clockwise", tooltip: t("Forgatás jobbra") },
         { type: "spacer" },
       ];
     }

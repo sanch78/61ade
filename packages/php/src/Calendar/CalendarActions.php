@@ -46,9 +46,9 @@ final class CalendarActions
         $actions = [
             new Action($resource, 'events', 'Események', $range, fn(Context $ctx, array $target, array $values) => $this->events($ctx, $values), resolve: $space),
             new Action($resource, 'occurrences', 'Előfordulások', $range, fn(Context $ctx, array $target, array $values) => $this->occurrences($ctx, $values), resolve: $space),
-            new Action($resource, 'create', 'Új esemény', $event, fn(Context $ctx, array $target, array $values) => $this->save($ctx->db, null, $values), resolve: $space, write: true, icon: 'dxi dxi-plus'),
-            new Action($resource, 'update', 'Esemény mentése', [...$event, $revision], fn(Context $ctx, array $target, array $values) => $this->save($ctx->db, $target['row'], $values), resolve: $entry, write: true, icon: 'dxi dxi-content-save'),
-            new Action($resource, 'delete', 'Esemény törlése', [$revision], fn(Context $ctx, array $target, array $values) => $this->delete($ctx->db, $target['row'], $values['revision']), resolve: $entry, write: true, icon: 'dxi dxi-delete'),
+            new Action($resource, 'create', 'Új esemény', $event, fn(Context $ctx, array $target, array $values) => $this->save($ctx->db, null, $values), resolve: $space, write: true, icon: 'bi bi-plus-lg'),
+            new Action($resource, 'update', 'Esemény mentése', [...$event, $revision], fn(Context $ctx, array $target, array $values) => $this->save($ctx->db, $target['row'], $values), resolve: $entry, write: true, icon: 'bi bi-floppy'),
+            new Action($resource, 'delete', 'Esemény törlése', [$revision], fn(Context $ctx, array $target, array $values) => $this->delete($ctx->db, $target['row'], $values['revision']), resolve: $entry, write: true, icon: 'bi bi-trash'),
         ];
         foreach ($actions as $action) $registry->add($action);
         $registry->calendar($resource, $this->definition->title, array_map(static fn($action) => $action->name, $actions), $this->definition->fields, $this->definition->metadata(), $this->definition->group, $this->definition->icon, $this->definition->desktopOnly, guide: $this->definition->guide);

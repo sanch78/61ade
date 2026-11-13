@@ -221,12 +221,12 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     if (next) fill(); else { const back = clampBox(restored!); win.setSize(back.width, back.height); win.setPosition(back.left, back.top); }
     win.config.movable = !next;
     dialog()?.classList.toggle("blade-window--maximized", next);
-    win.header?.data.update("blade-maximize", { icon: next ? "dxi dxi-arrow-collapse" : "dxi dxi-arrow-expand", tooltip: label() });
+    win.header?.data.update("blade-maximize", { icon: next ? "bi bi-arrows-angle-contract" : "bi bi-arrows-angle-expand", tooltip: label() });
     remember();
   };
   if (zoomable) {
     const header = win.header;
-    header?.data.add({ id: "blade-maximize", type: "button", view: "link", size: "medium", color: "secondary", circle: true, icon: "dxi dxi-arrow-expand", tooltip: label() }, header.data.getIndex("close"));
+    header?.data.add({ id: "blade-maximize", type: "button", view: "link", size: "medium", color: "secondary", circle: true, icon: "bi bi-arrows-angle-expand", tooltip: label() }, header.data.getIndex("close"));
     header?.events.on("click", (item: string | number) => { if (item === "blade-maximize") toggle(!maximized); });
     win.events.on("headerDoubleClick", () => toggle(!maximized));
     addEventListener("resize", () => { if (maximized) fill(); }, { signal: controller.signal });

@@ -32,7 +32,7 @@
             "view": {
                 "title": "Mérések",
                 "group": "Feature demó",
-                "icon": "dxi dxi-table-check",
+                "icon": "bi bi-table",
                 "columns": [
                     {
                         "id": "title",
@@ -66,7 +66,7 @@
                 "buckets": 10
             },
             "group": "Feature demó",
-            "icon": "dxi dxi-chart-vertical",
+            "icon": "bi bi-bar-chart",
             "guide": "Egy projekt által regisztrált saját nézettípus a Mérések adatain: lista, diagram és összesítő egy oldalon.\n\nJelölj ki egy sort vagy szűrj a listában: a diagram és az összesítő követi. Ez a toolkit bővíthetőségének mintapéldája, a nyilvános komponensekből összeállítva."
         }
     }

@@ -92,6 +92,12 @@ that covers the need.
    or markup injection with these options. A public application's skin stays
    behind its sign-in steps; login-only pages have no skin before sign-in.
 
+Use the bundled [Bootstrap Icons catalog](../../../docs/icons.md) in every
+`icon` slot (`bi bi-<name>`, for example `bi bi-camera-video`). Check that
+catalog before requesting a missing icon or adding a separate icon library.
+Record icon fields map those class values to translated names in `options`.
+No extra CSS, font files or Bootstrap framework are needed.
+
 ## 3. Add a project module
 
 Follow [module loading](../../../docs/toolkit.md#module-loading). The

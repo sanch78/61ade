@@ -37,7 +37,7 @@ final readonly class CalendarDefinition
         public int $maxRangeDays = 62,
         public ?array $dayAction = null,
         public ?string $group = null,
-        public ?string $icon = 'dxi dxi-calendar-today',
+        public ?string $icon = 'bi bi-calendar-event',
         public bool $desktopOnly = false,
         /** The view's guide text (Blade\Feature\View $guide). */
         public ?string $guide = null,

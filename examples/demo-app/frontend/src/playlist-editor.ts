@@ -20,7 +20,7 @@ interface Settings { transition: string; transition_ms: number }
 
 const KIND = "demo.playlist-editor";
 /** The `status` icon of an item that plays today (signage.json `signage_playlist_items.status`). */
-const PLAYING = "dxi dxi-check";
+const PLAYING = "bi bi-check-lg";
 /** The library's columns in the editor: what helps to pick an asset. */
 const LIBRARY_COLUMNS = ["file_id", "title", "media_type", "media_length", "duration"];
 
@@ -51,7 +51,7 @@ function editor(app: Application, host: ViewHost, view: ViewDefinition<EditorOpt
       title: t("Nem mentett módosítások"), message: t("A lista beállításainak nem mentett módosításai elvesznek."), confirmLabel: t("Elvetés") }) });
   host.attach(page);
 
-  const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a listához"), icon: "dxi dxi-arrow-left" }] });
+  const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a listához"), icon: "bi bi-arrow-left" }] });
   bar.on("click", ({ id }) => { if (id === "back" && !app.navigate({ view: listView })) host.close(); });
   bar.mount(page.cell("commands"));
 
@@ -126,7 +126,7 @@ const playlistEditor: ApplicationModule = app => {
   app.kinds.register(KIND, { create: (host, view: ViewDefinition<EditorOptions>) => editor(app, host, view) });
   // `Lista szerkesztése` on the Lejátszási listák toolbar: opens the editor for the cursor playlist.
   app.commands.register("demo.edit-playlist", {
-    label: "Lista szerkesztése", icon: "dxi dxi-pencil", placement: "record",
+    label: "Lista szerkesztése", icon: "bi bi-pencil", placement: "record",
     enabled: ({ row, rows }) => rows.length <= 1 && !!row && !!app.viewDefinition(KIND),
     run: ({ app, row }) => { if (row) app.navigate({ view: KIND, record: String(row.id) }); },
   });

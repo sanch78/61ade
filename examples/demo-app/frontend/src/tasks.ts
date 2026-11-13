@@ -113,7 +113,7 @@ const tasks: ApplicationModule = app => {
 
   app.commands.register("demo.copy-text", {
     label: "Másolás szövegként",
-    icon: "dxi dxi-copy",
+    icon: "bi bi-copy",
     placement: "record",
     // The cursor record, or every marked task when there are marks.
     enabled: ({ row, rows }) => !!row || rows.length > 0,

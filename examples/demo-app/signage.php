@@ -133,7 +133,7 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
     $calendar->register($workspace);
     $workspace->registry->add(new Action('signage_playlist', 'day', 'Napi műsor', [
         new Field('date', 'Dátum', 'date', required: true, max: 10),
-    ], static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_playlist($ctx, $calendar, $values['date']), resolve: static fn() => ['id' => null, 'owner' => null], icon: 'dxi dxi-calendar-today'));
+    ], static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_playlist($ctx, $calendar, $values['date']), resolve: static fn() => ['id' => null, 'owner' => null], icon: 'bi bi-calendar-event'));
     // Toolkit D2: the code of a scene asset for the playlist preview, which runs it in a SandboxFrame. Only a scene file the
     // actor could also read through the file manager (`content_stream` on its mount) is served; nothing else.
     $workspace->registry->add(new Action('signage_playlist', 'scene', 'Jelenet kódja', [
@@ -146,7 +146,7 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
     $workspace->registry->addView(new View('demo.playlist-preview', 'demo.playlist-preview', 'Napi műsor', resource: 'signage_playlist',
         actions: ['day', 'scene'], options: ['media' => 'files',
             'layout' => ['rows' => [['id' => 'commands', 'height' => 56], ['id' => 'player', 'header' => 'Előnézet']]]],
-        group: 'Digitális kijelző', icon: 'dxi dxi-menu-right',
+        group: 'Digitális kijelző', icon: 'bi bi-camera-video',
         guide: 'Projekt saját nézettípusa a keretrendszer nyilvános komponenseiből: a választott nap hézagmentes műsora a signage_playlist.day művelet válaszából, a közös lejátszóval; ahol nincs esemény, az alapértelmezett tartalom tölti ki a napot, a jelenetek homokozóban (SandboxFrame) futnak.'."\n\n".'Lépj a napok között, vagy válassz napot a Naptár… paranccsal, és nézd végig a műsort.'));
     // A list without a menu entry (`menu: false`, docs/toolkit.md#views): the playlist items of one asset, mounted by the
     // asset viewer (frontend/src/assets.ts) as a scoped ListView in its accordion; `#view=signage_asset_items` is refused.
@@ -168,7 +168,7 @@ function blade_demo_signage_register(Workspace $workspace, FileManagerDefinition
     // Upload as asset in one step: the shared uploader stores each file in the Signage mount and creates an asset.
     $workspace->registry->add(new Action('signage_assets', 'upload_asset', 'Feltöltés', [],
         static fn(Context $ctx, array $target, array $values): array => blade_demo_signage_upload($ctx, $files->files($ctx->db, $workspace->tasks)),
-        resolve: static fn() => ['id' => null, 'owner' => null], write: true, icon: 'dxi dxi-file-import',
+        resolve: static fn() => ['id' => null, 'owner' => null], write: true, icon: 'bi bi-upload',
         upload: new UploadPolicy(array_values(array_intersect($files->allowedExtensions, ['png', 'jpg', 'jpeg', 'mp4', 'webm', 'mp3', 'wav', 'm4a'])), $files->maxSizeBytes, $files->maxFiles,
             duplicatePolicy: 'rename', tempRoot: $files->temporaryRoot())));
     $workspace->registry->appendViewActions('signage_assets', ['upload_asset']);

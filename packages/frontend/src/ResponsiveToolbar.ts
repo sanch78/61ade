@@ -149,7 +149,7 @@ export class ResponsiveToolbar extends Toolbar {
       let id="blade-toolbar-back:"+item.id;
       while(this.data.exists(id)||this.backItems.has(id))id+=":";
       this.backItems.set(id,parent);
-      return {...item,items:[{id,hidden:true,value:t("Vissza"),icon:"dxi dxi-arrow-left"},...withBack(item.items,item.id)]};
+      return {...item,items:[{id,hidden:true,value:t("Vissza"),icon:"bi bi-arrow-left"},...withBack(item.items,item.id)]};
     });
     const menu=this.collapse?.id??"blade-command-menu";
     // Suite types a submenu's children as menu entries; an inline item's children are bar buttons in the wide bar.
@@ -158,7 +158,7 @@ export class ResponsiveToolbar extends Toolbar {
     this.data.removeAll();
     // With every item pinned the collapsed bar has no menu. A pinned item keeps its side: a spacer before a pinned item stays.
     const pinned=entries.filter((item,index)=>item.bladePinned||(item.type==="spacer"&&entries.slice(index+1).some(next=>next.bladePinned)));
-    this.data.parse(compact?[...(shown.length?[{id:menu,value:this.collapse?.value??t("Műveletek"),icon:this.collapse?.icon??"dxi dxi-view-grid",css:this.collapse?.css,tooltip:this.collapse?.value,items:menuEntries}]:[]),
+    this.data.parse(compact?[...(shown.length?[{id:menu,value:this.collapse?.value??t("Műveletek"),icon:this.collapse?.icon??"bi bi-grid",css:this.collapse?.css,tooltip:this.collapse?.value,items:menuEntries}]:[]),
       ...pinned]:menuEntries);
   }
   /**

@@ -255,7 +255,7 @@ test('details and cards render every media field and name an icon without option
  await page.addStyleTag({path:path.join(root,'packages/frontend/dist/admin.css')});await page.addScriptTag({content:bundle});
  await page.evaluate(()=>{
   const media=(id,name,mime_type,duration_ms)=>({id,name,mime_type,revision:'r',duration_ms,width:640,height:360,thumbnail:'none'});
-  const rows=[{id:'1',title:'Első',cover:'f1',clip:'f2',glyph:'dxi dxi-image-outline',revision:'r1',_actions:['get'],_media:{cover:media('f1','borito.jpg','image/jpeg',null),clip:media('f2','elozetes.webm','video/webm',6000)}}];
+  const rows=[{id:'1',title:'Első',cover:'f1',clip:'f2',glyph:'bi bi-image',revision:'r1',_actions:['get'],_media:{cover:media('f1','borito.jpg','image/jpeg',null),clip:media('f2','elozetes.webm','video/webm',6000)}}];
   window.fetch=async(_url,config)=>{
    const request=JSON.parse(config.body);let data;
    if(request.action==='list')data={items:rows,previous:null,next:null,version:'v1'};
@@ -271,7 +271,7 @@ test('details and cards render every media field and name an icon without option
  });
  await expect(page.locator('.dhx_grid-row').first()).toBeVisible();
  const glyph=page.locator('.dhx_grid-cell[data-dhx-col-id="glyph"] .blade-record-icon').first();
- await expect(glyph.locator('.blade-record-icon__label')).toHaveText('image outline');
+ await expect(glyph.locator('.blade-record-icon__label')).toHaveText('image');
  expect(await glyph.locator('.blade-record-icon__label').evaluate(e=>e.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
  await page.locator('.dhx_grid-cell[data-dhx-col-id="_number"]').first().dblclick();
  const details=page.getByRole('dialog',{name:'Rekordadatok',exact:true});
@@ -279,14 +279,14 @@ test('details and cards render every media field and name an icon without option
  await expect(details.getByRole('img',{name:'Videó: elozetes.webm, 0:06',exact:true})).toBeVisible();
  await expect(details).not.toContainText('f2');
  await expect(details.locator('.blade-record-icon')).toHaveAttribute('aria-hidden','true');
- await expect(details).toContainText('image outline');await expect(details).not.toContainText('dxi dxi-');
+ await expect(details).toContainText('image');await expect(details).not.toContainText('dxi dxi-');
  await details.getByRole('button',{name:/^(close|Ablak bezárása)$/}).click();
  // Cards: the first media field fills the slot on top, every further one is rendered in its own field.
  await page.getByRole('button',{name:/^Nézet:/}).click();await page.getByText('Kártyák',{exact:true}).click();
  const card=page.locator('.blade-grid-card').first();await expect(card).toBeVisible();
  await expect(card.locator('.blade-grid-card__media').getByRole('img',{name:'Kép: borito.jpg',exact:true})).toBeVisible();
  await expect(card.locator('dd').getByRole('img',{name:'Videó: elozetes.webm, 0:06',exact:true})).toBeVisible();
- await expect(card).toContainText('image outline');await expect(card).not.toContainText('f2');
+ await expect(card).toContainText('image');await expect(card).not.toContainText('f2');
  await page.evaluate(()=>workspace.destroy());expect(errors).toEqual([]);
 });
 // Independent synthetic consumer of phase U5 (no server): derived media columns (`mediaOf`/`part`) in
@@ -360,7 +360,7 @@ test('synthetic file field, derived media columns and usage-aware delete',async(
  await at('Videós','title').click();await page.getByRole('button',{name:'Módosítás',exact:true}).click();
  const form=page.getByRole('dialog',{name:'Médiatár — Módosítás'});await expect(form).toBeVisible();
  const name=form.locator('.blade-file-field__body input').first();
- await expect(name).toHaveValue('clip.webm');await expect(form.locator('.blade-file-field__media .dhx_avatar__preview-icon.dxi-menu-right')).toBeVisible();
+ await expect(name).toHaveValue('clip.webm');await expect(form.locator('.blade-file-field__media .dhx_avatar__preview-icon.bi-camera-video')).toBeVisible();
  await expect(form.getByRole('button',{name:'Fájl megadása…',exact:true})).toHaveCount(0);
  await expect(form.getByRole('button',{name:'Kiválasztás…',exact:true})).toHaveCount(0);
  await form.getByRole('button',{name:'Törlés',exact:true}).click();await expect(name).toHaveValue('');

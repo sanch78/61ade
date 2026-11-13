@@ -14,8 +14,8 @@ import type { ActionDefinition, FieldDefinition } from "./types";
 export const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 /** Rejection marker of a confirmation the user declined (no error dialog). */
 export const DECLINED=Symbol("declined");
-const ACTION_ICONS:Record<string,string>={create:"dxi dxi-plus",update:"dxi dxi-pencil",delete:"dxi dxi-delete",password:"dxi dxi-key",get:"dxi dxi-information-outline"};
-export const actionIcon=(action:Pick<ActionDefinition,"name"|"icon"|"upload">)=>action.icon??ACTION_ICONS[action.name]??(action.upload?"dxi dxi-file-import":"dxi dxi-check");
+const ACTION_ICONS:Record<string,string>={create:"bi bi-plus-lg",update:"bi bi-pencil",delete:"bi bi-trash",password:"bi bi-key",get:"bi bi-info-circle"};
+export const actionIcon=(action:Pick<ActionDefinition,"name"|"icon"|"upload">)=>action.icon??ACTION_ICONS[action.name]??(action.upload?"bi bi-upload":"bi bi-check-lg");
 /** Protocol values a command sends itself; an action with only these fields runs without a form. */
 export const technical=(field:FieldDefinition)=>field.name==="revision"||field.name==="preview"&&field.type==="checkbox";
 /** Whether a Suite Form item (or a nested `rows`/`cols` item of it) carries $name. */
@@ -188,7 +188,7 @@ export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>
       else{
         const open=fields.some(other=>other.section===field.section&&filled(other,values[other.name]));
         rows.push({css:"blade-form-section"+fill,rows:[
-          {type:"button",name:SECTION+n,text:field.section,view:"link",color:"secondary",icon:open?"dxi dxi-chevron-down":"dxi dxi-chevron-right",css:"blade-form-section__toggle"},
+          {type:"button",name:SECTION+n,text:field.section,view:"link",color:"secondary",icon:open?"bi bi-chevron-down":"bi bi-chevron-right",css:"blade-form-section__toggle"},
           {type:"fieldset",name:SECTION+n+"_body",css:BODY+(open?"":CLOSED),rows:body},
         ]});
       }
@@ -225,7 +225,7 @@ function bindSections(form:Form,fields:FieldDefinition[],signal:AbortSignal,togg
   const set=(n:number,open:boolean)=>{
     if(isOpen(n)===open)return false;
     (form.getItem(SECTION+n+"_body") as any).setProperties({css:BODY+(open?"":CLOSED)});
-    (form.getItem(SECTION+n) as any).setProperties({icon:open?"dxi dxi-chevron-down":"dxi dxi-chevron-right"});
+    (form.getItem(SECTION+n) as any).setProperties({icon:open?"bi bi-chevron-down":"bi bi-chevron-right"});
     return true;
   };
   const changed=()=>{decorate();void awaitRedraw().then(()=>{decorate();toggled?.();});};
@@ -448,7 +448,7 @@ const builtinInput=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type=
 export const formActions=(submit:{name:string;text:string;icon?:string;color?:string},cancel=true):any=>({
   css:"blade-form-actions",
   cols:[
-    ...(cancel?[{type:"button",name:"cancel",text:t("Mégse"),icon:"dxi dxi-close",view:"flat",color:"secondary",width:"content"}]:[]),
+    ...(cancel?[{type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"}]:[]),
     {type:"button",...submit,width:"content"},
   ],
 });

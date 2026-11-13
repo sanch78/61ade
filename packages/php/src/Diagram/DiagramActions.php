@@ -31,10 +31,10 @@ final class DiagramActions
         $actions = [
             new Action($resource, 'list', 'Diagramok', [], fn(Context $ctx, array $target) => $this->listing(), resolve: $space),
             new Action($resource, 'get', 'Diagram megnyitása', [], fn(Context $ctx, array $target) => $this->document($target['row']), resolve: $diagram),
-            new Action($resource, 'create', 'Új diagram', [$name], fn(Context $ctx, array $target, array $values) => $this->create($values['name']), resolve: $space, write: true, icon: 'dxi dxi-plus'),
+            new Action($resource, 'create', 'Új diagram', [$name], fn(Context $ctx, array $target, array $values) => $this->create($values['name']), resolve: $space, write: true, icon: 'bi bi-plus-lg'),
             new Action($resource, 'save', 'Mentés', [new Field('content', 'Tartalom', 'textarea', required: true, max: self::CONTENT_MAX), new Field('revision', 'Verzió', required: true, max: 20)],
-                fn(Context $ctx, array $target, array $values) => $this->save($target['row'], $values['content'], $values['revision']), resolve: $diagram, write: true, icon: 'dxi dxi-content-save'),
-            new Action($resource, 'delete', 'Diagram törlése', [], fn(Context $ctx, array $target) => $this->delete($target['row']), resolve: $diagram, write: true, icon: 'dxi dxi-delete',
+                fn(Context $ctx, array $target, array $values) => $this->save($target['row'], $values['content'], $values['revision']), resolve: $diagram, write: true, icon: 'bi bi-floppy'),
+            new Action($resource, 'delete', 'Diagram törlése', [], fn(Context $ctx, array $target) => $this->delete($target['row']), resolve: $diagram, write: true, icon: 'bi bi-trash',
                 confirm: ['message' => 'A diagram véglegesen törlődik.', 'title' => 'Diagram törlése', 'severity' => 'danger', 'confirm_label' => 'Törlés']),
         ];
         if ($this->definition->customTypes) {
@@ -43,8 +43,8 @@ final class DiagramActions
                 new Field('glyph', 'Ikon', 'select', required: true, options: DiagramDefinition::GLYPHS),
                 new Field('shape', 'Forma', 'select', required: true, options: DiagramDefinition::SHAPES),
                 new Field('color', 'Szín', required: true, max: 7, validation: ['pattern' => ['expression' => '^#[0-9a-f]{6}$', 'flags' => 'i', 'message' => 'Szín #rrggbb formában.']]),
-            ], fn(Context $ctx, array $target, array $values) => $this->createType($values), resolve: $space, write: true, icon: 'dxi dxi-plus-box');
-            $actions[] = new Action($resource, 'type_delete', 'Elemtípus törlése', [], fn(Context $ctx, array $target) => $this->deleteType($target['type']), resolve: fn(Context $ctx, ?string $id) => $this->customType($id), write: true, icon: 'dxi dxi-delete-outline');
+            ], fn(Context $ctx, array $target, array $values) => $this->createType($values), resolve: $space, write: true, icon: 'bi bi-plus-square');
+            $actions[] = new Action($resource, 'type_delete', 'Elemtípus törlése', [], fn(Context $ctx, array $target) => $this->deleteType($target['type']), resolve: fn(Context $ctx, ?string $id) => $this->customType($id), write: true, icon: 'bi bi-trash');
         }
         foreach ($actions as $action) $registry->add($action);
         $registry->diagram($resource, $this->definition->title, array_map(static fn($action) => $action->name, $actions), $this->definition->metadata(), $this->definition->group, $this->definition->icon, $this->definition->desktopOnly, guide: $this->definition->guide);

@@ -97,7 +97,7 @@ final readonly class View
         return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide, menu: $menu, attention: $attention, available: $available);
     }
 
-    /** A copy with the given constructor arguments replaced, e.g. `$view->with(icon: 'dxi dxi-key')`. */
+    /** A copy with the given constructor arguments replaced, e.g. `$view->with(icon: 'bi bi-key')`. */
     public function with(mixed ...$changes): self
     {
         return new self(...[...get_object_vars($this), ...$changes]);

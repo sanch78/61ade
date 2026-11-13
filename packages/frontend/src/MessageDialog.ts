@@ -21,9 +21,9 @@ export type DialogChoice = { value: string; label: string };
 
 // Distinct glyph per severity so meaning never depends on colour alone.
 const ICONS: Record<DialogSeverity, string> = {
-  neutral: '<circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7.2v.1" stroke-width="2.4"/>',
-  warning: '<path d="M12 3 22 20H2z"/><path d="M12 9.5v5M12 17.2v.1" stroke-width="2.4"/>',
-  danger: '<path d="M8 2h8l6 6v8l-6 6H8l-6-6V8z"/><path d="m9 9 6 6M15 9l-6 6" stroke-width="2.4"/>',
+  neutral: 'bi bi-info-circle',
+  warning: 'bi bi-exclamation-triangle',
+  danger: 'bi bi-x-octagon',
 };
 const open: { node: HTMLElement; close: (value: boolean | string, escaped?: boolean) => void }[] = [];
 
@@ -72,12 +72,11 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
 
   const header = document.createElement("div");
   header.className = "blade-dialog__header";
-  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const icon = document.createElement("span");
   icon.setAttribute("class", "blade-dialog__icon");
-  icon.setAttribute("viewBox", "0 0 24 24");
   icon.setAttribute("role", "img");
   icon.setAttribute("aria-label", severityLabel(severity));
-  icon.innerHTML = ICONS[severity];
+  icon.innerHTML = `<span class="${ICONS[severity]}" aria-hidden="true"></span>`;
   const heading = document.createElement("h2");
   heading.className = "blade-dialog__title";
   heading.id = `${id}-title`;
@@ -196,7 +195,7 @@ export function noticeMarkup(options: { title: string; message: string; severity
   box.setAttribute("role", "status");
   const header = document.createElement("div"), heading = document.createElement("h2"), body = document.createElement("div");
   header.className = "blade-dialog__header";
-  header.innerHTML = `<svg class="blade-dialog__icon" viewBox="0 0 24 24" role="img">${ICONS[severity]}</svg>`;
+  header.innerHTML = `<span class="blade-dialog__icon" role="img"><span class="${ICONS[severity]}" aria-hidden="true"></span></span>`;
   header.firstElementChild!.setAttribute("aria-label", severityLabel(severity));
   heading.className = "blade-dialog__title"; heading.textContent = options.title;
   body.className = "blade-dialog__body"; body.textContent = options.message;

@@ -19,7 +19,7 @@ test('native text/select/checkbox grid editors save without opening an object fo
  const title=await task(page,1920),id=created[0];
  const grid=page.getByRole('grid'),header=grid.locator('[role="columnheader"][data-dhx-id="title"]').filter({hasText:'Megnevezés'}).first();
  await expect(header).toHaveClass(/blade-grid-editable/);await expect(header).toHaveAttribute('aria-description','Szerkeszthető mező');
- expect(await header.locator('.dhx_grid-header-cell-text').evaluate(e=>getComputedStyle(e,'::after').content)).toContain('✎');
+ expect(await header.locator('.dhx_grid-header-cell-text').evaluate(e=>getComputedStyle(e,'::after').content)).toContain('\uf4cb');
  await expect(grid.locator('[role=columnheader][data-dhx-id=labels]').filter({hasText:'Címkék'}).first()).not.toHaveClass(/blade-grid-editable/);
  await expect(grid.locator('[role=columnheader][data-dhx-id=notify]').filter({hasText:'Értesítés'}).first()).not.toHaveClass(/blade-grid-editable/);
  const row=page.locator('.dhx_grid-row').filter({hasText:title});await expect(row).toBeVisible({timeout:10000});

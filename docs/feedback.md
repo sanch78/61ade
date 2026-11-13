@@ -834,6 +834,10 @@
 
 ## FB-0202 — Popup menu at any button: headings, checked entries, scrolling
 
+<a id="fb-0203"></a>
+
+## FB-0203 — Shared Bootstrap Icons catalog and migration of existing icons
+
 <a id="fb-0204"></a>
 
 ## FB-0204 — View availability per tenant or runtime state

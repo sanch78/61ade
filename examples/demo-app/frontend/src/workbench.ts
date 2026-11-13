@@ -53,11 +53,11 @@ const workbench: ApplicationModule = app => {
       const head = new app.dhx.Toolbar(document.createElement("div"), { data: [
         { type: "title", id: "title", value: list[0].name },
         { type: "spacer" },
-        { id: "history", value: t("Előzmények"), icon: "dxi dxi-history" },
+        { id: "history", value: t("Előzmények"), icon: "bi bi-clock-history" },
       ] });
       const modelText = () => model ? `${t(model.label)}${model.efforts.length > 1 ?  " · " + t(EFFORTS[effort]) : ""}` : t("Automatikus");
       const composer = new app.dhx.Toolbar(document.createElement("div"), { data: [
-        { id: "model", value: t("Modell: {choice}", { choice: modelText() }), icon: "dxi dxi-tune" },
+        { id: "model", value: t("Modell: {choice}", { choice: modelText() }), icon: "bi bi-sliders" },
       ] });
       form = new app.dhx.Form(document.createElement("div"), { padding: 16, rows: [
         { type: "input", name: "view", label: t("Aktuális nézet"), labelPosition: "left", labelWidth: 140, readOnly: true },

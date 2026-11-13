@@ -154,7 +154,7 @@ test('activation by MIME type or class: audio, video, images and scenes open the
  // A scene (text/javascript, `Animáció` with the animation glyph) opens by the exact MIME type entry; the toolbar
  // command `Lejátszás` opens the cursor asset the same way.
  await only(page,SCENE);await expect(await cell(page,SCENE,'Típus')).toHaveText('Animáció');
- await expect(row(page,SCENE).locator('.blade-media__icon.blade-icon--animation')).toHaveCount(1);
+ await expect(row(page,SCENE).locator('.blade-media__icon.bi-film')).toHaveCount(1);
  await row(page,SCENE).locator('[data-dhx-col-id="media_type"]').click();
  await listCommand(page,'Lejátszás');
  await expect(page).toHaveURL(viewerUrl(scene));await expect(page.frameLocator('iframe').locator('canvas')).toHaveCount(1);

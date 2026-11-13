@@ -11,6 +11,6 @@ export type ListCommandContext=CommandContext&{readonly [LIST]?:{details(row:Row
  * marked: the default rule).
  */
 export const builtinCommands:Record<string,ClientCommand>={
-  details:{label:"Adatok",icon:"dxi dxi-information-outline",placement:"record",
+  details:{label:"Adatok",icon:"bi bi-info-circle",placement:"record",
     run:context=>{if(context.row)(context as ListCommandContext)[LIST]?.details(context.row);}},
 };

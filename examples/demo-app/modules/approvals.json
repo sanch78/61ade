@@ -43,7 +43,7 @@
             "view": {
                 "title": "Jóváhagyások",
                 "group": "Feature demó",
-                "icon": "dxi dxi-checkbox-marked-circle",
+                "icon": "bi bi-check-circle",
                 "columns": [
                     {
                         "id": "title",

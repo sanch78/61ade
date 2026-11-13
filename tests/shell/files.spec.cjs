@@ -116,7 +116,7 @@ test('independent mounts, Tree/Grid synchronization and the directory depth limi
  await expect(path(left)).toHaveText('Drive A:/Documents');
  await expect(page.getByRole('button',{name:'Szerkesztés',exact:true})).toBeDisabled();
  // Files are tree leaves with their MIME icon; a chosen file keeps its folder and is the operand.
- await expect(treeItem(left,'note.txt').locator('.dxi-format-align-left')).toHaveCount(1);
+ await expect(treeItem(left,'note.txt').locator('.bi-text-left')).toHaveCount(1);
  await treeItem(left,'note.txt').click();await expect(selectedFile(left)).toContainText('note.txt');
  await expect(path(left)).toHaveText('Drive A:/Documents');await expect(page.getByRole('button',{name:'Szerkesztés',exact:true})).toBeEnabled();
  await view(page,left,'Fájllista');await expect(row(left,'note.txt')).toBeVisible();
@@ -414,11 +414,11 @@ test('tiles with thumbnails, folder and parent tiles',async({page})=>{
  await view(page,left,'Fájllista');await expect(row(left,'Documents')).toBeVisible();
  // Videos carry the video icon ("Videó") in the listing and in the tree, as the media fallback does.
  await mount(page,left,'Signage');await find(left,VIDEO);await expect(row(left,VIDEO).getByRole('img',{name:'Videó',exact:true})).toBeVisible();
- await expect(row(left,VIDEO).locator('.dxi-menu-right')).toHaveCount(1);
+ await expect(row(left,VIDEO).locator('.bi-camera-video')).toHaveCount(1);
  await view(page,left,'Mappafa');
  // The current folder is selected but collapsed; its toggle (a Suite menu-right glyph outside the item content) opens it.
  if(!await treeItem(left,VIDEO).isVisible())await left.locator('.dhx_tree-toggle-button').first().click();
- await expect(treeItem(left,VIDEO).locator('.dxi-menu-right')).toHaveCount(1);
+ await expect(treeItem(left,VIDEO).locator('.bi-camera-video')).toHaveCount(1);
  await view(page,left,'Fájllista');
  expect(errors).toEqual([]);
 });

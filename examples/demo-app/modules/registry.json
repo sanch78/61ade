@@ -226,7 +226,7 @@
             "view": {
                 "title": "Regisztrációs adatbázis",
                 "group": "Feature demó",
-                "icon": "dxi dxi-key",
+                "icon": "bi bi-key",
                 "columns": [
                     {
                         "id": "name",
@@ -270,7 +270,7 @@
                 "values": "demo_registry_browser_values"
             },
             "group": "Feature demó",
-            "icon": "dxi dxi-view-sequential",
+            "icon": "bi bi-view-stacked",
             "guide": "Egy projektoldal a nyilvános komponensekből: balra a kulcsok fája (Tree), középen fülek a kijelölt kulcs értékeivel és adataival, jobbra a listában kijelölt érték adatai. Az oldal a fa kijelölését követi; Enter vagy dupla kattintás egy kulcson a Kulcs adatai fület nyitja meg.\n\nAz értéklista eszköztárán az Alkulcsok értékei kapcsoló a kulcs saját értékei helyett a közvetlen alkulcsainak értékeit mutatja. A kapcsoló állása megmarad, a lista már az első betöltéskor annak megfelelően nyílik meg; a fa kinyitott kulcsai és a kijelölés is megmaradnak.\n\nKeretrendszer-képességek: Tree komponens és kétállású listaparancs (type: \"toggle\")."
         }
     }

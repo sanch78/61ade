@@ -43,7 +43,7 @@ try{
  resolveColumn({id:'other',header:'Más',presentation:'demo.missing'},undefined,helpers,registries);
  assert.equal(unknown.render,undefined);
  assert.equal(warnings.filter(line=>line.includes('presentation "demo.missing"')).length,1,'one warning per unknown name');
- const icon=resolveColumn({id:'kind',header:'Ikon',presentation:'icon',options:{'dxi dxi-file':'Fájl'}},undefined,helpers,registries);
+ const icon=resolveColumn({id:'kind',header:'Ikon',presentation:'icon',options:{'bi bi-file-earmark':'Fájl'}},undefined,helpers,registries);
  assert.equal(icon.render,undefined);assert.equal(warnings.some(line=>line.includes('"icon"')),false);
  const image=resolveColumn({id:'file',header:'Kép',presentation:'image',imageBase:'img/'},undefined,helpers,registries);
  assert.equal(image.render(row,'tile'),'<img data-size="tile" alt="">');

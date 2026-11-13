@@ -36,7 +36,7 @@ The panels reuse the framework `ResponsiveGrid` (row marking as in the
 workspaces' `rowSelection` mode: click, Ctrl/Cmd-click and Shift-click, no
 checkbox column; cards below 768 px) and the shared [dialogs](dialogs.md),
 including the multiple-choice mode used for name conflicts. The first listing
-column is a framework `icon` column: a Suite icon class per row with its
+column is a framework `icon` column: an [icon class](icons.md) per row with its
 localized accessible name (`Mappa`, `Kép`, `Táblázat`, `Szöveg`, `Fájl`),
 chosen from the entry kind and detected MIME type. TreeGrid PRO is not used.
 
@@ -508,19 +508,11 @@ The demo uses `deletePolicy: 'delete'`.
 
 - Previews cover PNG, JPEG, MP4, WebM, MP3, WAV and M4A, thumbnails PNG,
   JPEG, MP4 and WebM; other types (Markdown, CSV, PDF) have no viewer. Audio
-  files use the generic file icon (`Fájl`) in the listing, tree and media
-  slots, fall under the `Egyéb` type filter and have no media class of their
-  own (`file` fields may still `accept: ['audio']`), because the Suite icon
-  set has no audio icon and the listing classes are unchanged. A media
-  column's derived type and length, the media slot's accessible name and its
-  length badge do name audio (`Hang`, `Hang: tone.wav, 0:03`). Without an
-  audio class the list's media type filter offers no `Hang`, and the `file`
-  field picker (`Kiválasztás…`, also `app.components.FilePicker`) lists no
-  audio files (it knows the image, video and text classes); an audio file
-  reaches such a field by its upload (`Fájl feltöltése…`). This is a stated
-  limit, not planned work (owner decision of 2026-10-30): a project that needs
-  an audio filter or picker builds it in its own module
-  ([toolkit limits](toolkit.md#limits)).
+  files have the `bi bi-music-note-beamed` fallback (`Hang`), video files
+  `bi bi-camera-video` (`Videó`). Registered media types supply icons in
+  listings, trees and media slots ([media types](toolkit.md#registries)).
+  Picker classes and filters keep their existing server contracts; an icon
+  does not grant access or add an accepted file type.
 - Thumbnails appear after the background task; until then the listing reports
   `thumbnail: pending`. Post-response tasks die with a worker restart and are
   recovered on a later request or read, not by a timer.
@@ -534,10 +526,7 @@ The demo uses `deletePolicy: 'delete'`.
   byte). An error of the `zip_get` GET itself (expired or used token, revoked
   right) shows as a failed browser download, not as an in-app message. Mount
   labels must be safe names; ZIP path segments are sanitized with the same
-  rule. Video files use the `dxi-menu-right` glyph (labelled `Videó`), the same
-  glyph as the tree's folder toggle, because the Suite icon set has no video
-  icon. A
-  `HEAD` on `zip_get` consumes its token; a rejected `zip_get` audit row records
+  rule. A `HEAD` on `zip_get` consumes its token; a rejected `zip_get` audit row records
   the token as its object id (single-use, session-bound, 5 minutes).
 - Conflict decisions apply to all conflicting items of one request.
 - Directory overwrite (merge) is not supported.

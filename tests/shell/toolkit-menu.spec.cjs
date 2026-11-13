@@ -216,7 +216,7 @@ test('a modal window above a non-modal one: Escape in the menu closes only the m
   const after=document.createElement('button');after.type='button';after.textContent='Utána';
   box.append(sort,role,after);win.attach(box);
   window.__picked=[];
-  const items=[{id:'name',label:'Név',icon:'dxi dxi-sort-alphabetical-ascending'},{id:'date',label:'Dátum',detail:'Ctrl+D'},{type:'separator'},{id:'off',label:'Nem elérhető',disabled:true},
+  const items=[{id:'name',label:'Név',icon:'bi bi-sort-alpha-down'},{id:'date',label:'Dátum',detail:'Ctrl+D'},{type:'separator'},{id:'off',label:'Nem elérhető',disabled:true},
    {type:'group',label:'Irány',items:[{id:'asc',label:'Növekvő',checked:true},{id:'desc',label:'Csökkenő',checked:false}]},{type:'group',label:'Üres csoport',items:[]}];
   window.__sort=app.ui.menu(sort,{label:'Rendezés',items,signal:win.signal});
   window.__sort.on('select',({id})=>window.__picked.push(id));
@@ -265,7 +265,7 @@ test('a modal window above a non-modal one: Escape in the menu closes only the m
   attempt(()=>app.ui.menu(b,{items:[]}));
   attempt(()=>app.ui.menu(b,{label:'x',items:[{id:'a b',label:'x'}]}));
   attempt(()=>app.ui.menu(b,{label:'x',items:[{id:'a',label:'x'},{id:'a',label:'y'}]}));
-  attempt(()=>app.ui.menu(b,{label:'x',items:[{id:'a',label:'x',checked:true,icon:'dxi dxi-check'}]}));
+  attempt(()=>app.ui.menu(b,{label:'x',items:[{id:'a',label:'x',checked:true,icon:'bi bi-check-lg'}]}));
   attempt(()=>app.ui.menu(b,{label:'x',items:Array.from({length:201},(_,i)=>({id:'e'+i,label:String(i)}))}));
   attempt(()=>app.ui.menu(b,{label:'x',items:[{type:'group',items:[{type:'separator'}]}]}));
   document.body.append(b);

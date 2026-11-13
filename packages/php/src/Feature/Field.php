@@ -130,7 +130,7 @@ final readonly class Field
                 throw new InvalidArgumentException('Invalid field column presentation.');
             }
         }
-        // `media`: the value is a file id of that registered MediaSource; `presentation: icon`: the value is a Suite icon class, options name it.
+        // `media`: the value is a file id of that registered MediaSource; `presentation: icon`: the value is an icon class, options name it.
         if (isset($column['media']) && ($secret || !in_array($type, ['text', 'number', 'select'], true) || ($column['editable'] ?? false) || isset($column['presentation']))) throw new InvalidArgumentException('Media columns need a readable, non-editable text, number or select field.');
         $image = ($column['presentation'] ?? null) === 'image';
         if (!$image && array_intersect_key($column, ['imageBase' => 1, 'image_base' => 1, 'altOf' => 1, 'alt_of' => 1])) throw new InvalidArgumentException('Image options need presentation image.');

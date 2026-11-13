@@ -100,6 +100,11 @@ tree as decoration for a flat list.
 - Use native controls, theme tokens, and framework sizing. Test light, dark, and
   the default theme; do not recreate a vendor skin or introduce a consumer
   shell layer to obtain a visual tweak.
+- Choose icons from the bundled [catalog](../../../docs/icons.md) through
+  the existing icon properties. Keep translated labels and accessible names;
+  do not draw replacement glyphs or add an icon package for a catalogued icon.
+  Keep native icon-slot and control geometry when replacing a glyph. Align
+  count badges, labels and icons on the same vertical centre.
 - When project code composes a list into its own page, build one layout and
   mount the framework list component into a cell; do not nest a second frame
   around it. Content that changes (a notice, then a list; another scope) is

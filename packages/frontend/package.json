@@ -15,6 +15,7 @@
   ],
   "dependencies": {
     "@dhtmlx/suite": "9.3.12",
+    "bootstrap-icons": "1.13.2",
     "dhtmlx-scheduler": "7.2.15"
   },
   "bin": {

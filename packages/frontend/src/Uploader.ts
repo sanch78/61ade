@@ -98,14 +98,15 @@ const IMAGE = /^image\/(png|jpeg|gif|webp)$/;
 const sizeLabel = (size: number) => size < 1024 ? t("{size} B", { size }) :
   new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(size / (size < 1048576 ? 1024 : 1048576)) + (size < 1048576 ? " KB" : " MB");
 const percentLabel = (ratio: number) => new Intl.NumberFormat(locale(), { style: "percent", maximumFractionDigits: 0 }).format(ratio);
-/** Same Suite icons and accessible names as the file manager listing. */
+/** Same icons and accessible names as the file manager listing. */
 const typeIcon = (type: string, name: string): { icon: string; label: string } => {
   const extension = name.split(".").pop()?.toLowerCase() ?? "";
-  if (type.startsWith("image/")) return { icon: "dxi dxi-image-outline", label: t("Kép") };
-  if (type.startsWith("video/")) return { icon: "dxi dxi-file-outline", label: t("Videó") };
-  if (type === "text/csv" || extension === "csv") return { icon: "dxi dxi-file-excel", label: t("Táblázat") };
-  if (type.startsWith("text/") || type === "application/json" || ["txt", "md", "json"].includes(extension)) return { icon: "dxi dxi-format-align-left", label: t("Szöveg") };
-  return { icon: "dxi dxi-file-outline", label: t("Fájl") };
+  if (type.startsWith("image/")) return { icon: "bi bi-image", label: t("Kép") };
+  if (type.startsWith("video/")) return { icon: "bi bi-camera-video", label: t("Videó") };
+  if (type.startsWith("audio/")) return { icon: "bi bi-music-note-beamed", label: t("Hang") };
+  if (type === "text/csv" || extension === "csv") return { icon: "bi bi-file-earmark-spreadsheet", label: t("Táblázat") };
+  if (type.startsWith("text/") || type === "application/json" || ["txt", "md", "json"].includes(extension)) return { icon: "bi bi-text-left", label: t("Szöveg") };
+  return { icon: "bi bi-file-earmark", label: t("Fájl") };
 };
 /** name|size|lastModified|relative_path, hashed to fit the server's 128-character limit. */
 async function fingerprintOf(file: { name: string; size: number; lastModified: number }, relativePath: string): Promise<string> {
@@ -148,9 +149,9 @@ function actionsCell(row: any): string {
   const button = (action: string, icon: string, label: string) =>
     `<button type="button" class="dhx_button dhx_button--size_small dhx_button--view_link dhx_button--color_secondary dhx_button--icon blade-uploader__action" data-blade-upload-action="${action}" data-blade-upload-row="${escape(row.id)}" aria-label="${escape(label)}" title="${escape(label)}"><span class="dhx_button__icon ${icon}" aria-hidden="true"></span></button>`;
   const buttons: string[] = [];
-  if (["checking", "queued", "uploading"].includes(state)) buttons.push(button("cancel", "dxi dxi-close", t("Megszakítás: {name}", { name })));
-  if (row.retry) buttons.push(button("retry", "dxi dxi-undo", t("Újrapróbálás: {name}", { name })));
-  if (SETTLED.includes(state as State) || state === "interrupted" || state === "stored") buttons.push(button("remove", "dxi dxi-delete-outline", t("Eltávolítás: {name}", { name })));
+  if (["checking", "queued", "uploading"].includes(state)) buttons.push(button("cancel", "bi bi-x-lg", t("Megszakítás: {name}", { name })));
+  if (row.retry) buttons.push(button("retry", "bi bi-arrow-counterclockwise", t("Újrapróbálás: {name}", { name })));
+  if (SETTLED.includes(state as State) || state === "interrupted" || state === "stored") buttons.push(button("remove", "bi bi-trash", t("Eltávolítás: {name}", { name })));
   return `<div class="blade-uploader__actions">${buttons.join("")}</div>`;
 }
 
@@ -312,8 +313,8 @@ class UploadService {
     const grid = queueGrid(event => this.rowAction(event));
     // The shared window action row (as formActions): the secondary command flat, Close as the primary one.
     const commands = new Form(document.createElement("div"), { padding: "8px 16px 16px", rows: [{ css: "blade-form-actions", cols: [
-      { type: "button", name: "clear", text: t("Befejezettek törlése"), icon: "dxi dxi-delete-outline", view: "flat", color: "secondary", width: "content", disabled: true },
-      { type: "button", name: "close", text: t("Bezárás"), icon: "dxi dxi-close", color: "primary", width: "content" },
+      { type: "button", name: "clear", text: t("Befejezettek törlése"), icon: "bi bi-trash", view: "flat", color: "secondary", width: "content", disabled: true },
+      { type: "button", name: "close", text: t("Bezárás"), icon: "bi bi-x-lg", color: "primary", width: "content" },
     ] }] } as any);
     commands.events.on("click", (name: string) => {
       if (name === "clear") this.clearFinished();
@@ -415,7 +416,7 @@ class UploadService {
       <div class="blade-uploader__target">${escape(t("Célmappa: {path}", { path: context.targetLabel }))}</div>
       <p class="blade-uploader__hint" id="blade-uploader-hint">${escape(t("Húzd ide a fájlokat, vagy illeszd be őket Ctrl+V-vel."))}</p>
       <p class="blade-uploader__rules" id="blade-uploader-rules">${escape(rules)}</p>
-      <div class="blade-uploader__buttons">${button("files", "dxi dxi-file-import", t("Fájlok kiválasztása"), "primary")}${folders ? button("folder", "dxi dxi-folder-open", t("Mappa kiválasztása"), "secondary") : ""}</div>
+      <div class="blade-uploader__buttons">${button("files", "bi bi-upload", t("Fájlok kiválasztása"), "primary")}${folders ? button("folder", "bi bi-folder2-open", t("Mappa kiválasztása"), "secondary") : ""}</div>
     </div>`;
     this.picker(false).accept = accept;
     if (folders) this.picker(true);

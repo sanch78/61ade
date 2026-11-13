@@ -109,9 +109,9 @@ export class CalendarView {
     ]}]});
     const day=this.config.dayAction;
     this.commands=new ResponsiveToolbar(undefined,{data:[
-      ...(this.can("create")?[{id:"create",value:t("Új esemény"),icon:"dxi dxi-plus"}]:[]),
+      ...(this.can("create")?[{id:"create",value:t("Új esemény"),icon:"bi bi-plus-lg"}]:[]),
       {type:"spacer"},
-      ...(day?[{id:"day",value:day.label,icon:"dxi dxi-function-variant"}]:[]),
+      ...(day?[{id:"day",value:day.label,icon:"bi bi-braces"}]:[]),
     ]});
     this.commands.events.on("click",(id:string|number)=>void this.command(String(id)));
     this.layout.getCell("commands").attach(this.commands);
@@ -231,8 +231,8 @@ export class CalendarView {
       // Suite 9.3 repaints a typed value away when the open popup closes; dates are picked in the popup.
       editable:false,
       timePicker:time,timeFormat:24,dateFormat:time?"%Y-%m-%d %H:%i":"%Y-%m-%d",weekStart:"monday",value});
-    const actions=formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save",color:"primary"});
-    if(!isNew&&this.can("delete"))actions.cols.unshift({type:"button",name:"remove",text:t("Törlés"),icon:"dxi dxi-delete-outline",view:"link",color:"danger",width:"content",css:"blade-calendar-remove"});
+    const actions=formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy",color:"primary"});
+    if(!isNew&&this.can("delete"))actions.cols.unshift({type:"button",name:"remove",text:t("Törlés"),icon:"bi bi-trash",view:"link",color:"danger",width:"content",css:"blade-calendar-remove"});
     const form=new Form(document.createElement("div"),{padding:20,rows:[
       ...fields.map(field=>input(field,event[field.name])),
       {css:"blade-calendar-dates",cols:[picker("start_date",t("Kezdete"),wire(event.start_date)),picker("end_date",t("Vége"),wire(event.end_date))]},

@@ -139,7 +139,7 @@ test('destroy releases the DOM, the cell and the live subscription; RecordDetail
  expect(await page.evaluate(()=>channel.handles.size)).toBe(1);
  // CommandBar: the responsive framework toolbar with click events and update().
  await page.evaluate(()=>{
-  window.bar=new app.components.CommandBar({items:[{id:'play',label:'Lejátszás',icon:'dxi dxi-check'},{type:'separator'},{id:'next',label:'Következő',icon:'blade-icon blade-icon--skip-next',iconOnly:true},{type:'spacer'},{id:'stop',label:'Leállítás',disabled:true}]});
+  window.bar=new app.components.CommandBar({items:[{id:'play',label:'Lejátszás',icon:'bi bi-check-lg'},{type:'separator'},{id:'next',label:'Következő',icon:'bi bi-skip-end-fill',iconOnly:true},{type:'spacer'},{id:'stop',label:'Leállítás',disabled:true}]});
   window.clicks=[];bar.on('click',({id})=>clicks.push(id));bar.mount(layout.getCell('bar'));
  });
  const barCell=page.locator('[data-cell-id="bar"]');
@@ -154,7 +154,7 @@ test('destroy releases the DOM, the cell and the live subscription; RecordDetail
  const next=barCell.getByRole('button',{name:'Következő',exact:true});
  expect((await next.boundingBox()).width).toBeLessThanOrEqual(48);
  expect(await next.locator('.dhx_toolbar-button__text').evaluate(node=>node.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
- await page.evaluate(()=>bar.update('next',{label:'Tovább',icon:'blade-icon blade-icon--fast-forward'}));
+ await page.evaluate(()=>bar.update('next',{label:'Tovább',icon:'bi bi-fast-forward-fill'}));
  await barCell.getByRole('button',{name:'Tovább',exact:true}).click();
  expect(await page.evaluate(()=>clicks)).toEqual(['play','stop','next']);
  // RecordDetails: an id is loaded through the view's get; a row is shown as given.

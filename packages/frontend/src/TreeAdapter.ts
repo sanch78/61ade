@@ -3,7 +3,7 @@ import { escape } from "./RecordPresentation";
 import { motionTime, treeChildrenMotion, treeMotion } from "./Motion";
 import "./tree.css";
 
-/** `folder: false` makes a leaf; `icon` is its Suite icon class. */
+/** `folder: false` makes a leaf; `icon` is its icon classes. */
 export type TreeNode={id:string;parent:string;value:string;folder?:boolean;icon?:string};
 /** Row presentation (docs/toolkit.md#tree-presentation): alternating row backgrounds and dotted lines with +/- boxes. */
 export type TreeLook={striped?:boolean;lines?:boolean};

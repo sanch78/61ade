@@ -76,16 +76,16 @@ const build=(page,options={})=>page.evaluate(options=>{
 /*</form>*/
  const bar=placement=>{
   const commands=new app.components.CommandBar({label:placement==='top'?'Nézet eszközei':'Lejátszás',placement,items:placement==='top'?[
-   {id:'back',label:t('Vissza'),icon:'dxi dxi-arrow-left'},{type:'separator'},
-   {type:'toggle',id:'loop',label:'Ismétlés',icon:'dxi dxi-repeat',pressed:true},
-   {type:'group',items:[{id:'zoomIn',label:'Nagyít',icon:'dxi dxi-plus',iconOnly:true},{id:'zoomOut',label:'Kicsinyít',icon:'dxi dxi-minus',iconOnly:true}]},
+   {id:'back',label:t('Vissza'),icon:'bi bi-arrow-left'},{type:'separator'},
+   {type:'toggle',id:'loop',label:'Ismétlés',icon:'bi bi-repeat',pressed:true},
+   {type:'group',items:[{id:'zoomIn',label:'Nagyít',icon:'bi bi-plus-lg',iconOnly:true},{id:'zoomOut',label:'Kicsinyít',icon:'bi bi-dash-lg',iconOnly:true}]},
    {type:'select',id:'speed',label:'Sebesség',options:[{value:'1',label:'1×'},{value:'2',label:'2×'},{value:'4',label:'4×'}]},
    {type:'spacer'},
    {type:'segmented',id:'view',label:'Nézet',options:[{value:'one',label:'Egy'},{value:'two',label:'Kettő'}],value:'two'},
   ]:[
-   {type:'toggle',id:'loop',label:'Lejátszás',icon:'blade-icon blade-icon--play',iconOnly:true},
+   {type:'toggle',id:'loop',label:'Lejátszás',icon:'bi bi-play-fill',iconOnly:true},
    {type:'range',id:'position',label:'Pozíció',min:0,max:120,value:30,valueLabel:v=>`${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}`},
-   {type:'select',id:'speed',label:'Sebesség',icon:'dxi dxi-clock-outline',iconOnly:true,options:[{value:'1',label:'1×'},{value:'2',label:'2×'}]},
+   {type:'select',id:'speed',label:'Sebesség',icon:'bi bi-clock',iconOnly:true,options:[{value:'1',label:'1×'},{value:'2',label:'2×'}]},
   ]});
   for(const event of ['click','toggle','change'])commands.on(event,e=>log.push([placement,event,e.id,e.pressed??e.value]));
   commands.mount(layout.cell(placement));

@@ -82,11 +82,11 @@ function preview(app: Application, host: ViewHost, view: ViewDefinition<PreviewO
   const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout });
   host.attach(page);
   const bar: CommandBar = new app.components.CommandBar({ signal, items: [
-    { id: "previous-day", label: t("Előző nap"), icon: "dxi dxi-arrow-left" },
+    { id: "previous-day", label: t("Előző nap"), icon: "bi bi-arrow-left" },
     { id: "day", label: day, disabled: true },
-    { id: "next-day", label: t("Következő nap"), icon: "dxi dxi-arrow-right" },
-    { id: "today", label: t("Ma"), icon: "dxi dxi-calendar-today" },
-    { id: "pick", label: t("Naptár…"), icon: "dxi dxi-calendar-today" },
+    { id: "next-day", label: t("Következő nap"), icon: "bi bi-arrow-right" },
+    { id: "today", label: t("Ma"), icon: "bi bi-calendar-event" },
+    { id: "pick", label: t("Naptár…"), icon: "bi bi-calendar-event" },
   ] });
   bar.mount(page.cell("commands"));
   const player = new Player({ app, signal, files: typeof view.options.media === "string" && view.options.media ? view.options.media : "files",

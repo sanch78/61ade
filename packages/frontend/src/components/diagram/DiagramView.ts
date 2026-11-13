@@ -122,15 +122,15 @@ export class DiagramView {
     ]});
     const action=(name:string,label:string,icon:string,extra:object={})=>this.can(name)?[{id:name,value:t(label),icon,...extra}]:[];
     this.commands=new ResponsiveToolbar(undefined,{data:[
-      ...action("create","Új diagram","dxi dxi-plus"),
-      ...action("save","Mentés","dxi dxi-content-save",{tooltip:t("Mentés (Ctrl+S)"),disabled:true}),
+      ...action("create","Új diagram","bi bi-plus-lg"),
+      ...action("save","Mentés","bi bi-floppy",{tooltip:t("Mentés (Ctrl+S)"),disabled:true}),
       ...(this.can("save")?[
-        {id:"link-type",value:this.linkLabel(),icon:"dxi dxi-line-straight",tooltip:t("Új kapcsolatok típusa"),items:this.config.linkTypes.map(type=>({id:"link-type:"+type.id,value:escape(type.label)}))},
-        {id:"remove",value:t("Kijelölt törlése"),icon:"dxi dxi-delete-outline",disabled:true},
+        {id:"link-type",value:this.linkLabel(),icon:"bi bi-dash-lg",tooltip:t("Új kapcsolatok típusa"),items:this.config.linkTypes.map(type=>({id:"link-type:"+type.id,value:escape(type.label)}))},
+        {id:"remove",value:t("Kijelölt törlése"),icon:"bi bi-trash",disabled:true},
       ]:[]),
       {type:"spacer"},
-      ...action("type_create","Új elemtípus","dxi dxi-plus-box"),
-      ...action("delete","Diagram törlése","dxi dxi-delete",{disabled:true}),
+      ...action("type_create","Új elemtípus","bi bi-plus-square"),
+      ...action("delete","Diagram törlése","bi bi-trash",{disabled:true}),
     ]});
     this.commands.events.on("click",(id:string|number)=>void this.command(String(id)));
     this.layout.getCell("commands").attach(this.commands);
@@ -142,7 +142,7 @@ export class DiagramView {
 
     this.palette=new List(document.createElement("div"),{css:"blade-diagram-palette",selection:true,keyNavigation:true,itemHeight:48,
       template:(item:any)=>`<span class="blade-diagram-palette__item" data-type="${escape(item.id)}">${typeIcon(item)}<span class="blade-diagram-palette__label">${escape(item.label)}</span>`
-        +(item.custom&&this.can("type_delete")?`<button type="button" class="blade-diagram-type-delete dxi dxi-delete-outline" title="${escape(t("Elemtípus törlése"))}" aria-label="${escape(t("Elemtípus törlése: {type}",{type:item.label}))}"></button>`:"")+"</span>",
+        +(item.custom&&this.can("type_delete")?`<button type="button" class="blade-diagram-type-delete bi bi-trash" title="${escape(t("Elemtípus törlése"))}" aria-label="${escape(t("Elemtípus törlése: {type}",{type:item.label}))}"></button>`:"")+"</span>",
       eventHandlers:{onclick:{"blade-diagram-type-delete":(event:Event,id:string|number)=>{event.stopPropagation();void this.deleteType(String(id));}}}});
     this.palette.events.on("doubleclick",(id:string|number)=>this.place(String(id)));
     this.palette.events.on("focuschange",(index?:number,id?:string|number)=>{this.focused.palette=id===undefined?undefined:String(id);});
@@ -163,7 +163,7 @@ export class DiagramView {
     // View controls float over the canvas, so the command row keeps its labels at desktop widths.
     const zoom=document.createElement("div");zoom.className="blade-diagram-zoom";
     this.host.append(this.canvas,this.notice,zoom);
-    const controls=[{id:"zoom-out",icon:"dxi dxi-minus",label:t("Kicsinyítés")},{id:"zoom-in",icon:"dxi dxi-plus",label:t("Nagyítás")},{id:"fit",icon:"dxi dxi-arrow-expand",label:t("Teljes nézet")}];
+    const controls=[{id:"zoom-out",icon:"bi bi-dash-lg",label:t("Kicsinyítés")},{id:"zoom-in",icon:"bi bi-plus-lg",label:t("Nagyítás")},{id:"fit",icon:"bi bi-arrows-angle-expand",label:t("Teljes nézet")}];
     this.zoomBar=new Toolbar(zoom,{data:controls.map(({id,icon,label})=>({id,icon,tooltip:label}))});
     this.zoomBar.events.on("click",(id:string|number)=>void this.command(String(id)));
     // Icon-only buttons take their accessible name from the tooltip text.
@@ -285,8 +285,8 @@ export class DiagramView {
     this.windows.add(win);
     win.events.on("afterHide",()=>{this.windows.delete(win);void awaitRedraw().then(()=>win.destructor());});
     const form=new Form(document.createElement("div"),{padding:20,rows:[...items,{css:"blade-form-actions",cols:[
-      {type:"button",name:"cancel",text:t("Mégse"),icon:"dxi dxi-close",view:"flat",color:"secondary",width:"content"},
-      {type:"button",name:"submit",text:t(this.actionDefinition(action)?.label??"Mentés"),icon:"dxi dxi-check",submit:true,color:"primary",width:"content"},
+      {type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
+      {type:"button",name:"submit",text:t(this.actionDefinition(action)?.label??"Mentés"),icon:"bi bi-check-lg",submit:true,color:"primary",width:"content"},
     ]}]});
     win.attach(form);win.show();void fitWindow(win);
     const validation=new FormValidation(form,this.actionDefinition(action)?.fields??[]);let saving=false;
@@ -444,7 +444,7 @@ export class DiagramView {
         {type:"input",name:"label",label:t("Felirat"),labelPosition:"top",value:node.label,maxlength:80,readOnly:readonly},
         {type:"input",name:"detail",label:t("Részletek"),labelPosition:"top",value:node.detail,maxlength:200,placeholder:t("pl. IP-cím vagy szerep"),readOnly:readonly},
         {type:"select",name:"type",label:t("Elemtípus"),labelPosition:"top",value:node.type,disabled:readonly,options:[...this.types.values()].map(type=>({value:type.id,content:type.label}))},
-        ...(readonly?[]:[{type:"button",name:"remove",text:t("Elem törlése"),icon:"dxi dxi-delete-outline",view:"link",color:"danger"}]),
+        ...(readonly?[]:[{type:"button",name:"remove",text:t("Elem törlése"),icon:"bi bi-trash",view:"link",color:"danger"}]),
       ]});
       this.properties.events.on("change",(name:string,value:unknown)=>{
         if(readonly||!["label","detail","type"].includes(name))return;
@@ -457,7 +457,7 @@ export class DiagramView {
         {type:"text",name:"ends",label:t("Végpontok"),labelPosition:"top",value:ends},
         {type:"select",name:"type",label:t("Kapcsolattípus"),labelPosition:"top",value:link.type,disabled:readonly,options:this.config.linkTypes.map(type=>({value:type.id,content:type.label}))},
         {type:"input",name:"label",label:t("Felirat"),labelPosition:"top",value:link.label,maxlength:80,readOnly:readonly,placeholder:t("pl. 1 Gbit/s")},
-        ...(readonly?[]:[{type:"button",name:"remove",text:t("Kapcsolat törlése"),icon:"dxi dxi-delete-outline",view:"link",color:"danger"}]),
+        ...(readonly?[]:[{type:"button",name:"remove",text:t("Kapcsolat törlése"),icon:"bi bi-trash",view:"link",color:"danger"}]),
       ]});
       this.properties.events.on("change",(name:string,value:unknown)=>{
         if(readonly||!["label","type"].includes(name))return;

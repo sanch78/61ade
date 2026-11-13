@@ -248,10 +248,10 @@ try {
     $sundayDate = $monday->modify('+6 days')->format('Y-m-d');
     $fourth = $create(['asset_id' => $sceneId, 'valid_from' => $sundayDate, 'valid_to' => '2099-12-31']);
     // Today's status: not yet valid before the Sunday, playing on it.
-    $fourthToday = date('Y-m-d') < $sundayDate ? 'dxi dxi-calendar-today' : 'dxi dxi-check';
+    $fourthToday = date('Y-m-d') < $sundayDate ? 'bi bi-calendar-event' : 'bi bi-check-lg';
     $listed = array_column($itemsOf($playlist), null, 'id');
     check(array_map('strval', array_keys($listed)) === [$first, $second, $third, $fourth], 'New items go last, in order');
-    check($listed[$first]['length'] === '10' && $listed[$second]['length'] === '20' && $listed[$first]['status'] === 'dxi dxi-check' && $listed[$third]['status'] === 'dxi dxi-eye-off' && $listed[$fourth]['status'] === $fourthToday
+    check($listed[$first]['length'] === '10' && $listed[$second]['length'] === '20' && $listed[$first]['status'] === 'bi bi-check-lg' && $listed[$third]['status'] === 'bi bi-eye-slash' && $listed[$fourth]['status'] === $fourthToday
         && $listed[$first]['_media']['file_id']['mime_type'] === 'video/mp4', 'Effective play time, today\'s status and the asset\'s media');
     fails(fn() => $create(['asset_id' => $clip, 'position' => '1']), 400, 'The position is not writable');
     $refused = static fn(array $values, string $field, string $message) => check(isset(fails(fn() => $create($values), 400, $message)->fieldErrors[$field]), $message.': field error');
@@ -362,7 +362,7 @@ try {
     $preview = $previews['demo.playlist-preview'] ?? null;
     check($preview !== null && $preview['kind'] === 'demo.playlist-preview' && $preview['resource'] === 'signage_playlist' && $preview['group'] === 'Digitális kijelző'
         && array_column($preview['actions'], 'name') === ['day', 'scene'] && $preview['options']['media'] === 'files' && !isset($preview['record'])
-        && array_column($preview['options']['layout']['rows'], 'id') === ['commands', 'player'] && array_column($preview['actions'], 'icon') === ['dxi dxi-calendar-today', null], 'Playlist preview view: its panels and the day action\'s icon');
+        && array_column($preview['options']['layout']['rows'], 'id') === ['commands', 'player'] && array_column($preview['actions'], 'icon') === ['bi bi-calendar-event', null], 'Playlist preview view: its panels and the day action\'s icon');
     check(isset(array_column($workspace->views(new Identity($reader, 'Reader')), null, 'id')['demo.playlist-preview']) && !isset(array_column($workspace->views(new Identity('77', 'Nobody')), null, 'id')['demo.playlist-preview']), 'The preview follows the playlist actions');
 
     // Reader: no write channel.

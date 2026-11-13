@@ -156,7 +156,7 @@ export class Workspace implements ActionHost {
         // Header filters only: cards and tiles have no table headers, so the filters move into the `Szűrés` dialog.
         if(!this.hasRegion("filter")&&view.filters.length){if(cards)this.commands.show("blade-filter");else this.commands.hide("blade-filter");}
         if(!selector)return;
-        this.commands.data.update("blade-view",{value:mode==="tiles"?t("Nézet: Csempék"):cards?t("Nézet: Kártyák"):t("Nézet: Táblázat"),icon:mode==="tiles"?"dxi dxi-border-all":cards?"dxi dxi-view-grid":"dxi dxi-table-check"});
+        this.commands.data.update("blade-view",{value:mode==="tiles"?t("Nézet: Csempék"):cards?t("Nézet: Kártyák"):t("Nézet: Táblázat"),icon:mode==="tiles"?"bi bi-grid-3x3":cards?"bi bi-grid":"bi bi-table"});
         // Mobile forces cards for the table without changing the stored preference; tiles remain selectable. Without
         // `Kártyák` the enabled `Táblázat` leads from tiles back to the forced cards.
         if(mobile&&!tiles)this.commands.disable("blade-view");else this.commands.enable("blade-view");
@@ -195,7 +195,7 @@ export class Workspace implements ActionHost {
   }
   /** Runs a toolbar command; a parent's toolbar runs it here for this view's cursor record (shared sub-view). */
   command(id:string):void{
-    const view=this.view;if(id.startsWith("blade-command:")){this.runCommand(id.slice("blade-command:".length));return;}if(id==="blade-subview"){this.openSubview();return;}if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"dxi dxi-checkbox-marked":"dxi dxi-checkbox-blank-outline"});return;}if(id==="blade-move-up"||id==="blade-move-down"){void this.step(id==="blade-move-up"?-1:1);return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.filterPanel?.open();return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.actions.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.actions.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.actions.open(action);}
+    const view=this.view;if(id.startsWith("blade-command:")){this.runCommand(id.slice("blade-command:".length));return;}if(id==="blade-subview"){this.openSubview();return;}if(String(id).startsWith("blade-column:")){const column=String(id).slice("blade-column:".length),visible=!this.visibleColumns.has(column);if(visible)this.visibleColumns.add(column);else this.visibleColumns.delete(column);this.grid?.setColumnVisible(column,visible);this.preferences.setVisibleColumns(this.visibleColumns);this.commands.data.update(String(id),{active:visible,icon:visible?"bi bi-check-square":"bi bi-square"});return;}if(id==="blade-move-up"||id==="blade-move-down"){void this.step(id==="blade-move-up"?-1:1);return;}if(String(id).startsWith("blade-sort:")){const [,field,direction]=String(id).split(":");void this.changeSort({field,direction:direction as "asc"|"desc"});return;}if(id==="blade-table"||id==="blade-cards"||id==="blade-tiles"){const mode=String(id).slice("blade-".length) as "table"|"cards"|"tiles";this.grid?.setMode(mode);this.preferences.setMode(mode);return;}if(id==="blade-filter"){this.filterPanel?.open();return;}const action=view.actions.find(a=>a.name===id);if(action?.upload){this.actions.openUpload(action);return;}if(action){const marked=this.grid?.markedIds??[];if(action.bulk&&(view.selection||view.rowSelection)&&marked.length)void this.actions.openBulk(action);else if(action.name==="create"||marked.length<=1||!(view.selection||view.rowSelection))void this.actions.open(action);}
   }
   /**
    * What client command $name sees: the application, the view as the server sent it, the toolbar's record, the marked
@@ -269,7 +269,7 @@ export class Workspace implements ActionHost {
       return;
     }
     const popup=new Window({css:"blade-content-window",title:escape(field.label),width:Math.min(360,innerWidth-24),height:Math.min(260,innerHeight-24),modal:true,closable:true});this.cardEditor=popup;
-    const form=new Form(document.createElement("div"),{padding:16,rows:[input(field,row[name]),formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save"})]} as any);
+    const form=new Form(document.createElement("div"),{padding:16,rows:[input(field,row[name]),formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy"})]} as any);
     popup.attach(form);popup.show();void fitWindow(popup);
     form.events.on("afterValidate",()=>{void fitWindow(popup);});
     const validation=new FormValidation(form,[field],()=>row);let saving=false;
@@ -630,7 +630,7 @@ export class Workspace implements ActionHost {
     // A field of the update form that the actor may write is edited; every other one is shown read-only.
     const fields=this.view.columns.filter(c=>!derivedOf(c)).map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:c.type==="select"||c.type==="checkbox"||c.type==="multiselect"?c.type:"text",required:false,max:255,options:c.options??{},...(c.section?{section:c.section,...(c.sectionCollapsible===false?{sectionCollapsible:false as const}:{})}:{}),...(c.row?{row:c.row,...(c.rowWidth?{rowWidth:c.rowWidth}:{})}:{})});
     const fixed=(f:FieldDefinition)=>shownOnly(f)||!allowed.some(a=>a.name===f.name);
-    const form=new Form(document.createElement("div"),{padding:24,rows:[...formRows(fields,f=>input(f,row[f.name],fixed(f)),row,sections,flush),...(action?[formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save",color:"primary"})]:[])]} as any);
+    const form=new Form(document.createElement("div"),{padding:24,rows:[...formRows(fields,f=>input(f,row[f.name],fixed(f)),row,sections,flush),...(action?[formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy",color:"primary"})]:[])]} as any);
     this.detailFiles?.destroy();this.detailFiles=new FileFields(form,fields,this.resourceCall,[row],fixed);
     this.detailTypes?.();this.detailTypes=bindFieldTypes(form,fields,fixed);
     this.detail=form;this.detailDirty=false;this.detailConflictShown=false;

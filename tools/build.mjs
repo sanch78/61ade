@@ -37,12 +37,20 @@ const result = await build({
     outdir: dist,
     minify: true,
     legalComments: "eof",
+    // The embedded icon font travels inside admin.css; its MIT notice must travel with consumer copies too.
+    footer: { css: "/*! Bootstrap Icons\n" + await readFile("node_modules/bootstrap-icons/LICENSE", "utf8") + "*/" },
     // `.svg` as text: the product logo (packages/frontend/brand) is inlined by the shell, never a deployed file.
     loader: { ".woff": "dataurl", ".woff2": "dataurl", ".png": "dataurl", ".svg": "text" },
     plugins: [
         {
             name: "local-vendor-css",
             setup(build) {
+                // The ES2022 browser target supports WOFF2; omit the redundant WOFF copy from the inline font.
+                build.onLoad({ filter: /bootstrap-icons\.css$/ }, async (args) => ({
+                    contents: (await readFile(args.path, "utf8")).replace(/,\s*url\([^)]*\)\s*format\(["']woff["']\)/, ""),
+                    loader: "css",
+                    resolveDir: path.dirname(args.path),
+                }));
                 build.onLoad({ filter: /suite\.min\.css$/ }, async (args) => ({
                     contents: (await readFile(args.path, "utf8")).replace(
                         /@import\s+url\([^)]*cdn\.dhtmlx\.com[^)]*\);?/g,

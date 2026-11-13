@@ -86,7 +86,7 @@
             "view": {
                 "title": "Médiatár",
                 "group": "Digitális kijelző",
-                "icon": "dxi dxi-image-outline",
+                "icon": "bi bi-image",
                 "tiles": true,
                 "row_selection": true,
                 "row_height": 56,
@@ -225,7 +225,7 @@
             "view": {
                 "title": "Alapértelmezett tartalom",
                 "group": "Digitális kijelző",
-                "icon": "dxi dxi-clock-outline",
+                "icon": "bi bi-clock",
                 "guide": "Mi játszódjon, amikor a műsortervben nincs esemény: a hét egy napjára vagy egy dátumra rendelt médiaelem vagy lejátszási lista. A kettő közül egyet választhatsz: ha az egyiket kijelölöd, a másik kiürül (a keretrendszer kizáró mezőpárja, az űrlapon és a táblázat cellájában is). A Dátum a keretrendszer dátummezője: naptárválasztó az űrlapon és a táblázat cellájában is.\n\nVegyél fel egy sort egy hétköznapra, majd egyet egy dátumra. A mentés utáni üzleti szabály a kettő közül pontosan egyet enged, és mindegyiket legfeljebb egyszer.",
                 "columns": [
                     {
@@ -352,7 +352,7 @@
             "view": {
                 "title": "Lejátszási listák",
                 "group": "Digitális kijelző",
-                "icon": "dxi dxi-view-sequential",
+                "icon": "bi bi-view-stacked",
                 "row_selection": true,
                 "search": [
                     "title"
@@ -416,7 +416,7 @@
                 "computed": {
                     "file_id": "(SELECT item_asset.file_id FROM signage_assets item_asset WHERE CAST(item_asset.id AS TEXT) = blade_base.asset_id)",
                     "length": "(SELECT CAST(COALESCE(NULLIF(blade_base.duration, ''), item_asset.duration) AS INTEGER) FROM signage_assets item_asset WHERE CAST(item_asset.id AS TEXT) = blade_base.asset_id)",
-                    "status": "CASE WHEN blade_base.enabled = '0' THEN 'dxi dxi-eye-off' WHEN blade_base.valid_to <> '' AND blade_base.valid_to < date('now', 'localtime') THEN 'dxi dxi-close' WHEN blade_base.valid_from <> '' AND blade_base.valid_from > date('now', 'localtime') THEN 'dxi dxi-calendar-today' ELSE 'dxi dxi-check' END"
+                    "status": "CASE WHEN blade_base.enabled = '0' THEN 'bi bi-eye-slash' WHEN blade_base.valid_to <> '' AND blade_base.valid_to < date('now', 'localtime') THEN 'bi bi-x-lg' WHEN blade_base.valid_from <> '' AND blade_base.valid_from > date('now', 'localtime') THEN 'bi bi-calendar-event' ELSE 'bi bi-check-lg' END"
                 }
             },
             "hooks": {
@@ -462,10 +462,10 @@
                     "name": "status",
                     "label": "Ma",
                     "options": {
-                        "dxi dxi-check": "Ma lejátszódik",
-                        "dxi dxi-eye-off": "Kikapcsolva",
-                        "dxi dxi-close": "Lejárt",
-                        "dxi dxi-calendar-today": "Még nem érvényes"
+                        "bi bi-check-lg": "Ma lejátszódik",
+                        "bi bi-eye-slash": "Kikapcsolva",
+                        "bi bi-x-lg": "Lejárt",
+                        "bi bi-calendar-event": "Még nem érvényes"
                     },
                     "column": {
                         "presentation": "icon",
@@ -564,7 +564,7 @@
             "view": {
                 "title": "Lejátszásilista-elemek",
                 "group": "Digitális kijelző",
-                "icon": "dxi dxi-view-sequential",
+                "icon": "bi bi-view-stacked",
                 "row_selection": true,
                 "row_height": 56,
                 "guide": "A lista elemei a lejátszás sorrendjében. Húzd a sorokat a sorrend módosításához, vagy használd a Feljebb és Lejjebb parancsot. Üres saját lejátszási idő esetén a médiaelem saját ideje, üres saját áttűnésnél a lista áttűnése érvényes. A Ma oszlop mutatja, hogy az elem ma lejátszódik-e.",
@@ -634,7 +634,7 @@
                 "loop": false,
                 "details": "signage_assets"
             },
-            "icon": "dxi dxi-menu-right"
+            "icon": "bi bi-camera-video"
         },
         "demo.playlist-editor": {
             "kind": "demo.playlist-editor",
@@ -699,7 +699,7 @@
                     ]
                 }
             },
-            "icon": "dxi dxi-view-sequential",
+            "icon": "bi bi-view-stacked",
             "desktop_only": true
         }
     }

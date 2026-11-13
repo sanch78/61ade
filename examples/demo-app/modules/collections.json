@@ -43,7 +43,7 @@
             "view": {
                 "title": "Gyűjtemények",
                 "group": "Feature demó",
-                "icon": "dxi dxi-folder",
+                "icon": "bi bi-folder",
                 "columns": [
                     {
                         "id": "title",

@@ -131,8 +131,8 @@ same DatePicker but without the typed-date fix, so a date is picked there.
 
 Two column presentations take typed data only: `media` (the file-manager
 resource whose file id the field holds; thumbnail, type icon, duration badge
-and a type-stating accessible name) and `presentation: "icon"` (a Suite icon
-class with `options` as accessible names). Neither may be `editable`; see
+and a type-stating accessible name) and `presentation: "icon"` (an [icon class](icons.md)
+with `options` as accessible names). Neither may be `editable`; see
 [media columns and tiles](workspaces.md#media-tiles).
 
 <a id="többes-választás-multiselect"></a>
