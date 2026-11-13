@@ -233,7 +233,7 @@ grant rights; server authorization applies on every channel and token
 scopes only narrow access. Keep credentials/sensitive values out of logs.
 
 For grid, data-tree, and responsive card/DataView work, load the project's
-[`grid-tree-card-ui` skill](../.agents/skills/grid-tree-card-ui/SKILL.md) rather
+[`61ade-ui` skill](../.agents/skills/61ade-ui/SKILL.md) rather
 than copying presentation rules into a task prompt or markup.
 
 A1 users, A2 permissions and A3 API keys already exist. Read docs/admin.md

@@ -1,5 +1,11 @@
 # Toolkit plan: opening 61ade to project code
 
+Status: accepted direction ([ADR-0005](decisions/0005-toolkit.md),
+[FB-0081](feedback.md#fb-0081)); P0 done, P1 contract accepted at gate G1 (2026-10-29) in the
+[toolkit reference](toolkit.md); P2 (G2), P3 (G3) and P4 feature demo done, gate G4 passed (2026-10-30);
+P5 documentation, P6 integration guidance and P7 verification and reviews are complete
+([FB-0081](feedback.md#fb-0081)). Breaking changes follow the framework update contract.
+
 This plan is the single brief for that thread. Section 11 is the operating
 procedure for the agents; sections 1–10 are the content.
 
@@ -9,6 +15,10 @@ procedure for the agents; sections 1–10 are the content.
 is built with Ext JS: it declares what is declarative, and writes its own
 frontend (and backend) code with 61ade's public services, components and
 registries where it needs more. 61ade's own screens use the same API.
+
+Acceptance: the synthetic feature demo composes public toolbar, form, media
+and sandbox components with declared record activation, entirely through the
+supported toolkit API.
 
 **Non-goals.** No component-parity programme with Ext JS (FB-0037 stands); no
 second UI library; no `eval` of configuration strings in the admin origin; no
@@ -175,7 +185,7 @@ verified in Chromium during P3; record browser support.
 | `docs/demos.md` | Feature demo as toolkit consumer; table rows; continuous-extension rule includes toolkit examples; starter/tenant remain declarative. |
 | `docs/decisions/0002`, `0004` | Supersession notes pointing to ADR-0005. |
 | `.agents/skills/61ade-consumer/SKILL.md` | Module setup, `.deploy.json` files list, d.ts, sandbox, migration steps. |
-| `.agents/skills/grid-tree-card-ui` | Check that its rules address `ListView` composition and custom presentations. |
+| `.agents/skills/61ade-ui` | Check that its rules address `ListView` composition and custom presentations. |
 | `AGENTS.md` | Only if wording conflicts (it says "extend the framework first", which stays true for 61ade work). |
 | `docs/feedback.md` | FB entries per phase with verification; close FB-0080 items. |
 
@@ -186,8 +196,28 @@ becomes a toolkit consumer. It keeps declarations where they suffice and adds
 code where the toolkit is the point. Every row below replaces or extends an
 existing demo area; no separate showcase application.
 
+| ID | Area | Change | Proves |
+| --- | --- | --- | --- |
+| D0 | Build | `examples/demo-app/frontend/src/*.ts` → `examples/demo-app/public/app/demo.js` via `tools/build.mjs` (second entry, `--check` included), declared in `application.php` `modules`. | Module loading, d.ts, recipe |
+| D1 | Signage `Médiatár` | Synthetic audio assets (generated tones, WAV/MP3/M4A, committed as small fixtures); audio upload; record view `demo.asset-viewer`: Layout with 61ade `CommandBar` (play, pause, position, loop), `RecordDetails`, stage cell with `MediaPlayer` (image/video/audio); activation map: audio/video → viewer, image → details. | Record views, per-record activation, composition, MediaPlayer, audio |
+| D2 | Signage `Napi műsor` | A separate menu entry beside the calendar (whose `Napi műsor (API)` day button with the bare API answer stays): the custom kind `demo.playlist-preview`, a timeline of the day's playlist (from `signage_playlist.day`), playhead driving `MediaPlayer` for assets and a `SandboxFrame` for a synthetic "scene" asset whose code (a small canvas animation with `load/duration/renderAt(t)/play/pause/seek`) is delivered by an action. Keep showing the API request. | Sandbox, timeline, module ↔ frame protocol |
+| D3 | `Mérések` | A dashboard page kind: `ListView` of measurements + DHTMLX Chart cell + own summary, linked by selection/filter; one custom column presentation (inline bar/sparkline) registered by the module and used in the list declaration. | Composition of framework components, presentation registry |
+| D4 | `Tasks` | A custom field type (for example a priority rating editor) used in form, grid and card; a client command (for example "Copy as text") on the list toolbar. | Field-type and command registries |
+| D5 | Built-ins | List, file manager, diagram and calendar open through the registry; no demo-visible change. | Dogfooding |
+| D6 | Starter `/admin/`, tenant `/tenants/` | Unchanged and declarative; contract test asserts they declare no modules. | Declarative path stays complete |
+
 Existing browser specs must stay green after each step; they are the
 regression proof that the opened architecture behaves like the closed one.
+
+<a id="7-consumer-migration"></a>
+
+## 7. Integration migration guidance
+
+61ade sessions do not edit application projects. Maintain a framework migration
+reference in `docs/toolkit.md#migration`, covering view IDs and routes, Registry
+builder signatures, JSON view keys, asset packaging and UI preferences.
+Application-specific inventories, decisions and update results belong to their
+own repositories. Synthetic demos illustrate the supported public APIs.
 
 ## 8. Work breakdown
 
@@ -195,6 +225,14 @@ IDs are referenced by agents and feedback entries. "Lane" = can run in
 parallel with other lanes of the same phase.
 
 ### P0 — Preparation (coordinator)
+
+- P0.1 Settle the working tree: the FB-0079 changes in progress are committed
+  or explicitly parked by the owner before any toolkit edit.
+- P0.2 Baseline: run the PHP checks and all browser specs listed in
+  `docs/demos.md#ellenőrzés` and topic guides; record pass/fail and durations
+  in a scratch note under `tmp/`.
+- P0.3 Inventory the public framework API and identify breaking contract changes.
+- P0.4 Confirm O9 (how project messages reach `t()`), and record findings.
 
 ### P1 — Contracts (sequential; owner gate at the end)
 
@@ -244,6 +282,13 @@ parallel with other lanes of the same phase.
 
 - All rows of section 5; feedback entries (FB-0081 progress, one per phase); event catalog; `docs/toolkit.md` complete with examples copied from the demo sources.
 
+<a id="p6--consumer-handoff"></a>
+
+### P6 — Integration guidance
+
+- Framework migration guide and integration skill update. Application-specific update records remain in their own repositories.
+- After G5: the content of a skill for building on 61ade (`61ade-application`), [FB-0084](feedback.md#fb-0084); its publication in the shared library is a separate session.
+
 ### P7 — Final verification and review
 
 - Full PHP checks, `npm run typecheck`, `npm run build -- --check` (or `node tools/build.mjs --check`), every browser spec, focused performance check on `Mérések` (large list unchanged).
@@ -265,6 +310,15 @@ parallel with other lanes of the same phase.
 
 ## 10. Risks
 
+| Risk | Mitigation |
+| --- | --- |
+| `Workspace.ts`/`AdminShell.ts` refactors break subtle behaviour (live, preferences, activation). | One lane owns each hot file; behaviour-preserving split first, features after; full spec run at every gate. |
+| Parallel agents collide in one checkout and one managed URL. | Code lanes in git worktrees; only the coordinator merges into the canonical checkout and runs browser specs (the guard allows one check at a time). |
+| API frozen too early or too late. | P1 gate fixes types; changes after G1 need a recorded reason in `docs/toolkit.md#changes`. |
+| Sandbox CSP differs across browsers. | Verify in Playwright Chromium; record limits; never relax the shell CSP for it. |
+| GPL/vendor obligations when exposing DHTMLX. | Note in `component-matrix.md`; no change of edition. |
+| Consumers break silently. | Framework migration guide and coordinated update contract before breaking changes are published (`development.md#breaking-changes`). |
+
 ## 11. Operating procedure for the agent thread
 
 **Coordinator** (main thread): owns this plan, the hot-file assignments, the
@@ -275,7 +329,7 @@ except P0 and integration fixes.
 **Before starting**, every agent reads: `AGENTS.md`, `/space/share/libs/agents/MAIN.md`,
 `docs/development.md`, `docs/usage.md`, `docs/product-direction.md`, this plan,
 ADR-0004/0005, and the topic guides of its lane; list lanes also use the
-`grid-tree-card-ui` skill.
+`61ade-ui` skill.
 
 **Lane agents** work in their own git worktree on a branch named after the lane
 (`toolkit/K-F`, `toolkit/C-3`, ...), touch only the files their lane owns
@@ -294,3 +348,7 @@ implementer's conclusions.
 
 **Gates** G1–G5 stop for the owner. Between gates the coordinator proceeds on
 the recommended defaults of section 3.
+
+**Done** when: section 1 acceptance is demonstrable in the feature demo; all
+checks of section 9 pass; section 5 documents are updated with evidence;
+integration guidance is current; feedback entries record framework verification.

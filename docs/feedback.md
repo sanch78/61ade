@@ -784,6 +784,8 @@
 
 ## FB-0190 — Focus the end of an accordion section's text on opening
 
+<a id="fb-0191"></a>
+
 ## FB-0191 — Tree control in the list's command row, no scrollbar over it
 
 
@@ -803,3 +805,8 @@
 <a id="fb-0195"></a>
 
 ## FB-0195 — Empty-valued select filters: no filter versus the empty value
+
+
+<a id="fb-0197"></a>
+
+## FB-0197 — Align the UI skill name and current guidance
