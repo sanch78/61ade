@@ -38,3 +38,7 @@ For any general grid, data-tree, or responsive card/DataView work, use the
 project skill [61ade-ui](.agents/skills/61ade-ui/SKILL.md).
 Keep reusable presentation rules in that skill; keep public runtime contracts,
 limits, and evidence in the affected topic guide and feedback log.
+
+For project appearance and skin-family reviews, use
+[61ade-skinning](.agents/skills/61ade-skinning/SKILL.md). Project appearances
+must extend the Blade or Generic family, preserving the inherited controls.

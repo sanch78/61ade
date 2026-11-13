@@ -14,6 +14,8 @@ pitfalls; when it and the contract disagree, follow the contract. The 61ade
 checkout is read-only for a consumer session. Report a framework gap to the
 61ade owner instead of patching it.
 To design and build features on the toolkit itself, use [61ade-application](../61ade-application/SKILL.md).
+For project branding, use [61ade-skinning](../61ade-skinning/SKILL.md): extend
+the Blade or Generic family instead of building a standalone replacement skin.
 
 ## What the project owns
 
@@ -61,6 +63,9 @@ Follow the [update smoke check](../../../docs/development.md#consumer-update-smo
 read the commits and feedback entries since your last released library commit
 (the last `shared_assets` record of `.deploy-history.jsonl` in your release
 target), smoke-test your development URL, run your browser specs, then deploy.
+
+For the toolkit transition, follow the [migration guide](../../../docs/toolkit.md#migration)
+and its [upgrade steps](../../../docs/toolkit.md#steps-for-a-consumer-session).
 
 ## Pitfalls
 

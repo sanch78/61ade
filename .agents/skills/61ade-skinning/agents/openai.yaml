@@ -1,0 +1,4 @@
+interface:
+  display_name: "61ade skinning"
+  short_description: "Extend the Blade or Generic appearance family"
+  default_prompt: "Use $61ade-skinning to customize this project by extending the Blade or Generic appearance family."
