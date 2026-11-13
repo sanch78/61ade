@@ -825,3 +825,7 @@
 <a id="fb-0200"></a>
 
 ## FB-0200 — No automatic view guide over a long-lived window
+
+<a id="fb-0201"></a>
+
+## FB-0201 — Modal window focus, Escape under a project popup, redraw after a window closes
