@@ -9075,3 +9075,99 @@ that exactly equals an option label lists every option. The managed
   No full-smoke claim.
 - **Status:** implemented and verified on the managed demo; consumer
   migration (StoryBloX replaces its interim menu) pending.
+
+<a id="fb-0204"></a>
+
+## FB-0204 — View availability per tenant or runtime state
+
+- **Date:** 2026-11-13.
+- **Request (consumer, cyberspace.hu; its owner decision 2026-11-13):**
+  tenants switch platform services (a contact form, later comments and
+  booking) on and off. A service's data view must be shown only while the
+  service is on for the active tenant, and a notifications view only while at
+  least one service is on. Switching a service off keeps its data; switching
+  it on again shows the view with the same records. The state lives in the
+  consumer's own table. General: per-tenant modules or feature flags on a
+  shared admin need the same.
+- **Findings:** `Workspace::views()` dropped a view only on tenancy, a record
+  view's `get`, a kind provider returning null (for `list`: no action
+  ACL-offered) or embedding. `View` had no condition, `Registry::kind()`
+  cannot wrap the built-in `list`, and ACL has no tenant dimension. The
+  frontend already treats a view missing from the bootstrap as not offered on
+  every path, verified in the source: `#view=` and a menu click go through
+  `navigable` and clear to the empty workspace, `app.navigate` returns
+  `false`, `app.viewDefinition` is `undefined` (components throw `not
+  offered`), a `view:<id>` activation opens the details, menu groups are
+  built from the views present, and attention subscriptions only from
+  bootstrap views. So the `View` docblock's claim that `menu: false` is
+  refused "like an unknown view" holds. No in-place re-bootstrap exists. The
+  only reloads are full page loads (tenant or language switch, a 401, a 4409
+  from the live server) and the action result `reauthenticate: true`, which
+  a form save (`RecordForm.ts`, `actions.ts` `bindSave`) and an editable
+  cell's save (`Workspace.ts` `saveCell`) answer with `location.reload()`.
+  Field-free and bulk commands, tree commands, moves, drops and
+  `app.server.call` ignore it.
+- **Decision (61ade owner, 2026-11-13):**
+  - **API:** a `View` parameter `available: ?Closure(Context): bool`, also on
+    `View::list`, `Registry::view` and `SqlResource::register` like
+    `attention`, and through `with()`/`updateView()` for any view. JSON names
+    a binding, like `MenuCommand` `visible`.
+  - **Refresh:** server-only. A change applies at the next bootstrap; the
+    toggling action reloads the user's shell with the existing
+    `reauthenticate: true` result, documented for the paths that honour it
+    (a form or an editable cell's save).
+    There is no frontend change and no live invalidation.
+  - **Not chosen:** a separate `Registry::viewGuard()`, a new `reload` result
+    key, and a live bootstrap invalidation (larger, and the frontend build was
+    in concurrent use).
+- **Implementation:**
+  - **Server:** `View::$available`, evaluated in `Workspace::views()` after
+    the tenant check. Sub-view, `page`, tree and embedded resolution already
+    work on the offered set, and `Application` filters menu separators and
+    menu-command attention by it.
+  - **JSON:** `WorkspaceConfiguration` accepts `available` in
+    `resources.<name>.view` and `views.<id>`.
+  - **Tenant demo:** `Szolgáltatások` (a per-tenant `feedback` switch whose
+    `afterSave` returns `reauthenticate`) and `Visszajelzések` (group
+    `Ügyfélszolgálat`, with attention), offered only while the switch is on.
+    Alpha is seeded on, Beta off.
+- **Limits:**
+  - **Presentation only:** actions, live lists and the API stay with ACL and
+    the consumer's guards.
+  - **No live refresh:** other open sessions follow at their next page load.
+  - **Commands do not reload:** a toggle built as a field-free command does
+    not reload the shell. Handling the key in every client path would be a
+    later frontend change.
+  - **New tenants:** a tenant added later has no `tenant_services` row, so the
+    demo's switch list is empty for it.
+- **Guide:** [view availability](workspaces.md#view-availability),
+  [views](toolkit.md#menu-less-views), M78 in the
+  [migration table](toolkit.md#migration) (additive, no consumer change
+  required), [tenancy limits](tenancy.md#limits-and-later-stages),
+  [tenant demo](demos.md#tenant-demo-tenants).
+- **Verification (2026-11-13):**
+  - **PHP:** `tenancy.php` covers the same application offering the view in
+    one tenant and not the other (a list and a project kind), the emptied
+    group, no attention, a parent's `page` sub-view, the embedded sub-view of
+    the hidden view, the closure's actor and tenant, the retained data and
+    ACL-allowed list, the next bootstrap after a state change, and
+    `updateView()`. `configuration.php` covers the JSON binding, an unknown
+    binding and a non-string value. `contracts`, `toolkit`, `lists`,
+    `tree-navigation`, `counts` and `access` pass.
+  - **Browser:** shell `tenancy.spec.cjs` (`view availability`, desktop
+    1600 px and phone 390 px) checks the bootstrap, menu group, live
+    subscription and deep link per tenant, the switch reloading the shell
+    with the retained data, and the collapsed `Menü`.
+  - **Adjusted specs:** `sign-in-branding.spec.cjs` checks the tenant demo's
+    full menu without the logo at 1300 px instead of 1100 px; the demo's
+    added group widens the menu.
+  - **Other shell specs:** `count-fields`, `subview-demos`, `workspace`,
+    `menu-attention` and `admin` pass. `menuless-view.spec.cjs` fails on its
+    first test because the feature demo's full menu no longer fits 1366 px
+    ([FB-0199](#fb-0199): about 1440 px). The feature demo, which this change
+    does not touch, already fails it.
+- **Review:** an independent review of the diff found no leak of a hidden
+  view. It corrected the reload claim above and the missing JSON reference
+  keys, and found an always-true assertion. All three were fixed before the
+  commit.
+- **Status:** implemented.

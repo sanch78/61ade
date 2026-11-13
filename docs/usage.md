@@ -614,6 +614,11 @@ tenant reads them read-only beside its own rows (`_shared: true`), and a
 declared role without a tenant writes them. API keys are bound to a tenant or are global. Workers use
 `Workspace::context($actor, $channel, $tenant)`. The guide includes the consumer
 integration and migration steps. Demo: [/tenants/](demos.md#tenant-demo-tenants).
+A view can be offered per tenant or other runtime state, for example while a
+tenant's service is on: [view availability](workspaces.md#view-availability)
+(`available: Closure(Context): bool` on the view, JSON a binding name; a
+change shows at the next bootstrap, and a toggle saved through a form or an
+editable cell reloads the shell with `reauthenticate: true`).
 
 <a id="fejlesztői-memória-védelme"></a>
 

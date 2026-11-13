@@ -28,6 +28,13 @@ namespace Blade\Feature;
  *   ACL-checked list read, kept current by the live channel) as a badge in that tone; zero shows the plain entry.
  *   Only a list view with a menu entry that is not a singleton; 1–8 filters of the resource's filterable fields
  *   (Registry checks them).
+ * $available: `Closure(Context): bool`, evaluated on the server for each bootstrap after the tenant check (the Context
+ *   carries the actor, the active tenant and the database) and never serialized; false leaves the view out of the
+ *   bootstrap as if it were not declared: no menu entry (an emptied group disappears), no `#view=` address,
+ *   `app.navigate` or `app.viewDefinition`, no attention count, no sub-view, `page` or tree that needs it, and an
+ *   embedded sub-view of it goes with it. For runtime state of the tenant or actor such as a service a tenant switched
+ *   off (docs/workspaces.md#view-availability). Presentation only: the view's actions stay governed by ACL and the
+ *   resource's own guards. Null: always available.
  */
 final readonly class View
 {
@@ -50,6 +57,7 @@ final readonly class View
         public ?string $guide = null,
         public bool $menu = true,
         public ?array $attention = null,
+        public ?\Closure $available = null,
     ) {
         if (!preg_match(self::ID, $id)) throw new \InvalidArgumentException('Invalid view id.');
         if (!preg_match(self::ID, $kind) || (!in_array($kind, self::BUILTIN_KINDS, true) && !str_contains($kind, '.'))) throw new \InvalidArgumentException('Invalid view kind: '.$id);
@@ -82,11 +90,11 @@ final readonly class View
      * The list view of $resource (kind `list`, id $id, default the resource) as Registry::view() declares it; see there
      * for the options. Not registered: for Registry::addView() or Registry::updateView().
      */
-    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null): self
+    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, ?\Closure $available = null): self
     {
         $options = ['columns' => $columns, 'singleton' => $singleton, 'layout' => $layout ?? new ViewLayout(), 'rowNumbers' => $rowNumbers, 'selection' => $selection, 'rowSelection' => $rowSelection,
             ...array_filter(['rowHeight' => $rowHeight, 'tileMinWidth' => $tileMinWidth, 'tiles' => $tiles ?: null, 'modes' => $modes, 'cardColumns' => $cardColumns, 'activate' => $activate, 'commands' => $commands ?: null, 'drop' => $drop, 'sort' => $sort], static fn($v) => $v !== null)];
-        return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide, menu: $menu, attention: $attention);
+        return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide, menu: $menu, attention: $attention, available: $available);
     }
 
     /** A copy with the given constructor arguments replaced, e.g. `$view->with(icon: 'dxi dxi-key')`. */

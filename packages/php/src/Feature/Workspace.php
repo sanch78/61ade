@@ -46,7 +46,8 @@ final class Workspace
     }
     /**
      * Views offered to $actor (bootstrap `views`, docs/toolkit.md#views); tenant-scoped ones only with an active $tenant
-     * (membership checked), record views only with the record resource's `get` offered. Each entry is
+     * (membership checked), record views only with the record resource's `get` offered, and a view declaring `available`
+     * only while that closure returns true for this context (View). Each entry is
      * `{id, kind, title, resource?, record?, actions, group, icon, desktopOnly, open, menu?, attention?, guide?, options}` (`menu`
      * only as `false`: offered without a menu entry or address of its own; `attention`: `{filters, tone}` of the menu
      * entry's live count, View); the kind provider
@@ -58,6 +59,7 @@ final class Workspace
         $out=[];$ctx=$this->context($actor,'ui',$tenant);$meta=new ViewMetadata($this->registry);
         foreach($this->registry->views() as $view){
             if(array_filter([$view->resource,$view->record],fn($name)=>$name!==null&&!$this->registry->tenantReady($ctx,$name)))continue;
+            if($view->available!==null&&!($view->available)($ctx))continue;
             if($view->record!==null&&!$meta->offered($ctx,$view->record,'get'))continue;
             $data=$this->registry->provider($view->kind)->metadata($ctx,$view);
             if($data===null)continue;

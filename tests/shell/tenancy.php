@@ -3,7 +3,7 @@ declare(strict_types=1);
 require dirname(__DIR__,2).'/examples/demo-app/vendor/autoload.php';
 use Blade\Access\{Schema,Tokens};
 use Blade\Admin\{Accounts,Administration,ApiKeys};
-use Blade\Feature\{Registry,Workspace,Context,Failure,SqlResource,Field,Lookup};
+use Blade\Feature\{Registry,Workspace,Context,Failure,SqlResource,Field,Lookup,View};
 use Blade\Shell\{Identity,SqlIdentityProvider};
 use Blade\Tenancy\Tenancy;
 function check(bool $ok,string $message):void{if(!$ok)throw new RuntimeException($message);}
@@ -298,4 +298,45 @@ fails(fn()=>$srun($shared->context($none),'docs','list','',[]),403,'Shared: with
 check($subviewOf($none)===null,'Shared: and its view is not offered');
 check($run($ctxA,'projects','list','',['limit'=>50])['items']&&!array_filter($run($ctxA,'projects','list','',['limit'=>50])['items'],fn($item)=>isset($item['_shared'])),'Shared: a resource without the declaration is unchanged');
 unset($sdb,$shared);
+
+// View availability (docs/workspaces.md#view-availability): `available` over the tenant's own state offers a view in
+// one tenant and not in the other, for the built-in list and a project kind alike. A hidden view leaves no entry, no
+// emptied group, no attention, no sub-view or `page` of a parent and takes its embedded sub-view along; the next
+// bootstrap after a state change follows it, and the data and actions stay (ACL, not availability, governs them).
+$vdb=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);Schema::install($vdb);Tenancy::install($vdb);
+$vdb->exec('CREATE TABLE services (tenant_id TEXT NOT NULL, enabled INTEGER NOT NULL)');
+$vdb->exec('CREATE TABLE topics (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL)');
+$vdb->exec("CREATE TABLE feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new', topic_id TEXT NOT NULL DEFAULT '')");
+$vdb->exec('CREATE TABLE replies (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, text TEXT NOT NULL, feedback_id TEXT NOT NULL)');
+$va=Tenancy::ensure($vdb,'Alfa');$vb=Tenancy::ensure($vdb,'Béta');Tenancy::join($vdb,$va,'1');Tenancy::join($vdb,$vb,'1');
+$vdb->exec("INSERT INTO services VALUES ('$va',1),('$vb',0)");
+$vdb->exec("INSERT INTO feedback(tenant_id,message) VALUES ('$va','Alfa üzenet'),('$vb','Béta üzenet')");
+$seen=[];
+$on=function(Context $ctx)use(&$seen):bool{$seen[]=[$ctx->actor->id,$ctx->tenant];$q=$ctx->db->prepare('SELECT enabled FROM services WHERE tenant_id=?');$q->execute([(string)$ctx->tenant]);return (bool)$q->fetchColumn();};
+$avail=new Workspace(new Registry(),$vdb,tenancy:true);
+(new SqlResource('topics','topics','id',[new Field('title','Cím')]))->register($avail->registry,'Témák',group:'Közös');
+(new SqlResource('feedback','feedback','id',[new Field('message','Üzenet'),new Field('status','Állapot','select',options:['new'=>'Új','done'=>'Kész']),new Field('topic_id','Téma','select',options:['1'=>'Egy'])],tenantColumn:'tenant_id'))
+    ->register($avail->registry,'Visszajelzések',group:'Ügyfélszolgálat',attention:['filters'=>['status'=>'new']],available:$on);
+(new SqlResource('replies','replies','id',[new Field('text','Válasz'),new Field('feedback_id','Visszajelzés','select',options:['1'=>'Egy'])],tenantColumn:'tenant_id'))->register($avail->registry,'Válaszok');
+$avail->registry->subview('feedback','replies','feedback_id');
+$avail->registry->subview('topics','feedback','topic_id',embed:false);
+$avail->registry->addView(new View('demo.board','demo.board','Tábla',group:'Közös',available:$on));
+$vgrant=$vdb->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope) VALUES ('user','1',?,?,'ui','allow','all')");
+foreach(['topics','feedback','replies'] as $resource)foreach(['list','get','update'] as $action)$vgrant->execute([$resource,$action]);
+$offer=fn(string $tenant)=>array_column($avail->views($two,$tenant),null,'id');
+$inA=$offer($va);$inB=$offer($vb);
+check(isset($inA['feedback'],$inA['demo.board'])&&$inA['feedback']['group']==='Ügyfélszolgálat'&&isset($inA['feedback']['attention']),'Availability: offered with its group and attention where the closure allows it');
+check(($inA['topics']['options']['subview']['view']['id']??null)==='feedback'&&($inA['topics']['options']['subview']['page']??null)===true&&$inA['feedback']['options']['subview']['view']['id']==='replies','Availability: an offered view is a parent\'s page sub-view and keeps its embedded sub-view');
+check(!isset($inB['feedback'])&&!isset($inB['demo.board'])&&isset($inB['topics']),'Availability: the same application leaves the views out for the other tenant, for a list and a project kind');
+check(!in_array('Ügyfélszolgálat',array_column($inB,'group'),true)&&!array_filter($inB,fn($v)=>isset($v['attention'])),'Availability: no view of the emptied group and no attention count remain');
+check(!isset($inB['topics']['options']['subview'])&&!isset($inB['replies'])&&!str_contains(json_encode($inB,JSON_THROW_ON_ERROR),'"replies"'),'Availability: no sub-view or page of a parent, and the embedded sub-view of the hidden view is unreachable');
+check(in_array(['1',$va],$seen,true)&&in_array(['1',$vb],$seen,true),'Availability: the closure receives the actor and the active tenant');
+// The data and the actions are untouched: ACL, not availability, decides them; the next bootstrap follows the state.
+check(array_column($avail->executor->execute($avail->context($two,'ui',$vb),'feedback','list','',['limit'=>10])['items'],'message')===['Béta üzenet'],'Availability: a hidden view\'s data stays and its ACL-allowed list still answers');
+$vdb->exec("UPDATE services SET enabled=1 WHERE tenant_id='$vb'");$vdb->exec("UPDATE services SET enabled=0 WHERE tenant_id='$va'");
+check(isset($offer($vb)['feedback'])&&!isset($offer($va)['feedback']),'Availability: the next bootstrap follows a state change');
+check($avail->registry->updateView($avail->registry->viewById('feedback')->with(icon:'bi bi-chat'))->available===$on,'Availability: an updated view keeps its closure');
+$avail->registry->updateView($avail->registry->viewById('topics')->with(available:static fn(Context $ctx):bool=>false));
+check(!isset($offer($vb)['topics'])&&isset($offer($vb)['feedback']),'Availability: updateView() adds it to a registered view; a page child of a hidden parent keeps its own entry');
+unset($vdb,$avail,$vgrant,$offer,$inA,$inB);
 echo "tenancy: ok\n";

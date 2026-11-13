@@ -2075,6 +2075,17 @@ new app.components.ListView({ view: app.viewDefinition("signage_asset_items")!, 
   `tests/shell/menuless-view.spec.cjs`, `tests/shell/toolkit.php`,
   `tests/shell/configuration.php`.
 
+**A view offered only in some contexts** (`available`, a
+`Closure(Context): bool`; PHP `View`, `View::list`, `Registry::view`,
+`SqlResource::register`, `with()` for any declared view; JSON
+`resources.<name>.view.available` and `views.<id>.available` naming a
+workspace binding): evaluated on the server for each bootstrap, false leaves
+the view out of the bootstrap of that actor and tenant as if it were not
+declared, for every kind. Nothing changes on the client: a view missing from
+the bootstrap has no menu entry, address, `navigate` target, definition,
+activation, sub-view, tree or attention count. Presentation only; a state
+change shows at the next bootstrap ([view availability](workspaces.md#view-availability)).
+
 PHP signatures (`packages/php/src/Feature/Registry.php`, `SqlResource.php`,
 `packages/php/src/Shell/ApplicationDefinition.php`):
 
@@ -3119,6 +3130,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M75 | [View guide](workspaces.md#view-guide): while a non-modal window is open (a [long-lived window](#long-lived-windows)), a view opened behind it does not open its guide by itself; the guide stays unseen and `Útmutató` shows it | [FB-0200](feedback.md#fb-0200) | info: no declaration or API change; a spec that opened a long-lived window and then expected a view's first guide finds none | none | none |
 | M76 | [Modal windows](#modal-windows): a modal Suite window (`app.ui.window` by default, every framework record or action window, a project's own `new Window({modal: true})`) makes everything before it in the document `inert`, keeps Tab and Shift+Tab inside the topmost one and returns the focus to its opener on close; Escape closes the topmost focused modal window also without a non-modal one, but not while an open popup in it takes the key (`preventDefault`/stopped key, `:popover-open`, a focused `role="menu"`, an expanded `aria-haspopup` or combobox trigger). A Suite redraw asked for in the frame that destroys its view is dropped | [FB-0201](feedback.md#fb-0201) | info: a spec that tabbed from a modal window to the page behind it, or clicked through to an element before it, finds it inert; a popup inside a window that wants Escape to close the window as well must not mark itself open | none | none |
 | M77 | [Popup menu](#popup-menu): `app.ui.menu(anchor, options)` returns a `PopupMenu` (`opened`, `open`, `close`, `on("select")`, `destroy`); types `PopupMenuOptions`, `PopupMenuItem`, `PopupMenuEntry`, `PopupMenuGroup`, `PopupMenuEvents` in `admin.d.ts`: group headings, checked radio entries with a right-hand detail, scrolling beyond about 12 entries and the APG menu-button keys at any button | [FB-0202](feedback.md#fb-0202) | if used: a project's own popup menu (StoryBloX's interim `workshop.js` menu, grouped-menu request) can be replaced; nothing changes otherwise |
+| M78 | [View availability](workspaces.md#view-availability): `available` (`Closure(Context): bool`) on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.available` / `views.<id>.available` (a binding name); false leaves the view out of that bootstrap | [FB-0204](feedback.md#fb-0204) | none: additive, no consumer change required | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3281,6 +3293,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-13 | PHP `MenuCommand` and `ApplicationDefinition` `menuCommands`, JSON `application.menu_commands`, client `MenuCommand`/`MenuCommandContext` (`placement: "menu"`): application commands in the menu row on every view, emphasized, with a server-side `visible` and an optional view's attention count; `WindowOptions.maximizable` and `id`, `AppWindow.maximized`/`maximize()`: a maximize/restore button and a remembered box; long-lived non-modal windows documented; the row's popups above windows; Escape closes a modal window above a non-modal one (M74). Additive, except the registry type. | A consumer's work window must be reachable from every view through a conspicuous menu button, stay open across navigation, be large and remember its place. | [FB-0199](feedback.md#fb-0199) |
 | 2026-11-13 | Modal windows follow the APG dialog pattern: the page before the topmost modal window is `inert`, Tab and Shift+Tab cycle inside it, the focus returns to its opener; Escape closes it the same with or without non-modal windows and leaves an open popup inside it the first press; `WindowEscape.ts` became `ModalWindows.ts`. A Suite redraw of a destroyed view is dropped (`SuiteRedraw.ts`) (M76). | A modal work window left the keyboard free on the page behind it; an Escape for a project popup closed the window when a non-modal window was open; a window closed just before a viewport resize raised a page error. | [FB-0201](feedback.md#fb-0201) |
 | 2026-11-13 | `Ui.menu` and the `PopupMenu*` types: a popup menu with group headings, checked entries, details and scrolling, opened from any button with the APG menu-button keys; Escape closes only the menu, also in a modal window (M77). Additive. | A consumer's history list grouped by date and its model picker could not be built with the `CommandBar` menu (no headings or checked entries, at most 12 items, folded into `Műveletek` on a phone, the bar fills its container). | [FB-0202](feedback.md#fb-0202) |
+| 2026-11-13 | PHP `View::$available` (`Closure(Context): bool`) and `available` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.available`, `views.<id>.available` (binding names): a view offered only while the closure allows it for the bootstrap's actor and tenant. Additive (M78). | Per-tenant services must show or hide their views (a consumer request). | [FB-0204](feedback.md#fb-0204) |
 
 <a id="resolved-decisions"></a>
 

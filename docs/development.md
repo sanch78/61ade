@@ -448,7 +448,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Workspace/layout/live lists | `php8.4 tests/shell/lists.php`; `node tools/build.mjs` then `node tests/shell/live-protocol.mjs` (live protocol 2 against the bundled server on a free loopback port, own throw-away demo instance under `tmp/`; `BLADE_LIVE_SERVER` may name another bundle); shell `workspace.spec.cjs`, `layout-resizer.spec.cjs`, `mobile-grid.spec.cjs`, `preferences.spec.cjs`, `empty-states.spec.cjs` (loading and empty states) |
 | ACL/action/API permissions | PHP `access.php`, `permissions.php`, `api-keys.php`; shell `admin.spec.cjs` or the relevant `demo.spec.cjs` selector |
 | Accounts/admin | PHP `admin.php`, `permissions.php`; shell `admin.spec.cjs` |
-| Tenancy (tenants, scoped resources, keys) | PHP `tenancy.php`, `configuration.php`, `api-keys.php`; shell `tenancy.spec.cjs`, `admin.spec.cjs` |
+| Tenancy (tenants, scoped resources, keys), view availability | PHP `tenancy.php`, `configuration.php`, `api-keys.php`; shell `tenancy.spec.cjs`, `admin.spec.cjs`; with tenant demo menu changes also `sign-in-branding.spec.cjs` |
 | Sub-views (expandable rows/cards), record activation | PHP `tenancy.php`, `configuration.php`; shell `subview.spec.cjs`, `subview-demos.spec.cjs`, `tenancy.spec.cjs`, `activation.spec.cjs` |
 | Authentication/OAuth/mail | PHP `authentication.php`, `oauth.php`, `mail.php`; shell `authentication.spec.cjs`, `demo.spec.cjs` with `--grep` for the affected flow |
 | JSON/env/validation | PHP `configuration.php`, `validation.php`, affected `contracts.php` |

@@ -353,6 +353,16 @@ if (!$db->query("SELECT COUNT(*) FROM tenant_items WHERE tenant_id = ''")->fetch
         if ($id) $item->execute([$title, (string) $id, $kind]);
     }
 }
+// View availability (docs/workspaces.md#view-availability): a per-tenant service switch; `Visszajelzések` is offered
+// only while the tenant's `feedback` service is on (Alpha on, Beta off). Switching it off keeps the tenant's feedback.
+$db->exec('CREATE TABLE IF NOT EXISTS tenant_services(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, service TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 0, UNIQUE(tenant_id, service))');
+$db->exec("CREATE TABLE IF NOT EXISTS tenant_feedback(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new')");
+$service = $db->prepare("INSERT OR IGNORE INTO tenant_services(tenant_id, service, enabled) VALUES (?, 'feedback', ?)");
+foreach ([[$alfa, 1], [$beta, 0]] as [$tenant, $enabled]) $service->execute([$tenant, $enabled]);
+if (!$db->query('SELECT COUNT(*) FROM tenant_feedback')->fetchColumn()) {
+    $feedback = $db->prepare('INSERT INTO tenant_feedback(tenant_id, message, status) VALUES (?, ?, ?)');
+    foreach ([[$alfa, 'The new opening hours are clear', 'new'], [$alfa, 'Please add a parking map', 'done'], [$beta, 'Beta feedback kept while the service is off', 'new']] as $row) $feedback->execute($row);
+}
 // Editors: the global role works in each member tenant; tenant membership decides where.
 $db->exec("INSERT OR IGNORE INTO blade_roles(name, role_key) VALUES ('Editor', 'editor')");
 $editor = (string) $db->query("SELECT id FROM blade_roles WHERE role_key = 'editor'")->fetchColumn();
@@ -363,12 +373,13 @@ $exists = $db->prepare("SELECT COUNT(*) FROM blade_rules WHERE subject_type=? AN
 $grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES (?,?,?,?,?,'allow','all','','')");
 $rules = [['role', $editor, 'tenant_projects', ['list', 'get', 'create', 'update'], 'ui'], ['role', $editor, 'tenant_tasks', ['list', 'get', 'create', 'update', 'delete'], 'ui'], ['role', $editor, 'tenant_notices', ['list', 'get'], 'ui'],
     ['role', $editor, 'tenant_categories', ['list', 'get'], 'ui'], ['role', $editor, 'tenant_items', ['list', 'get', 'create', 'update', 'delete'], 'ui'],
+    ['role', $editor, 'tenant_services', ['list', 'get', 'update'], 'ui'], ['role', $editor, 'tenant_feedback', ['list', 'get', 'create', 'update'], 'ui'],
     ['user', '1', 'tenant_projects', ['list', 'get', 'create'], 'api'], ['user', '1', 'tenant_notices', ['list', 'get'], 'api']];
 foreach ($rules as [$type, $subject, $resource, $actions, $channel]) foreach ($actions as $action) {
     $exists->execute([$type, $subject, $resource, $action, $channel]);
     if (!$exists->fetchColumn()) $grant->execute([$type, $subject, $resource, $action, $channel]);
 }
-unset($exists, $grant, $project, $task, $category, $item, $db);
+unset($exists, $grant, $project, $task, $category, $item, $service, $feedback, $db);
 $tenantDemo = require __DIR__.'/tenant-application.php';
 Blade\Admin\Permissions::grantAdministration($tenantDemo->workspace->db, $tenantDemo->workspace->registry, '1', roleName: 'Administrator');
 // The web server's instance (public/.htaccess) also gets the developer key and a fresh seed of the visitor sandboxes.

@@ -8,10 +8,11 @@ declare(strict_types=1);
  * entry), a task to its subtasks (a hierarchy: the toolbar acts on a selected subtask), and in the administration
  * a tenant to its members. Global categories count the tenant-scoped items each actor could list (count fields).
  * Shared items (tenant '') are read by every tenant beside its own and edited by shared@, who works without a tenant.
+ * A per-tenant service switch shows or hides the service's data view (view availability).
  */
 
 use Blade\Admin\{Accounts, Administration};
-use Blade\Feature\{Field, Lookup, Registry, SqlResource, Workspace};
+use Blade\Feature\{Context, Field, Lookup, Registry, SqlResource, Workspace};
 use Blade\Live\LiveConfig;
 use Blade\Navigation\Menu;
 use Blade\Shell\{ApplicationDefinition, SqlIdentityProvider};
@@ -75,6 +76,26 @@ $items->registerDelete($workspace->registry, 'archive');
 $workspace->registry->view('tenant_categories', 'Kategóriák', [['id' => 'name', 'header' => 'Megnevezés']], ['get'], id: 'tenant_category_tree', menu: false);
 $workspace->registry->subview('tenant_category_tree', 'tenant_category_tree', 'parent_id');
 $workspace->registry->tree('tenant_items', 'tenant_category_tree', 'category_id', 'name');
+
+// View availability (docs/workspaces.md#view-availability): a tenant switches its `feedback` service on and off in
+// `Szolgáltatások`; `Visszajelzések` (and with it the `Ügyfélszolgálat` menu group) is offered only while it is on.
+// The switch reloads the shell (`reauthenticate`), so the menu follows at once; the feedback rows stay while it is off.
+$services = new SqlResource('tenant_services', 'tenant_services', 'id', [
+    new Field('service', 'Szolgáltatás', 'select', options: ['feedback' => 'Visszajelzések']),
+    new Field('enabled', 'Bekapcsolva', 'checkbox', defaultValue: '0', column: ['editable' => true, 'align' => 'center', 'width' => 130]),
+], readOnly: ['service'], tenantColumn: 'tenant_id', afterSave: static fn() => ['reauthenticate' => true]);
+$services->register($workspace->registry, 'Szolgáltatások', create: false, group: 'Tenant demó', guide: 'Az aktív tenant szolgáltatásai. A Bekapcsolva kapcsoló a tenantban be- vagy kikapcsolja a szolgáltatást; a felület ezután újratölt.'."\n\n".'Kikapcsolt Visszajelzések szolgáltatásnál a Visszajelzések nézet és az Ügyfélszolgálat menücsoport eltűnik, az adatok megmaradnak, és visszakapcsoláskor ugyanazokkal jelenik meg újra.');
+$serviceOn = static function (Context $ctx): bool {
+    if ($ctx->tenant === null) return false;
+    $q = $ctx->db->prepare("SELECT enabled FROM tenant_services WHERE tenant_id = ? AND service = 'feedback'");
+    $q->execute([$ctx->tenant]);
+    return (bool) $q->fetchColumn();
+};
+(new SqlResource('tenant_feedback', 'tenant_feedback', 'id', [
+    new Field('message', 'Üzenet', required: true, max: 500),
+    new Field('status', 'Állapot', 'select', options: ['new' => 'Új', 'done' => 'Kezelt'], defaultValue: 'new', column: ['editable' => true]),
+], tenantColumn: 'tenant_id'))->register($workspace->registry, 'Visszajelzések', group: 'Ügyfélszolgálat', attention: ['filters' => ['status' => 'new']], available: $serviceOn,
+    guide: 'A tenant Visszajelzések szolgáltatásának beérkezett üzenetei; a menüpont az új üzenetek számát mutatja.'."\n\n".'Csak akkor látszik, ha a szolgáltatás az aktív tenantban be van kapcsolva (Tenant demó → Szolgáltatások).');
 
 // Live data: the feature demo's WebSocket unit serves this application at <endpoint>/tenants (docs/demos.md).
 $liveEndpoint = blade_demo_setting('BLADE_DEMO_LIVE_ENDPOINT');

@@ -213,7 +213,7 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'modes' => 'array', 'card_columns' => 'integer', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array', 'menu' => 'boolean', 'sort' => 'array', 'attention' => 'array',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'modes' => 'array', 'card_columns' => 'integer', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array', 'menu' => 'boolean', 'sort' => 'array', 'attention' => 'array', 'available' => 'string',
         ], '$.resources.'.$name.'.view');
         // A string target or an `{field, map}` activation map; Registry::view() validates the targets.
         if (isset($view['activate']) && !is_string($view['activate']) && !is_array($view['activate'])) {
@@ -356,6 +356,7 @@ final class WorkspaceConfiguration
             sort: $view['sort'] ?? null,
             modes: $view['modes'] ?? null,
             cardColumns: $view['card_columns'] ?? null,
+            available: $this->bindings->get($view['available'] ?? null),
         ));
     }
 
@@ -378,7 +379,7 @@ final class WorkspaceConfiguration
         }
         Shape::check($definition, ['kind' => 'string', 'title' => 'string'], [
             'resource' => 'string', 'record' => 'string', 'actions' => 'array', 'options' => 'array', 'open' => 'string',
-            'group' => 'string', 'icon' => 'string', 'desktop_only' => 'boolean', 'guide' => 'string',
+            'group' => 'string', 'icon' => 'string', 'desktop_only' => 'boolean', 'guide' => 'string', 'available' => 'string',
         ], '$.views.'.$id);
         if (in_array($definition['kind'], View::BUILTIN_KINDS, true)) {
             throw new InvalidArgumentException('Built-in view kinds are declared in resources.<name>.view: $.views.'.$id);
@@ -397,6 +398,7 @@ final class WorkspaceConfiguration
             desktopOnly: $definition['desktop_only'] ?? false,
             open: $definition['open'] ?? 'page',
             guide: $definition['guide'] ?? null,
+            available: $this->bindings->get($definition['available'] ?? null),
         ));
     }
 }
