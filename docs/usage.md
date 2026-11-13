@@ -783,6 +783,8 @@ views, transport controls and demos. Any icon slot accepts `bi bi-<name>`;
 record icon columns use those values as keys of their labelled `options`.
 No extra stylesheet, font file or CDN is needed. Legacy `dxi` and `blade-icon`
 classes remain compatible.
+Menu commands centre their whole icon/label/count group within the button,
+including commands without a count and the narrow icon-only form.
 
 <a id="többnyelvűség"></a>
 

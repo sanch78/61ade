@@ -555,7 +555,7 @@ body,
 .blade-menu-count--primary { background: var(--dhx-color-primary); color: var(--dhx-font-color-contrast); }
 /* Menu-row commands (docs/shell.md#menu-commands): the entry is the full-height row button (its hit area); the
    emphasized tone draws a filled primary pill inside it with bold text, so shape and weight mark it besides colour. */
-.blade-menu-command__body { display: inline-flex; align-items: center; height: 100%; }
+.blade-menu-command__body { display: flex; align-items: center; height: 100%; }
 .blade-navigation-row .blade-menu-command .blade-menu-command__body .dhx_menu-button__icon { margin-right: 8px; }
 /* The pill is the primary colour darkened so white text keeps 4.5:1 in every theme and skin (Suite's dark primary
    with its contrast colour stays below 3:1). */

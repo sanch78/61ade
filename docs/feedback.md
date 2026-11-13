@@ -9144,6 +9144,9 @@ that exactly equals an option label lists every option. The managed
   verification already match this choice; these two buttons were excluded
   from the old/new width equality assertion intentionally.
 - **Status:** implemented and verified; the geometry decision is resolved.
+- **Follow-up:** [FB-0205](#fb-0205) fixes the remaining offset of the whole
+  command group within the button; the checks above compared its children
+  with each other and did not detect that separate baseline defect.
 
 <a id="fb-0204"></a>
 
@@ -9240,3 +9243,39 @@ that exactly equals an option label lists every option. The managed
   keys, and found an always-true assertion. All three were fixed before the
   commit.
 - **Status:** implemented.
+
+<a id="fb-0205"></a>
+
+## FB-0205 — Centre the whole menu-command group within its pill
+
+- **Date:** 2026-11-13.
+- **Report:** the emphasized `Műhely` command in a consumer and `Munkaasztal`
+  in the feature demo still look too high after [FB-0203](#fb-0203), both
+  without and with a count. Preserve control geometry.
+- **Cause:** the command body was `inline-flex` inside Suite's
+  `.dhx_menu-button__text`. Its inline baseline left 6 px of extra space
+  below the 20 px group in Blade, 5 px in Generic. Suite centred the resulting
+  26/25 px wrapper within the 39 px button, so the icon, label and count
+  together sat 3/2.5 px too high. The earlier check compared the children
+  with each other; that did not prove alignment within the button.
+- **Fix:** the command body is block-level `flex`, retaining `align-items:
+  center`. Its Suite text wrapper is now 20 px high too, and both share
+  the button/pill's centre. Button width/height, icon size, spacing and badge
+  dimensions are unchanged. Shared CSS only; no consumer runtime edits.
+- **Guides:** [menu commands](shell.md#menu-commands), [icons](icons.md),
+  [usage](usage.md#icons); the [UI skill](../.agents/skills/61ade-ui/SKILL.md)
+  now requires checking the group against the control itself.
+- **Verification:** build, local demo assets, TypeScript and PHP `contracts`
+  and `configuration` passed. The guarded managed-demo browser run passed
+  36 tests: `browser`, `menu-commands`, `menu-attention`, `skins` and 18
+  temporary centring cases. Those cases covered all four factory bases at
+  1366/390 px, with and without a count, plus both demo child skins. The
+  count-free case uses the reported `Műhely` label; each case checks both
+  Bootstrap and legacy Suite pencil icons. Temporarily restoring the old
+  inline display reproduced the 2.5/3 px offset. With the fix, all 36 icon
+  states had zero group-to-button centre offset and zero button width/height
+  change; wrapper/group heights both measured 20 px. Icon/label/count
+  centres were also checked, and screenshots/pencil ink were inspected.
+  Consumer pages themselves were not opened or modified. Temporary test
+  source, measurements and screenshots were removed after verification.
+- **Status:** implemented and verified on the managed demo.
