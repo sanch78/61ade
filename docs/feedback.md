@@ -7548,10 +7548,41 @@ that exactly equals an option label lists every option. The managed
   covers rejected and accepted `collation` values. The fixed `Acl::rules` and
   `SET NAMES` were not yet re-run on MySQL, because the isolated test
   instance had expired.
+- **MySQL re-qualification (2026-11-13):** Infra's renewed isolated fixture
+  (D47): MySQL 8.0.46, socket only, schema `utf8mb4_unicode_ci`, native
+  prepares. A task-only probe connected through `Database::connect` (the
+  JSON `database` shape) and `Database::fromEnvironment`. Executor paths ran
+  on a traced connection whose session matched.
+  - **DSN-only default** (`charset=utf8mb4`, the session got
+    `utf8mb4_general_ci`):
+    - `Acl::rules` with a role rule, directly and through the executor,
+      passes. An actor without the role gets nothing.
+    - The pre-fix `CAST(role_id AS CHAR)` query still fails with 1267, so
+      the binding is what fixes it.
+    - Error 1267 remains on every column-versus-`CAST(... AS CHAR)`
+      comparison: `Tenancy::memberships`/`member` and
+      `Workspace::context`, the account administration list, `RelatedSet`/
+      `RelatedStorage` lists, tenant-access administration, and
+      `Accounts::nameSql`/`visibleSql` against a column.
+    - Bound-value forms pass: a `get` with related fields, `nameSql('?')`,
+      the `visibleSql` source, the manual-order scope and count fields.
+  - **Declared `collation_connection=utf8mb4_unicode_ci`:** every case
+    passes, with no SQL error.
+  - **`collation` option:**
+    - `connect` refuses a value from another charset, one with an injected
+      `;`, one without the charset prefix, and a non-string value.
+    - `PREFIX_COLLATION` and the read-only connection apply the declared
+      value; an empty `PREFIX_COLLATION` keeps the default.
+  - **Guide corrected:** without `collation`, the connection keeps the
+    client's handshake collation (`utf8mb4_general_ci`), not the server's
+    default. `Database::connect` has no socket option: `localhost` uses
+    `pdo_mysql.default_socket`.
+- **Connection prerequisite:** declare `collation` equal to the schema
+  collation (here `utf8mb4_unicode_ci`).
 - **Limits:** the remaining `CAST(... AS CHAR)` comparisons still need a
   matching connection collation, which is a documented prerequisite. Equality
   follows the column collation; no binary comparison is enforced.
-- **Status:** implemented; MySQL re-qualification pending.
+- **Status:** implemented and qualified on MySQL 8.0.46.
 
 <a id="fb-0180"></a>
 
@@ -7656,8 +7687,38 @@ that exactly equals an option label lists every option. The managed
   - The run restores the demo data. `admin`, `tenancy`, `count-fields`,
     `list-integration` and `menu-attention` passed 17/17.
 - **Commit:** `e1d81796361292efeec718e5a2b9e785264b0474` on `main`.
-- **Status:** implemented and verified on SQLite and on the managed demo;
-  MySQL qualification pending (the isolated test instance had expired).
+- **MySQL qualification (2026-11-13):** Infra's renewed isolated fixture
+  (D47, MySQL 8.0.46, schema `utf8mb4_unicode_ci`, `lower_case_table_names=0`).
+  `delegation.php` ran with native prepares, with the DSN-only default
+  (`utf8mb4_general_ci` session) and with `BLADE_TEST_MYSQL_COLLATION=utf8mb4_unicode_ci`.
+  - **First run:** both modes failed on the first list, for two causes,
+    each fixed forward:
+    - The fixture declared the link table as `COLLECTION_READERS`, while the
+      table is `collection_readers`. SQLite ignores the case of table names;
+      MySQL on Linux does not (error 1146). The fixture now declares the real
+      name. Declared table names are case-sensitive on such servers.
+    - `SqlResource` manual order (`order`) cast the position with
+      `CAST(… AS INTEGER)`, which MySQL rejects (error 1064). So a create
+      and a `move` of every ordered resource failed on MySQL, not only a
+      delegated one. Both casts now use `DECIMAL(65,0)`, as numeric sorting
+      in `ListSource` already does.
+  - **After the fixes:** the whole contract passes in both modes and on
+    SQLite. It covers:
+    - read and write link sets, including `DelegationVia`;
+    - writes on stored rows that need the effective `get`;
+    - create and destinations on the final values;
+    - raw-set denies;
+    - the missing-declaration and unknown-scope rejections.
+  - **Named placeholders:** native prepares refuse a repeated named
+    placeholder (HY093, confirmed on the fixture), and no statement of the
+    run hit it. Every `DelegationScope::sql()` fragment takes fresh names,
+    and each caller (`ListSource`, `Lookup`, `linkedRow`, `linkedValues`)
+    embeds it once per statement.
+  - **SQLite regression:** `delegation`, `toolkit`, `lists`, `signage`,
+    `sorting`, `access`, `permissions`, `configuration`, `contracts`,
+    `tenancy` and `related-fields` passed.
+- **Status:** implemented and verified on SQLite, on the managed demo and on
+  MySQL 8.0.46.
 
 <a id="fb-0181"></a>
 

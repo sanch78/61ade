@@ -69,12 +69,28 @@ the collation of the schema's string columns. 61ade compares stored string
 columns with expressions such as `CAST(id AS CHAR)`, which take the
 connection collation. If the two differ, for example a
 `utf8mb4_general_ci` connection on a `utf8mb4_unicode_ci` schema, MySQL
-rejects those queries with error 1267 (*Illegal mix of collations*). Set
+rejects those queries with error 1267 (*Illegal mix of collations*). This
+affects:
+
+- the tenant membership check (`Tenancy::member`/`memberships`), and with
+  it every tenant-scoped request;
+- account administration;
+- lists of resources with `RelatedSet` or `RelatedStorage`;
+- tenant-access administration;
+- `Accounts::nameSql`/`visibleSql` compared with a column.
+
+The ACL rule lookup and delegated access bind their values and do not
+depend on it ([FB-0179](feedback.md#fb-0179)). Set
 `collation` (JSON `database.collation`, env `PREFIX_COLLATION`) to the
 schema's collation, for example `utf8mb4_unicode_ci`. The value must belong
 to `charset` and is applied with `SET NAMES charset COLLATE collation`.
-Without it, the server's default collation for the charset applies. A host
-that opens its own PDO connection sets the same collation itself.
+Without it, the connection keeps the collation that the client chose for
+`charset`, not the server's or the schema's default. With PHP mysqlnd and
+`utf8mb4` on MySQL 8.0, that is `utf8mb4_general_ci`, even when the server
+and the schema default to `utf8mb4_unicode_ci`. A host that opens its own
+PDO connection sets the same collation itself. `Database::connect` has no
+socket option: `host` `localhost` connects through the Unix socket named by
+PHP's `pdo_mysql.default_socket`, and the port is then ignored.
 Comparisons follow the column collation, so under a case-insensitive
 collation, string keys that differ only in case compare equal. Stored
 identifiers must not rely on case.

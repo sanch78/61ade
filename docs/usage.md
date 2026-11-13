@@ -583,6 +583,9 @@ with `DelegationLink` and an optional `DelegationVia`; JSON
 rows the actor reaches through the application's own relationship tables:
 the read links for reads, the write links for writes. `delegation.php`
 covers it on SQLite and, with the `BLADE_TEST_MYSQL_*` variables, on MySQL.
+`BLADE_TEST_MYSQL_DSN` must name the database and the charset (for example
+`;dbname=…;charset=utf8mb4`). The run drops every table of that schema, so
+use only a disposable one.
 
 <a id="multi-tenancy"></a>
 

@@ -270,7 +270,7 @@ final class SqlResource
         [$where,$params]=$this->orderScope($ctx,$target['row']);
         $field=$this->order['field'];
         $owner=$this->ownerColumn?", {$this->ownerColumn} AS owner":'';
-        $q=$ctx->db->prepare("SELECT {$this->key} AS id, $field AS position$owner FROM {$this->table} WHERE $where ORDER BY CAST($field AS INTEGER), {$this->key}");$q->execute($params);
+        $q=$ctx->db->prepare("SELECT {$this->key} AS id, $field AS position$owner FROM {$this->table} WHERE $where ORDER BY CAST($field AS DECIMAL(65,0)), {$this->key}");$q->execute($params);
         $rows=$q->fetchAll(\PDO::FETCH_ASSOC);
         $current=array_column($rows,'position','id');
         $ids=array_values(array_filter(array_map('strval',array_column($rows,'id')),static fn($id)=>$id!==$target['id']));
@@ -355,7 +355,7 @@ final class SqlResource
             if($tenant!==null)$values[$this->tenantColumn]=$tenant;
             if($this->order){
                 [$where,$params]=$this->orderScope($ctx,$values);
-                $q=$ctx->db->prepare("SELECT COALESCE(MAX(CAST({$this->order['field']} AS INTEGER)),0)+1 FROM {$this->table} WHERE $where");$q->execute($params);
+                $q=$ctx->db->prepare("SELECT COALESCE(MAX(CAST({$this->order['field']} AS DECIMAL(65,0))),0)+1 FROM {$this->table} WHERE $where");$q->execute($params);
                 $values[$this->order['field']]=(int)$q->fetchColumn();
             }
             $this->delegatedWrite($ctx,null,array_replace($values,array_diff_key($allValues,$values)),$allValues);

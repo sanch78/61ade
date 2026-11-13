@@ -170,7 +170,9 @@ JSON: `storage.delegation` with `read` and `write` lists of
   closed. A resource `where` may name its table.
 - **Key types and collations:** the link and resource columns compared with
   each other need compatible types. On MySQL, string keys also need the same
-  charset and collation, and the connection collation must match the schema
+  charset and collation. Delegated access binds the actor and compares
+  columns, so it does not depend on the connection collation itself, but
+  the rest of the application does
   ([connection collation](shell.md#database-connection)). Under a
   case-insensitive collation, string actor or object keys that differ only
   in case match each other.
