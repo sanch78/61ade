@@ -31,8 +31,9 @@ final class Database
 
     /**
      * Connect using resolved configuration; credentials are never part of errors. Optional `collation` sets the
-     * connection collation (`SET NAMES charset COLLATE collation`); without it the server's default collation for
-     * the charset applies, which must match the schema's string columns (docs/shell.md#database-connection).
+     * connection collation (`SET NAMES charset COLLATE collation`); without it the connection keeps the client's
+     * collation for the charset (mysqlnd utf8mb4: utf8mb4_general_ci), which must match the schema's string columns
+     * (docs/shell.md#database-connection).
      */
     public static function connect(array $configuration, bool $readOnly = false): \PDO
     {

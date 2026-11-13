@@ -170,7 +170,9 @@ JSON: `storage.delegation` with `read` and `write` lists of
   closed. A resource `where` may name its table.
 - **Key types and collations:** the link and resource columns compared with
   each other need compatible types. On MySQL, string keys also need the same
-  charset and collation, and the connection collation must match the schema
+  charset and collation. Delegated access binds the actor and compares
+  columns, so it does not depend on the connection collation itself, but
+  the rest of the application does
   ([connection collation](shell.md#database-connection)). Under a
   case-insensitive collation, string actor or object keys that differ only
   in case match each other.
@@ -208,6 +210,16 @@ API: `POST ./?blade=1`, `Content-Type: application/json`,
 Tokens are stored hashed, expire and can be revoked; example scope: `notes.get`.
 Every request rechecks owner account state. Browsers use the same endpoint with
 session and `X-BLADE-CSRF`. Writes require POST; no CSRF-free cookie API channel.
+
+`Passwords` takes the consumer account schema/hash codec. Self-service changes
+require current password and confirmation, with 12–128 characters. Success
+revokes sessions/API tokens. Secret-field actions allow 5 attempts/minute/actor/
+action. Existing consumer password formats remain the consumer's compatibility decision.
+
+Synthetic demo: `php8.4 examples/demo-app/setup-workspace.php`, then open the
+managed demo URL. Notes uses the same registry/DHTMLX adapter with its own SQLite
+data. `tests/shell/access.php` and `workspace.spec.cjs` historically verified ACL,
+API scopes, rollback and actual form/grid saving.
 
 <a id="kapcsolt-mezők-és-határok"></a>
 

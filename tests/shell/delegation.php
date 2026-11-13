@@ -83,7 +83,7 @@ $normalizeTo = null;
 $collections = new SqlResource('collections', 'collections', 'id', [new Field('title', 'Title', required: true), new Field('items_total', 'Items', 'number')],
     counts: ['items_total' => ['resource' => 'items', 'match' => ['collection_id']]],
     // A parent's visibility through ownership of a child: item_owners.item_id = items.id, items.collection_id = collections.id.
-    delegation: new Delegation(read: [new DelegationLink('COLLECTION_READERS', 'collection_id', 'actor_id', 'id'), new DelegationLink('item_owners', 'item_id', 'actor_id', 'id', new DelegationVia('items', 'id', 'collection_id'))],
+    delegation: new Delegation(read: [new DelegationLink('collection_readers', 'collection_id', 'actor_id', 'id'), new DelegationLink('item_owners', 'item_id', 'actor_id', 'id', new DelegationVia('items', 'id', 'collection_id'))],
         write: [new DelegationLink('collection_writers', 'collection_id', 'actor_id', 'id')]));
 $collections->register($registry, 'Collections');
 $items = new SqlResource('items', 'items', 'id', [new Field('collection_id', 'Collection', 'number', required: true), new Field('title', 'Title', required: true), new Field('label', 'Label'), new Field('sort_order', 'Order', 'number')],
