@@ -1,0 +1,4 @@
+interface:
+  display_name: "61ade UI"
+  short_description: "Design shared 61ade grid, tree and card interfaces"
+  default_prompt: "Use $61ade-ui to design or extend a shared 61ade grid, tree or card interface."

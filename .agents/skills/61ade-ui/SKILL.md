@@ -1,15 +1,18 @@
 ---
-name: grid-tree-card-ui
-description: Design and extend shared grid, tree, and card/DataView interfaces in 61ade or a similar framework-first admin UI. Use when introducing a record list, hierarchy, responsive record surface, or reviewing its layout, interaction, accessibility, authorization, and validation contract; do not use for unrelated shell or one-off consumer markup.
+name: 61ade-ui
+description: Design, extend, or review 61ade's shared grid, record-tree, and card/DataView interfaces, including layout, interaction, accessibility, authorization, and validation. Use for framework UI work in 61ade itself; use 61ade-application for consumer application features and 61ade-consumer for integration.
 ---
 
-# Grid, tree, and card UI
+# 61ade UI
 
 Use this skill when a feature adds or changes a flat record list, a hierarchical
 browser, a responsive record surface, or the shared behavior between those
 views. It captures reusable lessons from the 61ade workspace, list, file-tree,
 and card work. It is guidance for designing and extending the framework; the
-public runtime contract remains in the project's topic guides.
+public runtime contract remains in the project's topic guides and takes
+precedence when guidance differs. For consumer application features use
+[61ade-application](../61ade-application/SKILL.md); for integration use
+[61ade-consumer](../61ade-consumer/SKILL.md).
 
 ## Establish the boundary first
 
@@ -173,9 +176,13 @@ tree as decoration for a flat list.
   target existence, and cycles transactionally on the server. Restore the old
   position with a clear error when the server rejects it. Do not infer move
   permission from a draggable cursor.
-- Use the Standard Tree adapter where it is supported. Lazy children, drag/move,
-  large-tree virtualization, and TreeGrid behavior need their own capability
-  contract, edition check, synthetic example, and tests before being promised.
+- Use the Standard Tree adapter where it is supported. Record trees and list
+  tree navigation load children on expansion; the file manager's tree loads
+  a bounded mount at once. Do not infer one surface's capabilities from another.
+  Drag/move, large-tree virtualization, and TreeGrid behavior need their own
+  capability contract, edition check, synthetic example, and tests before
+  being promised ([Tree](../../../docs/toolkit.md#tree),
+  [file manager](../../../docs/files.md)).
 - Give tree nodes the same keyboard/focus, localization, theme, loading,
   empty, error, and selection treatment as grids and cards. Do not use a tree
   merely to avoid designing a proper filter or list query.
@@ -286,9 +293,10 @@ tree as decoration for a flat list.
   forms a section alone declares `sectionFill`: the header is its visible
   name and the open section is the input, never a repeated label inside the
   section ([FB-0181](../../../docs/feedback.md#fb-0181)).
-- A small control of a panel (expand/collapse all) is a pair of named icon
-  buttons that stay in the bar (`iconOnly`, `pinned`), not text buttons or a
-  collapsed menu of two entries ([FB-0177](../../../docs/feedback.md#fb-0177)).
+- Keep small panel controls named and pinned in the native command bar
+  (`iconOnly`, `pinned`). For whole-tree expansion use the single stateful
+  toggle described under Tree rules; [FB-0191](../../../docs/feedback.md#fb-0191)
+  supersedes the two-button choice in [FB-0177](../../../docs/feedback.md#fb-0177).
 - Open a file or document (text editor, image viewer, video player) in a
   document window: one Layout fills the Window, a native Toolbar row holds its
   commands (at least Save for an editable document, with Ctrl+S) and state, and

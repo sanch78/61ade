@@ -9,7 +9,7 @@ left filter, right results, overlay editor. Panel mode requires a form area.
 Singleton views are direct readable/editable details without a grid.
 
 The agent-facing design rules for introducing or extending grid, data-tree, and
-card surfaces live in the [grid-tree-card-ui skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
+card surfaces live in the [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md).
 This guide remains the public runtime contract and records current limits and
 verification evidence.
 

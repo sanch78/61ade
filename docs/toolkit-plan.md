@@ -188,7 +188,7 @@ verified in Chromium during P3; record browser support.
 | `docs/demos.md` | Feature demo as toolkit consumer; table rows; continuous-extension rule includes toolkit examples; starter/tenant remain declarative. |
 | `docs/decisions/0002`, `0004` | Supersession notes pointing to ADR-0005. |
 | `.agents/skills/61ade-consumer/SKILL.md` | Module setup, `.deploy.json` files list, d.ts, sandbox, migration steps. |
-| `.agents/skills/grid-tree-card-ui` | Check that its rules address `ListView` composition and custom presentations. |
+| `.agents/skills/61ade-ui` | Check that its rules address `ListView` composition and custom presentations. |
 | `AGENTS.md` | Only if wording conflicts (it says "extend the framework first", which stays true for 61ade work). |
 | `docs/feedback.md` | FB entries per phase with verification; close FB-0080 items. |
 
@@ -333,7 +333,7 @@ except P0 and integration fixes.
 **Before starting**, every agent reads: `AGENTS.md`, `/space/share/libs/agents/MAIN.md`,
 `docs/development.md`, `docs/usage.md`, `docs/product-direction.md`, this plan,
 ADR-0004/0005, and the topic guides of its lane; list lanes also use the
-`grid-tree-card-ui` skill.
+`61ade-ui` skill.
 
 **Lane agents** work in their own git worktree on a branch named after the lane
 (`toolkit/K-F`, `toolkit/C-3`, ...), touch only the files their lane owns

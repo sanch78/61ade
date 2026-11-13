@@ -2566,7 +2566,7 @@ that exactly equals an option label lists every option. The managed
   the plan in shell, workspaces, files, uploader, configuration, concept,
   product direction (R2/R3/R8, evidence, module and sandbox event rows),
   component matrix, repository layout, demos, ADR-0002/0004 notes and the
-  `grid-tree-card-ui` skill. Checks: internal links and anchors of the
+  `61ade-ui` skill. Checks: internal links and anchors of the
   changed files, `git diff --check`.
 - **P6 (2026-10-30):** the [migration guide](toolkit.md#migration) lists
   M1–M15 since the consumers' last released library commit `131263a`, with
@@ -5023,7 +5023,7 @@ that exactly equals an option label lists every option. The managed
   full child-list window and keyboard behaviour apply in both modes. No new
   declaration, permission or server contract. This refines FB-0071's card footer.
 - **Guides:** [sub-views](workspaces.md#sub-views), [usage](usage.md),
-  [demos](demos.md), [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
+  [demos](demos.md), [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md).
 - **Verification:** build, asset preparation, typecheck, PHP tenancy and
   configuration checks passed. All 24 targeted Chromium cases passed on the
   managed demo: 12 existing sub-view/activation cases and 12 temporary cases
@@ -5099,7 +5099,7 @@ that exactly equals an option label lists every option. The managed
   opening ([pitfalls](toolkit.md#pitfalls)).
 - **Guides:** [toolkit Tabs](toolkit.md#tabs), [PageLayout](toolkit.md#pagelayout),
   [usage](usage.md), [demos](demos.md), [component matrix](component-matrix.md),
-  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md);
   migration row M38 (additive, info only).
 - **Verification:** `npm run typecheck`, `npm run build`
@@ -5217,7 +5217,7 @@ that exactly equals an option label lists every option. The managed
   [PageLayout](toolkit.md#pagelayout), [event catalog](toolkit.md#event-catalog),
   [usage](usage.md), [demos](demos.md#d1-asset-viewer),
   [component matrix](component-matrix.md),
-  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md);
   migration row M39 (additive, info only).
 - **Verification:** `npm run build` (`node tools/build.mjs --check` clean),
@@ -5698,7 +5698,7 @@ that exactly equals an option label lists every option. The managed
   above its content, and dividers between sections remain. No API or
   consumer changes.
 - **Guides:** [CommandBar](toolkit.md#commandbar), [usage](usage.md), the
-  reusable layout rule in the `grid-tree-card-ui` skill.
+  reusable layout rule in the `61ade-ui` skill.
 - **Verification:** `npm run build`, `npm run demo:assets`,
   `npm run typecheck`; PHP `contracts`, `configuration`. A temporary browser
   fixture on the managed demo checks `space` and `wide` at 1366 and 390 px:
@@ -5827,7 +5827,7 @@ that exactly equals an option label lists every option. The managed
 - **Guides:** [toolkit Tree](toolkit.md#tree), the component and event
   tables, [tree navigation](workspaces.md#tree-navigation), [usage](usage.md),
   [D8](demos.md#d8-key-browser), [component matrix](component-matrix.md),
-  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md);
   migration row M46 (additive, info only).
 - **Verification:** with [FB-0160](#fb-0160).
@@ -6030,7 +6030,7 @@ that exactly equals an option label lists every option. The managed
   [usage](usage.md), [D8](demos.md#d8-key-browser), the toolkit
   [changes](toolkit.md#changes),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md),
-  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md).
   No API change.
 - **Verification:** reproduced first on the managed demo with a temporary
   case (both cells empty after the first replacement, no console error).
@@ -6087,7 +6087,7 @@ that exactly equals an option label lists every option. The managed
 - **Guides:** [ListView](toolkit.md#listview), [usage](usage.md),
   [D8](demos.md#d8-key-browser), toolkit [changes](toolkit.md#changes),
   migration row M49, [61ade-application skill](../.agents/skills/61ade-application/SKILL.md),
-  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md).
 - **Verification:** with [FB-0165](#fb-0165).
 - **Limits:** the built-in create form only; string values.
 - **Commit:** `dda0271` on `main`.
@@ -6268,7 +6268,7 @@ that exactly equals an option label lists every option. The managed
   [ListView](toolkit.md#listview) scope, [RecordDetails](toolkit.md#recorddetails),
   [configuration](configuration.md) fields, [usage](usage.md),
   [D8](demos.md#d8-key-browser), toolkit [changes](toolkit.md#changes),
-  migration row M50, [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  migration row M50, [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
 - **Verification:** `npm run typecheck`, `npm run build`
   (`node tools/build.mjs --check` clean), `npm run demo:assets`; PHP
@@ -6554,7 +6554,7 @@ that exactly equals an option label lists every option. The managed
   preference and keyboard bullets, the API change log and migration row M52
   (additive, info only), [usage](usage.md), [D8](demos.md#d8-key-browser)
   and the capability table, [component matrix](component-matrix.md),
-  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md),
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
 - **Verification:**
   - **Build and static checks:** `npm run typecheck`, `npm run build`,
@@ -6711,8 +6711,8 @@ that exactly equals an option label lists every option. The managed
   [configuration](configuration.md) `view`, [usage](usage.md),
   [D7](demos.md#d7-task-page), [component matrix](component-matrix.md),
   toolkit [changes](toolkit.md#changes), migration row M53,
-  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md) and
-  its [ledger](../.agents/skills/grid-tree-card-ui/references/accepted-rules.md),
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md) and
+  its [ledger](../.agents/skills/61ade-ui/references/accepted-rules.md),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
 - **Verification:** `npm run typecheck`, `npm run build`
   (`node tools/build.mjs --check` clean at each browser run),
@@ -7288,8 +7288,8 @@ that exactly equals an option label lists every option. The managed
   [app.ui.window](toolkit.md#app-window), [RecordForm](toolkit.md#recordform),
   toolkit [changes](toolkit.md#changes) and migration row M58,
   [configuration](configuration.md) fields, [usage](usage.md),
-  [demos](demos.md), [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md)
-  and its [ledger](../.agents/skills/grid-tree-card-ui/references/accepted-rules.md),
+  [demos](demos.md), [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md)
+  and its [ledger](../.agents/skills/61ade-ui/references/accepted-rules.md),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
 - **Verification:**
   - **Build and static checks:** `npm run typecheck`, `npm run build`
@@ -7427,8 +7427,8 @@ that exactly equals an option label lists every option. The managed
   and migration row M59, [configuration](configuration.md) (`operations` and
   `actions`), [demos](demos.md), [development](development.md) test matrix,
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md),
-  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md) and
-  its [ledger](../.agents/skills/grid-tree-card-ui/references/accepted-rules.md).
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md) and
+  its [ledger](../.agents/skills/61ade-ui/references/accepted-rules.md).
 - **Verification:**
   - **Build and static checks:** `npm run typecheck`, `npm run build`
     (`node tools/build.mjs --check` clean), `npm run demo:assets`,
@@ -7706,8 +7706,8 @@ that exactly equals an option label lists every option. The managed
   [RecordForm](toolkit.md#recordform), toolkit changes and migration row
   M63, [configuration](configuration.md) (`fields`), [demos](demos.md),
   [61ade-application skill](../.agents/skills/61ade-application/SKILL.md),
-  [grid/tree/card skill](../.agents/skills/grid-tree-card-ui/SKILL.md) and
-  its [ledger](../.agents/skills/grid-tree-card-ui/references/accepted-rules.md).
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md) and
+  its [ledger](../.agents/skills/61ade-ui/references/accepted-rules.md).
 - **Limits:** panels and fixed sections keep the field at its own height (no
   height to share); the cards and details show the field under its own
   label; a project field type (`editor`) cannot fill a section. Several files
@@ -7969,7 +7969,7 @@ that exactly equals an option label lists every option. The managed
 - **Guides:** [toolkit](toolkit.md#loading-and-empty-states) (also
   `ListView`, `PageLayout`, `Tabs`, M65, Changes), [usage](usage.md),
   [demos](demos.md#d8-key-browser), [development](development.md) focused
-  groups, and the grid-tree-card-ui skill.
+  groups, and the 61ade-ui skill.
 - **Verification (managed demo, 2026-11-12):**
   - `npm run typecheck`, `npm run build`, `php8.4 tests/shell/i18n.php`
     (catalogue parity) and `contracts.php` passed.
@@ -8165,7 +8165,7 @@ that exactly equals an option label lists every option. The managed
   Cards and tiles of the list views; grid rows keep their 1 px hover
   rise. A skin may override `--blade-card-hover-edge`.
 - **Guides:** [61ade character](shell.md#61ade-character),
-  [toolkit](toolkit.md) M68 and Changes, grid-tree-card-ui skill (card rules).
+  [toolkit](toolkit.md) M68 and Changes, 61ade-ui skill (card rules).
 - **Verification:** `npm run build`, `npm run demo:assets`; new
   `list-presentation.spec.cjs` test in Blade, light and dark (the boxes of the
   card and all its descendants, transform and border width are unchanged
@@ -8204,6 +8204,8 @@ that exactly equals an option label lists every option. The managed
   including validation reveal and saving. Task-only test source and output
   were removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0191"></a>
 
 ## FB-0191 — Tree control in the list's command row, no scrollbar over it
 
@@ -8260,7 +8262,7 @@ that exactly equals an option label lists every option. The managed
     actions collapse into `Műveletek` when the panel is too narrow.
   - Guides: [Tree expansion](toolkit.md#tree-expansion),
     [CommandBar](toolkit.md#commandbar), [tree navigation](workspaces.md#tree-navigation),
-    [usage](usage.md), the grid-tree-card skill; migration M69.
+    [usage](usage.md), the 61ade-ui skill; migration M69.
 - **Verification:** typecheck, build and demo assets passed. On the managed
   demo at 1400 and 420 px the tree control is at the bar's right edge, the
   bar casts the list's shadow, and no tree region scrolls (the cell was
@@ -8293,7 +8295,7 @@ that exactly equals an option label lists every option. The managed
   option and media-class filters keep their controls. Existing programmatic
   filename queries remain supported; no query/ACL contract changes.
 - **Guides:** [header filters](workspaces.md#integrated-grid-header-filters),
-  [usage](usage.md#virtuális-fájlkezelő) and the grid-tree-card skill.
+  [usage](usage.md#virtuális-fájlkezelő) and the 61ade-ui skill.
 - **Verification:** PHP lint, `list-presentation`, `lists`, `sorting`,
   `configuration` and `toolkit` passed; temporary assertions verified field and
   view image declarations, a JSON list of remaining filters and preserved
@@ -8348,7 +8350,7 @@ that exactly equals an option label lists every option. The managed
     Suite's arrow stays.
   - Guides: [Tree presentation](toolkit.md#tree-presentation),
     [tree navigation](workspaces.md#tree-navigation), [usage](usage.md), the
-    grid-tree-card skill; migration M70.
+    61ade-ui skill; migration M70.
 - **Verification:** typecheck, build and demo assets passed; PHP
   `tree-navigation` (new: JSON `striped`/`lines` reach the resolved tree only
   when `false`, a string is rejected), `configuration`, `contracts`, `files`
@@ -8475,7 +8477,7 @@ that exactly equals an option label lists every option. The managed
 - **Guides:** [header filters](workspaces.md#integrated-grid-header-filters),
   [hierarchy sub-views](workspaces.md#sub-views),
   [ListView](toolkit.md#listview) `setFilters`, migration M72, and the
-  grid-tree-card skill.
+  61ade-ui skill.
 - **Verification:** typecheck, build and demo assets passed. A temporary
   browser probe passed on the managed demo: a fixture list with a header
   select `'' => 'Főasset'` (empty control and `filters: {}` initially; picking
@@ -8495,3 +8497,31 @@ that exactly equals an option label lists every option. The managed
   opened.
 - **Status:** implemented and verified on the managed demo; owner acceptance
   pending.
+
+
+<a id="fb-0197"></a>
+
+## FB-0197 — Align the UI skill name and current guidance
+
+- **Date:** 2026-11-13.
+- **Request (owner):** update the framework UI skill after its validation
+  review and give it a name consistent with the other two 61ade skills.
+- **Change:** renamed it to [61ade-ui](../.agents/skills/61ade-ui/SKILL.md),
+  including its directory, metadata, default invocation, local Claude link
+  and repository references. Its scope remains 61ade's shared grid, record
+  tree and card/DataView work; consumer feature development and integration
+  route to the other two skills.
+- **Guidance:** the [accepted-rule ledger](../.agents/skills/61ade-ui/references/accepted-rules.md)
+  and skill now follow [FB-0161](#fb-0161) for immediate component replacement
+  in the same cell, the [Tree contract](toolkit.md#tree) for lazy record-tree
+  loading, and [FB-0191](#fb-0191) for one stateful expansion toggle instead
+  of FB-0177's superseded pair. File-manager tree loading remains a separate
+  bounded-mount capability. Added the missing FB-0191 anchor and repaired
+  the ledger's three-column table.
+- **Verification:** the skill validator passed; metadata, default invocation
+  and Claude links agree for all three skills. All 78 local links and anchors
+  in the updated skill and ledger resolve, renamed documentation links
+  resolve, and the old name has no remaining repository references.
+  `git diff --check` passed. Documentation and skill changes only; no browser
+  test was needed.
+- **Status:** updated and validated.

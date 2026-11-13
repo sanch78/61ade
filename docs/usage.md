@@ -607,7 +607,7 @@ are explicit. Runtime/cache: ignored tmp, overridden by BLADE_TMP_DIR within che
 FB-0016/FB-0042.
 
 For agent-facing design and implementation rules for grid, data-tree, and
-responsive card/DataView surfaces, use the [grid-tree-card-ui skill](../.agents/skills/grid-tree-card-ui/SKILL.md).
+responsive card/DataView surfaces, use the [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md).
 The [workspace guide](workspaces.md) remains the public list contract, including
 server sorting/filtering, bounded rendering, field-level editing, accessibility,
 and current presentation limits.

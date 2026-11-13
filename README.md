@@ -90,7 +90,8 @@ They are not under the consumed paths (`packages/php`,
 A supported way to link them into a consumer's skill directories has been
 requested from Infra ([FB-0084](docs/feedback.md#fb-0084)). Until it exists,
 a consumer session opens them at their path in this checkout. The
-`grid-tree-card-ui` skill is for 61ade's own grid, tree and card work.
+[`61ade-ui`](.agents/skills/61ade-ui/SKILL.md) skill is for 61ade's own grid,
+tree and card work.
 
 <a id="technológiai-kiindulás"></a>
 
