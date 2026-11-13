@@ -511,7 +511,7 @@ app.fieldTypes.register("demo.rating", {
   display: (value, row, field, size, escape) => `<span aria-label="${escape(value)}/5">${"★".repeat(Number(value) || 0)}</span>`,
 });
 app.commands.register("demo.copy-text", {
-  label: "Másolás szövegként", icon: "dxi dxi-copy", placement: "record",
+  label: "Másolás szövegként", icon: "bi bi-copy", placement: "record",
   // Reads go through an action too: the server's ACL and field ACL decide what the text contains.
   run: async ({ app, row, signal }) => {
     const fresh = await app.server.call<Row>("demo_tasks", "get", { id: row!.id, signal });
@@ -530,16 +530,15 @@ wherever 61ade presents a file: media slots (table, cards, tiles, details,
 the `file` field), the derived `type` part, the file manager's icon column and
 tree. `mime` lists exact types or classes (`audio/*`); an exact entry wins over
 a class, and a file no entry matches is `Fájl` with the generic file icon. The
-`icon` is a Suite icon (`dxi dxi-…`) or a 61ade glyph: `blade-icon
-blade-icon--audio` (the built-in `audio`) or `blade-icon blade-icon--animation`.
-The 61ade glyphs also include the transport controls the Suite font lacks, for
-any icon slot such as a [CommandBar](#commandbar) button: `--play`, `--pause`,
-`--skip-start`, `--skip-previous`, `--skip-next`, `--rewind`,
-`--fast-forward`, `--repeat` and `--repeat-off`.
+`icon` uses the bundled [Bootstrap Icons](icons.md), for example
+`bi bi-music-note-beamed` (built-in `audio`) or `bi bi-film`.
+The same catalog supplies every icon slot, including a [CommandBar](#commandbar)
+button (`bi bi-play-fill`, `bi bi-pause-fill`, `bi bi-skip-end-fill`).
+Legacy Suite and `blade-icon` classes remain supported for existing consumers.
 Presentation only: what a file may be, and who reads it, stays the server's.
 
 ```ts
-app.mediaTypes.register("demo.scene", { mime: ["text/javascript"], label: "Animáció", icon: "blade-icon blade-icon--animation" });
+app.mediaTypes.register("demo.scene", { mime: ["text/javascript"], label: "Animáció", icon: "bi bi-film" });
 ```
 
 The feature demo's real registrations: the presentation `demo.reading-bar`
@@ -638,7 +637,7 @@ command `demo.copy-text` ([example](#example-tasks)).
   boolean skips the command with one warning.
 
   ```ts
-  app.commands.register("demo.subkey-values", { type: "toggle", label: "Alkulcsok értékei", icon: "dxi dxi-folder", placement: "toolbar", pinned: true });
+  app.commands.register("demo.subkey-values", { type: "toggle", label: "Alkulcsok értékei", icon: "bi bi-folder", placement: "toolbar", pinned: true });
   // The page: the kept state decides the first list's scope, a change mounts the list of the other scope.
   let subkeys = app.preferences.scope("demo.subkey-values").get<boolean>("demo_registry_browser_values") === true;
   const mountList = () => {
@@ -686,7 +685,7 @@ new C.DiagramEditor({ view: "diagrams" }).mount(host);
 const player = new C.MediaPlayer({ source: { resource: "signage_assets", action: "content_stream", id }, mime: "audio/mpeg" });
 player.on("position", ({ seconds }) => timeline.move(seconds)); player.mount(layout.getCell("stage"));
 const frame = new C.SandboxFrame({ signal: host.signal }); await frame.load(code, { "tone.wav": blob });
-const bar = new C.CommandBar({ items: [{ id: "play", label: "Lejátszás", icon: "dxi dxi-menu-right" }] });
+const bar = new C.CommandBar({ items: [{ id: "play", label: "Lejátszás", icon: "bi bi-play-fill" }] });
 bar.on("click", ({ id }) => id === "play" && player.play());
 ```
 
@@ -1285,14 +1284,14 @@ separator ([FB-0156](feedback.md#fb-0156)).
 const t = (key: string) => app.i18n.t(key);
 let playing = false;
 const bar = new app.components.CommandBar({ signal: host.signal, items: [
-  { id: "back", label: t("Vissza a listához"), icon: "dxi dxi-arrow-left" },
+  { id: "back", label: t("Vissza a listához"), icon: "bi bi-arrow-left" },
   { type: "separator" },
-  { id: "play", label: t("Lejátszás"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true }] });
+  { id: "play", label: t("Lejátszás"), icon: "bi bi-play-fill", iconOnly: true, disabled: true }] });
 bar.on("click", ({ id }) => { if (id === "play") { if (playing) player.pause(); else void player.play().catch(() => {}); } });
 bar.mount(layout.getCell("commands"));
 player.on("loaded", () => bar.update("play", { disabled: false }));
-player.on("play", () => { playing = true; bar.update("play", { label: t("Szünet"), icon: "blade-icon blade-icon--pause" }); });
-player.on("pause", () => { playing = false; bar.update("play", { label: t("Lejátszás"), icon: "blade-icon blade-icon--play" }); });
+player.on("play", () => { playing = true; bar.update("play", { label: t("Szünet"), icon: "bi bi-pause-fill" }); });
+player.on("pause", () => { playing = false; bar.update("play", { label: t("Lejátszás"), icon: "bi bi-play-fill" }); });
 ```
 
 `CommandItem` is a button (`CommandButton`: `id`, `label`, `icon`,
@@ -1332,14 +1331,14 @@ and screen readers get the native Suite toolbar and menu semantics:
 
 ```ts
 const top = new app.components.CommandBar({ label: t("Nézet"), signal, items: [
-  { id: "back", label: t("Vissza"), icon: "dxi dxi-arrow-left" },
-  { type: "toggle", id: "grid", label: t("Rács"), icon: "dxi dxi-view-grid", pressed: true },
-  { type: "group", items: [{ id: "zoomIn", label: t("Nagyít"), icon: "dxi dxi-plus", iconOnly: true },
-                           { id: "zoomOut", label: t("Kicsinyít"), icon: "dxi dxi-minus", iconOnly: true }] },
+  { id: "back", label: t("Vissza"), icon: "bi bi-arrow-left" },
+  { type: "toggle", id: "grid", label: t("Rács"), icon: "bi bi-grid", pressed: true },
+  { type: "group", items: [{ id: "zoomIn", label: t("Nagyít"), icon: "bi bi-plus-lg", iconOnly: true },
+                           { id: "zoomOut", label: t("Kicsinyít"), icon: "bi bi-dash-lg", iconOnly: true }] },
   { type: "spacer" },
   { type: "segmented", id: "layout", label: t("Nézet"), options: [{ value: "one", label: t("Egy") }, { value: "two", label: t("Kettő") }] }] });
 const bottom = new app.components.CommandBar({ label: t("Lejátszás"), placement: "bottom", signal, items: [
-  { id: "play", label: t("Lejátszás"), icon: "blade-icon blade-icon--play", iconOnly: true },
+  { id: "play", label: t("Lejátszás"), icon: "bi bi-play-fill", iconOnly: true },
   { type: "range", id: "position", label: t("Pozíció"), min: 0, max: 1, value: 0, valueLabel: clock },
   { type: "select", id: "speed", label: t("Sebesség"), options: [{ value: "1", label: "1×" }, { value: "2", label: "2×" }] }] });
 top.on("toggle", ({ id, pressed }) => id === "grid" && viewer.grid(pressed));
@@ -1383,13 +1382,13 @@ selected item behind one button instead of permanent buttons.
 
 ```ts
 const bar = new app.components.CommandBar({ label: t("Munka"), signal, items: [
-  { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "dxi dxi-border-right", pressed: true },
+  { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "bi bi-layout-sidebar-reverse", pressed: true },
   { type: "spacer" },
-  { type: "menu", id: "more", label: t("További műveletek"), icon: "dxi dxi-dots-vertical", iconOnly: true, items: [
+  { type: "menu", id: "more", label: t("További műveletek"), icon: "bi bi-three-dots-vertical", iconOnly: true, items: [
     { id: "show", label: t("Megjelenítés az oldalpanelen"), disabled: true },
-    { id: "copy", label: t("Szöveg másolása"), icon: "dxi dxi-copy", disabled: true },
+    { id: "copy", label: t("Szöveg másolása"), icon: "bi bi-copy", disabled: true },
     { type: "separator" },
-    { id: "delete", label: t("Törlés"), icon: "dxi dxi-delete", disabled: true }] }] });
+    { id: "delete", label: t("Törlés"), icon: "bi bi-trash", disabled: true }] }] });
 list.on("target", ({ row }) => { for (const id of ["show", "copy", "delete"]) bar.update(id, { disabled: !row }); }, { signal });
 bar.on("click", ({ id }) => run(id));   // run: the page's own
 ```
@@ -2025,7 +2024,7 @@ camelCase `imageBase`, `altOf` and `mediaOf`, and a field's JSON `default` is
 ```json
 {"views": {"demo.asset-viewer": {"kind": "demo.asset-viewer", "title": "Médianéző",
   "resource": "signage_assets", "record": "signage_assets", "actions": ["get", "content_stream"],
-  "options": {"loop": true}, "open": "window", "group": "Signage", "icon": "dxi dxi-menu-right", "desktop_only": false}}}
+  "options": {"loop": true}, "open": "window", "group": "Signage", "icon": "bi bi-camera-video", "desktop_only": false}}}
 ```
 
 `View` validates: id, `kind` (a built-in name or a dotted project kind),
@@ -2090,6 +2089,7 @@ the bootstrap has no menu entry, address, `navigate` target, definition,
 activation, sub-view, tree or attention count. Presentation only; a state
 change shows at the next bootstrap ([view availability](workspaces.md#view-availability)).
 
+
 PHP signatures (`packages/php/src/Feature/Registry.php`, `SqlResource.php`,
 `packages/php/src/Shell/ApplicationDefinition.php`):
 
@@ -2153,7 +2153,7 @@ the embedded state stay (a `subview` option of the new View is ignored).
 registering it, for example
 `$registry->updateView(View::list('customers', 'Ügyfelek', $columns, ['get', 'update']))`
 after `SqlResource::register()`, or
-`$registry->updateView($view->with(icon: 'dxi dxi-key'))` with the View it
+`$registry->updateView($view->with(icon: 'bi bi-key'))` with the View it
 returned. JSON `resources.<name>.view` is compiled this way. Registering a
 client view **kind** twice is an error unless `{replace: true}`;
 `Registry::kind()` has no replace. Replaces the replacement rule of G1
@@ -2801,9 +2801,9 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     player = undefined;
     // …
     const bar: CommandBar = new app.components.CommandBar({ signal, items: [
-      { id: "back", label: t("Vissza a listához"), icon: "dxi dxi-arrow-left" },
+      { id: "back", label: t("Vissza a listához"), icon: "bi bi-arrow-left" },
       ...(timed ? [{ type: "separator" as const }] : []),
-      { id: "rewind", label: t("Elejére"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "rewind", label: t("Elejére"), icon: "bi bi-skip-start-fill", iconOnly: true, disabled: true, hidden: !timed },
       // … back 5 s, the play/pause toggle, forward 5 s, loop: icon-only like a player's transport controls
     ] });
     bar.mount(layout.getCell("commands"));
@@ -2989,7 +2989,7 @@ app.fieldTypes.register("demo.rating", {
 
 app.commands.register("demo.copy-text", {
   label: "Másolás szövegként",
-  icon: "dxi dxi-copy",
+  icon: "bi bi-copy",
   placement: "record",
   // The cursor record, or every marked task when there are marks.
   enabled: ({ row, rows }) => !!row || rows.length > 0,
@@ -3135,6 +3135,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M76 | [Modal windows](#modal-windows): a modal Suite window (`app.ui.window` by default, every framework record or action window, a project's own `new Window({modal: true})`) makes everything before it in the document `inert`, keeps Tab and Shift+Tab inside the topmost one and returns the focus to its opener on close; Escape closes the topmost focused modal window also without a non-modal one, but not while an open popup in it takes the key (`preventDefault`/stopped key, `:popover-open`, a focused `role="menu"`, an expanded `aria-haspopup` or combobox trigger). A Suite redraw asked for in the frame that destroys its view is dropped | [FB-0201](feedback.md#fb-0201) | info: a spec that tabbed from a modal window to the page behind it, or clicked through to an element before it, finds it inert; a popup inside a window that wants Escape to close the window as well must not mark itself open | none | none |
 | M77 | [Popup menu](#popup-menu): `app.ui.menu(anchor, options)` returns a `PopupMenu` (`opened`, `open`, `close`, `on("select")`, `destroy`); types `PopupMenuOptions`, `PopupMenuItem`, `PopupMenuEntry`, `PopupMenuGroup`, `PopupMenuEvents` in `admin.d.ts`: group headings, checked radio entries with a right-hand detail, scrolling beyond about 12 entries and the APG menu-button keys at any button | [FB-0202](feedback.md#fb-0202) | if used: a project's own popup menu (StoryBloX's interim `workshop.js` menu, grouped-menu request) can be replaced; nothing changes otherwise |
 | M78 | [View availability](workspaces.md#view-availability): `available` (`Closure(Context): bool`) on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.available` / `views.<id>.available` (a binding name); false leaves the view out of that bootstrap | [FB-0204](feedback.md#fb-0204) | none: additive, no consumer change required | none | none |
+| M79 | Bundled [Bootstrap Icons](icons.md) in every icon slot; framework/demo defaults migrated, record icon columns also accept `bi bi-…`, old `blade-icon` names alias the new catalog | [FB-0203](feedback.md#fb-0203) | info: no asset/configuration change; legacy icon values still display. A screenshot or glyph-class assertion follows the new defaults | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3190,6 +3191,7 @@ feedback reference; once the transition closes, changes follow
 
 | Date | Change | Reason | Feedback |
 | --- | --- | --- | --- |
+| 2026-11-13 | Bootstrap Icons 1.13.2 is embedded in `admin.css`; all framework/demo icon defaults migrate to `bi bi-…`, record icon fields accept both Bootstrap and legacy Suite class pairs, and `blade-icon` names remain aliases (M79). The viewer repeat button uses the native pressed state. | Consumers repeatedly lacked glyphs; the owner requested a complete free catalog and migration of existing icons. | [FB-0203](feedback.md#fb-0203) |
 | 2026-11-12 | Section groups in cards/details have equal heights per row and top-aligned content. Project CSS properties `--blade-record-group-min-width` and `--blade-record-group-columns` configure inner column widths and ratios; a record content width below 492 px stacks the groups using a container query. | Owner requested CSS-only height alignment and project configuration of the section columns. | [FB-0186](feedback.md#fb-0186) |
 | 2026-10-29 | `ServerFailure.status` is 0 only for a network failure or a 2xx answer without JSON; an error answer without JSON keeps its HTTP status. | Keeps the live channel's 401/403/5xx handling unchanged. | [FB-0081](feedback.md#fb-0081) |
 | 2026-10-29 | `preferences.scope(name)` keys are `blade-ui:1:[path, user, "scope:<name>"]`; the name must contain a dot. | Cannot collide with a dotted list view id. | [FB-0081](feedback.md#fb-0081) |

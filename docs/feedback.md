@@ -9096,6 +9096,55 @@ that exactly equals an option label lists every option. The managed
   buttons are redrawn on every update, and a menu is bound to one element.
 - **Status:** implemented, verified on the managed demo and by the consumer.
 
+<a id="fb-0203"></a>
+
+## FB-0203 — Shared Bootstrap Icons catalog and migration of existing icons
+
+- **Date:** 2026-11-13.
+- **Request:** consumers repeatedly lack icons. Bundle a complete free icon
+  library (Bootstrap Icons), and migrate the existing framework and demo
+  icons to it as well. Follow-up: preserve geometry, and fix the vertical
+  alignment of menu entries carrying a count.
+- **Implementation:** pinned `bootstrap-icons` 1.13.2; CSS/fonts embedded in
+  `admin.css` (WOFF2 only), with the MIT notice included in that artifact. The shared shell,
+  actions, file/media types, uploader, tree controls, transport controls and
+  demo declarations use `bi bi-…`. Icon columns accept Bootstrap and legacy
+  Suite class pairs. Existing `blade-icon` names alias Bootstrap glyphs;
+  legacy Suite CSS/fonts remain available. Native DHTMLX controls retain
+  their internal icon classes. Menu counts use a centred inline flex group,
+  keeping the existing 18 px badges, row and button sizes. Previous media-slot
+  geometry is retained. No consumer runtime was edited.
+- **Guides:** [icons](icons.md), [usage](usage.md#icons),
+  [workspaces](workspaces.md#bulk-actions-and-icons),
+  [toolkit](toolkit.md#registries), [demo](demos.md).
+- **Verification:** build, local demo assets and TypeScript checks passed;
+  PHP `contracts`, `configuration`, `toolkit`, `list-presentation`, `files`,
+  `admin`, `api-keys`, `calendar`, `diagram`, `signage` and `record-forms`
+  passed; `toolkit-registries.mjs` passed. All referenced Bootstrap names
+  exist among the 2078 bundled glyphs; the built CSS includes the MIT notice.
+  The 108-test focused browser batch had 107 passes and one timed-out day
+  programme assertion (`toolkit-demo-playlist-editor`, scheduled playlist);
+  that case passed in isolation. An earlier batch was interrupted by SIGTERM
+  and is not counted as completed. The final font/legacy-icon checks in four
+  themes at 1366/390 px, `menu-attention`, `menu-commands` and `grid-edit`
+  passed (18 tests). Against the former build `e300479`, desktop/phone
+  geometry and badge centres passed in all four themes (8 cases): unchanged
+  menu buttons, windows, fields, header and media slots; badges stay 18 px
+  high, and the label/badge centre offset changed from about 1 px to zero.
+  The pencil keeps its old advance; the sort arrows keep their half-em
+  slots. The final sort/marker checks in both families plus `grid-edit` and
+  `grid-sort` passed (6 tests). Screenshots were visually inspected.
+  Verification sources and disposable output are removed after checking.
+- **Pending owner clarification:** `Munkaasztal`'s `Előzmények` and `Modell`
+  buttons used unavailable `dxi-history` and `dxi-tune` glyphs, which took
+  zero width. Their visible Bootstrap replacements take the native 20 px.
+  These two content-sized buttons were excluded from the old/new width
+  equality assertion; their surrounding layout is unchanged. Asked whether
+  to keep their previous width with shorter captions or retain full captions
+  with the normal icon slot. No answer has been received yet.
+- **Status:** framework integration and count alignment implemented and
+  verified; the two demo button widths await the owner's choice.
+
 <a id="fb-0204"></a>
 
 ## FB-0204 — View availability per tenant or runtime state

@@ -147,7 +147,7 @@
             "view": {
                 "title": "Feladatok",
                 "group": "Feature demó",
-                "icon": "dxi dxi-checkbox-marked",
+                "icon": "bi bi-check-square",
                 "selection": true,
                 "columns": [
                     {
@@ -258,7 +258,7 @@
             "target_resource": "demo_tasks",
             "write": true,
             "bulk": true,
-            "icon": "dxi dxi-check",
+            "icon": "bi bi-check-lg",
             "channels": [
                 "ui",
                 "api"
@@ -271,7 +271,7 @@
             "handler": "tasks.dialog_neutral",
             "target_resource": "demo_tasks",
             "write": false,
-            "icon": "dxi dxi-information-outline",
+            "icon": "bi bi-info-circle",
             "channels": [
                 "ui"
             ],
@@ -289,7 +289,7 @@
             "handler": "tasks.dialog_warning",
             "target_resource": "demo_tasks",
             "write": false,
-            "icon": "dxi dxi-alert-circle",
+            "icon": "bi bi-exclamation-circle",
             "channels": [
                 "ui"
             ],
@@ -307,7 +307,7 @@
             "handler": "tasks.dialog_danger",
             "target_resource": "demo_tasks",
             "write": false,
-            "icon": "dxi dxi-close-circle",
+            "icon": "bi bi-x-circle",
             "channels": [
                 "ui"
             ],

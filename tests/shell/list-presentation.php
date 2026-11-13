@@ -8,7 +8,7 @@ Blade\Access\Schema::install($db);
 $db->exec("CREATE TABLE items(id INTEGER PRIMARY KEY,title TEXT,description TEXT,secret TEXT,archived INTEGER); INSERT INTO items VALUES(1,'One','Full description','hidden',0),(2,'Two','Other description','hidden',0)");
 $registry=new Registry();
 (new SqlResource('items','items','id',[new Field('title','Title'),new Field('description','Description',type:'textarea'),new Field('secret','Secret',secret:true)]))->register($registry,'Items');
-$registry->add(new Action('items','archive','Archive',[],function($ctx,$target){$ctx->db->prepare('UPDATE items SET archived=1 WHERE id=?')->execute([$target['id']]);return [];},resolve:static fn($ctx,$id)=>['id'=>$id],write:true,bulk:true,icon:'dxi dxi-check'));
+$registry->add(new Action('items','archive','Archive',[],function($ctx,$target){$ctx->db->prepare('UPDATE items SET archived=1 WHERE id=?')->execute([$target['id']]);return [];},resolve:static fn($ctx,$id)=>['id'=>$id],write:true,bulk:true,icon:'bi bi-check-lg'));
 $registry->updateView(Blade\Feature\View::list('items','Items',[['id'=>'title','header'=>'Title']],['get','archive'],rowNumbers:false,selection:true));
 $workspace=new Workspace($registry,$db);
 $db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','items','get','ui','allow','all','',''),('user','1','items','get','ui','deny','all','','description'),('user','1','items','archive','ui','allow','id','1','')");
@@ -17,7 +17,7 @@ function check(bool $value,string $message):void{if(!$value)throw new RuntimeExc
 $view=$workspace->views($actor)[0];
 check(!$view['options']['rowNumbers']&&$view['options']['selection']&&$view['desktopOnly']===false,'View options; desktopOnly defaults to false');
 check(array_column($view['options']['detailFields'],'id')===['title','description'],'Details exclude secrets and include non-grid fields');
-check($view['actions'][1]['bulk']&&$view['actions'][1]['icon']==='dxi dxi-check','Action metadata');
+check($view['actions'][1]['bulk']&&$view['actions'][1]['icon']==='bi bi-check-lg','Action metadata');
 $row=$workspace->executor->execute($ctx,'items','get','1',[]);
 check(!isset($row['description'])&&!isset($row['secret'])&&$row['title']==='One','Get preserves field ACL');
 $result=$workspace->executor->bulk($ctx,'items','archive',[['id'=>'1','values'=>[]],['id'=>'2','values'=>[]]]);
@@ -65,11 +65,11 @@ foreach([
  fn()=>new Field('kind','Kind','number',column:['presentation'=>'icon']),
  fn()=>new Field('kind','Kind',secret:true,column:['presentation'=>'icon']),
  fn()=>new Field('kind','Kind',column:['presentation'=>'icon']),
- fn()=>new Field('kind','Kind','select',options:fn()=>['dxi dxi-file'=>'Fájl'],column:['presentation'=>'icon']),
- fn()=>new Field('kind','Kind','select',options:['dxi dxi-file'=>''],column:['presentation'=>'icon']),
+ fn()=>new Field('kind','Kind','select',options:fn()=>['bi bi-file-earmark'=>'Fájl'],column:['presentation'=>'icon']),
+ fn()=>new Field('kind','Kind','select',options:['bi bi-file-earmark'=>''],column:['presentation'=>'icon']),
  fn()=>new Field('kind','Kind','select',options:['Fájl'],column:['presentation'=>'icon']),
 ] as $invalid){try{$invalid();throw new RuntimeException('Invalid media/icon column accepted');}catch(InvalidArgumentException $e){check($e->getMessage()!=='Invalid media/icon column accepted','Invalid media/icon column rejected');}}
-$icon=new Field('kind','Kind','select',options:['dxi dxi-folder'=>'Mappa','dxi dxi-file'=>'Fájl'],column:['presentation'=>'icon','width'=>48]);
+$icon=new Field('kind','Kind','select',options:['bi bi-folder'=>'Mappa','bi bi-file-earmark'=>'Fájl'],column:['presentation'=>'icon','width'=>48]);
 check(new Field('file','File','number',column:['media'=>'files'])->column['media']==='files','Media on a number field');
 // View presentation: row height, tile width and tiles reach the wire; absent keys keep client defaults; ranges are enforced.
 $mediaRegistry=new Registry();
@@ -81,8 +81,8 @@ $mediaView=$mediaWorkspace->views($actor)[0];
 check($mediaView['options']['rowHeight']===56&&$mediaView['options']['tileMinWidth']===200&&$mediaView['options']['tiles']===true,'View presentation survives registerDelete and reaches the wire');
 $columns=array_column($mediaView['options']['columns'],null,'id');
 $details=array_column($mediaView['options']['detailFields'],null,'id');
-check($details['file']['media']==='files'&&$details['kind']['presentation']==='icon'&&$details['kind']['options']['dxi dxi-file']==='Fájl'&&!isset($details['title']['media'])&&!isset($details['title']['presentation'])&&!isset($details['kind']['width']),'Detail fields carry media and icon presentation only');
-check($columns['file']['media']==='files'&&$columns['file']['type']==='number'&&$columns['kind']['presentation']==='icon'&&$columns['kind']['options']['dxi dxi-file']==='Fájl','Media and icon column options reach the wire');
+check($details['file']['media']==='files'&&$details['kind']['presentation']==='icon'&&$details['kind']['options']['bi bi-file-earmark']==='Fájl'&&!isset($details['title']['media'])&&!isset($details['title']['presentation'])&&!isset($details['kind']['width']),'Detail fields carry media and icon presentation only');
+check($columns['file']['media']==='files'&&$columns['file']['type']==='number'&&$columns['kind']['presentation']==='icon'&&$columns['kind']['options']['bi bi-file-earmark']==='Fájl','Media and icon column options reach the wire');
 check(!isset($view['options']['rowHeight'])&&!isset($view['options']['tileMinWidth'])&&!isset($view['options']['tiles']),'Presentation keys absent by default');
 foreach([['rowHeight'=>31],['rowHeight'=>161],['tileMinWidth'=>119],['tileMinWidth'=>481]] as $options){try{$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[],['get'],...$options));throw new RuntimeException('Out-of-range view presentation accepted');}catch(InvalidArgumentException){}}
 $mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[],['get'],rowHeight:32,tileMinWidth:480));$mediaRegistry->updateView(Blade\Feature\View::list('assets','Assets',[],['get'],rowHeight:160,tileMinWidth:120));
@@ -133,10 +133,10 @@ foreach([
  fn()=>new Field('image','Kép','select',options:['a.png'=>'A'],column:['presentation'=>'image','image_base'=>'img/']),
  fn()=>new Field('image','Kép','number',column:['presentation'=>'image','image_base'=>'img/']),
  fn()=>new Field('image','Kép','textarea',column:['presentation'=>'image','image_base'=>'img/']),
- fn()=>new Field('image','Kép',options:['dxi dxi-file'=>'Fájl'],column:['presentation'=>'image','image_base'=>'img/']),
+ fn()=>new Field('image','Kép',options:['bi bi-file-earmark'=>'Fájl'],column:['presentation'=>'image','image_base'=>'img/']),
  fn()=>new Field('image','Kép',column:['image_base'=>'img/']),
  fn()=>new Field('image','Kép',column:['alt_of'=>'title']),
- fn()=>new Field('kind','Kind','select',options:['dxi dxi-file'=>'Fájl'],column:['presentation'=>'icon','image_base'=>'img/']),
+ fn()=>new Field('kind','Kind','select',options:['bi bi-file-earmark'=>'Fájl'],column:['presentation'=>'icon','image_base'=>'img/']),
  fn()=>new Field('image','Kép',column:['presentation'=>'bitmap','image_base'=>'img/']),
 ] as $invalid){try{$invalid();throw new RuntimeException('Invalid image column accepted');}catch(InvalidArgumentException $e){check($e->getMessage()!=='Invalid image column accepted','Invalid image column rejected');}}
 check($image->validate('a.png')==='a.png','Image field accepts a file name');

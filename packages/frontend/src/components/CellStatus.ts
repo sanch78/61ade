@@ -8,9 +8,9 @@ export const BUSY_DELAY = 300;
 export type StatusKind = "empty" | "search" | "error";
 /** The centred picture of each kind (decorative; the text says it): an empty tray, the search and the alert icon. */
 const ICONS: Record<StatusKind, string> = {
-  empty: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 4.5h15v15h-15z M4.5 13.5h4.25a3.25 3.25 0 0 0 6.5 0h4.25" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path></svg>',
-  search: '<span class="dxi dxi-magnify" aria-hidden="true"></span>',
-  error: '<span class="dxi dxi-alert-circle" aria-hidden="true"></span>',
+  empty: '<span class="bi bi-inbox" aria-hidden="true"></span>',
+  search: '<span class="bi bi-search" aria-hidden="true"></span>',
+  error: '<span class="bi bi-exclamation-circle" aria-hidden="true"></span>',
 };
 
 /** The parts of a Suite Layout cell the status reads: its node, its widget and its markup. */

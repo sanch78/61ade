@@ -8,9 +8,9 @@ const build=page=>page.evaluate(()=>{
  const app=window.__bladeApp,host=document.createElement('div');host.id='cm';host.style.cssText='position:fixed;left:0;right:0;top:0;height:120px;z-index:10000;background:var(--dhx-background-primary)';document.body.append(host);
  const log=[];
  const bar=new app.components.CommandBar({label:'Munka eszközei',items:[
-  {id:'back',label:'Vissza',icon:'dxi dxi-arrow-left'},{type:'spacer'},
-  {type:'menu',id:'more',label:'További műveletek',icon:'dxi dxi-dots-vertical',iconOnly:true,items:[
-   {id:'sent',label:'Elküldött tartalom',icon:'dxi dxi-eye'},{id:'withdraw',label:'Visszavonás',icon:'dxi dxi-undo',disabled:true},{type:'separator'},{id:'continue',label:'Folytatás innen'}]}]});
+  {id:'back',label:'Vissza',icon:'bi bi-arrow-left'},{type:'spacer'},
+  {type:'menu',id:'more',label:'További műveletek',icon:'bi bi-three-dots-vertical',iconOnly:true,items:[
+   {id:'sent',label:'Elküldött tartalom',icon:'bi bi-eye'},{id:'withdraw',label:'Visszavonás',icon:'bi bi-arrow-counterclockwise',disabled:true},{type:'separator'},{id:'continue',label:'Folytatás innen'}]}]});
  for(const event of ['click','toggle','change'])bar.on(event,e=>log.push([event,e.id]));
  bar.mount(host);
  const message=items=>{try{new app.components.CommandBar({items}).destroy();return 'ok';}catch(error){return `${error.name}: ${error.message}`;}};

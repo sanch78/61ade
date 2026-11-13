@@ -43,7 +43,7 @@ export async function fieldFolder(config:MountFileFieldConfig,call:ResourceCall)
 /** "Signage:/Képek", as the file manager's panel header. */
 const directoryLabel=(directory:Directory)=>{const names=directory.path.map(part=>part.name);return (names[0]??directory.mount)+":/"+names.slice(1).join("/");};
 /** Type glyph of the thumbnail item while no thumbnail image is ready. */
-const mediaIcon=(media?:MediaDescriptor)=>media?mediaTypeIcon(media.mime_type):"dxi dxi-file-outline";
+const mediaIcon=(media?:MediaDescriptor)=>media?mediaTypeIcon(media.mime_type):"bi bi-file-earmark";
 /** The stored file field's GET URL of the file $id (FB-0167), when the actor may read it. */
 const storedUrl=(config:StoredFileFieldConfig,id:string)=>config.get&&config.canPreview?actionUrl(config.get.resource,config.get.action,id):undefined;
 /** The name of a `Content-Disposition` header: the RFC 8187 UTF-8 name, else the quoted fallback. */
@@ -65,7 +65,7 @@ async function describeStored(config:StoredFileFieldConfig,id:string):Promise<Me
 }
 /** Same Cancel + submit row as the workspace forms. */
 const actions=(submit:{name:string;text:string;icon:string}):any=>({css:"blade-form-actions",cols:[
-  {type:"button",name:"cancel",text:t("Mégse"),icon:"dxi dxi-close",view:"flat",color:"secondary",width:"content"},
+  {type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
   {type:"button",...submit,color:"primary",width:"content"},
 ]});
 
@@ -87,11 +87,11 @@ export function fileInput(field:FieldDefinition,value:unknown,readOnly=false):an
     {css:"blade-file-field__row",rows:[
       {css:"blade-file-field__body",rows:[
         {type:"input",name:fileDisplay(field.name),label:field.label,labelPosition:"top",readOnly:true,required:!readOnly&&field.required,placeholder:t("Nincs megadott fájl"),value:""},
-        {type:"avatar",name:field.name+"__media",readOnly:true,removeIcon:false,circle:false,size:160,icon:"dxi dxi-file-outline",alt:field.label,
+        {type:"avatar",name:field.name+"__media",readOnly:true,removeIcon:false,circle:false,size:160,icon:"bi bi-file-earmark",alt:field.label,
           placeholder:upload?t("Húzd ide a fájlt, vagy illeszd be Ctrl+V-vel."):"",css:"blade-file-field__media"},
         ...(readOnly||!config?[]:[{css:"blade-file-field__actions",cols:[
-          ...(upload?[{type:"button",name:field.name+"__browse",text:t("Fájl megadása…"),icon:"dxi dxi-file-import",view:"flat",color:"primary",width:"content"}]:[]),
-          ...(!field.required?[{type:"button",name:field.name+"__clear",text:t("Törlés"),icon:"dxi dxi-close",view:"flat",color:"secondary",width:"content"}]:[]),
+          ...(upload?[{type:"button",name:field.name+"__browse",text:t("Fájl megadása…"),icon:"bi bi-upload",view:"flat",color:"primary",width:"content"}]:[]),
+          ...(!field.required?[{type:"button",name:field.name+"__clear",text:t("Törlés"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"}]:[]),
         ]}]),
       ]},
     ]},
@@ -332,7 +332,7 @@ class MultiFileField{
     return `<div class="blade-uploader__zone" tabindex="0" role="group" aria-label="${escape(t("Feltöltési terület"))}">
       <p class="blade-uploader__hint">${escape(t("Húzd ide a fájlokat, vagy illeszd be őket Ctrl+V-vel."))}</p>
       <p class="blade-uploader__rules">${escape(uploadRules(policy,this.limit))}</p>
-      <div class="blade-uploader__buttons"><button type="button" class="dhx_button dhx_button--size_medium dhx_button--view_flat dhx_button--color_primary blade-uploader__pick" data-blade-field-pick="${escape(this.field.name)}"><span class="dhx_button__icon dxi dxi-file-import" aria-hidden="true"></span><span class="dhx_button__text">${escape(t("Fájlok kiválasztása"))}</span></button></div>
+      <div class="blade-uploader__buttons"><button type="button" class="dhx_button dhx_button--size_medium dhx_button--view_flat dhx_button--color_primary blade-uploader__pick" data-blade-field-pick="${escape(this.field.name)}"><span class="dhx_button__icon bi bi-upload" aria-hidden="true"></span><span class="dhx_button__text">${escape(t("Fájlok kiválasztása"))}</span></button></div>
     </div>`;
   }
   /** The saved file's name and type (its preview when it is an image) through the GET action. */
@@ -448,12 +448,12 @@ export class FilePicker{
       {id:"body",css:"blade-file-picker__body"},
       {id:"actions",height:"content",css:"blade-file-picker__actions"},
     ]});
-    this.search=new Toolbar(document.createElement("div"),{css:"blade-search-bar",data:[{type:"input",id:"search",label:t("Keresés"),hiddenLabel:true,placeholder:t("Keresés…"),icon:"dxi dxi-magnify",width:"100%",autocomplete:false}]} as any);
+    this.search=new Toolbar(document.createElement("div"),{css:"blade-search-bar",data:[{type:"input",id:"search",label:t("Keresés"),hiddenLabel:true,placeholder:t("Keresés…"),icon:"bi bi-search",width:"100%",autocomplete:false}]} as any);
     const types=this.kinds.length>1?[["","Minden típus"] as [Kind|"",string],...KINDS.filter(([key])=>this.kinds.includes(key))]:KINDS.filter(([key])=>this.kinds.includes(key));
     this.find=new Toolbar(undefined,{css:"blade-file-bar blade-file-find__bar",data:[
       {type:"spacer"},
       {id:"count",type:"text",value:""},
-      {id:"type",value:t(types.find(([key])=>key===this.query.type)?.[1]??"Minden típus"),icon:"dxi dxi-filter-variant",tooltip:t("Típus"),disabled:types.length<2,items:types.map(([value,text])=>({id:"type:"+(value||"all"),value:t(text)}))},
+      {id:"type",value:t(types.find(([key])=>key===this.query.type)?.[1]??"Minden típus"),icon:"bi bi-funnel",tooltip:t("Típus"),disabled:types.length<2,items:types.map(([value,text])=>({id:"type:"+(value||"all"),value:t(text)}))},
     ]});
     const columns:ViewDefinition["columns"]=[
       {id:"thumb",header:t("Előnézet"),media:config.resource},
@@ -463,7 +463,7 @@ export class FilePicker{
     this.grid=new ResponsiveGrid(document.createElement("div"),columns,()=>this.rows,id=>{this.selected=id;this.capabilities();},()=>this.choose(),direction=>{if(direction==="next")void this.more();},()=>{},
       {rowNumbers:false,idColumn:false,fields:columns,tiles:true,tileMinWidth:150});
     this.grid.setMode("tiles");
-    this.form=new Form(document.createElement("div"),{padding:"8px 16px 16px",rows:[actions({name:"choose",text:t("Kiválasztás"),icon:"dxi dxi-check"})]} as any);
+    this.form=new Form(document.createElement("div"),{padding:"8px 16px 16px",rows:[actions({name:"choose",text:t("Kiválasztás"),icon:"bi bi-check-lg"})]} as any);
     this.form.getItem("choose").disable();
     this.form.events.on("click",(name:string)=>{if(name==="cancel")this.close();else if(name==="choose")this.choose();});
     this.find.events.on("click",(id:string|number)=>{

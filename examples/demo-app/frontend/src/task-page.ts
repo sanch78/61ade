@@ -155,14 +155,14 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
       const side = work;
       const deletable = notes.actions.some(action => action.name === "delete");
       bar = new app.components.CommandBar({ label: t("Munka"), signal, items: [
-        { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "dxi dxi-border-right", pressed: !side.isCollapsed("side") },
+        { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "bi bi-layout-sidebar-reverse", pressed: !side.isCollapsed("side") },
         { type: "spacer" },
         // The commands of the selected note behind one button instead of permanent buttons.
-        { type: "menu", id: "more", label: t("További műveletek"), icon: "dxi dxi-dots-vertical", iconOnly: true, items: [
-          { id: "show", label: t("Megjelenítés az oldalpanelen"), icon: "dxi dxi-border-right", disabled: true },
-          { id: "copy", label: t("Szöveg másolása"), icon: "dxi dxi-copy", disabled: true },
+        { type: "menu", id: "more", label: t("További műveletek"), icon: "bi bi-three-dots-vertical", iconOnly: true, items: [
+          { id: "show", label: t("Megjelenítés az oldalpanelen"), icon: "bi bi-layout-sidebar-reverse", disabled: true },
+          { id: "copy", label: t("Szöveg másolása"), icon: "bi bi-copy", disabled: true },
           { type: "separator" },
-          { id: "delete", label: t("Törlés"), icon: "dxi dxi-delete", disabled: true, hidden: !deletable }] }] });
+          { id: "delete", label: t("Törlés"), icon: "bi bi-trash", disabled: true, hidden: !deletable }] }] });
       bar.mount(side.cell("commands"));
       // The toggle follows the panel, also when the user collapses it by its header; the toggle itself collapses it.
       side.on("collapse", ({ id, collapsed }) => { if (id === "side") bar?.update("side", { pressed: !collapsed }); }, { signal });
@@ -231,12 +231,12 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
       { type: "segmented", id: "color", label: t("Szín"), value: sketch.pen.color,
         options: [{ value: "ink", label: t("Tinta") }, { value: "blue", label: t("Kék") }, { value: "red", label: t("Piros") }] },
       { type: "spacer" },
-      { id: "clear", label: t("Törlés"), icon: "dxi dxi-delete", disabled: !sketch.count() }] });
+      { id: "clear", label: t("Törlés"), icon: "bi bi-trash", disabled: !sketch.count() }] });
     tools.mount(box.getCell("commands"));
     app.ui.attach(box.getCell("stage"), sketch.element, { signal });
     const footer = new app.components.CommandBar({ label: t("Toll"), placement: "bottom", signal, items: [
       { type: "range", id: "width", label: t("Vonalvastagság"), min: 1, max: 12, value: sketch.pen.width, valueLabel: true },
-      { id: "undo", label: t("Visszavonás"), icon: "dxi dxi-undo", disabled: !sketch.count() }] });
+      { id: "undo", label: t("Visszavonás"), icon: "bi bi-arrow-counterclockwise", disabled: !sketch.count() }] });
     footer.mount(box.getCell("footer"));
     tools.on("change", ({ id, value }) => { if (id === "color") sketch.pen.color = String(value); });
     tools.on("click", ({ id }) => { if (id === "clear") sketch.clear(); });
@@ -260,7 +260,7 @@ const taskPage: ApplicationModule = app => {
   app.kinds.register(KIND, { create: (host, view: ViewDefinition<PageOptions>) => page(app, host, view) });
   // `Feladatlap` on the Feladatok toolbar: opens the page of the cursor task.
   app.commands.register("demo.task-page", {
-    label: "Feladatlap", icon: "dxi dxi-file-document-outline", placement: "record",
+    label: "Feladatlap", icon: "bi bi-file-earmark-text", placement: "record",
     enabled: ({ row, rows }) => !!row && rows.length <= 1 && !!app.viewDefinition(KIND),
     run: ({ app, row }) => { if (row) app.navigate({ view: KIND, record: String(row.id) }); },
   });

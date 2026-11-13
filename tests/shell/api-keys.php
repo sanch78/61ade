@@ -28,7 +28,7 @@ check((int)$db->query("SELECT COUNT(*) FROM blade_rules WHERE resource='blade_ap
 
 // Choices are catalogue operations on the API channel; the secret is shown once, only its hash is stored.
 $form=$workspace->views(new Identity('1','Admin'));$view=array_values(array_filter($form,fn($v)=>$v['resource']===ApiKeys::RESOURCE))[0];
-check($view['group']===null && $view['icon']==='dxi dxi-key','API keys are a top-level menu feature');
+check($view['group']===null && $view['icon']==='bi bi-key','API keys are a top-level menu feature');
 $scopes=array_values(array_filter($view['actions'],fn($a)=>$a['name']==='create'))[0]['fields'][2];
 check($scopes['type']==='multiselect' && isset($scopes['options']['notes.list']) && !isset($scopes['options']['blade_roles.delete']),'Scope choices from API catalogue');
 $future=gmdate('Y-m-d',time()+30*86400);

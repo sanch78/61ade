@@ -4,6 +4,7 @@ import { installSuiteLabels } from "./SuiteLabels";
 import { installModalWindows } from "./ModalWindows";
 import { installRedrawGuard } from "./SuiteRedraw";
 import "@dhtmlx/suite/codebase/suite.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import "./themes/blade-chrome.css";
 import "./admin.css";
 import "./themes/character.css";

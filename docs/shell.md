@@ -175,6 +175,8 @@ JSON: `"view": {"title": "…", "attention": {"filters": {"status": "pending"}, 
   collapsed `Menü` button show the sum of the counts they hold in the most
   urgent tone (`danger`, then `warning`, then `primary`), also the compact
   menu's sibling entries. At zero the entry is exactly like every other one.
+  A badge stays 18 px high and shares the label/icon's vertical centre;
+  adding a count does not change the menu row or button height.
   The tones are theme colours (`warning` uses the warning dialog's accent,
   which Suite does not define), and the number itself is always visible, so
   colour is never the only signal.
@@ -210,7 +212,7 @@ code, for example opening a work window, instead of opening a view
 use Blade\Navigation\MenuCommand;
 
 new ApplicationDefinition(…, menuCommands: [
-    new MenuCommand('demo.workbench', 'Munkaasztal', icon: 'dxi dxi-pencil',
+    new MenuCommand('demo.workbench', 'Munkaasztal', icon: 'bi bi-pencil',
         tooltip: 'Munkaablak: nézetváltáskor is nyitva marad',
         visible: static fn(Identity $actor) => true, attention: 'demo_approvals'),
 ]);
@@ -224,7 +226,7 @@ app.commands.register("demo.workbench", {
 ```
 
 JSON: `"application": {"menu_commands": [{"id": "demo.workbench", "label":
-"Munkaasztal", "icon": "dxi dxi-pencil", "tooltip": "…", "emphasized": true,
+"Munkaasztal", "icon": "bi bi-pencil", "tooltip": "…", "emphasized": true,
 "visible": "<identity binding>", "attention": "demo_approvals"}]}`, where
 `visible` names an identity binding `Closure(Identity): bool` (like
 `skins`).
@@ -232,7 +234,7 @@ JSON: `"application": {"menu_commands": [{"id": "demo.workbench", "label":
 - **Declaration:** `id` is the client command's name with a project prefix
   (`[a-z][a-z0-9_.-]*` with a dot, at most 100 characters), `label` 1–80 and
   `tooltip` 1–200 characters of plain text, translated like other labels;
-  `icon` a Suite icon class (default `dxi dxi-flash`); `emphasized` (default
+  `icon` [icon classes](icons.md) (default `bi bi-lightning`); `emphasized` (default
   `true`) the primary tone; `visible` is evaluated on the server for every
   page and never sent; `attention` names a view that declares
   [attention](#menu-attention), whose live count the entry shows as well (the
@@ -294,7 +296,8 @@ that receives the toolkit API ([ADR-0005](decisions/0005-toolkit.md)).
 Historical initial verification: PHP 8.4.26, Node 18.19.1, npm 9.2.0,
 TypeScript 5.9.3, esbuild 0.25.12, Suite Standard 9.3.12, Playwright 1.58.2.
 Current system runner guidance is in [development](development.md).
-Lockfiles pin application dependencies. Suite icon fonts are checked against
+Lockfiles pin application dependencies, including Bootstrap Icons 1.13.2
+([icons](icons.md)). The legacy Suite icon fonts are checked against
 SHA-256 in `tools/vendor-assets.json` and cached in `tmp/dhx-icons`. The first
 build needs internet; hash mismatch fails the build. Fonts are embedded, with
 no browser CDN requests.

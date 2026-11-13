@@ -46,7 +46,7 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
     if(options?.placement!==undefined&&options.placement!=="top"&&options.placement!=="bottom")throw invalid(`invalid CommandBar placement "${String(options.placement)}".`);
     const data=items.flatMap((item,index)=>this.item(item,index===0,index===items.length-1));
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"commands",css:"blade-command-row"+(options.placement==="bottom"?" blade-command-row--bottom":"")}]});
-    this.bar=new ResponsiveToolbar(undefined,{data},{id:"blade-command-menu"+this.prefix,value:t("Műveletek"),icon:"dxi dxi-view-grid"});
+    this.bar=new ResponsiveToolbar(undefined,{data},{id:"blade-command-menu"+this.prefix,value:t("Műveletek"),icon:"bi bi-grid"});
     this.toolbar=this.bar;
     const root=this.bar.getRootNode() as HTMLElement;
     if(options.label)root.setAttribute("aria-label",options.label);

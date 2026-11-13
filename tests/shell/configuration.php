@@ -123,7 +123,7 @@ try {
     }
     // Menu-row commands (docs/shell.md#menu-commands): `visible` names an identity binding.
     verify($app->menuCommands === [], 'No menu commands by default');
-    $write([...$settings, 'application' => [...$settings['application'], 'menu_commands' => [['id' => 'app.workbench', 'label' => 'Munkaasztal', 'icon' => 'dxi dxi-pencil', 'tooltip' => 'Nyitva marad', 'emphasized' => false, 'visible' => 'app.members']]]]);
+    $write([...$settings, 'application' => [...$settings['application'], 'menu_commands' => [['id' => 'app.workbench', 'label' => 'Munkaasztal', 'icon' => 'bi bi-pencil', 'tooltip' => 'Nyitva marad', 'emphasized' => false, 'visible' => 'app.members']]]]);
     $commanded = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active'], 'app.members' => static fn() => true], $callbacks, $db)->menuCommands;
     verify(count($commanded) === 1 && $commanded[0]->id === 'app.workbench' && $commanded[0]->tooltip === 'Nyitva marad' && $commanded[0]->emphasized === false && $commanded[0]->visible instanceof Closure && ($commanded[0]->project($actor, [])['label'] ?? null) === 'Munkaasztal', 'JSON application.menu_commands');
     foreach ([['menu_commands' => ['id' => 'app.x', 'label' => 'X']], ['menu_commands' => [['id' => 'workbench', 'label' => 'X']]], ['menu_commands' => [['id' => 'app.x', 'label' => 'X', 'emphasized' => 'yes']]], ['menu_commands' => [['id' => 'app.x', 'label' => 'X', 'color' => 'red']]], ['menu_commands' => [['id' => 'app.x', 'label' => 'X', 'visible' => 'app.unknown']]], ['menu_commands' => [['id' => 'app.x', 'label' => 'X', 'attention' => 'tasks']]]] as $bad) {
@@ -343,7 +343,7 @@ try {
             'fields' => [['name' => 'title', 'label' => 'Title'], ['name' => 'kind', 'label' => 'Kind', 'type' => 'select', 'options' => ['a' => 'A', 'b' => 'B']]],
             'view' => ['title' => 'Projects', 'id' => 'projects.main', 'activate' => ['description' => 'Per kind.', 'field' => 'kind', 'map' => ['a' => 'view:demo.viewer', '*' => 'details']]],
         ]],
-        'views' => ['demo.viewer' => ['kind' => 'demo.viewer', 'title' => 'Viewer', 'resource' => 'projects', 'record' => 'projects', 'actions' => ['get'], 'options' => ['loop' => true], 'open' => 'window', 'group' => 'Demo', 'icon' => 'dxi dxi-play', 'desktop_only' => false]],
+        'views' => ['demo.viewer' => ['kind' => 'demo.viewer', 'title' => 'Viewer', 'resource' => 'projects', 'record' => 'projects', 'actions' => ['get'], 'options' => ['loop' => true], 'open' => 'window', 'group' => 'Demo', 'icon' => 'bi bi-play-fill', 'desktop_only' => false]],
     ];
     $toolkitBuild = static function (array $module) use ($directory, $tenantDb): Blade\Feature\Registry {
         file_put_contents($directory.'/toolkit-module.json', json_encode($module, JSON_THROW_ON_ERROR));

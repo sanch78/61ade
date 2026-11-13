@@ -93,17 +93,17 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     const position = (seconds: number) => t("Pozíció: {position} / {length}", { position: clock(seconds), length: clock(player?.duration() ?? scene?.duration ?? 0) });
     const status = !found ? t("Ehhez az elemhez nincs megjeleníthető médiafájl.") : !playable ? t("Ez a fájltípus nem játszható le.") : timed ? position(resume) : "";
     const media = ["rewind", "backward", "play", "forward", "loop"];
-    const repeat = () => ({ label: loop ? t("Ismétlés: be") : t("Ismétlés: ki"), icon: loop ? "blade-icon blade-icon--repeat" : "blade-icon blade-icon--repeat-off" });
+    const repeat = () => ({ label: loop ? t("Ismétlés: be") : t("Ismétlés: ki"), icon: "bi bi-repeat", pressed: loop });
     // Like a player: back to the list, a divider, then icon-only transport controls with one play/pause toggle.
     const bar: CommandBar = new app.components.CommandBar({ signal, items: [
-      { id: "back", label: t("Vissza a listához"), icon: "dxi dxi-arrow-left" },
+      { id: "back", label: t("Vissza a listához"), icon: "bi bi-arrow-left" },
       ...(timed ? [{ type: "separator" as const }] : []),
-      { id: "rewind", label: t("Elejére"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true, hidden: !timed },
-      { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "blade-icon blade-icon--rewind", iconOnly: true, disabled: true, hidden: !timed },
-      { id: "play", label: t("Lejátszás"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true, hidden: !timed },
-      { id: "forward", label: t("Előre {seconds} mp", { seconds: STEP }), icon: "blade-icon blade-icon--fast-forward", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "rewind", label: t("Elejére"), icon: "bi bi-skip-start-fill", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "bi bi-rewind-fill", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "play", label: t("Lejátszás"), icon: "bi bi-play-fill", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "forward", label: t("Előre {seconds} mp", { seconds: STEP }), icon: "bi bi-fast-forward-fill", iconOnly: true, disabled: true, hidden: !timed },
       // A scene loops by its own length.
-      { id: "loop", ...repeat(), iconOnly: true, disabled: true, hidden: !timed || kind === "scene" },
+      { type: "toggle", id: "loop", ...repeat(), iconOnly: true, disabled: true, hidden: !timed || kind === "scene" },
       { type: "spacer" },
       { id: "position", label: status, disabled: true, hidden: status === "" },
     ] });
@@ -113,7 +113,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     const toggle = (on: boolean) => {
       if (on === playing) return;
       playing = on;
-      bar.update("play", on ? { label: t("Szünet"), icon: "blade-icon blade-icon--pause" } : { label: t("Lejátszás"), icon: "blade-icon blade-icon--play" });
+      bar.update("play", on ? { label: t("Szünet"), icon: "bi bi-pause-fill" } : { label: t("Lejátszás"), icon: "bi bi-play-fill" });
     };
     bar.on("click", ({ id }) => {
       if (id === "back") { if (!app.navigate({ view: listId })) host.close(); return; }
@@ -128,7 +128,10 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
       if (id === "play") { if (playing) player.pause(); else void player.play().catch(() => {}); }
       else if (id === "rewind") player.seek(0);
       else if (id === "backward" || id === "forward") player.seek(player.position() + (id === "forward" ? STEP : -STEP));
-      else if (id === "loop") { loop = !loop; player.setLoop(loop); preferences.set("loop", loop); bar.update("loop", repeat()); }
+    });
+    bar.on("toggle", ({ id, pressed }) => {
+      if (id !== "loop" || !player) return;
+      loop = pressed; player.setLoop(loop); preferences.set("loop", loop); bar.update("loop", repeat());
     });
 
     const recordDetails = list ? new app.components.RecordDetails({ view: list, record: row, signal }) : undefined;
@@ -221,12 +224,12 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
 const assets: ApplicationModule = app => {
   app.kinds.register(KIND, { create: (host, view: ViewDefinition<ViewerOptions>) => viewer(app, host, view) });
   // Scene files are the library's animations: `Animáció` with the 61ade animation glyph in every media slot and picker.
-  app.mediaTypes.register("demo.scene", { mime: [SCENE_TYPE], label: "Animáció", icon: "blade-icon blade-icon--animation" });
+  app.mediaTypes.register("demo.scene", { mime: [SCENE_TYPE], label: "Animáció", icon: "bi bi-film" });
   // `Lejátszás` on the Médiatár toolbar: opens the viewer for the cursor asset when it has something to play.
   const playable = (view: ViewDefinition, row: Row | undefined) =>
     !!row && !!app.viewDefinition(KIND) && stageKind(mediaOf(view as ViewDefinition<ListKindOptions>, row)?.media) !== undefined;
   app.commands.register("demo.play", {
-    label: "Lejátszás", icon: "dxi dxi-menu-right", placement: "record",
+    label: "Lejátszás", icon: "bi bi-play-fill", placement: "record",
     enabled: ({ view, row, rows }) => rows.length <= 1 && playable(view, row),
     run: ({ app, row }) => { if (row) app.navigate({ view: KIND, record: String(row.id) }); },
   });

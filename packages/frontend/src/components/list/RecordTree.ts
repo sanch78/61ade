@@ -485,7 +485,7 @@ export class NodeTree {
  * `app.components.Tree` (docs/toolkit.md#tree): the records of a list view with a hierarchy on itself as a tree, in its
  * own borderless Layout (the host's region gives the title). `select` and `activate` tell the host which node it is.
  */
-const EXPAND_ICON="dxi blade-icon blade-icon--expand-all",COLLAPSE_ICON="dxi blade-icon blade-icon--collapse-all";
+const EXPAND_ICON="bi bi-arrows-expand",COLLAPSE_ICON="bi bi-arrows-collapse";
 export class RecordTree extends Component<TreeEvents> implements TreeApi{
   readonly layout:Layout;
   private nodes:NodeTree;
@@ -543,7 +543,7 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
   expandAll():Promise<TreeExpansion>{return this.destroyed?Promise.resolve({complete:false,nodes:0,reason:"cancelled"}):this.nodes.expandAll();}
   collapseAll():Promise<void>{return this.destroyed?Promise.resolve():this.nodes.collapseAll();}
   private paintControl():void{
-    this.bar?.update("expand",this.loading?{label:t("Betöltés…"),icon:"dxi dxi-loading dxi-spin"}
+    this.bar?.update("expand",this.loading?{label:t("Betöltés…"),icon:"bi bi-arrow-repeat dxi-spin"}
       :this.open?{label:t("Mindet bezár"),icon:COLLAPSE_ICON}:{label:t("Mindet kinyit"),icon:EXPAND_ICON});
   }
   /** The control's expand-all; a stop at a cap is a non-blocking notice (an error has had its dialog). */

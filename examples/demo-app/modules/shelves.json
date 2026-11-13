@@ -34,7 +34,7 @@
             "view": {
                 "title": "Raktárzónák",
                 "group": "Feature demó",
-                "icon": "dxi dxi-border-inside",
+                "icon": "bi bi-grid",
                 "tiles": true,
                 "activate": "page",
                 "columns": [
@@ -83,7 +83,7 @@
             "view": {
                 "title": "Polcok",
                 "group": "Feature demó",
-                "icon": "dxi dxi-view-grid",
+                "icon": "bi bi-grid",
                 "tiles": true,
                 "activate": "subview",
                 "columns": [
@@ -180,7 +180,7 @@
             "handler": "shelves.stock",
             "target_resource": "demo_shelf_items",
             "write": false,
-            "icon": "dxi dxi-information-outline",
+            "icon": "bi bi-info-circle",
             "channels": [
                 "ui"
             ]

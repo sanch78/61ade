@@ -215,8 +215,8 @@ final class Accounts
         $registry->add(new Action(self::RESOURCE, 'temporary_password', 'Ideiglenes jelszó', [], function (Context $ctx, array $target): array {
             if ($target['id'] === $ctx->actor->id) throw new Failure('A saját jelszavadat a jelszócsere művelettel módosítsd.', 403);
             return $this->issueTemporary($ctx, $target['id']);
-        }, resolve: $resolve, write: true, icon: 'dxi dxi-key'));
-        $registry->updateView($view->with(actions: [...$view->actions, 'temporary_password'], icon: 'dxi dxi-person'));
+        }, resolve: $resolve, write: true, icon: 'bi bi-key'));
+        $registry->updateView($view->with(actions: [...$view->actions, 'temporary_password'], icon: 'bi bi-person'));
     }
 
     /** Completes the forced change after a successful temporary-password sign-in. */

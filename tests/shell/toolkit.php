@@ -38,8 +38,8 @@ try{$registry->view('assets','X',[],['missing']);throw new RuntimeException('Unk
 rejects(fn()=>$registry->view('assets','Átnevezve',$columns,['get','update']),'A duplicate view id accepted');
 rejects(fn()=>$registry->addView(new View('assets.audio','demo.player','X')),'A duplicate view id of another kind accepted');
 rejects(fn()=>$resource()->register($registry,'Újra'),'A second SqlResource::register() of the same view id accepted');
-$registry->updateView(View::list('assets','Átnevezve',$columns,['get','update'],icon:'dxi dxi-key'));
-check(array_column($registry->views(),'id')===['assets','assets.audio']&&$registry->viewById('assets')->title==='Átnevezve'&&$registry->viewById('assets')->icon==='dxi dxi-key','updateView() changes the view in place');
+$registry->updateView(View::list('assets','Átnevezve',$columns,['get','update'],icon:'bi bi-key'));
+check(array_column($registry->views(),'id')===['assets','assets.audio']&&$registry->viewById('assets')->title==='Átnevezve'&&$registry->viewById('assets')->icon==='bi bi-key','updateView() changes the view in place');
 rejects(fn()=>$registry->updateView(View::list('assets','X',$columns,['get'],id:'assets.missing')),'An update of an undeclared view accepted');
 rejects(fn()=>$registry->updateView(new View('assets','demo.player','X','assets')),'An update that changes the kind accepted');
 try{$registry->updateView(View::list('assets','X',$columns,['missing']));throw new RuntimeException('An update with an unknown action accepted');}catch(Failure){}
@@ -365,8 +365,8 @@ check($updateFields['priority']['editor']==='demo.rating','A field editor reache
 
 // Menu-row commands (docs/shell.md#menu-commands): a project-prefixed client command, server-side visibility, the
 // attention of a declared view; at most three unique ones per application.
-$command=new Blade\Navigation\MenuCommand('demo.workbench','Munkaasztal',icon:'dxi dxi-pencil',tooltip:'Nyitva marad',visible:static fn(Identity $actor)=>$actor->id==='1',attention:'assets.watched');
-check($command->project(new Identity('1','Egy'),['assets.watched'])===['id'=>'demo.workbench','label'=>'Munkaasztal','icon'=>'dxi dxi-pencil','tooltip'=>'Nyitva marad','emphasized'=>true,'attention'=>'assets.watched'],'Menu command projection');
+$command=new Blade\Navigation\MenuCommand('demo.workbench','Munkaasztal',icon:'bi bi-pencil',tooltip:'Nyitva marad',visible:static fn(Identity $actor)=>$actor->id==='1',attention:'assets.watched');
+check($command->project(new Identity('1','Egy'),['assets.watched'])===['id'=>'demo.workbench','label'=>'Munkaasztal','icon'=>'bi bi-pencil','tooltip'=>'Nyitva marad','emphasized'=>true,'attention'=>'assets.watched'],'Menu command projection');
 check($command->project(new Identity('2','Kettő'),['assets.watched'])===null,'A hidden menu command is not offered');
 check(!array_key_exists('attention',$command->project(new Identity('1','Egy'),[])),'Attention only names an offered view');
 check((new Blade\Navigation\MenuCommand('demo.plain','Sima',emphasized:false))->project(new Identity('1','Egy'),[])===['id'=>'demo.plain','label'=>'Sima','emphasized'=>false],'A plain menu command');

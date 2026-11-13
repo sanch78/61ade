@@ -349,7 +349,7 @@ export interface PopupMenuEntry {
   label: string;
   /** Secondary text at the entry's right edge (a relative time, "default"); part of its accessible name. */
   detail?: string;
-  /** Icon class (`dxi dxi-…`) of an entry that is not checkable. */
+  /** Icon class (`bi bi-…`; legacy `dxi dxi-…` also works) of an entry that is not checkable. */
   icon?: string;
   /**
    * Makes the entry checkable (`menuitemradio`, `aria-checked`, a check mark in the icon's place): the checkable
@@ -709,7 +709,7 @@ export interface ViewDefinition<Options = unknown> {
   options: Options;
   /** Menu group label; absent: a top-level entry. */
   group?: string | null;
-  /** Suite icon classes of the menu entry. */
+  /** Icon classes of the menu entry (Bootstrap Icons `bi bi-…`; legacy Suite classes also work). */
   icon?: string | null;
   /** Below 768 px a notice replaces the view (`DesktopOnly`). */
   desktopOnly?: boolean;
@@ -1098,7 +1098,7 @@ export interface MediaType {
   mime: readonly string[];
   /** Source text, translated through `app.i18n.t` (the `type` part, accessible names). */
   label: string;
-  /** Icon classes shown while there is no thumbnail: a Suite icon (`dxi dxi-image-outline`) or a 61ade glyph (`blade-icon blade-icon--audio`). */
+  /** Icon classes shown while there is no thumbnail: Bootstrap Icons (`bi bi-image`, `bi bi-music-note-beamed`); legacy classes also work. */
   icon: string;
 }
 

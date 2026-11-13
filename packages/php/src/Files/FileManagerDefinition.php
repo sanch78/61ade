@@ -56,7 +56,7 @@ final readonly class FileManagerDefinition
         public int $textMaxBytes = 262144,
         public int $maxDepth = 5,
         public ?string $group = null,
-        public ?string $icon = 'dxi dxi-folder-open',
+        public ?string $icon = 'bi bi-folder2-open',
         public bool $desktopOnly = false,
         /** The view's guide text (Blade\Feature\View $guide). */
         public ?string $guide = null,

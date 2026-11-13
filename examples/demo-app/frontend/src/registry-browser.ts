@@ -109,6 +109,6 @@ const registryBrowser: ApplicationModule = app => {
   // A two-state command of the values list's own toolbar; its state is kept per view, so the page above reads it
   // before it creates the list and keeps it when it mounts the list of the other scope.
   // Pinned: it stays in the bar of the narrow values panel when the other commands collapse into `Műveletek`.
-  app.commands.register(TOGGLE, { type: "toggle", label: "Alkulcsok értékei", icon: "dxi dxi-folder", placement: "toolbar", pressed: false, pinned: true });
+  app.commands.register(TOGGLE, { type: "toggle", label: "Alkulcsok értékei", icon: "bi bi-folder", placement: "toolbar", pressed: false, pinned: true });
 };
 export default registryBrowser;

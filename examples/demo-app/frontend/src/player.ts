@@ -101,10 +101,10 @@ export class Player {
     stage.append(this.caption, this.screen);
     this.element.append(stage, commands, this.strip);
     this.bar = new app.components.CommandBar({ signal, items: [
-      { id: "rewind", label: this.t("Elejére"), icon: "blade-icon blade-icon--skip-start", iconOnly: true, disabled: true },
-      { id: "previous", label: this.t("Előző elem"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true },
-      { id: "play", label: this.t("Lejátszás"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true },
-      { id: "next", label: this.t("Következő elem"), icon: "blade-icon blade-icon--skip-next", iconOnly: true, disabled: true },
+      { id: "rewind", label: this.t("Elejére"), icon: "bi bi-skip-backward-fill", iconOnly: true, disabled: true },
+      { id: "previous", label: this.t("Előző elem"), icon: "bi bi-skip-start-fill", iconOnly: true, disabled: true },
+      { id: "play", label: this.t("Lejátszás"), icon: "bi bi-play-fill", iconOnly: true, disabled: true },
+      { id: "next", label: this.t("Következő elem"), icon: "bi bi-skip-end-fill", iconOnly: true, disabled: true },
       { type: "spacer" },
       { id: "position", label: this.positionText(), disabled: true },
     ] });
@@ -217,7 +217,7 @@ export class Player {
   }
   private commands(): void {
     const ready = this.items.length > 0;
-    this.bar.update("play", { disabled: !ready, ...(this.playing ? { label: this.t("Szünet"), icon: "blade-icon blade-icon--pause" } : { label: this.t("Lejátszás"), icon: "blade-icon blade-icon--play" }) });
+    this.bar.update("play", { disabled: !ready, ...(this.playing ? { label: this.t("Szünet"), icon: "bi bi-pause-fill" } : { label: this.t("Lejátszás"), icon: "bi bi-play-fill" }) });
     for (const id of ["rewind", "previous", "next"]) this.bar.update(id, { disabled: !ready });
     this.bar.update("position", { label: this.positionText() });
   }

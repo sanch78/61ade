@@ -14,7 +14,9 @@ independent, giving six combinations:
 | `warning`: amber triangle | Warning | Risky continuation |
 | `danger`: red octagon “×” | Error | Irreversible/destructive action |
 
-Shape and title carry meaning as well as color. The icon has `role="img"`
+The severity glyphs use [Bootstrap Icons](icons.md): `bi-info-circle`,
+`bi-exclamation-triangle` and `bi-x-octagon`. Shape and title carry meaning
+as well as color. The icon has `role="img"`
 with severity as `aria-label`; default titles also follow severity.
 
 <a id="api-frontend"></a>

@@ -687,11 +687,10 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
 
 ## Bulk actions and icons
 
-Actions accept an optional DHTMLX icon CSS class, e.g. `dxi dxi-check`, also
+Actions accept optional [icon classes](icons.md), e.g. `bi bi-check-lg`, also
 as JSON icon. Built-ins, view switching, filters and save have framework defaults.
-Every configured icon must be present in the bundled DHTMLX icon font; use the
-bundled glyph names rather than an unavailable outline alias so disabled and
-enabled actions render the same icon.
+The complete Bootstrap Icons font is bundled. Use an existing catalog name so
+disabled and enabled actions render the same icon; legacy Suite classes also work.
 
 Bulk requires explicit Action/JSON `bulk: true` plus checkbox or row selection. A
 `SqlResource` update becomes bulk-capable when one of its fields declares
@@ -704,7 +703,7 @@ handler, resolver and permissions stay the individual action's ones.
 The command bar shows each action once. When marked rows exist, selecting a
 bulk-capable action runs that same action for the marked rows; no separate
 “selected rows” command is added. Every action and its sort choices carry a
-native DHTMLX icon.
+configured or built-in icon.
 
 While two or more rows are marked, only commands that are meaningful for the
 marks stay enabled: bulk-capable actions (when every marked row permits them)
@@ -779,7 +778,7 @@ A list view declares that it takes records dragged from another list (JSON
   is reloaded.
 
 Draggable rows (a manual order with `move`, a drop target that can reorder, a
-drag source) start with the usual drag-handle column (`dxi-drag-vertical`,
+drag source) start with the usual drag-handle column (`bi-grip-vertical`,
 decorative; its tooltip says `Húzással áthelyezhető` or `Húzással hozzáadható`);
 cards and tiles show the same handle. Dragging works from any cell.
 
@@ -889,8 +888,8 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   (advertised as a select with `Kép`/`Videó`), limited to mounts the actor may
   read; other values are `400`, a field the actor may not query `403`.
 - **Icon column.** `column.presentation: "icon"` (non-secret text/select, not
-  editable, static `options` required): the value is a Suite class
-  `dxi dxi-…`, `options` give the accessible name. Record details and cards
+  editable, static `options` required): the value is a Bootstrap class
+  `bi bi-…` (legacy `dxi dxi-…` also works), `options` give the accessible name. Record details and cards
   render media and icon fields the same way (`detailFields` carry `media` and
   `presentation`). A dotted `presentation` names a project renderer
   ([extensions](#list-extensions)).
@@ -1233,9 +1232,9 @@ without a consumer header/HTML interface. Grid mode shadow falls beneath column
 headings; cards use toolbar shadow, switching automatically across themes.
 Native filter buttons have at least 8 px gap.
 
-View icon sets the menu icon, e.g. JSON `"icon":"dxi dxi-file-outline"` or the
+View icon sets the menu icon, e.g. JSON `"icon":"bi bi-file-earmark"` or the
 last optional Registry::view icon argument. CSS class names only; the glyph
-must exist. Default: dxi dxi-table-check. Groups use folders; static MenuItem
+must exist. Default: bi bi-table. Groups use folders; static MenuItem
 also accepts icon.
 
 <a id="kártyaszerkesztés-rendezés-és-kompakt-ablakok"></a>

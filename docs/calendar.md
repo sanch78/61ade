@@ -85,7 +85,7 @@ $calendar->register($workspace);     // application definition
 | `firstHour`, `lastHour` | Visible hours of the day/week views. |
 | `maxRangeDays` | Longest window `events`/`occurrences` accept (default 62, month view needs 42). |
 | `dayAction` | Optional registered action called with `date` (`YYYY-MM-DD`) for the selected day; the toolbar button shows its JSON answer read-only beside the equivalent API request. Shown only if the actor is offered that action. |
-| `group`, `icon`, `desktopOnly` | Menu group, icon (default `dxi dxi-calendar-today`) and the generic desktop-only option. |
+| `group`, `icon`, `desktopOnly` | Menu group, icon (default `bi bi-calendar-event`) and the generic desktop-only option. |
 | `tones` | Event colours: a list of `{field, tone, value \| prefix}` rules over the extra fields; the first rule whose field equals `value` (or starts with `prefix`) colours the event with the theme tone `primary`, `secondary`, `success` or `danger` (other events keep the default `primary`). Light and dark skins follow the Suite palette. A rule over a field the actor may not read is left out of the metadata. Invalid rules throw at definition time. |
 
 ### In project code

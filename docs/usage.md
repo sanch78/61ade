@@ -776,6 +776,14 @@ a notice and links below the form (`signIn`), and `signInModules` that fill the
 window's header/footer slots through a restricted API (JSON `application.logo`,
 `sign_in_stylesheets`, `sign_in`, `sign_in_modules`).
 
+## Icons
+
+[Bootstrap Icons](icons.md) is bundled and used by the shell, actions, file/media
+views, transport controls and demos. Any icon slot accepts `bi bi-<name>`;
+record icon columns use those values as keys of their labelled `options`.
+No extra stylesheet, font file or CDN is needed. Legacy `dxi` and `blade-icon`
+classes remain compatible.
+
 <a id="többnyelvűség"></a>
 
 ## Localization

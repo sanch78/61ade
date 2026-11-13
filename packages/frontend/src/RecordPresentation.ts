@@ -18,11 +18,11 @@ export function recordCheckbox(row:Row,field:ViewDefinition["columns"][number]):
   if(!field.editable||!row._editable?.includes(field.id))return content;
   return `<label class="blade-card-edit blade-checkbox-edit dhx_checkbox" data-blade-row="${escape(row.id)}" data-blade-field="${escape(field.id)}" title="${content}"><input class="dhx_checkbox__input" type="checkbox" aria-label="${escape(field.header)}" aria-checked="${checked}" ${checked?"checked":""}><span class="dhx_checkbox__visual-input"></span></label>`;
 }
-const ICON=/^dxi dxi-[a-z0-9-]+$/;
-/** Name of an icon value: its option label, otherwise the readable class ("dxi dxi-image-outline" → "image outline"). */
-export const iconLabel=(field:{options?:Record<string,string>},value:unknown):string=>{const icon=String(value??"");return field.options?.[icon]||icon.replace(/^dxi dxi-/,"").replace(/-/g," ");};
+const ICON=/^(?:dxi dxi-|bi bi-)[a-z0-9-]+$/;
+/** Name of an icon value: its option label, otherwise the readable class ("bi bi-image" → "image"). */
+export const iconLabel=(field:{options?:Record<string,string>},value:unknown):string=>{const icon=String(value??"");return field.options?.[icon]||icon.replace(/^(?:dxi dxi-|bi bi-)/,"").replace(/-/g," ");};
 /**
- * Icon column: the value is a Suite icon class, `options` maps it to its accessible name. Without a
+ * Icon column: the value is an icon class, `options` maps it to its accessible name. Without a
  * label the glyph is never the only meaning: a visually hidden text names it. `decorative` is for a
  * caller that shows the name as visible text beside it.
  */
@@ -57,11 +57,11 @@ export const derivedOf=(field:Column):string|undefined=>{const of=field.mediaOf;
 const mediaKind=(media:MediaDescriptor):"video"|"image"|"audio"|"file"=>{const kind=media.mime_type.split("/")[0];return kind==="video"||kind==="image"||kind==="audio"?kind:"file";};
 /** Built-in media types, registered on `app.mediaTypes` by builtins.ts (fixtures without an Application use them directly). */
 export const builtinMediaTypes:Readonly<Record<"image"|"video"|"audio",MediaType>>=Object.freeze({
-  image:{mime:["image/*"],label:"Kép",icon:"dxi dxi-image-outline"},
-  video:{mime:["video/*"],label:"Videó",icon:"dxi dxi-menu-right"},
-  audio:{mime:["audio/*"],label:"Hang",icon:"blade-icon blade-icon--audio"},
+  image:{mime:["image/*"],label:"Kép",icon:"bi bi-image"},
+  video:{mime:["video/*"],label:"Videó",icon:"bi bi-camera-video"},
+  audio:{mime:["audio/*"],label:"Hang",icon:"bi bi-music-note-beamed"},
 });
-const FILE_TYPE:MediaType={mime:[],label:"Fájl",icon:"dxi dxi-file-outline"};
+const FILE_TYPE:MediaType={mime:[],label:"Fájl",icon:"bi bi-file-earmark"};
 /** The page's media types (`app.mediaTypes`) in registration order; an entry without a usable shape is skipped. */
 export function mediaTypeEntries():MediaType[]{
   const registry=extensions.mediaTypes;
@@ -126,7 +126,7 @@ export function recordImage(field:Column,row:Row,size:"cell"|"card"|"tile"="cell
   const url=imageUrl(field,row[field.id]);
   if(!url)return size==="cell"?"":`<span class="blade-media blade-media--${size} blade-media--image blade-media--empty" aria-hidden="true"></span>`;
   const of=field.altOf,alt=of&&row[of]!=null?escape(row[of]):"",failed=failedThumbnails.has(url);
-  return `<span class="blade-media blade-media--${size} blade-media--image${failed?" blade-media--failed":""}" ${alt?`role="img" aria-label="${alt}" title="${alt}"`:`aria-hidden="true"`}><span class="blade-media__icon dxi dxi-image-outline" aria-hidden="true"></span>${failed?"":`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-static-image>`}</span>`;
+  return `<span class="blade-media blade-media--${size} blade-media--image${failed?" blade-media--failed":""}" ${alt?`role="img" aria-label="${alt}" title="${alt}"`:`aria-hidden="true"`}><span class="blade-media__icon bi bi-image" aria-hidden="true"></span>${failed?"":`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-static-image>`}</span>`;
 }
 /**
  * The built-in `image` presentation (registered on `app.presentations` by builtins.ts). A static image column renders

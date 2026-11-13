@@ -158,7 +158,7 @@ export class ListActions{
       const allowed=schema.fields as FieldDefinition[];
       const start=action.name==="create"?this.createValues(schema.values,allowed):schema.values;
       const shown=allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field);
-      const form=new Form(document.createElement("div"),{padding:20,rows:[...formRows(shown,f=>input(f,f.type==="password"?"":start[f.name],shownOnly(f)),start,schema.formSections,schema.flushSections),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"dxi dxi-content-save",color:"primary"})]} as any);
+      const form=new Form(document.createElement("div"),{padding:20,rows:[...formRows(shown,f=>input(f,f.type==="password"?"":start[f.name],shownOnly(f)),start,schema.formSections,schema.flushSections),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"bi bi-floppy",color:"primary"})]} as any);
       this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.releaseTypes();this.editor=form;
       const files=this.fileFields=new FileFields(form,allowed,list.resourceCall,[schema.values,id?list.rows.find(row=>String(row.id)===id):undefined],shownOnly);
       const types=this.fieldTypes=bindFieldTypes(form,shown,shownOnly,()=>{if(this.dialog?.isVisible())void fitWindow(this.dialog);});

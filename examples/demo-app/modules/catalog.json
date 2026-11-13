@@ -39,7 +39,7 @@
             "view": {
                 "title": "Katalógus",
                 "group": "Feature demó",
-                "icon": "dxi dxi-image-outline",
+                "icon": "bi bi-image",
                 "row_height": 56,
                 "columns": [
                     {

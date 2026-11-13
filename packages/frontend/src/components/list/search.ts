@@ -15,7 +15,7 @@ export class ListSearch{
   private bar:Toolbar;
   private disposed=false;
   constructor(cell:ReturnType<Layout["getCell"]>,private changed:()=>void){
-    const bar=this.bar=new Toolbar(document.createElement("div"),{css:"blade-search-bar",data:[{type:"input",id:"blade-search",label:t("Keresés"),hiddenLabel:true,placeholder:t("Keresés…"),icon:"dxi dxi-magnify",width:"100%",autocomplete:false}]} as any);
+    const bar=this.bar=new Toolbar(document.createElement("div"),{css:"blade-search-bar",data:[{type:"input",id:"blade-search",label:t("Keresés"),hiddenLabel:true,placeholder:t("Keresés…"),icon:"bi bi-search",width:"100%",autocomplete:false}]} as any);
     // Suite's Toolbar input has no maxlength option: it is set on the input whenever Suite creates it.
     bar.events.on("inputCreated",(_id:string|number,input:HTMLInputElement)=>{input.maxLength=SEARCH_MAX;});
     bar.events.on("input",(_id:string|number,value:string)=>{clearTimeout(this.timer);this.timer=setTimeout(()=>this.apply(String(value??"")),300);});

@@ -221,10 +221,10 @@ export class AdminShell {
     ]),
       ...(compact?[]:commandItems),
       ...(this.definition.authenticated ? [{ id: "blade-session-separator", type: "separator" },
-      { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" }] : []),
+      { id: "blade-logout", value: t("Kijelentkezés"), icon:"bi bi-arrow-left" }] : []),
     ];
     const prefixed=(items:any[]):any[]=>items.map(item=>({...item,id:"sibling:"+item.id,...(item.items?{items:prefixed(item.items)}:{})}));
-    this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),...this.menuHtml(this.mainMenu()),icon:"dxi dxi-view-grid",items:entries},...commandItems,
+    this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),...this.menuHtml(this.mainMenu()),icon:"bi bi-grid",items:entries},...commandItems,
       ...(context.length?[{id:"blade-context-separator",type:"separator"},...context.map(marked).map(item=>prefixed([item])[0])]:[])]:entries.flatMap(item=>item.id==="blade-session-separator"?[{id:"blade-session-spacer",type:"spacer"},marked(item)]:[marked(item)]));
   }
 
@@ -241,7 +241,7 @@ export class AdminShell {
    * "Label, 3 függőben". The emphasized tone is a filled primary button (shape, weight and colour; css).
    */
   private commandItem(command:NonNullable<ShellDefinition["menuCommands"]>[number],iconOnly:boolean):any{
-    const count=this.commandCount(command),label=escape(command.label),icon=escape(command.icon??"dxi dxi-flash");
+    const count=this.commandCount(command),label=escape(command.label),icon=escape(command.icon??"bi bi-lightning");
     const title=command.tooltip?escape(command.tooltip):iconOnly?label:"";
     const badge=count?`<span class="blade-menu-count blade-menu-count--${this.tones.get(command.attention!)??"warning"}" aria-hidden="true">${count>99?"99+":count}</span>`:"";
     const name=count?`${label}, ${escape(t("{count} függőben",{count}))}`:label;
@@ -291,9 +291,9 @@ export class AdminShell {
     const {count,tone}=this.held(item);
     if(!count)return {html:undefined};
     const label=escape(String(item.value??"")),badge=`<span class="blade-menu-count blade-menu-count--${tone??"warning"}" aria-hidden="true">${count>99?"99+":count}</span>`;
-    if(!String(item.id).startsWith("view:"))return {html:`<span class="blade-menu-label">${label}</span>${badge}`};
+    if(!String(item.id).startsWith("view:"))return {html:`<span class="blade-menu-attention"><span class="blade-menu-label">${label}</span>${badge}</span>`};
     // One hidden text names the entry ("Label, 3 függőben"): the visible parts would add gaps to the name.
-    return {html:`<span class="blade-menu-label" aria-hidden="true">${label}</span>${badge}<span class="blade-visually-hidden">${label}, ${escape(t("{count} függőben",{count}))}</span>`};
+    return {html:`<span class="blade-menu-attention"><span class="blade-menu-label" aria-hidden="true">${label}</span>${badge}</span><span class="blade-visually-hidden">${label}, ${escape(t("{count} függőben",{count}))}</span>`};
   }
   /** A view's attention count changed: the labels are rebuilt and the drawn entries updated in place (an open menu stays open). */
   private attend(id:string,count:number):void{
@@ -400,9 +400,9 @@ export class AdminShell {
     const tenant=definition.tenant,currentTenant=tenant?.choices.find(choice=>choice.id===tenant.current),language=definition.i18n;
     const signInControl=definition.guest || (definition.publicAccess && definition.oauthOnly);
     const controlItems:object[]=[
-      ...(this.tenantSelector?[{id:"blade-tenant",value:escape(currentTenant?.name??t("Tenant")),icon:"dxi dxi-view-grid",tooltip:t("Tenant váltása"),
-        items:tenant!.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant!.current?{icon:"dxi dxi-check"}:{})}))}]:[]),
-      ...(this.guides?[{id:"blade-guide",css:"blade-guide-control",value:t("Útmutató"),icon:"dxi dxi-help-circle-outline",tooltip:t("A megnyitott nézet útmutatója"),disabled:true}]:[]),
+      ...(this.tenantSelector?[{id:"blade-tenant",value:escape(currentTenant?.name??t("Tenant")),icon:"bi bi-grid",tooltip:t("Tenant váltása"),
+        items:tenant!.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant!.current?{icon:"bi bi-check-lg"}:{})}))}]:[]),
+      ...(this.guides?[{id:"blade-guide",css:"blade-guide-control",value:t("Útmutató"),icon:"bi bi-question-circle",tooltip:t("A megnyitott nézet útmutatója"),disabled:true}]:[]),
       ...(language?.selector?[{id:"blade-language",value:escape(language.languages[language.locale]),icon:languageIcon(language,language.locale),tooltip:t("Nyelv"),
         items:Object.keys(language.languages).map(id=>({id:"language:"+id,value:escape(language.languages[id]),icon:languageIcon(language,id)}))}]:[]),
       ...(choices.length>1?[{id:"theme-choice",value:choices.find(choice=>choice.id===theme)!.label,
@@ -435,7 +435,7 @@ export class AdminShell {
           tooltip: definition.tenant.current ? t("Aktív tenant") : t("Nincs hozzárendelt tenant; a tenanthoz kötött nézetek nem érhetők el.") }] : []),
         { type: "spacer" },
         { id: "live-status", type: "title", value: "", hidden: true },
-        { id: "upload-status", value: "", icon: "dxi dxi-file-import", hidden: true, css: "blade-upload-indicator" },
+        { id: "upload-status", value: "", icon: "bi bi-upload", hidden: true, css: "blade-upload-indicator" },
         {
           id: "application-version",
           type: "title",
@@ -453,7 +453,7 @@ export class AdminShell {
     }
     if(signInControl){
       const cancel=definition.signingIn&&definition.oauthOnly,label=t(cancel?"Mégse":"Bejelentkezés");
-      const control=this.signInControl=new Toolbar(undefined,{data:[{id:"blade-sign-in",value:label,tooltip:label,icon:cancel?"dxi dxi-arrow-left":"dxi dxi-key"}]});
+      const control=this.signInControl=new Toolbar(undefined,{data:[{id:"blade-sign-in",value:label,tooltip:label,icon:cancel?"bi bi-arrow-left":"bi bi-key"}]});
       control.events.on("click",()=>{
         if(definition.signingIn&&definition.oauthOnly)this.cancelSignIn();
         else void this.beginSignIn();
@@ -462,7 +462,7 @@ export class AdminShell {
     }
     if(controlItems.length){
       const controls=this.controls=new ResponsiveToolbar(undefined,{menuCss:"blade-shell-popup",data:controlItems.flatMap((item,index)=>index?[{type:"separator"},item]:[item])},
-        {id:"blade-controls-menu",value:t("Beállítások"),icon:"dxi blade-icon blade-icon--menu",css:"blade-command--icon blade-controls-toggle",availableWidth:()=>this.root.clientWidth-120-(this.signInControl?.getRootNode()?.getBoundingClientRect().width??0)});
+        {id:"blade-controls-menu",value:t("Beállítások"),icon:"bi bi-list",css:"blade-command--icon blade-controls-toggle",availableWidth:()=>this.root.clientWidth-120-(this.signInControl?.getRootNode()?.getBoundingClientRect().width??0)});
       controls.events.on("click",(id:string|number)=>{
         const key=String(id);
         if(key==="blade-guide"&&this.page)this.showGuide(this.page);
@@ -486,7 +486,7 @@ export class AdminShell {
         items.map((item) => ({
           id: item.id,
           value: escape(item.label),
-          icon:item.icon??"dxi dxi-folder",
+          icon:item.icon??"bi bi-folder",
           ...(item.items?.length
             ? { items: map(item.items) }
             : { disabled: true }),
@@ -495,10 +495,10 @@ export class AdminShell {
       // A record view opens for one record (activation, navigate, address) and has no menu entry; a `menu: false` list
       // is only mounted inside project pages.
       for(const view of (definition.views || []).filter(view=>!view.record&&view.menu!==false)) {
-        const item={id:"view:"+view.id,value:escape(view.title),icon:view.icon??"dxi dxi-table-check"};
+        const item={id:"view:"+view.id,value:escape(view.title),icon:view.icon??"bi bi-table"};
         if(view.group){
           let group=features.find(v=>v.id==="group:"+view.group);
-          if(!group){group={id:"group:"+view.group,value:escape(view.group),icon:"dxi dxi-folder-open",items:[],separatorBefore:definition.menuSeparators?.includes(view.group)};features.push(group);}
+          if(!group){group={id:"group:"+view.group,value:escape(view.group),icon:"bi bi-folder2-open",items:[],separatorBefore:definition.menuSeparators?.includes(view.group)};features.push(group);}
           group.items.push(item);
         }else features.push(item);
       }
@@ -605,7 +605,7 @@ export class AdminShell {
     if(this.definition.passwordChange)this.mountPasswordChange();
     else if(this.definition.confirmation)this.mountConfirmation();
     else if(this.definition.oauthOnly){
-      this.signInControl?.data.update("blade-sign-in",{value:t("Mégse"),tooltip:t("Mégse"),icon:"dxi dxi-arrow-left"});
+      this.signInControl?.data.update("blade-sign-in",{value:t("Mégse"),tooltip:t("Mégse"),icon:"bi bi-arrow-left"});
       if(!this.definition.error)void this.mountExternal();
     }else this.mountLogin();
   }
@@ -628,7 +628,7 @@ export class AdminShell {
     document.documentElement.dataset.bladePage="shell";
     const url=new URL(location.href);url.searchParams.delete("signin");history.replaceState(null,"",url);
     this.command.setAttribute("action","./");this.signInLogo();
-    this.signInControl?.data.update("blade-sign-in",{value:t("Bejelentkezés"),tooltip:t("Bejelentkezés"),icon:"dxi dxi-key"});
+    this.signInControl?.data.update("blade-sign-in",{value:t("Bejelentkezés"),tooltip:t("Bejelentkezés"),icon:"bi bi-key"});
   }
 
   /** The window's logo is the named copy while a sign-in modal is open. */
@@ -983,7 +983,7 @@ export class AdminShell {
               type: "button",
               name: "login",
               text: t("Bejelentkezés"),
-              icon: "dxi dxi-key",
+              icon: "bi bi-key",
               view: "flat",
               color: "primary",
             },
@@ -994,7 +994,7 @@ export class AdminShell {
           type: "button" as const,
           name: "oauth",
           text: t("Belépés külső fiókkal"),
-          icon: "dxi dxi-link-variant",
+          icon: "bi bi-link-45deg",
           view: "flat" as const,
           color: "secondary" as const,
           full: true,
@@ -1093,10 +1093,10 @@ export class AdminShell {
         { type: "text", name: "recipient", label: t("Megerősítő levelet küldtünk"), value: escape(confirmation.email) },
         { type: "input", name: "code", label: t("Megerősítő kód"), labelPosition: "top", required: true, maxlength: 6,
           validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: t("A levélben kapott 6 számjegyű kód szükséges.") },
-        { type: "button", name: "verify", text: t("Belépés megerősítése"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-check", color: "primary" },
+        { type: "button", name: "verify", text: t("Belépés megerősítése"), full:true, padding:"8px 0 0 0", icon:"bi bi-check-lg", color: "primary" },
         { rows: [
-          { type: "button", name: "resend", text: t("Új kód küldése"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-email", view: "flat", color:"secondary" },
-          { type: "button", name: "cancel", text: t("Vissza a belépéshez"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-arrow-left", view: "flat", color:"secondary" },
+          { type: "button", name: "resend", text: t("Új kód küldése"), full:true, padding:"8px 0 0 0", icon:"bi bi-envelope", view: "flat", color:"secondary" },
+          { type: "button", name: "cancel", text: t("Vissza a belépéshez"), full:true, padding:"8px 0 0 0", icon:"bi bi-arrow-left", view: "flat", color:"secondary" },
         ] },
       ],
     });
@@ -1150,8 +1150,8 @@ export class AdminShell {
           validation: length, errorMessage: t("Az új jelszó 12–128 karakter legyen.") },
         { type: "input", inputType: "password", name: "confirm_password", label: t("Új jelszó ismét"), labelPosition: "top", required: true, maxlength: 128,
           validation: (value: string | number): boolean => String(value) === String(form.getValue().new_password ?? ""), errorMessage: t("A két új jelszó eltér.") },
-        { type: "button", name: "save", text: t("Jelszó mentése és belépés"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-key", color: "primary" },
-        { type: "button", name: "cancel", text: t("Vissza a belépéshez"), full:true, padding:"8px 0 0 0", icon:"dxi dxi-arrow-left", view: "flat", color:"secondary" },
+        { type: "button", name: "save", text: t("Jelszó mentése és belépés"), full:true, padding:"8px 0 0 0", icon:"bi bi-key", color: "primary" },
+        { type: "button", name: "cancel", text: t("Vissza a belépéshez"), full:true, padding:"8px 0 0 0", icon:"bi bi-arrow-left", view: "flat", color:"secondary" },
       ],
     });
     this.loginForm = form;

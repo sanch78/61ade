@@ -36,7 +36,7 @@ final readonly class DiagramDefinition
         public int $maxDiagrams = 200,
         public int $maxCustomTypes = 40,
         public ?string $group = null,
-        public ?string $icon = 'dxi dxi-line-connect',
+        public ?string $icon = 'bi bi-bezier2',
         public bool $desktopOnly = false,
         /** The view's guide text (Blade\Feature\View $guide). */
         public ?string $guide = null,

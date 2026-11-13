@@ -43,12 +43,12 @@ type Panel={index:number;mount:string;mode:"files"|"tiles"|"tree";directory?:Dir
   query:Query;next:string|null;loading:boolean;capped:boolean;total:number;matched:number};
 /** Same Cancel + submit row as the workspace forms. */
 const formActions=(submit:{name:string;text:string;icon:string}):any=>({css:"blade-form-actions",cols:[
-  {type:"button",name:"cancel",text:t("Mégse"),icon:"dxi dxi-close",view:"flat",color:"secondary",width:"content"},
+  {type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
   {type:"button",...submit,color:"primary",width:"content"},
 ]});
 /** Icon by kind and detected MIME type, the same in the listing and the tree: a media type (`app.mediaTypes`) first. */
-const fileIcon=(kind:string,mime:string):string=>kind==="directory"?"dxi dxi-folder":findMediaType(mime)?.icon??(mime==="text/csv"?"dxi dxi-file-excel":mime.startsWith("text/")||mime==="application/json"?"dxi dxi-format-align-left":"dxi dxi-file-outline");
-const iconLabels=():Record<string,string>=>({"dxi dxi-arrow-up":t("Szülőmappa"),"dxi dxi-file-import":t("Feltöltés alatt"),"dxi dxi-folder":t("Mappa"),"dxi dxi-file-excel":t("Táblázat"),"dxi dxi-format-align-left":t("Szöveg"),"dxi dxi-file-outline":t("Fájl"),
+const fileIcon=(kind:string,mime:string):string=>kind==="directory"?"bi bi-folder":findMediaType(mime)?.icon??(mime==="text/csv"?"bi bi-file-earmark-spreadsheet":mime.startsWith("text/")||mime==="application/json"?"bi bi-text-left":"bi bi-file-earmark");
+const iconLabels=():Record<string,string>=>({"bi bi-arrow-up":t("Szülőmappa"),"bi bi-upload":t("Feltöltés alatt"),"bi bi-folder":t("Mappa"),"bi bi-file-earmark-spreadsheet":t("Táblázat"),"bi bi-text-left":t("Szöveg"),"bi bi-file-earmark":t("Fájl"),
   ...Object.fromEntries(mediaTypeEntries().map(type=>[type.icon,t(type.label)]))});
 /** The listing's first row in a subfolder, as in mc: opens the parent and is never an operand. */
 const PARENT="..";
@@ -126,17 +126,17 @@ export class FileManager {
     ]});
     const action=(name:string,label:string,icon:string,tooltip?:string)=>this.can(name)?[{id:name,value:t(label),icon,...(tooltip?{tooltip:t(tooltip)}:{})}]:[];
     this.commands=new ResponsiveToolbar(undefined,{data:[
-      ...action("create_directory","Új mappa","dxi dxi-plus"),
-      ...action("copy","Másolás","dxi dxi-copy","Másolás a másik panelre"),
-      ...action("move","Áthelyezés","dxi dxi-file-export","Áthelyezés a másik panelre"),
-      ...action("rename","Átnevezés","dxi dxi-format-textbox","Átnevezés (F2)"),
-      ...action("delete","Törlés","dxi dxi-delete","Törlés (Del)"),
-      ...(this.can("download")||this.canZip()?[{id:"download",value:t("Letöltés"),icon:"dxi dxi-download"}]:[]),
-      ...action("text_get","Szerkesztés","dxi dxi-pencil"),
-      ...action("content_stream","Megtekintés","dxi dxi-eye"),
-      ...action("upload","Feltöltés","dxi dxi-file-import"),
+      ...action("create_directory","Új mappa","bi bi-plus-lg"),
+      ...action("copy","Másolás","bi bi-copy","Másolás a másik panelre"),
+      ...action("move","Áthelyezés","bi bi-box-arrow-up-right","Áthelyezés a másik panelre"),
+      ...action("rename","Átnevezés","bi bi-textarea-t","Átnevezés (F2)"),
+      ...action("delete","Törlés","bi bi-trash","Törlés (Del)"),
+      ...(this.can("download")||this.canZip()?[{id:"download",value:t("Letöltés"),icon:"bi bi-download"}]:[]),
+      ...action("text_get","Szerkesztés","bi bi-pencil"),
+      ...action("content_stream","Megtekintés","bi bi-eye"),
+      ...action("upload","Feltöltés","bi bi-upload"),
       {type:"spacer"},
-      {id:"panel-switch",value:t("Panel: {panel}",{panel:t("Bal")}),icon:"dxi dxi-view-grid",hidden:true,items:[{id:"panel:0",value:t("Bal panel")},{id:"panel:1",value:t("Jobb panel")}]},
+      {id:"panel-switch",value:t("Panel: {panel}",{panel:t("Bal")}),icon:"bi bi-grid",hidden:true,items:[{id:"panel:0",value:t("Bal panel")},{id:"panel:1",value:t("Jobb panel")}]},
     ]});
     this.commands.events.on("click",(id:string|number)=>void this.command(String(id)));
     this.layout.getCell("commands").attach(this.commands);
@@ -225,17 +225,17 @@ export class FileManager {
     // re-create the listing's DOM, losing the grid's row-marking and scroll listeners.
     const body=new Layout(document.createElement("div"),{type:"none",rows:[{id:"files",css:"blade-file-list"},{id:"tree",css:"blade-file-view--hidden"}]});
     const bar=new Toolbar(undefined,{css:"blade-file-bar",data:[
-      {id:"mount",value:"",icon:"dxi dxi-folder",items:this.config.mounts.map(m=>({id:"mount:"+m.id,value:escape(m.label)}))},
-      {id:"mode",value:t("Nézet: Fájllista"),icon:"dxi dxi-table-check",items:[{id:"mode:files",value:t("Fájllista"),icon:"dxi dxi-table-check"},{id:"mode:tiles",value:t("Csempék"),icon:"dxi dxi-border-all"},{id:"mode:tree",value:t("Mappafa"),icon:"dxi dxi-folder-open"}]},
+      {id:"mount",value:"",icon:"bi bi-folder",items:this.config.mounts.map(m=>({id:"mount:"+m.id,value:escape(m.label)}))},
+      {id:"mode",value:t("Nézet: Fájllista"),icon:"bi bi-table",items:[{id:"mode:files",value:t("Fájllista"),icon:"bi bi-table"},{id:"mode:tiles",value:t("Csempék"),icon:"bi bi-grid-3x3"},{id:"mode:tree",value:t("Mappafa"),icon:"bi bi-folder2-open"}]},
       {type:"spacer"},
       {id:"count",type:"text",value:""},
     ]});
     const find=new Toolbar(undefined,{css:"blade-file-bar blade-file-find__bar",data:[
       {type:"spacer"},
-      {id:"type",value:t("Minden típus"),icon:"dxi dxi-filter-variant",tooltip:t("Típus"),items:TYPES.map(([value,label])=>({id:"type:"+(value||"all"),value:t(label)}))},
-      {id:"sort",value:this.sortLabel({sort:"name",direction:"asc"}),icon:"dxi dxi-sort",items:SORTS.flatMap(([field,label])=>(["asc","desc"] as const).map(direction=>({id:`sort:${field}:${direction}`,value:t(label)+(direction==="asc"?" ↑":" ↓"),icon:direction==="asc"?"dxi dxi-arrow-up":"dxi dxi-arrow-down"})))},
+      {id:"type",value:t("Minden típus"),icon:"bi bi-funnel",tooltip:t("Típus"),items:TYPES.map(([value,label])=>({id:"type:"+(value||"all"),value:t(label)}))},
+      {id:"sort",value:this.sortLabel({sort:"name",direction:"asc"}),icon:"bi bi-sort-down",items:SORTS.flatMap(([field,label])=>(["asc","desc"] as const).map(direction=>({id:`sort:${field}:${direction}`,value:t(label)+(direction==="asc"?" ↑":" ↓"),icon:direction==="asc"?"bi bi-arrow-up":"bi bi-arrow-down"})))},
     ]});
-    const search=new Toolbar(document.createElement("div"),{css:"blade-search-bar",data:[{type:"input",id:"search",label:t("Keresés"),hiddenLabel:true,placeholder:t("Keresés…"),icon:"dxi dxi-magnify",width:"100%",autocomplete:false}]} as any);
+    const search=new Toolbar(document.createElement("div"),{css:"blade-search-bar",data:[{type:"input",id:"search",label:t("Keresés"),hiddenLabel:true,placeholder:t("Keresés…"),icon:"bi bi-search",width:"100%",autocomplete:false}]} as any);
     const columns:ViewDefinition["columns"]=[
       // Flexible minimum widths: all metadata columns fit a half-screen panel at 1366 px.
       {id:"icon",header:t("Ikon"),type:"icon",width:56,options:iconLabels()},
@@ -299,7 +299,7 @@ export class FileManager {
   private async mode(panel:Panel,mode:Panel["mode"],body:Layout):Promise<void>{
     if(panel.mode===mode)return;
     panel.mode=mode;this.activate(panel.index);
-    const label={files:["Nézet: Fájllista","dxi dxi-table-check"],tiles:["Nézet: Csempék","dxi dxi-border-all"],tree:["Nézet: Mappafa","dxi dxi-folder-open"]}[mode];
+    const label={files:["Nézet: Fájllista","bi bi-table"],tiles:["Nézet: Csempék","bi bi-grid-3x3"],tree:["Nézet: Mappafa","bi bi-folder2-open"]}[mode];
     panel.bar.data.update("mode",{value:t(label[0]),icon:label[1]});
     if(mode!=="tree")panel.grid.setMode(mode==="tiles"?"tiles":"table");
     body.getCell("files").config.css="blade-file-list"+(mode==="tree"?" blade-file-view--hidden":"");
@@ -441,7 +441,7 @@ export class FileManager {
   private placeholders(directory:string):Row[]{
     return [...this.pending.values()].filter(({file})=>file.target===directory).map(({file,state})=>({
       id:UPLOAD+file.id,name:file.relativePath||file.name,kind:state.startsWith("progress:")?t("Feltöltés: {percent} %",{percent:state.slice(9)}):t(state==="conflict"?"Döntésre vár":state==="started"?"Feltöltés…":"Várakozik"),
-      icon:"dxi dxi-file-import",extension:"",size_label:this.size(file.size),modified_label:"",_markable:false,_media:{thumb:null}}));
+      icon:"bi bi-upload",extension:"",size_label:this.size(file.size),modified_label:"",_markable:false,_media:{thumb:null}}));
   }
   private paintPending(directory:string|null):void{
     if(this.disposed||!directory)return;
@@ -541,7 +541,7 @@ export class FileManager {
       panel.next=listing.next??null;panel.capped=false;
       panel.total=listing.total??listing.items.length;panel.matched=listing.matched??panel.total;
       const parent=listing.directory.path.length>1;
-      panel.rows=[...(parent?[{id:PARENT,name:"..",kind:"parent",icon:"dxi dxi-arrow-up",extension:"",size_label:"",modified_label:"",_markable:false,_media:{thumb:null}}]:[]),
+      panel.rows=[...(parent?[{id:PARENT,name:"..",kind:"parent",icon:"bi bi-arrow-up",extension:"",size_label:"",modified_label:"",_markable:false,_media:{thumb:null}}]:[]),
         ...this.placeholders(listing.directory.id),...listing.items.map(entry=>this.display(entry))];
       panel.grid.clearMarks();panel.grid.setRows(panel.rows);
       if(from&&this.entry(panel,from)){panel.selected=from;panel.grid.restore({id:from,offset:0,x:0,y:0},true,from);}
@@ -734,7 +734,7 @@ export class FileManager {
     this.inputs.set(win,()=>true);
     const form=new Form(document.createElement("div"),{padding:20,rows:[
       {type:"input",name:"name",label:field.label,labelPosition:"top",required:true,maxlength:field.max,value:name},
-      formActions({name:"submit",text:t("Mentés"),icon:"dxi dxi-content-save"}),
+      formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy"}),
     ]} as any);
     win.attach(form);win.show();void fitWindow(win);form.events.on("afterValidate",()=>{void fitWindow(win);});
     const validation=new FormValidation(form,[field]);let saving=false;
@@ -806,7 +806,7 @@ export class FileManager {
     this.inputs.set(win,()=>true);
     const form=new Form(document.createElement("div"),{padding:20,rows:[
       {type:"input",name:"name",label:field.label,labelPosition:"top",required:true,maxlength:field.max},
-      formActions({name:"submit",text:t("Létrehozás"),icon:"dxi dxi-plus"}),
+      formActions({name:"submit",text:t("Létrehozás"),icon:"bi bi-plus-lg"}),
     ]} as any);
     win.attach(form);win.show();void fitWindow(win);form.events.on("afterValidate",()=>{void fitWindow(win);});
     const validation=new FormValidation(form,[field]);let saving=false;
@@ -847,19 +847,19 @@ export class FileManager {
   /** Previous, `n / m` and next before a viewer's own toolbar items. */
   private static steps(navigation?:Navigation):any[]{
     return navigation&&navigation.count>1?[
-      {id:"previous",icon:"dxi dxi-chevron-left",tooltip:t("Előző"),disabled:navigation.index<=0},
+      {id:"previous",icon:"bi bi-chevron-left",tooltip:t("Előző"),disabled:navigation.index<=0},
       {id:"index",type:"text",value:`${navigation.index+1} / ${navigation.count}`},
-      {id:"next",icon:"dxi dxi-chevron-right",tooltip:t("Következő"),disabled:navigation.index>=navigation.count-1},
+      {id:"next",icon:"bi bi-chevron-right",tooltip:t("Következő"),disabled:navigation.index>=navigation.count-1},
       {type:"separator"},
     ]:[];
   }
-  private static fullSize():any{return {id:"fullscreen",icon:"dxi dxi-arrow-expand",tooltip:t("Teljes méret")};}
+  private static fullSize():any{return {id:"fullscreen",icon:"bi bi-arrows-angle-expand",tooltip:t("Teljes méret")};}
   /** Full size toggle, previous/next (toolbar, PageUp/PageDown) and the previous window's geometry of a shown document window. */
   private chrome(win:Window,bar:Toolbar,navigation?:Navigation,geometry?:Geometry):void{
     const steps=!!navigation&&navigation.count>1;
     const full=(on:boolean)=>{
       if(on)win.setFullScreen();else win.unsetFullScreen();
-      bar.data.update("fullscreen",{icon:on?"dxi dxi-arrow-collapse":"dxi dxi-arrow-expand",tooltip:t(on?"Eredeti méret":"Teljes méret")});
+      bar.data.update("fullscreen",{icon:on?"bi bi-arrows-angle-contract":"bi bi-arrows-angle-expand",tooltip:t(on?"Eredeti méret":"Teljes méret")});
     };
     bar.events.on("click",(id:string|number)=>{
       if(id==="fullscreen")full(!win.isFullScreen());
@@ -883,8 +883,8 @@ export class FileManager {
     if(this.disposed)return;
     const writable=this.can("text_save");
     const {win,bar,body}=this.documentWindow(file.name,"blade-document--text",[
-      ...(writable?[{id:"save",value:t("Mentés"),icon:"dxi dxi-content-save",tooltip:t("Mentés (Ctrl+S)"),disabled:true},{type:"separator"}]:[]),
-      {id:"wrap",value:t("Sortörés"),icon:"dxi dxi-format-text-wrapping-wrap",twoState:true,active:true},
+      ...(writable?[{id:"save",value:t("Mentés"),icon:"bi bi-floppy",tooltip:t("Mentés (Ctrl+S)"),disabled:true},{type:"separator"}]:[]),
+      {id:"wrap",value:t("Sortörés"),icon:"bi bi-text-wrap",twoState:true,active:true},
       {type:"spacer"},
       {id:"position",type:"text",value:""},
       {id:"state",type:"text",value:t(writable?"Mentve":"Csak olvasható")},

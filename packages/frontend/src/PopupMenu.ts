@@ -258,7 +258,7 @@ function build(items: unknown, prefix: string, empty = ""): Built {
       + (item.detail ? ` <span class="blade-popup-menu__detail">${escape(item.detail)}</span>` : "");
     return {
       id: suiteId, html,
-      ...(checkable ? { twoState: true, active: item.checked, group: radio, icon: item.checked ? "dxi dxi-check" : "blade-popup-menu__blank" } : item.icon ? { icon: item.icon } : {}),
+      ...(checkable ? { twoState: true, active: item.checked, group: radio, icon: item.checked ? "bi bi-check-lg" : "blade-popup-menu__blank" } : item.icon ? { icon: item.icon } : {}),
       ...(item.disabled ? { disabled: true } : {}),
       css: "blade-popup-menu__entry",
     };

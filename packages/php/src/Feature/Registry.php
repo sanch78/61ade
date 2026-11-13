@@ -114,7 +114,7 @@ final class Registry
     }
     /**
      * Changes the declared view of the same id to $view, for example `updateView($registry->viewById('x')->with(icon:
-     * 'dxi dxi-key'))` after SqlResource::register(). The id must exist, kind and resource stay, and the result is
+     * 'bi bi-key'))` after SqlResource::register(). The id must exist, kind and resource stay, and the result is
      * validated like a declaration. The menu position, the sub-view attached with subview(), the tree attached with
      * tree() and the embedded state stay (`subview` and `tree` options of $view are ignored).
      */

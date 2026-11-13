@@ -72,7 +72,7 @@ export class SettingsForm extends Component<SettingsFormEvents> implements Setti
     // The Form items are built from the state, so every field starts with its value.
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"form",css:"blade-settings"}]});
     this.form=new Form(document.createElement("div"),{padding:16,rows:[...rows.map(row=>this.items(row)),
-      ...(options.submit?[formActions({name:"blade-submit",text:options.submit.label,icon:options.submit.icon??"dxi dxi-check",color:"primary"},false)]:[])]} as any);
+      ...(options.submit?[formActions({name:"blade-submit",text:options.submit.label,icon:options.submit.icon??"bi bi-check-lg",color:"primary"},false)]:[])]} as any);
     const definitions=this.fields.filter(field=>BUILTIN.has(field.type)).map(field=>this.definition(field));
     this.validation=new FormValidation(this.form,definitions,()=>this.state);
     this.releaseTypes=bindFieldTypes(this.form,definitions.map(({visibleWhen,clears,...field})=>field as FieldDefinition));

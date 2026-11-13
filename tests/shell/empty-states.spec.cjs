@@ -56,7 +56,7 @@ test('a region, tab or section without content shows its placeholder; content re
  for(const region of [side,values,section]){await expect(shown(region)).toHaveText('Nincs megjeleníthető tartalom.');await expect(shown(region)).toHaveAttribute('role','status');}
  // A blank surface over the whole region with the empty picture centred above the text.
  await expect(shown(values)).toHaveClass(/blade-status--empty/);
- await expect(shown(values).locator('.blade-status__icon svg')).toBeVisible();
+ await expect(shown(values).locator('.blade-status__icon .bi-inbox')).toBeVisible();
  const [area,picture,words]=[await values.boundingBox(),await shown(values).locator('.blade-status__icon').boundingBox(),await shown(values).locator('.blade-status__text').boundingBox()];
  expect(Math.abs(picture.x+picture.width/2-(area.x+area.width/2))).toBeLessThanOrEqual(2);
  expect(Math.abs(picture.y+picture.height/2-(area.y+area.height/2))).toBeLessThanOrEqual(60);
@@ -134,7 +134,7 @@ test('a list shows the indicator while it loads and says when it has no records 
  values.release();
  // Loaded without records: the list's own text below the table's header, no indicator and no aria-busy left.
  await expect(shown(region)).toHaveText('Ehhez a kulcshoz nincs érték.');
- await expect(shown(region).locator('.blade-status__icon svg')).toBeVisible();
+ await expect(shown(region).locator('.blade-status__icon .bi-inbox')).toBeVisible();
  await expect(busy(region)).toHaveCount(0);
  await expect(region.locator('[aria-busy="true"]')).toHaveCount(0);
  const [header,text]=[await region.locator('.dhx_header-wrapper').boundingBox(),await shown(region).boundingBox()];
@@ -148,7 +148,7 @@ test('a list shows the indicator while it loads and says when it has no records 
  expect(filter).toBe('name');
  await page.evaluate(()=>window.__list.setFilters({name:'zz-nincs-ilyen'}));
  await expect(shown(region)).toHaveText('Nincs a szűrésnek vagy a keresésnek megfelelő elem.');
- await expect(shown(region).locator('.dxi-magnify')).toBeVisible();
+ await expect(shown(region).locator('.bi-search')).toBeVisible();
  // A list with rows (unscoped, in a window, the list's own panel): no text; a filter without matches says so.
  await page.evaluate(()=>{window.__win=window.__bladeApp.ui.window({title:'Lista ablakban',width:700,height:460,modal:false});window.__all=new window.__bladeApp.components.ListView({view:'demo_registry_browser_values',mode:'table'});window.__all.mount(window.__win);});
  const win=page.getByRole('dialog',{name:'Lista ablakban',exact:true});
@@ -174,7 +174,7 @@ test('a list shows the indicator while it loads and says when it has no records 
  await expect(dialog).toBeVisible();
  await dialog.getByRole('button').first().click();
  await expect(shown(win)).toHaveText('Az elemek nem érhetők el.');
- await expect(shown(win).locator('.dxi-alert-circle')).toBeVisible();
+ await expect(shown(win).locator('.bi-exclamation-circle')).toBeVisible();
  await expect(win.locator('[aria-busy="true"]')).toHaveCount(0);
  await page.evaluate(()=>{window.__all.destroy();window.__win.close();window.__list.destroy();window.__page.destroy();document.getElementById('states-fixture').remove();});
  expect(failures).toEqual([]);

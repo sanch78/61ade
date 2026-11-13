@@ -104,16 +104,16 @@ function viewer(app, host, view) {
     const position = (seconds) => t("Poz\xEDci\xF3: {position} / {length}", { position: clock(seconds), length: clock(player?.duration() ?? scene?.duration ?? 0) });
     const status = !found ? t("Ehhez az elemhez nincs megjelen\xEDthet\u0151 m\xE9diaf\xE1jl.") : !playable ? t("Ez a f\xE1jlt\xEDpus nem j\xE1tszhat\xF3 le.") : timed ? position(resume) : "";
     const media = ["rewind", "backward", "play", "forward", "loop"];
-    const repeat = () => ({ label: loop ? t("Ism\xE9tl\xE9s: be") : t("Ism\xE9tl\xE9s: ki"), icon: loop ? "blade-icon blade-icon--repeat" : "blade-icon blade-icon--repeat-off" });
+    const repeat = () => ({ label: loop ? t("Ism\xE9tl\xE9s: be") : t("Ism\xE9tl\xE9s: ki"), icon: "bi bi-repeat", pressed: loop });
     const bar = new app.components.CommandBar({ signal, items: [
-      { id: "back", label: t("Vissza a list\xE1hoz"), icon: "dxi dxi-arrow-left" },
+      { id: "back", label: t("Vissza a list\xE1hoz"), icon: "bi bi-arrow-left" },
       ...timed ? [{ type: "separator" }] : [],
-      { id: "rewind", label: t("Elej\xE9re"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true, hidden: !timed },
-      { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "blade-icon blade-icon--rewind", iconOnly: true, disabled: true, hidden: !timed },
-      { id: "play", label: t("Lej\xE1tsz\xE1s"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true, hidden: !timed },
-      { id: "forward", label: t("El\u0151re {seconds} mp", { seconds: STEP }), icon: "blade-icon blade-icon--fast-forward", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "rewind", label: t("Elej\xE9re"), icon: "bi bi-skip-start-fill", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "backward", label: t("Vissza {seconds} mp", { seconds: STEP }), icon: "bi bi-rewind-fill", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "play", label: t("Lej\xE1tsz\xE1s"), icon: "bi bi-play-fill", iconOnly: true, disabled: true, hidden: !timed },
+      { id: "forward", label: t("El\u0151re {seconds} mp", { seconds: STEP }), icon: "bi bi-fast-forward-fill", iconOnly: true, disabled: true, hidden: !timed },
       // A scene loops by its own length.
-      { id: "loop", ...repeat(), iconOnly: true, disabled: true, hidden: !timed || kind === "scene" },
+      { type: "toggle", id: "loop", ...repeat(), iconOnly: true, disabled: true, hidden: !timed || kind === "scene" },
       { type: "spacer" },
       { id: "position", label: status, disabled: true, hidden: status === "" }
     ] });
@@ -122,7 +122,7 @@ function viewer(app, host, view) {
     const toggle = (on) => {
       if (on === playing) return;
       playing = on;
-      bar.update("play", on ? { label: t("Sz\xFCnet"), icon: "blade-icon blade-icon--pause" } : { label: t("Lej\xE1tsz\xE1s"), icon: "blade-icon blade-icon--play" });
+      bar.update("play", on ? { label: t("Sz\xFCnet"), icon: "bi bi-pause-fill" } : { label: t("Lej\xE1tsz\xE1s"), icon: "bi bi-play-fill" });
     };
     bar.on("click", ({ id }) => {
       if (id === "back") {
@@ -143,12 +143,13 @@ function viewer(app, host, view) {
         });
       } else if (id === "rewind") player.seek(0);
       else if (id === "backward" || id === "forward") player.seek(player.position() + (id === "forward" ? STEP : -STEP));
-      else if (id === "loop") {
-        loop = !loop;
-        player.setLoop(loop);
-        preferences.set("loop", loop);
-        bar.update("loop", repeat());
-      }
+    });
+    bar.on("toggle", ({ id, pressed: pressed2 }) => {
+      if (id !== "loop" || !player) return;
+      loop = pressed2;
+      player.setLoop(loop);
+      preferences.set("loop", loop);
+      bar.update("loop", repeat());
     });
     const recordDetails = list ? new app.components.RecordDetails({ view: list, record: row, signal }) : void 0;
     recordDetails?.mount(layout.cell("details"));
@@ -256,11 +257,11 @@ function viewer(app, host, view) {
 }
 var assets = (app) => {
   app.kinds.register(KIND, { create: (host, view) => viewer(app, host, view) });
-  app.mediaTypes.register("demo.scene", { mime: [SCENE_TYPE], label: "Anim\xE1ci\xF3", icon: "blade-icon blade-icon--animation" });
+  app.mediaTypes.register("demo.scene", { mime: [SCENE_TYPE], label: "Anim\xE1ci\xF3", icon: "bi bi-film" });
   const playable = (view, row) => !!row && !!app.viewDefinition(KIND) && stageKind(mediaOf(view, row)?.media) !== void 0;
   app.commands.register("demo.play", {
     label: "Lej\xE1tsz\xE1s",
-    icon: "dxi dxi-menu-right",
+    icon: "bi bi-play-fill",
     placement: "record",
     enabled: ({ view, row, rows }) => rows.length <= 1 && playable(view, row),
     run: ({ app: app2, row }) => {
@@ -305,10 +306,10 @@ var Player = class {
     stage.append(this.caption, this.screen);
     this.element.append(stage, commands, this.strip);
     this.bar = new app.components.CommandBar({ signal, items: [
-      { id: "rewind", label: this.t("Elej\xE9re"), icon: "blade-icon blade-icon--skip-start", iconOnly: true, disabled: true },
-      { id: "previous", label: this.t("El\u0151z\u0151 elem"), icon: "blade-icon blade-icon--skip-previous", iconOnly: true, disabled: true },
-      { id: "play", label: this.t("Lej\xE1tsz\xE1s"), icon: "blade-icon blade-icon--play", iconOnly: true, disabled: true },
-      { id: "next", label: this.t("K\xF6vetkez\u0151 elem"), icon: "blade-icon blade-icon--skip-next", iconOnly: true, disabled: true },
+      { id: "rewind", label: this.t("Elej\xE9re"), icon: "bi bi-skip-backward-fill", iconOnly: true, disabled: true },
+      { id: "previous", label: this.t("El\u0151z\u0151 elem"), icon: "bi bi-skip-start-fill", iconOnly: true, disabled: true },
+      { id: "play", label: this.t("Lej\xE1tsz\xE1s"), icon: "bi bi-play-fill", iconOnly: true, disabled: true },
+      { id: "next", label: this.t("K\xF6vetkez\u0151 elem"), icon: "bi bi-skip-end-fill", iconOnly: true, disabled: true },
       { type: "spacer" },
       { id: "position", label: this.positionText(), disabled: true }
     ] });
@@ -477,7 +478,7 @@ var Player = class {
   }
   commands() {
     const ready = this.items.length > 0;
-    this.bar.update("play", { disabled: !ready, ...this.playing ? { label: this.t("Sz\xFCnet"), icon: "blade-icon blade-icon--pause" } : { label: this.t("Lej\xE1tsz\xE1s"), icon: "blade-icon blade-icon--play" } });
+    this.bar.update("play", { disabled: !ready, ...this.playing ? { label: this.t("Sz\xFCnet"), icon: "bi bi-pause-fill" } : { label: this.t("Lej\xE1tsz\xE1s"), icon: "bi bi-play-fill" } });
     for (const id of ["rewind", "previous", "next"]) this.bar.update(id, { disabled: !ready });
     this.bar.update("position", { label: this.positionText() });
   }
@@ -696,11 +697,11 @@ function preview(app, host, view) {
   const page2 = new app.components.PageLayout({ id: view.id, tree: view.options.layout });
   host.attach(page2);
   const bar = new app.components.CommandBar({ signal, items: [
-    { id: "previous-day", label: t("El\u0151z\u0151 nap"), icon: "dxi dxi-arrow-left" },
+    { id: "previous-day", label: t("El\u0151z\u0151 nap"), icon: "bi bi-arrow-left" },
     { id: "day", label: day, disabled: true },
-    { id: "next-day", label: t("K\xF6vetkez\u0151 nap"), icon: "dxi dxi-arrow-right" },
-    { id: "today", label: t("Ma"), icon: "dxi dxi-calendar-today" },
-    { id: "pick", label: t("Napt\xE1r\u2026"), icon: "dxi dxi-calendar-today" }
+    { id: "next-day", label: t("K\xF6vetkez\u0151 nap"), icon: "bi bi-arrow-right" },
+    { id: "today", label: t("Ma"), icon: "bi bi-calendar-event" },
+    { id: "pick", label: t("Napt\xE1r\u2026"), icon: "bi bi-calendar-event" }
   ] });
   bar.mount(page2.cell("commands"));
   const player = new Player({
@@ -1034,7 +1035,7 @@ var tasks = (app) => {
   });
   app.commands.register("demo.copy-text", {
     label: "M\xE1sol\xE1s sz\xF6vegk\xE9nt",
-    icon: "dxi dxi-copy",
+    icon: "bi bi-copy",
     placement: "record",
     // The cursor record, or every marked task when there are marks.
     enabled: ({ row, rows }) => !!row || rows.length > 0,
@@ -1061,7 +1062,7 @@ var tasks_default = tasks;
 
 // examples/demo-app/frontend/src/playlist-editor.ts
 var KIND4 = "demo.playlist-editor";
-var PLAYING = "dxi dxi-check";
+var PLAYING = "bi bi-check-lg";
 var LIBRARY_COLUMNS = ["file_id", "title", "media_type", "media_length", "duration"];
 function editor(app, host, view) {
   const t = (key, params) => app.i18n.t(key, params);
@@ -1090,7 +1091,7 @@ function editor(app, host, view) {
     })
   });
   host.attach(page2);
-  const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a list\xE1hoz"), icon: "dxi dxi-arrow-left" }] });
+  const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a list\xE1hoz"), icon: "bi bi-arrow-left" }] });
   bar.on("click", ({ id }) => {
     if (id === "back" && !app.navigate({ view: listView })) host.close();
   });
@@ -1174,7 +1175,7 @@ var playlistEditor = (app) => {
   app.kinds.register(KIND4, { create: (host, view) => editor(app, host, view) });
   app.commands.register("demo.edit-playlist", {
     label: "Lista szerkeszt\xE9se",
-    icon: "dxi dxi-pencil",
+    icon: "bi bi-pencil",
     placement: "record",
     enabled: ({ row, rows }) => rows.length <= 1 && !!row && !!app.viewDefinition(KIND4),
     run: ({ app: app2, row }) => {
@@ -1332,14 +1333,14 @@ function page(app, host, view) {
       const side = work;
       const deletable = notes.actions.some((action) => action.name === "delete");
       bar = new app.components.CommandBar({ label: t("Munka"), signal, items: [
-        { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "dxi dxi-border-right", pressed: !side.isCollapsed("side") },
+        { type: "toggle", id: "side", label: t("Oldalpanel"), icon: "bi bi-layout-sidebar-reverse", pressed: !side.isCollapsed("side") },
         { type: "spacer" },
         // The commands of the selected note behind one button instead of permanent buttons.
-        { type: "menu", id: "more", label: t("Tov\xE1bbi m\u0171veletek"), icon: "dxi dxi-dots-vertical", iconOnly: true, items: [
-          { id: "show", label: t("Megjelen\xEDt\xE9s az oldalpanelen"), icon: "dxi dxi-border-right", disabled: true },
-          { id: "copy", label: t("Sz\xF6veg m\xE1sol\xE1sa"), icon: "dxi dxi-copy", disabled: true },
+        { type: "menu", id: "more", label: t("Tov\xE1bbi m\u0171veletek"), icon: "bi bi-three-dots-vertical", iconOnly: true, items: [
+          { id: "show", label: t("Megjelen\xEDt\xE9s az oldalpanelen"), icon: "bi bi-layout-sidebar-reverse", disabled: true },
+          { id: "copy", label: t("Sz\xF6veg m\xE1sol\xE1sa"), icon: "bi bi-copy", disabled: true },
           { type: "separator" },
-          { id: "delete", label: t("T\xF6rl\xE9s"), icon: "dxi dxi-delete", disabled: true, hidden: !deletable }
+          { id: "delete", label: t("T\xF6rl\xE9s"), icon: "bi bi-trash", disabled: true, hidden: !deletable }
         ] }
       ] });
       bar.mount(side.cell("commands"));
@@ -1429,13 +1430,13 @@ function page(app, host, view) {
         options: [{ value: "ink", label: t("Tinta") }, { value: "blue", label: t("K\xE9k") }, { value: "red", label: t("Piros") }]
       },
       { type: "spacer" },
-      { id: "clear", label: t("T\xF6rl\xE9s"), icon: "dxi dxi-delete", disabled: !sketch.count() }
+      { id: "clear", label: t("T\xF6rl\xE9s"), icon: "bi bi-trash", disabled: !sketch.count() }
     ] });
     tools.mount(box.getCell("commands"));
     app.ui.attach(box.getCell("stage"), sketch.element, { signal });
     const footer = new app.components.CommandBar({ label: t("Toll"), placement: "bottom", signal, items: [
       { type: "range", id: "width", label: t("Vonalvastags\xE1g"), min: 1, max: 12, value: sketch.pen.width, valueLabel: true },
-      { id: "undo", label: t("Visszavon\xE1s"), icon: "dxi dxi-undo", disabled: !sketch.count() }
+      { id: "undo", label: t("Visszavon\xE1s"), icon: "bi bi-arrow-counterclockwise", disabled: !sketch.count() }
     ] });
     footer.mount(box.getCell("footer"));
     tools.on("change", ({ id, value }) => {
@@ -1476,7 +1477,7 @@ var taskPage = (app) => {
   app.kinds.register(KIND5, { create: (host, view) => page(app, host, view) });
   app.commands.register("demo.task-page", {
     label: "Feladatlap",
-    icon: "dxi dxi-file-document-outline",
+    icon: "bi bi-file-earmark-text",
     placement: "record",
     enabled: ({ row, rows }) => !!row && rows.length <= 1 && !!app.viewDefinition(KIND5),
     run: ({ app: app2, row }) => {
@@ -1595,7 +1596,7 @@ function browser(app, host, view) {
 }
 var registryBrowser = (app) => {
   app.kinds.register(KIND6, { create: (host, view) => browser(app, host, view) });
-  app.commands.register(TOGGLE, { type: "toggle", label: "Alkulcsok \xE9rt\xE9kei", icon: "dxi dxi-folder", placement: "toolbar", pressed: false, pinned: true });
+  app.commands.register(TOGGLE, { type: "toggle", label: "Alkulcsok \xE9rt\xE9kei", icon: "bi bi-folder", placement: "toolbar", pressed: false, pinned: true });
 };
 var registry_browser_default = registryBrowser;
 
@@ -1656,11 +1657,11 @@ var workbench = (app) => {
       const head = new app.dhx.Toolbar(document.createElement("div"), { data: [
         { type: "title", id: "title", value: list[0].name },
         { type: "spacer" },
-        { id: "history", value: t("El\u0151zm\xE9nyek"), icon: "dxi dxi-history" }
+        { id: "history", value: t("El\u0151zm\xE9nyek"), icon: "bi bi-clock-history" }
       ] });
       const modelText = () => model ? `${t(model.label)}${model.efforts.length > 1 ? " \xB7 " + t(EFFORTS[effort]) : ""}` : t("Automatikus");
       const composer = new app.dhx.Toolbar(document.createElement("div"), { data: [
-        { id: "model", value: t("Modell: {choice}", { choice: modelText() }), icon: "dxi dxi-tune" }
+        { id: "model", value: t("Modell: {choice}", { choice: modelText() }), icon: "bi bi-sliders" }
       ] });
       form = new app.dhx.Form(document.createElement("div"), { padding: 16, rows: [
         { type: "input", name: "view", label: t("Aktu\xE1lis n\xE9zet"), labelPosition: "left", labelWidth: 140, readOnly: true },
