@@ -47,6 +47,8 @@ light and dark; they do not add permissions or actions. Icon replacement
 preserves established row, window and media-slot dimensions and native icon
 sizes. Previously unavailable glyphs now occupy the normal icon slot, so a
 content-sized button can gain width when its missing icon becomes visible.
+The demo's `Előzmények` and `Modell` buttons use the normal 20 px icon slot
+and keep their full captions, as chosen by the owner.
 Menu count badges, labels and icons share a vertical centre without changing
 the menu row or badge height. There is no new event or audit operation.
 

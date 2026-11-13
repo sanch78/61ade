@@ -9135,15 +9135,15 @@ that exactly equals an option label lists every option. The managed
   slots. The final sort/marker checks in both families plus `grid-edit` and
   `grid-sort` passed (6 tests). Screenshots were visually inspected.
   Verification sources and disposable output are removed after checking.
-- **Pending owner clarification:** `Munkaasztal`'s `Előzmények` and `Modell`
-  buttons used unavailable `dxi-history` and `dxi-tune` glyphs, which took
-  zero width. Their visible Bootstrap replacements take the native 20 px.
-  These two content-sized buttons were excluded from the old/new width
-  equality assertion; their surrounding layout is unchanged. Asked whether
-  to keep their previous width with shorter captions or retain full captions
-  with the normal icon slot. No answer has been received yet.
-- **Status:** framework integration and count alignment implemented and
-  verified; the two demo button widths await the owner's choice.
+- **Owner decision (2026-11-13):** `Munkaasztal`'s `Előzmények` and `Modell`
+  buttons keep their full captions and the normal 20 px icon slot. Their
+  former `dxi-history` and `dxi-tune` glyphs were unavailable and occupied
+  zero width, so these two content-sized buttons may become 20 px wider.
+  This is the accepted exception to the geometry constraint; their
+  surrounding layout stays unchanged. The existing implementation and
+  verification already match this choice; these two buttons were excluded
+  from the old/new width equality assertion intentionally.
+- **Status:** implemented and verified; the geometry decision is resolved.
 
 <a id="fb-0204"></a>
 
