@@ -361,5 +361,21 @@
   "Írj ide; a szöveg nézetváltás után is megmarad, amíg az ablak nyitva van.": "Write here; the text stays after you switch views while the window is open.",
   "Jegyzet törlése": "Clear note",
   "Törlöd a jegyzetet?": "Clear the note?",
-  "Üres munkaterület": "Empty workspace"
+  "Üres munkaterület": "Empty workspace",
+  "Vázlat {n}": "Draft {n}",
+  "Előzmények": "History",
+  "Az elmúlt 7 nap": "Last 7 days",
+  "Régebbi": "Older",
+  "Modell": "Model",
+  "Modell: {choice}": "Model: {choice}",
+  "Automatikus": "Automatic",
+  "a feladat alapján": "by the task",
+  "alapértelmezett": "default",
+  "Gyors": "Fast",
+  "Kiegyensúlyozott": "Balanced",
+  "Alapos": "Thorough",
+  "Erősség": "Effort",
+  "Alacsony": "Low",
+  "Közepes": "Medium",
+  "Magas": "High"
 }

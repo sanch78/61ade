@@ -91,6 +91,12 @@ tree as decoration for a flat list.
   not cover commands. Keep view selection, sorting, column visibility, actions,
   filtering, and details discoverable through the native toolbar/menu; do not
   add duplicate commands for the same operation.
+- A choice list that opens from a button outside a list's command bar (a
+  history grouped by date, an account or model picker, a sort menu beside a
+  title) is `app.ui.menu`: headings for groups, the current choice checked
+  (read again at every opening), secondary text as `detail`. Never hand-build
+  a `role="menu"` popup; a list's own record commands stay in its toolbar or a
+  `CommandBar` `menu` ([FB-0202](../../../docs/feedback.md#fb-0202)).
 - Use native controls, theme tokens, and framework sizing. Test light, dark, and
   the default theme; do not recreate a vendor skin or introduce a consumer
   shell layer to obtain a visual tweak.

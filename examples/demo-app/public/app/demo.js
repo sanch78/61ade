@@ -1600,6 +1600,14 @@ var registryBrowser = (app) => {
 var registry_browser_default = registryBrowser;
 
 // examples/demo-app/frontend/src/workbench.ts
+var EFFORTS = { low: "Alacsony", medium: "K\xF6zepes", high: "Magas" };
+var MODELS = [
+  { id: "swift", label: "Gyors", efforts: ["low"] },
+  { id: "balanced", label: "Kiegyens\xFAlyozott", efforts: ["low", "medium", "high"], standard: true },
+  { id: "thorough", label: "Alapos", efforts: ["medium", "high"] }
+];
+var HOUR = 36e5;
+var DAY = 24 * HOUR;
 var workbench = (app) => {
   const t = app.i18n.t;
   let open;
@@ -1616,6 +1624,11 @@ var workbench = (app) => {
       showView();
     }
   });
+  const drafts = (now) => Array.from({ length: 18 }, (_, index) => ({
+    id: `draft-${index + 1}`,
+    name: t("V\xE1zlat {n}", { n: index + 1 }),
+    at: now - (index < 3 ? (index + 1) * 2 * HOUR : index < 9 ? (index - 1) * DAY : (index + 6) * DAY)
+  }));
   app.commands.register("demo.workbench", {
     placement: "menu",
     run({ view }) {
@@ -1625,10 +1638,30 @@ var workbench = (app) => {
       }
       if (view && !current) current = view.title;
       const win = open = app.ui.window({ title: t("Munkaasztal"), width: 880, height: 560, fit: false, modal: false, maximizable: true, id: "demo.workbench" });
-      win.signal.addEventListener("abort", () => {
+      const signal = win.signal;
+      signal.addEventListener("abort", () => {
         open = void 0;
         form = void 0;
       }, { once: true });
+      const now = Date.now(), list = drafts(now);
+      const locale = app.i18n.locale(), relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+      const clock3 = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }), date = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" });
+      const daysAgo = (at) => Math.round((new Date(now).setHours(0, 0, 0, 0) - new Date(at).setHours(0, 0, 0, 0)) / DAY);
+      const ago = (at) => {
+        const days = daysAgo(at);
+        return days <= 0 ? clock3.format(at) : days < 7 ? relative.format(-days, "day") : date.format(at);
+      };
+      let draft = list[0].id, model, effort = "";
+      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: "content" }, { id: "body" }, { id: "composer", height: "content" }] });
+      const head = new app.dhx.Toolbar(document.createElement("div"), { data: [
+        { type: "title", id: "title", value: list[0].name },
+        { type: "spacer" },
+        { id: "history", value: t("El\u0151zm\xE9nyek"), icon: "dxi dxi-history" }
+      ] });
+      const modelText = () => model ? `${t(model.label)}${model.efforts.length > 1 ? " \xB7 " + t(EFFORTS[effort]) : ""}` : t("Automatikus");
+      const composer = new app.dhx.Toolbar(document.createElement("div"), { data: [
+        { id: "model", value: t("Modell: {choice}", { choice: modelText() }), icon: "dxi dxi-tune" }
+      ] });
       form = new app.dhx.Form(document.createElement("div"), { padding: 16, rows: [
         { type: "input", name: "view", label: t("Aktu\xE1lis n\xE9zet"), labelPosition: "left", labelWidth: 140, readOnly: true },
         {
@@ -1636,7 +1669,7 @@ var workbench = (app) => {
           name: "note",
           label: t("Jegyzet"),
           labelPosition: "top",
-          height: 300,
+          height: 240,
           placeholder: t("\xCDrj ide; a sz\xF6veg n\xE9zetv\xE1lt\xE1s ut\xE1n is megmarad, am\xEDg az ablak nyitva van.")
         },
         { align: "end", cols: [{ type: "button", name: "clear", text: t("Jegyzet t\xF6rl\xE9se"), view: "link", color: "danger" }] }
@@ -1644,8 +1677,42 @@ var workbench = (app) => {
       form.getItem("clear").events.on("click", async () => {
         if (await app.ui.dialog({ message: t("T\xF6rl\xF6d a jegyzetet?"), mode: "confirm", severity: "warning" })) form?.getItem("note").setValue("");
       });
-      win.attach(form);
+      layout.getCell("head").attach(head);
+      layout.getCell("body").attach(form);
+      layout.getCell("composer").attach(composer);
+      win.attach(layout);
+      signal.addEventListener("abort", () => layout.destructor(), { once: true });
       showView();
+      void app.dhx.awaitRedraw().then(() => {
+        const button = (bar, id) => bar.getRootNode()?.querySelector(`[data-dhx-id="${id}"]`);
+        const historyButton = button(head, "history"), modelButton = button(composer, "model");
+        if (signal.aborted || !historyButton || !modelButton) return;
+        const history = app.ui.menu(historyButton, { label: t("El\u0151zm\xE9nyek"), signal, items: () => [["Ma", (d) => d <= 0], ["Az elm\xFAlt 7 nap", (d) => d > 0 && d < 7], ["R\xE9gebbi", (d) => d >= 7]].map(([label, test]) => ({
+          type: "group",
+          label: t(label),
+          items: list.filter((x) => test(daysAgo(x.at))).map((x) => ({ id: x.id, label: x.name, detail: ago(x.at), checked: x.id === draft }))
+        })) });
+        history.on("select", ({ id }) => {
+          draft = id;
+          head.data.update("title", { value: list.find((x) => x.id === id).name });
+        });
+        const picker = app.ui.menu(modelButton, { label: t("Modell"), signal, items: () => {
+          const groups = [{ type: "group", label: t("Modell"), items: [
+            { id: "model:auto", label: t("Automatikus"), detail: t("a feladat alapj\xE1n"), checked: !model },
+            ...MODELS.map((m) => ({ id: "model:" + m.id, label: t(m.label), detail: m.standard ? t("alap\xE9rtelmezett") : void 0, checked: m === model }))
+          ] }];
+          if (model && model.efforts.length > 1)
+            groups.push({ type: "group", label: t("Er\u0151ss\xE9g"), items: model.efforts.map((e) => ({ id: "effort:" + e, label: t(EFFORTS[e]), checked: e === effort })) });
+          return groups;
+        } });
+        picker.on("select", ({ id }) => {
+          if (id.startsWith("model:")) {
+            model = MODELS.find((m) => "model:" + m.id === id);
+            effort = model ? model.efforts.includes(effort) ? effort : model.efforts[Math.floor((model.efforts.length - 1) / 2)] : "";
+          } else effort = id.slice("effort:".length);
+          composer.data.update("model", { value: t("Modell: {choice}", { choice: modelText() }) });
+        });
+      });
     }
   });
 };

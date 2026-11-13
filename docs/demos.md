@@ -145,6 +145,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Delegated access | `Gyűjtemények` ([collections.json](../examples/demo-app/modules/collections.json)): synthetic collections A, B and C, with the consumer-owned tables `demo_collection_readers` and `demo_collection_writers` declared as `storage.delegation`. `delegate@example.test` has `delegated` rules on `list`, `get` and `update`: it lists and opens A and B, edits only A (B offers no `Módosítás`) and cannot reach C, also by a forged id. The demo account's ordinary `all` grants see, create and edit all three ([delegated access](access-and-actions.md#delegated-access)) | Feature demó → Gyűjtemények as `delegate@example.test` / `61ade-demo`, then as `demo@example.test` |
 | Menu attention | `Jóváhagyások` ([approvals](#approvals-attention)): a live count of the pending items on the entry, its branch and `Menü`, in the warning tone; the plain entry at zero | Change an item's `Állapot` and watch the menu; `reader@example.test` sees no entry |
 | Menu command, long-lived window | `Munkaasztal` ([D9](#d9-workbench)): an emphasized command in the menu row of every view opens a non-modal work window that keeps its note across navigation, maximizes into the workspace and reopens where it was left; the entry also shows the pending approvals' count | Click `Munkaasztal`, write a note, open other views, Back; `Ablak maximalizálása`; move it, reload and reopen; at 320 px the entry shows its icon only |
+| Popup menu | `Munkaasztal` ([D9](#d9-workbench)): `app.ui.menu` on the window's own toolbar buttons: `Előzmények` (drafts grouped `Ma` / `Az elmúlt 7 nap` / `Régebbi`, the current one checked, a time as detail, scrolling) and the model picker (`Automatikus`, the models, the chosen model's efforts) with the APG menu-button keys ([popup menu](toolkit.md#popup-menu)) | Open `Munkaasztal`, then `Előzmények` and `Modell: …` by mouse and with ArrowDown/Enter/Escape/Tab; at 390 px; in every theme |
 | View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in the `Beállítások` controls menu below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Empty shelf`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `Zone C` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
 | Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the single-file `file` field with a native file dialog, clipboard paste/drop, background transfer and proportional preview, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date, an asset or a playlist (two selects clearing each other, [exclusive fields](workspaces.md#exclusive-fields); a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
@@ -209,7 +210,7 @@ starter admin and the tenant demo stay declarative and load no project module.
 | D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` and `app/demo.css` on the feature demo |
 | D7 | `Feladatlap` task page | `task-page.ts` | Implemented: record view kind `demo.task-page` and record command `demo.task-page` ([below](#d7-task-page)) |
 | D8 | `Kulcsböngésző` key browser | `registry-browser.ts` | Implemented: view kind `demo.registry-browser` (the `Tree` component) and toggle command `demo.subkey-values` ([below](#d8-key-browser)) |
-| D9 | `Munkaasztal` work window | `workbench.ts` | Implemented: menu command `demo.workbench` and its long-lived window ([below](#d9-workbench)) |
+| D9 | `Munkaasztal` work window | `workbench.ts` | Implemented: menu command `demo.workbench` and its long-lived window, with the popup menus `Előzmények` and `Modell` (`app.ui.menu`) ([below](#d9-workbench)) |
 
 <a id="readings-dashboard"></a>
 
@@ -731,6 +732,28 @@ open window: it survives navigation, Back/Forward and record windows, and is
 gone once the window closes. `Jegyzet törlése` asks for confirmation, which
 stacks above the window and returns the focus to it. Check:
 `tests/shell/menu-commands.spec.cjs`.
+
+**Popup menus in `Munkaasztal`** ([popup menu](toolkit.md#popup-menu),
+[FB-0202](feedback.md#fb-0202)): two `app.ui.menu`s on the buttons of the
+window's own Suite toolbars, a header row (the current draft's title,
+`Előzmények`) and a composer row below the note (`Modell: …`). Both are
+synthetic, nothing is saved:
+
+- `Előzmények`: 18 drafts dated relative to the window's opening, grouped
+  `Ma`, `Az elmúlt 7 nap`, `Régebbi`. Each has its time, `n napja` or date as
+  the right-hand detail, the current draft is checked, and the list scrolls.
+  A pick makes it current (the header title follows).
+- `Modell`: `Automatikus` (detail `a feladat alapján`), then the models `Gyors`,
+  `Kiegyensúlyozott` (`alapértelmezett`) and `Alapos`, then, once a model with
+  several efforts is chosen, an `Erősség` group. The current choice is
+  checked in each group, and the button shows it (`Modell: Kiegyensúlyozott ·
+  Közepes`). The menu opens above the composer when there is no room below.
+- **What to try:** at 1366 and 390 px, open `Előzmények` with the mouse or
+  focus it and press ArrowDown: the checked draft takes the focus, Home/End
+  and the arrows move, Enter picks. Escape closes only the menu, and the next
+  Escape closes the window. Tab leaves the menu. Switch the theme (Blade,
+  Blade Night, `Világos`, `Éjjeli`) with a menu open again. Check:
+  `tests/shell/toolkit-menu.spec.cjs`.
 
 <a id="approvals-attention"></a>
 

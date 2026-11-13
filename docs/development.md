@@ -457,6 +457,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Localization | `php8.4 tests/shell/i18n.php`; shell `i18n.spec.cjs` |
 | Dialogs | `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs` |
 | Window header and title (`app.ui.window`), modal windows (focus, inert, Escape, `ModalWindows.ts`, `SuiteRedraw.ts`), long-lived windows, menu commands | shell `window-title.spec.cjs`, `suite-labels.spec.cjs`, `menu-commands.spec.cjs`, `dialogs.spec.cjs`, `modal-windows.spec.cjs`; PHP `toolkit.php`, `configuration.php` (menu commands) |
+| Popup menu (`app.ui.menu`) | `npm run typecheck`, `npm run build`, `npm run demo:assets`; shell `toolkit-menu.spec.cjs`, `menu-commands.spec.cjs`, `dialogs.spec.cjs`, `suite-labels.spec.cjs`, `toolkit-components.spec.cjs` |
 | Diagram editor | `php8.4 tests/shell/diagram.php`; shell `diagram.spec.cjs` |
 | Event calendar | `php8.4 tests/shell/calendar.php`; shell `calendar.spec.cjs` |
 | File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |

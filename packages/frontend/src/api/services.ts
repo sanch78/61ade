@@ -7,6 +7,7 @@ import { Realtime, type LiveChannel } from "../Realtime";
 import { NAME } from "../app/registries";
 import { signalOf, tieTo } from "./Events";
 import { prepareCell } from "../components/Lifecycle";
+import { popupMenu } from "../PopupMenu";
 import { UiPreferences, type WindowGeometry } from "../UiPreferences";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
 
@@ -277,4 +278,5 @@ export const ui: Ui = {
     if (!content || typeof content !== "object") throw new TypeError("61ade: ui.attach takes a Suite widget, a component or an element.");
     if (!signal.aborted) attachContent(target, content, signal);
   },
+  menu: (anchor, options) => popupMenu(anchor, options),
 };

@@ -1,0 +1,29 @@
+/* Popup menu at a project's button (PopupMenu.ts, `app.ui.menu`; docs/toolkit.md#popup-menu). Suite's own context menu
+   in the theme's colours; this adds a height cap (about 12 entries, never more than the room beside the anchor, which
+   `--blade-popup-menu-space` gives while it is open), a width within the viewport, group headings, the check mark's
+   empty slot and an entry's right-hand detail. Above windows like the menu row's popups (a menu opened in a modal
+   window must not open behind it). */
+.blade-popup-menu > .dhx_menu {
+  z-index: calc(var(--dhx-z-index-overlay-total) + 100) !important;
+  box-sizing: border-box; min-width: 200px; max-width: min(28rem, calc(100vw - 16px));
+  max-height: min(27rem, var(--blade-popup-menu-space, calc(100vh - 16px)));
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0;
+}
+.blade-popup-menu .blade-popup-menu__entry .dhx_menu-button { gap: 12px; min-width: 0; }
+.blade-popup-menu .blade-popup-menu__entry .dhx_menu-button__block--left { min-width: 0; flex: 1 1 auto; }
+.blade-popup-menu .blade-popup-menu__entry .dhx_menu-button__text { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex: 1 1 auto; }
+.blade-popup-menu .blade-popup-menu__label { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blade-popup-menu .blade-popup-menu__detail {
+  flex: 0 1 auto; max-width: 45%; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--dhx-font-size-small); color: var(--dhx-font-color-secondary);
+}
+.blade-popup-menu .blade-popup-menu__entry [aria-checked="true"] { font-weight: var(--dhx-font-weight-medium, 500); }
+.blade-popup-menu .blade-popup-menu__entry [aria-checked="true"] .dhx_menu-button__icon { color: var(--dhx-color-primary); }
+.blade-popup-menu .blade-popup-menu__blank { display: inline-block; width: var(--dhx-icon-size-normal, 16px); }
+.blade-popup-menu .blade-popup-menu__heading {
+  padding: 8px 16px 4px; font-size: var(--dhx-font-size-small); font-weight: var(--dhx-font-weight-medium, 500);
+  color: var(--dhx-font-color-secondary); text-transform: uppercase; letter-spacing: .04em; cursor: default;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.blade-popup-menu .blade-popup-menu__heading:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--dhx-border-color); padding-top: 10px; }
+.blade-popup-menu .blade-popup-menu__empty .dhx_menu-button { color: var(--dhx-font-color-secondary); }

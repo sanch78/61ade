@@ -752,5 +752,6 @@
   "Legfeljebb {count} fájl adható meg.": "Legfeljebb {count} fájl adható meg.",
   "{count} / {limit} fájl": "{count} / {limit} fájl",
   "Ablak maximalizálása": "Ablak maximalizálása",
-  "Ablak visszaállítása": "Ablak visszaállítása"
+  "Ablak visszaállítása": "Ablak visszaállítása",
+  "Nincs választható elem.": "Nincs választható elem."
 }

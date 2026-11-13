@@ -223,6 +223,17 @@ declares `attention` (`filters`, `tone`): its menu entry, its branch and
 `Menü` show a live count ([menu attention](shell.md#menu-attention),
 [FB-0160](feedback.md#fb-0160)).
 
+A history list, an account or model picker or a sort menu that opens from a
+button the page placed itself (beside a title, in a composer) is
+`app.ui.menu(button, {label, items, signal})`, not local markup: group
+headings, checked radio entries with an optional right-hand `detail`,
+scrolling beyond about 12 entries and the APG menu-button keys, with Escape
+closing only the menu, also inside a modal window. `items` may be a
+function read at every opening, so the current choice is always checked; a
+pick reports `select {id}` ([popup menu](toolkit.md#popup-menu),
+[FB-0202](feedback.md#fb-0202); demo: [`Munkaasztal`](demos.md#d9-workbench)).
+Limits: one level, one pick per opening, anchored on a phone.
+
 Every server read and write is still a registered, ACL-checked action; a
 module gains no right. A failing module is reported (toast, `module:error`,
 console) and skipped, and the shell still starts. The

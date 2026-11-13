@@ -178,7 +178,7 @@ each member with one example.
 | `apiVersion` | `1` ([O11](#resolved-decisions)); a value of `app` only, `admin.d.ts` declares just its type `ApiVersion` | — |
 | `dhx` | The Suite namespace the shell uses (one instance, Standard edition) | `@dhtmlx/suite` import of the bundle |
 | `server` | Action calls, raw responses, `__form`, GET URLs | six private `fetch` transports, `ActionUrl.ts` |
-| `ui` | `dialog`, `choice`, `toast`, `window`, `attach` ([cell content](#cell-content)) | `MessageDialog.ts`, Suite `message`, `WindowSizing.ts` |
+| `ui` | `dialog`, `choice`, `toast`, `window`, `attach` ([cell content](#cell-content)), `menu` ([popup menu](#popup-menu)) | `MessageDialog.ts`, Suite `message`, `WindowSizing.ts`, Suite `ContextMenu` |
 | `uploads` | `open`, `reopen` of the shared uploader | `Uploader.ts` `uploads` |
 | `i18n` | `t`, `locale`, `languages` | `I18n.ts` |
 | `theme` | `current`, `skin`, `onChange(listener, {signal})` | AdminShell theme/skin handling |
@@ -203,6 +203,7 @@ const choice = await app.ui.choice({ message: "…", choices: [{ value: "a", lab
 app.ui.toast(app.i18n.t("Másolva."));
 const win = app.ui.window({ title: "Előnézet", width: 720, signal: host.signal }); win.attach(layout);
 app.ui.attach(layout.getCell("stage"), canvas, { signal });  // an element into any Layout cell (#cell-content)
+app.ui.menu(button, { label: "Rendezés", items: [{ id: "name", label: "Név" }], signal }).on("select", ({ id }) => sort(id));  // #popup-menu
 app.uploads.open({ resource: "files", action: "upload", target: folderId, targetLabel: "Drive A:/", policy });
 app.i18n.t("{count} elem", { count: 3 }); app.i18n.locale();
 app.theme.onChange((theme, skin) => chart.paint(), { signal: host.signal });
@@ -332,6 +333,75 @@ left, which is not a supported right-to-left layout. Another
 const win = app.ui.window({ titlePrefix: t("Elem szerkesztése:"), title: path.join(" / "), titleOverflow: "start", signal: host.signal });
 win.setTitle(nextPath.join(" / "));  // still "Elem szerkesztése: … / <end of the new path>"
 ```
+
+<a id="popup-menu"></a>
+
+**Popup menu** ([FB-0202](feedback.md#fb-0202)). `app.ui.menu(anchor, options)`
+binds a menu to a button the project placed anywhere: beside a title in a
+header row, in a composer, in its own toolbar. It is the APG menu button over
+Suite's `ContextMenu` (`menu` with `menuitem`/`menuitemradio` entries), for a
+history list, an account or model picker or a sort menu outside a
+`CommandBar`. The handle (`PopupMenu`) has `opened`, `open(focus?)`,
+`close()`, `on("select", …)` and `destroy()`.
+
+```ts
+const t = app.i18n.t;
+const menu = app.ui.menu(modelButton, { label: t("Modell"), signal: host.signal, items: () => [
+  { type: "group", label: t("Modell"), items: [
+    { id: "auto", label: t("Automatikus"), checked: !model },
+    ...models.map(m => ({ id: "model:" + m.id, label: m.label, detail: m.standard ? t("alapértelmezett") : undefined, checked: m.id === model }))] },
+  ...(model ? [{ type: "group" as const, label: t("Erősség"), items: efforts(model).map(e => ({ id: "effort:" + e, label: t(e), checked: e === effort })) }] : [])] });
+menu.on("select", ({ id }) => choose(id));   // choose, efforts: the page's own
+```
+
+- **Items:** entries `{id, label, detail?, icon?, checked?, disabled?}`,
+  groups `{type: "group", label?, items}` (entries only) and separators
+  `{type: "separator"}`, at most 200 entries in all. Labels and details are
+  plain text (escaped). A group's `label` is a heading row: not an entry, so
+  the arrows skip it, and spoken with the group's first entry ("Ma: Vázlat
+  1 10:42"), together with the first entry that is not disabled. A click on a
+  heading neither picks nor closes. An empty group is left out; a menu without
+  entries shows the `empty` note (default `Nincs választható elem.`,
+  localized). `detail` is plain secondary text at the entry's right edge (cut
+  with `…` when long, at most 45 % of the width) and part of its accessible
+  name; it is no keyboard shortcut.
+- **Checked entries:** an entry with `checked` (true or false) is a
+  `menuitemradio` with `aria-checked` and a check mark in its icon slot.
+  Unchecked entries keep an empty slot so the labels line up. The checkable
+  entries of a group (or those outside any group) are one radio set. The
+  project owns the state: it passes the current choice on every opening,
+  usually with `items` as a function, which is read again at every `open`.
+- **Keys and focus (APG menu button):** the anchor gets
+  `aria-haspopup="menu"` and `aria-expanded`. A click, Enter, Space or
+  ArrowDown opens the menu on its checked entry (else the first), ArrowUp on
+  its last; an anchor that is not a native button (`role="button"`) gets
+  Enter and Space from the menu. Up/Down move with wrap-around, Home/End jump,
+  and Enter or a click picks: the menu closes, the focus goes back to the
+  anchor and `select {id}` follows. Escape closes it and returns the focus to
+  the anchor before a window or dialog behind it sees the key, so a modal
+  window stays open and the next Escape closes the window. Tab closes it and
+  moves on from the anchor (Shift+Tab back). A click outside or on the anchor
+  closes it, and so does a change of the viewport's width; the pointer leaving
+  it and a phone's keyboard changing the height do not. One popup menu is
+  open at a time: opening another closes it.
+- **Placement:** below the anchor, or above it when it does not fit below (a
+  composer at the bottom of a window); above every window, within the
+  viewport and at most `min(28rem, 100vw − 16px)` wide. Its height is capped
+  at about 12 entries (`27rem`) and at the larger room below or above the
+  anchor; beyond that it scrolls. On a phone it stays anchored; there is no
+  bottom sheet.
+- **Lifecycle and errors:** `destroy()` (or `signal`, for example a window's)
+  closes the menu, removes its listeners and restores the anchor's
+  `aria-haspopup`/`aria-expanded`; it is idempotent. The anchor must stay in
+  the document: a button that is redrawn as a new element needs a new menu.
+  An anchor that is not an element, a missing `label`, a malformed item (an
+  id outside `[A-Za-z0-9_.:-]+` or a duplicate one, an empty label, `checked`
+  with `icon`, a separator in a group, more than 200 entries) throws
+  `TypeError`, at the call for an array and at `open` for a function.
+- **Not a `CommandBar` menu:** a [`CommandBar` `menu`](#commandbar-menu)
+  item stays the bar's own more-actions button (it folds into `Műveletek` on
+  a phone). Put a popup menu on a bar's button only through a Suite toolbar of
+  your own (`app.dhx.Toolbar`), as the feature demo's `Munkaasztal` does.
 
 Every subscription takes its owner's signal the same way, as the last
 argument `{signal}` (`SignalOptions`): `events.on`, `live.subscribe`,
@@ -2647,6 +2717,10 @@ needs one builds it in its own module.
   its upload.
 - Marks and row selection are transient by design and never persisted.
 
+A [popup menu](#popup-menu) has one level (no submenus), no type-ahead and
+no bottom sheet on a phone; it picks one entry and closes (no multi-select
+staying open).
+
 Further limits: a column presentation gets no per-column options (a scale or
 colour is fixed in the renderer or read from the row); one `Calendar` per page;
 the [sandbox isolation limits](#sandbox-protocol); the
@@ -2938,7 +3012,8 @@ The [focused task group](development.md#focused-task-groups) of the toolkit:
   against `admin.d.ts`), `npm run build`, `node tools/build.mjs --check`.
 - Browser (`npm run test:browser -- tests/shell/<spec>` on the managed URL):
   `toolkit-list`, `toolkit-components`, `toolkit-media`, `toolkit-sandbox`,
-  `toolkit-registries`, and the feature demo's `toolkit-demo`,
+  `toolkit-registries`, `toolkit-menu` (the popup menu, also in the feature
+  demo's `Munkaasztal`), and the feature demo's `toolkit-demo`,
   `toolkit-demo-assets`, `toolkit-demo-playlist`, `toolkit-demo-readings`,
   `toolkit-demo-tasks`, `toolkit-demo-playlist-editor` and `tabs`
   (`.spec.cjs`); regressions `browser`, `preferences`, `activation`.
@@ -3043,6 +3118,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M74 | [Menu commands](shell.md#menu-commands): `ApplicationDefinition` `menuCommands` (PHP `MenuCommand`, JSON `application.menu_commands`) put up to three emphasized commands in the menu row; their handler is an `app.commands` entry with `placement: "menu"` (`MenuCommand`, `MenuCommandContext`; the registry's type is `Registry<ClientCommand \| MenuCommand>`). [Long-lived windows](#long-lived-windows): `WindowOptions.maximizable`, `WindowOptions.id`, `AppWindow.maximized`/`maximize()`; the menu row's popups open above windows; Escape closes a modal window above a non-modal one | [FB-0199](feedback.md#fb-0199) | info: TypeScript code that reads `app.commands.get(…)` as a `ClientCommand` narrows by `placement`; a spec that measured the feature demo's menu row finds `Munkaasztal` after the navigation | none | none |
 | M75 | [View guide](workspaces.md#view-guide): while a non-modal window is open (a [long-lived window](#long-lived-windows)), a view opened behind it does not open its guide by itself; the guide stays unseen and `Útmutató` shows it | [FB-0200](feedback.md#fb-0200) | info: no declaration or API change; a spec that opened a long-lived window and then expected a view's first guide finds none | none | none |
 | M76 | [Modal windows](#modal-windows): a modal Suite window (`app.ui.window` by default, every framework record or action window, a project's own `new Window({modal: true})`) makes everything before it in the document `inert`, keeps Tab and Shift+Tab inside the topmost one and returns the focus to its opener on close; Escape closes the topmost focused modal window also without a non-modal one, but not while an open popup in it takes the key (`preventDefault`/stopped key, `:popover-open`, a focused `role="menu"`, an expanded `aria-haspopup` or combobox trigger). A Suite redraw asked for in the frame that destroys its view is dropped | [FB-0201](feedback.md#fb-0201) | info: a spec that tabbed from a modal window to the page behind it, or clicked through to an element before it, finds it inert; a popup inside a window that wants Escape to close the window as well must not mark itself open | none | none |
+| M77 | [Popup menu](#popup-menu): `app.ui.menu(anchor, options)` returns a `PopupMenu` (`opened`, `open`, `close`, `on("select")`, `destroy`); types `PopupMenuOptions`, `PopupMenuItem`, `PopupMenuEntry`, `PopupMenuGroup`, `PopupMenuEvents` in `admin.d.ts`: group headings, checked radio entries with a right-hand detail, scrolling beyond about 12 entries and the APG menu-button keys at any button | [FB-0202](feedback.md#fb-0202) | if used: a project's own popup menu (StoryBloX's interim `workshop.js` menu, grouped-menu request) can be replaced; nothing changes otherwise |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3204,6 +3280,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-13 | PHP `Field` `row`, `rowWidth`, JSON `row`, `row_width`; `FieldMetadata.row`/`.rowWidth`, `ColumnMetadata.row`/`.rowWidth`; CSS `--blade-form-column-min`: form rows of several columns that stack where the form is narrow; the list's form window opens as wide as its widest row (M73). Additive. | Every field took a full row, so a wide form was a narrow, tall stack of short inputs. | [FB-0196](feedback.md#fb-0196) |
 | 2026-11-13 | PHP `MenuCommand` and `ApplicationDefinition` `menuCommands`, JSON `application.menu_commands`, client `MenuCommand`/`MenuCommandContext` (`placement: "menu"`): application commands in the menu row on every view, emphasized, with a server-side `visible` and an optional view's attention count; `WindowOptions.maximizable` and `id`, `AppWindow.maximized`/`maximize()`: a maximize/restore button and a remembered box; long-lived non-modal windows documented; the row's popups above windows; Escape closes a modal window above a non-modal one (M74). Additive, except the registry type. | A consumer's work window must be reachable from every view through a conspicuous menu button, stay open across navigation, be large and remember its place. | [FB-0199](feedback.md#fb-0199) |
 | 2026-11-13 | Modal windows follow the APG dialog pattern: the page before the topmost modal window is `inert`, Tab and Shift+Tab cycle inside it, the focus returns to its opener; Escape closes it the same with or without non-modal windows and leaves an open popup inside it the first press; `WindowEscape.ts` became `ModalWindows.ts`. A Suite redraw of a destroyed view is dropped (`SuiteRedraw.ts`) (M76). | A modal work window left the keyboard free on the page behind it; an Escape for a project popup closed the window when a non-modal window was open; a window closed just before a viewport resize raised a page error. | [FB-0201](feedback.md#fb-0201) |
+| 2026-11-13 | `Ui.menu` and the `PopupMenu*` types: a popup menu with group headings, checked entries, details and scrolling, opened from any button with the APG menu-button keys; Escape closes only the menu, also in a modal window (M77). Additive. | A consumer's history list grouped by date and its model picker could not be built with the `CommandBar` menu (no headings or checked entries, at most 12 items, folded into `Műveletek` on a phone, the bar fills its container). | [FB-0202](feedback.md#fb-0202) |
 
 <a id="resolved-decisions"></a>
 

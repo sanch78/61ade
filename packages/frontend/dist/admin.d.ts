@@ -314,6 +314,69 @@ export interface Ui {
     attach(target: LayoutCell, content: Mountable, options: {
         signal: AbortSignal;
     }): void;
+    /**
+     * Binds a popup menu to `anchor`, a button the project placed anywhere (a header, a composer, a title row): the APG
+     * menu button over a Suite `ContextMenu` (docs/toolkit.md#popup-menu). The anchor gets `aria-haspopup="menu"` and
+     * `aria-expanded`; a click, Enter, Space or ArrowDown opens the menu on its checked entry (else the first), ArrowUp
+     * on the last. The arrows and Home/End move, Escape closes it and returns the focus to the anchor (also inside a
+     * modal window, which stays open), Tab closes it and moves on from the anchor, a click outside closes it. A pick
+     * closes it, returns the focus and reports `select {id}`. It stays at the anchor (below, above when there is more
+     * room), within the viewport, and scrolls beyond about 12 entries. A malformed anchor, option or item throws
+     * `TypeError` (for an `items` function: at `open`). `destroy()` (or `signal`) closes it and restores the anchor.
+     */
+    menu(anchor: HTMLElement, options: PopupMenuOptions): PopupMenu;
+}
+/** An entry of `app.ui.menu`. Labels and details are plain text (escaped). */
+export interface PopupMenuEntry {
+    type?: "entry";
+    /** Reported by `select`; `[A-Za-z0-9_.:-]+`, unique in the menu. */
+    id: string;
+    label: string;
+    /** Secondary text at the entry's right edge (a relative time, "default"); part of its accessible name. */
+    detail?: string;
+    /** Icon class (`dxi dxi-…`) of an entry that is not checkable. */
+    icon?: string;
+    /**
+     * Makes the entry checkable (`menuitemradio`, `aria-checked`, a check mark in the icon's place): the checkable
+     * entries of one group (or those outside any group) are one radio set. The project owns the state: it passes the
+     * current choice at every opening.
+     */
+    checked?: boolean;
+    /** Shown, skipped by the arrows, not selectable (`aria-disabled`). */
+    disabled?: boolean;
+}
+/** Entries under a heading (`label`; spoken with the group's first entry). An empty group is left out. */
+export interface PopupMenuGroup {
+    type: "group";
+    label?: string;
+    items: PopupMenuEntry[];
+}
+export type PopupMenuItem = PopupMenuEntry | PopupMenuGroup | {
+    type: "separator";
+};
+export interface PopupMenuOptions extends SignalOptions {
+    /** The menu's accessible name. */
+    label: string;
+    /** At most 200 entries in all; a function is read at every opening (a history list, the current choice). */
+    items: PopupMenuItem[] | (() => PopupMenuItem[]);
+    /** The note of a menu without entries; default "Nincs választható elem." (localized). */
+    empty?: string;
+}
+export interface PopupMenuEvents {
+    select: {
+        id: string;
+    };
+}
+/** The handle of `app.ui.menu`. */
+export interface PopupMenu {
+    readonly opened: boolean;
+    /** Opens the menu (reading an `items` function again) with the focus on the checked, the first or the last entry. */
+    open(focus?: "checked" | "first" | "last"): void;
+    /** Closes it and returns the focus to the anchor; nothing when closed. */
+    close(): void;
+    on<K extends keyof PopupMenuEvents>(event: K, handler: (payload: PopupMenuEvents[K]) => void, options?: SignalOptions): () => void;
+    /** Closes it, removes its listeners and restores the anchor's ARIA attributes; idempotent. */
+    destroy(): void;
 }
 /** Browser part of a server `UploadPolicy` (`UploadPolicy::metadata()`); never contains server paths. */
 export interface UploadPolicy {

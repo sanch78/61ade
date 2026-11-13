@@ -8986,3 +8986,92 @@ that exactly equals an option label lists every option. The managed
   inert; its popups handle Escape on their own node. StoryBloX marked the
   three requests resolved.
 - **Status:** implemented, verified on the managed demo and by the consumer.
+
+<a id="fb-0202"></a>
+
+## FB-0202 — Popup menu at any button: headings, checked entries, scrolling
+
+- **Date:** 2026-11-13.
+- **Request (consumer, StoryBloX D-068, grouped-menu request):** the redesigned
+  work window needs a history list grouped by date (`Ma`, `Az elmúlt 7 nap`,
+  `Régebbi`) and a model picker beside the composer (`Automatikus`, then the
+  models, then the chosen model's efforts, the current choice checked). The
+  `CommandBar` `menu` ([FB-0154](#fb-0154)) has no headings or checked
+  entries, holds at most 12 items, folds into `Műveletek` on a phone, and the
+  bar fills its container, so it cannot sit beside a title or in a composer.
+  The consumer built an interim local menu. Acceptance: both menus can be
+  built at 1366 and 390 px without local DOM; Enter/Space/ArrowDown open, the
+  arrows move, Escape closes and returns the focus, Tab leaves. General: any
+  history list, account or model picker or sort menu outside a toolbar.
+- **Decision (61ade owner, 2026-11-13):** of the proposed APIs (a function
+  binding a project's button, a `MenuButton` component drawing its own
+  button, an extended `CommandBar` menu) the owner chose
+  `app.ui.menu(anchor, {label, items, signal})`, returning a handle. It works
+  with any button and needs no mount, so the "fills its container" problem does
+  not arise. On a phone it stays anchored; no bottom sheet. The checked
+  state is the project's, passed at each opening (`items` may be a function).
+- **Implementation:** `PopupMenu.ts` over Suite's `ContextMenu`. Suite already
+  draws `menuitemradio`/`aria-checked` for toggles in a `group`,
+  non-focusable `customHTML` rows (the headings) and the arrow, Home/End and
+  Tab keys. The detail is escaped text in the entry's own markup: Suite's
+  `hotkey` slot would register the text as a keyboard shortcut (a review found
+  that a detail without an ASCII word throws in Suite's key parser and
+  `Ctrl+D` became a live shortcut). The menu uses `navigationType: "click"`,
+  so the pointer leaving it does not close it. Suite's radio bookkeeping
+  (`_groups`) is seeded at each opening because Suite rebuilds it only
+  100 ms after a change and its click handler would throw on an early pick.
+  A heading click neither picks nor closes, and one popup menu is open at a
+  time. 61ade adds the
+  anchor's `aria-haspopup`/`aria-expanded` and its keys (ArrowDown/ArrowUp,
+  Enter/Space for a non-native button). It also moves the focus into the menu
+  (the checked entry) and back to the anchor after a pick, Escape or Tab, which
+  Suite does only for its own bar's buttons. Escape is taken in the document's
+  capture phase, before a window or dialog. The menu list gets its accessible
+  name from the root item. Its open state is tracked by the subclass, because
+  after a pick Suite's context menu repaints and sets `_popupActive` again
+  without a popup on the screen. `popup-menu.css`: above windows, at most
+  `min(28rem, 100vw − 16px)` wide, `27rem` (about 12 entries) or the room
+  beside the anchor high (`--blade-popup-menu-space`), headings, the check
+  mark's empty slot, a cut label and detail. Types `PopupMenu*` in
+  `admin.d.ts`; `Nincs választható elem.` in hu/en/de. Coordinated with the
+  modal-window work of [FB-0201](#fb-0201): a popup appended after a modal
+  window stays outside its `inert` page, and its Escape handler keeps leaving
+  an open `.dhx_menu` alone.
+- **Demo:** `Munkaasztal` ([D9](demos.md#d9-workbench)) got two Suite
+  toolbars of its own: `Előzmények` (18 synthetic drafts by date) and the
+  model picker (synthetic models and efforts).
+- **Guides:** [popup menu](toolkit.md#popup-menu) (API, limits, M77, change
+  log), [usage](usage.md), [demos](demos.md#d9-workbench), the
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md) rule for choice lists
+  outside a command bar.
+- **Verification:** `npm run typecheck`, `npm run build` and `npm run demo:assets`
+  passed on top of `1c201b7`. The new retained spec
+  `tests/shell/toolkit-menu.spec.cjs` passed 4 of 4 on the managed demo. It
+  covers `Előzmények` at 1366 px (headings, 18 radio entries, the checked
+  one focused, the names with the group's heading and detail, a scroll
+  height above the 440 px cap, End/Home/arrows, a pick by Enter, ArrowDown,
+  Enter and Space opening, Escape closing only the menu with the window
+  still open, Tab leaving, the anchor toggle, an outside click, then Escape
+  closing the window). It covers the model picker (above the composer,
+  `Automatikus` first and checked, the efforts group after choosing a model,
+  one checked entry per group, the pointer leaving, a heading click and a
+  letter key keeping it open, a quick keyboard pick, no page error) and its
+  text, detail and heading contrast at 4.5:1 or more in Blade, Blade Night,
+  `Világos` and `Éjjeli`. It covers both menus at 390 × 844 (inside the
+  viewport, scrolling, no horizontal page scroll, picks by tap). It covers a
+  fixture modal window above a non-modal one (the menu's z-index above both,
+  the checked entry focused, a disabled entry, a separator, the first Escape
+  closing only the menu and the second the window, a `role="button"`
+  anchor with Space, the empty note, eight `TypeError` cases, destroy
+  restoring the anchor, the window's signal destroying its menu). The review
+  fixes were found and verified along the way: the demo's first effort ids
+  (`effort:Közepes`) were rejected by the id rule, and the detail colour
+  first measured 4.2:1 in Blade (now the secondary text colour). Affected
+  groups in one run: `toolkit-components`, `toolkit-demo`, `toolkit-demo-assets`,
+  `toolkit-demo-playlist`, `toolkit-demo-playlist-editor`,
+  `toolkit-demo-readings`, `toolkit-demo-tasks`, `toolkit-list`,
+  `toolkit-media`, `toolkit-menu`, `toolkit-registries`, `toolkit-sandbox`,
+  `dialogs`, `suite-labels`, `menu-commands` and `modal-windows`, 78 passed.
+  No full-smoke claim.
+- **Status:** implemented and verified on the managed demo; consumer
+  migration (StoryBloX replaces its interim menu) pending.
