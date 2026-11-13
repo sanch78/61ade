@@ -821,3 +821,7 @@
 <a id="fb-0199"></a>
 
 ## FB-0199 — Menu-row application command and long-lived work window
+
+<a id="fb-0200"></a>
+
+## FB-0200 — No automatic view guide over a long-lived window
