@@ -752,5 +752,6 @@
   "Legfeljebb {count} fájl adható meg.": "Höchstens {count} Dateien sind möglich.",
   "{count} / {limit} fájl": "{count} / {limit} Dateien",
   "Ablak maximalizálása": "Fenster maximieren",
-  "Ablak visszaállítása": "Fenster wiederherstellen"
+  "Ablak visszaállítása": "Fenster wiederherstellen",
+  "Nincs választható elem.": "Keine Auswahl verfügbar."
 }

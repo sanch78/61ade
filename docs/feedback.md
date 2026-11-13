@@ -829,3 +829,7 @@
 <a id="fb-0201"></a>
 
 ## FB-0201 — Modal window focus, Escape under a project popup, redraw after a window closes
+
+<a id="fb-0202"></a>
+
+## FB-0202 — Popup menu at any button: headings, checked entries, scrolling

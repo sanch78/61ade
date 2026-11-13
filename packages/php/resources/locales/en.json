@@ -752,5 +752,6 @@
   "Legfeljebb {count} fájl adható meg.": "At most {count} files can be given.",
   "{count} / {limit} fájl": "{count} / {limit} files",
   "Ablak maximalizálása": "Maximize window",
-  "Ablak visszaállítása": "Restore window"
+  "Ablak visszaállítása": "Restore window",
+  "Nincs választható elem.": "Nothing to choose."
 }
