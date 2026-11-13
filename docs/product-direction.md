@@ -108,6 +108,7 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 | --- | --- | --- |
 | Project-handled list activation (`preventDefault`) | UI navigation | Browser-only `ListView.activate`; no server operation or audit by itself; project actions retain their executor checks. |
 | Registered action success/deny/error, UI/API | Audit | Implemented, Executor. |
+| List action command caption override | Presentation | `Action::$commandLabel` changes metadata only; cell/form saves keep the same action, `saved` event and executor audit ([command captions](workspaces.md#action-command-label)). |
 | Icon catalog and migration of built-in glyphs | Presentation | Bundled Bootstrap Icons through existing icon properties; no new event, action or audit entry ([icons](icons.md)). |
 | Record/form describe and live subscription | Audit | Implemented, Workspace. |
 | First-step header close to a declared destination | UI navigation | No authentication or state mutation; no audit event. Required/public defaults remain unchanged ([sign-in content](shell.md#sign-in-content)). |

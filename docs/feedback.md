@@ -9279,3 +9279,63 @@ that exactly equals an option label lists every option. The managed
   Consumer pages themselves were not opened or modified. Temporary test
   source, measurements and screenshots were removed after verification.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0206"></a>
+
+## FB-0206 — Opt-in captions for list action commands
+
+- **Date:** 2026-11-13.
+- **Need:** cyberspace.hu's owner needs the `Szolgáltatások` list's `update`
+  command to open `Beállítások` with `bi bi-gear`. Its editable service switch
+  must keep using the same `update` action and reload through
+  `reauthenticate: true` so M78 view availability follows the change. A second
+  settings command would duplicate one operation.
+- **Source findings:** `ListViewKind` hard-coded `update` to `Módosítás`;
+  `toolbar.ts` already consumes the supplied caption and icon. Action forms
+  already use that caption in the window title and accessible name. The icon
+  already works. The consumer's action and specification confirm the need;
+  they were inspected read-only. The fixed caption predates the list provider
+  extraction. No special i18n requirement for it was found; it separates the
+  command from the submit caption (`SqlResource` labels update `Mentés`).
+- **Owner decision:** optional `Action::$commandLabel` (JSON
+  `actions[].command_label`), reusing `icon`, rather than a view-level
+  `updateLabel`. Directly substituting `Action::$label` would rename existing
+  commands, so it cannot satisfy unchanged defaults. The new value must not
+  be blank. Omission retains every existing caption and submit label.
+- **Implementation:** list action metadata chooses `commandLabel` before the
+  existing caption fallback. The normal presentation translator resolves it
+  into the existing `label`; there is no frontend or wire-format addition.
+  The command remains `update`, its fields, handlers, ACL, audit and revision
+  paths are unchanged. The tenant demo now declares one settings command over
+  its SQL adapter's existing form and single-field save paths. Its English
+  catalogue translates the service title and guide too.
+- **Guides:** [action command captions](workspaces.md#action-command-label),
+  [ListView](toolkit.md#listview), [JSON actions](configuration.md), M80 in the
+  [migration table](toolkit.md#migration): **additive, no consumer change required**.
+- **Verification:** focused PHP groups `configuration`, `lists`,
+  `list-presentation`, `grid-edit`, `i18n`, `record-forms`, `tenancy`, `toolkit`
+  and `contracts` passed, as did TypeScript, build and local demo assets.
+  Temporary PHP checks passed for consumer-catalogue keys in Hungarian and
+  English, legacy create/update defaults, unchanged submit labels, icon,
+  PHP/JSON validation, editable capability, cell/form saves,
+  `reauthenticate: true` and `update` audit records.
+  The guarded managed-demo run passed 41 established browser cases across
+  `grid-edit`, `i18n`, `list-presentation`, `workspace` and `tenancy`; its
+  polling-only case skipped because the managed demo uses WebSocket.
+  Four temporary Hungarian/English cases at 1600/390 px also passed: one
+  command, gear icon, translated toolbar/collapsed menu and window accessible
+  name, unchanged Save caption, cell and form saves returning
+  `reauthenticate: true`, actual reloads, view availability following both
+  changes, and no page errors or horizontal overflow. Desktop and phone
+  screenshots were visually inspected. Initial temporary-test failures came
+  from reading a response body after the reload and clicking Suite's covered
+  native checkbox; capturing before response fulfilment and keyboard Space
+  corrected the tests, with no runtime change. Temporary checks, screenshots
+  and traces were removed after verification.
+- **Review:** independent final diff review found no blocking issue; a property
+  notation correction in the event catalogue was applied.
+- **Limits:** action-wide opt-in for list commands, including tree navigation;
+  no per-view override, no global rename of project-kind action metadata or
+  submit button. View availability still changes at the next bootstrap; this
+  adds no new reload behaviour. No consumer runtime was edited.
+- **Status:** implemented and verified on the managed demo.

@@ -736,6 +736,15 @@ and the filter panel, search, the view's action forms and bulk commands,
 details, sub-views, live updates and the user's saved mode, sort, columns and
 filters. The built-in `list` kind is this component mounted in the view host.
 
+The server action's optional `commandLabel` (JSON `command_label`) overrides
+its list toolbar/menu caption and form window title, including accessible names;
+the existing `icon` supplies its toolbar/menu glyph. For example, an `update`
+action with `commandLabel: 'Beállítások', icon: 'bi bi-gear'` opens settings while
+editable cells keep saving through `update`. Omitted values preserve the built-in
+`Módosítás` caption and `Mentés` submit button. The normal catalogue translates
+the existing action metadata `label`; no browser API or command registration
+is needed. See [action command captions](workspaces.md#action-command-label).
+
 Sections inside cards and details stretch to equal heights in each row, with
 their content at the top. The project stylesheet can configure the section
 columns with `--blade-record-group-min-width` (automatic columns) or
@@ -3136,6 +3145,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M77 | [Popup menu](#popup-menu): `app.ui.menu(anchor, options)` returns a `PopupMenu` (`opened`, `open`, `close`, `on("select")`, `destroy`); types `PopupMenuOptions`, `PopupMenuItem`, `PopupMenuEntry`, `PopupMenuGroup`, `PopupMenuEvents` in `admin.d.ts`: group headings, checked radio entries with a right-hand detail, scrolling beyond about 12 entries and the APG menu-button keys at any button | [FB-0202](feedback.md#fb-0202) | if used: a project's own popup menu (StoryBloX's interim `workshop.js` menu, grouped-menu request) can be replaced; nothing changes otherwise |
 | M78 | [View availability](workspaces.md#view-availability): `available` (`Closure(Context): bool`) on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.available` / `views.<id>.available` (a binding name); false leaves the view out of that bootstrap | [FB-0204](feedback.md#fb-0204) | none: additive, no consumer change required | none | none |
 | M79 | Bundled [Bootstrap Icons](icons.md) in every icon slot; framework/demo defaults migrated, record icon columns also accept `bi bi-…`, old `blade-icon` names alias the new catalog | [FB-0203](feedback.md#fb-0203) | info: no asset/configuration change; legacy icon values still display. A screenshot or glyph-class assertion follows the new defaults | none | none |
+| M80 | [Action command captions](workspaces.md#action-command-label): optional PHP `Action::$commandLabel` / JSON `actions[].command_label` overrides a list command's caption, form window title and accessible name; uses the existing `icon` and i18n catalogue, leaving `update` cell/form saves unchanged | [FB-0206](feedback.md#fb-0206) | additive, no consumer change required | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

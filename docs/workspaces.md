@@ -727,6 +727,50 @@ whole-batch transaction nor export.
 partial success; `list-presentation.spec.cjs` checks columns/mobile/details/icons/
 marks/bulk and theme geometry. FB-0019.
 
+<a id="action-command-label"></a>
+
+## Action command captions
+
+An action may opt into its own list command caption with `Action::$commandLabel`
+(JSON `actions[].command_label`). Use the existing `icon` for its glyph. Both
+the desktop toolbar and the collapsed `Műveletek` menu use that caption and icon;
+the action form's window title and accessible name use the same caption
+([FB-0206](feedback.md#fb-0206)):
+
+```php
+use Blade\Feature\Action;
+
+$registry->add(new Action('services', 'update', 'Mentés', $fields, $save,
+    resolve: $resolve, write: true, editHandler: $saveCell,
+    icon: 'bi bi-gear', commandLabel: 'Beállítások'));
+// The list declares 'update' as before. $save and $saveCell are the consumer's handlers.
+```
+
+The value is a non-blank translation key/source text, resolved by the ordinary
+[i18n catalogue](i18n.md#fordítási-szerződés). Add business translations to the
+consumer's catalogues. `Beállítások` already translates to `Settings` in English.
+The override applies to the action in every list view that offers it, including
+a tree navigation's list actions. It adds no second command and changes no
+action ID, ACL, field, handler, revision, audit or editable-cell capability.
+Cell editing still uses `update` through `__edit`; form and cell saves still
+honour `reauthenticate: true` as described under [view availability](#view-availability).
+
+Omitting it preserves every previous caption: `create` is `Hozzáadás`, `update`
+is `Módosítás`, other list commands use the action's `label`. The create/update
+submit button stays `Mentés`; other submit labels remain the action's `label`.
+This separation preserves compatibility: `SqlResource` registers its update
+action with `label: 'Mentés'`, so using that label as the command caption would
+rename existing `Módosítás` commands. No frontend override or new wire property
+is needed; the translated caption is the existing `actions[].label`.
+Project view kinds retain their existing action metadata; this option is for
+list commands, not a global rename of the registered action.
+
+Try it in the tenant demo's `Szolgáltatások`: select a service and open
+`Beállítások`, or change `Bekapcsolva` directly. Both saves reload the shell.
+Verification: PHP `configuration`, `i18n`, `grid-edit`, `list-presentation`,
+`lists`, `record-forms`, `tenancy`, `toolkit` and `contracts`; browser evidence
+and the temporary opt-in checks are recorded in [FB-0206](feedback.md#fb-0206).
+
 <a id="manual-order"></a>
 
 ## Manual order, drops between lists and the drag handle

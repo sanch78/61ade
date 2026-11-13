@@ -161,9 +161,11 @@ tree as decoration for a flat list.
   query across main lists, expanded previews and child windows. Preserve each
   list's cursor separately from keyboard focus; do not reproduce toolbar
   delegation in the consumer ([FB-0125](../../../docs/feedback.md#fb-0125)).
-- Keep each action in the toolbar once, with a native icon and its original
-  label. A bulk-capable action applies to marks; do not add a second “selected
-  rows” command. A field-free action runs directly; a form is for input.
+- Keep each action in the toolbar once, with a native icon and its declared
+  command caption (the framework default when omitted). Carry the same caption
+  into the collapsed menu, form title and accessible name. A bulk-capable action
+  applies to marks; do not add a second “selected rows” command. A field-free
+  action runs directly; a form is for input.
 - Put record actions, built-in or project commands, in the same toolbar, acting
   on the cursor record and disabled without one; offer no record context menu.
   Right click, the menu key and Shift+F10 keep the browser's behaviour. One

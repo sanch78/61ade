@@ -12,7 +12,7 @@ declare(strict_types=1);
  */
 
 use Blade\Admin\{Accounts, Administration};
-use Blade\Feature\{Context, Field, Lookup, Registry, SqlResource, Workspace};
+use Blade\Feature\{Action, Context, Field, Lookup, Registry, SqlResource, Workspace};
 use Blade\Live\LiveConfig;
 use Blade\Navigation\Menu;
 use Blade\Shell\{ApplicationDefinition, SqlIdentityProvider};
@@ -80,11 +80,18 @@ $workspace->registry->tree('tenant_items', 'tenant_category_tree', 'category_id'
 // View availability (docs/workspaces.md#view-availability): a tenant switches its `feedback` service on and off in
 // `Szolgáltatások`; `Visszajelzések` (and with it the `Ügyfélszolgálat` menu group) is offered only while it is on.
 // The switch reloads the shell (`reauthenticate`), so the menu follows at once; the feedback rows stay while it is off.
+$enabled = new Field('enabled', 'Bekapcsolva', 'checkbox', defaultValue: '0', column: ['editable' => true, 'align' => 'center', 'width' => 130]);
 $services = new SqlResource('tenant_services', 'tenant_services', 'id', [
     new Field('service', 'Szolgáltatás', 'select', options: ['feedback' => 'Visszajelzések']),
-    new Field('enabled', 'Bekapcsolva', 'checkbox', defaultValue: '0', column: ['editable' => true, 'align' => 'center', 'width' => 130]),
+    $enabled,
 ], readOnly: ['service'], tenantColumn: 'tenant_id', afterSave: static fn() => ['reauthenticate' => true]);
-$services->register($workspace->registry, 'Szolgáltatások', create: false, group: 'Tenant demó', guide: 'Az aktív tenant szolgáltatásai. A Bekapcsolva kapcsoló a tenantban be- vagy kikapcsolja a szolgáltatást; a felület ezután újratölt.'."\n\n".'Kikapcsolt Visszajelzések szolgáltatásnál a Visszajelzések nézet és az Ügyfélszolgálat menücsoport eltűnik, az adatok megmaradnak, és visszakapcsoláskor ugyanazokkal jelenik meg újra.');
+$services->register($workspace->registry, 'Szolgáltatások', create: false, update: false, group: 'Tenant demó', guide: 'Az aktív tenant szolgáltatásai. A Bekapcsolva kapcsoló a tenantban be- vagy kikapcsolja a szolgáltatást; a felület ezután újratölt.'."\n\n".'A Beállítások ablakban ugyanaz a kapcsoló űrlapon is elérhető.'."\n\n".'Kikapcsolt Visszajelzések szolgáltatásnál a Visszajelzések nézet és az Ügyfélszolgálat menücsoport eltűnik, az adatok megmaradnak, és visszakapcsoláskor ugyanazokkal jelenik meg újra.');
+// One update action: its command opens settings, its editable cell still uses the same SQL save and revision checks.
+$workspace->registry->add(new Action('tenant_services', 'update', 'Mentés', [$enabled, new Field('revision', 'Verzió', required: true, max: 64)],
+    static fn($ctx, $target, $values) => $services->save($ctx, $target, $values), resolve: $services->target(...), write: true,
+    editHandler: static fn($ctx, $target, $values) => $services->save($ctx, $target, $values, true),
+    icon: 'bi bi-gear', commandLabel: 'Beállítások'));
+$workspace->registry->appendViewActions('tenant_services', ['update']);
 $serviceOn = static function (Context $ctx): bool {
     if ($ctx->tenant === null) return false;
     $q = $ctx->db->prepare("SELECT enabled FROM tenant_services WHERE tenant_id = ? AND service = 'feedback'");

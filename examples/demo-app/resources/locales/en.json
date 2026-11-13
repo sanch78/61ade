@@ -377,5 +377,8 @@
   "Erősség": "Effort",
   "Alacsony": "Low",
   "Közepes": "Medium",
-  "Magas": "High"
+  "Magas": "High",
+  "Szolgáltatások": "Services",
+  "Szolgáltatás": "Service",
+  "Az aktív tenant szolgáltatásai. A Bekapcsolva kapcsoló a tenantban be- vagy kikapcsolja a szolgáltatást; a felület ezután újratölt.\n\nA Beállítások ablakban ugyanaz a kapcsoló űrlapon is elérhető.\n\nKikapcsolt Visszajelzések szolgáltatásnál a Visszajelzések nézet és az Ügyfélszolgálat menücsoport eltűnik, az adatok megmaradnak, és visszakapcsoláskor ugyanazokkal jelenik meg újra.": "The active tenant's services. The On switch enables or disables the service for the tenant, then reloads the page.\n\nSettings opens a form with the same switch.\n\nWhen the Feedback service is off, the Feedback view and Customer service menu group disappear. Its records are kept and return when the service is enabled again."
 }
