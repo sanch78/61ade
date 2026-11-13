@@ -8979,5 +8979,10 @@ that exactly equals an option label lists every option. The managed
   live-region and the cancelled-Escape gaps listed above; all fixed and
   covered. `npm run typecheck`, `npm run build` and `npm run demo:assets`
   passed. No full-smoke claim.
-- **Status:** implemented and verified on the managed demo; consumer
-  acceptance pending.
+- **Consumer verification (StoryBloX, 2026-11-13):** its complete browser
+  suite on its development URL passed with 93d9e25 (21/21) without the
+  redraw page error; its work-window spec now checks that Tab ×25 and
+  Shift+Tab ×10 stay inside the modal window and that the page behind it is
+  inert; its popups handle Escape on their own node. StoryBloX marked the
+  three requests resolved.
+- **Status:** implemented, verified on the managed demo and by the consumer.
