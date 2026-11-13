@@ -92,6 +92,8 @@ include the failed row messages in that toast.
 - Tab/Shift+Tab cycle buttons and, for long content, the scrollable body. Background is inert.
 - Backdrop clicks do not close. Closing restores opener focus if it still exists.
 - Accessibility: `role="alertdialog"`, `aria-modal`, title `aria-labelledby`, message `aria-describedby`.
+- The dialog and modal windows count their hold on each inert element (`holdInert`), so closing them in any order leaves the page inert while any of them is open; live regions and toasts in `body` stay announced. A modal window shown while a dialog is open comes above it: the dialog is inert and ignores keys until the window closes.
+- Above a modal window ([modal windows](toolkit.md#modal-windows)) the dialog takes the containment over and gives the focus back into the window on close. Modal Suite windows follow the same pattern themselves: the page before the topmost one is inert, Tab cycles inside it, closing returns the focus to its opener, and Escape leaves an open popup inside it the first press ([FB-0201](feedback.md#fb-0201)).
 
 <a id="elrendezés-és-mobil"></a>
 

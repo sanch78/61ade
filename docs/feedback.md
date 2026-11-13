@@ -8879,3 +8879,105 @@ that exactly equals an option label lists every option. The managed
   task spec. The task spec was removed afterwards. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo; consumer
   acceptance pending.
+
+<a id="fb-0201"></a>
+
+## FB-0201 — Modal window focus, Escape under a project popup, redraw after a window closes
+
+- **Date:** 2026-11-13.
+- **Requests (consumer, StoryBloX D-068 and its full browser run):** (1) an
+  intermittent page error `TypeError: Cannot read properties of null
+  (reading 'type')` in a view's `_redraw` when a record form window was
+  closed with `Mégse`, the viewport changed from 1366 × 800 to 883 × 844 and
+  the next form window opened; (2) a modal `AppWindow` dimmed the page and
+  blocked the pointer, but Tab reached the page and the menu row behind it
+  and nothing was `inert`; target: the W3C APG dialog pattern, stacked
+  dialogs and the menu row's popups still working, non-modal windows
+  unchanged; (3) while any non-modal window existed, the first Escape for a
+  project popup (`role="menu"`, a native popover) inside a modal window
+  closed the whole window. General: every consumer with record windows,
+  modal work windows or its own popups in a window.
+- **Analysis.** (2) and (3) share one boundary: 61ade had no owner of a modal
+  window's keyboard and focus. Suite's `Window` only sets `role="dialog"`,
+  `aria-modal` and its overlay; its Escape is a document-level hotkey that
+  closes a modal window only when it is the last window it lists
+  ([FB-0199](#fb-0199)); `MessageDialog` contained only its own box. The
+  FB-0199 fix ran in the capture phase only while a non-modal window existed,
+  so it came before every popup's own handler, and only then. (1) is a
+  different boundary that a window close triggers: Suite redraws a changed
+  view in the next animation frame, and a closed window is destroyed one
+  frame after it hides (`awaitRedraw().then(destructor)`). A viewport resize
+  in between repaints the form-row cells (`cols`, [FB-0196](#fb-0196)) from
+  their window `resize` handler; that redraw runs after the destructor, and
+  the destroyed Layout (`_root` gone) or form control (`config` gone) draws
+  `null`. A form without rows has no such cell, which is why the error was
+  rare and new. The requests' premises held; the suggested marker attribute
+  for (3) is not needed, because a popup that stops or cancels the key is now
+  respected without it.
+- **Implementation.** `ModalWindows.ts` replaces `WindowEscape.ts` and covers
+  every shown `.dhx_popup--window_modal`, whoever created it: a body
+  `MutationObserver` makes everything before the window and its overlay
+  `inert` (except toast containers) and restores it when the window leaves;
+  a `focusin` listener records the element focused before the window took the
+  focus, and the focus goes back there when it was lost with the window
+  (also across a window closed and the next opened in one task); a Tab
+  handler (window, bubble phase, skipped when already handled) wraps Tab and
+  Shift+Tab at the ends of the topmost window and brings back a focus lost to
+  the page body, leaving framework dialogs and popups above the window to
+  their own Tab; Escape is decided as it bubbles to `<html>`, before Suite's
+  document hotkeys: an already handled key, a framework dialog or a Suite
+  popup or menu is left alone as before, an open project popup (`:popover-open`,
+  a focused `role="menu"`, an expanded `aria-haspopup` or combobox trigger
+  whose controlled popup is visible) gets the key with Suite kept from
+  closing the window under it, and otherwise the topmost focused modal window
+  closes through its close button, with or without non-modal windows; an
+  Escape already cancelled inside the window (a search field cleared) also
+  keeps Suite's hotkey from closing it. Inert is counted per layer
+  (`holdInert`), shared with `MessageDialog`, which used to restore only what
+  it had set itself, so closing a window under an open dialog (or the reverse)
+  freed the page early; live regions, toasts and the uploader's hidden file
+  inputs directly in `body` are never made inert. A dialog covered by a modal
+  window shown after it is inert and ignores keys until the window closes.
+  `SuiteRedraw.ts` makes a Suite view model's redraw keep its last drawing
+  when its render returns nothing, which only a destroyed view does, so the
+  pending redraw is dropped. No API or configuration change.
+- **Limits.** While an open project popup is detected, Escape goes no further than `<html>` (Suite must not close the window under it), so such a popup handles the key on itself, an ancestor or in the capture phase; a manual `popover` closed by a document-level listener stays open. Elements a page appends after a modal window that belong to the
+  page (rare: a non-modal window opened by code while a modal one is open)
+  stay usable. The focus returns to the opener only when it still exists: an
+  entry of a closed `Műveletek` dropdown or a grid row redrawn by a reload
+  leaves it on the page body. Tab order inside the window follows the
+  document order (no positive `tabindex`). Screen readers were not tested;
+  `inert` is the browser's own guarantee.
+- **Guides:** [modal windows](toolkit.md#modal-windows),
+  [long-lived windows](toolkit.md#long-lived-windows),
+  [dialogs](dialogs.md#billentyűzet-és-fókusz), [usage](usage.md), focused
+  checks in [development](development.md#focused-task-groups); migration M76.
+- **Verification:** on the managed demo with `npm run test:browser`.
+  Reproduced first on a build of the same tree without the change: on
+  `Kapcsolatok` (form rows), a resize between the form window's hide and its
+  destructor raised exactly the reported stack (`re` ← `_redraw` ← the
+  animation frame), while the rowless `Mellékletek` form never did; with a
+  modal `app.ui.window` open the page had no `inert`; with a non-modal window
+  open, the first Escape for a `role="menu"` closed the whole modal window,
+  and without one, an open native popover's Escape closed it as well. After
+  the change, the new retained `modal-windows.spec.cjs` (6 tests: the
+  reported 1366 × 800 → 883 × 844 order three times, the forced race at 0–3
+  frames, Tab and Shift+Tab containment, inert, focus return, a framework
+  dialog and a stacked window above a window, an unchanged non-modal window
+  and the record form window; the menu and the popover with and without a
+  non-modal window; layers closing out of order, a live region left
+  announced, a cancelled Escape) passed 3 of 3 with `--repeat-each=3`
+  together with `dialogs.spec.cjs` (42 passed). The focused groups
+  `dialogs`, `window-title`, `suite-labels`, `menu-commands`, `browser`,
+  `workspace`, `record-forms`, `form-accordion`, `form-rows` and every
+  existing `toolkit-*.spec.cjs`: 112 passed, one existing skip, one failure in
+  the new layer case, which found that a dialog covered by a later window still
+  took the keys (fixed); `menu-commands`, `window-title` and `record-forms`
+  then passed again (13). An earlier isolated failure of the 883 px round
+  coincided with another session republishing the demo assets mid-run and did
+  not repeat in 3 of 3. An independent review found the inert ownership, the
+  live-region and the cancelled-Escape gaps listed above; all fixed and
+  covered. `npm run typecheck`, `npm run build` and `npm run demo:assets`
+  passed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo; consumer
+  acceptance pending.

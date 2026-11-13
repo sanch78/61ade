@@ -229,6 +229,34 @@ focus) and after a click inside it. Suite gives only a modal window this key;
 the framework adds it to a `modal: false` window, which leaves an Escape
 pressed elsewhere on the page alone ([FB-0155](feedback.md#fb-0155)). An
 Escape that a menu or popup inside the window already took closes only that.
+
+<a id="modal-windows"></a>
+
+**Modal windows** (the default, and every framework record, action, filter
+and picker window) follow the [W3C APG dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
+([FB-0201](feedback.md#fb-0201)). While one is shown, everything before it
+in the document (the page, the menu row, earlier windows, modal or not) is
+`inert`, so neither Tab, the pointer nor a screen reader reaches it; Tab and
+Shift+Tab cycle inside the topmost window; closing it returns the focus to
+the element that had it before, when that still exists and the focus has not
+moved elsewhere. What opens above a window comes after it in the document and
+stays usable: Suite popups and menus, a stacked window (which
+contains the focus in turn and gives it back to the lower one) and framework
+dialogs ([dialogs](dialogs.md#billentyűzet-és-fókusz)). Live regions
+(`aria-live`, `role="status"`/`alert`/`log`) and toasts directly in `body` stay
+announced. Windows and dialogs count their hold on each inert element, so
+they may close in any order. A modal window shown while a framework dialog is
+open is drawn above it: the dialog is inert and takes no keys until the window
+closes. This holds for any Suite `Window` with `modal: true`, also one a
+project creates itself. Escape closes the topmost modal window that holds the
+focus, whether or not non-modal windows are open, unless a popup inside it
+takes the key: a handler that calls `preventDefault()` or stops the key
+before it reaches `<html>`, an open native `popover` (`:popover-open`) in or
+after the window, a focused `role="menu"`, or an `aria-expanded="true"`
+trigger with `aria-haspopup` (or `role="combobox"`) whose `aria-controls`
+popup is visible (without `aria-controls`, only while the trigger has the key). While such a popup is open the key goes no further than `<html>`, so Suite cannot close the window under it: a popup handles Escape on itself, an ancestor or in the capture phase, not on `document` or `window`. The window then closes on the next Escape. Non-modal windows are
+unchanged: nothing becomes inert and Tab leaves them.
+
 The close button is named `Ablak bezárása` (Close window) in the page's
 language, with the same tooltip; a window's own `Bezárás` button keeps its
 name. A fitted window (`fit`, a `RecordForm`) grows to its content up to
@@ -252,8 +280,10 @@ sign-out and a tenant switch reload it. Pass `modal: false` so the workspace
 and the menu row stay usable outside its own area; the row's popups open
 above it. Modal windows and dialogs opened later (a record editor, a
 confirmation) stack above it, Escape closes the topmost modal one (Suite
-alone left it open while a non-modal window existed), and a dialog returns
-the focus to where it was. A project that needs to know the page's view
+alone left it open while a non-modal window existed), and a modal window or
+dialog returns the focus to where it was ([modal windows](#modal-windows)).
+A `modal: true` long-lived window makes the page behind it inert until it
+closes. A project that needs to know the page's view
 listens to `view:opened` / `view:closed`; a [menu command](shell.md#menu-commands)
 is the usual way to open such a window from every view
 ([FB-0199](feedback.md#fb-0199)). While a non-modal window is open, a view
@@ -3012,6 +3042,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M73 | [Form rows](workspaces.md#form-rows): a field's `row` and `rowWidth` (PHP `Field`, JSON `row`, `row_width`), `FieldMetadata.row`/`.rowWidth`, `ColumnMetadata.row`/`.rowWidth`: consecutive fields of one section share a row of the action forms and stack into one column where the form is narrower than `--blade-form-column-min` per share; the list's and the tree navigation's form window opens wide enough for the widest row. The singleton's details form without an update right now keeps a fixed section fixed | [FB-0196](feedback.md#fb-0196) | none (additive; a form without rows is unchanged) | none | none |
 | M74 | [Menu commands](shell.md#menu-commands): `ApplicationDefinition` `menuCommands` (PHP `MenuCommand`, JSON `application.menu_commands`) put up to three emphasized commands in the menu row; their handler is an `app.commands` entry with `placement: "menu"` (`MenuCommand`, `MenuCommandContext`; the registry's type is `Registry<ClientCommand \| MenuCommand>`). [Long-lived windows](#long-lived-windows): `WindowOptions.maximizable`, `WindowOptions.id`, `AppWindow.maximized`/`maximize()`; the menu row's popups open above windows; Escape closes a modal window above a non-modal one | [FB-0199](feedback.md#fb-0199) | info: TypeScript code that reads `app.commands.get(…)` as a `ClientCommand` narrows by `placement`; a spec that measured the feature demo's menu row finds `Munkaasztal` after the navigation | none | none |
 | M75 | [View guide](workspaces.md#view-guide): while a non-modal window is open (a [long-lived window](#long-lived-windows)), a view opened behind it does not open its guide by itself; the guide stays unseen and `Útmutató` shows it | [FB-0200](feedback.md#fb-0200) | info: no declaration or API change; a spec that opened a long-lived window and then expected a view's first guide finds none | none | none |
+| M76 | [Modal windows](#modal-windows): a modal Suite window (`app.ui.window` by default, every framework record or action window, a project's own `new Window({modal: true})`) makes everything before it in the document `inert`, keeps Tab and Shift+Tab inside the topmost one and returns the focus to its opener on close; Escape closes the topmost focused modal window also without a non-modal one, but not while an open popup in it takes the key (`preventDefault`/stopped key, `:popover-open`, a focused `role="menu"`, an expanded `aria-haspopup` or combobox trigger). A Suite redraw asked for in the frame that destroys its view is dropped | [FB-0201](feedback.md#fb-0201) | info: a spec that tabbed from a modal window to the page behind it, or clicked through to an element before it, finds it inert; a popup inside a window that wants Escape to close the window as well must not mark itself open | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3172,6 +3203,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-13 | Empty-valued select filters: an option declared with the empty value is a filter condition (`filters: {field: ""}`) in header filters, the filter panel, `setFilters`, presets and saved filters; no filter shows an empty header control; a user filter on a hierarchy's parent field replaces the implicit root scope (M72). Behaviour fix. | A consumer's `Főasset` (no parent) option was shown in the header without filtering, and choosing it did not filter. | [FB-0195](feedback.md#fb-0195) |
 | 2026-11-13 | PHP `Field` `row`, `rowWidth`, JSON `row`, `row_width`; `FieldMetadata.row`/`.rowWidth`, `ColumnMetadata.row`/`.rowWidth`; CSS `--blade-form-column-min`: form rows of several columns that stack where the form is narrow; the list's form window opens as wide as its widest row (M73). Additive. | Every field took a full row, so a wide form was a narrow, tall stack of short inputs. | [FB-0196](feedback.md#fb-0196) |
 | 2026-11-13 | PHP `MenuCommand` and `ApplicationDefinition` `menuCommands`, JSON `application.menu_commands`, client `MenuCommand`/`MenuCommandContext` (`placement: "menu"`): application commands in the menu row on every view, emphasized, with a server-side `visible` and an optional view's attention count; `WindowOptions.maximizable` and `id`, `AppWindow.maximized`/`maximize()`: a maximize/restore button and a remembered box; long-lived non-modal windows documented; the row's popups above windows; Escape closes a modal window above a non-modal one (M74). Additive, except the registry type. | A consumer's work window must be reachable from every view through a conspicuous menu button, stay open across navigation, be large and remember its place. | [FB-0199](feedback.md#fb-0199) |
+| 2026-11-13 | Modal windows follow the APG dialog pattern: the page before the topmost modal window is `inert`, Tab and Shift+Tab cycle inside it, the focus returns to its opener; Escape closes it the same with or without non-modal windows and leaves an open popup inside it the first press; `WindowEscape.ts` became `ModalWindows.ts`. A Suite redraw of a destroyed view is dropped (`SuiteRedraw.ts`) (M76). | A modal work window left the keyboard free on the page behind it; an Escape for a project popup closed the window when a non-modal window was open; a window closed just before a viewport resize raised a page error. | [FB-0201](feedback.md#fb-0201) |
 
 <a id="resolved-decisions"></a>
 

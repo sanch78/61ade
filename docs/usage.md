@@ -356,7 +356,7 @@ MessageDialog.ts; actions use confirm, while successful action results and revea
 secrets use a non-blocking toast. Destructive dialogs
 focus Cancel; Enter activates only focused button; Escape always cancels confirmation.
 Consumers cannot create their own modal. Demo: Tasks → Párbeszéd actions.
-General rule: every framework `Window` is `modal: true`; while one is open the main layout behind the DHTMLX overlay is not operable. The one exception is the [view guide](workspaces.md#view-guide) (M34); a project's own `app.ui.window` may pass `modal: false`. Escape closes either kind while the focus is inside it ([FB-0155](feedback.md#fb-0155)), and the topmost modal window also while a non-modal one is open ([FB-0199](feedback.md#fb-0199)).
+General rule: every framework `Window` is `modal: true`; while one is open the main layout behind the DHTMLX overlay is not operable. The one exception is the [view guide](workspaces.md#view-guide) (M34); a project's own `app.ui.window` may pass `modal: false`. Escape closes either kind while the focus is inside it ([FB-0155](feedback.md#fb-0155)), and the topmost modal window also while a non-modal one is open ([FB-0199](feedback.md#fb-0199)). A modal window makes the page behind it inert, keeps Tab inside it and returns the focus to its opener when it closes; an open popup inside it (a native popover, a `role="menu"`, an expanded `aria-haspopup` trigger, or one that stops or cancels the key) takes the first Escape ([modal windows](toolkit.md#modal-windows), [FB-0201](feedback.md#fb-0201)).
 Actions without input fields run directly and acknowledge success with a
 non-blocking gritter/toast; a dialog is reserved for a justified confirmation
 or an error.

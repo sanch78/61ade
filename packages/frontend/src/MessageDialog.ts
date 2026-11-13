@@ -1,4 +1,5 @@
 import { t } from "./I18n";
+import { holdInert } from "./ModalWindows";
 
 /** Semantics of a message; independent of how the user answers it. */
 export type DialogSeverity = "neutral" | "warning" | "danger";
@@ -128,8 +129,8 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
   overlay.append(box);
 
   return new Promise<boolean | string>(resolve => {
-    // Everything behind the dialog becomes inert; restored in LIFO order for stacked dialogs.
-    const inerted = Array.from(document.body.children).filter(node => node !== overlay && !node.hasAttribute("inert"));
+    // Everything behind the dialog becomes inert, counted with the modal windows' holds (any closing order).
+    let release = () => {};
     let done = false;
     const entry = {
       node: overlay,
@@ -139,7 +140,7 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
         if (applyAll && checkbox) applyAll.checked = checkbox.checked;
         document.removeEventListener("keydown", keydown, true);
         overlay.remove();
-        inerted.forEach(node => node.removeAttribute("inert"));
+        release();
         open.splice(open.indexOf(entry), 1);
         if (previous?.isConnected) previous.focus({ preventScroll: true });
         resolve(value);
@@ -154,7 +155,8 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
     let pressed = false;
     const activate = (value: boolean | string) => (event: MouseEvent) => { if (event.detail > 0 || pressed) entry.close(value); };
     const keydown = (event: KeyboardEvent) => {
-      if (open[open.length - 1] !== entry) return;
+      // Only the top dialog takes keys, and not while a modal window shown later covers it (inert).
+      if (open[open.length - 1] !== entry || overlay.hasAttribute("inert")) return;
       pressed = true;
       if (event.key === "Escape" || event.key === "Esc") {
         event.preventDefault();
@@ -175,7 +177,7 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
     answers.forEach((node, index) => node.addEventListener("click", activate(choices![index].value)));
     cancel?.addEventListener("click", activate(false));
     open.push(entry);
-    inerted.forEach(node => node.setAttribute("inert", ""));
+    release = holdInert(Array.from(document.body.children));
     document.addEventListener("keydown", keydown, true);
     document.body.append(overlay);
     const focusCancel = confirmMode && (severity === "danger" || options.initialFocus === "cancel");
