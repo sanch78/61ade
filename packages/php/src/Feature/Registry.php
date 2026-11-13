@@ -25,7 +25,7 @@ final class Registry
         $this->kinds=['list'=>new ListViewKind($this,$meta),'files'=>new FileViewKind($this,$meta),'diagram'=>new DiagramViewKind($this,$meta),'calendar'=>new CalendarViewKind($this,$meta)];
         $this->generic=new GenericViewKind($meta);
     }
-    public function registerFields(string $resource, array $fields): void { Field::checkSections($fields); $this->fields[$resource] = array_column($fields, null, 'name'); }
+    public function registerFields(string $resource, array $fields): void { Field::checkSections($fields, true); $this->fields[$resource] = array_column($fields, null, 'name'); }
     public function fields(string $resource): array { return $this->fields[$resource] ?? []; }
     /** Count fields of $resource (name => {resource, match, filters?, on?}); checked against the counted resource by checkViews(). */
     public function counts(string $resource, array $counts): void { $this->counts[$resource] = $counts; }

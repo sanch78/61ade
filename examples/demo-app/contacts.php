@@ -11,6 +11,8 @@ declare(strict_types=1);
  * `Galéria` an upload queue.
  * The photo is a stored file in the attachments' store (attachments.php): its upload and GET actions, committed on save.
  * The gallery holds up to six images (`file.multiple`): its section is the uploader's drop zone and queue.
+ * The short fields share form rows (`row`, FB-0196); the window opens as wide as the widest row, and a narrow window or a
+ * phone stacks them into one column.
  */
 
 use Blade\Feature\{Context, Field, SqlResource, Workspace};
@@ -29,18 +31,20 @@ function blade_demo_contacts_register(Workspace $workspace): void
 {
     $contacts = new SqlResource('demo_contacts', 'demo_contacts', 'id', [
         // Outside the sections: plain rows above them, headed by the window's title (in cards an untitled group).
-        new Field('name', 'Név', required: true, max: 120),
-        new Field('organization', 'Szervezet', max: 120),
-        new Field('role', 'Beosztás', max: 80, section: 'Elérhetőség'),
-        new Field('email', 'E-mail', required: true, max: 160, section: 'Elérhetőség'),
-        new Field('phone', 'Telefon', max: 40, section: 'Elérhetőség'),
+        // Form rows (FB-0196): the short fields share a row (`row`, a wider share by `rowWidth`), the street and the
+        // website take the full width; a narrow window stacks every row into one column.
+        new Field('name', 'Név', required: true, max: 120, row: 'identity'),
+        new Field('organization', 'Szervezet', max: 120, row: 'identity'),
+        new Field('role', 'Beosztás', max: 80, section: 'Elérhetőség', row: 'reach'),
+        new Field('email', 'E-mail', required: true, max: 160, section: 'Elérhetőség', row: 'reach', rowWidth: 2),
+        new Field('phone', 'Telefon', max: 40, section: 'Elérhetőség', row: 'reach'),
         new Field('website', 'Weboldal', max: 200, section: 'Elérhetőség'),
-        new Field('postal_code', 'Irányítószám', max: 10, section: 'Cím'),
-        new Field('city', 'Település', max: 80, section: 'Cím'),
+        new Field('postal_code', 'Irányítószám', max: 10, section: 'Cím', row: 'place'),
+        new Field('city', 'Település', max: 80, section: 'Cím', row: 'place'),
+        new Field('country', 'Ország', 'select', defaultValue: 'HU', options: ['HU' => 'Magyarország', 'AT' => 'Ausztria', 'DE' => 'Németország', 'SK' => 'Szlovákia'], section: 'Cím', row: 'place'),
         new Field('street', 'Utca, házszám', max: 160, section: 'Cím'),
-        new Field('country', 'Ország', 'select', defaultValue: 'HU', options: ['HU' => 'Magyarország', 'AT' => 'Ausztria', 'DE' => 'Németország', 'SK' => 'Szlovákia'], section: 'Cím'),
-        new Field('channel', 'Kapcsolattartás módja', 'select', defaultValue: 'email', options: ['email' => 'E-mail', 'phone' => 'Telefon', 'post' => 'Levél'], section: 'Beállítások'),
-        new Field('newsletter', 'Hírlevelet kér', 'checkbox', section: 'Beállítások'),
+        new Field('channel', 'Kapcsolattartás módja', 'select', defaultValue: 'email', options: ['email' => 'E-mail', 'phone' => 'Telefon', 'post' => 'Levél'], section: 'Beállítások', row: 'settings'),
+        new Field('newsletter', 'Hírlevelet kér', 'checkbox', section: 'Beállítások', row: 'settings'),
         // Each alone in its section, which it fills (FB-0181): the header names it.
         new Field('note', 'Megjegyzés', 'textarea', max: 1000, section: 'Megjegyzés', sectionFill: true),
         new Field('photo', 'Fénykép', 'file', file: ['upload' => 'demo_attachments.file_upload', 'get' => 'demo_attachments.file', 'accept' => ['image']], section: 'Fénykép', sectionFill: true),
@@ -50,6 +54,6 @@ function blade_demo_contacts_register(Workspace $workspace): void
         foreach (array_filter(explode(',', ($values['photo'] ?? '').','.($values['gallery'] ?? ''))) as $token) $ctx->db->prepare("UPDATE demo_attachment_files SET state = 'committed' WHERE id = ? AND state = 'pending'")->execute([$token]);
     });
     $contacts->register($workspace->registry, 'Kapcsolatok', group: 'Feature demó', formSections: 'accordion', flushSections: true,
-        guide: 'Accordion űrlapszakaszok: a Hozzáadás és a Módosítás ablaka fix magasságú, a szakaszok egymás alatt, a Médiatár oldalsávjához hasonlóan nyílnak, egyszerre egy. Másik szakasz kinyitásakor az ablak mérete nem változik; a hosszabb szakasz a saját helyén görget. A név és a szervezet a szakaszok fölött, saját fejléc nélkül áll.');
+        guide: 'Accordion űrlapszakaszok: a Hozzáadás és a Módosítás ablaka fix magasságú, a szakaszok egymás alatt, a Médiatár oldalsávjához hasonlóan nyílnak, egyszerre egy. Másik szakasz kinyitásakor az ablak mérete nem változik; a hosszabb szakasz a saját helyén görget. A név és a szervezet a szakaszok fölött, saját fejléc nélkül áll.'."\n\n".'Űrlapsorok: a rövid mezők egymás mellett állnak (az E-mail dupla szélességű), a hosszabbak a teljes szélességet kapják. Keskeny ablakban vagy telefonon minden sor egy oszlopba rendeződik.');
     $contacts->registerDelete($workspace->registry);
 }

@@ -8498,6 +8498,95 @@ that exactly equals an option label lists every option. The managed
 - **Status:** implemented and verified on the managed demo; owner acceptance
   pending.
 
+<a id="fb-0196"></a>
+
+## FB-0196 — Multi-column form layout
+
+- **Date:** 2026-11-13.
+- **Request (owner):** a form declared through 61ade can be designed in
+  several columns: short fields share a row, long ones span the width, with
+  unequal widths where that reads better, per section, and a fallback to one
+  column where the form (not the viewport) is narrow; a phone at 390 px shows
+  one column without horizontal scrolling. Opt-in: forms without it keep
+  their layout. Scope: `RecordForm`, the built-in create and update forms
+  (window and panel), record action forms and the singleton's details form,
+  PHP and JSON, inside and outside form sections (fixed, collapsible,
+  accordion, section-filling fields). Not the bulk form, grid and card
+  editors, `SettingsForm` or the card and details groups.
+- **Decision (owner, 2026-11-13):** field-level row keys over a
+  section-level column count. `row` (PHP `Field`, JSON `row`) groups
+  consecutive fields of one section into one row, a Suite Form `cols` item;
+  `rowWidth` (JSON `row_width`, 1–3, default 1) is a field's relative share.
+  A field without `row` keeps the full width; a section-filling field is
+  never in a row. The row stacks into one column as a whole when it is
+  narrower than its shares × `--blade-form-column-min` (CSS only, so the
+  breakpoint follows the form's own width). A column count would repeat on
+  every field of a section, need a form-level counterpart and a span option
+  anyway, and either fight Suite's flex layout or leave holes for hidden
+  fields. The list's form window opens wide enough for its widest row
+  (at least 560 px, at most the viewport − 24 px); forms without rows keep
+  560 px.
+- **Implementation:** `Field` `row`/`rowWidth` with the JSON loader's
+  `row`/`row_width`; `Field::checkSections` refuses a row that is not one
+  run of at most 4 consecutive fields of one section (in a resource's
+  declaration also fewer than 2; an action's fields may keep one), and the
+  constructor refuses a bad key, a share outside 1–3, a
+  share without a row and a row on a section-filling field. The form
+  metadata and the list columns carry `row` and `rowWidth` (when not 1).
+  `formRows` (`fields.ts`) puts the consecutive fields of one row into one
+  Suite `cols` item, inside or outside a section, each cell classed by its
+  share; `form-row.css` lets the cells grow by their shares and, by a flex
+  basis of `(row minimum − 100%) × 999`, stack all at once below the row's
+  minimum; a lone cell takes the whole row. A field's label in a row stays
+  on one line (ellipsis), keeps its required mark in a reserved right
+  padding and carries its text as a tooltip; a checkbox is centred on the
+  inputs' line while the row is side by side (a padding clamped by the row's
+  width, 0 once it stacks). `formWindowWidth` sizes the list's and the tree
+  navigation's form windows from the resolved `--blade-form-column-min`,
+  with 20 px of room for a scrollbar. The singleton details form without an
+  update right takes `row`, and now also `sectionCollapsible`, from the
+  columns. The feature demo's `Kapcsolatok` uses rows (its street field
+  moved after the country, so that the three short address fields are
+  consecutive). An independent review found a lone row cell collapsing to
+  its content, a cut label hiding its required mark, the checkbox offset
+  staying when stacked and no scrollbar room in the window width; all four
+  were fixed before the verification below.
+- **Guides:** [form rows](workspaces.md#form-rows),
+  [RecordForm](toolkit.md#recordform), [usage](usage.md),
+  [demos](demos.md), focused checks in
+  [development](development.md#focused-task-groups); migration M73.
+- **Verification:** `npm run typecheck`, `npm run build`,
+  `npm run demo:assets` passed. PHP `record-forms.php` (new: wire metadata of
+  forms and columns, JSON `row`/`row_width`, refused keys, shares, a share
+  without a row, a row on a section-filling field, a split or cross-section
+  row, five fields, a lone declared field; an action keeping one),
+  `configuration.php`, `contracts.php`, `stored-file.php`, `lists.php`,
+  `tree-navigation.php`, `toolkit.php`, `access.php`, `permissions.php`,
+  `validation.php` and `i18n.php` passed. The new retained
+  `form-rows.spec.cjs` on the managed demo (7 tests): `Kapcsolatok` at
+  1366, 880 and 390 px (rows side by side at 1366 and 880, stacked at 390;
+  the window 872 px, or the viewport − 24 px; the double share; no sideways
+  scrolling; Tab `Név`, `Szervezet`, `Elérhetőség`, `Beosztás`, `E-mail`,
+  `Telefon`, `Weboldal`; a required error under its own field with the
+  row's line, widths and input tops unchanged; the checkbox centred on the
+  select side by side and without a gap stacked), a `RecordForm` in 900 and
+  480 px `AppWindow`s at a 1366 px viewport (side by side and stacked; the
+  wider one fitted lower), a hidden conditional field leaving no hole and
+  returning, a lone remaining field taking its row, long labels cut on one
+  line with tooltip and a visible required mark, and `Jegyzetek` without rows
+  (560 px window, full-width fields). Then `form-rows`, `form-accordion`,
+  `record-forms`, `stored-file`, `toolkit-list`, `workspace`, `accordion`,
+  `theme-motion`, `registry` and `window-title` together: 49 passed, one
+  existing transport skip. `form-accordion` needed two test updates: the
+  flush-inset check measures the shared name row, and the section-filling
+  check waits for the opening motion before measuring (it raced it).
+  A temporary probe under Blade, Blade Night, Világos and Éjjeli showed the
+  checkbox and select centres equal and the row's inputs on one top; the
+  demo skins change colours only. Task-only probes and screenshots were
+  removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo; owner
+  acceptance pending.
+
 
 <a id="fb-0197"></a>
 

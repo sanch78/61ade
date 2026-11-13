@@ -462,7 +462,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | File manager/multipart/Tree | `php8.4 tests/shell/files.php`; shell `files.spec.cjs` (also `access.php` for executor changes) |
 | File fields, upload claims | PHP `stored-file.php`, `files.php`, `signage.php`; shell `stored-file.spec.cjs`, `signage.spec.cjs`, `uploader.spec.cjs` |
 | Count fields | PHP `counts.php`, `tenancy.php`, `lists.php`, `configuration.php`; shell `count-fields.spec.cjs`, `tenancy.spec.cjs`, `subview.spec.cjs` |
-| Action forms: read-only fields, form sections (panels and accordion) | PHP `record-forms.php`, `configuration.php`, `stored-file.php`, `contracts.php`; shell `record-forms.spec.cjs`, `form-accordion.spec.cjs`, `stored-file.spec.cjs`, `toolkit-list.spec.cjs`, `workspace.spec.cjs`, `accordion.spec.cjs` |
+| Action forms: read-only fields, form sections (panels and accordion), form rows | PHP `record-forms.php`, `configuration.php`, `stored-file.php`, `contracts.php`; shell `record-forms.spec.cjs`, `form-accordion.spec.cjs`, `form-rows.spec.cjs`, `stored-file.spec.cjs`, `toolkit-list.spec.cjs`, `workspace.spec.cjs`, `accordion.spec.cjs` |
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
 | Tree navigation, conditional fields, view guides | `php8.4 tests/shell/tree-navigation.php`, `contracts.php`, `configuration.php`, `i18n.php`; `npm run typecheck`; shell `registry.spec.cjs` |
 | Feature demo module (`examples/demo-app/frontend`) | `npm run typecheck`, `npm run build` (`node tools/build.mjs --check`); PHP `contracts.php`, `signage.php`; shell `toolkit-demo*.spec.cjs` of the changed area (`tabs.spec.cjs` for the playlist editor's tabs) |

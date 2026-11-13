@@ -791,7 +791,10 @@ form.mount(win);
   runs them edge to edge of the form. A field declaring `sectionFill` (`FieldMetadata.sectionFill`,
   FB-0181) is its section's whole content, named by the header: an open
   accordion section is the textarea, or the file field's drop area fills
-  it ([section-filling fields](workspaces.md#form-section-fill)).
+  it ([section-filling fields](workspaces.md#form-section-fill)). Fields
+  declaring the same `row` (`FieldMetadata.row`, `rowWidth`, FB-0196) share
+  one row, side by side by their shares, and stack into one column where the
+  form is narrower than the row needs ([form rows](workspaces.md#form-rows)).
 - The submit button is the action's `submitLabel` from an offered view, else
   its label (`Mentés` only without either), so a project view's query action
   submits under its own name. A read-only action (`write: false`) shows no
@@ -2967,6 +2970,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M70 | [Tree presentation](#tree-presentation): every Suite Tree row is 40 px high (a grid row) with one ellipsized line; `TreeOptions.striped` and `TreeOptions.lines` (default `true`), `Registry::tree(..., striped:, lines:)`, JSON `tree.striped` / `tree.lines`, `TreeMetadata.striped` / `.lines` (sent only when `false`) | [FB-0193](feedback.md#fb-0193) | info: a spec or screenshot that measured tree rows finds 40 px instead of about 24 px, and the toggle of an expandable node is a framed +/- box (the arrow with `lines: false`); a node label no longer wraps; the selected tree row and the grid's cursor row have a straight 3 px bar and a thin frame (no slanted bar, no lower glow) | none | none |
 | M71 | [Window title](#window-title): `WindowOptions.titleOverflow` (`"end"` default, `"start"`: a leading `…`, the end stays visible) and `titlePrefix` (never cut); a cut title shows the full title as its tooltip; `AppWindow.setTitle` also renames the window's accessible name | [FB-0194](feedback.md#fb-0194) | info: a spec that read the dialog's name after `setTitle` finds the new title instead of the opening one | none | none |
 | M72 | [Empty-valued select filters](workspaces.md#integrated-grid-header-filters): a select option declared with the empty value is a real filter condition (`filters: {field: ""}`) in the header picker, the filter panel, `setFilters`, `#filter.<field>=` presets and saved filters; no filter shows an empty header control. A user filter on a hierarchy's parent field replaces its implicit root scope | [FB-0195](feedback.md#fb-0195) | info: a list with an empty-valued option no longer shows that option's label in the header without filtering; a spec that expected `setFilters({field: ""})` or a saved `""` to be ignored for such a select now sees the condition requested | none: its `Szülőasset` header filter's `Főasset` option now filters (was shown without filtering) | none |
+| M73 | [Form rows](workspaces.md#form-rows): a field's `row` and `rowWidth` (PHP `Field`, JSON `row`, `row_width`), `FieldMetadata.row`/`.rowWidth`, `ColumnMetadata.row`/`.rowWidth`: consecutive fields of one section share a row of the action forms and stack into one column where the form is narrower than `--blade-form-column-min` per share; the list's and the tree navigation's form window opens wide enough for the widest row. The singleton's details form without an update right now keeps a fixed section fixed | [FB-0196](feedback.md#fb-0196) | none (additive; a form without rows is unchanged) | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3125,6 +3129,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-12 | Tree rows as high as grid rows (40 px, one line); `TreeOptions.striped` / `lines` (default on), the same for tree navigation (`Registry::tree` named arguments, JSON `tree.striped` / `tree.lines`) (M70). Additive; the row height changes for every tree. | Owner request: bring the tree visually closer to grid rows, with optional stripes and the classic dotted lines with +/- boxes; the selected row like the grid's cursor row. | [FB-0193](feedback.md#fb-0193) |
 | 2026-11-12 | `WindowOptions.titleOverflow` (`"end"` default, `"start"`) and `titlePrefix`: a long window title is cut at its start with the prefix kept, the full title as tooltip and accessible name; `setTitle` updates the accessible name (M71). Additive. | A consumer titles its editor windows with a path whose end names what is edited; the title was cut at its end. | [FB-0194](feedback.md#fb-0194) |
 | 2026-11-13 | Empty-valued select filters: an option declared with the empty value is a filter condition (`filters: {field: ""}`) in header filters, the filter panel, `setFilters`, presets and saved filters; no filter shows an empty header control; a user filter on a hierarchy's parent field replaces the implicit root scope (M72). Behaviour fix. | A consumer's `Főasset` (no parent) option was shown in the header without filtering, and choosing it did not filter. | [FB-0195](feedback.md#fb-0195) |
+| 2026-11-13 | PHP `Field` `row`, `rowWidth`, JSON `row`, `row_width`; `FieldMetadata.row`/`.rowWidth`, `ColumnMetadata.row`/`.rowWidth`; CSS `--blade-form-column-min`: form rows of several columns that stack where the form is narrow; the list's form window opens as wide as its widest row (M73). Additive. | Every field took a full row, so a wide form was a narrow, tall stack of short inputs. | [FB-0196](feedback.md#fb-0196) |
 
 <a id="resolved-decisions"></a>
 

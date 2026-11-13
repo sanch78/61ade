@@ -653,6 +653,17 @@ Opening a [section-filling textarea](workspaces.md#form-section-fill) in an
 accordion form focuses it with the caret at the end of its text, by click,
 Enter or Space. It works in both accordion modes without a new option.
 
+A form can be laid out in several columns with
+[form rows](workspaces.md#form-rows) ([FB-0196](feedback.md#fb-0196)):
+consecutive fields of one section that declare the same `row` (PHP `Field`,
+JSON `row`) share a row, `rowWidth` (JSON `row_width`, 1–3) widens a field's
+share, and a field without a row keeps the full width. A row stacks into one
+column where the form itself is narrower than the row needs
+(`--blade-form-column-min`, default 180 px per share), and the list's form
+window opens wide enough for its widest row. Forms without rows are
+unchanged. The feature demo's `Kapcsolatok` uses it;
+`tests/shell/form-rows.spec.cjs` checks it at 1366, 880 and 390 px.
+
 No list or page region is a bare blank area
 ([loading and empty states](toolkit.md#loading-and-empty-states)): every list
 shows a loading indicator (`aria-busy`) while it loads and says when it has
