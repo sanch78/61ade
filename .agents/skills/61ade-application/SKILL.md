@@ -79,14 +79,18 @@ that covers the need.
    Modules translate through `app.i18n.t` with the same catalogues. Update
    every catalogue ([i18n](../../../docs/i18n.md#fordítási-szerződés),
    [G1 decision 2](../../../docs/toolkit.md#open-points)).
-7. **Look and sign-in:** use [skins](../../../docs/shell.md#application-skins)
-   for the signed-in pages. For the sign-in pages use `logo` (placement
+7. **Look and sign-in:** follow [61ade-skinning](../61ade-skinning/SKILL.md):
+   project appearance extends the Blade or Generic family through scoped
+   differences, never a standalone replacement theme. Use
+   [skins](../../../docs/shell.md#application-skins) for member/public pages.
+   For sign-in branding use `logo` (placement
    `window`, `top` or `both`), `signInStylesheets` and the `signIn` notice
    and links ([sign-in customization](../../../docs/shell.md#sign-in-branding)).
    Style only through the [supported CSS hooks](../../../docs/shell.md#sign-in-css-hooks).
    Framework classes such as `.blade-navigation-row`, Suite `.dhx_*` classes
    and the DOM structure may change in any release. Replace output-buffer CSS
-   or markup injection with these options.
+   or markup injection with these options. A public application's skin stays
+   behind its sign-in steps; login-only pages have no skin before sign-in.
 
 ## 3. Add a project module
 

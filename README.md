@@ -75,13 +75,14 @@ The PHP namespace is `Blade\`.
 
 ## Agent skills for consumers
 
-This checkout ships two agent skills for consumer project sessions, in
+This checkout ships three agent skills for consumer project sessions, in
 `.agents/skills/`:
 
 | Skill | Use it for |
 | --- | --- |
 | [`61ade-consumer`](.agents/skills/61ade-consumer/SKILL.md) | Adopting and updating 61ade: links, `.deploy.json` `shared_assets`, autoloader, guarded browser tests, test accounts, migration and the update smoke check |
 | [`61ade-application`](.agents/skills/61ade-application/SKILL.md) | Building the application: ownership, declarations first, project modules on `app`, extension points, sandbox, TypeScript, tests, updates and boundaries |
+| [`61ade-skinning`](.agents/skills/61ade-skinning/SKILL.md) | Customizing appearance by extending the Blade or Generic family, scoped skin CSS, light/dark variants and visual verification |
 
 The skills give the order, the decisions and the pitfalls, and link to the
 contracts in `docs/`. When a skill and a contract disagree, the contract wins.

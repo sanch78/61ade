@@ -367,6 +367,11 @@ existing valid choices persist, a removed one (such as the former `skyblue`)
 falls back to Blade. `blade-theme` in localStorage is a browser preference,
 not authorization/profile data.
 
+These are two inheritance families: Blade (`blade`/`blade-night`) and Generic
+(`light`/`dark`). Generic is a family name, not another `setTheme` or
+`Skin.base` identifier. Project appearances must extend one of these families;
+see the [skinning contract and consistency assessment](skinning.md).
+
 Blade is the DHTMLX theme `blade`, defined through the documented
 [custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/) and
 DHTMLX CSS variables (`themes/blade.css`, glossy chrome in
@@ -455,13 +460,15 @@ application's stylesheet overrides documented Suite `--dhx-*` variables on that
 selector ([custom-theme API](https://docs.dhtmlx.com/suite/themes/custom_theme/)).
 Everything keyed to the base keeps working unchanged: the Suite dark variables,
 the framework's dark and Blade rules, and the calendar's dark Scheduler skin.
-A skin only states what differs. Controls stay native; 61ade ships no
-application CSS.
+A skin only states what differs. A project-named skin must extend the Blade
+or Generic family, not replace the theme or copy its complete stylesheet.
+Controls stay native; 61ade ships no application CSS. Use the
+[61ade-skinning workflow](../.agents/skills/61ade-skinning/SKILL.md).
 
 ```php
 use Blade\Shell\{ApplicationDefinition, Identity, Skin};
 
-$brand = new Skin('brand', 'Márka', 'skins/brand.css');              // light base
+$brand = new Skin('brand', 'Márka', 'skins/brand.css', base: 'light'); // Generic light
 $night = new Skin('brand-night', 'Márka éjjel', 'skins/night.css', base: 'dark');
 return new ApplicationDefinition(
     // ...
@@ -479,21 +486,30 @@ return new ApplicationDefinition(
 }
 ```
 
-- `Skin(id, label, stylesheet, base = 'light')`: `id` is lowercase
-  `[a-z][a-z0-9-]*` and must not be a factory theme (`blade`, `blade-night`,
+- `Skin(id, label, stylesheet, base = 'light')`: `id` is lowercase,
+  1–40 characters matching `[a-z][a-z0-9-]*`, and must not be a factory theme (`blade`, `blade-night`,
   `light`, `dark`, `contrast-light`, `contrast-dark`); `label` is localized like other
   texts; `stylesheet` is a `.css` path relative to the page, checked like
   `assets`, with an optional `?v=…` cache key; without one the shell appends the
   stylesheet file's [cache key](toolkit.md#cache-keys). Same-origin paths only, so CSP
-  `style-src 'self' 'unsafe-inline'` holds. `base` is `light`, `dark`, `blade` or `blade-night`.
+  `style-src 'self' 'unsafe-inline'` holds. `base` is `light`, `dark`, `blade` or `blade-night`;
+  choose it explicitly for a project variant. A light/dark pair uses the same family.
 - Skin stylesheets load after the framework CSS, so a `[data-blade-skin]`
-  variable wins over the same base variable at equal specificity. Keep to
-  `--dhx-*` variables; selectors on framework or Suite classes are not a
-  supported contract.
-- The closure runs on the server for the authenticated identity only. The
-  sign-in, confirmation and password-change pages never load skins. Its result
-  goes into the bootstrap `skins` list (id and label) and the shell links the
-  stylesheets. No closure or an empty list: unchanged factory behavior.
+  variable wins over the same base variable at equal specificity. All offered
+  stylesheets load together, so scope each variant's differences to its exact
+  skin ID. Use documented `--dhx-*` variables and explicitly documented 61ade
+  customization properties, such as [motion duration](#theme-motion) or the
+  [card hover edge](#61ade-character). Other `--blade-*` implementation tokens
+  and selectors on framework or Suite classes are not a supported contract.
+  Suite colour/radius overrides do not restyle every character-layer surface;
+  see [customization limits](skinning.md#customization-limits).
+- The closure runs on the server for the effective identity: an authenticated
+  member or the dedicated public account. Login-only applications load no
+  skins on sign-in, confirmation or password-change pages. Public applications
+  keep the public actor's skin behind every sign-in step; member skins apply
+  only after sign-in. Its result goes into the bootstrap `skins` list (id,
+  label and base), and the shell links the stylesheets. No closure or an empty
+  list: unchanged factory behavior.
 - With skins the factory themes are not offered. One skin is applied with
   `setTheme` and the theme selector is hidden; several skins fill the selector
   with only those skins.
@@ -503,8 +519,10 @@ return new ApplicationDefinition(
   change) gets the previous factory theme back, and the sign-in page keeps it.
 - Presentation only: a skin grants or limits nothing. Endpoint policy, ACL and
   menu policy stay the access control.
-- New framework rules for one theme keep targeting `data-dhx-theme`, never a
-  skin id, so they reach every skin built on that base.
+- New framework rules use `data-dhx-theme` for Suite light/dark behavior and
+  `data-blade-theme` for Blade-family character, never a child skin ID, so they
+  reach every skin built on that base. The shell owns all theme markers;
+  project code reads them and never calls `setTheme` or writes them.
 
 The feature demo grants the synthetic neutral `demo-slate` skin (light base) to
 `skin@example.test`, and `demo-slate` plus `demo-ink` (dark base) to
@@ -733,9 +751,10 @@ rely on these hooks only:
 
 | Hook | Meaning |
 | --- | --- |
-| `data-blade-page` on `<html>` | Page kind, set by the server before any script runs: `sign-in`, `confirmation` (e-mail code), `password-change` (forced temporary password replacement), `shell` (signed in). |
+| `data-blade-page` on `<html>` | Page kind, set by the server before any script runs: `sign-in`, `confirmation` (e-mail code), `password-change` (forced temporary password replacement), `shell` (member or public application). |
+| `data-blade-theme` on `<html>` | Factory lineage (`blade`, `blade-night`, `light`, `dark`), including the base of an active skin; read it, never set it. |
 | `data-dhx-theme` on `<html>` | Applied Suite theme (`blade`, `light`, `dark`; Blade Night applies `dark`), set by the shell; read it, never set it. |
-| `data-blade-skin` on `<html>` | Active [skin](#application-skins) id (signed in, with skins only). |
+| `data-blade-skin` on `<html>` | Active [skin](#application-skins) id for a member or public actor, including the public background of sign-in steps. |
 | `.blade-logo`, `.blade-logo__image` | A logo copy and its images. |
 | `--blade-logo-height` (24px), `--blade-logo-max-width` (160px) | Size of the top-row logo; the row measures the rendered logo. |
 | `--blade-sign-in-logo-height` (48px) | Height of the logo in the sign-in windows. |

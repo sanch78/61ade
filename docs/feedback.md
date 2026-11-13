@@ -8525,3 +8525,42 @@ that exactly equals an option label lists every option. The managed
   `git diff --check` passed. Documentation and skill changes only; no browser
   test was needed.
 - **Status:** updated and validated.
+
+<a id="fb-0198"></a>
+
+## FB-0198 — Inherited project skins and family consistency assessment
+
+- **Date:** 2026-11-13.
+- **Request (owner):** create a skinning skill that requires projects to
+  extend the Blade or Generic appearance family, and assess whether the
+  existing skin sets are consistent.
+- **Decision:** a project appearance is a scoped delta over an explicit
+  `blade`/`blade-night` or `light`/`dark` base. Generic is the family name for
+  light/dark, not another API value. A project-named child `Skin` is supported;
+  a standalone replacement theme or copied framework/vendor stylesheet is
+  outside the authoring contract. Native controls and the shell's theme
+  application remain inherited. No runtime signature/default changes.
+- **Guides:** [61ade-skinning](../.agents/skills/61ade-skinning/SKILL.md),
+  [family contract and assessment](skinning.md), [skin API](shell.md#application-skins),
+  [usage](usage.md), the other skill entrypoints and local Claude discovery.
+  Corrected public-actor/sign-in skin behavior, bootstrap base metadata,
+  root-theme hooks and the distinction between documented customization
+  properties and internal tokens.
+- **Assessment:** inheritance and the palette structure are coherent (the
+  Blade pair has the same 30 character tokens). Source inspection confirms
+  a Generic focused-error shadow precedence defect. Brand/geometry tokens
+  have limits and a full cross-family state matrix is absent. Intentional
+  family differences are separated from defects and unverified coverage;
+  CSS fixes and broader token APIs remain proposed follow-up work.
+- **Verification:** the skill validator, all four skills' metadata/default
+  invocations/Claude links, 40 local links and anchors in the new skill and
+  assessment, palette token symmetry and `git diff --check` passed. A separate
+  public/member light/dark consumer scenario review found no contradictory
+  instructions. Focused browser checks were attempted through the managed
+  wrapper: a cold vendor fetch failed the pinned `dhx-icons.css` hash;
+  reusing existing assets that match all pinned hashes reached the guard,
+  but both attempts returned exit 75 while another development check ran.
+  No browser launched and no new browser-pass or full visual acceptance
+  claim is made. Temporary review assets were removed.
+- **Status:** skill and source assessment delivered; runtime improvements
+  and missing browser combinations remain follow-up proposals.

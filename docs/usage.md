@@ -722,7 +722,11 @@ is Blade and valid saved choices persist.
 
 Optional [application skins](shell.md#application-skins) (`ApplicationDefinition
 skins:` or JSON `application.skins`) give selected signed-in identities
-application-owned DHTMLX custom themes instead of the factory ones. One skin
+and public accounts an appearance derived from a factory base. Project
+appearances must extend the Blade (`blade`/`blade-night`) or Generic
+(`light`/`dark`) family through scoped differences, preserving native controls;
+use [61ade-skinning](../.agents/skills/61ade-skinning/SKILL.md) and the
+[family contract and consistency assessment](skinning.md). One skin
 hides the selector; several fill it with only those skins. Presentation only;
 without the option nothing changes.
 

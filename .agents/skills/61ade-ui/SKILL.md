@@ -13,6 +13,8 @@ public runtime contract remains in the project's topic guides and takes
 precedence when guidance differs. For consumer application features use
 [61ade-application](../61ade-application/SKILL.md); for integration use
 [61ade-consumer](../61ade-consumer/SKILL.md).
+For skin customization and family consistency reviews use
+[61ade-skinning](../61ade-skinning/SKILL.md).
 
 ## Establish the boundary first
 

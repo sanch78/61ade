@@ -14,6 +14,8 @@ pitfalls; when it and the contract disagree, follow the contract. The 61ade
 checkout is read-only for a consumer session. Report a framework gap to the
 61ade owner instead of patching it.
 To design and build features on the toolkit itself, use [61ade-application](../61ade-application/SKILL.md).
+For project branding, use [61ade-skinning](../61ade-skinning/SKILL.md): extend
+the Blade or Generic family instead of building a standalone replacement skin.
 
 ## What the project owns
 
