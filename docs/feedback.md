@@ -8773,3 +8773,48 @@ that exactly equals an option label lists every option. The managed
   probes were removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo; consumer and
   owner acceptance pending.
+
+<a id="fb-0200"></a>
+
+## FB-0200 — No automatic view guide over a long-lived window
+
+- **Date:** 2026-11-13.
+- **Request (consumer, StoryBloX D-067):** with its `Műhely` work window
+  ([FB-0199](#fb-0199), non-modal, maximizable, `id`) open, opening a view
+  whose guide had not been shown in the session (StoryBloX `Assetek`) put the
+  guide's non-modal window at the lower right above the work window, over its
+  composer and send buttons. Acceptance: with a long-lived window open,
+  navigating to a view with an unseen guide neither covers the window nor
+  takes its focus; `Útmutató` still shows the guide; without such a window the
+  guide behaves as before. General: any consumer with a menu-command window
+  and view guides.
+- **Decision (61ade owner):** the automatic first opening is skipped, not
+  queued, while any non-modal window is open at the moment the view mounts.
+  The previous page's record windows and guide have closed by then, so what
+  remains is a window that survives navigation. The guide is not marked
+  shown, so it opens by itself at the view's next opening without such a
+  window; `Útmutató` opens it on request above the window. Not chosen: opening
+  the guide beneath the window (it would still appear unasked once the window
+  moves or closes, and Suite's stacking has no "below" placement).
+- **Implementation:** `openWindow` keeps the set of open non-modal windows
+  (`nonModalOpen(except?)`, internal); `AdminShell` checks it, excluding its
+  own guide window, before the automatic `showGuide`. No public API or
+  configuration change. Below 768 px the full-screen work window covers the
+  top row, so `Útmutató` (in `Beállítások`) is reachable after it closes,
+  which was already the case for every control behind it.
+- **Guides:** [view guide](workspaces.md#view-guide),
+  [long-lived windows](toolkit.md#long-lived-windows), [usage](usage.md).
+- **Verification:** `npm run typecheck`, `npm run build`, `npm run demo:assets`
+  passed. A task-only spec on the managed demo at 1366 × 768 and 390 × 844:
+  with `Munkaasztal` open and the focus in its note, an address change to
+  `Regisztrációs adatbázis` (unseen guide) opened no guide, kept the focus in
+  the note and the note on top; at 1366 px `Útmutató` then opened the guide
+  above the window, and a menu click to `Kapcsolatok` (unseen guide) opened
+  none either; after closing the window, at 390 px `Beállítások` →
+  `Útmutató` showed the skipped guide, and on both sizes `Kapcsolatok`'s
+  guide opened by itself as before. Without the change the same spec failed
+  at the "no guide" check on both sizes. With it, `registry`,
+  `menu-commands`, `window-title` and `dialogs`: 22 passed together with the
+  task spec. The task spec was removed afterwards. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo; consumer
+  acceptance pending.

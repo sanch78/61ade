@@ -646,8 +646,8 @@ below them (`column.cardLines` sets its card lines), a field can count
 the related records the actor may list ([count fields](workspaces.md#count-fields):
 `counts`, JSON `storage.counts`), and every view can explain itself in a closable
 [view guide](workspaces.md#view-guide) (`guide`, or by view id in the
-application's `guides`), shown once per sign-in session and again from the
-top row's `Útmutató` button. Prerequisites, examples,
+application's `guides`), shown once per sign-in session (not by itself over
+an open long-lived window) and again from the top row's `Útmutató` button. Prerequisites, examples,
 limits and checks are in those sections; the feature demo's
 `Regisztrációs adatbázis` uses all three.
 

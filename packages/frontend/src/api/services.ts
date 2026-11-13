@@ -138,6 +138,11 @@ function clampBox(box: { left: number; top: number; width: number; height: numbe
   return { width, height, left: Math.max(12, Math.min(box.left, innerWidth - width - 12)), top: Math.max(12, Math.min(box.top, innerHeight - height - 12)) };
 }
 
+/** The open non-modal windows (FB-0199): a view guide does not open by itself over them (FB-0200). */
+const nonModal = new Set<AppWindow>();
+/** Whether a non-modal window other than $except is open. */
+export function nonModalOpen(except?: AppWindow): boolean { return [...nonModal].some(win => win !== except); }
+
 /**
  * A framework document window (`Ui.window`, record views with `open: "window"`); full screen below 768 px. `user`
  * keys a remembered window (`id`) like the other UI preferences.
@@ -232,6 +237,10 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     win.events.on("resize", (_state: unknown, _old: unknown, sides?: { left?: boolean; right?: boolean; top?: boolean; bottom?: boolean }) => {
       if (!maximized && sides && !(sides.left && sides.right && sides.top && sides.bottom)) remember();
     });
+  }
+  if (!(options.modal ?? true)) {
+    nonModal.add(api);
+    controller.signal.addEventListener("abort", () => nonModal.delete(api), { once: true });
   }
   // Suite closes only a modal window on Escape; a non-modal one closes while the focus is inside it (FB-0155). An
   // Escape already taken (a menu or popup inside the window closed first) is left alone.

@@ -256,7 +256,9 @@ alone left it open while a non-modal window existed), and a dialog returns
 the focus to where it was. A project that needs to know the page's view
 listens to `view:opened` / `view:closed`; a [menu command](shell.md#menu-commands)
 is the usual way to open such a window from every view
-([FB-0199](feedback.md#fb-0199)).
+([FB-0199](feedback.md#fb-0199)). While a non-modal window is open, a view
+opened behind it does not open its [guide](workspaces.md#view-guide) by itself
+([FB-0200](feedback.md#fb-0200)).
 
 - **`maximizable: true`** adds `Ablak maximalizálása` (Maximize window)
   before the close button; maximized, the window fills the workspace between
@@ -3009,6 +3011,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M72 | [Empty-valued select filters](workspaces.md#integrated-grid-header-filters): a select option declared with the empty value is a real filter condition (`filters: {field: ""}`) in the header picker, the filter panel, `setFilters`, `#filter.<field>=` presets and saved filters; no filter shows an empty header control. A user filter on a hierarchy's parent field replaces its implicit root scope | [FB-0195](feedback.md#fb-0195) | info: a list with an empty-valued option no longer shows that option's label in the header without filtering; a spec that expected `setFilters({field: ""})` or a saved `""` to be ignored for such a select now sees the condition requested | none: its `Szülőasset` header filter's `Főasset` option now filters (was shown without filtering) | none |
 | M73 | [Form rows](workspaces.md#form-rows): a field's `row` and `rowWidth` (PHP `Field`, JSON `row`, `row_width`), `FieldMetadata.row`/`.rowWidth`, `ColumnMetadata.row`/`.rowWidth`: consecutive fields of one section share a row of the action forms and stack into one column where the form is narrower than `--blade-form-column-min` per share; the list's and the tree navigation's form window opens wide enough for the widest row. The singleton's details form without an update right now keeps a fixed section fixed | [FB-0196](feedback.md#fb-0196) | none (additive; a form without rows is unchanged) | none | none |
 | M74 | [Menu commands](shell.md#menu-commands): `ApplicationDefinition` `menuCommands` (PHP `MenuCommand`, JSON `application.menu_commands`) put up to three emphasized commands in the menu row; their handler is an `app.commands` entry with `placement: "menu"` (`MenuCommand`, `MenuCommandContext`; the registry's type is `Registry<ClientCommand \| MenuCommand>`). [Long-lived windows](#long-lived-windows): `WindowOptions.maximizable`, `WindowOptions.id`, `AppWindow.maximized`/`maximize()`; the menu row's popups open above windows; Escape closes a modal window above a non-modal one | [FB-0199](feedback.md#fb-0199) | info: TypeScript code that reads `app.commands.get(…)` as a `ClientCommand` narrows by `placement`; a spec that measured the feature demo's menu row finds `Munkaasztal` after the navigation | none | none |
+| M75 | [View guide](workspaces.md#view-guide): while a non-modal window is open (a [long-lived window](#long-lived-windows)), a view opened behind it does not open its guide by itself; the guide stays unseen and `Útmutató` shows it | [FB-0200](feedback.md#fb-0200) | info: no declaration or API change; a spec that opened a long-lived window and then expected a view's first guide finds none | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

@@ -1358,6 +1358,13 @@ application-level map `application.guides` (`{"<view id>": "<text>"}`).
   so a reload or a language switch keeps it and a new tab starts afresh. The
   signed-out page (sign-out, session expiry) clears every mark, so the next
   sign-in shows each guide once again. Leaving the view closes its guide.
+- **Not over a work window:** while a non-modal window is open — a project's
+  [long-lived window](toolkit.md#long-lived-windows), which survives the
+  navigation — a view opened behind it does not open its guide by itself
+  ([FB-0200](feedback.md#fb-0200)): the window keeps the focus and stays on
+  top. The guide is not marked shown, so it opens by itself at the view's next
+  opening without such a window; `Útmutató` shows it on request at any time,
+  above the window (below 768 px the full-screen window first has to close).
 - **Again:** when any offered view has a guide, the top row gets the
   `Útmutató` control left of the language selector: a button labelled like the
   selectors beside it (tooltip `A megnyitott nézet útmutatója`), enabled while the page

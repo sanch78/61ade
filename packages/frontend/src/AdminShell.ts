@@ -9,7 +9,7 @@ import { acknowledge, closeDialogs, showDialog } from "./MessageDialog";
 import { ResponsiveToolbar } from "./ResponsiveToolbar";
 import { uploads, type UploadIndicator } from "./Uploader";
 import { configureServer, server } from "./api/Server";
-import { attachContent, openWindow, themeApplied } from "./api/services";
+import { attachContent, nonModalOpen, openWindow, themeApplied } from "./api/services";
 import type { AppWindow, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
 import { createApplication, loadModules, type Kernel } from "./app/Application";
 import { parseRoute, routeHash } from "./app/routes";
@@ -730,7 +730,8 @@ export class AdminShell {
     this.kernel!.events.dispatch("view:opened",{id:view.id,...(record?{record:record.id}:{}),open});
     if(open==="page"){
       this.guideChanged();
-      if(view.guide&&!this.definition.signingIn&&!this.guideShown(view))this.showGuide(mounted);
+      // Not over a long-lived window the user works in (FB-0200): the guide stays unseen and the control shows it.
+      if(view.guide&&!this.definition.signingIn&&!this.guideShown(view)&&!nonModalOpen(this.guideWindow))this.showGuide(mounted);
     }
   }
 
