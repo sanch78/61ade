@@ -845,3 +845,7 @@
 <a id="fb-0205"></a>
 
 ## FB-0205 — Centre the whole menu-command group within its pill
+
+<a id="fb-0206"></a>
+
+## FB-0206 — Opt-in captions for list action commands

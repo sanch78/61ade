@@ -277,7 +277,7 @@ final class WorkspaceConfiguration
         Shape::check($definition, [
             'resource' => 'string', 'name' => 'string', 'label' => 'string', 'handler' => 'string',
         ], [
-            'icon' => 'string', 'bulk' => 'boolean', 'confirm' => 'array', 'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array', 'form_values' => 'string', 'form_sections' => 'string', 'flush_sections' => 'boolean',
+            'icon' => 'string', 'command_label' => 'string', 'bulk' => 'boolean', 'confirm' => 'array', 'target_resource' => 'string', 'fields' => 'array', 'write' => 'boolean', 'channels' => 'array', 'form_values' => 'string', 'form_sections' => 'string', 'flush_sections' => 'boolean',
         ], '$.actions');
         if (!isset($this->resources[$definition['resource']])) {
             throw new InvalidArgumentException('Unknown action resource: '.$definition['resource']);
@@ -313,6 +313,7 @@ final class WorkspaceConfiguration
             confirm: $definition['confirm'] ?? null,
             formSections: $definition['form_sections'] ?? 'panels',
             flushSections: $definition['flush_sections'] ?? false,
+            commandLabel: $definition['command_label'] ?? null,
         ));
     }
 

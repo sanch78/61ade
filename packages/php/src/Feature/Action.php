@@ -18,9 +18,12 @@ final readonly class Action
      * the Accordion component) or 'accordion-multiple' (several open sections share it).
      * $flushSections: accordion sections run edge to edge of the form, without the frame and the form's margin, as an
      * Accordion fills its region (needs an accordion $formSections).
+     * $commandLabel: optional list command caption (also its form window title), translated like $label. Null keeps
+     * the built-in create/update captions and otherwise $label; the submit label and execution are unchanged.
      */
-    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false, public array $display = [], public string $formSections = 'panels', public bool $flushSections = false)
+    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListSource $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false, public array $display = [], public string $formSections = 'panels', public bool $flushSections = false, public ?string $commandLabel = null)
     {
+        if ($commandLabel !== null && trim($commandLabel) === '') throw new \InvalidArgumentException('A command label must not be empty.');
         if ($flushSections && $formSections === 'panels') throw new \InvalidArgumentException('Flush sections need accordion form sections.');
         if (!in_array($formSections, self::FORM_SECTIONS, true)) throw new \InvalidArgumentException('Invalid form sections: '.$formSections);
         if ($confirm !== null) self::checkConfirm($confirm);

@@ -724,6 +724,15 @@ and the filter panel, search, the view's action forms and bulk commands,
 details, sub-views, live updates and the user's saved mode, sort, columns and
 filters. The built-in `list` kind is this component mounted in the view host.
 
+The server action's optional `commandLabel` (JSON `command_label`) overrides
+its list toolbar/menu caption and form window title, including accessible names;
+the existing `icon` supplies its toolbar/menu glyph. For example, an `update`
+action with `commandLabel: 'Beállítások', icon: 'bi bi-gear'` opens settings while
+editable cells keep saving through `update`. Omitted values preserve the built-in
+`Módosítás` caption and `Mentés` submit button. The normal catalogue translates
+the existing action metadata `label`; no browser API or command registration
+is needed. See [action command captions](workspaces.md#action-command-label).
+
 Sections inside cards and details stretch to equal heights in each row, with
 their content at the top. The project stylesheet can configure the section
 columns with `--blade-record-group-min-width` (automatic columns) or
@@ -3105,6 +3114,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M76 | [Modal windows](#modal-windows): a modal Suite window (`app.ui.window` by default, every framework record or action window, a project's own `new Window({modal: true})`) makes everything before it in the document `inert`, keeps Tab and Shift+Tab inside the topmost one and returns the focus to its opener on close; Escape closes the topmost focused modal window also without a non-modal one, but not while an open popup in it takes the key (`preventDefault`/stopped key, `:popover-open`, a focused `role="menu"`, an expanded `aria-haspopup` or combobox trigger). A Suite redraw asked for in the frame that destroys its view is dropped | [FB-0201](feedback.md#fb-0201) | info: a spec that tabbed from a modal window to the page behind it, or clicked through to an element before it, finds it inert; a popup inside a window that wants Escape to close the window as well must not mark itself open |
 | M78 | [View availability](workspaces.md#view-availability): `available` (`Closure(Context): bool`) on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.available` / `views.<id>.available` (a binding name); false leaves the view out of that bootstrap | [FB-0204](feedback.md#fb-0204) | none: additive, no consumer change required |
 | M79 | Bundled [Bootstrap Icons](icons.md) in every icon slot; framework/demo defaults migrated, record icon columns also accept `bi bi-…`, old `blade-icon` names alias the new catalog | [FB-0203](feedback.md#fb-0203) | info: no asset/configuration change; legacy icon values still display. A screenshot or glyph-class assertion follows the new defaults |
+| M80 | [Action command captions](workspaces.md#action-command-label): optional PHP `Action::$commandLabel` / JSON `actions[].command_label` overrides a list command's caption, form window title and accessible name; uses the existing `icon` and i18n catalogue, leaving `update` cell/form saves unchanged | [FB-0206](feedback.md#fb-0206) | additive, no consumer change required |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

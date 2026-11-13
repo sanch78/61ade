@@ -89,7 +89,10 @@ Checks: `php8.4 tests/shell/counts.php`, shell `count-fields.spec.cjs`.
 
 [View availability](workspaces.md#view-availability): `Tenant demó` →
 `Szolgáltatások` lists the active tenant's services with an editable
-`Bekapcsolva` switch (Alpha: on, Beta: off). `Visszajelzések` (group
+`Bekapcsolva` switch (Alpha: on, Beta: off). Select a service and open
+`Beállítások` (gear icon) to edit the same switch in a form: the one `update`
+action uses an optional [command caption](workspaces.md#action-command-label),
+also in the window title and the phone's `Műveletek` menu. `Visszajelzések` (group
 `Ügyfélszolgálat`, with an attention count of new feedback) is offered only
 while the tenant's `feedback` service is on. In Beta the group, the menu entry,
 the count and the address `#view=tenant_feedback` are absent. The switch
