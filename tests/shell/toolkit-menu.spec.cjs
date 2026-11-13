@@ -283,3 +283,33 @@ test('a modal window above a non-modal one: Escape in the menu closes only the m
  await expect(menu(page,'Rendezés')).toHaveCount(0);
  expect(failures).toEqual([]);
 });
+
+test('phone: a wide menu at a right-hand button is shifted into the viewport; at 1366 px it keeps its place',async({page})=>{
+ await fixture(page);
+ await page.setViewportSize({width:390,height:844});
+ const place=()=>page.evaluate(()=>new Promise(resolve=>{
+  const app=window.__bladeApp;window.__wide?.destroy();document.getElementById('wide-anchor')?.remove();
+  const b=document.createElement('button');b.id='wide-anchor';b.type='button';b.textContent='⋮';b.setAttribute('aria-label','Előzmények');
+  b.style.cssText='position:fixed;top:60px;right:100px;width:44px;height:36px;z-index:10';document.body.append(b);
+  window.__wide=app.ui.menu(b,{label:'Széles',items:[{type:'group',label:'Ma',items:Array.from({length:5},(_,i)=>({id:'t'+i,label:'Egy nagyon hosszú beszélgetéscím, amely kitölti a sort '+i,detail:'10:4'+i,checked:i===0}))}]});
+  resolve(b.getBoundingClientRect().toJSON());
+ }));
+ let anchor=await place();
+ await page.locator('#wide-anchor').click();
+ const list=menu(page,'Széles');
+ await expect(list).toBeVisible();
+ let box=await list.boundingBox();
+ expect(box.x).toBeGreaterThanOrEqual(8);
+ expect(box.x+box.width).toBeLessThanOrEqual(390-8+1);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ await expect(list.getByRole('menuitemradio').first()).toBeFocused();
+ await page.keyboard.press('Escape');await expect(list).toHaveCount(0);
+ // At 1366 px it fits beside the anchor and Suite's own alignment stands (its left or right edge on the anchor's).
+ await page.setViewportSize({width:1366,height:768});
+ anchor=await place();
+ await page.locator('#wide-anchor').click();
+ await expect(list).toBeVisible();
+ box=await list.boundingBox();
+ expect(Math.abs(box.x-anchor.left)<1||Math.abs(box.x+box.width-anchor.right)<1).toBe(true);
+ await page.evaluate(()=>{window.__wide.destroy();document.getElementById('wide-anchor').remove();});
+});

@@ -386,7 +386,11 @@ menu.on("select", ({ id }) => choose(id));   // choose, efforts: the page's own
   open at a time: opening another closes it.
 - **Placement:** below the anchor, or above it when it does not fit below (a
   composer at the bottom of a window); above every window, within the
-  viewport and at most `min(28rem, 100vw − 16px)` wide. Its height is capped
+  viewport and at most `min(28rem, 100vw − 16px)` wide. Its left edge is on
+  the anchor's, or its right edge when the left does not fit; a list that
+  fits neither way (a wide one at a right-hand button on a phone) is
+  right-aligned to the anchor as far as the viewport allows, 8 px from its
+  edges, so the page never scrolls sideways. Its height is capped
   at about 12 entries (`27rem`) and at the larger room below or above the
   anchor; beyond that it scrolls. On a phone it stays anchored; there is no
   bottom sheet.
