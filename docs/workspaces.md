@@ -1824,12 +1824,15 @@ new Field('website', 'Weboldal', section: 'Elérhetőség'),   // no row: the fu
   form's own width (and inside a section the section's), not the viewport:
   the same declaration is side by side in a wide window, stacked in a narrow
   window, a side panel or on a phone, with no horizontal scrolling. A project
-  can change the share on `:root` in its stylesheet (any CSS length):
+  can change the share in its stylesheet (any CSS length), on `:root` or a
+  narrower scope such as its skin or the form window:
   `:root { --blade-form-column-min: 12rem; }`.
 - **Windows:** the list's form window (and the tree navigation's) opens wide
   enough for its widest row (the form's and a section's insets and 20 px for
   a scrollbar included), at least 560 px and at most the viewport − 24 px; a
-  form without rows keeps 560 px. A fitted window
+  form without rows keeps 560 px. The share is read as the window's form sees
+  it once the form is attached, so a value set below `:root` widens the
+  window too (a phone's full-screen window stays as it is). A fitted window
   (`AppWindow`, the list's form window) measures the rendered rows, so a
   wider window fits a lower height. In an accordion form, opening or closing a
   section still never resizes the window.
@@ -1849,14 +1852,15 @@ new Field('website', 'Weboldal', section: 'Elérhetőség'),   // no row: the fu
   associated with their controls.
 - **Where:** `RecordForm`, the built-in create and update forms (window and
   panel), record action forms and the singleton's details form (from the
-  update form's metadata, or the columns' `row` without an update right; it
-  follows the view's column order, where the fields of a row that are not
-  consecutive each take a whole row).
+  update form's metadata, or the columns' `row` without an update right).
+  A form shows a row's fields together at the place of its first field,
+  also when they arrive apart (the details form follows the view's column
+  order), and Tab follows that order.
 - **Limits:** the bulk form, the grid and card editors, `SettingsForm` and
-  the cards and details groups ignore rows. A row cannot span sections. The
-  window width uses the `:root` value of `--blade-form-column-min`; a value
-  set on a narrower scope affects the rows but not the window's width. A
-  label with Suite help (a registered field type's) is not cut.
+  the cards and details groups ignore rows (the cards and details have their
+  own [section columns](#card-group-columns)). A row cannot span sections. A
+  label with Suite help (only a registered field type adds one) is not cut
+  and may wrap.
 
 <a id="count-fields"></a>
 

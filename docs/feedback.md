@@ -8584,9 +8584,23 @@ that exactly equals an option label lists every option. The managed
   checkbox and select centres equal and the row's inputs on one top; the
   demo skins change colours only. Task-only probes and screenshots were
   removed. No full-smoke claim.
+- **Follow-up (owner, 2026-11-13):** two of the reported limits closed.
+  The form window now reads `--blade-form-column-min` as the window's form
+  sees it after the form is attached (`widenFormWindow`, the list's and the
+  tree navigation's form windows), so a value set on a skin or the window
+  widens it as well. `formRows` (and the width) gather a row's fields at
+  the place of its first field, so the singleton's details form, built in
+  the view's column order, keeps its rows whole. The bulk form, the editors,
+  `SettingsForm` and the card groups stay out of scope, and a field type's
+  help label stays uncut, as decided. Verification: typecheck, build, demo
+  assets; `form-rows.spec.cjs` 7 tests passed (new: a 220 px share on
+  `.blade-content-window` widens the window to 1032 px with the row side by
+  side, and `Szervezet` delivered last still sits beside `Név` and follows
+  it on Tab); with `form-accordion`, `record-forms`, `stored-file`,
+  `toolkit-list`, `workspace`, `registry` and `accordion` 43 passed, one
+  existing transport skip.
 - **Status:** implemented and verified on the managed demo; owner
   acceptance pending.
-
 
 <a id="fb-0197"></a>
 
