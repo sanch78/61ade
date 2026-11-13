@@ -4,13 +4,15 @@ import type { FieldDefinition } from "./FormValidation";
 
 type Region={id?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;collapsable?:boolean;collapsed?:boolean};
 type Mode="table"|"cards"|"tiles";
-type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>;tab?:string;sections?:string[];settings?:Record<string,unknown>;tree?:{expanded?:unknown;selected?:unknown}};
+type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>;tab?:string;sections?:string[];window?:WindowGeometry;settings?:Record<string,unknown>;tree?:{expanded?:unknown;selected?:unknown}};
 const size=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value)&&value>=40&&value<=10000;
 const pixels=(value:unknown):number|undefined=>{
   const numeric=typeof value==="string"&&/^\d+(\.\d+)?px$/.test(value)?Number.parseFloat(value):value;
   return size(numeric)?numeric:undefined;
 };
 
+/** A remembered `app.ui.window` (keyed by its `id`): its last restored box and whether it was maximized. */
+export type WindowGeometry={left:number;top:number;width:number;height:number;maximized:boolean};
 /** Presentation preferences and list filter values are stored; definitions and ACL remain authoritative. */
 export class UiPreferences {
   private state:Preferences={};
@@ -32,6 +34,12 @@ export class UiPreferences {
   /** The open sections of an `Accordion` (keyed by its `id`); the caller checks them against the declared sections. */
   sections():string[]|undefined{const value=this.state.sections;return Array.isArray(value)&&value.every(id=>typeof id==="string")?[...value]:undefined;}
   setSections(ids:string[]):void{this.state.sections=[...ids];this.save();}
+  /** The remembered window box (finite numbers, a size of 40–10000 px); the caller clamps it to the viewport. */
+  window():WindowGeometry|undefined{
+    const value=this.state.window,finite=(n:unknown):n is number=>typeof n==="number"&&Number.isFinite(n);
+    return value&&finite(value.left)&&finite(value.top)&&size(value.width)&&size(value.height)?{left:value.left,top:value.top,width:value.width,height:value.height,maximized:value.maximized===true}:undefined;
+  }
+  setWindow(geometry:WindowGeometry):void{this.state.window={...geometry};this.save();}
   sort(allowed:string[]):Sort|undefined{
     const sort=this.state.sort;
     return sort&&allowed.includes(sort.field)&&(sort.direction==="asc"||sort.direction==="desc")?sort:undefined;

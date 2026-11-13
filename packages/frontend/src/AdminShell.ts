@@ -53,6 +53,8 @@ export type ShellDefinition = {
   menu?: MenuDefinition[];
   /** Translated labels of offered view groups that get a preceding native separator. */
   menuSeparators?: string[];
+  /** Menu-row commands offered to the actor (`MenuCommand`); `attention` names an offered view with attention. */
+  menuCommands?: { id: string; label: string; icon?: string; tooltip?: string; emphasized: boolean; attention?: string }[];
   /** Offered views in menu order (toolkit `ViewDefinition`: shared keys at the top, the kind's payload in `options`). */
   views?: ViewDefinition[];
   /** Application pages, including public access: the project's ES modules, page-relative paths. */
@@ -134,6 +136,8 @@ export class AdminShell {
     else this.clear();
   };
   private menuItems: object[] = [];
+  /** The navigation row's selectors have rendered (the first redraw after construction); the menu is fitted from then. */
+  private measured = false;
   private menuState?: string;
   /** Live attention counts of menu entries (`ViewDefinition.attention`): view id → count, and its declared tone. */
   private attention=new Map<string,number>();
@@ -163,6 +167,9 @@ export class AdminShell {
     const width=this.root.clientWidth,controls=Array.from(this.root.querySelectorAll<HTMLElement>(".blade-navigation-control")).reduce((sum,cell)=>sum+cell.getBoundingClientRect().width,0);
     // Signed out there is no menu: the top-row logo only yields to the selectors.
     if (!this.menu) { this.placeLogo(width-controls); return; }
+    // The row is fitted once the selectors have their rendered widths: an earlier guess would show the full menu for a
+    // frame and then collapse it under a pointer or test that already went for an entry.
+    if (!this.measured) return;
     // Measure labels with the native menu font; fixed character estimates waste space on long sibling labels.
     const button=this.root.querySelector<HTMLElement>(".blade-navigation-row .dhx_nav-menu-button"),
       style=getComputedStyle(button??this.root),measure=document.createElement("canvas").getContext("2d")!,label=document.createElement("span");
@@ -170,8 +177,15 @@ export class AdminShell {
     // An entry with attention (`html`) also holds its badge (the hidden count text takes no room).
     const itemWidth=(item:any)=>{label.innerHTML=String(item.value??"");return 32+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+Math.ceil(measure.measureText(label.textContent??"").width)+(item.html?40:0);};
     // 16 px row inset; only the full menu reserves logout and its 17 px separator.
-    const required=(items:any[],logout=this.definition.authenticated)=>items.reduce((sum:number,item:any,index:number)=>sum+itemWidth(item)+(index&&item.separatorBefore?17:0),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
-    const compact = width < Math.max(768,required(this.menuItems));
+    const required=(items:any[],logout=this.definition.authenticated)=>items.reduce((sum:number,item:any,index:number)=>sum+(item.command?item.width:itemWidth(item))+(index&&item.separatorBefore?17:0),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
+    // Menu-row commands follow the navigation in every width: on a row too narrow for their labels they show icons only.
+    const commandWidth=(command:any,iconOnly:boolean)=>iconOnly?44+(this.commandCount(command)?24:0):24+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+8+Math.ceil(measure.measureText(command.label).width)+(this.commandCount(command)?40:0);
+    // The declared commands reserve their room before their module registers them, so the registration never changes
+    // the layout (which would close a menu opened during start-up).
+    const commands=(iconOnly=false)=>(this.definition.menuCommands??[]).map(command=>({command,width:commandWidth(command,iconOnly),value:command.label}));
+    // The full menu wins over the command's label: it keeps its entries with icon-only commands before it collapses.
+    const full=(iconOnly:boolean)=>required([...this.menuItems,...commands(iconOnly)]);
+    const compact = width < Math.max(768,full(true));
     const view=this.navigable(parseRoute(location.hash).view??"");
     // Record pages have no menu entry: inherit the first offered menu view of their record resource.
     const menuView=view?.record?(this.definition.views??[]).find(candidate=>!candidate.record&&candidate.menu!==false&&candidate.resource===view.record&&(!view.group||candidate.group===view.group)):view;
@@ -184,24 +198,77 @@ export class AdminShell {
       }
     };
     let context=compact&&width>=768?siblings(this.menuItems)??[]:[];
-    if(required([{value:t("Menü")},...context],false)+(context.length?17:0)>width)context=[];
+    const row=(iconOnly:boolean)=>[{value:t("Menü")},...commands(iconOnly),...context];
+    const fits=(iconOnly:boolean)=>required(row(iconOnly),false)+(context.length?17:0)<=width;
+    // Collapsed, the navigation keeps priority too: the commands' labels yield before the siblings.
+    let iconOnly=!compact?full(false)>width:!fits(false);
+    if(compact&&iconOnly&&!fits(true)){context=[];iconOnly=!fits(false);}
     // The menu never yields to the logo: it shows only in the room the menu, siblings and selectors leave.
-    this.placeLogo(width-(compact?required([{value:t("Menü")},...context],false)+(context.length?17:0):required(this.menuItems)));
-    const state=JSON.stringify([compact,current,context.length>0,!!this.guide]);
+    this.placeLogo(width-(compact?required(row(iconOnly),false)+(context.length?17:0):full(iconOnly)));
+    // The commands and their icon-only form change only their own entries: `placeCommands` updates those in place.
+    const layout=JSON.stringify([compact,current,context.length>0,!!this.guide]),state=JSON.stringify([layout,this.commands().map(command=>command.id),iconOnly]);
     if (state === this.menuState) return;
+    const previous=this.menuState;
     this.menuState = state;
+    // Only the registered commands changed (the modules have loaded): they are put in place, so an open menu stays open.
+    if(previous&&JSON.parse(previous)[0]===layout){this.placeCommands(compact,iconOnly);return;}
     // A top-level item holding the open view carries the current-section underline (CSS, not the popup's active state).
     const holds=(item:any):boolean=>item.id===current||(item.items??[]).some(holds);
     const marked=(item:any)=>holds(item)?{...item,css:"blade-menu-current"}:item;
+    const commandItems=this.commands().map(command=>this.commandItem(command,iconOnly));
     const entries=[...structuredClone(this.menuItems).flatMap((item:any,index:number)=>[
       ...(index&&item.separatorBefore?[{id:"blade-before:"+item.id,type:"separator"}]:[]),item,
     ]),
+      ...(compact?[]:commandItems),
       ...(this.definition.authenticated ? [{ id: "blade-session-separator", type: "separator" },
       { id: "blade-logout", value: t("Kijelentkezés"), icon:"dxi dxi-arrow-left" }] : []),
     ];
     const prefixed=(items:any[]):any[]=>items.map(item=>({...item,id:"sibling:"+item.id,...(item.items?{items:prefixed(item.items)}:{})}));
-    this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),...this.menuHtml(this.mainMenu()),icon:"dxi dxi-view-grid",items:entries},
+    this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),...this.menuHtml(this.mainMenu()),icon:"dxi dxi-view-grid",items:entries},...commandItems,
       ...(context.length?[{id:"blade-context-separator",type:"separator"},...context.map(marked).map(item=>prefixed([item])[0])]:[])]:entries.flatMap(item=>item.id==="blade-session-separator"?[{id:"blade-session-spacer",type:"spacer"},marked(item)]:[marked(item)]));
+  }
+
+  /** Declared menu-row commands whose handler a module registered (`placement: "menu"`), in declaration order. */
+  private commands():NonNullable<ShellDefinition["menuCommands"]>{
+    const registry=this.kernel?.app.commands;
+    return (this.definition.menuCommands??[]).filter(command=>registry?.get(command.id)?.placement==="menu");
+  }
+  /** A command's live count: that of the view it names (offered, with attention), 0 otherwise. */
+  private commandCount(command:{attention?:string}):number{return command.attention?this.attention.get(command.attention)??0:0;}
+  /**
+   * A command's menu entry. Its icon and label are its `html` (Suite's own icon would sit outside the tooltip): the
+   * label, hidden on a row that shows icons only, and the attention badge like a view's, the accessible name "Label" or
+   * "Label, 3 függőben". The emphasized tone is a filled primary button (shape, weight and colour; css).
+   */
+  private commandItem(command:NonNullable<ShellDefinition["menuCommands"]>[number],iconOnly:boolean):any{
+    const count=this.commandCount(command),label=escape(command.label),icon=escape(command.icon??"dxi dxi-flash");
+    const title=command.tooltip?escape(command.tooltip):iconOnly?label:"";
+    const badge=count?`<span class="blade-menu-count blade-menu-count--${this.tones.get(command.attention!)??"warning"}" aria-hidden="true">${count>99?"99+":count}</span>`:"";
+    const name=count?`${label}, ${escape(t("{count} függőben",{count}))}`:label;
+    return {id:"command:"+command.id,value:label,
+      css:"blade-menu-command"+(command.emphasized?" blade-menu-command--primary":"")+(iconOnly?" blade-menu-command--icon":""),
+      html:`<span class="blade-menu-command__body"${title?` title="${title}"`:""}><span class="dhx_menu-button__icon ${icon}" aria-hidden="true"></span>`
+        +`<span class="blade-menu-command__label" aria-hidden="true">${label}</span>${badge}<span class="blade-visually-hidden">${name}</span></span>`};
+  }
+  /**
+   * Puts the registered commands into the drawn row (after `Menü`, or before logout's spacer), updates the drawn ones
+   * (icon-only or not) and drops others, without redrawing the menu.
+   */
+  private placeCommands(compact:boolean,iconOnly:boolean):void{
+    const data=this.menu!.data,wanted=this.commands();
+    data.eachChild(data.getRoot(),(item:any)=>{if(String(item.id).startsWith("command:")&&!wanted.some(command=>"command:"+command.id===item.id))data.remove(item.id);});
+    let index=compact?data.getIndex("blade-main-menu")+1:data.exists("blade-session-spacer")?data.getIndex("blade-session-spacer"):data.getLength();
+    for(const command of wanted){
+      const id="command:"+command.id;
+      if(data.exists(id)){const {css,html}=this.commandItem(command,iconOnly);data.update(id,{css,html});index=data.getIndex(id)+1;}
+      else data.add(this.commandItem(command,iconOnly),index++);
+    }
+  }
+  /** Runs a menu-row command with the page's open view; the address and the view stay, a rejection shows the error dialog. */
+  private runCommand(id:string):void{
+    const entry=this.kernel?.app.commands.get(id);
+    if(entry?.placement!=="menu"||!this.commands().some(command=>command.id===id))return;
+    void Promise.resolve().then(()=>entry.run({app:this.kernel!.app,view:this.page?.view})).catch(error=>{if(!this.listeners.signal.aborted)void this.failed(error);});
   }
 
   /** The collapsed `Menü` button: it holds every entry. */
@@ -240,7 +307,8 @@ export class AdminShell {
     const find=(items:any[],wanted:string):any=>{for(const item of items){if(item.id===wanted)return item;const found=item.items&&find(item.items,wanted);if(found)return found;}};
     menu.data.eachChild(menu.data.getRoot(),(drawn:any)=>{
       const drawnId=String(drawn.id);
-      const source=drawnId==="blade-main-menu"?this.menuHtml(this.mainMenu()):find(this.menuItems,drawnId.replace(/^sibling:/,""));
+      const command=drawnId.startsWith("command:")?this.commands().find(command=>"command:"+command.id===drawnId):undefined;
+      const source=command?this.commandItem(command,String(drawn.css??"").includes("blade-menu-command--icon")):drawnId==="blade-main-menu"?this.menuHtml(this.mainMenu()):find(this.menuItems,drawnId.replace(/^sibling:/,""));
       if(source&&source.html!==drawn.html)menu.data.update(drawn.id,{html:source.html});
     });
     this.renderMenu();
@@ -393,7 +461,7 @@ export class AdminShell {
       this.layout.getCell("sign-in-control").attach(control);
     }
     if(controlItems.length){
-      const controls=this.controls=new ResponsiveToolbar(undefined,{data:controlItems.flatMap((item,index)=>index?[{type:"separator"},item]:[item])},
+      const controls=this.controls=new ResponsiveToolbar(undefined,{menuCss:"blade-shell-popup",data:controlItems.flatMap((item,index)=>index?[{type:"separator"},item]:[item])},
         {id:"blade-controls-menu",value:t("Beállítások"),icon:"dxi blade-icon blade-icon--menu",css:"blade-command--icon blade-controls-toggle",availableWidth:()=>this.root.clientWidth-120-(this.signInControl?.getRootNode()?.getBoundingClientRect().width??0)});
       controls.events.on("click",(id:string|number)=>{
         const key=String(id);
@@ -435,11 +503,13 @@ export class AdminShell {
         }else features.push(item);
       }
       this.menuItems = [...map(definition.menu || []), ...features];
-      const menu = new NavigationMenu(undefined, { navigationType: "click" });
+      // The row's popups open above a non-modal window (FB-0199), which the user may keep open over any view.
+      const menu = new NavigationMenu(undefined, { navigationType: "click", menuCss: "blade-shell-popup" });
       this.menu = menu;
       this.resize();
       menu.events.on("click", (id: string | number) => {
         id=String(id).replace(/^sibling:/,"");
+        if (id.startsWith("command:")) { this.runCommand(id.slice(8)); return; }
         if (id === "blade-logout") this.post("logout");
         if (id === "blade-guide" && this.page) this.showGuide(this.page);
         if (id.startsWith("tenant:") && id.slice(7) !== this.definition.tenant?.current) this.post("tenant", { tenant: id.slice(7) });
@@ -458,7 +528,8 @@ export class AdminShell {
       }
       this.kernel=createApplication({channel:()=>this.live,userId:definition.userId??"",displayName:definition.displayName??"",tenant:definition.tenant?.current??null,authenticated:definition.authenticated,
         views:definition.views??[],navigate:target=>this.navigate(target)});
-      const start=()=>{if(this.listeners.signal.aborted)return;window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});this.route();};
+      // Menu-row commands show once their module registered them.
+      const start=()=>{if(this.listeners.signal.aborted)return;if(this.commands().length)this.renderMenu();window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});this.route();};
       // Project modules register their kinds before the first route; a declarative application routes at once.
       if(definition.modules?.length)void loadModules(this.kernel,definition.modules,definition.version).catch(error=>console.error(error)).then(start);
       else start();
@@ -468,7 +539,7 @@ export class AdminShell {
     }
     if(!this.applicationPage||definition.signingIn)this.mountSignIn();
     // Content-sized selectors settle after native widgets render; recalculate menu/logo fit with their actual widths.
-    void awaitRedraw().then(()=>{if(!this.listeners.signal.aborted)this.resize();});
+    void awaitRedraw().then(()=>{if(!this.listeners.signal.aborted){this.measured=true;this.resize();}});
     window.addEventListener("resize", this.resize);
     this.reportError();
   }

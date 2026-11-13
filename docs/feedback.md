@@ -8667,3 +8667,109 @@ that exactly equals an option label lists every option. The managed
   claim is made. Temporary review assets were removed.
 - **Status:** skill and source assessment delivered; runtime improvements
   and missing browser combinations remain follow-up proposals.
+
+<a id="fb-0199"></a>
+
+## FB-0199 — Menu-row application command and long-lived work window
+
+- **Date:** 2026-11-13.
+- **Request (consumer, StoryBloX D-063; owner go-ahead 2026-11-13):** an
+  application-level command in the menu row on every view that runs project
+  code (opening a window) instead of opening a view, visibly more
+  conspicuous than the other entries; and a project's non-modal
+  `app.ui.window` that stays open across navigation as a documented
+  contract, with maximize/restore and a remembered size and position per
+  user. General: any consumer with an assistant, a clipboard, a
+  notification centre or a quick-capture window needs the same. Not
+  requested: a conversation component, minimizing/docking.
+- **Decision (61ade owner, 2026-11-13):** the entry is a server declaration
+  (`ApplicationDefinition` `menuCommands`, PHP `MenuCommand`, JSON
+  `application.menu_commands`: label, icon, tooltip, `emphasized`, a
+  server-side `visible`, the `attention` of a declared view), and its
+  behaviour a module's `app.commands` entry with `placement: "menu"` under
+  the same name, so visibility stays on the server and the label in the
+  catalogue. The window gains `maximizable` and `id` options. The optional
+  count reuses the view attention's live subscription instead of a second
+  count mechanism.
+- **Implementation:** `MenuCommand` (`Navigation`), validated in its
+  constructor and in `ApplicationDefinition` (at most three, unique, the
+  attention view must declare attention); `Application` sends the offered
+  commands after the views. The client `MenuCommand`/`MenuCommandContext`
+  types join `ClientCommand` in the `commands` registry; `resolveCommands`
+  skips a menu command on a list. `AdminShell` renders a registered command
+  after the navigation (after the last entry in the full menu, after `Menü`
+  when collapsed, never inside it), with its icon, label, attention badge
+  and hidden accessible name in its `html` and the tooltip on it; the width
+  estimate includes it, and where the row is too narrow it shows the icon
+  only. The emphasized tone is a filled pill of the primary colour darkened
+  to 72 % with white bold text inside the full-height button. `openWindow`
+  adds the header button (`Ablak maximalizálása` / `Ablak visszaállítása`,
+  hu/en/de), header double-click, `maximized`/`maximize()`, a workspace-sized
+  maximized box that follows the viewport, and the remembered box
+  (`UiPreferences` `window`, keyed `window:<id>`, written only on a user's
+  drag or resize, clamped on open). The feature demo's `Munkaasztal`
+  ([D9](demos.md#d9-workbench)) uses all of it.
+- **Defects found and fixed on the way:** the menu row's popups (main menu,
+  `Beállítások`) opened under any window (Suite: popups at the overlay
+  z-index − 1, windows at it), so an open non-modal window hid the main
+  menu; they now carry `blade-shell-popup` and open above windows. Suite
+  closes a modal window on Escape only when it is the last of the windows
+  it lists, and it lists non-modal windows last, so with any non-modal
+  window (also the view guide) open, Escape left a modal record window
+  open; `WindowEscape.ts` closes the topmost focused modal window through
+  its close button in that case, unless a dialog, popup or menu takes the
+  key. The menu row was fitted once before the selectors had rendered: for
+  a frame the full menu showed and then collapsed, under a pointer (or a
+  test) already going for an entry; it is now fitted from the first redraw
+  on. A command entry that appeared when its module registered redrew the
+  whole menu and closed a menu opened during start-up; the declared
+  commands now reserve their room from the start and are inserted in place.
+- **Layout priority:** the command must not cost the navigation. The full
+  menu stays with an icon-only command before it collapses, and collapsed,
+  the label yields before the open view's siblings. With the demo's command
+  the feature demo's full menu needs about 1440 px (1500 px with the label;
+  it fitted 1366 px before); three existing specs that relied on the full
+  menu or on the siblings at 1200–1400 px (`browser`, `menu-attention`,
+  `dialogs`) use wider viewports, and `browser` also checks the command's
+  place after `Menü`.
+- **Guides:** [menu commands](shell.md#menu-commands),
+  [long-lived windows](toolkit.md#long-lived-windows),
+  [registries](toolkit.md#registries), [usage](usage.md),
+  [demos](demos.md#d9-workbench), focused checks in
+  [development](development.md#focused-task-groups); migration M74.
+- **Verification:** `npm run typecheck`, `npm run build`,
+  `npm run demo:assets` passed. PHP `toolkit.php` (new: the projection,
+  hidden and plain commands, attention only for an offered view, refused
+  ids, labels, tooltips, icons and attention ids; at most three unique
+  commands; attention of a view without attention or of an unknown view),
+  `configuration.php` (new: JSON `menu_commands` with a `visible` binding;
+  refused shapes, keys, types and bindings), `contracts.php`, `i18n.php`,
+  `access.php`, `permissions.php` and `lists.php` passed; node
+  `toolkit-kernel`, `toolkit-registries` (new: a menu command on a list is
+  skipped with a warning), `toolkit-components`, `toolkit-list`,
+  `ui-preferences` passed. The new retained `menu-commands.spec.cjs` on the
+  managed demo (6 tests): the command after the navigation with its tooltip,
+  height, keyboard order and name, 4.5:1 or more and bold in Blade, Blade
+  Night, Világos and Éjjeli at 1366 px and in Világos and Éjjeli at 390 px,
+  and in the Pala and Tinta skins; the window opened without changing the
+  address, one window on a second click; the draft kept across a record
+  window, navigation, Back and Forward; the confirmation drawn above the
+  window and the focus back in it; Escape closing it; maximize filling the
+  workspace with the menu reachable, restore, the moved box and the
+  maximized state after reloads, a clamped box at 900 × 600; a 390 px phone
+  with a full-screen window and no maximize button; the reader with the
+  plain command; the icon-only entry at 320 px without sideways scrolling.
+  With it, `browser`, `menu-attention`, `skins`, `suite-labels`,
+  `window-title`, `dialogs`, `activation`, `command-menu`, `list-toggle`,
+  `registry`, `preferences`, `i18n`, `workspace`, `toolkit-components`,
+  `toolkit-demo-assets`, `toolkit-demo`, `toolkit-demo-readings`,
+  `toolkit-demo-tasks`, `toolkit-list`, `tabs`, `sign-in-branding` and
+  `mobile-grid`: 95 passed, one existing transport skip, two failed:
+  `sign-in-branding`'s phone check expected the top-row logo beside the
+  command (updated: the command takes that room), and `toolkit-list`
+  "ListView modes and cardColumns at 390 px", the fixture flake recorded in
+  [FB-0178](#fb-0178) (no shell, no command); both then passed 3 of 3 with
+  `--repeat-each=3`. The earlier rounds found the defects above. Task-only
+  probes were removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo; consumer and
+  owner acceptance pending.

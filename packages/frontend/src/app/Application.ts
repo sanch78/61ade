@@ -2,10 +2,10 @@ import * as Suite from "@dhtmlx/suite";
 import { t } from "../I18n";
 import { uploads as uploader, type UploadEvents } from "../Uploader";
 import type { LiveChannel } from "../Realtime";
-import type { AccordionOptions, Application, ClientCommand, ColumnPresentation, Components, FieldType, MediaType, NavigationTarget, PageLayoutOptions, SettingsFormOptions, TabsOptions, ViewDefinition, ViewKind } from "../api/types";
+import type { AccordionOptions, Application, ClientCommand, ColumnPresentation, Components, FieldType, MediaType, NavigationTarget, PageLayoutOptions, SettingsFormOptions, TabsOptions, ViewDefinition, ViewKind, WindowOptions, MenuCommand } from "../api/types";
 import { server } from "../api/Server";
 import { createEventBus, type InternalEventBus } from "../api/Events";
-import { i18n, identity, live, preferences, theme, ui, uploads } from "../api/services";
+import { i18n, identity, live, openWindow, preferences, theme, ui, uploads } from "../api/services";
 import { NamedRegistry, extensions } from "./registries";
 import { registerBuiltins } from "./builtins";
 import { listComponents } from "../components/list";
@@ -42,7 +42,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
   const kinds = new NamedRegistry<ViewKind<any>>("view kind");
   const presentations = new NamedRegistry<ColumnPresentation>("presentation");
   const fieldTypes = new NamedRegistry<FieldType>("field type");
-  const commands = new NamedRegistry<ClientCommand>("command");
+  const commands = new NamedRegistry<ClientCommand | MenuCommand>("command");
   const mediaTypes = new NamedRegistry<MediaType>("media type");
   // Before any module, so a project can replace a built-in entry with `{replace: true}`.
   registerBuiltins({ kinds, presentations, commands, mediaTypes }, { channel: bridge.channel, user: bridge.userId });
@@ -51,7 +51,8 @@ export function createApplication(bridge: ShellBridge): Kernel {
     apiVersion: 1 as const,
     dhx: Suite,
     server,
-    ui,
+    // A remembered window (`WindowOptions.id`) is the signed-in user's, like the other UI preferences.
+    ui: Object.freeze({ ...ui, window: (options: WindowOptions) => openWindow(options, bridge.userId) }),
     uploads,
     i18n,
     theme,

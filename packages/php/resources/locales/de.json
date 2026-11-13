@@ -750,5 +750,7 @@
   "Ennek az erőforrásnak nincs delegálási deklarációja.": "Diese Ressource hat keine Delegierungsdeklaration.",
   "Feltöltve, mentésre vár": "Hochgeladen, wartet auf Speichern",
   "Legfeljebb {count} fájl adható meg.": "Höchstens {count} Dateien sind möglich.",
-  "{count} / {limit} fájl": "{count} / {limit} Dateien"
+  "{count} / {limit} fájl": "{count} / {limit} Dateien",
+  "Ablak maximalizálása": "Fenster maximieren",
+  "Ablak visszaállítása": "Fenster wiederherstellen"
 }

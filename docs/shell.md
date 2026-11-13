@@ -102,7 +102,8 @@ The consumer hierarchy renders recursively as native DHTMLX Menu.
 Historical shell MenuItem leaves are disabled. Implemented modules enter
 navigation from Feature Registry view definitions. Placeholder content and
 business actions do not belong in this initial shell API; later feature
-navigation is described below. Logout is a working framework menu action.
+navigation is described below, and a project command in the row is a
+[menu command](#menu-commands). Logout is a working framework menu action.
 For a new module, first implement needed feature/action/policy capabilities,
 then configure its business integration.
 
@@ -179,6 +180,88 @@ Limits: the count is that of the declared filters only (no server callback
 and no per-actor filter value such as "assigned to me", which a project
 expresses as a `where`, the ACL or a dedicated view); one count per view; no
 attention on custom `Menu` items, a record view or a `menu: false` view.
+
+<a id="menu-commands"></a>
+
+### Menu commands: an application command in the menu row
+
+An application can put up to three commands in the menu row that run project
+code, for example opening a work window, instead of opening a view
+([FB-0199](feedback.md#fb-0199)). The server declares the entry; a project
+[module](toolkit.md#registries) registers what it does under the same name:
+
+```php
+use Blade\Navigation\MenuCommand;
+
+new ApplicationDefinition(…, menuCommands: [
+    new MenuCommand('demo.workbench', 'Munkaasztal', icon: 'dxi dxi-pencil',
+        tooltip: 'Munkaablak: nézetváltáskor is nyitva marad',
+        visible: static fn(Identity $actor) => true, attention: 'demo_approvals'),
+]);
+```
+
+```ts
+app.commands.register("demo.workbench", {
+  placement: "menu",
+  run: ({ app, view }) => openWorkbench(app, view),   // `view`: the page's open view, if any
+});
+```
+
+JSON: `"application": {"menu_commands": [{"id": "demo.workbench", "label":
+"Munkaasztal", "icon": "dxi dxi-pencil", "tooltip": "…", "emphasized": true,
+"visible": "<identity binding>", "attention": "demo_approvals"}]}`, where
+`visible` names an identity binding `Closure(Identity): bool` (like
+`skins`).
+
+- **Declaration:** `id` is the client command's name with a project prefix
+  (`[a-z][a-z0-9_.-]*` with a dot, at most 100 characters), `label` 1–80 and
+  `tooltip` 1–200 characters of plain text, translated like other labels;
+  `icon` a Suite icon class (default `dxi dxi-flash`); `emphasized` (default
+  `true`) the primary tone; `visible` is evaluated on the server for every
+  page and never sent; `attention` names a view that declares
+  [attention](#menu-attention), whose live count the entry shows as well (the
+  same subscription, no second count). At most three unique commands;
+  anything else throws `InvalidArgumentException` at definition time.
+- **Browser:** only `id`, the translated `label` and `tooltip`, `icon`,
+  `emphasized` and, when the actor is offered that view, `attention` reach
+  the page (`menuCommands`). The entry shows once a module has registered
+  `id` with `placement: "menu"`; without one (a failed module) there is no
+  dead button. A run gets `{app, view}`, changes neither the address nor the
+  open view, and a rejection shows the error dialog. Anything it changes on
+  the server is an ordinary action call checked there: hiding the entry is
+  not access control.
+- **Placement:** after the navigation on every view: after the last menu
+  entry, before the spacer and logout in the full menu; right after `Menü`,
+  before the open view's siblings, when the menu is collapsed. It never goes
+  into `Menü`. The navigation keeps priority: where the full menu fits only
+  with the command's icon, the entry shows its icon (and count) only and the
+  menu stays full; it collapses into `Menü` only when even that does not
+  fit. Collapsed, the label yields first and the open view's siblings
+  only when they do not fit beside the icon; a phone has no siblings, so its
+  entry loses the label only where even `Menü` and the label do not fit
+  (about 320 px with a count). An icon-only entry is at least
+  44 px wide; its hidden label still names it and the tooltip (or the label)
+  shows on hover. The command entries are inserted in place once a module
+  registers them, so a menu opened during start-up stays open.
+- **Emphasis:** `emphasized` draws a filled pill in the primary colour
+  darkened to 72 % with white, bold text inside the full-height row button,
+  so shape and weight mark it besides colour and the text keeps at least
+  4.5:1 in every factory theme and skin (Suite's own dark primary with its
+  contrast colour stays below 3:1). Hover and press darken it further;
+  keyboard focus has the row's outline. `emphasized: false` is an entry like
+  the views'. A count badge sits inside the pill with a white ring.
+- **Keyboard and names:** the entry is a `menuitem` in the row's arrow-key
+  order (after `Menü` or the last entry); its name is the label, or
+  `Munkaasztal, 3 függőben` with a count. 61ade has no general keyboard
+  shortcuts, so a command has none.
+- **Popups above windows:** the row's own popups (the main menu, the
+  `Beállítások` controls) open above windows, so a
+  [long-lived window](toolkit.md#long-lived-windows) never hides them; a
+  modal window keeps blocking the row as before.
+
+Without `menuCommands` the menu is unchanged. Limits: no submenus, toggle
+state or disabled state of a command; the count comes from a declared view's
+attention only.
 
 <a id="dhtmlx-megjelenítés-és-csomagolás"></a>
 

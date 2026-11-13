@@ -86,6 +86,10 @@ try{
  commands.register('demo.pinned',{label:'P',placement:'toolbar',pinned:true,run(){}});commands.register('demo.badpin',{label:'B',placement:'toolbar',pinned:'yes',run(){}});
  assert.deepEqual(resolveCommands([],['demo.pinned','demo.badpin'],commands).map(command=>command.name),['demo.pinned']);
  assert.ok(warnings.some(line=>line.includes('command "demo.badpin"')),'a non-boolean pinned is skipped');
+ // A menu-row command (`placement: "menu"`, FB-0199) shares the registry but is never a list command.
+ commands.register('demo.workbench',{placement:'menu',run(){}});
+ assert.deepEqual(resolveCommands([],['demo.workbench','demo.copy'],commands).map(command=>command.name),['demo.copy']);
+ assert.ok(warnings.some(line=>line.includes('command "demo.workbench"')),'a menu command on a list is skipped with a warning');
  // Enabled rules: `toolbar` default on; `record` default like the built-in record actions:
  // a cursor record and at most one mark; an own rule decides alone; a throw disables (logged).
  const context=(extra={})=>({app:{},view:{id:'v'},rows:[],signal:new AbortController().signal,...extra});

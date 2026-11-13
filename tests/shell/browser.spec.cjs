@@ -67,17 +67,21 @@ test('login remains a usable DHTMLX window at phone width', async ({ page }) => 
     await page.setViewportSize({width:390,height:844});await page.getByRole('menuitem',{name:'Menü',exact:true}).click();await page.getByRole('menuitem',{name:'Kijelentkezés',exact:true}).click();await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();
 });
 test('compact desktop menu shows the open feature\'s siblings beside Menü', async ({ page }) => {
-    // Below the full menu's width, with room for Menü and the five Digitális kijelző siblings.
-    await page.setViewportSize({ width: 1200, height: 800 });
+    // Below the full menu's width, with room for Menü, the demo's menu command and the five Digitális kijelző siblings.
+    await page.setViewportSize({ width: 1300, height: 800 });
     await login(page);
-    const top = page.locator('.blade-navigation-row .dhx_menu-nav > li > button');
+    // The demo's menu-row command `Munkaasztal` (docs/shell.md#menu-commands) follows `Menü` on every view.
+    const top = page.locator('.blade-navigation-row .dhx_menu-nav > li:not(.blade-menu-command) > button');
     const current = page.locator('.blade-navigation-row .dhx_menu-nav > li.blade-menu-current');
+    const order = () => page.locator('.blade-navigation-row .dhx_menu-nav > li > button').evaluateAll(buttons => buttons.map(button => button.dataset.dhxId));
     await expect(page.getByRole('menuitem', { name: 'Menü', exact: true })).toBeVisible();
     await expect(top).toHaveCount(1);
+    await expect.poll(order).toEqual(['blade-main-menu', 'command:demo.workbench']);
     await page.goto('/#view=signage_assets');
     // `Menü` may carry the attention badge of the demo's pending approvals (view.attention).
     await expect(top).toHaveText([/^Menü\d*$/, 'Médiatár', 'Alapértelmezett tartalom', 'Lejátszási listák', 'Műsorterv', 'Napi műsor']);
     await expect(current).toHaveText(['Médiatár']);
+    expect((await order()).slice(0, 2)).toEqual(['blade-main-menu', 'command:demo.workbench']);
     await top.filter({ hasText: 'Műsorterv' }).click();
     await expect(page).toHaveURL(/#view=signage_schedule$/);
     await expect(current).toHaveText(['Műsorterv']);

@@ -1,4 +1,4 @@
-import type { ClientCommand, ColumnPresentation, ListKindOptions, MediaType, ViewDefinition, ViewKind } from "../api/types";
+import type { ClientCommand, MenuCommand, ColumnPresentation, ListKindOptions, MediaType, ViewDefinition, ViewKind } from "../api/types";
 import type { NamedRegistry } from "./registries";
 import type { LiveChannel } from "../Realtime";
 import { builtinMediaTypes, imagePresentation } from "../RecordPresentation";
@@ -13,7 +13,7 @@ export type BuiltinContext = { channel: () => LiveChannel; user: string };
  * (`Adatok`) command on `commands` and the `image`, `video`, `audio` media types on `mediaTypes`; the list surfaces
  * render and run them through these registries.
  */
-export function registerBuiltins(registries: { kinds: NamedRegistry<ViewKind<any>>; presentations: NamedRegistry<ColumnPresentation>; commands: NamedRegistry<ClientCommand>; mediaTypes: NamedRegistry<MediaType> }, context: BuiltinContext): void {
+export function registerBuiltins(registries: { kinds: NamedRegistry<ViewKind<any>>; presentations: NamedRegistry<ColumnPresentation>; commands: NamedRegistry<ClientCommand | MenuCommand>; mediaTypes: NamedRegistry<MediaType> }, context: BuiltinContext): void {
   const { kinds } = registries;
   registries.presentations.builtin("image", imagePresentation);
   for (const [name, type] of Object.entries(builtinMediaTypes)) registries.mediaTypes.builtin(name, type);

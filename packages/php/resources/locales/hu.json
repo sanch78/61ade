@@ -750,5 +750,7 @@
   "Ennek az erőforrásnak nincs delegálási deklarációja.": "Ennek az erőforrásnak nincs delegálási deklarációja.",
   "Feltöltve, mentésre vár": "Feltöltve, mentésre vár",
   "Legfeljebb {count} fájl adható meg.": "Legfeljebb {count} fájl adható meg.",
-  "{count} / {limit} fájl": "{count} / {limit} fájl"
+  "{count} / {limit} fájl": "{count} / {limit} fájl",
+  "Ablak maximalizálása": "Ablak maximalizálása",
+  "Ablak visszaállítása": "Ablak visszaállítása"
 }

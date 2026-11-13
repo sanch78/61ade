@@ -24,6 +24,8 @@ import playlistEditor from "./playlist-editor";
 import taskPage from "./task-page";
 // D8 Kulcsböngésző: view kind demo.registry-browser and toggle command demo.subkey-values (registry-browser.ts)
 import registryBrowser from "./registry-browser";
+// D9 Munkaasztal: menu-row command demo.workbench and its long-lived work window (workbench.ts)
+import workbench from "./workbench";
 
 /**
  * Runs every part in D-row order. A failing part does not stop the later ones; the failures are rethrown together, so
@@ -31,7 +33,7 @@ import registryBrowser from "./registry-browser";
  */
 const demo: ApplicationModule = async app => {
   const failures: unknown[] = [];
-  for (const part of [assets, playlist, readings, tasks, playlistEditor, taskPage, registryBrowser]) {
+  for (const part of [assets, playlist, readings, tasks, playlistEditor, taskPage, registryBrowser, workbench]) {
     try { await part(app); } catch (error) { failures.push(error); }
   }
   if (failures.length) throw new AggregateError(failures, "61ade feature demo: a module part failed");

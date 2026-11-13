@@ -241,6 +241,43 @@ every window below 768 px (full screen there), keeps its size: `fit()` does
 nothing for it, so a `RecordForm` or `SettingsForm` in it fills it instead
 of resizing it ([FB-0178](feedback.md#fb-0178)).
 
+<a id="long-lived-windows"></a>
+
+**Long-lived windows.** A project's own `app.ui.window` opened without a
+view's `signal` belongs to the page, not to a view: it stays open, with its
+content and state, across view navigation (menu, `navigate`, the address),
+Back/Forward and record windows opening and closing. It closes on its close
+button, Escape inside it, `close()`, its own `signal`, and with the page:
+sign-out and a tenant switch reload it. Pass `modal: false` so the workspace
+and the menu row stay usable outside its own area; the row's popups open
+above it. Modal windows and dialogs opened later (a record editor, a
+confirmation) stack above it, Escape closes the topmost modal one (Suite
+alone left it open while a non-modal window existed), and a dialog returns
+the focus to where it was. A project that needs to know the page's view
+listens to `view:opened` / `view:closed`; a [menu command](shell.md#menu-commands)
+is the usual way to open such a window from every view
+([FB-0199](feedback.md#fb-0199)).
+
+- **`maximizable: true`** adds `Ablak maximalizálása` (Maximize window)
+  before the close button; maximized, the window fills the workspace between
+  the menu row and the lower bar (the menu stays reachable), follows the
+  viewport, cannot be moved or resized, and the button becomes `Ablak
+  visszaállítása`, which restores the previous box. A header double-click
+  toggles too; `AppWindow.maximized` and `maximize(true|false)` do it from
+  code. Below 768 px the window is full screen and has no button.
+- **`id`** (`[a-z][a-z0-9_.-]*`, else `TypeError`) remembers the window's
+  restored box (size and position) and its maximized state per user and page
+  path, like a `Tabs` `id` (`blade-ui:1:[path, user, "window:<id>"]`). Only a
+  user's drag or resize is stored, not a content fit; the next window with
+  the id opens there, clamped into the viewport with a 12 px margin, and no
+  longer fits its content. Phones neither read nor write it. Without `id` a
+  window opens centred at `width`/`height`, as before.
+
+```ts
+const win = app.ui.window({ title: t("Munkaasztal"), width: 880, height: 560, fit: false, modal: false,
+  maximizable: true, id: "demo.workbench" });   // no `signal`: it outlives the view
+```
+
 <a id="window-title"></a>
 
 A title wider than the header stays on one line and never covers the close
@@ -340,7 +377,7 @@ registration affects only surfaces created after it.
 | `kinds` (view kinds) | `list`, `files`, `diagram`, `calendar` | the view `kind` |
 | `presentations` | `image` (static image column; `icon` stays framework-internal) | `Field` `column: ['presentation' => 'demo.bar']`, JSON `"column": {"presentation": "demo.bar"}` |
 | `fieldTypes` | none | `new Field(…, editor: 'demo.rating')`, JSON field `"editor": "demo.rating"` |
-| `commands` | `details` (the lists' `Adatok` command) | `Registry::view(…, commands: [...])`, `SqlResource::register(…, commands: [...])`, JSON `view.commands` |
+| `commands` | `details` (the lists' `Adatok` command) | `Registry::view(…, commands: [...])`, `SqlResource::register(…, commands: [...])`, JSON `view.commands`; a `placement: "menu"` entry by `ApplicationDefinition(menuCommands: [new MenuCommand(…)])`, JSON `application.menu_commands` ([menu commands](shell.md#menu-commands)) |
 | `mediaTypes` | `image`, `video`, `audio` (`image/*`, `video/*`, `audio/*`) | nothing: every file's `mime_type` (`_media`, file listings) |
 
 The server checks only the shape of a project name (dotted, `Field::projectName`)
@@ -2971,6 +3008,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M71 | [Window title](#window-title): `WindowOptions.titleOverflow` (`"end"` default, `"start"`: a leading `…`, the end stays visible) and `titlePrefix` (never cut); a cut title shows the full title as its tooltip; `AppWindow.setTitle` also renames the window's accessible name | [FB-0194](feedback.md#fb-0194) | info: a spec that read the dialog's name after `setTitle` finds the new title instead of the opening one | none | none |
 | M72 | [Empty-valued select filters](workspaces.md#integrated-grid-header-filters): a select option declared with the empty value is a real filter condition (`filters: {field: ""}`) in the header picker, the filter panel, `setFilters`, `#filter.<field>=` presets and saved filters; no filter shows an empty header control. A user filter on a hierarchy's parent field replaces its implicit root scope | [FB-0195](feedback.md#fb-0195) | info: a list with an empty-valued option no longer shows that option's label in the header without filtering; a spec that expected `setFilters({field: ""})` or a saved `""` to be ignored for such a select now sees the condition requested | none: its `Szülőasset` header filter's `Főasset` option now filters (was shown without filtering) | none |
 | M73 | [Form rows](workspaces.md#form-rows): a field's `row` and `rowWidth` (PHP `Field`, JSON `row`, `row_width`), `FieldMetadata.row`/`.rowWidth`, `ColumnMetadata.row`/`.rowWidth`: consecutive fields of one section share a row of the action forms and stack into one column where the form is narrower than `--blade-form-column-min` per share; the list's and the tree navigation's form window opens wide enough for the widest row. The singleton's details form without an update right now keeps a fixed section fixed | [FB-0196](feedback.md#fb-0196) | none (additive; a form without rows is unchanged) | none | none |
+| M74 | [Menu commands](shell.md#menu-commands): `ApplicationDefinition` `menuCommands` (PHP `MenuCommand`, JSON `application.menu_commands`) put up to three emphasized commands in the menu row; their handler is an `app.commands` entry with `placement: "menu"` (`MenuCommand`, `MenuCommandContext`; the registry's type is `Registry<ClientCommand \| MenuCommand>`). [Long-lived windows](#long-lived-windows): `WindowOptions.maximizable`, `WindowOptions.id`, `AppWindow.maximized`/`maximize()`; the menu row's popups open above windows; Escape closes a modal window above a non-modal one | [FB-0199](feedback.md#fb-0199) | info: TypeScript code that reads `app.commands.get(…)` as a `ClientCommand` narrows by `placement`; a spec that measured the feature demo's menu row finds `Munkaasztal` after the navigation | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3130,6 +3168,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-12 | `WindowOptions.titleOverflow` (`"end"` default, `"start"`) and `titlePrefix`: a long window title is cut at its start with the prefix kept, the full title as tooltip and accessible name; `setTitle` updates the accessible name (M71). Additive. | A consumer titles its editor windows with a path whose end names what is edited; the title was cut at its end. | [FB-0194](feedback.md#fb-0194) |
 | 2026-11-13 | Empty-valued select filters: an option declared with the empty value is a filter condition (`filters: {field: ""}`) in header filters, the filter panel, `setFilters`, presets and saved filters; no filter shows an empty header control; a user filter on a hierarchy's parent field replaces the implicit root scope (M72). Behaviour fix. | A consumer's `Főasset` (no parent) option was shown in the header without filtering, and choosing it did not filter. | [FB-0195](feedback.md#fb-0195) |
 | 2026-11-13 | PHP `Field` `row`, `rowWidth`, JSON `row`, `row_width`; `FieldMetadata.row`/`.rowWidth`, `ColumnMetadata.row`/`.rowWidth`; CSS `--blade-form-column-min`: form rows of several columns that stack where the form is narrow; the list's form window opens as wide as its widest row (M73). Additive. | Every field took a full row, so a wide form was a narrow, tall stack of short inputs. | [FB-0196](feedback.md#fb-0196) |
+| 2026-11-13 | PHP `MenuCommand` and `ApplicationDefinition` `menuCommands`, JSON `application.menu_commands`, client `MenuCommand`/`MenuCommandContext` (`placement: "menu"`): application commands in the menu row on every view, emphasized, with a server-side `visible` and an optional view's attention count; `WindowOptions.maximizable` and `id`, `AppWindow.maximized`/`maximize()`: a maximize/restore button and a remembered box; long-lived non-modal windows documented; the row's popups above windows; Escape closes a modal window above a non-modal one (M74). Additive, except the registry type. | A consumer's work window must be reachable from every view through a conspicuous menu button, stay open across navigation, be large and remember its place. | [FB-0199](feedback.md#fb-0199) |
 
 <a id="resolved-decisions"></a>
 

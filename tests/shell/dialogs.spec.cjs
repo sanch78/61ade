@@ -85,8 +85,9 @@ test('existing caller: failed sign-in uses the shared danger dialog',async({page
  await expect(page.getByLabel('Jelszó',{exact:true})).toBeFocused();
 });
 test('choice with "apply to all": checkbox in the focus trap, Escape cancels',async({page})=>{
- // requestChoiceAll() through the uploader's name conflict: Drive C already holds note.txt.
- await page.setViewportSize({width:1400,height:900});
+ // requestChoiceAll() through the uploader's name conflict: Drive C already holds note.txt. Wide enough for the full
+ // menu beside the demo's menu command, so the menu does not collapse while it is used.
+ await page.setViewportSize({width:1600,height:900});
  await page.goto('/');await page.getByLabel('E-mail',{exact:true}).fill('demo@example.test');await page.getByLabel('Jelszó',{exact:true}).fill('61ade-demo');
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  // The collapsed menu is only known once the shell has replaced the sign-in page.

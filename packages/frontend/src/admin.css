@@ -552,6 +552,42 @@ body,
 .blade-menu-count--warning { background: #b45309; color: #fff; }
 [data-dhx-theme="dark"] .blade-menu-count--warning { background: #f59e0b; color: #1a1a1a; }
 .blade-menu-count--primary { background: var(--dhx-color-primary); color: var(--dhx-font-color-contrast); }
+/* Menu-row commands (docs/shell.md#menu-commands): the entry is the full-height row button (its hit area); the
+   emphasized tone draws a filled primary pill inside it with bold text, so shape and weight mark it besides colour. */
+.blade-menu-command__body { display: inline-flex; align-items: center; height: 100%; }
+.blade-navigation-row .blade-menu-command .blade-menu-command__body .dhx_menu-button__icon { margin-right: 8px; }
+/* The pill is the primary colour darkened so white text keeps 4.5:1 in every theme and skin (Suite's dark primary
+   with its contrast colour stays below 3:1). */
+.blade-navigation-row .dhx_menu-nav > .blade-menu-command--primary { --blade-command-fill: color-mix(in srgb, var(--dhx-color-primary) 72%, #000); }
+.blade-navigation-row .dhx_menu-nav > .blade-menu-command--primary .dhx_nav-menu-button { isolation: isolate; font-weight: 600; color: #fff; }
+.blade-navigation-row .dhx_menu-nav > .blade-menu-command--primary .dhx_nav-menu-button::before {
+  content: "";
+  position: absolute;
+  inset: 5px 4px;
+  z-index: -1;
+  border-radius: 6px;
+  background-color: var(--blade-command-fill);
+  transition: background-color .15s ease;
+}
+.blade-navigation-row .dhx_menu-nav > .blade-menu-command--primary .dhx_nav-menu-button:not(:disabled) .dhx_menu-button__icon { color: inherit; }
+.blade-navigation-row .dhx_menu-nav > .blade-menu-command--primary .dhx_nav-menu-button:is(:hover, :active, :focus-visible):not(:disabled) { background: transparent; }
+.blade-navigation-row .dhx_menu-nav > .blade-menu-command--primary .dhx_nav-menu-button:is(:hover, :active)::before { background-color: color-mix(in srgb, var(--dhx-color-primary) 58%, #000); }
+.blade-navigation-row .dhx_menu-nav > .blade-menu-command--primary .dhx_nav-menu-button:focus-visible { outline-offset: 1px; }
+.blade-menu-command--primary .blade-menu-count { box-shadow: 0 0 0 1.5px #fff; }
+.blade-menu-command--primary .blade-menu-count--primary { background: #fff; color: var(--blade-command-fill); }
+/* A row too narrow for the labels: an icon-only, 44 px wide entry, still named by its hidden label. */
+.blade-navigation-row .dhx_menu-nav > .blade-menu-command--icon .dhx_nav-menu-button { min-width: 44px; padding: 0 10px; justify-content: center; }
+.blade-navigation-row .blade-menu-command--icon .blade-menu-command__body .dhx_menu-button__icon { margin-right: 0; }
+.blade-menu-command--icon .blade-menu-command__label { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .blade-navigation-row .blade-menu-command--primary .dhx_nav-menu-button::before { transition: none; }
+}
+/* The menu row's popups (main menu, settings) open above windows: a non-modal work window may stay over any view
+   (a modal one blocks the row anyway). */
+.dhx_menu.blade-shell-popup { z-index: calc(var(--dhx-z-index-overlay-total) + 100); }
+/* A maximized window (`WindowOptions.maximizable`) is neither moved nor resized until it is restored. */
+.blade-window--maximized :is(.dhx_window-resizer, [class*="dhx_window-resizer"]) { display: none; }
+.blade-window--maximized .dhx_window-header { cursor: default; }
 .blade-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* Centered menu rows must explicitly stretch native separators to show the rule. */

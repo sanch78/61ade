@@ -1599,10 +1599,62 @@ var registryBrowser = (app) => {
 };
 var registry_browser_default = registryBrowser;
 
+// examples/demo-app/frontend/src/workbench.ts
+var workbench = (app) => {
+  const t = app.i18n.t;
+  let open;
+  let current = "";
+  app.events.on("view:opened", ({ id, open: mode }) => {
+    if (mode === "page") current = app.viewDefinition(id)?.title ?? id;
+  });
+  let form;
+  const showView = () => form?.getItem("view")?.setValue(current || t("\xDCres munkater\xFClet"));
+  app.events.on("view:opened", () => showView());
+  app.events.on("view:closed", ({ id }) => {
+    if (app.viewDefinition(id)?.title === current) {
+      current = "";
+      showView();
+    }
+  });
+  app.commands.register("demo.workbench", {
+    placement: "menu",
+    run({ view }) {
+      if (open) {
+        open.window.setActive();
+        return;
+      }
+      if (view && !current) current = view.title;
+      const win = open = app.ui.window({ title: t("Munkaasztal"), width: 880, height: 560, fit: false, modal: false, maximizable: true, id: "demo.workbench" });
+      win.signal.addEventListener("abort", () => {
+        open = void 0;
+        form = void 0;
+      }, { once: true });
+      form = new app.dhx.Form(document.createElement("div"), { padding: 16, rows: [
+        { type: "input", name: "view", label: t("Aktu\xE1lis n\xE9zet"), labelPosition: "left", labelWidth: 140, readOnly: true },
+        {
+          type: "textarea",
+          name: "note",
+          label: t("Jegyzet"),
+          labelPosition: "top",
+          height: 300,
+          placeholder: t("\xCDrj ide; a sz\xF6veg n\xE9zetv\xE1lt\xE1s ut\xE1n is megmarad, am\xEDg az ablak nyitva van.")
+        },
+        { align: "end", cols: [{ type: "button", name: "clear", text: t("Jegyzet t\xF6rl\xE9se"), view: "link", color: "danger" }] }
+      ] });
+      form.getItem("clear").events.on("click", async () => {
+        if (await app.ui.dialog({ message: t("T\xF6rl\xF6d a jegyzetet?"), mode: "confirm", severity: "warning" })) form?.getItem("note").setValue("");
+      });
+      win.attach(form);
+      showView();
+    }
+  });
+};
+var workbench_default = workbench;
+
 // examples/demo-app/frontend/src/index.ts
 var demo = async (app) => {
   const failures = [];
-  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default]) {
+  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default, workbench_default]) {
     try {
       await part(app);
     } catch (error) {

@@ -356,7 +356,7 @@ MessageDialog.ts; actions use confirm, while successful action results and revea
 secrets use a non-blocking toast. Destructive dialogs
 focus Cancel; Enter activates only focused button; Escape always cancels confirmation.
 Consumers cannot create their own modal. Demo: Tasks → Párbeszéd actions.
-General rule: every framework `Window` is `modal: true`; while one is open the main layout behind the DHTMLX overlay is not operable. The one exception is the [view guide](workspaces.md#view-guide) (M34); a project's own `app.ui.window` may pass `modal: false`. Escape closes either kind while the focus is inside it ([FB-0155](feedback.md#fb-0155)).
+General rule: every framework `Window` is `modal: true`; while one is open the main layout behind the DHTMLX overlay is not operable. The one exception is the [view guide](workspaces.md#view-guide) (M34); a project's own `app.ui.window` may pass `modal: false`. Escape closes either kind while the focus is inside it ([FB-0155](feedback.md#fb-0155)), and the topmost modal window also while a non-modal one is open ([FB-0199](feedback.md#fb-0199)).
 Actions without input fields run directly and acknowledge success with a
 non-blocking gritter/toast; a dialog is reserved for a justified confirmation
 or an error.
@@ -477,7 +477,14 @@ The commands of a selected item that need not stay visible go into one
 submenu of `Műveletek` when the bar is narrow).
 
 A page's own [`app.ui.window`](toolkit.md#app-window) closes on Escape while
-the focus is inside it, also with `modal: false`. Suite's English-only names
+the focus is inside it, also with `modal: false`. Opened without a view's
+`signal` it is a [long-lived window](toolkit.md#long-lived-windows): it stays
+open with its content across navigation until it is closed, sign-out or a
+tenant switch; `maximizable` adds a maximize/restore button and `id`
+remembers its box per user. A [menu command](shell.md#menu-commands)
+(`menuCommands`, a module's `placement: "menu"` command) opens such a window,
+or runs other project code, from an emphasized entry in the menu row of every
+view ([FB-0199](feedback.md#fb-0199)). Suite's English-only names
 are in the page's language: a `collapsable` header is `‹header›
 összecsukása` / `‹header› kinyitása`, a window's close button `Ablak bezárása`
 ([FB-0155](feedback.md#fb-0155)). A long window title stays on one line;

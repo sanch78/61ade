@@ -13,7 +13,7 @@ use Blade\Configuration\WorkspaceConfiguration;
 use Blade\Feature\{Context, Failure, Field, SqlResource};
 use Blade\Live\LiveConfig;
 use Blade\Mail\{CommandDelivery, Delivery, Layout, LoginMessage};
-use Blade\Navigation\{Menu, MenuItem};
+use Blade\Navigation\{Menu, MenuCommand, MenuItem};
 use Blade\Shell\{ApplicationDefinition, Identity, Logo, SignIn, SignInLink, Skin, SqlIdentityProvider};
 
 require_once __DIR__.'/common.php';
@@ -182,6 +182,9 @@ return new ApplicationDefinition(
     signInStylesheets: ['branding/sign-in.css'],
     signIn: new SignIn('Szintetikus demó: a fiókok és az adatok kitaláltak.', [new SignInLink('Nyilvános demó', '/public/')], closeHref: '/public/'),
     signInModules: ['branding/sign-in.js'],
+    // Menu-row command (docs/shell.md#menu-commands): the module's `demo.workbench` opens a long-lived work window; the
+    // entry also shows the pending approvals' live count.
+    menuCommands: [new MenuCommand('demo.workbench', 'Munkaasztal', icon: 'dxi dxi-pencil', tooltip: 'Munkaablak: nézetváltáskor is nyitva marad', attention: 'demo_approvals')],
     // View guides of the framework's own views (docs/workspaces.md#view-guide); the demo's views declare their own.
     guides: blade_demo_admin_guides(),
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [

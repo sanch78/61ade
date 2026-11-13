@@ -363,4 +363,29 @@ check($commandColumns['priority']['editor']==='demo.rating'&&$commandDetails['pr
 $updateFields=array_column(array_column($commandWorkspace->views(new Identity('1','Egy'))[0]['actions'],null,'name')['update']['fields'],null,'name');
 check($updateFields['priority']['editor']==='demo.rating','A field editor reaches the action fields');
 
+// Menu-row commands (docs/shell.md#menu-commands): a project-prefixed client command, server-side visibility, the
+// attention of a declared view; at most three unique ones per application.
+$command=new Blade\Navigation\MenuCommand('demo.workbench','Munkaasztal',icon:'dxi dxi-pencil',tooltip:'Nyitva marad',visible:static fn(Identity $actor)=>$actor->id==='1',attention:'assets.watched');
+check($command->project(new Identity('1','Egy'),['assets.watched'])===['id'=>'demo.workbench','label'=>'Munkaasztal','icon'=>'dxi dxi-pencil','tooltip'=>'Nyitva marad','emphasized'=>true,'attention'=>'assets.watched'],'Menu command projection');
+check($command->project(new Identity('2','Kettő'),['assets.watched'])===null,'A hidden menu command is not offered');
+check(!array_key_exists('attention',$command->project(new Identity('1','Egy'),[])),'Attention only names an offered view');
+check((new Blade\Navigation\MenuCommand('demo.plain','Sima',emphasized:false))->project(new Identity('1','Egy'),[])===['id'=>'demo.plain','label'=>'Sima','emphasized'=>false],'A plain menu command');
+foreach([
+ 'an undotted id'=>fn()=>new Blade\Navigation\MenuCommand('workbench','X'),
+ 'an upper-case id'=>fn()=>new Blade\Navigation\MenuCommand('Demo.x','X'),
+ 'an empty label'=>fn()=>new Blade\Navigation\MenuCommand('demo.x',' '),
+ 'an empty tooltip'=>fn()=>new Blade\Navigation\MenuCommand('demo.x','X',tooltip:''),
+ 'an icon with markup'=>fn()=>new Blade\Navigation\MenuCommand('demo.x','X',icon:'dxi"><b'),
+ 'an invalid attention id'=>fn()=>new Blade\Navigation\MenuCommand('demo.x','X',attention:'Bad view'),
+] as $case=>$declare)rejects($declare,'A menu command with '.$case.' accepted');
+$commandApp=fn(array $commands)=>new ApplicationDefinition('Demo',$identities,new Menu([]),sys_get_temp_dir(),workspace:new Workspace($menuless,$db),menuCommands:$commands);
+check($commandApp([$command])->menuCommands===[$command],'ApplicationDefinition keeps its menu commands');
+foreach([
+ 'four commands'=>fn()=>$commandApp(array_map(fn($i)=>new Blade\Navigation\MenuCommand('demo.c'.$i,'C'),range(1,4))),
+ 'a duplicate id'=>fn()=>$commandApp([new Blade\Navigation\MenuCommand('demo.c','C'),new Blade\Navigation\MenuCommand('demo.c','D')]),
+ 'a non-command'=>fn()=>$commandApp(['demo.c']),
+ 'attention of a view without attention'=>fn()=>$commandApp([new Blade\Navigation\MenuCommand('demo.c','C',attention:'assets')]),
+ 'attention of an unknown view'=>fn()=>$commandApp([new Blade\Navigation\MenuCommand('demo.c','C',attention:'nope')]),
+] as $case=>$declare)rejects($declare,'Menu commands with '.$case.' accepted');
+
 echo "61ade toolkit server contracts passed.\n";

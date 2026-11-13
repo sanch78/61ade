@@ -136,10 +136,12 @@ test('phone width: the sign-in logo fits; the top row gives the room to Menü an
  expect(topBox.x+topBox.width).toBeLessThanOrEqual(430);
  await page.setViewportSize({width:390,height:844});
  await signedIn(page,'demo@example.test');
- // The feature demo has its navigation menu and collapsed controls, with room for the logo.
+ // The feature demo has its navigation menu, its menu command `Munkaasztal` and collapsed controls; the command takes
+ // the room the logo would use (the row never yields to the logo, docs/shell.md#menu-commands).
  await expect(page.getByRole('menuitem',{name:'Menü',exact:true})).toBeVisible();
+ await expect(page.getByRole('menuitem',{name:/^Munkaasztal/})).toBeVisible();
  await expect(page.getByRole('button',{name:'Beállítások',exact:true})).toBeVisible();
- await expect(topLogo(page)).toBeVisible();
+ await expect(topLogo(page)).toBeHidden();
  await page.setViewportSize(WIDE);
  await expect(topLogo(page)).toBeVisible();
 });

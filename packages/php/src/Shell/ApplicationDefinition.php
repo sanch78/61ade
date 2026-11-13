@@ -81,6 +81,8 @@ final readonly class ApplicationDefinition
         public string $sameSite = 'Lax',
         /** End a signed-in session used from another client address (docs/authentication.md#client-address-binding). */
         public bool $bindSessionToClientAddress = false,
+        /** Application commands of the menu row, at most 3 with unique ids (docs/shell.md#menu-commands). @var list<\Blade\Navigation\MenuCommand> */
+        public array $menuCommands = [],
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -113,6 +115,16 @@ final readonly class ApplicationDefinition
                 throw new \InvalidArgumentException('Menu separators require unique, declared view groups.');
             }
             $seen[$group] = true;
+        }
+        if (!array_is_list($menuCommands) || count($menuCommands) > 3) throw new \InvalidArgumentException('Menu commands must be a list of at most 3 MenuCommand objects.');
+        $commands = [];
+        foreach ($menuCommands as $command) {
+            if (!$command instanceof \Blade\Navigation\MenuCommand || isset($commands[$command->id])) throw new \InvalidArgumentException('Menu commands must be unique MenuCommand objects.');
+            $commands[$command->id] = true;
+            // The count is that of a declared view's attention (docs/shell.md#menu-attention).
+            if ($command->attention !== null && ($workspace?->registry->viewById($command->attention)?->attention === null)) {
+                throw new \InvalidArgumentException('A menu command\'s attention names a view that declares attention: '.$command->id);
+            }
         }
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();
