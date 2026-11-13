@@ -268,6 +268,9 @@ JSON: `"application": {"menu_commands": [{"id": "demo.workbench", "label":
   contrast colour stays below 3:1). Hover and press darken it further;
   keyboard focus has the row's outline. `emphasized: false` is an entry like
   the views'. A count badge sits inside the pill with a white ring.
+  The icon, label and optional count are centred on the button/pill itself,
+  also without a count and in the icon-only form. Their content must not
+  acquire an inline baseline's empty space below it.
 - **Keyboard and names:** the entry is a `menuitem` in the row's arrow-key
   order (after `Menü` or the last entry); its name is the label, or
   `Munkaasztal, 3 függőben` with a count. 61ade has no general keyboard

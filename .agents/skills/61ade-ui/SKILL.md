@@ -105,6 +105,9 @@ tree as decoration for a flat list.
   do not draw replacement glyphs or add an icon package for a catalogued icon.
   Keep native icon-slot and control geometry when replacing a glyph. Align
   count badges, labels and icons on the same vertical centre.
+  Measure that centre against the button and its painted surface as well:
+  equally aligned children can still sit too high together when an inline
+  baseline adds empty space below their group.
 - When project code composes a list into its own page, build one layout and
   mount the framework list component into a cell; do not nest a second frame
   around it. Content that changes (a notice, then a list; another scope) is

@@ -841,3 +841,7 @@
 <a id="fb-0204"></a>
 
 ## FB-0204 — View availability per tenant or runtime state
+
+<a id="fb-0205"></a>
+
+## FB-0205 — Centre the whole menu-command group within its pill

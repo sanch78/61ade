@@ -50,7 +50,9 @@ content-sized button can gain width when its missing icon becomes visible.
 The demo's `Előzmények` and `Modell` buttons use the normal 20 px icon slot
 and keep their full captions, as chosen by the owner.
 Menu count badges, labels and icons share a vertical centre without changing
-the menu row or badge height. There is no new event or audit operation.
+the menu row or badge height. A menu command's entire icon/label/count group
+is centred on the button and its painted pill, including commands without
+a count and the icon-only form. There is no new event or audit operation.
 
 ## Packaging and compatibility
 
