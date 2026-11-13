@@ -195,6 +195,34 @@ test('a hidden conditional field leaves no hole in its row; a lone field takes i
  expect(new Set(inputs).size).toBe(1);
 });
 
+test('a share set on the window\'s form widens the window; a row whose fields arrive apart stays whole',async({page})=>{
+ await open(page,1366);
+ // A project value on a narrower scope than `:root`; the field list delivered with `Szervezet` last (as a view's
+ // column order may give the singleton's details form).
+ await page.addStyleTag({content:'.blade-content-window { --blade-form-column-min: 220px; }'});
+ await page.route(url=>url.pathname==='/',async route=>{
+  const request=route.request();let body;
+  try{body=request.postDataJSON();}catch{}
+  if(request.method()!=='POST'||body?.action!=='__form')return route.fallback();
+  const response=await route.fetch(),json=await response.json(),fields=json.data.fields;
+  json.data.fields=[...fields.filter(field=>field.name!=='organization'),...fields.filter(field=>field.name==='organization')];
+  await route.fulfill({response,json});
+ });
+ await add(page);
+ const form=page.getByRole('dialog',{name:'Kapcsolatok — Hozzáadás',exact:true});
+ await expect(form.getByRole('textbox',{name:'E-mail'})).toBeVisible();
+ await settled(page,form);
+ // Four shares of 220 px, three gaps, the insets and a scrollbar's room.
+ expect(Math.round((await form.boundingBox()).width)).toBe(4*(220+16)-16+104);
+ const reach=await cells(form,['role','email','phone']),identity=await cells(form,['name','organization']);
+ expect(sideBySide([reach.role,reach.email,reach.phone])).toBe(true);
+ expect(reach.role.width).toBeGreaterThanOrEqual(220);
+ expect(sideBySide([identity.name,identity.organization])).toBe(true);
+ // The reading order follows the gathered row.
+ await form.getByRole('textbox',{name:'Név'}).focus();await page.keyboard.press('Tab');
+ expect(await focused(page)).toBe('Szervezet');
+});
+
 test('a form without rows keeps its 560 px window and full-width fields',async({page})=>{
  await open(page,1366,'notes');
  await add(page);

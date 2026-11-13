@@ -810,7 +810,6 @@
 
 ## FB-0196 — Multi-column form layout
 
-
 <a id="fb-0197"></a>
 
 ## FB-0197 — Align the UI skill name and current guidance

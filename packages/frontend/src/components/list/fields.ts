@@ -3,7 +3,7 @@ import { optionText } from "../../RecordPresentation";
 import "../../form-section.css";
 import "../../form-row.css";
 import { fileInput } from "../../FilePicker";
-import { type Form, awaitRedraw } from "@dhtmlx/suite";
+import { type Form, type Window, awaitRedraw } from "@dhtmlx/suite";
 import { resizeMotion } from "../../Motion";
 import { extensions, fieldTypeOf } from "../../app/registries";
 import type { FieldMetadata, FormSections } from "../../api/types";
@@ -96,21 +96,40 @@ function place(target:any[],field:FieldDefinition,made:any):void{
   row.css=ROW+" "+ROW+"--"+Math.min(state.shares,12);
   row.cols.push({...item,css:[item.css,CELL,share>1?CELL+"--"+share:""].filter(Boolean).join(" ")});
 }
-/** The px share of a form row (`--blade-form-column-min` resolved on the document, any length; else 180 px) and the gap between its cells. */
-function columnMin():number{
-  const probe=document.createElement("div");probe.style.cssText="position:absolute;visibility:hidden;width:var(--blade-form-column-min,180px)";
-  document.body.append(probe);const width=probe.getBoundingClientRect().width;probe.remove();
+/**
+ * The px share of a form row: `--blade-form-column-min` (any length; else 180 px) as a Form inside $host sees it, so a
+ * value a project sets on `:root`, on its skin or on the form's classes counts. The gap between a row's cells.
+ */
+function columnMin(host:HTMLElement=document.body):number{
+  const form=document.createElement("div"),probe=document.createElement("div");
+  form.className="dhx_widget dhx_form";form.style.cssText="position:absolute;visibility:hidden;width:0;height:0;overflow:hidden;padding:0";
+  probe.style.cssText="width:var(--blade-form-column-min,180px)";form.append(probe);host.append(form);
+  const width=probe.getBoundingClientRect().width;form.remove();
   return width>0?width:180;
 }
 const GAP=16;
+/**
+ * $fields with the fields of each row (`row` within one section) gathered at the place of its first field, the order
+ * `formRows` shows them in: a list in another order (the singleton's details form follows the view's columns) keeps
+ * its rows whole. Other fields keep their order.
+ */
+function gatherRows<T extends FieldDefinition>(fields:T[]):T[]{
+  const out:T[]=[];
+  for(const field of fields){
+    const key=rowKey(field);let at=-1;
+    if(key)for(let index=out.length-1;index>=0;index--)if(rowKey(out[index])===key&&out[index].section===field.section){at=index;break;}
+    if(at<0)out.push(field);else out.splice(at+1,0,field);
+  }
+  return out;
+}
 /**
  * The width of a form window for $fields (FB-0196): wide enough for its widest row (the form's 2 × 20 px and a section's
  * 2 × 20 px insets, the window's border and 20 px for a scrollbar), at least $min and at most the viewport − 24 px;
  * without rows $min.
  */
-export function formWindowWidth(fields:FieldDefinition[],min=560):number{
-  let widest=0,shares=0,cells=0,previous:FieldDefinition|undefined;const unit=fields.some(rowKey)?columnMin():0;
-  for(const field of fields){
+export function formWindowWidth(fields:FieldDefinition[],min=560,host?:HTMLElement):number{
+  let widest=0,shares=0,cells=0,previous:FieldDefinition|undefined;const unit=fields.some(rowKey)?columnMin(host):0;
+  for(const field of gatherRows(fields)){
     const key=rowKey(field),joined=!!key&&!!previous&&rowKey(previous)===key&&previous.section===field.section;
     shares=joined?shares+(field.rowWidth??1):key?field.rowWidth??1:0;cells=joined?cells+1:key?1:0;
     // A lone cell takes the whole width (form-row.css `--1`) and needs none.
@@ -118,6 +137,18 @@ export function formWindowWidth(fields:FieldDefinition[],min=560):number{
     previous=field;
   }
   return Math.min(Math.max(min,Math.ceil(widest)),innerWidth-24);
+}
+/**
+ * Widens the form window $win, once its form is attached, when its rows need more than it was opened with: the share
+ * as the window's Form sees it (`formWindowWidth` with the window as host), centred again. A full-screen phone window
+ * (below 768 px) and a wide enough one stay as they are. Call it before `fitWindow`.
+ */
+export function widenFormWindow(win:Window,fields:FieldDefinition[]):void{
+  const host=win.getContainer(),dialog=host?.closest<HTMLElement>('[role="dialog"]');
+  if(!host||!dialog||innerWidth<768||!fields.some(rowKey))return;
+  const box=dialog.getBoundingClientRect(),width=formWindowWidth(fields,560,host);
+  if(width<=Math.round(box.width))return;
+  win.setSize(width,box.height);win.setPosition(Math.max(12,(innerWidth-width)/2),box.top);
 }
 /**
  * The Form rows of $fields: each field's $item, the fields of one `section` gathered at the place of its first field in
@@ -130,6 +161,7 @@ export function formWindowWidth(fields:FieldDefinition[],min=560):number{
  * without the frame and the form's margin (form-section.css). Fields of one `row` share a row (`place`).
  */
 export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>any,values:Record<string,unknown>={},mode:FormSections="panels",flush=false):any[]{
+  fields=gatherRows(fields);
   const rows:any[]=[],bodies=new Map<string,any[]>(),labels=sectionsOf(fields);
   const accordion=mode==="accordion"||mode==="accordion-multiple",opened=accordion?openedAt(fields,values,mode==="accordion-multiple"):undefined;
   for(const field of fields){
