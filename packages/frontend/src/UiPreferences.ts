@@ -42,11 +42,11 @@ export class UiPreferences {
     return new Set(saved?.filter(id=>allowed.has(id))??secondary);
   }
   setVisibleColumns(columns:Set<string>):void{this.state.visibleColumns=[...columns];this.save();}
-  /** Saved filter values the current filter definitions still accept (the server's value rules); others are dropped. */
+  /** Saved filter values the current filter definitions still accept (the server's value rules); others are dropped. A select's declared empty option is a saved condition. */
   filters(definitions:FieldDefinition[]):Record<string,string>{
     const saved=this.state.filters;if(!saved||typeof saved!=="object"||Array.isArray(saved))return {};
-    const valid=(definition:FieldDefinition|undefined,value:unknown):value is string=>!!definition&&typeof value==="string"&&value!==""&&value.length<=255&&!value.includes("\0")
-      &&(definition.type==="checkbox"?value==="0"||value==="1":definition.type==="select"?Object.hasOwn(definition.options??{},value):definition.type==="number"?/^\d+$/.test(value):true);
+    const valid=(definition:FieldDefinition|undefined,value:unknown):value is string=>!!definition&&typeof value==="string"&&value.length<=255&&!value.includes("\0")
+      &&(definition.type==="checkbox"?value==="0"||value==="1":definition.type==="select"?Object.hasOwn(definition.options??{},value):definition.type==="number"?/^\d+$/.test(value):value!=="");
     return Object.fromEntries(Object.entries(saved).filter(([field,value])=>valid(definitions.find(definition=>definition.name===field),value)));
   }
   setFilters(filters:Record<string,string>):void{this.state.filters=Object.keys(filters).length?{...filters}:undefined;this.save();}

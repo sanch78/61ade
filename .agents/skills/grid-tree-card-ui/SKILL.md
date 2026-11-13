@@ -128,6 +128,11 @@ tree as decoration for a flat list.
   the grid. The server's typed query and ACL remain authoritative.
   Do not offer a text filter for a static image presentation merely because its
   stored value is a file name; derive the offered controls from its presentation.
+- Keep "no filter" distinct from "filter for the empty value" in every filter
+  control, request and saved state: an option declared with the empty value
+  (such as "no parent") is a condition, while an initial or reset control
+  shows no selected condition. Never display an option's label unless that
+  condition is actually requested.
 - Keep row identity, active/editor row, and marked rows separate. Marks survive
   grid/card switching and same-row live updates, while rows leaving the bounded
   window may drop their marks. Marks and the cursor row are transient: never

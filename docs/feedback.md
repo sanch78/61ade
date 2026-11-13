@@ -799,3 +799,7 @@
 <a id="fb-0194"></a>
 
 ## FB-0194 — Window title: keep the end visible when it does not fit
+
+<a id="fb-0195"></a>
+
+## FB-0195 — Empty-valued select filters: no filter versus the empty value

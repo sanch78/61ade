@@ -208,7 +208,18 @@ input; select and
 checkbox fields use an option picker whose values come from the declared field
 options; the picker shows option labels, sends option keys and lists every
 option again when reopened. A leading `Mind` item clears the option filter.
-An empty control omits that field from the request. Changes replace the
+An empty control omits that field from the request.
+
+**No filter versus the empty value** ([FB-0195](feedback.md#fb-0195)): a
+field present in the list's filters is a condition, an absent one none. A
+select option declared with the empty value (for example `'' => 'Nincs
+(fő feladat)'`) is a real condition, `filters: {field: ""}`: the header picker,
+the filter panel (`eq:`; `Bármely` is no filter) and the cards/tiles dialog
+offer it, the list requests it, the menu page saves it and restores it after a
+reload, and `setFilters({field: ""})` and a `#filter.<field>=` preset apply it.
+An initial or reset list shows no selected condition (an empty header control,
+`Bármely` in the panel). For a text, number or checkbox filter, or a select
+without an empty option, an empty value stays no filter. Changes replace the
 server-side list window and update the existing total/matched count; the Grid
 does not apply a separate local filter to its bounded client window. ACL and
 typed `ListSource` validation remain authoritative. Views whose filterable field
@@ -1932,7 +1943,10 @@ JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "proje
   `_subview_open: true` and expand even at a count of 0.
 - **Hierarchy:** the list shows the records with an empty parent field (also
   when it is itself the child of another record); the toolbar command then opens
-  the selected record's own children (`Alelemek`).
+  the selected record's own children (`Alelemek`). A user filter on the parent
+  field replaces that root condition: a parent lists its children, the empty
+  option the records without a parent, as an ordinary filter
+  ([FB-0195](feedback.md#fb-0195)).
 - **Security:** the preview and the window call the child resource's ordinary
   `list`, `__edit` and actions, under its ACL, tenant scope and audit. The parent
   field filter is a scope of the view, not an authorization. A new record in the

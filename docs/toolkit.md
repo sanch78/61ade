@@ -630,7 +630,9 @@ current.mount(layout.getCell("list"));
   the server's `total` and `matched`). These events stay local to the main
   list. `target` also follows nested previews and sub-view windows (below).
 - Methods: `editing()`, `refresh()`, `selected()`, `target()`, `setFilters(filters)`
-  (replaces all values; undeclared fields are ignored).
+  (replaces all values; undeclared fields are ignored; `""` is a condition only
+  for a select filter that declares an empty option, otherwise no filter,
+  [header filters](workspaces.md#integrated-grid-header-filters)).
 - **Loading and empty result** ([states](#loading-and-empty-states)): the list
   shows the loading indicator with `aria-busy` while it loads or reloads and
   says when it has no records (`emptyText` replaces that text) or no record
@@ -2946,6 +2948,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M69 | [Tree](#tree) `expandControl` is one toggle icon button on the right of the bar (`Mindet kinyit` until everything is open, then `Mindet bezár`), `expandControl: {placement: "top"|"bottom"}`; a [CommandBar](#commandbar) mounted above content casts the command row's shadow; a pinned item after a `spacer` stays on the right in the collapsed bar; tree navigation's toolbar collapses into `Műveletek`; a region's idle status no longer makes its cell 1 px too high (no scrollbar over a toolbar) | [FB-0191](feedback.md#fb-0191) | info: a spec that looked for both `Mindet kinyit` and `Mindet bezár` finds one button whose name follows the state; a spec that clicked a tree navigation action in a narrow panel opens `Műveletek` first |
 | M70 | [Tree presentation](#tree-presentation): every Suite Tree row is 40 px high (a grid row) with one ellipsized line; `TreeOptions.striped` and `TreeOptions.lines` (default `true`), `Registry::tree(..., striped:, lines:)`, JSON `tree.striped` / `tree.lines`, `TreeMetadata.striped` / `.lines` (sent only when `false`) | [FB-0193](feedback.md#fb-0193) | info: a spec or screenshot that measured tree rows finds 40 px instead of about 24 px, and the toggle of an expandable node is a framed +/- box (the arrow with `lines: false`); a node label no longer wraps; the selected tree row and the grid's cursor row have a straight 3 px bar and a thin frame (no slanted bar, no lower glow) |
 | M71 | [Window title](#window-title): `WindowOptions.titleOverflow` (`"end"` default, `"start"`: a leading `…`, the end stays visible) and `titlePrefix` (never cut); a cut title shows the full title as its tooltip; `AppWindow.setTitle` also renames the window's accessible name | [FB-0194](feedback.md#fb-0194) | info: a spec that read the dialog's name after `setTitle` finds the new title instead of the opening one |
+| M72 | [Empty-valued select filters](workspaces.md#integrated-grid-header-filters): a select option declared with the empty value is a real filter condition (`filters: {field: ""}`) in the header picker, the filter panel, `setFilters`, `#filter.<field>=` presets and saved filters; no filter shows an empty header control. A user filter on a hierarchy's parent field replaces its implicit root scope | [FB-0195](feedback.md#fb-0195) | info: a list with an empty-valued option no longer shows that option's label in the header without filtering; a spec that expected `setFilters({field: ""})` or a saved `""` to be ignored for such a select now sees the condition requested |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3067,6 +3070,7 @@ markup may change without notice.
 | 2026-11-12 | The Tree's expand control is one toggle icon button on the right of a command row with the list's shadow, `TreeOptions.expandControl` also `{placement}`; a `CommandBar` mounted above content casts that shadow; a pinned item keeps its side in the collapsed bar; tree navigation's toolbar collapses into `Műveletek`; an idle region status no longer overflows its cell (M69). Additive. | [FB-0191](feedback.md#fb-0191) |
 | 2026-11-12 | Tree rows as high as grid rows (40 px, one line); `TreeOptions.striped` / `lines` (default on), the same for tree navigation (`Registry::tree` named arguments, JSON `tree.striped` / `tree.lines`) (M70). Additive; the row height changes for every tree. | [FB-0193](feedback.md#fb-0193) |
 | 2026-11-12 | `WindowOptions.titleOverflow` (`"end"` default, `"start"`) and `titlePrefix`: a long window title is cut at its start with the prefix kept, the full title as tooltip and accessible name; `setTitle` updates the accessible name (M71). Additive. | [FB-0194](feedback.md#fb-0194) |
+| 2026-11-13 | Empty-valued select filters: an option declared with the empty value is a filter condition (`filters: {field: ""}`) in header filters, the filter panel, `setFilters`, presets and saved filters; no filter shows an empty header control; a user filter on a hierarchy's parent field replaces the implicit root scope (M72). Behaviour fix. | [FB-0195](feedback.md#fb-0195) |
 
 <a id="resolved-decisions"></a>
 

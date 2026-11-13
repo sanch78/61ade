@@ -188,7 +188,7 @@ export class Workspace implements ActionHost {
     }
     this.filterPanel?.fit();
     const initial=Object.keys(preset).length||scope?preset:this.preferences.filters(view.filters);
-    for(const [field,value] of Object.entries(initial))if(value!=="")this.setFilter(field,value);
+    for(const [field,value] of Object.entries(initial))this.setFilter(field,value);
     this.keepFilters();
     this.live=new Realtime(channel,view.resource,data=>void this.changed(data),()=>{},()=>this.revoke());
     this.capabilities();void this.load();
@@ -287,13 +287,15 @@ export class Workspace implements ActionHost {
   /**
    * The list query: the user's filters and search, and the scope as the protocol's `scope` (a scope-only field is
    * never a filter, FB-0166). The top level of a shared sub-view (a hierarchy on itself) is the scope "no parent";
-   * a list scoped on another field keeps that as a filter.
+   * a list scoped on another field keeps that as a filter. The user's own filter on the hierarchy field replaces
+   * that "no parent" condition (the server refuses a filter on the scope's field).
    */
   private query():Record<string,unknown>{
     const parent=this.view.subview?.shared&&this.scope?.field!==this.view.subview.field?this.view.subview.field:undefined;
-    const scope=this.scope?{field:this.scope.field,value:this.scope.id}:parent?{field:parent,value:""}:undefined;
+    const roots=parent!==undefined&&!Object.hasOwn(this.filters,parent);
+    const scope=this.scope?{field:this.scope.field,value:this.scope.id}:roots?{field:parent,value:""}:undefined;
     const search=this.search?.value??"";
-    return {filters:{...this.filters,...(parent&&this.scope?{[parent]:""}:{})},...(scope?{scope}:{}),...(search?{search}:{})};}
+    return {filters:{...(roots&&this.scope?{[parent]:""}:{}),...this.filters},...(scope?{scope}:{}),...(search?{search}:{})};}
   private fitObserver?:ResizeObserver;
   /**
    * A compact preview reports the height its records need: its own frame (layout borders) plus the measured table,
@@ -318,7 +320,7 @@ export class Workspace implements ActionHost {
   setFilters(filters:Record<string,string>):void{
     if(this.disposed)return;
     this.filters={};this.filterPanel?.clear();
-    for(const [field,value] of Object.entries(filters??{}))if(typeof value==="string"&&value!=="")this.setFilter(field,value);
+    for(const [field,value] of Object.entries(filters??{}))if(typeof value==="string")this.setFilter(field,value);
     this.keepFilters();this.headerFilters();void this.load();
   }
   /** The nested view of an open record: the declared child list, or this view again (shared toolbar). */
@@ -496,7 +498,7 @@ export class Workspace implements ActionHost {
     }
     this.reportTarget();
   }
-  private async changeFilter(field:string,value:string):Promise<void>{
+  private async changeFilter(field:string,value:string|undefined):Promise<void>{
     if(this.disposed||!this.setFilter(field,value))return;
     this.keepFilters();await this.load();
   }
@@ -518,10 +520,15 @@ export class Workspace implements ActionHost {
   private headerSort(sort:Sort):void{this.gridHeaders?.setSort({...sort,field:alias(sort.field)});}
   /** A menu page stores its filter values; scoped views (previews, sub-view windows) do not. */
   private keepFilters():void{if(!this.scope&&!this.view.singleton)this.preferences.setFilters(this.filters);}
-  /** One declared filter's value in the request and the filter panel; false for a field the view cannot filter. */
-  private setFilter(field:string,value:string):boolean{
+  /**
+   * One declared filter's condition in the request and the filter panel; false for a field the view cannot filter.
+   * A present key is a condition, an absent one none: undefined, or an empty value the filter does not offer (text,
+   * number, checkbox, a select without an empty option), clears it; a select's declared empty option filters for "".
+   */
+  private setFilter(field:string,value:string|undefined):boolean{
     const definition=this.view.filters.find(filter=>filter.name===field);if(!definition)return false;
-    if(value)this.filters[field]=value;else delete this.filters[field];
+    if(value===""&&!(definition.type==="select"&&Object.hasOwn(definition.options??{},"")))value=undefined;
+    if(value!==undefined)this.filters[field]=value;else delete this.filters[field];
     this.filterPanel?.setValue(definition,value);
     return true;
   }

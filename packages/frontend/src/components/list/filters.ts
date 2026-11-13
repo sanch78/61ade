@@ -5,7 +5,7 @@ import type { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { input } from "./fields";
 import type { FieldDefinition, ViewDefinition } from "./types";
 
-/** Select and checkbox filters carry `eq:<value>` in the form (the empty choice is "any"). */
+/** Select and checkbox filters carry `eq:<value>` in the form: the empty choice is "any", `eq:` a declared empty option. */
 const choice=(filter:FieldDefinition)=>["select","checkbox"].includes(filter.type);
 
 /**
@@ -63,10 +63,10 @@ export class ListFilters{
     this.dialog=undefined;dialog.hide();
     void awaitRedraw().then(()=>dialog.destructor());
   }
-  /** One filter's value in the panel (`eq:` for select/checkbox). */
-  setValue(definition:FieldDefinition,value:string):void{
+  /** One filter's value in the panel (`eq:` for select/checkbox); undefined is no condition. */
+  setValue(definition:FieldDefinition,value:string|undefined):void{
     const values=this.form.getValue() as Record<string,string>;
-    values[definition.name]=value&&choice(definition)?"eq:"+value:value;
+    values[definition.name]=value===undefined?"":choice(definition)?"eq:"+value:value;
     this.form.setValue(values);
   }
   clear():void{this.form.clear();}
