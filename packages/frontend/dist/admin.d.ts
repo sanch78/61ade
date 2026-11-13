@@ -774,6 +774,14 @@ export interface FieldMetadata {
      * area fills it.
      */
     sectionFill?: true;
+    /**
+     * The form row of the field (server `Field` `row`, JSON `row`, FB-0196): consecutive fields of one section with the
+     * same key share one row of the action forms; the row stacks into one column where the form is narrower than its
+     * shares need (`--blade-form-column-min` per share). Absent: the field takes the full width.
+     */
+    row?: string;
+    /** The field's share of its row's width (server `rowWidth`, JSON `row_width`); absent: 1. */
+    rowWidth?: 2 | 3;
 }
 /** Confirmation the server declares for an action (`Action::$confirm`). Plain text. */
 export interface ActionConfirmation {
@@ -820,6 +828,9 @@ export interface ColumnMetadata {
     section?: string;
     /** `false`: a fixed section (`FieldMetadata.sectionCollapsible`). */
     sectionCollapsible?: false;
+    /** The field's form row and share (`FieldMetadata.row`, `rowWidth`): the singleton's details form follows them. */
+    row?: string;
+    rowWidth?: 2 | 3;
     /** A long text's lines in a card (field `column.cardLines`, JSON `card_lines`, FB-0177): 0 all of it; default 4. */
     cardLines?: number;
     /**

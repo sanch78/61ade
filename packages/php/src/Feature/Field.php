@@ -74,6 +74,14 @@ final readonly class Field
          * mark; in an accordion form the textarea is the open section's body and a file field's drop area fills it.
          */
         public bool $sectionFill = false,
+        /**
+         * A form row (FB-0196): consecutive fields of one section with the same key share one row of the action forms,
+         * side by side; a field without a row takes the full width. The row stacks into one column where the form is
+         * narrower than its shares need. A key `[a-z][a-z0-9_]*`, never shown; not on a section-filling field.
+         */
+        public ?string $row = null,
+        /** The field's share of its row's width, 1–3 (default 1). Only with $row. */
+        public int $rowWidth = 1,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
             || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'date', 'file'], true)
@@ -149,6 +157,7 @@ final readonly class Field
         }
         if (($section !== null && (trim($section) === '' || strlen($section) > 100 || preg_match('/[\x00-\x1f\x7f]/', $section))) || ($section === null && !$sectionCollapsible)) throw new InvalidArgumentException('Invalid field section: '.$name);
         if ($sectionFill && ($section === null || !in_array($type, ['textarea', 'file'], true) || $editor !== null)) throw new InvalidArgumentException('A section-filling field is a textarea or file field of a section, without an editor: '.$name);
+        if (($row !== null && (!preg_match('/^[a-z][a-z0-9_]{0,63}$/D', $row) || $sectionFill)) || $rowWidth < 1 || $rowWidth > 3 || ($row === null && $rowWidth !== 1)) throw new InvalidArgumentException('Invalid form row: '.$name);
         if (count(array_intersect_key($column, ['cardLines' => 1, 'card_lines' => 1])) > ($type === 'textarea' ? 1 : 0)) throw new InvalidArgumentException('Card lines belong to one textarea column option.');
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
@@ -319,24 +328,43 @@ final readonly class Field
             ...$this->sectionMetadata(),
             // The form's presentation only; columns carry the section alone.
             ...($this->sectionFill ? ['sectionFill' => true] : []),
+            ...$this->rowMetadata(),
         ];
+    }
+    /** The wire form of the form row: `row` and `rowWidth` when it is not 1. */
+    public function rowMetadata(): array
+    {
+        return $this->row === null ? [] : ['row' => $this->row, ...($this->rowWidth !== 1 ? ['rowWidth' => $this->rowWidth] : [])];
     }
     /** The wire form of the section: `section` (translated label), `sectionCollapsible: false` for a fixed one. */
     public function sectionMetadata(): array
     {
         return $this->section === null ? [] : ['section' => \Blade\I18n\Translator::text($this->section), ...($this->sectionCollapsible ? [] : ['sectionCollapsible' => false])];
     }
-    /** Refuses $fields where one section label is declared both collapsible and fixed, or a section-filling field shares its section. */
-    public static function checkSections(array $fields): void
+    /**
+     * Refuses $fields where one section label is declared both collapsible and fixed, a section-filling field shares its
+     * section, or a form row is not one run of at most 4 consecutive fields of one section (FB-0196). $declared: the
+     * resource's own fields, where a row also needs 2 fields (an action's fields may keep one field of a row).
+     */
+    public static function checkSections(array $fields, bool $declared = false): void
     {
-        $seen = $count = $fill = [];
+        $seen = $count = $fill = $rows = [];
+        $previous = null;
         foreach ($fields as $field) {
-            if (!$field instanceof self || $field->section === null) continue;
+            if (!$field instanceof self) continue;
+            if ($field->row !== null) {
+                $run = $previous !== null && $previous->row === $field->row;
+                if ((isset($rows[$field->row]) && !$run) || ($run && $previous->section !== $field->section)) throw new InvalidArgumentException('A form row is one run of consecutive fields of one section: '.$field->row);
+                if (($rows[$field->row] = ($rows[$field->row] ?? 0) + 1) > 4) throw new InvalidArgumentException('A form row holds at most 4 fields: '.$field->row);
+            }
+            $previous = $field;
+            if ($field->section === null) continue;
             if (($seen[$field->section] ?? $field->sectionCollapsible) !== $field->sectionCollapsible) throw new InvalidArgumentException('Field section declared both collapsible and fixed: '.$field->section);
             $seen[$field->section] = $field->sectionCollapsible;
             $count[$field->section] = ($count[$field->section] ?? 0) + 1;
             if ($field->sectionFill) $fill[$field->section] = true;
         }
         foreach ($fill as $section => $_) if ($count[$section] > 1) throw new InvalidArgumentException('A section-filling field is the only field of its section: '.$section);
+        if ($declared) foreach ($rows as $row => $size) if ($size < 2) throw new InvalidArgumentException('A form row holds at least 2 fields: '.$row);
     }
 }

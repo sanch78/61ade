@@ -237,9 +237,10 @@ test('flush sections fill the form edge to edge; framed ones keep an even 20 px 
  await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await settled(page,form);
  const frame=await box(form),content=await box(form.locator('.dhx_form'));
- const heading=await box(form.locator('.blade-form-section__heading').first()),name=await box(form.getByRole('textbox',{name:'Név'}));
+ // The name and the organization share a form row (FB-0196): the row keeps the 20 px inset on both sides.
+ const heading=await box(form.locator('.blade-form-section__heading').first()),name=await box(form.getByRole('textbox',{name:'Név'})),organization=await box(form.getByRole('textbox',{name:'Szervezet'}));
  expect(Math.round(heading.x-frame.x)).toBeLessThanOrEqual(1);expect(Math.round(frame.x+frame.width-(heading.x+heading.width))).toBeLessThanOrEqual(1);
- expect(Math.round(name.x-content.x)).toBe(20);expect(Math.round(content.x+content.width-(name.x+name.width))).toBe(20);
+ expect(Math.round(name.x-content.x)).toBe(20);expect(Math.round(content.x+content.width-(organization.x+organization.width))).toBe(20);
  expect(await form.locator('.blade-form-section').first().evaluate(element=>getComputedStyle(element).borderLeftWidth)).toBe('0px');
  // The plain rows above the sections: 20 px below the window's header, no header of their own.
  const title=await box(form.locator('.dhx_window-header')),label=await box(form.getByText('Név',{exact:true}));
@@ -277,6 +278,7 @@ test('a section-filling field: the note is the open section\'s body, the photo\'
  await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:false','Cím:false','Beállítások:false','Megjegyzés:true','Fénykép:false','Galéria:false']);
  const note=form.getByRole('textbox',{name:'Megjegyzés',exact:true});await expect(note).toBeVisible();
  await expect(section('Megjegyzés').locator('label')).not.toBeVisible();
+ await settled(page,section('Megjegyzés').locator('.blade-form-section__body'));
  const body=await section('Megjegyzés').locator('.blade-form-section__body').boundingBox(),area=await note.boundingBox();
  for(const edge of ['x','y','width','height'])expect(Math.abs(Math.round(area[edge]-body[edge])),edge).toBeLessThanOrEqual(1);
  expect(area.height).toBeGreaterThan(150);

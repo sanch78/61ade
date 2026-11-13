@@ -10,7 +10,7 @@ import type { ListKindOptions, TreeMetadata, ViewDefinition as PublicDefinition 
 import type { ActionDefinition } from "./types";
 import type { Row } from "../../Realtime";
 import { confirmed, resultNotice } from "./actions";
-import { actionIcon, errorText, escape, technical } from "./fields";
+import { actionIcon, errorText, escape, formWindowWidth, technical } from "./fields";
 import { RecordForm } from "./RecordForm";
 import { NodeTree } from "./RecordTree";
 import type { ListContext } from "./ListView";
@@ -95,7 +95,7 @@ export class TreeNavigation {
       }catch(error){await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,action.fields)});}
       return;
     }
-    const win=openWindow({title:`${this.view.title} — ${action.label}`,width:560,height:650,signal:this.abort.signal});
+    const win=openWindow({title:`${this.view.title} — ${action.label}`,width:formWindowWidth(action.fields),height:650,signal:this.abort.signal});
     const form=new RecordForm(this.context,{resource:this.view.resource!,action:action.name,id:action.name==="create"?null:node!,values:action.name==="create"?{[this.config.parent]:parent}:{},signal:win.signal});
     form.on("cancelled",()=>win.close());
     form.on("saved",({result})=>{

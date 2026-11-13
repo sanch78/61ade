@@ -67,6 +67,9 @@ export type FieldDefinition = {
   sectionCollapsible?: false;
   /** The field is its section's whole content (a textarea or file field alone in its section): the header names it. */
   sectionFill?: true;
+  /** The form row the field shares with its consecutive neighbours of the same key (FB-0196), and its share of it. */
+  row?: string;
+  rowWidth?: 2 | 3;
 };
 /** Opens the form sections holding these fields (registered by `bindFieldTypes`, fields.ts); FormValidation calls it. */
 export const sectionReveal=new WeakMap<Form,(names:string[])=>void>();

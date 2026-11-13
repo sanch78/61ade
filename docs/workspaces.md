@@ -1777,6 +1777,87 @@ new Field('photo', 'Fénykép', 'file', file: $image, section: 'Fénykép', sect
   file name) and the cards and details, which show the field under its
   label in the section's group.
 
+<a id="form-rows"></a>
+
+### Form rows (several columns)
+
+By default every field of a form takes a full row. Short fields can share a
+row instead, so a wide form is not a narrow stack of short inputs
+([FB-0196](feedback.md#fb-0196)). A field's `row` names the row it shares
+with its neighbours, and `rowWidth` gives it a larger share. The row is one
+Suite Form `cols` item inside the one Form, with no DOM or CSS of the
+project's own.
+
+```php
+new Field('name', 'Név', required: true, row: 'identity'),
+new Field('organization', 'Szervezet', row: 'identity'),
+new Field('role', 'Beosztás', section: 'Elérhetőség', row: 'reach'),
+new Field('email', 'E-mail', required: true, section: 'Elérhetőség', row: 'reach', rowWidth: 2),
+new Field('phone', 'Telefon', section: 'Elérhetőség', row: 'reach'),
+new Field('website', 'Weboldal', section: 'Elérhetőség'),   // no row: the full width
+```
+
+```json
+{"name": "email", "label": "E-mail", "required": true, "section": "Elérhetőség", "row": "reach", "row_width": 2}
+```
+
+- **Declaration:** `row` (PHP `Field`, JSON `row`) is a key
+  (`[a-z][a-z0-9_]*`, at most 64 characters, never shown); `rowWidth`
+  (JSON `row_width`) is the field's share of the row, 1–3, default 1, and
+  needs a `row`. The fields of one row are consecutive fields of one
+  section (or all outside sections), at most 4: 2–4 in the resource's
+  fields, 1–4 in an action's fields (an update without its create-only
+  fields may keep one). A [section-filling field](#form-section-fill) is never
+  in a row: it always spans its section. Otherwise
+  `InvalidArgumentException`. The form and column metadata carry `row`, and
+  `rowWidth` when it is not 1 (`FieldMetadata.row`, `.rowWidth`).
+- **Layout:** a field without a row keeps the full width. The fields of a row
+  share it by their shares (an `E-mail` of share 2 beside two of share 1 takes
+  half), with a 16 px gap. Rows are per section, so a fixed section of short
+  fields can use them while another section stays one column. The
+  declaration is the field's, so the create, update and details forms share
+  it. A row whose fields an action or the actor's field ACL leaves out
+  keeps the remaining ones; one left takes the whole row.
+- **Narrow forms:** a row stacks into one column as a whole when it is
+  narrower than its total share × `--blade-form-column-min` (default
+  180 px) plus the gaps. Only CSS decides it, so the breakpoint follows the
+  form's own width (and inside a section the section's), not the viewport:
+  the same declaration is side by side in a wide window, stacked in a narrow
+  window, a side panel or on a phone, with no horizontal scrolling. A project
+  can change the share on `:root` in its stylesheet (any CSS length):
+  `:root { --blade-form-column-min: 12rem; }`.
+- **Windows:** the list's form window (and the tree navigation's) opens wide
+  enough for its widest row (the form's and a section's insets and 20 px for
+  a scrollbar included), at least 560 px and at most the viewport − 24 px; a
+  form without rows keeps 560 px. A fitted window
+  (`AppWindow`, the list's form window) measures the rendered rows, so a
+  wider window fits a lower height. In an accordion form, opening or closing a
+  section still never resizes the window.
+- **Alignment:** the fields of a row align at their top. An error or help
+  text appears below its own field and moves none of the others. A field's
+  label stays on one line and is cut with an ellipsis when its cell is too
+  narrow; a required mark stays visible at its end, the whole label is its
+  tooltip and stays the input's accessible name. A checkbox, which has no
+  label above it, is centred on the line of the row's inputs while the row is
+  side by side, and has no gap above it once the row stacks.
+- **Unchanged:** values, validation, translations, required marks, read-only
+  and `display` fields, exclusive fields, file and stored file fields work
+  inside a row. A hidden [conditional field](#conditional-fields) leaves no
+  hole: the others share its space until it returns. An error in a closed
+  section still opens it and focuses the field. Tab and screen readers
+  follow the reading order: row by row, left to right. Labels stay
+  associated with their controls.
+- **Where:** `RecordForm`, the built-in create and update forms (window and
+  panel), record action forms and the singleton's details form (from the
+  update form's metadata, or the columns' `row` without an update right; it
+  follows the view's column order, where the fields of a row that are not
+  consecutive each take a whole row).
+- **Limits:** the bulk form, the grid and card editors, `SettingsForm` and
+  the cards and details groups ignore rows. A row cannot span sections. The
+  window width uses the `:root` value of `--blade-form-column-min`; a value
+  set on a narrower scope affects the rows but not the window's width. A
+  label with Suite help (a registered field type's) is not cut.
+
 <a id="count-fields"></a>
 
 ## Count fields: related records the actor may list

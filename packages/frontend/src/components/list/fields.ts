@@ -1,6 +1,7 @@
 import { t } from "../../I18n";
 import { optionText } from "../../RecordPresentation";
 import "../../form-section.css";
+import "../../form-row.css";
 import { fileInput } from "../../FilePicker";
 import { type Form, awaitRedraw } from "@dhtmlx/suite";
 import { resizeMotion } from "../../Motion";
@@ -77,6 +78,48 @@ function openedAt(fields:FieldDefinition[],values:Record<string,unknown>,multipl
   return new Set(filledOnes.length?filledOnes:collapsible.slice(0,1));
 }
 /**
+ * Form rows (`row`, FB-0196, form-row.css): the consecutive fields of one row key in one Suite `cols` item, each a cell
+ * of its share (`rowWidth`); the row's class names its total share, which sets the width below which it stacks.
+ */
+const ROW="blade-form-row",CELL="blade-form-row__cell";
+const rowKeys=new WeakMap<object,{key:string;shares:number}>();
+/** A row-forming field (a section-filling one always spans the width). */
+const rowKey=(field:FieldDefinition)=>field.sectionFill?undefined:field.row;
+/** Puts $made, the item of $field, into $target: into the row its predecessor opened when it has the same row key. */
+function place(target:any[],field:FieldDefinition,made:any):void{
+  const key=rowKey(field);
+  if(!key||!made||typeof made!=="object"){target.push(made);return;}
+  const share=field.rowWidth??1,{width:_width,...item}=made;
+  let row=target[target.length-1];
+  if(!row||rowKeys.get(row)?.key!==key){row={cols:[]};rowKeys.set(row,{key,shares:0});target.push(row);}
+  const state=rowKeys.get(row)!;state.shares+=share;
+  row.css=ROW+" "+ROW+"--"+Math.min(state.shares,12);
+  row.cols.push({...item,css:[item.css,CELL,share>1?CELL+"--"+share:""].filter(Boolean).join(" ")});
+}
+/** The px share of a form row (`--blade-form-column-min` resolved on the document, any length; else 180 px) and the gap between its cells. */
+function columnMin():number{
+  const probe=document.createElement("div");probe.style.cssText="position:absolute;visibility:hidden;width:var(--blade-form-column-min,180px)";
+  document.body.append(probe);const width=probe.getBoundingClientRect().width;probe.remove();
+  return width>0?width:180;
+}
+const GAP=16;
+/**
+ * The width of a form window for $fields (FB-0196): wide enough for its widest row (the form's 2 × 20 px and a section's
+ * 2 × 20 px insets, the window's border and 20 px for a scrollbar), at least $min and at most the viewport − 24 px;
+ * without rows $min.
+ */
+export function formWindowWidth(fields:FieldDefinition[],min=560):number{
+  let widest=0,shares=0,cells=0,previous:FieldDefinition|undefined;const unit=fields.some(rowKey)?columnMin():0;
+  for(const field of fields){
+    const key=rowKey(field),joined=!!key&&!!previous&&rowKey(previous)===key&&previous.section===field.section;
+    shares=joined?shares+(field.rowWidth??1):key?field.rowWidth??1:0;cells=joined?cells+1:key?1:0;
+    // A lone cell takes the whole width (form-row.css `--1`) and needs none.
+    if(cells>1)widest=Math.max(widest,shares*(unit+GAP)-GAP+40+(field.section?40:0)+24);
+    previous=field;
+  }
+  return Math.min(Math.max(min,Math.ceil(widest)),innerWidth-24);
+}
+/**
  * The Form rows of $fields: each field's $item, the fields of one `section` gathered at the place of its first field in
  * one framed panel (docs/workspaces.md#form-sections): a fieldset under a disclosure button (collapsible), or under its
  * legend as the heading (fixed, `sectionCollapsible: false`, always open). A collapsible section starts open when one
@@ -84,13 +127,13 @@ function openedAt(fields:FieldDefinition[],values:Record<string,unknown>,multipl
  * With $mode "accordion" or "accordion-multiple" the sections are accordion sections instead: the disclosure button
  * as the Accordion component's cell header (a fixed one: its legend) above the fieldset; the open sections share the
  * form's height, a fixed one keeps its own (`openedAt` names the open ones). $flush runs them edge to edge of the form
- * without the frame and the form's margin (form-section.css).
+ * without the frame and the form's margin (form-section.css). Fields of one `row` share a row (`place`).
  */
 export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>any,values:Record<string,unknown>={},mode:FormSections="panels",flush=false):any[]{
   const rows:any[]=[],bodies=new Map<string,any[]>(),labels=sectionsOf(fields);
   const accordion=mode==="accordion"||mode==="accordion-multiple",opened=accordion?openedAt(fields,values,mode==="accordion-multiple"):undefined;
   for(const field of fields){
-    if(!field.section){rows.push(item(field));continue;}
+    if(!field.section){place(rows,field,item(field));continue;}
     // A section-filling field (`sectionFill`, alone in its section): the header names it and carries its required mark.
     const made=field.sectionFill?labelHidden(item(field),field.type==="file"?fileDisplay(field.name):field.name):item(field);
     const fill=field.sectionFill?FILL+(requiredIn(made)?REQUIRED:""):"";
@@ -118,7 +161,7 @@ export function formRows(fields:FieldDefinition[],item:(field:FieldDefinition)=>
         ]});
       }
     }
-    body.push(made);
+    place(body,field,made);
   }
   return rows;
 }
@@ -258,6 +301,20 @@ function bindAccordion(form:Form,fields:FieldDefinition[],multiple:boolean,signa
   decorate();void awaitRedraw().then(decorate);
   form.events.on("change",decorate);
 }
+/** A label in a form row is cut on one line (form-row.css): it carries its whole text as a tooltip. */
+function titleRowLabels(form:Form,fields:FieldDefinition[],signal:AbortSignal):void{
+  const named=fields.filter(field=>rowKey(field));
+  if(!named.length)return;
+  const apply=()=>{
+    if(signal.aborted)return;
+    for(const field of named){
+      const label=((form.getItem(shownName(field.name))??form.getItem(field.name)) as any)?.getRootNode?.()?.closest?.(".dhx_form-group")?.querySelector(":scope > .dhx_label") as HTMLElement|null;
+      if(label&&label.title!==field.label)label.title=field.label;
+    }
+  };
+  void awaitRedraw().then(apply);
+  form.events.on("change",()=>{void awaitRedraw().then(apply);});
+}
 /**
  * Runs `bind` of the registered field types among $fields once their Form exists, shows each conditional field
  * (`visibleWhen`) only while its condition holds and empties the fields an exclusive field `clears` once it gets a
@@ -268,6 +325,7 @@ function bindAccordion(form:Form,fields:FieldDefinition[],multiple:boolean,signa
 export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(field:FieldDefinition)=>boolean=()=>false,toggled?:()=>void):()=>void{
   const controller=new AbortController(),app=extensions.app;
   bindSections(form,fields,controller.signal,toggled);
+  titleRowLabels(form,fields,controller.signal);
   const conditional=fields.filter(field=>field.visibleWhen&&form.getItem(field.name));
   if(conditional.length){
     const shown=new Map<string,boolean>();

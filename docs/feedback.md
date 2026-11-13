@@ -806,6 +806,10 @@
 
 ## FB-0195 — Empty-valued select filters: no filter versus the empty value
 
+<a id="fb-0196"></a>
+
+## FB-0196 — Multi-column form layout
+
 
 <a id="fb-0197"></a>
 

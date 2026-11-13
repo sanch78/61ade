@@ -1,0 +1,36 @@
+/* Form rows (fields.ts formRows; docs/workspaces.md#form-rows, FB-0196): the consecutive fields of one `row` key share a
+   Suite Form `cols` item, each cell growing by its share (`rowWidth`). A row stacks into one column as a whole when it
+   is narrower than its total share × (`--blade-form-column-min`, default 180 px, + the 16 px gap): each cell's basis is
+   then larger than the row and wraps to a line of its own, otherwise it is 0 and the cells share the line. Only CSS,
+   so the breakpoint follows the form's (or its section's) own width, never the viewport. Cells align at their top, so
+   a field's error or help text below it does not move its neighbours. */
+.dhx_widget.dhx_form .blade-form-row { flex-flow: row wrap !important; column-gap: 16px; align-items: flex-start; min-width: 0; }
+.dhx_widget.dhx_form .blade-form-row > .blade-form-row__cell {
+  flex: 1 1 calc((var(--blade-form-row-min) - 100%) * 999) !important; box-sizing: border-box; width: auto !important; min-width: 0; max-width: 100%;
+}
+.dhx_widget.dhx_form .blade-form-row > .blade-form-row__cell--2 { flex-grow: 2 !important; }
+.dhx_widget.dhx_form .blade-form-row > .blade-form-row__cell--3 { flex-grow: 3 !important; }
+.dhx_widget.dhx_form .blade-form-row--1 { --blade-form-row-min: 0px; }
+.dhx_widget.dhx_form .blade-form-row--2 { --blade-form-row-min: calc(2 * var(--blade-form-column-min, 180px) + 16px); }
+.dhx_widget.dhx_form .blade-form-row--3 { --blade-form-row-min: calc(3 * var(--blade-form-column-min, 180px) + 32px); }
+.dhx_widget.dhx_form .blade-form-row--4 { --blade-form-row-min: calc(4 * var(--blade-form-column-min, 180px) + 48px); }
+.dhx_widget.dhx_form .blade-form-row--5 { --blade-form-row-min: calc(5 * var(--blade-form-column-min, 180px) + 64px); }
+.dhx_widget.dhx_form .blade-form-row--6 { --blade-form-row-min: calc(6 * var(--blade-form-column-min, 180px) + 80px); }
+.dhx_widget.dhx_form .blade-form-row--7 { --blade-form-row-min: calc(7 * var(--blade-form-column-min, 180px) + 96px); }
+.dhx_widget.dhx_form .blade-form-row--8 { --blade-form-row-min: calc(8 * var(--blade-form-column-min, 180px) + 112px); }
+.dhx_widget.dhx_form .blade-form-row--9 { --blade-form-row-min: calc(9 * var(--blade-form-column-min, 180px) + 128px); }
+.dhx_widget.dhx_form .blade-form-row--10 { --blade-form-row-min: calc(10 * var(--blade-form-column-min, 180px) + 144px); }
+.dhx_widget.dhx_form .blade-form-row--11 { --blade-form-row-min: calc(11 * var(--blade-form-column-min, 180px) + 160px); }
+.dhx_widget.dhx_form .blade-form-row--12 { --blade-form-row-min: calc(12 * var(--blade-form-column-min, 180px) + 176px); }
+/* The inputs of a row line up: a field's own label stays on one line (cut with an ellipsis; it stays the input's whole
+   accessible name and its `title`), a required mark kept visible at its end; a checkbox, which has no label above it,
+   is centred on the inputs' line below the labels while the row is side by side (the padding's percentage is the
+   row's width, so it is 0 once the row is narrower than its minimum and stacks). */
+.dhx_widget.dhx_form :where(.blade-form-row > .blade-form-row__cell, .blade-form-row > .blade-form-row__cell > .dhx_layout-cell) > .dhx_form-group > .dhx_label:not(.dhx_label--with-help) {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dhx_widget.dhx_form :where(.blade-form-row > .blade-form-row__cell, .blade-form-row > .blade-form-row__cell > .dhx_layout-cell) > .dhx_form-group--required > .dhx_label:not(.dhx_label--with-help) { position: relative; padding-right: calc(1ch + 4px); }
+.dhx_widget.dhx_form :where(.blade-form-row > .blade-form-row__cell, .blade-form-row > .blade-form-row__cell > .dhx_layout-cell) > .dhx_form-group--required > .dhx_label:not(.dhx_label--with-help)::after { position: absolute; right: 0; padding-left: 0; }
+.dhx_widget.dhx_form .blade-form-row > .blade-form-row__cell:has(> .dhx_form-element > .dhx_form-group--checkbox) {
+  padding-top: clamp(0px, calc((100% - var(--blade-form-row-min)) * 999), calc(var(--dhx-line-height-normal) + 12px));
+}

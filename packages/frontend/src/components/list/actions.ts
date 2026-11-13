@@ -8,7 +8,7 @@ import { FileFields, type ResourceCall } from "../../FilePicker";
 import { uploads } from "../../Uploader";
 import { FormValidation } from "../../FormValidation";
 import type { ResponsiveGrid } from "../../ResponsiveGrid";
-import { DECLINED, actionIcon, bindFieldTypes, escape, formActions, formRows, input, shownOnly, technical } from "./fields";
+import { DECLINED, actionIcon, bindFieldTypes, escape, formActions, formRows, formWindowWidth, input, shownOnly, technical } from "./fields";
 import type { ActionDefinition, FieldDefinition, ViewDefinition, WorkspaceScope } from "./types";
 
 /** What the action forms need from their list (`Workspace` implements it). */
@@ -172,7 +172,7 @@ export class ListActions{
       };
       if(view.layout.formMode==="panel"&&!view.singleton){list.layout.getCell("form").expand();list.layout.getCell("form").attach(form);}
       else{
-        const dialog=new Window({css:"blade-content-window",title:escape(view.title+" — "+action.label),ariaLabel:view.title+" — "+action.label,width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
+        const dialog=new Window({css:"blade-content-window",title:escape(view.title+" — "+action.label),ariaLabel:view.title+" — "+action.label,width:formWindowWidth(shown),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
         // Closing with the window's own close button also ends an open picker and a pending upload choice.
         dialog.events.on("afterHide",()=>{files.destroy();if(this.fileFields===files)this.fileFields=undefined;types();if(this.fieldTypes===types)this.fieldTypes=undefined;});
       }

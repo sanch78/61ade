@@ -20,6 +20,8 @@ export type Column={id:string;header:string;type?:string;media?:string;presentat
   editor?:string;
   /** The field's section label (the singleton's details form, the card and details groups follow it); `false`: a fixed section. */
   section?:string;sectionCollapsible?:false;
+  /** The field's form row and share (`FieldMetadata.row`, `rowWidth`): the singleton's details form follows them. */
+  row?:string;rowWidth?:2|3;
   /** A long text's lines in a card: 0 all of it; default 4. */
   cardLines?:number}&Resolved;
 /** The list kind's internal shape: the view's shared keys beside its `options` (definition.ts `listDefinition`). */
