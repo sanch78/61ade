@@ -87,6 +87,16 @@ beside its own, read-only (`Módosítás` and `Törlés` disabled), and `shared@
 edits them without a tenant.
 Checks: `php8.4 tests/shell/counts.php`, shell `count-fields.spec.cjs`.
 
+[View availability](workspaces.md#view-availability): `Tenant demó` →
+`Szolgáltatások` lists the active tenant's services with an editable
+`Bekapcsolva` switch (Alpha: on, Beta: off). `Visszajelzések` (group
+`Ügyfélszolgálat`, with an attention count of new feedback) is offered only
+while the tenant's `feedback` service is on. In Beta the group, the menu entry,
+the count and the address `#view=tenant_feedback` are absent. The switch
+reloads the shell, and the view comes back with Beta's retained feedback.
+Checks: `php8.4 tests/shell/tenancy.php`, shell `tenancy.spec.cjs`
+(`view availability`).
+
 [Sub-views](workspaces.md#sub-views), one per kind:
 
 In cards, the child-list button overlays the cover's upper-right corner, or

@@ -833,3 +833,7 @@
 <a id="fb-0202"></a>
 
 ## FB-0202 — Popup menu at any button: headings, checked entries, scrolling
+
+<a id="fb-0204"></a>
+
+## FB-0204 — View availability per tenant or runtime state

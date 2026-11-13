@@ -226,3 +226,98 @@ test('shared rows: the shared role without a tenant lists only the shared items 
  expect((await api(page,'tenant_projects','list','',{limit:10})).status).toBe(403);
  expect(errors).toEqual([]);
 });
+
+// View availability (docs/workspaces.md#view-availability): `Visszajelzések` (group `Ügyfélszolgálat`, with a menu
+// attention count) is offered only while the active tenant's `feedback` service is on: Alpha on, Beta off. The switch in
+// `Szolgáltatások` reloads the shell; the run switches Beta on and off again and restores the seeded switches.
+const {execFileSync}=require('node:child_process');
+const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'demo';
+const restoreServices=()=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${runtime}/${instance}/tenants.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');$db->exec("UPDATE tenant_services SET enabled=CASE WHEN tenant_id=(SELECT CAST(id AS TEXT) FROM blade_tenants WHERE name='Alpha') THEN 1 ELSE 0 END WHERE service='feedback'");`]);
+const offeredViews=page=>page.evaluate(()=>JSON.parse(document.getElementById('blade-config').textContent).views.map(view=>view.id));
+const feedbackGroup=page=>page.locator('.blade-navigation-row .dhx_menu-nav [data-dhx-id="group:Ügyfélszolgálat"]');
+async function chooseTenant(page,name,phone=false){
+ const selector=page.locator('.blade-session-bar').getByText(/^(Alpha|Beta)$/);
+ await expect(selector).toBeVisible();
+ const current=await selector.innerText();
+ if(current===name)return;
+ // On a phone the tenant selector is a branch of the collapsed `Beállítások` controls.
+ if(phone){await page.getByRole('button',{name:'Beállítások',exact:true}).click();await page.getByRole('menuitem',{name:current,exact:true}).first().click();}
+ else await page.locator('.blade-navigation-row').getByRole('button',{name:/^(Alpha|Beta)$/}).click();
+ await page.getByRole('menuitem',{name,exact:true}).last().click();
+ await expect(page.locator('.blade-session-bar').getByText(name,{exact:true})).toBeVisible();
+}
+/** Resources the page subscribes to on the live channel (WebSocket frames and polling `__watch` bodies). */
+function watched(page){
+ const seen=[];
+ page.on('websocket',socket=>socket.on('framesent',frame=>seen.push(String(frame.payload))));
+ page.on('request',request=>{const body=request.postData();if(body&&body.includes('__watch'))seen.push(body);});
+ return seen;
+}
+test.describe('view availability',()=>{
+ test.describe.configure({mode:'serial'});
+ test.beforeAll(restoreServices);
+ test.afterAll(restoreServices);
+
+ test('a view offered in one tenant only: menu, group, attention and deep link follow the tenant; the switch reloads the shell and keeps the data',async({page})=>{
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.setViewportSize({width:1600,height:900});
+  const seen=watched(page);
+  await signIn(page,'demo@example.test','/tenants/');
+  await chooseTenant(page,'Alpha');
+  // Alpha: the view, its group and its attention subscription.
+  expect(await offeredViews(page)).toContain('tenant_feedback');
+  await expect(feedbackGroup(page)).toBeVisible();
+  await expect.poll(()=>seen.some(body=>body.includes('tenant_feedback'))).toBe(true);
+  await page.goto('/tenants/#view=tenant_feedback');
+  await expect(page.getByText('The new opening hours are clear',{exact:true})).toBeVisible();
+  // Beta (service off): no view, no group, no subscription; its address leaves the workspace empty.
+  await chooseTenant(page,'Beta');
+  seen.length=0;
+  await page.goto('/tenants/#view=tenant_feedback');await page.reload();
+  await expect(page.locator('.blade-navigation-row .dhx_menu-nav > li').first()).toBeVisible();
+  expect(await offeredViews(page)).not.toContain('tenant_feedback');
+  await expect(feedbackGroup(page)).toHaveCount(0);
+  await page.waitForTimeout(1500);
+  await expect(page.getByText('Beta feedback kept while the service is off',{exact:true})).toHaveCount(0);
+  await expect(page.locator('.dhx_grid-row, .blade-grid-card')).toHaveCount(0);
+  expect(seen.filter(body=>body.includes('tenant_feedback'))).toEqual([]);
+  // Switching the service on reloads the shell: the view returns with Beta's retained data and its count.
+  await openMenu(page,'Szolgáltatások','Tenant demó');
+  const row=page.locator('.dhx_grid-row').filter({hasText:'Visszajelzések'});
+  await expect(row.getByRole('checkbox',{name:'Bekapcsolva'})).not.toBeChecked();
+  await Promise.all([page.waitForEvent('load'),row.locator('.blade-checkbox-edit').click()]);
+  await expect(feedbackGroup(page)).toBeVisible();
+  await openMenu(page,'Visszajelzések, 1 függőben','Ügyfélszolgálat');
+  await expect(page.getByText('Beta feedback kept while the service is off',{exact:true})).toBeVisible();
+  // Off again: the group disappears at once, the data stays for the next time.
+  await openMenu(page,'Szolgáltatások','Tenant demó');
+  await expect(row.getByRole('checkbox',{name:'Bekapcsolva'})).toBeChecked();
+  await Promise.all([page.waitForEvent('load'),row.locator('.blade-checkbox-edit').click()]);
+  await expect(page.locator('.blade-navigation-row .dhx_menu-nav > li').first()).toBeVisible();
+  await expect(feedbackGroup(page)).toHaveCount(0);
+  expect((await api(page,'tenant_feedback','list','',{limit:10})).body.data.items.map(item=>item.message)).toEqual(['Beta feedback kept while the service is off']);
+  await chooseTenant(page,'Alpha');
+  expect(errors).toEqual([]);
+ });
+
+ test('on a phone the collapsed menu offers the group in the tenant with the service only',async({page})=>{
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.setViewportSize({width:390,height:844});
+  await signIn(page,'demo@example.test','/tenants/');
+  await chooseTenant(page,'Alpha',true);
+  const burger=page.getByRole('menuitem',{name:/^(Menü|Menu)$/});
+  await burger.click();
+  await expect(page.getByRole('menuitem',{name:'Ügyfélszolgálat',exact:true})).toBeVisible();
+  await page.getByRole('menuitem',{name:'Ügyfélszolgálat',exact:true}).click();
+  await page.getByRole('menuitem',{name:'Visszajelzések, 1 függőben',exact:true}).click();
+  await expect(page.locator('.blade-grid-card').filter({hasText:'The new opening hours are clear'})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await chooseTenant(page,'Beta',true);
+  await burger.click();
+  await expect(page.getByRole('menuitem',{name:'Tenant demó',exact:true})).toBeVisible();
+  await expect(page.getByRole('menuitem',{name:'Ügyfélszolgálat',exact:true})).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await chooseTenant(page,'Alpha',true);
+  expect(errors).toEqual([]);
+ });
+});

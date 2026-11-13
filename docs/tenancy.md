@@ -314,7 +314,11 @@ re-issued.
 - **Shared rows** ([above](#shared-rows)) are no lookup choices, and a tenant
   has no write grant on them.
 - **Per-tenant roles** and an explicit, audited **cross-tenant read** capability
-  are later extensions, as stated in the owner decisions.
+  are later extensions, as stated in the owner decisions. What a tenant sees
+  can already follow its own state: a view's
+  [`available`](workspaces.md#view-availability) closure receives the active
+  tenant, so a service or module a tenant switched off hides its views there
+  (presentation only; ACL still governs the actions).
 - Exports exist only as file downloads; list exports do not exist yet.
 - The tenant demo uses WebSocket at `/live/tenants` when the demo `.env`
   selects it ([FB-0074](feedback.md#fb-0074)). The browser test covers an

@@ -295,6 +295,20 @@ try {
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
     rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'menu: false on a JSON singleton accepted');
     unset($broken['resources']['tasks']['view']['menu'], $broken['resources']['tasks']['view']['singleton']);
+    // `view.available` and module `views.<id>.available` (docs/workspaces.md#view-availability) name a workspace binding.
+    $available = static fn(Blade\Feature\Context $context): bool => $context->tenant === '1';
+    $broken['resources']['tasks']['view']['available'] = 'tasks.available';
+    $broken['views'] = ['demo.board' => ['kind' => 'demo.board', 'title' => 'Board', 'available' => 'tasks.available']];
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    $availableViews = WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => ['tasks.available' => $available], true);
+    verify($availableViews->registry->viewById('tasks')->available === $available && $availableViews->registry->viewById('demo.board')->available === $available && $availableViews->registry->viewById('projects')->available === null, 'JSON view available: the named binding');
+    $offeredIds = static fn(?string $tenant): array => array_column($availableViews->views(new Blade\Shell\Identity('1', 'Synthetic'), $tenant), 'id');
+    verify(in_array('demo.board', $offeredIds('1'), true) && !in_array('demo.board', $offeredIds(null), true), 'JSON view available decides the bootstrap');
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'Unknown view available binding accepted');
+    $broken['resources']['tasks']['view']['available'] = true;
+    file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => ['tasks.available' => $available], true), 'Non-string view available accepted');
+    unset($broken['resources']['tasks']['view']['available'], $broken['views']);
     // `view.sort`: the first sort, `{field, direction}`; a malformed one is refused.
     $broken['resources']['tasks']['view']['sort'] = ['field' => 'id', 'direction' => 'asc'];
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));

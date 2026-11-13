@@ -1374,6 +1374,74 @@ application-level map `application.guides` (`{"<view id>": "<text>"}`).
 - Not shown for a view opened in a window (`open: "window"`). A guide is
   presentation only: it grants nothing and hides nothing.
 
+<a id="view-availability"></a>
+
+## View availability (per tenant or runtime state)
+
+A view can depend on runtime state of the active tenant or actor, for example
+a service a tenant switched on, a module or a feature flag
+([FB-0204](feedback.md#fb-0204)). `available` is a server-side
+`Closure(Context): bool` on the view:
+
+```php
+use Blade\Feature\Context;
+
+$serviceOn = static fn(string $service): Closure => static function (Context $ctx) use ($service): bool {
+    if ($ctx->tenant === null) return false;
+    $q = $ctx->db->prepare('SELECT enabled FROM services WHERE tenant_id = ? AND service = ?');
+    $q->execute([$ctx->tenant, $service]);
+    return (bool) $q->fetchColumn();
+};
+$messages->register($registry, 'Üzenetek', group: 'Kapcsolat', available: $serviceOn('contact'));  // SqlResource
+$registry->view('notes', 'Jegyzetek', $columns, $actions, available: $serviceOn('notes'));
+$registry->addView(new View('app.board', 'app.board', 'Tábla', available: $anyServiceOn));         // any kind
+// Any declared view, the built-in list of a JSON resource or a file manager too:
+$registry->updateView($registry->viewById('notifications')->with(available: $anyServiceOn));
+```
+
+JSON: `resources.<name>.view.available` and `views.<id>.available` name a
+workspace binding (the closures the consumer passes to
+`JsonApplication::load`/`WorkspaceConfiguration::build`, like `hooks`); an
+unknown name throws at definition time.
+
+- **When:** `Workspace::views()` calls it for each declared view once per
+  bootstrap, after the tenant check (a tenant-scoped view without an active
+  tenant is not offered anyway) and before the record `get` and kind checks.
+  The Context carries the actor, the active tenant (null without one) and the
+  database. Keep it a cheap read; an exception fails the page like a
+  definition error. It is never serialized.
+- **False:** the view is left out of the bootstrap as if it were not
+  declared, for every kind (the built-in `list`, `files`, `diagram`,
+  `calendar`, project kinds and record views): no menu entry, and a menu group
+  left without views disappears with its separator; `#view=<id>` opens the
+  empty workspace and `app.navigate` returns `false`; `app.viewDefinition`
+  returns `undefined` (a component that names the view throws `not
+  offered`); a `view:<id>` activation opens the details; a parent list drops
+  the sub-view and `page` that need it, and a tree navigation over it its
+  tree; its embedded sub-view goes with it; no attention subscription is made
+  and a menu command's `attention` naming it is dropped.
+- **Presentation, not access control:** the view's actions, its live list and
+  the API stay governed by ACL and the resource's own guards (`guard`,
+  handlers). A consumer that must also refuse the data while a service is off
+  checks the same state there.
+- **Data stays:** hiding changes nothing stored; available again, the view
+  shows the same records.
+- **A change takes effect at the next bootstrap:** a page load, a tenant or
+  language switch, a sign-in. There is no in-place re-bootstrap and no live
+  invalidation; other open sessions follow at their next load. Let the state
+  change through a form or an editable cell (a switch column, as in the demo)
+  and return `reauthenticate: true` in its result (an action handler's
+  return value, a `SqlResource` `afterSave`): a form save (`RecordForm`, the
+  list's create and update forms) and an editable cell's save answer it with
+  a page reload that keeps the address, so a view that disappeared leaves the
+  empty workspace. Field-free and bulk record commands, tree-panel commands,
+  moves, drops and `app.server.call` ignore the key; after such an action the
+  change shows at the user's next page load.
+- Demo: the tenant demo's `Szolgáltatások` switches `Visszajelzések` (group
+  `Ügyfélszolgálat`) on and off per tenant ([demos](demos.md#tenant-demo-tenants)).
+  Verification: PHP `tenancy.php`, `configuration.php`; shell
+  `tenancy.spec.cjs` (`view availability`, desktop and 390 px).
+
 <a id="tree-navigation"></a>
 
 ## Tree navigation (data tree beside a list)

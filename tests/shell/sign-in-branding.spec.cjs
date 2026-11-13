@@ -169,8 +169,9 @@ test('the starter admin and the tenant demo show the product logo without declar
   await expect(logo(page)).toHaveCount(1);
   expect(await uniqueIds(page)).toBe(true);
  }
- // At 1100 px the tenant demo keeps its full menu and leaves the logo out.
- await page.setViewportSize({width:1100,height:900});
+ // At 1300 px the tenant demo keeps its full menu and leaves the logo out (with Alpha's `Ügyfélszolgálat` group,
+ // offered while its feedback service is on as seeded, see tenancy.spec.cjs).
+ await page.setViewportSize({width:1300,height:900});
  await expect(page.getByRole('menuitem',{name:'Kijelentkezés',exact:true})).toBeVisible();
  await expect(page.getByRole('menuitem',{name:/^(Menü|Menu)$/})).toHaveCount(0);
  await expect(topLogo(page)).toBeHidden();
