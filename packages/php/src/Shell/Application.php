@@ -194,7 +194,9 @@ final class Application
         header('Referrer-Policy: same-origin');
         $liveSource = $this->definition->live->connectSource();
         $splash = Splash::source();
-        header("Content-Security-Policy: default-src 'self'; script-src 'self' $splash; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' $liveSource; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+        $frames = $this->definition->frameSource();
+        $frames = $frames === '' ? '' : " frame-src $frames;";
+        header("Content-Security-Policy: default-src 'self'; script-src 'self' $splash; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' $liveSource;$frames object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     }
 
     private function startSession(): void

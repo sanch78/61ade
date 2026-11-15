@@ -9529,3 +9529,23 @@ that exactly equals an option label lists every option. The managed
   passed. At the owner's choice no permanent case was added; the temporary
   spec and its results were removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+## FB-0210 — Frame sources for the signed-in shell
+
+- **Date:** 2026-11-15.
+- **Report:** a consumer's editor shows a site of its own sibling host in a
+  frame; the shell CSP (`default-src 'self'`, no `frame-src`) blocked it, and
+  the CSP offered no consumer extension.
+- **Owner decision (2026-11-15):** approved a general, optional list of frame
+  sources on the application definition; default empty, so no other consumer
+  changes.
+- **Implementation:** `ApplicationDefinition::$frameSources` (JSON
+  `application.frame_sources`), validated HTTPS origins with an optional
+  `*.` subdomain wildcard; `frameSource()` gives `'self'` plus the sources and
+  the shell CSP adds `frame-src` only when some are declared. Guide:
+  [frame sources](shell.md#frame-sources),
+  [configuration](configuration.md).
+- **Verification:** `php8.4 tests/shell/configuration.php` (default none, JSON
+  loading, ten invalid forms rejected) and `php8.4 tests/shell/contracts.php`
+  passed; the default CSP string is unchanged.
+- **Status:** implemented.

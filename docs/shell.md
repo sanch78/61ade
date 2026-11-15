@@ -410,6 +410,32 @@ Complete M1/M2/M4, Symfony hosting, multiple organizations and PHP 8.5 remain
 open. Future consumer FPM qualification is separate; this project has no
 production environment. Menu visibility never replaces backend endpoint policy.
 
+<a id="frame-sources"></a>
+
+### Frame sources
+
+The signed-in shell's CSP has no `frame-src` by default, so frames fall
+back to `default-src 'self'`: the shell can show only its own origin (the
+toolkit's [`SandboxFrame`](toolkit.md#sandbox-protocol) included). A
+consumer that must show another site of its own in a frame, for example a
+preview of a site served on a sibling host, declares the origins:
+
+```php
+new ApplicationDefinition(..., frameSources: ['https://*.example.com']);
+```
+
+or `"frame_sources": ["https://*.example.com"]` under `application` in
+JSON. Each entry is an HTTPS origin, `https://host[:port]` or
+`https://*.domain[:port]` (a domain of at least two labels, lower case, no
+path); entries are unique. The page then sends
+`frame-src 'self' <sources>`; everything else in the CSP is unchanged, and
+`frame-ancestors 'none'` still forbids framing the shell itself. The framed
+site decides on its side with its own `frame-ancestors` (a site that sends
+none, or `X-Frame-Options` without a CSP, may still refuse). The frame's
+`sandbox` attribute stays the consumer's choice. `ApplicationDefinition`
+rejects anything else; `frameSource()` returns the directive's value (''
+when none is declared).
+
 <a id="trusted-proxies"></a>
 
 ### Trusted proxies
