@@ -130,6 +130,17 @@ try {
         $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
         rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid JSON menu command accepted: '.json_encode($bad));
     }
+    // Frame sources (docs/shell.md#frame-sources): none by default, so the shell frames only its own origin.
+    verify($app->frameSources === [] && $app->frameSource() === '', 'No frame sources by default');
+    $write([...$settings, 'application' => [...$settings['application'], 'frame_sources' => ['https://*.example.test', 'https://preview.example.test:8443']]]);
+    $framed = JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db);
+    verify($framed->frameSource() === "'self' https://*.example.test https://preview.example.test:8443", 'JSON application.frame_sources');
+    foreach ([['frame_sources' => 'https://a.example.test'], ['frame_sources' => ['http://a.example.test']], ['frame_sources' => ['https://*.test']], ['frame_sources' => ['https://*']],
+        ['frame_sources' => ['https://a.example.test/']], ['frame_sources' => ["https://a.example.test 'unsafe-inline'"]], ['frame_sources' => ['https://A.example.test']],
+        ['frame_sources' => ['https://a.example.test', 'https://a.example.test']], ['frame_sources' => [7]], ['frame_sources' => ['x' => 'https://a.example.test']]] as $bad) {
+        $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
+        rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid frame sources accepted: '.json_encode($bad));
+    }
     // Session cookie policy and client-address binding (docs/authentication.md#cookie-samesite): opt-in session keys.
     verify($app->sameSite === 'Lax' && $app->bindSessionToClientAddress === false, 'Lax and unbound sessions by default');
     $write([...$settings, 'session' => [...$settings['session'], 'same_site' => 'Strict', 'bind_to_client_address' => true]]);

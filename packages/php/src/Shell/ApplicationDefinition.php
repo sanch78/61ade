@@ -11,6 +11,8 @@ final readonly class ApplicationDefinition
      * `%s` is the extension alternation.
      */
     public const PATH = '~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\.(%s)(?:\?[A-Za-z0-9_.=-]+)?$~D';
+    /** An HTTPS origin, optionally every subdomain of a domain of at least two labels (`https://*.example.com`). */
+    public const FRAME_SOURCE = '~^https://(?:\*\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+(?::[0-9]{1,5})?$~D';
 
     public function __construct(
         public string $title,
@@ -83,6 +85,13 @@ final readonly class ApplicationDefinition
         public bool $bindSessionToClientAddress = false,
         /** Application commands of the menu row, at most 3 with unique ids (docs/shell.md#menu-commands). @var list<\Blade\Navigation\MenuCommand> */
         public array $menuCommands = [],
+        /**
+         * Further origins the signed-in shell may show in frames (docs/shell.md#frame-sources): `https://host[:port]` or
+         * `https://*.domain[:port]`. The page's CSP then has `frame-src 'self'` plus these; none keeps frames to the shell's
+         * own origin (the `default-src 'self'` fallback). The framed site decides with its own `frame-ancestors`.
+         * @var list<string>
+         */
+        public array $frameSources = [],
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -101,6 +110,10 @@ final readonly class ApplicationDefinition
         }
         if (!self::paths($signInStylesheets, 'css')) throw new \InvalidArgumentException('Invalid 61ade sign-in stylesheets.');
         if (!self::paths($signInModules, 'm?js')) throw new \InvalidArgumentException('Invalid 61ade sign-in modules.');
+        if (!array_is_list($frameSources) || count(array_unique($frameSources, SORT_REGULAR)) !== count($frameSources)
+            || array_filter($frameSources, static fn($source): bool => !is_string($source) || !preg_match(self::FRAME_SOURCE, $source))) {
+            throw new \InvalidArgumentException('Invalid 61ade frame sources.');
+        }
         if ($guides && !$workspace) throw new \InvalidArgumentException('View guides need a workspace.');
         foreach ($guides as $id => $guide) {
             if (!is_string($guide)) throw new \InvalidArgumentException('Invalid view guide: '.$id);
@@ -129,6 +142,12 @@ final readonly class ApplicationDefinition
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();
         $workspace?->registry->checkFileFields();
+    }
+
+    /** The shell CSP's `frame-src` value: `'self'` and the declared frame sources; '' when none is declared. */
+    public function frameSource(): string
+    {
+        return $this->frameSources ? "'self' ".implode(' ', $this->frameSources) : '';
     }
 
     /** Resolve on every request: a missing or disabled public account grants no access, and is never a sign-in. */

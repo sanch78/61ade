@@ -865,3 +865,5 @@
 <a id="fb-0209"></a>
 
 ## FB-0209 — Calendar windows close without a page error
+
+## FB-0210 — Continue the tab divider across the unused header width
