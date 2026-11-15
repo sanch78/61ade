@@ -24,6 +24,11 @@ final readonly class CalendarDefinition
      *        called with `date` (YYYY-MM-DD) for the selected day; its result is shown read-only
      * @param list<array{field:string,tone:string,value?:string,prefix?:string}> $tones event colours: the first rule
      *        whose extra field equals `value` (or starts with `prefix`) gives the event its theme tone (TONES)
+     * @param bool $tenantScoped events belong to the active tenant (`tenant_id`, Registry::scopeToTenant): every action
+     *        reads and writes only that tenant's events and fails closed without one
+     * @param (\Closure(\Blade\Feature\Context, \DateTimeImmutable, \DateTimeImmutable): list<array{id:string,text:string,start:string,end:string,tone?:string}>)|null $overlay
+     *        read-only events of the consumer shown with the stored ones by `events` (for example bookings in an
+     *        opening-hours calendar): wall-clock `YYYY-MM-DD HH:MM` bounds overlapping the window, an optional tone (TONES)
      */
     public function __construct(
         public string $resource,
@@ -42,6 +47,8 @@ final readonly class CalendarDefinition
         /** The view's guide text (Blade\Feature\View $guide). */
         public ?string $guide = null,
         public array $tones = [],
+        public bool $tenantScoped = false,
+        public ?\Closure $overlay = null,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_.-]*$/D', $resource) || $title === '' || !preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $space)) throw new \InvalidArgumentException('Invalid calendar definition.');
         if (!$views || array_diff($views, self::VIEWS) || count(array_unique($views)) !== count($views) || !in_array($defaultView, $views, true)) throw new \InvalidArgumentException('Invalid calendar views.');
@@ -58,11 +65,18 @@ final readonly class CalendarDefinition
     {
         $mysql = $db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql';
         $db->exec('CREATE TABLE IF NOT EXISTS blade_calendar_events (id '.($mysql ? 'BIGINT PRIMARY KEY AUTO_INCREMENT' : 'INTEGER PRIMARY KEY AUTOINCREMENT')
-            .", space VARCHAR(64) NOT NULL, text VARCHAR(255) NOT NULL, start_at VARCHAR(19) NOT NULL, end_at VARCHAR(19) NOT NULL, rrule VARCHAR(500) NOT NULL DEFAULT '', duration BIGINT NOT NULL DEFAULT 0, recurring_event_id BIGINT NULL, original_start VARCHAR(19) NULL, deleted INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL, revision BIGINT NOT NULL DEFAULT 1)".($mysql ? ' ENGINE=InnoDB' : ''));
-        if ($mysql) {
-            $q = $db->query("SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='blade_calendar_events' AND INDEX_NAME='blade_calendar_window'");
-            if (!$q->fetchColumn()) $db->exec('CREATE INDEX blade_calendar_window ON blade_calendar_events (space, start_at, end_at)');
-        } else $db->exec('CREATE INDEX IF NOT EXISTS blade_calendar_window ON blade_calendar_events (space, start_at, end_at)');
+            .", space VARCHAR(64) NOT NULL, tenant_id VARCHAR(64) NULL, text VARCHAR(255) NOT NULL, start_at VARCHAR(19) NOT NULL, end_at VARCHAR(19) NOT NULL, rrule VARCHAR(500) NOT NULL DEFAULT '', duration BIGINT NOT NULL DEFAULT 0, recurring_event_id BIGINT NULL, original_start VARCHAR(19) NULL, deleted INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL, revision BIGINT NOT NULL DEFAULT 1)".($mysql ? ' ENGINE=InnoDB' : ''));
+        // Tables installed before tenant-scoped calendars gain the nullable tenant column; other calendars leave it null.
+        $columns = $mysql ? $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='blade_calendar_events'")->fetchAll(\PDO::FETCH_COLUMN)
+            : array_column($db->query('PRAGMA table_info(blade_calendar_events)')->fetchAll(\PDO::FETCH_ASSOC), 'name');
+        if (!in_array('tenant_id', $columns, true)) $db->exec('ALTER TABLE blade_calendar_events ADD COLUMN tenant_id VARCHAR(64) NULL');
+        foreach (['blade_calendar_window' => 'space, start_at, end_at', 'blade_calendar_tenant' => 'space, tenant_id, start_at'] as $index => $keys) {
+            if ($mysql) {
+                $q = $db->prepare("SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='blade_calendar_events' AND INDEX_NAME=?");
+                $q->execute([$index]);
+                if (!$q->fetchColumn()) $db->exec("CREATE INDEX $index ON blade_calendar_events ($keys)");
+            } else $db->exec("CREATE INDEX IF NOT EXISTS $index ON blade_calendar_events ($keys)");
+        }
     }
 
     public function register(Workspace $workspace): void
@@ -70,10 +84,14 @@ final readonly class CalendarDefinition
         (new CalendarActions($this))->register($workspace->registry);
     }
 
-    /** Concrete occurrences overlapping [$from, $to) for server-side consumers; no ACL is applied here. */
-    public function occurrences(\PDO $db, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    /**
+     * Concrete occurrences overlapping [$from, $to) for server-side consumers; no ACL is applied here. A tenant-scoped
+     * calendar needs the $tenant whose events are expanded; any other calendar takes none.
+     */
+    public function occurrences(\PDO $db, \DateTimeImmutable $from, \DateTimeImmutable $to, ?string $tenant = null): array
     {
-        return (new CalendarActions($this))->expand($db, $from, $to);
+        if ($this->tenantScoped !== ($tenant !== null)) throw new \LogicException($this->tenantScoped ? 'A tenant-scoped calendar needs the tenant.' : 'This calendar is not tenant-scoped.');
+        return (new CalendarActions($this))->expand($db, $from, $to, $tenant);
     }
 
     /** Browser configuration only: no SQL or rules. Field metadata is added per actor; `space` (the ACL object) is removed before it is sent. */

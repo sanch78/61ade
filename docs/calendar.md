@@ -38,6 +38,7 @@ exists throws, so one calendar is on screen at a time.
 | Column | Meaning |
 | --- | --- |
 | `space` | Storage namespace and ACL object; several calendars may share the table. |
+| `tenant_id` | The owning tenant of a [tenant-scoped](#tenant-scoped-calendars) calendar's event; null for every other calendar. `install()` adds the column (and the `blade_calendar_tenant` index) to an older table. |
 | `text`, `start_at`, `end_at` | Caption and wall-clock `YYYY-MM-DD HH:MM:SS` bounds. For a series, `end_at` is the end of the series (`9999-02-01` when open-ended). |
 | `rrule`, `duration` | Series rule and occurrence length in seconds; empty/0 for single events. |
 | `recurring_event_id`, `original_start` | An exception row: it replaces the occurrence of that series that started at `original_start`. |
@@ -86,7 +87,36 @@ $calendar->register($workspace);     // application definition
 | `maxRangeDays` | Longest window `events`/`occurrences` accept (default 62, month view needs 42). |
 | `dayAction` | Optional registered action called with `date` (`YYYY-MM-DD`) for the selected day; the toolbar button shows its JSON answer read-only beside the equivalent API request. Shown only if the actor is offered that action. |
 | `group`, `icon`, `desktopOnly` | Menu group, icon (default `bi bi-calendar-event`) and the generic desktop-only option. |
+| `tenantScoped` | Each tenant's events stay apart; see [tenant-scoped calendars](#tenant-scoped-calendars). Default `false`. |
+| `overlay` | Read-only consumer events shown with the stored ones; see [overlay](#overlay). Default none. |
 | `tones` | Event colours: a list of `{field, tone, value \| prefix}` rules over the extra fields; the first rule whose field equals `value` (or starts with `prefix`) colours the event with the theme tone `primary`, `secondary`, `success` or `danger` (other events keep the default `primary`). Light and dark skins follow the Suite palette. A rule over a field the actor may not read is left out of the metadata. Invalid rules throw at definition time. |
+
+### Tenant-scoped calendars
+
+With `tenantScoped: true` (FB-0208) the definition calls
+`Registry::scopeToTenant($resource)` and every action reads, expands and
+writes only the events of the active tenant (`Context::$tenant`, the
+Registry's tenant realm): a new event stores it in `tenant_id`, another
+tenant's event is `404` for `update` and `delete`, another tenant's series
+takes no exception (`400`), and without an active tenant every action fails
+closed (`403`). The ACL object stays the space, so one grant covers the
+calendar of whichever tenant the actor is active in. A shared tenant value is
+not supported. `CalendarDefinition::occurrences($db, $from, $to, $tenant)`
+needs the tenant of a tenant-scoped calendar and refuses one for any other
+calendar (`LogicException`).
+
+### Overlay
+
+`overlay` (FB-0208) is a `Closure(Context, DateTimeImmutable $from,
+DateTimeImmutable $to)` returning the consumer's own events for the window:
+`{id, text, start, end, tone?}`, wall-clock `YYYY-MM-DD HH:MM` bounds,
+`tone` one of the theme tones (default `primary`). `events` appends them to
+the stored events as `overlay:<id>` with `readonly: true`, within the same
+2000-row limit; `occurrences` and `CalendarDefinition::occurrences()` never
+include them. The view neither opens nor drags or resizes an overlay event
+and shows it in its tone with a default cursor. A malformed item is a
+programming error (`LogicException`, answered as a server error). Typical use:
+bookings or computed free slots over an editable opening-hours calendar.
 
 ### In project code
 
@@ -251,7 +281,9 @@ curl -s https://demo.61ade.com/?blade=1 -b 'blade_demo_sandbox=<cookie value>' \
 - One calendar instance per page (Standard edition; a second `Calendar`
   component throws); no timeline/units/resource views (PRO). The component has
   no events of its own.
-- No per-event permissions, owners or attendees; the space is the ACL object.
+- No per-event permissions, owners or attendees; the space is the ACL object
+  (a tenant-scoped calendar narrows the rows, not the grants).
+- Overlay events are display only: no form, no drag, no API expansion.
 - No time zones: wall-clock values only.
 - No live updates from other users; the window reloads on navigation.
 - The `events` window is capped at 2000 rows and `occurrences` at 5000 items.

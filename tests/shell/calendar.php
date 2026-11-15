@@ -110,6 +110,36 @@ $single=$call('create',null,['text'=>'Event','start_date'=>'2026-10-21 09:00','e
 fails(fn()=>$call('update',$single['id'],['text'=>'Event','start_date'=>'2026-10-21 09:00','end_date'=>'2026-10-21 12:00','asset_id'=>'','revision'=>'1']),400,'Clearing a required field');
 fails(fn()=>$call('update','999',['text'=>'x','start_date'=>'2026-10-21 09:00','end_date'=>'2026-10-21 12:00','asset_id'=>'b','revision'=>'1']),404,'Unknown event');
 
+// Tenant scope: each tenant reads, expands and writes only its own events; without a tenant the calendar fails closed.
+// The overlay adds the consumer's read-only items to `events` only.
+$overlay=fn(Context $c,DateTimeImmutable $from,DateTimeImmutable $to)=>[['id'=>'b-'.$c->tenant,'text'=>'Booked '.$c->tenant,'start'=>'2026-10-21 10:00','end'=>'2026-10-21 11:00','tone'=>'danger']];
+Blade\Tenancy\Tenancy::install($db);
+$scoped=new CalendarDefinition('hours','Hours','hours',tenantScoped:true,overlay:$overlay);
+$scoped->register($workspace);
+foreach(['events','occurrences','create','update','delete'] as $a)$rule->execute(['1','hours',$a,'ui','allow','']);
+$in=fn(?string $tenant,string $action,?string $id,array $values=[])=>$workspace->executor->execute(new Context(new Identity('1','Actor 1'),'ui',$workspace->acl,$db,tenant:$tenant),'hours',$action,$id,$values);
+$week=['text'=>'Open','start_date'=>'2026-10-19 09:00','end_date'=>'9999-02-01 00:00','rrule'=>'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR','duration'=>'28800'];
+$a=$in('7','create',null,$week);$b=$in('8','create',null,['text'=>'Late','start_date'=>'2026-10-21 18:00','end_date'=>'2026-10-21 20:00']);
+check((string)$db->query('SELECT tenant_id FROM blade_calendar_events WHERE id='.(int)$a['id'])->fetchColumn()==='7','The tenant is stored');
+$seen=$in('7','events',null,['from'=>'2026-10-19','to'=>'2026-10-26'])['events'];
+check(array_column($seen,'text')===['Open','Booked 7']&&$seen[1]['id']==='overlay:b-7'&&$seen[1]['readonly']===true&&$seen[1]['tone']==='danger','Own events plus the read-only overlay');
+check(array_column($in('8','occurrences',null,['from'=>'2026-10-19','to'=>'2026-10-26'])['occurrences'],'text')===['Late'],'Occurrences are the tenant\'s own, without the overlay');
+fails(fn()=>$in('8','update',$a['id'],[...$week,'revision'=>'1']),404,'Another tenant\'s event is not found');
+fails(fn()=>$in('8','delete',$a['id'],['revision'=>'1']),404,'Another tenant\'s event cannot be deleted');
+fails(fn()=>$in('8','create',null,['text'=>'x','start_date'=>'2026-10-21 09:00','end_date'=>'2026-10-21 10:00','recurring_event_id'=>$a['id'],'original_start'=>'2026-10-21 09:00','deleted'=>'1']),400,'Another tenant\'s series takes no exception');
+fails(fn()=>$in(null,'events',null,['from'=>'2026-10-19','to'=>'2026-10-26']),403,'No tenant, no calendar');
+check(count($scoped->occurrences($db,$d('2026-10-19'),$d('2026-10-26'),'7'))===5&&$scoped->occurrences($db,$d('2026-10-19'),$d('2026-10-26'),'9')===[],'Server-side expansion per tenant');
+try{$scoped->occurrences($db,$d('2026-10-19'),$d('2026-10-26'));throw new RuntimeException('tenant-less expansion accepted');}catch(LogicException){}
+check(!in_array('Open',array_column($call('events',null,['from'=>'2026-10-19','to'=>'2026-10-26'])['events'],'text'),true),'Spaces stay apart');
+$bad=new CalendarDefinition('bad','Bad','bad',overlay:fn()=>[['id'=>'x','text'=>'x','start'=>'2026-10-21 10:00','end'=>'2026-10-21 09:00']]);$bad->register($workspace);
+$rule->execute(['1','bad','events','ui','allow','']);
+fails(fn()=>$workspace->executor->execute($ctx(),'bad','events',null,['from'=>'2026-10-19','to'=>'2026-10-26']),500,'An invalid overlay item is a server error');
+// An older table without the tenant column gains it on install.
+$old=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+$old->exec("CREATE TABLE blade_calendar_events (id INTEGER PRIMARY KEY AUTOINCREMENT, space VARCHAR(64) NOT NULL, text VARCHAR(255) NOT NULL, start_at VARCHAR(19) NOT NULL, end_at VARCHAR(19) NOT NULL, rrule VARCHAR(500) NOT NULL DEFAULT '', duration BIGINT NOT NULL DEFAULT 0, recurring_event_id BIGINT NULL, original_start VARCHAR(19) NULL, deleted INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL, revision BIGINT NOT NULL DEFAULT 1)");
+CalendarDefinition::install($old);CalendarDefinition::install($old);
+check(in_array('tenant_id',array_column($old->query('PRAGMA table_info(blade_calendar_events)')->fetchAll(PDO::FETCH_ASSOC),'name'),true),'Install adds the tenant column');
+
 // Audit: writes are journalled with the event id.
 check((int)$db->query("SELECT COUNT(*) FROM blade_audit WHERE resource='cal' AND action='create' AND outcome='success'")->fetchColumn()>=4,'Audited writes');
 echo "calendar: ok\n";

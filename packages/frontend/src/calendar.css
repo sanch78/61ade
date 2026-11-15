@@ -74,6 +74,9 @@
 .blade-calendar .blade-calendar-event--secondary { --dhx-scheduler-event-background: var(--dhx-color-secondary); }
 .blade-calendar .blade-calendar-event--success { --dhx-scheduler-event-background: var(--dhx-color-success); }
 .blade-calendar .blade-calendar-event--danger { --dhx-scheduler-event-background: var(--dhx-color-danger); }
+/* Consumer overlay events (CalendarDefinition::$overlay) cannot be opened, moved or resized. */
+.blade-calendar .blade-calendar-event--readonly { cursor: default; opacity: .85; }
+.blade-calendar .blade-calendar-event--readonly .dhx_event_resize { display: none; }
 .blade-calendar-detail { font-size: 12px; opacity: .85; white-space: normal; }
 .blade-calendar-day__body { box-sizing: border-box; height: 100%; overflow: auto; padding: 12px 16px 24px; }
 .blade-calendar-day__label { margin: 8px 0 4px; font-weight: 600; }

@@ -177,14 +177,18 @@ export class CalendarView {
     s.templates.event_bar_text=(start:Date,end:Date,event:SchedulerEvent)=>escape(event.text);
     const tones=this.config.tones??[];
     s.templates.event_class=(start:Date,end:Date,event:SchedulerEvent)=>{
+      // A consumer overlay event (`CalendarDefinition::$overlay`) is read-only and brings its own tone.
+      if(event.readonly)return `blade-calendar-event--readonly blade-calendar-event--${String(event.tone??"primary")}`;
       const rule=tones.find(rule=>{const value=String(event[rule.field]??"");return rule.value!==undefined?value===rule.value:!!rule.prefix&&value.startsWith(rule.prefix);});
       return rule?`blade-calendar-event--${rule.tone}`:"";
     };
+    const readonly=(id:string|number|null)=>id!==null&&id!==undefined&&!!(s.getEvent(id) as SchedulerEvent|undefined)?.readonly;
     this.handlers.push(
       s.attachEvent("onViewChange",()=>void this.load(false)),
       s.attachEvent("onEmptyClick",(date:Date)=>{this.selected=date;}),
       s.attachEvent("onClick",(id:string)=>{const event=s.getEvent(id) as SchedulerEvent|undefined;if(event)this.selected=event.start_date;return true;}),
-      s.attachEvent("onBeforeLightbox",()=>this.can(s.getState().new_event?"create":"update")),
+      s.attachEvent("onBeforeLightbox",(id:string)=>!readonly(id)&&this.can(s.getState().new_event?"create":"update")),
+      s.attachEvent("onBeforeDrag",(id:string|null)=>!readonly(id)),
     );
     // Writes go through the registered actions; the router waits for the server answer.
     this.processor=s.createDataProcessor({event:{

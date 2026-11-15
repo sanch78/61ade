@@ -10,7 +10,8 @@ use Blade\I18n\Translator;
  * grant a whole calendar; the executor has already checked channel, scope and ACL and opened the
  * transaction. Events use the DHTMLX Scheduler recurring model: a series row carries `rrule`
  * and `duration`, an exception row points to it by `recurring_event_id` + `original_start`
- * and is either a moved occurrence or a `deleted` one.
+ * and is either a moved occurrence or a `deleted` one. A tenant-scoped calendar keeps each tenant's events apart by
+ * `tenant_id` (the Registry's tenant realm); the consumer's overlay adds read-only events to `events`.
  */
 final class CalendarActions
 {
@@ -20,6 +21,8 @@ final class CalendarActions
     private const EVENT_LIMIT = 2000;
     private const OCCURRENCE_LIMIT = 5000;
 
+    private ?Registry $registry = null;
+
     public function __construct(private CalendarDefinition $definition)
     {
     }
@@ -27,6 +30,8 @@ final class CalendarActions
     public function register(Registry $registry): void
     {
         $resource = $this->definition->resource;
+        $this->registry = $registry;
+        if ($this->definition->tenantScoped) $registry->scopeToTenant($resource);
         $date = static fn(string $name, string $label, bool $required, string $pattern = self::DATE) => new Field($name, $label, required: $required, max: 16, validation: ['pattern' => ['expression' => $pattern, 'message' => 'Formátum: ÉÉÉÉ-HH-NN ÓÓ:PP.']]);
         $range = [$date('from', 'Kezdete', true, self::DAY), $date('to', 'Vége', true, self::DAY)];
         $event = [
@@ -42,13 +47,13 @@ final class CalendarActions
         ];
         $revision = new Field('revision', 'Verzió', required: true, max: 20);
         $space = fn(Context $ctx) => ['id' => $this->definition->space, 'acl_id' => $this->definition->space, 'owner' => null];
-        $entry = fn(Context $ctx, ?string $id) => $this->target($ctx->db, $id);
+        $entry = fn(Context $ctx, ?string $id) => $this->target($ctx->db, $id, $this->tenant($ctx));
         $actions = [
             new Action($resource, 'events', 'Események', $range, fn(Context $ctx, array $target, array $values) => $this->events($ctx, $values), resolve: $space),
             new Action($resource, 'occurrences', 'Előfordulások', $range, fn(Context $ctx, array $target, array $values) => $this->occurrences($ctx, $values), resolve: $space),
-            new Action($resource, 'create', 'Új esemény', $event, fn(Context $ctx, array $target, array $values) => $this->save($ctx->db, null, $values), resolve: $space, write: true, icon: 'bi bi-plus-lg'),
-            new Action($resource, 'update', 'Esemény mentése', [...$event, $revision], fn(Context $ctx, array $target, array $values) => $this->save($ctx->db, $target['row'], $values), resolve: $entry, write: true, icon: 'bi bi-floppy'),
-            new Action($resource, 'delete', 'Esemény törlése', [$revision], fn(Context $ctx, array $target, array $values) => $this->delete($ctx->db, $target['row'], $values['revision']), resolve: $entry, write: true, icon: 'bi bi-trash'),
+            new Action($resource, 'create', 'Új esemény', $event, fn(Context $ctx, array $target, array $values) => $this->save($ctx->db, null, $values, $this->tenant($ctx)), resolve: $space, write: true, icon: 'bi bi-plus-lg'),
+            new Action($resource, 'update', 'Esemény mentése', [...$event, $revision], fn(Context $ctx, array $target, array $values) => $this->save($ctx->db, $target['row'], $values, $this->tenant($ctx)), resolve: $entry, write: true, icon: 'bi bi-floppy'),
+            new Action($resource, 'delete', 'Esemény törlése', [$revision], fn(Context $ctx, array $target, array $values) => $this->delete($ctx->db, $target['row'], $values['revision'], $this->tenant($ctx)), resolve: $entry, write: true, icon: 'bi bi-trash'),
         ];
         foreach ($actions as $action) $registry->add($action);
         $registry->calendar($resource, $this->definition->title, array_map(static fn($action) => $action->name, $actions), $this->definition->fields, $this->definition->metadata(), $this->definition->group, $this->definition->icon, $this->definition->desktopOnly, guide: $this->definition->guide);
@@ -59,7 +64,22 @@ final class CalendarActions
     {
         [$from, $to] = $this->range($values);
         $fields = $this->readable($ctx, 'events');
-        return ['events' => array_map(fn($row) => $this->client($row, $fields), $this->window($ctx->db, $from, $to))];
+        $events = array_map(fn($row) => $this->client($row, $fields), $this->window($ctx->db, $from, $to, $this->tenant($ctx)));
+        if ($this->definition->overlay !== null) foreach (($this->definition->overlay)($ctx, $from, $to) as $item) {
+            if (count($events) >= self::EVENT_LIMIT) throw new Failure('Túl sok esemény; szűkítsd az időszakot.', 413);
+            $events[] = $this->overlaid($item);
+        }
+        return ['events' => $events];
+    }
+
+    /** A consumer's read-only overlay item in the Scheduler's event shape; its id cannot collide with a stored one. */
+    private function overlaid(mixed $item): array
+    {
+        $date = static fn(mixed $value): bool => is_string($value) && preg_match('/'.self::DATE.'/D', $value) === 1;
+        if (!is_array($item) || !is_string($item['id'] ?? null) || $item['id'] === '' || !is_string($item['text'] ?? null) || !$date($item['start'] ?? null) || !$date($item['end'] ?? null)
+            || $item['end'] <= $item['start'] || (isset($item['tone']) && !in_array($item['tone'], CalendarDefinition::TONES, true))) throw new \LogicException('Invalid calendar overlay item.');
+        return ['id' => 'overlay:'.$item['id'], 'text' => $item['text'], 'start_date' => $item['start'], 'end_date' => $item['end'], 'rrule' => '', 'duration' => 0,
+            'recurring_event_id' => '', 'original_start' => '', 'deleted' => false, 'revision' => '', 'readonly' => true, 'tone' => $item['tone'] ?? 'primary'];
     }
 
     /** Server-side expansion: every concrete occurrence overlapping the window, in start order. */
@@ -67,14 +87,14 @@ final class CalendarActions
     {
         [$from, $to] = $this->range($values);
         $fields = array_flip($this->readable($ctx, 'occurrences'));
-        $items = array_map(static fn($item) => ['data' => (object) array_intersect_key($item['data'], $fields)] + $item, $this->expand($ctx->db, $from, $to));
+        $items = array_map(static fn($item) => ['data' => (object) array_intersect_key($item['data'], $fields)] + $item, $this->expand($ctx->db, $from, $to, $this->tenant($ctx)));
         return ['from' => $from->format('Y-m-d H:i'), 'to' => $to->format('Y-m-d H:i'), 'occurrences' => $items];
     }
 
     /** @return list<array{id:string,series_id:?string,text:string,start:string,end:string,recurring:bool,data:array}> */
-    public function expand(\PDO $db, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    public function expand(\PDO $db, \DateTimeImmutable $from, \DateTimeImmutable $to, ?string $tenant = null): array
     {
-        $rows = $this->window($db, $from, $to);
+        $rows = $this->window($db, $from, $to, $tenant);
         $exceptions = [];
         foreach ($rows as $row) if ($row['recurring_event_id'] !== null) $exceptions[$row['recurring_event_id'].'|'.$row['original_start']] = true;
         $out = [];
@@ -97,19 +117,20 @@ final class CalendarActions
     }
 
     /** Rows overlapping the window, plus exceptions whose original slot lies in it. */
-    private function window(\PDO $db, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    private function window(\PDO $db, \DateTimeImmutable $from, \DateTimeImmutable $to, ?string $tenant): array
     {
         $f = $from->format('Y-m-d H:i:s');
         $t = $to->format('Y-m-d H:i:s');
-        $q = $db->prepare('SELECT '.self::COLUMNS.' FROM blade_calendar_events WHERE space=? AND ((start_at<? AND end_at>?) OR (recurring_event_id IS NOT NULL AND original_start>=? AND original_start<?)) ORDER BY start_at,id LIMIT '.(self::EVENT_LIMIT + 1));
-        $q->execute([$this->definition->space, $t, $f, $f, $t]);
+        [$where, $params] = $this->scope($tenant);
+        $q = $db->prepare('SELECT '.self::COLUMNS." FROM blade_calendar_events WHERE $where AND ((start_at<? AND end_at>?) OR (recurring_event_id IS NOT NULL AND original_start>=? AND original_start<?)) ORDER BY start_at,id LIMIT ".(self::EVENT_LIMIT + 1));
+        $q->execute([...$params, $t, $f, $f, $t]);
         $rows = $q->fetchAll(\PDO::FETCH_ASSOC);
         if (count($rows) > self::EVENT_LIMIT) throw new Failure('Túl sok esemény; szűkítsd az időszakot.', 413);
         foreach ($rows as &$row) $row['recurring_event_id'] = $row['recurring_event_id'] === null ? null : (string) $row['recurring_event_id'];
         return $rows;
     }
 
-    private function save(\PDO $db, ?array $row, array $values): array
+    private function save(\PDO $db, ?array $row, array $values, ?string $tenant): array
     {
         $start = self::time($values['start_date'].':00');
         $end = self::time($values['end_date'].':00');
@@ -119,7 +140,7 @@ final class CalendarActions
         $original = ($values['original_start'] ?? '') !== '' ? self::time($values['original_start'].':00')->format('Y-m-d H:i:s') : null;
         if ($rrule !== '') Recurrence::parse($rrule);
         if ($series !== null) {
-            $parent = $this->entry($db, $series);
+            $parent = $this->entry($db, $series, $tenant);
             if (!$parent || $parent['rrule'] === '' || $parent['recurring_event_id'] !== null || $original === null || $rrule !== '' || ($row && (string) $row['id'] === $series)) throw new Failure('Érvénytelen sorozatkivétel.', 400, ['recurring_event_id' => 'Érvénytelen sorozatkivétel.']);
         } elseif ($original !== null || ($values['deleted'] ?? '0') === '1') throw new Failure('Érvénytelen sorozatkivétel.', 400, ['original_start' => 'Érvénytelen sorozatkivétel.']);
         $data = [];
@@ -134,7 +155,8 @@ final class CalendarActions
         $record = [$values['text'], $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), $rrule, $rrule !== '' ? (int) ($values['duration'] ?? 0) : 0, $series, $original, (int) (($values['deleted'] ?? '0') === '1'), json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)];
         if ($rrule !== '' && $record[4] < 1) throw new Failure('Javítsd a megjelölt mezőket.', 400, ['duration' => 'Ismétlődő eseménynél pozitív időtartam szükséges.']);
         if ($row === null) {
-            $db->prepare('INSERT INTO blade_calendar_events(space,text,start_at,end_at,rrule,duration,recurring_event_id,original_start,deleted,data,revision) VALUES (?,?,?,?,?,?,?,?,?,?,1)')->execute([$this->definition->space, ...$record]);
+            $db->prepare('INSERT INTO blade_calendar_events(space,'.($tenant !== null ? 'tenant_id,' : '').'text,start_at,end_at,rrule,duration,recurring_event_id,original_start,deleted,data,revision) VALUES (?,'.($tenant !== null ? '?,' : '').'?,?,?,?,?,?,?,?,?,1)')
+                ->execute([...$this->scope($tenant)[1], ...$record]);
             return ['id' => (string) $db->lastInsertId(), 'revision' => '1', 'audit' => ['series' => $series]];
         }
         if (!hash_equals((string) $row['revision'], (string) $values['revision'])) throw new Failure('Az adat közben módosult.', 409, details: ['revision' => (string) $row['revision']]);
@@ -142,33 +164,49 @@ final class CalendarActions
         $q->execute([...$record, $row['id'], $row['revision']]);
         if ($q->rowCount() !== 1) throw new Failure('Az adat közben módosult.', 409);
         // A changed series pattern invalidates its exceptions, as in the Scheduler.
-        if ($row['rrule'] !== '' && ($row['rrule'] !== $rrule || $row['start_at'] !== $record[1] || (int) $row['duration'] !== $record[4])) $db->prepare('DELETE FROM blade_calendar_events WHERE space=? AND recurring_event_id=?')->execute([$this->definition->space, $row['id']]);
+        if ($row['rrule'] !== '' && ($row['rrule'] !== $rrule || $row['start_at'] !== $record[1] || (int) $row['duration'] !== $record[4])) $db->prepare('DELETE FROM blade_calendar_events WHERE '.$this->scope($tenant)[0].' AND recurring_event_id=?')->execute([...$this->scope($tenant)[1], $row['id']]);
         return ['id' => (string) $row['id'], 'revision' => (string) ((int) $row['revision'] + 1)];
     }
 
-    private function delete(\PDO $db, array $row, string $revision): array
+    private function delete(\PDO $db, array $row, string $revision, ?string $tenant): array
     {
         if (!hash_equals((string) $row['revision'], $revision)) throw new Failure('Az adat közben módosult.', 409, details: ['revision' => (string) $row['revision']]);
-        $db->prepare('DELETE FROM blade_calendar_events WHERE space=? AND (id=? OR recurring_event_id=?)')->execute([$this->definition->space, $row['id'], $row['id']]);
+        [$where, $params] = $this->scope($tenant);
+        $db->prepare("DELETE FROM blade_calendar_events WHERE $where AND (id=? OR recurring_event_id=?)")->execute([...$params, $row['id'], $row['id']]);
         return ['id' => (string) $row['id']];
     }
 
-    private function target(\PDO $db, ?string $id): array
+    private function target(\PDO $db, ?string $id, ?string $tenant): array
     {
-        $row = $id !== null ? $this->entry($db, $id) : null;
+        $row = $id !== null ? $this->entry($db, $id, $tenant) : null;
         if (!$row) throw new Failure('Nem található esemény.', 404);
         return ['id' => (string) $row['id'], 'acl_id' => $this->definition->space, 'owner' => null, 'row' => $row];
     }
 
-    private function entry(\PDO $db, string $id): ?array
+    private function entry(\PDO $db, string $id, ?string $tenant): ?array
     {
         if (!preg_match('/^[1-9][0-9]{0,17}$/D', $id)) return null;
-        $q = $db->prepare('SELECT '.self::COLUMNS.' FROM blade_calendar_events WHERE space=? AND id=?');
-        $q->execute([$this->definition->space, $id]);
+        [$where, $params] = $this->scope($tenant);
+        $q = $db->prepare('SELECT '.self::COLUMNS." FROM blade_calendar_events WHERE $where AND id=?");
+        $q->execute([...$params, $id]);
         $row = $q->fetch(\PDO::FETCH_ASSOC);
         if (!$row) return null;
         $row['recurring_event_id'] = $row['recurring_event_id'] === null ? null : (string) $row['recurring_event_id'];
         return $row;
+    }
+
+    /** The active tenant of a tenant-scoped calendar (403 without one), null for any other calendar. */
+    private function tenant(Context $ctx): ?string
+    {
+        if (!$this->definition->tenantScoped) return null;
+        return (string) $this->registry?->realm($ctx, $this->definition->resource)['write'];
+    }
+
+    /** @return array{0:string,1:list<string>} the row filter of the calendar (and of $tenant when tenant-scoped) */
+    private function scope(?string $tenant): array
+    {
+        if ($this->definition->tenantScoped !== ($tenant !== null)) throw new \LogicException('Calendar tenant scope mismatch.');
+        return $tenant !== null ? ['space=? AND tenant_id=?', [$this->definition->space, $tenant]] : ['space=?', [$this->definition->space]];
     }
 
     /** Extra fields the actor may read with this action; denied ones never reach the response. */
