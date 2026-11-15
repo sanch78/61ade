@@ -84,7 +84,7 @@ export interface Application {
   readonly mediaTypes: Registry<MediaType>;
   /**
    * Public component classes, bound to this application: `ListView`, `RecordForm`, `RecordDetails`, `FileManager`,
-   * `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer`, `SandboxFrame` and `CommandBar`.
+   * `FilePicker`, `Calendar`, `DiagramEditor`, `MediaPlayer`, `TextDiff`, `SandboxFrame` and `CommandBar`.
    */
   readonly components: Components;
   /** Views offered to the actor (server-filtered bootstrap `views`), in menu order. */
@@ -1808,6 +1808,51 @@ export interface MediaPlayer extends Component<MediaPlayerEvents> {
   focus(): void;
 }
 
+/** `unified`: one column, removed lines above added ones; `split`: the two texts side by side (from 720 px of width). */
+export type TextDiffMode = "unified" | "split";
+
+/** Options of `TextDiff`: two plain texts compared line by line, with word highlights inside a changed line. */
+export interface TextDiffOptions extends ComponentOptions {
+  /** The earlier text; with `after` anything but a string throws `TypeError`. */
+  before: string;
+  after: string;
+  /** Default `unified`. `split` falls back to unified while the component is narrower than 720 px. Another value: `TypeError`. */
+  mode?: TextDiffMode;
+  /** Unchanged lines kept around each change (0–50, default 3); longer unchanged stretches fold behind an expander. */
+  context?: number;
+  /** Accessible name of the difference region and the toolbar; default the localized `Különbség`. */
+  label?: string;
+  /** Side-by-side column headings; default the localized `Eredeti` and `Módosított`. */
+  beforeLabel?: string;
+  afterLabel?: string;
+  /** The toolbar (previous/next change, side by side, expand all). Default true. */
+  toolbar?: boolean;
+}
+
+/** Line counts of a difference; `label` is `+N −M` (U+2212 minus), ready for a window title or a list column. */
+export interface TextDiffSummary {
+  added: number;
+  removed: number;
+  /** Change groups (runs of removed and added lines between unchanged ones). */
+  changes: number;
+  label: string;
+}
+
+/**
+ * Read-only difference of two texts. Keyboard inside the region: `n` or F7 moves to the next change, `p` or Shift+F7
+ * to the previous one; a fold is a button (Enter/Space opens it).
+ */
+export interface TextDiff extends Component<Record<string, never>> {
+  summary(): TextDiffSummary;
+  /** Compares two other texts (folds close again, the navigation starts over); non-strings throw `TypeError`. */
+  show(before: string, after: string): void;
+  /** Moves the focus to the next or previous change and scrolls it into view (stays at the first or last one). */
+  next(): void;
+  previous(): void;
+  /** Focuses the current change, else the difference region. */
+  focus(): void;
+}
+
 /**
  * Message between a `SandboxFrame` and its document (`postMessage`, structured clone). `id` is unique per sender
  * (1–64 characters); `type` `load`, `ready` and `error` are reserved for the protocol, project types are dotted
@@ -2278,6 +2323,7 @@ export interface Components {
   readonly Calendar: ComponentClass<CalendarOptions, Calendar>;
   readonly DiagramEditor: ComponentClass<DiagramEditorOptions, DiagramEditor>;
   readonly MediaPlayer: ComponentClass<MediaPlayerOptions, MediaPlayer>;
+  readonly TextDiff: ComponentClass<TextDiffOptions, TextDiff>;
   readonly SandboxFrame: ComponentClass<SandboxFrameOptions, SandboxFrame>;
   readonly CommandBar: ComponentClass<CommandBarOptions, CommandBar>;
   readonly PageLayout: ComponentClass<PageLayoutOptions, PageLayout>;

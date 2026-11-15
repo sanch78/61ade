@@ -97,4 +97,37 @@ assert.equal(resolveListView(lists,'tasks').resource,'tasks');
 assert.throws(()=>resolveListView(lists,'missing'),error=>!(error instanceof TypeError)&&/not offered/.test(error.message));
 assert.throws(()=>resolveListView(lists,'events'),TypeError);
 assert.throws(()=>resolveListView(lists,{id:'x'}),TypeError);
-console.log('Toolkit components: facade and list lifecycle (mount targets, events, destroy, signals) and view references PASS');
+
+// TextDiff's line and word edit (components/diff/diff.ts): a minimal script (the LCS length) that rebuilds the new text,
+// a bounded fallback for unrelated texts (none for words), line breaks, and two 60 000-character texts with a few
+// changed lines well within 250 ms.
+const {editScript,lineDiff,words,lines}=await load('components/diff/diff.ts');
+let seed=7;const random=()=>(seed=(seed*1103515245+12345)%2147483648)/2147483648;
+for(let round=0;round<500;round++){
+ const word=()=>Array.from({length:Math.floor(random()*10)},()=>'abc'[Math.floor(random()*3)]),a=word(),b=word(),ops=editScript(a,b,100);
+ let i=0,j=0;const built=[];
+ for(const op of ops){if(op===0){assert.equal(a[i++],b[j]);built.push(b[j++]);}else if(op===1)i++;else built.push(b[j++]);}
+ const lcs=Array.from({length:a.length+1},()=>Array(b.length+1).fill(0));
+ for(let x=a.length-1;x>=0;x--)for(let y=b.length-1;y>=0;y--)lcs[x][y]=a[x]===b[y]?lcs[x+1][y+1]+1:Math.max(lcs[x+1][y],lcs[x][y+1]);
+ assert.deepEqual([i,j,built.join('')],[a.length,b.length,b.join('')]);
+ assert.equal(ops.filter(op=>op===0).length,lcs[0][0]);
+}
+assert.deepEqual(editScript([1,2,3],[4,5,6],1),[1,1,1,2,2,2]);
+assert.deepEqual(editScript([0,1,2,3,9],[0,4,5,6,9],1),[0,1,1,1,2,2,2,0]);
+assert.equal(editScript([1,2,3],[4,5,6],1,true),null);
+assert.deepEqual([lines(''),lines('a\n'),lines('a\r\nb'),lines('\n')],[[],['a'],['a','b'],['']]);
+assert.deepEqual(lineDiff('','x\ny').map(line=>[line.kind,line.new]),[[2,1],[2,2]]);
+assert.deepEqual(lineDiff('a\nb\n','a\r\nb').filter(line=>line.kind),[]);
+assert.equal(lineDiff('x\nx\ny','x\ny\ny').filter(line=>line.kind===0).length,2);
+const long=Array.from({length:1100},(_,index)=>`Bekezdés ${index}: `+'lorem ipsum dolor sit amet '.repeat(2)).join('\n').slice(0,60000),changed=long.split('\n');
+changed[100]=changed[100].replace('dolor','DOLOR');changed.splice(500,1);changed.splice(800,0,'Új sor');
+const started=performance.now(),result=lineDiff(long,changed.join('\n'));
+assert.ok(performance.now()-started<250,'60 000 characters compare within 250 ms');
+assert.deepEqual(result.filter(line=>line.kind).map(line=>[line.kind,line.old??line.new]),[[1,101],[2,101],[1,501],[2,801]]);
+assert.deepEqual(words('A gyors barna róka.','A lassú barna róka!').after,[{text:'A ',changed:false},{text:'lassú',changed:true},{text:' barna róka',changed:false},{text:'!',changed:true}]);
+assert.equal(words('abc','xyz'),null);
+// Two thirds of each line kept: highlighted, although the shared characters are less than a third of both lines together.
+assert.ok(words('A gyors barna róka.','A lassúbb barna róka.'));
+// A word edit beyond the limit gives no highlights instead of the whole middle.
+assert.equal(words(Array.from({length:500},(_,i)=>'a'+i).join(' ')+' end',Array.from({length:500},(_,i)=>'b'+i).join(' ')+' end'),null);
+console.log('Toolkit components: facade and list lifecycle (mount targets, events, destroy, signals), view references and the TextDiff edit PASS');

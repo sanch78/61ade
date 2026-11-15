@@ -9340,6 +9340,92 @@ that exactly equals an option label lists every option. The managed
   adds no new reload behaviour. No consumer runtime was edited.
 - **Status:** implemented and verified on the managed demo.
 
+<a id="fb-0207"></a>
+
+## FB-0207 — Read-only text difference component (`TextDiff`)
+
+- **Date:** 2026-11-15.
+- **Need:** StoryBloX (D-073, automatic changes of prompts and skills) keeps
+  append-only revisions of long texts, up to about 60 000 characters each. A
+  person reviewing or undoing an automated change needs to see what changed
+  between two revisions, not two full texts. 61ade had no diff component. The
+  consumer's request was read in its own repository, read-only.
+- **General scope:** any record with append-only revisions (documents,
+  templates, configuration, prompts) and any review of automated changes; no
+  consumer business logic enters 61ade.
+- **Owner decisions:** (1) the revision list's `Különbség` is consumer wiring,
+  not a new 61ade declaration: which record is "the previous revision"
+  depends on the consumer's grouping and order, and the existing client
+  command registry already covers the command. 61ade documents the wiring and
+  the demo shows it end to end. (2) The demo entry is a synthetic append-only
+  revision list rather than a standalone page.
+- **Implementation:** `app.components.TextDiff`
+  (`packages/frontend/src/components/diff/`): Myers line edit after trimming
+  the common start and end, bounded at 2000 edit steps (beyond it the middle
+  shows as removed and added as a whole); word highlights for the paired
+  removed and added lines of a change when a third of their characters stay
+  (bounded at 400 steps). Unified view, and side by side from 720 px of
+  component width (narrower falls back, the toggle hides). Unchanged lines
+  beyond `context` (default 3) fold behind `{count} változatlan sor`; `+N −M`
+  header and `summary()`; a visible sign, a hidden `Törölve:`/`Hozzáadva:`
+  prefix and an edge bar per changed line; `del`/`ins` words underlined;
+  each change a named group; `n`/F7 and `p`/Shift+F7, pinned previous/next
+  buttons over the framework `CommandBar`; theme variables only, a
+  monospace stack overridable with `--blade-diff-font-family`, forced
+  colours. Types in `admin.d.ts` (`TextDiffOptions`, `TextDiffMode`,
+  `TextDiffSummary`, `TextDiff`, `Components.TextDiff`); 13 catalogue keys
+  in Hungarian, English and German.
+- **Demo:** D10 `Szövegváltozatok` (`modules/text-revisions.json`,
+  `text-revisions.php`, `frontend/src/text-revisions.ts`): `get` and `create`
+  only; the revision number and length are computed columns; the project
+  read action `previous` names the revision before a record in the same
+  document; the record command `demo.text-diff` reads both texts through
+  `get` and opens `TextDiff` in a window titled with the summary. Seed: four
+  revisions of a ~60 000-character handbook and three of a short letter.
+- **Guides:** [TextDiff](toolkit.md#textdiff) (API, wiring a revision list,
+  limits), [components](toolkit.md#components), [changes](toolkit.md#changes),
+  M81 in the [migration table](toolkit.md#migration): **additive, no consumer
+  change required**; [usage](usage.md), [demos](demos.md#d10-text-revisions),
+  [component matrix](component-matrix.md), the focused check group in
+  [development](development.md#focused-task-groups), the
+  [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Verification:** `npm run typecheck`, `npm run build` (`--check` clean)
+  and `npm run demo:assets`; `node tests/shell/toolkit-components.mjs`
+  (minimal script against the LCS length on 500 seeded cases, the bounded
+  fallbacks, line breaks, word highlights, the 60 000-character case within
+  250 ms; about 2 ms measured), PHP `contracts`, `configuration`, `toolkit`,
+  `i18n` and `lists` passed. The web setup created and seeded the demo table
+  (the previous database was backed up first). On the managed demo the
+  retained `tests/shell/text-diff.spec.cjs` passed 4 of 4: at 1366 px the
+  window with `+3 −3` within 3 s of the command (three reads included),
+  three changes, four folds, signs, hidden prefixes and word highlights,
+  `n`/F7/`p`/Shift+F7 and the toolbar buttons, an opened fold focused with a
+  visible ring, side by side and back below 720 px with the focus kept,
+  expand all, no overflow; at 390 px no horizontal page or region scroll,
+  pinned change buttons, no side by side; the first revision's toast and the
+  `previous` answers; the read-only account comparing. No page or console
+  errors. `toolkit-demo`, `toolkit-components` and `toolkit-demo-tasks`
+  specs passed (12). Screenshots in light, dark and side by side at 1366 px
+  and at 390 px were inspected and then removed with their temporary spec;
+  the dark word highlights were strengthened after that inspection.
+- **Review:** an independent review found nothing blocking. Fixed from it:
+  a visible focus ring and a group name for an opened fold, the focus kept
+  across a re-render, the word-highlight threshold and the word fallback
+  matching their description, an empty text and a final line break making no
+  line, identical one- or two-line texts not folded, word pairs computed once
+  instead of on every render, the region and its observers started at
+  `mount`, a stable scrollbar gutter against a resize loop near 720 px,
+  darker signs and counts for contrast, `toolbar` validated, and the demo
+  refusing a withheld text instead of comparing an empty one.
+- **Limits:** plain text only; no merge, revert, editing or three-way
+  comparison; no virtual scrolling of opened folds; no built-in "previous
+  revision" rule; the kind of line break and a final one are not compared.
+  A revision `ListView` carries every readable field, the texts included
+  (framework list projection, unchanged here). English labels are covered by
+  the catalogue parity check, not by a browser run. No consumer runtime was
+  edited.
+- **Status:** implemented and verified on the managed demo.
+
 <a id="fb-0208"></a>
 
 ## FB-0208 — Continue the tab divider across the unused header width

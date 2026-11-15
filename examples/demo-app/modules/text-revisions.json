@@ -1,0 +1,110 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: append-only revisions of long synthetic texts and the difference between two of them (TextDiff).",
+        "covers": "An append-only resource (get and create only; the revision number is computed from the insertion order), a project read action that names the revision before a record (the consumer's own rule), and the project record command demo.text-diff that opens the public TextDiff component in a window."
+    },
+    "resources": {
+        "demo_text_revisions": {
+            "storage": {
+                "table": "demo_text_revisions",
+                "key": "id",
+                "computed": {
+                    "sequence": "(SELECT COUNT(*) FROM demo_text_revisions r WHERE r.document = blade_base.document AND r.id <= blade_base.id)",
+                    "characters": "length(blade_base.body)"
+                }
+            },
+            "operations": {
+                "update": false
+            },
+            "fields": [
+                {
+                    "name": "document",
+                    "label": "Dokumentum",
+                    "type": "select",
+                    "required": true,
+                    "options": {
+                        "handbook": "Felhasználói kézikönyv",
+                        "welcome": "Üdvözlő levél"
+                    }
+                },
+                {
+                    "name": "sequence",
+                    "label": "Változat",
+                    "type": "number",
+                    "column": {
+                        "width": 110,
+                        "align": "right"
+                    }
+                },
+                {
+                    "name": "note",
+                    "label": "Változás leírása",
+                    "max": 200
+                },
+                {
+                    "name": "characters",
+                    "label": "Karakter",
+                    "type": "number",
+                    "column": {
+                        "width": 120,
+                        "align": "right"
+                    }
+                },
+                {
+                    "name": "body",
+                    "label": "Szöveg",
+                    "type": "textarea",
+                    "required": true,
+                    "max": 100000,
+                    "column": {
+                        "details": false
+                    }
+                }
+            ],
+            "view": {
+                "title": "Szövegváltozatok",
+                "group": "Feature demó",
+                "icon": "bi bi-file-diff",
+                "columns": [
+                    {
+                        "id": "document",
+                        "header": "Dokumentum"
+                    },
+                    {
+                        "id": "sequence",
+                        "header": "Változat"
+                    },
+                    {
+                        "id": "note",
+                        "header": "Változás leírása"
+                    },
+                    {
+                        "id": "characters",
+                        "header": "Karakter"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "create"
+                ],
+                "commands": [
+                    "demo.text-diff"
+                ],
+                "guide": "Hosszú szövegek csak bővülő változatai: egy új változat új rekord, a meglévők nem módosulnak. A Felhasználói kézikönyv változatai egyenként körülbelül 60 000 karakteresek, köztük csak néhány sor változott.\n\nJelölj ki egy változatot, és nyomd meg a Különbség gombot: az ablak a kijelölt változatot az előzővel veti össze. A változatlan részek összecsukva maradnak; az n és a p billentyű (vagy F7 és Shift+F7) a következő és az előző változásra ugrik, széles ablakban a két szöveg egymás mellett is megjeleníthető.\n\nKeretrendszer-képesség: TextDiff komponens és projekt saját rekordparancsa."
+            }
+        }
+    },
+    "actions": [
+        {
+            "resource": "demo_text_revisions",
+            "name": "previous",
+            "label": "Előző változat",
+            "handler": "text_revisions.previous",
+            "target_resource": "demo_text_revisions",
+            "write": false,
+            "channels": [
+                "ui"
+            ]
+        }
+    ]
+}

@@ -8,7 +8,7 @@ This is an availability/edition/license/implementation inventory, not a coverage
 target. Projects use the implemented capabilities through the public
 [toolkit components](toolkit.md#components) (`ListView`, `RecordForm`,
 `RecordDetails`, `Tree`, `CommandBar`, `PageLayout`, `Tabs`, `Accordion`, `FileManager`, `FilePicker`, `Calendar`,
-`DiagramEditor`, `MediaPlayer`, `SandboxFrame`) and any other Standard widget
+`DiagramEditor`, `MediaPlayer`, `TextDiff`, `SandboxFrame`) and any other Standard widget
 through `app.dhx`, the shell's one Suite instance. [R3/R12](product-direction.md#1-elfogadott-termékkövetelmények) grow
 capabilities from real needs; unimplemented rows are candidates, not commitments.
 
@@ -22,6 +22,7 @@ capabilities from real needs; unimplemented rows are candidates, not commitments
 | DataView | Suite Standard | Detailed inventory version-dependent; no virtualization in Standard | Cards and media tiles implemented ([workspaces](workspaces.md#media-tiles)); offered modes and capped card columns ([FB-0169](feedback.md#fb-0169)) | Templates/selection |
 | Tabs | Suite Standard `Tabbar` | Tabbar content renders only the active cell and fails to re-show a widget that repainted while hidden; no tab roles in 9.3.12 ([pitfalls](toolkit.md#pitfalls)) | [`Tabs`](toolkit.md#tabs): the Tabbar as header only over always-rendered panels, guard, remembered tab, ARIA tab roles, folder tabs in the panel header; `PageLayout` `tabs` branch | Closable/reorderable tabs, icons |
 | Accordion | Suite Standard Layout cells and headers | A `collapsable` cell leaves its content out of the render while collapsed; the header's ARIA label is English (`click to expand`) and Space does not toggle; `isAccordion` only adds a class | [`Accordion`](toolkit.md#accordion): sections under Suite cell headers, always rendered, closed ones hidden with CSS; one or several open (`multiple`), remembered open sections, button/region roles, Enter/Space and arrow keys; `PageLayout` `accordion` branch | Horizontal sections, resizing between sections, header icons |
+| Text difference | Own (no Suite widget) | — | [`TextDiff`](toolkit.md#textdiff): line edit with word highlights, unified or side by side, folded unchanged stretches, `+N −M`, change navigation, over the framework `CommandBar` | Merge/revert, three-way comparison |
 | Popup/sidebar/ribbon/List | Suite Standard | Inventory on demand | No verified independent adapter | Shell/lifecycle |
 | Tree | Suite Standard | Advanced options need checking; 9.3.12 renders no tree roles, levels or states and its key navigation has no Home/End or activation | `TreeAdapter` over a flat parent list, used by the [file manager](files.md); the record tree [`Tree`](toolkit.md#tree) (children loaded on expansion, WAI-ARIA tree roles and keys of its own, remembered expansion and selection, an initial depth and bounded expand/collapse all with an optional control), also the panel of the lists' [tree navigation](workspaces.md#tree-navigation); view.layout.tree remains a layout tree | Drag moves, live tree updates, search |
 | TreeGrid | Suite PRO | PRO-only | None | Licensed adapter/capability |

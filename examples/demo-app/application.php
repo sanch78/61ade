@@ -24,7 +24,7 @@ $languages = blade_demo_languages();
 
 // Business modules: declarative JSON with explicitly registered handlers, plus one PHP-registered resource.
 require_once __DIR__.'/signage.php';
-$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json', __DIR__.'/modules/catalog.json', __DIR__.'/modules/shelves.json', __DIR__.'/modules/registry.json', __DIR__.'/modules/approvals.json', __DIR__.'/modules/collections.json'], static fn() => [
+$workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', __DIR__.'/modules/readings.json', __DIR__.'/modules/signage.json', __DIR__.'/modules/catalog.json', __DIR__.'/modules/shelves.json', __DIR__.'/modules/registry.json', __DIR__.'/modules/approvals.json', __DIR__.'/modules/collections.json', __DIR__.'/modules/text-revisions.json'], static fn() => [
     ...blade_demo_signage_bindings(),
     'tasks.complete' => static function (Context $ctx, array $target): array {
         $ctx->db->prepare("UPDATE demo_tasks SET status = 'done' WHERE id = ?")->execute([$target['id']]);
@@ -59,6 +59,14 @@ $workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', 
         $subtree = 'WITH RECURSIVE subtree(id) AS (SELECT CAST(? AS TEXT) UNION SELECT CAST(k.id AS TEXT) FROM demo_registry_keys k JOIN subtree s ON k.parent_id = s.id)';
         $ctx->db->prepare("$subtree DELETE FROM demo_registry_values WHERE CAST(key_id AS TEXT) IN (SELECT id FROM subtree)")->execute([$id]);
         $ctx->db->prepare("$subtree DELETE FROM demo_registry_keys WHERE CAST(id AS TEXT) IN (SELECT id FROM subtree)")->execute([$id]);
+    },
+    // Text revisions (modules/text-revisions.json): which revision came before this one is the project's own rule (the
+    // same document, the next lower id); the browser then reads both through `get`, under the ACL and field ACL.
+    'text_revisions.previous' => static function (Context $ctx, array $target): array {
+        $query = $ctx->db->prepare('SELECT p.id FROM demo_text_revisions t JOIN demo_text_revisions p ON p.document = t.document AND p.id < t.id WHERE t.id = ? ORDER BY p.id DESC LIMIT 1');
+        $query->execute([$target['id']]);
+        $previous = $query->fetchColumn();
+        return ['previous' => $previous === false ? null : (string) $previous];
     },
     // Dialog showcase: each action asks for confirmation (Action `confirm`) and then acknowledges (`reveal` + severity).
     'tasks.dialog_neutral' => static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Információ', 'value' => 'A művelet lefutott.', 'note' => 'Semleges nyugtázás: egyetlen Rendben gomb.', 'severity' => 'neutral']],

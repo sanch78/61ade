@@ -168,12 +168,14 @@ follow this route through the
 3. **Register and compose:** view kinds, column presentations, field types
    and client commands ([registries](toolkit.md#registries)); `ListView`,
    `RecordForm`, `SettingsForm`, `RecordDetails`, `Tree`, `CommandBar`, `FileManager`, `FilePicker`,
-   `Calendar`, `DiagramEditor`, `MediaPlayer`, `PageLayout`, `Tabs` and `Accordion` in a Suite Layout from
+   `Calendar`, `DiagramEditor`, `MediaPlayer`, `TextDiff`, `PageLayout`, `Tabs` and `Accordion` in a Suite Layout from
    `app.dhx` ([components](toolkit.md#components),
    [Layout recipe](toolkit.md#layout-recipe)); `MediaPlayer` optionally shows an
    audio frequency spectrum, colours the original native audio timeline for
    contrast where supported, and exposes synchronized repeat state
-   ([media options](toolkit.md#mediaplayer)); untrusted code only in
+   ([media options](toolkit.md#mediaplayer)); `TextDiff` compares two texts
+   (unified or side by side, folded unchanged lines, `+N −M`, keyboard
+   navigation) for a revision review ([TextDiff](toolkit.md#textdiff)); untrusted code only in
    `SandboxFrame` ([sandbox](toolkit.md#sandbox-protocol)).
 4. **Build** TypeScript against `admin.d.ts` with types-only imports
    ([recipe](toolkit.md#typescript-recipe)) and deploy the sandbox files when

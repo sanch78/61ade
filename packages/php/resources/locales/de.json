@@ -753,5 +753,18 @@
   "{count} / {limit} fájl": "{count} / {limit} Dateien",
   "Ablak maximalizálása": "Fenster maximieren",
   "Ablak visszaállítása": "Fenster wiederherstellen",
-  "Nincs választható elem.": "Keine Auswahl verfügbar."
+  "Nincs választható elem.": "Keine Auswahl verfügbar.",
+  "Különbség": "Unterschied",
+  "Eredeti": "Original",
+  "Módosított": "Geändert",
+  "Előző változás": "Vorherige Änderung",
+  "Következő változás": "Nächste Änderung",
+  "Egymás mellett": "Nebeneinander",
+  "Összes sor kibontása": "Alle Zeilen aufklappen",
+  "Hozzáadott sorok: {added}, törölt sorok: {removed}": "Hinzugefügte Zeilen: {added}, entfernte Zeilen: {removed}",
+  "Nincs különbség.": "Keine Unterschiede.",
+  "Változás {index} / {count} ({summary})": "Änderung {index} von {count} ({summary})",
+  "{count} változatlan sor": "{count} unveränderte Zeilen",
+  "Törölve:": "Entfernt:",
+  "Hozzáadva:": "Hinzugefügt:"
 }

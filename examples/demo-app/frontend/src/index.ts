@@ -26,6 +26,8 @@ import taskPage from "./task-page";
 import registryBrowser from "./registry-browser";
 // D9 Munkaasztal: menu-row command demo.workbench and its long-lived work window (workbench.ts)
 import workbench from "./workbench";
+// D10 Szövegváltozatok: record command demo.text-diff opening the TextDiff component (text-revisions.ts)
+import textRevisions from "./text-revisions";
 
 /**
  * Runs every part in D-row order. A failing part does not stop the later ones; the failures are rethrown together, so
@@ -33,7 +35,7 @@ import workbench from "./workbench";
  */
 const demo: ApplicationModule = async app => {
   const failures: unknown[] = [];
-  for (const part of [assets, playlist, readings, tasks, playlistEditor, taskPage, registryBrowser, workbench]) {
+  for (const part of [assets, playlist, readings, tasks, playlistEditor, taskPage, registryBrowser, workbench, textRevisions]) {
     try { await part(app); } catch (error) { failures.push(error); }
   }
   if (failures.length) throw new AggregateError(failures, "61ade feature demo: a module part failed");

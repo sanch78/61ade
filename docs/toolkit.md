@@ -6,7 +6,7 @@ registries, built-in view kinds through the `kinds` registry, view ids,
 `#view=` routing, record views, the activation map,
 the components `ListView`, `RecordForm`, `RecordDetails`, `CommandBar`,
 `PageLayout`, `Tabs`, `Accordion`, `FileManager`, `FilePicker`, `Calendar`,
-`DiagramEditor`, `MediaPlayer` and `SandboxFrame`, `admin.d.ts` and the sandbox document. The feature demo is its
+`DiagramEditor`, `MediaPlayer`, `TextDiff` and `SandboxFrame`, `admin.d.ts` and the sandbox document. The feature demo is its
 reference consumer ([worked examples](#worked-examples)); the owner tried it
 at gate G4 on 2026-10-30. This guide is the canonical public contract; the
 owner accepted it at gate G1 on 2026-10-29
@@ -699,6 +699,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | [`FileManager`, `FilePicker`](#filemanager-and-filepicker) | `components/files/*` over `FileManager.ts`, `FilePicker.ts` | `opened`; `editing`; `pick()` resolves a `MediaDescriptor` or `null` |
 | [`Calendar`, `DiagramEditor`](#calendar-and-diagrameditor) | `components/calendar/CalendarView.ts`, `components/diagram/DiagramView.ts` | Calendar: none; DiagramEditor: `saved`; both `editing` |
 | [`MediaPlayer`](#mediaplayer) | `components/media/MediaPlayer.ts`, extracted from the file manager viewer, plus audio | `loaded`, `position`, `ended`, `play`, `pause`, `error`; `play`, `pause`, `seek`, `position`, `duration`, `focus` |
+| [`TextDiff`](#textdiff) | new (`components/diff/*`) over `CommandBar` | none; `summary`, `show`, `next`, `previous`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
 | [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse), Suite toggle items | `click`, `toggle`, `change`; `update(id, changes)`, `value(id)` |
 | [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels, the active tab of a `tabs` branch, the open sections of an `accordion` branch) | `collapse`; `cell(id)`, `attach(id, content)`, `tabsOf(id)`, `accordionOf(id)`, `collapse(id)`, `expand(id)`, `isCollapsed(id)` |
@@ -2008,6 +2009,95 @@ if (current) {
   timer. There is no playlist, waveform or subtitle support, and the image zoom
   is not kept across sources.
 
+<a id="textdiff"></a>
+
+#### TextDiff
+
+`app.components.TextDiff` shows what changed between two plain texts,
+read-only ([FB-0207](feedback.md#fb-0207)): a reviewer of an automated change
+sees the changed lines and words, not two full texts. It mounts like any
+component, into a window, a region, a tab or a view host.
+
+```ts
+// examples/demo-app/frontend/src/text-revisions.ts: the record command of an append-only revision list
+const diff = new app.components.TextDiff({ before: before.body, after: after.body,
+  beforeLabel: name(before), afterLabel: name(after) });
+const win = app.ui.window({ titlePrefix: t("Különbség") + ":", title: `${name(before)} → ${name(after)} (${diff.summary().label})`,
+  width: 1200, height: 800, fit: false, signal });
+diff.mount(win);
+diff.focus();
+```
+
+- **Comparison.** Lines end at `\r\n`, `\r` or `\n`; a final line break
+  adds no line and an empty text has none, so the kind of line break and a
+  final one are not compared. The line edit is the shortest one (Myers, after
+  the common start and end are set aside). Within a change the n-th removed
+  line pairs with the n-th added line; a pair gets word highlights (words, runs
+  of white space and single other characters) when the characters they keep
+  reach a third of the longer line, otherwise both lines are marked as a
+  whole. Two 60 000-character texts with a few changed lines
+  compare in a few milliseconds.
+- **Views.** `mode: "unified"` (default) is one column: old and new line
+  number, sign, text; removed lines above added ones. `mode: "split"` puts
+  the two texts side by side under `beforeLabel` and `afterLabel` (default
+  `Eredeti`, `Módosított`), removed beside added. Side by side needs 720 px of
+  component width: a narrower component shows the unified view, and the
+  toolbar's `Egymás mellett` toggle appears only when it fits. Long lines wrap,
+  so neither the region nor the page scrolls sideways; below 480 px one line
+  number remains (the old one on a removed line).
+- **Folding.** Unchanged lines farther than `context` (0–50, default 3) from a
+  change fold behind a `{count} változatlan sor` button that opens them in
+  place and focuses them (a labelled group with a focus ring); fewer than
+  three hidden lines are shown instead. Identical texts of three or more lines
+  fold as a whole under `Nincs különbség.`. The toolbar's
+  `Összes sor kibontása` opens every fold.
+- **Summary.** The header line shows `+N −M` (U+2212) with a visually
+  hidden `Hozzáadott sorok: N, törölt sorok: M`. `summary()` returns
+  `{added, removed, changes, label}`; `label` is the `+N −M` text for a
+  window title or a list column, also before the component is mounted.
+- **Accessibility.** The kind of a line is never colour alone: a visible
+  sign (`−`, `+`), a visually hidden `Törölve:` / `Hozzáadva:` prefix and a
+  3 px edge bar; changed words are `del`/`ins` elements, underlined. The
+  diff is a labelled region (`label`, default `Különbség`); each change is a
+  group named `Változás i / n (Hozzáadott sorok: a, törölt sorok: r)`.
+  Inside the region `n` or F7 moves to the next change, `p` or Shift+F7 to the
+  previous one; the toolbar's `Előző változás` and `Következő változás` are
+  pinned, so they stay beside `Műveletek` on a phone. Folds are buttons.
+  Forced colours keep the bars and the highlights (`Mark`).
+- **Look.** Colours come from the Suite theme variables
+  (`--dhx-color-danger`/`--dhx-color-success` mixed into the background, and
+  toward the text colour for the signs and counts, for contrast), so Blade,
+  Blade Night, light, dark and skins apply. The text uses a monospace
+  stack; a project stylesheet may set `--blade-diff-font-family`.
+- **Methods.** `show(before, after)` compares two other texts (folds close,
+  the navigation starts over); `next()`, `previous()` move the focus and
+  scroll; `focus()` focuses the current change or the region (right after
+  `mount` it waits until the region is in the document). A re-render (side by
+  side, expand all, a resize across 720 px) keeps the focus on the current
+  change. There are no events. `toolbar: false` leaves the toolbar out; the
+  keys still work. Non-strings, an unknown `mode`, a non-boolean `toolbar` or
+  a `context` outside 0–50 throw `TypeError`. The region and its width
+  observer start at `mount`.
+- **Revision lists.** 61ade does not decide which record is "the previous
+  revision": that is the project's grouping and order. A project declares a
+  record command on its revision view (`commands: ['<project>.text-diff']`),
+  answers "which revision came before this one" with its own read action,
+  reads both texts through `get` (so the ACL and field ACL apply), and opens
+  `TextDiff` in `app.ui.window` as above. The feature demo's
+  [Szövegváltozatok](demos.md#d10-text-revisions) is the complete example:
+  an append-only resource (`get` and `create` only, the revision number
+  computed from the insertion order), the action `previous` and the command
+  `demo.text-diff`.
+- **Limits.** Plain text only (no Markdown or HTML rendering), no editing,
+  merging or reverting. A line edit costlier than 2000 steps (two texts of
+  about 1000 entirely different lines) shows the differing middle as removed
+  and added as a whole; a line pair whose word edit exceeds 400 steps gets no
+  word highlights. An opened fold and a rewrite beyond the limit render all of
+  their lines (no virtual scrolling); measured: two 60 000-character texts.
+  A list of the revisions (`ListView`) carries every readable field of its
+  rows, the texts included, even when they are neither a column nor in the
+  details.
+
 <a id="views"></a>
 
 ## Views
@@ -2743,6 +2833,9 @@ needs one builds it in its own module.
   ([files limits](files.md#limits)); an audio file reaches a `file` field by
   its upload.
 - Marks and row selection are transient by design and never persisted.
+- `TextDiff` compares plain text read-only: no merge, revert or editing, and
+  no built-in "previous revision" rule (the project's command supplies both
+  texts, see [TextDiff](#textdiff)).
 
 A [popup menu](#popup-menu) has one level (no submenus), no type-ahead and
 no bottom sheet on a phone; it picks one entry and closes (no multi-select
@@ -3149,6 +3242,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M78 | [View availability](workspaces.md#view-availability): `available` (`Closure(Context): bool`) on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.available` / `views.<id>.available` (a binding name); false leaves the view out of that bootstrap | [FB-0204](feedback.md#fb-0204) | none: additive, no consumer change required | none | none |
 | M79 | Bundled [Bootstrap Icons](icons.md) in every icon slot; framework/demo defaults migrated, record icon columns also accept `bi bi-…`, old `blade-icon` names alias the new catalog | [FB-0203](feedback.md#fb-0203) | info: no asset/configuration change; legacy icon values still display. A screenshot or glyph-class assertion follows the new defaults | none | none |
 | M80 | [Action command captions](workspaces.md#action-command-label): optional PHP `Action::$commandLabel` / JSON `actions[].command_label` overrides a list command's caption, form window title and accessible name; uses the existing `icon` and i18n catalogue, leaving `update` cell/form saves unchanged | [FB-0206](feedback.md#fb-0206) | additive, no consumer change required | none | none |
+| M81 | [`TextDiff`](#textdiff): `app.components.TextDiff` compares two texts (unified or side by side, word highlights, folded unchanged stretches, `+N −M` summary, keyboard navigation between changes); a revision list offers it through a project record command and a project read action naming the previous revision | [FB-0207](feedback.md#fb-0207) | additive, no consumer change required; if used: StoryBloX's revision review (D-073) can adopt it | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3204,6 +3298,7 @@ feedback reference; once the transition closes, changes follow
 
 | Date | Change | Reason | Feedback |
 | --- | --- | --- | --- |
+| 2026-11-15 | New component `TextDiff` (types `TextDiffOptions`, `TextDiffMode`, `TextDiffSummary`, `TextDiff`; `Components.TextDiff`): unified or side-by-side line difference with word highlights, folds, `+N −M` summary and change navigation (M81). Additive. | StoryBloX request: reviewers of automated changes to long texts need the changes, not two full texts. | [FB-0207](feedback.md#fb-0207) |
 | 2026-11-13 | Bootstrap Icons 1.13.2 is embedded in `admin.css`; all framework/demo icon defaults migrate to `bi bi-…`, record icon fields accept both Bootstrap and legacy Suite class pairs, and `blade-icon` names remain aliases (M79). The viewer repeat button uses the native pressed state. | Consumers repeatedly lacked glyphs; the owner requested a complete free catalog and migration of existing icons. | [FB-0203](feedback.md#fb-0203) |
 | 2026-11-12 | Section groups in cards/details have equal heights per row and top-aligned content. Project CSS properties `--blade-record-group-min-width` and `--blade-record-group-columns` configure inner column widths and ratios; a record content width below 492 px stacks the groups using a container query. | Owner requested CSS-only height alignment and project configuration of the section columns. | [FB-0186](feedback.md#fb-0186) |
 | 2026-10-29 | `ServerFailure.status` is 0 only for a network failure or a 2xx answer without JSON; an error answer without JSON keeps its HTTP status. | Keeps the live channel's 401/403/5xx handling unchanged. | [FB-0081](feedback.md#fb-0081) |

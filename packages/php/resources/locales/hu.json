@@ -753,5 +753,18 @@
   "{count} / {limit} fájl": "{count} / {limit} fájl",
   "Ablak maximalizálása": "Ablak maximalizálása",
   "Ablak visszaállítása": "Ablak visszaállítása",
-  "Nincs választható elem.": "Nincs választható elem."
+  "Nincs választható elem.": "Nincs választható elem.",
+  "Különbség": "Különbség",
+  "Eredeti": "Eredeti",
+  "Módosított": "Módosított",
+  "Előző változás": "Előző változás",
+  "Következő változás": "Következő változás",
+  "Egymás mellett": "Egymás mellett",
+  "Összes sor kibontása": "Összes sor kibontása",
+  "Hozzáadott sorok: {added}, törölt sorok: {removed}": "Hozzáadott sorok: {added}, törölt sorok: {removed}",
+  "Nincs különbség.": "Nincs különbség.",
+  "Változás {index} / {count} ({summary})": "Változás {index} / {count} ({summary})",
+  "{count} változatlan sor": "{count} változatlan sor",
+  "Törölve:": "Törölve:",
+  "Hozzáadva:": "Hozzáadva:"
 }
