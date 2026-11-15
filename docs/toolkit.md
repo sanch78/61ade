@@ -1589,7 +1589,10 @@ tabs.on("change", ({ id }) => {
   type, its divider); tabs start at the panel's edge with dividers between
   them and labels on the content's 20 px inset; the open tab has the panel's
   surface and an accent top edge and no divider below it, so it opens into its
-  content like a folder. Suite's sliding underline is not used. The DOM ids Suite derives from tab
+  content like a folder. The divider continues across the unused width beside
+  the tabs, matching the line below inactive tabs. The header fills at least
+  the row width while retaining Suite's overflow scrolling. Suite's sliding
+  underline is not used. The DOM ids Suite derives from tab
   ids are prefixed per instance, so two `Tabs` may use the same tab ids.
 - Create the content of a tab when the tab first opens if it costs a request
   (the example's form). A discarded form may be recreated at once, in the same
