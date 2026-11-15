@@ -854,9 +854,9 @@
 
 ## FB-0207 — Read-only text difference component (`TextDiff`)
 
-<a id="fb-0208"></a>
+<a id="fb-0210"></a>
 
-## FB-0208 — Tenant-scoped calendars and read-only overlay events
+## FB-0210 — Continue the tab divider across the unused header width
 
 <a id="fb-0208"></a>
 
