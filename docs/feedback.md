@@ -861,3 +861,7 @@
 <a id="fb-0208"></a>
 
 ## FB-0208 — Tenant-scoped calendars and read-only overlay events
+
+<a id="fb-0209"></a>
+
+## FB-0209 — Calendar windows close without a page error
