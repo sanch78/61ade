@@ -1,0 +1,66 @@
+/* TextDiff (docs/toolkit.md#textdiff): theme colours only; a line's kind is also its sign (−, +) and a hidden prefix. */
+.blade-diff {
+  --blade-diff-number: calc(var(--blade-diff-digits, 3) * 1ch + 12px);
+  --blade-diff-removed: color-mix(in srgb, var(--dhx-color-danger) 12%, var(--dhx-background-primary));
+  --blade-diff-added: color-mix(in srgb, var(--dhx-color-success) 12%, var(--dhx-background-primary));
+  --blade-diff-removed-word: color-mix(in srgb, var(--dhx-color-danger) 34%, var(--dhx-background-primary));
+  --blade-diff-added-word: color-mix(in srgb, var(--dhx-color-success) 34%, var(--dhx-background-primary));
+  /* Signs and counts: the theme colour moved toward the text colour, for contrast in light and dark themes alike. */
+  --blade-diff-removed-ink: color-mix(in srgb, var(--dhx-color-danger) 60%, var(--dhx-font-color-primary));
+  --blade-diff-added-ink: color-mix(in srgb, var(--dhx-color-success) 55%, var(--dhx-font-color-primary));
+  box-sizing: border-box; height: 100%; overflow: auto; scrollbar-gutter: stable; container-type: inline-size;
+  background: var(--dhx-background-primary); color: var(--dhx-font-color-primary);
+  font-family: var(--blade-diff-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace);
+  font-size: var(--dhx-font-size-normal); line-height: 1.5;
+}
+[data-dhx-theme="dark"] .blade-diff {
+  --blade-diff-removed-word: color-mix(in srgb, var(--dhx-color-danger) 50%, var(--dhx-background-primary));
+  --blade-diff-added-word: color-mix(in srgb, var(--dhx-color-success) 50%, var(--dhx-background-primary));
+}
+.blade-diff:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
+.blade-diff__header { position: sticky; top: 0; z-index: 1; background: var(--dhx-background-primary); border-bottom: 1px solid var(--dhx-border-color); font-family: var(--dhx-font-family); }
+.blade-diff__summary { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 12px; font-weight: var(--dhx-font-weight-medium, 500); }
+.blade-diff__count--added { color: var(--blade-diff-added-ink); }
+.blade-diff__count--removed { color: var(--blade-diff-removed-ink); }
+.blade-diff__same { color: var(--dhx-font-color-secondary); font-weight: normal; }
+.blade-diff__heads { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--dhx-border-color); color: var(--dhx-font-color-secondary); }
+.blade-diff__heads > span { padding: 4px 12px; }
+.blade-diff__heads > span + span, .blade-diff__side + .blade-diff__side { border-left: 1px solid var(--dhx-border-color); }
+
+.blade-diff__line { display: grid; grid-template-columns: var(--blade-diff-number) var(--blade-diff-number) 1.5em minmax(0, 1fr); }
+.blade-diff__row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.blade-diff__side { display: grid; grid-template-columns: var(--blade-diff-number) 1.5em minmax(0, 1fr); }
+.blade-diff__side--empty { background: var(--dhx-background-secondary); }
+.blade-diff__number { padding: 0 6px; text-align: right; color: var(--dhx-font-color-secondary); user-select: none; }
+.blade-diff__sign { text-align: center; user-select: none; font-weight: bold; }
+.blade-diff__text { min-width: 0; min-height: 1.5em; padding-right: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.blade-diff [data-kind="removed"] { background: var(--blade-diff-removed); box-shadow: inset 3px 0 var(--dhx-color-danger); }
+.blade-diff [data-kind="added"] { background: var(--blade-diff-added); box-shadow: inset 3px 0 var(--dhx-color-success); }
+.blade-diff [data-kind="removed"] > .blade-diff__sign { color: var(--blade-diff-removed-ink); }
+.blade-diff [data-kind="added"] > .blade-diff__sign { color: var(--blade-diff-added-ink); }
+.blade-diff__word { color: inherit; text-decoration: underline 1px; text-underline-offset: 3px; border-radius: 2px; }
+del.blade-diff__word { background: var(--blade-diff-removed-word); }
+ins.blade-diff__word { background: var(--blade-diff-added-word); }
+
+.blade-diff__change { scroll-margin-top: 80px; scroll-margin-bottom: 16px; }
+.blade-diff__change:focus { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
+.blade-diff__kept:focus { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
+.blade-diff__fold {
+  display: flex; align-items: center; gap: 8px; box-sizing: border-box; width: 100%; padding: 4px 12px; margin: 0;
+  border: 0; border-block: 1px dashed var(--dhx-border-color); background: var(--dhx-background-secondary);
+  color: var(--dhx-font-color-secondary); font: inherit; font-family: var(--dhx-font-family); text-align: left; cursor: pointer;
+}
+.blade-diff__fold:hover { color: var(--dhx-color-primary); }
+.blade-diff__fold:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
+
+/* A narrow component shows one line number: the old one on a removed line, the new one otherwise. */
+@container (max-width: 479px) {
+  .blade-diff__line { grid-template-columns: var(--blade-diff-number) 1.25em minmax(0, 1fr); }
+  .blade-diff__line > .blade-diff__number:first-child, .blade-diff__line[data-kind="removed"] > .blade-diff__number:nth-child(2) { display: none; }
+  .blade-diff__line[data-kind="removed"] > .blade-diff__number:first-child { display: block; }
+  .blade-diff__text { padding-right: 8px; }
+}
+@media (forced-colors: active) {
+  .blade-diff [data-kind="removed"], .blade-diff [data-kind="added"] { box-shadow: none; border-left: 3px solid CanvasText; }
+  .blade-diff__word { background: Mark; color: MarkText; forced-color-adjust: none; }
+}

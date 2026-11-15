@@ -252,6 +252,11 @@ $delegated = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resou
 foreach (['list', 'get', 'update'] as $action) $delegated->execute([$delegate, $action, $delegate, $action]);
 unset($collection, $collectionId, $delegated);
 $rules[] = ['1', 'demo_collections', ['list', 'get', 'create', 'update']];
+// Text revisions (modules/text-revisions.json): append-only, so creating is the only write; both accounts compare.
+require_once __DIR__.'/text-revisions.php';
+blade_demo_text_revisions_setup($db);
+$rules[] = ['1', 'demo_text_revisions', ['list', 'get', 'create', 'previous']];
+$rules[] = [(string) $reader, 'demo_text_revisions', ['list', 'get', 'previous']];
 // Read-only topology viewer: opens diagrams, no editing.
 $rules[] = [(string) $reader, 'topology', ['list', 'get']];
 // Digital signage: calendar table, synthetic assets, weekday defaults and programme; the seeded asset media move into

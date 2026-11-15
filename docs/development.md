@@ -454,6 +454,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Frontend implementation | `npm run typecheck`, `npm run build`, `npm run demo:assets`, then affected browser selectors |
 | Tree navigation, conditional fields, view guides | `php8.4 tests/shell/tree-navigation.php`, `contracts.php`, `configuration.php`, `i18n.php`; `npm run typecheck`; shell `registry.spec.cjs` (with long-lived windows also `menu-commands.spec.cjs`) |
 | Feature demo module (`examples/demo-app/frontend`) | `npm run typecheck`, `npm run build` (`node tools/build.mjs --check`); PHP `contracts.php`, `signage.php`; shell `toolkit-demo*.spec.cjs` of the changed area (`tabs.spec.cjs` for the playlist editor's tabs) |
+| Text difference (`TextDiff`) | `npm run typecheck`, `npm run build`, `npm run demo:assets`; `node tests/shell/toolkit-components.mjs` (the line and word edit); PHP `contracts.php`, `i18n.php`; shell `text-diff.spec.cjs` (1366 and 390 px) |
 | Toolkit (modules, views, registries, routing) | PHP `toolkit.php`, `contracts.php`, `configuration.php`, `lists.php`; `node tests/shell/toolkit-kernel.mjs`, `toolkit-list.mjs`, `toolkit-components.mjs`, `toolkit-registries.mjs`, `toolkit-sandbox.mjs`, `ui-preferences.mjs`; shell `browser.spec.cjs`, `preferences.spec.cjs`, `activation.spec.cjs`, `toolkit-*.spec.cjs`; `tabs.spec.cjs` for `Tabs` and `PageLayout` tabs ; `empty-states.spec.cjs` for region placeholders and list states |
 
 PHP shorthand in the table means `php8.4 tests/shell/<name>.php`.

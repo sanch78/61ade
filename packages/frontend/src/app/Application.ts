@@ -15,6 +15,7 @@ import { bindFileManager } from "../components/files/FileManager";
 import { filePicker } from "../components/files/FilePicker";
 import { sandboxFrameClass } from "../components/sandbox/SandboxFrame";
 import { MediaPlayer } from "../components/media/MediaPlayer";
+import { TextDiff } from "../components/diff/TextDiff";
 import { PageLayout } from "../components/layout/PageLayout";
 import { Tabs } from "../components/layout/Tabs";
 import { Accordion } from "../components/layout/Accordion";
@@ -74,6 +75,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
       FilePicker: filePicker,
       SandboxFrame: sandboxFrameClass(payload => events.dispatch("sandbox:error", payload)),
       MediaPlayer,
+      TextDiff,
       PageLayout: class extends PageLayout { constructor(options: PageLayoutOptions) { super({ user: bridge.userId }, options); } },
       Tabs: class extends Tabs { constructor(options: TabsOptions) { super({ user: bridge.userId }, options); } },
       Accordion: class extends Accordion { constructor(options: AccordionOptions) { super({ user: bridge.userId }, options); } },

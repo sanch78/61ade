@@ -160,6 +160,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Menu command, long-lived window | `Munkaasztal` ([D9](#d9-workbench)): an emphasized command in the menu row of every view opens a non-modal work window that keeps its note across navigation, maximizes into the workspace and reopens where it was left; the entry also shows the pending approvals' count | Click `Munkaasztal`, write a note, open other views, Back; `Ablak maximalizálása`; move it, reload and reopen; at 320 px the entry shows its icon only |
 | Bootstrap Icons | The shell, built-in commands, file/media types and player controls use the bundled icon catalog ([icons](icons.md)); the work window shows `bi bi-clock-history` and `bi bi-sliders` | Open `Munkaasztal`, file/media views and the viewer in each theme; narrow the window to see the same icons in collapsed menus |
 | Popup menu | `Munkaasztal` ([D9](#d9-workbench)): `app.ui.menu` on the window's own toolbar buttons: `Előzmények` (drafts grouped `Ma` / `Az elmúlt 7 nap` / `Régebbi`, the current one checked, a time as detail, scrolling) and the model picker (`Automatikus`, the models, the chosen model's efforts) with the APG menu-button keys ([popup menu](toolkit.md#popup-menu)) | Open `Munkaasztal`, then `Előzmények` and `Modell: …` by mouse and with ArrowDown/Enter/Escape/Tab; at 390 px; in every theme |
+| Text difference | `Szövegváltozatok` ([D10](#d10-text-revisions)): append-only revisions of a ~60 000-character handbook and a short letter; the project record command `Különbség` compares the selected revision with the previous one in the [TextDiff](toolkit.md#textdiff) component: removed and added lines with signs and word highlights, unchanged stretches folded, `+N −M` in the title, side by side in a wide window | Select a handbook revision → `Különbség`; `n`/`p` or F7/Shift+F7, open a fold, `Egymás mellett`; the first revision; at 390 px |
 | View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in the `Beállítások` controls menu below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Empty shelf`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `Zone C` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
 | Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title search, type filter, the single-file `file` field with a native file dialog, clipboard paste/drop, background transfer and proportional preview, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date, an asset or a playlist (two selects clearing each other, [exclusive fields](workspaces.md#exclusive-fields); a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
@@ -225,6 +226,7 @@ starter admin and the tenant demo stay declarative and load no project module.
 | D7 | `Feladatlap` task page | `task-page.ts` | Implemented: record view kind `demo.task-page` and record command `demo.task-page` ([below](#d7-task-page)) |
 | D8 | `Kulcsböngésző` key browser | `registry-browser.ts` | Implemented: view kind `demo.registry-browser` (the `Tree` component) and toggle command `demo.subkey-values` ([below](#d8-key-browser)) |
 | D9 | `Munkaasztal` work window | `workbench.ts` | Implemented: menu command `demo.workbench` and its long-lived window, with the popup menus `Előzmények` and `Modell` (`app.ui.menu`) ([below](#d9-workbench)) |
+| D10 | `Szövegváltozatok` text revisions | `text-revisions.ts` | Implemented: record command `demo.text-diff` opening the `TextDiff` component ([below](#d10-text-revisions)) |
 
 <a id="readings-dashboard"></a>
 
@@ -768,6 +770,33 @@ synthetic, nothing is saved:
   Escape closes the window. Tab leaves the menu. Switch the theme (Blade,
   Blade Night, `Világos`, `Éjjeli`) with a menu open again. Check:
   `tests/shell/toolkit-menu.spec.cjs`.
+
+<a id="d10-text-revisions"></a>
+
+**D10 `Szövegváltozatok` text revisions** ([text-revisions.json](../examples/demo-app/modules/text-revisions.json),
+[text-revisions.php](../examples/demo-app/text-revisions.php),
+[text-revisions.ts](../examples/demo-app/frontend/src/text-revisions.ts),
+[FB-0207](feedback.md#fb-0207)): an append-only resource, `get` and `create`
+only, so a new revision is a new record and none changes. `Változat` is
+computed from the insertion order within the document and `Karakter` from the
+text; the text itself (`Szöveg`) is not a list column and not in `Adatok`.
+The seed has four revisions of `Felhasználói kézikönyv` (about 60 000
+characters each: three reworded lines, then a new paragraph and a removed
+one, then a renamed chapter heading and a closing line) and three of
+`Üdvözlő levél`. The project's read action `previous` names the revision
+before the record in the same document, which is the project's rule, not
+61ade's. The record command `demo.text-diff` (`Különbség`) then reads both
+texts through `get` and opens the [TextDiff](toolkit.md#textdiff)
+component in a window that closes with the list. On a document's first
+revision it says there is nothing to compare. The demo account may list,
+read, create and compare; the reader may list, read and compare.
+
+- **What to try:** select the second handbook revision and press
+  `Különbség`: three changes, everything else folded. `n` and `p` (or F7 and
+  Shift+F7) move between the changes; open a fold, then `Összes sor
+  kibontása`; `Egymás mellett` shows the two revisions side by side. At 390 px
+  the window is full screen, the lines wrap and the change buttons stay
+  beside `Műveletek`. Switch the theme. Check: `tests/shell/text-diff.spec.cjs`.
 
 <a id="approvals-attention"></a>
 

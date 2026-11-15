@@ -850,6 +850,10 @@
 
 ## FB-0206 — Opt-in captions for list action commands
 
+<a id="fb-0207"></a>
+
+## FB-0207 — Read-only text difference component (`TextDiff`)
+
 <a id="fb-0208"></a>
 
 ## FB-0208 — Tenant-scoped calendars and read-only overlay events

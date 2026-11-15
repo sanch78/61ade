@@ -1719,10 +1719,37 @@ var workbench = (app) => {
 };
 var workbench_default = workbench;
 
+// examples/demo-app/frontend/src/text-revisions.ts
+var textRevisions = (app) => {
+  const t = (key, parameters) => app.i18n.t(key, parameters);
+  app.commands.register("demo.text-diff", {
+    label: "K\xFCl\xF6nbs\xE9g",
+    icon: "bi bi-file-diff",
+    placement: "record",
+    run: async ({ app: app2, view, row, signal }) => {
+      if (!row || !view.resource) return;
+      const resource = view.resource;
+      const { previous } = await app2.server.call(resource, "previous", { id: String(row.id), signal });
+      if (!previous) {
+        app2.ui.toast(t("Ez a dokumentum els\u0151 v\xE1ltozata: nincs mivel \xF6sszevetni."));
+        return;
+      }
+      const [before, after] = await Promise.all([previous, String(row.id)].map((id) => app2.server.call(resource, "get", { id, signal })));
+      if (typeof before.body !== "string" || typeof after.body !== "string") throw new Error(t("A v\xE1ltozat sz\xF6vege nem olvashat\xF3."));
+      const name = (revision) => t("{number}. v\xE1ltozat", { number: revision.sequence });
+      const diff = new app2.components.TextDiff({ before: before.body, after: after.body, beforeLabel: name(before), afterLabel: name(after) });
+      const win = app2.ui.window({ titlePrefix: t("K\xFCl\xF6nbs\xE9g") + ":", title: `${name(before)} \u2192 ${name(after)} (${diff.summary().label})`, width: 1200, height: 800, fit: false, signal });
+      diff.mount(win);
+      diff.focus();
+    }
+  });
+};
+var text_revisions_default = textRevisions;
+
 // examples/demo-app/frontend/src/index.ts
 var demo = async (app) => {
   const failures = [];
-  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default, workbench_default]) {
+  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default, workbench_default, text_revisions_default]) {
     try {
       await part(app);
     } catch (error) {

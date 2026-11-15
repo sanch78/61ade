@@ -380,5 +380,17 @@
   "Magas": "High",
   "Szolgáltatások": "Services",
   "Szolgáltatás": "Service",
-  "Az aktív tenant szolgáltatásai. A Bekapcsolva kapcsoló a tenantban be- vagy kikapcsolja a szolgáltatást; a felület ezután újratölt.\n\nA Beállítások ablakban ugyanaz a kapcsoló űrlapon is elérhető.\n\nKikapcsolt Visszajelzések szolgáltatásnál a Visszajelzések nézet és az Ügyfélszolgálat menücsoport eltűnik, az adatok megmaradnak, és visszakapcsoláskor ugyanazokkal jelenik meg újra.": "The active tenant's services. The On switch enables or disables the service for the tenant, then reloads the page.\n\nSettings opens a form with the same switch.\n\nWhen the Feedback service is off, the Feedback view and Customer service menu group disappear. Its records are kept and return when the service is enabled again."
+  "Az aktív tenant szolgáltatásai. A Bekapcsolva kapcsoló a tenantban be- vagy kikapcsolja a szolgáltatást; a felület ezután újratölt.\n\nA Beállítások ablakban ugyanaz a kapcsoló űrlapon is elérhető.\n\nKikapcsolt Visszajelzések szolgáltatásnál a Visszajelzések nézet és az Ügyfélszolgálat menücsoport eltűnik, az adatok megmaradnak, és visszakapcsoláskor ugyanazokkal jelenik meg újra.": "The active tenant's services. The On switch enables or disables the service for the tenant, then reloads the page.\n\nSettings opens a form with the same switch.\n\nWhen the Feedback service is off, the Feedback view and Customer service menu group disappear. Its records are kept and return when the service is enabled again.",
+  "Szövegváltozatok": "Text revisions",
+  "Dokumentum": "Document",
+  "Változat": "Revision",
+  "Változás leírása": "Change description",
+  "Karakter": "Characters",
+  "Felhasználói kézikönyv": "User handbook",
+  "Üdvözlő levél": "Welcome letter",
+  "Előző változat": "Previous revision",
+  "Ez a dokumentum első változata: nincs mivel összevetni.": "This is the document's first revision: there is nothing to compare it with.",
+  "{number}. változat": "Revision {number}",
+  "Hosszú szövegek csak bővülő változatai: egy új változat új rekord, a meglévők nem módosulnak. A Felhasználói kézikönyv változatai egyenként körülbelül 60 000 karakteresek, köztük csak néhány sor változott.\n\nJelölj ki egy változatot, és nyomd meg a Különbség gombot: az ablak a kijelölt változatot az előzővel veti össze. A változatlan részek összecsukva maradnak; az n és a p billentyű (vagy F7 és Shift+F7) a következő és az előző változásra ugrik, széles ablakban a két szöveg egymás mellett is megjeleníthető.\n\nKeretrendszer-képesség: TextDiff komponens és projekt saját rekordparancsa.": "Append-only revisions of long texts: a new revision is a new record, existing ones never change. Each revision of the User handbook has about 60,000 characters, with only a few lines changed between them.\n\nSelect a revision and press Difference: the window compares the selected revision with the previous one. Unchanged parts stay folded; the n and p keys (or F7 and Shift+F7) jump to the next and previous change, and a wide window can show the two texts side by side.\n\nFramework capability: the TextDiff component and a project's own record command.",
+  "A változat szövege nem olvasható.": "The text of this revision cannot be read."
 }
