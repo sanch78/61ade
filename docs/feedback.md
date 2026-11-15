@@ -9427,9 +9427,9 @@ that exactly equals an option label lists every option. The managed
 - **Commit:** `89f3ced` (component, demo, tests and guides).
 - **Status:** implemented and verified on the managed demo.
 
-<a id="fb-0208"></a>
+<a id="fb-0210"></a>
 
-## FB-0208 — Continue the tab divider across the unused header width
+## FB-0210 — Continue the tab divider across the unused header width
 
 - **Date:** 2026-11-15.
 - **Request:** give the panel beside the tab buttons the same top divider as
@@ -9455,6 +9455,8 @@ that exactly equals an option label lists every option. The managed
   Temporary probe source, screenshots and traces were removed. No full-smoke
   claim; no consumer runtime was edited.
 - **Status:** implemented and verified on the managed demo.
+- **Number:** first recorded as a duplicate FB-0208 in `8751d4d`;
+  renumbered on 2026-11-15, so `#fb-0208` is the tenant calendars entry.
 
 <a id="fb-0208"></a>
 
