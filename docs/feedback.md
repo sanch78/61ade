@@ -9530,7 +9530,7 @@ that exactly equals an option label lists every option. The managed
   spec and its results were removed. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
 
-## FB-0210 — Frame sources for the signed-in shell
+## FB-0211 — Frame sources for the signed-in shell
 
 - **Date:** 2026-11-15.
 - **Report:** a consumer's editor shows a site of its own sibling host in a
