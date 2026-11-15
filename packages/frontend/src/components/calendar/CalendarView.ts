@@ -264,7 +264,8 @@ export class CalendarView {
     let done=false;
     win.events.on("afterHide",()=>{
       this.windows.delete(win);if(this.eventForm===win)this.eventForm=undefined;
-      win.destructor();
+      // Destroyed after the click that closes it: Suite 9.3.12 still fires the Form's events after the handler returns.
+      void awaitRedraw().then(()=>win.destructor());
       if(!done){done=true;s.cancel_lightbox();}
     });
     // Only the controls of the chosen pattern are shown; the month options name the start's day.
@@ -447,7 +448,7 @@ export class CalendarView {
       <pre class="blade-calendar-day__code">POST ./?blade=1\nAuthorization: Bearer &lt;${escape(t("API-kulcs"))}&gt;\nContent-Type: application/json\n\n${escape(request)}</pre>
       <p class="blade-calendar-day__label">${escape(t("Válasz"))}</p>
       <pre class="blade-calendar-day__code" tabindex="0">${escape(JSON.stringify({ok:true,data:result},null,2))}</pre></div>`);
-    win.events.on("afterHide",()=>{this.windows.delete(win);win.destructor();});
+    win.events.on("afterHide",()=>{this.windows.delete(win);void awaitRedraw().then(()=>win.destructor());});
     win.show();
   }
 

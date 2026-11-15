@@ -9490,3 +9490,40 @@ that exactly equals an option label lists every option. The managed
   `npm run test:browser -- tests/shell/calendar.spec.cjs` passed 6 of 6
   unchanged. The read-only overlay in the browser is verified in the
   consuming project's admin (cyberspace.hu booking calendar).
+
+<a id="fb-0209"></a>
+
+## FB-0209 — Calendar windows close without a page error
+
+- **Date:** 2026-11-15.
+- **Report:** a consumer admin on commit 7eb8ba7 raised `TypeError: Cannot
+  read properties of null (reading 'fire')` when `Mégse` closed the event
+  form (opened on an existing event with `Az összes esemény`); the form
+  closed, but the page error remained.
+- **Owner decision (2026-11-15):** approved the bug fix; no other change.
+- **Cause and fix:** Suite 9.3.12 relays a Form button click as `click` and
+  then `buttonClick`. The view's `click` handler hid the window, and its
+  `afterHide` destroyed the window (and the attached Form) synchronously, so
+  the following `buttonClick` fired on the destroyed Form. The event form and
+  the day-action window now destroy their window after the redraw
+  (`awaitRedraw`), as the other framework windows already do. The
+  `cancel_lightbox()`/`done` handling is unchanged: a cancelled new event is
+  still removed, a saved or deleted one is not. No API, documented behaviour
+  or consumer change.
+- **Scope check:** reproduced on the managed demo for `Mégse` on a series
+  (`Az összes esemény`), a single event and a drag-created event; the window
+  close button and Escape did not raise the error (they do not pass through a
+  Form button), nor did the day-action window. No other `afterHide` handler in
+  `packages/frontend/src` destroys its window synchronously.
+- **Verification:** a temporary managed-demo spec checked `Mégse`, the close
+  button and Escape on the three event kinds and the day-action window.
+  Before the fix exactly the three `Mégse` cases failed with the page error
+  (the single-event cases after correcting their fixture); after it 11 of 11
+  passed, with the cancelled new event gone and the single event kept.
+  `tests/shell/calendar.spec.cjs` passed 6 of 6 and the two calendar cases
+  of `tests/shell/toolkit-components.spec.cjs` passed;
+  `php8.4 tests/shell/calendar.php`, `node tests/shell/toolkit-components.mjs`,
+  `npm run typecheck`, `npm run build` and `node tools/build.mjs --check`
+  passed. At the owner's choice no permanent case was added; the temporary
+  spec and its results were removed. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo.
