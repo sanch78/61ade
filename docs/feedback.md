@@ -9424,6 +9424,7 @@ that exactly equals an option label lists every option. The managed
   (framework list projection, unchanged here). English labels are covered by
   the catalogue parity check, not by a browser run. No consumer runtime was
   edited.
+- **Commit:** `89f3ced` (component, demo, tests and guides).
 - **Status:** implemented and verified on the managed demo.
 
 <a id="fb-0208"></a>
