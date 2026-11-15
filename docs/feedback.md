@@ -9339,3 +9339,32 @@ that exactly equals an option label lists every option. The managed
   submit button. View availability still changes at the next bootstrap; this
   adds no new reload behaviour. No consumer runtime was edited.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0208"></a>
+
+## FB-0208 — Continue the tab divider across the unused header width
+
+- **Date:** 2026-11-15.
+- **Request:** give the panel beside the tab buttons the same top divider as
+  below an inactive tab.
+- **Cause and fix:** Suite's header list was only as wide as its tab buttons,
+  leaving its existing trailing divider pseudo-element with zero width.
+  The shared tab header now has `min-width: 100%`, so that divider fills the
+  unused row width using the same theme colour as the inactive tabs. The
+  active tab still opens directly into its panel; long rows retain native
+  Suite overflow scrolling. No API or consumer configuration changes.
+- **Guide:** [Tabs presentation](toolkit.md#tabs).
+- **Verification:** TypeScript, frontend build, local demo assets and PHP
+  `contracts` and `configuration` passed. The guarded managed-demo runs
+  passed the ten existing `browser` and `skins` cases and the existing
+  playlist-editor `tabs` case. Six temporary visual cases passed in Blade,
+  Blade Night, light, dark, Pala and Tinta, each at 1366 and 390 px with
+  both tabs active in turn. They checked matching divider styles, full row
+  coverage, the active tab joining its panel, no page overflow, and scrolling
+  after lengthening the tab labels. Removing the minimum width reproduced
+  the zero-width trailing divider. Screenshots were visually inspected.
+  Initial temporary-probe failures were caused by its module URL matcher
+  ignoring the cache-key query; matching the URL pathname fixed the probe.
+  Temporary probe source, screenshots and traces were removed. No full-smoke
+  claim; no consumer runtime was edited.
+- **Status:** implemented and verified on the managed demo.
