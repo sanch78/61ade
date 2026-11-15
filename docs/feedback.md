@@ -9455,3 +9455,38 @@ that exactly equals an option label lists every option. The managed
   Temporary probe source, screenshots and traces were removed. No full-smoke
   claim; no consumer runtime was edited.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0208"></a>
+
+## FB-0208 — Tenant-scoped calendars and read-only overlay events
+
+- **Date:** 2026-11-15.
+- **Need:** cyberspace.hu's central booking service keeps one calendar per
+  tenant site. The owner wants the open booking hours set in the calendar
+  itself, recurring when needed, instead of weekly text fields in the
+  service settings, with the bookings and the free slots shown read-only in
+  the same calendar. The calendar had one global event set per space and no
+  way to show events it does not store.
+- **General scope:** any multi-tenant consumer whose calendar belongs to each
+  tenant, and any calendar that shows derived or foreign events (bookings,
+  availability, holidays) next to the editable ones; no consumer business
+  logic enters 61ade.
+- **Owner decision (2026-11-15):** approved both extensions, additive.
+- **Implementation:** `CalendarDefinition` `tenantScoped` (the definition
+  scopes the resource to the tenant; every query and write filters by
+  `tenant_id`; `occurrences()` takes the tenant) and `overlay` (validated
+  items appended to `events` as `overlay:<id>`, `readonly`, `tone`).
+  `install()` adds the nullable column and the `blade_calendar_tenant` index
+  to an existing table. `CalendarView` refuses the form and dragging for a
+  read-only event and colours it by its `tone`
+  (`blade-calendar-event--readonly`).
+- **Guides:** [calendar](calendar.md#tenant-scoped-calendars), M82 in the
+  [migration table](toolkit.md#migration): **additive, no consumer change
+  required**.
+- **Verification:** `php8.4 tests/shell/calendar.php` (tenant separation for
+  reads, expansion, update, delete and exceptions, fail-closed without a
+  tenant, the overlay in `events` only, an invalid overlay item, the column
+  added to an older table); `npm run build`, `npm run typecheck`;
+  `npm run test:browser -- tests/shell/calendar.spec.cjs` passed 6 of 6
+  unchanged. The read-only overlay in the browser is verified in the
+  consuming project's admin (cyberspace.hu booking calendar).
