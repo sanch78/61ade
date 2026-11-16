@@ -1263,6 +1263,9 @@ it reloads nothing already loaded (`refresh` does).
 
 #### CommandBar
 
+For a page or tab's own commands, use the
+[page and tab attachment recipe](#page-command-bars).
+
 The list's own responsive command bar: native Toolbar buttons that move into
 one `Műveletek` menu below 768 px or when they do not fit, keeping ids, state
 and click events. Every normal native Toolbar, including one attached directly
@@ -1575,6 +1578,8 @@ tabs.on("change", ({ id }) => {
   element there (released with the tabs). An undeclared id throws `Error`.
   A tab without content shows its placeholder (`placeholder(id, {text,
   busy})`, [states](#loading-and-empty-states)).
+  A tab with its own commands attaches a Layout holding the command row
+  above the content ([recipe](#page-command-bars)).
 - `active()` is the open tab's id; `select(id)` opens a tab as a click does
   (guard included) and resolves whether it is open afterwards (a disabled tab
   resolves `false`); `update(id, {label, disabled})` changes a tab, and
@@ -2689,6 +2694,39 @@ new app.components.RecordDetails({ view: list, record: row, signal }).mount(layo
 // …
 signal.addEventListener("abort", () => layout.destructor(), { once: true });
 ```
+
+<a id="page-command-bars"></a>
+
+### Page and tab command rows
+
+A composed page or tab's own commands use `CommandBar` in the first, 48 px
+row of a `type: "none"` Layout attached directly to the host cell. In a tab,
+the bar spans the panel immediately below the tab header. The content fills
+the remaining row; its padding, panel frames and scrolling stay in that row.
+The toolbar supplies its own button inset, divider and shadow. Reusable
+presentation rules are in the
+[61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md#command-bars-in-pages-and-tabs)
+([FB-0213](feedback.md#fb-0213)).
+
+Here `tabs` is a mounted `Tabs` with a `details` tab, `list` and `row` are
+the record's view and data, and `signal` is the build's signal:
+
+```ts
+const body = new app.dhx.Layout(null, { type: "none", rows: [
+  { id: "commands", height: 48 },
+  { id: "content" }
+] });
+tabs.attach("details", body);
+new app.components.CommandBar({ label: t("Adatok"), signal, items }).mount(body.getCell("commands"));
+new app.components.RecordDetails({ view: list, record: row, signal }).mount(body.getCell("content"));
+signal.addEventListener("abort", () => body.destructor(), { once: true });
+// Register the enclosing Tabs/layout teardown after these children.
+```
+
+A `PageLayout` tab uses `page.attach("details", body)` in the same way;
+a page without tabs attaches the Layout to its `ViewHost`. A `ListView`
+keeps its own record commands; a page bar is for the page's additional
+commands, without copying the list's actions.
 
 <a id="cell-content"></a>
 
