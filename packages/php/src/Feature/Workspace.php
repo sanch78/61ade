@@ -49,7 +49,7 @@ final class Workspace
      * (membership checked), record views only with the record resource's `get` offered, and a view declaring `available`
      * only while that closure returns true for this context (View). Each entry is
      * `{id, kind, title, resource?, record?, actions, group, icon, desktopOnly, open, menu?, attention?, guide?, options}` (`menu`
-     * only as `false`: offered without a menu entry or address of its own; `attention`: `{filters, tone}` of the menu
+     * only as `false`: offered without a menu entry or address of its own; `attention`: `{filters, tone, label?}` of the menu
      * entry's live count, View); the kind provider
      * decides whether the view is offered and builds `actions` and `options`.
      */
@@ -66,7 +66,7 @@ final class Workspace
             $out[$view->id]=[...\Blade\I18n\Translator::presentation(['id'=>$view->id,'kind'=>$view->kind,'title'=>$view->title,
                 ...($view->resource!==null?['resource'=>$view->resource]:[]),...($view->record!==null?['record'=>$view->record]:[]),
                 'actions'=>$data['actions'],'group'=>$view->group,'icon'=>$view->icon,'desktopOnly'=>$view->desktopOnly,'open'=>$view->open,...($view->menu?[]:['menu'=>false])]),
-                ...($view->attention!==null?['attention'=>['filters'=>$view->attention['filters'],'tone'=>$view->attention['tone']??'warning']]:[]),
+                ...($view->attention!==null?['attention'=>['filters'=>$view->attention['filters'],'tone'=>$view->attention['tone']??'warning',...(isset($view->attention['label'])?['label'=>\Blade\I18n\Translator::text($view->attention['label'])]:[])]]:[]),
                 ...($view->guide!==null?['guide'=>\Blade\I18n\Translator::text($view->guide)]:[]),
                 // An empty options map stays a JSON object.
                 'options'=>$data['options']===[]?new \stdClass():\Blade\I18n\Translator::presentation($data['options'])];

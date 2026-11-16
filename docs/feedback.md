@@ -9549,3 +9549,89 @@ that exactly equals an option label lists every option. The managed
   loading, ten invalid forms rejected) and `php8.4 tests/shell/contracts.php`
   passed; the default CSP string is unchanged.
 - **Status:** implemented.
+
+<a id="fb-0212"></a>
+
+## FB-0212 — Value tones, emphasized records and an attention label
+
+- **Date:** 2026-11-16.
+- **Request:** a consumer request (recorded without business terms): a list of
+  automatic changes made by background runs is reviewed like an inbox. It
+  should show which entries are unseen (bold, like unread mail) and which
+  carry more risk (a change that every tenant inherits, in a stronger tone).
+  The menu count should name unseen items instead of "függőben". Optionally, a
+  computed `select` field would let a state derived from other tables be
+  filtered by labelled options without a stored copy.
+- **Assessment (owner-approved 2026-11-16):** valid and general (inbox, review
+  queue, notification and audit lists). The request said none of it could be
+  done locally. Point 1 could already be done as an interim through a project
+  column presentation, at the cost of a value-to-tone map hard-coded in the
+  renderer. Corrections the owner accepted:
+  - one tone set: the calendar's and the menu attention's tones together
+    (`primary`, `secondary`, `success`, `warning`, `danger`), not a third list;
+  - the emphasis carries its own visually hidden marker, because bold is not
+    announced; without `label` the field must be a visible column;
+  - the attention `label` is a whole message holding `{count}`, not a word
+    appended to the number, so word order and plurals stay translatable.
+
+  Per-user unread state is not expressible yet: a computed field cannot refer
+  to the actor.
+- **Implemented:**
+  - PHP: `Field::TONES`; field `column.tones` (`{option key: tone}`; a select
+    field, not secret, with static options naming every key, 1–50 entries, no
+    presentation, media or editor), sent to columns and `detailFields` as a
+    JSON object; `Translator::presentation` leaves `tones` untranslated.
+    `emphasis` on `View::list`, `Registry::view`, `SqlResource::register` and
+    JSON `view.emphasis`, checked by `ListViewKind` (a filterable field, a
+    string value up to 255 characters including the empty string, an optional
+    plain label up to 100 characters, a column without a label, no
+    singleton). `Registry::filterable` is now public for that check. Attention
+    `label` checked by `View` (`{count}` once beside other text, at most 100
+    characters) and sent translated in the bootstrap only when declared.
+    `SqlResource` accepts computed `select` fields.
+  - Browser: `toned()` in `RecordPresentation` draws the label in grid cells
+    (`htmlEnable` only on toned columns), cards, tile lines and details.
+    `ResponsiveGrid` `emphasis`: `rowCss` `blade-grid-row--emphasis`,
+    `blade-grid-card--emphasis`, `blade-grid-tile--emphasis`, and the hidden
+    marker in the first non-secondary column and at the start of cards and
+    tiles. `AdminShell` names a counted entry and a menu command with the
+    view's label. CSS `.blade-tone*` (the theme colour darkened for white text;
+    warning the attention accent) and the emphasis weight. Public types
+    `ValueTone`, `ColumnMetadata.tones`, `ListKindOptions.emphasis`,
+    `ViewDefinition.attention.label`.
+  - Feature demo: `Változások` (`modules/changes.json`, table `demo_changes`
+    from the web setup, three unseen of five; the reader has no access).
+- **Guides:** [value tones and emphasized records](workspaces.md#value-tones),
+  [field presentation](field-presentation.md),
+  [menu attention](shell.md#menu-attention),
+  [configuration](configuration.md) (`column.tones`, `view.emphasis`,
+  `view.attention.label`, `storage.computed`), [usage](usage.md),
+  [demos](demos.md#changes-inbox); migration row M83.
+- **Verification:** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`; the web setup created `demo_changes` (database backed up
+  first). PHP `contracts`, `configuration`, `toolkit` (new cases: tones on
+  integer-like keys; refused tones with an unknown tone or value, none, a text
+  or secret field, dynamic options, a presentation or editor; emphasis kept,
+  with an empty value and through `SqlResource::register`; refused emphasis
+  with an unknown or secret field, a long or non-string value, an unknown key,
+  no label and no column, a blank label, a singleton; refused attention
+  labels without `{count}`, with it twice, alone or not a string; bootstrap
+  with the label and the emphasis), `lists` (a computed select listed with
+  options, tones and a select filter, filtered by its option and read by
+  `get`; a computed multiselect refused), `list-presentation`, `i18n`,
+  `tenancy`, `tree-navigation`, `sorting`, `signage`, `record-forms`,
+  `access`, `permissions`, `counts`; node `toolkit-kernel`, `toolkit-list`,
+  `toolkit-components`, `toolkit-registries`, `ui-preferences` passed. New
+  browser spec `value-tones.spec.cjs` (3: the table at 1366 px with three bold
+  rows, the hidden `Új: ` marker, toned stored and computed values, plain
+  untoned ones, the details label, ticking `Látott` dropping the emphasis and
+  the entry becoming `Változások, 2 új`; cards at 390 px with emphasis,
+  marker, tone and a wrapped label, and the reader without the entry; tone
+  label contrast at least 4.5:1 in Blade, Blade Night, light, dark and the
+  `demo-slate` and `demo-ink` skins). `menu-attention.spec.cjs` was adjusted
+  for the branch and `Menü` sums that now include the unseen changes.
+  Affected specs `menu-attention`, `menu-commands`, `list-presentation`,
+  `mobile-grid`, `workspace`, `grid-edit`, `browser`, `skins` passed (54).
+  At the owner's choice the new spec and PHP cases are kept as regression
+  coverage. No full-smoke claim.
+- **Status:** implemented and verified on the managed demo.

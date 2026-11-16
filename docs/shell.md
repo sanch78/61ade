@@ -168,7 +168,9 @@ JSON: `"view": {"title": "…", "attention": {"filters": {"status": "pending"}, 
   the view's resource that a list may filter: not secret, of type text
   (`LIKE`, as in the list), select, checkbox (`0`/`1`) or number (digits),
   not a media field; a non-empty value of at most 255 characters. `tone` is
-  `warning` (default), `danger` or `primary`. Anything else throws
+  `warning` (default), `danger` or `primary`. `label`, when given, holds
+  `{count}` exactly once beside other text, at most 100 characters without
+  control characters. Anything else throws
   `InvalidArgumentException` when the view is declared.
 - **Display:** with a count above zero, the entry shows the count as a badge
   in the tone (`99+` above 99); its branch and, below the menu's width, the
@@ -181,8 +183,12 @@ JSON: `"view": {"title": "…", "attention": {"filters": {"status": "pending"}, 
   which Suite does not define), and the number itself is always visible, so
   colour is never the only signal.
 - **Accessible name:** the entry's name carries the count: `Javaslatok, 3
-  függőben` (`{count} függőben`, translated by 61ade: `3 pending`). The badge
-  itself is hidden from screen readers. A branch and `Menü` keep their names;
+  függőben` (`{count} függőben`, translated by 61ade: `3 pending`). A view
+  whose records are in another state names it with `label`, a translatable
+  message holding `{count}` once, translated through the project catalogues
+  like a title: `'label' => '{count} új'` → `Változások, 3 új` (en `3 new`,
+  [FB-0212](feedback.md#fb-0212)). A menu command showing that view's count
+  uses the same text. The badge itself is hidden from screen readers. A branch and `Menü` keep their names;
   the entries inside them carry the counts.
 - **Live:** each such view holds one subscription of one row on the tab's
   [live channel](workspaces.md#live-channel), WebSocket or polling, like a

@@ -78,6 +78,13 @@ if (!$db->query('SELECT COUNT(*) FROM demo_approvals')->fetchColumn()) {
     $approval = $db->prepare('INSERT INTO demo_approvals(title,status) VALUES (?,?)');
     foreach ([['Új nyitóképernyő', 'pending'], ['Hétvégi nyitvatartás', 'pending'], ['Árlista frissítése', 'pending'], ['Téli dekoráció', 'approved'], ['Hangosbemondás szövege', 'rejected']] as $row) $approval->execute($row);
 }
+// Automatic changes (modules/changes.json, FB-0212): an inbox of synthetic changes; three unseen, one of every tenant's
+// level, each linked to an approval whose status the computed `approval` select shows.
+$db->exec("CREATE TABLE IF NOT EXISTS demo_changes(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,level TEXT NOT NULL DEFAULT 'record',seen INTEGER NOT NULL DEFAULT 0,approval_id INTEGER)");
+if (!$db->query('SELECT COUNT(*) FROM demo_changes')->fetchColumn()) {
+    $change = $db->prepare('INSERT INTO demo_changes(title,level,seen,approval_id) VALUES (?,?,?,?)');
+    foreach ([['Nyitvatartás átvezetve', 'global', 0, 2], ['Árlista újraszámolva', 'tenant', 0, 3], ['Hiányzó kép pótolva', 'record', 0, null], ['Téli dekoráció ütemezve', 'tenant', 1, 4], ['Bemondás szövege visszavonva', 'record', 1, 5]] as $row) $change->execute($row);
+}
 // Registry editor imitation (modules/registry.json): synthetic keys in a hierarchy and values of every type.
 $db->exec("CREATE TABLE IF NOT EXISTS demo_registry_keys(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,parent_id TEXT NOT NULL DEFAULT '')");
 $db->exec("CREATE TABLE IF NOT EXISTS demo_registry_values(id INTEGER PRIMARY KEY AUTOINCREMENT,key_id INTEGER NOT NULL,name TEXT NOT NULL,type TEXT NOT NULL DEFAULT 'REG_SZ',string_value TEXT NOT NULL DEFAULT '',multi_value TEXT NOT NULL DEFAULT '',dword_value TEXT NOT NULL DEFAULT '',qword_value TEXT NOT NULL DEFAULT '',binary_value TEXT NOT NULL DEFAULT '')");
@@ -238,6 +245,8 @@ $rules[] = ['1', 'demo_contacts', ['list', 'get', 'create', 'update', 'delete']]
 $rules[] = [(string) $reader, 'demo_contacts', ['list', 'get']];
 // Approval queue: the demo account reviews; the reader has no access, so neither the entry nor its count.
 $rules[] = ['1', 'demo_approvals', ['list', 'get', 'update']];
+// Automatic changes: the demo account reviews them; the reader has no access.
+$rules[] = ['1', 'demo_changes', ['list', 'get', 'update']];
 // Delegated access (modules/collections.json, FB-0180): synthetic collections A, B and C and consumer-owned link
 // tables. delegate@ reads A and B and writes A through them (scope `delegated`); the demo account keeps ordinary
 // `all` grants and sees all three. Idempotent: rows, links and rules are added only when missing.

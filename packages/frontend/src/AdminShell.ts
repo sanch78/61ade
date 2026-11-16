@@ -142,6 +142,10 @@ export class AdminShell {
   /** Live attention counts of menu entries (`ViewDefinition.attention`): view id → count, and its declared tone. */
   private attention=new Map<string,number>();
   private tones=new Map<string,string>();
+  /** A view's declared counted state (`attention.label`, translated, holding `{count}`); absent: the framework's `{count} függőben`. */
+  private counted=new Map<string,string>();
+  /** The counted state of view $id's $count for the accessible name ("3 függőben", "3 új"). */
+  private countText(id:string,count:number):string{const label=this.counted.get(id);return label?label.split("{count}").join(String(count)):t("{count} függőben",{count});}
   private loginWindow?: Window;
   private loginForm?: Form;
   private externalSignInOpen = false;
@@ -244,7 +248,7 @@ export class AdminShell {
     const count=this.commandCount(command),label=escape(command.label),icon=escape(command.icon??"bi bi-lightning");
     const title=command.tooltip?escape(command.tooltip):iconOnly?label:"";
     const badge=count?`<span class="blade-menu-count blade-menu-count--${this.tones.get(command.attention!)??"warning"}" aria-hidden="true">${count>99?"99+":count}</span>`:"";
-    const name=count?`${label}, ${escape(t("{count} függőben",{count}))}`:label;
+    const name=count?`${label}, ${escape(this.countText(command.attention!,count))}`:label;
     return {id:"command:"+command.id,value:label,
       css:"blade-menu-command"+(command.emphasized?" blade-menu-command--primary":"")+(iconOnly?" blade-menu-command--icon":""),
       html:`<span class="blade-menu-command__body"${title?` title="${title}"`:""}><span class="dhx_menu-button__icon ${icon}" aria-hidden="true"></span>`
@@ -293,7 +297,7 @@ export class AdminShell {
     const label=escape(String(item.value??"")),badge=`<span class="blade-menu-count blade-menu-count--${tone??"warning"}" aria-hidden="true">${count>99?"99+":count}</span>`;
     if(!String(item.id).startsWith("view:"))return {html:`<span class="blade-menu-attention"><span class="blade-menu-label">${label}</span>${badge}</span>`};
     // One hidden text names the entry ("Label, 3 függőben"): the visible parts would add gaps to the name.
-    return {html:`<span class="blade-menu-attention"><span class="blade-menu-label" aria-hidden="true">${label}</span>${badge}</span><span class="blade-visually-hidden">${label}, ${escape(t("{count} függőben",{count}))}</span>`};
+    return {html:`<span class="blade-menu-attention"><span class="blade-menu-label" aria-hidden="true">${label}</span>${badge}</span><span class="blade-visually-hidden">${label}, ${escape(this.countText(String(item.id).slice(5),count))}</span>`};
   }
   /** A view's attention count changed: the labels are rebuilt and the drawn entries updated in place (an open menu stays open). */
   private attend(id:string,count:number):void{
@@ -523,6 +527,7 @@ export class AdminShell {
       // its `matched`), kept current by the live channel like a list. A refused read shows the plain entry.
       for(const view of (definition.views||[]).filter(view=>view.attention&&view.kind==="list"&&view.menu!==false&&!view.record&&view.resource)){
         this.tones.set(view.id,view.attention!.tone);
+        if(view.attention!.label)this.counted.set(view.id,view.attention!.label);
         new Realtime(this.live,view.resource!,data=>this.attend(view.id,Number(data.matched??data.total??0)),()=>{},()=>this.attend(view.id,0))
           .subscribe({limit:1,numbered:false,filters:{...view.attention!.filters}});
       }

@@ -123,7 +123,7 @@ $saved=$deletedHook=[];
 $computedField=new Field('refs','References','number');
 $docsDefinition=fn(array $computed,array $fields=[])=>new SqlResource('docs','docs','id',$fields?:[new Field('title','Title',required:true),new Field('code','Code',validation:['unique'=>true]),$computedField],computed:$computed,unique:[['title']]);
 foreach([['missing'=>'1'],['title'=>'1'],['refs'=>'SELECT 1; DROP TABLE docs'],['refs'=>'SELECT ?'],['refs'=>'']] as $invalid){try{$docsDefinition($invalid);throw new RuntimeException('Invalid computed column accepted');}catch(InvalidArgumentException){}}
-foreach([new Field('refs','R','textarea'),new Field('refs','R',column:['editable'=>true]),new Field('refs','R','select',options:['1'=>'1'])] as $bad){try{$docsDefinition(['refs'=>'1'],[new Field('title','Title'),$bad]);throw new RuntimeException('Invalid computed field accepted');}catch(InvalidArgumentException){}}
+foreach([new Field('refs','R','textarea'),new Field('refs','R',column:['editable'=>true]),new Field('refs','R','multiselect',options:['1'=>'1'])] as $bad){try{$docsDefinition(['refs'=>'1'],[new Field('title','Title'),$bad]);throw new RuntimeException('Invalid computed field accepted');}catch(InvalidArgumentException){}}
 $docs=new SqlResource('docs','docs','id',[new Field('title','Title',required:true),new Field('code','Code',validation:['unique'=>true]),$computedField],
     afterSave:function(Context $c,string $id) use (&$saved){$saved[]=$id;return null;},afterDelete:function(Context $c,string $id,array $target) use (&$deletedHook){$deletedHook[]=[$id,$target['row']['title']];},
     unique:[['title']],computed:['refs'=>'SELECT COUNT(*) FROM refs WHERE refs.doc_id = CAST(blade_base.id AS TEXT)']);
@@ -139,6 +139,14 @@ verify(str_contains($aactions['delete']['confirm']['message'],'archiválódik')&
 $bySort=$acall('list',null,['limit'=>3,'sort'=>['field'=>'refs','direction'=>'desc']]);
 verify(array_column($bySort['items'],'id')===['3','5','10']&&(int)$bySort['items'][0]['refs']===3,'Computed column listed and sorted on the server');
 verify($acall('list',null,['limit'=>10,'filters'=>['refs'=>'1']])['matched']===1&&(int)$acall('get','3')['refs']===3,'Computed column filterable and read by get');
+// A computed select (FB-0212): a state derived from another table, labelled by its options, filtered and toned like a stored one.
+$stateReg=new Registry();(new SqlResource('doc_states','docs','id',[new Field('title','Title'),new Field('used','Used','select',options:['yes'=>'Referenced','no'=>'Unreferenced'],column:['tones'=>['yes'=>'warning']])],
+    computed:['used'=>"CASE WHEN (SELECT COUNT(*) FROM refs WHERE refs.doc_id = CAST(blade_base.id AS TEXT)) > 0 THEN 'yes' ELSE 'no' END"]))->register($stateReg,'States',create:false,update:false);
+$sw=new Workspace($stateReg,$adb);$sctx=new Context(new Identity('1','One'),'ui',$sw->acl,$adb);
+foreach(['list','get'] as $action)$adb->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','doc_states',?,'ui','allow','all','','')")->execute([$action]);
+$sview=$sw->views($sctx->actor)[0];$scolumn=array_column($sview['options']['columns'],null,'id')['used'];$sfilter=array_column($sview['options']['filters'],null,'name')['used']??null;
+verify($scolumn['options']===['yes'=>'Referenced','no'=>'Unreferenced']&&json_encode($scolumn['tones'])==='{"yes":"warning"}'&&($sfilter['type']??null)==='select'&&json_encode(array_column($sview['options']['detailFields'],null,'id')['used']['tones'])==='{"yes":"warning"}','Computed select column with options, tones and a select filter');
+verify($sw->executor->execute($sctx,'doc_states','list',null,['limit'=>10,'filters'=>['used'=>'yes']])['matched']===2&&$sw->executor->execute($sctx,'doc_states','get','5',[])['used']==='yes','Computed select filtered by its option and read by get');
 $revision=$acall('get','5')['revision'];$adb->exec("INSERT INTO refs(doc_id) VALUES ('5')");
 verify($acall('get','5')['revision']===$revision&&(int)$acall('get','5')['refs']===2,'A changed computed value does not make the revision stale');
 try{$acall('update','5',['refs'=>'9','revision'=>$revision]);throw new RuntimeException('Computed column written');}catch(Failure $e){verify($e->status===400,'Computed column never writable');}

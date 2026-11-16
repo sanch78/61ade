@@ -23,11 +23,15 @@ export type Column={id:string;header:string;type?:string;media?:string;presentat
   /** The field's form row and share (`FieldMetadata.row`, `rowWidth`): the singleton's details form follows them. */
   row?:string;rowWidth?:2|3;
   /** A long text's lines in a card: 0 all of it; default 4. */
-  cardLines?:number}&Resolved;
+  cardLines?:number;
+  /** Value tones of a select field (api `ColumnMetadata.tones`). */
+  tones?:Record<string,string>}&Resolved;
 /** The list kind's internal shape: the view's shared keys beside its `options` (definition.ts `listDefinition`). */
 export type ViewDefinition={id:string;resource:string;title:string;icon?:string;desktopOnly?:boolean;rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;detailFields?:Column[];rowHeight?:number;tileMinWidth?:number;tiles?:boolean;
   /** The presentations the view offers (api ListKindOptions `modes`) and at most this many card columns (`cardColumns`). */
   modes?:("table"|"cards"|"tiles")[];cardColumns?:number;
+  /** Emphasized records (api ListKindOptions `emphasis`). */
+  emphasis?:{field:string;value:string;label?:string};
   /** Double-click/Enter: one target or a per-row `{field, map}` (activation.ts). */
   activate?:Activation;search?:{fields:string[]};columns:Column[];actions:ActionDefinition[];singleton:boolean;sortable?:string[];sort?:{field:string;direction:"asc"|"desc"};group?:string;filters:FieldDefinition[];layout:{formMode:"overlay"|"panel";tree:Region};
   /** Records expand to the `resource` list filtered to `field` = record id: its own `view`, or this view when `shared`. */

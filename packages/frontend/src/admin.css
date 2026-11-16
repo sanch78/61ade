@@ -280,6 +280,19 @@ body,
 .blade-record-icon { display: inline-flex; font-size: 20px; line-height: 1; vertical-align: middle; color: var(--dhx-font-color-secondary); }
 .blade-record-icon :is(.dxi-folder, .bi-folder) { color: var(--dhx-color-primary); }
 .blade-grid-card--marked { outline: 2px solid var(--dhx-color-primary, #0288d1); outline-offset: -2px; }
+/* Value tones (`column.tones`, FB-0212): the option text as a label in a theme tone, darkened so white text keeps
+   4.5:1 in every theme and skin; warning is the menu attention's accent. The text stays visible, so colour is never the
+   only signal. */
+.blade-tone { display: inline-block; box-sizing: border-box; max-width: 100%; padding: 0 8px; border-radius: 10px; font-size: 12px; font-weight: 600; line-height: 20px; vertical-align: middle; overflow-wrap: anywhere; background: color-mix(in srgb, var(--blade-tone) 74%, #000); color: #fff; }
+.dhx_grid-cell .blade-tone { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blade-tone--primary { --blade-tone: var(--dhx-color-primary); }
+.blade-tone--secondary { --blade-tone: var(--dhx-color-secondary); }
+.blade-tone--success { --blade-tone: var(--dhx-color-success); }
+.blade-tone--danger { --blade-tone: var(--dhx-color-danger); }
+.blade-tone--warning { background: #b45309; }
+[data-dhx-theme="dark"] .blade-tone--warning { background: #f59e0b; color: #1a1a1a; }
+/* Emphasized records (`emphasis`, FB-0212): bold like unread mail; a visually hidden marker names the state. */
+.blade-grid-row--emphasis > .dhx_grid-cell, .blade-grid-card--emphasis dd, .blade-grid-tile--emphasis .blade-grid-tile__title, .blade-grid-tile--emphasis .blade-grid-tile__meta { font-weight: 600; }
 .blade-grid-views .dhx_grid { border: 0; }
 .blade-grid-views .dhx_grid-content { border: 0; isolation: isolate; }
 .blade-record-details { padding: 16px 20px; overflow-wrap: anywhere; }

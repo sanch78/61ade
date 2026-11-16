@@ -7,12 +7,12 @@ use Blade\I18n\Translator;
 /**
  * Built-in kind `list` (`Registry::view`, `SqlResource::register`). Options: `columns`, `singleton`, `layout`
  * (ViewLayout), `rowNumbers`, `selection`, `rowSelection`, optional `rowHeight`, `tileMinWidth`, `tiles`, `modes`, `cardColumns`, `activate`,
- * `commands` (project client commands of `app.commands`, docs/toolkit.md#registries), `sort` (the first sort);
+ * `commands` (project client commands of `app.commands`, docs/toolkit.md#registries), `sort` (the first sort), `emphasis` (emphasized rows);
  * `subview` is set only by `Registry::subview()`, `tree` only by `Registry::tree()`. Bootstrap options add `detailFields`, `filters`, `sortable`, `search` and `order` (manual order); `drop` (records dragged in from another list) is declared.
  */
 final class ListViewKind implements ViewKindProvider
 {
-    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'modes', 'cardColumns', 'activate', 'commands', 'drop', 'sort'];
+    private const OPTIONS = ['columns', 'singleton', 'layout', 'rowNumbers', 'selection', 'rowSelection', 'rowHeight', 'tileMinWidth', 'tiles', 'modes', 'cardColumns', 'activate', 'commands', 'drop', 'sort', 'emphasis'];
     /** Most client commands one list declares. */
     private const COMMANDS = 20;
     private const TARGETS = ['details', 'subview', 'page'];
@@ -45,6 +45,23 @@ final class ListViewKind implements ViewKindProvider
         $this->modes($registry,$view);
         $this->drop($registry,$view,$o['drop']??null);
         $this->sort($registry,$view,$o['sort']??null);
+        $this->emphasis($registry,$view,$o['emphasis']??null);
+    }
+    /**
+     * `emphasis: {field, value, label?}` (FB-0212): the rows and cards whose `field` holds `value` (the empty string too,
+     * such as an unset `seen_at`) are emphasized (bold, like unread mail). `field` takes a fixed exact value like an attention filter (text, select, checkbox or number;
+     * not secret, scope-only, stored or media); `label` (plain, translatable, at most 100 characters) is the visually
+     * hidden marker a screen reader hears on each emphasized row and card. Without `label` the field must be a column
+     * of the view, so its own visible text carries the meaning. Not for a singleton.
+     */
+    private function emphasis(Registry $registry, View $view, mixed $emphasis): void
+    {
+        if($emphasis===null)return;
+        $field=is_array($emphasis)&&is_string($emphasis['field']??null)?($registry->fields($view->resource)[$emphasis['field']]??null):null;
+        $label=is_array($emphasis)?($emphasis['label']??null):null;
+        if(!is_array($emphasis)||array_diff(array_keys($emphasis),['field','value','label'])||!Registry::filterable($field,$emphasis['value']??null)||strlen($emphasis['value'])>255||str_contains($emphasis['value'],"\0")||($view->options['singleton']??false)
+            ||($label!==null&&(!is_string($label)||trim($label)===''||mb_strlen($label)>100||preg_match('/[\x00-\x1f\x7f]/',$label)||preg_match('//u',$label)!==1))
+            ||($label===null&&!in_array($field->name,array_column($view->options['columns'],'id'),true)))throw new \InvalidArgumentException('Invalid list emphasis: '.$view->id);
     }
     /**
      * `modes`: distinct `table`, `cards` and `tiles` (tiles only when the view offers them: `tiles`, or a column with a
@@ -138,7 +155,8 @@ final class ListViewKind implements ViewKindProvider
     private static function wire(array $column): array
     {
         $out=[];
-        foreach($column as $key=>$value)$out[self::WIRE[$key]??$key]=$value;
+        // Value tones stay a JSON object, also for option keys 0, 1, ….
+        foreach($column as $key=>$value)$out[self::WIRE[$key]??$key]=$key==='tones'?(object)$value:$value;
         return $out;
     }
 
@@ -159,7 +177,7 @@ final class ListViewKind implements ViewKindProvider
             if(!$field)return self::wire($column);
             return self::wire([...array_diff_key($field->column,['details'=>true]),...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...$field->sectionMetadata(),...$field->rowMetadata(),...$column,'type'=>$field->type,'options'=>$field->metadata($ctx)['options']]);
         },$o['columns']);
-        $detailFields=array_values(array_map(static fn($field)=>self::wire(['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true,'cardLines'=>true,'card_lines'=>true]),...$field->sectionMetadata()]),array_filter($fields,static fn($field)=>!$field->secret&&!$field->scopeOnly&&!$field->stored()&&$field->type!=='password'&&($field->column['details']??true))));
+        $detailFields=array_values(array_map(static fn($field)=>self::wire(['id'=>$field->name,'header'=>$field->label,'type'=>$field->type,'options'=>$field->metadata($ctx)['options'],...($field->media()!==null?['media'=>$field->media()]:[]),...($field->editor!==null?['editor'=>$field->editor]:[]),...array_intersect_key($field->column,['presentation'=>true,'imageBase'=>true,'image_base'=>true,'altOf'=>true,'alt_of'=>true,'cardLines'=>true,'card_lines'=>true,'tones'=>true]),...$field->sectionMetadata()]),array_filter($fields,static fn($field)=>!$field->secret&&!$field->scopeOnly&&!$field->stored()&&$field->type!=='password'&&($field->column['details']??true))));
         $list=$this->registry->get($view->resource,$singleton?'get':'list');
         // Static images expose no useful text filter; keep filename queries available to programmatic callers.
         $presentations=array_column($columns,'presentation','id');
@@ -167,7 +185,7 @@ final class ListViewKind implements ViewKindProvider
         $activate=$o['activate']??null;
         $options=['columns'=>$columns,'detailFields'=>$detailFields,'singleton'=>$singleton,'layout'=>$o['layout']->metadata(),
             'rowNumbers'=>$o['rowNumbers']??true,'selection'=>$o['selection']??false,'rowSelection'=>$o['rowSelection']??false,
-            ...array_intersect_key($o,['rowHeight'=>1,'tileMinWidth'=>1,'tiles'=>1,'modes'=>1,'cardColumns'=>1]),...(($o['commands']??[])!==[]?['commands'=>$o['commands']]:[]),
+            ...array_intersect_key($o,['rowHeight'=>1,'tileMinWidth'=>1,'tiles'=>1,'modes'=>1,'cardColumns'=>1,'emphasis'=>1]),...(($o['commands']??[])!==[]?['commands'=>$o['commands']]:[]),
             // A map is always a JSON object, also for consecutive integer keys.
             ...($activate!==null?['activate'=>is_array($activate)?['field'=>$activate['field'],'map'=>(object)$activate['map']]:$activate]:[]),
             'filters'=>$filters,'sortable'=>$list->listSource?->sortableFields($ctx)??[]];

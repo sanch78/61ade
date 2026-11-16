@@ -157,6 +157,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Accordion form sections, form rows | `Kapcsolatok` ([contacts.php](../examples/demo-app/contacts.php)): a contact of many short fields whose create and update forms declare `formSections: 'accordion'` and `flushSections: true` ([accordion form sections](workspaces.md#form-accordion)) and lay out the short fields in [form rows](workspaces.md#form-rows): the name and the organization side by side under the window's title, `Beosztás`, a double-width `E-mail` and `Telefon` in `Elérhetőség`, `Irányítószám`, `Település` and `Ország` in `Cím`, the contact method beside the newsletter checkbox in `Beállítások`; `Weboldal`, `Utca, házszám` and the section-filling note and photo take the full width. The window opens as wide as its widest row; a narrow window or a phone stacks every row into one column. Below the name, edge to edge, the collapsible `Elérhetőség` (open), `Cím`, `Beállítások`, `Megjegyzés` and `Fénykép` under the `Accordion` component's header, one open at a time; `Megjegyzés`, `Fénykép` and `Galéria` are [section-filling fields](workspaces.md#form-section-fill): the open section is the note's text area (opening it focuses the caret at the text's end), the photo's drop area (a stored image in the `Mellékletek` store), or the gallery's upload zone and queue of up to six images ([several stored files](workspaces.md#stored-file-multiple)); the window keeps its size when another opens, and a section taller than its share scrolls its own fields. A missing e-mail opens `Elérhetőség`. The `Mellékletek` forms keep the framed panels | Feature demó → Kapcsolatok: `Hozzáadás`, open `Cím`, then `Beállítások` (the window stays the same), `Megjegyzés`, `Fénykép` (drop an image) and `Galéria` (several images), `Mentés` without an e-mail; narrow the browser window below about 880 px, or open it on a phone, to see the rows stack |
 | Delegated access | `Gyűjtemények` ([collections.json](../examples/demo-app/modules/collections.json)): synthetic collections A, B and C, with the consumer-owned tables `demo_collection_readers` and `demo_collection_writers` declared as `storage.delegation`. `delegate@example.test` has `delegated` rules on `list`, `get` and `update`: it lists and opens A and B, edits only A (B offers no `Módosítás`) and cannot reach C, also by a forged id. The demo account's ordinary `all` grants see, create and edit all three ([delegated access](access-and-actions.md#delegated-access)) | Feature demó → Gyűjtemények as `delegate@example.test` / `61ade-demo`, then as `demo@example.test` |
 | Menu attention | `Jóváhagyások` ([approvals](#approvals-attention)): a live count of the pending items on the entry, its branch and `Menü`, in the warning tone; the plain entry at zero | Change an item's `Állapot` and watch the menu; `reader@example.test` sees no entry |
+| Value tones, emphasized records, attention label, computed select | `Változások` ([change inbox](#changes-inbox)): unseen rows and cards bold with a hidden `Új` marker, toned `Hatókör` and `Jóváhagyás` labels (the latter computed from `Jóváhagyások`), the entry named `Változások, 3 új` | Tick `Látott` and watch the row and the menu; filter `Jóváhagyás`; open it at 390 px for the cards |
 | Menu command, long-lived window | `Munkaasztal` ([D9](#d9-workbench)): an emphasized command in the menu row of every view opens a non-modal work window that keeps its note across navigation, maximizes into the workspace and reopens where it was left; the entry also shows the pending approvals' count | Click `Munkaasztal`, write a note, open other views, Back; `Ablak maximalizálása`; move it, reload and reopen; at 320 px the entry shows its icon only |
 | Bootstrap Icons | The shell, built-in commands, file/media types and player controls use the bundled icon catalog ([icons](icons.md)); the work window shows `bi bi-clock-history` and `bi bi-sliders` | Open `Munkaasztal`, file/media views and the viewer in each theme; narrow the window to see the same icons in collapsed menus |
 | Popup menu | `Munkaasztal` ([D9](#d9-workbench)): `app.ui.menu` on the window's own toolbar buttons: `Előzmények` (drafts grouped `Ma` / `Az elmúlt 7 nap` / `Régebbi`, the current one checked, a time as detail, scrolling) and the model picker (`Automatikus`, the models, the chosen model's efforts) with the APG menu-button keys ([popup menu](toolkit.md#popup-menu)) | Open `Munkaasztal`, then `Előzmények` and `Modell: …` by mouse and with ArrowDown/Enter/Escape/Tab; at 390 px; in every theme |
@@ -808,6 +809,22 @@ items; changing an item's `Állapot` in the table (or on the server) updates
 the count on the entry, the `Feature demó` branch and the collapsed `Menü`
 live. The demo account may list and update; the reader has no access and sees
 neither the entry nor a count. Check: `tests/shell/menu-attention.spec.cjs`.
+
+<a id="changes-inbox"></a>
+
+**`Változások` change inbox** ([changes.json](../examples/demo-app/modules/changes.json),
+[FB-0212](feedback.md#fb-0212)): synthetic automatic changes reviewed like an
+inbox ([value tones and emphasized records](workspaces.md#value-tones)). The
+three unseen ones (`Látott` unticked) are bold with the hidden marker `Új`
+(`emphasis`). The menu entry counts them in the primary tone with the
+accessible name `Változások, 3 új` (`attention.label`). `Hatókör` draws
+`Minden bérlő` as a warning label (`column.tones`). `Jóváhagyás` is a computed
+select, the status of the linked `Jóváhagyások` item, toned primary, success
+and danger, and its header filter offers the labels. Ticking `Látott` drops
+the emphasis and the count live. The table `demo_changes` comes from the web
+setup. The demo account may list and update; the reader has no access. Check:
+`tests/shell/value-tones.spec.cjs`; the branch and `Menü` sums in
+`menu-attention.spec.cjs` include it.
 
 Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),

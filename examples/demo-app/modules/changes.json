@@ -1,0 +1,117 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: a list of automatic changes reviewed like an inbox.",
+        "covers": "value tones (column.tones) on a stored and a computed select, emphasized unseen rows (view.emphasis) with a hidden marker, menu attention with its own counted state (attention.label), and a computed select field (storage.computed) derived from another table and filtered by its labelled options."
+    },
+    "resources": {
+        "demo_changes": {
+            "storage": {
+                "table": "demo_changes",
+                "key": "id",
+                "computed": {
+                    "approval": "COALESCE((SELECT a.status FROM demo_approvals a WHERE a.id = blade_base.approval_id), '')"
+                }
+            },
+            "operations": {
+                "create": false,
+                "delete": false
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Változás",
+                    "required": true,
+                    "max": 120
+                },
+                {
+                    "name": "level",
+                    "label": "Hatókör",
+                    "type": "select",
+                    "required": true,
+                    "max": 20,
+                    "options": {
+                        "record": "Egy rekord",
+                        "tenant": "Egy bérlő",
+                        "global": "Minden bérlő"
+                    },
+                    "column": {
+                        "width": 170,
+                        "tones": {
+                            "global": "warning"
+                        }
+                    }
+                },
+                {
+                    "name": "approval",
+                    "label": "Jóváhagyás",
+                    "type": "select",
+                    "max": 20,
+                    "options": {
+                        "": "Nem kell",
+                        "pending": "Jóváhagyásra vár",
+                        "approved": "Jóváhagyva",
+                        "rejected": "Elutasítva"
+                    },
+                    "column": {
+                        "width": 190,
+                        "tones": {
+                            "pending": "primary",
+                            "approved": "success",
+                            "rejected": "danger"
+                        }
+                    }
+                },
+                {
+                    "name": "seen",
+                    "label": "Látott",
+                    "type": "checkbox",
+                    "default": "0",
+                    "column": {
+                        "editable": true,
+                        "width": 100
+                    }
+                }
+            ],
+            "view": {
+                "title": "Változások",
+                "group": "Feature demó",
+                "icon": "bi bi-activity",
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Változás"
+                    },
+                    {
+                        "id": "level",
+                        "header": "Hatókör"
+                    },
+                    {
+                        "id": "approval",
+                        "header": "Jóváhagyás"
+                    },
+                    {
+                        "id": "seen",
+                        "header": "Látott"
+                    }
+                ],
+                "actions": [
+                    "get",
+                    "update"
+                ],
+                "emphasis": {
+                    "field": "seen",
+                    "value": "0",
+                    "label": "Új"
+                },
+                "attention": {
+                    "filters": {
+                        "seen": "0"
+                    },
+                    "tone": "primary",
+                    "label": "{count} új"
+                },
+                "guide": "Háttérfolyamatok automatikus változásai, mint egy postafiók. A még nem látott sorok félkövérek, a menüpont mellett kék szám mutatja, hány új van; a képernyőolvasó „3 új”-at mond.\n\nA Hatókör narancssárga címkéje jelzi a minden bérlőt érintő, kockázatosabb változást; a Jóváhagyás egy másik táblából számított állapot, színes címkével, és a szűrőben a címkéi szerint választható. A szöveg mindig látszik, a szín nem az egyetlen jel.\n\nPipáld be a Látott oszlopot: a sor normál betűs lesz, és a menü száma csökken.\n\nKeretrendszer-képességek: értéktónusok (column.tones), kiemelt sorok (view.emphasis), menüjelzés saját felirattal (attention.label), számított választómező."
+            }
+        }
+    }
+}

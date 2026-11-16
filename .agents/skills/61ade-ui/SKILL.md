@@ -174,6 +174,12 @@ tree as decoration for a flat list.
   every record value, gives a value shown only as a picture, bar or colour a
   text alternative (visible text or an accessible name), and renders the same
   meaning in the table cell, the card and the details.
+- Show a record's state in the declared way, never with a project renderer for
+  it: a riskier select value is a toned label with its text kept
+  (`column.tones`), unseen records are bold with a hidden marker (view
+  `emphasis`), and the menu count names its state (`attention.label`). Use one
+  shared tone set across components rather than adding another
+  ([FB-0212](../../../docs/feedback.md#fb-0212)).
 - Treat `secondary` columns as optional grid presentation only. Toggle them with
   the native show/hide API and persist each user's choice; cards/details still
   show every permitted readable field.

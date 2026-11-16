@@ -733,6 +733,8 @@ export interface ViewDefinition<Options = unknown> {
     attention?: {
         filters: Record<string, string>;
         tone: "warning" | "danger" | "primary";
+        /** The counted state in the entry's accessible name, translated, holding `{count}` (PHP/JSON `attention.label`); absent: `{count} függőben`. */
+        label?: string;
     };
     /**
      * What the user sees and can do in the view (plain text, localized; blank lines separate paragraphs). Opened as a
@@ -899,6 +901,8 @@ export interface ActionMetadata {
 }
 /** Derived media column parts (`RecordPresentation.ts` `MediaPart`). */
 export type MediaPart = "type" | "resolution" | "duration";
+/** A theme tone of a select value (`ColumnMetadata.tones`). */
+export type ValueTone = "primary" | "secondary" | "success" | "warning" | "danger";
 /** One grid/card column (`components/list/types.ts` `ViewDefinition["columns"]`, merged with its field by the server). */
 export interface ColumnMetadata {
     id: string;
@@ -919,6 +923,11 @@ export interface ColumnMetadata {
     rowWidth?: 2 | 3;
     /** A long text's lines in a card (field `column.cardLines`, JSON `card_lines`, FB-0177): 0 all of it; default 4. */
     cardLines?: number;
+    /**
+     * Value tones of a select field (field `column.tones`, FB-0212): option key → theme tone. The value is drawn as a label
+     * in that tone in cells, cards, tiles and details; its text stays visible.
+     */
+    tones?: Record<string, ValueTone>;
     /**
      * Static image column (`presentation: "image"`): page-relative directory of the image files (configuration also
      * accepts `image_base`; the server always sends `imageBase`).
@@ -1055,6 +1064,16 @@ export interface ListKindOptions {
     drop?: {
         from: string;
         field: string;
+    };
+    /**
+     * Emphasized records (`Registry::view`/`SqlResource::register` `emphasis`, JSON `view.emphasis`, FB-0212): the rows,
+     * cards and tiles whose `field` holds `value` are drawn bold, like unread mail; `label` (translated) is the visually
+     * hidden marker a screen reader hears on each of them (without it `field` is a column, whose text carries the meaning).
+     */
+    emphasis?: {
+        field: string;
+        value: string;
+        label?: string;
     };
 }
 /** `options` of kind `files` (`FileManagerDefinition::metadata()` in camelCase; `FileManager.ts` `FileManagerConfig`). */

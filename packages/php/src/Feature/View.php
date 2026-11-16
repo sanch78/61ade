@@ -27,7 +27,8 @@ namespace Blade\Feature;
  *   the view's menu entry shows how many records of its list match these filters for the actor (the ordinary,
  *   ACL-checked list read, kept current by the live channel) as a badge in that tone; zero shows the plain entry.
  *   Only a list view with a menu entry that is not a singleton; 1–8 filters of the resource's filterable fields
- *   (Registry checks them).
+ *   (Registry checks them). Optional `'label' => '{count} új'` (FB-0212): the counted state in the entry's accessible
+ *   name, a translatable message holding `{count}` once (default the framework's `{count} függőben`).
  * $available: `Closure(Context): bool`, evaluated on the server for each bootstrap after the tenant check (the Context
  *   carries the actor, the active tenant and the database) and never serialized; false leaves the view out of the
  *   bootstrap as if it were not declared: no menu entry (an emptied group disappears), no `#view=` address,
@@ -78,7 +79,10 @@ final readonly class View
     {
         $invalid = new \InvalidArgumentException('Invalid view attention: '.$id);
         if ($kind !== 'list' || $record !== null || !$menu || ($options['singleton'] ?? false)) throw new \InvalidArgumentException('Only a list view with a menu entry that is not a singleton can show attention: '.$id);
-        if (array_diff(array_keys($attention), ['filters', 'tone']) || !in_array($attention['tone'] ?? 'warning', self::TONES, true)) throw $invalid;
+        if (array_diff(array_keys($attention), ['filters', 'tone', 'label']) || !in_array($attention['tone'] ?? 'warning', self::TONES, true)) throw $invalid;
+        // `label` (FB-0212): the counted state in the accessible name, a translatable message holding `{count}` once.
+        $label = $attention['label'] ?? null;
+        if ($label !== null && (!is_string($label) || substr_count($label, '{count}') !== 1 || trim(str_replace('{count}', '', $label)) === '' || mb_strlen($label) > 100 || preg_match('/[\x00-\x1f\x7f]/', $label) || preg_match('//u', $label) !== 1)) throw $invalid;
         $filters = $attention['filters'] ?? null;
         if (!is_array($filters) || !$filters || count($filters) > 8 || array_is_list($filters)) throw $invalid;
         foreach ($filters as $field => $value) {
@@ -90,10 +94,10 @@ final readonly class View
      * The list view of $resource (kind `list`, id $id, default the resource) as Registry::view() declares it; see there
      * for the options. Not registered: for Registry::addView() or Registry::updateView().
      */
-    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, ?\Closure $available = null): self
+    public static function list(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, ?\Closure $available = null, ?array $emphasis = null): self
     {
         $options = ['columns' => $columns, 'singleton' => $singleton, 'layout' => $layout ?? new ViewLayout(), 'rowNumbers' => $rowNumbers, 'selection' => $selection, 'rowSelection' => $rowSelection,
-            ...array_filter(['rowHeight' => $rowHeight, 'tileMinWidth' => $tileMinWidth, 'tiles' => $tiles ?: null, 'modes' => $modes, 'cardColumns' => $cardColumns, 'activate' => $activate, 'commands' => $commands ?: null, 'drop' => $drop, 'sort' => $sort], static fn($v) => $v !== null)];
+            ...array_filter(['rowHeight' => $rowHeight, 'tileMinWidth' => $tileMinWidth, 'tiles' => $tiles ?: null, 'modes' => $modes, 'cardColumns' => $cardColumns, 'activate' => $activate, 'commands' => $commands ?: null, 'drop' => $drop, 'sort' => $sort, 'emphasis' => $emphasis], static fn($v) => $v !== null)];
         return new self($id ?? $resource, 'list', $title, $resource, actions: $actions, options: $options, group: $group, icon: $icon, desktopOnly: $desktopOnly, guide: $guide, menu: $menu, attention: $attention, available: $available);
     }
 
