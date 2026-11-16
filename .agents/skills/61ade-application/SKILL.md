@@ -161,6 +161,11 @@ something silently looks plain.
 
 ## 5. Compose pages and use the sandbox
 
+- **Attach page and tab commands directly above their content.** Mount a
+  `CommandBar` in the first row of a `type: "none"` Layout attached to the
+  page or tab cell, full width against the tab header. Follow the
+  [shared presentation rule](../61ade-ui/SKILL.md#command-bars-in-pages-and-tabs)
+  and the [attachment recipe](../../../docs/toolkit.md#page-command-bars).
 - Build one Suite Layout from `app.dhx`, `host.attach()` it and mount the
   components into its cells. Each build owns an `AbortController`. Register
   `layout.destructor()` on it **after** the components

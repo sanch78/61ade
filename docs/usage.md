@@ -186,6 +186,12 @@ mounts a new one into the same cell, tab, region or window right away, as
 often as needed; a cell that showed markup takes a component too
 ([components](toolkit.md#components), [FB-0161](feedback.md#fb-0161)).
 
+A page or tab with its own commands attaches a `type: "none"` Layout with a
+`CommandBar` row above the content, full width immediately below the tab
+header. Content padding and scrolling stay below the bar; a list keeps its
+own record commands ([page and tab command rows](toolkit.md#page-command-bars),
+[FB-0213](feedback.md#fb-0213)).
+
 A panel following a list's active record uses `list.on("target", ({view, row,
 rows}) => …)` and `list.target()`: these include selected expanded rows and
 the foremost child window, including on a phone. The main cursor remains

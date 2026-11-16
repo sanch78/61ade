@@ -131,6 +131,24 @@ tree as decoration for a flat list.
   state, events, and ACL. Force cards when the grid cannot be read; keep the
   desktop preference intact and make the forced selector informational.
 
+### Command bars in pages and tabs
+
+- A composed page or tab with its own commands uses `app.components.CommandBar`
+  in the first row of a `type: "none"` Layout attached directly to its host
+  cell (`Tabs.attach` or `PageLayout.attach` for a tab). The command row fills
+  the width and meets the tab header without an outer inset or gap; the
+  native toolbar keeps its own button inset, divider and shadow.
+- Give the command row its own height (the current recipe uses 48 px) and
+  put the content in the remaining row. Any content padding, framed panel
+  layout or scrolling belongs below the bar. Do not wrap the whole pair in
+  a padded element or another `space`/one-region `PageLayout` just to host
+  the commands, and do not move the bar into place with CSS.
+- A `ListView` already owns its record commands; keep them there instead of
+  copying them into a page bar. This rule applies when the composed page or
+  tab needs commands of its own. Public recipe:
+  [page and tab command rows](../../../docs/toolkit.md#page-command-bars);
+  owner decision: [FB-0213](../../../docs/feedback.md#fb-0213).
+
 ## Grid rules
 
 - Use the native Grid and its public data, scroll, selection, and column APIs.

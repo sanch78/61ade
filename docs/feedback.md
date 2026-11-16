@@ -9635,3 +9635,33 @@ that exactly equals an option label lists every option. The managed
   At the owner's choice the new spec and PHP cases are kept as regression
   coverage. No full-smoke claim.
 - **Status:** implemented and verified on the managed demo.
+
+<a id="fb-0213"></a>
+
+## FB-0213 — Page and tab commands attach directly above their content
+
+- **Date:** 2026-11-16.
+- **Report:** a recurring consumer screenshot showed a command bar inset
+  below the tab header as a separate strip. The screenshot alone does not
+  establish which component or layout the consumer used.
+- **Owner decision:** make the existing attachment pattern a prominent
+  general rule for consumer sessions: a page or tab's own `CommandBar` is
+  the full-width first row of an unframed `type: "none"` Layout attached
+  directly to its host cell, immediately below the tab header. Content
+  padding, panel frames and scrolling belong in the row below the bar.
+  Lists keep their own record commands without a duplicate page bar.
+- **Documentation:** the reusable rule is in
+  [61ade-ui](../.agents/skills/61ade-ui/SKILL.md#command-bars-in-pages-and-tabs),
+  linked at the start of page composition in
+  [61ade-application](../.agents/skills/61ade-application/SKILL.md#5-compose-pages-and-use-the-sandbox).
+  The [toolkit recipe](toolkit.md#page-command-bars) now gives the general
+  tab attachment example, reached from both `CommandBar` and `Tabs`, and
+  [usage](usage.md#toolkit-and-project-modules) points to it. Previously the
+  concrete tab recipe appeared under the canvas/element attachment example.
+- **Scope:** documentation only; the existing API supports the pattern.
+  No framework runtime or consumer files changed.
+- **Verification:** both modified skills passed `quick_validate.py`;
+  internal file/fragment link checks found no new failures, both skill
+  symlinks resolved, and `git diff --check` passed. No runtime or browser
+  test was needed for this documentation-only change.
+- **Status:** guidance updated and checked.
