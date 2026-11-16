@@ -4,20 +4,23 @@ const {signIn}=require('./feature-demo.cjs');
 // Menu attention (docs/shell.md#menu-attention, `view.attention`): the feature demo's `Jóváhagyások` (approvals.json)
 // counts its pending records on its menu entry, its branch and the collapsed `Menü`, kept current by the live channel;
 // zero shows the plain entry; the reader, who is not offered the view, gets neither. The run adds prefixed pending
-// rows, sets the seeded pending ones aside for the zero case, and restores both.
+// rows, sets the seeded pending ones aside for the zero case, and restores both. The branch and `Menü` also sum the
+// unseen `Változások` (changes.json, its own attention), which the zero case marks seen and restores too.
 const prefix='ma'+Date.now().toString(36);
 const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'demo';
 const php=code=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${runtime}/${instance}/features.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');${code}`],{encoding:'utf8'});
 test.describe.configure({mode:'serial'});
-let seeded=[];
+let seeded=[],unseenChanges=[];
 const pending=()=>Number(php(`echo $db->query("SELECT COUNT(*) FROM demo_approvals WHERE status='pending'")->fetchColumn();`));
+const unseen=()=>Number(php(`echo $db->query("SELECT COUNT(*) FROM demo_changes WHERE seen=0")->fetchColumn();`));
 test.beforeAll(()=>{
  php(`$db->exec("DELETE FROM demo_approvals WHERE title LIKE '${prefix}%'");`);
  seeded=JSON.parse(php(`echo json_encode($db->query("SELECT CAST(id AS TEXT) FROM demo_approvals WHERE status='pending'")->fetchAll(PDO::FETCH_COLUMN));`));
+ unseenChanges=JSON.parse(php(`echo json_encode($db->query("SELECT CAST(id AS TEXT) FROM demo_changes WHERE seen=0")->fetchAll(PDO::FETCH_COLUMN));`));
  php(`$q=$db->prepare("INSERT INTO demo_approvals(title,status) VALUES (?,'pending')");foreach(['${prefix} első','${prefix} második'] as $t)$q->execute([$t]);`);
 });
 test.afterAll(()=>{
- php(`$db->exec("DELETE FROM demo_approvals WHERE title LIKE '${prefix}%'");$q=$db->prepare("UPDATE demo_approvals SET status='pending' WHERE id=?");foreach(${JSON.stringify(seeded)} as $id)$q->execute([$id]);`);
+ php(`$db->exec("DELETE FROM demo_approvals WHERE title LIKE '${prefix}%'");$q=$db->prepare("UPDATE demo_approvals SET status='pending' WHERE id=?");foreach(${JSON.stringify(seeded)} as $id)$q->execute([$id]);$q=$db->prepare("UPDATE demo_changes SET seen=0 WHERE id=?");foreach(${JSON.stringify(unseenChanges)} as $id)$q->execute([$id]);`);
 });
 
 const nav=page=>page.locator('.blade-navigation-row .dhx_menu-nav');
@@ -30,10 +33,10 @@ test('count, tone and accessible name on the entry and its branch; live changes;
  // Wide enough for the full menu beside the demo's menu command `Munkaasztal` (docs/shell.md#menu-commands).
  await page.setViewportSize({width:1600,height:900});
  await signIn(page);
- const count=pending();
+ const count=pending(),others=unseen();
  expect(count).toBe(seeded.length+2);
- // The branch shows the count in the tone, hidden from screen readers; its name is unchanged.
- await expect(badge(page,'group:Feature demó')).toHaveText(String(count));
+ // The branch shows the sum in the most urgent tone, hidden from screen readers; its name is unchanged.
+ await expect(badge(page,'group:Feature demó')).toHaveText(String(count+others));
  await expect(badge(page,'group:Feature demó')).toHaveClass(/blade-menu-count--warning/);
  await expect(badge(page,'group:Feature demó')).toHaveAttribute('aria-hidden','true');
  await page.getByRole('menuitem',{name:'Feature demó',exact:true}).click();
@@ -44,9 +47,9 @@ test('count, tone and accessible name on the entry and its branch; live changes;
  // A change on the server reaches the open menu through the live channel, without closing it.
  php(`$db->exec("UPDATE demo_approvals SET status='approved' WHERE title='${prefix} első'");`);
  await expect(entry(page,count-1)).toBeVisible({timeout:15000});
- await expect(badge(page,'group:Feature demó')).toHaveText(String(count-1));
- // Zero: the plain entry and branch.
- php(`$db->exec("UPDATE demo_approvals SET status='approved' WHERE status='pending'");`);
+ await expect(badge(page,'group:Feature demó')).toHaveText(String(count-1+others));
+ // Zero: the plain entry and branch (the unseen changes set aside too).
+ php(`$db->exec("UPDATE demo_approvals SET status='approved' WHERE status='pending'");$db->exec("UPDATE demo_changes SET seen=1");`);
  await expect(entry(page,0)).toBeVisible({timeout:15000});
  await expect(nav(page).locator('.blade-menu-count')).toHaveCount(0);
  await expect(page.locator('.dhx_menu .blade-menu-count')).toHaveCount(0);
@@ -62,11 +65,11 @@ test('the collapsed Menü at 390 px shows the attention; the reader gets neither
  const phone=await browser.newPage();
  await phone.setViewportSize({width:390,height:844});
  await signIn(phone);
- const count=pending();
- await expect(badge(phone,'blade-main-menu')).toHaveText(String(count));
+ const count=pending(),total=count+unseen();
+ await expect(badge(phone,'blade-main-menu')).toHaveText(String(total));
  await phone.getByRole('menuitem',{name:'Menü',exact:true}).click();
  const group=phone.locator('.dhx_menu [data-dhx-id="group:Feature demó"]');
- await expect(group.locator('.blade-menu-count')).toHaveText(String(count));
+ await expect(group.locator('.blade-menu-count')).toHaveText(String(total));
  await phone.getByRole('menuitem',{name:'Feature demó',exact:true}).click();
  await expect(entry(phone,count)).toBeVisible();
  await phone.close();

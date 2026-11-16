@@ -15,7 +15,7 @@ final class SqlResource
      * $afterDelete(Context, string $id, array $target) after a delete or archive (not after a preview).
      * $computed: field name => trusted developer SQL expression over the base row alias `blade_base` (e.g. a usage
      * count subquery); such a declared number/text field is read-only, listed, sortable and filterable, never written.
-     * A computed text or number field may be a `column.media` column (for example the file id of a referenced record).
+     * A computed text, number or select field (FB-0212: its options label the values, filtered like a stored one) may be a `column.media` column (for example the file id of a referenced record).
      * $tenantColumn: the resource is tenant-scoped. Every list, count, lookup, read, watch and write is limited to the
      * Context's active tenant; create stamps it, a client cannot send it, and another tenant's row is not found.
      * Without an active tenant (tenancy off or no membership) the resource fails closed. Computed SQL is trusted and
@@ -46,7 +46,7 @@ final class SqlResource
         $known=array_column($fields,null,'name');
         foreach($computed as $name=>$sql){
             $field=is_string($name)?($known[$name]??null):null;
-            if(!$field||!in_array($field->type,['number','text'],true)||$field->secret||($field->column['editable']??false)||$field->file!==null||($field->validation['unique']??false)||in_array($name,array_merge(...$unique ?: [[]]),true)||isset($defaults[$name])||$name===$ownerColumn
+            if(!$field||!in_array($field->type,['number','text','select'],true)||$field->secret||($field->column['editable']??false)||$field->file!==null||($field->validation['unique']??false)||in_array($name,array_merge(...$unique ?: [[]]),true)||isset($defaults[$name])||$name===$ownerColumn
                 ||!is_string($sql)||trim($sql)===''||str_contains($sql,';')||str_contains($sql,'?')||str_contains($sql,"\0"))throw new \InvalidArgumentException('Invalid computed column.');
         }
         if($order!==null){
@@ -128,7 +128,7 @@ final class SqlResource
      * $formSections, $flushSections: the section presentation of the create and update forms (Action::$formSections,
      * Action::$flushSections).
      */
-    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, string $formSections = 'panels', bool $flushSections = false, ?\Closure $available = null): View
+    public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, string $formSections = 'panels', bool $flushSections = false, ?\Closure $available = null, ?array $emphasis = null): View
     {
         $this->registry=$registry;
         $registry->registerFields($this->resource,$this->fields);
@@ -173,7 +173,7 @@ final class SqlResource
                 $actions[]='move';
             }
         }
-        return $registry->view($this->resource,$title,array_values(array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],array_filter($this->fields,static fn($f)=>!$f->scopeOnly&&!$f->stored()))),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands,guide:$guide,menu:$menu,sort:$sort,attention:$attention,modes:$modes,cardColumns:$cardColumns,available:$available);
+        return $registry->view($this->resource,$title,array_values(array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],array_filter($this->fields,static fn($f)=>!$f->scopeOnly&&!$f->stored()))),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands,guide:$guide,menu:$menu,sort:$sort,attention:$attention,modes:$modes,cardColumns:$cardColumns,available:$available,emphasis:$emphasis);
     }
     /**
      * Bulk-capable delete with the definition's policy: `delete` (default; needs no extra columns) removes the row and its

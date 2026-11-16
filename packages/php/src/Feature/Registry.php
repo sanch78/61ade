@@ -151,7 +151,7 @@ final class Registry
         }
     }
     /** A fixed exact filter value of a filterable field (not secret, scope-only, stored, media; text, select, checkbox or number). */
-    private static function filterable(?Field $field,mixed $value): bool
+    public static function filterable(?Field $field,mixed $value): bool
     {
         return $field&&is_string($value)&&!$field->secret&&!$field->scopeOnly&&!$field->stored()&&in_array($field->type,['text','select','checkbox','number'],true)&&$field->media()===null
             &&!($field->type==='checkbox'&&!in_array($value,['0','1'],true))&&!($field->type==='number'&&!ctype_digit($value));
@@ -250,9 +250,9 @@ final class Registry
      * $attention: a live count of the records matching `filters` on the view's menu entry, in a `tone` (View).
      * $available: Closure(Context): bool, whether the view is offered in this bootstrap (View).
      */
-    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, ?\Closure $available = null): View
+    public function view(string $resource, string $title, array $columns, array $actions, bool $singleton = false, ?string $group = null, ?ViewLayout $layout = null, bool $rowNumbers = true, bool $selection = false, ?string $icon = null, bool $desktopOnly = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, ?array $drop = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, ?\Closure $available = null, ?array $emphasis = null): View
     {
-        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$menu,$sort,$attention,$modes,$cardColumns,$available));
+        return $this->addView(View::list($resource,$title,$columns,$actions,$singleton,$group,$layout,$rowNumbers,$selection,$icon,$desktopOnly,$rowSelection,$rowHeight,$tileMinWidth,$tiles,$activate,$id,$commands,$guide,$drop,$menu,$sort,$attention,$modes,$cardColumns,$available,$emphasis));
     }
     /**
      * Sub-view: every record of the $view list expands (grid sub-row or card) to the $child list filtered to

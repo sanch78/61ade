@@ -181,7 +181,14 @@ false` ([ListView](toolkit.md#listview), [field presentation](field-presentation
 [FB-0162](feedback.md#fb-0162)–[FB-0166](feedback.md#fb-0166)). A view whose records wait for someone
 declares `attention` (`filters`, `tone`): its menu entry, its branch and
 `Menü` show a live count ([menu attention](shell.md#menu-attention),
-[FB-0160](feedback.md#fb-0160)).
+[FB-0160](feedback.md#fb-0160)); `label` (`{count} új`) names the counted
+state in the accessible name. An inbox, review queue or audit list declares
+`emphasis` (`field`, `value`, `label`) so the unseen records are bold with a
+hidden marker, and `column.tones` on a select field so a riskier value is a
+label in a theme tone with its text kept. A computed select field shows and
+filters a state derived from other tables by its option labels
+([value tones and emphasized records](workspaces.md#value-tones),
+[FB-0212](feedback.md#fb-0212)).
 
 A history list, an account or model picker or a sort menu that opens from a
 button the page placed itself (beside a title, in a composer) is

@@ -11,6 +11,15 @@ export function optionText(field:{type?:string;options?:Record<string,string>},v
   if(field.type==="multiselect")return String(value??"").split(",").filter(Boolean).map(key=>field.options?.[key]??key).join(", ");
   return field.options?.[String(value)]??String(value??"");
 }
+const TONES=new Set(["primary","secondary","success","warning","danger"]);
+/**
+ * $html (the escaped text of a value) as a label in the theme tone the field declares for the value (`tones`, FB-0212);
+ * unchanged without one or for an empty text. The text stays visible, so colour is never the only signal.
+ */
+export function toned(field:{tones?:Record<string,string>},value:unknown,html:string):string{
+  const tone=field.tones?.[String(value??"")];
+  return tone&&TONES.has(tone)&&html!==""?`<span class="blade-tone blade-tone--${tone}">${html}</span>`:html;
+}
 /** Suite checkbox surface shared by Grid and DataView templates; ACL controls its presence. */
 export function recordCheckbox(row:Row,field:ViewDefinition["columns"][number]):string {
   const value=row[field.id],checked=value===true||String(value)==="1";
@@ -38,7 +47,7 @@ export function recordIcon(field:{options?:Record<string,string>},value:unknown,
 export type MediaDescriptor={id:string;name:string;mime_type:string;revision:string;duration_ms:number|null;width:number|null;height:number|null;thumbnail:"ready"|"pending"|"failed"|"none"};
 /** Derived media part of a field-less column: `mediaOf` names the media field whose `_media` it reads. */
 export type MediaPart="type"|"resolution"|"duration";
-type Column={id:string;type?:string;media?:string;presentation?:string;imageBase?:string;altOf?:string;options?:Record<string,string>;mediaOf?:string;part?:MediaPart}&Resolved;
+type Column={id:string;type?:string;media?:string;presentation?:string;imageBase?:string;altOf?:string;options?:Record<string,string>;tones?:Record<string,string>;mediaOf?:string;part?:MediaPart}&Resolved;
 /** A media column is a presentation of a file-id value (`media` names the file resource), whatever its field type. */
 export const isMedia=(field:Column)=>typeof field.media==="string"&&field.media!==""||field.type==="media";
 export const isIcon=(field:Column)=>field.type==="icon"||field.presentation==="icon";
@@ -149,7 +158,7 @@ export function presentedFields<T extends Column>(fields:T[],columns:Column[]):T
     if(!column)return field;
     return {...field,...(field.media===undefined&&column.media!==undefined?{media:column.media}:{}),...(field.presentation===undefined&&column.presentation!==undefined?{presentation:column.presentation}:{}),
       ...(column.presentation==="image"?{imageBase:column.imageBase,altOf:column.altOf}:{}),
-      ...(!field.options&&column.options?{options:column.options}:{})};
+      ...(!field.options&&column.options?{options:column.options}:{}),...(!field.tones&&column.tones?{tones:column.tones}:{})};
   });
 }
 /** Fields with the derived media columns (`mediaOf`) of the view placed right after the media field they present. */
@@ -193,7 +202,7 @@ function recordField(row:Row,field:ViewDefinition["columns"][number],editable:bo
   const glyph=isIcon(field)?recordIcon(field,value,true):"";
   // Long text (`textarea`) is clamped to its `cardLines` (default 4, 0 all of it) in a card (admin.css); the details show all of it.
   const lines=field.type==="textarea"&&custom===undefined?field.cardLines??4:0;
-  return `<div class="blade-grid-card__field${lines?" blade-grid-card__field--long":""}"${lines&&lines!==4?` style="--blade-card-lines:${Math.trunc(lines)}"`:""}><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):content}</dd></div>`;
+  return `<div class="blade-grid-card__field${lines?" blade-grid-card__field--long":""}"${lines&&lines!==4?` style="--blade-card-lines:${Math.trunc(lines)}"`:""}><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):toned(field,value,content)}</dd></div>`;
 }
 
 /** One reference count of a usage provider (`label` is already translated by the server). */

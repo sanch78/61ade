@@ -32,7 +32,7 @@ final class Translator
     {
         foreach ($definition as $key => &$value) {
             if (is_string($value) && in_array($key, ['label','header','title','group','submitLabel','message','text'], true)) $value = self::text($value);
-            elseif (is_array($value) && $key !== 'options' && $key !== 'defaultValue') $value = self::presentation($value);
+            elseif (is_array($value) && $key !== 'options' && $key !== 'defaultValue' && $key !== 'tones') $value = self::presentation($value);
         }
         return $definition;
     }

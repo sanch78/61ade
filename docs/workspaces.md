@@ -477,6 +477,74 @@ are unaffected. This relies on Suite 9.3.12's gap; rerun focused checks on upgra
 `layout-resizer.spec.cjs` measures centers of both layout types on both axes
 across themes and drags with the mouse. FB-0013; wide layouts FB-0058.
 
+<a id="value-tones"></a>
+
+## Value tones and emphasized records
+
+An inbox, review queue, notification or audit list shows at a glance which
+records are not seen yet and which carry more risk
+([FB-0212](feedback.md#fb-0212)). Both are declarations; a project writes no
+list markup.
+
+**Value tones** (`column.tones`): a select field maps some of its option keys to
+a theme tone, `primary`, `secondary`, `success`, `warning` or `danger` (the
+calendar's and the menu attention's tones together). That value is drawn as a
+small label in the tone, with the option's text inside it, in the grid cell, the
+card, the tile's second line and the details (`Adatok`, `RecordDetails`). Other
+values stay plain text. The text is always visible, so colour is never the only
+signal. Each label keeps white text at 4.5:1 or more (the theme colour darkened;
+`warning` is the menu attention's accent, dark text in dark themes) in every
+factory theme and skin. An editable select keeps its native cell editor.
+
+```json
+{"name": "level", "label": "Hatókör", "type": "select",
+ "options": {"record": "Egy rekord", "tenant": "Egy bérlő", "global": "Minden bérlő"},
+ "column": {"tones": {"global": "warning"}}}
+```
+
+PHP: `new Field('level', 'Hatókör', 'select', options: […], column: ['tones' => ['global' => 'warning']])`.
+Declaration rules: a select field, not secret, with static `options` that
+name every toned key; 1–50 entries, each a known tone; no `presentation`,
+`media` or `editor` (a project presentation or field type renders the value
+itself). Anything else throws `InvalidArgumentException` when the field is
+declared. A [computed](configuration.md) select field takes tones too.
+
+<a id="emphasized-records"></a>
+
+**Emphasized records** (view `emphasis`): the rows, cards and tiles whose
+field holds a fixed value are bold, like unread mail. `label` (plain,
+translatable, at most 100 characters) is a visually hidden marker on each of
+them, read before the record (`Új: Nyitvatartás átvezetve …`). In the grid it
+sits in the first column that is not `secondary`, on cards and tiles at their
+start.
+
+```json
+"view": {"title": "Változások", "emphasis": {"field": "seen", "value": "0", "label": "Új"}}
+```
+
+PHP: `emphasis: ['field' => 'seen', 'value' => '0', 'label' => 'Új']` on
+`Registry::view`, `View::list` and `SqlResource::register`. Declaration rules:
+`field` is a field of the view's resource that a list may filter on: not
+secret, scope-only, a stored file or media; text, select, checkbox (`0`/`1`)
+or number (digits). The `value` is a string of at most 255 characters, the
+empty string too (an unset `seen_at`). Without `label` the field must be one of
+the view's columns, so its own visible text carries the meaning. Not for a
+singleton. Anything else throws `InvalidArgumentException` when the view is
+declared.
+
+The value is compared in the browser with the record the actor already
+received. A record whose field the actor may not read is never emphasized,
+and the declaration reveals nothing further. A change of the field (a cell or
+form save, the live channel) redraws the record with or without emphasis. The
+details window shows the field's value but no emphasis.
+
+Limits: one emphasis rule per view. The field is a value of the record, so its
+seen state is shared by everyone who reads it (one reviewer, or a team that
+reviews together). A [computed](configuration.md) field cannot refer to the
+actor, so per-user unread state has no declaration yet. The menu entry
+can count the same records with an [attention](shell.md#menu-attention) whose
+`label` names them (`{count} új`).
+
 <a id="kártyák-rekordadatok-sorszám-és-jelölés"></a>
 
 ## Cards, record details, numbering and marks

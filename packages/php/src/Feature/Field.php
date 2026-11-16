@@ -9,6 +9,9 @@ use InvalidArgumentException;
 
 final readonly class Field
 {
+    /** Theme tones of a select value (`column.tones`, FB-0212): the calendar's and the menu attention's together. */
+    public const TONES = ['primary', 'secondary', 'success', 'warning', 'danger'];
+
     public function __construct(
         public string $name,
         public string $label,
@@ -114,7 +117,7 @@ final readonly class Field
             }
         }
         foreach ($column as $property => $value) {
-            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'details', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of', 'cardLines', 'card_lines'], true)
+            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'details', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of', 'cardLines', 'card_lines', 'tones'], true)
                 || match ($property) {
                     'editable', 'secondary', 'details' => !is_bool($value),
                     'align' => !in_array($value, ['left', 'center', 'right'], true),
@@ -125,6 +128,8 @@ final readonly class Field
                     'altOf', 'alt_of' => !is_string($value) || !preg_match('/^[a-z][a-z0-9_]*$/D', $value),
                     // Lines of a long text in a card (FB-0177): 0 shows all of it, default 4; textarea fields only (below).
                     'cardLines', 'card_lines' => !is_int($value) || $value < 0 || $value > 50,
+                    // Value tones (FB-0212): option key => theme tone, checked against the options below.
+                    'tones' => !is_array($value) || !$value || count($value) > 50 || array_filter($value, static fn($tone) => !in_array($tone, self::TONES, true)),
                     default => !is_int($value) || $value < 1 || $value > 10000,
                 }) {
                 throw new InvalidArgumentException('Invalid field column presentation.');
@@ -138,6 +143,11 @@ final readonly class Field
         if ($image && ($secret || $type !== 'text' || ($column['editable'] ?? false) || isset($column['media']) || $options !== [] || $file !== null
             || count(array_intersect_key($column, ['imageBase' => 1, 'image_base' => 1])) !== 1 || count(array_intersect_key($column, ['altOf' => 1, 'alt_of' => 1])) > 1)) {
             throw new InvalidArgumentException('Image columns need a readable, non-editable text field with one imageBase and no options.');
+        }
+        // `tones`: a select value is drawn as a label in that theme tone; its text stays visible, so colour is never the only signal.
+        if (isset($column['tones']) && ($secret || $type !== 'select' || isset($column['presentation']) || isset($column['media']) || $editor !== null || !is_array($options)
+            || array_diff(array_map('strval', array_keys($column['tones'])), array_map('strval', array_keys($options))))) {
+            throw new InvalidArgumentException('Value tones need a select field with static options naming every toned value, without a presentation, media or editor.');
         }
         $icon = ($column['presentation'] ?? null) === 'icon';
         if ($icon && ($secret || !in_array($type, ['text', 'select'], true) || ($column['editable'] ?? false))) throw new InvalidArgumentException('Icon columns need a readable, non-editable text or select field.');

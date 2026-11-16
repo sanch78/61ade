@@ -96,11 +96,44 @@ foreach([
  'no filters'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a3',attention:['filters'=>[]]),
  'a list of filters'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a4',attention:['filters'=>['audio']]),
  'an unknown tone'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a5',attention:['filters'=>['kind'=>'audio'],'tone'=>'pink']),
- 'an unknown key'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a6',attention:['filters'=>['kind'=>'audio'],'label'=>'x']),
+ 'an unknown key'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a6',attention:['filters'=>['kind'=>'audio'],'extra'=>'x']),
+ 'a label without {count}'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a10',attention:['filters'=>['kind'=>'audio'],'label'=>'új']),
+ 'a label with {count} twice'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a11',attention:['filters'=>['kind'=>'audio'],'label'=>'{count} új {count}']),
+ 'a label of {count} alone'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a12',attention:['filters'=>['kind'=>'audio'],'label'=>' {count} ']),
+ 'a label that is not a string'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a13',attention:['filters'=>['kind'=>'audio'],'label'=>['{count}']]),
  'an unknown field'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a7',attention:['filters'=>['nope'=>'1']]),
  'a secret field'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a8',attention:['filters'=>['secret'=>'1']]),
  'an empty value'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.a9',attention:['filters'=>['kind'=>'']]),
 ] as $case=>$declare)rejects($declare,'attention on '.$case.' accepted');
+// A counted state of its own (FB-0212): `{count}` once in a translatable message, sent translated with the attention.
+$menuless->view('assets','Új',$columns,['get'],id:'assets.fresh',attention:['filters'=>['kind'=>'image'],'tone'=>'primary','label'=>'{count} új']);
+// Value tones (FB-0212): option keys of a select field in a known tone, without a presentation, media or editor.
+check((new Field('state','Állapot','select',options:['0'=>'Nem','1'=>'Igen'],column:['tones'=>['1'=>'success']]))->column['tones']===['1'=>'success'],'Value tones on integer-like option keys');
+foreach([
+ 'an unknown tone'=>fn()=>new Field('state','S','select',options:['a'=>'A'],column:['tones'=>['a'=>'pink']]),
+ 'an unknown value'=>fn()=>new Field('state','S','select',options:['a'=>'A'],column:['tones'=>['b'=>'danger']]),
+ 'no tones'=>fn()=>new Field('state','S','select',options:['a'=>'A'],column:['tones'=>[]]),
+ 'a text field'=>fn()=>new Field('state','S',column:['tones'=>['a'=>'danger']]),
+ 'a secret field'=>fn()=>new Field('state','S','select',options:['a'=>'A'],secret:true,column:['tones'=>['a'=>'danger']]),
+ 'dynamic options'=>fn()=>new Field('state','S','select',options:static fn()=>['a'=>'A'],column:['tones'=>['a'=>'danger']]),
+ 'a presentation'=>fn()=>new Field('state','S','select',options:['a'=>'A'],column:['tones'=>['a'=>'danger'],'presentation'=>'demo.bar']),
+ 'an editor'=>fn()=>new Field('state','S','select',options:['a'=>'A'],editor:'demo.pick',column:['tones'=>['a'=>'danger']]),
+] as $case=>$declare)rejects($declare,'value tones with '.$case.' accepted');
+// Emphasized records (FB-0212): a fixed value of a filterable field; without a label the field is a column.
+$menuless->view('assets','Kiemelt',$columns,['get'],id:'assets.emphasis',emphasis:['field'=>'kind','value'=>'audio']);
+$menuless->view('assets','Üres',$columns,['get'],id:'assets.unset',emphasis:['field'=>'note','value'=>'','label'=>'Új']);
+$menuless->view('assets','Jelölt',$columns,['get'],id:'assets.marked',emphasis:['field'=>'note','value'=>'x','label'=>'Új']);
+check((new SqlResource('clips2','clips','id',[new Field('state','Állapot','select',options:['new'=>'Új'])]))->register($menuless,'Klipek 2',emphasis:['field'=>'state','value'=>'new'])->options['emphasis']===['field'=>'state','value'=>'new'],'SqlResource::register(emphasis: …)');
+foreach([
+ 'an unknown field'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.e1',emphasis:['field'=>'nope','value'=>'1','label'=>'Új']),
+ 'a secret field'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.e2',emphasis:['field'=>'secret','value'=>'1','label'=>'Új']),
+ 'a value too long'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.e3',emphasis:['field'=>'kind','value'=>str_repeat('a',256)]),
+ 'a value that is not a string'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.e4',emphasis:['field'=>'kind','value'=>1]),
+ 'an unknown key'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.e5',emphasis:['field'=>'kind','value'=>'audio','tone'=>'danger']),
+ 'no label and no column'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.e6',emphasis:['field'=>'note','value'=>'x']),
+ 'an empty label'=>fn()=>$menuless->view('assets','X',$columns,['get'],id:'assets.e7',emphasis:['field'=>'kind','value'=>'audio','label'=>' ']),
+ 'a singleton'=>fn()=>$menuless->view('assets','X',$columns,['get'],singleton:true,id:'assets.e8',emphasis:['field'=>'kind','value'=>'audio']),
+] as $case=>$declare)rejects($declare,'emphasis with '.$case.' accepted');
 // A page activation needs the child's own page: not a menu-less child, also when it leaves the menu later.
 $menuPages=new Registry();$resource()->register($menuPages,'Médiatár',activate:'page');
 (new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($menuPages,'Sávok',menu:false);
@@ -142,6 +175,8 @@ check($views['demo.player']['options']===['loop'=>true,'label'=>'Lejátszás']&&
 $menuWorkspace=new Workspace($menuless,$db);
 $offered=array_column($menuWorkspace->views(new Identity('1','Egy')),null,'id');
 check(isset($offered['assets.hidden'])&&$offered['assets.hidden']['menu']===false&&!array_key_exists('menu',$offered['assets']),'Bootstrap: menu: false only on the menu-less view');
+check(($offered['assets.fresh']['attention']??null)===['filters'=>['kind'=>'image'],'tone'=>'primary','label'=>'{count} új'],'Bootstrap: attention with its translated label');
+check(($offered['assets.marked']['options']['emphasis']??null)===['field'=>'note','value'=>'x','label'=>'Új']&&!isset($offered['assets']['options']['emphasis']),'Bootstrap: emphasis only on its view');
 check(($offered['assets.watched']['attention']??null)===['filters'=>['kind'=>'audio','title'=>'x'],'tone'=>'warning']&&!array_key_exists('attention',$offered['assets'])&&array_search('attention',array_keys($offered['assets.watched']),true)<array_search('options',array_keys($offered['assets.watched']),true),'Bootstrap: attention with the default tone, only on its view');
 $menuSub=new Registry();$resource()->register($menuSub,'Médiatár');
 (new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset')]))->register($menuSub,'Sávok',menu:false);

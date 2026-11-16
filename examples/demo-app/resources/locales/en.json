@@ -392,5 +392,16 @@
   "Ez a dokumentum első változata: nincs mivel összevetni.": "This is the document's first revision: there is nothing to compare it with.",
   "{number}. változat": "Revision {number}",
   "Hosszú szövegek csak bővülő változatai: egy új változat új rekord, a meglévők nem módosulnak. A Felhasználói kézikönyv változatai egyenként körülbelül 60 000 karakteresek, köztük csak néhány sor változott.\n\nJelölj ki egy változatot, és nyomd meg a Különbség gombot: az ablak a kijelölt változatot az előzővel veti össze. A változatlan részek összecsukva maradnak; az n és a p billentyű (vagy F7 és Shift+F7) a következő és az előző változásra ugrik, széles ablakban a két szöveg egymás mellett is megjeleníthető.\n\nKeretrendszer-képesség: TextDiff komponens és projekt saját rekordparancsa.": "Append-only revisions of long texts: a new revision is a new record, existing ones never change. Each revision of the User handbook has about 60,000 characters, with only a few lines changed between them.\n\nSelect a revision and press Difference: the window compares the selected revision with the previous one. Unchanged parts stay folded; the n and p keys (or F7 and Shift+F7) jump to the next and previous change, and a wide window can show the two texts side by side.\n\nFramework capability: the TextDiff component and a project's own record command.",
-  "A változat szövege nem olvasható.": "The text of this revision cannot be read."
+  "A változat szövege nem olvasható.": "The text of this revision cannot be read.",
+  "Változások": "Changes",
+  "Változás": "Change",
+  "Hatókör": "Scope",
+  "Egy rekord": "One record",
+  "Egy bérlő": "One tenant",
+  "Minden bérlő": "Every tenant",
+  "Jóváhagyás": "Approval",
+  "Nem kell": "Not needed",
+  "Látott": "Seen",
+  "{count} új": "{count} new",
+  "Háttérfolyamatok automatikus változásai, mint egy postafiók. A még nem látott sorok félkövérek, a menüpont mellett kék szám mutatja, hány új van; a képernyőolvasó „3 új”-at mond.\n\nA Hatókör narancssárga címkéje jelzi a minden bérlőt érintő, kockázatosabb változást; a Jóváhagyás egy másik táblából számított állapot, színes címkével, és a szűrőben a címkéi szerint választható. A szöveg mindig látszik, a szín nem az egyetlen jel.\n\nPipáld be a Látott oszlopot: a sor normál betűs lesz, és a menü száma csökken.\n\nKeretrendszer-képességek: értéktónusok (column.tones), kiemelt sorok (view.emphasis), menüjelzés saját felirattal (attention.label), számított választómező.": "Automatic changes made by background runs, reviewed like an inbox. Unseen rows are bold, and a blue number beside the menu entry shows how many are new; a screen reader says “3 new”.\n\nThe orange label in Scope marks a riskier change that every tenant inherits; Approval is a state computed from another table, with a coloured label, and the filter offers its labels. The text is always visible, so colour is never the only signal.\n\nTick Seen: the row turns regular and the menu count drops.\n\nFramework capabilities: value tones (column.tones), emphasized rows (view.emphasis), menu attention with its own label (attention.label), computed select field."
 }

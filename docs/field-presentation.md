@@ -101,6 +101,18 @@ tenant, the value checks and the record's value stay as for any field.
  "scope_only": true}
 ```
 
+**Value tones** ([FB-0212](feedback.md#fb-0212)): `column.tones` maps option
+keys of a select field to theme tones (`primary`, `secondary`, `success`,
+`warning`, `danger`). Those values are drawn as toned labels in cells, cards,
+tiles and details, and the text stays visible. See
+[value tones and emphasized records](workspaces.md#value-tones).
+
+```json
+{"name": "level", "label": "Hatókör", "type": "select",
+ "options": {"record": "Egy rekord", "global": "Minden bérlő"},
+ "column": {"tones": {"global": "warning"}}}
+```
+
 PHP Field takes type checkbox, column width/alignment and defaultValue.
 The JSON compiler produces the same definition.
 
