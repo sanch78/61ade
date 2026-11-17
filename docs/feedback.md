@@ -879,3 +879,7 @@
 <a id="fb-0214"></a>
 
 ## FB-0214 — SQL keyword field names in list queries
+
+<a id="fb-0215"></a>
+
+## FB-0215 — Free-text search only when justified

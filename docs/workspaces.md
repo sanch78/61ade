@@ -1054,6 +1054,22 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   characters) is a server-side `LIKE` over those fields combined with filters,
   scope, sort, cursors, counts and the live query; when the actor may query
   none of them the search matches nothing.
+- <a id="search-justification"></a>**Search only when justified**
+  ([FB-0215](feedback.md#fb-0215)). A free-text search is an exception, not a
+  default list feature. Declare `search`, or put any other free-text input in
+  a list, page or tab toolbar, only when both hold:
+  1. the layout has no detailed search: no declared filter panel or project
+     search form already serves the view; and
+  2. the visible fields do not give adequate search: the typed header filters
+     of the visible columns (in cards and tiles the `Szűrés` dialog) cannot
+     find the records users look for. Typical cases: users identify a record
+     by text spread over several fields at once, or by a text field that is
+     not a column.
+
+  A search whose fields are all visible filterable columns only duplicates
+  their header filters: leave it out. Never add an unspecific "search in every
+  field" input above a list or a page. Name the searched fields in the
+  placeholder or label when they are not obvious from the columns.
 - **Reserved row keys.** Suite treats a row's `height` (and `css`) as its own
   property; `ResponsiveGrid` keeps such data keys under an internal alias, so a
   record field named `height` never changes the row height.
