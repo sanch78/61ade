@@ -84,6 +84,12 @@ final readonly class ListSource
         foreach($rules as $r)if($r['effect']==='deny')return false;
         return (bool)array_filter($rules,static fn($r)=>$r['effect']==='allow'&&$r['scope']==='all');
     }
+    /** Quote a declared column without changing the row-source qualifier. */
+    private static function column(string $name):string
+    {
+        if(!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$name))throw new \InvalidArgumentException('Invalid list column.');
+        return '`'.$name.'`';
+    }
     public function sortableFields(Context $ctx):array
     {
         if($this->order)return [$this->order['field']];
@@ -107,8 +113,8 @@ final readonly class ListSource
     {
         $ascending=($sort['direction']==='asc')!==$reverse;
         $op=$ascending?'>':'<';$keyOp=$op.($inclusive?'=':'');$params['edge']=$position['edge'];
-        if($sort['field']==='id')return "{$this->key} $keyOp :edge";
-        $key="{$this->key} $keyOp :edge";
+        $key=self::column($this->key)." $keyOp :edge";
+        if($sort['field']==='id')return $key;
         if($position['value']===null)return $reverse?"($column IS NOT NULL OR ($column IS NULL AND $key))":"($column IS NULL AND $key)";
         $params['edge_value']=$position['value'];$params['edge_equal']=$position['value'];
         $comparison="($column $op :edge_value OR ($column = :edge_equal AND $key))";
@@ -142,14 +148,14 @@ final readonly class ListSource
                 $terms[]=self::predicate($media->classPredicate($ctx,$key,$value),$param.'_',$params);
             }elseif(in_array($field->type,['select','checkbox'],true)){
                 if($field->type==='checkbox'?!in_array($value,['0','1'],true):!array_key_exists($value,$field->metadata($ctx)['options']))throw new Failure('Hibás szűrőérték.');
-                $terms[]="$key = :$param";$params[$param]=$value;
+                $terms[]=self::column($key)." = :$param";$params[$param]=$value;
             }elseif($field->type==='number'){
                 if(!ctype_digit($value))throw new Failure('Egész szám szükséges a szűréshez.');
-                $terms[]="$key = :$param";$params[$param]=$value;
+                $terms[]=self::column($key)." = :$param";$params[$param]=$value;
             }elseif($scope){
-                $terms[]="$key = :$param";$params[$param]=$value;
+                $terms[]=self::column($key)." = :$param";$params[$param]=$value;
             }else{
-                $terms[]="$key LIKE :$param ESCAPE '!'";$params[$param]='%'.str_replace(['!','%','_'],['!!','!%','!_'],$value).'%';
+                $terms[]=self::column($key)." LIKE :$param ESCAPE '!'";$params[$param]='%'.str_replace(['!','%','_'],['!!','!%','!_'],$value).'%';
             }
         };
         foreach($filters as $key=>$value)$condition((string)$key,$value,false);
@@ -165,7 +171,7 @@ final readonly class ListSource
         $search=trim($search);
         if($search!==''){
             $parts=[];
-            foreach($this->searchable($ctx) as $index=>$name){$parts[]="$name LIKE :s$index ESCAPE '!'";$params['s'.$index]='%'.str_replace(['!','%','_'],['!!','!%','!_'],$search).'%';}
+            foreach($this->searchable($ctx) as $index=>$name){$parts[]=self::column($name)." LIKE :s$index ESCAPE '!'";$params['s'.$index]='%'.str_replace(['!','%','_'],['!!','!%','!_'],$search).'%';}
             $terms[]='('.($parts?implode(' OR ',$parts):'1=0').')';
         }
         $sort=$input['sort']??($this->order?['field'=>$this->order['field'],'direction'=>'asc']:['field'=>'id','direction'=>'desc']);
@@ -173,7 +179,8 @@ final readonly class ListSource
         $sort=['field'=>$sort['field'],'direction'=>$sort['direction']];
         if(!in_array($sort['field'],$this->sortableFields($ctx),true))throw new Failure('A mező nem rendezhető.',403);
         $storageColumn=$sort['field']==='id'?$this->key:$sort['field'];
-        $column=($known[$sort['field']]->type??'')==='number'?"CAST($storageColumn AS DECIMAL(65,0))":$storageColumn;
+        $quotedColumn=self::column($storageColumn);
+        $column=($known[$sort['field']]->type??'')==='number'?"CAST($quotedColumn AS DECIMAL(65,0))":$quotedColumn;
         $baseTerms=$terms;$baseParams=$params;
         $from=$this->source?($this->source)($ctx):$this->table;
         $count=static function(array $terms,array $params)use($ctx,$from):int{
@@ -196,7 +203,7 @@ final readonly class ListSource
         }
 
         $ascending=($sort['direction']==='asc')!==($direction==='previous');$order=$ascending?'ASC':'DESC';
-        $ordering=$sort['field']==='id'?"{$this->key} $order":"($column IS NULL) ".($direction==='previous'?'DESC':'ASC').", $column $order, {$this->key} $order";
+        $ordering=$sort['field']==='id'?self::column($this->key)." $order":"($column IS NULL) ".($direction==='previous'?'DESC':'ASC').", $column $order, ".self::column($this->key)." $order";
         $q=$ctx->db->prepare("SELECT * FROM $from WHERE ".implode(' AND ',$terms)." ORDER BY $ordering LIMIT ".($limit+1));$q->execute($params);
         $rows=$q->fetchAll(\PDO::FETCH_ASSOC);$more=count($rows)>$limit;if($more)array_pop($rows);if($direction==='previous')$rows=array_reverse($rows);
         $position=fn($row)=>['edge'=>(string)$row[$this->key],'sort'=>$sort,'value'=>$row[$storageColumn]??null];
@@ -270,8 +277,8 @@ final readonly class ListSource
         [$scope,$params]=$ctx->acl->predicate($ctx->actor->id,$this->resource,'list',$ctx->channel,$this->key,$this->owner,$this->qualifier($ctx));
         $terms=["($scope)","({$this->where})","({$this->countWhere})"];
         if($this->tenant!==null&&($terms[]=$this->realm($ctx,$params))===null)return null;
-        $i=0;foreach($filters as $name=>$value){$terms[]="COALESCE(CAST($name AS CHAR),'') = :blade_cf$i";$params["blade_cf$i"]=(string)$value;$i++;}
-        $on=implode(' OR ',array_map(static fn($name)=>"CAST($name AS CHAR) = blade_values.blade_v",$match));
+        $i=0;foreach($filters as $name=>$value){$terms[]="COALESCE(CAST(".self::column($name)." AS CHAR),'') = :blade_cf$i";$params["blade_cf$i"]=(string)$value;$i++;}
+        $on=implode(' OR ',array_map(static fn($name)=>"CAST(".self::column($name)." AS CHAR) = blade_values.blade_v",$match));
         $from=$this->source?($this->source)($ctx):$this->table;
         $out=[];
         // At most 200 values per query: SQLite allows 500 terms in one compound SELECT, a watch window has up to 600 rows.
@@ -294,7 +301,7 @@ final readonly class ListSource
         $values=$realm['read']??($ctx->tenant!==null?[$ctx->tenant]:null);
         if($values===null)return null;
         $in=[];foreach($values as $i=>$value){$in[]=":blade_tenant$i";$params["blade_tenant$i"]=$value;}
-        return "{$this->tenant} IN (".implode(',',$in).')';
+        return self::column($this->tenant)." IN (".implode(',',$in).')';
     }
     /**
      * The name that qualifies the outer row in correlated scope SQL (delegated rules, FB-0180): the alias of the
@@ -322,10 +329,11 @@ final readonly class ListSource
         if($this->tenant!==null&&($terms[]=$this->realm($ctx,$params))===null)return null;
         // A hierarchy child lists its top-level records only (as its view does), so only those are counted.
         $own=$this->registry?->subviewOf($this->resource);
-        if($own&&$own['child']===$this->resource&&$own['field']!==$field)$terms[]="COALESCE(CAST({$own['field']} AS CHAR),'') = ''";
+        if($own&&$own['child']===$this->resource&&$own['field']!==$field)$terms[]="COALESCE(CAST(".self::column($own['field'])." AS CHAR),'') = ''";
         $in=[];foreach(array_values(array_unique($values)) as $i=>$value){$in[]=":blade_sv$i";$params["blade_sv$i"]=$value;}
         $from=$this->source?($this->source)($ctx):$this->table;
-        $q=$ctx->db->prepare("SELECT CAST($field AS CHAR) AS blade_parent, COUNT(*) AS blade_count FROM $from WHERE ".implode(' AND ',$terms)." AND CAST($field AS CHAR) IN (".implode(',',$in).") GROUP BY CAST($field AS CHAR)");
+        $column=self::column($field);
+        $q=$ctx->db->prepare("SELECT CAST($column AS CHAR) AS blade_parent, COUNT(*) AS blade_count FROM $from WHERE ".implode(' AND ',$terms)." AND CAST($column AS CHAR) IN (".implode(',',$in).") GROUP BY CAST($column AS CHAR)");
         $q->execute($params);
         $out=[];foreach($q->fetchAll(\PDO::FETCH_ASSOC) as $row)$out[(string)$row['blade_parent']]=(int)$row['blade_count'];
         return $out;

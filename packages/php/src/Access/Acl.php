@@ -113,6 +113,8 @@ final class Acl
         foreach (array_filter([$idColumn, $ownerColumn, $qualifier]) as $column) {
             if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D', $column)) throw new \InvalidArgumentException('Invalid scope column');
         }
+        $idColumn = '`'.$idColumn.'`';
+        if ($ownerColumn !== null) $ownerColumn = '`'.$ownerColumn.'`';
         $allow = []; $deny = []; $params = [];
         foreach ($this->rules($actor, $resource, $action, $channel) as $r) {
             if ($r['field_name'] !== '') continue;

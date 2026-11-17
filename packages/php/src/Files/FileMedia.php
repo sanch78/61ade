@@ -98,7 +98,7 @@ final readonly class FileMedia implements MediaSource, FileSource
         $mounts = $this->visible($ctx);
         if (!$mounts) return ['1 = 0', []];
         $names = array_map(static fn($index) => 'mount'.$index, array_keys($mounts));
-        return ["$column IN (SELECT media_file.id FROM blade_files media_file WHERE media_file.space = :space AND media_file.kind = 'file' AND ".FileStorage::live('media_file')." AND media_file.mime_type LIKE :pattern AND media_file.mount_id IN (:".implode(', :', $names).'))',
+        return ["`$column` IN (SELECT media_file.id FROM blade_files media_file WHERE media_file.space = :space AND media_file.kind = 'file' AND ".FileStorage::live('media_file')." AND media_file.mime_type LIKE :pattern AND media_file.mount_id IN (:".implode(', :', $names).'))',
             ['space' => $this->storage->space, 'pattern' => $class.'/%', ...array_combine($names, $mounts)]];
     }
 }

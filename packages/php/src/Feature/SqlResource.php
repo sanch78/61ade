@@ -118,7 +118,7 @@ final class SqlResource
         $expressions = [];
         foreach ($this->related as $storage) $expressions = [...$expressions, ...$storage->expressions($ctx->db, $this->key)];
         // Text like stored columns (RelatedStorage does the same): filters bind strings, number sorting casts.
-        foreach ($this->computed as $name => $sql) $expressions[] = "CAST(($sql) AS CHAR) AS $name";
+        foreach ($this->computed as $name => $sql) $expressions[] = "CAST(($sql) AS CHAR) AS `$name`";
         if (!$expressions && !$this->archive()) return $this->table;
         return '(SELECT blade_base.*'.($expressions ? ', '.implode(', ', $expressions) : '')." FROM {$this->table} blade_base".($this->archive() ? ' WHERE blade_base.archived_at IS NULL' : '').') blade_source';
     }
@@ -222,7 +222,7 @@ final class SqlResource
         $q->execute([$id,...$tenants]); $row=$q->fetch(\PDO::FETCH_ASSOC);
         if(!$row)throw new Failure('Nem található objektum.',404);
         if($this->computed){
-            $q=$ctx->db->prepare('SELECT '.implode(', ',array_map(static fn($name,$sql)=>"CAST(($sql) AS CHAR) AS $name",array_keys($this->computed),$this->computed))." FROM {$this->table} blade_base WHERE blade_base.{$this->key} = ?");
+            $q=$ctx->db->prepare('SELECT '.implode(', ',array_map(static fn($name,$sql)=>"CAST(($sql) AS CHAR) AS `$name`",array_keys($this->computed),$this->computed))." FROM {$this->table} blade_base WHERE blade_base.{$this->key} = ?");
             $q->execute([$row[$this->key]]);$row=array_replace($row,$q->fetch(\PDO::FETCH_ASSOC)?:[]);
         }
         foreach ($this->related as $storage) $row = array_replace($row, $storage->read($ctx->db, (string)$row[$this->key]));

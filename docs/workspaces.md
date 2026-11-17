@@ -179,6 +179,8 @@ Partially readable fields are conservatively excluded from filtering.
 Textarea is not a basic filter. Complex/domain filters require extending the
 typed query contract first. Header clicks request server ascending/descending
 sort, never sorting only a loaded subset.
+Declared fields named like SQL keywords (`order`, `group`) work in list
+filters, scopes, sorting, cursor windows and grouped counts.
 
 <a id="list-scope"></a>
 
