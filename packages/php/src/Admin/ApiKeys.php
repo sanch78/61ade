@@ -27,7 +27,7 @@ final class ApiKeys
         $resource = new SqlResource(self::RESOURCE, 'blade_tokens', 'id', [
             new Field('label', 'Megnevezés', required: true, max: 100),
             new Field('actor_id', 'Tulajdonos', 'select', max: 100, options: $this->accounts->ownerOptions(...)),
-            ...($this->tenancy ? [new Field('tenant_id', 'Tenant', 'select', max: 100, options: fn(Context $ctx): array => ['' => 'Globális (csak globális erőforrások)', ...$this->tenancy->lookup()->options($ctx)])] : []),
+            ...($this->tenancy ? [new Field('tenant_id', 'Tenant', 'select', max: 100, options: fn(Context $ctx): array => ['' => 'Globális (csak globális erőforrások)'] + $this->tenancy->lookup()->options($ctx))] : []),
             new Field('scopes', 'Engedélyezett műveletek', 'multiselect', required: true, max: 4000, options: fn(Context $ctx): array => $this->operations()),
             new Field('expires_at', 'Lejárat', required: true, max: 30, defaultValue: gmdate('Y-m-d', time() + min(90, $this->maxDays) * 86400), validation: [
                 'pattern' => ['expression' => '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$', 'message' => 'ÉÉÉÉ-HH-NN formátumú dátum szükséges.'],
