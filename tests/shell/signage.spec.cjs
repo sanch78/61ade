@@ -56,9 +56,11 @@ async function mode(page,label){
  if((await button.textContent()).includes(label))return;
  await button.click();await page.getByRole('menuitem',{name:label,exact:true}).click();await expect(button).toHaveText('Nézet: '+label);
 }
+// The library has no toolbar search (only the title would be searched): the title column's header filter narrows it.
 async function search(page,text){
- const box=page.locator('[data-cell-id="grid"]').getByRole('textbox',{name:'Keresés',exact:true});
- const listed=page.waitForResponse(r=>{try{const body=r.request().postDataJSON();return body?.action==='list'&&(body.values?.search??'')===text;}catch{return false;}});
+ const box=page.locator('[data-cell-id="grid"]').getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true});
+ if(await box.inputValue()===text)return;
+ const listed=page.waitForResponse(r=>{try{const body=r.request().postDataJSON();return body?.action==='list'&&(body.values?.filters?.title??'')===text;}catch{return false;}});
  await box.fill(text);await box.press('Enter');await listed;
 }
 // Files in a mount root (Signage by default) through the file manager's direct multipart upload; returns name → id.
@@ -75,7 +77,7 @@ async function seedFiles(page,files,mount='signage'){
  return Object.fromEntries(result.body.data.succeeded.map(item=>[item.name,String(item.id)]));
 }
 async function findAsset(page,title){
- const listed=await api(page,'signage_assets','list',null,{mode:'dynamic',limit:100,sort:{field:'id',direction:'desc'},filters:{},search:title});
+ const listed=await api(page,'signage_assets','list',null,{mode:'dynamic',limit:100,sort:{field:'id',direction:'desc'},filters:{title}});
  expect(listed.status,JSON.stringify(listed.body)).toBe(200);
  return listed.body.data.items.find(item=>item.title===title);
 }
@@ -96,12 +98,12 @@ async function seed(page){
  return seeded={files,used,fileUsed};
 }
 
-test('list: thumbnail, derived type/resolution/length, play time and usage columns; tiles, search and type filter',async({page})=>{
+test('list: thumbnail, derived type/resolution/length, play time and usage columns; tiles, title and type filters',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await openLibrary(page);await seed(page);await page.reload();
  await expect(page.locator('[data-cell-id="grid"] .dhx_grid-row').first()).toBeVisible();
  for(const header of ['Megnevezés','Típus','Felbontás','Hossz','Lejátszási idő (mp)','Használat'])await expect(page.locator('[data-cell-id="grid"] [role="columnheader"]').filter({hasText:header}).first()).toBeVisible();
- // Seeded video: type and length from the media metadata, never from a stored kind (searched: the oldest row may lie below the rendered rows).
+ // Seeded video: type and length from the media metadata, never from a stored kind (filtered: the oldest row may lie below the rendered rows).
  await search(page,'3D logo intro');
  await expect(await cell(page,'3D logo intro','Típus')).toHaveText('Videó');
  await expect(await cell(page,'3D logo intro','Hossz')).toHaveText(/^\d+:\d\d$/);
@@ -117,13 +119,13 @@ test('list: thumbnail, derived type/resolution/length, play time and usage colum
  // Derived columns are neither sortable nor filterable.
  const sortable=await page.evaluate(()=>[...document.querySelectorAll('[data-cell-id="grid"] [role="columnheader"]')].filter(h=>h.hasAttribute('aria-sort')).map(h=>h.textContent.trim()));
  for(const header of ['Típus','Felbontás','Hossz'])expect(sortable.some(text=>text.startsWith(header))).toBe(false);
- // Tiles: thumbnail slot, title and the type line; the search still applies.
+ // Tiles: thumbnail slot, title and the type line; the title filter still applies.
  await mode(page,'Csempék');
  await expect(page.locator('[data-cell-id="grid"] .blade-grid-tile')).toHaveCount(2);
  await expect(tile(page.locator('[data-cell-id="grid"]'),prefix+' használt').getByRole('img',{name:'Kép: '+prefix+'-a.png'})).toBeVisible();
- await search(page,'');
  // Type filter on the media column (image/video MIME class).
  await mode(page,'Táblázat');
+ await search(page,'');
  const typeFilter=page.locator('[data-cell-id="filter"]').getByLabel('Médiafájl',{exact:true}).or(page.locator('[data-cell-id="filter"] select').first());
  if(await typeFilter.count()){
   await typeFilter.first().selectOption({label:'Videó'});await page.locator('[data-cell-id="filter"]').getByRole('button',{name:'Szűrés',exact:true}).click();

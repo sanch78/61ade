@@ -22,7 +22,7 @@ const AUDIO='Calm music',VIDEO='3D logo intro',IMAGE='An elegant moment in time'
 // The run's 3 s WAV asset (uploaded by the first test, or here when a test runs alone).
 const TONE=prefix+' hang';
 async function toneAsset(page){
- const found=(await api(page,'signage_assets','list',null,{mode:'dynamic',limit:10,sort:{field:'id',direction:'desc'},filters:{},search:TONE})).body.data.items.find(item=>item.title===TONE);
+ const found=(await api(page,'signage_assets','list',null,{mode:'dynamic',limit:10,sort:{field:'id',direction:'desc'},filters:{title:TONE}})).body.data.items.find(item=>item.title===TONE);
  if(found)return String(found.id);
  const root=(await api(page,'files','tree','signage')).body.data.root;
  const uploaded=await page.evaluate(async([root,data,name])=>{
@@ -73,14 +73,22 @@ async function listCommand(page,label){
  if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name:label,exact:true}).click();return;}
  await button(page,label).click();
 }
+// The library has no toolbar search (only the title would be searched): the title column's header filter narrows the
+// table, and the view's filter panel holds the same filter in cards and tiles.
+const listed=(page,text)=>page.waitForResponse(r=>{try{const body=r.request().postDataJSON();return body?.action==='list'&&(body.values?.filters?.title??'')===text;}catch{return false;}});
 async function search(page,text){
- const box=grid(page).getByRole('textbox',{name:'Keresés',exact:true});
- const listed=page.waitForResponse(r=>{try{const body=r.request().postDataJSON();return body?.action==='list'&&(body.values?.search??'')===text;}catch{return false;}});
- await box.fill(text);await box.press('Enter');await listed;
+ const box=grid(page).getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true});
+ if(await box.inputValue()===text)return;
+ const done=listed(page,text);await box.fill(text);await box.press('Enter');await done;
 }
-// The library holds all demo media: the search keeps $title among the rendered rows, cards or tiles.
+// The library holds all demo media: the title filter keeps $title among the rendered rows, cards or tiles.
 async function only(page,title){
- if(await grid(page).getByRole('textbox',{name:'Keresés',exact:true}).inputValue()!==title)await search(page,title);
+ const header=grid(page).getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true});
+ await expect(header.or(grid(page).locator('.blade-grid-card, .blade-grid-tile')).first()).toBeVisible();
+ if(await header.isVisible())return search(page,title);
+ const panel=page.locator('[data-cell-id="filter"]'),input=panel.getByLabel('Megnevezés',{exact:true});
+ if(await input.inputValue()===title)return;
+ const done=listed(page,title);await input.fill(title);await panel.getByRole('button',{name:'Szűrés',exact:true}).click();await done;
 }
 async function openLibrary(page,width=1600){
  await page.setViewportSize({width,height:1000});await signIn(page,'demo@example.test','/#view=signage_assets');
@@ -88,7 +96,7 @@ async function openLibrary(page,width=1600){
  await mode(page,'Táblázat');
 }
 async function assetId(page,title){
- const listed=await api(page,'signage_assets','list',null,{mode:'dynamic',limit:100,sort:{field:'id',direction:'desc'},filters:{},search:title});
+ const listed=await api(page,'signage_assets','list',null,{mode:'dynamic',limit:100,sort:{field:'id',direction:'desc'},filters:{title}});
  expect(listed.status,JSON.stringify(listed.body)).toBe(200);
  const item=listed.body.data.items.find(item=>item.title===title);expect(item,`asset "${title}" (run the D1 data step, docs/demos.md)`).toBeTruthy();
  return String(item.id);
@@ -245,7 +253,9 @@ test('viewer on an audio asset: play, pause, position, loop, details, reload, re
  await button(page,'Vissza a listához').click();
  await expect(page).toHaveURL(/#view=signage_assets$/);await expect(grid(page).locator('.dhx_grid-row, .blade-grid-card, .blade-grid-tile').first()).toBeVisible();
  await expect(page.locator('.blade-player')).toHaveCount(0);await expect(page.locator('audio, video')).toHaveCount(0);
- await expect(page.locator('.blade-record-details')).toHaveCount(0);await expect(button(page,'Lejátszás')).toHaveCount(0);
+ await expect(page.locator('.blade-record-details')).toHaveCount(0);
+ // The list's own `Lejátszás` command may be in its toolbar; none of the viewer's remains.
+ await expect(button(page,'Lejátszás').and(page.locator(':not([data-cell-id="grid"] *)'))).toHaveCount(0);
  // An unknown record shows the error dialog and opens nothing; the list stays.
  await go(page,'999999999');
  const failure=page.getByRole('alertdialog');await expect(failure).toBeVisible();await failure.getByRole('button',{name:'Rendben',exact:true}).click();

@@ -9688,3 +9688,42 @@ that exactly equals an option label lists every option. The managed
   passed (2) and `list-presentation.spec.cjs` passed (17).
   MySQL consumer verification remains separate.
 - **Status:** implemented and verified on SQLite and the managed demo.
+
+<a id="fb-0215"></a>
+
+## FB-0215 — Free-text search only when justified
+
+- **Date:** 2026-11-17.
+- **Report:** a consumer screenshot showed a tab whose only content above the
+  list was a full-width "Keresés minden mezőben" input. Projects add free-text
+  search boxes by habit, beside lists whose header filters already find the
+  records.
+- **Owner decision:** a free-text (toolbar) search is used only when it is
+  justified: the layout has no detailed search (filter panel or search form),
+  and the visible fields do not give adequate search capability. The rule
+  covers the declared `view.search` and any project-built search input in a
+  list, page or tab toolbar.
+- **Documentation:** the contract is in
+  [workspaces](workspaces.md#search-justification), linked from the
+  `view.search` row of [configuration](configuration.md); the reusable rule is
+  in [61ade-ui](../.agents/skills/61ade-ui/SKILL.md#grid-rules) and its
+  accepted-rules ledger, and consumer sessions meet it at the view declaration
+  step of [61ade-application](../.agents/skills/61ade-application/SKILL.md#2-declare-first).
+- **Demo:** `Médiatár` and `Lejátszási listák` searched only `title`, a
+  visible column with a header filter, so both declarations were removed and
+  the `Médiatár` guide no longer suggests the search. The search feature keeps
+  its fixture coverage in `list-presentation.spec.cjs`. `signage.spec.cjs`
+  and `toolkit-demo-assets.spec.cjs` now narrow the library with the title
+  header filter (the filter panel in cards and tiles) and list assets by the
+  `title` filter; without the search cell the list toolbar shows its own
+  `Lejátszás`, so the destroyed-viewer check looks outside the list.
+- **Scope:** guidance and demo only; the framework does not reject a declared
+  `search`, because whether the visible fields suffice is a design judgement.
+- **Verification:** `signage.spec.cjs` (8) and `toolkit-demo-assets.spec.cjs`
+  (4) passed on the managed demo; `toolkit-list`, `tabs`, `accordion`,
+  `mobile-grid`, `uploader-reopen`, `toolkit-demo-playlist`,
+  `toolkit-demo-playlist-editor` (on rerun), `subview-demos` and
+  `theme-motion` passed. `menuless-view.spec.cjs` fails before any list, at
+  its exact `Digitális kijelző` menu-item click; unrelated to this change.
+  Internal anchors checked, `git diff --check` passed. No full-smoke claim.
+- **Status:** guidance updated; demo aligned.

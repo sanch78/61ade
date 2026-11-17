@@ -53,7 +53,17 @@ that covers the need.
    handlers (`guard`, `normalize`, `afterSave`)
    ([business boundary](../../../docs/usage.md#üzleti-konfiguráció-és-kód-határa),
    [configuration](../../../docs/configuration.md)).
-2. **Views** ([views](../../../docs/toolkit.md#views)). A view id defaults to
+2. **Views** ([views](../../../docs/toolkit.md#views)). Finding records is
+   the typed header filters' job (the `Szűrés` dialog in cards and tiles), or
+   a declared filter panel's. Do not add a free-text search out of habit:
+   declare `search`, or build any search input in a list, page or tab
+   toolbar, only when the layout has no filter panel or search form and the
+   visible columns' header filters cannot find what users look for (text
+   spread over several fields, a field that is not a column). Never a
+   "search in every field" box, and never a search over fields that are
+   already visible filterable columns
+   ([search justification](../../../docs/workspaces.md#search-justification)).
+   A view id defaults to
    its resource; a resource can have several views. Treat a view id as a
    public address: delivered links (`#feature=<resource>` resolves only to
    the view whose id equals that resource), saved UI preferences and menu ids
