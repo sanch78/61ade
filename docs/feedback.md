@@ -9665,3 +9665,26 @@ that exactly equals an option label lists every option. The managed
   symlinks resolved, and `git diff --check` passed. No runtime or browser
   test was needed for this documentation-only change.
 - **Status:** guidance updated and checked.
+
+<a id="fb-0214"></a>
+
+## FB-0214 — SQL keyword field names in list queries
+
+- **Date:** 2026-11-17.
+- **Observation:** a declared field whose name is an SQL keyword could be
+  displayed but caused a query error when used as a list filter, scope or sort.
+  Cursor boundaries and grouped counts used the same unquoted names.
+- **Implementation:** the list source quotes validated field, key and tenant
+  identifiers in its filters, search, scopes, sorting, cursor comparisons and
+  counts. The ACL predicate quotes its validated key and owner columns.
+  Computed and related list aliases, and native media-class predicates, are
+  quoted at their source. Existing
+  developer SQL expressions and table qualifiers keep their meaning.
+- **Verification:** temporary SQLite cases covered reserved names in filters,
+  scoped lists, sorted cursors, `countBy`, `countMatching`, a primary key and
+  ACL predicate, tenant column, computed aliases and related aliases. Existing PHP `sorting`,
+  `lists`, `counts`, `tenancy`, `access`, `related-fields`, `configuration` and
+  `list-presentation` and `files` passed. Managed-demo `grid-sort.spec.cjs`
+  passed (2) and `list-presentation.spec.cjs` passed (17).
+  MySQL consumer verification remains separate.
+- **Status:** implemented and verified on SQLite and the managed demo.
