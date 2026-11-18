@@ -47,6 +47,11 @@ body,
 #blade-application .dhx_layout-wide > .dhx_layout-resizer--y .dhx_layout-resizer__icon {
   bottom: 6px;
 }
+/* A frameless PageLayout (`frame: "line"`, FB-0221): Suite's line resizer is 0 px wide and only its dots take the drag.
+   Its handle spans the line with 8 px across it, centred on the cell border before it. Only line layouts: a list's
+   space or wide layout inside a region keeps its own grips. */
+:is(.blade-page-layout--line, .blade-page-layout--line .dhx_layout-line) > .dhx_layout-resizer--x > .dhx_layout-resizer__icon { right: auto; left: -4.5px; width: 8px; }
+:is(.blade-page-layout--line, .blade-page-layout--line .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon { bottom: auto; top: -4.5px; height: 8px; }
 
 /* Native DataView templates keep mobile records readable at any text length. */
 .blade-grid-cards .dhx_dataview-item {
@@ -127,6 +132,12 @@ body,
 .blade-record-details--fill > .blade-record-texts { flex: 1 1 0; min-height: 0; }
 .blade-record-details--fill .blade-record-text { flex: 1 1 0; min-height: var(--blade-record-text-min-height, 160px); }
 .blade-record-details--fill .blade-record-text__body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+/* A long text read as the page (RecordDetails `longText: "reading"`, FB-0221): no frame or visible label, its type
+   scaling with its box between the two theme variables; a size container only while it fills (else its height is its text). */
+.blade-record-text--reading { container-type: inline-size; }
+.blade-record-details--fill .blade-record-text--reading { container-type: size; }
+.blade-record-text--reading .blade-record-text__body { margin: 0; padding: 0;
+  font-size: clamp(var(--blade-record-reading-min-size, 16px), min(2.4cqw, 7cqh), var(--blade-record-reading-max-size, 34px)); }
 .blade-grid-card__media { position: relative; margin: -14px -16px 12px; }
 
 /* Tiles: native DataView widths (equal per row), media slot, title and one secondary line. */

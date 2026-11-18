@@ -10069,3 +10069,113 @@ that exactly equals an option label lists every option. The managed
   remainder did not run. No full-smoke claim.
 - **Status:** implemented and verified as above; the consumer declares it in
   its own session.
+
+<a id="fb-0221"></a>
+
+## FB-0221 — A frameless split inside a tab, and a long text read as a page
+
+- **Date:** 2026-11-18.
+- **Report:** a consumer request (StoryBloX D-090, D-093; its owner asked
+  for the split to become a 61ade capability): a record page's tab is
+  divided under its command bar into data beside an image over a text,
+  separated by draggable lines without frames or headers. `PageLayout`
+  draws framed panels with headers, so the consumer nested
+  `app.dhx.Layout` (`type: 'line'`) and worked around four things: a cell
+  with only a minimum did not grow, `resizable` on the last cell drew
+  nothing, the sizes were not kept or restored, and the 0 px line took the
+  drag only on its dots. The text was overridden from the `longText: "card"`
+  card in the consumer's stylesheet (no frame, a heading only for screen
+  readers, type scaling with the region). **Defect:** `RecordDetails` read
+  `--blade-record-text-min-height` with `parseFloat(...) || 160`, so `0px`
+  became 160 px and a low region stopped filling.
+- **Accepted expectation:** a frameless line style for a tab's or a
+  region's content with the framed layout's kept sizes and double-click; a
+  region with only a minimum fills the rest; `resizable` puts the line
+  between the region and its neighbour whichever side it is on; the line
+  has a hit area of a few pixels. `RecordDetails` gets a reading
+  presentation: the text alone, no frame or visible label, a region named by
+  the label, its type scaling between a minimum and a maximum theme
+  variable, filling the region and scrolling on its own. `0px` means 0.
+  Without the new options nothing changes. Also useful elsewhere: a picture
+  or a video over its caption or script, a template over its rendered text,
+  a page proof beside its data.
+- **Contract:** `PageLayoutOptions.frame` (`"panel"` default, `"line"`;
+  anything else throws `TypeError`; in a line frame a leaf outside a `tabs`
+  or `accordion` branch takes no `header`, `collapsable` or `collapsed`);
+  `PageRegion.resizable` on the last region of a branch draws the line before
+  it; `RecordDetailsOptions.longText: "reading"`; the CSS properties
+  `--blade-record-reading-min-size` (16 px) and
+  `--blade-record-reading-max-size` (34 px)
+  ([frameless split](toolkit.md#pagelayout-line),
+  [reading text](toolkit.md#recorddetails-reading), migration M88). No new
+  action, permission, catalogue key or event: the reading region's
+  accessible name is the field's translated label.
+- **Decisions and deviations from the request:**
+  - A whole-layout option (`frame: "line"`) instead of a per-branch `line`
+    flag: the case is a separate layout mounted into a tab's cell, and one
+    Suite Layout keeps one type. A framed page with a frameless branch is not
+    supported.
+  - The minimum-only region already filled in `PageLayout` (its `gravity`
+    rule); the consumer's problem was the nested `dhx.Layout`. Kept as is
+    and now covered by a browser check.
+  - A last region's `resizable` moves to its previous sibling, the cell
+    Suite draws the line after; a middle region's `resizable` keeps meaning
+    "the line after it", so no existing layout changes except one whose last
+    region declared `resizable` and drew nothing.
+  - Suite reports a drag only for the cell before the line, so the region
+    after it was never kept. `UiPreferences.bindLayout` now also saves that
+    neighbour, which fixes the same gap in list layouts.
+  - The hit area is the handle's own element widened to 8 px across the
+    line, centred on the border, in line layouts under a frameless
+    `PageLayout` only. A list's space or wide layout inside a region keeps
+    its grips. The 0 px resizer itself is unchanged, so Suite's drag
+    arithmetic is unchanged.
+  - The reading text fits like the card, but not by the card's 492 px width
+    rule: that rule exists for stacked groups, and a reading text is the
+    page's content. Its type uses `min(2.4cqw, 7cqh)` of its own box (a size
+    container only while it fills; otherwise an inline-size container and
+    the viewport height). The default minimum stays 160 px; a region holding
+    only the text sets `0px`.
+  - One field per region is shown by passing a copy of the list view with
+    reduced `detailFields`, not by a new `fields` option.
+- **Implemented:** `PageLayout.ts` (`frame`, the line frame's checks, the
+  last region's resizer), `UiPreferences.ts` (the neighbour's size),
+  `RecordDetails.ts` (`"reading"`, the fit without the width rule, the
+  minimum read as a number), `RecordPresentation.ts` (`recordText` reading
+  mode), `details.ts`, `api/types.ts`, `admin.css` (the line handles, the
+  reading text). Feature demo [D11 preview](demos.md#d11-media-sheets):
+  record view `demo.media-proof` (`media-sheets.json`, `media-sheet.ts`,
+  `media-sheet.css`, English catalogue entries), opened by `Előnézet` on the
+  media sheet; a stacked tree with its own kept sizes below 768 px. The
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md) names
+  `frame: "line"` for frameless content under a command bar.
+- **Not covered:** a frameless branch inside a framed `PageLayout`; `tabs`
+  and `accordion` branches inside a line frame are accepted but not
+  exercised by a check. List view layouts (`Blade\Feature\ViewLayout`) take
+  no frame option.
+- **Verification:** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets` passed; `node tests/shell/toolkit-components.mjs`,
+  `ui-preferences.mjs`, `toolkit-list.mjs`, `toolkit-kernel.mjs` passed; PHP
+  `contracts`, `configuration`, `i18n`, `record-forms`, `toolkit` passed.
+  New retained spec `tests/shell/page-layout-line.spec.cjs` (4 tests) passed
+  on the managed demo. At 1366 × 800 it checks: the line layout without
+  headers under the tab bar, two lines each with a visible 8 px handle, data
+  340 px and brief 240 px with the image filling the rest, both lines
+  dragged from off the dots (both neighbours resized, the image refitted
+  inside its region), the sizes after a reload, both restored by a
+  double-click. For the reading text: no frame or visible label, the region
+  `Leírás`, filling without the details scrolling, larger type in a larger
+  region within 34 px, and a 120 px region still filling and scrolling its
+  text as a tab stop. At 390 px: the three regions stacked, the brief
+  filling, no horizontal scroll. In English the region is named
+  `Description`, and in Blade, Blade Night, light and dark the 1 px lines
+  have no frame. Shell `layout-resizer` (space and wide grips unchanged),
+  `tabs`, `page-layout-collapse`, `record-details-layout`,
+  `component-remount`, `empty-states`, `toolkit-demo-assets`,
+  `preferences`, `workspace`, `accordion` and `mobile-grid` passed. In the
+  last combined run the new spec's first test failed once: its guide-closing
+  step waited on a button that the shared locator handler had just removed.
+  The step now bounds that click, and the spec passed 12 of 12 with
+  `--repeat-each=3`. No full-smoke claim.
+- **Status:** implemented and verified as above; the consumer migrates its
+  tab in its own session.

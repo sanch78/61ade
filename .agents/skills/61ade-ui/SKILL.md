@@ -150,6 +150,11 @@ tree as decoration for a flat list.
   layout or scrolling belongs below the bar. Do not wrap the whole pair in
   a padded element or another `space`/one-region `PageLayout` just to host
   the commands, and do not move the bar into place with CSS.
+- Content below the bar that is divided into regions without frames or
+  headers (data beside a picture over its text) is a `PageLayout` with
+  `frame: "line"` in the content row, not a nested `app.dhx.Layout`: it keeps
+  the user's sizes, restores them on a double-click and gives the lines a
+  hit area ([frameless split](../../../docs/toolkit.md#pagelayout-line)).
 - A `ListView` already owns its record commands; keep them there instead of
   copying them into a page bar. This rule applies when the composed page or
   tab needs commands of its own. Public recipe:

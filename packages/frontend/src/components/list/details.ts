@@ -11,7 +11,7 @@ import type { ViewDefinition } from "./types";
  * column's presentation (media, icon, options). Shared by the list's details window and `RecordDetails`.
  * `data-blade-view` names the view, so a project stylesheet can set its section columns (FB-0218).
  */
-export const detailsHtml=(row:Row,view:Pick<ViewDefinition,"id"|"columns"|"detailFields">,showId=true,longText?:"inline"|"card"):string=>
+export const detailsHtml=(row:Row,view:Pick<ViewDefinition,"id"|"columns"|"detailFields">,showId=true,longText?:"inline"|"card"|"reading"):string=>
   `<article class="blade-record-details" data-blade-view="${escapeRecord(view.id)}">${showId?`<div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>`:""}${recordFields(row,presentedFields(withDerived(view.detailFields??view.columns,view.columns),view.columns),false,{longText})}</article>`;
 
 /** Window width for the widest sized image (`detailsWidth`) beside one 240 px group: image group, gap, group, padding, frame. */

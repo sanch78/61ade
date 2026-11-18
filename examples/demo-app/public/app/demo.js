@@ -1766,28 +1766,92 @@ var text_revisions_default = textRevisions;
 
 // examples/demo-app/frontend/src/media-sheet.ts
 var KIND7 = "demo.media-sheet";
-function sheet(app, host, view) {
+var PROOF = "demo.media-proof";
+var PHONE4 = "(max-width: 767px)";
+function sheetList(app, host, view) {
   const t = (key) => app.i18n.t(key);
   if (!host.record) throw new Error(t("A m\xE9dialap egy rekordhoz ny\xEDlik meg."));
-  const listId = view.options?.list ?? host.record.resource;
-  const list = app.viewDefinition(listId);
+  const list = app.viewDefinition(view.options?.list ?? host.record.resource);
   if (!list) throw new Error(t("A m\xE9dialapok list\xE1ja nem \xE9rhet\u0151 el."));
-  host.setTitle(`${view.title}: ${String(host.record.row.title ?? host.record.id)}`);
+  return list;
+}
+function sheet(app, host, view) {
+  const t = (key) => app.i18n.t(key);
+  const list = sheetList(app, host, view), record = host.record, listId = list.id;
+  host.setTitle(`${view.title}: ${String(record.row.title ?? record.id)}`);
   const controller = new AbortController(), signal = controller.signal;
   host.signal.addEventListener("abort", () => controller.abort(), { once: true });
   const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "details" }] });
   host.attach(layout);
-  const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a list\xE1hoz"), icon: "bi bi-arrow-left" }] });
+  const bar = new app.components.CommandBar({ signal, items: [
+    { id: "back", label: t("Vissza a list\xE1hoz"), icon: "bi bi-arrow-left" },
+    ...app.viewDefinition(PROOF) ? [{ id: "proof", label: t("El\u0151n\xE9zet"), icon: "bi bi-layout-split" }] : []
+  ] });
   bar.on("click", ({ id }) => {
     if (id === "back" && !app.navigate({ view: listId })) host.close();
+    if (id === "proof") app.navigate({ view: PROOF, record: record.id });
   });
   bar.mount(layout.getCell("commands"));
-  new app.components.RecordDetails({ view: list, record: host.record.row, showId: false, longText: "card", signal }).mount(layout.getCell("details"));
+  new app.components.RecordDetails({ view: list, record: record.row, showId: false, longText: "card", signal }).mount(layout.getCell("details"));
   signal.addEventListener("abort", () => layout.destructor(), { once: true });
+  return { destroy: () => controller.abort() };
+}
+function only(list, ids) {
+  const options = list.options;
+  return { ...list, options: { ...options, detailFields: (options.detailFields ?? options.columns).filter((field) => ids.includes(field.id)) } };
+}
+function proof(app, host, view) {
+  const t = (key) => app.i18n.t(key);
+  const list = sheetList(app, host, view), record = host.record, row = record.row, phone = matchMedia(PHONE4);
+  host.setTitle(`${view.title}: ${String(row.title ?? record.id)}`);
+  const controller = new AbortController(), signal = controller.signal;
+  host.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  const layout = new app.dhx.Layout(null, { type: "none", css: "demo-media-proof", rows: [{ id: "commands", height: 48 }, { id: "tabs" }] });
+  host.attach(layout);
+  const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a m\xE9dialaphoz"), icon: "bi bi-arrow-left" }] });
+  bar.on("click", ({ id }) => {
+    if (id === "back" && !app.navigate({ view: KIND7, record: record.id })) host.close();
+  });
+  bar.mount(layout.getCell("commands"));
+  const tabs = new app.components.Tabs({ id: `${view.id}.tabs`, tabs: [{ id: "proof", label: t("El\u0151n\xE9zet") }, { id: "sheet", label: t("Adatlap") }] });
+  tabs.mount(layout.getCell("tabs"));
+  const column = (list.options.detailFields ?? list.options.columns).find((field) => field.id === "file_id");
+  const media = row._media?.file_id;
+  let build;
+  const render = () => {
+    if (signal.aborted) return;
+    build?.abort();
+    const current = build = new AbortController(), scope = current.signal;
+    signal.addEventListener("abort", () => current.abort(), { once: true, signal: scope });
+    const split = new app.components.PageLayout({ id: `${view.id}.${phone.matches ? "narrow" : "wide"}`, frame: "line", tree: phone.matches ? { rows: [{ id: "data", height: 200, minHeight: 80, resizable: true }, { id: "image", minHeight: 120 }, { id: "text", height: 220, minHeight: 80, resizable: true }] } : { cols: [
+      { id: "data", width: 340, minWidth: 220, resizable: true },
+      { rows: [{ id: "image", minHeight: 120 }, { id: "text", height: 240, minHeight: 80, resizable: true }] }
+    ] } });
+    split.mount(tabs.cell("proof"));
+    new app.components.RecordDetails({ view: only(list, ["title", "client", "channel", "year"]), record: row, showId: false, signal: scope }).mount(split.cell("data"));
+    if (media && column?.media) new app.components.MediaPlayer({
+      source: { resource: column.media, action: "content_stream", id: media.id, version: media.revision },
+      mime: media.mime_type,
+      name: media.name,
+      toolbar: false,
+      signal: scope
+    }).mount(split.cell("image"));
+    else split.placeholder("image", { text: t("Ehhez a m\xE9dialaphoz nincs k\xE9p.") });
+    new app.components.RecordDetails({ view: only(list, ["brief"]), record: row, showId: false, longText: "reading", signal: scope }).mount(split.cell("text"));
+    scope.addEventListener("abort", () => split.destroy(), { once: true });
+  };
+  render();
+  phone.addEventListener("change", render, { signal });
+  new app.components.RecordDetails({ view: list, record: row, showId: false, longText: "card", signal }).mount(tabs.cell("sheet"));
+  signal.addEventListener("abort", () => {
+    tabs.destroy();
+    layout.destructor();
+  }, { once: true });
   return { destroy: () => controller.abort() };
 }
 var mediaSheet = (app) => {
   app.kinds.register(KIND7, { create: (host, view) => sheet(app, host, view) });
+  app.kinds.register(PROOF, { create: (host, view) => proof(app, host, view) });
 };
 var media_sheet_default = mediaSheet;
 

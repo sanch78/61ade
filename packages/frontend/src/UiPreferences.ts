@@ -83,7 +83,10 @@ export class UiPreferences {
     };
     return visit(tree) as T;
   }
-  /** Keeps sizes and collapsed panels; a collapse while $transient() returns true (a page's own call) is not kept. */
+  /**
+   * Keeps sizes (of both cells beside a dragged line) and collapsed panels; a collapse while $transient() returns true
+   * (a page's own call) is not kept.
+   */
   bindLayout(layout:Layout,tree:Region,transient:()=>boolean=()=>false):void{
     const nodes:Region[]=[];
     const visit=(node:Region)=>{if(node.id)nodes.push({...node});node.rows?.forEach(visit);node.cols?.forEach(visit);};visit(tree);
@@ -114,7 +117,14 @@ export class UiPreferences {
       }
       event.preventDefault();this.save();layout.paint();
     });
-    layout.events.on("resize",id=>save(id));
+    // Suite reports the cell before the dragged line; the cell after it changed too (the next one drawn).
+    const next=(id:string):string|undefined=>{
+      const cells:HTMLElement[]=Array.from(layout.getRootNode().querySelectorAll?.<HTMLElement>("[data-cell-id]")??[]);
+      let element=cells.find(cell=>cell.dataset.cellId===id)?.nextElementSibling;
+      if(element?.classList.contains("dhx_layout-resizer"))element=element.nextElementSibling;
+      return (element as HTMLElement|null|undefined)?.dataset.cellId;
+    };
+    layout.events.on("resize",id=>{save(String(id));const after=next(String(id));if(after)save(after);});
     layout.events.on("afterCollapse",id=>{if(!transient())save(id,true);});
     layout.events.on("afterExpand",id=>{if(!transient())save(id,true);});
   }

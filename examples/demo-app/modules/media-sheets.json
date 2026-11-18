@@ -1,7 +1,7 @@
 {
     "section_descriptions": {
         "purpose": "Feature demo: campaign visuals with their data, image and brief on a record page (FB-0218).",
-        "covers": "A media field with a details width (column.details_width) alone in its section, so the details show the section heading and the image at that width without a label; a long brief as a card of its own on the record page demo.media-sheet (RecordDetails longText: card), and the project stylesheet laying the data beside the image through data-blade-view, also in the list's Adatok window."
+        "covers": "A media field with a details width (column.details_width) alone in its section, so the details show the section heading and the image at that width without a label; a long brief as a card of its own on the record page demo.media-sheet (RecordDetails longText: card), and the project stylesheet laying the data beside the image through data-blade-view, also in the list's Adatok window. The preview page demo.media-proof (FB-0221): under its command bar and tab bar a frameless PageLayout (frame: line) of the data beside the image over the brief, read as a page (RecordDetails longText: reading)."
     },
     "resources": {
         "demo_media_sheets": {
@@ -136,6 +136,20 @@
                 "list": "demo_media_sheets"
             },
             "icon": "bi bi-card-image"
+        },
+        "demo.media-proof": {
+            "kind": "demo.media-proof",
+            "title": "Médialap-előnézet",
+            "resource": "demo_media_sheets",
+            "record": "demo_media_sheets",
+            "actions": [
+                "get"
+            ],
+            "guide": "Egy médialap előnézete a keretrendszer komponenseiből: a parancssor és a fülsor alatt keretek és fejlécek nélküli tagolás (PageLayout vonalas kerettel). Balra az adatok, jobbra a kép, alatta a leírás olvasható szövegként (RecordDetails olvasási nézete), betűmérete a helyével együtt nő.\n\nHúzd az elválasztó vonalakat: a két szomszéd mérete együtt változik, a kép újra illeszkedik. Újratöltés után a méretek megmaradnak; dupla kattintás a vonalon visszaállítja a megadott méreteket. Az Adatlap fül a médialap megszokott nézete.",
+            "options": {
+                "list": "demo_media_sheets"
+            },
+            "icon": "bi bi-layout-split"
         }
     }
 }

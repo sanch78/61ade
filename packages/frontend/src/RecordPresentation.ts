@@ -193,14 +193,15 @@ let textIds=0;
  *
  * `details` (the record details, FB-0218): a media field's `detailsWidth` sizes its image, and a section whose only
  * field it is shows its heading and the image without a label (the automatic columns are then at least that group's
- * width); `longText: "card"` puts each long text outside the sections into a card of its own below everything else.
+ * width); `longText: "card"` puts each long text outside the sections into a card of its own below everything else,
+ * `"reading"` (FB-0221) into a frameless reading text there.
  */
-export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=false,details?:{longText?:"inline"|"card"}):string{
+export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=false,details?:{longText?:"inline"|"card"|"reading"}):string{
   const shown=fields.filter(field=>Object.hasOwn(row,field.id)||hasDerived(field,row));
   const item=(field:ViewDefinition["columns"][number])=>recordField(row,field,editable,!!details);
-  const cards=details?.longText==="card"?shown.filter(field=>!field.section&&longText(field)):[];
+  const reading=details?.longText==="reading",cards=details?.longText==="card"||reading?shown.filter(field=>!field.section&&longText(field)):[];
   const rest=cards.length?shown.filter(field=>!cards.includes(field)):shown;
-  const texts=cards.length?`<div class="blade-record-texts">${cards.map(field=>recordText(row,field)).join("")}</div>`:"";
+  const texts=cards.length?`<div class="blade-record-texts">${cards.map(field=>recordText(row,field,reading)).join("")}</div>`:"";
   if(!rest.some(field=>field.section))return (cards.length&&!rest.length?"":`<dl>${rest.map(item).join("")}</dl>`)+texts;
   const groups=new Map<string,ViewDefinition["columns"]>(),wide:ViewDefinition["columns"]=[];
   for(const field of rest){
@@ -218,10 +219,14 @@ export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=f
   const html=[...groups].map(group).join("");
   return `<div class="blade-record-groups"${widest?` style="--blade-record-media-width:${Math.trunc(widest)}px"`:""}>${html}</div>${wide.length?`<dl class="blade-record-wide">${wide.map(item).join("")}</dl>`:""}${texts}`;
 }
-/** A long text as a card of its own (`longText: "card"`): framed, headed by its label, its text a region named by it. */
-function recordText(row:Row,field:ViewDefinition["columns"][number]):string{
-  const id=`blade-record-text-${++textIds}`,value=row[field.id];
-  return `<section class="blade-record-group blade-record-text"><div class="blade-record-group__title" id="${id}">${escape(field.header)}</div><div class="blade-record-text__body" role="region" aria-labelledby="${id}">${escape(value==null||value===""?"—":value)}</div></section>`;
+/**
+ * A long text as a card of its own (`longText: "card"`): framed, headed by its label, its text a region named by it;
+ * `reading`: the text alone, a region named by the label (no frame or visible label; its type scales, admin.css).
+ */
+function recordText(row:Row,field:ViewDefinition["columns"][number],reading=false):string{
+  const id=`blade-record-text-${++textIds}`,value=row[field.id],text=escape(value==null||value===""?"—":value);
+  if(reading)return `<section class="blade-record-text blade-record-text--reading"><div class="blade-record-text__body" role="region" aria-label="${escape(field.header)}">${text}</div></section>`;
+  return `<section class="blade-record-group blade-record-text"><div class="blade-record-group__title" id="${id}">${escape(field.header)}</div><div class="blade-record-text__body" role="region" aria-labelledby="${id}">${text}</div></section>`;
 }
 /** One field of `recordFields`: its label and its presented value (an editable one opens its editor); `details` sizes media. */
 function recordField(row:Row,field:ViewDefinition["columns"][number],editable:boolean,details=false):string{
