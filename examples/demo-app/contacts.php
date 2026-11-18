@@ -53,7 +53,7 @@ function blade_demo_contacts_register(Workspace $workspace): void
         // The executor accepted the tokens (the actor's own unexpired uploads); the demo commits their pending rows.
         foreach (array_filter(explode(',', ($values['photo'] ?? '').','.($values['gallery'] ?? ''))) as $token) $ctx->db->prepare("UPDATE demo_attachment_files SET state = 'committed' WHERE id = ? AND state = 'pending'")->execute([$token]);
     });
-    $contacts->register($workspace->registry, 'Kapcsolatok', group: 'Feature demó', formSections: 'accordion', flushSections: true,
+    $contacts->register($workspace->registry, 'Kapcsolatok', group: 'Feature demó', formSections: 'accordion', flushSections: true, icon: 'bi bi-person-lines-fill',
         guide: 'Accordion űrlapszakaszok: a Hozzáadás és a Módosítás ablaka fix magasságú, a szakaszok egymás alatt, a Médiatár oldalsávjához hasonlóan nyílnak, egyszerre egy. Másik szakasz kinyitásakor az ablak mérete nem változik; a hosszabb szakasz a saját helyén görget. A név és a szervezet a szakaszok fölött, saját fejléc nélkül áll.'."\n\n".'Űrlapsorok: a rövid mezők egymás mellett állnak (az E-mail dupla szélességű), a hosszabbak a teljes szélességet kapják. Keskeny ablakban vagy telefonon minden sor egy oszlopba rendeződik.');
     $contacts->registerDelete($workspace->registry);
 }

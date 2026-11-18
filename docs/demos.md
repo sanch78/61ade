@@ -139,6 +139,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | OAuth (AuthHandler) | External-account button → native provider overlay; existing OAuth-enabled accounts only, no password | Native Google/Facebook buttons; missing keys show setup feedback, configured keys start the real provider flow; [setup](authentication.md#szolgáltatói-beállítás-google-facebook), HTTPS required |
 | Language | Hungarian/English selector before theme, language row in login form, account default used for login and mail | `twofactor@example.test` defaults to English |
 | Menu group separator | Optional `menuSeparators` inserts one native separator before a declared view group; ACL, declaration order, current-view marking and the compact menu are preserved | The demo leaves group separators off; the existing separator before logout remains |
+| Menu icons ([FB-0216](feedback.md#fb-0216)) | Every menu view, static menu item, view group (`menuGroupIcons`) and project command declares its own icon, distinct within the application's menu ([icon choice](icons.md#icon-choice)); the framework's `Adminisztráció` group shows `bi-sliders` | Open `Feature demó`, `Digitális kijelző` and `Adminisztráció`: no entry repeats another's icon or shows a fallback |
 | User admin | Disabled, OAuth, e-mail confirmation, default language as form/grid checkbox/select | Administration → Users |
 | ACL | Roles, memberships and catalog-based rules | Administration |
 | API keys | Once-only secret, multiselect action scope, revocation checkbox | Root menu → API keys |

@@ -54,6 +54,47 @@ the menu row or badge height. A menu command's entire icon/label/count group
 is centred on the button and its painted pill, including commands without
 a count and the icon-only form. There is no new event or audit operation.
 
+<a id="icon-choice"></a>
+
+## Choosing icons
+
+Owner decision of 2026-11-18 ([FB-0216](feedback.md#fb-0216)): every menu
+entry and every toolbar command carries an icon chosen for its own meaning.
+This holds unless the owner's task explicitly decides otherwise for a named
+entry or surface.
+
+- **Mandatory by default.** Declare an `icon` for every view with a menu
+  entry, every static `MenuItem` (parents too), `MenuCommand` and view group
+  ([group icons](shell.md#menu-group-icons)), every project action offered as
+  a command, every client command (`app.commands.register`) and every
+  `CommandBar` button or menu. The framework fallbacks (`bi-table` for a view,
+  `bi-folder` for a menu item, `bi-folder2-open` for a group, `bi-lightning`
+  for a menu command, `bi-check-lg` for an action) only keep an omitted icon
+  visible. They are not a choice.
+- **Chosen for the meaning.** Search the catalog for what the entry holds or
+  does: its business object or verb, with several keywords and synonyms
+  (`warehouse`, `shelf`, `box`, `pin`, `map` for storage zones). Do not pick
+  by widget kind. A list is not automatically `bi-table` or `bi-grid`, and a
+  group is not automatically a folder. Folder glyphs mean files and folders;
+  `bi-table`, `bi-grid` and `bi-grid-3x3` mean the framework's presentation
+  switch.
+- **Distinct.** No two entries of one application menu share an icon, and
+  neither do sibling commands of one toolbar. The same icon repeats only for
+  the same concept in another place: the same action on two views, or one
+  object in the menu and in its record icon field.
+- **Consistent.** One concept keeps one icon throughout the application.
+- **Built-ins stay.** The framework's own commands (`Hozzáadás`, `Módosítás`,
+  `Törlés`, view switching, filter, sort, save) and its administration views
+  already carry fixed icons; keep them.
+- **Exception only by decision.** The owner's task may waive icons, for
+  example a text-only toolbar. Record that decision in the project's own
+  documentation, naming the surface.
+
+Before handoff, list the menu entries and commands with their icons, then
+replace every fallback, duplicate and merely generic glyph. The server checks
+class syntax only. It does not reject an omitted, duplicated or unsuitable
+icon, because the fitting glyph is a design judgement.
+
 ## Packaging and compatibility
 
 The frontend dependency is pinned in `packages/frontend/package.json` and the

@@ -34,7 +34,7 @@
             "view": {
                 "title": "Raktárzónák",
                 "group": "Feature demó",
-                "icon": "bi bi-grid",
+                "icon": "bi bi-pin-map",
                 "tiles": true,
                 "activate": "page",
                 "columns": [
@@ -83,7 +83,7 @@
             "view": {
                 "title": "Polcok",
                 "group": "Feature demó",
-                "icon": "bi bi-grid",
+                "icon": "bi bi-bookshelf",
                 "tiles": true,
                 "activate": "subview",
                 "columns": [
@@ -146,6 +146,7 @@
             },
             "view": {
                 "title": "Polc tételei",
+                "icon": "bi bi-box-seam",
                 "group": "Feature demó",
                 "activate": "stock",
                 "columns": [
@@ -180,7 +181,7 @@
             "handler": "shelves.stock",
             "target_resource": "demo_shelf_items",
             "write": false,
-            "icon": "bi bi-info-circle",
+            "icon": "bi bi-boxes",
             "channels": [
                 "ui"
             ]

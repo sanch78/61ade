@@ -99,6 +99,7 @@
             "resource": "demo_text_revisions",
             "name": "previous",
             "label": "Előző változat",
+            "icon": "bi bi-arrow-counterclockwise",
             "handler": "text_revisions.previous",
             "target_resource": "demo_text_revisions",
             "write": false,

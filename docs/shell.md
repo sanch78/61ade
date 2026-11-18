@@ -140,6 +140,21 @@ stays, and both separators remain inside the compact `Menü`. Current-view
 marking is unchanged. With the default empty list, existing menus stay the
 same. The feature demo uses the default empty list.
 
+<a id="menu-group-icons"></a>
+
+### Icons of view groups
+
+`ApplicationDefinition(menuGroupIcons: ['Management' => 'bi bi-briefcase'])`
+(JSON `application.menu_group_icons`) gives the menu entry of a view group its
+[icon](icons.md#icon-choice). Keys are the groups' original declaration labels;
+unknown groups and invalid icon classes fail at startup. The shell translates
+the label and sends the icons of the groups offered to the actor only
+(bootstrap `menuGroupIcons`). In PHP, `Registry::groupIcon($group, $icon)` sets
+the same after the group's first view is declared. `Administration::register()`
+gives its group `bi bi-sliders`; the application map can replace it. A group
+without an icon shows `bi bi-folder2-open`. Menu order, separators, ACL and the
+compact menu are unchanged.
+
 <a id="menu-attention"></a>
 
 ### Menu attention: a live count on a view's entry
@@ -240,7 +255,8 @@ JSON: `"application": {"menu_commands": [{"id": "demo.workbench", "label":
 - **Declaration:** `id` is the client command's name with a project prefix
   (`[a-z][a-z0-9_.-]*` with a dot, at most 100 characters), `label` 1–80 and
   `tooltip` 1–200 characters of plain text, translated like other labels;
-  `icon` [icon classes](icons.md) (default `bi bi-lightning`); `emphasized` (default
+  `icon` [icon classes](icons.md), required by the
+  [icon choice](icons.md#icon-choice) rule (fallback `bi bi-lightning`); `emphasized` (default
   `true`) the primary tone; `visible` is evaluated on the server for every
   page and never sent; `attention` names a view that declares
   [attention](#menu-attention), whose live count the entry shows as well (the

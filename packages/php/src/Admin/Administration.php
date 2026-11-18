@@ -29,6 +29,8 @@ final class Administration
         $managed = $accounts->identities($identities);
         $permissions = new Permissions($workspace, $accounts, $managed, $protectedRole);
         $permissions->register($workspace->registry, $group);
+        // The group's own menu icon; ApplicationDefinition::menuGroupIcons may replace it.
+        if ($group !== null) $workspace->registry->groupIcon($group, 'bi bi-sliders');
         // API keys are a first-class workspace feature. Their own ACL rules
         // determine whether the top-level menu item is visible to each actor.
         (new ApiKeys($accounts, $permissions->catalogue(), tenancy: $workspace->tenancy))->register($workspace->registry);

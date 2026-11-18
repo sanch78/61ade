@@ -80,7 +80,7 @@ $workspace->registry->view('demo_registry_keys', 'Kulcsok', [['id' => 'name', 'h
 $workspace->registry->subview('demo_registry_nodes', 'demo_registry_nodes', 'parent_id');
 $workspace->registry->view('demo_registry_values', 'Értékek', [['id' => 'name', 'header' => 'Név'], ['id' => 'type', 'header' => 'Típus', 'width' => 240], ['id' => 'data', 'header' => 'Adat']], ['get', 'create'], id: 'demo_registry_browser_values', menu: false, commands: ['demo.subkey-values']);
 $notes = new SqlResource('notes', 'notes', 'id', [new Field('title', 'Cím', required: true)], 'owner_id', ['owner_id' => '1']);
-$notes->register($workspace->registry, 'Jegyzetek', rowSelection: true, guide: 'A legegyszerűbb PHP-ban regisztrált erőforrás (SqlResource): egy kötelező mező, létrehozás, szerkesztés és sorjelöléssel tömeges törlés. A lista élő adat: ha a jegyzet máshol módosul, a lista magától frissül.'."\n\n".'Nyisd meg a nézetet két böngészőlapon, vegyél fel az egyiken egy jegyzetet, és figyeld a másikat.');
+$notes->register($workspace->registry, 'Jegyzetek', rowSelection: true, icon: 'bi bi-sticky', guide: 'A legegyszerűbb PHP-ban regisztrált erőforrás (SqlResource): egy kötelező mező, létrehozás, szerkesztés és sorjelöléssel tömeges törlés. A lista élő adat: ha a jegyzet máshol módosul, a lista magától frissül.'."\n\n".'Nyisd meg a nézetet két böngészőlapon, vegyél fel az egyiken egy jegyzetet, és figyeld a másikat.');
 $notes->registerDelete($workspace->registry);
 // A record with a file in the project's own storage (FB-0167): upload and GET actions of the project, one save.
 require_once __DIR__.'/attachments.php';
@@ -167,9 +167,9 @@ return new ApplicationDefinition(
     // Static menu: a not yet implemented module and a policy-filtered item (consumer flag can_manage).
     menu: new Menu([
         new MenuItem('library', 'Nyilvántartás', [
-            new MenuItem('documents', 'Dokumentumok'),
-            new MenuItem('members', 'Tagok', visible: static fn(Identity $actor) => (bool) $actor->attributes['can_manage']),
-        ]),
+            new MenuItem('documents', 'Dokumentumok', icon: 'bi bi-file-earmark-text'),
+            new MenuItem('members', 'Tagok', visible: static fn(Identity $actor) => (bool) $actor->attributes['can_manage'], icon: 'bi bi-person-vcard'),
+        ], icon: 'bi bi-archive'),
     ]),
     runtime: $runtime,
     sessionName: 'blade_demo',
@@ -193,6 +193,8 @@ return new ApplicationDefinition(
     // Menu-row command (docs/shell.md#menu-commands): the module's `demo.workbench` opens a long-lived work window; the
     // entry also shows the pending approvals' live count.
     menuCommands: [new MenuCommand('demo.workbench', 'Munkaasztal', icon: 'bi bi-pencil', tooltip: 'Munkaablak: nézetváltáskor is nyitva marad', attention: 'demo_approvals')],
+    // Menu icons of the view groups (docs/shell.md#menu-group-icons); the framework's Adminisztráció keeps its own.
+    menuGroupIcons: ['Feature demó' => 'bi bi-stars', 'Digitális kijelző' => 'bi bi-tv'],
     // View guides of the framework's own views (docs/workspaces.md#view-guide); the demo's views declare their own.
     guides: blade_demo_admin_guides(),
     live: $liveEndpoint ? new LiveConfig('websocket', $liveEndpoint, applications: [

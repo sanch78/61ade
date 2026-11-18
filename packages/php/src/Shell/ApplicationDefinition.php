@@ -77,6 +77,11 @@ final readonly class ApplicationDefinition
         public int $sessionCookieLifetime = 0,
         /** View group labels that get a preceding native menu separator (docs/shell.md#menu-group-separators). @var list<string> */
         public array $menuSeparators = [],
+        /**
+         * Menu icons of view groups by declared group label (docs/shell.md#menu-group-icons), applied once every view is
+         * declared: they set or replace the icon of any group, the framework's `Adminisztráció` too. @var array<string, string>
+         */
+        public array $menuGroupIcons = [],
         /** Optional active account id whose UI permissions are offered without sign-in (docs/authentication.md#public-access). */
         public ?string $publicIdentity = null,
         /** SameSite of the session and remembered-login cookies: `Lax` or `Strict` (docs/authentication.md#cookie-samesite). */
@@ -128,6 +133,11 @@ final readonly class ApplicationDefinition
                 throw new \InvalidArgumentException('Menu separators require unique, declared view groups.');
             }
             $seen[$group] = true;
+        }
+        if ($menuGroupIcons && !$workspace) throw new \InvalidArgumentException('Menu group icons need a workspace.');
+        foreach ($menuGroupIcons as $group => $icon) {
+            if (!is_string($icon)) throw new \InvalidArgumentException('Invalid group icon: '.$group);
+            $workspace->registry->groupIcon((string) $group, $icon);
         }
         if (!array_is_list($menuCommands) || count($menuCommands) > 3) throw new \InvalidArgumentException('Menu commands must be a list of at most 3 MenuCommand objects.');
         $commands = [];

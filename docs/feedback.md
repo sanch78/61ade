@@ -9727,3 +9727,56 @@ that exactly equals an option label lists every option. The managed
   its exact `Digitális kijelző` menu-item click; unrelated to this change.
   Internal anchors checked, `git diff --check` passed. No full-smoke claim.
 - **Status:** guidance updated; demo aligned.
+
+<a id="fb-0216"></a>
+
+## FB-0216 — Icons are mandatory and chosen for their meaning
+
+- **Date:** 2026-11-18.
+- **Report:** consumer projects put nearly the same icon on every menu entry
+  and toolbar button, mostly a folder or a grid. The framework's own fallbacks
+  invite this: a view without an icon shows `bi-table`, a menu item
+  `bi-folder`, every view group `bi-folder2-open` (with no way to declare
+  another), a menu command `bi-lightning` and an action `bi-check-lg`. The
+  feature demo had the same problem: 13 menu views used fallbacks, `Polcok`
+  and `Raktárzónák` shared `bi-grid`, `Katalógus` and `Médiatár` shared
+  `bi-image`, and the framework's `Tenantok` used `bi-grid`.
+- **Owner decision:** consumers must search creatively for fitting icons, and
+  icons are mandatory by default unless the owner's task decides otherwise.
+- **Contract:** [icon choice](icons.md#icon-choice). Every menu entry, view
+  group and toolbar command declares an icon chosen for what it holds or does,
+  distinct within the menu and among sibling commands and consistent per
+  concept. Fallbacks and habitual folder/grid/table glyphs are not choices.
+  The framework's built-in commands keep their icons, and a waiver is recorded
+  in the project's documentation. The rule is in
+  [61ade-application](../.agents/skills/61ade-application/SKILL.md#2-declare-first),
+  [61ade-ui](../.agents/skills/61ade-ui/SKILL.md) and its accepted-rules
+  ledger.
+- **Implemented:** `ApplicationDefinition::menuGroupIcons` / JSON
+  `application.menu_group_icons` and `Registry::groupIcon()` give a declared
+  view group its menu icon ([group icons](shell.md#menu-group-icons)). The
+  bootstrap sends `menuGroupIcons` for offered groups by translated label, and
+  the shell falls back to `bi-folder2-open`. `SqlResource::register()` accepts
+  `icon`. The framework's administration views now carry distinct icons:
+  `Felhasználók` `bi-people`, `Tenantok` `bi-buildings`, `Hozzáférések`
+  `bi-person-check`, `Szerepkörök` `bi-shield-lock`, `Szerepkör-tagságok`
+  `bi-person-badge`, `Szerepkör-jogosultságok` `bi-shield-check`,
+  `Egyedi jogosultságok` `bi-person-gear`, and the `Adminisztráció` group
+  `bi-sliders`. There is no new event, action, permission or audit entry.
+- **Demo:** every menu view, static menu item, group and project command of
+  the feature, tenant and public demos declares its own icon; within one
+  application no two menu entries share one. The file manager keeps its folder
+  glyph, which matches its meaning.
+- **Scope:** an omitted, duplicated or unsuitable icon is not rejected; the
+  server still checks class syntax only, since the fitting glyph is a design
+  judgement and the owner's task may waive icons.
+- **Verification:** PHP `contracts`, `configuration`, `admin`,
+  `permissions`, `tenancy`, `api-keys`, `toolkit`, `lists`, `signage` and
+  `i18n` passed; `npm run typecheck` and `npm run build` passed. Shell
+  `browser`, `admin`, `tenancy`, `menu-commands`, `menu-attention` and
+  `sign-in-branding` (33 tests) passed on the managed demo. A temporary check
+  confirmed the rendered group, view and menu-item icons and was removed, as
+  were the scratch checks of `Registry::groupIcon()` validation and JSON
+  `menu_group_icons`. Internal anchors checked and `git diff --check` passed.
+  No full-smoke claim.
+- **Status:** guidance, group icons and demo implemented and verified.

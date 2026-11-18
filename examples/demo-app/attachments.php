@@ -55,7 +55,7 @@ function blade_demo_attachments_register(Workspace $workspace): void
             foreach (['file', 'detail'] as $name) if (($values[$name] ?? '') !== '') $ctx->db->prepare("UPDATE demo_attachment_files SET state = 'committed' WHERE id = ? AND state = 'pending'")->execute([$values[$name]]);
         });
     // One card per row (FB-0169): the field sections show as groups side by side, the reason below them (FB-0177).
-    $attachments->register($workspace->registry, 'Mellékletek', group: 'Feature demó', cardColumns: 1,
+    $attachments->register($workspace->registry, 'Mellékletek', group: 'Feature demó', cardColumns: 1, icon: 'bi bi-paperclip',
         guide: 'Saját tárolású fájlmező: a kép a projekt saját tárolójába kerül, nem a fájlkezelőbe. A feltöltés a háttérben fut, és a kép a rekord többi mezőjével egy mentésben rögzül; a Mégse nem hoz létre rekordot.'."\n\n".'Vegyél fel egy mellékletet: adj meg szerepet és indoklást, nyisd ki a Képek szakaszt, majd húzz egy képet a mezőre, vagy illeszd be Ctrl+V-vel. A szerep a létrehozás után nem változik: a Módosítás csak megmutatja.');
     $attachments->registerDelete($workspace->registry);
     // The upload action of the field: stores the bytes and a pending row, returns its token. No fields, one file.

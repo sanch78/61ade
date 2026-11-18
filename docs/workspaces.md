@@ -757,8 +757,10 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
 
 ## Bulk actions and icons
 
-Actions accept optional [icon classes](icons.md), e.g. `bi bi-check-lg`, also
-as JSON icon. Built-ins, view switching, filters and save have framework defaults.
+Actions accept [icon classes](icons.md), e.g. `bi bi-check-lg`, also as JSON
+icon. A project action offered as a command declares one chosen for what it
+does ([icon choice](icons.md#icon-choice)). Built-ins, view switching, filters
+and save have framework defaults.
 The complete Bootstrap Icons font is bundled. Use an existing catalog name so
 disabled and enabled actions render the same icon; legacy Suite classes also work.
 
@@ -1362,10 +1364,14 @@ without a consumer header/HTML interface. Grid mode shadow falls beneath column
 headings; cards use toolbar shadow, switching automatically across themes.
 Native filter buttons have at least 8 px gap.
 
-View icon sets the menu icon, e.g. JSON `"icon":"bi bi-file-earmark"` or the
-last optional Registry::view icon argument. CSS class names only; the glyph
-must exist. Default: bi bi-table. Groups use folders; static MenuItem
-also accepts icon.
+View icon sets the menu icon, e.g. JSON `"icon":"bi bi-file-earmark"`, the
+`icon` argument of Registry::view() and SqlResource::register(), or
+`$view->with(icon: …)`. CSS class names only; the glyph must exist. Every
+menu entry declares an icon chosen for its meaning
+([icon choice](icons.md#icon-choice)); the fallback `bi bi-table` is not a
+choice. Groups take theirs from
+[`menuGroupIcons`](shell.md#menu-group-icons); static MenuItem also accepts
+icon.
 
 <a id="kártyaszerkesztés-rendezés-és-kompakt-ablakok"></a>
 

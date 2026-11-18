@@ -21,7 +21,7 @@ final class Tenants
             new Field('name', 'Név', required: true, max: 200, validation: ['unique' => true]),
             new Field('active', 'Aktív', 'checkbox', defaultValue: '1', column: ['editable' => true, 'align' => 'center', 'width' => 100]),
         ]);
-        $registry->updateView($resource->register($registry, $title, group: $group)->with(icon: 'bi bi-grid'));
+        $resource->register($registry, $title, group: $group, icon: 'bi bi-buildings');
         self::registerAccess($registry, $accounts, $tenancy, $group);
     }
 
@@ -83,7 +83,7 @@ final class Tenants
             return ['id' => $target['id'], 'revision' => $revision([...$row, 'access' => $access]), 'values' => ['access' => $access], 'audit' => ['access' => $access]];
         };
         $registry->add(new Action(Tenancy::MEMBERS, 'update', 'Mentés', [$fields[3], new Field('revision', 'Verzió', required: true, max: 64)], $save, resolve: $resolve, write: true, editHandler: $save));
-        $registry->view(Tenancy::MEMBERS, 'Hozzáférések', array_map(static fn($f) => ['id' => $f->name, 'header' => $f->label], $fields), ['update'], group: $group);
+        $registry->view(Tenancy::MEMBERS, 'Hozzáférések', array_map(static fn($f) => ['id' => $f->name, 'header' => $f->label], $fields), ['update'], group: $group, icon: 'bi bi-person-check');
         $registry->subview(Tenancy::RESOURCE, Tenancy::MEMBERS, 'tenant_id', select: false);
     }
 }

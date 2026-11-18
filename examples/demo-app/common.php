@@ -164,5 +164,5 @@ function blade_demo_topology(): Blade\Diagram\DiagramDefinition
         'wifi' => ['label' => 'Wi-Fi', 'color' => '#0288d1', 'style' => 'dashed', 'width' => 2],
         'vpn' => ['label' => 'VPN-alagút', 'color' => '#8e24aa', 'style' => 'dotted', 'width' => 3],
         'wan' => ['label' => 'WAN', 'color' => '#e53935', 'width' => 3],
-    ], group: 'Feature demó', desktopOnly: true, guide: 'A keretrendszer diagramszerkesztője hálózati topológia-szerkesztőként beállítva: a paletta eszközei és a kapcsolattípusok a demó konfigurációja.'."\n\n".'Húzz eszközöket a vászonra, kösd össze őket, és mentsd a diagramot; saját eszköztípust is felvehetsz. Csak asztali nézetben érhető el.');
+    ], group: 'Feature demó', icon: 'bi bi-diagram-3', desktopOnly: true, guide: 'A keretrendszer diagramszerkesztője hálózati topológia-szerkesztőként beállítva: a paletta eszközei és a kapcsolattípusok a demó konfigurációja.'."\n\n".'Húzz eszközöket a vászonra, kösd össze őket, és mentsd a diagramot; saját eszköztípust is felvehetsz. Csak asztali nézetben érhető el.');
 }
