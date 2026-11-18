@@ -903,3 +903,7 @@
 <a id="fb-0220"></a>
 
 ## FB-0220 — A record page whose location bar starts at its group
+
+<a id="fb-0221"></a>
+
+## FB-0221 — A frameless split inside a tab, and a long text read as a page

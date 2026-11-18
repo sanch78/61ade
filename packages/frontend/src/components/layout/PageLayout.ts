@@ -21,9 +21,10 @@ const BRANCHES=["rows","cols","tabs","accordion"] as const;
  * at most 150 characters. A `tabs` branch takes the sizes and `resizable` only and holds 1–12 leaves with an id and a
  * `header` (the tab's label) and nothing else. An `accordion` branch takes the sizes, `resizable` and `multiple` and
  * holds 1–12 leaves with an id, a `header` (the section's label) and optionally `open` (at most one without
- * `multiple`). Returns the region ids and the collapsible ones; throws `TypeError`.
+ * `multiple`). In a `line` frame a leaf outside a tabs or accordion branch has no `header` and is not `collapsable`.
+ * Returns the region ids and the collapsible ones; throws `TypeError`.
  */
-function regions(tree:unknown):{ids:Set<string>;collapsable:Set<string>}{
+function regions(tree:unknown,line=false):{ids:Set<string>;collapsable:Set<string>}{
   const ids=new Set<string>(),collapsable=new Set<string>();let nodes=0;
   const fail=(reason:string):never=>{throw new TypeError(`61ade: PageLayout: ${reason}.`);};
   const visit=(node:unknown,depth:number,parent?:"tabs"|"accordion"):void=>{
@@ -43,6 +44,7 @@ function regions(tree:unknown):{ids:Set<string>;collapsable:Set<string>}{
       fail("a section is a leaf with an id, a header (its label, at most 80 characters) and optionally open only");
     if(parent!=="accordion"&&region.open!==undefined)fail('"open" belongs to a section of an accordion branch');
     if(region.multiple!==undefined&&region.accordion===undefined)fail('"multiple" belongs to an accordion branch');
+    if(line&&!parent&&(region.header!==undefined||region.collapsable!==undefined||region.collapsed!==undefined))fail("a region of a line frame has no header and does not collapse");
     if(branches.length){
       const children=region[branches[0]];
       if(region.id!==undefined||branches.length>1||!Array.isArray(children)||!children.length)fail("a branch has either rows, cols, tabs or accordion and no id");
@@ -72,7 +74,10 @@ function regions(tree:unknown):{ids:Set<string>;collapsable:Set<string>}{
  * tree (typically a view's `options.layout`) as one Suite space Layout, the framework's list layout behaviour
  * included: plain-text panel headers (Suite renders them as text), the user's panel sizes and collapsed panels kept per page and user
  * (`UiPreferences`, keyed by `id`), a resizer double-click restoring the declared sizes. Components mount into
- * `cell(id)`; `attach(id, content)` puts a widget or a plain element there (the view host's rule). A `collapsable`
+ * `cell(id)`; `attach(id, content)` puts a widget or a plain element there (the view host's rule). `frame: "line"`
+ * draws the tree as one Suite line Layout instead: no frames or headers, the regions divided by lines with a few
+ * pixels' hit area (admin.css), for the content of a tab or a region. In either frame a `resizable` last region of a
+ * branch puts the line before it, and the sizes of both regions beside a dragged line are kept. A `collapsable`
  * leaf is collapsed and expanded by the user or by `collapse`/`expand` (not kept: a page's own state, such as a phone
  * collapsing a region for one tab, never replaces the user's choice); `collapse {id, collapsed}` follows both.
  */
@@ -95,7 +100,9 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
     super(options);
     if(typeof options?.id!=="string"||!/^[a-z][a-z0-9_.-]*$/.test(options.id))throw new TypeError("61ade: PageLayout needs an id (the preference key, usually the view id).");
     if(options.guard!==undefined&&typeof options.guard!=="function")throw new TypeError("61ade: PageLayout: guard is a function.");
-    ({ids:this.ids,collapsable:this.collapsable}=regions(options.tree));
+    if(options.frame!==undefined&&options.frame!=="panel"&&options.frame!=="line")throw new TypeError('61ade: PageLayout: frame is "panel" or "line".');
+    const line=options.frame==="line";
+    ({ids:this.ids,collapsable:this.collapsable}=regions(options.tree,line));
     const preferences=new UiPreferences(context.user,options.id);
     // A `tabs` branch is one framework leaf of the Layout; its tabs are created into that cell below.
     const groups:{cell:string;tabs:PageRegion[]}[]=[];
@@ -107,12 +114,14 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
     };
     const declared=leaves(options.tree);
     const tree:PageRegion=declared.rows||declared.cols?declared:{rows:[declared]};
+    // Suite draws a cell's resizer after it, so a `resizable` last child carries none: its previous sibling draws it.
+    const children=(list:PageRegion[],axis:"width"|"height")=>list.map((child,index)=>({...config(child,axis),...(list[index+1]?.resizable===true&&index===list.length-2?{resizable:true}:{})}));
     const config=(node:PageRegion,axis?:"width"|"height"):Record<string,unknown>=>({...node,
       // Suite treats a minimum without gravity as content-sized. A minimum is a floor, not a fixed size.
       ...(axis&&node[axis]===undefined?{gravity:1}:{}),
-      ...(node.rows?{rows:node.rows.map(child=>config(child,"height"))}:{}),
-      ...(node.cols?{cols:node.cols.map(child=>config(child,"width"))}:{})});
-    this.layout=new Layout(this.host,{type:"space",css:"blade-page-layout",...config(preferences.layoutTree(tree))} as any);
+      ...(node.rows?{rows:children(node.rows,"height")}:{}),
+      ...(node.cols?{cols:children(node.cols,"width")}:{})});
+    this.layout=new Layout(this.host,{type:line?"line":"space",css:line?"blade-page-layout blade-page-layout--line":"blade-page-layout",...config(preferences.layoutTree(tree))} as any);
     preferences.bindLayout(this.layout,tree,()=>this.transient);
     collapseMotion(this.layout);
     // Every change of a collapsible leaf: a header click, its keys or the page's own call.
