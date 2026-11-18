@@ -102,11 +102,21 @@ that covers the need.
    or markup injection with these options. A public application's skin stays
    behind its sign-in steps; login-only pages have no skin before sign-in.
 
-Use the bundled [Bootstrap Icons catalog](../../../docs/icons.md) in every
-`icon` slot (`bi bi-<name>`, for example `bi bi-camera-video`). Check that
-catalog before requesting a missing icon or adding a separate icon library.
-Record icon fields map those class values to translated names in `options`.
-No extra CSS, font files or Bootstrap framework are needed.
+Icons are mandatory unless the owner's task waives them for a named surface
+([icon choice](../../../docs/icons.md#icon-choice)). Give every view with a
+menu entry, `MenuItem`, `MenuCommand`, view group (`menuGroupIcons`), project
+action offered as a command, client command and `CommandBar` item its own
+`icon` from the bundled [Bootstrap Icons catalog](../../../docs/icons.md)
+(`bi bi-<name>`). Search the catalog for each entry's business object or verb
+with several synonyms, and pick the glyph that says what this entry holds or
+does. Never put the same folder, grid or table glyph on every entry, and never
+leave the framework fallback. No two menu entries and no two sibling toolbar
+commands share an icon; one concept keeps one icon everywhere. Before handoff,
+list the menu and commands with their icons and replace any fallback,
+duplicate or generic choice. Check the catalog before requesting a missing
+icon or adding a separate icon library. Record icon fields map those class
+values to translated names in `options`. No extra CSS, font files or
+Bootstrap framework are needed.
 
 ## 3. Add a project module
 

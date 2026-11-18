@@ -86,7 +86,7 @@
             "view": {
                 "title": "Médiatár",
                 "group": "Digitális kijelző",
-                "icon": "bi bi-image",
+                "icon": "bi bi-collection-play",
                 "tiles": true,
                 "row_selection": true,
                 "row_height": 56,
@@ -222,7 +222,7 @@
             "view": {
                 "title": "Alapértelmezett tartalom",
                 "group": "Digitális kijelző",
-                "icon": "bi bi-clock",
+                "icon": "bi bi-display",
                 "guide": "Mi játszódjon, amikor a műsortervben nincs esemény: a hét egy napjára vagy egy dátumra rendelt médiaelem vagy lejátszási lista. A kettő közül egyet választhatsz: ha az egyiket kijelölöd, a másik kiürül (a keretrendszer kizáró mezőpárja, az űrlapon és a táblázat cellájában is). A Dátum a keretrendszer dátummezője: naptárválasztó az űrlapon és a táblázat cellájában is.\n\nVegyél fel egy sort egy hétköznapra, majd egyet egy dátumra. A mentés utáni üzleti szabály a kettő közül pontosan egyet enged, és mindegyiket legfeljebb egyszer.",
                 "columns": [
                     {
@@ -349,7 +349,7 @@
             "view": {
                 "title": "Lejátszási listák",
                 "group": "Digitális kijelző",
-                "icon": "bi bi-view-stacked",
+                "icon": "bi bi-music-note-list",
                 "row_selection": true,
                 "activate": {
                     "field": "title",
@@ -558,7 +558,7 @@
             "view": {
                 "title": "Lejátszásilista-elemek",
                 "group": "Digitális kijelző",
-                "icon": "bi bi-view-stacked",
+                "icon": "bi bi-list-ol",
                 "row_selection": true,
                 "row_height": 56,
                 "guide": "A lista elemei a lejátszás sorrendjében. Húzd a sorokat a sorrend módosításához, vagy használd a Feljebb és Lejjebb parancsot. Üres saját lejátszási idő esetén a médiaelem saját ideje, üres saját áttűnésnél a lista áttűnése érvényes. A Ma oszlop mutatja, hogy az elem ma lejátszódik-e.",

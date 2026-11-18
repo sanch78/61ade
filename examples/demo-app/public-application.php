@@ -14,7 +14,7 @@ $db = blade_demo_db('features');
 // The same synthetic catalogue and accounts as the feature demo; an independent browser session.
 $workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/catalog.json'], static fn() => []);
 $notes = new SqlResource('notes', 'notes', 'id', [new Field('title', 'Cím', required: true)], 'owner_id');
-$notes->register($workspace->registry, 'Jegyzetek');
+$notes->register($workspace->registry, 'Jegyzetek', icon: 'bi bi-sticky');
 $languages = blade_demo_languages();
 $accounts = new Accounts($workspace, 'accounts', 'id', 'email', 'display_name', 'password_hash', createDefaults: ['active' => 1], languages: $languages);
 $identities = Administration::register($workspace, $accounts, new SqlIdentityProvider(

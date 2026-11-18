@@ -56,20 +56,20 @@ final class Permissions
             $query->execute([$target['id'], $target['id']]);
             if ((int) $query->fetchColumn() > 0) throw new Failure('A szerepkörnek még vannak tagjai vagy szabályai.', 409);
         });
-        $roleResource->register($registry, 'Szerepkörök', group: $group);
+        $roleResource->register($registry, 'Szerepkörök', group: $group, icon: 'bi bi-shield-lock');
         $roleResource->registerDelete($registry);
 
         $memberships = new SqlResource(self::MEMBERSHIPS, 'blade_memberships', 'id', [
             new Field('actor_id', 'Felhasználó', 'select', required: true, max: 100, options: $this->accounts->lookup()->options(...)),
             new Field('role_id', 'Szerepkör', 'select', required: true, max: 100, options: $roles->options(...)),
         ], deleteGuard: fn(Context $ctx, array $target) => $this->checkMembershipRemoval($ctx, $target['row']), unique: [['actor_id', 'role_id']]);
-        $memberships->register($registry, 'Szerepkör-tagságok', update: false, group: $group);
+        $memberships->register($registry, 'Szerepkör-tagságok', update: false, group: $group, icon: 'bi bi-person-badge');
         $memberships->registerDelete($registry);
 
         foreach ([
-            [self::ROLE_RULES, 'role', 'Szerepkör-jogosultságok', 'Szerepkör', $roles],
-            [self::USER_RULES, 'user', 'Egyedi jogosultságok', 'Felhasználó', $this->accounts->lookup()],
-        ] as [$resource, $type, $title, $subjectLabel, $subjects]) {
+            [self::ROLE_RULES, 'role', 'Szerepkör-jogosultságok', 'Szerepkör', $roles, 'bi bi-shield-check'],
+            [self::USER_RULES, 'user', 'Egyedi jogosultságok', 'Felhasználó', $this->accounts->lookup(), 'bi bi-person-gear'],
+        ] as [$resource, $type, $title, $subjectLabel, $subjects, $icon]) {
             $rules = new SqlResource($resource, 'blade_rules', 'id', [
                 new Field('subject_id', $subjectLabel, 'select', required: true, max: 100, options: $subjects->options(...)),
                 new Field('resource', 'Erőforrás', 'select', required: true, max: 100, options: fn(Context $ctx) => $this->choices($ctx, 'resource', $this->catalogue->resources())),
@@ -87,7 +87,7 @@ final class Permissions
                 },
                 // Allow and deny for the same subject and target would only contradict each other (deny wins).
                 unique: [['subject_type', 'subject_id', 'resource', 'action', 'channel', 'scope', 'object_id', 'field_name']]);
-            $rules->register($registry, $title, group: $group);
+            $rules->register($registry, $title, group: $group, icon: $icon);
             $rules->registerDelete($registry);
         }
     }

@@ -883,3 +883,7 @@
 <a id="fb-0215"></a>
 
 ## FB-0215 — Free-text search only when justified
+
+<a id="fb-0216"></a>
+
+## FB-0216 — Icons are mandatory and chosen for their meaning

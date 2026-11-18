@@ -53,6 +53,8 @@ export type ShellDefinition = {
   menu?: MenuDefinition[];
   /** Translated labels of offered view groups that get a preceding native separator. */
   menuSeparators?: string[];
+  /** Menu icons of offered view groups by translated label (`ApplicationDefinition::menuGroupIcons`). */
+  menuGroupIcons?: Record<string, string>;
   /** Menu-row commands offered to the actor (`MenuCommand`); `attention` names an offered view with attention. */
   menuCommands?: { id: string; label: string; icon?: string; tooltip?: string; emphasized: boolean; attention?: string }[];
   /** Offered views in menu order (toolkit `ViewDefinition`: shared keys at the top, the kind's payload in `options`). */
@@ -502,7 +504,7 @@ export class AdminShell {
         const item={id:"view:"+view.id,value:escape(view.title),icon:view.icon??"bi bi-table"};
         if(view.group){
           let group=features.find(v=>v.id==="group:"+view.group);
-          if(!group){group={id:"group:"+view.group,value:escape(view.group),icon:"bi bi-folder2-open",items:[],separatorBefore:definition.menuSeparators?.includes(view.group)};features.push(group);}
+          if(!group){group={id:"group:"+view.group,value:escape(view.group),icon:definition.menuGroupIcons?.[view.group]??"bi bi-folder2-open",items:[],separatorBefore:definition.menuSeparators?.includes(view.group)};features.push(group);}
           group.items.push(item);
         }else features.push(item);
       }

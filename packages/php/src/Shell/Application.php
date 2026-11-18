@@ -161,6 +161,12 @@ final class Application
                 $bootstrap['views'] = $workspace->views($actor, $tenant);
                 $separators = array_values(array_intersect(array_map(Translator::text(...), $definition->menuSeparators), array_column($bootstrap['views'], 'group')));
                 if ($separators) $bootstrap['menuSeparators'] = $separators;
+                // Icons of the offered groups, by translated label like the views' `group` (docs/shell.md#menu-group-icons).
+                $groupIcons = [];
+                foreach ($workspace->registry->groupIcons() as $group => $icon) {
+                    if (in_array($label = Translator::text((string) $group), array_column($bootstrap['views'], 'group'), true)) $groupIcons[$label] = $icon;
+                }
+                if ($groupIcons) $bootstrap['menuGroupIcons'] = $groupIcons;
                 $bootstrap['csrf'] = $csrf;
                 $bootstrap['live'] = $definition->live->metadata();
             }

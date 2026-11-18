@@ -100,6 +100,13 @@ tree as decoration for a flat list.
 - Use native controls, theme tokens, and framework sizing. Test light, dark, and
   the default theme; do not recreate a vendor skin or introduce a consumer
   shell layer to obtain a visual tweak.
+- Every menu entry, view group and toolbar command has an icon unless the
+  owner's task waives it. Choose it for the entry's own meaning (its object or
+  verb, searched with synonyms): distinct within the menu and among sibling
+  commands, the same for the same concept, never a framework fallback or a
+  folder/grid/table glyph by habit
+  ([icon choice](../../../docs/icons.md#icon-choice),
+  [FB-0216](../../../docs/feedback.md#fb-0216)).
 - Choose icons from the bundled [catalog](../../../docs/icons.md) through
   the existing icon properties. Keep translated labels and accessible names;
   do not draw replacement glyphs or add an icon package for a catalogued icon.

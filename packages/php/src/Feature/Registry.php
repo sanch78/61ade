@@ -19,6 +19,8 @@ final class Registry
     private array $counts = [];
     /** @var array<string, DelegationScope> delegated access per resource (SqlResource `delegation`, FB-0180) */
     private array $delegations = [];
+    /** @var array<string, string> menu icon per declared view group label (docs/shell.md#menu-group-icons) */
+    private array $groupIcons = [];
     public function __construct()
     {
         $meta=new ViewMetadata($this);
@@ -175,6 +177,15 @@ final class Registry
     /** @return list<View> in menu order */
     public function views(): array { return array_values($this->views); }
     public function viewById(string $id): ?View { return $this->views[$id] ?? null; }
+    /** Sets or replaces the menu icon (`bi bi-<name>`) of the declared view group $group (docs/shell.md#menu-group-icons). */
+    public function groupIcon(string $group, string $icon): void
+    {
+        if(!in_array($group,array_column($this->views,'group'),true))throw new \InvalidArgumentException('A group icon needs a declared view group: '.$group);
+        if(!preg_match('/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/D',$icon))throw new \InvalidArgumentException('Invalid group icon: '.$group);
+        $this->groupIcons[$group]=$icon;
+    }
+    /** @return array<string, string> declared group label => icon */
+    public function groupIcons(): array { return $this->groupIcons; }
     /** $id is another view's embedded sub-view: no menu entry and no top-level bootstrap entry of its own. */
     public function embedded(string $id): bool { return isset($this->embedded[$id]); }
     /**

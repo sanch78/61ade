@@ -43,7 +43,7 @@
             "view": {
                 "title": "Gyűjtemények",
                 "group": "Feature demó",
-                "icon": "bi bi-folder",
+                "icon": "bi bi-collection",
                 "columns": [
                     {
                         "id": "title",

@@ -749,6 +749,12 @@ views, transport controls and demos. Any icon slot accepts `bi bi-<name>`;
 record icon columns use those values as keys of their labelled `options`.
 No extra stylesheet, font file or CDN is needed. Legacy `dxi` and `blade-icon`
 classes remain compatible.
+Every menu entry, view group and toolbar command declares an icon chosen for
+its own meaning, distinct within the menu, unless the owner's task waives it
+([icon choice](icons.md#icon-choice)). View groups take theirs from
+`ApplicationDefinition(menuGroupIcons: [...])` / JSON
+`application.menu_group_icons` ([group icons](shell.md#menu-group-icons));
+`SqlResource::register()` accepts `icon` like `Registry::view()`.
 Menu commands centre their whole icon/label/count group within the button,
 including commands without a count and the narrow icon-only form.
 
