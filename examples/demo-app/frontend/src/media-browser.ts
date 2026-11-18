@@ -1,8 +1,9 @@
 // D12 `Médiaböngésző` (modules/media-sheets.json, docs/demos.md#d12-media-browser, FB-0222): a page view of 61ade
 // components in a PageLayout whose `Kiválasztott médialap` panel holds an inner layout (`inner`): frameless regions
 // divided by draggable lines, each an ordinary region of the page. The list of the media sheets in a framed panel
-// drives them: the selected sheet's `Adatok` fields (RecordDetails), its image (MediaPlayer) and its brief (a plain
-// element of the page's own, `attach`). On a phone the panels and the inner regions stack, with their own kept sizes.
+// drives them: the selected sheet's `Adatok` fields (RecordDetails `fields`, FB-0223), its image (MediaPlayer) and its
+// brief (a plain element of the page's own, `attach`). On a phone the panels and the inner regions stack, with their
+// own kept sizes.
 import type { Application, ApplicationModule, ListKindOptions, MediaPlayer, PageLayout, PageRegion, RecordDetails, Row, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 import "./media-browser.css";
 
@@ -12,18 +13,14 @@ type BrowserOptions = { list?: string };
 const KIND = "demo.media-browser", PHONE = "(max-width: 767px)";
 type Media = { id: string; name: string; mime_type: string; revision: string };
 
-/** The list view with only $ids as its detail fields: what one region's `RecordDetails` shows. */
-function only(list: ViewDefinition<ListKindOptions>, ids: string[]): ViewDefinition<ListKindOptions> {
-  const options = list.options!;
-  return { ...list, options: { ...options, detailFields: (options.detailFields ?? options.columns).filter(field => ids.includes(field.id)) } };
-}
-
 function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserOptions>): ViewInstance {
   const t = (key: string) => app.i18n.t(key);
   const list = app.viewDefinition(view.options?.list ?? "demo_media_sheets") as ViewDefinition<ListKindOptions> | undefined;
   if (!list) throw new Error(t("A médialapok listája nem érhető el."));
   const fields = list.options!.detailFields ?? list.options!.columns, image = fields.find(field => field.id === "file_id");
-  const data = fields.filter(field => field.section === "Adatok").map(field => field.id);
+  // The `Adatok` section's fields: its label is translated, so the section is read from one of its fields.
+  const section = fields.find(field => field.id === "title")?.section;
+  const data = fields.filter(field => section !== undefined && field.section === section).map(field => field.id);
   const phone = matchMedia(PHONE), root = document.createElement("div");
   root.style.cssText = "width:100%;height:100%";
   host.attach(root);
@@ -57,13 +54,21 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
     const show = async (id: string | undefined): Promise<void> => {
       const current = ++epoch;
       selected = id;
-      if (!id) { empty(); return; }
+      if (!id) { empty(); host.setLocation([]); return; }
       for (const region of ["data", "image", "brief"]) page.placeholder(region, { busy: true });
       const row = await app.server.call<Row>(list.resource!, "get", { id, signal }).catch(() => undefined);
       if (signal.aborted || current !== epoch) return;
-      if (!row) { empty(); return; }
+      if (!row) { empty(); host.setLocation([]); return; }
+      // A path of the page's own (FB-0226), the whole bar: the list, the sheet's channel as a link to the list filtered
+      // by it, then the sheet. Without a selection the bar is the menu path again.
+      const channel = String(row.channel ?? ""), options = fields.find(field => field.id === "channel")?.options ?? {};
+      host.setLocation([
+        { label: list.title, ...(list.icon ? { icon: list.icon } : {}), target: { view: list.id } },
+        ...(channel ? [{ label: options[channel] ?? channel, target: { view: list.id, filters: { channel } } }] : []),
+        { label: String(row.title ?? "#" + id) },
+      ], { from: "root" });
       if (details) await details.show(row);
-      else (details = new app.components.RecordDetails({ view: only(list, data), record: row, showId: false, signal })).mount(page.cell("data"));
+      else (details = new app.components.RecordDetails({ view: list, fields: data, record: row, showId: false, signal })).mount(page.cell("data"));
       player?.destroy(); player = undefined;
       const media = (row._media as Record<string, Media | null> | undefined)?.file_id;
       if (media && image?.media) {

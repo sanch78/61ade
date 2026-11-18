@@ -9,6 +9,7 @@ import { acknowledge, closeDialogs, showDialog } from "./MessageDialog";
 import { ResponsiveToolbar } from "./ResponsiveToolbar";
 import { uploads, type UploadIndicator } from "./Uploader";
 import { configureServer, server } from "./api/Server";
+import { configureWindowSizing } from "./WindowSizing";
 import { attachContent, nonModalOpen, openWindow, themeApplied } from "./api/services";
 import type { AppWindow, LocationSegment, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
 import { createApplication, loadModules, type Kernel } from "./app/Application";
@@ -21,7 +22,11 @@ import type { SignInPage } from "./api/sign-in";
 /** One open view: the workspace page or a document window, with the signal its host aborts on close. */
 type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow;
   /** A page: its levels after the menu path (`ViewHost.setLocation`, by default the record's title). */
-  location?: Place[] };
+  location?: Place[];
+  /** `setLocation(…, {from: "root"})`: `location` is the whole bar, without the menu path and the parents. */
+  whole?: boolean;
+  /** A record page: its resolved parent records (`ViewDefinition.parent`), the root first, each with its record view. */
+  parents?: { view: ViewDefinition; place: Place }[] };
 
 export type MenuDefinition = {
   id: string;
@@ -79,6 +84,8 @@ export type ShellDefinition = {
   signIn?: { closeHref?: string; notice?: string; links?: { label: string; href: string }[] };
   /** Sign-in pages only: the sign-in modules, page-relative keyed paths. */
   signInModules?: string[];
+  /** Application pages, only when declared: the default largest height of fitted windows (`ApplicationDefinition::$windowMaxHeight`). */
+  windowMaxHeight?: number;
 };
 const escape = (text: string) =>
   text.replace(
@@ -93,6 +100,8 @@ const escape = (text: string) =>
 const SIGNED_OUT="blade-signed-out";
 /** `sessionStorage` marks of the guides already shown in this sign-in session (AdminShell.guideKey). */
 const GUIDE_PREFIX="blade-guide:2:";
+/** At most this many parent levels of a record page (`ViewDefinition.parent`, docs/shell.md#location-bar). */
+const PARENTS=4;
 
 /** Most urgent first: a branch and `Menü` show the tone of their most urgent entry. */
 const TONES=["danger","warning","primary"];
@@ -198,9 +207,10 @@ export class AdminShell {
     // The full menu wins over the command's label: it keeps its entries with icon-only commands before it collapses.
     const full=(iconOnly:boolean)=>required([...this.menuItems,...commands(iconOnly)]);
     const compact = width < Math.max(768,full(true));
-    const view=this.navigable(parseRoute(location.hash).view??"");
-    const menuView=view&&this.menuSource(view);
-    const current=menuView?"view:"+menuView.id:view?.group?"group:"+view.group:"";
+    const route=parseRoute(location.hash),view=this.navigable(route.view??""),page=this.page;
+    // A record page stands in the menu for its topmost parent record actually resolved (none yet: for itself).
+    const root=view&&(page?.view===view&&page.record===route.record&&page.parents?.[0]?.view||view),menuView=root&&this.menuSource(root);
+    const current=menuView?"view:"+menuView.id:root?.group?"group:"+root.group:"";
     const siblings=(items:any[],nested=false):any[]|undefined=>{
       for(const item of items){
         if(item.id===current)return item.items??(nested?items:undefined);
@@ -394,6 +404,7 @@ export class AdminShell {
     private definition: ShellDefinition,
   ) {
     configureLanguage(definition.i18n);
+    configureWindowSizing(definition.windowMaxHeight);
     // Skins replace the factory themes and keep their own stored choice, so blade-theme survives a lost skin.
     // A skin applies its factory base theme and refines it through data-blade-skin.
     const skins=definition.skins??[];
@@ -690,25 +701,52 @@ export class AdminShell {
 
   /**
    * Draws the location bar of the page view (docs/shell.md#location-bar): the menu path of its menu source (group, then
-   * the entry, which a record view's `location: "group"` leaves out; the first level with the section's icon), then the
-   * page's own levels; hidden without a page. The document title follows the current level.
+   * the entry; the first level with the section's icon; for a record page with resolved parent records, that of the
+   * topmost one), those parent records, then the page's own levels; hidden without a page. The document title follows
+   * the current level.
    */
   private locate():void{
     const bar=this.locationBar,page=this.page,cell=this.layout.getCell("location");
     if(!bar)return;
     this.root.classList.toggle("blade-located",!!page);
     if(!page){if(cell.isVisible())cell.hide();document.title=this.applicationTitle;return;}
-    const view=page.view,source=this.menuSource(view),group=source?.group??(view.record?view.group:undefined);
+    const view=page.view,root=page.parents?.[0]?.view??view,source=this.menuSource(root),group=source?.group??(root.record?root.group:undefined);
     const places:Place[]=[];
+    if(page.whole&&page.location?.length){
+      const [first,...rest]=page.location;
+      places.push({icon:view.icon??"bi bi-file-earmark-text",...first},...rest);
+    }else{
     if(group)places.push({label:group,icon:this.definition.menuGroupIcons?.[group]??"bi bi-folder2-open"});
-    if(source&&!(view.record&&view.location==="group"))places.push({label:source.title,...(places.length?{}:{icon:source.icon??"bi bi-table"}),...(source===view?{}:{href:"#"+routeHash({view:source.id})})});
-    const own=[...page.location??[]];
-    if(!places.length&&own.length)own[0]={icon:view.icon??"bi bi-file-earmark-text",...own[0]};
+    if(source)places.push({label:source.title,...(places.length?{}:{icon:source.icon??"bi bi-table"}),...(source===view?{}:{href:"#"+routeHash({view:source.id})})});
+    const parents=page.parents??[],own=[...parents.map(parent=>parent.place),...page.location??[]];
+    if(!places.length&&own.length)own[0]={icon:root.icon??"bi bi-file-earmark-text",...own[0]};
     places.push(...own);
+    }
     if(!places.length)places.push({label:view.title,icon:view.icon??"bi bi-table"});
     bar.show(places);
     if(!cell.isVisible())cell.show();
     document.title=`${places[places.length-1].label} · ${this.applicationTitle}`;
+  }
+
+  /**
+   * The parent records of the record page $mounted (`ViewDefinition.parent`), from its $row through each parent
+   * resource's ACL-checked `get` (recursively, at most PARENTS, no record twice), as links to their record views; then
+   * the bar and the menu marker follow the topmost one. A parent view not offered, an empty id or a failing `get` ends
+   * the chain there, without a dialog.
+   */
+  private async locateParents(mounted:Mounted,row:Row):Promise<void>{
+    const parents:NonNullable<Mounted["parents"]>=[],seen=new Set([`${mounted.view.record}:${mounted.record}`]);
+    for(let view=mounted.view;view.parent&&parents.length<PARENTS;){
+      const parent=this.navigable(view.parent.view),id=String(row[view.parent.field]??"").trim(),key=`${parent?.record}:${id}`;
+      if(!parent?.record||!id||seen.has(key))break;
+      seen.add(key);
+      try{row=await server.call<Row>(parent.record,"get",{id,signal:mounted.controller.signal});}catch{break;}
+      const title=parent.recordTitle!==undefined?String(row[parent.recordTitle]??"").trim():"";
+      parents.unshift({view:parent,place:{label:title||parent.title,...(this.openable(parent,id)?{href:"#"+routeHash({view:parent.id,record:id})}:{})}});
+      view=parent;
+    }
+    if(!parents.length||mounted.controller.signal.aborted||this.page!==mounted)return;
+    mounted.parents=parents;this.locate();this.renderMenu();
   }
 
   /** `ViewHost.setLocation` segments as drawn levels: a target the actor is not offered is plain text. */
@@ -721,12 +759,16 @@ export class AdminShell {
       if(segment.onSelect!==undefined&&typeof segment.onSelect!=="function")throw new TypeError("61ade: a location segment's onSelect is a function.");
       const target=segment.target;
       if(target!==undefined&&(!target||typeof target!=="object"||typeof target.view!=="string"||(target.record!==undefined&&typeof target.record!=="string"&&typeof target.record!=="number")))
-        throw new TypeError("61ade: a location segment target is {view, record?}.");
+        throw new TypeError("61ade: a location segment target is {view, record?, filters?}.");
+      const filters=target?.filters;
+      if(filters!==undefined&&(!filters||typeof filters!=="object"||Array.isArray(filters)||Object.keys(filters).length>20
+        ||Object.entries(filters).some(([field,value])=>!/^[a-z][a-z0-9_]{0,63}$/.test(field)||typeof value!=="string"||value.length>255)))
+        throw new TypeError("61ade: a location segment's target filters map at most 20 field names to text values.");
       const place:Place={label:segment.label,...(segment.icon?{icon:segment.icon}:{})};
       if(segment.onSelect)place.select=segment.onSelect;
       if(target){
         const view=this.navigable(target.view),record=view?.record&&target.record!==undefined?String(target.record):undefined;
-        if(view&&this.openable(view,record))place.href="#"+routeHash({view:view.id,record});
+        if(view&&this.openable(view,record))place.href="#"+routeHash({view:view.id,record,...(filters&&!view.record?{filters}:{})});
       }
       return place;
     });
@@ -772,7 +814,7 @@ export class AdminShell {
       mounted.window=openWindow({title:view.title,css:"blade-feature-window",width:1100,height:720,fit:false});
       mounted.window.signal.addEventListener("abort",()=>this.unmount(mounted),{once:true});
       this.windows.add(mounted);
-    }else{this.page=mounted;this.locate();}
+    }else{this.page=mounted;this.locate();if(record&&view.parent)void this.locateParents(mounted,record.row);}
     const host:ViewHost=Object.freeze({
       app:this.kernel!.app,signal,open,...(record?{record}:{}),filters:Object.freeze({...filters}),
       attach:(content:Parameters<ViewHost["attach"]>[0])=>{
@@ -784,10 +826,11 @@ export class AdminShell {
         else attachContent(mounted.wrapper.cell,content,signal);
       },
       setTitle:(text:string)=>{if(!signal.aborted)mounted.window?.setTitle(String(text));},
-      setLocation:(segments:LocationSegment[])=>{
-        const places=this.places(segments);
+      setLocation:(segments:LocationSegment[],options?:{from?:"page"|"root"})=>{
+        const places=this.places(segments),from=options?.from??"page";
+        if(from!=="page"&&from!=="root")throw new TypeError('61ade: setLocation from is "page" or "root".');
         if(signal.aborted||mounted.window||this.page!==mounted)return;
-        mounted.location=places;this.locate();
+        mounted.location=places;mounted.whole=from==="root";this.locate();
       },
       close:()=>{
         if(signal.aborted)return;

@@ -6,10 +6,11 @@ namespace Blade\Feature;
  * Relation choices use the same object and field ACL as ordinary queries. $hideArchived: the table belongs to a
  * resource deleting with policy `archive` (SqlResource::registerDelete); its archived rows are no choices.
  * $tenantColumn: choices of a tenant-scoped table, limited to the Context's tenant (none without one).
+ * $resource: the ACL resource whose records the choices are (Field::references() of a select field with these options).
  */
 final readonly class Lookup
 {
-    public function __construct(private string $resource,private string $table,private string $key,private string $label,private ?string $owner=null,private string $where='1=1',private array $extra=[],private bool $hideArchived=false,private ?string $tenantColumn=null)
+    public function __construct(public string $resource,private string $table,private string $key,private string $label,private ?string $owner=null,private string $where='1=1',private array $extra=[],private bool $hideArchived=false,private ?string $tenantColumn=null)
     {
         foreach(array_filter([$table,$key,$label,$owner,$tenantColumn]) as $id)if(!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$id))throw new \InvalidArgumentException('Invalid lookup schema');
     }

@@ -144,7 +144,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | ACL | Roles, memberships and catalog-based rules | Administration |
 | API keys | Once-only secret, multiselect action scope, revocation checkbox | Root menu → API keys |
 | Workspace | Filters, sorting, panel forms, cards, inline text/select/checkbox edits, related storage, pattern validation, multiselect, delete, marks and bulk business action | Feature demo → Tasks; Notes |
-| Section column sizing | The project's `record-groups.css` sets the shared section columns to `1:2`; unequal amounts of content keep equal section heights in a row, with content at the top. Below 492 px of record content, the sections stack using CSS alone ([section columns](workspaces.md#card-group-columns)) | Feature demo → Mellékletek → Kártyák and Adatok; narrow the panel or viewport |
+| Section column sizing | The project's `record-groups.css` sets the shared section columns to `1:2`; unequal amounts of content keep equal section heights in a row (`Alapadatok` beside the reason's group), with content at the top. Below 492 px of record content, the sections stack using CSS alone ([section columns](workspaces.md#card-group-columns)) | Feature demo → Mellékletek → Kártyák and Adatok; narrow the panel or viewport |
 | Business rule hook | `after_save` rule across main and related storage: an in-progress task cannot turn notifications off; the field error rolls the save back (form and inline edit) | Tasks → set `Folyamatban` with `Értesítés` off |
 | Project field type and command (toolkit D4) | The demo module's `demo.rating` editor/display on `Prioritás` (forms, table cell and card edit windows, details) and the `Másolás szövegként` record command ([D4](#toolkit-d4-tasks)) | Tasks → `Prioritás` stars; select or mark tasks → `Másolás szövegként` |
 | Large list | 1801 read-only rows: server-side sorting/filtering, virtual scrolling with a bounded client window | Feature demo → Mérések |
@@ -154,18 +154,18 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Static image column | Fixed catalog: image file names as a table cell, `Csempék` tile, card and details image; a missing file shows the placeholder, values with `..`, `/`, a scheme or a bad extension show none; the files are `examples/demo-app/public/demo-images/` ([static image column](workspaces.md#media-tiles)) | `Feature demó` → Katalógus |
 | Registry editor (tree navigation, conditional fields) | `Regisztrációs adatbázis` ([registry.json](../examples/demo-app/modules/registry.json)): a Windows registry editor imitation. The key tree (`Registry::tree` over the `Kulcsok` hierarchy) loads children on expansion, its toolbar adds, edits (renames or moves, guarded against cycles) and deletes keys (with their subtree and values); the value list beside it is scoped to the selected key. The value form shows the editor of the chosen `Típus` only (`visible_when`): text, multi-line text, hexadecimal DWORD/QWORD or a byte string, each with its own pattern; the `Adat` column is computed SQL | Feature demo → Regisztrációs adatbázis; `reader@example.test` browses only |
 | Tree component and toggle command | `Kulcsböngésző` ([D8](#d8-key-browser)): the public `Tree` beside tabs of a scoped value list and key details, and value details; the list's pinned toggle `Alkulcsok értékei` switches between the key's own values and its subkeys' with one shared set of view choices; on the subkey scope `Hozzáadás` presets the key; the computed parent is a scope-only field | Feature demó → Kulcsböngésző: arrows, Space, Enter, `*` and `Mindet kinyit` / `Mindet bezár` in the tree; the toggle in the values toolbar; reload |
-| Stored file field | `Mellékletek` ([attachments.php](../examples/demo-app/attachments.php)): a record with a role, a reason and an image the project stores itself (a content-addressed directory and pending rows), not in a file manager mount; the image uploads in the background by the native dialog, paste or drop and is saved with the other fields in one save; `Mégse` leaves no record; the edit form shows the stored image through the project's GET action; the list's `Fájlnév` is a computed column of the project's rows ([stored file field](workspaces.md#stored-file-field)). The image and a second one (`Részletkép`) form the collapsible `Képek` section, closed while the record holds no image; the title and the role form the fixed `Alapadatok` section ([form sections](workspaces.md#form-sections)); the role is chosen at create and shown read-only by `Módosítás` ([read-only fields](workspaces.md#read-only-fields)). With `Képek` open the window stops at 800 px and the fields scroll above the action row ([window sizing](workspaces.md#window-sizing)). The cards (one per row) and `Adatok` show `Alapadatok` and `Képek` (`Fájlnév`) as groups side by side and the reason below them in six lines ([card groups](workspaces.md#card-groups)) | Feature demó → Mellékletek: `Hozzáadás`, open `Képek`, paste an image with Ctrl+V, `Mentés`; `Módosítás` (the role read-only, `Képek` open), drop another image; `Nézet: Kártyák`, double-click a card |
+| Stored file field | `Mellékletek` ([attachments.php](../examples/demo-app/attachments.php)): a record with a role, a reason and an image the project stores itself (a content-addressed directory and pending rows), not in a file manager mount; the image uploads in the background by the native dialog, paste or drop and is saved with the other fields in one save; `Mégse` leaves no record; the edit form shows the stored image through the project's GET action; the list's `Fájlnév` is a computed column of the project's rows ([stored file field](workspaces.md#stored-file-field)). The image and a second one (`Részletkép`) form the collapsible `Képek` section, closed while the record holds no image; the title and the role form the fixed `Alapadatok` section ([form sections](workspaces.md#form-sections)); the role is chosen at create and shown read-only by `Módosítás` ([read-only fields](workspaces.md#read-only-fields)). With `Képek` open the window stops at 800 px and the fields scroll above the action row ([window sizing](workspaces.md#window-sizing)); the demo declares no application `windowMaxHeight`, since its window specs check the 800 px default (`record-forms.spec.cjs` checks a declared one through a fixture bootstrap). The cards (one per row) and `Adatok` show `Alapadatok` and `Képek` (`Fájlnév`) as groups and the reason, a long text outside the sections with `column.placement: 'group'`, as a group of its own between them, titled `Indoklás` with six lines in a card: `Alapadatok` and the reason side by side, `Képek` in the next row ([card groups](workspaces.md#card-groups), [long-text placement](workspaces.md#long-text-placement)) | Feature demó → Mellékletek: `Hozzáadás`, open `Képek`, paste an image with Ctrl+V, `Mentés`; `Módosítás` (the role read-only, `Képek` open), drop another image; `Nézet: Kártyák`, double-click a card |
 | Accordion form sections, form rows | `Kapcsolatok` ([contacts.php](../examples/demo-app/contacts.php)): a contact of many short fields whose create and update forms declare `formSections: 'accordion'` and `flushSections: true` ([accordion form sections](workspaces.md#form-accordion)) and lay out the short fields in [form rows](workspaces.md#form-rows): the name and the organization side by side under the window's title, `Beosztás`, a double-width `E-mail` and `Telefon` in `Elérhetőség`, `Irányítószám`, `Település` and `Ország` in `Cím`, the contact method beside the newsletter checkbox in `Beállítások`; `Weboldal`, `Utca, házszám` and the section-filling note and photo take the full width. The window opens as wide as its widest row; a narrow window or a phone stacks every row into one column. Below the name, edge to edge, the collapsible `Elérhetőség` (open), `Cím`, `Beállítások`, `Megjegyzés` and `Fénykép` under the `Accordion` component's header, one open at a time; `Megjegyzés`, `Fénykép` and `Galéria` are [section-filling fields](workspaces.md#form-section-fill): the open section is the note's text area (opening it focuses the caret at the text's end), the photo's drop area (a stored image in the `Mellékletek` store), or the gallery's upload zone and queue of up to six images ([several stored files](workspaces.md#stored-file-multiple)); the window keeps its size when another opens, and a section taller than its share scrolls its own fields. A missing e-mail opens `Elérhetőség`. The `Mellékletek` forms keep the framed panels | Feature demó → Kapcsolatok: `Hozzáadás`, open `Cím`, then `Beállítások` (the window stays the same), `Megjegyzés`, `Fénykép` (drop an image) and `Galéria` (several images), `Mentés` without an e-mail; narrow the browser window below about 880 px, or open it on a phone, to see the rows stack |
 | Delegated access | `Gyűjtemények` ([collections.json](../examples/demo-app/modules/collections.json)): synthetic collections A, B and C, with the consumer-owned tables `demo_collection_readers` and `demo_collection_writers` declared as `storage.delegation`. `delegate@example.test` has `delegated` rules on `list`, `get` and `update`: it lists and opens A and B, edits only A (B offers no `Módosítás`) and cannot reach C, also by a forged id. The demo account's ordinary `all` grants see, create and edit all three ([delegated access](access-and-actions.md#delegated-access)) | Feature demó → Gyűjtemények as `delegate@example.test` / `61ade-demo`, then as `demo@example.test` |
 | Menu attention | `Jóváhagyások` ([approvals](#approvals-attention)): a live count of the pending items on the entry, its branch and `Menü`, in the warning tone; the plain entry at zero | Change an item's `Állapot` and watch the menu; `reader@example.test` sees no entry |
 | Value tones, emphasized records, attention label, computed select | `Változások` ([change inbox](#changes-inbox)): unseen rows and cards bold with a hidden `Új` marker, toned `Hatókör` and `Jóváhagyás` labels (the latter computed from `Jóváhagyások`), the entry named `Változások, 3 új` | Tick `Látott` and watch the row and the menu; filter `Jóváhagyás`; open it at 390 px for the cards |
 | Menu command, long-lived window | `Munkaasztal` ([D9](#d9-workbench)): an emphasized command in the menu row of every view opens a non-modal work window that keeps its note across navigation, maximizes into the workspace and reopens where it was left; the entry also shows the pending approvals' count | Click `Munkaasztal`, write a note, open other views, Back; `Ablak maximalizálása`; move it, reload and reopen; at 320 px the entry shows its icon only |
-| Location bar | Every page view's [location bar](shell.md#location-bar) below the menu row: the menu path, a record page's source path and record title (`record_title`), and the task page's own levels (`host.setLocation`: the task, the open tab and the selected note); the middle levels collapse into `…` on a long path, a phone shows the parent and the current level | Feature demó → Feladatok: the bar shows `Feature demó › Feladatok`; select a task and `Feladatlap`, pick a note in `Munka`, open `Vázlat`, click the task's title; narrow the window below 768 px |
+| Location bar | Every page view's [location bar](shell.md#location-bar) below the menu row: the menu path, a record page's source path and record title (`record_title`), the task page's own levels (`host.setLocation`: the task, the open tab and the selected note), and the note page under its parent task (`parent`: `Feature demó › Feladatok › ‹task› › ‹note›`, the task a link); the middle levels collapse into `…` on a long path, a phone shows the parent and the current level | Feature demó → Feladatok: the bar shows `Feature demó › Feladatok`; select a task and `Feladatlap`, pick a note in `Munka`, open `Vázlat`, click the task's title; double-click a note, reload, click the task in the bar; narrow the window below 768 px |
 | Bootstrap Icons | The shell, built-in commands, file/media types and player controls use the bundled icon catalog ([icons](icons.md)); the work window shows `bi bi-clock-history` and `bi bi-sliders` | Open `Munkaasztal`, file/media views and the viewer in each theme; narrow the window to see the same icons in collapsed menus |
 | Popup menu | `Munkaasztal` ([D9](#d9-workbench)): `app.ui.menu` on the window's own toolbar buttons: `Előzmények` (drafts grouped `Ma` / `Az elmúlt 7 nap` / `Régebbi`, the current one checked, a time as detail, scrolling) and the model picker (`Automatikus`, the models, the chosen model's efforts) with the APG menu-button keys ([popup menu](toolkit.md#popup-menu)) | Open `Munkaasztal`, then `Előzmények` and `Modell: …` by mouse and with ArrowDown/Enter/Escape/Tab; at 390 px; in every theme |
 | Text difference | `Szövegváltozatok` ([D10](#d10-text-revisions)): append-only revisions of a ~60 000-character handbook and a short letter; the project record command `Különbség` compares the selected revision with the previous one in the [TextDiff](toolkit.md#textdiff) component: removed and added lines with signs and word highlights, unchanged stretches folded, `+N −M` in the title, side by side in a wide window | Select a handbook revision → `Különbség`; `n`/`p` or F7/Shift+F7, open a fold, `Egymás mellett`; the first revision; at 390 px |
-| Sized image and long-text card in the details | `Médialapok` ([D11](#d11-media-sheets)): the image at its `details_width` (480 px) by the file's ratio beside the data, its section without a label row, on the record page and in `Adatok`; the brief as a scrolling card on the record page (`longText: "card"`) | Open a sheet; scroll the brief with the mouse or Tab and the arrow keys; lower the window or go to 390 px; the sheet without an image; `Adatok` |
-| Inner layout of a panel | `Médiaböngésző` ([D12](#d12-media-browser)): the framed `Kiválasztott médialap` panel holds an inner layout (`PageLayout` `inner`) of frameless regions with the selected sheet's data (`RecordDetails`), image (`MediaPlayer`) and brief (a plain element) | Select a sheet; drag the inner lines; reload; double-click a line; collapse `Médialapok`; go to 390 px; English |
+| Sized image in the details, a media field alone in its section | `Médialapok` ([D11](#d11-media-sheets)): the image at its `details_width` (480 px) by the file's ratio beside the data, its section without a label row, and the brief below them across the width, on the record page (a plain `RecordDetails`) and in `Adatok` | Open a sheet and scroll it; go to 390 px; the sheet without an image; `Adatok` |
+| Inner layout of a panel, a field subset of the details | `Médiaböngésző` ([D12](#d12-media-browser)): the framed `Kiválasztott médialap` panel holds an inner layout (`PageLayout` `inner`) of frameless regions with the selected sheet's data (`RecordDetails` with `fields`), image (`MediaPlayer`) and brief (a plain element) | Select a sheet; drag the inner lines; reload; double-click a line; collapse `Médialapok`; go to 390 px; English |
 | View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in the `Beállítások` controls menu below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Empty shelf`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `Zone C` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
 | Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title and type header filters (no free-text search, [search justification](workspaces.md#search-justification)), the single-file `file` field with a native file dialog, clipboard paste/drop, background transfer and proportional preview, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date, an asset or a playlist (two selects clearing each other, [exclusive fields](workspaces.md#exclusive-fields); a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
@@ -228,12 +228,12 @@ starter admin and the tenant demo stay declarative and load no project module.
 | D4 | `Tasks` field type and command | `tasks.ts` | Implemented: field type `demo.rating` on `Prioritás` and record command `demo.copy-text` ([below](#toolkit-d4-tasks)) |
 | D5 | Signage `Lejátszási listák` playlist editor | `playlist-editor.ts` | Implemented: record view kind `demo.playlist-editor` and record command `demo.edit-playlist` ([below](#d5-playlist-editor)) |
 | D6 | Starter admin and tenant demo stay declarative | — | Implemented: `contracts.php` asserts no `modules`/`stylesheets` there and exactly `app/demo.js` and `app/demo.css` on the feature demo |
-| D7 | `Feladatlap` task page | `task-page.ts` | Implemented: record view kind `demo.task-page` and record command `demo.task-page` ([below](#d7-task-page)) |
+| D7 | `Feladatlap` task page | `task-page.ts` | Implemented: record view kinds `demo.task-page` and `demo.task-note` (the note page under its parent task) and record command `demo.task-page` ([below](#d7-task-page)) |
 | D8 | `Kulcsböngésző` key browser | `registry-browser.ts` | Implemented: view kind `demo.registry-browser` (the `Tree` component) and toggle command `demo.subkey-values` ([below](#d8-key-browser)) |
 | D9 | `Munkaasztal` work window | `workbench.ts` | Implemented: menu command `demo.workbench` and its long-lived window, with the popup menus `Előzmények` and `Modell` (`app.ui.menu`) ([below](#d9-workbench)) |
 | D10 | `Szövegváltozatok` text revisions | `text-revisions.ts` | Implemented: record command `demo.text-diff` opening the `TextDiff` component ([below](#d10-text-revisions)) |
-| D11 | `Médialapok` media sheets | `media-sheet.ts`, `media-sheet.css` | Implemented: record view kind `demo.media-sheet` (`RecordDetails` with `longText: "card"`) and the view's section columns ([below](#d11-media-sheets)) |
-| D12 | `Médiaböngésző` media browser | `media-browser.ts`, `media-browser.css` | Implemented: view kind `demo.media-browser`, a `PageLayout` panel with an inner layout (`inner`) of components ([below](#d12-media-browser)) |
+| D11 | `Médialapok` media sheets | `media-sheet.ts`, `media-sheet.css` | Implemented: record view kind `demo.media-sheet` (a plain `RecordDetails`) and the view's section columns ([below](#d11-media-sheets)) |
+| D12 | `Médiaböngésző` media browser | `media-browser.ts`, `media-browser.css` | Implemented: view kind `demo.media-browser`, a `PageLayout` panel with an inner layout (`inner`) of components, its data a `RecordDetails` with `fields` ([below](#d12-media-browser)) |
 
 <a id="readings-dashboard"></a>
 
@@ -631,6 +631,23 @@ command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
   (`host.setLocation` with `onSelect`). Switching tabs or notes redraws only
   the bar. The asset viewer and the playlist editor declare
   `record_title` too and keep the default path.
+- **Note page** (`demo.task-note`, the second kind of
+  [task-page.ts](../examples/demo-app/frontend/src/task-page.ts)): a
+  double-click or Enter on a note in `Munka` or `Jegyzetek` opens the note's
+  own page, because the notes list declares
+  `"activate": "view:demo.task-note"`. The page shows the note's
+  `RecordDetails`. The record view declares
+  `"parent": {"field": "task_id", "view": "demo.task-page"}`
+  ([parent records](shell.md#location-bar-parent)) on the notes' `number`
+  field `task_id`. The bar therefore reads
+  `Feature demó › Feladatok › <task title> › <note>`, also after a reload or
+  a direct link: the task is resolved from the note's row through
+  `demo_tasks.get` and links to its task page, and the note's level is its
+  first 60 characters (`host.setLocation`). Once the task has arrived, the
+  menu marks `Feature demó` through the task page's source `Feladatok`.
+  Until then, and for a note whose task cannot be read, the bar is
+  `<note>` alone with the note view's icon and no marker, without a dialog
+  (the note view has no menu source of its own).
 - **Control region:** the collapsible leaf `Feladat` holds an `Accordion`
   of its own: `Adatok` (`RecordDetails`, open) and `Szerkesztés` (the
   `update` form, created when it first opens; disabled without `update`).
@@ -817,41 +834,47 @@ read, create and compare; the reader may list, read and compare.
 **D11 `Médialapok` media sheets** ([media-sheets.json](../examples/demo-app/modules/media-sheets.json),
 [media-sheets.php](../examples/demo-app/media-sheets.php),
 [media-sheet.ts](../examples/demo-app/frontend/src/media-sheet.ts),
-[FB-0218](feedback.md#fb-0218)): campaign visuals with their data, image and
-brief. `Adatok` (title, client, channel, year) and `Kép` are fixed sections;
-`Kép` holds only the image, a `file` field of the Signage mount with
-`details_width: 480`, and `Leírás` is a long text outside the sections. The
+[FB-0218](feedback.md#fb-0218), [FB-0223](feedback.md#fb-0223)): campaign
+visuals with their data, image and brief. `Adatok` (title, client, channel,
+year) and `Kép` are fixed sections; `Kép` holds only the image, a `file`
+field of the Signage mount with `details_width: 480`, so it shows its heading
+and the image without a label row
+([media alone in a section](workspaces.md#details-media-alone)), and
+`Leírás` is a long text outside the sections. The
 project stylesheet `media-sheet.css` sets `minmax(0, 1fr) auto` columns for
 the view (`data-blade-view="demo_media_sheets"`), so the data take the width
 the image leaves ([sized image in the details](workspaces.md#details-media-width)).
 A double-click or Enter opens the record view `demo.media-sheet`: the page's
-`Vissza a listához` command row above `RecordDetails` with
-`longText: "card"` ([RecordDetails](toolkit.md#recorddetails)). The seed (web
+`Vissza a listához` command row above a plain `RecordDetails`
+([RecordDetails](toolkit.md#recorddetails)), with the brief below the groups
+across the width. The seed (web
 setup, table `demo_media_sheets`) has three sheets with Signage images (1672 ×
 941) and one without an image. The demo account may list, read, create,
 update and delete; the reader may list and read.
 
 - **What to try:** open `Éjszakai komp a ködben` at 1366 × 800: the image is
-  480 px wide beside the data, and the brief scrolls in its card (mouse, or
-  Tab to it and the arrow keys) while the rest stays. Make the window lower:
-  below the card's 160 px the whole sheet scrolls and the brief shows in full,
-  as it does at 390 px with the groups stacked. `Tavaszi programajánló` keeps
-  the image's box without one. `Adatok` on the list shows the same image
-  width. Switch the theme and the language. Check:
-  `tests/shell/record-details-layout.spec.cjs`.
+  480 px wide beside the data, the brief follows below them in full, and the
+  sheet scrolls as a whole. At 390 px the groups stack and the image is at
+  most its group's width. `Tavaszi programajánló` keeps the image's box
+  without one. `Adatok` on the list shows the same image width. Switch the
+  theme and the language. Check: `tests/shell/record-details-layout.spec.cjs`
+  (also `RecordDetails` `fields` and a media field alone in its section
+  without a details width, on a fixture page).
 
 <a id="d12-media-browser"></a>
 
 **D12 `Médiaböngésző` media browser** ([media-sheets.json](../examples/demo-app/modules/media-sheets.json),
 [media-browser.ts](../examples/demo-app/frontend/src/media-browser.ts),
-[FB-0222](feedback.md#fb-0222)): a page view over the D11 media sheets whose
-right-hand panel holds an inner layout ([inner layout](toolkit.md#pagelayout-inner)).
-The framed `Médialapok` panel (420 px, resizable, collapsible) holds the list
-(`ListView`, `panel: false`); the framed `Kiválasztott médialap` panel declares
-`inner`: the selected sheet's `Adatok` fields (`RecordDetails` with a view copy
-of those detail fields, 320 px) beside its image (`MediaPlayer` without its
-toolbar, no size, so it fills) over its brief (a plain element of the page,
-`attach`, 200 px, the last region, declared `resizable`). Until a sheet is
+[FB-0222](feedback.md#fb-0222), [FB-0223](feedback.md#fb-0223)): a page
+view over the D11 media sheets whose right-hand panel holds an inner layout
+([inner layout](toolkit.md#pagelayout-inner)). The framed `Médialapok` panel
+(420 px, resizable, collapsible) holds the list (`ListView`, `panel: false`);
+the framed `Kiválasztott médialap` panel declares `inner`: the selected
+sheet's `Adatok` fields (`RecordDetails` with those ids as `fields`,
+[field subset](toolkit.md#recorddetails-fields), 320 px) beside its image
+(`MediaPlayer` without its toolbar, no size, so it fills) over its brief (a
+plain element of the page, `attach`, 200 px, the last region, declared
+`resizable`). Until a sheet is
 selected each inner region shows its placeholder. On a phone the two panels
 and the three inner regions stack, with their own kept sizes. The view needs
 `list` and `get` on `demo_media_sheets`.
@@ -861,6 +884,11 @@ and the three inner regions stack, with their own kept sizes. The view needs
   double-click a line (the declared sizes return), collapse `Médialapok`
   (the inner layout widens), go to 390 px, switch the language. Check:
   `tests/shell/page-layout-inner.spec.cjs`.
+- **Own location path** ([FB-0226](feedback.md#fb-0226)): with a sheet
+  selected the page sets the whole location bar itself
+  (`setLocation(…, {from: "root"})`): `Médialapok › ‹channel› › ‹sheet›`, the
+  channel a link to the `Médialapok` list filtered by it. Check:
+  `tests/shell/location-bar.spec.cjs`.
 
 <a id="approvals-attention"></a>
 

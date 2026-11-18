@@ -3,7 +3,7 @@ declare(strict_types=1);
 // Toolkit kernel, server side (docs/toolkit.md): View builders and kind providers, the view-id rule, record views,
 // the activation map, project modules/stylesheets and the sign-in branding.
 require dirname(__DIR__,2).'/examples/demo-app/vendor/autoload.php';
-use Blade\Feature\{Context,Failure,Field,GenericViewKind,Registry,SqlResource,View,ViewKindProvider,ViewLayout,Workspace};
+use Blade\Feature\{Context,Failure,Field,GenericViewKind,Lookup,Registry,SqlResource,View,ViewKindProvider,ViewLayout,Workspace};
 use Blade\Navigation\Menu;
 use Blade\Shell\{Application,ApplicationDefinition,Identity,IdentityProvider,Skin};
 
@@ -218,6 +218,35 @@ $scopedResource=new SqlResource('scoped','assets','id',[new Field('title','Cím'
 $scoped->addView(new View('demo.scoped','demo.player','Scoped',record:'scoped'));
 $grant('1','scoped','get');
 check((new Workspace($scoped,$db))->views(new Identity('1','Egy'))===[],'Tenant-scoped record view hidden without a tenant');
+// A record view's `parent` (docs/shell.md#location-bar): a record view only; its field a non-secret select, number or
+// text field, its view a record view (checkViews), itself included; a select over a Lookup names a view of its resource.
+$parented=function(array $parent)use($resource):Registry{
+    $registry=new Registry();$resource()->register($registry,'Médiatár');
+    $assets=new Lookup('assets','assets','id','title');
+    (new SqlResource('tracks','tracks','id',[new Field('asset_id','Asset','select',options:$assets->options(...)),new Field('previous_id','Előző','select',options:(new Lookup('tracks','tracks','id','asset_id'))->options(...)),
+        new Field('kind','Fajta','select',options:['a'=>'A']),new Field('hidden_id','Rejtett','select',secret:true,options:$assets->options(...)),new Field('count','Szám','number'),new Field('custom_id','Egyedi','select',options:static fn()=>[]),
+        new Field('code','Kód'),new Field('body','Szöveg','textarea')]))->register($registry,'Sávok');
+    $registry->addView(new View('demo.asset','demo.player','Asset',record:'assets'));
+    $registry->addView(new View('demo.track','demo.player','Sáv',record:'tracks',parent:$parent));
+    return $registry;
+};
+$family=$parented(['field'=>'asset_id','view'=>'demo.asset']);$family->checkViews();
+check($family->viewById('demo.track')->parent===['field'=>'asset_id','view'=>'demo.asset'],'A record view with a parent');
+$parented(['view'=>'demo.track','field'=>'previous_id'])->checkViews();
+foreach([['field'=>'asset_id'],['field'=>'asset_id','view'=>'demo.asset','extra'=>1],['field'=>'Asset','view'=>'demo.asset'],['field'=>'asset_id','view'=>'Bad id'],['field'=>1,'view'=>'demo.asset'],[]] as $invalid)
+    rejects(fn()=>new View('demo.bad','demo.player','X',record:'tracks',parent:$invalid),'Invalid parent accepted: '.json_encode($invalid));
+rejects(fn()=>new View('demo.bad','demo.player','X','tracks',parent:['field'=>'asset_id','view'=>'demo.asset']),'A parent on a view without a record accepted');
+foreach(['kind','count','custom_id','code'] as $field)$parented(['field'=>$field,'view'=>'demo.asset'])->checkViews();
+foreach(['missing','hidden_id','body'] as $field)rejects(fn()=>$parented(['field'=>$field,'view'=>'demo.asset']),'An invalid parent field accepted: '.$field);
+foreach([['asset_id','demo.missing'],['asset_id','assets'],['asset_id','demo.track'],['previous_id','demo.asset'],['count','demo.missing'],['count','assets']] as [$field,$target])
+    rejects(fn()=>$parented(['field'=>$field,'view'=>$target])->checkViews(),'An invalid parent view accepted: '.$field.' '.$target);
+$familyViews=array_column((new Workspace($family,$db))->views(new Identity('1','Egy')),null,'id');
+$trackKeys=array_keys($familyViews['demo.track']??[]);
+check(($familyViews['demo.track']['parent']??null)===['field'=>'asset_id','view'=>'demo.asset']&&!isset($familyViews['demo.asset']['parent'])&&array_search('parent',$trackKeys,true)===array_search('record',$trackKeys,true)+1,'Bootstrap: parent after record, only on its view');
+// Legacy location arguments are accepted and ignored (FB-0224).
+$legacy=new Registry();$resource()->register($legacy,'Médiatár');$legacy->addView(new View('demo.legacy','demo.player','Régi',record:'assets',location:'group'));
+$legacyViews=array_column((new Workspace($legacy,$db))->views(new Identity('1','Egy')),null,'id');
+check(isset($legacyViews['demo.legacy'])&&!array_key_exists('location',$legacyViews['demo.legacy']),'A location argument is accepted and ignored');
 
 // Generic provider: JSON-safe map of at most 64 KiB; visibility by declared actions.
 $generic=fn(array $options)=>$registry->addView(new View('demo.generic','demo.generic','Generic',options:$options));
@@ -266,6 +295,8 @@ $css=strpos($page,'href="app/main.css?v=1.4.0"');
 check($bootstrap($page)['authenticated']===true&&$css!==false&&$css>strpos($page,'admin.css')&&$css>strpos($page,'skins/brand.css'),'Signed-in page links the project stylesheet after framework CSS and skins');
 check($bootstrap($page)['modules']===['app/main.js?v=1.4.0','../app/up.js?v=2'],'Signed-in bootstrap lists the versioned modules');
 check(!isset($bootstrap($render($definition(runtime:$runtime)))['modules']),'No modules key without declared modules');
+// The default largest height of fitted windows (docs/workspaces.md#window-sizing): in the bootstrap only when declared.
+check(!array_key_exists('windowMaxHeight',$bootstrap($page))&&$bootstrap($render(new ApplicationDefinition('Toolkit',$identities,new Menu([]),$runtime,sessionName:'blade_toolkit',windowMaxHeight:960)))['windowMaxHeight']===960,'Window maximum height in the bootstrap only when declared');
 // Cache keys from the files (docs/toolkit.md#cache-keys): `?v=<base36 mtime>-<base36 size>` of the served file below
 // the document root, page-relative paths from the front controller's directory; own keys stay; a missing file, a path
 // outside the root (also through a symlink) or no resolvable root falls back to the version; 61ade's assets then use

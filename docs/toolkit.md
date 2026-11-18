@@ -261,8 +261,10 @@ unchanged: nothing becomes inert and Tab leaves them.
 The close button is named `Ablak bezárása` (Close window) in the page's
 language, with the same tooltip; a window's own `Bezárás` button keeps its
 name. A fitted window (`fit`, a `RecordForm`) grows to its content up to
-`maxHeight` (default 800 px, at most the viewport minus 24 px; `Infinity`
-for the viewport; a number below 120 throws `TypeError`); a taller form
+`maxHeight` (default: the application's `windowMaxHeight`, PHP
+`ApplicationDefinition` or JSON `application.window_max_height`, else 800 px;
+at most the viewport minus 24 px; `Infinity` for the viewport; a number below
+120 throws `TypeError`; [FB-0225](feedback.md#fb-0225)); a taller form
 scrolls between the fixed header and its action row, which sticks to the
 window's lower edge ([window sizing](workspaces.md#window-sizing),
 [FB-0177](feedback.md#fb-0177)). A window opened with `fit: false`, and
@@ -539,8 +541,10 @@ command `demo.copy-text` ([example](#example-tasks)).
   for record views), `filters`, `attach`, `setTitle` (changes a window's
   header; does nothing for a page view), `setLocation(segments)` (a page
   view's levels in the [location bar](shell.md#location-bar) after the menu
-  path: `{label, icon?, target?: {view, record?}}` or `{label, icon?,
-  onSelect}`, at most 16; call it again when the selection inside the page
+  path and a record view's declared parent records: `{label, icon?, target?: {view, record?}}` or `{label, icon?,
+  onSelect}`, at most 16; `target.filters` links to a filtered list;
+  `setLocation(segments, {from: "root"})` makes them the whole bar,
+  [a path of its own](shell.md#location-bar-own-path); call it again when the selection inside the page
   changes; nothing in a window or after close), `close`. A throw shows the
   error dialog and leaves an empty workspace. `attach` replaces the whole
   content; compose a page from one Layout ([recipe](#layout-recipe)).
@@ -745,10 +749,15 @@ columns with `--blade-record-group-min-width` (automatic columns) or
 ratios). A record narrower than 492 px of content stacks its sections through
 CSS; see [section-column sizing](workspaces.md#card-group-columns). These
 properties are independent of the complete-record `cardColumns` option. The
-details element carries `data-blade-view="<view id>"`, so a project can set
-them for one view, also in its `Adatok` window; a media field's
+details element carries `data-blade-view="<view id>"`, a general hook for a
+project stylesheet to style one view's details (these properties, say), in
+`RecordDetails` and in its `Adatok` window alike; a media field's
 `column.detailsWidth` sizes its image there
-([sized image in the details](workspaces.md#details-media-width)).
+([sized image in the details](workspaces.md#details-media-width)). A long
+text outside the sections stands where its `column.placement`
+(`ColumnMetadata.placement`: `"end"`, `"row"` or `"group"`) puts it, in cards
+and details alike ([long-text placement](workspaces.md#long-text-placement),
+[FB-0225](feedback.md#fb-0225)).
 
 ```ts
 // examples/demo-app/frontend/src/readings.ts (the dashboard's list in a page Layout)
@@ -1048,33 +1057,37 @@ and on cards, while the list can still filter and scope by it; a
 `show()` rejects. It has no events. `showId: false` leaves out the `ID · n`
 line.
 
-A media field with `column.detailsWidth` shows its image at that width, and
-alone in a section without a label row
-([sized image in the details](workspaces.md#details-media-width),
-[FB-0218](feedback.md#fb-0218)).
+A section whose only shown field is a media field shows the section's
+heading and the media without a label row, and a media field with
+`column.detailsWidth` shows its image at that width
+([media alone in a section](workspaces.md#details-media-alone),
+[sized image in the details](workspaces.md#details-media-width),
+[FB-0218](feedback.md#fb-0218), [FB-0223](feedback.md#fb-0223)). A long
+text outside the sections is below the groups across the width, unless its
+`column.placement` puts it at its place as a row or a group of its own
+([long-text placement](workspaces.md#long-text-placement)), and the
+details scroll as a whole, as in `Adatok`.
 
-`longText: "card"` (default `"inline"`) is for a record page that shows the
-record's data above its main text, such as a synopsis or a description. Each
-long text outside the sections (a `textarea` without its own display) becomes
-a framed card below the groups, headed by its label:
+<a id="recorddetails-fields"></a>
+
+`fields` shows only some of the view's detail fields, for a page that puts
+a record's parts into regions of their own, such as its data beside its
+image over its text ([inner layout](#pagelayout-inner),
+[FB-0223](feedback.md#fb-0223)):
 
 ```ts
-new app.components.RecordDetails({ view: list, record: row, showId: false, longText: "card", signal }).mount(layout.getCell("details"));
+new app.components.RecordDetails({ view: list, fields: ["title", "client", "year"], record: row, showId: false, signal }).mount(page.cell("data"));
 ```
 
-- **Fills and scrolls:** while the rest of the details and
-  `--blade-record-text-min-height` (default 160 px; `0px` means 0) per card fit in the
-  visible height, the cards share the height below the groups and each
-  scrolls on its own, so the groups and the image stay in place. A card
-  whose text scrolls is a tab stop (`role="region"`, named by its label), so
-  the arrow and page keys scroll it.
-- **Falls back:** when they do not fit, or the content is narrower than
-  492 px (a phone, a narrow panel), the details scroll as a whole as without
-  the option and each card shows all of its text, with no extra tab stop.
-  The check follows every size change of the details.
-- **Unchanged:** a long text inside a section stays in its group; without
-  the option the long text stays inline below the groups; the `Adatok`
-  window does not take the option.
+- **Order:** the view's detail-field order, whatever the order of the ids;
+  a derived media column (`mediaOf`) follows its media field.
+- **Access:** the row stays the ACL-projected record; a named field the
+  row lacks is not shown, as without the option.
+- **Errors:** an empty array, a non-string entry or an id that is not a
+  detail field of the view throws `TypeError`. Without `fields` every
+  detail field is shown.
+- **Same view:** the details keep the view's `data-blade-view`, presentation
+  and `get`, so `show(id)` loads through the view as before.
 
 <a id="tree"></a>
 
@@ -2372,12 +2385,20 @@ has no menu entry. Its optional `recordTitle` (PHP `View(recordTitle:)`,
 JSON `record_title`) names a readable, non-secret field of the record
 resource whose value titles the record in the
 [location bar](shell.md#location-bar) (default: the view's title); the view
-may replace that level with `host.setLocation`. Its optional `location`
-(PHP `View(location: 'group')`, JSON `"location": "group"`) starts the bar
-at the menu group without the source view's entry, for a record reached
-through a parent level that is not that menu list
-([location bar](shell.md#location-bar)). As a page, it inherits the record resource's
-[menu context](shell.md#elkülönülő-főmenügombok) from an offered menu view;
+may replace that level with `host.setLocation`. Its optional `parent`
+(PHP `View(parent: ['field' => 'task_id', 'view' => 'demo.task-page'])`,
+JSON `"parent": {"field": "task_id", "view": "demo.task-page"}`) names the
+record's parent. `field` is a non-secret `select`, `number` or `text` field
+of the record resource that holds the parent's id, and `view` is the parent
+resource's record view; a `select` whose options are a `Lookup` (JSON
+`options_lookup`, PHP `$lookup->options(...)`) must be one of that resource.
+Both are checked at definition time (`InvalidArgumentException`). The
+location bar then shows the parent records, resolved from the row through
+their `get` (recursively, at most 4), as links before this record. The bar
+starts at the topmost parent record resolved, whose menu source also carries
+the marker ([parent records](shell.md#location-bar-parent)). As a page, it inherits the record resource's
+[menu context](shell.md#elkülönülő-főmenügombok) from an offered menu view
+(with resolved parent records, that of the topmost one);
 its optional `group` restricts the source group. `open: "page"` (default) mounts it in the workspace with an
 address and history entry; `open: "window"` opens a framework document window
 (full screen below 768 px) without an address change. The view is offered only
@@ -3336,6 +3357,8 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M84 | [Location bar](shell.md#location-bar): every page view shows a 32 px shell-owned bar below the menu row (menu path, a record page's source path and record title); a record view's `recordTitle` (JSON `views.<id>.record_title`) names the record; `ViewHost.setLocation(segments)` and `LocationSegment` set a page's own levels; the document title becomes `‹current› · ‹application title›` | [FB-0217](feedback.md#fb-0217) | no code change; the workspace is 32 px shorter, so specs that measure its height or count rendered grid rows at a fixed viewport may need 32 px more, and specs that assert `document.title` on a page see the new form; if used: declare `record_title`, call `host.setLocation` |
 | M86 | [Card button to the page](workspaces.md#sub-views): with the parent view's `activate: 'page'` (or a map entry resolving to `page`) the card and tile sub-view button opens the child page filtered to the record like the activation, with `aria-description` "Megnyitás: ‹child title›" and the `bi-box-arrow-in-right` icon instead of `aria-haspopup="dialog"`; a list left through a `page` navigation shows the same record at the same offset with its cursor on Back ([activation](workspaces.md#activation)) | [FB-0219](feedback.md#fb-0219) | info: no declaration or API change; a spec that clicked the card button of a page-activated list and expected the window finds the child page; a spec that expected a list to open at the top after Back finds it where it was left |
 | M88 | [Inner layout](#pagelayout-inner): a `PageRegion` with `inner` (a `rows` or `cols` branch) holds a frameless layout whose regions are ordinary page regions (lines with an 8 px handle); a tree of only `{inner}` is frameless as a whole; `resizable` on the last region of a branch draws the line before it; a dragged line keeps the declared size of the region after it too (also in list layouts); `--blade-record-text-min-height: 0px` now means 0 instead of 160 px. Replaces `PageLayoutOptions.frame` and `RecordDetailsOptions.longText: "reading"` of `3b7390c` (FB-0221), which are removed | [FB-0221](feedback.md#fb-0221), [FB-0222](feedback.md#fb-0222) | info: a layout whose last region declared `resizable` (which drew nothing) gains its line; `frame: "line"` becomes a tree of only `{inner}`, `longText: "reading"` is gone (the project styles its own text); a minimum set to `1px` to avoid the 160 px fallback can be `0px` |
+| M89 | [Field subset and a media field alone in a section](#recorddetails-fields): `RecordDetailsOptions.fields` (a subset of the view's detail fields in the view's order; a derived media column follows its media field; a field the row lacks is not shown; an empty array, a non-string entry or an id that is not a detail field throws `TypeError`). In `RecordDetails` and `Adatok`, a section whose only shown field is a media field shows its heading and the media without a label row, also without `detailsWidth` ([media alone in a section](workspaces.md#details-media-alone)). Removes `RecordDetailsOptions.longText` (`"inline"`, `"card"`) of `1a3ee5f` (FB-0218), the CSS property `--blade-record-text-min-height` and the classes `.blade-record-texts`, `.blade-record-text`, `.blade-record-text__body` and `.blade-record-details--fill` | [FB-0218](feedback.md#fb-0218), [FB-0223](feedback.md#fb-0223) | if used: TypeScript rejects `longText: "card"` and the runtime ignores it, so remove it. The long text is inline below the groups and the details scroll as a whole. Project styles on the removed classes or property match nothing. A view copy with reduced `detailFields` can become `fields`. info: a section holding only a media field without `detailsWidth` loses its label row in `RecordDetails` and `Adatok`, so a spec that counted that `dt` finds none |
+| M91 | [Application window height and long-text placement](workspaces.md#long-text-placement): `ApplicationDefinition` `windowMaxHeight` (JSON `application.window_max_height`, 320–4000 px, bootstrap `windowMaxHeight` only when declared) is the default cap of every fitted window instead of the fixed 800 px, which stays the fallback; `WindowOptions.maxHeight` still wins ([window sizing](workspaces.md#window-sizing)). Field `column.placement` (`"end"` default, `"row"`, `"group"`; `ColumnMetadata.placement`, `ColumnPlacement`) places a long text outside the sections at the end, as a row at its declaration place or as a group of its own in cards, `Adatok` and `RecordDetails` | [FB-0177](feedback.md#fb-0177), [FB-0225](feedback.md#fb-0225) | none (additive; without the declarations nothing changes); if used: an application with other screens declares its window height, a record with a long text between its sections declares its placement |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3466,8 +3489,8 @@ markup may change without notice.
 | 2026-11-13 | `Ui.menu` and the `PopupMenu*` types: a popup menu with group headings, checked entries, details and scrolling, opened from any button with the APG menu-button keys; Escape closes only the menu, also in a modal window (M77). Additive. | [FB-0202](feedback.md#fb-0202) |
 | 2026-11-13 | PHP `View::$available` (`Closure(Context): bool`) and `available` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.available`, `views.<id>.available` (binding names): a view offered only while the closure allows it for the bootstrap's actor and tenant. Additive (M78). | [FB-0204](feedback.md#fb-0204) |
 | 2026-11-16 | `ValueTone`, `ColumnMetadata.tones`, `ListKindOptions.emphasis`, `ViewDefinition.attention.label`; PHP field `column.tones`, `emphasis` parameters of `View::list`, `Registry::view`, `SqlResource::register`, attention `label`, computed `select` fields, public `Registry::filterable`; JSON `column.tones`, `view.emphasis`, `view.attention.label`. Additive (M83). | [FB-0212](feedback.md#fb-0212) |
-| 2026-11-18 | PHP/JSON field `column.detailsWidth` / `column.details_width` (media fields, 160–800), `ColumnMetadata.detailsWidth`, `RecordDetailsOptions.longText` (`"inline"` default, `"card"`), CSS property `--blade-record-text-min-height`, the details element's `data-blade-view`; the `Adatok` window widens for a sized image (M85). Additive. | [FB-0218](feedback.md#fb-0218) |
-| 2026-11-18 | PHP `View::$location`, JSON `views.<id>.location` (`"group"`, record views only), `ViewDefinition.location`: the location bar starts at the menu group without the source view's entry (M87). Additive. | [FB-0220](feedback.md#fb-0220) |
+| 2026-11-18 | PHP/JSON field `column.detailsWidth` / `column.details_width` (media fields, 160–800), `ColumnMetadata.detailsWidth`, `RecordDetailsOptions.longText` (`"inline"` default, `"card"`), CSS property `--blade-record-text-min-height`, the details element's `data-blade-view`; the `Adatok` window widens for a sized image (M85). Additive. `longText` removed again by M89. | [FB-0218](feedback.md#fb-0218) |
+| 2026-11-18 | PHP `View::$location`, JSON `views.<id>.location` (`"group"`, record views only), `ViewDefinition.location`: the location bar starts at the menu group without the source view's entry (M87). Additive. Removed again by M90. | [FB-0220](feedback.md#fb-0220) |
 | 2026-11-18 | `PageRegion.inner` (a region's frameless inner layout of ordinary page regions; a tree of only `{inner}` is frameless as a whole); `resizable` on a branch's last region draws the line before it; both regions beside a dragged line keep their declared size; `--blade-record-text-min-height: 0px` is 0 (M88). `PageLayoutOptions.frame` and `RecordDetailsOptions.longText: "reading"` of the same day are removed. | [FB-0221](feedback.md#fb-0221), [FB-0222](feedback.md#fb-0222) |
 
 <a id="resolved-decisions"></a>

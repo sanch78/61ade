@@ -582,9 +582,53 @@ in as many 240 px columns as the card or details are wide (CSS grid, so a
 full-width card of four sections shows four columns and a phone one), a group
 holding a long text spans the row, and a long text outside every section
 (the prompt or description of the record) follows the groups across the whole
-width with its label above it. Without any section the fields stay one list
-in their order, as before. A section's open or fixed state does not matter
-here; the same ACL-projected fields are shown as without groups.
+width with its label above it, unless it declares another
+[placement](#long-text-placement). Without any section the fields stay one
+list in their order, as before. A section's open or fixed state does not
+matter here; the same ACL-projected fields are shown as without groups.
+
+<a id="long-text-placement"></a>
+
+**Placement of a long text outside the sections**
+([FB-0225](feedback.md#fb-0225)): a long text (a `textarea` field without
+its own display, that is without `column.presentation` or `editor`) that
+has no `section` declares where it stands among the groups with
+`column.placement` (PHP `Field` `column`, JSON `column.placement`,
+`ColumnMetadata.placement`):
+
+| Value | Where the text stands |
+| --- | --- |
+| `"end"` (default) | Below all groups across the whole width, its label above it, as before |
+| `"row"` | At its declaration place among the groups (after the groups whose first field comes before it), across the whole width, its label above it; the groups after it start a new row |
+| `"group"` | At its declaration place as a group of its own in the group grid: one column wide like a section's group, framed and titled by the field's label, the text below the title without a separate label row |
+
+```php
+new Field('reason', 'Indoklás', 'textarea', max: 500, column: ['cardLines' => 6, 'placement' => 'group']),
+```
+
+```json
+{"name": "reason", "label": "Indoklás", "type": "textarea", "column": {"card_lines": 6, "placement": "group"}}
+```
+
+- **Where:** wherever the sections group the fields: cards, the `Adatok`
+  window and `RecordDetails` (also with
+  [`fields`](toolkit.md#recorddetails-fields)). Forms keep the field order.
+  A record **without sections** keeps its one list of fields, so
+  `placement` has no effect there.
+- **Presentation:** the text keeps its own rules: a card clamps it to its
+  [card lines](#long-text-in-cards), the details show all of it, and an
+  editable one opens its editor. A `group` text is a group in the same grid,
+  so the row's groups stretch to the same height and an explicit
+  `--blade-record-group-columns` track list places it like a section; below
+  492 px of record content every group, row and text stacks in declaration
+  order.
+- **Validation:** the option is accepted only on such a long text without a
+  `section` (a sectioned field follows its section's group), and only as
+  `end`, `row` or `group`; anything else throws `InvalidArgumentException`
+  when the field is declared. Without the option nothing changes.
+
+The feature demo's `Mellékletek` declares `group` on its reason, between the
+`Alapadatok` and `Képek` sections; D11 `Médialapok` keeps the default `end`.
 
 Groups in the same row stretch to the tallest group's height, with their
 headings and fields at the top. Each row is sized independently, using CSS
@@ -627,8 +671,27 @@ forms or adding PHP/JSON options. Use track widths that fit the panel;
 `minmax(0, …fr)` tracks allow long content to wrap within a declared ratio.
 
 The feature demo's `record-groups.css` sets `1:2` columns through this same
-project stylesheet interface; `Mellékletek` shows the two unequal-height field
-groups with equal outer heights and the long text below them.
+project stylesheet interface; `Mellékletek` shows the unequal-height
+`Alapadatok` group and its reason (a [`group` placement](#long-text-placement))
+side by side with equal outer heights, and `Képek` in the next row.
+
+<a id="details-media-alone"></a>
+
+**A media field alone in a section** ([FB-0223](feedback.md#fb-0223)): in
+`RecordDetails` and the `Adatok` window, a section whose only shown field is
+a media field (`column.media`, or a `file` field naming a file `resource`)
+shows its heading and the media, without the field label row. The media
+keeps its accessible name (`Kép: <file name>`); a record without a file
+shows the empty box and `—`. "Shown" follows the ACL-projected record: a
+section whose other fields the row lacks, or that `RecordDetails` `fields`
+leaves out, counts as holding the media alone. Without a details width the
+media has the details' own size: the group's width up to 320 px, in its
+kind's ratio (an image square). That size has no width of its own, so an
+explicit `auto` track collapses it, as [FB-0218](feedback.md#fb-0218)
+reported; give a field in such a track a details width. Cards (which share
+the field rendering but not this rule, and show their first media column
+above the fields), tiles, grid cells and static image columns
+(`presentation: image`) are unchanged.
 
 <a id="details-media-width"></a>
 
@@ -650,17 +713,18 @@ new Field('file_id', 'Kép', 'file', file: ['resource' => 'files', 'mount' => 's
   ratio (16:9, an image 1:1). A pending or failed thumbnail and a record
   without a file keep the same box, so nothing moves when the image arrives.
   Cards, tiles and grid cells are unchanged.
-- **A media-only section:** a section whose only shown field is such a media
-  field shows its heading and the image, without the field label row. The
-  image keeps its accessible name (`Kép: <file name>`); a record without a
-  file shows the empty box and `—`. In automatic columns every column is then
-  at least as wide as that group (the image plus 26 px of padding and frame).
-  An explicit `--blade-record-group-columns: minmax(0, 1fr) auto` makes the
-  image group exactly that wide and gives the rest to the other group; below
-  492 px of content the groups stack as everywhere.
-- **Per-view columns:** the details element carries its view id, so a
-  project stylesheet can set the columns of one view, in `RecordDetails` and
-  in its `Adatok` window alike:
+- **Alone in its section:** such a field alone in its section is
+  [a media field alone in a section](#details-media-alone) at its details
+  width. In automatic columns every column is then at least as wide as that
+  group (the image plus 26 px of padding and frame). An explicit
+  `--blade-record-group-columns: minmax(0, 1fr) auto` makes the image group
+  exactly that wide and gives the rest to the other group; below 492 px of
+  content the groups stack as everywhere.
+- **Per-view hook:** the details element carries its view id
+  (`data-blade-view`), a general hook for a project stylesheet to style the
+  details of one view, in `RecordDetails` and in its `Adatok` window alike.
+  It names the view, not a page: every `RecordDetails` of that view, also one
+  with `fields`, carries it. Here it sets the columns:
 
   ```css
   .blade-record-details[data-blade-view="demo_media_sheets"] {
@@ -671,17 +735,23 @@ new Field('file_id', 'Kép', 'file', file: ['resource' => 'files', 'mount' => 's
 - **`Adatok` window:** it opens wide enough for the widest sized image beside
   one 240 px group (at most the viewport less 24 px); a phone shows it full
   screen with the image at the group's width.
-- **Long text below:** on a record page, `RecordDetails` `longText: "card"`
-  puts each long text outside the sections into a scrolling card below the
-  groups ([RecordDetails](toolkit.md#recorddetails)). The `Adatok` window
-  keeps the long text inline.
+- **Long text below:** a long text outside the sections stays below the
+  groups across the width (or where its [placement](#long-text-placement)
+  puts it), in `RecordDetails` as in `Adatok`, and the details
+  scroll as a whole. A page that wants the text in a region of its own
+  divides its panel with a `PageLayout` [inner layout](toolkit.md#pagelayout-inner)
+  and shows the data and the image with `RecordDetails`
+  [`fields`](toolkit.md#recorddetails-fields), the text with another
+  `RecordDetails` of the text field or the page's own element.
 - **Limit:** the image is the media source's `thumbnail_get`. 61ade's file
   storage serves `thumb320` (longest side 320 px), so its images look soft
   above 320 px; a project media source decides the size of its own
   thumbnails.
 
 The feature demo's `Médialapok` ([D11](demos.md#d11-media-sheets)) shows a
-480 px image beside its data, on its record page and in `Adatok`.
+480 px image beside its data and the brief below them, on its record page
+and in `Adatok`; `Médiaböngésző` ([D12](demos.md#d12-media-browser)) shows
+the `Adatok` fields of a sheet with `fields`.
 
 Lists default to a # ordinal column showing position in the complete authorized,
 filtered, sorted result across scrolling. It is not database ID and may change
@@ -1460,9 +1530,39 @@ retain text selection.
 
 <a id="window-sizing"></a>
 
-Filter/CRUD/bulk/detail windows size to rendered content, capped at 800 px
+Filter/CRUD/bulk/detail windows size to rendered content, capped at the
+application's default maximum height (800 px unless it declares another)
 and at the viewport height minus 24 px ([FB-0177](feedback.md#fb-0177)): a
-centred dialog, not a full-height one. Forms retain 24 px below the final
+centred dialog, not a full-height one.
+
+- **Why 800 px:** it keeps a form window readable on 1366 × 768 and 1080p
+  screens without a full-height wall of fields; a taller form scrolls between
+  its fixed header and action row instead. On a lower viewport the viewport
+  less 24 px caps the window first.
+- **Per application** ([FB-0225](feedback.md#fb-0225)): an application with
+  other screens or longer forms declares its own default,
+  `ApplicationDefinition` `windowMaxHeight` (PHP) or `application.window_max_height`
+  (JSON), an integer 320–4000 px. An integer outside that range, or any
+  other JSON value, throws `InvalidArgumentException` when the application is
+  defined; a non-integer passed to the PHP constructor is a `TypeError`
+  (strict types). The signed-in
+  bootstrap carries it only when declared (`windowMaxHeight`); without it the
+  browser keeps 800. It applies to every fitted window: the list's filter,
+  create, update, bulk and `Adatok` windows and a card's field editor, a
+  `RecordForm` window and a fitted `app.ui.window`, and the file manager's,
+  diagram's and calendar's form windows. The viewport still caps it.
+- **Per window:** `app.ui.window` `maxHeight` still wins over the
+  application's default (see below).
+
+```php
+return new ApplicationDefinition(/* … */, windowMaxHeight: 960);
+```
+
+```json
+{"application": {"title": "…", "runtime": "…", "window_max_height": 960}}
+```
+
+Forms retain 24 px below the final
 button; details retain 24 px beyond article padding. A taller form scrolls
 between the fixed window header and its action row: the row (`Mégse` beside
 the submit button) sticks to the lower edge of the form's scroll area with
@@ -1470,8 +1570,8 @@ one rule above it, so the buttons stay visible and keep working the form
 while the fields scroll behind them; a short form shows the same row right
 below its last field. Validation remeasures; manual resize remains available.
 `app.ui.window` takes `maxHeight` (px from 120; `Infinity` grows to the
-viewport) for a project that wants a taller fitted window; its requested
-`height` without fitting is not capped. A Form textarea directly in a content
+viewport) for one fitted window that needs another cap than the
+application's default; its requested `height` without fitting is not capped. A Form textarea directly in a content
 window takes any height the window has beyond its fitted content: Suite sizes
 the textarea from its cell, which grows (`admin.css`), so a capped or
 manually enlarged window has no empty band below its actions. `fitWindow`
@@ -1976,7 +2076,8 @@ $contacts->register($registry, 'Kapcsolatok', formSections: 'accordion', flushSe
   keeping their header above their own scrolling fields. A closed section is
   its header alone; the action row stays at the form's lower edge. A fitted
   window (the list's form window, an `AppWindow`) measures every section shown,
-  so its height (up to its `maxHeight`, 800 px by default, and the viewport)
+  so its height (up to its `maxHeight`, else the application's
+  [default](#window-sizing), and the viewport)
   does not depend on which sections are open: without `multiple` it fits the tallest open section,
   with it all of them. Only a conditional field appearing or a validation
   message refits it. In a region (`RecordForm` in a page or an `Accordion`

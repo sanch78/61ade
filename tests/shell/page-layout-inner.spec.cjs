@@ -129,6 +129,8 @@ test('English names the panel and the brief; the inner lines show in every facto
   await expect(region(page,'data')).toContainText('Select a media sheet in the list.');
   await select(page);
   await expect(region(page,'brief').getByRole('region',{name:'Description',exact:true})).toBeVisible();
+  // The data region's `fields` are the translated `Adatok` section's (FB-0223).
+  await expect(region(page,'data').locator('.blade-record-details dt')).toHaveText(['Name','Client','Channel','Year']);
  }finally{
   await page.getByRole('button',{name:'English',exact:true}).click();await page.getByText('Magyar',{exact:true}).last().click();
   await expect(page.locator('html')).toHaveAttribute('lang','hu');

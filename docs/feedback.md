@@ -911,3 +911,19 @@
 <a id="fb-0222"></a>
 
 ## FB-0222 — An inner layout in a PageLayout region (owner correction of FB-0221)
+
+<a id="fb-0223"></a>
+
+## FB-0223 — A field subset in RecordDetails and one rule for a media field alone in a section (owner correction of FB-0218)
+
+<a id="fb-0224"></a>
+
+## FB-0224 — A record page under its parent record (owner correction of FB-0220)
+
+<a id="fb-0225"></a>
+
+## FB-0225 — The default fitted-window height per application, and a placement for a long text outside the sections
+
+<a id="fb-0226"></a>
+
+## FB-0226 — A location path entirely of the page's own

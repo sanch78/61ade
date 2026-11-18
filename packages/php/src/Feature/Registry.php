@@ -141,6 +141,9 @@ final class Registry
         foreach($view->actions as $action)$this->get((string)$view->resource,$action);
         if($view->record!==null&&(in_array($view->kind,View::BUILTIN_KINDS,true)||!isset($this->actions[$view->record.'.get'])))throw new \InvalidArgumentException('A record view needs a project kind and the get action of its record resource: '.$view->id);
         if($view->recordTitle!==null&&(!($field=$this->fields($view->record)[$view->recordTitle]??null)||$field->secret||$field->scopeOnly||$field->type==='password'))throw new \InvalidArgumentException('Unknown record title field of '.$view->id.': '.$view->recordTitle);
+        // `parent` (View): a non-secret select, number or text field of the record resource, like a sub-view's field; its
+        // view is checked by checkViews().
+        if($view->parent!==null&&(!($field=$this->fields($view->record)[$view->parent['field']]??null)||!in_array($field->type,['select','number','text'],true)||$field->secret))throw new \InvalidArgumentException('Invalid parent field of '.$view->id.': '.$view->parent['field']);
         $provider->validate($this,$view);
         if($view->attention!==null)$this->attention($view);
     }
@@ -191,8 +194,9 @@ final class Registry
     public function embedded(string $id): bool { return isset($this->embedded[$id]); }
     /**
      * Checks references between views once all are declared (JsonApplication, ApplicationDefinition and every
-     * `Workspace::views()` call it): each `view:<id>` activation target names a record view of the list's resource, and
-     * a `page` activation's sub-view child still has its own page (a child changed to `menu: false` later is refused).
+     * `Workspace::views()` call it): each `view:<id>` activation target names a record view of the list's resource, a
+     * `page` activation's sub-view child still has its own page (a child changed to `menu: false` later is refused), and
+     * a record view's `parent` view is a record view (of the Lookup's resource when the parent field's options are one).
      */
     public function checkViews(): void
     {
@@ -204,6 +208,12 @@ final class Registry
             foreach($count['match'] as $match){$field=$fields[$match]??null;if(!$field||$field->secret||$field->stored()||in_array($field->type,['textarea','multiselect','password','file'],true)||isset($theirs[$match]))$bad=true;}
             foreach($count['filters']??[] as $filter=>$value)if(!self::filterable($fields[$filter]??null,$value)||isset($theirs[$filter]))$bad=true;
             if($bad)throw new \InvalidArgumentException('Invalid count field: '.$resource.'.'.$name);
+        }
+        foreach($this->views as $view){
+            if($view->parent===null)continue;
+            $parent=$this->views[$view->parent['view']]??null;
+            $lookup=($this->fields((string)$view->record)[$view->parent['field']]??null)?->references();
+            if($parent?->record===null||($lookup!==null&&$lookup!==$parent->record))throw new \InvalidArgumentException('Unknown parent view of '.$view->id.': '.$view->parent['view']);
         }
         foreach($this->views as $view){
             if($view->kind!=='list')continue;

@@ -423,17 +423,29 @@ another count) with the whole text in
 `Adatok` ([cards only and full-width cards](workspaces.md#cards-only-and-full-width-cards),
 [FB-0169](feedback.md#fb-0169)). A full-width card of many short fields
 declares field sections: the [groups](workspaces.md#card-groups) then sit side
-by side ([FB-0177](feedback.md#fb-0177)).
+by side ([FB-0177](feedback.md#fb-0177)). A long text outside the sections
+follows them across the width; `column.placement: "row"` keeps it at its
+declaration place across the width, `"group"` makes it a group of its own
+there, titled by its label ([long-text placement](workspaces.md#long-text-placement),
+[FB-0225](feedback.md#fb-0225)).
 
-A record page that shows a record's data beside its image and its main text
-below them gives the media field `column.detailsWidth` (JSON
-`column.details_width`, 160–800 px) in a section of its own, sets
-`--blade-record-group-columns: minmax(0, 1fr) auto` for the view
-(`.blade-record-details[data-blade-view="<view id>"]`), and mounts
-`RecordDetails` with `longText: "card"`: the image keeps its width and ratio
-without a repeated label, and the text scrolls in its own card while the rest
-stays in place ([sized image in the details](workspaces.md#details-media-width),
+A record page that shows a record's data beside its image gives the media
+field `column.detailsWidth` (JSON `column.details_width`, 160–800 px) in a
+section of its own, sets `--blade-record-group-columns: minmax(0, 1fr) auto`
+for the view (`.blade-record-details[data-blade-view="<view id>"]`, the
+details' per-view stylesheet hook), and mounts a plain `RecordDetails`: the
+image keeps its width and ratio, and a long text outside the sections
+follows below the groups across the width
+([sized image in the details](workspaces.md#details-media-width),
 [RecordDetails](toolkit.md#recorddetails), [FB-0218](feedback.md#fb-0218)).
+Any media field alone in a section shows the section heading and the media
+without a label row, with or without a details width
+([media alone in a section](workspaces.md#details-media-alone),
+[FB-0223](feedback.md#fb-0223)). To put the record's parts into regions of
+their own, such as the data beside the image over the text, divide the
+panel with an `inner` layout and give each region's `RecordDetails` its
+`fields` ([inner layout](toolkit.md#pagelayout-inner),
+[`fields`](toolkit.md#recorddetails-fields)).
 
 A panel divided by lines without frames or headers, each part holding its
 own component or element, declares `inner` on that region of its
@@ -442,10 +454,12 @@ for a tab's content. The inner regions are ordinary regions: mount, attach,
 placeholders, kept sizes and the double-click restore work as elsewhere
 ([inner layout](toolkit.md#pagelayout-inner), [FB-0222](feedback.md#fb-0222)).
 
-A form window fits its content up to 800 px (`app.ui.window` `maxHeight`
-for more); a taller form scrolls between the window header and its action
-row, which stays at the window's lower edge
-([window sizing](workspaces.md#window-sizing)). A Tree's `expandControl` is
+A form window fits its content up to 800 px, or up to the application's
+`windowMaxHeight` (JSON `application.window_max_height`, 320–4000 px) for
+other screens; `app.ui.window` `maxHeight` sets one window's cap. A taller
+form scrolls between the window header and its action row, which stays at
+the window's lower edge ([window sizing](workspaces.md#window-sizing),
+[FB-0225](feedback.md#fb-0225)). A Tree's `expandControl` is
 two icon buttons ([Tree expansion](toolkit.md#tree-expansion)).
 
 A project page shows tabbed panels with [`app.components.Tabs`](toolkit.md#tabs) or a declared `tabs` branch of
@@ -644,7 +658,8 @@ group fields into framed
 [form sections](workspaces.md#form-sections) (`section`; collapsible, or
 fixed with `sectionCollapsible: false`), which also group the
 [cards and details](workspaces.md#card-groups) side by side with a long text
-below them (`column.cardLines` sets its card lines), a field can count
+below them (`column.cardLines` sets its card lines, `column.placement` its
+[place](workspaces.md#long-text-placement)), a field can count
 the related records the actor may list ([count fields](workspaces.md#count-fields):
 `counts`, JSON `storage.counts`), and every view can explain itself in a closable
 [view guide](workspaces.md#view-guide) (`guide`, or by view id in the
@@ -711,11 +726,28 @@ Every page view gets the [location bar](shell.md#location-bar) below the menu
 row without consumer code: its menu path and, for a record page, the record's
 title (declare the record view's `record_title` field). A page with levels of
 its own (an overview and its scenes, a parent and its children) calls
-`host.setLocation(segments)` whenever its selection changes. A record page
-reached through a parent level other than its resource's menu list (an
-episode through its season) declares `location: "group"`, so its levels
-follow the group directly. Verification: the location bar entries of the
-[feedback log](feedback.md#fb-0217) ([FB-0220](feedback.md#fb-0220)).
+`host.setLocation(segments)` whenever its selection changes; with
+`{from: "root"}` its segments are the whole bar, a path entirely of its own
+with links, also to filtered lists ([own path](shell.md#location-bar-own-path)). A record page
+reached through a parent record (a note from its task, an episode from its
+season) declares that parent on its record view: `parent: {field, view}`
+(PHP `View(parent: [...])`, JSON `views.<id>.parent`). Prerequisites:
+`field` is a non-secret `select`, `number` or `text` field of the record
+resource that holds the parent's id, and `view` is the parent resource's
+record view (a select over a lookup must be a lookup of that resource).
+Example:
+`"parent": {"field": "task_id", "view": "demo.task-page"}` on the feature
+demo's note page. The bar then reads
+`Feature demó › Feladatok › ‹task› › ‹note›`: the menu path of the topmost
+parent record resolved, then each parent record (resolved from the row
+through its `get`, recursively, at most 4 levels) as a link. This works after
+a reload, a direct link and Back/Forward, and the menu marker follows that
+topmost parent; until the parents arrive, the bar and the marker are the
+record view's own. Limits: a parent the actor may not read ends the path
+there, without a dialog, leaving it and every level above it out; one
+reference field per record view.
+Verification: `tests/shell/location-bar.spec.cjs` and the
+[feedback log](feedback.md#fb-0217) ([FB-0224](feedback.md#fb-0224)).
 
 The main-menu row uses flat, full-height menu items and selectors with shared
 hover/focus states, content-sized controls and symmetric separator spacing;

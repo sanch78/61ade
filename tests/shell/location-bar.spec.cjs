@@ -2,23 +2,26 @@ const {test,expect}=require('../../tools/playwright-test.cjs');
 const {execFileSync}=require('node:child_process');
 const {signIn,openView}=require('./feature-demo.cjs');
 // Location bar (docs/shell.md#location-bar, FB-0217) on the feature demo: the menu path, a record page's path and
-// record title, the task page's own levels (setLocation), collapse and the phone form, in every factory theme and a skin.
-// The run seeds its own tasks and notes and removes them.
+// record title, the task page's own levels (setLocation), collapse and the phone form, in every factory theme and a skin;
+// a record page with a declared parent (the note page under its task, FB-0224).
+// The run seeds its own tasks and notes (one of them for a task that does not exist) and removes them.
 const prefix='lb'+Date.now().toString(36);
 const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'web';
 const php=code=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${runtime}/${instance}/features.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');${code}`],{encoding:'utf8'});
 const title=`${prefix} feladat`,long=`${prefix} `+'nagyon hosszú feladatcím, amely a helysávban nem fér ki egészen '.repeat(2);
+const noteText=`${prefix} jegyzet a helysávhoz`,orphanText=`${prefix} jegyzet egy nem létező feladathoz`;
 test.describe.configure({mode:'serial'});
-let task='',longTask='';
+let task='',longTask='',note='',orphan='';
 const cleanup=()=>php(`
- $db->exec("DELETE FROM demo_task_notes WHERE task_id IN (SELECT CAST(id AS TEXT) FROM demo_tasks WHERE title LIKE '${prefix}%')");
+ $db->exec("DELETE FROM demo_task_notes WHERE task_id IN (SELECT CAST(id AS TEXT) FROM demo_tasks WHERE title LIKE '${prefix}%') OR body LIKE '${prefix}%'");
  $db->exec("DELETE FROM demo_tasks WHERE title LIKE '${prefix}%'");`);
 test.beforeAll(()=>{
  cleanup();
- [task,longTask]=php(`
-  $ids=[];foreach(['${title}',${JSON.stringify(long)}] as $title){$db->prepare("INSERT INTO demo_tasks(owner_id,title) VALUES ('1',?)")->execute([$title]);$ids[]=$t=$db->lastInsertId();
-  $db->prepare("INSERT INTO demo_task_notes(owner_id,task_id,body) VALUES ('1',?,?)")->execute([(string)$t,'${prefix} jegyzet a helysávhoz']);}
-  echo implode(',',$ids);`).trim().split(',');
+ [task,longTask,note,orphan]=php(`
+  $ids=[];$notes=[];foreach(['${title}',${JSON.stringify(long)}] as $title){$db->prepare("INSERT INTO demo_tasks(owner_id,title) VALUES ('1',?)")->execute([$title]);$ids[]=$t=$db->lastInsertId();
+  $db->prepare("INSERT INTO demo_task_notes(owner_id,task_id,body) VALUES ('1',?,?)")->execute([(string)$t,'${noteText}']);$notes[]=$db->lastInsertId();}
+  $db->prepare("INSERT INTO demo_task_notes(owner_id,task_id,body) VALUES ('1','0',?)")->execute(['${orphanText}']);
+  echo implode(',',[...$ids,$notes[0],$db->lastInsertId()]);`).trim().split(',');
 });
 test.afterAll(cleanup);
 
@@ -120,6 +123,102 @@ test('record page of the asset viewer: record_title without project location',as
  await expect(bar(page).locator('li').first().locator('.blade-location__icon')).toHaveCount(1);
 });
 
+// A record view with a parent (FB-0224): the note page declares `parent: {field: task_id, view: demo.task-page}`. Once
+// the task (resolved from the note's row) has arrived, the bar starts at the task page's menu path and shows the task as
+// a link before the note; the menu marker follows it. Before that, and without a resolved parent, the note's own path.
+const marker=page=>page.locator('.blade-navigation-row .dhx_menu-nav > li.blade-menu-current');
+const callOf=request=>{try{return JSON.parse(request.postData()??'')??{};}catch{return {};}};
+const parentGet=request=>{const call=callOf(request);return call.resource==='demo_tasks'&&call.action==='get';};
+const notePath=['Feature demó','Feladatok',title,noteText];
+for(const [width,height] of [[1366,900],[390,844]])test(`record page with a parent at ${width} px: direct link, reload, the parent link, Back and Forward`,async({page})=>{
+ const errors=errorsOf(page),phone=width<768;
+ await page.setViewportSize({width,height});
+ await signIn(page,'demo@example.test',`/#view=demo.task-note&record=${note}`);
+ const shown=phone?['…',title,noteText]:notePath;
+ await expect.poll(()=>texts(page)).toEqual(shown);
+ await page.reload();
+ await expect.poll(()=>texts(page)).toEqual(shown);
+ expect(await page.title()).toMatch(new RegExp(`^${noteText} · `));
+ const parent=bar(page).getByRole('link',{name:title,exact:true});
+ await expect(parent).toHaveAttribute('href',`#view=demo.task-page&record=${task}`);
+ if(phone){
+  // The task is the back link; the … menu holds the root's menu path.
+  await expect(parent).toHaveClass(/blade-location__back/);
+  await noScroll(page);
+  await bar(page).getByRole('button',{name:'További szintek',exact:true}).click();
+  expect((await page.getByRole('menu',{name:'További szintek'}).getByRole('menuitem').allInnerTexts()).map(text=>text.trim())).toEqual(['Feature demó','Feladatok']);
+  await page.keyboard.press('Escape');
+ }else await expect(bar(page).getByRole('link',{name:'Feladatok',exact:true})).toHaveAttribute('href','#view=demo_tasks');
+ await parent.click();
+ await expect(page).toHaveURL(new RegExp(`#view=demo\\.task-page&record=${task}$`));
+ await expect.poll(()=>texts(page)).toEqual(phone?['…',title,'Munka']:['Feature demó','Feladatok',title,'Munka']);
+ // The task page's guide opens on its first opening; the fixture's handler closes it before the history steps.
+ await expect(page.locator('.blade-guide-window')).toHaveCount(0);
+ await page.goBack();
+ await expect(page).toHaveURL(new RegExp(`#view=demo\\.task-note&record=${note}$`));
+ await expect.poll(()=>texts(page)).toEqual(shown);
+ await page.goForward();
+ await expect.poll(()=>texts(page)).toEqual(phone?['…',title,'Munka']:['Feature demó','Feladatok',title,'Munka']);
+ expect(errors).toEqual([]);
+});
+
+test('record page with a parent: opened from the task page, the menu marker of the resolved parent',async({page})=>{
+ const errors=errorsOf(page);
+ await page.setViewportSize({width:1920,height:900});
+ await signIn(page,'demo@example.test',`/#view=demo.task-page&record=${task}`);
+ await expect(marker(page)).toHaveText([/^Feature demó/]);
+ // The task's `get` is held: until it arrives the note page shows its own path (the note with its view's icon; the note
+ // view has no menu source) and no marker.
+ let release,holds=0;const held=new Promise(resolve=>{release=resolve;});
+ await page.route(url=>url.search==='?blade=1',async route=>{if(parentGet(route.request())){holds++;await held;}await route.fallback();});
+ try{
+  // The notes list activates the note page (`activate: view:demo.task-note`).
+  await page.getByRole('tabpanel',{name:'Munka',exact:true}).locator('.dhx_grid-row').first().dblclick();
+  await expect(page).toHaveURL(new RegExp(`#view=demo\\.task-note&record=${note}$`));
+  await expect.poll(()=>holds).toBe(1);
+  await expect.poll(()=>texts(page)).toEqual([noteText]);
+  await expect(bar(page).locator('.blade-location__icon.bi-sticky')).toHaveCount(1);
+  await expect(marker(page)).toHaveCount(0);
+ }finally{release();}
+ await expect.poll(()=>texts(page)).toEqual(notePath);
+ await expect(marker(page)).toHaveText([/^Feature demó/]);
+ await expect(page.locator('.blade-record-details')).toContainText(noteText);
+ expect(errors).toEqual([]);
+});
+
+test('record page with a parent the actor cannot read: the chain stops there, without a dialog',async({page})=>{
+ const errors=errorsOf(page);
+ await page.setViewportSize({width:1920,height:900});
+ // The parent record does not exist (its `get` fails): no parent is resolved, so the task and its menu path are left
+ // out: the note's own path, with its view's icon, and no marker.
+ const failed=page.waitForResponse(response=>parentGet(response.request()));
+ await signIn(page,'demo@example.test',`/#view=demo.task-note&record=${orphan}`);
+ expect((await (await failed).json()).ok).toBe(false);
+ await expect.poll(()=>texts(page)).toEqual([orphanText]);
+ await expect(bar(page).locator('.blade-location__icon.bi-sticky')).toHaveCount(1);
+ await expect(marker(page)).toHaveCount(0);
+ await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ // The parent's record view is not offered (fixture: the bootstrap without it, as for an actor without its `get`): the
+ // note's own path only, with its view's icon, and no marker.
+ await page.goto(`/#view=demo.task-note&record=${note}`);
+ await expect.poll(()=>texts(page)).toEqual(notePath);
+ await page.route(url=>url.pathname==='/',async route=>{
+  if(route.request().method()!=='GET'||route.request().resourceType()!=='document')return route.fallback();
+  const response=await route.fetch(),html=await response.text();
+  await route.fulfill({response,body:html.replace(/(<script[^>]*id="blade-config"[^>]*>)([\s\S]*?)(<\/script>)/,(_,open,json,close)=>{
+   const config=JSON.parse(json);config.views=config.views.filter(view=>view.id!=='demo.task-page');
+   return open+JSON.stringify(config).replace(/</g,'\\u003c')+close;
+  })});
+ });
+ await page.reload();
+ await expect(bar(page)).toBeVisible();
+ await expect.poll(()=>texts(page)).toEqual([noteText]);
+ await expect(bar(page).locator('.blade-location__icon.bi-sticky')).toHaveCount(1);
+ await expect(marker(page)).toHaveCount(0);
+ await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ expect(errors).toEqual([]);
+});
+
 for(const [width,height] of [[1366,900],[390,844]])test(`overflow at ${width} px`,async({page})=>{
  const errors=errorsOf(page);
  await page.setViewportSize({width,height});
@@ -146,6 +245,27 @@ for(const [width,height] of [[1366,900],[390,844]])test(`overflow at ${width} px
  expect(entries[0]).toBe(width<768?'Feature demó':'Feladatok');
  await menu.getByRole('menuitem',{name:'Feladatok'}).click();
  await expect(page).toHaveURL(/#view=demo_tasks$/);
+ expect(errors).toEqual([]);
+});
+
+test('a page path of its own (setLocation from root): the whole bar, a link to a filtered list, back to the menu path',async({page})=>{
+ const errors=errorsOf(page);
+ await page.setViewportSize({width:1366,height:800});await signIn(page);
+ await openView(page,'Médiaböngésző');
+ await expect.poll(()=>texts(page)).toEqual(['Feature demó','Médiaböngésző']);
+ await page.locator('.dhx_grid-row').filter({hasText:'Éjszakai komp a ködben'}).first().locator('[data-dhx-col-id="title"]').click();
+ // The page's segments replace the menu path: the list, the channel as a filtered link, the sheet.
+ await expect.poll(()=>texts(page)).toEqual(['Médialapok','Kijelző','Éjszakai komp a ködben']);
+ await expect(levels(page).first().locator('.dhx_navbar-item__icon, [class*="bi-"]').first()).toBeAttached();
+ await expect(page).toHaveTitle(/^Éjszakai komp a ködben · /);
+ const channel=bar(page).getByRole('link',{name:'Kijelző',exact:true});
+ await expect(channel).toHaveAttribute('href',/view=demo_media_sheets&filter\.channel=display/);
+ await channel.click();
+ await expect(page.locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
+ await expect.poll(()=>texts(page)).toEqual(['Feature demó','Médialapok']);
+ // Only the sheets of that channel are listed.
+ await expect(page.locator('.dhx_grid-row, .blade-grid-card').filter({hasText:'Kézműves kávé, lassú reggelek'})).toHaveCount(0);
+ await expect(page.locator('.dhx_grid-row, .blade-grid-card').filter({hasText:'Éjszakai komp a ködben'}).first()).toBeVisible();
  expect(errors).toEqual([]);
 });
 

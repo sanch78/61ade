@@ -4,7 +4,7 @@ declare(strict_types=1);
 /*
  * Feature-demo media sheets (modules/media-sheets.json, FB-0218): campaign visuals of the Signage mount with their data
  * and a long brief. The record page `demo.media-sheet` (frontend/src/media-sheet.ts) shows the data beside the image at
- * its declared details width and the brief as a card of its own below them; the list's `Adatok` window shows the same
+ * its declared details width and the brief below them across the width; the list's `Adatok` window shows the same
  * sized image. One sheet has no image yet, so its placeholder keeps the image's box.
  */
 

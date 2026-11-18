@@ -76,6 +76,12 @@ foreach ([['text', ['cardLines' => 4]], ['textarea', ['cardLines' => -1]], ['tex
 verify((new Field('x', 'X', column: ['media' => 'files', 'detailsWidth' => 160]))->column['detailsWidth'] === 160 && (new Field('x', 'X', 'file', file: ['resource' => 'files', 'mount' => 'm', 'accept' => ['image']], column: ['details_width' => 800]))->column['details_width'] === 800, 'Details width accepted');
 foreach ([['detailsWidth' => 480], ['media' => 'files', 'detailsWidth' => 159], ['media' => 'files', 'detailsWidth' => 801], ['media' => 'files', 'detailsWidth' => '480'], ['media' => 'files', 'detailsWidth' => 480, 'details_width' => 480], ['presentation' => 'image', 'imageBase' => 'img/', 'detailsWidth' => 480]] as $column)
     rejected(static fn() => new Field('x', 'X', column: $column), 'Invalid details width accepted: '.json_encode($column));
+// The place of a long text outside the sections (FB-0225): `end`, `row` or `group`, only on a textarea without its own
+// display (presentation, editor) and without a section.
+foreach (['end', 'row', 'group'] as $placement) verify((new Field('x', 'X', 'textarea', column: ['placement' => $placement, 'cardLines' => 2]))->column['placement'] === $placement, 'Placement accepted: '.$placement);
+foreach ([['text', ['placement' => 'row'], null, null], ['select', ['placement' => 'group'], null, null], ['textarea', ['placement' => 'row'], 'S', null], ['textarea', ['placement' => 'group', 'presentation' => 'demo.markdown'], null, null],
+    ['textarea', ['placement' => 'row'], null, 'demo.markdown'], ['textarea', ['placement' => 'middle'], null, null], ['textarea', ['placement' => 'Row'], null, null], ['textarea', ['placement' => ''], null, null], ['textarea', ['placement' => true], null, null], ['textarea', ['placement' => ['row']], null, null]] as [$type, $column, $section, $editor])
+    rejected(static fn() => new Field('x', 'X', $type, options: $type === 'select' ? ['a' => 'A'] : [], column: $column, section: $section, editor: $editor), 'Invalid placement accepted: '.json_encode([$type, $column, $section, $editor]));
 // Display fields: readable, not an input of the action, unique.
 $noop = static fn() => [];
 rejected(static fn() => new Action('r', 'a', 'A', [], $noop, display: [new Field('s', 'S', secret: true)]), 'Secret display field accepted');
@@ -172,6 +178,14 @@ $sizedOptions = $sized->provider('list')->metadata($sizedContext, $sized->views(
 $sizedDetails = array_column($sizedOptions['detailFields'], null, 'id');
 $sizedColumns = array_column($sizedOptions['columns'], null, 'id');
 verify(($sizedDetails['image']['detailsWidth'] ?? null) === 480 && !isset($sizedDetails['image']['details_width'], $sizedDetails['title']['detailsWidth']) && ($sizedColumns['image']['detailsWidth'] ?? null) === 480, 'Details width in the detail fields and columns');
+// The placement reaches the detail fields (cards and details) and the columns (FB-0225); none without the option.
+$placed = new Registry();
+(new SqlResource('notes', 'items', 'id', [new Field('title', 'Title', section: 'Data'), new Field('note', 'Note', 'textarea', column: ['placement' => 'row']), new Field('kind', 'Kind', 'textarea')]))->register($placed, 'Notes');
+$db->exec("INSERT INTO blade_rules(subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('user', '1', 'notes', 'get', 'ui', 'allow', 'all', '', '')");
+$placedOptions = $placed->provider('list')->metadata(new Context(new Identity('1', 'Synthetic'), 'ui', (new Workspace($placed, $db))->acl, $db), $placed->views()[0])['options'];
+$placedDetails = array_column($placedOptions['detailFields'], null, 'id');
+$placedColumns = array_column($placedOptions['columns'], null, 'id');
+verify(($placedDetails['note']['placement'] ?? null) === 'row' && ($placedColumns['note']['placement'] ?? null) === 'row' && !isset($placedDetails['kind']['placement'], $placedColumns['kind']['placement'], $placedDetails['title']['placement']), 'Placement in the detail fields and columns');
 
 // JSON: storage.create_only and a field's section.
 $directory = sys_get_temp_dir().'/blade-record-forms-'.bin2hex(random_bytes(4));
@@ -188,6 +202,13 @@ try {
     $filling = $module;$filling['resources']['items']['fields'][1] += ['type' => 'textarea', 'section_fill' => true];
     file_put_contents($directory.'/module.json', json_encode($filling, JSON_THROW_ON_ERROR));
     verify(WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry->fields('items')['title']->sectionFill === true, 'JSON section_fill');
+    // A long text's `column.placement` (FB-0225): a textarea outside the sections.
+    $placing = $module;$placing['resources']['items']['fields'][1] = ['name' => 'title', 'label' => 'Title', 'type' => 'textarea', 'column' => ['placement' => 'group']];
+    file_put_contents($directory.'/module.json', json_encode($placing, JSON_THROW_ON_ERROR));
+    verify(WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry->fields('items')['title']->column['placement'] === 'group', 'JSON column.placement');
+    $placing['resources']['items']['fields'][1]['section'] = 'More';
+    file_put_contents($directory.'/module.json', json_encode($placing, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => []), 'JSON column.placement on a sectioned field accepted');
     // A form row (FB-0196): `row` and `row_width`.
     $row = $module;$row['resources']['items']['fields'][0]['row'] = 'head';$row['resources']['items']['fields'][1] += ['row' => 'head', 'row_width' => 3];unset($row['resources']['items']['fields'][1]['section']);
     file_put_contents($directory.'/module.json', json_encode($row, JSON_THROW_ON_ERROR));
@@ -198,7 +219,7 @@ try {
     file_put_contents($directory.'/module.json', json_encode($accordion, JSON_THROW_ON_ERROR));
     $built = WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry;
     verify($built->get('items', 'create')->formSections === 'accordion-multiple' && $built->get('items', 'update')->formSections === 'accordion-multiple' && $built->get('items', 'update')->flushSections, 'JSON operations.form_sections and flush_sections');
-    foreach ([['operations', 'form_sections', 'tabs'], ['operations', 'form_sections', true], ['operations', 'formSections', 'accordion'], ['operations', 'flush_sections', 'yes'], ['operations', 'flush_sections', true], ['storage', 'create_only', 'kind'], ['storage', 'create_only', ['missing']], ['field', 'section', ['More']], ['field', 'section', ''], ['field', 'section_collapsible', 'no'], ['field', 'sectionCollapsible', false], ['field', 'section_fill', 'yes'], ['field', 'section_fill', true], ['field', 'sectionFill', true], ['field', 'row', 'Head'], ['field', 'row', 2], ['field', 'row_width', 2], ['field', 'rowWidth', 2]] as [$where, $key, $value]) {
+    foreach ([['operations', 'form_sections', 'tabs'], ['operations', 'form_sections', true], ['operations', 'formSections', 'accordion'], ['operations', 'flush_sections', 'yes'], ['operations', 'flush_sections', true], ['storage', 'create_only', 'kind'], ['storage', 'create_only', ['missing']], ['field', 'section', ['More']], ['field', 'section', ''], ['field', 'section_collapsible', 'no'], ['field', 'sectionCollapsible', false], ['field', 'section_fill', 'yes'], ['field', 'section_fill', true], ['field', 'sectionFill', true], ['field', 'row', 'Head'], ['field', 'row', 2], ['field', 'row_width', 2], ['field', 'rowWidth', 2], ['field', 'column', ['placement' => 'row']]] as [$where, $key, $value]) {
         $broken = $module;
         if ($where === 'field') $broken['resources']['items']['fields'][1][$key] = $value; else $broken['resources']['items'][$where][$key] = $value;
         file_put_contents($directory.'/module.json', json_encode($broken, JSON_THROW_ON_ERROR));

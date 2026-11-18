@@ -9,12 +9,17 @@
 // first (`view.sort`), declared as cards only, one per row (`view.modes`, `view.card_columns`: no `Nézet` menu), whose
 // long text shows a 4-line preview; `Munka` offers its table and cards (the list's `modes` win over the view's). `Vázlat` is the module's own drawing surface (a
 // canvas) between two command bars in a borderless box Layout, edge to edge (`app.ui.attach`).
+// A double-click or Enter on a note opens its own page, the record view kind `demo.task-note`, whose declared `parent`
+// (the task) puts the task page into the location bar before the note.
 import type { Accordion, Application, ApplicationModule, CommandBar, ListKindOptions, ListView, PageLayout, PageRegion, RecordDetails, RecordForm, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 
 /** `views.demo.task-page.options` of tasks.json: the task list (details, form) and the notes list (`menu: false`, scoped to `task_id`). */
 type PageOptions = { details?: string; notes?: string };
+/** `views.demo.task-note.options` of tasks.json: the notes list whose details show the note. */
+type NoteOptions = { details?: string };
 
 const KIND = "demo.task-page";
+const NOTE = "demo.task-note";
 const PHONE = "(max-width: 767px)";
 /** The sketch's pen colours; `ink` is the theme's text colour. */
 const COLORS: Record<string, string> = { ink: "", blue: "#1f6feb", red: "#d1242f" };
@@ -269,8 +274,31 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
   return { destroy: () => build?.abort() };
 }
 
+/**
+ * A note's own page: its RecordDetails. The shell resolves the declared parent (the task, `parent` in tasks.json) and
+ * shows `Feature demó › Feladatok › ‹task› ›` before the note's level, the first 60 characters of its text.
+ */
+function notePage(app: Application, host: ViewHost, view: ViewDefinition<NoteOptions>): ViewInstance {
+  const t = (key: string) => app.i18n.t(key);
+  if (!host.record) throw new Error(t("A jegyzetlap egy jegyzethez nyílik meg."));
+  const list = app.viewDefinition(view.options?.details ?? host.record.resource) as ViewDefinition<ListKindOptions> | undefined;
+  if (!list) throw new Error(t("A jegyzetek nem érhetők el."));
+  const label = String(host.record.row.body ?? "").trim().slice(0, 60) || "#" + host.record.id;
+  host.setTitle(`${view.title}: ${label}`);
+  host.setLocation([{ label }]);
+  const controller = new AbortController(), signal = controller.signal;
+  host.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "details" }] });
+  host.attach(layout);
+  new app.components.RecordDetails({ view: list, record: host.record.row, showId: false, signal }).mount(layout.getCell("details"));
+  // Registered after the component, so it detaches from its cell before the layout goes (the Layout recipe).
+  signal.addEventListener("abort", () => layout.destructor(), { once: true });
+  return { destroy: () => controller.abort() };
+}
+
 const taskPage: ApplicationModule = app => {
   app.kinds.register(KIND, { create: (host, view: ViewDefinition<PageOptions>) => page(app, host, view) });
+  app.kinds.register(NOTE, { create: (host, view: ViewDefinition<NoteOptions>) => notePage(app, host, view) });
   // `Feladatlap` on the Feladatok toolbar: opens the page of the cursor task.
   app.commands.register("demo.task-page", {
     label: "Feladatlap", icon: "bi bi-file-earmark-text", placement: "record",
