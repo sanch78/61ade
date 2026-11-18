@@ -382,7 +382,7 @@ final class WorkspaceConfiguration
         Shape::check($definition, ['kind' => 'string', 'title' => 'string'], [
             'resource' => 'string', 'record' => 'string', 'actions' => 'array', 'options' => 'array', 'open' => 'string',
             'group' => 'string', 'icon' => 'string', 'desktop_only' => 'boolean', 'guide' => 'string', 'available' => 'string',
-            'record_title' => 'string',
+            'record_title' => 'string', 'location' => 'string',
         ], '$.views.'.$id);
         if (in_array($definition['kind'], View::BUILTIN_KINDS, true)) {
             throw new InvalidArgumentException('Built-in view kinds are declared in resources.<name>.view: $.views.'.$id);
@@ -403,6 +403,7 @@ final class WorkspaceConfiguration
             guide: $definition['guide'] ?? null,
             available: $this->bindings->get($definition['available'] ?? null),
             recordTitle: $definition['record_title'] ?? null,
+            location: $definition['location'] ?? null,
         ));
     }
 }

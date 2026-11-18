@@ -1179,6 +1179,19 @@ below the menu row, across the full width, before the workspace
   Without a source view, the declared group or, without one, the record
   view's own icon starts the path. This also holds after a direct link,
   reload and Back/Forward.
+- **A record page that starts at its group:** a record view reached
+  through a parent level that is not its resource's menu list (an episode
+  opened from its season, a task from its project) declares
+  `location: 'group'` (PHP `View(location: 'group')`, JSON
+  `views.<id>.location: "group"`, a record view only, no other value). Its
+  bar leaves out the source view's entry: the group (the source view's, or
+  the record view's declared `group`) is followed directly by the view's
+  `setLocation` segments or its record title, for example
+  `Történetek › 1. évad › S01E00 · … › Áttekintés`
+  ([FB-0220](feedback.md#fb-0220)). The menu marker and the compact
+  desktop siblings still come from the source view, and the overflow and
+  phone rules are unchanged. Without a group, the first segment carries the
+  record view's icon. Without the option, nothing changes.
 - **Content from the view:** `host.setLocation(segments)`
   ([toolkit](toolkit.md#views)) replaces everything after the menu path
   (for a record page, also the record title) with up to 16 segments
@@ -1224,7 +1237,8 @@ below the menu row, across the full width, before the workspace
   application title.
 
 Limits: one bar per page (a window has none); the menu path comes from the
-menu, so a custom `Menu` item has none; the record title is one field (a
+menu, so a custom `Menu` item has none; `location: 'group'` only drops the
+source view's entry, it does not choose another source; the record title is one field (a
 composed title is a `setLocation` call of the view); segments carry no
 count, badge or menu of their own.
 

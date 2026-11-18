@@ -10010,3 +10010,62 @@ that exactly equals an option label lists every option. The managed
   across the four themes; it is a catalogue glyph in the existing slot.
 - **Status:** implemented and verified as above; StoryBloX needs no
   declaration change ([handoff](handoff/storyblox.md)).
+
+<a id="fb-0220"></a>
+
+## FB-0220 — A record page whose location bar starts at its group
+
+- **Date:** 2026-11-18.
+- **Report:** a consumer request (StoryBloX D-087): a record page's location
+  bar starts with its source view's menu path, the group and then the first
+  menu list of the record resource ([FB-0217](#fb-0217)). An episode is
+  reached from *Történetek › Évadok* through its season, but the bar read
+  *Történetek › Epizódok › 1. évad › S01E00 · … › Áttekintés*: the flat
+  *Epizódok* list of every season stood above the season. `setLocation`
+  replaces only what follows the menu path, a record view's `group` only
+  narrows the source view, and *Epizódok* must keep its menu entry.
+- **Accepted expectation:** a record view can declare that its bar starts at
+  the group, without the source view's entry; its `setLocation` segments or
+  its record title follow the group. The menu marker and the compact desktop
+  siblings still come from the source view. Without the option nothing
+  changes. Also useful elsewhere: a task opened from a project beside a flat
+  task list in the same group.
+- **Contract:** `location` on the record view: PHP `View(location: 'group')`,
+  JSON `views.<id>.location: "group"`, `ViewDefinition.location`
+  ([location bar](shell.md#location-bar),
+  [record views](toolkit.md#record-views),
+  [configuration](configuration.md), migration M87). Only `'group'` on a
+  record view; anything else, or the option on another view, throws
+  `InvalidArgumentException` at definition time. No new action, permission,
+  catalogue key or event; the bootstrap view carries `location` only when
+  declared.
+- **Implemented:** `View.php` (property and check),
+  `WorkspaceConfiguration.php` (JSON key), `Workspace.php` (bootstrap),
+  `api/types.ts`, `AdminShell.locate()` (the source entry is left out; the
+  group, the marker source and the overflow rules are unchanged). Without a
+  group the first segment carries the record view's icon, as for a record
+  page without a source. No demo view declares it: the feature demo has no
+  record reached through another parent level.
+- **Not covered:** the option drops the source entry only; it does not name
+  another source view for the marker or the path.
+- **Verification:** `npm run typecheck` passed; PHP `contracts` (the
+  bootstrap view shape now admits `location`), `configuration` and `toolkit`
+  passed. Temporary checks, run and then removed: PHP cases (`'group'` on a
+  record view accepted; on a non-record view and another value rejected) and
+  a 5-test browser spec on the managed demo that served a build of the
+  change and declared `location: "group"` on `demo.task-page` through the
+  bootstrap: at 1366 px the bar reads `Feature demó › ‹task› › Munka` with
+  the group's icon and no link, after a direct link, reload, Back and
+  Forward, and the document title follows the current level; at 390 px the
+  `…` menu holds the group, the task is the back link and nothing scrolls
+  horizontally; without the option the bar keeps `Feladatok` as a link; the
+  menu marker is the same with and without the option (`Feature demó` at
+  1920 px; none at 1366 px, where the demo's menu row is collapsed into
+  `Menü`, as recorded under [FB-0217](#fb-0217)). `npm run build` and
+  `npm run demo:assets`; the retained `location-bar.spec.cjs` (7 tests) and
+  `window-title.spec.cjs` passed on the final build. `task-page.spec.cjs:29`
+  failed as recorded under [FB-0217](#fb-0217) (a top-level menu group
+  awaited while the 1366 px row is collapsed into `Menü`), and its serial
+  remainder did not run. No full-smoke claim.
+- **Status:** implemented and verified as above; the consumer declares it in
+  its own session.

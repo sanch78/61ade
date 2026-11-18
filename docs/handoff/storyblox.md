@@ -76,6 +76,16 @@ like a double-click, never a window. Back returns to *Évadok* at the same
 place with the season as the cursor. A spec that clicked that button and
 waited for a window finds the page instead.
 
+## Location bar from the group (D-087)
+
+Delivered in 61ade ([FB-0220](../feedback.md#fb-0220),
+[location bar](../shell.md#location-bar)). Declare `location: 'group'`
+(JSON `"location": "group"`) on the episode record view. The bar then reads
+*Történetek › ‹your setLocation segments›* (season, episode, level) without
+*Epizódok*, while the menu marker and the *Epizódok* menu entry stay as they
+are. The season segment can be a `target` to the filtered *Epizódok* page or
+an `onSelect`.
+
 ## Asset viewer on the public API (D-019 to D-021)
 
 The requests of `dev/docs/61ade/custom-view-request.md` (untracked in the
