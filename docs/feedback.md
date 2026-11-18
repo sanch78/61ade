@@ -9832,7 +9832,9 @@ that exactly equals an option label lists every option. The managed
   `onSelect` with the tab and selection kept; the asset viewer's
   `record_title`; collapse at 1366 px and the phone form at 390 px without
   horizontal scroll, with the `…` menu; a long-lived window leaving the bar
-  unchanged; English names). Shell `browser`, `skins`, `workspace`,
+  unchanged; English names). The owner then kept that spec as
+  `tests/shell/location-bar.spec.cjs` (without screenshots); it passed on
+  `1a3ee5f`. Shell `browser`, `skins`, `workspace`,
   `window-title`, `modal-windows`, `menu-commands`, `tabs`, `empty-states`,
   `mobile-grid`, `toolkit-demo-tasks`, `toolkit-demo-assets` and
   `toolkit-demo-playlist-editor` passed. The playlist editor's drag test

@@ -456,6 +456,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Sorting/list presentation | PHP `sorting.php`, `list-presentation.php`, `lists.php`; shell `list-presentation.spec.cjs`, `list-integration.spec.cjs`, `grid-sort.spec.cjs` |
 | Localization | `php8.4 tests/shell/i18n.php`; shell `i18n.spec.cjs` |
 | Dialogs | `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs` |
+| Location bar (`LocationBar.ts`, `ViewHost.setLocation`, `recordTitle`) | `npm run typecheck`, `npm run build`, `npm run demo:assets`; PHP `contracts.php`, `configuration.php`, `i18n.php`; shell `location-bar.spec.cjs` (themes, a skin, record page, 1366 and 390 px), `task-page.spec.cjs`, `window-title.spec.cjs` |
 | Window header and title (`app.ui.window`), modal windows (focus, inert, Escape, `ModalWindows.ts`, `SuiteRedraw.ts`), long-lived windows, menu commands | shell `window-title.spec.cjs`, `suite-labels.spec.cjs`, `menu-commands.spec.cjs`, `dialogs.spec.cjs`, `modal-windows.spec.cjs`; PHP `toolkit.php`, `configuration.php` (menu commands) |
 | Popup menu (`app.ui.menu`) | `npm run typecheck`, `npm run build`, `npm run demo:assets`; shell `toolkit-menu.spec.cjs`, `menu-commands.spec.cjs`, `dialogs.spec.cjs`, `suite-labels.spec.cjs`, `toolkit-components.spec.cjs` |
 | Diagram editor | `php8.4 tests/shell/diagram.php`; shell `diagram.spec.cjs` |
