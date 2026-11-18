@@ -72,6 +72,10 @@ rejected(static fn() => (new Registry())->registerFields('lone', [new Field('a',
 verify((new Field('x', 'X', 'textarea', column: ['cardLines' => 0]))->column['cardLines'] === 0 && (new Field('x', 'X', 'textarea', column: ['card_lines' => 50]))->column['card_lines'] === 50, 'Card lines accepted');
 foreach ([['text', ['cardLines' => 4]], ['textarea', ['cardLines' => -1]], ['textarea', ['cardLines' => 51]], ['textarea', ['cardLines' => '4']], ['textarea', ['cardLines' => 4, 'card_lines' => 4]]] as [$type, $column])
     rejected(static fn() => new Field('x', 'X', $type, column: $column), 'Invalid card lines accepted: '.json_encode([$type, $column]));
+// A media field's image width in the details (FB-0218): a media column option 160–800, one spelling.
+verify((new Field('x', 'X', column: ['media' => 'files', 'detailsWidth' => 160]))->column['detailsWidth'] === 160 && (new Field('x', 'X', 'file', file: ['resource' => 'files', 'mount' => 'm', 'accept' => ['image']], column: ['details_width' => 800]))->column['details_width'] === 800, 'Details width accepted');
+foreach ([['detailsWidth' => 480], ['media' => 'files', 'detailsWidth' => 159], ['media' => 'files', 'detailsWidth' => 801], ['media' => 'files', 'detailsWidth' => '480'], ['media' => 'files', 'detailsWidth' => 480, 'details_width' => 480], ['presentation' => 'image', 'imageBase' => 'img/', 'detailsWidth' => 480]] as $column)
+    rejected(static fn() => new Field('x', 'X', column: $column), 'Invalid details width accepted: '.json_encode($column));
 // Display fields: readable, not an input of the action, unique.
 $noop = static fn() => [];
 rejected(static fn() => new Action('r', 'a', 'A', [], $noop, display: [new Field('s', 'S', secret: true)]), 'Secret display field accepted');
@@ -159,6 +163,15 @@ verify(($columns['note']['row'] ?? null) === 'more' && ($columns['note']['rowWid
 // The cards and details group by the detail fields' sections and clamp a long text to its card lines (FB-0177).
 $details = array_column($registry->provider('list')->metadata($context, $registry->views()[0])['options']['detailFields'], null, 'id');
 verify(($details['note']['section'] ?? null) === 'More' && ($details['note']['cardLines'] ?? null) === 2 && !isset($details['note']['card_lines']) && !isset($details['title']['section'], $details['title']['cardLines']), 'Detail field section and card lines');
+// The details width reaches the detail fields and the columns in its browser spelling (FB-0218).
+$sized = new Registry();
+(new SqlResource('pictures', 'items', 'id', [new Field('title', 'Title', section: 'Data'), new Field('image', 'Image', column: ['media' => 'files', 'details_width' => 480], section: 'Image')]))->register($sized, 'Pictures');
+$db->exec("INSERT INTO blade_rules(subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('user', '1', 'pictures', 'get', 'ui', 'allow', 'all', '', '')");
+$sizedContext = new Context(new Identity('1', 'Synthetic'), 'ui', (new Workspace($sized, $db))->acl, $db);
+$sizedOptions = $sized->provider('list')->metadata($sizedContext, $sized->views()[0])['options'];
+$sizedDetails = array_column($sizedOptions['detailFields'], null, 'id');
+$sizedColumns = array_column($sizedOptions['columns'], null, 'id');
+verify(($sizedDetails['image']['detailsWidth'] ?? null) === 480 && !isset($sizedDetails['image']['details_width'], $sizedDetails['title']['detailsWidth']) && ($sizedColumns['image']['detailsWidth'] ?? null) === 480, 'Details width in the detail fields and columns');
 
 // JSON: storage.create_only and a field's section.
 $directory = sys_get_temp_dir().'/blade-record-forms-'.bin2hex(random_bytes(4));

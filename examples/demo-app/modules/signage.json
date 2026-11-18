@@ -620,6 +620,7 @@
             "title": "Médianéző",
             "resource": "signage_assets",
             "record": "signage_assets",
+            "record_title": "title",
             "actions": [
                 "get"
             ],
@@ -635,6 +636,7 @@
             "title": "Lejátszásilista-szerkesztő",
             "resource": "signage_playlists",
             "record": "signage_playlists",
+            "record_title": "title",
             "actions": [
                 "get",
                 "update"

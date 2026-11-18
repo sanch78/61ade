@@ -1282,7 +1282,8 @@ function page(app, host, view) {
   const phone = matchMedia(PHONE2);
   let build;
   const sketch = sketchPad(t("V\xE1zlat"), host.signal);
-  host.setTitle(`${view.title}: ${String(row.title ?? task)}`);
+  let title = String(row.title ?? task);
+  host.setTitle(`${view.title}: ${title}`);
   const root = document.createElement("div");
   root.style.cssText = "width:100%;height:100%";
   host.attach(root);
@@ -1298,6 +1299,15 @@ function page(app, host, view) {
       tree: phone.matches ? { rows: [{ ...tabs, minHeight: 240 }, { ...control, height: 320, minHeight: 120, resizable: true }] } : { cols: [{ ...control, width: 360, minWidth: 260, resizable: true }, { ...tabs, minWidth: 320 }] }
     });
     layout.mount(root);
+    const pages = layout.tabsOf("notes"), labels = { work: t("Munka"), notes: t("Jegyzetek"), sketch: t("V\xE1zlat") };
+    let focused;
+    const locate = () => host.setLocation([
+      { label: title, onSelect: () => void pages.select(notes ? "work" : "notes") },
+      { label: labels[pages.active()] ?? pages.active() },
+      ...pages.active() === "work" && focused ? [{ label: String(focused.body ?? "").trim().slice(0, 60) || "#" + String(focused.id) }] : []
+    ]);
+    pages.on("change", locate, { signal });
+    locate();
     const sections = new app.components.Accordion({ id: `${view.id}.control`, sections: [
       { id: "details", label: t("Adatok") },
       { id: "edit", label: t("Szerkeszt\xE9s"), disabled: !editable }
@@ -1310,8 +1320,12 @@ function page(app, host, view) {
       if (form || signal.aborted) return;
       form = new app.components.RecordForm({ resource: host.record.resource, action: "update", id: task, cancel: false });
       form.on("saved", () => {
-        const title = form?.values().title;
-        if (typeof title === "string" && title.trim()) host.setTitle(`${view.title}: ${title}`);
+        const saved = form?.values().title;
+        if (typeof saved === "string" && saved.trim()) {
+          title = saved;
+          host.setTitle(`${view.title}: ${title}`);
+          locate();
+        }
         void details?.show(task).catch(() => {
         });
       });
@@ -1383,6 +1397,10 @@ function page(app, host, view) {
       workList.on("target", ({ row: note }) => {
         current = note;
         for (const id of ["show", "copy", "delete"]) bar?.update(id, { disabled: !note });
+        if (note !== focused) {
+          focused = note;
+          locate();
+        }
         if (!note) return;
         if (selected) {
           void selected.show(note).catch(() => {
@@ -1394,7 +1412,7 @@ function page(app, host, view) {
         selected.mount(panel);
       }, { signal });
       if (phone.matches) {
-        const pages = layout.tabsOf("work");
+        const pages2 = layout.tabsOf("work");
         let restore = false;
         const follow = (active) => {
           if (active === "work") {
@@ -1408,10 +1426,10 @@ function page(app, host, view) {
           }
         };
         layout.on("collapse", ({ id }) => {
-          if (id === "control" && pages.active() === "work" && !layout.isCollapsed("control")) restore = false;
+          if (id === "control" && pages2.active() === "work" && !layout.isCollapsed("control")) restore = false;
         }, { signal });
-        pages.on("change", ({ id }) => follow(id), { signal });
-        follow(pages.active());
+        pages2.on("change", ({ id }) => follow(id), { signal });
+        follow(pages2.active());
       }
     } else {
       const empty = document.createElement("p");
@@ -1746,10 +1764,37 @@ var textRevisions = (app) => {
 };
 var text_revisions_default = textRevisions;
 
+// examples/demo-app/frontend/src/media-sheet.ts
+var KIND7 = "demo.media-sheet";
+function sheet(app, host, view) {
+  const t = (key) => app.i18n.t(key);
+  if (!host.record) throw new Error(t("A m\xE9dialap egy rekordhoz ny\xEDlik meg."));
+  const listId = view.options?.list ?? host.record.resource;
+  const list = app.viewDefinition(listId);
+  if (!list) throw new Error(t("A m\xE9dialapok list\xE1ja nem \xE9rhet\u0151 el."));
+  host.setTitle(`${view.title}: ${String(host.record.row.title ?? host.record.id)}`);
+  const controller = new AbortController(), signal = controller.signal;
+  host.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "details" }] });
+  host.attach(layout);
+  const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a list\xE1hoz"), icon: "bi bi-arrow-left" }] });
+  bar.on("click", ({ id }) => {
+    if (id === "back" && !app.navigate({ view: listId })) host.close();
+  });
+  bar.mount(layout.getCell("commands"));
+  new app.components.RecordDetails({ view: list, record: host.record.row, showId: false, longText: "card", signal }).mount(layout.getCell("details"));
+  signal.addEventListener("abort", () => layout.destructor(), { once: true });
+  return { destroy: () => controller.abort() };
+}
+var mediaSheet = (app) => {
+  app.kinds.register(KIND7, { create: (host, view) => sheet(app, host, view) });
+};
+var media_sheet_default = mediaSheet;
+
 // examples/demo-app/frontend/src/index.ts
 var demo = async (app) => {
   const failures = [];
-  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default, workbench_default, text_revisions_default]) {
+  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default, workbench_default, text_revisions_default, media_sheet_default]) {
     try {
       await part(app);
     } catch (error) {

@@ -10,15 +10,18 @@ import { ResponsiveToolbar } from "./ResponsiveToolbar";
 import { uploads, type UploadIndicator } from "./Uploader";
 import { configureServer, server } from "./api/Server";
 import { attachContent, nonModalOpen, openWindow, themeApplied } from "./api/services";
-import type { AppWindow, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
+import type { AppWindow, LocationSegment, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
 import { createApplication, loadModules, type Kernel } from "./app/Application";
 import { parseRoute, routeHash } from "./app/routes";
 import { loadSignInModules, signInApplication, signInThemeApplied } from "./SignIn";
 import { brandLogo } from "./BrandLogo";
+import { LocationBar, type Place } from "./LocationBar";
 import type { SignInPage } from "./api/sign-in";
 
 /** One open view: the workspace page or a document window, with the signal its host aborts on close. */
-type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow };
+type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow;
+  /** A page: its levels after the menu path (`ViewHost.setLocation`, by default the record's title). */
+  location?: Place[] };
 
 export type MenuDefinition = {
   id: string;
@@ -117,6 +120,9 @@ export class AdminShell {
   private page?: Mounted;
   private windows=new Set<Mounted>();
   private navigation=0;
+  /** The location bar below the menu row (application pages only) and the document's own title. */
+  private locationBar?: LocationBar;
+  private applicationTitle=document.title;
   /** The page's toolkit `Application`, its event bus and kind registry (signed in only). */
   private kernel?: Kernel;
   /** The tab's one live channel (signed in with a list view), shared by every list and sub-view. */
@@ -193,8 +199,7 @@ export class AdminShell {
     const full=(iconOnly:boolean)=>required([...this.menuItems,...commands(iconOnly)]);
     const compact = width < Math.max(768,full(true));
     const view=this.navigable(parseRoute(location.hash).view??"");
-    // Record pages have no menu entry: inherit the first offered menu view of their record resource.
-    const menuView=view?.record?(this.definition.views??[]).find(candidate=>!candidate.record&&candidate.menu!==false&&candidate.resource===view.record&&(!view.group||candidate.group===view.group)):view;
+    const menuView=view&&this.menuSource(view);
     const current=menuView?"view:"+menuView.id:view?.group?"group:"+view.group:"";
     const siblings=(items:any[],nested=false):any[]|undefined=>{
       for(const item of items){
@@ -232,6 +237,14 @@ export class AdminShell {
     const prefixed=(items:any[]):any[]=>items.map(item=>({...item,id:"sibling:"+item.id,...(item.items?{items:prefixed(item.items)}:{})}));
     this.menu.replaceItems(compact?[{id:"blade-main-menu",value:t("Menü"),...this.menuHtml(this.mainMenu()),icon:"bi bi-grid",items:entries},...commandItems,
       ...(context.length?[{id:"blade-context-separator",type:"separator"},...context.map(marked).map(item=>prefixed([item])[0])]:[])]:entries.flatMap(item=>item.id==="blade-session-separator"?[{id:"blade-session-spacer",type:"spacer"},marked(item)]:[marked(item)]));
+  }
+
+  /**
+   * The menu view that stands for $view: itself, or for a record page (no menu entry) the first offered menu view of its
+   * record resource, within its declared `group` (docs/shell.md#elkülönülő-főmenügombok).
+   */
+  private menuSource(view:ViewDefinition):ViewDefinition|undefined{
+    return view.record?(this.definition.views??[]).find(candidate=>!candidate.record&&candidate.menu!==false&&candidate.resource===view.record&&(!view.group||candidate.group===view.group)):view;
   }
 
   /** Declared menu-row commands whose handler a module registered (`placement: "menu"`), in declaration order. */
@@ -421,6 +434,7 @@ export class AdminShell {
           ...(controlItems.length?[{id:"controls",width:"content",css:"blade-navigation-control"}]:[]),
           ...(signInControl?[{id:"sign-in-control",width:"content",css:"blade-navigation-control blade-sign-in-control"}]:[]),
           ...(this.topLogo?[{id:"logo",width:"content",css:"blade-logo-cell",html:this.logoHtml(this.windowLogo)}]:[])] },
+        ...(this.applicationPage?[{ id: "location", height: 32, css: "blade-location-row", hidden: true }]:[]),
         { id: "workspace", css: "blade-workspace" },
         { id: "status", height: 32, css: "blade-session-bar" },
       ],
@@ -450,6 +464,10 @@ export class AdminShell {
       ],
     });
     this.layout.getCell("status").attach(this.status);
+    if(this.applicationPage){
+      this.locationBar=new LocationBar(this.listeners.signal);
+      attachContent(this.layout.getCell("location"),this.locationBar.element,this.listeners.signal);
+    }
     // The top-row logo's width is known once its image loads (load does not bubble: capture).
     if(this.topLogo)root.addEventListener("load",event=>{if((event.target as Element).closest?.(".blade-navigation-row .blade-logo"))this.renderMenu();},{capture:true,signal:this.listeners.signal});
     if (this.applicationPage) {
@@ -667,6 +685,51 @@ export class AdminShell {
     ++this.navigation;
     this.layout.getCell("workspace").detach();
     this.unmountAll();
+    this.locate();
+  }
+
+  /**
+   * Draws the location bar of the page view (docs/shell.md#location-bar): the menu path of its menu source (group, then
+   * the entry; the first level with the section's icon), then the page's own levels; hidden without a page. The
+   * document title follows the current level.
+   */
+  private locate():void{
+    const bar=this.locationBar,page=this.page,cell=this.layout.getCell("location");
+    if(!bar)return;
+    this.root.classList.toggle("blade-located",!!page);
+    if(!page){if(cell.isVisible())cell.hide();document.title=this.applicationTitle;return;}
+    const view=page.view,source=this.menuSource(view),group=source?.group??(view.record?view.group:undefined);
+    const places:Place[]=[];
+    if(group)places.push({label:group,icon:this.definition.menuGroupIcons?.[group]??"bi bi-folder2-open"});
+    if(source)places.push({label:source.title,...(places.length?{}:{icon:source.icon??"bi bi-table"}),...(source===view?{}:{href:"#"+routeHash({view:source.id})})});
+    const own=[...page.location??[]];
+    if(!places.length&&own.length)own[0]={icon:view.icon??"bi bi-file-earmark-text",...own[0]};
+    places.push(...own);
+    if(!places.length)places.push({label:view.title,icon:view.icon??"bi bi-table"});
+    bar.show(places);
+    if(!cell.isVisible())cell.show();
+    document.title=`${places[places.length-1].label} · ${this.applicationTitle}`;
+  }
+
+  /** `ViewHost.setLocation` segments as drawn levels: a target the actor is not offered is plain text. */
+  private places(segments:LocationSegment[]):Place[]{
+    if(!Array.isArray(segments)||segments.length>16)throw new TypeError("61ade: setLocation takes an array of at most 16 segments.");
+    return segments.map(segment=>{
+      if(!segment||typeof segment!=="object"||typeof segment.label!=="string"||!segment.label.trim()||segment.label.length>200)throw new TypeError("61ade: a location segment needs a label of 1–200 characters.");
+      if(segment.icon!==undefined&&(typeof segment.icon!=="string"||!/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(segment.icon)))throw new TypeError("61ade: a location segment icon is icon classes.");
+      if(segment.target!==undefined&&segment.onSelect!==undefined)throw new TypeError("61ade: a location segment has a target or onSelect, not both.");
+      if(segment.onSelect!==undefined&&typeof segment.onSelect!=="function")throw new TypeError("61ade: a location segment's onSelect is a function.");
+      const target=segment.target;
+      if(target!==undefined&&(!target||typeof target!=="object"||typeof target.view!=="string"||(target.record!==undefined&&typeof target.record!=="string"&&typeof target.record!=="number")))
+        throw new TypeError("61ade: a location segment target is {view, record?}.");
+      const place:Place={label:segment.label,...(segment.icon?{icon:segment.icon}:{})};
+      if(segment.onSelect)place.select=segment.onSelect;
+      if(target){
+        const view=this.navigable(target.view),record=view?.record&&target.record!==undefined?String(target.record):undefined;
+        if(view&&this.openable(view,record))place.href="#"+routeHash({view:view.id,record});
+      }
+      return place;
+    });
   }
 
   /**
@@ -701,12 +764,15 @@ export class AdminShell {
   private async mount(view:ViewDefinition,kind:{create:(host:ViewHost,view:ViewDefinition)=>ViewInstance|Promise<ViewInstance>},open:ViewOpenMode,record:ViewHost["record"],filters:Record<string,string>):Promise<void>{
     const controller=new AbortController(),signal=controller.signal;
     const mounted:Mounted={view,record:record?.id,open,controller};
+    // A record page's own level: the record's declared title field, else the view's title.
+    const title=record&&view.recordTitle!==undefined?String(record.row[view.recordTitle]??"").trim():"";
+    if(open==="page"&&record)mounted.location=[{label:title||view.title}];
     if(open==="window"){
       // The record views' framework document window: like a sub-view window, full screen on a phone.
       mounted.window=openWindow({title:view.title,css:"blade-feature-window",width:1100,height:720,fit:false});
       mounted.window.signal.addEventListener("abort",()=>this.unmount(mounted),{once:true});
       this.windows.add(mounted);
-    }else this.page=mounted;
+    }else{this.page=mounted;this.locate();}
     const host:ViewHost=Object.freeze({
       app:this.kernel!.app,signal,open,...(record?{record}:{}),filters:Object.freeze({...filters}),
       attach:(content:Parameters<ViewHost["attach"]>[0])=>{
@@ -718,6 +784,11 @@ export class AdminShell {
         else attachContent(mounted.wrapper.cell,content,signal);
       },
       setTitle:(text:string)=>{if(!signal.aborted)mounted.window?.setTitle(String(text));},
+      setLocation:(segments:LocationSegment[])=>{
+        const places=this.places(segments);
+        if(signal.aborted||mounted.window||this.page!==mounted)return;
+        mounted.location=places;this.locate();
+      },
       close:()=>{
         if(signal.aborted)return;
         if(mounted.window){mounted.window.close();return;}
@@ -730,7 +801,7 @@ export class AdminShell {
       mounted.instance=instance;
     }catch(error){
       if(signal.aborted)return;
-      if(mounted.window)mounted.window.close();else{this.layout.getCell("workspace").detach();this.unmount(mounted);}
+      if(mounted.window)mounted.window.close();else{this.layout.getCell("workspace").detach();this.unmount(mounted);this.locate();}
       await this.failed(error);
       return;
     }

@@ -28,6 +28,8 @@ import registryBrowser from "./registry-browser";
 import workbench from "./workbench";
 // D10 Szövegváltozatok: record command demo.text-diff opening the TextDiff component (text-revisions.ts)
 import textRevisions from "./text-revisions";
+// D11 Médialapok: record view kind demo.media-sheet, RecordDetails with a sized image and its brief as a card (media-sheet.ts)
+import mediaSheet from "./media-sheet";
 
 /**
  * Runs every part in D-row order. A failing part does not stop the later ones; the failures are rethrown together, so
@@ -35,7 +37,7 @@ import textRevisions from "./text-revisions";
  */
 const demo: ApplicationModule = async app => {
   const failures: unknown[] = [];
-  for (const part of [assets, playlist, readings, tasks, playlistEditor, taskPage, registryBrowser, workbench, textRevisions]) {
+  for (const part of [assets, playlist, readings, tasks, playlistEditor, taskPage, registryBrowser, workbench, textRevisions, mediaSheet]) {
     try { await part(app); } catch (error) { failures.push(error); }
   }
   if (failures.length) throw new AggregateError(failures, "61ade feature demo: a module part failed");

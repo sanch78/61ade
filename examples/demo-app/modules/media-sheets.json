@@ -1,0 +1,141 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: campaign visuals with their data, image and brief on a record page (FB-0218).",
+        "covers": "A media field with a details width (column.details_width) alone in its section, so the details show the section heading and the image at that width without a label; a long brief as a card of its own on the record page demo.media-sheet (RecordDetails longText: card), and the project stylesheet laying the data beside the image through data-blade-view, also in the list's Adatok window."
+    },
+    "resources": {
+        "demo_media_sheets": {
+            "storage": {
+                "table": "demo_media_sheets",
+                "key": "id"
+            },
+            "operations": {
+                "delete": true
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 120,
+                    "section": "Adatok",
+                    "section_collapsible": false,
+                    "column": {
+                        "minWidth": 220
+                    }
+                },
+                {
+                    "name": "client",
+                    "label": "Megrendelő",
+                    "max": 120,
+                    "section": "Adatok",
+                    "section_collapsible": false,
+                    "column": {
+                        "minWidth": 180
+                    }
+                },
+                {
+                    "name": "channel",
+                    "label": "Csatorna",
+                    "type": "select",
+                    "required": true,
+                    "default": "display",
+                    "options": {
+                        "display": "Kijelző",
+                        "web": "Web",
+                        "print": "Nyomtatott"
+                    },
+                    "section": "Adatok",
+                    "section_collapsible": false
+                },
+                {
+                    "name": "year",
+                    "label": "Év",
+                    "type": "number",
+                    "max": 4,
+                    "section": "Adatok",
+                    "section_collapsible": false,
+                    "column": {
+                        "width": 90,
+                        "align": "right"
+                    }
+                },
+                {
+                    "name": "file_id",
+                    "label": "Kép",
+                    "type": "file",
+                    "max": 20,
+                    "file": {
+                        "resource": "files",
+                        "mount": "signage",
+                        "accept": [
+                            "image"
+                        ]
+                    },
+                    "section": "Kép",
+                    "section_collapsible": false,
+                    "section_fill": true,
+                    "column": {
+                        "width": 96,
+                        "details_width": 480
+                    }
+                },
+                {
+                    "name": "brief",
+                    "label": "Leírás",
+                    "type": "textarea",
+                    "max": 5000,
+                    "column": {
+                        "card_lines": 3
+                    }
+                }
+            ],
+            "view": {
+                "title": "Médialapok",
+                "group": "Feature demó",
+                "icon": "bi bi-card-image",
+                "row_height": 56,
+                "activate": "view:demo.media-sheet",
+                "columns": [
+                    {
+                        "id": "file_id",
+                        "header": "Kép"
+                    },
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "client",
+                        "header": "Megrendelő"
+                    },
+                    {
+                        "id": "channel",
+                        "header": "Csatorna"
+                    },
+                    {
+                        "id": "year",
+                        "header": "Év"
+                    }
+                ],
+                "guide": "Kampányképek az adataikkal, a képükkel és egy hosszabb leírással. A Kép mező saját szakasza a részletekben a megadott szélességben mutatja a képet, a magasság a kép arányát követi; a szakasz fejléce a kép neve, külön mezőcímke nélkül.\n\nNyiss meg egy médialapot dupla kattintással vagy Enterrel: az adatok a kép mellett állnak, a leírás alattuk a saját keretében görgethető, a kép és az adatok a helyükön maradnak. Alacsony ablakban és telefonon az egész lap görget, és a leírás teljes hosszában látszik. Az Adatok parancs ugyanígy, a kép szélességében mutatja a rekordot.\n\nKeretrendszer-képesség: médiamező részletszélessége és RecordDetails hosszú szöveg kártyaként."
+            }
+        }
+    },
+    "views": {
+        "demo.media-sheet": {
+            "kind": "demo.media-sheet",
+            "title": "Médialap",
+            "resource": "demo_media_sheets",
+            "record": "demo_media_sheets",
+            "actions": [
+                "get"
+            ],
+            "guide": "Rekordnézet egy médialaphoz a keretrendszer komponenseiből: felül a parancssor, alatta a rekord adatai (RecordDetails). Az adatok a kép mellett állnak, a kép a mező megadott szélességében; a leírás a saját keretében görgethető.\n\nGörgesd a leírást egérrel, vagy lépj rá Tabbal, és görgesd a nyilakkal. Kisebbítsd az ablak magasságát: amikor a leírásnak már nem jut legalább 160 képpont, az egész lap görget, és a leírás teljes hosszában látszik.",
+            "options": {
+                "list": "demo_media_sheets"
+            },
+            "icon": "bi bi-card-image"
+        }
+    }
+}

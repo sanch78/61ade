@@ -9780,3 +9780,163 @@ that exactly equals an option label lists every option. The managed
   `menu_group_icons`. Internal anchors checked and `git diff --check` passed.
   No full-smoke claim.
 - **Status:** guidance, group icons and demo implemented and verified.
+
+<a id="fb-0217"></a>
+
+## FB-0217 — A location bar below the main menu
+
+- **Date:** 2026-11-18.
+- **Report:** a consumer request (StoryBloX D-083): the pages of a 61ade
+  application share one frame, so different pages and different levels inside
+  one page look the same. The only "you are here" signal was the
+  `blade-menu-current` marker of the open section. `ViewHost.setTitle` does
+  nothing for a page view, so a record page had no visible title at all; an
+  episode page showed its overview or one of its scenes in the same layout,
+  and the user could tell neither the level nor the episode without reading
+  the data.
+- **Accepted expectation:** a shell-owned location bar directly below the
+  menu row on every page view, with the default path (menu path, record
+  title) and the view's own levels through `ViewHost.setLocation`, collapsing
+  middle levels into `…`, a phone form, accessible names in the catalogues
+  and an optional browser title.
+- **Contract:** [location bar](shell.md#location-bar);
+  `ViewHost.setLocation` and `LocationSegment` ([toolkit](toolkit.md#views),
+  `api/types.ts`); the record view's `recordTitle` (PHP `View`, JSON
+  `views.<id>.record_title`, [record views](toolkit.md#record-views),
+  [configuration](configuration.md)). Bootstrap views may carry
+  `recordTitle`. There is no new action, permission, event or audit entry:
+  the record title is the row the record view's `get` already resolved, and
+  a `target` segment is drawn as a link only when the actor is offered it
+  (navigation, not authorization).
+- **Implemented:** `LocationBar.ts` and `location-bar.css`, a hidden-by-default
+  32 px Layout row `location` between the menu row and the workspace of every
+  application page; `AdminShell.locate()` draws it from the same menu source
+  as the current-section marker (`menuSource`). The menu row's Suite rule is
+  hidden above the bar, and the bar takes the row's lower edge (character
+  layer). The `…` menu is `app.ui.menu`'s popup menu. New catalogue keys
+  `Hely` and `További szintek` (hu/en/de). The feature demo's record views
+  declare `record_title: "title"`; the task page calls `setLocation` with the
+  task (an `onSelect` back to the first tab), the open tab and the selected
+  note ([D7](demos.md#d7-task-page)).
+- **Not covered:** the bar has no counts or menus of its own, a custom
+  `Menu` item has no menu path, and a window has no bar.
+- **Verification:** `npm run typecheck` and `npm run build` passed; PHP
+  `contracts` (its bootstrap view shape now admits `recordTitle`),
+  `configuration`, `toolkit`, `i18n` and `lists` passed. Temporary checks,
+  run and then removed: PHP cases for JSON `record_title` (accepted; an
+  unknown field, an invalid name, a non-record view and a non-string
+  rejected), and a 7-test browser spec on the managed demo (menu path and no
+  bar on the empty workspace in Blade, Blade Night, light and dark; the
+  demo-slate skin; the bar joined to the menu row; the record page's path
+  after a direct link, reload, the source link and Back; in-page levels and
+  `onSelect` with the tab and selection kept; the asset viewer's
+  `record_title`; collapse at 1366 px and the phone form at 390 px without
+  horizontal scroll, with the `…` menu; a long-lived window leaving the bar
+  unchanged; English names). Shell `browser`, `skins`, `workspace`,
+  `window-title`, `modal-windows`, `menu-commands`, `tabs`, `empty-states`,
+  `mobile-grid`, `toolkit-demo-tasks`, `toolkit-demo-assets` and
+  `toolkit-demo-playlist-editor` passed. The playlist editor's drag test
+  counts rendered item rows; its viewport is 32 px taller now, for the bar.
+  `task-page.spec.cjs` passed except its first test, which waits for a
+  top-level `Feature demó` menu entry at 1366 px while the menu row is
+  collapsed into `Menü`. `menuless-view.spec.cjs` fails the same way with
+  `Digitális kijelző`. Both failures predate this change: a temporary check
+  that served the previous commit's `dist` and demo module (through request
+  interception) showed the same collapsed row at 1366 px. These two specs
+  are left as found. No full-smoke claim.
+- **Status:** implemented and verified as above; the consumer adopts it in
+  its own session.
+
+<a id="fb-0218"></a>
+
+## FB-0218 — A sized image and a long-text card in the record details
+
+- **Date:** 2026-11-18.
+- **Report:** a consumer request (StoryBloX D-084): a record page shows the
+  record's data on the left, its current image on the right and its synopsis
+  below. In the details a media field was at most 320 px wide, an image alone
+  in its section repeated the heading as its label (`Kép` above `Kép`) and
+  its label column took about a third of the group. An `auto` group column
+  collapsed the image to a thumbnail, because the media slot has no width of
+  its own. A long text outside the sections scrolled with everything else, so
+  reading it moved the data and the image away.
+- **Accepted expectation:** three opt-in capabilities, every existing details
+  view unchanged without them. A media field declares its image width in the
+  details (160–800 px), with the height by the file's ratio and a placeholder
+  of the same size, in `RecordDetails` and `Adatok`. A section holding only
+  that image shows its heading and the image without a label, and an `auto`
+  column is exactly the image plus its padding. `RecordDetails` can make each
+  long text outside the sections a framed card below the groups that fills
+  the remaining height and scrolls on its own; when the groups and a minimum
+  card height do not fit, and on a phone, the details scroll as a whole and
+  the card shows its full text. The scrolling card is keyboard-reachable and
+  named by its label.
+- **Contract:** field `column.detailsWidth` (PHP `Field` `column`, JSON
+  `column.details_width`, a whole number 160–800, media fields only, one
+  spelling), `ColumnMetadata.detailsWidth`; `RecordDetailsOptions.longText`
+  (`"inline"` default, `"card"`; anything else throws `TypeError`); the
+  CSS property `--blade-record-text-min-height` (default 160 px); the details
+  element's `data-blade-view` attribute as the per-view hook for
+  `--blade-record-group-columns`
+  ([sized image in the details](workspaces.md#details-media-width),
+  [RecordDetails](toolkit.md#recorddetails), migration M85). No new action,
+  permission, catalogue key or event: the card's accessible name is the
+  field's translated label.
+- **Decisions and deviations from the request:**
+  - The label row is dropped only for a section whose only shown field is a
+    media field **with** `detailsWidth`, not for every single-media section,
+    so existing details stay unchanged.
+  - The media group raises the automatic column minimum to its own width; the
+    `Adatok` window opens wide enough for the image beside one 240 px group.
+    Per-view track lists use `data-blade-view`, because a `:root` setting
+    would reach every `Adatok` window and the window has no project element.
+  - The card fits by measurement (a `ResizeObserver` in `RecordDetails`),
+    since whether the rest plus the minimum fits cannot be expressed in CSS;
+    the "phone" rule is the record's own width below 492 px, the same
+    threshold that stacks the groups. A card is a tab stop only while its
+    text actually scrolls. `longText` is a `RecordDetails` option only; the
+    `Adatok` window keeps the text inline.
+  - A file's aspect ratio is kept between 1:4 and 4:1; without dimensions the
+    slot keeps its kind's ratio (16:9, an image 1:1), also for the empty box.
+- **Implemented:** `Field.php` (validation), `ListViewKind.php` (wire and
+  detail fields), `RecordPresentation.ts` (`recordFields` details mode, the
+  media group, `recordText`, sized `recordMedia`), `details.ts`
+  (`data-blade-view`, the window width), `RecordDetails.ts` (`longText`,
+  `fitTexts` after each paint and size change), `admin.css`. Feature demo
+  [D11 `Médialapok`](demos.md#d11-media-sheets) (`media-sheets.json`,
+  `media-sheets.php`, `media-sheet.ts`, `media-sheet.css`, English catalogue
+  entries, web setup run).
+- **Not covered:** 61ade's file storage thumbnails are `thumb320` (longest
+  side 320 px), so its images look soft above 320 px. A project media source
+  serves its own thumbnail size; a larger 61ade derivative is not part of
+  this change. A static image column (`presentation: image`) takes no
+  details width.
+- **Verification:** PHP `record-forms` (new cases: the accepted range and
+  both spellings, rejection outside media fields, out of range, non-integer,
+  both spellings and on a static image; `detailsWidth` in the detail fields
+  and columns), `configuration`, `contracts`, `i18n`, `lists`, `toolkit`,
+  `stored-file` and `list-presentation` passed; `npm run typecheck`, `npm run
+  build`, `npm run demo:assets`, `node tests/shell/toolkit-components.mjs`,
+  `toolkit-list.mjs` and `toolkit-kernel.mjs` passed. New retained spec
+  `tests/shell/record-details-layout.spec.cjs` (3 tests) passed on the managed
+  demo: at 1366 × 800 the 480 × 270 image, the image group exactly the image
+  plus 26 px beside the data group, no label row, the card filling and
+  scrolling with the groups in place, Tab to the region named `Leírás` and
+  PageDown scrolling it, the whole-page fallback at 1366 × 560 and back, the
+  480 × 270 placeholder, the `Adatok` window at the image width with the text
+  inline, and `Mellékletek` unchanged; at 390 px the stacked groups, the image
+  within its group by its ratio, the full text without a tab stop and no
+  horizontal scroll; in English the region named `Description` and the group
+  `Image`; the card's frame and heading equal to the groups' in Blade, Blade
+  Night, light and dark. Shell `component-remount`, `empty-states`,
+  `toolkit-list`, `record-forms`, `toolkit-demo-assets`, `tree-component`,
+  `list-presentation`, `mobile-grid`, `stored-file` and
+  `toolkit-demo-playlist-editor` passed. In that run
+  `toolkit-demo-playlist-editor.spec.cjs:257` failed once and passed in
+  isolation. `task-page.spec.cjs:29` and `menuless-view.spec.cjs:33` failed:
+  both wait for a top-level menu group while the 1366 px menu row is
+  collapsed into `Menü`. They fail with `media-sheets.json` taken out of the
+  demo and with the previous commit's frontend too (checked from a parallel
+  session), so this change does not cause them. No full-smoke claim.
+- **Status:** implemented and verified as above; the consumer wires it in
+  its own session.

@@ -160,9 +160,11 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Menu attention | `Jóváhagyások` ([approvals](#approvals-attention)): a live count of the pending items on the entry, its branch and `Menü`, in the warning tone; the plain entry at zero | Change an item's `Állapot` and watch the menu; `reader@example.test` sees no entry |
 | Value tones, emphasized records, attention label, computed select | `Változások` ([change inbox](#changes-inbox)): unseen rows and cards bold with a hidden `Új` marker, toned `Hatókör` and `Jóváhagyás` labels (the latter computed from `Jóváhagyások`), the entry named `Változások, 3 új` | Tick `Látott` and watch the row and the menu; filter `Jóváhagyás`; open it at 390 px for the cards |
 | Menu command, long-lived window | `Munkaasztal` ([D9](#d9-workbench)): an emphasized command in the menu row of every view opens a non-modal work window that keeps its note across navigation, maximizes into the workspace and reopens where it was left; the entry also shows the pending approvals' count | Click `Munkaasztal`, write a note, open other views, Back; `Ablak maximalizálása`; move it, reload and reopen; at 320 px the entry shows its icon only |
+| Location bar | Every page view's [location bar](shell.md#location-bar) below the menu row: the menu path, a record page's source path and record title (`record_title`), and the task page's own levels (`host.setLocation`: the task, the open tab and the selected note); the middle levels collapse into `…` on a long path, a phone shows the parent and the current level | Feature demó → Feladatok: the bar shows `Feature demó › Feladatok`; select a task and `Feladatlap`, pick a note in `Munka`, open `Vázlat`, click the task's title; narrow the window below 768 px |
 | Bootstrap Icons | The shell, built-in commands, file/media types and player controls use the bundled icon catalog ([icons](icons.md)); the work window shows `bi bi-clock-history` and `bi bi-sliders` | Open `Munkaasztal`, file/media views and the viewer in each theme; narrow the window to see the same icons in collapsed menus |
 | Popup menu | `Munkaasztal` ([D9](#d9-workbench)): `app.ui.menu` on the window's own toolbar buttons: `Előzmények` (drafts grouped `Ma` / `Az elmúlt 7 nap` / `Régebbi`, the current one checked, a time as detail, scrolling) and the model picker (`Automatikus`, the models, the chosen model's efforts) with the APG menu-button keys ([popup menu](toolkit.md#popup-menu)) | Open `Munkaasztal`, then `Előzmények` and `Modell: …` by mouse and with ArrowDown/Enter/Escape/Tab; at 390 px; in every theme |
 | Text difference | `Szövegváltozatok` ([D10](#d10-text-revisions)): append-only revisions of a ~60 000-character handbook and a short letter; the project record command `Különbség` compares the selected revision with the previous one in the [TextDiff](toolkit.md#textdiff) component: removed and added lines with signs and word highlights, unchanged stretches folded, `+N −M` in the title, side by side in a wide window | Select a handbook revision → `Különbség`; `n`/`p` or F7/Shift+F7, open a fold, `Egymás mellett`; the first revision; at 390 px |
+| Sized image and long-text card in the details | `Médialapok` ([D11](#d11-media-sheets)): the image at its `details_width` (480 px) by the file's ratio beside the data, its section without a label row, on the record page and in `Adatok`; the brief as a scrolling card on the record page (`longText: "card"`) | Open a sheet; scroll the brief with the mouse or Tab and the arrow keys; lower the window or go to 390 px; the sheet without an image; `Adatok` |
 | View guides | Every view that opens as a page (menu entries and the record views `Médianéző` and `Lejátszásilista-szerkesztő`) has a closable `Útmutató` window saying which 61ade capability it demonstrates and what to try; it opens by itself the first time the view opens in a sign-in session, and the top row's `Útmutató` button (left of the language selector; in the `Beállítások` controls menu below 768 px) shows it again. The administration and API-key views get theirs through `ApplicationDefinition` `guides` (`blade_demo_admin_guides()` in `common.php`), `Jegyzetek` through `SqlResource::register()` `guide`; the tenant demo uses both. The starter admin has none ([FB-0044](feedback.md#fb-0044--demók-szétválasztása-checkboxos-fiókállapot-oauth-kétfaktor-parancsos-levél-nyelv-api-kulcs)) | Any menu entry; sign out and in to see them again |
 | Record activation | `Polcok` declares `activate: subview`: double-click or Enter on a shelf in the table, `Kártyák` or `Csempék` opens its `Polc tételei` window, also for the empty `Empty shelf`; in the window an item's double-click runs its registered `Készlet` action (toast, `activate: stock`); `reader@example.test` is not offered the item list, so a shelf opens its details; `Raktárzónák` declares `activate: page`: a zone opens the `Polcok` page filtered to it (`Zóna` filter, `Alaphelyzet` removes it, Back returns), the empty `Zone C` too | Feature demo → Polcok, Raktárzónák ([shelves.json](../examples/demo-app/modules/shelves.json)) |
 | Signage scheduler (event calendar) | Native DHTMLX Scheduler day/week/month views: drag, the shared event form with the content select (a playlist or a single asset; playlist events in their own colour, the calendar's `tones`) and the recurrence fields, single-occurrence edits; `Médiatár` image, video and audio assets whose files live in the file manager's `Signage` mount: thumbnail, derived type/resolution/length, play time and usage count columns, `Csempék` tiles, title and type header filters (no free-text search, [search justification](workspaces.md#search-justification)), the single-file `file` field with a native file dialog, clipboard paste/drop, background transfer and proportional preview, `Feltöltés` (upload as assets in one step), double-click/Enter or the toolbar `Lejátszás` opening images, video, audio and animations (scenes) in the project record view `Médianéző` ([toolkit consumer](#toolkit-consumer)), delete with usage warnings that clear defaults and events ([media tiles](workspaces.md#media-tiles), [file field](workspaces.md#file-field)), `Alapértelmezett tartalom` per weekday or per date, an asset or a playlist (two selects clearing each other, [exclusive fields](workspaces.md#exclusive-fields); a `date` field: date picker in the form and the grid cell); `Lejátszási listák` (item count, length, usage) edited by drag and drop in the project record view `Lejátszásilista-szerkesztő` ([D5](#d5-playlist-editor)); `Napi műsor (API)` shows the `signage_playlist.day` answer (gap-free timeline with default fill) and the matching API request; the project view `Napi műsor`, a separate menu entry beside it (the calendar's `Napi műsor (API)` day button stays), previews that day with a timeline, the MediaPlayer and a sandboxed scene asset ([D2](#toolkit-d2-playlist)); [details](calendar.md) | `Digitális kijelző` → Lejátszási listák, Műsorterv, Napi műsor; API key with scope `signage_playlist.day`; `reader@example.test` views only |
@@ -229,6 +231,7 @@ starter admin and the tenant demo stay declarative and load no project module.
 | D8 | `Kulcsböngésző` key browser | `registry-browser.ts` | Implemented: view kind `demo.registry-browser` (the `Tree` component) and toggle command `demo.subkey-values` ([below](#d8-key-browser)) |
 | D9 | `Munkaasztal` work window | `workbench.ts` | Implemented: menu command `demo.workbench` and its long-lived window, with the popup menus `Előzmények` and `Modell` (`app.ui.menu`) ([below](#d9-workbench)) |
 | D10 | `Szövegváltozatok` text revisions | `text-revisions.ts` | Implemented: record command `demo.text-diff` opening the `TextDiff` component ([below](#d10-text-revisions)) |
+| D11 | `Médialapok` media sheets | `media-sheet.ts`, `media-sheet.css` | Implemented: record view kind `demo.media-sheet` (`RecordDetails` with `longText: "card"`) and the view's section columns ([below](#d11-media-sheets)) |
 
 <a id="readings-dashboard"></a>
 
@@ -619,6 +622,13 @@ record view kind `demo.task-page` of `demo_tasks`, opened by the record
 command `demo.task-page` (`Feladatlap`) of the `Feladatok` toolbar. A 2U
 `PageLayout` from public components only:
 
+- **Location bar:** the [location bar](shell.md#location-bar) shows
+  `Feature demó › Feladatok › <task title> › <open tab>` and, in `Munka`
+  with a selected note, the note's first 60 characters; the task's title
+  (`record_title: "title"`) is a button that returns to the first tab
+  (`host.setLocation` with `onSelect`). Switching tabs or notes redraws only
+  the bar. The asset viewer and the playlist editor declare
+  `record_title` too and keep the default path.
 - **Control region:** the collapsible leaf `Feladat` holds an `Accordion`
   of its own: `Adatok` (`RecordDetails`, open) and `Szerkesztés` (the
   `update` form, created when it first opens; disabled without `update`).
@@ -799,6 +809,34 @@ read, create and compare; the reader may list, read and compare.
   kibontása`; `Egymás mellett` shows the two revisions side by side. At 390 px
   the window is full screen, the lines wrap and the change buttons stay
   beside `Műveletek`. Switch the theme. Check: `tests/shell/text-diff.spec.cjs`.
+
+<a id="d11-media-sheets"></a>
+
+**D11 `Médialapok` media sheets** ([media-sheets.json](../examples/demo-app/modules/media-sheets.json),
+[media-sheets.php](../examples/demo-app/media-sheets.php),
+[media-sheet.ts](../examples/demo-app/frontend/src/media-sheet.ts),
+[FB-0218](feedback.md#fb-0218)): campaign visuals with their data, image and
+brief. `Adatok` (title, client, channel, year) and `Kép` are fixed sections;
+`Kép` holds only the image, a `file` field of the Signage mount with
+`details_width: 480`, and `Leírás` is a long text outside the sections. The
+project stylesheet `media-sheet.css` sets `minmax(0, 1fr) auto` columns for
+the view (`data-blade-view="demo_media_sheets"`), so the data take the width
+the image leaves ([sized image in the details](workspaces.md#details-media-width)).
+A double-click or Enter opens the record view `demo.media-sheet`: the page's
+`Vissza a listához` command row above `RecordDetails` with
+`longText: "card"` ([RecordDetails](toolkit.md#recorddetails)). The seed (web
+setup, table `demo_media_sheets`) has three sheets with Signage images (1672 ×
+941) and one without an image. The demo account may list, read, create,
+update and delete; the reader may list and read.
+
+- **What to try:** open `Éjszakai komp a ködben` at 1366 × 800: the image is
+  480 px wide beside the data, and the brief scrolls in its card (mouse, or
+  Tab to it and the arrow keys) while the rest stays. Make the window lower:
+  below the card's 160 px the whole sheet scrolls and the brief shows in full,
+  as it does at 390 px with the groups stacked. `Tavaszi programajánló` keeps
+  the image's box without one. `Adatok` on the list shows the same image
+  width. Switch the theme and the language. Check:
+  `tests/shell/record-details-layout.spec.cjs`.
 
 <a id="approvals-attention"></a>
 

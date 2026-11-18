@@ -679,9 +679,37 @@ export interface ViewHost {
     attach(content: Mountable): void;
     /** Changes the visible title (window header; the menu entry keeps the declared title). */
     setTitle(text: string): void;
+    /**
+     * A page view: replaces what the shell's location bar shows after the menu path (by default the record's title of a
+     * record view) with `segments`, the last one the current place (docs/shell.md#location-bar). Call it again whenever
+     * the selection inside the page changes; only the bar is redrawn. Labels are plain text. A view in a window, and a
+     * call after the view closed, change nothing. At most 16 segments; an invalid segment throws `TypeError`.
+     */
+    setLocation(segments: LocationSegment[]): void;
     /** Closes this view: a window closes; a page returns to the empty workspace. */
     close(): void;
 }
+/**
+ * One level of the location bar (`ViewHost.setLocation`). `label` is plain text (1–200 characters), `icon` icon classes
+ * (`bi bi-…`). An earlier segment with `target` is a link that opens that view (or that record of a record view) like
+ * `app.navigate`; one with `onSelect` is a button for a place inside the page (a parent level of its own tree or
+ * list); one with neither, or a `target` the actor is not offered, is plain text. The last segment is the current
+ * place and never a link.
+ */
+export type LocationSegment = {
+    label: string;
+    icon?: string;
+    target?: {
+        view: string;
+        record?: string | number;
+    };
+    onSelect?: never;
+} | {
+    label: string;
+    icon?: string;
+    onSelect: () => void;
+    target?: never;
+};
 /** A mounted view; the shell calls `destroy()` exactly once. */
 export interface ViewInstance {
     /** Releases widgets, windows, listeners and subscriptions not already tied to `host.signal`. */
@@ -709,6 +737,11 @@ export interface ViewDefinition<Options = unknown> {
     resource?: string;
     /** Resource of the record a record view opens for (its `get` resolves the row); absent for other views. */
     record?: string;
+    /**
+     * A record view's field of `record` whose value in the resolved row names the record in the location bar (PHP
+     * `recordTitle`, JSON `views.<id>.record_title`); absent, or an empty value: the view's title.
+     */
+    recordTitle?: string;
     /** Actions of `resource` offered to the actor, with their field metadata. */
     actions: ActionMetadata[];
     /** Kind configuration: browser-safe JSON only, never backend-only data. */
@@ -923,6 +956,12 @@ export interface ColumnMetadata {
     rowWidth?: 2 | 3;
     /** A long text's lines in a card (field `column.cardLines`, JSON `card_lines`, FB-0177): 0 all of it; default 4. */
     cardLines?: number;
+    /**
+     * A media column's image width in px in the record details (`RecordDetails`, `Adatok`; field `column.detailsWidth`,
+     * JSON `details_width`, 160–800, FB-0218): the height follows the file's aspect ratio, at most the group's width.
+     * A section whose only field it is shows its heading and the image without a field label.
+     */
+    detailsWidth?: number;
     /**
      * Value tones of a select field (field `column.tones`, FB-0212): option key → theme tone. The value is drawn as a label
      * in that tone in cells, cards, tiles and details; its text stays visible.
@@ -1618,6 +1657,13 @@ export interface RecordDetailsOptions extends ComponentOptions {
     record: Row | string;
     /** false: no `ID · n` line above the fields. Default true. */
     showId?: boolean;
+    /**
+     * `"card"` (FB-0218): each long text outside the sections is a framed card below the groups, headed by its label,
+     * that fills the remaining height and scrolls on its own (a focusable region named by the label). When the rest and
+     * `--blade-record-text-min-height` (160 px) per card do not fit, or the details are narrower than 492 px, the details
+     * scroll as a whole and the card shows all of its text. Default `"inline"`: below the groups across the width.
+     */
+    longText?: "inline" | "card";
 }
 /** Read-only record details as the list's `Adatok` command shows them (`recordFields`). */
 export interface RecordDetails extends Component<Record<string, never>> {

@@ -342,7 +342,13 @@ tree as decoration for a flat list.
   have equal outer heights with content at the top, using CSS stretch rather
   than height observers. Expose column sizing and ratios through the shared
   presentation's CSS properties, with stacking based on the record's own
-  width ([FB-0186](../../../docs/feedback.md#fb-0186)). When opening a
+  width ([FB-0186](../../../docs/feedback.md#fb-0186)). A record page that
+  shows a record's data beside its image and its main text below declares
+  the image's details width on the media field in a section of its own (no
+  repeated label row) and makes the long text its own scrolling card; the
+  whole details scroll instead when the card would get less than its minimum
+  height or the record is narrow, so nothing is cut off
+  ([FB-0218](../../../docs/feedback.md#fb-0218)). When opening a
   section must not resize the window, the action declares accordion sections
   (`formSections: 'accordion'`): the `Accordion` component's header and fixed
   geometry inside the one form, never one form per `Accordion` section

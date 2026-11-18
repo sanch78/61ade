@@ -1,0 +1,5 @@
+/* D11 Médialapok (docs/workspaces.md#details-media-width): the data beside the image sized by its `details_width`, on
+   the record page and in the list's Adatok window; below 492 px of content the groups stack as everywhere. */
+.blade-record-details[data-blade-view="demo_media_sheets"] {
+  --blade-record-group-columns: minmax(0, 1fr) auto;
+}

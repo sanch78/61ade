@@ -56,6 +56,16 @@ Not applicable: M2 (no menu ids in specs), M3 (no bootstrap reads), M8 (no own
 admin JavaScript), M11 (no WebSocket service; lists poll), M13 (no checkbox
 labels in specs), M14 (the specs use fresh contexts and do not sign in).
 
+## Location bar (D-083)
+
+Delivered in 61ade ([FB-0217](../feedback.md#fb-0217), [location bar](../shell.md#location-bar)).
+Every page view now shows its menu path below the menu row, with no change
+needed. To name the open record, declare `recordTitle` (JSON `record_title`)
+on the record views. The episode page then calls `host.setLocation` with the
+episode (an `onSelect` back to its overview) and the open scene whenever the
+selection changes. A spec that measures the workspace height, or counts the
+rendered grid rows at a fixed viewport, has 32 px less room.
+
 ## Asset viewer on the public API (D-019 to D-021)
 
 The requests of `dev/docs/61ade/custom-view-request.md` (untracked in the
@@ -84,6 +94,18 @@ are types only, Suite comes from `app.dhx`, the module never imports
 `admin.js`, and every registered name contains a dot (`storyblox.…`). The
 module runs only in the signed-in shell, within 5 s; a failure is reported and
 skipped ([module loading](../toolkit.md#module-loading)).
+
+## Record details layout (D-084)
+
+Delivered in 61ade ([FB-0218](../feedback.md#fb-0218),
+[sized image in the details](../workspaces.md#details-media-width),
+[RecordDetails](../toolkit.md#recorddetails)). Give the media field
+`column.detailsWidth` (JSON `details_width`, 160–800) in a section of its own,
+set `--blade-record-group-columns: minmax(0, 1fr) auto` on
+`.blade-record-details[data-blade-view="<view id>"]` in the project
+stylesheet, and pass `longText: "card"` to the record page's `RecordDetails`.
+The image's height comes from the `width`/`height` your media source
+describes, and its sharpness from the size your `thumbnail_get` serves.
 
 ## Verification in the StoryBloX session
 

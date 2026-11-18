@@ -9,9 +9,16 @@ import type { ViewDefinition } from "./types";
 /**
  * The record details (`Adatok`): every declared detail field present in the ACL-projected record, with its
  * column's presentation (media, icon, options). Shared by the list's details window and `RecordDetails`.
+ * `data-blade-view` names the view, so a project stylesheet can set its section columns (FB-0218).
  */
-export const detailsHtml=(row:Row,view:Pick<ViewDefinition,"columns"|"detailFields">,showId=true):string=>
-  `<article class="blade-record-details">${showId?`<div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>`:""}${recordFields(row,presentedFields(withDerived(view.detailFields??view.columns,view.columns),view.columns))}</article>`;
+export const detailsHtml=(row:Row,view:Pick<ViewDefinition,"id"|"columns"|"detailFields">,showId=true,longText?:"inline"|"card"):string=>
+  `<article class="blade-record-details" data-blade-view="${escapeRecord(view.id)}">${showId?`<div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>`:""}${recordFields(row,presentedFields(withDerived(view.detailFields??view.columns,view.columns),view.columns),false,{longText})}</article>`;
+
+/** Window width for the widest sized image (`detailsWidth`) beside one 240 px group: image group, gap, group, padding, frame. */
+const detailsWidth=(view:Pick<ViewDefinition,"columns"|"detailFields">):number=>{
+  const widest=Math.max(0,...(view.detailFields??view.columns).map(field=>field.detailsWidth??0));
+  return widest?widest+336:0;
+};
 
 /** The list's details window: one at a time, freshly loaded through the view's `get` (a newer request wins). */
 export class DetailsWindow{
@@ -24,7 +31,7 @@ export class DetailsWindow{
     try{
       const row:Row=await this.get(id);
       if(this.disposed()||epoch!==this.epoch)return;
-      const dialog=new Window({css:"blade-content-window",title:escape(this.view.title+" — "+t("Adatok")+" · "+id),ariaLabel:t("Rekordadatok"),width:Math.min(680,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
+      const dialog=new Window({css:"blade-content-window",title:escape(this.view.title+" — "+t("Adatok")+" · "+id),ariaLabel:t("Rekordadatok"),width:Math.min(Math.max(680,detailsWidth(this.view)),innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true,resizable:true});
       this.window=dialog;
       dialog.attachHTML(detailsHtml(row,this.view));
       dialog.show();
