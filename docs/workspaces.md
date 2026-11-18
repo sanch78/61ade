@@ -673,9 +673,7 @@ new Field('file_id', 'Kép', 'file', file: ['resource' => 'files', 'mount' => 's
   screen with the image at the group's width.
 - **Long text below:** on a record page, `RecordDetails` `longText: "card"`
   puts each long text outside the sections into a scrolling card below the
-  groups ([RecordDetails](toolkit.md#recorddetails)); `"reading"` shows it
-  as the page's own text, without a frame or visible label
-  ([reading text](toolkit.md#recorddetails-reading)). The `Adatok` window
+  groups ([RecordDetails](toolkit.md#recorddetails)). The `Adatok` window
   keeps the long text inline.
 - **Limit:** the image is the media source's `thumbnail_get`. 61ade's file
   storage serves `thumb320` (longest side 320 px), so its images look soft

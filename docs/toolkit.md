@@ -1076,25 +1076,6 @@ new app.components.RecordDetails({ view: list, record: row, showId: false, longT
   the option the long text stays inline below the groups; the `Adatok`
   window does not take the option.
 
-<a id="recorddetails-reading"></a>
-
-`longText: "reading"` ([FB-0221](feedback.md#fb-0221)) is for a text that is
-the product itself, such as a script or a caption below its picture: it takes
-the card's place and fitting, but shows the text alone, with no frame and no
-visible label. The text is a region named by the field's translated label
-(`aria-label`), and its type scales with its box between
-`--blade-record-reading-min-size` (16 px) and
-`--blade-record-reading-max-size` (34 px), by `min(2.4cqw, 7cqh)` while it
-fills. It fills and scrolls on its own at any width while the minimum fits;
-the 492 px rule of the card does not apply. A region that holds only the text
-sets `--blade-record-text-min-height: 0px`, so even a low region fills. Show
-only that field by passing a copy of the view whose `detailFields` hold it:
-
-```ts
-const only = (ids: string[]) => ({ ...list, options: { ...list.options!, detailFields: list.options!.detailFields!.filter(field => ids.includes(field.id)) } });
-new app.components.RecordDetails({ view: only(["script"]), record: row, showId: false, longText: "reading", signal }).mount(split.cell("text"));
-```
-
 <a id="tree"></a>
 
 #### Tree
@@ -1471,7 +1452,7 @@ bar.on("click", ({ id }) => run(id));   // run: the page's own
 #### PageLayout
 
 A page's panels as declared data, with the framework list layout's behaviour:
-one Suite space Layout (a line Layout with [`frame: "line"`](#pagelayout-line)) from a region tree (typically the view's
+one Suite space Layout from a region tree (typically the view's
 `options.layout`), plain-text panel headers (Suite renders them as text, so
 they are not HTML-escaped again), the user's panel sizes and collapsed
 panels kept per page and user (`UiPreferences`, keyed by `id`), and a resizer
@@ -1537,25 +1518,38 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   size, whichever side of the line it is on, and a double-click on the line
   restores both.
 
-<a id="pagelayout-line"></a>
+<a id="pagelayout-inner"></a>
 
-- **Frameless split** (`frame: "line"`, [FB-0221](feedback.md#fb-0221)):
-  the tree as one Suite line Layout, for the content of a tab or a region
-  under its command bar, where framed panels with headers do not fit. The
-  regions have no frame or header and are divided by 1 px lines. A line's
-  handle takes the drag 8 px across it, not only on its dots. A leaf outside
-  a `tabs` or `accordion` branch takes no `header`, `collapsable` or
-  `collapsed` (`TypeError`); sizes, kept sizes and the double-click work as
-  in the default `frame: "panel"`. Mount it into the tab's cell with its own
-  `id`:
+- **Inner layout** (`inner`, [FB-0222](feedback.md#fb-0222)): a region
+  holds a frameless layout of its own instead of content: `inner` is a
+  `rows` or `cols` branch whose regions have no frame or header and are
+  divided by 1 px draggable lines, each taking the drag 8 px across it. Its
+  regions are ordinary regions of the page: `cell(id)`, `attach(id, …)`,
+  `placeholder(id, …)`, kept sizes and the double-click work as for any
+  region, so each holds any component or element. The region holding it
+  keeps its header, size, `resizable` and collapsing, but is not a mount
+  target (`cell`, `attach` and `placeholder` of it throw `Error`). It needs
+  an `id` only to keep its size or to collapse. Inside an inner layout there
+  are no headers, no collapsing, no `tabs` or `accordion` branches and no
+  further `inner` (`TypeError`). It is part of the same Suite Layout (a line
+  sub-layout), so one preference key keeps every size:
 
   ```ts
-  const split = new app.components.PageLayout({ id: `${view.id}.proof`, frame: "line", tree: { cols: [
-    { id: "data", width: 340, minWidth: 220, resizable: true },
-    { rows: [{ id: "image", minHeight: 120 }, { id: "text", height: 240, minHeight: 80, resizable: true }] },
+  const page = new app.components.PageLayout({ id: view.id, tree: { cols: [
+    { id: "list", header: t("Médialapok"), width: 420, resizable: true, collapsable: true },
+    { id: "selected", header: t("Kiválasztott médialap"), inner: { rows: [
+      { cols: [{ id: "data", width: 320, resizable: true }, { id: "image" }] },
+      { id: "brief", height: 200, minHeight: 80, resizable: true },
+    ] } },
   ] } });
-  split.mount(tabs.cell("proof"));
+  new app.components.ListView({ view: list, panel: false, signal }).mount(page.cell("list"));
+  player.mount(page.cell("image"));
+  page.attach("brief", element);
   ```
+
+  A tree that is only `{ inner: … }` is frameless as a whole (a Suite line
+  Layout), for the content of a tab or a region below its command bar:
+  mount that `PageLayout` into the tab's cell with its own `id`.
 - `cell(id)` is a declared region's cell, the mount target of every
   component (an undeclared id throws `Error`); `attach(id, content)` puts a
   Suite widget, a public component or a plain element there (the view host's
@@ -3341,7 +3335,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M83 | [Value tones and emphasized records](workspaces.md#value-tones): field `column.tones` (select option → `primary`, `secondary`, `success`, `warning`, `danger`), view `emphasis` (`{field, value, label?}` on `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.emphasis`), attention `label` (`{count}` message), computed `select` fields; types `ValueTone`, `ColumnMetadata.tones`, `ListKindOptions.emphasis`, `attention.label` | [FB-0212](feedback.md#fb-0212) | additive, no consumer change required; if used: a project's denormalized state column or its interim tone presentation can be replaced |
 | M84 | [Location bar](shell.md#location-bar): every page view shows a 32 px shell-owned bar below the menu row (menu path, a record page's source path and record title); a record view's `recordTitle` (JSON `views.<id>.record_title`) names the record; `ViewHost.setLocation(segments)` and `LocationSegment` set a page's own levels; the document title becomes `‹current› · ‹application title›` | [FB-0217](feedback.md#fb-0217) | no code change; the workspace is 32 px shorter, so specs that measure its height or count rendered grid rows at a fixed viewport may need 32 px more, and specs that assert `document.title` on a page see the new form; if used: declare `record_title`, call `host.setLocation` |
 | M86 | [Card button to the page](workspaces.md#sub-views): with the parent view's `activate: 'page'` (or a map entry resolving to `page`) the card and tile sub-view button opens the child page filtered to the record like the activation, with `aria-description` "Megnyitás: ‹child title›" and the `bi-box-arrow-in-right` icon instead of `aria-haspopup="dialog"`; a list left through a `page` navigation shows the same record at the same offset with its cursor on Back ([activation](workspaces.md#activation)) | [FB-0219](feedback.md#fb-0219) | info: no declaration or API change; a spec that clicked the card button of a page-activated list and expected the window finds the child page; a spec that expected a list to open at the top after Back finds it where it was left |
-| M88 | [Frameless split and reading text](#pagelayout-line): `PageLayoutOptions.frame: "line"` (no frames or headers, lines with an 8 px handle); `resizable` on the last region of a branch draws the line before it; a dragged line keeps the declared size of the region after it too (also in list layouts); `RecordDetailsOptions.longText: "reading"` with `--blade-record-reading-min-size`/`-max-size` ([reading text](#recorddetails-reading)); `--blade-record-text-min-height: 0px` now means 0 instead of 160 px | [FB-0221](feedback.md#fb-0221) | info: a layout whose last region declared `resizable` (which drew nothing) gains its line; a consumer that set the minimum to `1px` to avoid the 160 px fallback can set `0px` |
+| M88 | [Inner layout](#pagelayout-inner): a `PageRegion` with `inner` (a `rows` or `cols` branch) holds a frameless layout whose regions are ordinary page regions (lines with an 8 px handle); a tree of only `{inner}` is frameless as a whole; `resizable` on the last region of a branch draws the line before it; a dragged line keeps the declared size of the region after it too (also in list layouts); `--blade-record-text-min-height: 0px` now means 0 instead of 160 px. Replaces `PageLayoutOptions.frame` and `RecordDetailsOptions.longText: "reading"` of `3b7390c` (FB-0221), which are removed | [FB-0221](feedback.md#fb-0221), [FB-0222](feedback.md#fb-0222) | info: a layout whose last region declared `resizable` (which drew nothing) gains its line; `frame: "line"` becomes a tree of only `{inner}`, `longText: "reading"` is gone (the project styles its own text); a minimum set to `1px` to avoid the 160 px fallback can be `0px` |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3474,7 +3468,7 @@ markup may change without notice.
 | 2026-11-16 | `ValueTone`, `ColumnMetadata.tones`, `ListKindOptions.emphasis`, `ViewDefinition.attention.label`; PHP field `column.tones`, `emphasis` parameters of `View::list`, `Registry::view`, `SqlResource::register`, attention `label`, computed `select` fields, public `Registry::filterable`; JSON `column.tones`, `view.emphasis`, `view.attention.label`. Additive (M83). | [FB-0212](feedback.md#fb-0212) |
 | 2026-11-18 | PHP/JSON field `column.detailsWidth` / `column.details_width` (media fields, 160–800), `ColumnMetadata.detailsWidth`, `RecordDetailsOptions.longText` (`"inline"` default, `"card"`), CSS property `--blade-record-text-min-height`, the details element's `data-blade-view`; the `Adatok` window widens for a sized image (M85). Additive. | [FB-0218](feedback.md#fb-0218) |
 | 2026-11-18 | PHP `View::$location`, JSON `views.<id>.location` (`"group"`, record views only), `ViewDefinition.location`: the location bar starts at the menu group without the source view's entry (M87). Additive. | [FB-0220](feedback.md#fb-0220) |
-| 2026-11-18 | `PageLayoutOptions.frame` (`"panel"` default, `"line"`), `RecordDetailsOptions.longText: "reading"`, CSS properties `--blade-record-reading-min-size`/`--blade-record-reading-max-size`; `resizable` on a branch's last region draws the line before it; both regions beside a dragged line keep their declared size; `--blade-record-text-min-height: 0px` is 0 (M88). Additive, apart from the line a last `resizable` region gains. | [FB-0221](feedback.md#fb-0221) |
+| 2026-11-18 | `PageRegion.inner` (a region's frameless inner layout of ordinary page regions; a tree of only `{inner}` is frameless as a whole); `resizable` on a branch's last region draws the line before it; both regions beside a dragged line keep their declared size; `--blade-record-text-min-height: 0px` is 0 (M88). `PageLayoutOptions.frame` and `RecordDetailsOptions.longText: "reading"` of the same day are removed. | [FB-0221](feedback.md#fb-0221), [FB-0222](feedback.md#fb-0222) |
 
 <a id="resolved-decisions"></a>
 

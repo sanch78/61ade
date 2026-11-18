@@ -435,12 +435,12 @@ without a repeated label, and the text scrolls in its own card while the rest
 stays in place ([sized image in the details](workspaces.md#details-media-width),
 [RecordDetails](toolkit.md#recorddetails), [FB-0218](feedback.md#fb-0218)).
 
-A tab or region divided by lines without frames or headers, such as data
-beside a picture over its text, is a `PageLayout` with `frame: "line"`
-mounted into the tab's cell; the text the page is about is a `RecordDetails`
-with `longText: "reading"` showing only that field. Sizes are kept and
-restored as in a framed layout ([frameless split](toolkit.md#pagelayout-line),
-[reading text](toolkit.md#recorddetails-reading), [FB-0221](feedback.md#fb-0221)).
+A panel divided by lines without frames or headers, each part holding its
+own component or element, declares `inner` on that region of its
+`PageLayout`; a tree of only `{ inner }` makes the whole layout frameless,
+for a tab's content. The inner regions are ordinary regions: mount, attach,
+placeholders, kept sizes and the double-click restore work as elsewhere
+([inner layout](toolkit.md#pagelayout-inner), [FB-0222](feedback.md#fb-0222)).
 
 A form window fits its content up to 800 px (`app.ui.window` `maxHeight`
 for more); a taller form scrolls between the window header and its action

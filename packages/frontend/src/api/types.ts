@@ -1609,12 +1609,10 @@ export interface RecordDetailsOptions extends ComponentOptions {
    * `"card"` (FB-0218): each long text outside the sections is a framed card below the groups, headed by its label,
    * that fills the remaining height and scrolls on its own (a focusable region named by the label). When the rest and
    * `--blade-record-text-min-height` (160 px) per card do not fit, or the details are narrower than 492 px, the details
-   * scroll as a whole and the card shows all of its text. `"reading"`: the same place and fitting, but the text alone,
-   * read as the page itself: no frame or visible label (a region named by the label), its type scaling with its box
-   * between `--blade-record-reading-min-size` (16 px) and `--blade-record-reading-max-size` (34 px); it fills and
-   * scrolls on its own at any width while the minimum fits. Default `"inline"`: below the groups across the width.
+   * scroll as a whole and the card shows all of its text (`0px` is a minimum of 0). Default `"inline"`: below the
+   * groups across the width.
    */
-  longText?: "inline" | "card" | "reading";
+  longText?: "inline" | "card";
 }
 
 /** Read-only record details as the list's `Adatok` command shows them (`recordFields`). */
@@ -2178,6 +2176,14 @@ export interface PageRegion {
   tabs?: PageRegion[];
   /** Stacked collapsible leaves (`app.components.Accordion`); the open sections are kept per page and user. */
   accordion?: PageRegion[];
+  /**
+   * A frameless layout inside this region (FB-0222): a `rows` or `cols` branch whose regions have no frame or header
+   * and are divided by draggable lines. Its regions are ordinary regions of the page (`cell`, `attach`, `placeholder`,
+   * kept sizes); this region itself keeps its header, size and collapsing but is not a mount target, and needs an
+   * `id` only to keep its size or to collapse. Inside it: no `header`, collapsing, `tabs`, `accordion` or `inner`. A
+   * tree that is only `{ inner }` is frameless as a whole, for the content of a tab or a region.
+   */
+  inner?: PageRegion;
   /** An `accordion` branch: several sections may be open at once (`AccordionOptions.multiple`). */
   multiple?: boolean;
   /** A leaf of an `accordion` branch: open at first (without `multiple`, at most one); default the first section. */
@@ -2197,12 +2203,6 @@ export interface PageLayoutOptions extends ComponentOptions {
   id: string;
   /** The declared panel tree, typically the view's `options.layout`; an invalid tree throws `TypeError`. */
   tree: PageRegion;
-  /**
-   * `"line"`: no frames or headers, the regions divided by draggable lines (a Suite line Layout), for the content of a
-   * tab or a region; a leaf outside a `tabs` or `accordion` branch then takes no `header`, `collapsable` or
-   * `collapsed`. Default `"panel"`: framed panels with headers (a Suite space Layout).
-   */
-  frame?: "panel" | "line";
   /** The guard of every `tabs` branch (`TabsOptions.guard`, with the region ids as `from` and `to`). */
   guard?: TabsOptions["guard"];
 }
