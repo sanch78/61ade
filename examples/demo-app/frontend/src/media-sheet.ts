@@ -1,8 +1,8 @@
 // D11 `Médialapok` (modules/media-sheets.json, docs/demos.md#d11-media-sheets): the record view kind `demo.media-sheet`,
-// a record page of 61ade components only: the page's CommandBar (back to the list) above the record's RecordDetails
-// with its brief as a card of its own (`longText: "card"`, FB-0218). The fields declare the rest: `Adatok` and `Kép` are
-// sections and the image a media field with `details_width`, and media-sheet.css lays the data out beside the image
-// for this view (`data-blade-view`), here and in the list's `Adatok` window.
+// a record page of 61ade components only: the page's CommandBar (back to the list) above the record's RecordDetails,
+// whose brief is a long text below the groups across the width. The fields declare the rest: `Adatok` and `Kép` are
+// sections, the image is a media field with `details_width` alone in its section (no label row, FB-0218, FB-0223), and
+// media-sheet.css lays the data out beside the image for this view (`data-blade-view`), here and in `Adatok`.
 import type { Application, ApplicationModule, ListKindOptions, ViewDefinition, ViewHost, ViewInstance } from "@61ade/admin";
 import "./media-sheet.css";
 
@@ -25,7 +25,7 @@ function sheet(app: Application, host: ViewHost, view: ViewDefinition<SheetOptio
   const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a listához"), icon: "bi bi-arrow-left" }] });
   bar.on("click", ({ id }) => { if (id === "back" && !app.navigate({ view: listId })) host.close(); });
   bar.mount(layout.getCell("commands"));
-  new app.components.RecordDetails({ view: list, record: host.record.row, showId: false, longText: "card", signal }).mount(layout.getCell("details"));
+  new app.components.RecordDetails({ view: list, record: host.record.row, showId: false, signal }).mount(layout.getCell("details"));
   // Registered after the components, so they detach from their cells before the layout goes (the Layout recipe).
   signal.addEventListener("abort", () => layout.destructor(), { once: true });
   return { destroy: () => controller.abort() };

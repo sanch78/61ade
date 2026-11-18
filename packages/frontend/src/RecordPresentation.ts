@@ -182,49 +182,51 @@ export function withDerived<T extends {id:string}>(fields:T[],columns:(Column&{h
 }
 /** A long text field (`textarea` without a custom display): clamped in a card to its `cardLines` (0: all of it). */
 const longText=(field:ViewDefinition["columns"][number])=>field.type==="textarea"&&!(!isMedia(field)&&!isImage(field)&&field.render);
-/** Ids of the long-text cards' headings (`recordText`), unique in the page. */
-let textIds=0;
 /**
  * Only declared fields present in the ACL-projected record are rendered; every media and icon field shows its media or
  * icon. With field sections (`section`, FB-0177) the fields form groups: one framed group per section at the place of
  * its first field (the other short fields one untitled group at the place of the first of them), laid out in as many
- * columns as the card or details are wide enough for (240 px each), and a long text outside every section below them
- * across the whole width. Without sections the fields stay one list in their order.
+ * columns as the card or details are wide enough for (240 px each). A long text outside every section stands where its
+ * `placement` says (FB-0225): below all groups across the whole width (`end`, the default), at its place among the
+ * groups across the whole width (`row`), or at its place as a group of its own, one column wide, titled by its label
+ * and without a label row (`group`). Without sections the fields stay one list in their order (`placement` too).
  *
- * `details` (the record details, FB-0218): a media field's `detailsWidth` sizes its image, and a section whose only
- * field it is shows its heading and the image without a label (the automatic columns are then at least that group's
- * width); `longText: "card"` puts each long text outside the sections into a card of its own below everything else.
+ * `details` (the record details: `RecordDetails` and `Adatok`; cards leave it out): a section whose only shown field is
+ * a media field shows its heading and the media without a label row (FB-0223); a media field's `detailsWidth` sizes its
+ * image (FB-0218), and the automatic columns are then at least that group's width.
  */
-export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=false,details?:{longText?:"inline"|"card"}):string{
+export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=false,details=false):string{
   const shown=fields.filter(field=>Object.hasOwn(row,field.id)||hasDerived(field,row));
-  const item=(field:ViewDefinition["columns"][number])=>recordField(row,field,editable,!!details);
-  const cards=details?.longText==="card"?shown.filter(field=>!field.section&&longText(field)):[];
-  const rest=cards.length?shown.filter(field=>!cards.includes(field)):shown;
-  const texts=cards.length?`<div class="blade-record-texts">${cards.map(field=>recordText(row,field)).join("")}</div>`:"";
-  if(!rest.some(field=>field.section))return (cards.length&&!rest.length?"":`<dl>${rest.map(item).join("")}</dl>`)+texts;
+  const item=(field:ViewDefinition["columns"][number])=>recordField(row,field,editable,details);
+  if(!shown.some(field=>field.section))return `<dl>${shown.map(item).join("")}</dl>`;
+  // Keys in placement order: `s:<label>` a section, "" the other short fields, `r:`/`g:<id>` a long text as a row or a group.
   const groups=new Map<string,ViewDefinition["columns"]>(),wide:ViewDefinition["columns"]=[];
-  for(const field of rest){
-    if(!field.section&&longText(field)){wide.push(field);continue;}
+  for(const field of shown){
+    if(!field.section&&longText(field)){
+      if(field.placement==="row"||field.placement==="group")groups.set((field.placement==="row"?"r:":"g:")+field.id,[field]);
+      else wide.push(field);
+      continue;
+    }
     const key=field.section?"s:"+field.section:"";
     groups.set(key,[...(groups.get(key)??[]),field]);
   }
   let widest=0;
   const group=([key,members]:[string,ViewDefinition["columns"]])=>{
-    const only=members[0],width=details&&key&&members.length===1&&isMedia(only)?only.detailsWidth??0:0;
-    if(!width)return `<section class="blade-record-group${members.some(longText)?" blade-record-group--wide":""}">${key?`<div class="blade-record-group__title">${escape(key.slice(2))}</div>`:""}<dl>${members.map(item).join("")}</dl></section>`;
-    widest=Math.max(widest,width);
-    return `<section class="blade-record-group blade-record-group--media"><div class="blade-record-group__title">${escape(key.slice(2))}</div><div class="blade-record-group__media">${recordMedia(only,row,"card",width)}${mediaOf(only,row)?"":"—"}</div></section>`;
+    const only=members[0];
+    if(key.startsWith("r:"))return `<dl class="blade-record-wide blade-record-wide--row">${item(only)}</dl>`;
+    if(key.startsWith("g:"))return `<section class="blade-record-group blade-record-group--text"><div class="blade-record-group__title">${escape(only.header)}</div>${recordField(row,only,editable,details,false)}</section>`;
+    if(!details||!key||members.length!==1||!isMedia(only))return `<section class="blade-record-group${members.some(longText)?" blade-record-group--wide":""}">${key?`<div class="blade-record-group__title">${escape(key.slice(2))}</div>`:""}<dl>${members.map(item).join("")}</dl></section>`;
+    widest=Math.max(widest,only.detailsWidth??0);
+    return `<section class="blade-record-group blade-record-group--media"><div class="blade-record-group__title">${escape(key.slice(2))}</div><div class="blade-record-group__media">${recordMedia(only,row,"card",only.detailsWidth)}${mediaOf(only,row)?"":"—"}</div></section>`;
   };
   const html=[...groups].map(group).join("");
-  return `<div class="blade-record-groups"${widest?` style="--blade-record-media-width:${Math.trunc(widest)}px"`:""}>${html}</div>${wide.length?`<dl class="blade-record-wide">${wide.map(item).join("")}</dl>`:""}${texts}`;
+  return `<div class="blade-record-groups"${widest?` style="--blade-record-media-width:${Math.trunc(widest)}px"`:""}>${html}</div>${wide.length?`<dl class="blade-record-wide">${wide.map(item).join("")}</dl>`:""}`;
 }
-/** A long text as a card of its own (`longText: "card"`): framed, headed by its label, its text a region named by it. */
-function recordText(row:Row,field:ViewDefinition["columns"][number]):string{
-  const id=`blade-record-text-${++textIds}`,value=row[field.id];
-  return `<section class="blade-record-group blade-record-text"><div class="blade-record-group__title" id="${id}">${escape(field.header)}</div><div class="blade-record-text__body" role="region" aria-labelledby="${id}">${escape(value==null||value===""?"—":value)}</div></section>`;
-}
-/** One field of `recordFields`: its label and its presented value (an editable one opens its editor); `details` sizes media. */
-function recordField(row:Row,field:ViewDefinition["columns"][number],editable:boolean,details=false):string{
+/**
+ * One field of `recordFields`: its label and its presented value (an editable one opens its editor); `details` sizes media.
+ * `label` false: the value alone, for a long text whose group's heading is its label (`placement: "group"`, FB-0225).
+ */
+function recordField(row:Row,field:ViewDefinition["columns"][number],editable:boolean,details=false,label=true):string{
   const derived=derivedText(field,row);
   if(derived!==null)return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd>${escape(derived||"—")}</dd></div>`;
   const writable=editable&&field.editable&&row._editable?.includes(field.id);
@@ -236,7 +238,10 @@ function recordField(row:Row,field:ViewDefinition["columns"][number],editable:bo
   const glyph=isIcon(field)?recordIcon(field,value,true):"";
   // Long text (`textarea`) is clamped to its `cardLines` (default 4, 0 all of it) in a card (admin.css); the details show all of it.
   const lines=field.type==="textarea"&&custom===undefined?field.cardLines??4:0;
-  return `<div class="blade-grid-card__field${lines?" blade-grid-card__field--long":""}"${lines&&lines!==4?` style="--blade-card-lines:${Math.trunc(lines)}"`:""}><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card",details?field.detailsWidth:undefined)+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):toned(field,value,content)}</dd></div>`;
+  const edit=writable&&(field.type!=="checkbox"||field.fieldType)?`data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:"";
+  const shown=custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card",details?field.detailsWidth:undefined)+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):toned(field,value,content);
+  const shownValue=label?`<dt>${escape(field.header)}</dt><dd ${edit?`class="blade-card-edit" ${edit}`:""}>${shown}</dd>`:`<div class="blade-grid-card__value${edit?" blade-card-edit":""}"${edit?" "+edit:""}>${shown}</div>`;
+  return `<div class="blade-grid-card__field${lines?" blade-grid-card__field--long":""}${label?"":" blade-grid-card__field--bare"}"${lines&&lines!==4?` style="--blade-card-lines:${Math.trunc(lines)}"`:""}>${shownValue}</div>`;
 }
 
 /** One reference count of a usage provider (`label` is already translated by the server). */

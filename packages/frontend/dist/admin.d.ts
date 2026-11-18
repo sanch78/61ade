@@ -237,8 +237,9 @@ export interface WindowOptions {
      */
     fit?: boolean;
     /**
-     * The largest fitted height in px (FB-0177): default 800, always at most the viewport minus 24 px; `Infinity` lets a
-     * fitted window grow to the viewport. A taller form scrolls between the fixed header and its action row, which sticks
+     * The largest fitted height in px (FB-0177): default the application's `windowMaxHeight` (PHP
+     * `ApplicationDefinition::$windowMaxHeight`, JSON `application.window_max_height`, FB-0225), else 800; always at most
+     * the viewport minus 24 px; `Infinity` lets a fitted window grow to the viewport. A taller form scrolls between the fixed header and its action row, which sticks
      * to the window's lower edge. A number below 120 (or not a number) throws `TypeError`. The requested `height` of a
      * window that does not fit is not capped by it.
      */
@@ -680,19 +681,27 @@ export interface ViewHost {
     /** Changes the visible title (window header; the menu entry keeps the declared title). */
     setTitle(text: string): void;
     /**
-     * A page view: replaces what the shell's location bar shows after the menu path (by default the record's title of a
-     * record view) with `segments`, the last one the current place (docs/shell.md#location-bar). Call it again whenever
+     * A page view: replaces what the shell's location bar shows after the menu path and a record view's parent records
+     * (by default the record's title of a record view) with `segments`, the last one the current place
+     * (docs/shell.md#location-bar). Call it again whenever
      * the selection inside the page changes; only the bar is redrawn. Labels are plain text. A view in a window, and a
      * call after the view closed, change nothing. At most 16 segments; an invalid segment throws `TypeError`.
+     * `{from: "root"}` (FB-0226): `segments` are the whole bar instead, without the menu path and the parent records, so
+     * a page can show a path of its own; the first segment takes the view's icon unless it has one. The menu marker is
+     * unchanged. An empty `segments` array returns to the automatic path, as `setLocation([])` does (the menu path and
+     * the parent records, without a record view's title). Default `"page"`.
      */
-    setLocation(segments: LocationSegment[]): void;
+    setLocation(segments: LocationSegment[], options?: {
+        from?: "page" | "root";
+    }): void;
     /** Closes this view: a window closes; a page returns to the empty workspace. */
     close(): void;
 }
 /**
  * One level of the location bar (`ViewHost.setLocation`). `label` is plain text (1–200 characters), `icon` icon classes
  * (`bi bi-…`). An earlier segment with `target` is a link that opens that view (or that record of a record view) like
- * `app.navigate`; one with `onSelect` is a button for a place inside the page (a parent level of its own tree or
+ * `app.navigate`, a list view with `filters` (field → value, at most 20, applied once like `filter.<field>=` in the
+ * address; ignored for a record view); one with `onSelect` is a button for a place inside the page (a parent level of its own tree or
  * list); one with neither, or a `target` the actor is not offered, is plain text. The last segment is the current
  * place and never a link.
  */
@@ -702,6 +711,7 @@ export type LocationSegment = {
     target?: {
         view: string;
         record?: string | number;
+        filters?: Record<string, string>;
     };
     onSelect?: never;
 } | {
@@ -743,11 +753,15 @@ export interface ViewDefinition<Options = unknown> {
      */
     recordTitle?: string;
     /**
-     * A record view's location bar start (PHP `location`, JSON `views.<id>.location`): `"group"` starts at the menu group,
-     * without the source view's entry; the menu marker and the compact siblings still follow the source. Absent: the
-     * source view's menu path.
+     * A record view's parent (PHP `parent`, JSON `views.<id>.parent`): `field` of `record` holds the id of a record of the
+     * record view `view`. The location bar shows the parent records (resolved through `get`, recursively, at most 4)
+     * before this record, from the menu path of the topmost one resolved (none: this view's own), which also carries the
+     * menu marker (docs/shell.md#location-bar). Absent: no parent.
      */
-    location?: "group";
+    parent?: {
+        field: string;
+        view: string;
+    };
     /** Actions of `resource` offered to the actor, with their field metadata. */
     actions: ActionMetadata[];
     /** Kind configuration: browser-safe JSON only, never backend-only data. */
@@ -942,6 +956,8 @@ export interface ActionMetadata {
 export type MediaPart = "type" | "resolution" | "duration";
 /** A theme tone of a select value (`ColumnMetadata.tones`). */
 export type ValueTone = "primary" | "secondary" | "success" | "warning" | "danger";
+/** The place of a long text outside the sections in cards and details (`ColumnMetadata.placement`). */
+export type ColumnPlacement = "end" | "row" | "group";
 /** One grid/card column (`components/list/types.ts` `ViewDefinition["columns"]`, merged with its field by the server). */
 export interface ColumnMetadata {
     id: string;
@@ -963,9 +979,18 @@ export interface ColumnMetadata {
     /** A long text's lines in a card (field `column.cardLines`, JSON `card_lines`, FB-0177): 0 all of it; default 4. */
     cardLines?: number;
     /**
+     * Where a long text (a `textarea` without its own display) outside every section stands in the cards, `Adatok` and
+     * `RecordDetails` of a record with sections (field `column.placement`, FB-0225): `"end"` (default) below all groups
+     * across the width; `"row"` at its declaration place among the groups across the width; `"group"` at that place as a
+     * group of its own, one column wide like a section's group, titled by its label, without a label row. Without
+     * sections the fields stay one list and it has no effect.
+     */
+    placement?: ColumnPlacement;
+    /**
      * A media column's image width in px in the record details (`RecordDetails`, `Adatok`; field `column.detailsWidth`,
      * JSON `details_width`, 160–800, FB-0218): the height follows the file's aspect ratio, at most the group's width.
-     * A section whose only field it is shows its heading and the image without a field label.
+     * A section whose only shown field is a media field, with or without this width, shows its heading and the media
+     * without a field label (FB-0223).
      */
     detailsWidth?: number;
     /**
@@ -1664,13 +1689,11 @@ export interface RecordDetailsOptions extends ComponentOptions {
     /** false: no `ID · n` line above the fields. Default true. */
     showId?: boolean;
     /**
-     * `"card"` (FB-0218): each long text outside the sections is a framed card below the groups, headed by its label,
-     * that fills the remaining height and scrolls on its own (a focusable region named by the label). When the rest and
-     * `--blade-record-text-min-height` (160 px) per card do not fit, or the details are narrower than 492 px, the details
-     * scroll as a whole and the card shows all of its text (`0px` is a minimum of 0). Default `"inline"`: below the
-     * groups across the width.
+     * Only these of the view's detail fields (FB-0223), in the view's detail-field order whatever the order here; a
+     * derived media column (`mediaOf`) follows its media field. A field the row lacks is not shown. An empty array, a
+     * non-string entry or an id that is not a detail field of the view throws `TypeError`. Default: every detail field.
      */
-    longText?: "inline" | "card";
+    fields?: string[];
 }
 /** Read-only record details as the list's `Adatok` command shows them (`recordFields`). */
 export interface RecordDetails extends Component<Record<string, never>> {

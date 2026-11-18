@@ -100,10 +100,10 @@ body,
 .blade-grid-card__field { display: grid; grid-template-columns: minmax(0, min(40%, 220px)) minmax(0, 1fr); gap: 12px; padding: 9px 0; }
 .blade-grid-card__field + .blade-grid-card__field { border-top: 1px solid var(--dhx-border-color); }
 .blade-grid-card dt { color: var(--dhx-font-color-secondary); font-weight: 500; }
-.blade-grid-card dd { margin: 0; color: var(--dhx-font-color-primary); white-space: pre-wrap; }
-.blade-grid-card dt, .blade-grid-card dd { overflow-wrap: anywhere; line-height: 1.5; }
+.blade-grid-card dd, .blade-grid-card .blade-grid-card__value { margin: 0; color: var(--dhx-font-color-primary); white-space: pre-wrap; }
+.blade-grid-card dt, .blade-grid-card dd, .blade-grid-card .blade-grid-card__value { overflow-wrap: anywhere; line-height: 1.5; }
 /* Long text (a `textarea` field) shows a 4-line preview in a card; the record details (`Adatok`) and the form show all of it. */
-.blade-grid-card .blade-grid-card__field--long dd { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--blade-card-lines, 4); line-clamp: var(--blade-card-lines, 4); overflow: hidden; }
+.blade-grid-card .blade-grid-card__field--long dd, .blade-grid-card .blade-grid-card__field--long .blade-grid-card__value { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--blade-card-lines, 4); line-clamp: var(--blade-card-lines, 4); overflow: hidden; }
 /* Field sections in cards and details: equal-height groups per row, with their content at the top. Projects may
    set the automatic minimum column width or an explicit track list. The record's own width controls stacking. */
 .blade-grid-card, .blade-record-details { container: blade-record / inline-size; }
@@ -117,21 +117,14 @@ body,
   background: var(--dhx-background-secondary); color: var(--dhx-font-color-primary); font-weight: var(--dhx-font-weight-medium); line-height: 1.5; overflow-wrap: anywhere; }
 .blade-record-groups + .blade-record-wide { margin: 12px 0 0; }
 :is(.blade-record-wide, .blade-record-group--wide) .blade-grid-card__field--long { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-/* A section whose only field is a sized media field (`detailsWidth`, FB-0218): its heading names the image, no label
-   row. `--blade-record-media-width` (set on the groups) keeps automatic columns at least as wide as that group. */
+/* A long text outside the sections at its own place (`column.placement`, FB-0225): `row` across every column of the
+   group grid, `group` one track like a section's group, headed by its label with the value alone below it. */
+.blade-record-wide--row { grid-column: 1 / -1; }
+.blade-grid-card__field--bare { grid-template-columns: minmax(0, 1fr); }
+/* A section whose only shown field is a media field (FB-0223): its heading names the media, no label row. With a
+   `detailsWidth` (FB-0218) `--blade-record-media-width` (set on the groups) keeps automatic columns at least as wide
+   as that group. */
 .blade-record-group__media { padding: 12px 0; }
-/* Long texts as cards (RecordDetails `longText: "card"`, FB-0218): framed like a group, headed by the label. With
-   `--fill` (RecordDetails.ts fitTexts) the cards take the height below the rest and their text scrolls in them. */
-.blade-record-texts { display: flex; flex-direction: column; gap: 12px; }
-.blade-record-details > * + .blade-record-texts { margin-top: 12px; }
-.blade-record-text { display: flex; flex-direction: column; }
-.blade-record-text__body { margin: 0 -12px; padding: 9px 12px; color: var(--dhx-font-color-primary); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
-.blade-record-text__body:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
-.blade-record-details--fill { box-sizing: border-box; display: flex; flex-direction: column; height: 100%; }
-.blade-record-details--fill > * { flex: none; }
-.blade-record-details--fill > .blade-record-texts { flex: 1 1 0; min-height: 0; }
-.blade-record-details--fill .blade-record-text { flex: 1 1 0; min-height: var(--blade-record-text-min-height, 160px); }
-.blade-record-details--fill .blade-record-text__body { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .blade-grid-card__media { position: relative; margin: -14px -16px 12px; }
 
 /* Tiles: native DataView widths (equal per row), media slot, title and one secondary line. */
@@ -315,7 +308,7 @@ body,
 .blade-tone--warning { background: #b45309; }
 [data-dhx-theme="dark"] .blade-tone--warning { background: #f59e0b; color: #1a1a1a; }
 /* Emphasized records (`emphasis`, FB-0212): bold like unread mail; a visually hidden marker names the state. */
-.blade-grid-row--emphasis > .dhx_grid-cell, .blade-grid-card--emphasis dd, .blade-grid-tile--emphasis .blade-grid-tile__title, .blade-grid-tile--emphasis .blade-grid-tile__meta { font-weight: 600; }
+.blade-grid-row--emphasis > .dhx_grid-cell, .blade-grid-card--emphasis dd, .blade-grid-card--emphasis .blade-grid-card__value, .blade-grid-tile--emphasis .blade-grid-tile__title, .blade-grid-tile--emphasis .blade-grid-tile__meta { font-weight: 600; }
 .blade-grid-views .dhx_grid { border: 0; }
 .blade-grid-views .dhx_grid-content { border: 0; isolation: isolate; }
 .blade-record-details { padding: 16px 20px; overflow-wrap: anywhere; }
@@ -392,8 +385,8 @@ body,
 .blade-accordion__section > .dhx_layout-cell-header > .dhx_layout-cell-header__collapse-icon { color: var(--dhx-font-color-secondary); display: flex; align-items: center; justify-content: center; }
 @media (prefers-reduced-motion: reduce) { .blade-accordion__section > .dhx_layout-cell-header > .dhx_layout-cell-header__collapse-icon::before, .dhx_widget.dhx_form .blade-form-section__heading .dhx_button::after { transition: none; } }
 .blade-record-details dl { margin: 0; }
-.blade-grid-card__field dt, .blade-grid-card__field dd { min-width: 0; }
-.blade-record-details .blade-grid-card__field dd { white-space: pre-wrap; margin: 0; }
+.blade-grid-card__field dt, .blade-grid-card__field dd, .blade-grid-card__value { min-width: 0; }
+.blade-record-details .blade-grid-card__field dd, .blade-record-details .blade-grid-card__value { white-space: pre-wrap; margin: 0; }
 .blade-navigation-row .dhx_navbar { padding-top: 0; padding-bottom: 0; }
 .blade-navigation-row .dhx_menu { height: 100%; }
 

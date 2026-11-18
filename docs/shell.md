@@ -1145,7 +1145,11 @@ marker. For example, `demo.playlist-editor` (`record: signage_playlists`)
 inherits `Lejátszási listák` and its `Digitális kijelző` group, including on a
 direct link, reload and Back/Forward. The same source supplies the compact
 desktop siblings; a group-only match supplies its children without selecting
-one. A record opened in a window keeps the underlying page's menu context. The [location bar](#location-bar) shows the same source.
+one. A record view with a declared [`parent`](#location-bar-parent) takes the
+source of its topmost parent record actually resolved instead, and its own
+until one is: `demo.task-note` (a note under its task) marks `Feature demó`
+through `demo.task-page` and `Feladatok` once its task has arrived. A record
+opened in a window keeps the underlying page's menu context. The [location bar](#location-bar) shows the same source.
 Selectors have only transient hover, focus and open
 states. The marker is separate from the native popup's `active` state.
 Submenus retain native compact list layout. Separators are faint 1 px rules
@@ -1179,22 +1183,45 @@ below the menu row, across the full width, before the workspace
   Without a source view, the declared group or, without one, the record
   view's own icon starts the path. This also holds after a direct link,
   reload and Back/Forward.
-- **A record page that starts at its group:** a record view reached
-  through a parent level that is not its resource's menu list (an episode
-  opened from its season, a task from its project) declares
-  `location: 'group'` (PHP `View(location: 'group')`, JSON
-  `views.<id>.location: "group"`, a record view only, no other value). Its
-  bar leaves out the source view's entry: the group (the source view's, or
-  the record view's declared `group`) is followed directly by the view's
-  `setLocation` segments or its record title, for example
-  `Történetek › 1. évad › S01E00 · … › Áttekintés`
-  ([FB-0220](feedback.md#fb-0220)). The menu marker and the compact
-  desktop siblings still come from the source view, and the overflow and
-  phone rules are unchanged. Without a group, the first segment carries the
-  record view's icon. Without the option, nothing changes.
+- <a id="location-bar-parent"></a>**A record page under a parent record:**
+  a record view reached through a parent record (a note from its task, an
+  episode from its season) declares that parent: PHP
+  `View(parent: ['field' => 'task_id', 'view' => 'demo.task-page'])`, JSON
+  `views.<id>.parent: {"field": "task_id", "view": "demo.task-page"}`,
+  `ViewDefinition.parent` in the bootstrap. `field` is a non-secret
+  `select`, `number` or `text` field of the `record` resource that holds the
+  parent's id, like a [sub-view](workspaces.md#sub-views)'s field. `view` is
+  a record view, and its `record` resource is the parent's; a `select` whose
+  options are a `Lookup` (JSON `options_lookup`, PHP `$lookup->options(...)`)
+  must be one of that resource. Anything else, or `parent` on a view without
+  `record`, throws `InvalidArgumentException` at definition time. The bar
+  then reads: the menu path of the topmost parent record resolved (as above
+  for that parent's record view), each resolved parent record's title (its
+  view's `recordTitle` value, else that view's title) as a link to its record
+  page, then this record's level, for example
+  `Feature demó › Feladatok › Synthetic task 01 › ‹the note›`
+  ([FB-0224](feedback.md#fb-0224)). The chain is resolved from the record's
+  row: the parent id is the row's `field` value, and the parent row comes
+  from its resource's `get` (the ordinary ACL-checked call). It continues
+  while that parent's view declares a `parent` of its own, at most 4 levels,
+  and never visits a record twice. A self-reference, such as a folder under
+  its parent folder, is allowed. The path therefore holds after a direct
+  link, reload and Back/Forward. The parent levels appear once their records
+  have arrived; the page does not wait for them, and until then the bar is
+  the record view's own path, as without `parent`. Several things end the
+  chain there, without a dialog, leaving that parent and every level above
+  it, its menu path included, out of the path: a parent view not offered to
+  the actor, an empty or unreadable id, or a failing `get` (no right on that
+  record, or the record is gone). The menu path, the menu marker and the
+  compact desktop siblings come from the topmost parent record resolved, or
+  from the record view itself while none is (before the parents arrive, or
+  when the first parent fails): a note whose task is gone reads only
+  `‹the note›`, with the note view's icon and no marker. `setLocation`
+  replaces only this record's level; the parent levels stay. Without
+  `parent`, nothing changes.
 - **Content from the view:** `host.setLocation(segments)`
   ([toolkit](toolkit.md#views)) replaces everything after the menu path
-  (for a record page, also the record title) with up to 16 segments
+  and a declared parent's levels (for a record page, also the record title) with up to 16 segments
   `{label, icon?, target?: {view, record?}}` or `{label, icon?, onSelect}`.
   A `target` is a link to that view (with `record`, that record of a record
   view), drawn only when the actor is offered it; otherwise the segment is
@@ -1203,8 +1230,27 @@ below the menu row, across the full width, before the workspace
   selection changes; only the bar is redrawn, the workspace and its
   components keep their state. Labels are plain text (1–200 characters),
   `icon` [icon classes](icons.md); anything else throws `TypeError`.
-  `setLocation([])` leaves the menu path only. A call after the view closed,
+  `setLocation([])` leaves the menu path and any parent records only. A call after the view closed,
   or from a view in a window, changes nothing.
+- <a id="location-bar-own-path"></a>**A path of the page's own**
+  ([FB-0226](feedback.md#fb-0226)): `host.setLocation(segments, {from: "root"})`
+  makes `segments` the whole bar instead: no menu path, no declared parent
+  records, no record title, only the page's levels, with the same segment
+  rules. The first segment takes the view's icon unless it brings one. The
+  automatic path stays the default; the menu marker keeps following the menu
+  source. An empty array returns to the automatic path, as `setLocation([])`
+  does (the menu path and the parent records, without the record's title).
+  A `target` may also carry `filters` (field → text value, at most 20) to
+  link to a list view filtered like `filter.<field>=<value>` in the address
+  (ignored for a record view). Example (D12 `Médiaböngésző`):
+
+  ```ts
+  host.setLocation([
+    { label: list.title, target: { view: list.id } },
+    { label: channelLabel, target: { view: list.id, filters: { channel } } },
+    { label: String(row.title) },
+  ], { from: "root" });
+  ```
 - **Look:** a 32 px line in the menu row's chrome surface
   (`--dhx-s-toolbar-background`, the Blade chrome gradient in Blade and
   Blade Night), joined to the menu row: Suite's 1 px rule below the row is
@@ -1237,8 +1283,9 @@ below the menu row, across the full width, before the workspace
   application title.
 
 Limits: one bar per page (a window has none); the menu path comes from the
-menu, so a custom `Menu` item has none; `location: 'group'` only drops the
-source view's entry, it does not choose another source; the record title is one field (a
+menu, so a custom `Menu` item has none; a parent is one reference field
+(a record with several parents names one of them) and is resolved when the
+page opens (a parent's changed title shows after the next opening); the record title is one field (a
 composed title is a `setLocation` call of the view); segments carry no
 count, badge or menu of their own.
 

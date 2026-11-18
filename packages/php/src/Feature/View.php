@@ -39,9 +39,12 @@ namespace Blade\Feature;
  * $recordTitle: a record view only: the field of the $record resource whose value in the resolved row names the record
  *   in the shell's location bar (docs/shell.md#location-bar); Registry checks that it is a readable, non-secret field.
  *   Null, a field the actor may not read or an empty value: the view's title.
- * $location: a record view only: `'group'` starts its location bar at the menu group, without the source view's entry
- *   (docs/shell.md#location-bar), for a record reached through a parent level that is not that menu list. The menu
- *   marker and the compact desktop siblings still come from the source view. Null: the source view's menu path.
+ * $parent: a record view only: `['field' => f, 'view' => v]`, the record's parent (docs/shell.md#location-bar). f is a
+ *   non-secret select, number or text field of the $record resource that holds the parent's id, v a record view, whose
+ *   record resource is the parent's; a select whose options are a Lookup must be one of that resource. Registry checks
+ *   both. The location bar resolves the parent records from the row through `get` (recursively when v declares a
+ *   parent), shows them before this record and starts at the menu path of the topmost one resolved, which also carries
+ *   the menu marker (none resolved: this view's own). Null: no parent.
  */
 final readonly class View
 {
@@ -66,6 +69,8 @@ final readonly class View
         public ?array $attention = null,
         public ?\Closure $available = null,
         public ?string $recordTitle = null,
+        public ?array $parent = null,
+        // Removed (FB-0224): ignored, accepted only while a consumer still passes it (docs/handoff/storyblox.md).
         public ?string $location = null,
     ) {
         if (!preg_match(self::ID, $id)) throw new \InvalidArgumentException('Invalid view id.');
@@ -79,7 +84,8 @@ final readonly class View
         if (!$menu && ($kind !== 'list' || $record !== null || ($options['singleton'] ?? false) || $guide !== null)) throw new \InvalidArgumentException('Only a list view that is not a singleton and has no guide can leave the menu: '.$id);
         if ($attention !== null) self::checkAttention($id, $kind, $record, $options, $menu, $attention);
         if ($recordTitle !== null && ($record === null || !preg_match('/^[a-z_][a-z0-9_]*$/D', $recordTitle))) throw new \InvalidArgumentException('Only a record view can name its record title field: '.$id);
-        if ($location !== null && ($location !== 'group' || $record === null)) throw new \InvalidArgumentException('Only a record view can start its location bar at the group: '.$id);
+        if ($parent !== null && ($record === null || count($parent) !== 2 || !is_string($parent['field'] ?? null) || !preg_match('/^[a-z_][a-z0-9_]*$/D', $parent['field'])
+            || !is_string($parent['view'] ?? null) || !preg_match(self::ID, $parent['view']))) throw new \InvalidArgumentException('Only a record view can declare a parent {field, view}: '.$id);
         if ($guide !== null && (trim($guide) === '' || mb_strlen($guide) > 4000 || str_contains($guide, "\0") || preg_match('//u', $guide) !== 1)) throw new \InvalidArgumentException('Invalid view guide: '.$id);
     }
 

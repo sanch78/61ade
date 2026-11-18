@@ -39,8 +39,9 @@ function blade_demo_attachments_register(Workspace $workspace): void
         // A fixed section (FB-0177): always open under a plain heading; in cards and details a group of its own.
         new Field('title', 'Megnevezés', required: true, max: 120, section: 'Alapadatok', sectionCollapsible: false),
         new Field('role', 'Szerep', 'select', required: true, options: ['reference' => 'Referencia', 'attachment' => 'Melléklet', 'evidence' => 'Bizonyíték'], section: 'Alapadatok', sectionCollapsible: false),
-        // A long text outside the sections: below the groups across the card, six lines of it (FB-0177).
-        new Field('reason', 'Indoklás', 'textarea', max: 500, column: ['cardLines' => 6]),
+        // A long text outside the sections, six lines of it in a card (FB-0177), placed at its declaration place as a
+        // group of its own (FB-0225): between `Alapadatok` and `Képek`, one column wide, titled by its label.
+        new Field('reason', 'Indoklás', 'textarea', max: 500, column: ['cardLines' => 6, 'placement' => 'group']),
         // Both images form one collapsible section (FB-0172): closed while the record holds none.
         new Field('file', 'Kép', 'file', file: ['upload' => 'demo_attachments.file_upload', 'get' => 'demo_attachments.file', 'accept' => ['image']], section: 'Képek'),
         new Field('detail', 'Részletkép', 'file', file: ['upload' => 'demo_attachments.file_upload', 'get' => 'demo_attachments.file', 'accept' => ['image']], section: 'Képek'),
@@ -54,7 +55,7 @@ function blade_demo_attachments_register(Workspace $workspace): void
             // The executor accepted the tokens (the actor's own unexpired uploads); the project commits their pending rows.
             foreach (['file', 'detail'] as $name) if (($values[$name] ?? '') !== '') $ctx->db->prepare("UPDATE demo_attachment_files SET state = 'committed' WHERE id = ? AND state = 'pending'")->execute([$values[$name]]);
         });
-    // One card per row (FB-0169): the field sections show as groups side by side, the reason below them (FB-0177).
+    // One card per row (FB-0169): the field sections show as groups side by side (FB-0177), the reason a group of its own (FB-0225).
     $attachments->register($workspace->registry, 'Mellékletek', group: 'Feature demó', cardColumns: 1, icon: 'bi bi-paperclip',
         guide: 'Saját tárolású fájlmező: a kép a projekt saját tárolójába kerül, nem a fájlkezelőbe. A feltöltés a háttérben fut, és a kép a rekord többi mezőjével egy mentésben rögzül; a Mégse nem hoz létre rekordot.'."\n\n".'Vegyél fel egy mellékletet: adj meg szerepet és indoklást, nyisd ki a Képek szakaszt, majd húzz egy képet a mezőre, vagy illeszd be Ctrl+V-vel. A szerep a létrehozás után nem változik: a Módosítás csak megmutatja.');
     $attachments->registerDelete($workspace->registry);

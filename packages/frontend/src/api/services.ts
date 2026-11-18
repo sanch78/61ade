@@ -1,7 +1,7 @@
 import { Layout, Window, awaitRedraw, message } from "@dhtmlx/suite";
 import { languages, locale, t } from "../I18n";
 import { requestChoice, showDialog } from "../MessageDialog";
-import { FIT_MAX_HEIGHT, fitWindow } from "../WindowSizing";
+import { fitWindow } from "../WindowSizing";
 import { uploads as uploader } from "../Uploader";
 import { Realtime, type LiveChannel } from "../Realtime";
 import { NAME } from "../app/registries";
@@ -149,8 +149,9 @@ export function nonModalOpen(except?: AppWindow): boolean { return [...nonModal]
  * keys a remembered window (`id`) like the other UI preferences.
  */
 export function openWindow(options: WindowOptions & { css?: string }, user = ""): AppWindow {
-  const maxHeight = options.maxHeight ?? FIT_MAX_HEIGHT;
-  if (typeof maxHeight !== "number" || Number.isNaN(maxHeight) || maxHeight < 120) throw new TypeError("61ade: window `maxHeight` is a number of px from 120 (Infinity: the viewport).");
+  // Without its own `maxHeight` a fitted window stops at the application's default (`fitWindow`, FB-0225).
+  const maxHeight = options.maxHeight;
+  if (maxHeight !== undefined && (typeof maxHeight !== "number" || Number.isNaN(maxHeight) || maxHeight < 120)) throw new TypeError("61ade: window `maxHeight` is a number of px from 120 (Infinity: the viewport).");
   const { titleOverflow = "end", titlePrefix } = options;
   if (titleOverflow !== "end" && titleOverflow !== "start") throw new TypeError('61ade: window `titleOverflow` is "end" or "start".');
   if (titlePrefix !== undefined && typeof titlePrefix !== "string") throw new TypeError("61ade: window `titlePrefix` is a plain text.");

@@ -1187,6 +1187,7 @@ var playlist_editor_default = playlistEditor;
 
 // examples/demo-app/frontend/src/task-page.ts
 var KIND5 = "demo.task-page";
+var NOTE = "demo.task-note";
 var PHONE2 = "(max-width: 767px)";
 var COLORS = { ink: "", blue: "#1f6feb", red: "#d1242f" };
 function sketchPad(label, signal) {
@@ -1491,8 +1492,25 @@ function page(app, host, view) {
   phone.addEventListener("change", render, { signal: host.signal });
   return { destroy: () => build?.abort() };
 }
+function notePage(app, host, view) {
+  const t = (key) => app.i18n.t(key);
+  if (!host.record) throw new Error(t("A jegyzetlap egy jegyzethez ny\xEDlik meg."));
+  const list = app.viewDefinition(view.options?.details ?? host.record.resource);
+  if (!list) throw new Error(t("A jegyzetek nem \xE9rhet\u0151k el."));
+  const label = String(host.record.row.body ?? "").trim().slice(0, 60) || "#" + host.record.id;
+  host.setTitle(`${view.title}: ${label}`);
+  host.setLocation([{ label }]);
+  const controller = new AbortController(), signal = controller.signal;
+  host.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "details" }] });
+  host.attach(layout);
+  new app.components.RecordDetails({ view: list, record: host.record.row, showId: false, signal }).mount(layout.getCell("details"));
+  signal.addEventListener("abort", () => layout.destructor(), { once: true });
+  return { destroy: () => controller.abort() };
+}
 var taskPage = (app) => {
   app.kinds.register(KIND5, { create: (host, view) => page(app, host, view) });
+  app.kinds.register(NOTE, { create: (host, view) => notePage(app, host, view) });
   app.commands.register("demo.task-page", {
     label: "Feladatlap",
     icon: "bi bi-file-earmark-text",
@@ -1782,7 +1800,7 @@ function sheet(app, host, view) {
     if (id === "back" && !app.navigate({ view: listId })) host.close();
   });
   bar.mount(layout.getCell("commands"));
-  new app.components.RecordDetails({ view: list, record: host.record.row, showId: false, longText: "card", signal }).mount(layout.getCell("details"));
+  new app.components.RecordDetails({ view: list, record: host.record.row, showId: false, signal }).mount(layout.getCell("details"));
   signal.addEventListener("abort", () => layout.destructor(), { once: true });
   return { destroy: () => controller.abort() };
 }
@@ -1794,16 +1812,13 @@ var media_sheet_default = mediaSheet;
 // examples/demo-app/frontend/src/media-browser.ts
 var KIND8 = "demo.media-browser";
 var PHONE4 = "(max-width: 767px)";
-function only(list, ids) {
-  const options = list.options;
-  return { ...list, options: { ...options, detailFields: (options.detailFields ?? options.columns).filter((field) => ids.includes(field.id)) } };
-}
 function browser2(app, host, view) {
   const t = (key) => app.i18n.t(key);
   const list = app.viewDefinition(view.options?.list ?? "demo_media_sheets");
   if (!list) throw new Error(t("A m\xE9dialapok list\xE1ja nem \xE9rhet\u0151 el."));
   const fields = list.options.detailFields ?? list.options.columns, image = fields.find((field) => field.id === "file_id");
-  const data = fields.filter((field) => field.section === "Adatok").map((field) => field.id);
+  const section = fields.find((field) => field.id === "title")?.section;
+  const data = fields.filter((field) => section !== void 0 && field.section === section).map((field) => field.id);
   const phone = matchMedia(PHONE4), root = document.createElement("div");
   root.style.cssText = "width:100%;height:100%";
   host.attach(root);
@@ -1831,6 +1846,7 @@ function browser2(app, host, view) {
       selected = id;
       if (!id) {
         empty();
+        host.setLocation([]);
         return;
       }
       for (const region of ["data", "image", "brief"]) page2.placeholder(region, { busy: true });
@@ -1838,10 +1854,17 @@ function browser2(app, host, view) {
       if (signal.aborted || current !== epoch) return;
       if (!row) {
         empty();
+        host.setLocation([]);
         return;
       }
+      const channel = String(row.channel ?? ""), options = fields.find((field) => field.id === "channel")?.options ?? {};
+      host.setLocation([
+        { label: list.title, ...list.icon ? { icon: list.icon } : {}, target: { view: list.id } },
+        ...channel ? [{ label: options[channel] ?? channel, target: { view: list.id, filters: { channel } } }] : [],
+        { label: String(row.title ?? "#" + id) }
+      ], { from: "root" });
       if (details) await details.show(row);
-      else (details = new app.components.RecordDetails({ view: only(list, data), record: row, showId: false, signal })).mount(page2.cell("data"));
+      else (details = new app.components.RecordDetails({ view: list, fields: data, record: row, showId: false, signal })).mount(page2.cell("data"));
       player?.destroy();
       player = void 0;
       const media = row._media?.file_id;

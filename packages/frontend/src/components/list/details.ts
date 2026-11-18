@@ -9,10 +9,11 @@ import type { ViewDefinition } from "./types";
 /**
  * The record details (`Adatok`): every declared detail field present in the ACL-projected record, with its
  * column's presentation (media, icon, options). Shared by the list's details window and `RecordDetails`.
- * `data-blade-view` names the view, so a project stylesheet can set its section columns (FB-0218).
+ * `data-blade-view` names the view: a project stylesheet's hook for the details of one view, such as its section
+ * columns (FB-0218, FB-0223).
  */
-export const detailsHtml=(row:Row,view:Pick<ViewDefinition,"id"|"columns"|"detailFields">,showId=true,longText?:"inline"|"card"):string=>
-  `<article class="blade-record-details" data-blade-view="${escapeRecord(view.id)}">${showId?`<div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>`:""}${recordFields(row,presentedFields(withDerived(view.detailFields??view.columns,view.columns),view.columns),false,{longText})}</article>`;
+export const detailsHtml=(row:Row,view:Pick<ViewDefinition,"id"|"columns"|"detailFields">,showId=true):string=>
+  `<article class="blade-record-details" data-blade-view="${escapeRecord(view.id)}">${showId?`<div class="blade-grid-card__id">ID · ${escapeRecord(row.id)}</div>`:""}${recordFields(row,presentedFields(withDerived(view.detailFields??view.columns,view.columns),view.columns),false,true)}</article>`;
 
 /** Window width for the widest sized image (`detailsWidth`) beside one 240 px group: image group, gap, group, padding, frame. */
 const detailsWidth=(view:Pick<ViewDefinition,"columns"|"detailFields">):number=>{

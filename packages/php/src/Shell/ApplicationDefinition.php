@@ -97,6 +97,12 @@ final readonly class ApplicationDefinition
          * @var list<string>
          */
         public array $frameSources = [],
+        /**
+         * The default largest height in px of a fitted window (docs/workspaces.md#window-sizing), an integer 320–4000;
+         * null keeps the framework's 800. A window's own `WindowOptions.maxHeight` still wins, and the viewport less
+         * 24 px still caps it. The bootstrap carries it only when declared.
+         */
+        public ?int $windowMaxHeight = null,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
@@ -108,6 +114,7 @@ final readonly class ApplicationDefinition
         if ($sessionIdleTimeout < 60 || $sessionIdleTimeout > 31536000 || $sessionCookieLifetime < 0 || $sessionCookieLifetime > 31536000) {
             throw new \InvalidArgumentException('Invalid 61ade session lifetime.');
         }
+        if ($windowMaxHeight !== null && ($windowMaxHeight < 320 || $windowMaxHeight > 4000)) throw new \InvalidArgumentException('Invalid 61ade window maximum height (320–4000 px).');
         if ($sameSite !== 'Lax' && $sameSite !== 'Strict') throw new \InvalidArgumentException('Invalid 61ade SameSite policy.');
         if ($sameSite === 'Strict' && $oauth !== null) throw new \InvalidArgumentException('61ade OAuth requires SameSite=Lax.');
         if ($publicIdentity !== null && ($publicIdentity === '' || strlen($publicIdentity) > 100 || preg_match('/[\x00-\x1f\x7f]/', $publicIdentity))) {

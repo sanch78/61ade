@@ -1,7 +1,7 @@
 {
     "section_descriptions": {
         "purpose": "Feature demo: campaign visuals with their data, image and brief on a record page (FB-0218).",
-        "covers": "A media field with a details width (column.details_width) alone in its section, so the details show the section heading and the image at that width without a label; a long brief as a card of its own on the record page demo.media-sheet (RecordDetails longText: card), and the project stylesheet laying the data beside the image through data-blade-view, also in the list's Adatok window. The page view demo.media-browser (FB-0222): a PageLayout whose panel holds an inner layout (inner) of frameless regions, each holding a framework component or a plain element."
+        "covers": "A media field with a details width (column.details_width) alone in its section, so the details show the section heading and the image at that width without a label, and the brief inline below the groups on the record page demo.media-sheet (a plain RecordDetails); the project stylesheet lays the data beside the image through data-blade-view, also in the list's Adatok window. The page view demo.media-browser (FB-0222): a PageLayout whose panel holds an inner layout (inner) of frameless regions, each holding a framework component or a plain element, its data region a RecordDetails with a field subset (fields, FB-0223)."
     },
     "resources": {
         "demo_media_sheets": {
@@ -118,7 +118,7 @@
                         "header": "Év"
                     }
                 ],
-                "guide": "Kampányképek az adataikkal, a képükkel és egy hosszabb leírással. A Kép mező saját szakasza a részletekben a megadott szélességben mutatja a képet, a magasság a kép arányát követi; a szakasz fejléce a kép neve, külön mezőcímke nélkül.\n\nNyiss meg egy médialapot dupla kattintással vagy Enterrel: az adatok a kép mellett állnak, a leírás alattuk a saját keretében görgethető, a kép és az adatok a helyükön maradnak. Alacsony ablakban és telefonon az egész lap görget, és a leírás teljes hosszában látszik. Az Adatok parancs ugyanígy, a kép szélességében mutatja a rekordot.\n\nKeretrendszer-képesség: médiamező részletszélessége és RecordDetails hosszú szöveg kártyaként."
+                "guide": "Kampányképek az adataikkal, a képükkel és egy hosszabb leírással. A Kép mező saját szakasza a részletekben a megadott szélességben mutatja a képet, a magasság a kép arányát követi; a szakasz fejléce a kép neve, külön mezőcímke nélkül.\n\nNyiss meg egy médialapot dupla kattintással vagy Enterrel: az adatok a kép mellett állnak, a leírás alattuk a teljes szélességben, és a lap egészében görget. Telefonon a szakaszok egymás alá kerülnek. Az Adatok parancs ugyanígy, a kép szélességében mutatja a rekordot.\n\nKeretrendszer-képesség: médiamező részletszélessége, és egyetlen médiamező a szakaszában mezőcímke nélkül."
             }
         }
     },
@@ -131,7 +131,7 @@
             "actions": [
                 "get"
             ],
-            "guide": "Rekordnézet egy médialaphoz a keretrendszer komponenseiből: felül a parancssor, alatta a rekord adatai (RecordDetails). Az adatok a kép mellett állnak, a kép a mező megadott szélességében; a leírás a saját keretében görgethető.\n\nGörgesd a leírást egérrel, vagy lépj rá Tabbal, és görgesd a nyilakkal. Kisebbítsd az ablak magasságát: amikor a leírásnak már nem jut legalább 160 képpont, az egész lap görget, és a leírás teljes hosszában látszik.",
+            "guide": "Rekordnézet egy médialaphoz a keretrendszer komponenseiből: felül a parancssor, alatta a rekord adatai (RecordDetails). Az adatok a kép mellett állnak, a kép a mező megadott szélességében; a leírás alattuk a teljes szélességben.\n\nGörgesd a lapot: az adatok, a kép és a leírás együtt görget. Keskenyítsd az ablakot, vagy nyisd meg telefonon: a szakaszok egymás alá kerülnek, a kép legfeljebb a szakasz szélességében látszik.",
             "options": {
                 "list": "demo_media_sheets"
             },

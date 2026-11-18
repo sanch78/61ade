@@ -334,8 +334,10 @@ tree as decoration for a flat list.
   asynchronous redraw, live refresh, mode switches, and responsive toolbar
   replacement, not only on an initial fast response.
 - Size every form or details window with the shared `fitWindow` (content-fitted,
-  capped at 800 px and the viewport unless the project passes `maxHeight`,
-  remeasured after validation). A taller form scrolls between the fixed window
+  capped at the application's `windowMaxHeight` (800 px by default) and the
+  viewport unless the window passes `maxHeight`, remeasured after validation;
+  a framework default taken from one screen is an application setting,
+  [FB-0225](../../../docs/feedback.md#fb-0225)). A taller form scrolls between the fixed window
   header and its action row, which sticks to the window's lower edge; never
   let the buttons scroll away or build a second button bar for them. Never
   give a control a fixed pixel height in a window that can be larger than its
@@ -348,18 +350,23 @@ tree as decoration for a flat list.
   always show; prefer putting every field of a sectioned form in a section.
   The same sections group the cards and details: framed groups side by side
   by the available width, a long text outside the sections below them across
-  the width ([FB-0177](../../../docs/feedback.md#fb-0177)). Groups in one row
+  the width ([FB-0177](../../../docs/feedback.md#fb-0177)) or where its
+  declared `column.placement` puts it: at its place as a row, or as a group
+  of its own titled by its label ([FB-0225](../../../docs/feedback.md#fb-0225)). Groups in one row
   have equal outer heights with content at the top, using CSS stretch rather
   than height observers. Expose column sizing and ratios through the shared
   presentation's CSS properties, with stacking based on the record's own
-  width ([FB-0186](../../../docs/feedback.md#fb-0186)). A record page that
-  shows a record's data beside its image and its main text below declares
-  the image's details width on the media field in a section of its own (no
-  repeated label row) and makes the long text its own scrolling card; the
-  whole details scroll instead when the card would get less than its minimum
-  height or the record is narrow, so nothing is cut off
-  ([FB-0218](../../../docs/feedback.md#fb-0218)). When opening a
-  section must not resize the window, the action declares accordion sections
+  width ([FB-0186](../../../docs/feedback.md#fb-0186)). In the details a
+  media field alone in a section shows the heading and the media without a
+  repeated label row; a record page that shows a record's data beside its
+  image declares the image's details width on that field and keeps a long
+  text below the groups, the details scrolling as a whole
+  ([FB-0218](../../../docs/feedback.md#fb-0218)). A page that puts a
+  record's parts into regions of their own divides the panel with `inner`
+  and gives each `RecordDetails` its `fields`; it gets no framework
+  presentation of its own ([FB-0223](../../../docs/feedback.md#fb-0223)).
+  When opening a section must not resize the window, the action declares
+  accordion sections
   (`formSections: 'accordion'`): the `Accordion` component's header and fixed
   geometry inside the one form, never one form per `Accordion` section
   ([FB-0178](../../../docs/feedback.md#fb-0178)). A long text or a file that

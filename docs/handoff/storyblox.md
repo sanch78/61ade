@@ -76,15 +76,44 @@ like a double-click, never a window. Back returns to *Évadok* at the same
 place with the season as the cursor. A spec that clicked that button and
 waited for a window finds the page instead.
 
-## Location bar from the group (D-087)
+## Parent records in the location bar (D-087)
 
-Delivered in 61ade ([FB-0220](../feedback.md#fb-0220),
-[location bar](../shell.md#location-bar)). Declare `location: 'group'`
-(JSON `"location": "group"`) on the episode record view. The bar then reads
-*Történetek › ‹your setLocation segments›* (season, episode, level) without
-*Epizódok*, while the menu marker and the *Epizódok* menu entry stay as they
-are. The season segment can be a `target` to the filtered *Epizódok* page or
-an `onSelect`.
+`location: 'group'` ([FB-0220](../feedback.md#fb-0220)) is removed. The
+general route replaces it ([FB-0224](../feedback.md#fb-0224),
+[parent records](../shell.md#location-bar-parent)): a record view declares
+its parent record, `parent: ['field' => '<reference field>', 'view' =>
+'<record view of the parent resource>']`. The reference field is a
+non-secret `select`, `number` or `text` field holding the parent's id; a
+`select` whose options are a `Lookup` must be a `Lookup` of that resource.
+
+Read on 2026-11-18 from `stories.php`; recheck them. `story_episodes.season_id`
+(line 39) is such a select, over `$seasonOptions`, a `Lookup` of
+`story_seasons`. `storyblox.season` (lines 57–58) is a record view of
+`story_seasons` with `recordTitle: 'name'`. Both `storyblox.season` (line
+58) and `storyblox.episode-workbench` (line 178) still pass
+`location: 'group'`.
+
+- **Required with this update:** remove `location: 'group'` from both
+  views. 61ade ignores the PHP argument meanwhile and accepts it only until
+  then. The argument is going away, so a remaining one fails once it is
+  gone.
+- **The episode page:** declare
+  `parent: ['field' => 'season_id', 'view' => 'storyblox.season']` on
+  `storyblox.episode-workbench`. Its bar then reads
+  *Történetek › Évadok › ‹season name› › ‹your setLocation segments›*: the
+  season is resolved from the episode's row through `story_seasons.get` and
+  links to its season page, also after a reload or a direct link. Once the
+  season has arrived, the menu marker and the compact siblings follow the
+  season page's source; until then, and when the season cannot be read, the
+  episode page's own. Drop the
+  season segment from the episode page's own `setLocation` call, which now
+  replaces only the episode's level. A season the user may not read is left
+  out, without a dialog.
+- **The season page:** it has no parent record, so without `location` its bar
+  is its resource's menu path and the season's name.
+
+A spec that expects *Epizódok* to be missing from an episode's bar, or that
+expects a season segment of the page's own, needs updating.
 
 ## Asset viewer on the public API (D-019 to D-021)
 
@@ -117,13 +146,25 @@ skipped ([module loading](../toolkit.md#module-loading)).
 
 ## Record details layout (D-084)
 
-Delivered in 61ade ([FB-0218](../feedback.md#fb-0218),
+Delivered in 61ade ([FB-0218](../feedback.md#fb-0218), changed by
+[FB-0223](../feedback.md#fb-0223);
 [sized image in the details](../workspaces.md#details-media-width),
 [RecordDetails](../toolkit.md#recorddetails)). Give the media field
-`column.detailsWidth` (JSON `details_width`, 160–800) in a section of its own,
-set `--blade-record-group-columns: minmax(0, 1fr) auto` on
+`column.detailsWidth` (JSON `details_width`, 160–800) in a section of its own
+(any media field alone in a section shows no label row), set
+`--blade-record-group-columns: minmax(0, 1fr) auto` on
 `.blade-record-details[data-blade-view="<view id>"]` in the project
-stylesheet, and pass `longText: "card"` to the record page's `RecordDetails`.
+stylesheet, and mount a plain `RecordDetails`: the synopsis, a long text
+outside the sections, follows below the groups and the page scrolls as a
+whole. `RecordDetailsOptions.longText` is removed: drop `longText: "card"`
+(TypeScript rejects it, the runtime ignores it), and styles on
+`.blade-record-texts`/`.blade-record-text*` or
+`--blade-record-text-min-height` no longer match anything. For the synopsis
+in a region of its own (D-090, D-093), divide the panel with a `PageLayout`
+[inner layout](../toolkit.md#pagelayout-inner) and give each region's
+`RecordDetails` its [`fields`](../toolkit.md#recorddetails-fields) (the data
+and the image in one, the synopsis in another), or put the text into the
+page's own element; its reading look stays in the project stylesheet.
 The image's height comes from the `width`/`height` your media source
 describes, and its sharpness from the size your `thumbnail_get` serves.
 

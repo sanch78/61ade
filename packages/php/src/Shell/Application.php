@@ -156,6 +156,8 @@ final class Application
             $bootstrap['menu'] = $definition->menu->project($actor);
             // Project ES modules (page-relative, with their cache keys) the shell imports before the first route.
             if ($definition->modules) $bootstrap['modules'] = array_map(static fn(string $module): string => $keys->url($module), $definition->modules);
+            // The application's default largest height of fitted windows, only when declared (the browser falls back to 800).
+            if ($definition->windowMaxHeight !== null) $bootstrap['windowMaxHeight'] = $definition->windowMaxHeight;
             if ($tenancy) $bootstrap['tenant'] = ['current' => $tenant, 'choices' => array_map(static fn($id, $name) => ['id' => (string) $id, 'name' => $name], array_keys($memberships = $tenancy->memberships($identity->id)), $memberships)];
             if ($workspace) {
                 $bootstrap['views'] = $workspace->views($actor, $tenant);

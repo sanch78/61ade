@@ -11,6 +11,12 @@ final readonly class Field
 {
     /** Theme tones of a select value (`column.tones`, FB-0212): the calendar's and the menu attention's together. */
     public const TONES = ['primary', 'secondary', 'success', 'warning', 'danger'];
+    /**
+     * Places of a long text outside every section in cards and details (`column.placement`, FB-0225): `end` (the default)
+     * below all groups across the width, `row` at its declaration place among the groups across the width, `group` at
+     * that place as a group of its own, one column wide, titled by its label.
+     */
+    public const PLACEMENTS = ['end', 'row', 'group'];
 
     public function __construct(
         public string $name,
@@ -117,7 +123,7 @@ final readonly class Field
             }
         }
         foreach ($column as $property => $value) {
-            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'details', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of', 'cardLines', 'card_lines', 'detailsWidth', 'details_width', 'tones'], true)
+            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'details', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of', 'cardLines', 'card_lines', 'detailsWidth', 'details_width', 'tones', 'placement'], true)
                 || match ($property) {
                     'editable', 'secondary', 'details' => !is_bool($value),
                     'align' => !in_array($value, ['left', 'center', 'right'], true),
@@ -130,6 +136,8 @@ final readonly class Field
                     'cardLines', 'card_lines' => !is_int($value) || $value < 0 || $value > 50,
                     // Width of a media field's image in the record details (FB-0218); media fields only (below).
                     'detailsWidth', 'details_width' => !is_int($value) || $value < 160 || $value > 800,
+                    // Place of a long text outside the sections in cards and details (FB-0225); long texts only (below).
+                    'placement' => !in_array($value, self::PLACEMENTS, true),
                     // Value tones (FB-0212): option key => theme tone, checked against the options below.
                     'tones' => !is_array($value) || !$value || count($value) > 50 || array_filter($value, static fn($tone) => !in_array($tone, self::TONES, true)),
                     default => !is_int($value) || $value < 1 || $value > 10000,
@@ -172,6 +180,8 @@ final readonly class Field
         if (($row !== null && (!preg_match('/^[a-z][a-z0-9_]{0,63}$/D', $row) || $sectionFill)) || $rowWidth < 1 || $rowWidth > 3 || ($row === null && $rowWidth !== 1)) throw new InvalidArgumentException('Invalid form row: '.$name);
         if (count(array_intersect_key($column, ['cardLines' => 1, 'card_lines' => 1])) > ($type === 'textarea' ? 1 : 0)) throw new InvalidArgumentException('Card lines belong to one textarea column option.');
         if (count(array_intersect_key($column, ['detailsWidth' => 1, 'details_width' => 1])) > (isset($column['media']) || is_string($file['resource'] ?? null) ? 1 : 0)) throw new InvalidArgumentException('A details width belongs to one media column option.');
+        // A long text is a textarea without its own display (no presentation, no editor); sectioned fields follow their section.
+        if (isset($column['placement']) && ($type !== 'textarea' || isset($column['presentation']) || $editor !== null || $section !== null)) throw new InvalidArgumentException('A placement belongs to a long text (a textarea without a presentation or editor) outside every section: '.$name);
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
         if ($type === 'checkbox' && $defaultValue !== null && !in_array($defaultValue, ['0', '1'], true)) {
@@ -271,6 +281,17 @@ final readonly class Field
     private static function actionReference(mixed $reference): bool
     {
         return is_string($reference) && preg_match('/^[a-z][a-z0-9_.-]*\.[a-z][a-z0-9_]*$/D', $reference) === 1;
+    }
+
+    /**
+     * The resource whose records a select field's options are when a Lookup supplies them (JSON `options_lookup`, PHP
+     * `$lookup->options(...)`), else null. A record view's `parent` field with such options must name a view of that
+     * resource (Registry::checkViews()).
+     */
+    public function references(): ?string
+    {
+        $lookup = $this->type === 'select' && $this->options instanceof Closure ? (new \ReflectionFunction($this->options))->getClosureThis() : null;
+        return $lookup instanceof Lookup ? $lookup->resource : null;
     }
 
     /** MediaSource resource of the column: `column.media`, or the file manager of a `file` field. */

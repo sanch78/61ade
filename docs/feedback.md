@@ -7349,6 +7349,9 @@ that exactly equals an option label lists every option. The managed
   `record-forms.spec.cjs` (the frame clips, the bar's radius is 0; 5 passed)
   and a corner screenshot checked pixel by pixel and removed. Commit
   `16ba150`.
+- **Reviewed (2026-11-18):** [FB-0225](#fb-0225) makes the 800 px window
+  cap an application setting and adds `column.placement` for a long text
+  outside the sections.
 
 <a id="fb-0178"></a>
 
@@ -9942,6 +9945,9 @@ that exactly equals an option label lists every option. The managed
   session), so this change does not cause them. No full-smoke claim.
 - **Status:** implemented and verified as above; the consumer wires it in
   its own session.
+- **Superseded in part (2026-11-18):** [FB-0223](#fb-0223) removes
+  `longText: "card"` and its fitting and makes the lone-media rule general;
+  `detailsWidth` and `data-blade-view` stay.
 
 <a id="fb-0219"></a>
 
@@ -10069,6 +10075,9 @@ that exactly equals an option label lists every option. The managed
   remainder did not run. No full-smoke claim.
 - **Status:** implemented and verified as above; the consumer declares it in
   its own session.
+- **Superseded (2026-11-18):** [FB-0224](#fb-0224) replaces `location:
+  'group'` with a declared `parent`; [FB-0226](#fb-0226) adds a path of the
+  page's own.
 
 <a id="fb-0221"></a>
 
@@ -10261,4 +10270,530 @@ that exactly equals an option label lists every option. The managed
   `toolkit-demo-assets` passed. In the combined run
   `toolkit-demo-assets.spec.cjs:148` hit the 30 s test timeout once (31.6 s)
   and passed in isolation (20.6 s). No full-smoke claim.
+- **Status:** implemented and verified as above.
+
+<a id="fb-0223"></a>
+
+## FB-0223 — A field subset in RecordDetails and one rule for a media field alone in a section (owner correction of FB-0218)
+
+- **Date:** 2026-11-18.
+- **Report:** owner correction of [FB-0218](#fb-0218). Two parts of it built
+  one consumer's record page into the framework:
+  - `RecordDetailsOptions.longText: "card"`: a long text as a card that
+    fills the height and scrolls on its own, fitted by a `ResizeObserver`;
+  - a label rule that dropped the label row only for a media field **with**
+    `detailsWidth`.
+
+  [FB-0221](#fb-0221) and [FB-0222](#fb-0222) had already replaced a similar
+  page-shaped option with the general `PageRegion.inner`. The feature demo's
+  D12 worked around the missing field subset: its `only()` helper copied the
+  view with filtered `detailFields`.
+- **Accepted expectation:** general capabilities instead of one page's
+  presentation:
+  - `RecordDetails` can show a chosen subset of the view's detail fields;
+  - every media field alone in a section shows its heading and the media
+    without a label row;
+  - the long-text card is removed, and a long text is again inline below
+    the groups.
+
+  The sized media slot (`detailsWidth`), the `Adatok` window widening and
+  `data-blade-view` stay. `data-blade-view` is documented as a general
+  per-view stylesheet hook, not a hook for one page.
+- **Contract:**
+  - **`RecordDetailsOptions.fields?: string[]`:** a subset of the view's
+    detail fields, in the view's detail-field order. A derived media column
+    (`mediaOf`) follows its media field. The ACL projection is unchanged: a
+    field the row lacks is not shown. An empty array, a non-string entry or
+    an id that is not a detail field throws `TypeError`. Without `fields`
+    nothing changes ([field subset](toolkit.md#recorddetails-fields)).
+  - **A media field alone in a section:** in `RecordDetails` and `Adatok`, a
+    section whose only shown field is a media field shows its heading and
+    the media without a label row. With `detailsWidth` the media is at that
+    width; without it, at the details' normal size: the group's width up to
+    320 px, in its kind's ratio
+    ([media alone in a section](workspaces.md#details-media-alone)).
+  - **Removed:** `RecordDetailsOptions.longText` (`"inline"`, `"card"`); the
+    CSS property `--blade-record-text-min-height`; the classes
+    `.blade-record-texts`, `.blade-record-text`, `.blade-record-text__body`
+    and `.blade-record-details--fill` (migration M89).
+
+  No new action, permission, catalogue key or event. This entry supersedes
+  the `longText` and label parts of FB-0218. Its sized image, window width
+  and `data-blade-view` stay
+  ([sized image in the details](workspaces.md#details-media-width)).
+- **Decisions:**
+  - The owner decided the four points above: the `fields` contract; the
+    removal of `longText` with its fitting code, CSS and types; keeping
+    `detailsWidth`, `--blade-record-media-width`, the window widening and
+    `data-blade-view`; and the general lone-media rule.
+  - "Media field" means `column.media`, or a `file` field naming a file
+    `resource` (`isMedia`). A static image column (`presentation: image`)
+    keeps its labelled row; it takes no details width either.
+  - Cards keep their own rendering. They share `recordFields` with the
+    details but call it without the details flag. A card shows its first
+    media column above the fields, and its other fields are unchanged.
+  - A media field without `detailsWidth` has no width of its own, so an
+    explicit `auto` track collapses it, as FB-0218 reported. This is
+    documented as a limit, not changed: such a field declares a details
+    width.
+  - `fields` with a repeated id is accepted: it selects a set.
+  - D12 found its `Adatok` fields by the Hungarian section label. The label
+    is translated, so in English `only()` copied no fields and the data
+    region was empty. With `fields` the empty list throws, so D12 now reads
+    the section from its `title` field.
+  - The 61ade-ui skill and its accepted-rule ledger no longer teach the
+    long-text card.
+- **Implemented:**
+  - Framework:
+    - `components/list/RecordDetails.ts`: validation and the subset for
+      `fields`; removed `longText`, `fitTexts`, the `ResizeObserver`,
+      `STACKED` and the paint and fit hooks.
+    - `RecordPresentation.ts`: `recordFields` takes a details flag, with
+      the general lone-media group; removed `recordText` and the
+      `.blade-record-texts` split.
+    - `components/list/details.ts`: `detailsHtml` without `longText`.
+    - `api/types.ts`, `admin.css` (the card and fill rules removed), and
+      the tracked build.
+  - Feature demo:
+    - [D11](demos.md#d11-media-sheets) (`media-sheet.ts`) mounts a plain
+      `RecordDetails`.
+    - [D12](demos.md#d12-media-browser) (`media-browser.ts`) uses `fields`;
+      `only()` is deleted.
+    - The two D11 guides and `covers` in `media-sheets.json` are rewritten,
+      with two replaced `en.json` entries, and the `media-sheets.php`
+      comment is updated.
+  - Documentation: [RecordDetails](toolkit.md#recorddetails),
+    [media alone in a section](workspaces.md#details-media-alone),
+    [sized image in the details](workspaces.md#details-media-width),
+    [usage](usage.md), [demos](demos.md#d11-media-sheets),
+    [focused checks](development.md#focused-task-groups), the
+    [StoryBloX handoff](handoff/storyblox.md#record-details-layout-d-084)
+    and the [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md).
+- **Not covered:**
+  - `fields` in the list's `Adatok` window, which shows every detail field
+    of the view;
+  - a static image column alone in a section;
+  - a text region that scrolls on its own: a page builds it from an inner
+    region and `RecordDetails` `fields` or its own element; there is no
+    framework presentation for it.
+- **Verification:**
+  - **Static checks:** `npm run typecheck`, `npm run build`, `npm run
+    demo:assets`, `node tests/shell/toolkit-components.mjs` and the PHP
+    checks `record-forms`, `configuration`, `i18n`, `contracts` and
+    `signage` passed. The PHP tests needed no change.
+  - **Retained spec:** `tests/shell/record-details-layout.spec.cjs` was
+    adapted (5 tests) and passed on the managed demo. Its card, fill and
+    fallback assertions are gone. It checks:
+    - at 1366 × 800: the 480 × 270 image, the image group exactly the image
+      plus 26 px beside the data group, and no label row; the brief as a
+      labelled long text 12 px below the groups across their width, with
+      all of its text; the details scrolling as a whole; the 480 × 270
+      placeholder; the `Adatok` window at the image width with the brief
+      inline; `Mellékletek` unchanged;
+    - at 390 px: the stacked groups, the image within its group by its
+      ratio, the brief below them in full, the sheet scrolling and no
+      horizontal scroll;
+    - on a fixture page at 1366 and 390 px, and with English labels at
+      1366 px:
+      - `fields` named out of order shows them in the view's order
+        (`Megnevezés`, `Év`; groups `Adatok`, `Kép`), with no brief;
+      - a named field the row lacks is not shown;
+      - seven invalid `fields` values throw `TypeError`;
+      - a copy of the view without `detailsWidth`: a media field with
+        another shown field in its section keeps its label row, and alone
+        among the shown fields (the row without the other field) it shows
+        the heading and a square image of `min(320 px, the group)`, with no
+        label row or sized slot;
+    - in English: the record page's `Image` group without a label and the
+      brief labelled `Description`;
+    - in Blade, Blade Night, light and dark: the image group's frame and
+      heading equal to the data group's.
+  - **D12 check:** `tests/shell/page-layout-inner.spec.cjs` gained one
+    assertion: in English, D12's data region shows `Name`, `Client`,
+    `Channel` and `Year`. It passed (5 tests).
+  - **Other affected specs:** `component-remount`, `toolkit-demo-assets`,
+    `record-forms` and `list-presentation` passed, in one final combined
+    run of 38 tests with the two specs above.
+  - **Failures on the way:** in the first combined run,
+    `page-layout-inner.spec.cjs:121` failed. D12's data region read its
+    section by the Hungarian label, and with `fields: []` it now threw, so
+    the regions stayed loading. This is fixed, and the spec covers it.
+    `record-forms.spec.cjs:229` hit the 30 s timeout once waiting for the
+    fixture module. That happened while a parallel session's PHP edits were
+    live on the demo; the spec passed in isolation and in the final run.
+  - **`auto`-track limit:** a temporary spec, since removed, confirmed it:
+    a lone media field without `detailsWidth` in the project's
+    `minmax(0, 1fr) auto` columns was 44 px wide in a 70 px track.
+  - **Links:** internal file and fragment links of the changed documents
+    resolve, except the links to this entry before it is inserted.
+    `git diff --check` is clean.
+
+  No full-smoke claim.
+- **Status:** implemented and verified as above. The consumer adapts in its
+  own session (M89).
+
+<a id="fb-0224"></a>
+
+## FB-0224 — A record page under its parent record (owner correction of FB-0220)
+
+- **Date:** 2026-11-18.
+- **Report:** owner correction of [FB-0220](#fb-0220): `location: 'group'`
+  was a one-consumer patch. It only dropped the source view's entry from the
+  bar; the parent itself (an episode's season) existed only as the view's own
+  `setLocation` segment. A page reached through a parent (a sub-view child,
+  `activate: 'page'`) also lost that parent on a reload, because the address
+  is only `#view=&record=` and a parent filter leaves the address after one
+  navigation. The resolved record row, however, carries the parent's
+  foreign key.
+- **Accepted expectation:** a record view declares its parent relation. The
+  bar reads: the root of the parent chain's menu path › each parent record's
+  title as a link to its record page › this record's level › the view's
+  `setLocation` segments. The chain is derived from row data, so it holds
+  after a reload, a direct link and Back/Forward. A parent the actor may not
+  read is left out, and the chain stops there without an error dialog. The
+  menu marker follows the root. Without `parent` nothing changes.
+  `location` is removed.
+- **Contract:** `parent` on a record view: PHP
+  `View(parent: ['field' => f, 'view' => v])`, JSON
+  `views.<id>.parent: {"field": f, "view": v}`, bootstrap and
+  `ViewDefinition.parent?: {field, view}`
+  ([parent records](shell.md#location-bar-parent),
+  [record views](toolkit.md#record-views),
+  [configuration](configuration.md), migration M90). Definition-time checks,
+  each failure an `InvalidArgumentException`:
+  - `parent` exists only on a record view, with exactly `field` and `view`
+    (JSON also takes `description`, as every configuration object, and does
+    not pass it on);
+  - `field` is a non-secret `select`, `number` or `text` field of the record
+    resource, the contract of a sub-view's reference field
+    (`Registry::subview()`);
+  - `view` is a record view (`checkViews()`, once every view is declared; a
+    self-reference is allowed); its `record` resource is the parent's. A
+    `select` whose options are a `Lookup` (JSON `options_lookup`, PHP
+    `$lookup->options(...)`) must be a `Lookup` of that resource, an extra
+    consistency check through the new `Field::references()` (`Lookup::$resource`
+    is now public).
+
+  Removed: PHP `View::$location` (see Decisions), the JSON key `location`,
+  the bootstrap key and `ViewDefinition.location`. No new action,
+  permission, event or framework catalogue key. The parent rows come from
+  the parent resource's existing, ACL-checked `get`.
+- **Decisions:**
+  - Reference field (review correction of the first version): any
+    non-secret `select`, `number` or `text` field of the record resource,
+    like a sub-view's field; the parent resource is `view`'s `record`. The
+    first version accepted only a `select` over a `Lookup` (read through
+    `ReflectionFunction::getClosureThis()`), which refused number and text
+    references and every other options source. That reading stays only as
+    the consistency check of a select over a `Lookup`. A scope-only field is
+    accepted: its value is never shown, only used to resolve the parent.
+  - The menu path, the marker and the compact siblings come from the
+    topmost parent record actually resolved (that parent view's menu
+    source), or from the view itself while none is: before the parents
+    arrive, and when the first parent is not offered, has an empty id or its
+    `get` fails. A failing parent therefore leaves that parent and every
+    level above it, its menu path included, out of the path: a note whose
+    task is gone reads `‹note›` alone, with the note view's icon and no
+    marker. The first version took them from the declared chain, so such a
+    page still showed the declared root's menu path and marker (review
+    correction).
+  - Resolution runs after the page is mounted and does not delay it: the
+    parent levels appear when their rows arrive. At most 4 parent records,
+    no record (resource and id) twice.
+  - `setLocation` keeps replacing only the record's own level (by default its
+    title); the parent levels stay in front of it. Composing "this record's
+    title › the setLocation segments" would duplicate the record's title on
+    pages that already name it in their segments (the task page, the
+    consumer's episode page).
+  - `LocationSegment.target.filters` (optional) is not added. Its code is
+    about 4 lines, but the rule that every new capability enters the feature
+    demo and is verified would need a demo level that links to a filtered
+    list. No demo page has such a level now that `parent` covers the parent
+    record.
+  - Temporary: PHP `View` still accepts and ignores a `location` argument.
+    StoryBloX's dev site loads this checkout directly (`lib/61ade` →
+    `packages/php`) and passes `location: 'group'` in `stories.php` lines 58
+    and 178, where an unknown named parameter is a fatal `Error` on every
+    request. Remove the parameter once StoryBloX has dropped it
+    ([handoff](handoff/storyblox.md)).
+  - Demo: the note page `demo.task-note`, under the task page, on the
+    notes' unchanged `number` field `task_id`. The first version had made it
+    an `options_lookup` select (`demo_tasks`); the review reverted that with
+    the reference contract, so the notes form is as before.
+- **Implemented:**
+  - PHP: `View.php` (`$parent` and its shape check), `Registry.php` (the
+    field in `check()`, the view in `checkViews()`), `Field.php`
+    (`references()`), `Lookup.php` (public `resource`),
+    `WorkspaceConfiguration.php` (JSON `parent` without its `description`,
+    `location` removed),
+    `Workspace.php` (bootstrap `parent`).
+  - Frontend: `api/types.ts` (`ViewDefinition.parent`, `location` removed),
+    `AdminShell.ts` (`locateParents()`, then the bar and the marker follow
+    the topmost resolved parent, `Mounted.parents`; `location: "group"`
+    removed).
+  - Feature demo ([D7](demos.md#d7-task-page)): in `tasks.json`, the notes'
+    `"activate": "view:demo.task-note"`, and the record view
+    `demo.task-note` with `parent: {field: task_id, view: demo.task-page}`.
+    In `task-page.ts`, the kind `demo.task-note` (the note's
+    `RecordDetails`; its level is the note's first 60 characters through
+    `setLocation`). English catalogue entries `Jegyzetlap` and the kind's
+    error.
+  - Docs: [shell](shell.md#location-bar-parent) (also the marker rule),
+    [toolkit](toolkit.md#record-views) (also `ViewHost.setLocation`),
+    [configuration](configuration.md), [usage](usage.md),
+    [demos](demos.md#d7-task-page), [development](development.md#focused-task-groups)
+    (the focused row), the StoryBloX [handoff](handoff/storyblox.md) and
+    the 61ade-application skill.
+- **Not covered:**
+  - One parent per record view (one reference field).
+  - The chain is resolved when the page opens; a parent's changed title
+    shows on the next opening, not live.
+  - No browser case for a chain of more than one parent or for the depth and
+    cycle limits: the feature demo has one level. The definition-time
+    self-reference is checked in PHP.
+  - No demo account is denied the parent while reading the child. The "may
+    not read" case is a fixture (a bootstrap without the parent's view) and
+    a parent `get` that fails on the real server (a note whose task does not
+    exist).
+- **Verification** (after the review corrections; the first version's runs
+  are superseded by these):
+  - Build and type checks: `npm run typecheck`, `npm run build`,
+    `npm run demo:assets` and `node tools/build.mjs --check` passed.
+  - PHP suites `contracts` (the bootstrap view shape admits `parent` instead
+    of `location`), `configuration`, `toolkit` and `i18n` passed.
+    `configuration` covers JSON `parent` accepted (also with a
+    `description`, which is not passed on, and on a `number` and a `text`
+    field) and ten rejections: three shapes, a view without `record`, a
+    missing, a secret and a `textarea` field, a view of another resource
+    than the select's lookup, a list view as the parent view, and the
+    removed `location` key. `toolkit` covers PHP `parent` accepted (a
+    `Lookup` select, a self-reference, a static select, a select with a
+    closure of its own, a `number` and a `text` field), rejected shapes,
+    rejected fields (missing, secret, `textarea`), rejected views (missing,
+    a list, a record view of another resource than the lookup, also for a
+    `number` field), the bootstrap key after `record`, and the temporary
+    `location` argument accepted and left out of the bootstrap.
+  - The retained `tests/shell/location-bar.spec.cjs` (12 tests with
+    FB-0226's, 4 for parents) passed on the managed demo:
+    - at 1366 and 390 px: a direct link and a reload of a note page read
+      `Feature demó › Feladatok › ‹task› › ‹note›` (on a phone `…`, the task
+      as the back link, the task's menu path in the `…` menu, no horizontal
+      scroll); the document title follows the note; the task link opens the
+      task page; Back and Forward return;
+    - at 1920 px: a double-click on a note in `Munka` opens the note page;
+      while the task's `get` is held (request interception, the held request
+      counted), the bar is the note alone with the note view's icon and there
+      is no marker; once it arrives, the full path and the marker
+      `Feature demó`;
+    - a note whose task does not exist, after the failed `get` has answered,
+      reads `‹note›` alone with the note view's icon, no marker and no
+      `alertdialog`;
+    - with the task page removed from the bootstrap (request interception of
+      the page document), the bar is the note alone with its view's icon, and
+      there is no marker and no dialog.
+  - Shell `window-title.spec.cjs` passed. In `task-page.spec.cjs`, `:29`
+    failed as recorded under [FB-0217](#fb-0217): it waits for a top-level
+    `Feature demó` menu item at 1366 px while the row is collapsed into
+    `Menü`, after the task page had opened. Its 8 other tests (the notes
+    list, `Munka` and its note commands, on the reverted `number` field)
+    passed in isolation (`--grep-invert`).
+  - Temporary checks, run and then removed: copies of `toolkit.php` and
+    `configuration.php` printing the reason of every parent rejection (each
+    hit its intended check). The first version's check of creating notes
+    through the `demo_tasks` lookup no longer applies (the lookup is gone).
+  - No full-smoke claim.
+- **Status:** implemented and verified as above. StoryBloX removes
+  `location: 'group'` and declares `parent` in its own session; then 61ade
+  drops the ignored `View` argument.
+
+<a id="fb-0225"></a>
+
+## FB-0225 — The default fitted-window height per application, and a placement for a long text outside the sections
+
+- **Date:** 2026-11-18.
+- **Report:** review of FB-0177 for consumer-shaped parts (owner request).
+  Two parts of [FB-0177](#fb-0177) (migration M58) were fixed to one
+  consumer's screen: `WindowSizing.ts` capped every fitted window at a fixed
+  800 px (`FIT_MAX_HEIGHT`, `Math.min(innerHeight - 24, 800, content)`) with
+  no recorded reasoning, changeable only per window through
+  `WindowOptions.maxHeight`; and in cards and record details
+  (`RecordPresentation.ts` `recordFields`) a long text outside every section
+  always stood last, below all groups across the whole width, with no
+  declaration to place it elsewhere.
+- **Accepted expectation:** the default maximum height of fitted windows is
+  configurable per application, 800 px staying the fallback and a window's
+  own `maxHeight` still winning; a long text outside the sections can be
+  declared at the end (today's behaviour), as a row at its declaration place,
+  or as a group of its own at that place. Without the new declarations
+  nothing changes.
+- **Contract:**
+  - **Window height:** PHP `ApplicationDefinition` `windowMaxHeight`, JSON
+    `application.window_max_height`: an integer 320–4000 px; another value
+    throws `InvalidArgumentException` (JSON: any non-integer too; PHP's
+    `?int` declaration makes a non-integer a `TypeError`). The signed-in
+    bootstrap (application pages, public access included) carries
+    `windowMaxHeight` only when declared. `fitWindow` uses it as its default
+    instead of the constant; without it the browser keeps 800
+    (`FIT_MAX_HEIGHT`), `WindowOptions.maxHeight` still wins, and the viewport
+    less 24 px still caps it. It reaches every fitted window: the list's
+    filter, create, update, bulk, `Adatok` and card-field windows, a
+    `RecordForm` window, a fitted `app.ui.window`, and the file manager's,
+    diagram's and calendar's form windows
+    ([window sizing](workspaces.md#window-sizing)).
+  - **Placement:** field option `column.placement` (PHP `Field` `column`,
+    JSON `column.placement`, `ColumnMetadata.placement`, new type
+    `ColumnPlacement`), sent in the list columns and the detail fields like
+    `cardLines` and `detailsWidth`: `"end"` (default) below all groups across
+    the width; `"row"` at the field's declaration place among the groups
+    across the width, labelled; `"group"` at that place as a group of its own
+    in the group grid, one track like a section's group, titled by the
+    field's label, the text without a label row. It applies wherever
+    `recordFields` groups fields: cards, the `Adatok` window and
+    `RecordDetails`. Without sections the fields stay one list and the option
+    has no effect. Accepted only on a long text (a `textarea` without
+    `column.presentation` or `editor`) without a `section`, and only as one of
+    the three values; anything else throws `InvalidArgumentException` at
+    definition time ([long-text placement](workspaces.md#long-text-placement)).
+  - No new action, permission, catalogue key or event.
+- **Decisions:**
+  - Why 800 px stays the fallback: it keeps a form window readable on
+    1366 × 768 and 1080p screens without a full-height wall of fields; it is
+    now documented with how to change it.
+  - The bootstrap key is set on application pages only (inside the actor
+    branch, beside `modules`): sign-in windows are not fitted by `fitWindow`.
+  - The browser accepts the bootstrap value only as an integer 320–4000
+    (`configureWindowSizing`) and otherwise keeps 800; the server already
+    validates it.
+  - "Without its own display" is decided at definition time as "no
+    `column.presentation` and no `editor`": the server cannot know whether a
+    project field type registers a `display`, so an `editor` field is refused
+    rather than accepted with a placement the browser might ignore.
+  - A `group` text is rendered as a framed `section` with the group title and
+    the value alone (`.blade-grid-card__field--bare`, value element
+    `.blade-grid-card__value`), not a `dl` without a `dt`, following the
+    media-alone group of [FB-0223](#fb-0223); it keeps the field's card lines,
+    whole text in the details, card editing and the emphasized-record weight.
+    A `row` text is the labelled `dl.blade-record-wide` inside the group grid
+    (`blade-record-wide--row`, `grid-column: 1 / -1`).
+  - Demo: `Mellékletek`'s reason declares `group` (between `Alapadatok` and
+    `Képek`; with the demo's 1:2 columns `Alapadatok` and the reason share
+    the first row, `Képek` the next); D11's brief keeps `end`, so D11 and D12
+    are unchanged. The feature demo declares no `windowMaxHeight`: any value
+    other than 800 changes the cap its window specs check (a higher one makes
+    `Mellékletek`'s create window with `Képek` open taller than the asserted
+    800 px at the specs' 900 px viewport; a lower one changes every fitted
+    window of the demo). The capability is shown through a fixture bootstrap
+    in `record-forms.spec.cjs` and the PHP checks instead.
+- **Implemented:**
+  - PHP: `ApplicationDefinition::$windowMaxHeight` (range check),
+    `JsonApplication` (`window_max_height`), `Shell/Application.php`
+    (bootstrap `windowMaxHeight` only when declared), `Field::PLACEMENTS` and
+    the `column.placement` checks, `ListViewKind` (placement in the detail
+    fields; the columns carry the field's column options already).
+  - Frontend: `WindowSizing.ts` (`configureWindowSizing`, the default of
+    `fitWindow`, the documented fallback), `AdminShell.ts`
+    (`ShellDefinition.windowMaxHeight`, configured in the constructor),
+    `api/services.ts` (`openWindow` validates only a given `maxHeight` and
+    leaves the default to `fitWindow`), `api/types.ts`
+    (`WindowOptions.maxHeight` doc, `ColumnMetadata.placement`,
+    `ColumnPlacement`), `components/list/types.ts`, `RecordPresentation.ts`
+    (`recordFields` placement, `recordField` without its label row),
+    `admin.css` (row and text-group rules, the value element beside `dd` in
+    the card, clamp, emphasis and details rules); `dist` rebuilt.
+  - Demo: `examples/demo-app/attachments.php` (the reason's `placement`).
+  - Guides: [workspaces](workspaces.md#long-text-placement) (card groups,
+    the placement table, window sizing with the 800 px reasoning and the
+    application key), [configuration](configuration.md) (application
+    `window_max_height`, field `column.placement`),
+    [toolkit](toolkit.md) (`WindowOptions.maxHeight`, the section columns,
+    `RecordDetails`), [usage](usage.md), [demos](demos.md) (`Mellékletek`,
+    section column sizing), [development](development.md) focused rows,
+    [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md) and
+    [61ade-application skill](../.agents/skills/61ade-application/SKILL.md).
+- **Not covered:** the placement inside a section (a sectioned field follows
+  its section); a per-view or per-`RecordDetails` placement (the option is
+  the field's, like `cardLines`); `windowMaxHeight` for document windows and
+  `fit: false` windows, which keep their size as before; the feature demo
+  does not declare `windowMaxHeight` (see Decisions). The accepted-rules
+  ledger has no FB-0225 row yet (proposed below).
+- **Verification:**
+  - `npm run typecheck`, `npm run build` (`node tools/build.mjs --check`
+    clean), `npm run demo:assets`; `node tests/shell/toolkit-components.mjs`;
+    `git diff --check`; internal links of the changed guides and skills (only
+    the pending feedback anchors are missing).
+  - PHP passed: `record-forms` (placement `end`/`row`/`group` accepted with
+    card lines; refused on a text and a select field, a sectioned textarea, a
+    textarea with a presentation or an editor, and as `middle`, `Row`, `''`,
+    `true` and `['row']`; placement in the detail fields and columns, absent
+    without it; JSON `column.placement` read, refused on a sectioned field),
+    `configuration` (no default; `window_max_height` 320 and 4000 read; 319,
+    4001, 0, −800, `"800"`, 800.5, `true`, `null`, `[800]` and the camelCase
+    key refused; PHP `windowMaxHeight` 319/4001 refused, 960 kept),
+    `toolkit` (the signed-in bootstrap carries `windowMaxHeight` only when
+    declared), `contracts`, `i18n`, `list-presentation`, `lists`.
+  - Browser on the managed demo, retained specs:
+    - `record-forms.spec.cjs` (6 passed): the demo's bootstrap has no
+      `windowMaxHeight`; with a fixture bootstrap of `windowMaxHeight: 400` a
+      `RecordForm` window fits to 400 px with its action row at the edge, a
+      window `maxHeight: 600` fits higher (over 400, at most 600), and the
+      list's `Hozzáadás` window with `Képek` open stays at 400 px; the cards
+      and `Adatok` show `Alapadatok`, the `Indoklás` group (no label row, six
+      card lines) and `Képek`, the first two side by side with equal heights
+      and `Képek` in the next row, nothing below the groups; a phone stacks
+      them in that order.
+    - `record-details-layout.spec.cjs` (7 passed): a new fixture at 1366 and
+      390 px mounts copies of `Mellékletek` with the reason's placement
+      `end`, `row` and `group` as a cards-only `ListView` and a
+      `RecordDetails`: `end` below the groups across their width, labelled;
+      `row` between the sections across the whole width, labelled, `Képek`
+      below it; `group` titled `Indoklás` without a label row, at 1366 px in
+      the second (2fr) track beside `Alapadatok` with the same height and
+      `Képek` in the next row, at 390 px stacked; the card clamps the text to
+      six lines, the details do not; no horizontal page scroll. The
+      `Mellékletek` `Adatok` check now finds the text group.
+    - Also passed: `form-rows`, `list-presentation`, `mobile-grid`,
+      `page-layout-inner` (35 together), `stored-file` (2), `form-accordion`
+      and `window-title` (9 together; the changed `fitWindow`/`openWindow`
+      default path).
+    - A temporary screenshot spec (removed) compared the text group with a
+      section group in Blade, Blade Night, light and dark: the same frame,
+      title background, value colour, size and line height; the screenshots
+      were checked by eye and removed. No full-smoke claim.
+- **Status:** implemented and verified as above (not committed).
+
+<a id="fb-0226"></a>
+
+## FB-0226 — A location path entirely of the page's own
+
+- **Date:** 2026-11-18.
+- **Report:** owner instruction while [FB-0224](#fb-0224) was being made:
+  the automatic path (menu path, declared parents) is welcome, but a project
+  must also be able to build a completely custom path with links. A consumer's
+  season page showed `Történetek › Évadok › 1. évad` once `location: 'group'`
+  stopped working, and `setLocation` could only replace the levels after the
+  menu path.
+- **Accepted expectation:** a page can replace the whole location bar with its
+  own levels, each with a link, a button or plain text; a link can lead to a
+  filtered list. The automatic path stays the default.
+- **Contract:** `ViewHost.setLocation(segments, {from: "page" | "root"})`
+  (default `"page"`; anything else throws `TypeError`); `LocationSegment`
+  `target.filters` (field → text value, at most 20, field names
+  `[a-z][a-z0-9_]*`, values up to 255 characters; ignored for a record view;
+  else `TypeError`) ([own path](shell.md#location-bar-own-path), migration M90).
+  No new action, permission or catalogue key; a target the actor is not offered
+  stays plain text as before.
+- **Decisions:** the menu marker keeps following the menu source (the bar
+  shows a place, the marker the menu entry); the document title follows the
+  last segment as for every path; the first segment gets the view's icon so the
+  bar keeps its leading icon; an empty array with `from: "root"` returns to the
+  automatic path, as `setLocation([])` does (kept and documented after review).
+- **Implemented:** `AdminShell.ts` (`Mounted.whole`, `locate()`,
+  `places()` filters, `setLocation` option), `api/types.ts`; feature demo
+  D12 `Médiaböngésző` sets `Médialapok › ‹channel› › ‹sheet›` with the
+  channel linking to the filtered list (`media-browser.ts`).
+- **Verification:** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`; new test in the retained `tests/shell/location-bar.spec.cjs`:
+  the menu path before a selection, the whole bar after it, the leading icon,
+  the document title, the filtered link's address, the list it opens filtered
+  by channel, no page errors.
 - **Status:** implemented and verified as above.

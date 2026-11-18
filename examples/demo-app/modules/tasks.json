@@ -1,7 +1,7 @@
 {
     "section_descriptions": {
         "purpose": "Feature demo: one synthetic module that exercises the declarative workspace capabilities.",
-        "covers": "panel form, filters, sorting, cards, inline grid editing (text, select, checkbox), related storage, pattern validation, multiple choice, delete, selection with bulk action, registered business action, business rule hook with a field error, a project field type (priority rating) and a client record command (copy as text), and a task page (record view) with a menu-less notes list sorted oldest first."
+        "covers": "panel form, filters, sorting, cards, inline grid editing (text, select, checkbox), related storage, pattern validation, multiple choice, delete, selection with bulk action, registered business action, business rule hook with a field error, a project field type (priority rating) and a client record command (copy as text), and a task page (record view) with a menu-less notes list sorted oldest first, whose notes open a note page (a record view whose parent is the task)."
     },
     "resources": {
         "demo_tasks": {
@@ -242,6 +242,7 @@
                     "delete"
                 ],
                 "menu": false,
+                "activate": "view:demo.task-note",
                 "sort": {
                     "field": "id",
                     "direction": "asc"
@@ -333,6 +334,23 @@
             "options": {
                 "details": "demo_tasks",
                 "notes": "demo_task_notes"
+            }
+        },
+        "demo.task-note": {
+            "kind": "demo.task-note",
+            "title": "Jegyzetlap",
+            "resource": "demo_task_notes",
+            "record": "demo_task_notes",
+            "parent": {
+                "field": "task_id",
+                "view": "demo.task-page"
+            },
+            "actions": [
+                "get"
+            ],
+            "icon": "bi bi-sticky",
+            "options": {
+                "details": "demo_task_notes"
             }
         }
     }

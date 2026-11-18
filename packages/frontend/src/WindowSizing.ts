@@ -1,16 +1,29 @@
 import {type Window,awaitRedraw} from "@dhtmlx/suite";
 import {finishMotion} from "./Motion";
 
-/** Default cap of a fitted window's height in px (FB-0177): a centred dialog, not a full-height one; the viewport caps it too. */
+/**
+ * Fallback cap of a fitted window's height in px (FB-0177): a centred dialog, not a full-height one; the viewport caps it
+ * too. 800 px keeps a form window readable on 1366 × 768 and 1080p screens without a full-height wall of fields; an
+ * application declares its own default (`ApplicationDefinition::$windowMaxHeight`, bootstrap `windowMaxHeight`, FB-0225).
+ */
 export const FIT_MAX_HEIGHT=800;
+let defaultMaxHeight=FIT_MAX_HEIGHT;
+/**
+ * The application's default cap (the shell's bootstrap `windowMaxHeight`): an integer 320–4000; anything else (also
+ * none) keeps FIT_MAX_HEIGHT. A window's own `maxHeight` still wins.
+ */
+export function configureWindowSizing(maxHeight?:unknown):void{
+  defaultMaxHeight=typeof maxHeight==="number"&&Number.isInteger(maxHeight)&&maxHeight>=320&&maxHeight<=4000?maxHeight:FIT_MAX_HEIGHT;
+}
 /**
  * Measure rendered Form actions or natural HTML content, including window chrome, and fit the height to it up to
- * $maxHeight (and the viewport minus 24 px). A taller form scrolls between the fixed header and its action row, which
- * sticks to the window's lower edge (admin.css). A Form textarea then takes any height the window has or gains beyond
- * that, so a clamped or resized window leaves no gap below its actions; that growth and the sticking are paused while
- * measuring. Accordion form sections are measured all shown, so the height is the same whichever sections are open.
+ * $maxHeight (by default the application's, `configureWindowSizing`, and always the viewport minus 24 px). A taller form
+ * scrolls between the fixed header and its action row, which sticks to the window's lower edge (admin.css). A Form
+ * textarea then takes any height the window has or gains beyond that, so a clamped or resized window leaves no gap below
+ * its actions; that growth and the sticking are paused while measuring. Accordion form sections are measured all shown,
+ * so the height is the same whichever sections are open.
  */
-export async function fitWindow(win:Window,maxHeight=FIT_MAX_HEIGHT,selector=".dhx_form button, .blade-record-details"):Promise<void>{
+export async function fitWindow(win:Window,maxHeight=defaultMaxHeight,selector=".dhx_form button, .blade-record-details"):Promise<void>{
   await awaitRedraw();
   if(!win.isVisible())return;
   const container=win.getContainer();

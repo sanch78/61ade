@@ -141,6 +141,21 @@ try {
         $write([...$settings, 'application' => [...$settings['application'], ...$bad]]);
         rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid frame sources accepted: '.json_encode($bad));
     }
+    // The default largest height of fitted windows (docs/workspaces.md#window-sizing, FB-0225): none by default (the
+    // browser's 800), an integer 320–4000; the PHP definition refuses the same range.
+    verify($app->windowMaxHeight === null, 'No window maximum height by default');
+    foreach ([320, 4000] as $height) {
+        $write([...$settings, 'application' => [...$settings['application'], 'window_max_height' => $height]]);
+        verify(JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->windowMaxHeight === $height, 'JSON application.window_max_height '.$height);
+    }
+    foreach ([319, 4001, 0, -800, '800', 800.5, true, null, [800]] as $bad) {
+        $write([...$settings, 'application' => [...$settings['application'], 'window_max_height' => $bad]]);
+        rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Invalid window maximum height accepted: '.json_encode($bad));
+    }
+    $write([...$settings, 'application' => [...$settings['application'], 'windowMaxHeight' => 900]]);
+    rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'camelCase application.windowMaxHeight accepted');
+    foreach ([319, 4001] as $bad) rejected(static fn() => new Blade\Shell\ApplicationDefinition('X', $app->identities, new Blade\Navigation\Menu([]), sys_get_temp_dir(), windowMaxHeight: $bad), 'Invalid PHP windowMaxHeight accepted: '.$bad);
+    verify((new Blade\Shell\ApplicationDefinition('X', $app->identities, new Blade\Navigation\Menu([]), sys_get_temp_dir(), windowMaxHeight: 960))->windowMaxHeight === 960, 'PHP windowMaxHeight');
     // Session cookie policy and client-address binding (docs/authentication.md#cookie-samesite): opt-in session keys.
     verify($app->sameSite === 'Lax' && $app->bindSessionToClientAddress === false, 'Lax and unbound sessions by default');
     $write([...$settings, 'session' => [...$settings['session'], 'same_site' => 'Strict', 'bind_to_client_address' => true]]);
@@ -378,6 +393,38 @@ try {
         $mutated = $toolkit;
         $mutate($mutated);
         rejected(static fn() => $toolkitBuild($mutated), 'Invalid toolkit JSON accepted: '.$case);
+    }
+    // A record view's `parent` (docs/configuration.md): `{field, view}` (and `description`), the field a non-secret select,
+    // number or text field of the record resource, the view a record view (of the lookup's resource for an
+    // `options_lookup` select).
+    $parented = $toolkit;
+    $parented['lookups'] = ['projects' => ['resource' => 'projects', 'table' => 'projects', 'key' => 'id', 'label' => 'title']];
+    $parented['resources']['steps'] = ['storage' => ['table' => 'steps', 'key' => 'id'], 'fields' => [['name' => 'project_id', 'label' => 'Project', 'type' => 'select', 'options_lookup' => 'projects'], ['name' => 'note', 'label' => 'Note', 'type' => 'textarea']], 'view' => ['title' => 'Steps']];
+    $parented['views']['demo.step'] = ['kind' => 'demo.viewer', 'title' => 'Step', 'resource' => 'steps', 'record' => 'steps', 'actions' => ['get'], 'parent' => ['field' => 'project_id', 'view' => 'demo.viewer']];
+    verify($toolkitBuild($parented)->viewById('demo.step')->parent === ['field' => 'project_id', 'view' => 'demo.viewer'], 'JSON record view parent');
+    $described = $parented;
+    $described['views']['demo.step']['parent'] = ['description' => 'The step\'s project.', 'field' => 'project_id', 'view' => 'demo.viewer'];
+    verify($toolkitBuild($described)->viewById('demo.step')->parent === ['field' => 'project_id', 'view' => 'demo.viewer'], 'JSON record view parent with a description');
+    foreach (['number', 'text'] as $type) {
+        $typed = $parented;
+        $typed['resources']['steps']['fields'][0] = ['name' => 'project_id', 'label' => 'Project', 'type' => $type];
+        verify($toolkitBuild($typed)->viewById('demo.step')->parent === ['field' => 'project_id', 'view' => 'demo.viewer'], 'JSON record view parent on a '.$type.' field');
+    }
+    foreach ([
+        'parent without view' => static function (array &$m): void { unset($m['views']['demo.step']['parent']['view']); },
+        'unknown parent key' => static function (array &$m): void { $m['views']['demo.step']['parent']['label'] = 'title'; },
+        'parent as a string' => static function (array &$m): void { $m['views']['demo.step']['parent'] = 'demo.viewer'; },
+        'parent on a view without a record' => static function (array &$m): void { unset($m['views']['demo.step']['record']); },
+        'missing parent field' => static function (array &$m): void { $m['views']['demo.step']['parent']['field'] = 'missing'; },
+        'secret parent field' => static function (array &$m): void { $m['resources']['steps']['fields'][0]['secret'] = true; },
+        'parent field of another type' => static function (array &$m): void { $m['views']['demo.step']['parent']['field'] = 'note'; },
+        'parent view of another resource than the lookup' => static function (array &$m): void { $m['views']['demo.step']['parent']['view'] = 'demo.step'; },
+        'parent view without a record' => static function (array &$m): void { $m['resources']['steps']['fields'][0] = ['name' => 'project_id', 'label' => 'Project', 'type' => 'number']; $m['views']['demo.step']['parent']['view'] = 'projects.main'; },
+        'removed location key' => static function (array &$m): void { $m['views']['demo.step']['location'] = 'group'; },
+    ] as $case => $mutate) {
+        $mutated = $parented;
+        $mutate($mutated);
+        rejected(static fn() => $toolkitBuild($mutated), 'Invalid JSON parent accepted: '.$case);
     }
     // A view id is declared once: a second resource whose view takes the same id fails at load (no replacement).
     $taken = $toolkit;
