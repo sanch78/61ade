@@ -704,8 +704,11 @@ Every page view gets the [location bar](shell.md#location-bar) below the menu
 row without consumer code: its menu path and, for a record page, the record's
 title (declare the record view's `record_title` field). A page with levels of
 its own (an overview and its scenes, a parent and its children) calls
-`host.setLocation(segments)` whenever its selection changes. Verification:
-the location bar entry of the [feedback log](feedback.md#fb-0217).
+`host.setLocation(segments)` whenever its selection changes. A record page
+reached through a parent level other than its resource's menu list (an
+episode through its season) declares `location: "group"`, so its levels
+follow the group directly. Verification: the location bar entries of the
+[feedback log](feedback.md#fb-0217) ([FB-0220](feedback.md#fb-0220)).
 
 The main-menu row uses flat, full-height menu items and selectors with shared
 hover/focus states, content-sized controls and symmetric separator spacing;

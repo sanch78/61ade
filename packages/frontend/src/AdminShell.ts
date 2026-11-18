@@ -690,8 +690,8 @@ export class AdminShell {
 
   /**
    * Draws the location bar of the page view (docs/shell.md#location-bar): the menu path of its menu source (group, then
-   * the entry; the first level with the section's icon), then the page's own levels; hidden without a page. The
-   * document title follows the current level.
+   * the entry, which a record view's `location: "group"` leaves out; the first level with the section's icon), then the
+   * page's own levels; hidden without a page. The document title follows the current level.
    */
   private locate():void{
     const bar=this.locationBar,page=this.page,cell=this.layout.getCell("location");
@@ -701,7 +701,7 @@ export class AdminShell {
     const view=page.view,source=this.menuSource(view),group=source?.group??(view.record?view.group:undefined);
     const places:Place[]=[];
     if(group)places.push({label:group,icon:this.definition.menuGroupIcons?.[group]??"bi bi-folder2-open"});
-    if(source)places.push({label:source.title,...(places.length?{}:{icon:source.icon??"bi bi-table"}),...(source===view?{}:{href:"#"+routeHash({view:source.id})})});
+    if(source&&!(view.record&&view.location==="group"))places.push({label:source.title,...(places.length?{}:{icon:source.icon??"bi bi-table"}),...(source===view?{}:{href:"#"+routeHash({view:source.id})})});
     const own=[...page.location??[]];
     if(!places.length&&own.length)own[0]={icon:view.icon??"bi bi-file-earmark-text",...own[0]};
     places.push(...own);

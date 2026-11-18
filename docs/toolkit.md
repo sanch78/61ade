@@ -2334,7 +2334,11 @@ has no menu entry. Its optional `recordTitle` (PHP `View(recordTitle:)`,
 JSON `record_title`) names a readable, non-secret field of the record
 resource whose value titles the record in the
 [location bar](shell.md#location-bar) (default: the view's title); the view
-may replace that level with `host.setLocation`. As a page, it inherits the record resource's
+may replace that level with `host.setLocation`. Its optional `location`
+(PHP `View(location: 'group')`, JSON `"location": "group"`) starts the bar
+at the menu group without the source view's entry, for a record reached
+through a parent level that is not that menu list
+([location bar](shell.md#location-bar)). As a page, it inherits the record resource's
 [menu context](shell.md#elkülönülő-főmenügombok) from an offered menu view;
 its optional `group` restricts the source group. `open: "page"` (default) mounts it in the workspace with an
 address and history entry; `open: "window"` opens a framework document window
@@ -3424,6 +3428,7 @@ markup may change without notice.
 | 2026-11-13 | PHP `View::$available` (`Closure(Context): bool`) and `available` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.available`, `views.<id>.available` (binding names): a view offered only while the closure allows it for the bootstrap's actor and tenant. Additive (M78). | [FB-0204](feedback.md#fb-0204) |
 | 2026-11-16 | `ValueTone`, `ColumnMetadata.tones`, `ListKindOptions.emphasis`, `ViewDefinition.attention.label`; PHP field `column.tones`, `emphasis` parameters of `View::list`, `Registry::view`, `SqlResource::register`, attention `label`, computed `select` fields, public `Registry::filterable`; JSON `column.tones`, `view.emphasis`, `view.attention.label`. Additive (M83). | [FB-0212](feedback.md#fb-0212) |
 | 2026-11-18 | PHP/JSON field `column.detailsWidth` / `column.details_width` (media fields, 160–800), `ColumnMetadata.detailsWidth`, `RecordDetailsOptions.longText` (`"inline"` default, `"card"`), CSS property `--blade-record-text-min-height`, the details element's `data-blade-view`; the `Adatok` window widens for a sized image (M85). Additive. | [FB-0218](feedback.md#fb-0218) |
+| 2026-11-18 | PHP `View::$location`, JSON `views.<id>.location` (`"group"`, record views only), `ViewDefinition.location`: the location bar starts at the menu group without the source view's entry (M87). Additive. | [FB-0220](feedback.md#fb-0220) |
 
 <a id="resolved-decisions"></a>
 

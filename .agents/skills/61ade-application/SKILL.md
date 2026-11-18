@@ -79,7 +79,9 @@ that covers the need.
    Declare `record_title` (the field that names the record) so the shell's
    [location bar](../../../docs/shell.md#location-bar) shows it; a page with
    levels of its own calls `host.setLocation` instead of building a path
-   line.
+   line. A record reached through a parent level that is not its
+   resource's menu list declares `location: "group"`, so those levels
+   follow the group directly.
 4. **Activation map** per row, with `view:<id>` targets
    ([activation map](../../../docs/toolkit.md#activation-map)). A media field
    is keyed by its MIME class. Leave out `*` where the other rows should keep

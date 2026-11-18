@@ -726,6 +726,12 @@ export interface ViewDefinition<Options = unknown> {
    * `recordTitle`, JSON `views.<id>.record_title`); absent, or an empty value: the view's title.
    */
   recordTitle?: string;
+  /**
+   * A record view's location bar start (PHP `location`, JSON `views.<id>.location`): `"group"` starts at the menu group,
+   * without the source view's entry; the menu marker and the compact siblings still follow the source. Absent: the
+   * source view's menu path.
+   */
+  location?: "group";
   /** Actions of `resource` offered to the actor, with their field metadata. */
   actions: ActionMetadata[];
   /** Kind configuration: browser-safe JSON only, never backend-only data. */

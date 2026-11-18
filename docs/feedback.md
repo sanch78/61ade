@@ -899,3 +899,7 @@
 <a id="fb-0219"></a>
 
 ## FB-0219 — A sub-view card button that opens the child page
+
+<a id="fb-0220"></a>
+
+## FB-0220 — A record page whose location bar starts at its group
