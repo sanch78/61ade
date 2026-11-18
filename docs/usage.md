@@ -425,6 +425,16 @@ another count) with the whole text in
 declares field sections: the [groups](workspaces.md#card-groups) then sit side
 by side ([FB-0177](feedback.md#fb-0177)).
 
+A record page that shows a record's data beside its image and its main text
+below them gives the media field `column.detailsWidth` (JSON
+`column.details_width`, 160–800 px) in a section of its own, sets
+`--blade-record-group-columns: minmax(0, 1fr) auto` for the view
+(`.blade-record-details[data-blade-view="<view id>"]`), and mounts
+`RecordDetails` with `longText: "card"`: the image keeps its width and ratio
+without a repeated label, and the text scrolls in its own card while the rest
+stays in place ([sized image in the details](workspaces.md#details-media-width),
+[RecordDetails](toolkit.md#recorddetails), [FB-0218](feedback.md#fb-0218)).
+
 A form window fits its content up to 800 px (`app.ui.window` `maxHeight`
 for more); a taller form scrolls between the window header and its action
 row, which stays at the window's lower edge
@@ -689,6 +699,13 @@ Record pages automatically retain the menu context of the first offered menu
 view for their `record` resource, including direct links and reloads. An explicit
 `group` limits that inheritance to the named group; see the
 [menu context rules](shell.md#elkülönülő-főmenügombok).
+
+Every page view gets the [location bar](shell.md#location-bar) below the menu
+row without consumer code: its menu path and, for a record page, the record's
+title (declare the record view's `record_title` field). A page with levels of
+its own (an overview and its scenes, a parent and its children) calls
+`host.setLocation(segments)` whenever its selection changes. Verification:
+the location bar entry of the [feedback log](feedback.md#fb-0217).
 
 The main-menu row uses flat, full-height menu items and selectors with shared
 hover/focus states, content-sized controls and symmetric separator spacing;

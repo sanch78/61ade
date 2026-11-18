@@ -105,6 +105,9 @@
   pointer-events: none;
 }
 .blade-navigation-row .dhx_menu-nav > .blade-menu-current .dhx_nav-menu-button::after { background-image: var(--blade-gradient); }
+/* With the location bar the two rows are one surface: its lower edge takes the row's rule and shadow. */
+.blade-located .blade-navigation-row { box-shadow: none; }
+.blade-location-row { position: relative; z-index: 2; box-shadow: 0 1px 0 var(--blade-panel-border), 0 4px 12px -6px rgb(16 24 40 / 18%); }
 
 /* Popup menu items: the highlight floats inside the popup as a rounded pill instead of touching its edges. */
 .dhx_menu--popup-menu > .dhx_menu { padding: 4px 0; }

@@ -1145,7 +1145,7 @@ marker. For example, `demo.playlist-editor` (`record: signage_playlists`)
 inherits `Lejátszási listák` and its `Digitális kijelző` group, including on a
 direct link, reload and Back/Forward. The same source supplies the compact
 desktop siblings; a group-only match supplies its children without selecting
-one. A record opened in a window keeps the underlying page's menu context.
+one. A record opened in a window keeps the underlying page's menu context. The [location bar](#location-bar) shows the same source.
 Selectors have only transient hover, focus and open
 states. The marker is separate from the native popup's `active` state.
 Submenus retain native compact list layout. Separators are faint 1 px rules
@@ -1155,6 +1155,78 @@ for phone-row space.
 Verified by the managed-demo shell/skin checks and focused desktop/phone
 geometry and state comparisons. FB-0100 replaced the FB-0025 bordered buttons;
 FB-0122 unifies the full row and removes the separate Blade folder-tab treatment.
+
+<a id="location-bar"></a>
+
+## Location bar
+
+Every page view states where the user is in one shell-owned line directly
+below the menu row, across the full width, before the workspace
+([FB-0217](feedback.md#fb-0217)). The empty workspace has no bar.
+
+```text
+[icon] Feature demó › Feladatok › Synthetic task 01 › Munka
+```
+
+- **Default content, no consumer code:** the menu path of the open view
+  (its group, then its entry), the same source that carries the
+  [current-section marker](#elkülönülő-főmenügombok). A record page shows
+  its source view's path, then the record's title: the value of the record
+  view's declared `recordTitle` field (PHP `View(recordTitle: 'title')`,
+  JSON `views.<id>.record_title`, a readable, non-secret, non-scope-only
+  field of the `record` resource, checked at definition time), or the view's
+  title when none is declared, the actor may not read it or it is empty.
+  Without a source view, the declared group or, without one, the record
+  view's own icon starts the path. This also holds after a direct link,
+  reload and Back/Forward.
+- **Content from the view:** `host.setLocation(segments)`
+  ([toolkit](toolkit.md#views)) replaces everything after the menu path
+  (for a record page, also the record title) with up to 16 segments
+  `{label, icon?, target?: {view, record?}}` or `{label, icon?, onSelect}`.
+  A `target` is a link to that view (with `record`, that record of a record
+  view), drawn only when the actor is offered it; otherwise the segment is
+  plain text. `onSelect` is a button for a place inside the page, such as a
+  parent level of its own tree or list. The view calls it again whenever its
+  selection changes; only the bar is redrawn, the workspace and its
+  components keep their state. Labels are plain text (1–200 characters),
+  `icon` [icon classes](icons.md); anything else throws `TypeError`.
+  `setLocation([])` leaves the menu path only. A call after the view closed,
+  or from a view in a window, changes nothing.
+- **Look:** a 32 px line in the menu row's chrome surface
+  (`--dhx-s-toolbar-background`, the Blade chrome gradient in Blade and
+  Blade Night), joined to the menu row: Suite's 1 px rule below the row is
+  hidden above the bar, and the bar takes the row's lower edge (its hairline
+  and soft shadow). No card, radius or gap; the same in every factory theme
+  and application skin, which change it through the same variables as the
+  menu row. Segments are separated by `›`. The first segment carries the open
+  section's icon (the group's or the view's menu icon); the last is the
+  current place, bold and not a link; the earlier ones with a target or
+  `onSelect` are links or buttons with the menu row's hover tint and focus
+  outline; a group (which has no page) is plain text.
+- **Overflow:** the first and the current segment stay whole; the middle
+  segments collapse, from the second onward, into one `…` button
+  (`További szintek`) that opens a 61ade [popup menu](toolkit.md#popup-menu)
+  with them in order (a segment without a target is a disabled entry).
+  Below a 768 px bar the bar shows the `…` menu with the earlier segments,
+  the parent segment as a back link (`bi bi-chevron-left`) and the current
+  one; the current label (and on a phone the parent's) ends with an ellipsis
+  where even that does not fit. Nothing scrolls horizontally.
+- **Windows:** a view opened in a window keeps its window header
+  (`setTitle`); the bar shows the page underneath, unchanged.
+- **Accessibility:** `<nav>` named `Hely` (en `Location`, de `Position`)
+  with an ordered list; the separators are not spoken; the current segment
+  has `aria-current="page"`; the links and buttons follow the menu row in
+  the tab order; a collapsed segment is reachable through the `…` menu
+  (`További szintek`, en `More levels`, de `Weitere Ebenen`), which keeps the
+  popup menu's keyboard behaviour.
+- **Browser title:** while a page is open, the document title is
+  `‹current segment› · ‹application title›`; the empty workspace restores the
+  application title.
+
+Limits: one bar per page (a window has none); the menu path comes from the
+menu, so a custom `Menu` item has none; the record title is one field (a
+composed title is a `setLocation` call of the view); segments carry no
+count, badge or menu of their own.
 
 <a id="kompakt-ablakfejléc-és-teljes-mobilmenü"></a>
 

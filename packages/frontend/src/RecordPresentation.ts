@@ -47,7 +47,7 @@ export function recordIcon(field:{options?:Record<string,string>},value:unknown,
 export type MediaDescriptor={id:string;name:string;mime_type:string;revision:string;duration_ms:number|null;width:number|null;height:number|null;thumbnail:"ready"|"pending"|"failed"|"none"};
 /** Derived media part of a field-less column: `mediaOf` names the media field whose `_media` it reads. */
 export type MediaPart="type"|"resolution"|"duration";
-type Column={id:string;type?:string;media?:string;presentation?:string;imageBase?:string;altOf?:string;options?:Record<string,string>;tones?:Record<string,string>;mediaOf?:string;part?:MediaPart}&Resolved;
+type Column={id:string;type?:string;media?:string;detailsWidth?:number;presentation?:string;imageBase?:string;altOf?:string;options?:Record<string,string>;tones?:Record<string,string>;mediaOf?:string;part?:MediaPart}&Resolved;
 /** A media column is a presentation of a file-id value (`media` names the file resource), whatever its field type. */
 export const isMedia=(field:Column)=>typeof field.media==="string"&&field.media!==""||field.type==="media";
 export const isIcon=(field:Column)=>field.type==="icon"||field.presentation==="icon";
@@ -117,14 +117,27 @@ export function mediaLabel(media:MediaDescriptor):string{
   const length=mediaLength(media);
   return mediaTypeLabel(media.mime_type)+": "+media.name+(length?", "+length:"");
 }
-/** Lazy thumbnail (`thumbnail_get`) with a type-icon fallback and a video or audio length badge; all text escaped, no inline handlers. */
-export function recordMedia(field:Column,row:Row,size:"cell"|"card"|"tile"="cell"):string{
-  const media=mediaOf(field,row);
-  if(!media)return size==="cell"?"":`<span class="blade-media blade-media--${size} blade-media--empty" aria-hidden="true"></span>`;
+/**
+ * Class and style of a media slot sized in the details (`detailsWidth`, FB-0218): its width, and the file's aspect ratio
+ * when the descriptor knows it (kept between 1:4 and 4:1); without one the slot keeps its kind's ratio, so the
+ * placeholder of a missing file or a pending thumbnail has the same box.
+ */
+function sizedSlot(width:number|undefined,media?:MediaDescriptor):{css:string;style:string}{
+  if(!width)return {css:"",style:""};
+  const ratio=media&&typeof media.width==="number"&&typeof media.height==="number"&&media.width>0&&media.height>0?Math.min(4,Math.max(.25,media.width/media.height)):0;
+  return {css:" blade-media--sized",style:` style="--blade-media-width:${Math.trunc(width)}px${ratio?`;--blade-media-ratio:${ratio.toFixed(4)}`:""}"`};
+}
+/**
+ * Lazy thumbnail (`thumbnail_get`) with a type-icon fallback and a video or audio length badge; all text escaped, no
+ * inline handlers. `width`: the slot's width in the record details (`detailsWidth`).
+ */
+export function recordMedia(field:Column,row:Row,size:"cell"|"card"|"tile"="cell",width?:number):string{
+  const media=mediaOf(field,row),sized=sizedSlot(width,media);
+  if(!media)return size==="cell"?"":`<span class="blade-media blade-media--${size}${sized.css} blade-media--empty"${sized.style} aria-hidden="true"></span>`;
   const kind=mediaKind(media),length=mediaLength(media);
   const url=media.thumbnail==="ready"&&field.media?actionUrl(field.media,"thumbnail_get",media.id,media.revision):"";
   const label=escape(mediaLabel(media)),failed=!!url&&failedThumbnails.has(url);
-  return `<span class="blade-media blade-media--${size} blade-media--${kind}${failed?" blade-media--failed":""}" role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon ${escape(mediaTypeIcon(media.mime_type))}" aria-hidden="true"></span>${url&&!failed?`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-thumbnail>`:""}${length?`<span class="blade-media__duration" aria-hidden="true">${escape(length)}</span>`:""}</span>`;
+  return `<span class="blade-media blade-media--${size}${sized.css} blade-media--${kind}${failed?" blade-media--failed":""}"${sized.style} role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon ${escape(mediaTypeIcon(media.mime_type))}" aria-hidden="true"></span>${url&&!failed?`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-thumbnail>`:""}${length?`<span class="blade-media__duration" aria-hidden="true">${escape(length)}</span>`:""}</span>`;
 }
 /**
  * Static image column (`presentation: image`): `<img>` of `imageBase` + file name in the media slot sizes; a load
@@ -156,7 +169,7 @@ export function presentedFields<T extends Column>(fields:T[],columns:Column[]):T
   return fields.map(field=>{
     const column=columns.find(c=>c.id===field.id);
     if(!column)return field;
-    return {...field,...(field.media===undefined&&column.media!==undefined?{media:column.media}:{}),...(field.presentation===undefined&&column.presentation!==undefined?{presentation:column.presentation}:{}),
+    return {...field,...(field.media===undefined&&column.media!==undefined?{media:column.media}:{}),...(field.detailsWidth===undefined&&column.detailsWidth!==undefined?{detailsWidth:column.detailsWidth}:{}),...(field.presentation===undefined&&column.presentation!==undefined?{presentation:column.presentation}:{}),
       ...(column.presentation==="image"?{imageBase:column.imageBase,altOf:column.altOf}:{}),
       ...(!field.options&&column.options?{options:column.options}:{}),...(!field.tones&&column.tones?{tones:column.tones}:{})};
   });
@@ -169,28 +182,49 @@ export function withDerived<T extends {id:string}>(fields:T[],columns:(Column&{h
 }
 /** A long text field (`textarea` without a custom display): clamped in a card to its `cardLines` (0: all of it). */
 const longText=(field:ViewDefinition["columns"][number])=>field.type==="textarea"&&!(!isMedia(field)&&!isImage(field)&&field.render);
+/** Ids of the long-text cards' headings (`recordText`), unique in the page. */
+let textIds=0;
 /**
  * Only declared fields present in the ACL-projected record are rendered; every media and icon field shows its media or
  * icon. With field sections (`section`, FB-0177) the fields form groups: one framed group per section at the place of
  * its first field (the other short fields one untitled group at the place of the first of them), laid out in as many
  * columns as the card or details are wide enough for (240 px each), and a long text outside every section below them
  * across the whole width. Without sections the fields stay one list in their order.
+ *
+ * `details` (the record details, FB-0218): a media field's `detailsWidth` sizes its image, and a section whose only
+ * field it is shows its heading and the image without a label (the automatic columns are then at least that group's
+ * width); `longText: "card"` puts each long text outside the sections into a card of its own below everything else.
  */
-export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=false):string{
+export function recordFields(row:Row,fields:ViewDefinition["columns"],editable=false,details?:{longText?:"inline"|"card"}):string{
   const shown=fields.filter(field=>Object.hasOwn(row,field.id)||hasDerived(field,row));
-  const item=(field:ViewDefinition["columns"][number])=>recordField(row,field,editable);
-  if(!shown.some(field=>field.section))return `<dl>${shown.map(item).join("")}</dl>`;
+  const item=(field:ViewDefinition["columns"][number])=>recordField(row,field,editable,!!details);
+  const cards=details?.longText==="card"?shown.filter(field=>!field.section&&longText(field)):[];
+  const rest=cards.length?shown.filter(field=>!cards.includes(field)):shown;
+  const texts=cards.length?`<div class="blade-record-texts">${cards.map(field=>recordText(row,field)).join("")}</div>`:"";
+  if(!rest.some(field=>field.section))return (cards.length&&!rest.length?"":`<dl>${rest.map(item).join("")}</dl>`)+texts;
   const groups=new Map<string,ViewDefinition["columns"]>(),wide:ViewDefinition["columns"]=[];
-  for(const field of shown){
+  for(const field of rest){
     if(!field.section&&longText(field)){wide.push(field);continue;}
     const key=field.section?"s:"+field.section:"";
     groups.set(key,[...(groups.get(key)??[]),field]);
   }
-  const group=([key,members]:[string,ViewDefinition["columns"]])=>`<section class="blade-record-group${members.some(longText)?" blade-record-group--wide":""}">${key?`<div class="blade-record-group__title">${escape(key.slice(2))}</div>`:""}<dl>${members.map(item).join("")}</dl></section>`;
-  return `<div class="blade-record-groups">${[...groups].map(group).join("")}</div>${wide.length?`<dl class="blade-record-wide">${wide.map(item).join("")}</dl>`:""}`;
+  let widest=0;
+  const group=([key,members]:[string,ViewDefinition["columns"]])=>{
+    const only=members[0],width=details&&key&&members.length===1&&isMedia(only)?only.detailsWidth??0:0;
+    if(!width)return `<section class="blade-record-group${members.some(longText)?" blade-record-group--wide":""}">${key?`<div class="blade-record-group__title">${escape(key.slice(2))}</div>`:""}<dl>${members.map(item).join("")}</dl></section>`;
+    widest=Math.max(widest,width);
+    return `<section class="blade-record-group blade-record-group--media"><div class="blade-record-group__title">${escape(key.slice(2))}</div><div class="blade-record-group__media">${recordMedia(only,row,"card",width)}${mediaOf(only,row)?"":"—"}</div></section>`;
+  };
+  const html=[...groups].map(group).join("");
+  return `<div class="blade-record-groups"${widest?` style="--blade-record-media-width:${Math.trunc(widest)}px"`:""}>${html}</div>${wide.length?`<dl class="blade-record-wide">${wide.map(item).join("")}</dl>`:""}${texts}`;
 }
-/** One field of `recordFields`: its label and its presented value (an editable one opens its editor). */
-function recordField(row:Row,field:ViewDefinition["columns"][number],editable:boolean):string{
+/** A long text as a card of its own (`longText: "card"`): framed, headed by its label, its text a region named by it. */
+function recordText(row:Row,field:ViewDefinition["columns"][number]):string{
+  const id=`blade-record-text-${++textIds}`,value=row[field.id];
+  return `<section class="blade-record-group blade-record-text"><div class="blade-record-group__title" id="${id}">${escape(field.header)}</div><div class="blade-record-text__body" role="region" aria-labelledby="${id}">${escape(value==null||value===""?"—":value)}</div></section>`;
+}
+/** One field of `recordFields`: its label and its presented value (an editable one opens its editor); `details` sizes media. */
+function recordField(row:Row,field:ViewDefinition["columns"][number],editable:boolean,details=false):string{
   const derived=derivedText(field,row);
   if(derived!==null)return `<div class="blade-grid-card__field"><dt>${escape(field.header)}</dt><dd>${escape(derived||"—")}</dd></div>`;
   const writable=editable&&field.editable&&row._editable?.includes(field.id);
@@ -202,7 +236,7 @@ function recordField(row:Row,field:ViewDefinition["columns"][number],editable:bo
   const glyph=isIcon(field)?recordIcon(field,value,true):"";
   // Long text (`textarea`) is clamped to its `cardLines` (default 4, 0 all of it) in a card (admin.css); the details show all of it.
   const lines=field.type==="textarea"&&custom===undefined?field.cardLines??4:0;
-  return `<div class="blade-grid-card__field${lines?" blade-grid-card__field--long":""}"${lines&&lines!==4?` style="--blade-card-lines:${Math.trunc(lines)}"`:""}><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card")+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):toned(field,value,content)}</dd></div>`;
+  return `<div class="blade-grid-card__field${lines?" blade-grid-card__field--long":""}"${lines&&lines!==4?` style="--blade-card-lines:${Math.trunc(lines)}"`:""}><dt>${escape(field.header)}</dt><dd ${writable&&(field.type!=="checkbox"||field.fieldType)?`class="blade-card-edit" data-blade-field="${escape(field.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:field.header}))}"`:""}>${custom!==undefined?custom:field.type==="checkbox"?recordCheckbox(row,{...field,editable:!!writable&&!field.fieldType}):isMedia(field)?recordMedia(field,row,"card",details?field.detailsWidth:undefined)+(mediaOf(field,row)?"":"—"):isImage(field)?imageSlot(field,row,"card")+(imageUrl(field,value)?"":"—"):glyph?glyph+" "+escape(iconLabel(field,value)):toned(field,value,content)}</dd></div>`;
 }
 
 /** One reference count of a usage provider (`label` is already translated by the server). */

@@ -1,0 +1,45 @@
+/* Location bar (docs/shell.md#location-bar): one line of the menu row's chrome surface, joined to it below. */
+.blade-location-row.dhx_layout-cell { background-color: var(--dhx-s-toolbar-background); }
+/* Suite's line layout rules the menu row's lower edge; above the bar that edge shows the row's own surface. */
+.blade-located .blade-navigation-row { border-bottom-color: transparent; }
+.blade-location-row .blade-view-slot { overflow: hidden; }
+.blade-location { box-sizing: border-box; height: 100%; padding: 0 16px; font-size: var(--dhx-font-size-normal, 14px); color: var(--dhx-font-color-primary); }
+.blade-location__list { display: flex; align-items: center; height: 100%; margin: 0; padding: 0; list-style: none; overflow: hidden; white-space: nowrap; }
+.blade-location__item { display: flex; align-items: center; flex: none; min-width: 0; height: 100%; }
+/* The current level (and on a phone the parent) gives way with an ellipsis; the others keep their width. */
+.blade-location__item:last-child, .blade-location--phone .blade-location__item { flex: 0 1 auto; }
+.blade-location--phone .blade-location__item:not(:last-child) { max-width: 45%; }
+.blade-location__list--measure .blade-location__item { flex: none; max-width: none; }
+.blade-location__item + .blade-location__item::before {
+  content: "›";
+  content: "›" / "";
+  flex: none;
+  padding: 0 8px;
+  color: var(--dhx-font-color-secondary);
+}
+.blade-location__place {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--dhx-border-radius, 4px);
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+}
+.blade-location__label { overflow: hidden; text-overflow: ellipsis; }
+.blade-location__icon { flex: none; font-size: 16px; line-height: 1; color: var(--dhx-color-primary); }
+.blade-location__link { cursor: pointer; }
+.blade-location__link:hover { background: color-mix(in srgb, var(--dhx-color-primary) 8%, transparent); text-decoration: underline; }
+.blade-location__link:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
+.blade-location__place--current { font-weight: 600; }
+.blade-location__more { min-width: 28px; justify-content: center; text-decoration: none; }
+.blade-location__more[aria-expanded="true"] { background: color-mix(in srgb, var(--dhx-color-primary) 14%, transparent); }
+.blade-location__back .blade-location__icon { color: inherit; }
+[data-blade-theme|="blade"] .blade-location-row.dhx_layout-cell { background-image: var(--blade-chrome); }
+[data-blade-theme|="blade"] .blade-location__place { text-shadow: var(--blade-emboss); }

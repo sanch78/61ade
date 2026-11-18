@@ -102,7 +102,7 @@ body,
 /* Field sections in cards and details: equal-height groups per row, with their content at the top. Projects may
    set the automatic minimum column width or an explicit track list. The record's own width controls stacking. */
 .blade-grid-card, .blade-record-details { container: blade-record / inline-size; }
-.blade-record-groups { display: grid; grid-template-columns: var(--blade-record-group-columns, repeat(auto-fit, minmax(min(100%, var(--blade-record-group-min-width, 240px)), 1fr))); gap: 12px; align-items: stretch; }
+.blade-record-groups { display: grid; grid-template-columns: var(--blade-record-group-columns, repeat(auto-fit, minmax(min(100%, max(var(--blade-record-group-min-width, 240px), calc(var(--blade-record-media-width, 0px) + 26px))), 1fr))); gap: 12px; align-items: stretch; }
 @container blade-record (width < 492px) {
   .blade-record-groups { grid-template-columns: minmax(0, 1fr); }
 }
@@ -112,6 +112,21 @@ body,
   background: var(--dhx-background-secondary); color: var(--dhx-font-color-primary); font-weight: var(--dhx-font-weight-medium); line-height: 1.5; overflow-wrap: anywhere; }
 .blade-record-groups + .blade-record-wide { margin: 12px 0 0; }
 :is(.blade-record-wide, .blade-record-group--wide) .blade-grid-card__field--long { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+/* A section whose only field is a sized media field (`detailsWidth`, FB-0218): its heading names the image, no label
+   row. `--blade-record-media-width` (set on the groups) keeps automatic columns at least as wide as that group. */
+.blade-record-group__media { padding: 12px 0; }
+/* Long texts as cards (RecordDetails `longText: "card"`, FB-0218): framed like a group, headed by the label. With
+   `--fill` (RecordDetails.ts fitTexts) the cards take the height below the rest and their text scrolls in them. */
+.blade-record-texts { display: flex; flex-direction: column; gap: 12px; }
+.blade-record-details > * + .blade-record-texts { margin-top: 12px; }
+.blade-record-text { display: flex; flex-direction: column; }
+.blade-record-text__body { margin: 0 -12px; padding: 9px 12px; color: var(--dhx-font-color-primary); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.blade-record-text__body:focus-visible { outline: 2px solid var(--dhx-border-color-focused); outline-offset: -2px; }
+.blade-record-details--fill { box-sizing: border-box; display: flex; flex-direction: column; height: 100%; }
+.blade-record-details--fill > * { flex: none; }
+.blade-record-details--fill > .blade-record-texts { flex: 1 1 0; min-height: 0; }
+.blade-record-details--fill .blade-record-text { flex: 1 1 0; min-height: var(--blade-record-text-min-height, 160px); }
+.blade-record-details--fill .blade-record-text__body { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .blade-grid-card__media { position: relative; margin: -14px -16px 12px; }
 
 /* Tiles: native DataView widths (equal per row), media slot, title and one secondary line. */
@@ -187,6 +202,9 @@ body,
 .blade-media--image:is(.blade-media--card, .blade-media--tile) { aspect-ratio: 1 / 1; }
 .blade-grid-card__media .blade-media--image { max-height: 240px; }
 .blade-record-details .blade-media--card { max-width: 320px; border-radius: 4px; }
+/* A details width (`detailsWidth`): the declared width, at most the group's; the file's ratio, else the kind's. */
+.blade-record-details .blade-media--sized { width: var(--blade-media-width); max-width: 100%; aspect-ratio: var(--blade-media-ratio, 16 / 9); }
+.blade-record-details .blade-media--sized.blade-media--image { aspect-ratio: var(--blade-media-ratio, 1 / 1); }
 
 /* Declared list search: its own native Toolbar input beside the command bar. */
 .blade-search-cell .dhx_toolbar__item, .blade-search-cell .dhx_toolbar__input { flex: 1; width: 100%; min-width: 0; }

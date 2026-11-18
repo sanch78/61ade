@@ -766,5 +766,7 @@
   "Változás {index} / {count} ({summary})": "Änderung {index} von {count} ({summary})",
   "{count} változatlan sor": "{count} unveränderte Zeilen",
   "Törölve:": "Entfernt:",
-  "Hozzáadva:": "Hinzugefügt:"
+  "Hozzáadva:": "Hinzugefügt:",
+  "Hely": "Position",
+  "További szintek": "Weitere Ebenen"
 }

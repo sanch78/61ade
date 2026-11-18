@@ -98,7 +98,8 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
   const phone = matchMedia(PHONE);
   let build: AbortController | undefined;
   const sketch = sketchPad(t("Vázlat"), host.signal);
-  host.setTitle(`${view.title}: ${String(row.title ?? task)}`);
+  let title = String(row.title ?? task);
+  host.setTitle(`${view.title}: ${title}`);
 
   const root = document.createElement("div");
   root.style.cssText = "width:100%;height:100%";
@@ -117,6 +118,17 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
         ? { rows: [{ ...tabs, minHeight: 240 }, { ...control, height: 320, minHeight: 120, resizable: true }] }
         : { cols: [{ ...control, width: 360, minWidth: 260, resizable: true }, { ...tabs, minWidth: 320 }] } });
     layout.mount(root);
+    // The location bar after the menu path (docs/shell.md#location-bar): the task, the open tab and, in `Munka`, the
+    // selected note; the task goes back to the first tab. Each change redraws only the bar.
+    const pages = layout.tabsOf("notes")!, labels: Record<string, string> = { work: t("Munka"), notes: t("Jegyzetek"), sketch: t("Vázlat") };
+    let focused: Record<string, unknown> | undefined;
+    const locate = () => host.setLocation([
+      { label: title, onSelect: () => void pages.select(notes ? "work" : "notes") },
+      { label: labels[pages.active()] ?? pages.active() },
+      ...(pages.active() === "work" && focused ? [{ label: String(focused.body ?? "").trim().slice(0, 60) || "#" + String(focused.id) }] : []),
+    ]);
+    pages.on("change", locate, { signal });
+    locate();
 
     const sections: Accordion = new app.components.Accordion({ id: `${view.id}.control`, sections: [
       { id: "details", label: t("Adatok") }, { id: "edit", label: t("Szerkesztés"), disabled: !editable }], open: ["details"] });
@@ -129,8 +141,8 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
       if (form || signal.aborted) return;
       form = new app.components.RecordForm({ resource: host.record!.resource, action: "update", id: task, cancel: false });
       form.on("saved", () => {
-        const title = form?.values().title;
-        if (typeof title === "string" && title.trim()) host.setTitle(`${view.title}: ${title}`);
+        const saved = form?.values().title;
+        if (typeof saved === "string" && saved.trim()) { title = saved; host.setTitle(`${view.title}: ${title}`); locate(); }
         void details?.show(task).catch(() => { /* the error dialog was shown; the details keep the last row */ });
       });
       form.mount(sections.cell("edit"));
@@ -195,6 +207,7 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
         // The menu's entries act on the selected note: enabled while one is selected, also in the collapsed bar.
         current = note;
         for (const id of ["show", "copy", "delete"]) bar?.update(id, { disabled: !note });
+        if (note !== focused) { focused = note; locate(); }
         if (!note) return;
         if (selected) { void selected.show(note).catch(() => { /* the error dialog was shown */ }); return; }
         hint.remove();

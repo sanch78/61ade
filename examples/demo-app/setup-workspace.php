@@ -266,6 +266,11 @@ require_once __DIR__.'/text-revisions.php';
 blade_demo_text_revisions_setup($db);
 $rules[] = ['1', 'demo_text_revisions', ['list', 'get', 'create', 'previous']];
 $rules[] = [(string) $reader, 'demo_text_revisions', ['list', 'get', 'previous']];
+// Media sheets (modules/media-sheets.json, FB-0218): images of the Signage mount, so after the signage setup.
+require_once __DIR__.'/media-sheets.php';
+blade_demo_media_sheets_setup($db);
+$rules[] = ['1', 'demo_media_sheets', ['list', 'get', 'create', 'update', 'delete']];
+$rules[] = [(string) $reader, 'demo_media_sheets', ['list', 'get']];
 // Read-only topology viewer: opens diagrams, no editing.
 $rules[] = [(string) $reader, 'topology', ['list', 'get']];
 // Digital signage: calendar table, synthetic assets, weekday defaults and programme; the seeded asset media move into

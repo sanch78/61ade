@@ -887,3 +887,11 @@
 <a id="fb-0216"></a>
 
 ## FB-0216 — Icons are mandatory and chosen for their meaning
+
+<a id="fb-0217"></a>
+
+## FB-0217 — A location bar below the main menu
+
+<a id="fb-0218"></a>
+
+## FB-0218 — A sized image and a long-text card in the record details

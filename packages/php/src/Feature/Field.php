@@ -117,7 +117,7 @@ final readonly class Field
             }
         }
         foreach ($column as $property => $value) {
-            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'details', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of', 'cardLines', 'card_lines', 'tones'], true)
+            if (!in_array($property, ['width', 'minWidth', 'maxWidth', 'align', 'editable', 'secondary', 'details', 'media', 'presentation', 'imageBase', 'image_base', 'altOf', 'alt_of', 'cardLines', 'card_lines', 'detailsWidth', 'details_width', 'tones'], true)
                 || match ($property) {
                     'editable', 'secondary', 'details' => !is_bool($value),
                     'align' => !in_array($value, ['left', 'center', 'right'], true),
@@ -128,6 +128,8 @@ final readonly class Field
                     'altOf', 'alt_of' => !is_string($value) || !preg_match('/^[a-z][a-z0-9_]*$/D', $value),
                     // Lines of a long text in a card (FB-0177): 0 shows all of it, default 4; textarea fields only (below).
                     'cardLines', 'card_lines' => !is_int($value) || $value < 0 || $value > 50,
+                    // Width of a media field's image in the record details (FB-0218); media fields only (below).
+                    'detailsWidth', 'details_width' => !is_int($value) || $value < 160 || $value > 800,
                     // Value tones (FB-0212): option key => theme tone, checked against the options below.
                     'tones' => !is_array($value) || !$value || count($value) > 50 || array_filter($value, static fn($tone) => !in_array($tone, self::TONES, true)),
                     default => !is_int($value) || $value < 1 || $value > 10000,
@@ -169,6 +171,7 @@ final readonly class Field
         if ($sectionFill && ($section === null || !in_array($type, ['textarea', 'file'], true) || $editor !== null)) throw new InvalidArgumentException('A section-filling field is a textarea or file field of a section, without an editor: '.$name);
         if (($row !== null && (!preg_match('/^[a-z][a-z0-9_]{0,63}$/D', $row) || $sectionFill)) || $rowWidth < 1 || $rowWidth > 3 || ($row === null && $rowWidth !== 1)) throw new InvalidArgumentException('Invalid form row: '.$name);
         if (count(array_intersect_key($column, ['cardLines' => 1, 'card_lines' => 1])) > ($type === 'textarea' ? 1 : 0)) throw new InvalidArgumentException('Card lines belong to one textarea column option.');
+        if (count(array_intersect_key($column, ['detailsWidth' => 1, 'details_width' => 1])) > (isset($column['media']) || is_string($file['resource'] ?? null) ? 1 : 0)) throw new InvalidArgumentException('A details width belongs to one media column option.');
         if (($column['editable'] ?? false) && ($secret || $type === 'password')) throw new InvalidArgumentException('Secret fields cannot be edited in a grid.');
         if (($column['editable'] ?? false) && $type === 'multiselect') throw new InvalidArgumentException('Multiple choices are edited on the form, not in a grid cell.');
         if ($type === 'checkbox' && $defaultValue !== null && !in_array($defaultValue, ['0', '1'], true)) {

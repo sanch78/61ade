@@ -537,7 +537,11 @@ command `demo.copy-text` ([example](#example-tasks)).
   optional `editing`, `refresh`). `ViewHost` gives `app`, `signal` (aborted when
   the view closes), `open` (`page`/`window`), `record` (`{resource, id, row}`
   for record views), `filters`, `attach`, `setTitle` (changes a window's
-  header; does nothing for a page view), `close`. A throw shows the
+  header; does nothing for a page view), `setLocation(segments)` (a page
+  view's levels in the [location bar](shell.md#location-bar) after the menu
+  path: `{label, icon?, target?: {view, record?}}` or `{label, icon?,
+  onSelect}`, at most 16; call it again when the selection inside the page
+  changes; nothing in a window or after close), `close`. A throw shows the
   error dialog and leaves an empty workspace. `attach` replaces the whole
   content; compose a page from one Layout ([recipe](#layout-recipe)).
 - **Presentation** (`column.presentation`): a synchronous HTML renderer per
@@ -740,7 +744,11 @@ columns with `--blade-record-group-min-width` (automatic columns) or
 `--blade-record-group-columns` (an explicit CSS Grid track list, including
 ratios). A record narrower than 492 px of content stacks its sections through
 CSS; see [section-column sizing](workspaces.md#card-group-columns). These
-properties are independent of the complete-record `cardColumns` option.
+properties are independent of the complete-record `cardColumns` option. The
+details element carries `data-blade-view="<view id>"`, so a project can set
+them for one view, also in its `Adatok` window; a media field's
+`column.detailsWidth` sizes its image there
+([sized image in the details](workspaces.md#details-media-width)).
 
 ```ts
 // examples/demo-app/frontend/src/readings.ts (the dashboard's list in a page Layout)
@@ -1039,6 +1047,34 @@ and on cards, while the list can still filter and scope by it; a
 [scope-only field](field-presentation.md#scope-only) is never there either. A failed load shows the error dialog and
 `show()` rejects. It has no events. `showId: false` leaves out the `ID · n`
 line.
+
+A media field with `column.detailsWidth` shows its image at that width, and
+alone in a section without a label row
+([sized image in the details](workspaces.md#details-media-width),
+[FB-0218](feedback.md#fb-0218)).
+
+`longText: "card"` (default `"inline"`) is for a record page that shows the
+record's data above its main text, such as a synopsis or a description. Each
+long text outside the sections (a `textarea` without its own display) becomes
+a framed card below the groups, headed by its label:
+
+```ts
+new app.components.RecordDetails({ view: list, record: row, showId: false, longText: "card", signal }).mount(layout.getCell("details"));
+```
+
+- **Fills and scrolls:** while the rest of the details and
+  `--blade-record-text-min-height` (default 160 px) per card fit in the
+  visible height, the cards share the height below the groups and each
+  scrolls on its own, so the groups and the image stay in place. A card
+  whose text scrolls is a tab stop (`role="region"`, named by its label), so
+  the arrow and page keys scroll it.
+- **Falls back:** when they do not fit, or the content is narrower than
+  492 px (a phone, a narrow panel), the details scroll as a whole as without
+  the option and each card shows all of its text, with no extra tab stop.
+  The check follows every size change of the details.
+- **Unchanged:** a long text inside a section stays in its group; without
+  the option the long text stays inline below the groups; the `Adatok`
+  window does not take the option.
 
 <a id="tree"></a>
 
@@ -2294,7 +2330,11 @@ id to the server, which resolves the row through that resource's `get` action
 `host.record`. Opened from the [activation map](#activation-map) (`view:<id>`),
 `app.navigate({view, record})` (for example from a project client command) or
 the address. A record view
-has no menu entry. As a page, it inherits the record resource's
+has no menu entry. Its optional `recordTitle` (PHP `View(recordTitle:)`,
+JSON `record_title`) names a readable, non-secret field of the record
+resource whose value titles the record in the
+[location bar](shell.md#location-bar) (default: the view's title); the view
+may replace that level with `host.setLocation`. As a page, it inherits the record resource's
 [menu context](shell.md#elkülönülő-főmenügombok) from an offered menu view;
 its optional `group` restricts the source group. `open: "page"` (default) mounts it in the workspace with an
 address and history entry; `open: "window"` opens a framework document window
@@ -3381,6 +3421,7 @@ markup may change without notice.
 | 2026-11-13 | `Ui.menu` and the `PopupMenu*` types: a popup menu with group headings, checked entries, details and scrolling, opened from any button with the APG menu-button keys; Escape closes only the menu, also in a modal window (M77). Additive. | [FB-0202](feedback.md#fb-0202) |
 | 2026-11-13 | PHP `View::$available` (`Closure(Context): bool`) and `available` parameters of `View::list`, `Registry::view`, `SqlResource::register`; JSON `view.available`, `views.<id>.available` (binding names): a view offered only while the closure allows it for the bootstrap's actor and tenant. Additive (M78). | [FB-0204](feedback.md#fb-0204) |
 | 2026-11-16 | `ValueTone`, `ColumnMetadata.tones`, `ListKindOptions.emphasis`, `ViewDefinition.attention.label`; PHP field `column.tones`, `emphasis` parameters of `View::list`, `Registry::view`, `SqlResource::register`, attention `label`, computed `select` fields, public `Registry::filterable`; JSON `column.tones`, `view.emphasis`, `view.attention.label`. Additive (M83). | [FB-0212](feedback.md#fb-0212) |
+| 2026-11-18 | PHP/JSON field `column.detailsWidth` / `column.details_width` (media fields, 160–800), `ColumnMetadata.detailsWidth`, `RecordDetailsOptions.longText` (`"inline"` default, `"card"`), CSS property `--blade-record-text-min-height`, the details element's `data-blade-view`; the `Adatok` window widens for a sized image (M85). Additive. | [FB-0218](feedback.md#fb-0218) |
 
 <a id="resolved-decisions"></a>
 

@@ -630,6 +630,59 @@ The feature demo's `record-groups.css` sets `1:2` columns through this same
 project stylesheet interface; `Mellékletek` shows the two unequal-height field
 groups with equal outer heights and the long text below them.
 
+<a id="details-media-width"></a>
+
+**A sized image in the details** ([FB-0218](feedback.md#fb-0218)): a media
+field's `column.detailsWidth` (JSON `column.details_width`, a whole number
+160–800) is its image width in px in `RecordDetails` and the `Adatok`
+window. It is accepted only on a media field (`column.media`, or a `file`
+field naming a file `resource`), in one spelling; anything else is rejected
+when the field is declared.
+
+```php
+new Field('file_id', 'Kép', 'file', file: ['resource' => 'files', 'mount' => 'signage', 'accept' => ['image']],
+    section: 'Kép', sectionCollapsible: false, sectionFill: true, column: ['detailsWidth' => 480]),
+```
+
+- **Size:** the image is that wide, at most its group's width, and its height
+  follows the file's aspect ratio from the media descriptor (`width`/`height`,
+  kept between 1:4 and 4:1). Without dimensions the slot keeps its kind's
+  ratio (16:9, an image 1:1). A pending or failed thumbnail and a record
+  without a file keep the same box, so nothing moves when the image arrives.
+  Cards, tiles and grid cells are unchanged.
+- **A media-only section:** a section whose only shown field is such a media
+  field shows its heading and the image, without the field label row. The
+  image keeps its accessible name (`Kép: <file name>`); a record without a
+  file shows the empty box and `—`. In automatic columns every column is then
+  at least as wide as that group (the image plus 26 px of padding and frame).
+  An explicit `--blade-record-group-columns: minmax(0, 1fr) auto` makes the
+  image group exactly that wide and gives the rest to the other group; below
+  492 px of content the groups stack as everywhere.
+- **Per-view columns:** the details element carries its view id, so a
+  project stylesheet can set the columns of one view, in `RecordDetails` and
+  in its `Adatok` window alike:
+
+  ```css
+  .blade-record-details[data-blade-view="demo_media_sheets"] {
+    --blade-record-group-columns: minmax(0, 1fr) auto;
+  }
+  ```
+
+- **`Adatok` window:** it opens wide enough for the widest sized image beside
+  one 240 px group (at most the viewport less 24 px); a phone shows it full
+  screen with the image at the group's width.
+- **Long text below:** on a record page, `RecordDetails` `longText: "card"`
+  puts each long text outside the sections into a scrolling card below the
+  groups ([RecordDetails](toolkit.md#recorddetails)). The `Adatok` window
+  keeps the long text inline.
+- **Limit:** the image is the media source's `thumbnail_get`. 61ade's file
+  storage serves `thumb320` (longest side 320 px), so its images look soft
+  above 320 px; a project media source decides the size of its own
+  thumbnails.
+
+The feature demo's `Médialapok` ([D11](demos.md#d11-media-sheets)) shows a
+480 px image beside its data, on its record page and in `Adatok`.
+
 Lists default to a # ordinal column showing position in the complete authorized,
 filtered, sorted result across scrolling. It is not database ID and may change
 with ordering, filtering or insert/delete. Double-click opens a fresh ACL-checked

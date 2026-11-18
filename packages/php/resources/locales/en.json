@@ -766,5 +766,7 @@
   "Változás {index} / {count} ({summary})": "Change {index} of {count} ({summary})",
   "{count} változatlan sor": "{count} unchanged lines",
   "Törölve:": "Removed:",
-  "Hozzáadva:": "Added:"
+  "Hozzáadva:": "Added:",
+  "Hely": "Location",
+  "További szintek": "More levels"
 }

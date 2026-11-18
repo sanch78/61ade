@@ -36,6 +36,9 @@ namespace Blade\Feature;
  *   embedded sub-view of it goes with it. For runtime state of the tenant or actor such as a service a tenant switched
  *   off (docs/workspaces.md#view-availability). Presentation only: the view's actions stay governed by ACL and the
  *   resource's own guards. Null: always available.
+ * $recordTitle: a record view only: the field of the $record resource whose value in the resolved row names the record
+ *   in the shell's location bar (docs/shell.md#location-bar); Registry checks that it is a readable, non-secret field.
+ *   Null, a field the actor may not read or an empty value: the view's title.
  */
 final readonly class View
 {
@@ -59,6 +62,7 @@ final readonly class View
         public bool $menu = true,
         public ?array $attention = null,
         public ?\Closure $available = null,
+        public ?string $recordTitle = null,
     ) {
         if (!preg_match(self::ID, $id)) throw new \InvalidArgumentException('Invalid view id.');
         if (!preg_match(self::ID, $kind) || (!in_array($kind, self::BUILTIN_KINDS, true) && !str_contains($kind, '.'))) throw new \InvalidArgumentException('Invalid view kind: '.$id);
@@ -70,6 +74,7 @@ final readonly class View
         if (!in_array($open, ['page', 'window'], true)) throw new \InvalidArgumentException('Invalid view open mode: '.$id);
         if (!$menu && ($kind !== 'list' || $record !== null || ($options['singleton'] ?? false) || $guide !== null)) throw new \InvalidArgumentException('Only a list view that is not a singleton and has no guide can leave the menu: '.$id);
         if ($attention !== null) self::checkAttention($id, $kind, $record, $options, $menu, $attention);
+        if ($recordTitle !== null && ($record === null || !preg_match('/^[a-z_][a-z0-9_]*$/D', $recordTitle))) throw new \InvalidArgumentException('Only a record view can name its record title field: '.$id);
         if ($guide !== null && (trim($guide) === '' || mb_strlen($guide) > 4000 || str_contains($guide, "\0") || preg_match('//u', $guide) !== 1)) throw new \InvalidArgumentException('Invalid view guide: '.$id);
     }
 

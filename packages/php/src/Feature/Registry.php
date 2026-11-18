@@ -140,6 +140,7 @@ final class Registry
         $provider=$this->provider($view->kind);
         foreach($view->actions as $action)$this->get((string)$view->resource,$action);
         if($view->record!==null&&(in_array($view->kind,View::BUILTIN_KINDS,true)||!isset($this->actions[$view->record.'.get'])))throw new \InvalidArgumentException('A record view needs a project kind and the get action of its record resource: '.$view->id);
+        if($view->recordTitle!==null&&(!($field=$this->fields($view->record)[$view->recordTitle]??null)||$field->secret||$field->scopeOnly||$field->type==='password'))throw new \InvalidArgumentException('Unknown record title field of '.$view->id.': '.$view->recordTitle);
         $provider->validate($this,$view);
         if($view->attention!==null)$this->attention($view);
     }

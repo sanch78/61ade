@@ -325,6 +325,7 @@
             "title": "Feladatlap",
             "resource": "demo_tasks",
             "record": "demo_tasks",
+            "record_title": "title",
             "actions": [
                 "get"
             ],

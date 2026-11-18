@@ -24,6 +24,8 @@ export type Column={id:string;header:string;type?:string;media?:string;presentat
   row?:string;rowWidth?:2|3;
   /** A long text's lines in a card: 0 all of it; default 4. */
   cardLines?:number;
+  /** A media column's image width in the record details (api `ColumnMetadata.detailsWidth`). */
+  detailsWidth?:number;
   /** Value tones of a select field (api `ColumnMetadata.tones`). */
   tones?:Record<string,string>}&Resolved;
 /** The list kind's internal shape: the view's shared keys beside its `options` (definition.ts `listDefinition`). */

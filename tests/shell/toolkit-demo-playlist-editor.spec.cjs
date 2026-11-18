@@ -70,7 +70,8 @@ async function mode(page,id,name){
 }
 function pageErrors(page){const errors=[];page.on('pageerror',error=>errors.push(error.message));return errors;}
 async function open(page,email='demo@example.test'){
- await page.setViewportSize({width:1700,height:1000});
+ // 1032 px: room for four item rows below the location bar (docs/shell.md#location-bar).
+ await page.setViewportSize({width:1700,height:1032});
  await signIn(page,email,`/#view=demo.playlist-editor&record=${playlist}`);
  await expect(items(page)).toHaveCount(stored().length);
  // The library opens in tiles (`ListViewOptions.mode`) until the user picks another presentation; the drags need rows.

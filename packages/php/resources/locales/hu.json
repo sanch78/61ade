@@ -766,5 +766,7 @@
   "Változás {index} / {count} ({summary})": "Változás {index} / {count} ({summary})",
   "{count} változatlan sor": "{count} változatlan sor",
   "Törölve:": "Törölve:",
-  "Hozzáadva:": "Hozzáadva:"
+  "Hozzáadva:": "Hozzáadva:",
+  "Hely": "Hely",
+  "További szintek": "További szintek"
 }

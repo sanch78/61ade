@@ -76,6 +76,10 @@ that covers the need.
    `get`, so the view is offered only with `get`
    ([record views](../../../docs/toolkit.md#record-views)). Declare a view
    after the actions it names, because `addView` checks that they exist.
+   Declare `record_title` (the field that names the record) so the shell's
+   [location bar](../../../docs/shell.md#location-bar) shows it; a page with
+   levels of its own calls `host.setLocation` instead of building a path
+   line.
 4. **Activation map** per row, with `view:<id>` targets
    ([activation map](../../../docs/toolkit.md#activation-map)). A media field
    is keyed by its MIME class. Leave out `*` where the other rows should keep
