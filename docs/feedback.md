@@ -895,3 +895,7 @@
 <a id="fb-0218"></a>
 
 ## FB-0218 — A sized image and a long-text card in the record details
+
+<a id="fb-0219"></a>
+
+## FB-0219 — A sub-view card button that opens the child page

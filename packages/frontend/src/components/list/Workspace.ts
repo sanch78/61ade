@@ -28,6 +28,9 @@ import { CellStatus } from "../CellStatus";
 import { ListActions, type ActionHost } from "./actions";
 import type { FieldDefinition, Region, ViewDefinition, WorkspaceHooks, WorkspaceScope } from "./types";
 
+/** The history-state key of a list page left through a `page` navigation (Workspace.openPage). */
+const RETURN="blade.list.return";
+type ReturnState={view:string;position:ReturnType<ResponsiveGrid["capture"]>;sort:Sort;selected?:string;anchor?:string};
 const cursor=(row:Row,direction:string)=>btoa(Array.from(new TextEncoder().encode(JSON.stringify({...row._position,edge:String(row.id),direction})),byte=>String.fromCharCode(byte)).join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 
 /**
@@ -331,7 +334,9 @@ export class Workspace implements ActionHost {
     // A non-selectable child (`select: false`) never delegates: the toolbar stays on this record.
     // A re-render of the preview ($refresh) only re-evaluates the toolbar while that preview holds it.
     const shared=sub.select===false?{select:false}:{shared:(workspace:Workspace,selected:Row|undefined,refresh?:boolean)=>{if(this.disposed||refresh&&this.delegated!==workspace)return;this.delegated=selected?workspace:this.delegated===workspace?undefined:this.delegated;this.capabilities();}};
-    return {label:sub.shared?t("Alelemek"):child.title,open:(id:string)=>this.openRecord(id),mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>{
+    // The card/tile button follows a `page` activation of its row (the same navigation), otherwise opens the window.
+    const page=(row:Row)=>{const resolved=this.activation(row);return resolved.kind==="page"?resolved:undefined;};
+    return {label:sub.shared?t("Alelemek"):child.title,page:(row:Row)=>page(row)?.label,open:(id:string)=>{const row=this.rows.find(r=>String(r.id)===id),target=row&&page(row);if(target)this.openPage(target,id);else this.openRecord(id);},mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>{
       const id=String(row.id),preview=new Workspace(host,child,this.channel,this.user,{field:sub.field,id,...shared,compact:{height}},{},{app:this.hooks.app,view:this.childView(),target:()=>this.reportTarget()});
       this.previews.set(id,preview);
       // A collapsed preview gives the toolbar back to this list.
@@ -364,13 +369,26 @@ export class Workspace implements ActionHost {
     if(this.activationPrevented(row,resolved.target))return;
     switch(resolved.kind){
       // Only a menu page navigates: a window (a scoped view) would stay open over the new page.
-      case "page":location.hash=new URLSearchParams({view:resolved.view,["filter."+resolved.field]:id}).toString();return;
+      case "page":this.openPage(resolved,id);return;
       case "subview":this.openRecord(id,row,true);return;
       case "action":{const action=this.view.actions.find(a=>a.name===resolved.action);if(action)void this.actions.open(action);return;}
       // The shell resolves the record through its resource's `get`; a navigation it refuses opens the details.
       case "view":if(!this.hooks.app?.navigate({view:resolved.view,record:id}))void this.showResults(id);return;
       default:void this.showResults(id);
     }
+  }
+  /**
+   * The child view's page filtered to record $id (a browser history entry). This page's entry first keeps its visible
+   * record, cursor and, beyond the first window, a cursor to load it from, so Back shows the list where it was left.
+   */
+  private openPage(target:{view:string;field:string},id:string):void{
+    const position=this.grid?.capture(),index=position?.id===undefined?-1:this.rows.findIndex(row=>String(row.id)===position.id);
+    if(position&&index>=0){
+      const anchor=this.previous===null&&index<100?undefined:index>0?cursor(this.rows[index-1],"next"):undefined;
+      const state:ReturnState={view:this.view.id,position,sort:this.sort,...(this.selected?{selected:this.selected}:{}),...(anchor?{anchor}:{})};
+      history.replaceState({...(history.state&&typeof history.state==="object"?history.state:{}),[RETURN]:state},"");
+    }
+    location.hash=new URLSearchParams({view:target.view,["filter."+target.field]:id}).toString();
   }
   /** Toolbar command of a view with a sub-view: the full child list of the record the toolbar acts on. */
   private openSubview():void{const row=this.subviewTarget();if(row)this.openRecord(String(row.id),row);}
@@ -542,13 +560,22 @@ export class Workspace implements ActionHost {
     const text=this.scope?typeof data.matched==="number"?t("Találat: {count}",{count:data.matched.toLocaleString(locale())}):"":typeof data.total==="number"?t("Összes: {count}",{count:data.total.toLocaleString(locale())})+(Object.keys(this.filters).length||this.search?.value?" / "+t("Találat: {count}",{count:(data.matched??0).toLocaleString(locale())}):""):"";
     this.layout.getRootNode()?.style.setProperty("--blade-list-count",JSON.stringify(text));
   }
+  /** A top-level list's first load only: the position its history entry kept when it was left for a page (openPage). */
+  private returning=true;
+  private returned():ReturnState|undefined{
+    if(!this.returning)return undefined;this.returning=false;
+    const state=this.scope||this.view.singleton?undefined:(history.state as Record<string,unknown>|null)?.[RETURN] as ReturnState|undefined;
+    return state?.view===this.view.id&&state.sort?.field===this.sort.field&&state.sort.direction===this.sort.direction?state:undefined;
+  }
   async load():Promise<boolean>{
     const epoch=++this.epoch;this.abort?.abort();this.abort=new AbortController();this.busy=true;this.status?.busy(true);
+    const back=this.returned();
     try{
       if(this.view.singleton){const row=await this.call("get","self",{},this.abort.signal);if(this.disposed||epoch!==this.epoch)return false;this.rows=[row];this.selected=String(row.id);await this.mountDetail(row);this.reportRows();}
       else{
-        const data:Snapshot=await this.call("list",null,{mode:"dynamic",numbered:this.view.rowNumbers!==false,limit:100,sort:this.sort,...this.query()},this.abort.signal);
-        if(this.disposed||epoch!==this.epoch)return false;this.counts(data);this.previous=data.previous;this.next=data.next;await this.render(data.items,false);
+        // Back to a page left deep in its list: the window starts at its visible record, the rows above it follow.
+        const data:Snapshot=await this.call("list",null,{mode:"dynamic",numbered:this.view.rowNumbers!==false,limit:100,sort:this.sort,...(back?.anchor?{cursor:back.anchor}:{}),...this.query()},this.abort.signal);
+        if(this.disposed||epoch!==this.epoch)return false;this.counts(data);this.previous=data.previous;this.next=data.next;await this.render(data.items,false,back);
       }
       this.watch();return true;
     }catch(e){
@@ -559,7 +586,7 @@ export class Workspace implements ActionHost {
       }
       return false;
     }
-    finally{if(epoch===this.epoch){this.busy=false;this.status?.busy(false);}}
+    finally{if(epoch===this.epoch){this.busy=false;this.status?.busy(false);if(back?.anchor&&!this.disposed)void this.more("previous");}}
   }
   private async more(direction:"next"|"previous"):Promise<void>{
     const token=direction==="next"?this.next:this.previous;if(!token||this.busy)return;
@@ -579,10 +606,13 @@ export class Workspace implements ActionHost {
       await this.render(rows,true);this.watch();
     }catch(e){await this.error(e);}finally{if(epoch===this.epoch)this.busy=false;}
   }
-  private async render(rows:Row[],preserve:boolean):Promise<void>{
+  /** $back: the kept position of a list left for a page; its record, when listed, is shown where it was, its cursor kept. */
+  private async render(rows:Row[],preserve:boolean,back?:ReturnState):Promise<void>{
     if(!this.grid)return;
     this.rendering=true;
-    const position=this.grid.capture();
+    const kept=back&&rows.some(row=>String(row.id)===back.position.id)?back:undefined,restored=!!kept?.selected&&rows.some(row=>String(row.id)===kept.selected);
+    if(restored)this.selected=kept!.selected;
+    const position=kept?kept.position:this.grid.capture();
     this.grid.setRows(rows);
     this.gridHeaders?.decorate();
     this.headerFilters();
@@ -593,11 +623,12 @@ export class Workspace implements ActionHost {
     this.capabilities();this.scope?.shared?.(this,this.selectedRow(),true);await awaitRedraw();
     this.headerFilters();
     if(this.disposed)return;
-    this.grid.restore(position,preserve,this.selected);
+    this.grid.restore(position,preserve||!!kept,this.selected);
     this.rendering=false;
     this.showStatus();
     this.fitPreview();
     if(left)this.hooks.emit?.("select",{row:undefined});
+    if(restored){this.capabilities();this.hooks.emit?.("select",{row:this.selectedRow()});}
     this.reportRows();
   }
   /** The empty result's text: none with rows, another one while a filter or the search narrows the list. */
