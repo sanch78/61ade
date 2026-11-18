@@ -453,6 +453,12 @@ own component or element, declares `inner` on that region of its
 for a tab's content. The inner regions are ordinary regions: mount, attach,
 placeholders, kept sizes and the double-click restore work as elsewhere
 ([inner layout](toolkit.md#pagelayout-inner), [FB-0222](feedback.md#fb-0222)).
+An inner region that needs a title and the number of its entries declares
+`header` and `count` there instead of drawing its own heading row: a
+frameless title row with a count badge over the region's content, updated
+with `page.header(id, {count})`
+([inner region header](toolkit.md#pagelayout-inner-header),
+[FB-0227](feedback.md#fb-0227)).
 
 A form window fits its content up to 800 px, or up to the application's
 `windowMaxHeight` (JSON `application.window_max_height`, 320–4000 px) for

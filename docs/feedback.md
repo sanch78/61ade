@@ -927,3 +927,7 @@
 <a id="fb-0226"></a>
 
 ## FB-0226 — A location path entirely of the page's own
+
+<a id="fb-0227"></a>
+
+## FB-0227 — A header with a count for a region of the inner layout

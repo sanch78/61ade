@@ -1,18 +1,20 @@
-import { Layout } from "@dhtmlx/suite";
+import { Layout, awaitRedraw } from "@dhtmlx/suite";
 import type { Accordion as AccordionApi, LayoutCell, Mountable, PageLayout as PageLayoutApi, PageLayoutEvents, PageLayoutOptions, PageRegion, RegionPlaceholder, Tabs as TabsApi } from "../../api/types";
 import { placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
 import { collapseMotion } from "../../Motion";
+import { locale, t } from "../../I18n";
 import { Component } from "../list/component";
 import { Accordion } from "./Accordion";
 import { Tabs } from "./Tabs";
 
 const REGION=/^[a-z][a-z0-9_-]{0,63}$/;
-const KEYS=new Set(["id","header","rows","cols","tabs","accordion","multiple","open","inner","width","height","minWidth","minHeight","resizable","collapsable","collapsed"]);
+const KEYS=new Set(["id","header","count","rows","cols","tabs","accordion","multiple","open","inner","width","height","minWidth","minHeight","resizable","collapsable","collapsed"]);
 const TAB_BRANCH=new Set(["tabs","width","height","minWidth","minHeight","resizable"]);
 const ACCORDION_BRANCH=new Set(["accordion","multiple","width","height","minWidth","minHeight","resizable"]);
 const BRANCHES=["rows","cols","tabs","accordion"] as const;
+let instances=0;
 
 /**
  * The declared panel tree of a page, checked like a list view's layout (`Blade\Feature\ViewLayout`): at most 6
@@ -23,11 +25,12 @@ const BRANCHES=["rows","cols","tabs","accordion"] as const;
  * holds 1–12 leaves with an id, a `header` (the section's label) and optionally `open` (at most one without
  * `multiple`). A region with `inner` (FB-0222) holds a frameless layout of `rows` or `cols` instead of content and no
  * branch of its own; its id is optional (then its size is not kept and it does not collapse). Inside an inner layout
- * the regions and branches take no `header`, collapsing, `tabs`, `accordion` or another `inner`. Returns the
- * content region ids, the ids of the regions holding an inner layout and the collapsible ones; throws `TypeError`.
+ * the regions and branches take no collapsing, `tabs`, `accordion` or another `inner`; only its regions take a
+ * `header` (1–150 characters) and with it a `count` (a non-negative integer, FB-0227). Returns the content region ids,
+ * the ids of the regions holding an inner layout, the collapsible ones and the headed inner regions; throws `TypeError`.
  */
-function regions(tree:unknown):{ids:Set<string>;containers:Set<string>;collapsable:Set<string>}{
-  const ids=new Set<string>(),containers=new Set<string>(),collapsable=new Set<string>();let nodes=0;
+function regions(tree:unknown):{ids:Set<string>;containers:Set<string>;collapsable:Set<string>;headed:Map<string,{label:string;count:number|null}>}{
+  const ids=new Set<string>(),containers=new Set<string>(),collapsable=new Set<string>(),headed=new Map<string,{label:string;count:number|null}>();let nodes=0;
   const fail=(reason:string):never=>{throw new TypeError(`61ade: PageLayout: ${reason}.`);};
   const named=(id:unknown):string=>{
     if(typeof id!=="string"||!REGION.test(id)||id.startsWith("blade-")||ids.has(id)||containers.has(id))fail(`region id "${String(id)}" is missing, invalid or repeated`);
@@ -42,6 +45,7 @@ function regions(tree:unknown):{ids:Set<string>;containers:Set<string>;collapsab
       if(["resizable","collapsable","collapsed","multiple","open"].includes(key)&&typeof value!=="boolean")fail(`"${key}" is a boolean`);
       if(["width","height","minWidth","minHeight"].includes(key)&&!(Number.isInteger(value)&&(value as number)>=40&&(value as number)<=3000))fail(`"${key}" is an integer from 40 to 3000`);
       if(key==="header"&&(typeof value!=="string"||value.length>150))fail("a header is text of at most 150 characters");
+      if(key==="count"&&!(Number.isSafeInteger(value)&&(value as number)>=0))fail('"count" is a non-negative integer');
     }
     const branches=BRANCHES.filter(key=>region[key]!==undefined);
     if(parent==="tabs"&&(branches.length||Object.keys(region).some(key=>key!=="id"&&key!=="header")||typeof region.header!=="string"||!region.header.trim()||region.header.length>80))
@@ -50,7 +54,9 @@ function regions(tree:unknown):{ids:Set<string>;containers:Set<string>;collapsab
       fail("a section is a leaf with an id, a header (its label, at most 80 characters) and optionally open only");
     if(parent!=="accordion"&&region.open!==undefined)fail('"open" belongs to a section of an accordion branch');
     if(region.multiple!==undefined&&region.accordion===undefined)fail('"multiple" belongs to an accordion branch');
-    if(inside&&["header","collapsable","collapsed","tabs","accordion","inner"].some(key=>region[key]!==undefined))fail("an inner layout holds rows, cols and regions without headers, collapsing, tabs, accordions or inner layouts");
+    if(inside&&["collapsable","collapsed","tabs","accordion","inner"].some(key=>region[key]!==undefined))fail("an inner layout holds rows, cols and regions without collapsing, tabs, accordions or inner layouts");
+    if(inside&&region.header!==undefined&&(branches.length||!(region.header as string).trim()))fail("in an inner layout only a region takes a header, of 1 to 150 characters");
+    if(region.count!==undefined&&(!inside||region.header===undefined))fail('"count" belongs to a region of an inner layout with a header');
     if(region.inner!==undefined){
       const inner=region.inner as Record<string,unknown>;
       if(parent||branches.length)fail("a region with an inner layout has no rows, cols, tabs or accordion of its own and is not a tab or a section");
@@ -76,11 +82,12 @@ function regions(tree:unknown):{ids:Set<string>;containers:Set<string>;collapsab
     }else{
       const id=named(region.id);
       ids.add(id);
+      if(inside&&region.header!==undefined)headed.set(id,{label:region.header as string,count:(region.count as number|undefined)??null});
       if(region.collapsable===true)collapsable.add(id);
     }
   };
   visit(tree,0);
-  return {ids,containers,collapsable};
+  return {ids,containers,collapsable,headed};
 }
 
 /**
@@ -91,7 +98,10 @@ function regions(tree:unknown):{ids:Set<string>;containers:Set<string>;collapsab
  * `cell(id)`; `attach(id, content)` puts a widget or a plain element there (the view host's rule). A region with
  * `inner` holds a frameless layout (a Suite line sub-layout of the same Layout: no frames or headers, the regions divided
  * by lines with a few pixels' hit area, admin.css) whose regions are ordinary regions of the page; a tree that is only
- * `{inner}` is frameless as a whole, for the content of a tab or a region. A `resizable` last region of a branch puts
+ * `{inner}` is frameless as a whole, for the content of a tab or a region. An inner region with a `header` (FB-0227)
+ * is a framework branch of two cells: its own one-line header (the title and an optional count badge, kept current
+ * by `header`) over a body cell, the region's mount target; the branch keeps the region's id, sizes and line, and its
+ * node is a `region` landmark named by the title and the spoken count. A `resizable` last region of a branch puts
  * the line before it, and the sizes of both regions beside a dragged line are kept. A `collapsable`
  * leaf is collapsed and expanded by the user or by `collapse`/`expand` (not kept: a page's own state, such as a phone
  * collapsing a region for one tab, never replaces the user's choice); `collapse {id, collapsed}` follows both.
@@ -113,11 +123,16 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
   private sectioned=new Map<string,Accordion>();
   /** The placeholder of each region of the Layout itself (tabs and sections have their component's). */
   private statuses=new Map<string,CellStatus>();
+  /** Each headed inner region's header: its element, its parts and its current title and count. */
+  private heads=new Map<string,{element:HTMLElement;title:HTMLElement;badge:HTMLElement;spoken:HTMLElement;label:string;count:number|null}>();
+  private prefix=`blade-page${++instances}-`;
+  private observer?:MutationObserver;
   constructor(context:{user:string},options:PageLayoutOptions){
     super(options);
     if(typeof options?.id!=="string"||!/^[a-z][a-z0-9_.-]*$/.test(options.id))throw new TypeError("61ade: PageLayout needs an id (the preference key, usually the view id).");
     if(options.guard!==undefined&&typeof options.guard!=="function")throw new TypeError("61ade: PageLayout: guard is a function.");
-    ({ids:this.ids,containers:this.containers,collapsable:this.collapsable}=regions(options.tree));
+    const {ids,containers,collapsable,headed}=regions(options.tree);
+    this.ids=ids;this.containers=containers;this.collapsable=collapsable;
     const preferences=new UiPreferences(context.user,options.id);
     // A `tabs` branch is one framework leaf of the Layout; its tabs are created into that cell below.
     const groups:{cell:string;tabs:PageRegion[]}[]=[];
@@ -126,12 +141,18 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
       if(node.tabs){const {tabs,...sizes}=node,cell=`blade-tabs-${groups.length+1}`;groups.push({cell,tabs});return {...sizes,id:cell};}
       if(node.accordion){const {accordion,multiple,...sizes}=node,cell=`blade-accordion-${stacks.length+1}`;stacks.push({cell,sections:accordion,multiple:multiple===true});return {...sizes,id:cell};}
       // An inner layout becomes a line branch of the same Layout (its own `type`), so its regions are the Layout's cells.
-      if(node.inner){const {inner,...panel}=node;return {...panel,type:"line",...inner} as PageRegion;}
+      if(node.inner){const {inner,...panel}=node;return {...panel,type:"line",...frameless(inner)} as PageRegion;}
       return {...node,...(node.rows?{rows:node.rows.map(leaves)}:{}),...(node.cols?{cols:node.cols.map(leaves)}:{})};
+    };
+    // A headed inner region: a branch keeping its id, sizes and line, of its header cell (content height) over its body.
+    const frameless=(node:PageRegion):PageRegion=>{
+      if(node.id&&headed.has(node.id)){const {header,count,...panel}=node;
+        return {...panel,type:"none",css:"blade-inner-region",rows:[{id:this.headCell(node.id),height:"content",css:"blade-inner-region__header"},{id:this.bodyCell(node.id),css:"blade-inner-region__body"}]} as unknown as PageRegion;}
+      return {...node,...(node.rows?{rows:node.rows.map(frameless)}:{}),...(node.cols?{cols:node.cols.map(frameless)}:{})};
     };
     // Only `{inner}`: the whole layout is frameless (a line Layout); otherwise a space Layout of framed panels.
     const line=Object.keys(options.tree).length===1&&!!options.tree.inner;
-    const declared=line?options.tree.inner!:leaves(options.tree);
+    const declared=line?frameless(options.tree.inner!):leaves(options.tree);
     const tree:PageRegion=declared.rows||declared.cols?declared:{rows:[declared]};
     // Suite draws a cell's resizer after it, so a `resizable` last child carries none: its previous sibling draws it.
     const children=(list:PageRegion[],axis:"width"|"height")=>list.map((child,index)=>({...config(child,axis),...(list[index+1]?.resizable===true&&index===list.length-2?{resizable:true}:{})}));
@@ -162,13 +183,70 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
       this.accordions.push(accordion);
       for(const section of stack.sections)this.sectioned.set(section.id!,accordion);
     }
-    for(const id of this.ids)if(!this.tabbed.has(id)&&!this.sectioned.has(id))this.statuses.set(id,regionStatus(this.layout.getCell(id)));
+    for(const [id,{label,count}] of headed){
+      const element=document.createElement("div"),title=document.createElement("span"),badge=document.createElement("span"),spoken=document.createElement("span");
+      element.className="blade-inner-header";
+      title.className="blade-inner-header__title";title.id=`${this.prefix}${id}-title`;
+      badge.className="blade-inner-header__count";badge.setAttribute("aria-hidden","true");
+      spoken.className="blade-visually-hidden";spoken.id=`${this.prefix}${id}-count`;
+      element.append(title,badge,spoken);
+      this.heads.set(id,{element,title,badge,spoken,label,count});
+      this.paintHeader(id);
+      attachContent(this.layout.getCell(this.headCell(id)),element,this.released.signal);
+    }
+    // After the headers: a headed region's placeholder is its body's, below the header.
+    for(const id of this.ids)if(!this.tabbed.has(id)&&!this.sectioned.has(id))this.statuses.set(id,regionStatus(this.cell(id)));
+    if(this.heads.size){
+      // Suite creates a cell's node again (a collapsed holder expanding): the landmark is put back on every change.
+      this.observer=new MutationObserver(()=>this.landmarks());
+      this.observer.observe(this.host,{childList:true,subtree:true});
+      void awaitRedraw().then(()=>this.landmarks());
+    }
     this.bind(options.signal);
+  }
+  private headCell(id:string):string{return `blade-head-${id}`;}
+  private bodyCell(id:string):string{return `blade-body-${id}`;}
+  /** A headed region's node is a `region` named by its title and the spoken count (the visual digit is hidden). */
+  private landmarks():void{
+    if(this.destroyed)return;
+    for(const id of this.heads.keys()){
+      const node=this.host.querySelector(`[data-cell-id="${id}"]`);
+      if(!node)continue;
+      const name=`${this.prefix}${id}-title ${this.prefix}${id}-count`;
+      if(node.getAttribute("role")!=="region")node.setAttribute("role","region");
+      if(node.getAttribute("aria-labelledby")!==name)node.setAttribute("aria-labelledby",name);
+    }
+  }
+  private paintHeader(id:string):void{
+    const head=this.heads.get(id)!,shown=head.count===null?"":head.count.toLocaleString(locale());
+    head.title.textContent=head.label;
+    head.badge.textContent=shown;head.badge.hidden=head.count===null;
+    head.spoken.textContent=head.count===null?"":t("{count} elem",{count:shown});
   }
   /** The cell of a declared region (a mount target of every component); an undeclared id throws `Error`. */
   cell(id:string):LayoutCell{
     this.region(id);
-    return this.tabbed.get(id)?.cell(id)??this.sectioned.get(id)?.cell(id)??this.layout.getCell(id);
+    return this.tabbed.get(id)?.cell(id)??this.sectioned.get(id)?.cell(id)??this.layout.getCell(this.heads.has(id)?this.bodyCell(id):id);
+  }
+  /**
+   * Changes the title (plain text, 1–150 characters) or the count (a non-negative integer, `null` hides the badge) of
+   * an inner region declared with a `header`; keys left out keep their value. Another id throws `Error`, other
+   * changes `TypeError`.
+   */
+  header(id:string,changes:{label?:string;count?:number|null}):void{
+    this.region(id);
+    const head=this.heads.get(id);
+    if(!head)throw new Error(`61ade: PageLayout region "${id}" has no header.`);
+    const fail=(reason:string):never=>{throw new TypeError(`61ade: PageLayout.header: ${reason}.`);};
+    if(!changes||typeof changes!=="object"||Array.isArray(changes))fail("changes is an object");
+    for(const key of Object.keys(changes))if(key!=="label"&&key!=="count")fail(`unsupported change "${key}"`);
+    const {label,count}=changes;
+    if(label!==undefined&&(typeof label!=="string"||!label.trim()||label.length>150))fail("label is text of 1 to 150 characters");
+    if(count!==undefined&&count!==null&&!(Number.isSafeInteger(count)&&count>=0))fail("count is a non-negative integer or null");
+    if(this.destroyed)return;
+    if(label!==undefined)head.label=label;
+    if(count!==undefined)head.count=count;
+    this.paintHeader(id);
   }
   /**
    * Puts content into a declared region: a Suite widget, a public component or a plain element (kept in its region
@@ -214,5 +292,5 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
   tabsOf(id:string):TabsApi|undefined{return this.tabbed.get(id);}
   /** The accordion of the `accordion` branch holding region $id. */
   accordionOf(id:string):AccordionApi|undefined{return this.sectioned.get(id);}
-  protected dispose():void{this.released.abort();for(const tabs of this.tabGroups)tabs.destroy();for(const accordion of this.accordions)accordion.destroy();for(const status of this.statuses.values())status.destroy();this.layout.destructor();}
+  protected dispose():void{this.observer?.disconnect();this.released.abort();for(const tabs of this.tabGroups)tabs.destroy();for(const accordion of this.accordions)accordion.destroy();for(const status of this.statuses.values())status.destroy();this.layout.destructor();}
 }

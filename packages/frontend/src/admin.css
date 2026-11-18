@@ -52,6 +52,16 @@ body,
    panels and a list's space or wide layout inside a region keep their own grips. */
 :is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--x > .dhx_layout-resizer__icon { right: auto; left: -4.5px; width: 8px; }
 :is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon { bottom: auto; top: -4.5px; height: 8px; }
+/* A headed inner region (`PageRegion.header` in `inner`, FB-0227): a frameless one-line title with a pill count badge
+   over a line; the body below is the region's content and scrolls on its own. */
+.blade-inner-region__header .blade-view-slot { height: auto; overflow: visible; }
+.blade-inner-header { display: flex; align-items: center; gap: 8px; min-width: 0; box-sizing: border-box; padding: 10px 20px 8px; border-bottom: 1px solid var(--dhx-border-color);
+  color: var(--dhx-font-color-primary); font-family: var(--dhx-font-family); font-size: var(--dhx-font-size-normal); font-weight: var(--dhx-font-weight-medium); line-height: 1.5; }
+.blade-inner-header__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blade-inner-header__count { flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: 999px; background: var(--dhx-background-secondary); color: var(--dhx-font-color-secondary); font-size: var(--dhx-font-size-small); font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.blade-inner-header__count[hidden] { display: none; }
+.blade-inner-region__body > .dhx_layout-cell-content { overflow: auto; }
 
 /* Native DataView templates keep mobile records readable at any text length. */
 .blade-grid-cards .dhx_dataview-item {
