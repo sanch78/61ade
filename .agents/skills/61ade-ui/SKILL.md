@@ -296,6 +296,10 @@ tree as decoration for a flat list.
 - Child-list buttons overlay existing media without increasing item height:
   upper right on cards, full width along the bottom on tiles. Cards without
   media retain the footer button ([FB-0144](../../../docs/feedback.md#fb-0144)).
+  The button and the record's activation go to the same place: with a `page`
+  activation the button opens the child page, not a window; navigating away
+  to a page keeps the parent list's position for Back
+  ([FB-0219](../../../docs/feedback.md#fb-0219)).
 - Cards/details use the same authorized fields as the record contract. Details
   fetch a fresh ACL-checked record; secrets, technical revision/ACL metadata,
   and denied fields stay absent. Fields omitted from the grid may be included

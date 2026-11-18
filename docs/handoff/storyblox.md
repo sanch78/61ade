@@ -66,6 +66,16 @@ episode (an `onSelect` back to its overview) and the open scene whenever the
 selection changes. A spec that measures the workspace height, or counts the
 rendered grid rows at a fixed viewport, has 32 px less room.
 
+## Card button to the child page (D-087)
+
+Delivered in 61ade ([FB-0219](../feedback.md#fb-0219),
+[sub-views](../workspaces.md#sub-views)), with no declaration change: the
+seasons view already has `activate: 'page'`, so the cards' and tiles'
+*Epizódok (n)* button now opens the *Epizódok* page filtered to the season,
+like a double-click, never a window. Back returns to *Évadok* at the same
+place with the season as the cursor. A spec that clicked that button and
+waited for a window finds the page instead.
+
 ## Asset viewer on the public API (D-019 to D-021)
 
 The requests of `dev/docs/61ade/custom-view-request.md` (untracked in the

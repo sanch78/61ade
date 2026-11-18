@@ -85,3 +85,82 @@ test('a zone opens the shelves page filtered to it; the filter is an ordinary, r
  await page.goBack();await view(page,'Táblázat');
  expect(errors).toEqual([]);
 });
+
+// D-087 / FB-0219: with `activate: 'page'` the card and tile sub-view button opens the child page like the activation
+// (history entry; Back keeps the scroll position); without it (Polcok) the button keeps opening the window.
+// A phone forces cards: the forced choice is informational (disabled), so it is left as it is.
+const choose=async(page,mode)=>{
+ const menu=page.getByRole('button',{name:'Műveletek',exact:true});
+ if(await menu.isVisible()){await menu.click();await page.getByRole('menuitem',{name:/^Nézet:/}).click();}
+ else await page.getByRole('button',{name:/^Nézet:/}).click();
+ const item=page.getByRole('menuitem',{name:mode,exact:true});
+ if(await item.isDisabled())await page.keyboard.press('Escape');else await item.click();
+};
+const scroller=(page,selector)=>page.locator(`${selector}`).first().locator('xpath=ancestor::*[contains(concat(" ",@class," ")," dhx_dataview ")][1]');
+for(const size of [{width:1366,height:420},{width:390,height:560}])test(`the card and tile button of a zone opens the shelves page at ${size.width} px; Back keeps the scroll position`,async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.setViewportSize(size);
+ await signIn(page);await openView(page,'Raktárzónák');
+ const shelves=page.locator('.dhx_grid-row, .blade-grid-card');
+ for(const [mode,selector] of [['Kártyák','.blade-grid-card'],['Csempék','.blade-grid-tile']]){
+  await choose(page,mode);
+  const button=name=>page.locator(selector).filter({hasText:name}).first().locator('.blade-card-subview');
+  await expect(button('Zone A')).toHaveAccessibleName('Polcok (2)');
+  await expect(button('Zone A')).toHaveAttribute('aria-description','Megnyitás: Polcok');
+  await expect(button('Zone A')).not.toHaveAttribute('aria-haspopup',/./);
+  await expect(page.locator(selector).filter({hasText:'Zone C'}).locator('.blade-card-subview')).toHaveCount(0);
+  // Scrolled to the end with Zone A (the last record) as the cursor (selecting scrolls it into view), its button opens
+  // its shelves page (not a window); Back returns to the same scroll offset with the same cursor record.
+  const list=scroller(page,selector);
+  await list.evaluate(element=>{element.scrollTop=element.scrollHeight;});
+  await page.locator(selector).filter({hasText:'Zone A'}).first().click({position:{x:8,y:8}});await page.waitForTimeout(300);
+  const top=await list.evaluate(element=>element.scrollTop);
+  // At 1366 px the tiles fit without scrolling; everywhere else the list is scrolled.
+  if(await list.evaluate(element=>element.scrollHeight>element.clientHeight))expect(top).toBeGreaterThan(0);
+  await button('Zone A').click();
+  await expect(page).toHaveURL(/#view=demo_shelves$/);await expect(window(page)).toHaveCount(0);
+  await expect(shelves.filter({hasText:'Middle shelf'}).first()).toBeVisible();await expect(shelves.filter({hasText:'Empty shelf'})).toHaveCount(0);
+  await page.goBack();await expect(page).toHaveURL(/#view=demo_shelf_zones$/);
+  await expect(button('Zone A')).toBeVisible();
+  await expect(page.locator('.dhx_dataview-item--selected').filter({hasText:'Zone A'})).toHaveCount(1);
+  await expect.poll(()=>scroller(page,selector).evaluate(element=>element.scrollTop)).toBe(top);
+  // Keyboard: Enter on the focused button.
+  await button('Zone B').focus();await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#view=demo_shelves$/);await expect(shelves.filter({hasText:'Empty shelf'}).first()).toBeVisible();await expect(shelves.filter({hasText:'Top shelf'})).toHaveCount(0);
+  await page.goBack();await expect(page).toHaveURL(/#view=demo_shelf_zones$/);
+ }
+ // Double-click keeps the scroll position on Back as well.
+ const list=scroller(page,'.blade-grid-tile');
+ await list.evaluate(element=>{element.scrollTop=element.scrollHeight;});
+ await page.locator('.blade-grid-tile').filter({hasText:'Zone A'}).first().click({position:{x:8,y:8}});await page.waitForTimeout(300);
+ const top=await list.evaluate(element=>element.scrollTop);
+ await page.locator('.blade-grid-tile').filter({hasText:'Zone A'}).first().dblclick();await expect(page).toHaveURL(/#view=demo_shelves$/);
+ await page.goBack();await expect(page.locator('.blade-grid-tile').filter({hasText:'Zone A'}).first()).toBeVisible();
+ await expect.poll(()=>scroller(page,'.blade-grid-tile').evaluate(element=>element.scrollTop)).toBe(top);
+ // Without a page activation the shelves' button opens the item window as before (Zone A's shelves page).
+ await page.locator('.blade-grid-tile').filter({hasText:'Zone A'}).first().dblclick();await expect(page).toHaveURL(/#view=demo_shelves$/);await choose(page,'Kártyák');
+ const shelf=page.locator('.blade-grid-card').filter({hasText:'Top shelf'}).first().locator('.blade-card-subview');
+ await expect(shelf).toHaveAttribute('aria-haspopup','dialog');await expect(shelf).not.toHaveAttribute('aria-description',/./);
+ // The window shows the items as a table, or as cards on a phone.
+ await shelf.click();await expect(page.getByRole('dialog',{name:'Polc tételei — Top shelf'})).toBeVisible();
+ await expect(window(page).locator('.dhx_grid-row, .blade-grid-card')).toHaveCount(2);await close(page);await expect(page).toHaveURL(/#view=demo_shelves$/);
+ await choose(page,'Táblázat');
+ expect(errors).toEqual([]);
+});
+
+test('English names of the page button',async({page})=>{
+ await signIn(page);
+ const language=locale=>page.evaluate(async locale=>{
+  const csrf=document.querySelector('#blade-command input[name="csrf"]').value;
+  await fetch('./',{method:'POST',body:new URLSearchParams({action:'language',csrf,locale})});
+ },locale);
+ await language('en');
+ try{
+  // A hash change alone does not reload the page in the new language.
+  await page.goto('/#view=demo_shelf_zones');await page.reload();await expect(page.locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
+  await page.getByRole('button',{name:/^View:/}).click();await page.getByRole('menuitem',{name:'Cards',exact:true}).click();
+  const button=page.locator('.blade-grid-card').filter({hasText:'Zone A'}).first().locator('.blade-card-subview');
+  await expect(button).toHaveAccessibleName('Polcok (2)');await expect(button).toHaveAttribute('aria-description','Opens: Polcok');
+  await page.getByRole('button',{name:/^View:/}).click();await page.getByRole('menuitem',{name:'Table',exact:true}).click();
+ }finally{await language('hu');}
+});

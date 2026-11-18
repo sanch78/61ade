@@ -9942,3 +9942,71 @@ that exactly equals an option label lists every option. The managed
   session), so this change does not cause them. No full-smoke claim.
 - **Status:** implemented and verified as above; the consumer wires it in
   its own session.
+
+<a id="fb-0219"></a>
+
+## FB-0219 — A sub-view card button that opens the child page
+
+- **Date:** 2026-11-18.
+- **Report:** a consumer request (StoryBloX D-087, seasons → episodes): a
+  list with a sub-view and `activate: 'page'` (child kept with
+  `embed: false`) opened the child's page filtered to the record on a
+  double-click or Enter, but the card and tile button (`Epizódok (n)`) still
+  opened the child list in a window. The two routes to the same list on one
+  card behaved differently; the owner asked that a season's episodes never
+  open in a window. Back also opened the parent page at its top.
+- **Accepted expectation:** with a `page` activation the card and tile button
+  opens the child's page filtered to the record, the same navigation as the
+  activation (a history entry, an ordinary filter); Back returns to the
+  parent with its position kept, at 1366 and 390 px, with the keyboard
+  (Enter on the focused button) as well. Without it nothing changes. The
+  button's accessible name stays `‹child title› (n)` and its
+  `aria-description` names the target as the activation does.
+- **Contract:** no new option: the button follows the record's resolved
+  activation, so `activate: 'page'` and a map entry that resolves to `page`
+  for that record both take it; where the page is not offered (child view or
+  its field filter not offered, a sub-view window, a hierarchy) the window
+  opens as before. The button then carries `aria-description`
+  "Megnyitás: ‹child title›" (English "Opens: …", the existing catalogue key)
+  instead of `aria-haspopup="dialog"`, and the `bi-box-arrow-in-right` icon
+  instead of `bi-arrows-angle-expand`. A list left through a `page`
+  navigation keeps its visible record and offset, cursor record and sort in
+  its own history entry (`history.state`, key `blade.list.return`) and shows
+  them again on Back or a reload of that entry; a record beyond the first
+  100 loads from its own position and the rows above follow
+  ([activation](workspaces.md#activation), [sub-views](workspaces.md#sub-views),
+  migration M86). The table's toggle preview and the toolbar's full-view
+  command keep their window. No new action, permission, event or catalogue key.
+- **Decisions and deviations from the request:**
+  - The request offered an explicit sub-view option (`button: 'page'`) as an
+    alternative. It is not added: deriving the button from the activation
+    keeps the two routes equal by construction, and no case needs a page
+    button with another activation.
+  - The button is not an activation: it does not report the `ListView`
+    `activate` event, so a listener's `preventDefault()` does not replace it.
+  - The kept position is restored only when the same record is listed again
+    and the sort is unchanged; otherwise the list opens at its start. A menu
+    navigation creates a new history entry without the state and starts at
+    the top. Clicking a card button first makes that record the cursor, and
+    the DataView scrolls it into view; the kept offset is the one after that.
+- **Implemented:** `Workspace.ts` (`openPage` shared by the activation and the
+  button, the kept state, its first-load restore with an anchored window),
+  `ResponsiveGrid.ts` (`SubViewOptions.page`, the button's description and
+  icon). Docs: [workspaces](workspaces.md#activation), the 61ade-ui skill.
+- **Verification:** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`, `node tests/shell/toolkit-list.mjs` and `toolkit-kernel.mjs`
+  passed. Retained spec `tests/shell/activation.spec.cjs` (3 new tests, 6 in
+  all) passed on the managed demo (`Raktárzónák` → `Polcok`): at 1366 × 420
+  and 390 × 560, in cards and tiles, the button named `Polcok (2)` with
+  "Megnyitás: Polcok" and no `aria-haspopup`, no button at a count of 0, a
+  click and Enter on the focused button opening the filtered page without a
+  window, Back restoring the scroll offset and the cursor record (also after
+  a double-click), and the `Polcok` button still opening the item window; in
+  English "Opens: Polcok". Shell `subview`, `toolkit-list` and `mobile-grid`
+  passed. Not exercised in the browser: the restore in the table (the demo's
+  three zones do not scroll there) and the anchored load beyond the first
+  100 records (no demo list with a page activation is that long); both use
+  the existing grid restore and cursor paging. The new icon was not reviewed
+  across the four themes; it is a catalogue glyph in the existing slot.
+- **Status:** implemented and verified as above; StoryBloX needs no
+  declaration change ([handoff](handoff/storyblox.md)).

@@ -777,7 +777,17 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
   any filter set there ([saved filters](shell.md#url-és-helyi-felületbeállítások)). The page
   needs the child view offered to the actor with the field among its filters;
   otherwise, and in a view opened in a window, the sub-view window opens; with
-  no resolved sub-view, the details.
+  no resolved sub-view, the details. The card and tile
+  [sub-view button](#sub-views) of a record whose activation is `page` opens
+  the same page ([FB-0219](feedback.md#fb-0219)).
+- **Back to the parent:** before a `page` navigation the parent list keeps
+  its visible record (with its offset), its cursor record and its sort in
+  its own history entry. Back (or a reload of that entry) shows the same
+  record at the same offset with the cursor on it, in the table, cards and
+  tiles alike. A record beyond the first 100 loads from its own position and
+  the records above it follow. The list opens at its start when the record
+  is no longer listed or the sort has changed; a menu navigation always
+  starts at the top.
 - **Default (absent):** unchanged; the table opens the update form when the
   record offers `update`, otherwise the details; cards and tiles open the
   details.
@@ -788,14 +798,16 @@ JSON: `"activate": {"field": "kind", "map": {"audio": "view:demo.player", "*": "
   `get`, or a tenant-scoped record resource without an active tenant).
 - **Unchanged paths:** the details stay on the toolbar `Adatok` command (and
   the `#` cell in the table); editable cells and card fields, marks, the
-  sub-view toggle and card button keep their own handling. A `select: false`
+  sub-view toggle, the full-view toolbar command and the card button keep
+  their own handling; only a `page` activation also takes the card button. A `select: false`
   list activates nothing. A compact sub-view preview keeps the default
   (it opens no further child window).
 - **Accessibility:** with a declared activation every card and tile carries
   `aria-description` "Megnyitás: <target>" (the child list or page title, the
   action label, the record view title, or `Adatok` on fallback), per record; a
-  record whose map has no entry and no `*` carries none. A child window or
-  the details opened this way take the focus, so Escape closes them.
+  record whose map has no entry and no `*` carries none. A sub-view button
+  that opens the page carries the same description on the button. A child
+  window or the details opened this way take the focus, so Escape closes them.
 - **Toolkit:** a `ListView` reports each activation as its `activate` event
   with the resolved target before it runs. A listener can call
   `preventDefault()` synchronously to skip that default and run project
@@ -2253,6 +2265,17 @@ JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "proje
   ([record activation](#activation)) a double-click or Enter on a record opens
   this full window from the table, cards and tiles, also at a count of 0;
   `activate: 'page'` opens the child's own page filtered to the record instead.
+- **Card button to the page:** with `activate: 'page'` (or a map entry that
+  resolves to `page` for that record) the card and tile button opens the
+  child's page filtered to the record, the same navigation as the activation
+  (a history entry; Back keeps the parent's position,
+  [activation](#activation)). Its accessible name stays `‹child title› (n)`,
+  it carries `aria-description` "Megnyitás: ‹child title›" (English
+  "Opens: …") instead of `aria-haspopup="dialog"`, and its icon is
+  `bi-box-arrow-in-right` instead of `bi-arrows-angle-expand`. Where the page
+  is not offered, in a sub-view window and in a hierarchy, the button opens
+  the window as before. The table's toggle preview and the toolbar's full-view
+  command keep their window ([FB-0219](feedback.md#fb-0219)).
 - **Embedded child:** by default a different child view has no menu entry of
   its own; `embed: false` keeps it. The child view must be offered to the actor,
   otherwise the parent has no sub-view. A child declared with

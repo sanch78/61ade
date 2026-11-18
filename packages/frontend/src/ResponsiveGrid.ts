@@ -63,7 +63,9 @@ export type SubView={destroy():void};
 /** `mount` reports the height the nested view's content needs. */
 export type SubViewOptions={mount:(host:HTMLElement,row:Row,height:(pixels:number)=>void)=>SubView;
   /** Card/tile button caption (the child list title) and the full child view of one record. */
-  label:string;open:(id:string)=>void};
+  label:string;open:(id:string)=>void;
+  /** The card/tile button opens this page title (the row's `page` activation) instead of the window; `undefined`: the window. */
+  page?:(row:Row)=>string|undefined};
 /** A record has sub-items unless the server counted none (`_subview: 0` without `_subview_open`). */
 export const hasSubview=(row:Row|undefined)=>!!row&&((row as any)._subview_open===true||Number((row as any)._subview??1)!==0);
 /** Rows a compact preview shows before it scrolls: 40 % of the viewport, never fewer than 5 or more than 10. */
@@ -142,9 +144,10 @@ export class ResponsiveGrid {
         const record=unguard(row),html=c.render?c.render(record,"cell"):escape(optionText(c,record[c.id]));
         return c.fieldType&&c.editable&&record._editable?.includes(c.id)?`<span class="blade-card-edit" data-blade-row="${escape(record.id)}" data-blade-field="${escape(c.id)}" tabindex="0" role="button" aria-label="${escape(t("{field} — szerkesztés",{field:c.header}))}">${html}</span>`:html;}}:{}),
     }))],rowCss:row=>{const sub=(row as any)[SUBROW],index=this.index.get(String(sub??row.id))??0;return (sub!==undefined?"blade-grid-subrow-row ":"")+(index%2===1?"blade-grid-row-alternate":"")+(sub===undefined&&emphasized(unguard(row as Row))?" blade-grid-row--emphasis":"");},rowHeight:rh,autoWidth:true,resizable:true,selection:(pick?"row":false) as "row",keyNavigation:keys,htmlEnable:false,...(drag?{dragItem:"row" as const,...dragging}:{})});
-    // Card/tile sub-view button: a native DHTMLX flat button with the child list title and the count when known.
-    const subviewButton=(row:Row)=>{const count=(row as any)._subview,caption=options.subview!.label+(count!==undefined&&count!==null?` (${Number(count)})`:"");
-      return `<div class="blade-grid-card__subview"><button type="button" class="blade-card-subview dhx_button dhx_button--view_flat dhx_button--color_primary dhx_button--size_medium dhx_button--icon-left" aria-haspopup="dialog" title="${escape(caption)}"><span class="dhx_button__icon bi bi-arrows-angle-expand" aria-hidden="true"></span><span class="dhx_button__text">${escape(caption)}</span></button></div>`;};
+    // Card/tile sub-view button: a native DHTMLX flat button with the child list title and the count when known; it
+    // opens the child window, or navigates to the child page when the row's activation is `page` (named by its description).
+    const subviewButton=(row:Row)=>{const count=(row as any)._subview,caption=options.subview!.label+(count!==undefined&&count!==null?` (${Number(count)})`:""),page=options.subview!.page?.(row);
+      return `<div class="blade-grid-card__subview"><button type="button" class="blade-card-subview dhx_button dhx_button--view_flat dhx_button--color_primary dhx_button--size_medium dhx_button--icon-left" ${page===undefined?'aria-haspopup="dialog"':`aria-description="${escape(t("Megnyitás: {target}",{target:page}))}"`} title="${escape(caption)}"><span class="dhx_button__icon bi ${page===undefined?"bi-arrows-angle-expand":"bi-box-arrow-in-right"}" aria-hidden="true"></span><span class="dhx_button__text">${escape(caption)}</span></button></div>`;};
     const hint=(row:Row)=>{const text=pick?options.activation?.(row):undefined;return text?` aria-description="${escape(text)}"`:"";};
     const mark=(row:Row)=>options.selection&&row._markable!==false?`<input class="blade-card-mark" type="checkbox" aria-label="${escape(t("Sor jelölése: {id}",{id:row.id}))}" ${this.marked.has(String(row.id))?"checked":""}>`:"";
     // Card fields: every permitted field with its column's presentation; only the first media field moves to the top slot.
