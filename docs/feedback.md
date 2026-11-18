@@ -10883,8 +10883,10 @@ that exactly equals an option label lists every option. The managed
   - A throwaway screenshot check in Blade, Blade Night, light and dark showed
     the header in every theme, with the landmark still there after the outer
     panel collapsed and expanded.
-  - `empty-states.spec.cjs` "key browser" fails before reaching a layout:
-    the collapsed `Menü` entry's name now carries an attention count, which
-    the `openMenu` helper's `/^(Menü|Menu)$/` does not match. This is
-    unrelated to this change and was reported to the owning session.
+  - `empty-states.spec.cjs` "key browser" failed in a combined run before
+    reaching a layout: the collapsed `Menü` menu was not open 750 ms after
+    its click. It passes alone, and the failure is intermittent like the
+    recorded `task-page.spec.cjs` and `menuless-view.spec.cjs` menu failures
+    ([FB-0217](#fb-0217), [FB-0218](#fb-0218)). It is unrelated to this
+    change and is reported to the owner as a separate task.
 - **Status:** implemented and verified as above.
