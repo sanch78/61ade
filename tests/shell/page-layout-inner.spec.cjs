@@ -188,7 +188,12 @@ test('the tree rules: inner regions are page regions, the holder is not; a tree 
   out.frameless=[frameless.host.querySelector('.blade-page-layout').classList.contains('dhx_layout-line'),frameless.host.querySelectorAll('.dhx_layout-cell-header').length];
   frameless.layout.destroy();frameless.host.remove();
   out.rejected=[
-   {cols:[{id:'x',inner:{rows:[{id:'y',header:'No'}]}}]},
+   {cols:[{id:'x',inner:{rows:[{header:'No',cols:[{id:'y'}]}]}}]},
+   {cols:[{id:'x',inner:{rows:[{id:'y',header:' '}]}}]},
+   {cols:[{id:'x',inner:{rows:[{id:'y',count:2}]}}]},
+   {cols:[{id:'x',inner:{rows:[{id:'y',header:'Y',count:-1}]}}]},
+   {cols:[{id:'x',inner:{rows:[{id:'y',header:'Y',count:1.5}]}}]},
+   {cols:[{id:'x',header:'X',count:2}]},
    {cols:[{id:'x',inner:{rows:[{id:'y',collapsable:true}]}}]},
    {cols:[{id:'x',inner:{rows:[{tabs:[{id:'t',header:'T'}]}]}}]},
    {cols:[{id:'x',inner:{rows:[{id:'y',inner:{rows:[{id:'z'}]}}]}}]},
@@ -207,5 +212,83 @@ test('the tree rules: inner regions are page regions, the holder is not; a tree 
  expect(result.lines).toBe(2);
  expect(result.frameless).toEqual([true,0]);
  for(const message of result.rejected)expect(message).toMatch(/^TypeError: 61ade: PageLayout: /);
+ expect(seen).toEqual([]);
+});
+
+// Headed inner regions (FB-0227, docs/toolkit.md#pagelayout-inner-header) on the fixture page: the title row with its
+// badge over the content, the placeholder and mounted content below it, live changes, the landmark's name, a region
+// without a header unchanged.
+test('an inner region header: title and count over its own scrolling content, changed live, named for assistive technology',async({page})=>{
+ const seen=watch(page);
+ await page.setViewportSize({width:1366,height:800});
+ await fixture(page);await signIn(page);
+ try{await page.waitForFunction(()=>!!window.__bladeApp,null,{timeout:5000});}
+ catch{await page.reload();await page.waitForFunction(()=>!!window.__bladeApp);}
+ await page.evaluate(()=>{
+  const app=window.__bladeApp,host=document.createElement('div');
+  host.id='fixture-headed';host.style.cssText='position:fixed;left:0;top:0;width:900px;height:600px;z-index:10000;background:var(--dhx-background-primary)';document.body.append(host);
+  const layout=new app.components.PageLayout({id:'fixture.headed',tree:{inner:{cols:[
+   {id:'list',header:'Elemek',count:1234,width:300,resizable:true},
+   {rows:[{id:'included',header:'Kiválasztott'},{id:'excluded',header:'Kizárt',count:0,height:200,minHeight:120,resizable:true}]},
+   {id:'plain',width:160}]}}});
+  layout.mount(host);window.__headed=layout;
+  const long=document.createElement('div');long.className='fixture-long';long.style.height='2000px';long.textContent='long content';layout.attach('list',long);
+  layout.placeholder('excluded',{text:'Nincs kizárt elem.'});
+ });
+ const host=page.locator('#fixture-headed');
+ const head=id=>host.locator(`[data-cell-id="${id}"] .blade-inner-header`);
+ await expect(head('list')).toBeVisible();
+ // The title and the badge in the locale's format (the visual digit is hidden; the spoken count is in the name).
+ await expect(head('list').locator('.blade-inner-header__title')).toHaveText('Elemek');
+ await expect(head('list').locator('.blade-inner-header__count')).toHaveText(/^1\s?234$/);
+ await expect(head('list').locator('.blade-inner-header__count')).toHaveAttribute('aria-hidden','true');
+ await expect(head('excluded').locator('.blade-inner-header__count')).toHaveText('0');
+ await expect(head('included').locator('.blade-inner-header__count')).toBeHidden();
+ await expect(host.getByRole('region',{name:/^Elemek 1\s?234 elem$/})).toBeVisible();
+ await expect(host.getByRole('region',{name:'Kizárt 0 elem',exact:true})).toBeVisible();
+ await expect(host.getByRole('region',{name:'Kiválasztott',exact:true})).toBeVisible();
+ // The look: one row with padding and a line below it, a pill badge, no frame or collapse button.
+ const look=await head('list').evaluate(element=>{const style=getComputedStyle(element),badge=getComputedStyle(element.querySelector('.blade-inner-header__count'));
+  return {bottom:style.borderBottomWidth,top:style.borderTopWidth,padding:[style.paddingTop,style.paddingLeft,style.paddingBottom],minWidth:badge.minWidth,radius:parseFloat(badge.borderTopLeftRadius),badgeBackground:badge.backgroundColor};});
+ expect(look.bottom).toBe('1px');expect(look.top).toBe('0px');
+ expect(look.padding).toEqual(['10px','20px','8px']);expect(look.minWidth).toBe('20px');expect(look.radius).toBeGreaterThanOrEqual(10);
+ expect(look.badgeBackground).not.toBe('rgba(0, 0, 0, 0)');
+ await expect(host.locator('.dhx_layout-cell-header')).toHaveCount(0);
+ // The content is below the header and scrolls on its own; the header stays.
+ const headBox=await box(head('list')),content=await box(host.locator('.fixture-long'));
+ expect(content.y).toBeGreaterThanOrEqual(headBox.y+headBox.height-1);
+ const scrolled=await host.locator('.fixture-long').evaluate(element=>{let node=element.parentElement;while(node&&node.scrollHeight<=node.clientHeight)node=node.parentElement;node.scrollTop=500;return node.scrollTop;});
+ expect(scrolled).toBeGreaterThan(0);
+ expect(await box(head('list'))).toEqual(headBox);
+ // The placeholder of an empty headed region is below its header; the declared height is the whole region's.
+ await expect(host.locator('[data-cell-id="excluded"]')).toContainText('Nincs kizárt elem.');
+ const excluded=await box(host.locator('[data-cell-id="excluded"]')),status=await box(host.locator('[data-cell-id="excluded"] .blade-status'));
+ expect(excluded.height).toBeCloseTo(200,0);
+ expect(status.y).toBeGreaterThanOrEqual((await box(head('excluded'))).y+(await box(head('excluded'))).height-1);
+ // A region without header is unchanged: its own cell, no header row and no landmark.
+ await expect(host.locator('[data-cell-id="plain"] .blade-inner-header')).toHaveCount(0);
+ await expect(host.locator('[data-cell-id="plain"]')).not.toHaveAttribute('role','region');
+ const cells=await page.evaluate(()=>{const layout=window.__headed;return {plain:layout.cell('plain').id,excluded:layout.cell('excluded').id};});
+ expect(cells.plain).toBe('plain');expect(cells.excluded).not.toBe('excluded');
+ // Live changes: the count, the title, hiding the badge; errors for other ids and values.
+ const errors=await page.evaluate(()=>{
+  const layout=window.__headed,error=fn=>{try{fn();return '';}catch(e){return `${e.name}: ${e.message}`;}};
+  layout.header('excluded',{count:3});layout.header('included',{label:'Kijelölt',count:7});layout.header('list',{count:null});
+  return [error(()=>layout.header('plain',{count:1})),error(()=>layout.header('nope',{count:1})),error(()=>layout.header('excluded',{count:-1})),
+   error(()=>layout.header('excluded',{label:''})),error(()=>layout.header('excluded',{title:'X'}))];
+ });
+ expect(errors[0]).toMatch(/^Error: .*has no header/);expect(errors[1]).toMatch(/^Error: .*has no region/);
+ for(const message of errors.slice(2))expect(message).toMatch(/^TypeError: 61ade: PageLayout\.header: /);
+ await expect(head('excluded').locator('.blade-inner-header__count')).toHaveText('3');
+ await expect(host.getByRole('region',{name:'Kizárt 3 elem',exact:true})).toBeVisible();
+ await expect(host.getByRole('region',{name:'Kijelölt 7 elem',exact:true})).toBeVisible();
+ await expect(head('list').locator('.blade-inner-header__count')).toBeHidden();
+ await expect(host.getByRole('region',{name:'Elemek',exact:true})).toBeVisible();
+ // Mounted content after the changes is still below the header.
+ await page.evaluate(()=>{const element=document.createElement('p');element.className='fixture-mounted';element.textContent='mounted';window.__headed.attach('excluded',element);});
+ await expect(host.locator('[data-cell-id="excluded"] .fixture-mounted')).toBeVisible();
+ // The placeholder ends with the content (the status element stays, idle and visually hidden).
+ await expect(host.locator('[data-cell-id="excluded"] .blade-status')).toHaveClass(/blade-status--idle/);
+ await page.evaluate(()=>{window.__headed.destroy();document.getElementById('fixture-headed').remove();});
  expect(seen).toEqual([]);
 });

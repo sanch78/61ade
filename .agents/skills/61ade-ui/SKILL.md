@@ -155,7 +155,11 @@ tree as decoration for a flat list.
   tree of only `{ inner }` below the bar), not a nested `app.dhx.Layout`: its
   regions are ordinary page regions with kept sizes, the double-click
   restore and lines with a hit area
-  ([inner layout](../../../docs/toolkit.md#pagelayout-inner)).
+  ([inner layout](../../../docs/toolkit.md#pagelayout-inner)). An inner
+  region that needs a title or an entry count declares `header` and `count`
+  (a frameless title row with a count badge, kept current with
+  `PageLayout.header`); do not draw a heading row inside the region
+  ([inner region header](../../../docs/toolkit.md#pagelayout-inner-header)).
 - A `ListView` already owns its record commands; keep them there instead of
   copying them into a page bar. This rule applies when the composed page or
   tab needs commands of its own. Public recipe:

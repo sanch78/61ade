@@ -2237,8 +2237,18 @@ export interface CommandBar extends Component<CommandBarEvents> {
  */
 export interface PageRegion {
     id?: string;
-    /** Plain text (escaped; a view's declared header arrives translated). In a `tabs` branch: the tab's label. */
+    /**
+     * Plain text (escaped; a view's declared header arrives translated). In a `tabs` branch: the tab's label. On a
+     * region of an `inner` layout (1–150 characters, FB-0227): a one-line frameless header above its content, the
+     * region's accessible name; the content (`cell`, `attach`, `placeholder`) is below it and scrolls on its own, while
+     * the sizes and `minHeight` are the whole region's. Change it with `PageLayout.header`.
+     */
     header?: string;
+    /**
+     * A region of an `inner` layout with a `header` (FB-0227): a non-negative integer shown as a badge beside the title
+     * (formatted in the locale, spoken as part of the name, such as "3 items"). Without `header` it throws `TypeError`.
+     */
+    count?: number;
     rows?: PageRegion[];
     cols?: PageRegion[];
     /** Tabbed leaves (`app.components.Tabs`); the last active tab is kept per page and user. */
@@ -2246,11 +2256,12 @@ export interface PageRegion {
     /** Stacked collapsible leaves (`app.components.Accordion`); the open sections are kept per page and user. */
     accordion?: PageRegion[];
     /**
-     * A frameless layout inside this region (FB-0222): a `rows` or `cols` branch whose regions have no frame or header
-     * and are divided by draggable lines. Its regions are ordinary regions of the page (`cell`, `attach`, `placeholder`,
-     * kept sizes); this region itself keeps its header, size and collapsing but is not a mount target, and needs an
-     * `id` only to keep its size or to collapse. Inside it: no `header`, collapsing, `tabs`, `accordion` or `inner`. A
-     * tree that is only `{ inner }` is frameless as a whole, for the content of a tab or a region.
+     * A frameless layout inside this region (FB-0222): a `rows` or `cols` branch whose regions have no frame and are
+     * divided by draggable lines. Its regions are ordinary regions of the page (`cell`, `attach`, `placeholder`, kept
+     * sizes); this region itself keeps its header, size and collapsing but is not a mount target, and needs an `id`
+     * only to keep its size or to collapse. Inside it: no collapsing, `tabs`, `accordion` or `inner`, and only a
+     * region (not a branch) takes a `header` and `count`. A tree that is only `{ inner }` is frameless as a whole, for
+     * the content of a tab or a region.
      */
     inner?: PageRegion;
     /** An `accordion` branch: several sections may be open at once (`AccordionOptions.multiple`). */
@@ -2313,6 +2324,16 @@ export interface PageLayout extends Component<PageLayoutEvents> {
     tabsOf(id: string): Tabs | undefined;
     /** The `Accordion` of the `accordion` branch that holds region $id (to `open` a section or follow `toggle`), else `undefined`. */
     accordionOf(id: string): Accordion | undefined;
+    /**
+     * Changes the title (plain text, 1–150 characters) or the count (a non-negative integer; `null` hides the badge) of
+     * an `inner` region declared with a `header` (FB-0227), without rebuilding the layout; keys left out keep their
+     * value. An id without a header, a region holding an inner layout and an undeclared id throw `Error`, other changes
+     * `TypeError`.
+     */
+    header(id: string, changes: {
+        label?: string;
+        count?: number | null;
+    }): void;
     /** Whether a `collapsable` leaf (in a `rows`/`cols` branch) is collapsed; any other id throws `Error`. */
     isCollapsed(id: string): boolean;
     /**

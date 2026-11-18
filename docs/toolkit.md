@@ -1555,8 +1555,9 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   keeps its header, size, `resizable` and collapsing, but is not a mount
   target (`cell`, `attach` and `placeholder` of it throw `Error`). It needs
   an `id` only to keep its size or to collapse. Inside an inner layout there
-  are no headers, no collapsing, no `tabs` or `accordion` branches and no
-  further `inner` (`TypeError`). It is part of the same Suite Layout (a line
+  is no collapsing, no `tabs` or `accordion` branch and no further `inner`
+  (`TypeError`); only a region takes a header, its own
+  [frameless one](#pagelayout-inner-header). It is part of the same Suite Layout (a line
   sub-layout), so one preference key keeps every size:
 
   ```ts
@@ -1575,6 +1576,47 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   A tree that is only `{ inner: … }` is frameless as a whole (a Suite line
   Layout), for the content of a tab or a region below its command bar:
   mount that `PageLayout` into the tab's cell with its own `id`.
+
+<a id="pagelayout-inner-header"></a>
+
+- **Inner region header** (`header`, `count`,
+  [FB-0227](feedback.md#fb-0227)): a region of an inner layout can take a
+  `header` (plain text, 1–150 characters, escaped; a view's declared header
+  arrives translated) and, with it, a `count` (a non-negative integer). The
+  region then shows one frameless row at its top: the title, and the count as
+  a small pill badge beside it, formatted in the selected locale. A line in the
+  border colour separates the row from the content. The content fills the
+  rest of the region and scrolls on its own; the header stays. There is no
+  frame and no collapse button (collapsing remains a framed panel's feature).
+  The look uses theme tokens only, so every skin follows it. A region
+  without `header` is unchanged. A `count` without `header`, a `header` on a
+  branch of an inner layout and an empty header throw `TypeError`.
+
+  `cell(id)`, `attach(id, …)`, `placeholder(id, …)` and the kept sizes
+  address the content below the header, so an empty region shows its
+  placeholder text there. The header takes its height from the region:
+  `height` and `minHeight` still mean the whole region.
+  `header(id, {label?, count?})` changes the title or the count later,
+  without rebuilding the layout; `count: null` hides the badge, and keys left
+  out keep their value. An id without a header, a region holding an inner
+  layout or an undeclared id throws `Error`; any other value throws
+  `TypeError`.
+
+  The region is a `region` landmark named by its title and the spoken count,
+  `{count} elem` (English `{count} items`), for example
+  `Kizárt 3 elem`. The visual digit is hidden from assistive technology.
+  Without a count, the title alone is the name.
+
+  ```ts
+  const page = new app.components.PageLayout({ id: view.id, tree: { inner: { cols: [
+    { id: "list", header: t("Elemek"), count: 0, width: 420, resizable: true },
+    { rows: [
+      { id: "included", header: t("Kiválasztott"), count: 0 },
+      { id: "excluded", header: t("Kizárt"), count: 0, height: 220, minHeight: 120, resizable: true },
+    ] },
+  ] } } });
+  page.header("excluded", { count: rows.length });
+  ```
 - `cell(id)` is a declared region's cell, the mount target of every
   component (an undeclared id throws `Error`); `attach(id, content)` puts a
   Suite widget, a public component or a plain element there (the view host's
@@ -3393,6 +3435,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M89 | [Field subset and a media field alone in a section](#recorddetails-fields): `RecordDetailsOptions.fields` (a subset of the view's detail fields in the view's order; a derived media column follows its media field; a field the row lacks is not shown; an empty array, a non-string entry or an id that is not a detail field throws `TypeError`). In `RecordDetails` and `Adatok`, a section whose only shown field is a media field shows its heading and the media without a label row, also without `detailsWidth` ([media alone in a section](workspaces.md#details-media-alone)). Removes `RecordDetailsOptions.longText` (`"inline"`, `"card"`) of `1a3ee5f` (FB-0218), the CSS property `--blade-record-text-min-height` and the classes `.blade-record-texts`, `.blade-record-text`, `.blade-record-text__body` and `.blade-record-details--fill` | [FB-0218](feedback.md#fb-0218), [FB-0223](feedback.md#fb-0223) | if used: TypeScript rejects `longText: "card"` and the runtime ignores it, so remove it. The long text is inline below the groups and the details scroll as a whole. Project styles on the removed classes or property match nothing. A view copy with reduced `detailFields` can become `fields`. info: a section holding only a media field without `detailsWidth` loses its label row in `RecordDetails` and `Adatok`, so a spec that counted that `dt` finds none | if used: D-084 drops `longText: "card"` from the record page's `RecordDetails`; D-090/D-093 regions use `fields`, and overrides of `.blade-record-text*` go ([handoff](handoff/storyblox.md#record-details-layout-d-084)) | none |
 | M90 | [Parent records](shell.md#location-bar-parent): a record view's `parent: {field, view}` (PHP `View`, JSON `views.<id>.parent`, `ViewDefinition.parent`; `field` a non-secret `select`, `number` or `text` field of the record resource holding the parent's id, `view` a record view of the parent resource (a lookup select must reference it), checked at definition time) puts the resolved parent records (recursively, at most 4) as links before the record, from the menu path of the topmost parent actually resolved (none: the view's own), which also carries the marker; `location: 'group'` (M87, JSON `location`, `ViewDefinition.location`) is removed; `ViewHost.setLocation(segments, {from: "root"})` makes the segments the whole bar and `LocationSegment` `target.filters` links to a filtered list ([own path](shell.md#location-bar-own-path)) | [FB-0224](feedback.md#fb-0224), [FB-0226](feedback.md#fb-0226) | if used: remove `location: 'group'` (PHP `View` ignores it until StoryBloX has; JSON `location` fails at load) and declare `parent` where the record has a parent record; a page that put its parent into its own `setLocation` segments drops that segment | required: remove `location: 'group'` from `storyblox.season` and `storyblox.episode-workbench` (`stories.php` 58, 178); declare `parent: ['field' => 'season_id', 'view' => 'storyblox.season']` on the episode workbench and drop its season segment ([handoff](handoff/storyblox.md)) | none |
 | M91 | [Application window height and long-text placement](workspaces.md#long-text-placement): `ApplicationDefinition` `windowMaxHeight` (JSON `application.window_max_height`, 320–4000 px, bootstrap `windowMaxHeight` only when declared) is the default cap of every fitted window instead of the fixed 800 px, which stays the fallback; `WindowOptions.maxHeight` still wins ([window sizing](workspaces.md#window-sizing)). Field `column.placement` (`"end"` default, `"row"`, `"group"`; `ColumnMetadata.placement`, `ColumnPlacement`) places a long text outside the sections at the end, as a row at its declaration place or as a group of its own in cards, `Adatok` and `RecordDetails` | [FB-0177](feedback.md#fb-0177), [FB-0225](feedback.md#fb-0225) | none (additive; without the declarations nothing changes); if used: an application with other screens declares its window height, a record with a long text between its sections declares its placement | none | none |
+| M92 | [Inner region header](#pagelayout-inner-header): a region of an `inner` layout takes `header` and `count` (a frameless title row with a count badge over its content, a `region` landmark named by the title and `{count} elem`); `PageLayout.header(id, {label?, count?})` changes them | [FB-0227](feedback.md#fb-0227) | info: a tree with a `header` inside `inner`, which threw `TypeError`, now builds; a project-drawn heading row inside an inner region can become the declared header | none | none |
 | M87 | [Location bar from the group](shell.md#location-bar): a record view's `location: 'group'` (PHP `View`, JSON `views.<id>.location`, `ViewDefinition.location`) starts its bar at the menu group without the source view's entry; marker and compact siblings unchanged **Removed again by M90** (2026-11-18): `location` is replaced by `parent` and `setLocation(…, {from: "root"})`. | [FB-0220](feedback.md#fb-0220) | none (additive; record views without the option are unchanged); if used: StoryBloX's episode page (D-087) declares it | none | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
@@ -3563,6 +3606,11 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-18 | PHP/JSON field `column.detailsWidth` / `column.details_width` (media fields, 160–800), `ColumnMetadata.detailsWidth`, `RecordDetailsOptions.longText` (`"inline"` default, `"card"`), CSS property `--blade-record-text-min-height`, the details element's `data-blade-view`; the `Adatok` window widens for a sized image (M85). Additive. `longText` removed again by M89. | A record page showing a record's data beside its image and its main text below it (a consumer request). | [FB-0218](feedback.md#fb-0218) |
 | 2026-11-18 | PHP `View::$location`, JSON `views.<id>.location` (`"group"`, record views only), `ViewDefinition.location`: the location bar starts at the menu group without the source view's entry (M87). Additive. Removed again by M90. | A record reached through a parent level other than its resource's menu list (a consumer request). | [FB-0220](feedback.md#fb-0220) |
 | 2026-11-18 | `PageRegion.inner` (a region's frameless inner layout of ordinary page regions; a tree of only `{inner}` is frameless as a whole); `resizable` on a branch's last region draws the line before it; both regions beside a dragged line keep their declared size; `--blade-record-text-min-height: 0px` is 0 (M88). `PageLayoutOptions.frame` and `RecordDetailsOptions.longText: "reading"` of the same day are removed. | A region divided by lines without frames, each part holding any component (owner correction of a consumer-shaped first version). | [FB-0221](feedback.md#fb-0221), [FB-0222](feedback.md#fb-0222) |
+| 2026-11-18 | `RecordDetailsOptions.fields` (a subset of the view's detail fields in the view's order, `TypeError` for an empty array, a non-string entry or an id that is not a detail field). A media field alone among a section's shown fields shows the heading and the media without a label row, also without `detailsWidth`. `RecordDetailsOptions.longText`, `--blade-record-text-min-height` and the long-text card classes are removed (M89). | Owner correction: FB-0218's long-text card and its label rule built one consumer's record page into the framework. The general route is an inner layout of `RecordDetails` with field subsets. | [FB-0218](feedback.md#fb-0218), [FB-0223](feedback.md#fb-0223) |
+| 2026-11-18 | PHP `View::$parent`, JSON `views.<id>.parent`, `ViewDefinition.parent` (`{field, view}`, record views only, the field a non-secret `select`, `number` or `text` field holding the parent's id; a lookup select must reference the view's record resource), `Field::references()`, public `Lookup::$resource`: the location bar shows a record's resolved parent records before it, from the menu path of the topmost parent resolved, and the menu marker follows it (M90). Breaking: `View::$location`, JSON `views.<id>.location` and `ViewDefinition.location` (M87) are removed; PHP `View` ignores a `location` argument until StoryBloX has dropped it. | A record reached through a parent record, also after a reload, as a general relation instead of a one-consumer option (owner correction). | [FB-0220](feedback.md#fb-0220), [FB-0224](feedback.md#fb-0224) |
+| 2026-11-18 | PHP `ApplicationDefinition` `windowMaxHeight`, JSON `application.window_max_height` (320–4000), bootstrap `windowMaxHeight`: the application's default height of fitted windows, 800 px the fallback, `WindowOptions.maxHeight` still wins; PHP/JSON field `column.placement` (`end`, `row`, `group`; a textarea without a section, presentation or editor), `ColumnMetadata.placement`, `ColumnPlacement`: a long text outside the sections at the end, as a row or as a group of its own in cards and details (M91). Additive. | Two parts of FB-0177 were fixed to one consumer's screen (a fixed 800 px cap, a long text always last). | [FB-0177](feedback.md#fb-0177), [FB-0225](feedback.md#fb-0225) |
+| 2026-11-18 | `ViewHost.setLocation(segments, {from: "root"})` (the segments are the whole location bar) and `LocationSegment` `target.filters` (a link to a filtered list). Additive (M90). | A project needs a location path entirely of its own, with links (owner instruction). | [FB-0226](feedback.md#fb-0226) |
+| 2026-11-18 | `PageRegion.header` and `count` on a region of an `inner` layout and `PageLayout.header(id, {label?, count?})` (M92). | A titled, counted area of a split tab drawn in a project's own CSS; the framework now owns that look. | [FB-0227](feedback.md#fb-0227) |
 
 <a id="resolved-decisions"></a>
 
@@ -3612,10 +3660,6 @@ Accepted by the owner on 2026-10-29 as recommended:
    project-kind options 64 KiB) stand until P3 C-4/K-S1 verify them; a change
    is logged in [changes](#changes). Confirmed unchanged; the generic
    provider's final shape rules are logged there (2026-10-30).
-| 2026-11-18 | `RecordDetailsOptions.fields` (a subset of the view's detail fields in the view's order, `TypeError` for an empty array, a non-string entry or an id that is not a detail field). A media field alone among a section's shown fields shows the heading and the media without a label row, also without `detailsWidth`. `RecordDetailsOptions.longText`, `--blade-record-text-min-height` and the long-text card classes are removed (M89). | Owner correction: FB-0218's long-text card and its label rule built one consumer's record page into the framework. The general route is an inner layout of `RecordDetails` with field subsets. | [FB-0218](feedback.md#fb-0218), [FB-0223](feedback.md#fb-0223) |
-| 2026-11-18 | PHP `View::$parent`, JSON `views.<id>.parent`, `ViewDefinition.parent` (`{field, view}`, record views only, the field a non-secret `select`, `number` or `text` field holding the parent's id; a lookup select must reference the view's record resource), `Field::references()`, public `Lookup::$resource`: the location bar shows a record's resolved parent records before it, from the menu path of the topmost parent resolved, and the menu marker follows it (M90). Breaking: `View::$location`, JSON `views.<id>.location` and `ViewDefinition.location` (M87) are removed; PHP `View` ignores a `location` argument until StoryBloX has dropped it. | A record reached through a parent record, also after a reload, as a general relation instead of a one-consumer option (owner correction). | [FB-0220](feedback.md#fb-0220), [FB-0224](feedback.md#fb-0224) |
-| 2026-11-18 | PHP `ApplicationDefinition` `windowMaxHeight`, JSON `application.window_max_height` (320–4000), bootstrap `windowMaxHeight`: the application's default height of fitted windows, 800 px the fallback, `WindowOptions.maxHeight` still wins; PHP/JSON field `column.placement` (`end`, `row`, `group`; a textarea without a section, presentation or editor), `ColumnMetadata.placement`, `ColumnPlacement`: a long text outside the sections at the end, as a row or as a group of its own in cards and details (M91). Additive. | Two parts of FB-0177 were fixed to one consumer's screen (a fixed 800 px cap, a long text always last). | [FB-0177](feedback.md#fb-0177), [FB-0225](feedback.md#fb-0225) |
-| 2026-11-18 | `ViewHost.setLocation(segments, {from: "root"})` (the segments are the whole location bar) and `LocationSegment` `target.filters` (a link to a filtered list). Additive (M90). | A project needs a location path entirely of its own, with links (owner instruction). | [FB-0226](feedback.md#fb-0226) |
 
 ## Related
 

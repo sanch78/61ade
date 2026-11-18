@@ -10797,3 +10797,94 @@ that exactly equals an option label lists every option. The managed
   the document title, the filtered link's address, the list it opens filtered
   by channel, no page errors.
 - **Status:** implemented and verified as above.
+
+<a id="fb-0227"></a>
+
+## FB-0227 — A header with a count for a region of the inner layout
+
+- **Date:** 2026-11-18.
+- **Report:** a consumer splits one tab into three areas with the
+  [inner layout](toolkit.md#pagelayout-inner): one list on the left, two
+  above each other on the right, divided by draggable lines. Each area needs
+  a short title and the number of its entries. The inner layout gave its
+  regions no header, so the consumer drew its own heading row inside each
+  region: a title, a pill count badge, a bottom line and a body that scrolls
+  on its own. The application owner accepted the look, but it lived in one
+  project's CSS. The framework's other region headers (framed panels,
+  `collapsable` leaves) have a different, framed look.
+- **Accepted expectation:** an inner region can show an optional one-line
+  frameless header: a title with an optional count badge, a line below it,
+  and content that scrolls on its own below that. The host changes the count
+  and the title later without rebuilding the layout. Regions without a
+  header stay as they were.
+- **Contract:** `PageRegion.header` (1–150 characters, plain text, escaped,
+  translated like other declared headers) and `count` (a non-negative
+  integer) on a region of an `inner` layout;
+  `PageLayout.header(id, {label?, count?})`, where `count: null` hides the
+  badge ([inner region header](toolkit.md#pagelayout-inner-header),
+  migration M92). Several cases throw `TypeError`:
+  - a `count` without `header`, or outside an inner layout;
+  - a `header` on a branch of an inner layout, or an empty header;
+  - an invalid change passed to `header`.
+
+  An id without a header, a region holding an inner layout and an
+  undeclared id throw `Error`. `cell`, `attach`, `placeholder` and kept sizes
+  address the content below the header; `height` and `minHeight` are the
+  whole region's. No new action, permission, event or catalogue key: the
+  spoken count reuses `{count} elem` (English `{count} items`, German
+  `{count} Elemente`).
+- **Decisions:**
+  - A headed region is a framework branch of the same Suite Layout under the
+    region's id: a header cell of content height over a body cell
+    (`blade-head-<id>`, `blade-body-<id>`, in the reserved `blade-` space).
+    The branch keeps the id, sizes, line and kept preferences, so the
+    declared sizes still mean the whole region. The body cell is the mount
+    target and holds the region's placeholder.
+  - The header is the framework's own element in the header cell, so a
+    count change only rewrites its text, with no Suite repaint.
+  - Accessibility: the region's node is a `region` landmark labelled by the
+    title and a visually hidden spoken count. The visual badge is
+    `aria-hidden`, so the name reads "Kizárt 3 elem", not a bare number. The
+    landmark is put back whenever Suite recreates the node (an outer panel
+    expanding).
+  - The look uses theme tokens only: padding 10/20/8 px, a medium title, a
+    1 px line in `--dhx-border-color`, and a 20 px pill badge in
+    `--dhx-background-secondary` and `--dhx-font-color-secondary`. There is
+    no frame and no collapse button; collapsing stays a framed panel's
+    feature.
+  - Branches inside an inner layout still take no header: a title belongs to
+    the region that holds content.
+- **Implemented:** `PageLayout.ts` (validation, the header branch, the header
+  element, the landmark, `header`), `api/types.ts` (`PageRegion.header` and
+  `count`, `PageLayout.header`), `admin.css` (`.blade-inner-header`),
+  [toolkit](toolkit.md#pagelayout-inner-header), [usage](usage.md), the
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md) and the
+  [test map](development.md).
+- **Not covered:** a header on an inner branch, and an inner header in list
+  view layouts (`Blade\Feature\ViewLayout` takes no `inner`).
+- **Verification:**
+  - `npm run typecheck`, `npm run build` and `npm run demo:assets`;
+    `node tests/shell/ui-preferences.mjs` and `toolkit-components.mjs`
+    passed.
+  - The retained spec `tests/shell/page-layout-inner.spec.cjs` passed on the
+    managed demo, 6 tests. The tree-rule fixture has six new rejected trees.
+    A new header fixture covers:
+    - the title and the locale-formatted badge (`1 234`), the padding, line
+      and pill;
+    - content below the header that scrolls while the header stays;
+    - the placeholder below the header, and 200 px for the whole region;
+    - a region without a header left unchanged;
+    - `header` changing the count and the title and hiding the badge, and
+      its `Error`/`TypeError` cases;
+    - the landmark names `Elemek 1 234 elem`, `Kizárt 0 elem` and `Kizárt 3
+      elem`, and the title alone without a count.
+  - Shell `page-layout-collapse`, `layout-resizer`, `tabs`, `accordion` and
+    `component-remount` passed.
+  - A throwaway screenshot check in Blade, Blade Night, light and dark showed
+    the header in every theme, with the landmark still there after the outer
+    panel collapsed and expanded.
+  - `empty-states.spec.cjs` "key browser" fails before reaching a layout:
+    the collapsed `Menü` entry's name now carries an attention count, which
+    the `openMenu` helper's `/^(Menü|Menu)$/` does not match. This is
+    unrelated to this change and was reported to the owning session.
+- **Status:** implemented and verified as above.
