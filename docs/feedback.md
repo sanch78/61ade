@@ -10106,8 +10106,8 @@ that exactly equals an option label lists every option. The managed
   it; `RecordDetailsOptions.longText: "reading"`; the CSS properties
   `--blade-record-reading-min-size` (16 px) and
   `--blade-record-reading-max-size` (34 px)
-  ([frameless split](toolkit.md#pagelayout-line),
-  [reading text](toolkit.md#recorddetails-reading), migration M88). No new
+  (removed again by [FB-0222](#fb-0222), which replaced them with
+  [`inner`](toolkit.md#pagelayout-inner); migration M88). No new
   action, permission, catalogue key or event: the reading region's
   accessible name is the field's translated label.
 - **Decisions and deviations from the request:**
@@ -10177,5 +10177,88 @@ that exactly equals an option label lists every option. The managed
   step waited on a button that the shared locator handler had just removed.
   The step now bounds that click, and the spec passed 12 of 12 with
   `--repeat-each=3`. No full-smoke claim.
-- **Status:** implemented and verified as above; the consumer migrates its
-  tab in its own session.
+- **Status:** superseded in part by [FB-0222](#fb-0222) the same day: the
+  owner rejected `frame: "line"`, `longText: "reading"` and the
+  `demo.media-proof` page as one consumer's screen built into the framework.
+  The general parts stay: the last region's `resizable`, the neighbour's
+  kept size, the line handles and the `0px` minimum.
+
+<a id="fb-0222"></a>
+
+## FB-0222 — An inner layout in a PageLayout region (owner correction of FB-0221)
+
+- **Date:** 2026-11-18.
+- **Report:** owner correction of [FB-0221](#fb-0221): it had built one
+  consumer's tab into the framework point by point (a whole-layout
+  `frame: "line"`, a `longText: "reading"` text presentation with scaling
+  type, and a demo page that copied the consumer's screen). The framework does
+  not implement one project's wish as a feature. What the owner wanted was an
+  inner layout of the layout manager itself, in which any 61ade component can
+  be attached to every part.
+- **Accepted expectation:** a `PageLayout` region can hold a frameless inner
+  layout of rows and columns divided by draggable lines; its parts are
+  ordinary regions of the page (mount, attach, placeholder, kept sizes, the
+  double-click restore). The consumer-specific parts of FB-0221 are removed;
+  its general fixes stay.
+- **Contract:** `PageRegion.inner` (a `rows` or `cols` branch with nothing
+  else). The region holding it keeps its header, sizes, `resizable` and
+  collapsing, is not a mount target (`cell`, `attach` and `placeholder` throw
+  `Error`), and needs an `id` only to keep its size or to collapse. Inside it
+  there are no headers, collapsing, `tabs`, `accordion` or nested `inner`
+  (`TypeError`). A tree of only `{inner}` is frameless as a whole.
+  `PageLayoutOptions.frame`, `RecordDetailsOptions.longText: "reading"` and
+  the CSS properties `--blade-record-reading-min-size`/`-max-size` are removed
+  ([inner layout](toolkit.md#pagelayout-inner), migration M88). No new
+  action, permission, catalogue key or event.
+- **Decisions:**
+  - The inner layout is part of the same Suite Layout (a line sub-layout of
+    the space layout), not a second component. One preference key keeps
+    every size, and the outer panel's collapse and resize carry it.
+  - The kept size of the region after a dragged line now comes from Suite's
+    `_getNextCell` (the cell its drag resizes) instead of a DOM lookup. A
+    branch before the line, such as the inner data-and-image row, has no
+    element id.
+  - The owner chose this form and the removal (both options offered, the
+    recommended ones taken).
+  - The consumer keeps its reading-text look in its own stylesheet; with
+    `--blade-record-text-min-height: 0px` the card fills any region.
+- **Implemented:** `PageLayout.ts` (`inner` validation, translation to a
+  line branch, holder regions, a frameless root; `frame` removed),
+  `UiPreferences.ts` (the next cell through Suite), `api/types.ts`,
+  `admin.css` (handles in every line layout of a `PageLayout`; the reading
+  styles removed), `RecordDetails.ts`, `RecordPresentation.ts` and
+  `details.ts` (`"reading"` removed). The feature demo has a new
+  [D12 `Médiaböngésző`](demos.md#d12-media-browser) (`media-browser.ts`,
+  `media-browser.css`, the view in `media-sheets.json`, English catalogue
+  entries); `demo.media-proof` and its catalogue entries are removed. The
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md) names `inner`.
+- **Not covered:** `tabs` and `accordion` inside an inner layout (mount a
+  `Tabs` into an inner region instead); list view layouts
+  (`Blade\Feature\ViewLayout`) take no `inner`.
+- **Verification:** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`; `node tests/shell/ui-preferences.mjs`,
+  `toolkit-components.mjs`, `toolkit-list.mjs`, `toolkit-kernel.mjs`; PHP
+  `contracts`, `configuration`, `i18n`, `record-forms` and `toolkit` passed.
+  The retained spec `tests/shell/page-layout-inner.spec.cjs` (5 tests)
+  replaces `page-layout-line.spec.cjs` and passed on the managed demo:
+  - at 1366 px, the two framed panels with their headers and the inner line
+    layout with two 8 px handles; placeholders before a selection, then the
+    data, the image fitted in its region and the brief; data 320 px and brief
+    200 px, with the image filling the rest;
+  - both inner lines dragged, the sizes kept after a reload (including the
+    brief after the data-and-image row), restored by a double-click, and the
+    inner layout widening while `Médialapok` is collapsed;
+  - at 390 px, everything stacked with no horizontal scroll;
+  - in English, the panel and the brief region named; in Blade, Blade Night,
+    light and dark, 1 px lines without frames;
+  - on a fixture page, inner regions mounting and attaching, the holder
+    throwing and collapsing, the last region's line, a frameless
+    `{inner}` tree, and nine rejected trees.
+
+  Shell `layout-resizer`, `tabs`, `page-layout-collapse`,
+  `record-details-layout`, `component-remount`, `empty-states`,
+  `preferences`, `workspace`, `accordion`, `mobile-grid`, `registry` and
+  `toolkit-demo-assets` passed. In the combined run
+  `toolkit-demo-assets.spec.cjs:148` hit the 30 s test timeout once (31.6 s)
+  and passed in isolation (20.6 s). No full-smoke claim.
+- **Status:** implemented and verified as above.

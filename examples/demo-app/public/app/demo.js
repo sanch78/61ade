@@ -1766,99 +1766,125 @@ var text_revisions_default = textRevisions;
 
 // examples/demo-app/frontend/src/media-sheet.ts
 var KIND7 = "demo.media-sheet";
-var PROOF = "demo.media-proof";
-var PHONE4 = "(max-width: 767px)";
-function sheetList(app, host, view) {
-  const t = (key) => app.i18n.t(key);
-  if (!host.record) throw new Error(t("A m\xE9dialap egy rekordhoz ny\xEDlik meg."));
-  const list = app.viewDefinition(view.options?.list ?? host.record.resource);
-  if (!list) throw new Error(t("A m\xE9dialapok list\xE1ja nem \xE9rhet\u0151 el."));
-  return list;
-}
 function sheet(app, host, view) {
   const t = (key) => app.i18n.t(key);
-  const list = sheetList(app, host, view), record = host.record, listId = list.id;
-  host.setTitle(`${view.title}: ${String(record.row.title ?? record.id)}`);
+  if (!host.record) throw new Error(t("A m\xE9dialap egy rekordhoz ny\xEDlik meg."));
+  const listId = view.options?.list ?? host.record.resource;
+  const list = app.viewDefinition(listId);
+  if (!list) throw new Error(t("A m\xE9dialapok list\xE1ja nem \xE9rhet\u0151 el."));
+  host.setTitle(`${view.title}: ${String(host.record.row.title ?? host.record.id)}`);
   const controller = new AbortController(), signal = controller.signal;
   host.signal.addEventListener("abort", () => controller.abort(), { once: true });
   const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "details" }] });
   host.attach(layout);
-  const bar = new app.components.CommandBar({ signal, items: [
-    { id: "back", label: t("Vissza a list\xE1hoz"), icon: "bi bi-arrow-left" },
-    ...app.viewDefinition(PROOF) ? [{ id: "proof", label: t("El\u0151n\xE9zet"), icon: "bi bi-layout-split" }] : []
-  ] });
+  const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a list\xE1hoz"), icon: "bi bi-arrow-left" }] });
   bar.on("click", ({ id }) => {
     if (id === "back" && !app.navigate({ view: listId })) host.close();
-    if (id === "proof") app.navigate({ view: PROOF, record: record.id });
   });
   bar.mount(layout.getCell("commands"));
-  new app.components.RecordDetails({ view: list, record: record.row, showId: false, longText: "card", signal }).mount(layout.getCell("details"));
+  new app.components.RecordDetails({ view: list, record: host.record.row, showId: false, longText: "card", signal }).mount(layout.getCell("details"));
   signal.addEventListener("abort", () => layout.destructor(), { once: true });
-  return { destroy: () => controller.abort() };
-}
-function only(list, ids) {
-  const options = list.options;
-  return { ...list, options: { ...options, detailFields: (options.detailFields ?? options.columns).filter((field) => ids.includes(field.id)) } };
-}
-function proof(app, host, view) {
-  const t = (key) => app.i18n.t(key);
-  const list = sheetList(app, host, view), record = host.record, row = record.row, phone = matchMedia(PHONE4);
-  host.setTitle(`${view.title}: ${String(row.title ?? record.id)}`);
-  const controller = new AbortController(), signal = controller.signal;
-  host.signal.addEventListener("abort", () => controller.abort(), { once: true });
-  const layout = new app.dhx.Layout(null, { type: "none", css: "demo-media-proof", rows: [{ id: "commands", height: 48 }, { id: "tabs" }] });
-  host.attach(layout);
-  const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a m\xE9dialaphoz"), icon: "bi bi-arrow-left" }] });
-  bar.on("click", ({ id }) => {
-    if (id === "back" && !app.navigate({ view: KIND7, record: record.id })) host.close();
-  });
-  bar.mount(layout.getCell("commands"));
-  const tabs = new app.components.Tabs({ id: `${view.id}.tabs`, tabs: [{ id: "proof", label: t("El\u0151n\xE9zet") }, { id: "sheet", label: t("Adatlap") }] });
-  tabs.mount(layout.getCell("tabs"));
-  const column = (list.options.detailFields ?? list.options.columns).find((field) => field.id === "file_id");
-  const media = row._media?.file_id;
-  let build;
-  const render = () => {
-    if (signal.aborted) return;
-    build?.abort();
-    const current = build = new AbortController(), scope = current.signal;
-    signal.addEventListener("abort", () => current.abort(), { once: true, signal: scope });
-    const split = new app.components.PageLayout({ id: `${view.id}.${phone.matches ? "narrow" : "wide"}`, frame: "line", tree: phone.matches ? { rows: [{ id: "data", height: 200, minHeight: 80, resizable: true }, { id: "image", minHeight: 120 }, { id: "text", height: 220, minHeight: 80, resizable: true }] } : { cols: [
-      { id: "data", width: 340, minWidth: 220, resizable: true },
-      { rows: [{ id: "image", minHeight: 120 }, { id: "text", height: 240, minHeight: 80, resizable: true }] }
-    ] } });
-    split.mount(tabs.cell("proof"));
-    new app.components.RecordDetails({ view: only(list, ["title", "client", "channel", "year"]), record: row, showId: false, signal: scope }).mount(split.cell("data"));
-    if (media && column?.media) new app.components.MediaPlayer({
-      source: { resource: column.media, action: "content_stream", id: media.id, version: media.revision },
-      mime: media.mime_type,
-      name: media.name,
-      toolbar: false,
-      signal: scope
-    }).mount(split.cell("image"));
-    else split.placeholder("image", { text: t("Ehhez a m\xE9dialaphoz nincs k\xE9p.") });
-    new app.components.RecordDetails({ view: only(list, ["brief"]), record: row, showId: false, longText: "reading", signal: scope }).mount(split.cell("text"));
-    scope.addEventListener("abort", () => split.destroy(), { once: true });
-  };
-  render();
-  phone.addEventListener("change", render, { signal });
-  new app.components.RecordDetails({ view: list, record: row, showId: false, longText: "card", signal }).mount(tabs.cell("sheet"));
-  signal.addEventListener("abort", () => {
-    tabs.destroy();
-    layout.destructor();
-  }, { once: true });
   return { destroy: () => controller.abort() };
 }
 var mediaSheet = (app) => {
   app.kinds.register(KIND7, { create: (host, view) => sheet(app, host, view) });
-  app.kinds.register(PROOF, { create: (host, view) => proof(app, host, view) });
 };
 var media_sheet_default = mediaSheet;
+
+// examples/demo-app/frontend/src/media-browser.ts
+var KIND8 = "demo.media-browser";
+var PHONE4 = "(max-width: 767px)";
+function only(list, ids) {
+  const options = list.options;
+  return { ...list, options: { ...options, detailFields: (options.detailFields ?? options.columns).filter((field) => ids.includes(field.id)) } };
+}
+function browser2(app, host, view) {
+  const t = (key) => app.i18n.t(key);
+  const list = app.viewDefinition(view.options?.list ?? "demo_media_sheets");
+  if (!list) throw new Error(t("A m\xE9dialapok list\xE1ja nem \xE9rhet\u0151 el."));
+  const fields = list.options.detailFields ?? list.options.columns, image = fields.find((field) => field.id === "file_id");
+  const data = fields.filter((field) => field.section === "Adatok").map((field) => field.id);
+  const phone = matchMedia(PHONE4), root = document.createElement("div");
+  root.style.cssText = "width:100%;height:100%";
+  host.attach(root);
+  let build, selected;
+  const render = () => {
+    if (host.signal.aborted) return;
+    build?.abort();
+    const controller = build = new AbortController(), signal = controller.signal;
+    host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
+    const inner = phone.matches ? { rows: [{ id: "data", height: 180, minHeight: 80, resizable: true }, { id: "image", minHeight: 120 }, { id: "brief", height: 180, minHeight: 80, resizable: true }] } : { rows: [{ cols: [{ id: "data", width: 320, minWidth: 200, resizable: true }, { id: "image", minWidth: 160 }] }, { id: "brief", height: 200, minHeight: 80, resizable: true }] };
+    const selection = { id: "selected", header: t("Kiv\xE1lasztott m\xE9dialap"), inner };
+    const page2 = new app.components.PageLayout({ id: `${view.id}.${phone.matches ? "narrow" : "wide"}`, tree: phone.matches ? { rows: [{ id: "sheets", header: list.title, height: 260, minHeight: 140, resizable: true, collapsable: true }, { ...selection, minHeight: 240 }] } : { cols: [{ id: "sheets", header: list.title, width: 420, minWidth: 260, resizable: true, collapsable: true }, { ...selection, minWidth: 360 }] } });
+    page2.mount(root);
+    let details;
+    const brief = document.createElement("div");
+    brief.className = "demo-media-brief";
+    brief.setAttribute("role", "region");
+    brief.setAttribute("aria-label", t("Le\xEDr\xE1s"));
+    let player, epoch = 0;
+    const empty = () => {
+      for (const id of ["data", "image", "brief"]) page2.placeholder(id, { text: t("V\xE1lassz egy m\xE9dialapot a list\xE1ban.") });
+    };
+    const show = async (id) => {
+      const current = ++epoch;
+      selected = id;
+      if (!id) {
+        empty();
+        return;
+      }
+      for (const region of ["data", "image", "brief"]) page2.placeholder(region, { busy: true });
+      const row = await app.server.call(list.resource, "get", { id, signal }).catch(() => void 0);
+      if (signal.aborted || current !== epoch) return;
+      if (!row) {
+        empty();
+        return;
+      }
+      if (details) await details.show(row);
+      else (details = new app.components.RecordDetails({ view: only(list, data), record: row, showId: false, signal })).mount(page2.cell("data"));
+      player?.destroy();
+      player = void 0;
+      const media = row._media?.file_id;
+      if (media && image?.media) {
+        player = new app.components.MediaPlayer({
+          source: { resource: image.media, action: "content_stream", id: media.id, version: media.revision },
+          mime: media.mime_type,
+          name: media.name,
+          toolbar: false,
+          signal
+        });
+        player.mount(page2.cell("image"));
+      } else page2.placeholder("image", { text: t("Ehhez a m\xE9dialaphoz nincs k\xE9p."), busy: false });
+      brief.textContent = String(row.brief ?? "") || "\u2014";
+      if (!brief.isConnected) page2.attach("brief", brief);
+      page2.placeholder("brief", { busy: false });
+    };
+    empty();
+    const sheets = new app.components.ListView({ view: list, panel: false, signal });
+    sheets.on("select", ({ row }) => {
+      void show(row ? String(row.id) : void 0);
+    });
+    sheets.mount(page2.cell("sheets"));
+    if (selected) void show(selected);
+    signal.addEventListener("abort", () => {
+      details?.destroy();
+      player?.destroy();
+      page2.destroy();
+    }, { once: true });
+  };
+  render();
+  phone.addEventListener("change", render, { signal: host.signal });
+  return { destroy: () => build?.abort() };
+}
+var mediaBrowser = (app) => {
+  app.kinds.register(KIND8, { create: (host, view) => browser2(app, host, view) });
+};
+var media_browser_default = mediaBrowser;
 
 // examples/demo-app/frontend/src/index.ts
 var demo = async (app) => {
   const failures = [];
-  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default, workbench_default, text_revisions_default, media_sheet_default]) {
+  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default, workbench_default, text_revisions_default, media_sheet_default, media_browser_default]) {
     try {
       await part(app);
     } catch (error) {

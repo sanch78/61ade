@@ -322,6 +322,15 @@
 .blade-record-details[data-blade-view=demo_media_sheets] {
   --blade-record-group-columns: minmax(0, 1fr) auto;
 }
-.demo-media-proof .blade-record-details {
-  --blade-record-text-min-height: 0px;
+
+/* examples/demo-app/frontend/src/media-browser.css */
+.demo-media-brief {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
+  padding: 12px 16px;
+  color: var(--dhx-font-color-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

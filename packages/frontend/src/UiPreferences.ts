@@ -117,12 +117,11 @@ export class UiPreferences {
       }
       event.preventDefault();this.save();layout.paint();
     });
-    // Suite reports the cell before the dragged line; the cell after it changed too (the next one drawn).
+    // Suite reports the cell before the dragged line; the cell after it changed too: the one its drag resizes (Suite's
+    // `_getNextCell`, which skips hidden and collapsed cells). A branch before the line has no element id to look up.
     const next=(id:string):string|undefined=>{
-      const cells:HTMLElement[]=Array.from(layout.getRootNode().querySelectorAll?.<HTMLElement>("[data-cell-id]")??[]);
-      let element=cells.find(cell=>cell.dataset.cellId===id)?.nextElementSibling;
-      if(element?.classList.contains("dhx_layout-resizer"))element=element.nextElementSibling;
-      return (element as HTMLElement|null|undefined)?.dataset.cellId;
+      const after=(layout.getCell(id) as unknown as {_getNextCell?():{id?:string|number}|undefined})._getNextCell?.()?.id;
+      return after===undefined?undefined:String(after);
     };
     layout.events.on("resize",id=>{save(String(id));const after=next(String(id));if(after)save(after);});
     layout.events.on("afterCollapse",id=>{if(!transient())save(id,true);});
