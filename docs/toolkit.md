@@ -1329,7 +1329,45 @@ other than a boolean is a `TypeError` (component) or a configuration error
 `--blade-tree-row-height` (40 px; geometry of stripes and lines follows it)
 and `--blade-tree-line` (line and box colour).
 
-Limits: one label column per node (no icons, counts or templates), no drag
+<a id="tree-icons"></a>
+
+##### Tree icons
+
+Without an icon option every node shows Suite's folder glyph (open while it is
+expanded), as before. Two options give the nodes icons from the
+[catalog](icons.md) instead ([FB-0239](feedback.md#fb-0239)):
+
+```ts
+new app.components.Tree({ view: "categories_tree", label: "name", icon: "bi bi-tag", signal });      // every node
+new app.components.Tree({ view: "demo_registry_nodes", label: "name", iconField: "kind", signal });  // per record
+```
+
+- `icon`: one class pair (`bi bi-<name>`, legacy `dxi dxi-<name>`) that every
+  node shows in place of the folder glyph, whether it is open or closed. It
+  is decorative: the node's name is still its label. Another value is a
+  `TypeError`.
+- `iconField`: an [icon column](icons.md) of the view (`column.presentation:
+  "icon"`, so its values are class pairs and its static `options` name them),
+  not the parent field. Each node shows its record's value. The option's text
+  is the node's `aria-description` and the glyph's tooltip, so the icon never
+  carries meaning on its own. A record whose value is empty or not a class
+  pair shows `icon`, or the folder glyph without one. Any other id is a
+  `TypeError`. The value comes with the ordinary `list` row, so a field the
+  actor may not read shows the fallback. A computed select (JSON
+  `storage.computed`) can derive the icon from other fields, as the feature
+  demo's root keys do.
+- Choose the icon for the node's own meaning, as for a menu entry
+  ([icon choice](icons.md#icon-choice)). Folder glyphs mean files and folders.
+- Tree navigation takes the same two options: PHP `Registry::tree(...,
+  icon: 'bi bi-tag')` or `iconField: 'kind'`, JSON `"tree": {..., "icon":
+  "bi bi-tag"}` or `"icon_field": "kind"`. There the field must be a column of
+  the node view. A wrong class, a field that is not an icon column or not in
+  the node view is a configuration error.
+- The icon takes Suite's icon slot of the 40 px row and its theme colour; the
+  lines, stripes, toggle and selection are unchanged. Snapshots for a
+  same-tab return keep the rows, so the icons come back with them.
+
+Limits: one label column per node (no counts or templates), no drag
 moves, no search, no node actions (tree navigation keeps its own toolbar), not
 live. A bulk expansion is not a search: it is bounded by the caps above, and
 it reloads nothing already loaded (`refresh` does).
@@ -3478,6 +3516,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M91 | [Application window height and long-text placement](workspaces.md#long-text-placement): `ApplicationDefinition` `windowMaxHeight` (JSON `application.window_max_height`, 320–4000 px, bootstrap `windowMaxHeight` only when declared) is the default cap of every fitted window instead of the fixed 800 px, which stays the fallback; `WindowOptions.maxHeight` still wins ([window sizing](workspaces.md#window-sizing)). Field `column.placement` (`"end"` default, `"row"`, `"group"`; `ColumnMetadata.placement`, `ColumnPlacement`) places a long text outside the sections at the end, as a row at its declaration place or as a group of its own in cards, `Adatok` and `RecordDetails` | [FB-0177](feedback.md#fb-0177), [FB-0225](feedback.md#fb-0225) | none (additive; without the declarations nothing changes); if used: an application with other screens declares its window height, a record with a long text between its sections declares its placement |
 | M93 | [A region whose content is about to change](#busy-filled-region): `busy(id, on)` of `PageLayout`, `Tabs` and `Accordion` shows the loading indicator over a region's content (`aria-busy`, `A tartalom frissül…`) until the page ends it; mounting content keeps it | [FB-0232](feedback.md#fb-0232) | info: a page that drew its own overlay over a filled region can use the mark |
 | M94 | [Empty own path](shell.md#location-bar-empty): `ViewHost.setLocation([], {from: "root"})` leaves the location bar empty (the 32 px line without levels, the `<nav>` `aria-hidden`, the document title the application title) instead of returning to the automatic path as under M90; `setLocation([])` without `from` still returns to it | [FB-0236](feedback.md#fb-0236) | **behaviour change**: a page that called `setLocation([], {from: "root"})` to get the menu path back calls `setLocation([])` instead; a spec that expected the menu path after that call sees an empty bar |
+| M97 | [Tree icons](#tree-icons): `TreeOptions.icon` (one class pair for every node) and `iconField` (an icon column of the view, each node's own icon, named by its option as `aria-description`); tree navigation `Registry::tree(..., icon:, iconField:)`, JSON `view.tree.icon` / `icon_field`, `TreeMetadata.icon` / `iconField`. Without them nodes keep the folder glyph. Additive | [FB-0239](feedback.md#fb-0239) | info |
 | M95 | [Location bar](shell.md#location-bar-top-level): a page whose automatic path is only its own top-level menu entry (no group, record, parent or `setLocation` levels) shows no bar while the full menu row marks that entry; collapsed into `Menü` it shows the entry as before. [Switched off](shell.md#location-bar-off): PHP `View::$locationBar` (`View(locationBar: false)`, `->with(locationBar: false)`), JSON `views.<id>.location_bar` / `resources.<name>.view.location_bar`, bootstrap `ViewDefinition.locationBar: false` | [FB-0237](feedback.md#fb-0237) | **behaviour change**: a spec that expected the bar, or measured the workspace 32 px lower, on a top-level ungrouped page at a width with the full menu row finds no bar there; if wanted: declare `location_bar: false` |
 | M92 | [Inner region header](#pagelayout-inner-header): a region of an `inner` layout takes `header` and `count` (a frameless title row with a count badge over its content, a `region` landmark named by the title and `{count} elem`); `PageLayout.header(id, {label?, count?})` changes them | [FB-0227](feedback.md#fb-0227) | info: a tree with a `header` inside `inner`, which threw `TypeError`, now builds; a project-drawn heading row inside an inner region can become the declared header |
 
@@ -3499,6 +3538,7 @@ markup may change without notice.
 
 | Date | Change | Feedback |
 | --- | --- | --- | --- |
+| 2026-11-19 | `TreeOptions.icon`, `TreeOptions.iconField`, `TreeMetadata.icon`, `TreeMetadata.iconField`; PHP `Registry::tree` `icon` and `iconField`, JSON `view.tree.icon` and `icon_field`: tree nodes show a catalog icon, the same for every node or each record's value of an icon column (M97). Additive. | [FB-0239](feedback.md#fb-0239) |
 | 2026-11-19 | A component destroyed after the Layout that holds it no longer detaches the dead cell (`TypeError` from Suite); it is released silently. No API change. | [FB-0228](feedback.md#fb-0228) |
 | 2026-11-15 | New component `TextDiff` (types `TextDiffOptions`, `TextDiffMode`, `TextDiffSummary`, `TextDiff`; `Components.TextDiff`): unified or side-by-side line difference with word highlights, folds, `+N −M` summary and change navigation (M81). Additive. | [FB-0207](feedback.md#fb-0207) |
 | 2026-11-13 | Bootstrap Icons 1.13.2 is embedded in `admin.css`; all framework/demo icon defaults migrate to `bi bi-…`, record icon fields accept both Bootstrap and legacy Suite class pairs, and `blade-icon` names remain aliases (M79). The viewer repeat button uses the native pressed state. | [FB-0203](feedback.md#fb-0203) |

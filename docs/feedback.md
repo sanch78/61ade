@@ -975,3 +975,7 @@
 <a id="fb-0238"></a>
 
 ## FB-0238 — A switchable Back button in the location bar, and no level icons by default
+
+<a id="fb-0239"></a>
+
+## FB-0239 — Icons for tree nodes

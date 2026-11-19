@@ -174,7 +174,12 @@ of the tree's command row, above or (`{placement: "bottom"}`) below the tree
 Tree rows are as high as grid rows, alternate their background and show
 dotted lines with framed +/- boxes (the selected row is the grid's cursor row); `striped: false` and `lines: false` switch
 the stripes or the lines off, for tree navigation too
-([presentation](toolkit.md#tree-presentation), [FB-0193](feedback.md#fb-0193)). A list-wide mode switch in a list's
+([presentation](toolkit.md#tree-presentation), [FB-0193](feedback.md#fb-0193)).
+Nodes show the folder glyph unless `icon: "bi bi-<name>"` gives all of them
+one icon or `iconField` names an icon column (`presentation: "icon"`) whose
+value each node shows, named by its option; tree navigation takes JSON
+`tree.icon` / `icon_field` ([tree icons](toolkit.md#tree-icons),
+[FB-0239](feedback.md#fb-0239)). A list-wide mode switch in a list's
 own toolbar is a client command with `type: "toggle"`: its state is kept per
 user and view id in `app.preferences.scope(<command name>)`, which the host
 reads before it mounts the list, and the list reports `toggle` so the host
