@@ -11232,3 +11232,57 @@ object. Typecheck, build and demo asset preparation passed.
   disturbed its collapse measurement, so the redraw is limited to pages the
   rule concerns. No full-smoke claim.
 - **Status.** Implemented and verified as above.
+
+<a id="fb-0239"></a>
+
+## FB-0239 — Icons for tree nodes
+
+- **Date.** 2026-11-19.
+- **Report.** Owner instruction: in the tree, it must be possible to define
+  icons for the items.
+- **Decision.** A general option of every record tree, not a per-screen
+  look. Two forms, both from the bundled [catalog](icons.md): `icon`, one
+  class pair every node shows in place of the folder glyph (decorative), and
+  `iconField`, an existing [icon column](icons.md) (`column.presentation:
+  "icon"`) whose value each node shows. The icon column contract is reused
+  as it is: its static options name each icon, and that name becomes the
+  node's `aria-description` and the glyph's tooltip, so the icon is never the
+  only signal. An empty or other value falls back to `icon`, then to the
+  folder glyph. Without either option nodes keep the folder glyph, so
+  existing trees are unchanged. Tree navigation takes the same options.
+  A derived icon is a computed select column (JSON `storage.computed`); no
+  icon template or callback is accepted. Migration M97 (additive).
+- **Contract.** [Tree icons](toolkit.md#tree-icons); tree navigation in
+  [workspaces](workspaces.md#tree-navigation); [usage](usage.md).
+- **Implemented.** `TreeAdapter.ts` passes a node's `icon` to Suite's
+  `file`, `folder` and `openFolder` slots for every node (no longer only for
+  leaves) and keeps its `description`; `RecordTree.ts` `NodeTree.icon()`
+  takes the icon column's value (checked as one class pair,
+  `isIconClass` in `RecordPresentation.ts`) or the fixed icon, `annotate()`
+  sets `aria-description` and the glyph's `title`; `RecordTree` validates
+  `icon` and `iconField` (`TypeError`); `TreeNavigation.ts` passes
+  `TreeMetadata.icon` / `iconField`. PHP `Registry::tree(..., icon:,
+  iconField:)` validates the class and that the field is an icon column of
+  the node view; `Workspace::views()` resolves both;
+  `WorkspaceConfiguration` reads JSON `tree.icon` / `icon_field`. Types:
+  `TreeOptions` and `TreeMetadata` in `api/types.ts`. Feature demo: the
+  registry keys have a computed icon column `Kulcstípus` (root keys
+  `bi-hdd-stack`, others `bi-folder`), used by the registry editor's tree
+  navigation (`icon_field`) and the key browser (`iconField`); the tenant
+  demo's category tree has `icon: 'bi bi-tag'`.
+- **Verification.** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`, `php8.4 tests/shell/tree-navigation.php` (resolved
+  `iconField`, JSON `icon`, rejected classes and fields that are not an icon
+  column of the node view), `contracts.php`, `configuration.php` and
+  `i18n.php` passed. A temporary spec, removed afterwards, checked in Blade and
+  Dark: the key browser's root keys show `bi-hdd-stack` named `Gyökérkulcs`
+  (description and tooltip), their children `bi-folder` named `Kulcs`, an
+  open node keeps its icon; the registry editor's tree navigation the same;
+  the component's `icon` on every node without a description, the default
+  folder glyph without options, and `TypeError` for a bad class or a field
+  that is not an icon column (also the parent field); the tenant demo's
+  category tree shows `bi-tag`. No page errors. With it all 11 cases of
+  `tree-component.spec.cjs` and 4 of `registry.spec.cjs` passed (19 in all).
+  The file manager's tree was not rerun: its folders pass no icon and its
+  files the same `file` slot as before. No full-smoke claim.
+- **Status.** Implemented and verified as above.
