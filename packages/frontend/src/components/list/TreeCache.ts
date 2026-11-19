@@ -1,0 +1,43 @@
+import type { Row } from "../../api/types";
+
+export type Branch={rows:Row[];cut:boolean};
+export type TreeSnapshot={branches:[string,Branch][];opened:string[];preferences:string;until?:number};
+
+const ENTRIES=4;
+const CHARACTERS=262144;
+const LIFETIME=30000;
+
+/** Last completed Tree mounts, owned by one application shell. Serialized rows cannot be mutated by a consumer. */
+export class TreeCache{
+  private entries=new Map<string,{resource:string;json:string;until:number}>();
+  private access=new EventTarget();
+
+  watch(resource:string,invalidate:(reload:boolean)=>void,signal:AbortSignal):void{
+    this.access.addEventListener("change",event=>{
+      const changed=(event as CustomEvent<{resource?:string;reload:boolean}>).detail;
+      if(changed.resource===undefined||changed.resource===resource)invalidate(changed.reload);
+    },{signal});
+  }
+
+  take(key:string,preferences:string):TreeSnapshot|undefined{
+    const entry=this.entries.get(key);
+    this.entries.delete(key);
+    if(!entry||entry.until<=performance.now())return;
+    const snapshot=JSON.parse(entry.json) as TreeSnapshot;
+    if(snapshot.preferences===preferences)return {...snapshot,until:entry.until};
+  }
+
+  store(key:string,resource:string,snapshot:TreeSnapshot):void{
+    const json=JSON.stringify(snapshot);
+    this.entries.delete(key);
+    const until=snapshot.until??(performance.now()+LIFETIME);
+    if(json.length>CHARACTERS||until<=performance.now())return;
+    if(this.entries.size>=ENTRIES)this.entries.delete(this.entries.keys().next().value!);
+    this.entries.set(key,{resource,json,until});
+  }
+
+  invalidate(resource?:string,reload=false):void{
+    for(const [key,entry] of this.entries)if(resource===undefined||entry.resource===resource)this.entries.delete(key);
+    this.access.dispatchEvent(new CustomEvent("change",{detail:{resource,reload}}));
+  }
+}

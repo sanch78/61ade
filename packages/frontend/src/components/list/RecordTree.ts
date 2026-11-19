@@ -13,6 +13,7 @@ import { Component } from "./component";
 import { resolveListView } from "./definition";
 import { errorText } from "./fields";
 import type { ListContext } from "./ListView";
+import type { Branch, TreeCache, TreeSnapshot } from "./TreeCache";
 
 /** Most children one node loads (in pages of 200); further ones are left out. */
 const CHILDREN=1000;
@@ -30,6 +31,7 @@ let trees=0;
 /** The records a tree shows: a list view with a hierarchy on itself, its parent field and the field naming a node. */
 export type NodeSource={view:PublicDefinition<ListKindOptions>;parent:string;label:string};
 type Initial=NonNullable<TreeOptions["initial"]>;
+type Remembered={expanded?:string[];selected?:string};
 
 /**
  * The record tree behind `app.components.Tree` and the tree panel of tree navigation (docs/toolkit.md#tree): roots are
@@ -47,9 +49,10 @@ export class NodeTree {
   private opened=new Set<string>();
   private current?:string;
   private focused?:string;
-  private restoring=false;
+  private restoring=0;
   private annotating=false;
   private abort=new AbortController();
+  private reads=new AbortController();
   private observer=new MutationObserver(()=>this.annotate());
   private prefix="blade-tree-"+(++trees)+"-";
   private ids=new Map<string,string>();
@@ -79,6 +82,11 @@ export class NodeTree {
   private reported?:boolean;
   /** The start and the latest refresh; a bulk command waits for them, so it acts on their result. Never rejects. */
   private settled:Promise<void>=Promise.resolve();
+  private warm?:AbortController;
+  private warmUntil?:number;
+  /** Levels an explicit refresh or a user expansion replaced while the warm read was running. */
+  private replacedDuringWarm=new Set<string>();
+  private cacheable=true;
   /**
    * $bulk: the component's tree (`*` expands the focused node's siblings); tree navigation keeps its keys. `busy` tells
    * the host when a bulk expansion starts and ends.
@@ -99,30 +107,152 @@ export class NodeTree {
    * Loads the roots, opens the $remembered expanded nodes that load (or, with nothing remembered, $depth levels) and
    * selects the remembered node, else $initial, unless the selection changed meanwhile (docs/toolkit.md#tree-expansion).
    */
-  start(initial:Initial,remembered:{expanded?:string[];selected?:string},depth=0):Promise<void>{
+  start(initial:Initial,remembered:Remembered,depth=0):Promise<void>{
     // The initial expansion's controller exists at once, so `collapseAll` before the roots arrive cancels it.
     const bulk=!remembered.expanded&&depth>0?this.newBulk():undefined;
     return this.settled=this.begin(initial,remembered,depth,bulk).catch(error=>console.error("61ade: Tree start failed",error));
   }
-  private async begin(initial:Initial,remembered:{expanded?:string[];selected?:string},depth:number,bulk?:AbortController):Promise<void>{
+  private async begin(initial:Initial,remembered:Remembered,depth:number,bulk?:AbortController):Promise<void>{
     // A stored expansion is the user's even when the roots fail now (a later `refresh` restores it).
     if(remembered.expanded){this.changed=true;for(const id of remembered.expanded)this.opened.add(id);}
-    this.restoring=true;
-    const picks=this.picks;
+    this.restoring++;
+    const picks=this.picks,signal=this.reads.signal;
     let roots:Row[]|undefined;
     try{
       roots=await this.load("");
+      if(signal.aborted)return;
       if(roots&&remembered.expanded)await this.reopen([...this.opened]);
       else if(roots&&bulk)await this.expandTo(depth,bulk);
-    }finally{this.restoring=false;}
-    if(!roots)return;
+    }finally{this.restoring--;}
+    if(!roots||signal.aborted||!this.loaded.has(""))return;
     // The user (or `select`) chose while the start loaded: that selection stays, and is stored now.
     if(this.picks!==picks){this.save();return;}
-    const wanted=remembered.selected!==undefined&&this.exists(remembered.selected)?remembered.selected
-      :initial==="first"?(roots[0]?String(roots[0].id):undefined):typeof initial==="object"?initial.id:undefined;
+    const wanted=this.initialSelection(initial,remembered);
     // The ancestors a restored selection opens are not the user's change.
     this.quiet++;
     try{if(wanted===undefined||!this.select(wanted))this.save();}finally{this.quiet--;}
+  }
+  private initialSelection(initial:Initial,remembered:Remembered):string|undefined{
+    if(remembered.selected!==undefined&&this.exists(remembered.selected))return remembered.selected;
+    if(initial==="first")return this.children("")[0];
+    if(typeof initial==="object"&&this.exists(initial.id))return initial.id;
+  }
+  /** Captures complete visible levels only. Preferences still govern which expansion is kept. */
+  snapshot(preferences:Remembered):TreeSnapshot|undefined{
+    if(!this.cacheable||this.restoring||this.running||!this.loaded.has(""))return;
+    const opened=new Set(preferences.expanded??this.opened);
+    const branches:TreeSnapshot["branches"]=[];
+    const queue=[""];let count=0;
+    for(let index=0;index<queue.length;index++){
+      const parent=queue[index];
+      if(!this.loaded.has(parent))return;
+      const branch=this.branch(parent);
+      count+=branch.rows.length;
+      if(count>NODES)return;
+      branches.push([parent,branch]);
+      for(const row of branch.rows){
+        const id=String(row.id);
+        if(opened.has(id)&&this.isOpen(id)&&this.adapter.widget.data.haveItems(id))queue.push(id);
+      }
+    }
+    return {branches,opened:[...opened],preferences:JSON.stringify(preferences),until:this.warm?this.warmUntil:undefined};
+  }
+  private branch(parent:string):Branch{
+    return {rows:this.children(parent).map(id=>this.rows.get(id)!),cut:this.cut.has(parent)};
+  }
+  /** Hydrates one complete first frame. The host receives the initial selection after its synchronous mount. */
+  restore(snapshot:TreeSnapshot,initial:Initial,remembered:Remembered):void{
+    this.changed=remembered.expanded!==undefined;
+    this.opened=new Set(snapshot.opened);
+    this.warmUntil=snapshot.until;
+    const branches=new Map(snapshot.branches);
+    this.replace(branches);
+    this.current=this.initialSelection(initial,remembered);
+    this.adapter.choose(this.current);
+    const picks=this.picks;
+    const control=this.warm=this.linked();
+    void Promise.resolve().then(()=>{
+      if(control.signal.aborted)return;
+      if(this.current!==undefined&&this.picks===picks)this.hooks.select(this.current);
+      return this.revalidate(branches,control);
+    }).catch(error=>console.error("61ade: Tree restore failed",error)).finally(()=>{
+      if(this.warm===control){this.warm=undefined;this.replacedDuringWarm.clear();}
+      control.abort();
+    });
+  }
+  /** Rechecks the old visible branches, parent first, then updates them in one render. */
+  private async revalidate(previous:Map<string,Branch>,control:AbortController):Promise<void>{
+    const fresh=new Map<string,Branch>();
+    let level=[""];
+    while(level.length&&!control.signal.aborted){
+      let failure:{error:unknown}|undefined;
+      await this.pool(level,async parent=>{
+        try{fresh.set(parent,await this.read(parent,control.signal));}
+        catch(error){
+          if(!control.signal.aborted){failure={error};control.abort();}
+          return false;
+        }
+      });
+      if(failure){
+        this.invalidate(false);
+        await this.failed(failure.error);
+        return;
+      }
+      level=level.flatMap(parent=>(fresh.get(parent)?.rows??[]).map(row=>String(row.id)).filter(id=>previous.has(id)));
+    }
+    if(control.signal.aborted)return;
+    // A branch loaded or explicitly refreshed during the check keeps its newer response.
+    for(const parent of this.replacedDuringWarm)if(this.loaded.has(parent)&&this.exists(parent))fresh.set(parent,this.branch(parent));
+    const selected=this.current,before=selected===undefined?undefined:JSON.stringify(this.row(selected));
+    this.replace(fresh);
+    if(selected!==undefined&&!this.exists(selected))this.choose(undefined);
+    else{
+      this.adapter.choose(selected);
+      if(selected!==undefined&&JSON.stringify(this.row(selected))!==before)this.hooks.select(selected);
+    }
+    if(this.focused!==undefined&&!this.exists(this.focused))this.focused=this.current;
+    if(this.focused!==undefined)this.focusOn(this.focused);
+    this.annotate();this.save();
+  }
+  /** Rebuilds the reachable rows without expand events or motion. */
+  private replace(branches:Map<string,Branch>):void{
+    const nodes:TreeNode[]=[];
+    this.rows.clear();this.loaded.clear();this.cut.clear();
+    const visit=(parent:string)=>{
+      const branch=branches.get(parent)!;
+      this.loaded.add(parent);
+      if(branch.cut)this.cut.add(parent);
+      for(const row of branch.rows){
+        const id=String(row.id);
+        if(this.rows.has(id))continue;
+        this.rows.set(id,row);
+        const children=branches.get(id);
+        if(children&&(row._subview===undefined||Number(row._subview)>0)){
+          nodes.push({id,parent,value:this.label(row),opened:this.opened.has(id)});
+          visit(id);
+        }else nodes.push(...this.node(row,parent));
+      }
+    };
+    if(branches.has(""))visit("");
+    this.adapter.setItems(nodes,"");
+    this.element.dataset.bladeEmpty=branches.has("")&&!nodes.length?t("Nincs megjeleníthető elem."):"";
+  }
+  /** Discards rows and any in-flight reads when this Tree's access is no longer current. */
+  invalidate(revoked=true):void{
+    this.cacheable=false;
+    this.reads.abort();this.reads=new AbortController();this.loads.clear();
+    this.replace(new Map());
+    if(revoked)this.element.dataset.bladeEmpty=t("A hozzáférés megszűnt");
+    const wasSelected=this.current!==undefined;
+    this.current=undefined;this.focused=undefined;this.picks++;this.full=false;
+    if(wasSelected)this.hooks.select(undefined);
+  }
+  restart(initial:Initial,remembered:Remembered,depth:number):void{
+    this.invalidate(false);
+    if(this.abort.signal.aborted)return;
+    this.cacheable=true;this.changed=false;this.opened.clear();this.closed.clear();
+    this.element.dataset.bladeEmpty=t("Betöltés…");
+    void this.start(initial,remembered,depth);
   }
   row(id:string):Row|undefined{return this.exists(id)?this.rows.get(id):undefined;}
   get selected():string|undefined{return this.current;}
@@ -144,6 +274,7 @@ export class NodeTree {
   /** Reloads the roots and every expanded level, or only the children of $id; the selection stays where it still exists. */
   refresh(id?:string):Promise<void>{
     if(id!==undefined&&(!this.exists(id)||!this.loaded.has(id)))return Promise.resolve();
+    if(id===undefined)this.warm?.abort();
     this.bulk?.abort();
     const run=this.reloadLevels(id),previous=this.settled;
     this.settled=Promise.all([previous,run]).then(()=>{},()=>{});
@@ -151,12 +282,14 @@ export class NodeTree {
   }
   private async reloadLevels(id?:string):Promise<void>{
     this.closed.clear();this.full=false;
-    this.restoring=true;
+    this.restoring++;
+    const signal=this.reads.signal;
     try{
-      if(!await this.load(id??""))return;
+      if(!await this.load(id??"")||signal.aborted)return;
       if(id!==undefined&&this.opened.has(id))this.toggle(id,true);
       await this.reopen([...this.opened]);
-    }finally{this.restoring=false;}
+    }finally{this.restoring--;}
+    if(signal.aborted)return;
     const current=this.current;
     if(current!==undefined&&!this.exists(current))this.choose(undefined);
     else this.adapter.choose(current);
@@ -176,39 +309,47 @@ export class NodeTree {
     // Unknown (`_subview` left out) or positive: the node gets its toggle; its children load on expansion.
     return [{id,parent,value:this.label(row)},...(count===undefined||Number(count)>0?[{id:id+PENDING,parent:id,value:t("Betöltés…"),folder:false}]:[])];
   }
+  /** Reads one level through the list action without changing the displayed tree. */
+  private async read(parent:string,signal:AbortSignal):Promise<Branch>{
+    const {view,label}=this.source,sortable=view.options.sortable?.includes(label);
+    const rows:Row[]=[];let cursor:string|null=null;
+    do{
+      const data:Snapshot=await server.call(view.resource!,"list",{values:{mode:"dynamic",limit:200,scope:{field:this.source.parent,value:parent},...(sortable?{sort:{field:label,direction:"asc"}}:{}),...(cursor?{cursor}:{})},signal});
+      rows.push(...data.items);cursor=data.next;
+    }while(cursor&&rows.length<CHILDREN);
+    return {rows:rows.slice(0,CHILDREN),cut:!!cursor||rows.length>CHILDREN};
+  }
   /**
    * Loads the children of $parent ("" for the roots) into the tree; undefined after a failure (shown, or given to
    * $failed) or a cancel.
    */
-  private async load(parent:string,signal=this.abort.signal,failed?:(error:unknown)=>void):Promise<Row[]|undefined>{
-    const {view,label}=this.source,sortable=view.options.sortable?.includes(label);
+  private async load(parent:string,signal=this.reads.signal,failed?:(error:unknown)=>void):Promise<Row[]|undefined>{
     const generation=(this.loads.get(parent)??0)+1;this.loads.set(parent,generation);
-    const rows:Row[]=[];let cursor:string|null=null;
+    let branch:Branch;
     try{
-      do{
-        const data:Snapshot=await server.call(view.resource!,"list",{values:{mode:"dynamic",limit:200,scope:{field:this.source.parent,value:parent},...(sortable?{sort:{field:label,direction:"asc"}}:{}),...(cursor?{cursor}:{})},signal});
-        rows.push(...data.items);cursor=data.next;
-      }while(cursor&&rows.length<CHILDREN);
+      branch=await this.read(parent,signal);
     }catch(error){
       if(!signal.aborted){if(failed)failed(error);else await this.failed(error);}
       return undefined;
     }
-    if(signal.aborted||this.loads.get(parent)!==generation)return undefined;
-    if(cursor||rows.length>CHILDREN)this.cut.add(parent);else this.cut.delete(parent);
+    if(signal.aborted||this.loads.get(parent)!==generation||(parent!==""&&!this.exists(parent)))return undefined;
+    const {rows:shown,cut}=branch;
+    if(cut)this.cut.add(parent);else this.cut.delete(parent);
     const data=this.adapter.widget.data;
     // The replaced levels below $parent are loaded again when they open.
     if(parent==="")this.loaded.clear();else if(data.exists(parent))data.eachChild(parent,item=>{this.loaded.delete(String(item.id));});
-    const shown=rows.slice(0,CHILDREN);
     for(const row of shown)this.rows.set(String(row.id),row);
     const nodes=shown.flatMap(row=>this.node(row,parent));
     if(parent==="")this.adapter.setItems(nodes,"");else this.adapter.setChildren(parent,nodes);
     // An empty tree says so (no roots the actor may read).
     if(parent==="")this.element.dataset.bladeEmpty=shown.length?"":t("Nincs megjeleníthető elem.");
     this.loaded.add(parent);
+    if(this.warm&&!this.warm.signal.aborted)this.replacedDuringWarm.add(parent);
     if(this.current!==undefined&&this.exists(this.current))this.adapter.choose(this.current);
     return shown;
   }
   private async failed(error:unknown):Promise<void>{
+    this.cacheable=false;
     if(!this.abort.signal.aborted)await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(error,[])});
   }
   /**
@@ -241,8 +382,9 @@ export class NodeTree {
   /** A controller that `destroy` aborts too; abort it when done (that also releases its listener). */
   private linked():AbortController{
     const control=new AbortController();
-    if(this.abort.signal.aborted)control.abort();
-    else this.abort.signal.addEventListener("abort",()=>control.abort(),{once:true,signal:control.signal});
+    const reads=this.reads.signal;
+    if(reads.aborted)control.abort();
+    else reads.addEventListener("abort",()=>control.abort(),{once:true,signal:control.signal});
     return control;
   }
   /** Waits for the start and a running refresh. */
@@ -478,7 +620,7 @@ export class NodeTree {
     }finally{this.annotating=false;}
     this.report();
   }
-  destroy():void{this.abort.abort();this.observer.disconnect();this.adapter.destroy();}
+  destroy():void{this.abort.abort();this.reads.abort();this.observer.disconnect();this.adapter.destroy();}
 }
 
 /**
@@ -491,10 +633,11 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
   private nodes:NodeTree;
   private bar?:CommandBar;
   private abort=new AbortController();
+  private cached?:{key:string;resource:string;preferences:UiPreferences};
   /** Everything is open (the control offers the collapse); a bulk expansion loads. */
   private open=false;
   private loading=false;
-  constructor(context:ListContext,options:TreeOptions){
+  constructor(context:ListContext,options:TreeOptions,private cache?:TreeCache){
     super(options);
     if(!options||typeof options!=="object")throw new TypeError("61ade: Tree needs options.");
     const view=resolveListView(context.app(),options.view),hierarchy=view.options.subview;
@@ -528,7 +671,22 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
       expansion:open=>{this.open=open;this.paintControl();},
     },view.title,preferences,true,{striped:options.striped,lines:options.lines});
     attachContent(this.layout.getCell("tree"),this.nodes.element,this.abort.signal);
-    void this.nodes.start(initial,preferences?.tree()??{},depth);
+    const remembered=preferences?.tree()??{};
+    let snapshot:TreeSnapshot|undefined;
+    // Held definitions still work. Only this shell's canonical offered view has a stable authorization context.
+    if(cache&&preferences&&context.app().viewDefinition(view.id)===view){
+      const resource=view.resource!;
+      const key=JSON.stringify([location.pathname,location.hash,options.id,view.id,resource,hierarchy.field,options.label,depth,
+        typeof initial==="object"?[initial.id]:initial]);
+      this.cached={key,resource,preferences};
+      snapshot=cache.take(key,JSON.stringify(remembered));
+      cache.watch(resource,reload=>{
+        if(reload)this.nodes.restart(initial,preferences.tree(),depth);
+        else this.nodes.invalidate();
+      },this.abort.signal);
+    }
+    if(snapshot)this.nodes.restore(snapshot,initial,remembered);
+    else void this.nodes.start(initial,remembered,depth);
     this.bind(options.signal);
   }
   selected():Row|undefined{return this.destroyed||this.nodes.selected===undefined?undefined:this.nodes.row(this.nodes.selected);}
@@ -553,5 +711,11 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
     if(this.destroyed||result.complete||result.reason==="cancelled"||result.reason==="error")return;
     message({text:t("Nem nyílt ki minden elem: legfeljebb {nodes} elem, {depth} szint és elemenként {children} gyermek tölthető be.",{nodes:NODES,depth:DEPTH,children:CHILDREN}),css:"blade-toast blade-toast--warning",expire:8000});
   }
-  protected dispose():void{this.abort.abort();this.nodes.destroy();this.bar?.destroy();this.layout.destructor();}
+  protected dispose():void{
+    if(this.cached){
+      const {key,resource,preferences}=this.cached,snapshot=this.nodes.snapshot(preferences.tree());
+      if(snapshot)this.cache?.store(key,resource,snapshot);
+    }
+    this.abort.abort();this.nodes.destroy();this.bar?.destroy();this.layout.destructor();
+  }
 }

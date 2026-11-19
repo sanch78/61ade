@@ -32,7 +32,7 @@ export class LiveChannel {
    * notice: a shell-level hint (stale page); editing: an open form may hold unsaved input, so never reload over it;
    * ended: the session is gone (4401, `__ticket`/`__watch` 401/403), after the lists show the revoked state.
    */
-  constructor(private config:LiveConfig,private hooks:{notice?:(text:string)=>void;editing?:()=>boolean;ended?:()=>void}={}){
+  constructor(private config:LiveConfig,private hooks:{notice?:(text:string)=>void;editing?:()=>boolean;ended?:()=>void;denied?:(resource:string)=>void}={}){
     const signal=this.listeners.signal;
     // A hidden tab ends its subscriptions but keeps the socket; showing it subscribes again with fresh windows.
     document.addEventListener("visibilitychange",()=>{if(document.hidden)this.pause();else this.resume();},{signal});
@@ -96,7 +96,7 @@ export class LiveChannel {
         }
         const handle=this.wires.get(String(message.id));if(!handle)return;
         if(message.type==="update"){this.failures=0;handle.apply(message);return;}
-        if(message.type==="denied"){this.wires.delete(handle.wire!);handle.wire=undefined;handle.refuse(message.status);}
+        if(message.type==="denied")this.refuse(handle,message.status);
       };
       socket.onclose=event=>{
         if(this.socket!==socket)return;
@@ -121,6 +121,10 @@ export class LiveChannel {
     if(this.halted)return;
     for(const handle of this.handles)handle.state(t("Kapcsolódás…"));
     clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;this.connect();},Math.min(15000,500*2**this.failures++));
+  }
+  private refuse(handle:Realtime,status:number):void{
+    this.wires.delete(handle.wire!);handle.wire=undefined;handle.refuse(status);
+    if(status===403||status===404)this.hooks.denied?.(handle.resource);
   }
   /** Session ended: every list shows the revoked state once; nothing reconnects. */
   private block():void{
@@ -168,7 +172,7 @@ export class LiveChannel {
           const handle=this.wires.get(String(answer.id));if(!handle)continue;
           if(answer.ok){if(answer.data.version!==handle.version){handle.version=answer.data.version;handle.update(answer.data);}handle.state(t("Automatikus követés"));}
           else if(answer.status>=500)handle.state(t("Kapcsolódás…"));
-          else{this.wires.delete(handle.wire!);handle.wire=undefined;handle.refuse(answer.status);}
+          else this.refuse(handle,answer.status);
         }
       }
     }finally{

@@ -379,15 +379,15 @@ test('a selection made while the start loads stays: the depth and a stored expan
  await expect(level(box,'SOFTWARE',2)).toHaveAttribute('aria-selected','true');
  expect(await events(page)).toEqual([['select','SOFTWARE']]);
  await unmount(page);
- // A stored expansion (HKCU, HKLM, SOFTWARE) and selection (HKLM): the user selects Control Panel while SOFTWARE's
- // children still load; the restore opens SOFTWARE without moving the selection back to HKLM.
+ // A cold restore of a stored expansion (HKCU, HKLM, SOFTWARE) and selection (HKLM): the user selects Control Panel
+ // while SOFTWARE's children still load; the restore opens SOFTWARE without moving the selection back to HKLM.
  await mount(page,{id:'tc.reopen',initial:'none'});
  for(const name of ['HKEY_CURRENT_USER','HKEY_LOCAL_MACHINE'])await level(box,name,1).locator('.dhx_tree-toggle-button').first().click();
  await level(box,'SOFTWARE',2).locator('.dhx_tree-toggle-button').first().click();
  await expect(level(box,'SOFTWARE',2)).toHaveAttribute('aria-expanded','true');
  await click(level(box,'HKEY_LOCAL_MACHINE',1));
  await expect(level(box,'HKEY_LOCAL_MACHINE',1)).toHaveAttribute('aria-selected','true');
- await unmount(page);delay=1500;
+ await unmount(page);await page.reload();await page.waitForFunction(()=>!!window.__bladeApp);delay=1500;
  await mount(page,{id:'tc.reopen',initial:'none'});
  await expect(level(box,'Control Panel',2)).toBeVisible({timeout:10000});
  await expect(level(box,'SOFTWARE',2)).not.toHaveAttribute('aria-expanded','true');

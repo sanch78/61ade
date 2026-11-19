@@ -137,7 +137,7 @@ export class AdminShell {
   /** The tab's one live channel (signed in with a list view), shared by every list and sub-view. */
   private channel?: LiveChannel;
   private get live():LiveChannel{return this.channel??=new LiveChannel(this.definition.live || {transport:"poll",endpoint:"live",interval:2000},
-    {notice:text=>this.liveNotice(text),editing:()=>this.editing(),ended:()=>this.sessionEnded()});}
+    {notice:text=>this.liveNotice(text),editing:()=>this.editing(),ended:()=>this.sessionEnded(),denied:resource=>this.kernel?.treeCache.invalidate(resource)});}
   /** An open view may hold unsaved input (record or bulk form, cell editor, changed singleton form, diagram). */
   private editing():boolean{return [this.page,...this.windows].some(mounted=>mounted?.instance?.editing?.()??false);}
   private signedOut=false;
@@ -428,7 +428,8 @@ export class AdminShell {
       themeApplied(base,skins.length?id:null);
       if(!this.applicationPage||definition.signingIn)signInThemeApplied(base);
     };
-    configureServer(definition.csrf || "", this.applicationPage ? () => this.sessionEnded() : undefined);
+    configureServer(definition.csrf || "", this.applicationPage ? () => this.sessionEnded() : undefined,
+      (resource,reload) => this.kernel?.treeCache.invalidate(resource,reload));
     let theme=choices[0].id;
     try { const saved=localStorage.getItem(storage); if(choices.some(choice=>choice.id===saved))theme=saved!; } catch {}
     apply(theme);
@@ -927,6 +928,7 @@ export class AdminShell {
    */
   private sessionEnded():void{
     if(this.signedOut||this.listeners.signal.aborted)return;
+    this.kernel?.treeCache.invalidate();
     this.signedOut=true;
     let recent=true;
     try{recent=Date.now()-Number(sessionStorage.getItem(SIGNED_OUT)||0)<60000;}catch{}
@@ -1314,7 +1316,10 @@ export class AdminShell {
   ): void {
     if (this.submitting) return;
     this.submitting = true;
-    if (action === "logout" || action === "tenant") this.channel?.close();
+    if (action === "logout" || action === "tenant") {
+      this.kernel?.treeCache.invalidate();
+      this.channel?.close();
+    }
     for (const [name, value] of Object.entries({ action, ...fields })) {
       const input = document.createElement("input");
       input.type = "hidden";
@@ -1333,6 +1338,7 @@ export class AdminShell {
     this.releaseIcons();
     this.releaseUploads?.();
     this.listeners.abort();
+    this.kernel?.treeCache.invalidate();
     this.authListeners.abort();
     window.removeEventListener("resize", this.resize);
     closeDialogs();

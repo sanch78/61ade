@@ -955,3 +955,7 @@
 <a id="fb-0233"></a>
 
 ## FB-0233 — Nested layout regions keep filling space after a divider drag
+
+<a id="fb-0234"></a>
+
+## FB-0234 — Restore a Tree in one frame on a same-tab return
