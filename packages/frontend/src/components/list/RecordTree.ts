@@ -238,14 +238,14 @@ export class NodeTree {
     this.element.dataset.bladeEmpty=branches.has("")&&!nodes.length?t("Nincs megjeleníthető elem."):"";
   }
   /** Discards rows and any in-flight reads when this Tree's access is no longer current. */
-  invalidate(revoked=true):void{
+  invalidate(revoked=true,notify=true):void{
     this.cacheable=false;
     this.reads.abort();this.reads=new AbortController();this.loads.clear();
     this.replace(new Map());
     if(revoked)this.element.dataset.bladeEmpty=t("A hozzáférés megszűnt");
     const wasSelected=this.current!==undefined;
     this.current=undefined;this.focused=undefined;this.picks++;this.full=false;
-    if(wasSelected)this.hooks.select(undefined);
+    if(wasSelected&&notify)this.hooks.select(undefined);
   }
   restart(initial:Initial,remembered:Remembered,depth:number):void{
     this.invalidate(false);
@@ -680,9 +680,10 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
         typeof initial==="object"?[initial.id]:initial]);
       this.cached={key,resource,preferences};
       snapshot=cache.take(key,JSON.stringify(remembered));
-      cache.watch(resource,reload=>{
-        if(reload)this.nodes.restart(initial,preferences.tree(),depth);
-        else this.nodes.invalidate();
+      cache.watch(resource,reason=>{
+        if(reason==="changed")this.nodes.restart(initial,preferences.tree(),depth);
+        // The shell can keep editing panels open for the user to copy unsaved input after session expiry.
+        else this.nodes.invalidate(true,reason!=="ended");
       },this.abort.signal);
     }
     if(snapshot)this.nodes.restore(snapshot,initial,remembered);

@@ -429,7 +429,7 @@ export class AdminShell {
       if(!this.applicationPage||definition.signingIn)signInThemeApplied(base);
     };
     configureServer(definition.csrf || "", this.applicationPage ? () => this.sessionEnded() : undefined,
-      (resource,reload) => this.kernel?.treeCache.invalidate(resource,reload));
+      (resource,reload) => this.kernel?.treeCache.invalidate(resource,reload?"changed":"denied"));
     let theme=choices[0].id;
     try { const saved=localStorage.getItem(storage); if(choices.some(choice=>choice.id===saved))theme=saved!; } catch {}
     apply(theme);
@@ -928,8 +928,8 @@ export class AdminShell {
    */
   private sessionEnded():void{
     if(this.signedOut||this.listeners.signal.aborted)return;
-    this.kernel?.treeCache.invalidate();
     this.signedOut=true;
+    this.kernel?.treeCache.invalidate(undefined,"ended");
     let recent=true;
     try{recent=Date.now()-Number(sessionStorage.getItem(SIGNED_OUT)||0)<60000;}catch{}
     if(!recent&&!this.editing()){this.signOut();return;}
@@ -1317,7 +1317,7 @@ export class AdminShell {
     if (this.submitting) return;
     this.submitting = true;
     if (action === "logout" || action === "tenant") {
-      this.kernel?.treeCache.invalidate();
+      this.kernel?.treeCache.invalidate(undefined,"ended");
       this.channel?.close();
     }
     for (const [name, value] of Object.entries({ action, ...fields })) {
@@ -1338,7 +1338,7 @@ export class AdminShell {
     this.releaseIcons();
     this.releaseUploads?.();
     this.listeners.abort();
-    this.kernel?.treeCache.invalidate();
+    this.kernel?.treeCache.invalidate(undefined,"ended");
     this.authListeners.abort();
     window.removeEventListener("resize", this.resize);
     closeDialogs();
