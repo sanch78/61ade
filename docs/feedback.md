@@ -11162,7 +11162,7 @@ object. Typecheck, build and demo asset preparation passed.
 - **Not decided.** The request also proposed leaving the automatic path empty
   wherever it would show only the menu entry the menu row marks (a plain list
   page). That changes the default for every consumer and stays open for a
-  separate owner decision.
+  separate owner decision. Decided by the owner in [FB-0237](#fb-0237).
 - **Implemented.** `AdminShell.ts` `locate()` draws no level for an empty
   `whole` path and keeps the line. `LocationBar.ts` `show([])` clears the
   list and sets `aria-hidden`. `api/types.ts` documents `setLocation`. The
@@ -11183,3 +11183,52 @@ object. Typecheck, build and demo asset preparation passed.
   claim.
 - **Status.** Implemented and verified as above.
 
+<a id="fb-0237"></a>
+
+## FB-0237 — No location bar for a top-level entry alone, and a per-view switch
+
+- **Date.** 2026-11-19.
+- **Report.** Owner instruction, with a screenshot of a top-level menu entry
+  (`Értesítések`) whose bar repeated only that entry under the marked menu
+  button: when a main menu entry has no second level, the path bar is
+  meaningless. Follow-up: it must also be possible to switch the bar off
+  per feature. This decides the open part of [FB-0236](#fb-0236).
+- **Decision.** The automatic default changes. A page whose path would be
+  only its own top-level menu entry (no group, record, parent or
+  `setLocation` levels) has no bar while the full menu row shows that
+  entry's current-section marker. The bar stays where the row cannot say it:
+  collapsed into `Menü` (phone, narrow desktop), a top-level entry has no
+  marker in the row, so the bar keeps naming it. A grouped entry keeps its
+  two levels; an own path, also an empty one (FB-0236), keeps its line. The
+  per-view switch is a declaration, `locationBar: false`, which removes the
+  bar at every width whatever the path; no actor or record condition.
+  Migration M95 records the behaviour change.
+- **Contract.** [Top-level entry](shell.md#location-bar-top-level) and
+  [switched off](shell.md#location-bar-off). Without a bar the location cell
+  is hidden like on the empty workspace (the workspace starts below the menu
+  row) and the document title still follows the current level. Crossing the
+  collapse width shows or hides the line, moving the workspace by 32 px.
+- **Implemented.** `AdminShell.ts`: `locate()` hides the cell for
+  `locationBar: false` and for `alone()` while `menuFull`; `renderMenu()`
+  records `menuFull` and redraws the bar only when that changes for a page
+  that is `alone()`. PHP `View::$locationBar` (constructor and `with()`, so
+  `Registry::updateView` switches any kind), `Workspace::views()` emits
+  `locationBar: false`, JSON `views.<id>.location_bar` and
+  `resources.<name>.view.location_bar` (`WorkspaceConfiguration.php`),
+  `ViewDefinition.locationBar` in `api/types.ts`. The feature demo's D3
+  `Mérési irányítópult` declares `location_bar: false`. The bootstrap shape
+  and the D3 declaration are checked in `tests/shell/contracts.php`.
+- **Verification.** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`, `php8.4 tests/shell/contracts.php` and `configuration.php`
+  passed. A temporary spec, removed afterwards, checked in Blade and Dark:
+  at 2400 px (full menu row) `Jegyzetek` has no bar, no location row and the
+  title `Jegyzetek · …`; `Feladatok` keeps `Feature demó › Feladatok`; after
+  Back the bar is gone again, at 1366 px (collapsed) and 390 px it shows
+  `Jegyzetek`, widening hides it, and a reload keeps it hidden. D3 has no bar
+  at 1366 and 390 px with its title, and `Mérések` keeps its bar. No page
+  errors. All 14 cases of `location-bar.spec.cjs` and the
+  `toolkit-demo-readings.spec.cjs` cases passed with it (22 in all). A first
+  run had `overflow at 1366 px` fail: redrawing the bar from every menu fit
+  disturbed its collapse measurement, so the redraw is limited to pages the
+  rule concerns. No full-smoke claim.
+- **Status.** Implemented and verified as above.

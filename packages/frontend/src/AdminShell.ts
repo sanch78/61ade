@@ -156,6 +156,8 @@ export class AdminShell {
   /** The navigation row's selectors have rendered (the first redraw after construction); the menu is fitted from then. */
   private measured = false;
   private menuState?: string;
+  /** The full menu row is shown (not collapsed into `Menü`), so a top-level entry carries the current-section marker. */
+  private menuFull=false;
   /** Live attention counts of menu entries (`ViewDefinition.attention`): view id → count, and its declared tone. */
   private attention=new Map<string,number>();
   private tones=new Map<string,string>();
@@ -209,6 +211,7 @@ export class AdminShell {
     // The full menu wins over the command's label: it keeps its entries with icon-only commands before it collapses.
     const full=(iconOnly:boolean)=>required([...this.menuItems,...commands(iconOnly)]);
     const compact = width < Math.max(768,full(true));
+    if(this.menuFull===compact){this.menuFull=!compact;if(this.page&&this.alone(this.page))this.locate();}
     const route=parseRoute(location.hash),view=this.navigable(route.view??""),page=this.page;
     // A record page stands in the menu for its topmost parent record actually resolved (none yet: for itself).
     const root=view&&(page?.view===view&&page.record===route.record&&page.parents?.[0]?.view||view),menuView=root&&this.menuSource(root);
@@ -711,14 +714,15 @@ export class AdminShell {
    * Draws the location bar of the page view (docs/shell.md#location-bar): the menu path of its menu source (group, then
    * the entry; the first level with the section's icon; for a record page with resolved parent records, that of the
    * topmost one), those parent records, then the page's own levels; hidden without a page. A page's own path
-   * (`whole`) replaces all of it, and an empty one leaves the line without levels. The document title follows the
-   * current level, the application title without one.
+   * (`whole`) replaces all of it, and an empty one leaves the line without levels. No bar for a view declaring
+   * `locationBar: false`, or for a path of only a top-level menu entry while the full menu row marks it. The document
+   * title follows the current level, the application title without one.
    */
   private locate():void{
     const bar=this.locationBar,page=this.page,cell=this.layout.getCell("location");
     if(!bar)return;
-    this.root.classList.toggle("blade-located",!!page);
-    if(!page){if(cell.isVisible())cell.hide();document.title=this.applicationTitle;return;}
+    const hide=(title:string)=>{this.root.classList.remove("blade-located");if(cell.isVisible())cell.hide();document.title=title;};
+    if(!page){hide(this.applicationTitle);return;}
     const view=page.view,root=page.parents?.[0]?.view??view,source=this.menuSource(root),group=source?.group??(root.record?root.group:undefined);
     const places:Place[]=[];
     if(page.whole){
@@ -732,9 +736,19 @@ export class AdminShell {
     places.push(...own);
     }
     if(!places.length&&!page.whole)places.push({label:view.title,icon:view.icon??"bi bi-table"});
+    const title=places.length?`${places[places.length-1].label} · ${this.applicationTitle}`:this.applicationTitle;
+    // A top-level menu entry alone repeats the marker directly above it; collapsed into `Menü`, the bar still says it.
+    if(view.locationBar===false||this.menuFull&&this.alone(page)){hide(title);return;}
+    this.root.classList.add("blade-located");
     bar.show(places);
     if(!cell.isVisible())cell.show();
-    document.title=places.length?`${places[places.length-1].label} · ${this.applicationTitle}`:this.applicationTitle;
+    document.title=title;
+  }
+
+  /** The automatic path of $page would be only its own top-level menu entry (no group, record or levels of its own). */
+  private alone(page:Mounted):boolean{
+    const view=page.view;
+    return !page.whole&&!page.location?.length&&!page.parents?.length&&!view.record&&!view.group&&this.menuItems.some((item:any)=>item.id==="view:"+view.id);
   }
 
   /**

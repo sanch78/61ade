@@ -127,6 +127,15 @@ node is selected, so the Assetek page shows an empty bar there instead of
 *Assetek*. A spec that expected the menu entry in that state needs
 updating. `asset-location.js` always passes segments and is unaffected.
 
+## Location bar of a top-level entry, and switching it off (D-107)
+
+Decided in 61ade ([FB-0237](../feedback.md#fb-0237), M95), the part of D-107
+left open: a page whose automatic path is only its own top-level menu entry
+has no bar while the full menu row marks it (collapsed into `Menü`, the bar
+still shows the entry). A view can switch its bar off entirely with
+`locationBar: false` (JSON `location_bar: false`). No code change; a spec
+that expected the one-entry bar on a wide desktop needs updating.
+
 ## Asset viewer on the public API (D-019 to D-021)
 
 The requests of `dev/docs/61ade/custom-view-request.md` (untracked in the

@@ -764,6 +764,12 @@ export interface ViewDefinition<Options = unknown> {
         field: string;
         view: string;
     };
+    /**
+     * `false`: the page shows no location bar (PHP `locationBar: false`, JSON `location_bar: false`), not even with
+     * `ViewHost.setLocation` levels; the document title still follows them (docs/shell.md#location-bar-off). Absent: the
+     * bar as usual.
+     */
+    locationBar?: false;
     /** Actions of `resource` offered to the actor, with their field metadata. */
     actions: ActionMetadata[];
     /** Kind configuration: browser-safe JSON only, never backend-only data. */

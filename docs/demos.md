@@ -254,7 +254,8 @@ starter admin and the tenant demo stay declarative and load no project module.
   additional menu entry beside `Mérések`): a module-level JSON `views` entry of
   the project kind with `actions: ["list"]` (offered with the readings ACL) and
   the options `list` (the list view shown), `value`, `name`, `max` and
-  `buckets`, checked when the view opens. The page is a Suite Layout: a
+  `buckets`, checked when the view opens. It declares `location_bar: false`,
+  so the page has no [location bar](shell.md#location-bar-off). The page is a Suite Layout: a
   summary cell (loaded/matched rows, minimum, maximum, average and the selected
   row with its distance from the average) and a Suite Chart cell
   (`app.dhx.Chart`, a stacked bar histogram of the values in ten bins; the
