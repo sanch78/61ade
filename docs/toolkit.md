@@ -720,7 +720,13 @@ windows it opened, its requests and its live subscription. Another component
 (or widget) can be mounted into the same cell, region, tab, window or view
 host right away, in the same handler, any number of times; a cell that showed
 markup (`attachHTML`, an element) takes a widget as well
-([FB-0161](feedback.md#fb-0161)). Handlers registered
+([FB-0161](feedback.md#fb-0161)). A component destroyed after the Layout
+that holds it (the Layout went first, for example a `PageLayout` given the
+same `signal`, which binds before the components created after it) has
+nothing to detach and is released silently ([FB-0228](feedback.md#fb-0228));
+the [Layout recipe](#layout-recipe) order, components first, stays the
+recommended one. Every component binds its `signal` in its constructor, so
+listeners run in creation order whatever the component is loading. Handlers registered
 with `on` run in registration order (a throwing one is logged); events are
 delivered only while the component is mounted and never after `destroy()`.
 
@@ -3421,6 +3427,7 @@ markup may change without notice.
 
 | Date | Change | Feedback |
 | --- | --- | --- | --- |
+| 2026-11-19 | A component destroyed after the Layout that holds it no longer detaches the dead cell (`TypeError` from Suite); it is released silently. No API change. | [FB-0228](feedback.md#fb-0228) |
 | 2026-11-15 | New component `TextDiff` (types `TextDiffOptions`, `TextDiffMode`, `TextDiffSummary`, `TextDiff`; `Components.TextDiff`): unified or side-by-side line difference with word highlights, folds, `+N −M` summary and change navigation (M81). Additive. | [FB-0207](feedback.md#fb-0207) |
 | 2026-11-13 | Bootstrap Icons 1.13.2 is embedded in `admin.css`; all framework/demo icon defaults migrate to `bi bi-…`, record icon fields accept both Bootstrap and legacy Suite class pairs, and `blade-icon` names remain aliases (M79). The viewer repeat button uses the native pressed state. | [FB-0203](feedback.md#fb-0203) |
 | 2026-11-12 | Section groups in cards/details have equal heights per row and top-aligned content. Project CSS properties `--blade-record-group-min-width` and `--blade-record-group-columns` configure inner column widths and ratios; a record content width below 492 px stacks the groups using a container query. | [FB-0186](feedback.md#fb-0186) |

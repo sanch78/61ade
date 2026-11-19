@@ -931,3 +931,7 @@
 <a id="fb-0227"></a>
 
 ## FB-0227 — A header with a count for a region of the inner layout
+
+<a id="fb-0228"></a>
+
+## FB-0228 — A component destroyed after the Layout that holds it threw

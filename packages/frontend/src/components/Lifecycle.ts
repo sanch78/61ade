@@ -6,7 +6,7 @@ import { signalOf } from "../api/Events";
 const hosted = (target: MountTarget): target is AppWindow | ViewHost =>
   !(target instanceof HTMLElement) && "signal" in target && target.signal instanceof AbortSignal && typeof target.attach === "function";
 
-type Redrawable = { getRootView?(): { node?: unknown; redraw(sync: boolean): void } | undefined; getParent?(): Redrawable | undefined; config?: { html?: unknown }; detach?(): void };
+type Redrawable = { getRootView?(): { node?: unknown; redraw(sync: boolean): void } | undefined; getParent?(): Redrawable | undefined; config?: { html?: unknown } | null; detach?(): void };
 
 /** Cells a component's `destroy()` emptied whose Suite redraw has not run yet (until the next frame). */
 const emptied = new WeakSet<object>();
@@ -118,7 +118,8 @@ export class Lifecycle<Events extends object> {
     this.target = undefined;
     if (target && !(target instanceof HTMLElement)) {
       if (hosted(target)) { if (!target.signal.aborted) target.attach(document.createElement("div")); }
-      else if ((target as LayoutCell).getWidget?.() === layout) {
+      // A destroyed Suite cell (its Layout went first) keeps its widget but has no `config`: nothing to detach.
+      else if ((target as LayoutCell).getWidget?.() === layout && (target as Redrawable).config) {
         (target as Partial<LayoutCell>).detach?.();
         // Something mounted there before the next frame redraws the cell first (`prepareCell`).
         emptied.add(target);
