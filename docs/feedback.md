@@ -935,3 +935,7 @@
 <a id="fb-0228"></a>
 
 ## FB-0228 — A component destroyed after the Layout that holds it threw
+
+<a id="fb-0229"></a>
+
+## FB-0229 — Menu counts arriving after sign-in collapsed the menu row under the pointer

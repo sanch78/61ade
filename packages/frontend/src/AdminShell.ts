@@ -195,12 +195,14 @@ export class AdminShell {
     const button=this.root.querySelector<HTMLElement>(".blade-navigation-row .dhx_nav-menu-button"),
       style=getComputedStyle(button??this.root),measure=document.createElement("canvas").getContext("2d")!,label=document.createElement("span");
     measure.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    // An entry with attention (`html`) also holds its badge (the hidden count text takes no room).
-    const itemWidth=(item:any)=>{label.innerHTML=String(item.value??"");return 32+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+Math.ceil(measure.measureText(label.textContent??"").width)+(item.html?40:0);};
+    // An entry that can hold a count reserves its badge from the start (the hidden count text takes no room): counts
+    // arrive after the first render and must not change the layout, which would collapse the row under a pointer.
+    const itemWidth=(item:any)=>{label.innerHTML=String(item.value??"");return 32+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+Math.ceil(measure.measureText(label.textContent??"").width)+(item.html||this.attends(item)?40:0);};
     // 16 px row inset; only the full menu reserves logout and its 17 px separator.
     const required=(items:any[],logout=this.definition.authenticated)=>items.reduce((sum:number,item:any,index:number)=>sum+(item.command?item.width:itemWidth(item))+(index&&item.separatorBefore?17:0),controls+16+(logout?17+itemWidth({value:t("Kijelentkezés")}):0));
     // Menu-row commands follow the navigation in every width: on a row too narrow for their labels they show icons only.
-    const commandWidth=(command:any,iconOnly:boolean)=>iconOnly?44+(this.commandCount(command)?24:0):24+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+8+Math.ceil(measure.measureText(command.label).width)+(this.commandCount(command)?40:0);
+    const counted=(command:any)=>!!command.attention&&this.tones.has(command.attention);
+    const commandWidth=(command:any,iconOnly:boolean)=>iconOnly?44+(counted(command)?24:0):24+(parseFloat(style.getPropertyValue("--dhx-icon-size-normal"))||20)+8+Math.ceil(measure.measureText(command.label).width)+(counted(command)?40:0);
     // The declared commands reserve their room before their module registers them, so the registration never changes
     // the layout (which would close a menu opened during start-up).
     const commands=(iconOnly=false)=>(this.definition.menuCommands??[]).map(command=>({command,width:commandWidth(command,iconOnly),value:command.label}));
@@ -219,7 +221,7 @@ export class AdminShell {
       }
     };
     let context=compact&&width>=768?siblings(this.menuItems)??[]:[];
-    const row=(iconOnly:boolean)=>[{value:t("Menü")},...commands(iconOnly),...context];
+    const row=(iconOnly:boolean)=>[this.mainMenu(),...commands(iconOnly),...context];
     const fits=(iconOnly:boolean)=>required(row(iconOnly),false)+(context.length?17:0)<=width;
     // Collapsed, the navigation keeps priority too: the commands' labels yield before the siblings.
     let iconOnly=!compact?full(false)>width:!fits(false);
@@ -300,6 +302,11 @@ export class AdminShell {
     void Promise.resolve().then(()=>entry.run({app:this.kernel!.app,view:this.page?.view})).catch(error=>{if(!this.listeners.signal.aborted)void this.failed(error);});
   }
 
+  /** Whether an entry can hold a count: a view declaring `attention`, or a branch (or `Menü`) holding one. */
+  private attends(item:any):boolean{
+    const id=String(item?.id??"");
+    return id.startsWith("view:")?this.tones.has(id.slice(5)):(item?.items??[]).some((child:any)=>this.attends(child));
+  }
   /** The collapsed `Menü` button: it holds every entry. */
   private mainMenu():any{return {id:"blade-main-menu",value:t("Menü"),items:this.menuItems};}
   /** The count and tone an entry holds: its view's live count, or the sum of its children's (the most urgent tone). */

@@ -14,6 +14,14 @@ async function openMenu(page,title,group){
  if(group)await page.getByRole('menuitem',{name:group,exact:true}).click();
  await page.getByRole('menuitem',{name:title,exact:true}).click();
 }
+// Opens a top-level menu group, from the row or, when the row is collapsed into `Menü`, from that menu.
+async function openGroup(page,group){
+ const top=page.locator('.blade-navigation-row .dhx_menu-nav > li');await expect(top.first()).toBeVisible();
+ const entry=top.getByRole('menuitem',{name:group,exact:true});
+ if(await entry.isVisible())return entry.click();
+ await page.getByRole('menuitem',{name:/^(Menü|Menu)$/}).click();
+ await page.getByRole('menuitem',{name:group,exact:true}).click();
+}
 async function openView(page,title,group='Feature demó'){
  await openMenu(page,title,group);
  await expect(page.locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
@@ -48,4 +56,4 @@ async function deleteTasks(page,ids){
   try{const form=await api(page,'demo_tasks','__form',id,{operation:'update'});if(form.status===200)await api(page,'demo_tasks','delete',id,{revision:form.body.data.values.revision});}catch{}
  }
 }
-module.exports={signIn,openMenu,openView,command,view,api,isAction,createTask,deleteTasks};
+module.exports={signIn,openMenu,openGroup,openView,command,view,api,isAction,createTask,deleteTasks};

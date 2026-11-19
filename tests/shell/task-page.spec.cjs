@@ -1,6 +1,6 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const {execFileSync}=require('node:child_process');
-const {signIn,openView,command}=require('./feature-demo.cjs');
+const {signIn,openView,openGroup,command}=require('./feature-demo.cjs');
 // D7 task page (docs/demos.md#d7-task-page): the record view `demo.task-page` with the task's notes, a list without a
 // menu entry (`demo_task_notes`) declared oldest first (`view.sort`), as cards whose long text (a `textarea`) shows a
 // 4-line preview while `Adatok` shows all of it (docs/workspaces.md#list-sort, #long-text-in-cards). The run seeds its
@@ -37,8 +37,9 @@ test('Feladatlap opens the cursor task; the notes list has no menu entry',async(
  await command(page,'Feladatlap');
  await expect(page).toHaveURL(new RegExp(`view=demo\\.task-page&record=${task}`));
  await expect(page.getByRole('tab',{name:'Jegyzetek',exact:true})).toBeVisible();
- await page.getByRole('menuitem',{name:'Feature demó',exact:true}).click();
- await expect(page.getByRole('menuitem',{name:'Feladatok',exact:true})).toBeVisible();
+ await openGroup(page,'Feature demó');
+ // The group's entries (at 1366 px also the row's siblings of the open page).
+ await expect(page.getByRole('menuitem',{name:'Feladatok',exact:true}).last()).toBeVisible();
  await expect(page.getByRole('menuitem',{name:'Feladatjegyzetek',exact:true})).toHaveCount(0);
  await page.keyboard.press('Escape');
  expect(errors).toEqual([]);
