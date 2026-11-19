@@ -9,11 +9,16 @@ import { signalOf } from "./Events";
  */
 let csrf = "";
 let ended: (() => void) | undefined;
+let accessChanged: ((resource?: string,reload?:boolean) => void) | undefined;
+const ACCESS_RESOURCES=new Set(["blade_users","blade_roles","blade_memberships","blade_role_rules","blade_user_rules","blade_tenants","blade_tenant_members"]);
+const ACCESS_WRITES=new Set(["create","update","delete","__edit","__bulk"]);
 /**
  * Set once by the shell from the bootstrap `csrf`; sign-in pages have none. `sessionEnded` runs on every 401
  * of the channel (the session is gone) before the caller sees the failure; the shell signs the page out with it.
  */
-export function configureServer(token: string, sessionEnded?: () => void): void { csrf = token; ended = sessionEnded; }
+export function configureServer(token: string, sessionEnded?: () => void, changed?: (resource?: string,reload?:boolean) => void): void {
+  csrf=token;ended=sessionEnded;accessChanged=changed;
+}
 
 const endpoint = (): string => { const url = new URL(location.href); url.hash = ""; url.search = "?blade=1"; return url.toString(); };
 
@@ -29,7 +34,12 @@ export function post(resource: string, action: string, options: CallOptions = {}
   if (options.parts) { const form = new FormData(); form.append("request", request); for (const part of options.parts) form.append(part.field, part.blob, part.name); body = form; }
   else headers["Content-Type"] = "application/json";
   return fetch(endpoint(), { method: "POST", credentials: "same-origin", headers, body, signal: options.signal })
-    .then(response => { if (response.status === 401) ended?.(); return response; });
+    .then(response => {
+      if(response.status===401)ended?.();
+      else if(response.ok&&ACCESS_RESOURCES.has(resource)&&ACCESS_WRITES.has(action))accessChanged?.(undefined,true);
+      else if(action==="list"&&(response.status===403||response.status===404))accessChanged?.(resource);
+      return response;
+    });
 }
 
 /** A `ServerFailure`: the localized server message (or the generic one), field errors and optional details. */

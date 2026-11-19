@@ -268,6 +268,11 @@ tree as decoration for a flat list.
   expansion is written only after the user changed it, so "nothing stored"
   and "everything collapsed" stay distinguishable, and the stored list keeps
   upper levels first when it is capped ([FB-0168](../../../docs/feedback.md#fb-0168)).
+- On a same-tab Tree return, paint the kept visible branches and selection
+  together when a bounded snapshot is available in the same shell access
+  context. Recheck those branches through the authorized list and preserve
+  the user's newer actions when applying the result. Discard snapshots when
+  the shell learns access has changed ([FB-0234](../../../docs/feedback.md#fb-0234)).
 - Whole-tree controls (expand/collapse all) are view controls: one icon-only
   toggle whose icon and name follow the state (open everything while anything
   is collapsed, close everything once all is open or a cap stopped the

@@ -11079,3 +11079,35 @@ that exactly equals an option label lists every option. The managed
   The existing `toolkit-components.mjs` test failed on both the baseline
   and the candidate at the layout-cell detach assertion.
 - **Status:** implemented and verified.
+
+<a id="fb-0234"></a>
+
+## FB-0234 — Restore a Tree in one frame on a same-tab return
+
+- **Date.** 2026-11-19.
+- **Report.** When returning to a composed Tree with a stable ID and
+  `expand: 2`, the roots appeared first, followed by each expanded level
+  and then the selection. Holding the list responses on the managed demo
+  reproduced a return with no rows available to paint.
+- **Implementation.** [Tree](toolkit.md#tree) keeps a bounded snapshot of
+  the previously loaded visible branches in the current shell. It builds
+  the first frame with the saved expansion and selection, then rechecks the
+  branches through their ordinary ACL-checked parent lists. The result
+  applies together and keeps intervening selections and collapses where
+  their nodes survive. Empty saved expansion keeps every root closed.
+- **Access boundary.** The snapshot uses the shell's current user, tenant,
+  address and offered list definition with the Tree's stable identity.
+  Session and tenant transitions, reported read denials and built-in
+  permission edits in the tab discard affected snapshots. A permission
+  change elsewhere takes effect when this tab learns of it through a
+  server response. Existing declarations use this behavior automatically.
+- **Verification.** Managed-demo Chromium held the returning D8 key
+  browser's responses and checked the first nonempty frame. Six temporary
+  cases covered nested and fully collapsed returns, renamed and removed
+  rows, newer user actions, a second return during revalidation, an explicit
+  child refresh, a cold page load, a permission edit, sign-out and user
+  and tenant switches. The existing cold-restore race still runs after an
+  explicit page reload. Typecheck, build, demo assets, PHP Tree, access,
+  permissions, tenancy, shell, configuration and localization contracts,
+  and the toolkit kernel and live protocol checks passed.
+- **Status.** Implemented and verified.

@@ -9,6 +9,7 @@ import { i18n, identity, live, openWindow, preferences, theme, ui, uploads } fro
 import { NamedRegistry, extensions } from "./registries";
 import { registerBuiltins } from "./builtins";
 import { listComponents } from "../components/list";
+import { TreeCache } from "../components/list/TreeCache";
 import { bindCalendar } from "../components/calendar/Calendar";
 import { bindDiagramEditor } from "../components/diagram/DiagramEditor";
 import { bindFileManager } from "../components/files/FileManager";
@@ -32,7 +33,7 @@ export type ShellBridge = {
   navigate(target: NavigationTarget): boolean;
 };
 
-export type Kernel = { app: Application; events: InternalEventBus; kinds: NamedRegistry<ViewKind<any>> };
+export type Kernel = { app: Application; events: InternalEventBus; kinds: NamedRegistry<ViewKind<any>>; treeCache: TreeCache };
 
 const UPLOAD_EVENTS: (keyof UploadEvents)[] = ["upload:queued", "upload:started", "upload:progress", "upload:conflict", "upload:file-done", "upload:file-failed", "upload:complete", "upload:cancelled"];
 
@@ -45,6 +46,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
   const fieldTypes = new NamedRegistry<FieldType>("field type");
   const commands = new NamedRegistry<ClientCommand | MenuCommand>("command");
   const mediaTypes = new NamedRegistry<MediaType>("media type");
+  const treeCache = new TreeCache();
   // Before any module, so a project can replace a built-in entry with `{replace: true}`.
   registerBuiltins({ kinds, presentations, commands, mediaTypes }, { channel: bridge.channel, user: bridge.userId });
   const offered = Object.freeze([...bridge.views]);
@@ -68,7 +70,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
     mediaTypes,
     // Public component classes (toolkit P3 C-1 … C-4), bound to this application.
     components: Object.freeze<Partial<Components>>({
-      ...listComponents({ channel: bridge.channel, user: bridge.userId, app: () => app }),
+      ...listComponents({ channel: bridge.channel, user: bridge.userId, app: () => app }, treeCache),
       Calendar: bindCalendar(() => app),
       DiagramEditor: bindDiagramEditor(() => app),
       FileManager: bindFileManager(() => app),
@@ -87,7 +89,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
   });
   // The framework surfaces (lists, details, forms) read the page's registries when they are created.
   Object.assign(extensions, { app, presentations, fieldTypes, commands, mediaTypes });
-  return { app, events, kinds };
+  return { app, events, kinds, treeCache };
 }
 
 /** Per module: its import and its initialization each have this long (G1 decision 5). */
