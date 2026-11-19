@@ -967,3 +967,7 @@
 <a id="fb-0236"></a>
 
 ## FB-0236 — A page that owns its path may leave the location bar empty
+
+<a id="fb-0237"></a>
+
+## FB-0237 — No location bar for a top-level entry alone, and a per-view switch

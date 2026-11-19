@@ -45,6 +45,8 @@ namespace Blade\Feature;
  *   both. The location bar resolves the parent records from the row through `get` (recursively when v declares a
  *   parent), shows them before this record and starts at the menu path of the topmost one resolved, which also carries
  *   the menu marker (none resolved: this view's own). Null: no parent.
+ * $locationBar: false: the view's page shows no location bar (docs/shell.md#location-bar-off), whatever its path or
+ *   `setLocation` levels; any kind, also through `Registry::updateView($view->with(locationBar: false))`.
  */
 final readonly class View
 {
@@ -72,6 +74,7 @@ final readonly class View
         public ?array $parent = null,
         // Legacy location arguments are accepted and ignored (FB-0224).
         public ?string $location = null,
+        public bool $locationBar = true,
     ) {
         if (!preg_match(self::ID, $id)) throw new \InvalidArgumentException('Invalid view id.');
         if (!preg_match(self::ID, $kind) || (!in_array($kind, self::BUILTIN_KINDS, true) && !str_contains($kind, '.'))) throw new \InvalidArgumentException('Invalid view kind: '.$id);

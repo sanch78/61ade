@@ -67,6 +67,7 @@
             },
             "group": "Feature demó",
             "icon": "bi bi-speedometer2",
+            "location_bar": false,
             "guide": "Egy projekt által regisztrált saját nézettípus a Mérések adatain: lista, diagram és összesítő egy oldalon.\n\nJelölj ki egy sort vagy szűrj a listában: a diagram és az összesítő követi. Ez a toolkit bővíthetőségének mintapéldája, a nyilvános komponensekből összeállítva."
         }
     }

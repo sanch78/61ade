@@ -1183,6 +1183,31 @@ below the menu row, across the full width, before the workspace
   Without a source view, the declared group or, without one, the record
   view's own icon starts the path. This also holds after a direct link,
   reload and Back/Forward.
+- <a id="location-bar-top-level"></a>**A top-level entry alone has no bar**
+  ([FB-0237](feedback.md#fb-0237)): when the automatic path would be only the
+  open view's own top-level menu entry (no group, no record, no parent and no
+  `setLocation` levels), the bar is not shown while the full menu row is
+  shown, because the row's [current-section marker](#elkülönülő-főmenügombok)
+  already names that place directly above it. The line is gone, the
+  workspace starts right below the menu row, and the document title stays
+  `‹entry› · ‹application title›`. When the menu row is collapsed into
+  `Menü` (a phone, or a desktop row too narrow for the full menu), the row
+  has no marker for a top-level entry, so the bar shows the entry again; the
+  workspace moves by the 32 px line when the width crosses that point. The
+  bar returns as soon as the page has a level of its own (`setLocation`
+  levels, a record page). A grouped entry keeps `‹group› › ‹entry›`, and an
+  [own path](#location-bar-own-path), also an empty one, keeps its line.
+- <a id="location-bar-off"></a>**Switched off for a view**
+  ([FB-0237](feedback.md#fb-0237)): a view declaring PHP
+  `View(locationBar: false)` (any kind, also
+  `Registry::updateView($registry->viewById('x')->with(locationBar: false))`),
+  JSON `views.<id>.location_bar: false` or `resources.<name>.view.location_bar:
+  false` shows no bar on its page at any width, whatever its menu path, record
+  or `setLocation` levels (the calls are accepted and change nothing visible).
+  The bootstrap carries `locationBar: false`; the document title still follows
+  the levels the bar would show. For a page that presents its own place,
+  such as a dashboard or a full-screen editor. Example: D3
+  `Mérési irányítópult`.
 - <a id="location-bar-parent"></a>**A record page under a parent record:**
   a record view reached through a parent record (a note from its task, an
   episode from its season) declares that parent: PHP
@@ -1292,7 +1317,8 @@ below the menu row, across the full width, before the workspace
   `‹current segment› · ‹application title›`; the empty workspace and an
   [empty own path](#location-bar-empty) show the application title.
 
-Limits: one bar per page (a window has none); the menu path comes from the
+Limits: one bar per page (a window has none); the switch is per view, not per
+record or actor; the menu path comes from the
 menu, so a custom `Menu` item has none; a parent is one reference field
 (a record with several parents names one of them) and is resolved when the
 page opens (a parent's changed title shows after the next opening); the record title is one field (a

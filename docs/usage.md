@@ -735,7 +735,11 @@ view for their `record` resource, including direct links and reloads. An explici
 
 Every page view gets the [location bar](shell.md#location-bar) below the menu
 row without consumer code: its menu path and, for a record page, the record's
-title (declare the record view's `record_title` field). A page with levels of
+title (declare the record view's `record_title` field). A top-level menu entry
+without levels of its own has no bar while the full menu row marks it
+([top-level entry](shell.md#location-bar-top-level)), and a view declaring
+`locationBar: false` (JSON `location_bar: false`) has none at all
+([switched off](shell.md#location-bar-off)). A page with levels of
 its own (an overview and its scenes, a parent and its children) calls
 `host.setLocation(segments)` whenever its selection changes; with
 `{from: "root"}` its segments are the whole bar, a path entirely of its own
