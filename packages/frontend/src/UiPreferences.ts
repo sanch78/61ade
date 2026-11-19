@@ -3,6 +3,13 @@ import type { Sort } from "./GridHeaders";
 import type { FieldDefinition } from "./FormValidation";
 
 type Region={id?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;collapsable?:boolean;collapsed?:boolean};
+type ResizeCell={
+  id:string|number;
+  config:Layout["config"];
+  getParent():ReturnType<Layout["getParent"]>;
+  _getNextCell?():ResizeCell|undefined;
+  _getAnyFlexCell?():ResizeCell|false;
+};
 type Mode="table"|"cards"|"tiles";
 type Preferences={mode?:Mode;sort?:Sort;columns?:{id:string;width:number}[];visibleColumns?:string[];regions?:Record<string,{width?:number;height?:number;collapsed?:boolean}>;filters?:Record<string,string>;tab?:string;sections?:string[];window?:WindowGeometry;settings?:Record<string,unknown>;tree?:{expanded?:unknown;selected?:unknown}};
 const size=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value)&&value>=40&&value<=10000;
@@ -117,13 +124,20 @@ export class UiPreferences {
       }
       event.preventDefault();this.save();layout.paint();
     });
-    // Suite reports the cell before the dragged line; the cell after it changed too: the one its drag resizes (Suite's
-    // `_getNextCell`, which skips hidden and collapsed cells). A branch before the line has no element id to look up.
-    const next=(id:string):string|undefined=>{
-      const after=(layout.getCell(id) as unknown as {_getNextCell?():{id?:string|number}|undefined})._getNextCell?.()?.id;
-      return after===undefined?undefined:String(after);
-    };
-    layout.events.on("resize",id=>{save(String(id));const after=next(String(id));if(after)save(after);});
+    layout.events.on("resize",id=>{
+      const before=layout.getCell(String(id)) as ResizeCell;
+      // Suite reports the cell before the line. Its next cell skips hidden and collapsed siblings.
+      const after=before._getNextCell?.();
+      // PageLayout marks flexible regions with gravity 1, including ones with a minimum size.
+      // Suite writes pixels to both neighbours and frees a different flexible cell if it finds one.
+      // When the next region is the only flexible one, clear its size so it follows its parent.
+      if(after?.config.gravity===1&&after._getAnyFlexCell?.()===false){
+        const columns=after.getParent().config.cols;
+        if(columns?after.config.$autoWidth:after.config.$autoHeight)delete after.config[columns?"width":"height"];
+      }
+      save(String(id));
+      if(after)save(String(after.id));
+    });
     layout.events.on("afterCollapse",id=>{if(!transient())save(id,true);});
     layout.events.on("afterExpand",id=>{if(!transient())save(id,true);});
   }

@@ -951,3 +951,7 @@
 <a id="fb-0232"></a>
 
 ## FB-0232 — A busy state over a region that already holds content
+
+<a id="fb-0233"></a>
+
+## FB-0233 — Nested layout regions keep filling space after a divider drag

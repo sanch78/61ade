@@ -451,7 +451,9 @@ A panel divided by lines without frames or headers, each part holding its
 own component or element, declares `inner` on that region of its
 `PageLayout`; a tree of only `{ inner }` makes the whole layout frameless,
 for a tab's content. The inner regions are ordinary regions: mount, attach,
-placeholders, kept sizes and the double-click restore work as elsewhere
+placeholders, kept sizes and the double-click restore work as elsewhere.
+A flexible region paired with a sized region keeps filling the space as
+the containing panel changes size, even after dragging its own divider
 ([inner layout](toolkit.md#pagelayout-inner), [FB-0222](feedback.md#fb-0222)).
 An inner region that needs a title and the number of its entries declares
 `header` and `count` there instead of drawing its own heading row: a

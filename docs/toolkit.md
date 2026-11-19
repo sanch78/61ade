@@ -1535,7 +1535,9 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   of its branch, before it ([FB-0221](feedback.md#fb-0221)). Dragging a line
   resizes both neighbours. Each one with a declared size keeps the user's
   size, whichever side of the line it is on, and a double-click on the line
-  restores both.
+  restores both. When the branch has one flexible region, that region
+  continues to fill the available space after a drag, including when a
+  containing layout resizes it.
 
 <a id="pagelayout-inner"></a>
 
