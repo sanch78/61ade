@@ -1542,8 +1542,11 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
 - **Inner layout** (`inner`, [FB-0222](feedback.md#fb-0222)): a region
   holds a frameless layout of its own instead of content: `inner` is a
   `rows` or `cols` branch whose regions have no frame or header and are
-  divided by 1 px draggable lines, each taking the drag 8 px across it. Its
-  regions are ordinary regions of the page: `cell(id)`, `attach(id, …)`,
+  divided by 1 px draggable lines, each taking the drag 8 px across it. A
+  horizontal line has three dots centred on the divider and visible above
+  adjacent loading and empty states. They take the theme's accent colour
+  when the pointer is over the drag area ([FB-0230](feedback.md#fb-0230)).
+  Its regions are ordinary regions of the page: `cell(id)`, `attach(id, …)`,
   `placeholder(id, …)`, kept sizes and the double-click work as for any
   region, so each holds any component or element. The region holding it
   keeps its header, size, `resizable` and collapsing, but is not a mount

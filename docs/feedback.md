@@ -939,3 +939,7 @@
 <a id="fb-0229"></a>
 
 ## FB-0229 — Menu counts arriving after sign-in collapsed the menu row under the pointer
+
+<a id="fb-0230"></a>
+
+## FB-0230 — Sharper grip on a horizontal inner divider
