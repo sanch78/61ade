@@ -7,7 +7,7 @@ import { type Form, type Window, awaitRedraw } from "@dhtmlx/suite";
 import { resizeMotion } from "../../Motion";
 import { extensions, fieldTypeOf } from "../../app/registries";
 import type { FieldMetadata, FormSections } from "../../api/types";
-import { calendarDate, dateValue, fieldActive, fileDisplay, sectionReveal } from "../../FormValidation";
+import { calendarDate, conditionHolds, dateValue, fieldActive, fileDisplay, sectionReveal } from "../../FormValidation";
 import type { ActionDefinition, FieldDefinition } from "./types";
 
 /** Form item factories and action helpers shared by the list, its forms and the public `RecordForm`. */
@@ -57,6 +57,21 @@ const BODY="blade-form-section__body",CLOSED=" blade-form-section__body--closed"
 const sectionsOf=(fields:FieldDefinition[])=>[...new Set(fields.map(field=>field.section).filter((label):label is string=>!!label))];
 /** Whether the section $label of $fields is fixed (always open, a plain heading; the server keeps one value per section). */
 const fixedSection=(fields:FieldDefinition[],label:string)=>fields.some(field=>field.section===label&&field.sectionCollapsible===false);
+/** The condition of a conditional section (`sectionVisibleWhen`, FB-0240): every field of the section carries the same one. */
+const sectionWhen=(fields:FieldDefinition[],label:string)=>fields.find(field=>field.section===label&&field.sectionVisibleWhen)?.sectionVisibleWhen;
+/** The numbers of a Form's conditional sections whose condition does not hold (set by `bindFieldTypes`). */
+const inactiveSections=new WeakMap<Form,Set<number>>();
+/** Settles a Form's sections after one appeared or disappeared (registered by `bindSections`/`bindAccordion`). */
+const sectionsSettle=new WeakMap<Form,()=>void>();
+/**
+ * Shows or hides section $n of a `formRows` Form as a whole: the Suite layout cell framing its header and fieldset (the
+ * fieldset's parent cell), which Suite then leaves out of the DOM, so the stack's first and last sections stay framed.
+ */
+function showSection(form:Form,n:number,shown:boolean):void{
+  const frame=(form.getItem(SECTION+n+"_body") as any)?.cell?.getParent?.();
+  if(!frame||typeof frame.hide!=="function"){console.error(`61ade: form section ${n} has no frame cell to ${shown?"show":"hide"}.`);return;}
+  if(shown)frame.show();else frame.hide();
+}
 /** Whether $value fills a field: a non-empty value; an unchecked checkbox and an empty choice count as empty. */
 const filled=(field:FieldDefinition,value:unknown)=>Array.isArray(value)?value.length>0:value!==undefined&&value!==null&&value!==false&&String(value).trim()!==""&&!(field.type==="checkbox"&&String(value)==="0");
 /**
@@ -243,7 +258,9 @@ function bindSections(form:Form,fields:FieldDefinition[],signal:AbortSignal,togg
     const first=fields.find(field=>names.includes(field.name)&&opened.includes(field.section!));
     if(first)void awaitRedraw().then(()=>{if(!signal.aborted)(form.getItem(first.type==="file"?fileDisplay(first.name):first.name) as any)?.focus?.();});
   });
-  signal.addEventListener("abort",()=>sectionReveal.delete(form),{once:true});
+  // A section shown again is drawn anew: its disclosure takes its state again.
+  sectionsSettle.set(form,()=>{decorate();void awaitRedraw().then(decorate);});
+  signal.addEventListener("abort",()=>{sectionReveal.delete(form);sectionsSettle.delete(form);},{once:true});
   decorate();void awaitRedraw().then(decorate);
   form.events.on("change",decorate);
 }
@@ -258,6 +275,8 @@ function bindSections(form:Form,fields:FieldDefinition[],signal:AbortSignal,togg
  */
 function bindAccordion(form:Form,fields:FieldDefinition[],multiple:boolean,signal:AbortSignal):void{
   const labels=sectionsOf(fields),numbers=labels.map((_,index)=>index+1),toggles=numbers.filter(n=>!fixedSection(fields,labels[n-1]));
+  /** The collapsible sections shown (a conditional section whose condition does not hold is hidden, FB-0240). */
+  const shownToggles=()=>toggles.filter(n=>!inactiveSections.get(form)?.has(n));
   const body=(n:number)=>form.getItem(SECTION+n+"_body") as any;
   const isOpen=(n:number)=>!String(body(n)?.getProperties?.().css??"").includes(CLOSED.trim());
   const button=(n:number)=>(form.getItem(SECTION+n) as any)?.getRootNode?.() as HTMLElement|undefined;
@@ -313,10 +332,10 @@ function bindAccordion(form:Form,fields:FieldDefinition[],multiple:boolean,signa
   // The arrows, Home and End between the headers (Enter and Space are the native button's click).
   document.addEventListener("keydown",event=>{
     if(event.altKey||event.ctrlKey||event.metaKey)return;
-    const index=toggles.findIndex(n=>button(n)===event.target);
+    const shown=shownToggles(),index=shown.findIndex(n=>button(n)===event.target);
     if(index<0)return;
-    const next=event.key==="ArrowDown"?toggles[(index+1)%toggles.length]:event.key==="ArrowUp"?toggles[(index-1+toggles.length)%toggles.length]
-      :event.key==="Home"?toggles[0]:event.key==="End"?toggles[toggles.length-1]:undefined;
+    const next=event.key==="ArrowDown"?shown[(index+1)%shown.length]:event.key==="ArrowUp"?shown[(index-1+shown.length)%shown.length]
+      :event.key==="Home"?shown[0]:event.key==="End"?shown[shown.length-1]:undefined;
     if(next!==undefined){event.preventDefault();button(next)?.focus();}
   },{signal});
   sectionReveal.set(form,names=>{
@@ -329,7 +348,16 @@ function bindAccordion(form:Form,fields:FieldDefinition[],multiple:boolean,signa
     const first=fields.find(field=>names.includes(field.name)&&opened.some(n=>labels[n-1]===field.section));
     if(first)void awaitRedraw().then(()=>{if(!signal.aborted)(form.getItem(first.type==="file"?fileDisplay(first.name):first.name) as any)?.focus?.();});
   });
-  signal.addEventListener("abort",()=>sectionReveal.delete(form),{once:true});
+  // A hidden section is never open; without `multiple`, when the open one hides, the next shown one opens (else the
+  // nearest before it), and a section that reappears opens when none is open.
+  sectionsSettle.set(form,()=>{
+    if(signal.aborted)return;
+    const shown=shownToggles(),was=toggles.filter(isOpen);
+    for(const n of was)if(!shown.includes(n))show(n,false);
+    if(!multiple&&shown.length&&!shown.some(isOpen)){const from=was[0]??0;show(shown.find(n=>n>from)??shown[shown.length-1],true);}
+    changed();
+  });
+  signal.addEventListener("abort",()=>{sectionReveal.delete(form);sectionsSettle.delete(form);},{once:true});
   decorate();void awaitRedraw().then(decorate);
   form.events.on("change",decorate);
 }
@@ -349,18 +377,25 @@ function titleRowLabels(form:Form,fields:FieldDefinition[],signal:AbortSignal):v
 }
 /**
  * Runs `bind` of the registered field types among $fields once their Form exists, shows each conditional field
- * (`visibleWhen`) only while its condition holds and empties the fields an exclusive field `clears` once it gets a
- * value, and makes the `formRows` sections disclosures; `toggled` runs after a field or section appeared or disappeared
- * (a window refits).
+ * (`visibleWhen`) and each conditional section (`sectionVisibleWhen`, its frame and its fields) only while its condition
+ * holds and empties the fields an exclusive field `clears` once it gets a value, and makes the `formRows` sections
+ * disclosures; `toggled` runs after a field or section appeared or disappeared (a window refits).
  * The returned release aborts their `signal`; the owner calls it when the form closes or is replaced.
  */
 export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(field:FieldDefinition)=>boolean=()=>false,toggled?:()=>void):()=>void{
   const controller=new AbortController(),app=extensions.app;
   bindSections(form,fields,controller.signal,toggled);
   titleRowLabels(form,fields,controller.signal);
-  const conditional=fields.filter(field=>field.visibleWhen&&form.getItem(field.name));
-  if(conditional.length){
-    const shown=new Map<string,boolean>();
+  // The fields of a conditional section hide with it, as conditional fields do (Suite validates no hidden item).
+  const conditional=fields.filter(field=>(field.visibleWhen||field.sectionVisibleWhen)&&form.getItem(field.name));
+  const sections=sectionsOf(fields).map((label,index)=>({n:index+1,when:sectionWhen(fields,label)}))
+    .filter((section):section is {n:number;when:{field:string;in:string[]}}=>!!section.when&&!!form.getItem(SECTION+section.n+"_body"));
+  if(conditional.length||sections.length){
+    const shown=new Map<string,boolean>(),inactive=new Set<number>();
+    inactiveSections.set(form,inactive);
+    controller.signal.addEventListener("abort",()=>inactiveSections.delete(form),{once:true});
+    const watched=new Set([...conditional.flatMap(field=>[field.visibleWhen?.field,field.sectionVisibleWhen?.field]),...sections.map(section=>section.when.field)]);
+    let first=true;
     const apply=()=>{
       if(controller.signal.aborted)return;
       const values=form.getValue() as Record<string,unknown>;let changed=false;
@@ -373,10 +408,21 @@ export function bindFieldTypes(form:Form,fields:FieldDefinition[],readOnly:(fiel
         const item=(form.getItem(shownName(field.name))??form.getItem(field.name)) as any;
         if(active)item.show();else item.hide();
       }
-      if(changed)toggled?.();
+      let moved=false;
+      for(const section of sections){
+        const active=conditionHolds(section.when,values);
+        if(inactive.has(section.n)!==active)continue;// unchanged
+        moved=true;
+        if(active)inactive.delete(section.n);else inactive.add(section.n);
+        showSection(form,section.n,active);
+      }
+      // An accordion form keeps a shown section open (also at the start, when the first one is hidden).
+      if(moved||first&&sections.length)sectionsSettle.get(form)?.();
+      if(changed||moved&&!first)toggled?.();
+      first=false;
     };
     apply();
-    form.events.on("change",(name:string)=>{if(conditional.some(field=>field.visibleWhen!.field===name))apply();});
+    form.events.on("change",(name:string)=>{if(watched.has(name))apply();});
   }
   const exclusive=new Map(fields.filter(field=>field.clears?.length&&form.getItem(field.name)).map(field=>[field.name,field.clears!]));
   if(exclusive.size)form.events.on("change",(name:string,value:unknown)=>{

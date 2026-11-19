@@ -11348,3 +11348,77 @@ object. Typecheck, build and demo asset preparation passed.
   The file manager's tree was not rerun: its folders pass no icon and its
   files the same `file` slot as before. No full-smoke claim.
 - **Status.** Implemented and verified as above.
+
+<a id="fb-0240"></a>
+
+## FB-0240 — Conditional form sections
+
+- **Date.** 2026-11-19.
+- **Report.** Owner-approved extension, from a consumer migrating from an
+  older form library: a controller field shows or hides a whole group of
+  fields (a checkbox: one group while checked; a select or radio: one group
+  per value). 61ade had field-level `visibleWhen` and sections, but no
+  section-level condition: a consumer had to repeat `visibleWhen` on every
+  field, the section's frame and header (also its accordion header) stayed
+  visible and empty, and an inactive conditional field is stored empty, while
+  the consumer case (three section-filling textareas under an on/off
+  checkbox) needs the stored texts kept while the checkbox is off.
+- **Decision.** A section condition is declared on the fields, like
+  `sectionCollapsible`: `sectionVisibleWhen` (JSON `section_visible_when`)
+  of the shape of `visibleWhen`, the same on every field of the section
+  (refused otherwise), so the declaration stays the field's and every form of
+  the resource shares it; a single-field section declares it once. Its
+  values are **kept** while it is hidden: the server neither validates nor
+  stores a hidden section's fields, whatever is sent; `visibleWhen` keeps its
+  store-empty rule, so current consumers are unaffected. A field of a
+  conditional section may not carry its own `visibleWhen` (refused; one
+  condition per field keeps the value rule unambiguous). The condition field
+  is outside the section and not conditional itself, a field's `visibleWhen`
+  cannot depend on a field of a conditional section, a resource's section
+  condition names one of its fields, and a checkbox condition holds `"0"` and
+  `"1"` only. Cards, `Adatok`, `RecordDetails` and the details form without
+  an update right show the group as stored (they show stored values, which a
+  hidden section keeps on purpose). `SettingsForm` has no sections and is
+  unchanged. While aligning the two evaluations, the server now counts a
+  boolean condition value as `"1"`/`"0"`, as the browser did: a JSON `false`
+  for a checkbox condition `in: ["0"]` was inactive on the server while the
+  form showed and validated the field (M98, info).
+- **Contract.** [Conditional sections](workspaces.md#form-section-conditional);
+  [conditional fields](workspaces.md#conditional-fields);
+  [RecordForm](toolkit.md#recordform); [usage](usage.md); migration M98 in
+  the [toolkit](toolkit.md#migration).
+- **Implemented.** PHP `Field::$sectionVisibleWhen` (validated with the
+  shared condition shape; `active()` checks both conditions and counts
+  booleans), `Field::checkSections()` (one condition per section, its field
+  outside the section and unconditional, known in a resource's fields,
+  checkbox values), `Action` (a `visibleWhen` on a field of a conditional
+  section), `Executor` (an inactive section field is left out of the saved
+  values; only an inactive `visibleWhen` field is stored empty),
+  `WorkspaceConfiguration` (JSON `section_visible_when`). Frontend:
+  `FormValidation.ts` `conditionHolds`/`fieldActive` (both conditions);
+  `fields.ts` `bindFieldTypes` hides a section through its Suite frame cell
+  (the fieldset's parent cell, which Suite then leaves out of the document)
+  together with its fields (no Suite validation), refits the window, and
+  `bindAccordion` keeps a shown section open (`sectionsSettle`) and moves the
+  header keys over the shown headers only; `bindSections` decorates a panel
+  shown again. Types: `FieldMetadata.sectionVisibleWhen`. Feature demo:
+  `Értesítési szabályok` ([notifications.json](../examples/demo-app/modules/notifications.json),
+  table and seed in `setup-workspace.php`, English catalogue entries).
+- **Verification.** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`; PHP `record-forms.php` (declaration rules and refusals, JSON
+  `section_visible_when`, and on an in-memory database: a hidden required
+  section field not validated, its stored text kept when sent changed or
+  empty, a `visibleWhen` field still emptied, a select controller's other
+  section kept, a create with hidden sections, boolean values),
+  `contracts.php`, `configuration.php`, `validation.php`, `i18n.php`,
+  `toolkit.php`, `stored-file.php`, `tree-navigation.php` and `lists.php`
+  passed. New retained spec `form-sections-conditional.spec.cjs` (3 cases:
+  the checkbox in accordion and in panels with the stored texts kept across a
+  save and back, the select with one section per value, hidden sections not
+  validated) passed; a second run of `record-forms.spec.cjs`,
+  `form-accordion.spec.cjs`, `form-rows.spec.cjs`, `registry.spec.cjs`,
+  `settings-form.spec.cjs`, `theme-motion.spec.cjs` and
+  `toolkit-list.spec.cjs` passed all 44 cases. The singleton's details form and
+  `accordion-multiple` with a conditional section were not run in a browser.
+  No full-smoke claim.
+- **Status.** Implemented and verified as above.

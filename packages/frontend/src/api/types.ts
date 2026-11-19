@@ -902,6 +902,12 @@ export interface FieldMetadata {
    */
   sectionFill?: true;
   /**
+   * Conditional section (server `Field` `sectionVisibleWhen`, JSON `section_visible_when`, FB-0240): every field of the
+   * section carries the same condition. Forms show the whole section (header, frame, fields) only while the field
+   * `field` holds one of `in`; meanwhile its fields are not validated and the server keeps their stored values.
+   */
+  sectionVisibleWhen?: { field: string; in: string[] };
+  /**
    * The form row of the field (server `Field` `row`, JSON `row`, FB-0196): consecutive fields of one section with the
    * same key share one row of the action forms; the row stacks into one column where the form is narrower than its
    * shares need (`--blade-form-column-min` per share). Absent: the field takes the full width.

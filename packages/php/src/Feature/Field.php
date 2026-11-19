@@ -91,6 +91,13 @@ final readonly class Field
         public ?string $row = null,
         /** The field's share of its row's width, 1–3 (default 1). Only with $row. */
         public int $rowWidth = 1,
+        /**
+         * Conditional section (FB-0240): `['field' => f, 'in' => [values]]`, like `visibleWhen`, for the whole section of
+         * the field; every field of one section declares the same condition (Registry refuses a mix). While it does not
+         * hold, forms hide the section (header, frame and fields) and the server neither validates nor stores its fields:
+         * their stored values stay as they are. Only with $section, never with $visibleWhen.
+         */
+        public ?array $sectionVisibleWhen = null,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/D', $name)
             || !in_array($type, ['text', 'password', 'number', 'select', 'multiselect', 'textarea', 'checkbox', 'date', 'file'], true)
@@ -165,11 +172,12 @@ final readonly class Field
         // A project presentation only displays a readable value; its field stays editable like any other.
         if (isset($column['presentation']) && !$icon && !$image && ($secret || $type === 'password')) throw new InvalidArgumentException('Project presentations need a readable, non-secret field.');
         if ($editor !== null && (!self::projectName($editor) || $secret || in_array($type, ['password', 'file'], true) || isset($column['media']))) throw new InvalidArgumentException('Field editors need a dotted project field type name on a non-secret, non-password, non-file, non-media field.');
-        if ($visibleWhen !== null && (array_diff(array_keys($visibleWhen), ['field', 'in']) || !is_string($visibleWhen['field'] ?? null) || !preg_match('/^[a-z][a-z0-9_]*$/D', $visibleWhen['field'])
-            || $visibleWhen['field'] === $name || !is_array($visibleWhen['in'] ?? null) || !$visibleWhen['in'] || !array_is_list($visibleWhen['in']) || count($visibleWhen['in']) > 50
-            || array_filter($visibleWhen['in'], static fn($value) => !is_string($value) || strlen($value) > 255) || count(array_unique($visibleWhen['in'])) !== count($visibleWhen['in'])
-            || ($column['editable'] ?? false) || $bulk || $secret || $type === 'file')) {
+        if ($visibleWhen !== null && (!self::condition($visibleWhen, $name) || ($column['editable'] ?? false) || $bulk || $secret || $type === 'file')) {
             throw new InvalidArgumentException('Invalid conditional field: '.$name);
+        }
+        // A field of a conditional section follows its section alone: no condition of its own (FB-0240).
+        if ($sectionVisibleWhen !== null && (!self::condition($sectionVisibleWhen, $name) || $section === null || $visibleWhen !== null || ($column['editable'] ?? false) || $bulk || $secret || $type === 'file')) {
+            throw new InvalidArgumentException('Invalid field of a conditional section (a section field without its own visibleWhen, not grid-editable, bulk, secret or a file): '.$name);
         }
         if (!array_is_list($clears) || count($clears) > 10 || count(array_unique($clears)) !== count($clears) || ($secret && $clears)
             || array_filter($clears, static fn($other) => !is_string($other) || !preg_match('/^[a-z][a-z0-9_]*$/D', $other) || $other === $name)) {
@@ -250,10 +258,26 @@ final readonly class Field
         return $value;
     }
 
-    /** Whether the field takes part for the record values $values (always without `visibleWhen`). */
+    /**
+     * Whether the field takes part for the record values $values: its `visibleWhen` and its section's
+     * `sectionVisibleWhen` hold (always without them). A boolean value counts as "1"/"0", as in the browser.
+     */
     public function active(array $values): bool
     {
-        return $this->visibleWhen === null || in_array((string) ($values[$this->visibleWhen['field']] ?? ''), $this->visibleWhen['in'], true);
+        foreach ([$this->visibleWhen, $this->sectionVisibleWhen] as $when) {
+            if ($when === null) continue;
+            $value = $values[$when['field']] ?? '';
+            if (!in_array(is_bool($value) ? ($value ? '1' : '0') : (string) $value, $when['in'], true)) return false;
+        }
+        return true;
+    }
+
+    /** A condition `{field, in}` of the field $name: another field name, 1–50 distinct strings of at most 255 bytes. */
+    private static function condition(array $when, string $name): bool
+    {
+        return !array_diff(array_keys($when), ['field', 'in']) && is_string($when['field'] ?? null) && preg_match('/^[a-z][a-z0-9_]*$/D', $when['field']) === 1
+            && $when['field'] !== $name && is_array($when['in'] ?? null) && $when['in'] && array_is_list($when['in']) && count($when['in']) <= 50
+            && !array_filter($when['in'], static fn($value) => !is_string($value) || strlen($value) > 255) && count(array_unique($when['in'])) === count($when['in']);
     }
 
     /** A `file` field whose bytes the project stores itself (`file.upload`), not a file manager reference. */
@@ -360,6 +384,8 @@ final readonly class Field
             ...($this->visibleWhen !== null ? ['visibleWhen' => $this->visibleWhen] : []),
             ...($this->clears ? ['clears' => $this->clears] : []),
             ...$this->sectionMetadata(),
+            // The form's presentation only: cards and details show a conditional section's group as stored.
+            ...($this->sectionVisibleWhen !== null ? ['sectionVisibleWhen' => $this->sectionVisibleWhen] : []),
             // The form's presentation only; columns carry the section alone.
             ...($this->sectionFill ? ['sectionFill' => true] : []),
             ...$this->rowMetadata(),
@@ -377,12 +403,27 @@ final readonly class Field
     }
     /**
      * Refuses $fields where one section label is declared both collapsible and fixed, a section-filling field shares its
-     * section, or a form row is not one run of at most 4 consecutive fields of one section (FB-0196). $declared: the
-     * resource's own fields, where a row also needs 2 fields (an action's fields may keep one field of a row).
+     * section, or a form row is not one run of at most 4 consecutive fields of one section (FB-0196). A conditional
+     * section (FB-0240) has one condition on all its fields; its condition field, when among $fields, is outside it and
+     * unconditional, and a checkbox condition holds "0"/"1". $declared: the resource's own fields, where a row also needs
+     * 2 fields (an action's fields may keep one field of a row) and a section's condition field must be one of them.
      */
     public static function checkSections(array $fields, bool $declared = false): void
     {
-        $seen = $count = $fill = $rows = [];
+        $seen = $count = $fill = $rows = $when = [];
+        $known = [];
+        foreach ($fields as $field) if ($field instanceof self) $known[$field->name] = $field;
+        foreach ($known as $field) {
+            if ($field->section === null) continue;
+            if (array_key_exists($field->section, $when) && $when[$field->section] !== $field->sectionVisibleWhen) throw new InvalidArgumentException('Every field of a section declares the same section condition: '.$field->section);
+            $when[$field->section] = $field->sectionVisibleWhen;
+            $condition = $field->sectionVisibleWhen;
+            if ($condition === null) continue;
+            $controller = $known[$condition['field']] ?? null;
+            if ($controller === null && $declared) throw new InvalidArgumentException('A section condition names an unknown field: '.$field->section);
+            if ($controller !== null && ($controller->section === $field->section || $controller->visibleWhen !== null || $controller->sectionVisibleWhen !== null)) throw new InvalidArgumentException('A section condition names a field outside its section that is not conditional itself: '.$field->section);
+            if ($controller?->type === 'checkbox' && array_diff($condition['in'], ['0', '1'])) throw new InvalidArgumentException('A checkbox section condition holds "0" or "1": '.$field->section);
+        }
         $previous = null;
         foreach ($fields as $field) {
             if (!$field instanceof self) continue;

@@ -187,6 +187,73 @@ $placedDetails = array_column($placedOptions['detailFields'], null, 'id');
 $placedColumns = array_column($placedOptions['columns'], null, 'id');
 verify(($placedDetails['note']['placement'] ?? null) === 'row' && ($placedColumns['note']['placement'] ?? null) === 'row' && !isset($placedDetails['kind']['placement'], $placedColumns['kind']['placement'], $placedDetails['title']['placement']), 'Placement in the detail fields and columns');
 
+// Conditional sections (FB-0240): `sectionVisibleWhen` on every field of a section, a condition like `visibleWhen`.
+$on = ['field' => 'enabled', 'in' => ['1']];
+verify((new Field('x', 'X', 'textarea', section: 'S', sectionVisibleWhen: $on))->metadata()['sectionVisibleWhen'] === $on, 'Section condition in field metadata');
+verify(!array_key_exists('sectionVisibleWhen', (new Field('x', 'X', 'textarea', section: 'S', sectionVisibleWhen: $on))->sectionMetadata()) && !array_key_exists('sectionVisibleWhen', (new Field('x', 'X', section: 'S'))->metadata()), 'No section condition in a column or without one');
+foreach ([['field' => 'x', 'in' => ['1']], ['field' => 'enabled', 'in' => []], ['field' => 'enabled', 'in' => ['1', '1']], ['field' => 'enabled', 'in' => [1]], ['field' => 'enabled'], ['field' => 'Enabled', 'in' => ['1']], ['field' => 'enabled', 'in' => ['1'], 'not' => true], ['field' => 'enabled', 'in' => array_map('strval', range(1, 51))], ['field' => 'enabled', 'in' => ['a' => '1']]] as $bad)
+    rejected(static fn() => new Field('x', 'X', section: 'S', sectionVisibleWhen: $bad), 'Invalid section condition accepted: '.json_encode($bad));
+foreach ([
+    'without a section' => static fn() => new Field('x', 'X', sectionVisibleWhen: $on),
+    'with its own condition' => static fn() => new Field('x', 'X', section: 'S', visibleWhen: ['field' => 'kind', 'in' => ['a']], sectionVisibleWhen: $on),
+    'grid-editable' => static fn() => new Field('x', 'X', column: ['editable' => true], section: 'S', sectionVisibleWhen: $on),
+    'bulk' => static fn() => new Field('x', 'X', bulk: true, section: 'S', sectionVisibleWhen: $on),
+    'secret' => static fn() => new Field('x', 'X', secret: true, section: 'S', sectionVisibleWhen: $on),
+    'a file' => static fn() => new Field('x', 'X', 'file', file: $image, section: 'S', sectionVisibleWhen: $on),
+] as $case => $declare) rejected($declare, 'A conditional section field '.$case.' accepted');
+$enabled = new Field('enabled', 'Enabled', 'checkbox');
+rejected(static fn() => (new Registry())->registerFields('mix', [$enabled, new Field('a', 'A', section: 'S', sectionVisibleWhen: $on), new Field('b', 'B', section: 'S')]), 'A section with and without a condition accepted');
+rejected(static fn() => (new Registry())->registerFields('mix', [$enabled, new Field('a', 'A', section: 'S', sectionVisibleWhen: $on), new Field('b', 'B', section: 'S', sectionVisibleWhen: ['field' => 'enabled', 'in' => ['0']])]), 'A section with two conditions accepted');
+rejected(static fn() => (new Registry())->add(new Action('mix', 'run', 'Run', [new Field('a', 'A', section: 'S'), new Field('b', 'B', section: 'S', sectionVisibleWhen: $on)], $noop)), 'An action section with and without a condition accepted');
+rejected(static fn() => (new Registry())->registerFields('unknown', [new Field('a', 'A', section: 'S', sectionVisibleWhen: $on)]), 'A resource section condition on an unknown field accepted');
+rejected(static fn() => (new Registry())->registerFields('inside', [new Field('enabled', 'Enabled', 'checkbox', section: 'S'), new Field('a', 'A', section: 'S', sectionVisibleWhen: ['field' => 'enabled', 'in' => ['1']])]), 'A section condition on a field of the section accepted');
+rejected(static fn() => (new Registry())->registerFields('chain', [new Field('kind', 'Kind', visibleWhen: ['field' => 'title', 'in' => ['x']]), new Field('a', 'A', section: 'S', sectionVisibleWhen: ['field' => 'kind', 'in' => ['a']])]), 'A section condition on a conditional field accepted');
+rejected(static fn() => (new Registry())->registerFields('chain', [$enabled, new Field('kind', 'Kind', section: 'T', sectionVisibleWhen: $on), new Field('a', 'A', section: 'S', sectionVisibleWhen: ['field' => 'kind', 'in' => ['a']])]), 'A section condition on a field of a conditional section accepted');
+rejected(static fn() => new Action('chain', 'run', 'Run', [$enabled, new Field('kind', 'Kind', section: 'T', sectionVisibleWhen: $on), new Field('a', 'A', visibleWhen: ['field' => 'kind', 'in' => ['a']])], $noop), 'A field condition on a field of a conditional section accepted');
+rejected(static fn() => (new Registry())->registerFields('box', [$enabled, new Field('a', 'A', section: 'S', sectionVisibleWhen: ['field' => 'enabled', 'in' => ['true']])]), 'A checkbox section condition outside "0"/"1" accepted');
+// An action may name a condition field it does not carry (the stored record's value decides).
+(new Registry())->add(new Action('stored', 'run', 'Run', [new Field('a', 'A', section: 'S', sectionVisibleWhen: $on), new Field('b', 'B', section: 'S', sectionVisibleWhen: $on)], $noop));
+// Stored values: a field of an inactive section is neither validated nor stored (its stored value stays); the client
+// sends it or not. An inactive conditional field (`visibleWhen`) is still stored empty when it or its condition is sent.
+$db->exec("CREATE TABLE webs (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 0, mode TEXT NOT NULL DEFAULT 'a', proxy TEXT NOT NULL DEFAULT '', php TEXT NOT NULL DEFAULT '', legacy TEXT NOT NULL DEFAULT '', alpha TEXT NOT NULL DEFAULT '', beta TEXT NOT NULL DEFAULT '')");
+$conditional = new Registry();
+(new SqlResource('webs', 'webs', 'id', [
+    new Field('title', 'Title', required: true),
+    new Field('enabled', 'Enabled', 'checkbox'),
+    new Field('mode', 'Mode', 'select', options: ['a' => 'A', 'b' => 'B']),
+    new Field('proxy', 'Proxy', 'textarea', required: true, max: 1000, section: 'Proxy', sectionFill: true, sectionVisibleWhen: $on),
+    new Field('php', 'PHP', 'textarea', max: 1000, section: 'PHP', sectionFill: true, sectionVisibleWhen: $on),
+    new Field('legacy', 'Legacy', visibleWhen: $on),
+    new Field('alpha', 'Alpha', required: true, section: 'Alpha', sectionVisibleWhen: ['field' => 'mode', 'in' => ['a']]),
+    new Field('beta', 'Beta', required: true, section: 'Beta', sectionVisibleWhen: ['field' => 'mode', 'in' => ['b']]),
+]))->register($conditional, 'Webs');
+$web = new Workspace($conditional, $db);
+$webContext = new Context(new Identity('1', 'Synthetic'), 'ui', $web->acl, $db);
+foreach (['list', 'get', 'create', 'update'] as $action) $db->exec("INSERT INTO blade_rules(subject_type, subject_id, resource, action, channel, effect, scope, object_id, field_name) VALUES ('user', '1', 'webs', '$action', 'ui', 'allow', 'all', '', '')");
+$web->acl->invalidate();
+$stored = static fn(string $id) => $db->query('SELECT enabled, mode, proxy, php, legacy, alpha, beta FROM webs WHERE id = '.(int) $id)->fetch(PDO::FETCH_ASSOC);
+$revisionOf = static fn(string $id) => $web->describe($webContext, $conditional->get('webs', 'update'), $id)['values']['revision'];
+$webForm = array_column($web->describe($webContext, $conditional->get('webs', 'create'), null)['fields'], null, 'name');
+verify(($webForm['proxy']['sectionVisibleWhen'] ?? null) === $on && !isset($webForm['legacy']['sectionVisibleWhen'], $webForm['title']['sectionVisibleWhen']), 'Section condition in the form description');
+$webId = (string) $web->executor->execute($webContext, 'webs', 'create', null, ['title' => 'One', 'enabled' => true, 'mode' => 'a', 'proxy' => 'P1', 'php' => 'H1', 'legacy' => 'L1', 'alpha' => 'A1', 'beta' => 'B0'])['id'];
+verify($stored($webId) === ['enabled' => 1, 'mode' => 'a', 'proxy' => 'P1', 'php' => 'H1', 'legacy' => 'L1', 'alpha' => 'A1', 'beta' => ''], 'Create stores the active sections only: '.json_encode($stored($webId)));
+// Off: the hidden required proxy is not validated; the sent (even changed or emptied) texts are not stored.
+$web->executor->execute($webContext, 'webs', 'update', $webId, ['title' => 'One', 'enabled' => false, 'mode' => 'a', 'proxy' => '', 'php' => 'changed', 'legacy' => 'L2', 'alpha' => 'A1', 'revision' => $revisionOf($webId)]);
+verify($stored($webId) === ['enabled' => 0, 'mode' => 'a', 'proxy' => 'P1', 'php' => 'H1', 'legacy' => '', 'alpha' => 'A1', 'beta' => ''], 'Inactive sections keep their stored values, a conditional field is emptied: '.json_encode($stored($webId)));
+// On again: the kept texts are back and validated again.
+failed(static fn() => $web->executor->execute($webContext, 'webs', 'update', $webId, ['enabled' => '1', 'proxy' => '', 'revision' => $revisionOf($webId)]), 400, 'An active required section field left empty');
+$web->executor->execute($webContext, 'webs', 'update', $webId, ['title' => 'One', 'enabled' => '1', 'mode' => 'a', 'proxy' => 'P2', 'php' => 'H1', 'alpha' => 'A1', 'revision' => $revisionOf($webId)]);
+verify($stored($webId)['proxy'] === 'P2' && $stored($webId)['php'] === 'H1', 'An active section stores its fields');
+// A select controller: one section per value; the other value's section keeps its text and is not required.
+failed(static fn() => $web->executor->execute($webContext, 'webs', 'update', $webId, ['title' => 'One', 'enabled' => '1', 'mode' => 'b', 'proxy' => 'P2', 'alpha' => '', 'revision' => $revisionOf($webId)]), 400, 'The active section of a select value left empty');
+$web->executor->execute($webContext, 'webs', 'update', $webId, ['title' => 'One', 'enabled' => '1', 'mode' => 'b', 'proxy' => 'P2', 'alpha' => '', 'beta' => 'B1', 'revision' => $revisionOf($webId)]);
+verify($stored($webId)['alpha'] === 'A1' && $stored($webId)['beta'] === 'B1', 'Select sections: the inactive one keeps its value: '.json_encode($stored($webId)));
+// A create with the sections off stores nothing for them (their column defaults), the hidden required fields unchecked.
+$offId = (string) $web->executor->execute($webContext, 'webs', 'create', null, ['title' => 'Off', 'enabled' => '0', 'mode' => 'b', 'proxy' => 'typed', 'beta' => 'B2'])['id'];
+verify($stored($offId) === ['enabled' => 0, 'mode' => 'b', 'proxy' => '', 'php' => '', 'legacy' => '', 'alpha' => '', 'beta' => 'B2'], 'Create with inactive sections: '.json_encode($stored($offId)));
+// A condition on a boolean counts it as "1"/"0" (also `visibleWhen`), as the browser does.
+verify((new Field('x', 'X', section: 'S', sectionVisibleWhen: ['field' => 'enabled', 'in' => ['0']]))->active(['enabled' => false]) && !(new Field('x', 'X', visibleWhen: ['field' => 'enabled', 'in' => ['0']]))->active(['enabled' => true]), 'Boolean condition values');
+
 // JSON: storage.create_only and a field's section.
 $directory = sys_get_temp_dir().'/blade-record-forms-'.bin2hex(random_bytes(4));
 mkdir($directory);
@@ -202,6 +269,15 @@ try {
     $filling = $module;$filling['resources']['items']['fields'][1] += ['type' => 'textarea', 'section_fill' => true];
     file_put_contents($directory.'/module.json', json_encode($filling, JSON_THROW_ON_ERROR));
     verify(WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry->fields('items')['title']->sectionFill === true, 'JSON section_fill');
+    // A conditional section (FB-0240): `section_visible_when`, shaped like `visible_when`.
+    $gated = $module;$gated['resources']['items']['fields'][1]['section_visible_when'] = ['field' => 'kind', 'in' => ['a']];
+    file_put_contents($directory.'/module.json', json_encode($gated, JSON_THROW_ON_ERROR));
+    verify(WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => [])->registry->fields('items')['title']->sectionVisibleWhen === ['field' => 'kind', 'in' => ['a']], 'JSON section_visible_when');
+    foreach ([['field' => 'kind'], ['field' => 'kind', 'in' => 'a'], ['field' => 'nothing', 'in' => ['a']], 'kind'] as $bad) {
+        $gated['resources']['items']['fields'][1]['section_visible_when'] = $bad;
+        file_put_contents($directory.'/module.json', json_encode($gated, JSON_THROW_ON_ERROR));
+        rejected(static fn() => WorkspaceConfiguration::build($db, [$directory.'/module.json'], static fn() => []), 'Invalid JSON section_visible_when accepted: '.json_encode($bad));
+    }
     // A long text's `column.placement` (FB-0225): a textarea outside the sections.
     $placing = $module;$placing['resources']['items']['fields'][1] = ['name' => 'title', 'label' => 'Title', 'type' => 'textarea', 'column' => ['placement' => 'group']];
     file_put_contents($directory.'/module.json', json_encode($placing, JSON_THROW_ON_ERROR));

@@ -1842,7 +1842,15 @@ editor that depends on the value's type ([FB-0107](feedback.md#fb-0107)).
 - **Declaration rules:** `field` is another field name; `in` lists 1–50
   distinct strings (a checkbox condition uses `"0"`/`"1"`). A conditional field
   is not `editable` in the grid, not `bulk`, not secret and not a `file` field;
-  the condition field of an action is not conditional itself.
+  the condition field of an action is not conditional itself (nor a field of
+  a conditional section).
+- **A whole section:** to show or hide a group of fields together, with its
+  header and frame, and keep their stored values while it is hidden, declare
+  a [conditional section](#form-section-conditional) instead of repeating
+  `visibleWhen` on every field.
+- **Boolean values:** the server counts a boolean condition value (a JSON
+  `true`/`false` from a checkbox) as `"1"`/`"0"`, as the browser always did
+  ([FB-0240](feedback.md#fb-0240)).
 
 <a id="exclusive-fields"></a>
 
@@ -2001,7 +2009,8 @@ new Field('detail', 'Részletkép', 'file', file: $image, section: 'Képek'),
 - **Where:** `RecordForm`, the built-in create and update forms (window and
   panel) and the singleton's details form (from the list's column metadata
   `section` when the actor has no update right). Conditional fields and file
-  fields work inside a section, read-only fields too. A form window
+  fields work inside a section, read-only fields too; a whole section can be
+  [conditional](#form-section-conditional). A form window
   (`AppWindow` or the list's form window) refits when a section opens or
   closes.
 - **Keyboard and accessibility:** a collapsible section's header is a native
@@ -2156,6 +2165,84 @@ new Field('photo', 'Fénykép', 'file', file: $image, section: 'Fénykép', sect
   error reveal (an error opens the section and focuses the textarea or the
   file name) and the cards and details, which show the field under its
   label in the section's group.
+
+<a id="form-section-conditional"></a>
+<a id="conditional-sections"></a>
+
+### Conditional sections
+
+A section can take part only while another field of the record holds one of
+some values, like a [conditional field](#conditional-fields), but as a whole:
+a checkbox shows one group of fields while it is checked, a select or radio
+choice shows one section per value ([FB-0240](feedback.md#fb-0240)). While the
+condition does not hold, the section is gone from the form (header, frame and
+fields), and the stored values of its fields stay as they are, so switching
+the controller off for a while loses nothing.
+
+```php
+new Field('enabled', 'Értesítés bekapcsolva', 'checkbox', defaultValue: '1'),
+new Field('delivery', 'Kézbesítés', 'select', options: ['immediate' => 'Azonnal', 'digest' => 'Napi összesítő']),
+new Field('email_text', 'E-mail szövege', 'textarea', required: true, section: 'E-mail szövege', sectionFill: true,
+    sectionVisibleWhen: ['field' => 'enabled', 'in' => ['1']]),
+new Field('digest_time', 'Küldés időpontja', required: true, section: 'Napi összesítő',
+    sectionVisibleWhen: ['field' => 'delivery', 'in' => ['digest']]),
+```
+
+```json
+{"name": "email_text", "label": "E-mail szövege", "type": "textarea", "required": true, "section": "E-mail szövege",
+ "section_fill": true, "section_visible_when": {"field": "enabled", "in": ["1"]}}
+```
+
+- **Declaration:** `sectionVisibleWhen` (PHP `Field`, JSON
+  `section_visible_when`) has the shape of `visibleWhen`: `field` is another
+  field name, `in` lists 1–50 distinct strings of at most 255 bytes. Every
+  field of the section declares the same condition, as with
+  `sectionCollapsible` (a section with and without it, or with two different
+  ones, is refused); a single-field section, such as a
+  [section-filling](#form-section-fill) one, declares it once. The form
+  metadata carries `sectionVisibleWhen` on each field
+  (`FieldMetadata.sectionVisibleWhen`); a column's section does not.
+- **Declaration rules** (`InvalidArgumentException`): the field has a
+  `section` and no `visibleWhen` of its own (a field of a conditional section
+  follows its section only); it is not `editable` in the grid, not `bulk`,
+  not secret and not a `file` field. The condition field is outside the
+  section and is not conditional itself (no `visibleWhen`, not in a
+  conditional section), and a field's `visibleWhen` cannot depend on a field
+  of a conditional section. In a resource's fields the condition field must
+  be one of them; an action may leave it out, and the stored record's value
+  decides. A checkbox condition holds only `"0"` and `"1"`.
+- **Forms** (action forms, `RecordForm`, the built-in create and update
+  forms, the singleton's details form with an update right): the section
+  follows changes of the condition field at once; a hidden section is not in
+  the document, so neither its header nor its frame takes space and the
+  stack of [accordion sections](#form-accordion) stays framed around the
+  shown ones. A form window refits as it does for a conditional field, in
+  every section presentation. In an accordion form a hidden section is never
+  the open one: without `multiple`, when the open section hides, the next
+  shown one opens (the nearest one before it when it was the last); a form
+  whose first section starts hidden opens the first shown one; with
+  `multiple` a hiding section closes. The arrow keys, Home and End move
+  between the shown headers only. `sectionFill`, rows and read-only fields
+  work inside a conditional section.
+- **Validation and values:** the fields of a hidden section are inactive like
+  an inactive conditional field: no browser or server validation, `required`
+  included. Unlike a conditional field, they are never stored empty: the
+  server ignores their sent values and keeps the stored ones (a create stores
+  their column defaults), whatever the form or an API call sends. When the
+  section shows again, its fields hold the stored values (in an open form,
+  the values last typed) and are validated again. The condition is evaluated
+  on the submitted values over the stored row, as for conditional fields.
+- **Cards and details:** the cards, `Adatok`, `RecordDetails` and the
+  singleton's details form without an update right show the section's group
+  as stored, whatever the condition: they show the record's stored values,
+  and a hidden section keeps them on purpose (the controller's value is shown
+  beside them). A project that wants to hide such a group there leaves the
+  fields out of the view's detail fields.
+- **Limits:** one condition per section, on one field (no AND of several
+  fields, no chains); `SettingsForm` groups have no condition (its fields
+  keep their own `visibleWhen`); the bulk form and the grid and card editors
+  show no sections, and a conditional section's fields are not editable
+  there.
 
 <a id="form-rows"></a>
 

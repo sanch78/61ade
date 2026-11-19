@@ -720,7 +720,9 @@ form can show values read-only ([read-only fields](workspaces.md#read-only-field
 `readOnly`; a flat, filled control distinguishes the read-only value) and
 group fields into framed
 [form sections](workspaces.md#form-sections) (`section`; collapsible, or
-fixed with `sectionCollapsible: false`), which also group the
+fixed with `sectionCollapsible: false`; a whole section can follow a field's
+value with [`sectionVisibleWhen`](workspaces.md#form-section-conditional),
+hidden with its header and keeping its stored values), which also group the
 [cards and details](workspaces.md#card-groups) side by side with a long text
 below them (`column.cardLines` sets its card lines, `column.placement` its
 [place](workspaces.md#long-text-placement)), a field can count
