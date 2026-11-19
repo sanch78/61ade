@@ -2,6 +2,7 @@ import type { Row } from "../../api/types";
 
 export type Branch={rows:Row[];cut:boolean};
 export type TreeSnapshot={branches:[string,Branch][];opened:string[];preferences:string;until?:number};
+type AccessChange="denied"|"changed"|"ended";
 
 const ENTRIES=4;
 const CHARACTERS=262144;
@@ -12,10 +13,10 @@ export class TreeCache{
   private entries=new Map<string,{resource:string;json:string;until:number}>();
   private access=new EventTarget();
 
-  watch(resource:string,invalidate:(reload:boolean)=>void,signal:AbortSignal):void{
+  watch(resource:string,invalidate:(reason:AccessChange)=>void,signal:AbortSignal):void{
     this.access.addEventListener("change",event=>{
-      const changed=(event as CustomEvent<{resource?:string;reload:boolean}>).detail;
-      if(changed.resource===undefined||changed.resource===resource)invalidate(changed.reload);
+      const changed=(event as CustomEvent<{resource?:string;reason:AccessChange}>).detail;
+      if(changed.resource===undefined||changed.resource===resource)invalidate(changed.reason);
     },{signal});
   }
 
@@ -36,8 +37,8 @@ export class TreeCache{
     this.entries.set(key,{resource,json,until});
   }
 
-  invalidate(resource?:string,reload=false):void{
+  invalidate(resource?:string,reason:AccessChange="denied"):void{
     for(const [key,entry] of this.entries)if(resource===undefined||entry.resource===resource)this.entries.delete(key);
-    this.access.dispatchEvent(new CustomEvent("change",{detail:{resource,reload}}));
+    this.access.dispatchEvent(new CustomEvent("change",{detail:{resource,reason}}));
   }
 }

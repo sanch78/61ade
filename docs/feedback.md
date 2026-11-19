@@ -11106,8 +11106,12 @@ that exactly equals an option label lists every option. The managed
   cases covered nested and fully collapsed returns, renamed and removed
   rows, newer user actions, a second return during revalidation, an explicit
   child refresh, a cold page load, a permission edit, sign-out and user
-  and tenant switches. The existing cold-restore race still runs after an
-  explicit page reload. Typecheck, build, demo assets, PHP Tree, access,
-  permissions, tenancy, shell, configuration and localization contracts,
+  and tenant switches. The retained Tree, registry and tenancy suites
+  passed 24 cases. The cold-restore race now runs after an explicit page
+  reload. A separate expiry check held a warm read and confirmed that the
+  Tree cleared its rows while the host's draft stayed available. The
+  related shell session and tenant checks passed. Typecheck, build, demo
+  assets, PHP Tree, access, permissions, tenancy, shell, configuration and
+  localization contracts,
   and the toolkit kernel and live protocol checks passed.
 - **Status.** Implemented and verified.
