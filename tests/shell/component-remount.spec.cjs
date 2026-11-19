@@ -69,3 +69,45 @@ test('a component replaced in the same cell, region, Layout cell or window shows
  await expect(win).toHaveCount(0);
  expect(failures).toEqual([]);
 });
+
+// A component whose cell is already dead (FB-0228, docs/toolkit.md#components): two RecordDetails (one loading an id, one
+// with `fields`, loading or given a row) and a ListView in the regions of a PageLayout `inner` layout in a Suite Layout
+// cell, destroyed through an aborted signal while loading and after loading. The page is destroyed by a later listener
+// of the same signal (the recipe's order) or by its own earlier `signal` (so Suite destroys the regions before the
+// components). No error either way, and a new page shows a component in the same cell afterwards.
+test('a component destroyed after the layout that holds it is released silently',async({page})=>{
+ const failures=[];page.on('pageerror',error=>failures.push(error.message));
+ page.on('console',message=>{if(message.type()==='error')failures.push(message.text());});
+ await start(page);
+ const rounds=await page.evaluate(async()=>{
+  const app=window.__bladeApp,C=app.components,box=document.createElement('div');
+  Object.assign(box.style,{position:'fixed',left:'16px',top:'110px',width:'1000px',height:'500px',zIndex:'5'});
+  document.body.append(box);
+  const host=new app.dhx.Layout(box,{type:'line',rows:[{id:'page'}]}),cell=host.getCell('page');
+  const list=await app.server.call('demo_media_sheets','list',{values:{mode:'dynamic',limit:5}});
+  const row=await app.server.call('demo_media_sheets','get',{id:String(list.items[0].id)}),frame=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const tree={inner:{cols:[{id:'a'},{id:'b',width:300},{id:'c',width:300}]}};
+  let done=0;
+  for(const pageFirst of [false,true])for(const loaded of [false,true]){
+   const controller=new AbortController(),signal=controller.signal;
+   const layout=new C.PageLayout({id:'remount.dead',tree,...(pageFirst?{signal}:{})});
+   layout.mount(cell);
+   new C.RecordDetails({view:'demo_media_sheets',record:String(row.id),signal}).mount(layout.cell('a'));
+   new C.RecordDetails({view:'demo_media_sheets',record:loaded?row:String(row.id),fields:['title','year'],signal}).mount(layout.cell('b'));
+   new C.ListView({view:'demo_media_sheets',panel:false,signal}).mount(layout.cell('c'));
+   if(!pageFirst)signal.addEventListener('abort',()=>layout.destroy(),{once:true});
+   if(loaded)await frame(),await new Promise(resolve=>setTimeout(resolve,800));
+   controller.abort();
+   await frame();
+   done++;
+  }
+  const last=new C.PageLayout({id:'remount.dead',tree});last.mount(cell);
+  new C.RecordDetails({view:'demo_media_sheets',record:row,fields:['title']}).mount(last.cell('a'));
+  await frame();
+  const shown=box.textContent.includes(row.title);
+  last.destroy();host.destructor();box.remove();
+  return {done,shown};
+ });
+ expect(rounds).toEqual({done:4,shown:true});
+ expect(failures).toEqual([]);
+});

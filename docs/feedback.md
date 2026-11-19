@@ -10890,3 +10890,52 @@ that exactly equals an option label lists every option. The managed
     ([FB-0217](#fb-0217), [FB-0218](#fb-0218)). It is unrelated to this
     change and is reported to the owner as a separate task.
 - **Status:** implemented and verified as above.
+
+<a id="fb-0228"></a>
+
+## FB-0228 — A component destroyed after the Layout that holds it threw
+
+- **Date:** 2026-11-19.
+- **Report:** a consumer page holds `RecordDetails` in the regions of a
+  `PageLayout` `inner` layout. On every rebuild the build's signal aborts,
+  and each abort logged `TypeError: Cannot set properties of null (setting
+  'html')` from `RecordDetails.destroy()`. The page kept working, but tests
+  that require a clean console failed. The report suspected that the
+  component bound its `signal` only after its first load, which would put its
+  listener after the page's own.
+- **Cause:** Suite's Layout `destructor` destroys each cell. A destroyed cell
+  destroys its widget too, sets its `config` to null and keeps the widget
+  reference. A component destroyed after that still found its Layout as the
+  cell's widget, so `Lifecycle.end()` called `detach()`. That call writes
+  `config.html` and threw. The Layout goes first whenever its abort listener
+  is registered before the component's, for example a `PageLayout` created
+  with the same `signal` (it binds in its constructor, before the components
+  created after it). The suspected late binding is not the cause: every
+  component (`RecordDetails`, `ListView`, `RecordTree`, `RecordForm`,
+  `CommandBar`, `SettingsForm`, `TextDiff`, `PageLayout`, `Tabs`,
+  `Accordion`, `MediaPlayer`, `SandboxFrame` and the facades) binds
+  synchronously at the end of its constructor. The documented order
+  (components first, the Layout after) never threw.
+- **Implemented:** `Lifecycle.end()` detaches a Layout cell only while the
+  cell still has its `config`; a dead cell is left alone. Suite's Layout
+  `destructor` is guarded by `config`, so the component's own second
+  `destructor()` is a no-op. [Components](toolkit.md#components) (common
+  rules) and the toolkit [changes](toolkit.md#changes). No API change.
+- **Verification:**
+  - `npm run build`, `npm run typecheck` and `npm run demo:assets`.
+  - A new test in the retained `tests/shell/component-remount.spec.cjs`
+    reproduced the error first: four `TypeError`s, two components in each
+    round where the page went first. The test puts a `RecordDetails` loading
+    an id, a `RecordDetails` with `fields` (loading, then a row) and a
+    `ListView` in the regions of an `inner` layout in a Suite Layout cell. It
+    aborts the signal while loading and after loading, with the page
+    destroyed by a later listener (the recipe) and by its own earlier
+    `signal`. A new page then shows a component in the same cell. After the
+    fix both tests of the spec passed on the managed demo, with no page or
+    console error.
+  - Shell `page-layout-inner`, `page-layout-collapse`, `tabs`, `accordion`,
+    `record-details-layout` and `empty-states` passed, 20 of 21 in one run.
+    `empty-states` "key browser" timed out waiting for the `Feature demó`
+    menu item. It passed alone; this is the known intermittent menu failure
+    ([FB-0227](#fb-0227)).
+- **Status:** implemented and verified as above.
