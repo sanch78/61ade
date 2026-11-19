@@ -51,21 +51,19 @@ body,
    Its handle spans the line with 8 px across it, centred on the cell border before it. Only line layouts: the framed
    panels and a list's space or wide layout inside a region keep their own grips. */
 :is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--x > .dhx_layout-resizer__icon { right: auto; left: -4.5px; width: 8px; }
-:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon {
-  bottom: auto;
-  top: -4.5px;
-  height: 8px;
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon { bottom: auto; top: -4.5px; height: 8px; }
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer > .dhx_layout-resizer__icon {
   z-index: 3; /* Above the neighbouring regions' loading and empty states. */
 }
-/* Draw the horizontal grip on the divider's midline, independent of the Suite icon font's baseline. */
-:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon::before {
+/* Draw the three dots and their backing on the divider's midline. */
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer > .dhx_layout-resizer__icon::before {
   content: "";
   width: 21px;
   height: 7px;
   border-radius: 999px;
   background: var(--dhx-background-primary);
 }
-:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon::after {
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer > .dhx_layout-resizer__icon::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -76,7 +74,14 @@ body,
   background: currentColor;
   box-shadow: -5px 0 currentColor, 5px 0 currentColor;
 }
-:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon:hover {
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--x > .dhx_layout-resizer__icon::before {
+  width: 7px;
+  height: 21px;
+}
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--x > .dhx_layout-resizer__icon::after {
+  box-shadow: 0 -5px currentColor, 0 5px currentColor;
+}
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer > .dhx_layout-resizer__icon:hover {
   color: var(--dhx-color-primary);
 }
 /* A headed inner region (`PageRegion.header` in `inner`, FB-0227): a frameless one-line title with a pill count badge

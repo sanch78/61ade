@@ -11001,3 +11001,20 @@ that exactly equals an option label lists every option. The managed
   colour in Blade, Blade Night, light and dark. Screenshot inspection
   confirmed all three dots appear between the empty regions in each theme.
 - **Status:** implemented and verified.
+
+<a id="fb-0231"></a>
+
+## FB-0231 — Match the vertical and horizontal inner divider grips
+
+- **Date:** 2026-11-19.
+- **Report:** the vertical inner divider still used the Suite icon after the
+  horizontal grip changed in [FB-0230](#fb-0230).
+- **Implemented:** both [inner dividers](toolkit.md#pagelayout-inner) share
+  the same dot size, spacing, backing, hover colour and placement above
+  region statuses. Each grip is oriented along its divider.
+- **Verification:** `npm run typecheck`, `npm run build` and `npm run
+  demo:assets` passed. A temporary Chromium check and screenshots on D12
+  confirmed centred grips with matching colours at rest and on hover in
+  Blade, Blade Night, light and dark. The managed-demo `page-layout-inner`
+  and `layout-resizer` specs passed (11 cases including the temporary check).
+- **Status:** implemented and verified.
