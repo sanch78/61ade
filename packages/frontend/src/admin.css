@@ -47,11 +47,38 @@ body,
 #blade-application .dhx_layout-wide > .dhx_layout-resizer--y .dhx_layout-resizer__icon {
   bottom: 6px;
 }
-/* A PageLayout's inner layout (`inner`, FB-0222): Suite's line resizer is 0 px wide and only its dots take the drag.
+/* A PageLayout's inner layout (`inner`, FB-0222): Suite's line resizer is 0 px across and only its dots take the drag by default.
    Its handle spans the line with 8 px across it, centred on the cell border before it. Only line layouts: the framed
    panels and a list's space or wide layout inside a region keep their own grips. */
 :is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--x > .dhx_layout-resizer__icon { right: auto; left: -4.5px; width: 8px; }
-:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon { bottom: auto; top: -4.5px; height: 8px; }
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon {
+  bottom: auto;
+  top: -4.5px;
+  height: 8px;
+  z-index: 3; /* Above the neighbouring regions' loading and empty states. */
+}
+/* Draw the horizontal grip on the divider's midline, independent of the Suite icon font's baseline. */
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon::before {
+  content: "";
+  width: 21px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--dhx-background-primary);
+}
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: -5px 0 currentColor, 5px 0 currentColor;
+}
+:is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon:hover {
+  color: var(--dhx-color-primary);
+}
 /* A headed inner region (`PageRegion.header` in `inner`, FB-0227): a frameless one-line title with a pill count badge
    over a line; the body below is the region's content and scrolls on its own. */
 .blade-inner-region__header .blade-view-slot { height: auto; overflow: visible; }

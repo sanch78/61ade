@@ -10982,3 +10982,22 @@ that exactly equals an option label lists every option. The managed
   `suite-labels`, `empty-states` and `skins` (42 passed). `npm run typecheck`
   and `npm run build` passed. No full-smoke claim.
 - **Status:** implemented and verified.
+
+<a id="fb-0230"></a>
+
+## FB-0230 — Sharper grip on a horizontal inner divider
+
+- **Date:** 2026-11-19.
+- **Report:** the dots on a horizontal `PageLayout` inner divider were hard
+  to distinguish. An adjacent empty region could paint over the part of the
+  grip outside the 1 px divider.
+- **Implemented:** the [horizontal inner divider](toolkit.md#pagelayout-inner)
+  in `admin.css` draws three 3 px dots on a short theme-coloured backing,
+  centred on the divider. The 8 px Suite drag handle sits above adjacent
+  region statuses and takes the theme's accent colour on hover.
+- **Verification:** `npm run typecheck`, `npm run build`, `npm run demo:assets`
+  and the managed-demo `page-layout-inner` and `layout-resizer` specs passed.
+  A temporary Chromium check on D12 confirmed the grip centre and hover
+  colour in Blade, Blade Night, light and dark. Screenshot inspection
+  confirmed all three dots appear between the empty regions in each theme.
+- **Status:** implemented and verified.
