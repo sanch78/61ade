@@ -1196,7 +1196,9 @@ below the menu row, across the full width, before the workspace
   workspace moves by the 32 px line when the width crosses that point. The
   bar returns as soon as the page has a level of its own (`setLocation`
   levels, a record page). A grouped entry keeps `‹group› › ‹entry›`, and an
-  [own path](#location-bar-own-path), also an empty one, keeps its line.
+  [own path](#location-bar-own-path), also an empty one, keeps its line. With
+  the [Back button](#location-bar-back) the line stays, holding the button
+  without a level.
 - <a id="location-bar-off"></a>**Switched off for a view**
   ([FB-0237](feedback.md#fb-0237)): a view declaring PHP
   `View(locationBar: false)` (any kind, also
@@ -1208,6 +1210,43 @@ below the menu row, across the full width, before the workspace
   the levels the bar would show. For a page that presents its own place,
   such as a dashboard or a full-screen editor. Example: D3
   `Mérési irányítópult`.
+- <a id="location-bar-back"></a>**Back button** ([FB-0238](feedback.md#fb-0238)):
+  off by default. PHP `ApplicationDefinition(locationBack: true)` (JSON
+  `application.location_back: true`, bootstrap `locationBack: true`) switches
+  it on for every page; a view decides for its own page with PHP
+  `View(locationBack: true|false)` (also `->with(locationBack: …)`), JSON
+  `views.<id>.location_back` or `resources.<name>.view.location_back`
+  (bootstrap `ViewDefinition.locationBack`, only when declared). The bar then
+  starts with an icon-only `bi bi-arrow-left` button named `Vissza` (en
+  `Back`, de `Zurück`) with the links' hover tint and focus outline, a
+  1 px divider (`--dhx-border-color`, 16 px high) and the levels after it.
+  The button is the browser's Back (`history.back()`) inside the application:
+  the shell keeps each history entry's in-app depth in `history.state`
+  (`bladeDepth`; 0 for the tab's first 61ade entry, a landing from another
+  site or a typed address; one more for a menu click, a bar link, a
+  `#view=` link, an [`activate: 'page'`](workspaces.md#activation)
+  navigation or `ViewHost.close()`), which survives a reload and
+  Back/Forward. At depth 0 the button is disabled, so it never leaves the
+  application. The phone's parent link (`bi bi-chevron-left`, below) stays:
+  the button goes back in time, the link up one level. With the button, a
+  [top-level entry alone](#location-bar-top-level) keeps the line with the
+  button and no level while the full menu row marks it, and an
+  [empty own path](#location-bar-empty) shows the button alone and keeps the
+  `<nav>` announced; the divider shows only before levels. `locationBar:
+  false` removes the button with the bar. Example: the feature demo switches
+  it on for the application, and `Mérések` declares `location_back: false`.
+- <a id="location-bar-icons"></a>**Level icons** ([FB-0238](feedback.md#fb-0238)):
+  off by default: the levels are text only, also the icons of `setLocation`
+  segments and of the `…` menu entries. PHP
+  `ApplicationDefinition(locationIcons: true)` (JSON
+  `application.location_icons: true`, bootstrap `locationIcons: true`)
+  switches them on for every page; a view decides for its own page with PHP
+  `View(locationIcons: true|false)`, JSON `views.<id>.location_icons` or
+  `resources.<name>.view.location_icons` (`ViewDefinition.locationIcons`).
+  Switched on, the first level carries the open section's icon and a segment
+  its own `icon`, as described below. The Back button's arrow and the phone's
+  parent chevron are controls, not level icons, and stay. Example: `Mérések`
+  declares `location_icons: true`.
 - <a id="location-bar-parent"></a>**A record page under a parent record:**
   a record view reached through a parent record (a note from its task, an
   episode from its season) declares that parent: PHP
@@ -1261,7 +1300,8 @@ below the menu row, across the full width, before the workspace
   ([FB-0226](feedback.md#fb-0226)): `host.setLocation(segments, {from: "root"})`
   makes `segments` the whole bar instead: no menu path, no declared parent
   records, no record title, only the page's levels, with the same segment
-  rules. The first segment takes the view's icon unless it brings one. The
+  rules. Where [level icons](#location-bar-icons) are on, the first segment
+  takes the view's icon unless it brings one. The
   automatic path stays the default; the menu marker keeps following the menu
   source. <a id="location-bar-empty"></a>An empty array leaves the bar
   **empty** ([FB-0236](feedback.md#fb-0236)): a page that owns its path and has
@@ -1290,8 +1330,9 @@ below the menu row, across the full width, before the workspace
   hidden above the bar, and the bar takes the row's lower edge (its hairline
   and soft shadow). No card, radius or gap; the same in every factory theme
   and application skin, which change it through the same variables as the
-  menu row. Segments are separated by `›`. The first segment carries the open
-  section's icon (the group's or the view's menu icon); the last is the
+  menu row. Segments are separated by `›`. With [level icons](#location-bar-icons)
+  on, the first segment carries the open section's icon (the group's or the
+  view's menu icon); the last is the
   current place, bold and not a link; the earlier ones with a target or
   `onSelect` are links or buttons with the menu row's hover tint and focus
   outline; a group (which has no page) is plain text.
@@ -1317,8 +1358,11 @@ below the menu row, across the full width, before the workspace
   `‹current segment› · ‹application title›`; the empty workspace and an
   [empty own path](#location-bar-empty) show the application title.
 
-Limits: one bar per page (a window has none); the switch is per view, not per
-record or actor; the menu path comes from the
+Limits: one bar per page (a window has none); the switches are per
+application and view, not per record or actor; the Back button follows the
+browser history of this tab only (no Forward button, no list of earlier
+places), and an entry project code adds with `history.pushState` gets its
+depth only when the shell next routes to it; the menu path comes from the
 menu, so a custom `Menu` item has none; a parent is one reference field
 (a record with several parents names one of them) and is resolved when the
 page opens (a parent's changed title shows after the next opening); the record title is one field (a

@@ -28,8 +28,6 @@ export function recordCheckbox(row:Row,field:ViewDefinition["columns"][number]):
   return `<label class="blade-card-edit blade-checkbox-edit dhx_checkbox" data-blade-row="${escape(row.id)}" data-blade-field="${escape(field.id)}" title="${content}"><input class="dhx_checkbox__input" type="checkbox" aria-label="${escape(field.header)}" aria-checked="${checked}" ${checked?"checked":""}><span class="dhx_checkbox__visual-input"></span></label>`;
 }
 const ICON=/^(?:dxi dxi-|bi bi-)[a-z0-9-]+$/;
-/** A single catalog icon class pair (`bi bi-<name>`, legacy `dxi dxi-<name>`), the values an icon field may hold. */
-export const isIconClass=(value:unknown):value is string=>typeof value==="string"&&ICON.test(value);
 /** Name of an icon value: its option label, otherwise the readable class ("bi bi-image" → "image"). */
 export const iconLabel=(field:{options?:Record<string,string>},value:unknown):string=>{const icon=String(value??"");return field.options?.[icon]||icon.replace(/^(?:dxi dxi-|bi bi-)/,"").replace(/-/g," ");};
 /**

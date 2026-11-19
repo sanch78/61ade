@@ -311,11 +311,7 @@ final class Registry
      * embedded: it has no menu entry of its own. Declare both views and the hierarchy first. $striped (alternating rows)
      * and $lines (connecting lines with +/- boxes) set the tree's look (docs/toolkit.md#tree-presentation).
      */
-    /**
-     * Node icons (docs/toolkit.md#tree-icons): `$iconField` names an icon column (`column.presentation: icon`) of the node
-     * view whose value is each node's icon; `$icon` (`bi bi-<name>`) is every other node's, in place of the folder glyph.
-     */
-    public function tree(string $view, string $tree, string $field, string $label, bool $striped=true, bool $lines=true, ?string $icon=null, ?string $iconField=null): void
+    public function tree(string $view, string $tree, string $field, string $label, bool $striped=true, bool $lines=true): void
     {
         $list=$this->views[$view]??null;$nodes=$this->views[$tree]??null;
         $invalid=new \InvalidArgumentException('Invalid tree navigation.');
@@ -324,11 +320,7 @@ final class Registry
         if(!$hierarchy||$hierarchy['child']!==$tree)throw $invalid;
         $known=$this->fields((string)$list->resource)[$field]??null;$name=$this->fields((string)$nodes->resource)[$label]??null;
         if(!$known||!in_array($known->type,['select','number','text'],true)||$known->secret||!$name||!in_array($name->type,['text','select'],true)||$name->secret)throw $invalid;
-        if($icon!==null&&!preg_match('/^(?:dxi dxi-|bi bi-)[a-z0-9-]+$/D',$icon))throw $invalid;
-        $glyph=$iconField!==null?$this->fields((string)$nodes->resource)[$iconField]??null:null;
-        if($iconField!==null&&(!$glyph||($glyph->column['presentation']??null)!=='icon'||!in_array($iconField,array_column($nodes->options['columns']??[],'id'),true)))throw $invalid;
-        $this->views[$view]=$list->with(options:[...$list->options,'tree'=>['view'=>$tree,'field'=>$field,'label'=>$label,...($striped?[]:['striped'=>false]),...($lines?[]:['lines'=>false]),
-            ...($icon!==null?['icon'=>$icon]:[]),...($iconField!==null?['iconField'=>$iconField]:[])]]);
+        $this->views[$view]=$list->with(options:[...$list->options,'tree'=>['view'=>$tree,'field'=>$field,'label'=>$label,...($striped?[]:['striped'=>false]),...($lines?[]:['lines'=>false])]]);
         $this->embedded[$tree]=$view;
     }
     /** File manager view (kind `files`): `$files` is browser configuration only (mounts, limits); handlers stay server-side. */

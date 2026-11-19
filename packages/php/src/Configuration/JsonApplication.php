@@ -30,7 +30,7 @@ final class JsonApplication
         $session = $config->section('session');
         $live = $config->section('live');
         $workspace = $config->section('workspace');
-        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'any', 'sign_in_stylesheets' => 'array', 'sign_in' => 'array', 'sign_in_modules' => 'array', 'guides' => 'array', 'menu_separators' => 'array', 'menu_group_icons' => 'array', 'menu_commands' => 'array', 'public_identity' => 'string', 'frame_sources' => 'array', 'window_max_height' => 'integer'], '$.application');
+        Shape::check($application, ['title' => 'string', 'runtime' => 'string'], ['version' => 'string', 'skins' => 'string', 'modules' => 'array', 'stylesheets' => 'array', 'document_root' => 'string', 'logo' => 'any', 'sign_in_stylesheets' => 'array', 'sign_in' => 'array', 'sign_in_modules' => 'array', 'guides' => 'array', 'menu_separators' => 'array', 'menu_group_icons' => 'array', 'menu_commands' => 'array', 'public_identity' => 'string', 'frame_sources' => 'array', 'window_max_height' => 'integer', 'location_back' => 'boolean', 'location_icons' => 'boolean'], '$.application');
         if (isset($application['guides']) && array_is_list($application['guides']) && $application['guides'] !== []) throw new \InvalidArgumentException('Invalid configuration type: $.application.guides');
         // `false`: no logo (Logo::none()); an object, `image` optional (without it the product logo); absent: the default.
         $logo = $application['logo'] ?? null;
@@ -135,6 +135,8 @@ final class JsonApplication
             frameSources: $application['frame_sources'] ?? [],
             // The default largest height of fitted windows (docs/workspaces.md#window-sizing), 320–4000 px.
             windowMaxHeight: $application['window_max_height'] ?? null,
+            locationBack: $application['location_back'] ?? false,
+            locationIcons: $application['location_icons'] ?? false,
             documentRoot: match ($application['document_root'] ?? null) { null => null, '' => '', default => $config->path($application['document_root']) },
         );
     }

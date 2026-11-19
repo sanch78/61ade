@@ -43,7 +43,7 @@ export class TreeNavigation {
     // The list's command bar: the actions collapse into `Műveletek` when the panel is narrow.
     this.toolbar=new ResponsiveToolbar(undefined,{data:this.actions().map(action=>({id:action.name,value:escape(action.label),icon:actionIcon(action)}))});
     this.toolbar.events.on("click",(id:string|number)=>{const action=this.actions().find(action=>action.name===String(id));if(action)void this.run(action);});
-    this.tree=new NodeTree({view:this.view,parent:config.parent,label:config.label,icon:config.icon,iconField:config.iconField},{select:()=>{this.show();this.commands();}},this.view.title,undefined,false,{striped:config.striped,lines:config.lines});
+    this.tree=new NodeTree({view:this.view,parent:config.parent,label:config.label},{select:()=>{this.show();this.commands();}},this.view.title,undefined,false,{striped:config.striped,lines:config.lines});
     this.nodes.getCell("commands").attach(this.toolbar);
     attachContent(this.nodes.getCell("nodes"),this.tree.element,this.abort.signal);
     this.layout.getCell("tree").attach(this.nodes);

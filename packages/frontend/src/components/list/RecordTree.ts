@@ -5,7 +5,7 @@ import { UiPreferences } from "../../UiPreferences";
 import { acknowledge } from "../../MessageDialog";
 import { attachContent } from "../../api/services";
 import { server } from "../../api/Server";
-import { iconLabel, isIcon, isIconClass, optionText } from "../../RecordPresentation";
+import { optionText } from "../../RecordPresentation";
 import type { ListKindOptions, Row, Tree as TreeApi, TreeEvents, TreeExpansion, TreeOptions, ViewDefinition as PublicDefinition } from "../../api/types";
 import type { Snapshot } from "../../Realtime";
 import { CommandBar } from "./CommandBar";
@@ -28,11 +28,8 @@ const PENDING="\u0000pending";
 const KEY=/^[a-z][a-z0-9_.-]*$/;
 let trees=0;
 
-/**
- * The records a tree shows: a list view with a hierarchy on itself, its parent field and the field naming a node;
- * `iconField` (an icon column) gives each node its own icon, `icon` every other node (docs/toolkit.md#tree-icons).
- */
-export type NodeSource={view:PublicDefinition<ListKindOptions>;parent:string;label:string;icon?:string;iconField?:string};
+/** The records a tree shows: a list view with a hierarchy on itself, its parent field and the field naming a node. */
+export type NodeSource={view:PublicDefinition<ListKindOptions>;parent:string;label:string};
 type Initial=NonNullable<TreeOptions["initial"]>;
 type Remembered={expanded?:string[];selected?:string};
 
@@ -232,7 +229,7 @@ export class NodeTree {
         this.rows.set(id,row);
         const children=branches.get(id);
         if(children&&(row._subview===undefined||Number(row._subview)>0)){
-          nodes.push({id,parent,value:this.label(row),...this.icon(row),opened:this.opened.has(id)});
+          nodes.push({id,parent,value:this.label(row),opened:this.opened.has(id)});
           visit(id);
         }else nodes.push(...this.node(row,parent));
       }
@@ -265,15 +262,6 @@ export class NodeTree {
   label(row:Row):string{
     const column=this.source.view.options.columns.find(column=>column.id===this.source.label);
     return optionText(column??{},row[this.source.label])||String(row.id);
-  }
-  /**
-   * The node's icon: its record's value of the icon column `iconField` (named by the column's option, the row's
-   * description), otherwise the tree's `icon`; neither keeps Suite's folder glyph.
-   */
-  private icon(row:Row):{icon?:string;description?:string}{
-    const {icon,iconField,view}=this.source,value=iconField!==undefined?row[iconField]:undefined;
-    if(isIconClass(value))return {icon:value,description:iconLabel(view.options.columns.find(column=>column.id===iconField)??{},value)};
-    return icon?{icon}:{};
   }
   /** Selects a loaded node, expanding its ancestors (reported when it changed); false for an id that is not loaded. */
   select(id:string):boolean{
@@ -320,7 +308,7 @@ export class NodeTree {
   private node(row:Row,parent:string):TreeNode[]{
     const id=String(row.id),count=row._subview;
     // Unknown (`_subview` left out) or positive: the node gets its toggle; its children load on expansion.
-    return [{id,parent,value:this.label(row),...this.icon(row)},...(count===undefined||Number(count)>0?[{id:id+PENDING,parent:id,value:t("Betöltés…"),folder:false}]:[])];
+    return [{id,parent,value:this.label(row)},...(count===undefined||Number(count)>0?[{id:id+PENDING,parent:id,value:t("Betöltés…"),folder:false}]:[])];
   }
   /** Reads one level through the list action without changing the displayed tree. */
   private async read(parent:string,signal:AbortSignal):Promise<Branch>{
@@ -622,12 +610,7 @@ export class NodeTree {
         let level=1;
         for(let parent=data.getParent(id);parent!==undefined&&parent!==null&&parent!==root&&data.exists(parent);parent=data.getParent(parent))level++;
         set(item,"role","treeitem");set(item,"id",this.elementId(id));set(item,"aria-level",String(level));
-        const node=data.getItem(id) as any;
-        set(item,"aria-label",String(node.value??""));
-        // An icon from the icon column says something: its option names it to a screen reader and as the glyph's tooltip.
-        const glyph=item.querySelector(":scope > .dhx_tree-folder .dhx_tree-list-item__icon, :scope > .dhx_tree-list-item__content .dhx_tree-list-item__icon");
-        if(node.description){set(item,"aria-description",node.description);if(glyph)set(glyph,"title",node.description);}
-        else{item.removeAttribute("aria-description");glyph?.removeAttribute("title");}
+        set(item,"aria-label",String((data.getItem(id) as any).value??""));
         if(id.endsWith(PENDING)){set(item,"aria-disabled","true");item.removeAttribute("aria-selected");}
         else set(item,"aria-selected",String(id===this.current));
         if(data.haveItems(id))set(item,"aria-expanded",String(!!(data.getItem(id) as any).opened));else item.removeAttribute("aria-expanded");
@@ -670,9 +653,6 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
     if(control!==undefined&&typeof control!=="boolean"&&!(control&&typeof control==="object"&&(placement==="top"||placement==="bottom")))
       throw new TypeError("61ade: Tree `expandControl` is true, false or {placement: \"top\"|\"bottom\"}.");
     for(const key of ["striped","lines"] as const)if(options[key]!==undefined&&typeof options[key]!=="boolean")throw new TypeError(`61ade: Tree \`${key}\` is true or false.`);
-    if(options.icon!==undefined&&!isIconClass(options.icon))throw new TypeError("61ade: Tree `icon` is one icon class pair (bi bi-<name>).");
-    const iconColumn=options.iconField!==undefined?view.options.columns.find(column=>column.id===options.iconField):undefined;
-    if(options.iconField!==undefined&&(options.iconField===hierarchy.field||!iconColumn||!isIcon(iconColumn as any)))throw new TypeError("61ade: Tree `iconField` must be an icon column of the view (presentation \"icon\").");
     const preferences=options.id!==undefined?new UiPreferences(context.user,options.id):undefined;
     const bar=control?[{id:"commands",height:48}]:[];
     this.layout=new Layout(this.host,{type:"none",rows:[...(placement==="top"?bar:[]),{id:"tree",css:"blade-tree-cell"},...(placement==="bottom"?bar:[])]});
@@ -684,7 +664,7 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
       this.bar.on("click",()=>void(this.nodes.busy?undefined:this.open?this.collapseAll():this.expandFromControl()));
       this.bar.mount(this.layout.getCell("commands"));
     }
-    this.nodes=new NodeTree({view,parent:hierarchy.field,label:options.label,icon:options.icon,iconField:options.iconField},{
+    this.nodes=new NodeTree({view,parent:hierarchy.field,label:options.label},{
       select:id=>this.emit("select",{row:id===undefined?undefined:this.nodes.row(id)}),
       activate:id=>{const row=this.nodes.row(id);if(row)this.emit("activate",{row});},
       // While a bulk expansion loads, the icon spins and the name says so (the button keeps the focus; a click does nothing).

@@ -75,7 +75,7 @@ verify($app->accounts->oauthAllowed('5') && !$app->accounts->oauthAllowed('1') &
 $demoViews = $app->workspace->views($app->identities->find('1'));
 // Bootstrap views (docs/toolkit.md#views): id and kind always set, kind payloads under `options`, no placeholders.
 foreach ($demoViews as $view) {
-    verify(array_slice(array_keys($view), 0, 2) === ['id', 'kind'] && array_key_last($view) === 'options' && !array_diff(array_keys($view), ['id', 'kind', 'title', 'resource', 'record', 'recordTitle', 'parent', 'actions', 'group', 'icon', 'desktopOnly', 'open', 'menu', 'locationBar', 'attention', 'guide', 'options']), 'Bootstrap view shape: '.$view['id']);
+    verify(array_slice(array_keys($view), 0, 2) === ['id', 'kind'] && array_key_last($view) === 'options' && !array_diff(array_keys($view), ['id', 'kind', 'title', 'resource', 'record', 'recordTitle', 'parent', 'actions', 'group', 'icon', 'desktopOnly', 'open', 'menu', 'locationBar', 'locationBack', 'locationIcons', 'attention', 'guide', 'options']), 'Bootstrap view shape: '.$view['id']);
 }
 $demoKinds = array_column($demoViews, 'kind', 'id');
 verify($demoKinds['demo_tasks'] === 'list' && $demoKinds['files'] === 'files' && $demoKinds['topology'] === 'diagram' && $demoKinds['signage_schedule'] === 'calendar', 'Every built-in kind is named explicitly');
@@ -86,6 +86,7 @@ $demoById = array_column($demoViews, null, 'id');
 verify($demoKinds['demo.readings-dashboard'] === 'demo.readings-dashboard' && $demoKinds['demo_readings'] === 'list'
     && $demoById['demo.readings-dashboard']['options'] === ['list' => 'demo_readings', 'value' => 'reading', 'name' => 'title', 'max' => 100, 'buckets' => 10]
     && array_column($demoById['demo.readings-dashboard']['actions'], 'name') === ['list'] && $demoById['demo.readings-dashboard']['group'] === 'Feature demó' && $demoById['demo.readings-dashboard']['locationBar'] === false && !isset($demoById['demo_readings']['locationBar'])
+    && $app->locationBack && $demoById['demo_readings']['locationBack'] === false && $demoById['demo_readings']['locationIcons'] === true && !$app->locationIcons && !isset($demoById['demo.readings-dashboard']['locationBack'])
     && array_column($demoById['demo_readings']['options']['columns'], 'presentation', 'id') === ['reading' => 'demo.reading-bar']
     && array_column($demoById['demo_readings']['options']['detailFields'], 'presentation', 'id') === ['reading' => 'demo.reading-bar'], 'Readings dashboard view and reading-bar presentation');
 // Toolkit D2: the playlist preview is a project kind over the playlist actions (granted by setup), beside the calendar.
