@@ -943,3 +943,7 @@
 <a id="fb-0230"></a>
 
 ## FB-0230 — Sharper grip on a horizontal inner divider
+
+<a id="fb-0231"></a>
+
+## FB-0231 — Match the vertical and horizontal inner divider grips
