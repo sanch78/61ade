@@ -1313,7 +1313,17 @@ inside `Menü`, so ACL filtering is unchanged. Top-level features have no
 context, phone width shows only `Menü`, and the siblings are omitted when they
 would not fit by the same width estimate. Navigation updates them.
 `browser.spec.cjs` checks it on the signage group; shared test steps prefer a
-visible sibling button (`openMenu` in `feature-demo.cjs`). FB-0062.
+visible sibling button (`openMenu` in `feature-demo.cjs`) and open a group from
+the row or from `Menü` (`openGroup`). FB-0062.
+
+The fit is decided once and does not change when live data arrives
+([FB-0229](feedback.md#fb-0229)): an entry that can hold a
+[count](#menu-attention), meaning a view declaring `attention`, a branch or
+`Menü` holding one, or a menu-row command naming one, reserves its badge's
+room from the first render, whether its count is 0 or not. Counts arriving
+after sign-in therefore never collapse the row, or bring it back, under the
+pointer; only a resize, a navigation or the selectors' own width change the
+layout.
 
 <a id="opcionális-nyelvválasztó"></a>
 

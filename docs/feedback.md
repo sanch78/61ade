@@ -10939,3 +10939,46 @@ that exactly equals an option label lists every option. The managed
     menu item. It passed alone; this is the known intermittent menu failure
     ([FB-0227](#fb-0227)).
 - **Status:** implemented and verified as above.
+
+<a id="fb-0229"></a>
+
+## FB-0229 — Menu counts arriving after sign-in collapsed the menu row under the pointer
+
+- **Date:** 2026-11-19.
+- **Report:** recurring browser failures recorded as unrelated under
+  [FB-0217](#fb-0217), [FB-0218](#fb-0218) and [FB-0220](#fb-0220)
+  (`task-page.spec.cjs:29`, `menuless-view.spec.cjs:33`) and an intermittent
+  `empty-states.spec.cjs` failure (2 of 8 repeats). The owner asked for them
+  to be solved.
+- **Cause:** `AdminShell.renderMenu` decides whether the menu row fits or
+  collapses into `Menü` from the entries' widths, and counted an entry's
+  badge only while it had a count. The [menu counts](shell.md#menu-attention)
+  arrive after the first render, so the row was drawn full at 1366 px and
+  collapsed a few hundred milliseconds later. A Playwright trace showed the
+  helper finding no `Menü` button, clicking the top-level `Feature demó`
+  entry, and that entry disappearing in the collapse. A user's pointer meets
+  the same layout shift. Separately, with the demo's current counts its menu
+  row no longer fits 1366 px at all, while `task-page.spec.cjs:29` and
+  `menuless-view.spec.cjs:33` still clicked top-level groups directly.
+- **Accepted expectation:** the menu row's layout does not change when live
+  counts arrive; specs open a group from the row or from `Menü`.
+- **Contract:** no API change. An entry that can hold a count (a view
+  declaring `attention`, a branch or `Menü` holding one, a menu-row command
+  naming one) reserves its badge's room from the first render
+  ([menu counts](shell.md#menu-attention)), so a row with such
+  entries collapses at a slightly larger width than before, never later.
+- **Implemented:** `AdminShell.ts` (`attends()`; `renderMenu` measures
+  badges by capability, not by the current count, for entries, `Menü` and
+  commands); test helper `openGroup` in `tests/shell/feature-demo.cjs`, used by
+  `menuless-view.spec.cjs` and `task-page.spec.cjs`.
+- **Verification:** a temporary trace spec (removed) showed when the row's
+  entries and badges changed after sign-in. Before the fix
+  `empty-states.spec.cjs -g "key browser" --repeat-each=8` failed 2 of 8; with
+  it, 8 of 8 passed. `menuless-view` and `task-page` passed 12 of 12, including
+  their serial remainders, which had not run before. Also passed: `diagram`,
+  `dialogs`, `menu-attention`, `calendar`, `tenancy`, `tree-component`,
+  `value-tones`, and the shell menu set `browser`, `menu-attention`,
+  `menu-commands`, `location-bar`, `window-title`, `toolkit-menu`,
+  `suite-labels`, `empty-states` and `skins` (42 passed). `npm run typecheck`
+  and `npm run build` passed. No full-smoke claim.
+- **Status:** implemented and verified.

@@ -1,6 +1,6 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
 const {execFileSync}=require('node:child_process');
-const {signIn}=require('./feature-demo.cjs');
+const {signIn,openGroup}=require('./feature-demo.cjs');
 // A list view without a menu entry (docs/toolkit.md#views, `menu: false`): the demo's `signage_asset_items` (signage.php)
 // is offered but in no menu, its address is refused like an unknown view, and the asset viewer mounts it as a scoped
 // card list in its accordion (desktop and 390 px), whose toolbar record command acts on the card selected last. The run
@@ -34,7 +34,7 @@ test('offered without a menu entry; its address opens nothing',async({page})=>{
  const errors=pageErrors(page);
  await page.setViewportSize({width:1366,height:900});
  await signIn(page,'demo@example.test','/');
- await page.getByRole('menuitem',{name:'Digitális kijelző',exact:true}).click();
+ await openGroup(page,'Digitális kijelző');
  await expect(page.getByRole('menuitem',{name:'Lejátszási listák',exact:true})).toBeVisible();
  await expect(page.getByRole('menuitem',{name:'Lejátszási listákban',exact:true})).toHaveCount(0);
  await page.keyboard.press('Escape');
