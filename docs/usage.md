@@ -739,7 +739,9 @@ title (declare the record view's `record_title` field). A page with levels of
 its own (an overview and its scenes, a parent and its children) calls
 `host.setLocation(segments)` whenever its selection changes; with
 `{from: "root"}` its segments are the whole bar, a path entirely of its own
-with links, also to filtered lists ([own path](shell.md#location-bar-own-path)). A record page
+with links, also to filtered lists ([own path](shell.md#location-bar-own-path)),
+and `setLocation([], {from: "root"})` leaves the bar empty while the page has
+no place yet ([empty bar](shell.md#location-bar-empty)). A record page
 reached through a parent record (a note from its task, an episode from its
 season) declares that parent on its record view: `parent: {field, view}`
 (PHP `View(parent: [...])`, JSON `views.<id>.parent`). Prerequisites:

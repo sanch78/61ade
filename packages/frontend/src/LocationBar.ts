@@ -36,18 +36,24 @@ export class LocationBar {
     signal.addEventListener("abort", () => { resize.disconnect(); this.more?.destroy(); }, { once: true });
   }
 
-  /** Shows $places (at least one; the last is the current level). */
+  /**
+   * Shows $places, the last one the current level. None leaves the line empty and hides the `<nav>` from assistive
+   * technology until levels return (docs/shell.md#location-bar-own-path).
+   */
   show(places: Place[]): void {
     this.places = places;
     this.widths = [];
     this.state = "";
+    if (places.length) this.element.removeAttribute("aria-hidden");
+    else this.element.setAttribute("aria-hidden", "true");
     this.fit();
   }
 
   /** Collapses for the bar's width; nothing while the bar is hidden (no width), the observer fits it once shown. */
   fit(): void {
     const width = this.element.clientWidth, last = this.places.length - 1;
-    if (!width || last < 0) return;
+    if (last < 0) { if (this.state !== "empty") { this.state = "empty"; this.draw([], false); } return; }
+    if (!width) return;
     const phone = width < PHONE, hidden: number[] = [];
     if (phone) for (let index = 0; index < last - 1; index++) hidden.push(index);
     else {

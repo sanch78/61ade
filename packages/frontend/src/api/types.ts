@@ -680,8 +680,10 @@ export interface ViewHost {
    * call after the view closed, change nothing. At most 16 segments; an invalid segment throws `TypeError`.
    * `{from: "root"}` (FB-0226): `segments` are the whole bar instead, without the menu path and the parent records, so
    * a page can show a path of its own; the first segment takes the view's icon unless it has one. The menu marker is
-   * unchanged. An empty `segments` array returns to the automatic path, as `setLocation([])` does (the menu path and
-   * the parent records, without a record view's title). Default `"page"`.
+   * unchanged. An empty `segments` array leaves the bar empty (FB-0236): the line stays, without levels, and the
+   * document title is the application title, until the page calls again; `setLocation([])` without `from: "root"`
+   * returns to the automatic path (the menu path and the parent records, without a record view's title).
+   * Default `"page"`.
    */
   setLocation(segments: LocationSegment[], options?: { from?: "page" | "root" }): void;
   /** Closes this view: a window closes; a page returns to the empty workspace. */

@@ -3,7 +3,8 @@ const {execFileSync}=require('node:child_process');
 const {signIn,openView}=require('./feature-demo.cjs');
 // Location bar (docs/shell.md#location-bar, FB-0217) on the feature demo: the menu path, a record page's path and
 // record title, the task page's own levels (setLocation), collapse and the phone form, in every factory theme and a skin;
-// a record page with a declared parent (the note page under its task, FB-0224).
+// a record page with a declared parent (the note page under its task, FB-0224); a page's own path, also empty (FB-0226,
+// FB-0236).
 // The run seeds its own tasks and notes (one of them for a task that does not exist) and removes them.
 const prefix='lb'+Date.now().toString(36);
 const runtime=process.env.BLADE_TMP_DIR||'tmp',instance=process.env.BLADE_DEMO_INSTANCE||'web';
@@ -252,7 +253,7 @@ test('a page path of its own (setLocation from root): the whole bar, a link to a
  const errors=errorsOf(page);
  await page.setViewportSize({width:1366,height:800});await signIn(page);
  await openView(page,'Médiaböngésző');
- await expect.poll(()=>texts(page)).toEqual(['Feature demó','Médiaböngésző']);
+ await expect(page.locator('.blade-location li')).toHaveCount(0);
  await page.locator('.dhx_grid-row').filter({hasText:'Éjszakai komp a ködben'}).first().locator('[data-dhx-col-id="title"]').click();
  // The page's segments replace the menu path: the list, the channel as a filtered link, the sheet.
  await expect.poll(()=>texts(page)).toEqual(['Médialapok','Kijelző','Éjszakai komp a ködben']);
@@ -267,6 +268,47 @@ test('a page path of its own (setLocation from root): the whole bar, a link to a
  await expect(page.locator('.dhx_grid-row, .blade-grid-card').filter({hasText:'Kézműves kávé, lassú reggelek'})).toHaveCount(0);
  await expect(page.locator('.dhx_grid-row, .blade-grid-card').filter({hasText:'Éjszakai komp a ködben'}).first()).toBeVisible();
  expect(errors).toEqual([]);
+});
+
+for(const [theme,width,height] of [['blade',1366,800],['dark',390,844]])test(`an empty own path (setLocation [] from root) in ${theme} at ${width} px: the line without levels, the application title, then segments and the menu path again`,async({page})=>{
+ const errors=errorsOf(page);
+ await page.setViewportSize({width,height});
+ await page.goto('/');await page.evaluate(theme=>localStorage.setItem('blade-theme',theme),theme);
+ try{
+  await signIn(page);
+  await expect(page.locator('html')).toHaveAttribute('data-blade-theme',theme);
+  const application=await page.title(),line=page.locator('.blade-location-row'),workspace=page.locator('.blade-workspace');
+  await openView(page,'Médiaböngésző');
+  // No sheet selected: the line and its chrome stay, without a level; the nav is hidden from assistive technology.
+  await expect(line).toBeVisible();
+  await expect(page.locator('.blade-location li')).toHaveCount(0);
+  await expect(page.locator('.blade-location')).toHaveAttribute('aria-hidden','true');
+  await expect(bar(page)).toHaveCount(0);
+  await joined(page);
+  expect(await page.title()).toBe(application);
+  const before=[await line.boundingBox(),await workspace.boundingBox()];
+  expect(before[0].height).toBeCloseTo(32,0);
+  const sheet=page.locator('.dhx_grid-row, .blade-grid-card').filter({hasText:'Éjszakai komp a ködben'}).first();
+  await (width<768?sheet:sheet.locator('[data-dhx-col-id="title"]')).click();
+  await expect.poll(()=>texts(page)).toEqual([width<768?'…':'Médialapok','Kijelző','Éjszakai komp a ködben']);
+  await expect(page.locator('.blade-location')).not.toHaveAttribute('aria-hidden','true');
+  await expect(page).toHaveTitle(/^Éjszakai komp a ködben · /);
+  // The workspace neither moved nor resized when the levels arrived.
+  expect([await line.boundingBox(),await workspace.boundingBox()]).toEqual(before);
+  await noScroll(page);
+  // A sheet that cannot be read: the page calls setLocation([]), the automatic menu path returns.
+  await page.route(url=>url.search==='?blade=1',route=>{
+   const call=callOf(route.request());
+   if(call.resource==='demo_media_sheets'&&call.action==='get')return route.fulfill({status:404,contentType:'application/json',body:'{"error":"Nem található."}'});
+   return route.fallback();
+  });
+  const other=page.locator('.dhx_grid-row, .blade-grid-card').filter({hasText:'Kézműves kávé, lassú reggelek'}).first();
+  await (width<768?other:other.locator('[data-dhx-col-id="title"]')).click();
+  await expect.poll(()=>texts(page)).toEqual(['Feature demó','Médiaböngésző']);
+  await expect(page).toHaveTitle(/^Médiaböngésző · /);
+  expect([await line.boundingBox(),await workspace.boundingBox()]).toEqual(before);
+  expect(errors).toEqual([]);
+ }finally{await page.evaluate(()=>localStorage.removeItem('blade-theme'));}
 });
 
 test('English names',async({page})=>{

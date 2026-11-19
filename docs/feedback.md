@@ -963,3 +963,7 @@
 <a id="fb-0235"></a>
 
 ## FB-0235 — Keep an unchanged Tree across longer visits to another view
+
+<a id="fb-0236"></a>
+
+## FB-0236 — A page that owns its path may leave the location bar empty

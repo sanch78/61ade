@@ -23,7 +23,7 @@ import type { SignInPage } from "./api/sign-in";
 type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow;
   /** A page: its levels after the menu path (`ViewHost.setLocation`, by default the record's title). */
   location?: Place[];
-  /** `setLocation(…, {from: "root"})`: `location` is the whole bar, without the menu path and the parents. */
+  /** `setLocation(…, {from: "root"})`: `location` is the whole bar, without the menu path and the parents; empty, no level. */
   whole?: boolean;
   /** A record page: its resolved parent records (`ViewDefinition.parent`), the root first, each with its record view. */
   parents?: { view: ViewDefinition; place: Place }[] };
@@ -710,8 +710,9 @@ export class AdminShell {
   /**
    * Draws the location bar of the page view (docs/shell.md#location-bar): the menu path of its menu source (group, then
    * the entry; the first level with the section's icon; for a record page with resolved parent records, that of the
-   * topmost one), those parent records, then the page's own levels; hidden without a page. The document title follows
-   * the current level.
+   * topmost one), those parent records, then the page's own levels; hidden without a page. A page's own path
+   * (`whole`) replaces all of it, and an empty one leaves the line without levels. The document title follows the
+   * current level, the application title without one.
    */
   private locate():void{
     const bar=this.locationBar,page=this.page,cell=this.layout.getCell("location");
@@ -720,9 +721,9 @@ export class AdminShell {
     if(!page){if(cell.isVisible())cell.hide();document.title=this.applicationTitle;return;}
     const view=page.view,root=page.parents?.[0]?.view??view,source=this.menuSource(root),group=source?.group??(root.record?root.group:undefined);
     const places:Place[]=[];
-    if(page.whole&&page.location?.length){
-      const [first,...rest]=page.location;
-      places.push({icon:view.icon??"bi bi-file-earmark-text",...first},...rest);
+    if(page.whole){
+      const [first,...rest]=page.location??[];
+      if(first)places.push({icon:view.icon??"bi bi-file-earmark-text",...first},...rest);
     }else{
     if(group)places.push({label:group,icon:this.definition.menuGroupIcons?.[group]??"bi bi-folder2-open"});
     if(source)places.push({label:source.title,...(places.length?{}:{icon:source.icon??"bi bi-table"}),...(source===view?{}:{href:"#"+routeHash({view:source.id})})});
@@ -730,10 +731,10 @@ export class AdminShell {
     if(!places.length&&own.length)own[0]={icon:root.icon??"bi bi-file-earmark-text",...own[0]};
     places.push(...own);
     }
-    if(!places.length)places.push({label:view.title,icon:view.icon??"bi bi-table"});
+    if(!places.length&&!page.whole)places.push({label:view.title,icon:view.icon??"bi bi-table"});
     bar.show(places);
     if(!cell.isVisible())cell.show();
-    document.title=`${places[places.length-1].label} · ${this.applicationTitle}`;
+    document.title=places.length?`${places[places.length-1].label} · ${this.applicationTitle}`:this.applicationTitle;
   }
 
   /**

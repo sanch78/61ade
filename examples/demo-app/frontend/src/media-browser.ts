@@ -25,6 +25,9 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
   root.style.cssText = "width:100%;height:100%";
   host.attach(root);
   let build: AbortController | undefined, selected: string | undefined;
+  // No sheet selected: the page has no place yet, so its own path is empty rather than the menu entry again (FB-0236).
+  const unplaced = (): void => host.setLocation([], { from: "root" });
+  unplaced();
 
   const render = (): void => {
     if (host.signal.aborted) return;
@@ -54,13 +57,14 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
     const show = async (id: string | undefined): Promise<void> => {
       const current = ++epoch;
       selected = id;
-      if (!id) { empty(); host.setLocation([]); return; }
+      if (!id) { empty(); unplaced(); return; }
       for (const region of ["data", "image", "brief"]) page.placeholder(region, { busy: true });
       const row = await app.server.call<Row>(list.resource!, "get", { id, signal }).catch(() => undefined);
       if (signal.aborted || current !== epoch) return;
       if (!row) { empty(); host.setLocation([]); return; }
       // A path of the page's own (FB-0226), the whole bar: the list, the sheet's channel as a link to the list filtered
-      // by it, then the sheet. Without a selection the bar is the menu path again.
+      // by it, then the sheet. Without a selection the bar is empty (FB-0236); a sheet that cannot be read returns it
+      // to the automatic menu path (`setLocation([])`).
       const channel = String(row.channel ?? ""), options = fields.find(field => field.id === "channel")?.options ?? {};
       host.setLocation([
         { label: list.title, ...(list.icon ? { icon: list.icon } : {}), target: { view: list.id } },
