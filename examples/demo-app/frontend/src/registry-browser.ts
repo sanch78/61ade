@@ -52,7 +52,7 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
     const layout: PageLayout = new app.components.PageLayout({ id: `${view.id}.${phone ? "narrow" : "wide"}`, tree });
     layout.mount(root);
 
-    const nodeTree: Tree = keys = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true });
+    const nodeTree: Tree = keys = new app.components.Tree({ view: nodes, label: "name", id: `${view.id}.tree`, expandControl: true });
     nodeTree.mount(layout.cell("tree"));
 
     // A region's placeholder shows while no component is mounted there. Not `busy` while the tree starts: a tree whose

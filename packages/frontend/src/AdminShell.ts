@@ -86,6 +86,9 @@ export type ShellDefinition = {
   signInModules?: string[];
   /** Application pages, only when declared: the default largest height of fitted windows (`ApplicationDefinition::$windowMaxHeight`). */
   windowMaxHeight?: number;
+  /** Application pages, only when switched on: the location bar's Back button and level icons by default (docs/shell.md#location-bar-back). */
+  locationBack?: true;
+  locationIcons?: true;
 };
 const escape = (text: string) =>
   text.replace(
@@ -95,6 +98,9 @@ const escape = (text: string) =>
         char
       ]!,
   );
+
+/** `history.state` key of an entry's in-app depth: 0 for the tab's first 61ade entry (docs/shell.md#location-bar-back). */
+const DEPTH="bladeDepth";
 
 /** `sessionStorage` time of the last automatic sign-out reload, so a page that keeps answering 401 never loops. */
 const SIGNED_OUT="blade-signed-out";
@@ -145,13 +151,29 @@ export class AdminShell {
    * `#view=<id>[&record=<id>]`; `filter.<field>=<value>` presets that view's filters once and leaves the address.
    */
   private route = () => {
+    this.track();
     const route = parseRoute(location.hash);
     const view = route.view === undefined ? undefined : this.navigable(route.view);
     const record = view?.record ? route.record : undefined;
-    if (view && Object.keys(route.filters).length) { const url = new URL(location.href); url.hash = routeHash({ view: view.id, record }); history.replaceState(null, "", url); }
+    if (view && Object.keys(route.filters).length) { const url = new URL(location.href); url.hash = routeHash({ view: view.id, record }); history.replaceState(history.state, "", url); }
     if (view && this.openable(view, record)) void this.openView(view, { record, filters: route.filters });
     else this.clear();
   };
+  /** In-app history depth of the current entry; the location bar's Back button is enabled above 0. */
+  private depth=0;
+  private tracked=false;
+  /**
+   * Reads the current entry's depth from `history.state`; an entry without one is new: the first of this document
+   * (depth 0, also a landing from another site) or one more than the entry it was reached from (a link, `location.hash`).
+   */
+  private track():void{
+    const state=history.state&&typeof history.state==="object"?history.state as Record<string,unknown>:{},known=state[DEPTH];
+    this.depth=typeof known==="number"?known:this.tracked?this.depth+1:0;
+    this.tracked=true;
+    if(known!==this.depth)history.replaceState({...state,[DEPTH]:this.depth},"");
+  }
+  /** A new history entry at $url, one deeper than the current. */
+  private push(url:URL):void{history.pushState({[DEPTH]:++this.depth},"",url);}
   private menuItems: object[] = [];
   /** The navigation row's selectors have rendered (the first redraw after construction); the menu is fitted from then. */
   private measured = false;
@@ -634,7 +656,7 @@ export class AdminShell {
       if(this.listeners.signal.aborted)return;
       const {username,error,rememberAvailable,rememberDays,loginIdentifier,confirmation,passwordChange,oauth,oauthOnly,signIn,signInModules}=config;
       Object.assign(this.definition,{username,error,rememberAvailable,rememberDays,loginIdentifier,confirmation,passwordChange,oauth,oauthOnly,signIn,signInModules,signingIn:true});
-      history.replaceState(null,"",url);
+      history.replaceState(history.state,"",url);
       this.command.setAttribute("action","./?signin=1");
       document.documentElement.dataset.bladePage=page.documentElement.dataset.bladePage;
       this.mountSignIn();this.reportError();
@@ -673,7 +695,7 @@ export class AdminShell {
     this.definition.signingIn=false;this.definition.error="";this.definition.username="";
     document.querySelectorAll('link[data-blade-sign-in-asset]').forEach(node=>node.remove());
     document.documentElement.dataset.bladePage="shell";
-    const url=new URL(location.href);url.searchParams.delete("signin");history.replaceState(null,"",url);
+    const url=new URL(location.href);url.searchParams.delete("signin");history.replaceState(history.state,"",url);
     this.command.setAttribute("action","./");this.signInLogo();
     this.signInControl?.data.update("blade-sign-in",{value:t("Bejelentkezés"),tooltip:t("Bejelentkezés"),icon:"bi bi-key"});
   }
@@ -715,7 +737,8 @@ export class AdminShell {
    * the entry; the first level with the section's icon; for a record page with resolved parent records, that of the
    * topmost one), those parent records, then the page's own levels; hidden without a page. A page's own path
    * (`whole`) replaces all of it, and an empty one leaves the line without levels. No bar for a view declaring
-   * `locationBar: false`, or for a path of only a top-level menu entry while the full menu row marks it. The document
+   * `locationBar: false`, or for a path of only a top-level menu entry while the full menu row marks it (with the Back
+   * button: the bar without levels). The levels carry icons only where switched on (`locationIcons`). The document
    * title follows the current level, the application title without one.
    */
   private locate():void{
@@ -738,9 +761,11 @@ export class AdminShell {
     if(!places.length&&!page.whole)places.push({label:view.title,icon:view.icon??"bi bi-table"});
     const title=places.length?`${places[places.length-1].label} · ${this.applicationTitle}`:this.applicationTitle;
     // A top-level menu entry alone repeats the marker directly above it; collapsed into `Menü`, the bar still says it.
-    if(view.locationBar===false||this.menuFull&&this.alone(page)){hide(title);return;}
+    const alone=this.menuFull&&this.alone(page),back=view.locationBack??this.definition.locationBack===true;
+    if(view.locationBar===false||alone&&!back){hide(title);return;}
     this.root.classList.add("blade-located");
-    bar.show(places);
+    const icons=view.locationIcons??this.definition.locationIcons===true;
+    bar.show(alone?[]:icons?places:places.map(({icon:_icon,...place})=>place),back?this.depth>0:undefined);
     if(!cell.isVisible())cell.show();
     document.title=title;
   }
@@ -815,7 +840,7 @@ export class AdminShell {
     if(options.push){
       const url=new URL(location.href);
       url.hash=routeHash({view:view.id,record:record?.id});
-      if(url.href!==location.href)history.pushState(null,"",url);
+      if(url.href!==location.href)this.push(url);
     }
     this.renderMenu();
     this.layout.getCell("workspace").detach();
@@ -858,7 +883,7 @@ export class AdminShell {
       close:()=>{
         if(signal.aborted)return;
         if(mounted.window){mounted.window.close();return;}
-        const url=new URL(location.href);url.hash="";history.pushState(null,"",url);this.clear();
+        const url=new URL(location.href);url.hash="";this.push(url);this.clear();
       },
     });
     try{

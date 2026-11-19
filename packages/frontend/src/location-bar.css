@@ -3,8 +3,14 @@
 /* Suite's line layout rules the menu row's lower edge; above the bar that edge shows the row's own surface. */
 .blade-located .blade-navigation-row { border-bottom-color: transparent; }
 .blade-location-row .blade-view-slot { overflow: hidden; }
-.blade-location { box-sizing: border-box; height: 100%; padding: 0 16px; font-size: var(--dhx-font-size-normal, 14px); color: var(--dhx-font-color-primary); }
-.blade-location__list { display: flex; align-items: center; height: 100%; margin: 0; padding: 0; list-style: none; overflow: hidden; white-space: nowrap; }
+.blade-location { display: flex; align-items: center; box-sizing: border-box; height: 100%; padding: 0 16px; font-size: var(--dhx-font-size-normal, 14px); color: var(--dhx-font-color-primary); }
+.blade-location__list { display: flex; flex: 1 1 auto; align-items: center; min-width: 0; height: 100%; margin: 0; padding: 0; list-style: none; overflow: hidden; white-space: nowrap; }
+/* The history Back button (docs/shell.md#location-bar-back) and the divider between it and the levels. */
+.blade-location__history { flex: none; min-width: 28px; justify-content: center; }
+.blade-location__history .blade-location__icon { color: inherit; }
+.blade-location__history:disabled { cursor: default; opacity: .4; background: transparent; }
+.blade-location__divider { flex: none; align-self: center; width: 1px; height: 16px; margin: 0 8px; background: var(--dhx-border-color); }
+.blade-location__divider[hidden], .blade-location__history[hidden] { display: none; }
 .blade-location__item { display: flex; align-items: center; flex: none; min-width: 0; height: 100%; }
 /* The current level (and on a phone the parent) gives way with an ellipsis; the others keep their width. */
 .blade-location__item:last-child, .blade-location--phone .blade-location__item { flex: 0 1 auto; }

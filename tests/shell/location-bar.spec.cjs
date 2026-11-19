@@ -53,7 +53,8 @@ test('list view: menu path, no bar on the empty workspace, every factory theme',
   await expect(bar(page)).toBeVisible();
   expect(await texts(page)).toEqual(['Feature demó','Feladatok']);
   await expect(bar(page).locator('[aria-current="page"]')).toHaveText('Feladatok');
-  await expect(bar(page).locator('a, button')).toHaveCount(0);
+  // The levels have no link; the application's Back button (docs/shell.md#location-bar-back) is not a level.
+  await expect(bar(page).locator('ol').locator('a, button')).toHaveCount(0);
   await joined(page);
   expect(await page.title()).toMatch(/^Feladatok · /);
   await page.context().clearCookies();
@@ -121,7 +122,8 @@ test('record page of the asset viewer: record_title without project location',as
  });
  await page.goto(`/#view=demo.asset-viewer&record=${asset.id}`);
  await expect.poll(()=>texts(page)).toEqual(['Digitális kijelző','Médiatár',asset.title]);
- await expect(bar(page).locator('li').first().locator('.blade-location__icon')).toHaveCount(1);
+ // Level icons are off unless switched on (docs/shell.md#location-bar-icons, FB-0238).
+ await expect(bar(page).locator('li').first().locator('.blade-location__icon')).toHaveCount(0);
 });
 
 // A record view with a parent (FB-0224): the note page declares `parent: {field: task_id, view: demo.task-page}`. Once
@@ -168,8 +170,8 @@ test('record page with a parent: opened from the task page, the menu marker of t
  await page.setViewportSize({width:1920,height:900});
  await signIn(page,'demo@example.test',`/#view=demo.task-page&record=${task}`);
  await expect(marker(page)).toHaveText([/^Feature demó/]);
- // The task's `get` is held: until it arrives the note page shows its own path (the note with its view's icon; the note
- // view has no menu source) and no marker.
+ // The task's `get` is held: until it arrives the note page shows its own path (the note; the note view has no menu
+ // source) and no marker.
  let release,holds=0;const held=new Promise(resolve=>{release=resolve;});
  await page.route(url=>url.search==='?blade=1',async route=>{if(parentGet(route.request())){holds++;await held;}await route.fallback();});
  try{
@@ -178,7 +180,7 @@ test('record page with a parent: opened from the task page, the menu marker of t
   await expect(page).toHaveURL(new RegExp(`#view=demo\\.task-note&record=${note}$`));
   await expect.poll(()=>holds).toBe(1);
   await expect.poll(()=>texts(page)).toEqual([noteText]);
-  await expect(bar(page).locator('.blade-location__icon.bi-sticky')).toHaveCount(1);
+  await expect(bar(page).locator('.blade-location__icon.bi-sticky')).toHaveCount(0);
   await expect(marker(page)).toHaveCount(0);
  }finally{release();}
  await expect.poll(()=>texts(page)).toEqual(notePath);
@@ -191,16 +193,16 @@ test('record page with a parent the actor cannot read: the chain stops there, wi
  const errors=errorsOf(page);
  await page.setViewportSize({width:1920,height:900});
  // The parent record does not exist (its `get` fails): no parent is resolved, so the task and its menu path are left
- // out: the note's own path, with its view's icon, and no marker.
+ // out: the note's own path and no marker.
  const failed=page.waitForResponse(response=>parentGet(response.request()));
  await signIn(page,'demo@example.test',`/#view=demo.task-note&record=${orphan}`);
  expect((await (await failed).json()).ok).toBe(false);
  await expect.poll(()=>texts(page)).toEqual([orphanText]);
- await expect(bar(page).locator('.blade-location__icon.bi-sticky')).toHaveCount(1);
+ await expect(bar(page).locator('.blade-location__icon.bi-sticky')).toHaveCount(0);
  await expect(marker(page)).toHaveCount(0);
  await expect(page.getByRole('alertdialog')).toHaveCount(0);
  // The parent's record view is not offered (fixture: the bootstrap without it, as for an actor without its `get`): the
- // note's own path only, with its view's icon, and no marker.
+ // note's own path only and no marker.
  await page.goto(`/#view=demo.task-note&record=${note}`);
  await expect.poll(()=>texts(page)).toEqual(notePath);
  await page.route(url=>url.pathname==='/',async route=>{
@@ -214,7 +216,7 @@ test('record page with a parent the actor cannot read: the chain stops there, wi
  await page.reload();
  await expect(bar(page)).toBeVisible();
  await expect.poll(()=>texts(page)).toEqual([noteText]);
- await expect(bar(page).locator('.blade-location__icon.bi-sticky')).toHaveCount(1);
+ await expect(bar(page).locator('.blade-location__icon.bi-sticky')).toHaveCount(0);
  await expect(marker(page)).toHaveCount(0);
  await expect(page.getByRole('alertdialog')).toHaveCount(0);
  expect(errors).toEqual([]);
@@ -257,7 +259,7 @@ test('a page path of its own (setLocation from root): the whole bar, a link to a
  await page.locator('.dhx_grid-row').filter({hasText:'Éjszakai komp a ködben'}).first().locator('[data-dhx-col-id="title"]').click();
  // The page's segments replace the menu path: the list, the channel as a filtered link, the sheet.
  await expect.poll(()=>texts(page)).toEqual(['Médialapok','Kijelző','Éjszakai komp a ködben']);
- await expect(levels(page).first().locator('.dhx_navbar-item__icon, [class*="bi-"]').first()).toBeAttached();
+ await expect(levels(page).first().locator('[class*="bi-"]')).toHaveCount(0);
  await expect(page).toHaveTitle(/^Éjszakai komp a ködben · /);
  const channel=bar(page).getByRole('link',{name:'Kijelző',exact:true});
  await expect(channel).toHaveAttribute('href',/view=demo_media_sheets&filter\.channel=display/);
@@ -279,11 +281,13 @@ for(const [theme,width,height] of [['blade',1366,800],['dark',390,844]])test(`an
   await expect(page.locator('html')).toHaveAttribute('data-blade-theme',theme);
   const application=await page.title(),line=page.locator('.blade-location-row'),workspace=page.locator('.blade-workspace');
   await openView(page,'Médiaböngésző');
-  // No sheet selected: the line and its chrome stay, without a level; the nav is hidden from assistive technology.
+  // No sheet selected: the line and its chrome stay, without a level. The demo's Back button
+  // (docs/shell.md#location-bar-back) keeps the nav announced with only that button; without it the nav is hidden
+  // from assistive technology.
   await expect(line).toBeVisible();
   await expect(page.locator('.blade-location li')).toHaveCount(0);
-  await expect(page.locator('.blade-location')).toHaveAttribute('aria-hidden','true');
-  await expect(bar(page)).toHaveCount(0);
+  await expect(bar(page).getByRole('button',{name:'Vissza',exact:true})).toBeVisible();
+  await expect(page.locator('.blade-location__divider')).toBeHidden();
   await joined(page);
   expect(await page.title()).toBe(application);
   const before=[await line.boundingBox(),await workspace.boundingBox()];

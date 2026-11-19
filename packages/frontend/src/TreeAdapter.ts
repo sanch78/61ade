@@ -3,11 +3,8 @@ import { escape } from "./RecordPresentation";
 import { motionTime, treeChildrenMotion, treeMotion } from "./Motion";
 import "./tree.css";
 
-/**
- * `folder: false` makes a leaf; `icon` is its icon classes (open or closed alike; without it Suite's folder or file
- * glyph), `description` what the icon says (the owner names the row with it).
- */
-export type TreeNode={id:string;parent:string;value:string;folder?:boolean;icon?:string;description?:string;opened?:boolean};
+/** `folder: false` makes a leaf; `icon` is its icon classes. */
+export type TreeNode={id:string;parent:string;value:string;folder?:boolean;icon?:string;opened?:boolean};
 /** Row presentation (docs/toolkit.md#tree-presentation): alternating row backgrounds and dotted lines with +/- boxes. */
 export type TreeLook={striped?:boolean;lines?:boolean};
 
@@ -88,8 +85,7 @@ export class TreeAdapter {
     const children=new Map<string,TreeNode[]>();
     for(const node of nodes)children.set(node.parent,[...(children.get(node.parent)??[]),node]);
     const build=(parent:string):object[]=>(children.get(parent)??[]).map(node=>({id:node.id,value:node.value,label:node.value,
-      ...(node.icon?{icon:{file:node.icon,folder:node.icon,openFolder:node.icon}}:{}),...(node.description?{description:node.description}:{}),
-      ...(node.folder===false?{folder:false}:{items:build(node.id),...(node.opened?{opened:true}:{})})}));
+      ...(node.folder===false?{folder:false,icon:{file:node.icon}}:{items:build(node.id),...(node.opened?{opened:true}:{})})}));
     return build(root);
   }
   /** Replaces all nodes; `root` is the parent value of top-level nodes. Values are rendered as text. */

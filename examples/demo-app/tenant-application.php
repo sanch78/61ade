@@ -75,8 +75,7 @@ $items->registerDelete($workspace->registry, 'archive');
 // The tree beside the items is a view of its own (a tree's node view has no menu entry); `Kategóriák` keeps its page.
 $workspace->registry->view('tenant_categories', 'Kategóriák', [['id' => 'name', 'header' => 'Megnevezés']], ['get'], id: 'tenant_category_tree', menu: false);
 $workspace->registry->subview('tenant_category_tree', 'tenant_category_tree', 'parent_id');
-// Every category node shows the same icon in place of the folder glyph (docs/toolkit.md#tree-icons).
-$workspace->registry->tree('tenant_items', 'tenant_category_tree', 'category_id', 'name', icon: 'bi bi-tag');
+$workspace->registry->tree('tenant_items', 'tenant_category_tree', 'category_id', 'name');
 
 // View availability (docs/workspaces.md#view-availability): a tenant switches its `feedback` service on and off in
 // `Szolgáltatások`; `Visszajelzések` (and with it the `Ügyfélszolgálat` menu group) is offered only while it is on.

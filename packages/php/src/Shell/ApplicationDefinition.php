@@ -103,6 +103,17 @@ final readonly class ApplicationDefinition
          * 24 px still caps it. The bootstrap carries it only when declared.
          */
         public ?int $windowMaxHeight = null,
+        /**
+         * The location bar starts with a history Back button (docs/shell.md#location-bar-back) on every page whose view
+         * does not decide otherwise (`View::$locationBack`). The bootstrap carries `locationBack: true` only when set.
+         */
+        public bool $locationBack = false,
+        /**
+         * The location bar's levels carry their icons (docs/shell.md#location-bar-icons) on every page whose view does
+         * not decide otherwise (`View::$locationIcons`); off, the levels are text only. The bootstrap carries
+         * `locationIcons: true` only when set.
+         */
+        public bool $locationIcons = false,
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)

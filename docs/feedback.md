@@ -11233,56 +11233,64 @@ object. Typecheck, build and demo asset preparation passed.
   rule concerns. No full-smoke claim.
 - **Status.** Implemented and verified as above.
 
-<a id="fb-0239"></a>
+<a id="fb-0238"></a>
 
-## FB-0239 — Icons for tree nodes
+## FB-0238 — A switchable Back button in the location bar, and no level icons by default
 
 - **Date.** 2026-11-19.
-- **Report.** Owner instruction: in the tree, it must be possible to define
-  icons for the items.
-- **Decision.** A general option of every record tree, not a per-screen
-  look. Two forms, both from the bundled [catalog](icons.md): `icon`, one
-  class pair every node shows in place of the folder glyph (decorative), and
-  `iconField`, an existing [icon column](icons.md) (`column.presentation:
-  "icon"`) whose value each node shows. The icon column contract is reused
-  as it is: its static options name each icon, and that name becomes the
-  node's `aria-description` and the glyph's tooltip, so the icon is never the
-  only signal. An empty or other value falls back to `icon`, then to the
-  folder glyph. Without either option nodes keep the folder glyph, so
-  existing trees are unchanged. Tree navigation takes the same options.
-  A derived icon is a computed select column (JSON `storage.computed`); no
-  icon template or callback is accepted. Migration M97 (additive).
-- **Contract.** [Tree icons](toolkit.md#tree-icons); tree navigation in
-  [workspaces](workspaces.md#tree-navigation); [usage](usage.md).
-- **Implemented.** `TreeAdapter.ts` passes a node's `icon` to Suite's
-  `file`, `folder` and `openFolder` slots for every node (no longer only for
-  leaves) and keeps its `description`; `RecordTree.ts` `NodeTree.icon()`
-  takes the icon column's value (checked as one class pair,
-  `isIconClass` in `RecordPresentation.ts`) or the fixed icon, `annotate()`
-  sets `aria-description` and the glyph's `title`; `RecordTree` validates
-  `icon` and `iconField` (`TypeError`); `TreeNavigation.ts` passes
-  `TreeMetadata.icon` / `iconField`. PHP `Registry::tree(..., icon:,
-  iconField:)` validates the class and that the field is an icon column of
-  the node view; `Workspace::views()` resolves both;
-  `WorkspaceConfiguration` reads JSON `tree.icon` / `icon_field`. Types:
-  `TreeOptions` and `TreeMetadata` in `api/types.ts`. Feature demo: the
-  registry keys have a computed icon column `Kulcstípus` (root keys
-  `bi-hdd-stack`, others `bi-folder`), used by the registry editor's tree
-  navigation (`icon_field`) and the key browser (`iconField`); the tenant
-  demo's category tree has `icon: 'bi bi-tag'`.
+- **Report.** Owner instruction: the path bar gets a Back button that can be
+  switched on, with a divider between the button and the path. Follow-up,
+  with a screenshot of a level showing its section icon: the path bar needs
+  no icons unless they are switched on separately; default off.
+- **Decision.** The owner chose the browser history over "one level up"
+  (the phone's parent link and the levels already go up) and an application
+  default that a view can override. Back stays inside the application: the
+  shell records each entry's in-app depth in `history.state`, and on the
+  tab's first 61ade entry the button is disabled instead of leaving the
+  application. Level icons follow the same switch pattern, off by default;
+  the button's arrow and the phone's parent chevron are controls, not level
+  icons. With the button, a top-level entry alone ([FB-0237](#fb-0237))
+  keeps the line with the button and no level, so the entry is still not
+  repeated under its menu marker. Migration M96 records the icon default as
+  a behaviour change.
+- **Contract.** [Back button](shell.md#location-bar-back) and
+  [level icons](shell.md#location-bar-icons); configuration keys in
+  [configuration](configuration.md#entrypoint-and-application-sections).
+- **Implemented.** PHP `ApplicationDefinition::$locationBack` /
+  `$locationIcons` (JSON `application.location_back` / `location_icons` in
+  `JsonApplication.php`, bootstrap `locationBack` / `locationIcons: true` in
+  `Application.php`), `View::$locationBack` / `$locationIcons` (nullable;
+  JSON `views.<id>.…` and `resources.<name>.view.…` in
+  `WorkspaceConfiguration.php`, emitted by `Workspace::views()` only when
+  declared), `ViewDefinition.locationBack` / `locationIcons` in
+  `api/types.ts`. `AdminShell.ts`: `track()` (in `route`) and `push()` keep
+  `history.state.bladeDepth`, the `replaceState` calls keep the state, and
+  `locate()` resolves both switches. `LocationBar.ts`: the `Vissza` button
+  (`bi bi-arrow-left`, `history.back()`, disabled at depth 0) and the
+  divider before the list; `location-bar.css` lays the nav out as a flex row.
+  The feature demo switches the button on for the application; `Mérések`
+  declares `location_back: false` and `location_icons: true`.
 - **Verification.** `npm run typecheck`, `npm run build`, `npm run
-  demo:assets`, `php8.4 tests/shell/tree-navigation.php` (resolved
-  `iconField`, JSON `icon`, rejected classes and fields that are not an icon
-  column of the node view), `contracts.php`, `configuration.php` and
-  `i18n.php` passed. A temporary spec, removed afterwards, checked in Blade and
-  Dark: the key browser's root keys show `bi-hdd-stack` named `Gyökérkulcs`
-  (description and tooltip), their children `bi-folder` named `Kulcs`, an
-  open node keeps its icon; the registry editor's tree navigation the same;
-  the component's `icon` on every node without a description, the default
-  folder glyph without options, and `TypeError` for a bad class or a field
-  that is not an icon column (also the parent field); the tenant demo's
-  category tree shows `bi-tag`. No page errors. With it all 11 cases of
-  `tree-component.spec.cjs` and 4 of `registry.spec.cjs` passed (19 in all).
-  The file manager's tree was not rerun: its folders pass no icon and its
-  files the same `file` slot as before. No full-smoke claim.
+  demo:assets`, `php8.4 tests/shell/contracts.php` (bootstrap shape, the
+  demo's switches) and `configuration.php` (JSON keys at both levels,
+  defaults, non-boolean values refused) passed. `location-bar.spec.cjs` was
+  updated for the new defaults (no level icons; the levels, not the Back
+  button, have no link; an empty own path keeps the nav with the button) and
+  passed in full. A temporary spec, removed afterwards, checked in Blade and
+  Dark at 1366 px: `← │ Feature demó › Feladatok` with the 1 px divider
+  between the button and the first level, vertically centred, no level
+  icon; Back is enabled after a menu click, `Mérések` has no button and its
+  first level's icon, Back and the button return through the history to the
+  empty workspace, Forward and reload keep the depth; a direct link from
+  another document has the button disabled, a bar link enables it and Back
+  disables it again; at 2400 px `Jegyzetek` shows the button without a level
+  or divider (the `<nav>` not `aria-hidden`), at 1366 px `← │ Jegyzetek`;
+  the D3 dashboard has no bar; at 390 px the task page shows the button, the
+  divider, `…`, the parent chevron link and the current level without
+  horizontal scrolling; with `locationBack` removed from the bootstrap there
+  is no button and the empty own path hides the nav again, and
+  `locationIcons: true` restores the first level's icon. No page errors. The
+  final run after a rebuild had 24 cases pass: the 6 temporary ones, all 13 of
+  `location-bar.spec.cjs` and the 5 of `toolkit-demo-readings.spec.cjs`. No
+  full-smoke claim.
 - **Status.** Implemented and verified as above.

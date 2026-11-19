@@ -27,8 +27,8 @@ const bar = new app.components.CommandBar({ items: [
 ] });
 ```
 
-The same classes work for menu entries, actions, command bars, popup entries,
-tree nodes ([tree icons](toolkit.md#tree-icons)) and registered media types. A record field with `column.presentation: "icon"`
+The same classes work for menu entries, actions, command bars, popup entries
+and registered media types. A record field with `column.presentation: "icon"`
 uses these class pairs as its values and maps every value to a non-empty
 accessible name through static `options`:
 

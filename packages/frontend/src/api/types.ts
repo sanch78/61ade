@@ -748,6 +748,16 @@ export interface ViewDefinition<Options = unknown> {
    * bar as usual.
    */
   locationBar?: false;
+  /**
+   * The page's location bar starts with a history Back button (`true`) or has none (`false`), PHP `locationBack`, JSON
+   * `location_back` (docs/shell.md#location-bar-back). Absent: the application's `locationBack` (default none).
+   */
+  locationBack?: boolean;
+  /**
+   * The page's location levels carry their icons (`true`) or are text only (`false`), PHP `locationIcons`, JSON
+   * `location_icons` (docs/shell.md#location-bar-icons). Absent: the application's `locationIcons` (default text only).
+   */
+  locationIcons?: boolean;
   /** Actions of `resource` offered to the actor, with their field metadata. */
   actions: ActionMetadata[];
   /** Kind configuration: browser-safe JSON only, never backend-only data. */
@@ -1053,10 +1063,6 @@ export interface TreeMetadata {
   striped?: boolean;
   /** `false` when the tree has no connecting lines and +/- boxes. */
   lines?: boolean;
-  /** Icon of every node without an `iconField` value (`Registry::tree` `icon`, JSON `tree.icon`; docs/toolkit.md#tree-icons). */
-  icon?: string;
-  /** The node view's icon column whose value is each node's icon (`Registry::tree` `iconField`, JSON `tree.icon_field`). */
-  iconField?: string;
 }
 
 /** `options` of kind `list`: today's list-specific top-level keys of `components/list/types.ts` `ViewDefinition`, unchanged. */
@@ -1687,17 +1693,6 @@ export interface TreeOptions extends ComponentOptions {
   striped?: boolean;
   /** Dotted lines connecting the nodes and a dashed +/- box on an expandable node instead of the arrow; default `true`. */
   lines?: boolean;
-  /**
-   * Icon of every node (docs/toolkit.md#tree-icons): one catalog class pair (`bi bi-<name>`) in place of the folder
-   * glyph, open or closed alike, decorative. Another value: `TypeError`.
-   */
-  icon?: string;
-  /**
-   * An icon column of the view (`column.presentation: "icon"`, not the parent field): each node shows its record's value,
-   * named by the column's option (the treeitem's `aria-description` and the glyph's tooltip); an empty or other value
-   * shows `icon`, without it the folder glyph. Another id: `TypeError`.
-   */
-  iconField?: string;
 }
 
 /** What `Tree.expandAll()` reached (docs/toolkit.md#tree-expansion). */

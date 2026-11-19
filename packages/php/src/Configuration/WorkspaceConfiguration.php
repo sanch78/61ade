@@ -97,7 +97,7 @@ final class WorkspaceConfiguration
         foreach ($modules as $module) {
             foreach ($module['resources'] ?? [] as $name => $definition) {
                 $tree = $definition['view']['tree'] ?? null;
-                if ($tree) $workspace->registry->tree($definition['view']['id'] ?? $name, $tree['resource'], $tree['field'], $tree['label'], $tree['striped'] ?? true, $tree['lines'] ?? true, $tree['icon'] ?? null, $tree['icon_field'] ?? null);
+                if ($tree) $workspace->registry->tree($definition['view']['id'] ?? $name, $tree['resource'], $tree['field'], $tree['label'], $tree['striped'] ?? true, $tree['lines'] ?? true);
             }
         }
         // `view:<id>` activation targets exist once every view is declared.
@@ -213,7 +213,7 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'modes' => 'array', 'card_columns' => 'integer', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array', 'menu' => 'boolean', 'sort' => 'array', 'attention' => 'array', 'emphasis' => 'array', 'available' => 'string', 'location_bar' => 'boolean',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'modes' => 'array', 'card_columns' => 'integer', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array', 'menu' => 'boolean', 'sort' => 'array', 'attention' => 'array', 'emphasis' => 'array', 'available' => 'string', 'location_bar' => 'boolean', 'location_back' => 'boolean', 'location_icons' => 'boolean',
         ], '$.resources.'.$name.'.view');
         // A string target or an `{field, map}` activation map; Registry::view() validates the targets.
         if (isset($view['activate']) && !is_string($view['activate']) && !is_array($view['activate'])) {
@@ -222,7 +222,7 @@ final class WorkspaceConfiguration
         if (isset($view['activate']) && is_array($view['activate'])) {
             Shape::check($view['activate'], ['field' => 'string', 'map' => 'array'], [], '$.resources.'.$name.'.view.activate');
         }
-        Shape::check($view['tree'] ?? ['resource' => '', 'field' => '', 'label' => ''], ['resource' => 'string', 'field' => 'string', 'label' => 'string'], ['striped' => 'boolean', 'lines' => 'boolean', 'icon' => 'string', 'icon_field' => 'string'], '$.resources.'.$name.'.view.tree');
+        Shape::check($view['tree'] ?? ['resource' => '', 'field' => '', 'label' => ''], ['resource' => 'string', 'field' => 'string', 'label' => 'string'], ['striped' => 'boolean', 'lines' => 'boolean'], '$.resources.'.$name.'.view.tree');
         Shape::check($view['subview'] ?? ['resource' => '', 'field' => ''], ['resource' => 'string', 'field' => 'string'], ['embed' => 'boolean', 'select' => 'boolean'], '$.resources.'.$name.'.view.subview');
         $related = [];
         foreach ($storage['related'] ?? [] as $relation) {
@@ -359,7 +359,7 @@ final class WorkspaceConfiguration
             modes: $view['modes'] ?? null,
             cardColumns: $view['card_columns'] ?? null,
             available: $this->bindings->get($view['available'] ?? null),
-        )->with(locationBar: $view['location_bar'] ?? true));
+        )->with(locationBar: $view['location_bar'] ?? true, locationBack: $view['location_back'] ?? null, locationIcons: $view['location_icons'] ?? null));
     }
 
     private function claim(string $id): void
@@ -382,7 +382,7 @@ final class WorkspaceConfiguration
         Shape::check($definition, ['kind' => 'string', 'title' => 'string'], [
             'resource' => 'string', 'record' => 'string', 'actions' => 'array', 'options' => 'array', 'open' => 'string',
             'group' => 'string', 'icon' => 'string', 'desktop_only' => 'boolean', 'guide' => 'string', 'available' => 'string',
-            'record_title' => 'string', 'parent' => 'array', 'location_bar' => 'boolean',
+            'record_title' => 'string', 'parent' => 'array', 'location_bar' => 'boolean', 'location_back' => 'boolean', 'location_icons' => 'boolean',
         ], '$.views.'.$id);
         if (isset($definition['parent'])) Shape::check($definition['parent'], ['field' => 'string', 'view' => 'string'], [], '$.views.'.$id.'.parent');
         if (in_array($definition['kind'], View::BUILTIN_KINDS, true)) {
@@ -407,6 +407,8 @@ final class WorkspaceConfiguration
             // `description` is allowed on every configuration object; View takes exactly {field, view}.
             parent: isset($definition['parent']) ? array_diff_key($definition['parent'], ['description' => true]) : null,
             locationBar: $definition['location_bar'] ?? true,
+            locationBack: $definition['location_back'] ?? null,
+            locationIcons: $definition['location_icons'] ?? null,
         ));
     }
 }

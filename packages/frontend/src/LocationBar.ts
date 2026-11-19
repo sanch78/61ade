@@ -14,11 +14,15 @@ const PHONE = 768;
  * of the levels, `›` between them (CSS, not spoken), the last one `aria-current="page"`. Where the levels do not fit,
  * the middle ones (never the first or the current) collapse into one `…` button that opens a 61ade popup menu with
  * them in order; below 768 px only the parent (as a back link) and the current level show, the rest in that menu.
- * The natural widths are measured once per path, so a resize only redraws when the collapsed set changes.
+ * Where switched on, a history Back button (`Vissza`) and a divider come before the levels
+ * (docs/shell.md#location-bar-back). The natural widths are measured once per path, so a resize only redraws when the
+ * collapsed set changes.
  */
 export class LocationBar {
   readonly element = document.createElement("nav");
   private list = document.createElement("ol");
+  private back = document.createElement("button");
+  private divider = document.createElement("span");
   private places: Place[] = [];
   private hidden: number[] = [];
   private widths: number[] = [];
@@ -30,21 +34,37 @@ export class LocationBar {
     this.element.className = "blade-location";
     this.element.setAttribute("aria-label", t("Hely"));
     this.list.className = "blade-location__list";
-    this.element.append(this.list);
+    this.back.type = "button";
+    this.back.className = "blade-location__place blade-location__link blade-location__history";
+    this.back.title = t("Vissza");
+    this.back.setAttribute("aria-label", t("Vissza"));
+    const arrow = document.createElement("span");
+    arrow.className = "blade-location__icon bi bi-arrow-left";
+    arrow.setAttribute("aria-hidden", "true");
+    this.back.append(arrow);
+    this.back.addEventListener("click", () => history.back(), { signal });
+    this.divider.className = "blade-location__divider";
+    this.divider.setAttribute("aria-hidden", "true");
+    this.back.hidden = this.divider.hidden = true;
+    this.element.append(this.back, this.divider, this.list);
     const resize = new ResizeObserver(() => this.fit());
     resize.observe(this.element);
     signal.addEventListener("abort", () => { resize.disconnect(); this.more?.destroy(); }, { once: true });
   }
 
   /**
-   * Shows $places, the last one the current level. None leaves the line empty and hides the `<nav>` from assistive
-   * technology until levels return (docs/shell.md#location-bar-own-path).
+   * Shows $places, the last one the current level, after the Back button when $back is given (enabled: an earlier
+   * in-app history entry exists). No levels and no button leave the line empty and hide the `<nav>` from assistive
+   * technology until levels return (docs/shell.md#location-bar-own-path); the divider shows only between both.
    */
-  show(places: Place[]): void {
+  show(places: Place[], back?: boolean): void {
     this.places = places;
     this.widths = [];
     this.state = "";
-    if (places.length) this.element.removeAttribute("aria-hidden");
+    this.back.hidden = back === undefined;
+    this.back.disabled = back === false;
+    this.divider.hidden = back === undefined || !places.length;
+    if (places.length || back !== undefined) this.element.removeAttribute("aria-hidden");
     else this.element.setAttribute("aria-hidden", "true");
     this.fit();
   }

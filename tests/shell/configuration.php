@@ -156,6 +156,18 @@ try {
     rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'camelCase application.windowMaxHeight accepted');
     foreach ([319, 4001] as $bad) rejected(static fn() => new Blade\Shell\ApplicationDefinition('X', $app->identities, new Blade\Navigation\Menu([]), sys_get_temp_dir(), windowMaxHeight: $bad), 'Invalid PHP windowMaxHeight accepted: '.$bad);
     verify((new Blade\Shell\ApplicationDefinition('X', $app->identities, new Blade\Navigation\Menu([]), sys_get_temp_dir(), windowMaxHeight: 960))->windowMaxHeight === 960, 'PHP windowMaxHeight');
+    // The location bar's Back button (docs/shell.md#location-bar-back): off by default, JSON application.location_back.
+    verify($app->locationBack === false, 'No location Back button by default');
+    $write([...$settings, 'application' => [...$settings['application'], 'location_back' => true]]);
+    verify(JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->locationBack === true, 'JSON application.location_back');
+    $write([...$settings, 'application' => [...$settings['application'], 'location_back' => 'yes']]);
+    rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Non-boolean application.location_back accepted');
+    // Its level icons (docs/shell.md#location-bar-icons): off by default, JSON application.location_icons.
+    verify($app->locationIcons === false, 'No location level icons by default');
+    $write([...$settings, 'application' => [...$settings['application'], 'location_icons' => true]]);
+    verify(JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db)->locationIcons === true, 'JSON application.location_icons');
+    $write([...$settings, 'application' => [...$settings['application'], 'location_icons' => 1]]);
+    rejected(static fn() => JsonApplication::load($file, ['accounts.active' => static fn($row) => (bool) $row['active']], $callbacks, $db), 'Non-boolean application.location_icons accepted');
     // Session cookie policy and client-address binding (docs/authentication.md#cookie-samesite): opt-in session keys.
     verify($app->sameSite === 'Lax' && $app->bindSessionToClientAddress === false, 'Lax and unbound sessions by default');
     $write([...$settings, 'session' => [...$settings['session'], 'same_site' => 'Strict', 'bind_to_client_address' => true]]);
@@ -394,6 +406,17 @@ try {
         $mutate($mutated);
         rejected(static fn() => $toolkitBuild($mutated), 'Invalid toolkit JSON accepted: '.$case);
     }
+    // `location_back` of a module view and of a resource's view (docs/shell.md#location-bar-back): absent follows the
+    // application, a boolean decides for the view.
+    $backed = $toolkit;
+    $backed['views']['demo.viewer']['location_back'] = true;
+    $backed['views']['demo.viewer']['location_icons'] = true;
+    $backed['resources']['steps'] = ['storage' => ['table' => 'steps', 'key' => 'id'], 'fields' => [['name' => 'note', 'label' => 'Note', 'type' => 'text']], 'view' => ['title' => 'Steps', 'location_back' => false]];
+    $backedRegistry = $toolkitBuild($backed);
+    verify($toolkitBuild($toolkit)->viewById('demo.viewer')->locationBack === null && $backedRegistry->viewById('demo.viewer')->locationBack === true && $backedRegistry->viewById('steps')->locationBack === false
+        && $backedRegistry->viewById('demo.viewer')->locationIcons === true && $backedRegistry->viewById('steps')->locationIcons === null, 'JSON view location_back and location_icons');
+    $backed['views']['demo.viewer']['location_back'] = 1;
+    rejected(static fn() => $toolkitBuild($backed), 'Non-boolean view location_back accepted');
     // A record view's `parent` (docs/configuration.md): `{field, view}` (and `description`), the field a non-secret select,
     // number or text field of the record resource, the view a record view (of the lookup's resource for an
     // `options_lookup` select).

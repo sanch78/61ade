@@ -33,6 +33,8 @@
                 "title": "Mérések",
                 "group": "Feature demó",
                 "icon": "bi bi-thermometer-half",
+                "location_back": false,
+                "location_icons": true,
                 "columns": [
                     {
                         "id": "title",

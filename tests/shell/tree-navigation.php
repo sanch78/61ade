@@ -62,7 +62,7 @@ $views = array_column($workspace->views($admin), null, 'id');
 $values = $views['demo_registry_values'] ?? throw new RuntimeException('Value view offered');
 verify(!isset($views['demo_registry_keys']), 'Node view embedded');
 $tree = $values['options']['tree'] ?? [];
-verify(array_keys($tree) === ['view', 'field', 'parent', 'label', 'iconField'] && $tree['view']['id'] === 'demo_registry_keys' && $tree['field'] === 'key_id' && $tree['parent'] === 'parent_id' && $tree['label'] === 'name' && $tree['iconField'] === 'kind', 'Resolved tree navigation');
+verify(array_keys($tree) === ['view', 'field', 'parent', 'label'] && $tree['view']['id'] === 'demo_registry_keys' && $tree['field'] === 'key_id' && $tree['parent'] === 'parent_id' && $tree['label'] === 'name', 'Resolved tree navigation');
 verify(($tree['view']['options']['subview']['shared'] ?? false) === true, 'Node view keeps its hierarchy');
 verify(is_string($values['guide'] ?? null) && str_contains($values['guide'], 'visible_when'), 'Guide in bootstrap');
 // ApplicationDefinition `guides`: set or replace a view's guide by id once every view is declared; the tree stays.
@@ -108,11 +108,6 @@ verify($off['striped'] === false && $off['lines'] === false, 'Tree look switched
 $on = $look(['striped' => true]);
 verify(!isset($on['striped']) && !isset($on['lines']), 'Default tree look sends nothing');
 rejected(static fn() => $look(['lines' => 'no']), 'Tree `lines` of another type accepted');
-// Node icons (docs/toolkit.md#tree-icons): a fixed class pair and an icon column of the node view.
-$icons = $look(['icon' => 'bi bi-key']);
-verify($icons['icon'] === 'bi bi-key' && $icons['iconField'] === 'kind', 'Tree icons resolved');
-foreach ([['icon' => 'bi bi-key extra'], ['icon' => '<b>'], ['icon' => 7], ['icon_field' => 'name'], ['icon_field' => 'parent_id'], ['icon_field' => 'missing'], ['icon_field' => 3]] as $bad)
-    rejected(static fn() => $look($bad), 'Invalid tree icon accepted: '.json_encode($bad));
 
 // Nodes: roots and children through the ordinary list with the parent filter; a key cannot move below itself.
 $root = (string) $call('demo_registry_keys', 'create', null, ['name' => 'HKEY_TEST', 'parent_id' => ''])['id'];

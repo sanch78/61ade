@@ -1,7 +1,7 @@
 {
     "section_descriptions": {
         "purpose": "Feature demo: a registry editor imitation (keys in a tree, typed values beside it).",
-        "covers": "tree navigation of a list (Registry::tree over a hierarchy sub-view: lazy children, node icons from a computed icon column, node actions in the tree panel, the list scoped to the selected key) and conditional fields (visible_when: the value editor depends on the value type), composite unique keys, a computed display column, a cycle guard and a subtree delete hook. The key browser (view kind demo.registry-browser) composes the public Tree over a menu-less node view with tabs of a scoped value list (its toggle command demo.subkey-values switches between the key's own values and those of its subkeys, a computed parent_key_id) and record details."
+        "covers": "tree navigation of a list (Registry::tree over a hierarchy sub-view: lazy children, node actions in the tree panel, the list scoped to the selected key) and conditional fields (visible_when: the value editor depends on the value type), composite unique keys, a computed display column, a cycle guard and a subtree delete hook. The key browser (view kind demo.registry-browser) composes the public Tree over a menu-less node view with tabs of a scoped value list (its toggle command demo.subkey-values switches between the key's own values and those of its subkeys, a computed parent_key_id) and record details."
     },
     "lookups": {
         "demo_registry_keys": {
@@ -24,10 +24,7 @@
                         "parent_id",
                         "name"
                     ]
-                ],
-                "computed": {
-                    "kind": "CASE WHEN blade_base.parent_id = '' THEN 'bi bi-hdd-stack' ELSE 'bi bi-folder' END"
-                }
+                ]
             },
             "hooks": {
                 "guard": "registry.key_guard",
@@ -55,20 +52,6 @@
                     "type": "select",
                     "max": 20,
                     "options_lookup": "demo_registry_keys"
-                },
-                {
-                    "name": "kind",
-                    "label": "Kulcstípus",
-                    "type": "select",
-                    "options": {
-                        "bi bi-hdd-stack": "Gyökérkulcs",
-                        "bi bi-folder": "Kulcs"
-                    },
-                    "column": {
-                        "presentation": "icon",
-                        "width": 64,
-                        "align": "center"
-                    }
                 }
             ],
             "view": {
@@ -76,10 +59,6 @@
                 "icon": "bi bi-diagram-2",
                 "group": "Feature demó",
                 "columns": [
-                    {
-                        "id": "kind",
-                        "header": "Kulcstípus"
-                    },
                     {
                         "id": "name",
                         "header": "Kulcs neve"
@@ -273,8 +252,7 @@
                 "tree": {
                     "resource": "demo_registry_keys",
                     "field": "key_id",
-                    "label": "name",
-                    "icon_field": "kind"
+                    "label": "name"
                 },
                 "guide": "A Windows rendszerleíró-adatbázis szerkesztőjét utánzó nézet: bal oldalt a kulcsok fája, jobb oldalt a kijelölt kulcs értékei.\n\nA fában egy kulcs kinyitásakor töltődnek be az alkulcsai. A fa eszköztárán új alkulcsot vehetsz fel a kijelölt kulcs alá, átnevezheted vagy áthelyezheted (Szülőkulcs), és törölheted; a törlés az alkulcsokat és az értékeket is viszi.\n\nAz értéklistában az Új érték űrlapon a Típus választása dönti el, melyik szerkesztő látszik: szöveg, többsoros szöveg, hexadecimális 32 vagy 64 bites szám, illetve bájtsor. Csak a látható mezőt ellenőrzi és menti a szerver; típusváltáskor a többi kiürül.\n\nKeretrendszer-képességek: fa-navigáció listanézethez (Registry::tree) és feltételes mezők (visible_when)."
             }

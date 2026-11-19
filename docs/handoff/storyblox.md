@@ -136,6 +136,17 @@ still shows the entry). A view can switch its bar off entirely with
 `locationBar: false` (JSON `location_bar: false`). No code change; a spec
 that expected the one-entry bar on a wide desktop needs updating.
 
+## Location bar Back button and level icons
+
+Owner instruction in 61ade ([FB-0238](../feedback.md#fb-0238), M96): the
+location bar's levels are text only unless switched on, so the section icon
+of the first level and the `icon` of `setLocation` segments no longer show.
+A history Back button with a divider before the levels is available, off
+unless switched on. Both are declarations: `ApplicationDefinition(locationBack:
+true, locationIcons: true)` for the application, `View(locationBack: …,
+locationIcons: …)` for one view's page. No code change is needed; a spec that
+expected a level icon needs updating.
+
 ## Asset viewer on the public API (D-019 to D-021)
 
 The requests of `dev/docs/61ade/custom-view-request.md` (untracked in the

@@ -1763,10 +1763,7 @@ declares `"subview": {"resource": "keys", "field": "parent_id"}`. The tree
 has the [tree look](toolkit.md#tree-presentation) of every 61ade tree:
 grid-high rows, alternating backgrounds and dotted lines with +/- boxes;
 `"striped": false` / `"lines": false` in `tree` (PHP `striped: false`,
-`lines: false`) switch them off. `"icon": "bi bi-tag"` gives every node one
-icon, `"icon_field": "kind"` each node its record's value of an icon column
-of the node view (PHP `icon:`, `iconField:`;
-[tree icons](toolkit.md#tree-icons)).
+`lines: false`) switch them off.
 
 - **Layout:** the tree panel (header: the node view's title, 300 px,
   resizable and collapsible; its width is a preference of the list view) sits
@@ -1814,8 +1811,7 @@ of the node view (PHP `icon:`, `iconField:`;
   the node view of a tree navigation is embedded and cannot be reused there.
 
 Limits: the tree is not live (it reloads only after its own actions); no drag
-moves; no search inside the tree; a node shows its label field and, when
-declared, its icon only.
+moves; no search inside the tree; a node shows its label field only.
 
 <a id="conditional-fields"></a>
 
