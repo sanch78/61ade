@@ -1553,7 +1553,7 @@ function browser(app, host, view) {
     const tree = phone ? { rows: [{ id: "tree", header: nodes.title, height: 220, minHeight: 120, resizable: true, collapsable: true }, { ...center, minHeight: 200 }, { id: "value", header: t("\xC9rt\xE9k adatai"), height: 200, collapsable: true, collapsed: true }] } : { cols: [{ id: "tree", header: nodes.title, width: 280, minWidth: 180, resizable: true, collapsable: true }, center, { id: "value", header: t("\xC9rt\xE9k adatai"), width: 300, minWidth: 200, resizable: true, collapsable: true }] };
     const layout = new app.components.PageLayout({ id: `${view.id}.${phone ? "narrow" : "wide"}`, tree });
     layout.mount(root);
-    const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", id: `${view.id}.tree`, expandControl: true });
+    const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true });
     nodeTree.mount(layout.cell("tree"));
     layout.placeholder("key", { text: t("V\xE1lassz egy kulcsot a f\xE1ban.") });
     layout.placeholder("value", { text: t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban.") });

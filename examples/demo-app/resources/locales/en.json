@@ -226,6 +226,8 @@
   "Kulcsok": "Keys",
   "Kulcs neve": "Key name",
   "Szülőkulcs": "Parent key",
+  "Kulcstípus": "Key type",
+  "Gyökérkulcs": "Root key",
   "Nincs (gyökérkulcs)": "None (root key)",
   "A kulcs neve nem tartalmazhat fordított perjelet.": "A key name cannot contain a backslash.",
   "Regisztrációs adatbázis": "Registry",

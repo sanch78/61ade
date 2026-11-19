@@ -97,7 +97,7 @@ final class WorkspaceConfiguration
         foreach ($modules as $module) {
             foreach ($module['resources'] ?? [] as $name => $definition) {
                 $tree = $definition['view']['tree'] ?? null;
-                if ($tree) $workspace->registry->tree($definition['view']['id'] ?? $name, $tree['resource'], $tree['field'], $tree['label'], $tree['striped'] ?? true, $tree['lines'] ?? true);
+                if ($tree) $workspace->registry->tree($definition['view']['id'] ?? $name, $tree['resource'], $tree['field'], $tree['label'], $tree['striped'] ?? true, $tree['lines'] ?? true, $tree['icon'] ?? null, $tree['icon_field'] ?? null);
             }
         }
         // `view:<id>` activation targets exist once every view is declared.
@@ -222,7 +222,7 @@ final class WorkspaceConfiguration
         if (isset($view['activate']) && is_array($view['activate'])) {
             Shape::check($view['activate'], ['field' => 'string', 'map' => 'array'], [], '$.resources.'.$name.'.view.activate');
         }
-        Shape::check($view['tree'] ?? ['resource' => '', 'field' => '', 'label' => ''], ['resource' => 'string', 'field' => 'string', 'label' => 'string'], ['striped' => 'boolean', 'lines' => 'boolean'], '$.resources.'.$name.'.view.tree');
+        Shape::check($view['tree'] ?? ['resource' => '', 'field' => '', 'label' => ''], ['resource' => 'string', 'field' => 'string', 'label' => 'string'], ['striped' => 'boolean', 'lines' => 'boolean', 'icon' => 'string', 'icon_field' => 'string'], '$.resources.'.$name.'.view.tree');
         Shape::check($view['subview'] ?? ['resource' => '', 'field' => ''], ['resource' => 'string', 'field' => 'string'], ['embed' => 'boolean', 'select' => 'boolean'], '$.resources.'.$name.'.view.subview');
         $related = [];
         foreach ($storage['related'] ?? [] as $relation) {
