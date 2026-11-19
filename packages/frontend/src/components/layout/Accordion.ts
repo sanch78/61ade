@@ -1,5 +1,5 @@
 import { Layout, awaitRedraw } from "@dhtmlx/suite";
-import { placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
+import { hold, placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
 import type { Accordion as AccordionApi, AccordionEvents, AccordionOptions, AccordionSection, LayoutCell, Mountable, MountTarget, RegionPlaceholder } from "../../api/types";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
@@ -161,6 +161,8 @@ export class Accordion extends Component<AccordionEvents> implements AccordionAp
   attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.released.signal);}
   /** What a section without content shows: the default text, its own text or the loading indicator. */
   placeholder(id:string,options:RegionPlaceholder):void{this.known(id);if(!this.destroyed)applyPlaceholder("Accordion",this.statuses.get(id)!,options);}
+  /** Marks a section whose content is about to change or ends the mark (as `PageLayout.busy`). */
+  busy(id:string,on:boolean):void{this.known(id);if(!this.destroyed)hold("Accordion",this.statuses.get(id)!,on);}
   /** The open sections' ids in display order. */
   openSections():string[]{return this.sections.filter(section=>this.opened.has(section.id)).map(section=>section.id);}
   /** Whether section $id is open; an undeclared id throws `Error`. */

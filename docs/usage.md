@@ -749,8 +749,9 @@ shows a loading indicator (`aria-busy`) while it loads and says when it has
 no records (`ListView` `emptyText` gives a page's own text) or no record
 matches its filters or search; a `PageLayout` region, tab or section without
 content shows a default text, its own text or the loading indicator
-(`placeholder(id, {text, busy})`). A page builds no hint or overlay element
-of its own for these states.
+(`placeholder(id, {text, busy})`), and `busy(id, on)` marks a region whose
+content is about to change with the same indicator over that content. A page
+builds no hint or overlay element of its own for these states.
 
 <a id="url-és-helyi-felületbeállítások"></a>
 

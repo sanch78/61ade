@@ -11018,3 +11018,39 @@ that exactly equals an option label lists every option. The managed
   Blade, Blade Night, light and dark. The managed-demo `page-layout-inner`
   and `layout-resizer` specs passed (11 cases including the temporary check).
 - **Status:** implemented and verified.
+
+<a id="fb-0232"></a>
+
+## FB-0232 — A busy state over a region that already holds content
+
+- **Date:** 2026-11-19.
+- **Request:** a consumer page shows a read-only view of a record beside the
+  progress of a long-running background job that will change the record.
+  While the job runs, the view must say that its content is being worked on
+  and will change. `placeholder(id, {busy})` covers only an empty region and
+  a `ListView` shows its indicator only for its own reloads, so the page
+  would have to draw its own overlay.
+- **Premises checked:** the region status (`CellStatus`) already draws the
+  list's indicator over any cell; its `busy` ends when content is mounted
+  and is ignored on a filled region, by design of
+  [FB-0185](#fb-0185) (an implicit busy there dimmed content indefinitely).
+  A mark the page sets and clears itself does not have that defect.
+- **Implemented:**
+  - `busy(id, on)` on `PageLayout`, `Tabs` and `Accordion`
+    ([toolkit](toolkit.md#busy-filled-region), M93), a separate method so
+    `placeholder`'s `busy` keeps its meaning (ended by content).
+  - `CellStatus.hold`: a mark beside the auto-ended load, sharing its delay,
+    `aria-busy` on the content, overlay and focus behaviour; content coming,
+    going or loading does not end it, destroying the owner does.
+  - The spoken text `A tartalom frissül…` (en, de) instead of `Betöltés…`.
+  - Content stays readable under the fade: the user sees what changes.
+- **Verification (managed demo, 2026-11-19):** `npm run typecheck`,
+  `npm run build`, `npm run demo:assets`, `php8.4 tests/shell/i18n.php` and
+  `contracts.php` passed. A new case in `tests/shell/empty-states.spec.cjs`
+  covers a filled region, an inner headed region and a tab marked and
+  cleared, option errors, the delay (a mark cleared within it shows
+  nothing), `aria-busy` and the status text, kept scroll and focus, blocked
+  wheel scrolling and clicks, uncovered headers, a `RecordDetails` and a
+  `ListView` replacing the content while marked, an unmarked region and the
+  end on destroy.
+- **Status:** implemented and verified.

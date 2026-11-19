@@ -2254,7 +2254,7 @@ export interface RegionPlaceholder {
   text?: string | null;
   /**
    * Content is coming: the loading indicator after a short delay (the text waits meanwhile). Content mounted into the
-   * region ends it; on a region that holds content it is ignored.
+   * region ends it; on a region that holds content it is ignored (`busy(id, true)` of the owner marks a filled region).
    */
   busy?: boolean;
 }
@@ -2270,6 +2270,16 @@ export interface PageLayout extends Component<PageLayoutEvents> {
    * tab or section region is its `Tabs` or `Accordion`'s. An undeclared id throws `Error`, other options `TypeError`.
    */
   placeholder(id: string, placeholder: RegionPlaceholder): void;
+  /**
+   * Marks a region whose content is about to change (`true`), such as a view of a record a running job will replace,
+   * or ends the mark (`false`), docs/toolkit.md#loading-and-empty-states. While marked the content is `aria-busy` and,
+   * after the usual delay, lies under the loading indicator (faded, still readable, taking no clicks or wheel
+   * scrolling; focus inside stays); the status says `A tartalom frissül…` once. Mounting or replacing content and a
+   * component's own loading keep the mark; only this call and destroying the layout end it. A tab or section region is
+   * its `Tabs` or `Accordion`'s. An undeclared id and a region holding an inner layout throw `Error`, another `on`
+   * `TypeError`.
+   */
+  busy(id: string, on: boolean): void;
   /** The `Tabs` of the `tabs` branch that holds region $id (to `select` it or follow `change`), else `undefined`. */
   tabsOf(id: string): Tabs | undefined;
   /** The `Accordion` of the `accordion` branch that holds region $id (to `open` a section or follow `toggle`), else `undefined`. */
@@ -2333,6 +2343,8 @@ export interface Accordion extends Component<AccordionEvents> {
   attach(id: string, content: Mountable): void;
   /** What a section without content shows (as `PageLayout.placeholder`); an undeclared id throws `Error`. */
   placeholder(id: string, placeholder: RegionPlaceholder): void;
+  /** Marks a section whose content is about to change or ends the mark (as `PageLayout.busy`); an undeclared id throws `Error`. */
+  busy(id: string, on: boolean): void;
   /** The open sections' ids in display order. */
   openSections(): string[];
   /** Whether a section is open; an undeclared id throws `Error`. */
@@ -2390,6 +2402,8 @@ export interface Tabs extends Component<TabsEvents> {
   attach(id: string, content: Mountable): void;
   /** What a tab without content shows (as `PageLayout.placeholder`); an undeclared id throws `Error`. */
   placeholder(id: string, placeholder: RegionPlaceholder): void;
+  /** Marks a tab whose content is about to change or ends the mark (as `PageLayout.busy`); an undeclared id throws `Error`. */
+  busy(id: string, on: boolean): void;
   /** The active tab's id. */
   active(): string;
   /** Opens a tab like a click (guard included); resolves whether it is active. A disabled tab resolves `false`. */

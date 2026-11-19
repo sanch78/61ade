@@ -1637,7 +1637,10 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
 - A region without content shows a placeholder: `Nincs megjeleníthető
   tartalom.`, its own text or the loading indicator with
   `placeholder(id, {text, busy})` ([states](#loading-and-empty-states)), also
-  `Tabs.placeholder` and `Accordion.placeholder`.
+  `Tabs.placeholder` and `Accordion.placeholder`. `busy(id, on)` marks a
+  region whose content is about to change
+  ([held regions](#busy-filled-region)), also `Tabs.busy` and
+  `Accordion.busy`.
 
 <a id="pagelayout-collapse"></a>
 
@@ -1728,7 +1731,8 @@ tabs.on("change", ({ id }) => {
   `attach(id, content)` puts a Suite widget, a public component or a plain
   element there (released with the tabs). An undeclared id throws `Error`.
   A tab without content shows its placeholder (`placeholder(id, {text,
-  busy})`, [states](#loading-and-empty-states)).
+  busy})`, [states](#loading-and-empty-states)); `busy(id, on)` marks a
+  tab whose content is about to change ([held regions](#busy-filled-region)).
   A tab with its own commands attaches a Layout holding the command row
   above the content ([recipe](#page-command-bars)).
 - `active()` is the open tab's id; `select(id)` opens a tab as a click does
@@ -1919,7 +1923,8 @@ busy})` of the component that owns the region changes it, and
 - `busy: true`: content is known to be coming but is not mounted yet. The
   region shows the indicator after the delay; its text waits meanwhile.
   Content mounted into the region ends it, as does `busy: false`; on a
-  region that holds content it is ignored. Use it only where the page
+  region that holds content it is ignored (`busy(id, true)` marks one, see
+  below). Use it only where the page
   itself ends the wait (its own request before it mounts the component),
   not while waiting for another component's event that may never come.
 - An undeclared id throws `Error`, any other key or value `TypeError`.
@@ -1940,6 +1945,44 @@ nodeTree.on("select", ({ row }) => {
 page.placeholder("chart", { busy: true });
 const data = await app.server.call(resource, "summary", { signal });
 chart.mount(page.cell("chart"));                                       // ends busy
+```
+
+<a id="busy-filled-region"></a>
+
+**A region whose content is about to change** ([FB-0232](feedback.md#fb-0232)):
+`busy(id, on)` of the component that owns the region (`PageLayout`, which
+passes a tab or section region to its `Tabs` or `Accordion`, and `Tabs.busy`,
+`Accordion.busy`) marks a region that holds content which is about to be
+replaced, such as a view of a record that a running job will change, and
+`busy(id, false)` ends the mark. It also applies to a region of an `inner`
+layout.
+
+- While marked, the region's content is `aria-busy="true"` at once and, after
+  the same 300 ms, lies under the list's indicator: Suite's spinner over the
+  content faded to the theme's surface. The content stays mounted, keeps its
+  scroll position and stays readable under the fade, so the user sees what is
+  being changed; it takes no clicks or wheel scrolling, and focus already
+  inside stays there (keys still reach it). The region's header, an inner
+  region's header and a tab row stay uncovered. The status says
+  `A tartalom frissül…` once (politely), so a short mark says nothing.
+- Mounting, attaching or replacing content keeps the mark, as does a
+  component's own loading inside it (a `RecordDetails` loading a record, a
+  `ListView` reloading); only `busy(id, false)` and destroying the owner end
+  it. A mark on a region without content hides its text like
+  `placeholder(id, {busy: true})`, but content does not end it.
+- An undeclared id and a region holding an `inner` layout throw `Error`, an
+  `on` other than a boolean `TypeError`. A region that is not marked is
+  unchanged.
+
+```ts
+// A view of the record a job changes: marked while the job runs, rebuilt when it ends.
+page.busy("record", true);
+job.on("done", () => {
+  details.destroy();
+  details = new app.components.RecordDetails({ view, record: id });
+  details.mount(page.cell("record"));                                  // the mark stays
+  page.busy("record", false);
+});
 ```
 
 - A component brings its own states: a `ListView` mounted into a busy region
@@ -3445,6 +3488,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M89 | [Field subset and a media field alone in a section](#recorddetails-fields): `RecordDetailsOptions.fields` (a subset of the view's detail fields in the view's order; a derived media column follows its media field; a field the row lacks is not shown; an empty array, a non-string entry or an id that is not a detail field throws `TypeError`). In `RecordDetails` and `Adatok`, a section whose only shown field is a media field shows its heading and the media without a label row, also without `detailsWidth` ([media alone in a section](workspaces.md#details-media-alone)). Removes `RecordDetailsOptions.longText` (`"inline"`, `"card"`) of `1a3ee5f` (FB-0218), the CSS property `--blade-record-text-min-height` and the classes `.blade-record-texts`, `.blade-record-text`, `.blade-record-text__body` and `.blade-record-details--fill` | [FB-0218](feedback.md#fb-0218), [FB-0223](feedback.md#fb-0223) | if used: TypeScript rejects `longText: "card"` and the runtime ignores it, so remove it. The long text is inline below the groups and the details scroll as a whole. Project styles on the removed classes or property match nothing. A view copy with reduced `detailFields` can become `fields`. info: a section holding only a media field without `detailsWidth` loses its label row in `RecordDetails` and `Adatok`, so a spec that counted that `dt` finds none | if used: D-084 drops `longText: "card"` from the record page's `RecordDetails`; D-090/D-093 regions use `fields`, and overrides of `.blade-record-text*` go ([handoff](handoff/storyblox.md#record-details-layout-d-084)) | none |
 | M90 | [Parent records](shell.md#location-bar-parent): a record view's `parent: {field, view}` (PHP `View`, JSON `views.<id>.parent`, `ViewDefinition.parent`; `field` a non-secret `select`, `number` or `text` field of the record resource holding the parent's id, `view` a record view of the parent resource (a lookup select must reference it), checked at definition time) puts the resolved parent records (recursively, at most 4) as links before the record, from the menu path of the topmost parent actually resolved (none: the view's own), which also carries the marker; `location: 'group'` (M87, JSON `location`, `ViewDefinition.location`) is removed; `ViewHost.setLocation(segments, {from: "root"})` makes the segments the whole bar and `LocationSegment` `target.filters` links to a filtered list ([own path](shell.md#location-bar-own-path)) | [FB-0224](feedback.md#fb-0224), [FB-0226](feedback.md#fb-0226) | if used: remove `location: 'group'` (PHP `View` ignores it until StoryBloX has; JSON `location` fails at load) and declare `parent` where the record has a parent record; a page that put its parent into its own `setLocation` segments drops that segment | required: remove `location: 'group'` from `storyblox.season` and `storyblox.episode-workbench` (`stories.php` 58, 178); declare `parent: ['field' => 'season_id', 'view' => 'storyblox.season']` on the episode workbench and drop its season segment ([handoff](handoff/storyblox.md)) | none |
 | M91 | [Application window height and long-text placement](workspaces.md#long-text-placement): `ApplicationDefinition` `windowMaxHeight` (JSON `application.window_max_height`, 320–4000 px, bootstrap `windowMaxHeight` only when declared) is the default cap of every fitted window instead of the fixed 800 px, which stays the fallback; `WindowOptions.maxHeight` still wins ([window sizing](workspaces.md#window-sizing)). Field `column.placement` (`"end"` default, `"row"`, `"group"`; `ColumnMetadata.placement`, `ColumnPlacement`) places a long text outside the sections at the end, as a row at its declaration place or as a group of its own in cards, `Adatok` and `RecordDetails` | [FB-0177](feedback.md#fb-0177), [FB-0225](feedback.md#fb-0225) | none (additive; without the declarations nothing changes); if used: an application with other screens declares its window height, a record with a long text between its sections declares its placement | none | none |
+| M93 | [A region whose content is about to change](#busy-filled-region): `busy(id, on)` of `PageLayout`, `Tabs` and `Accordion` shows the loading indicator over a region's content (`aria-busy`, `A tartalom frissül…`) until the page ends it; mounting content keeps it | [FB-0232](feedback.md#fb-0232) | info: a page that drew its own overlay over a filled region can use the mark | none | none |
 | M92 | [Inner region header](#pagelayout-inner-header): a region of an `inner` layout takes `header` and `count` (a frameless title row with a count badge over its content, a `region` landmark named by the title and `{count} elem`); `PageLayout.header(id, {label?, count?})` changes them | [FB-0227](feedback.md#fb-0227) | info: a tree with a `header` inside `inner`, which threw `TypeError`, now builds; a project-drawn heading row inside an inner region can become the declared header | none | none |
 | M87 | [Location bar from the group](shell.md#location-bar): a record view's `location: 'group'` (PHP `View`, JSON `views.<id>.location`, `ViewDefinition.location`) starts its bar at the menu group without the source view's entry; marker and compact siblings unchanged **Removed again by M90** (2026-11-18): `location` is replaced by `parent` and `setLocation(…, {from: "root"})`. | [FB-0220](feedback.md#fb-0220) | none (additive; record views without the option are unchanged); if used: StoryBloX's episode page (D-087) declares it | none | none |
 
@@ -3621,6 +3665,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-18 | PHP `View::$parent`, JSON `views.<id>.parent`, `ViewDefinition.parent` (`{field, view}`, record views only, the field a non-secret `select`, `number` or `text` field holding the parent's id; a lookup select must reference the view's record resource), `Field::references()`, public `Lookup::$resource`: the location bar shows a record's resolved parent records before it, from the menu path of the topmost parent resolved, and the menu marker follows it (M90). Breaking: `View::$location`, JSON `views.<id>.location` and `ViewDefinition.location` (M87) are removed; PHP `View` ignores a `location` argument until StoryBloX has dropped it. | A record reached through a parent record, also after a reload, as a general relation instead of a one-consumer option (owner correction). | [FB-0220](feedback.md#fb-0220), [FB-0224](feedback.md#fb-0224) |
 | 2026-11-18 | PHP `ApplicationDefinition` `windowMaxHeight`, JSON `application.window_max_height` (320–4000), bootstrap `windowMaxHeight`: the application's default height of fitted windows, 800 px the fallback, `WindowOptions.maxHeight` still wins; PHP/JSON field `column.placement` (`end`, `row`, `group`; a textarea without a section, presentation or editor), `ColumnMetadata.placement`, `ColumnPlacement`: a long text outside the sections at the end, as a row or as a group of its own in cards and details (M91). Additive. | Two parts of FB-0177 were fixed to one consumer's screen (a fixed 800 px cap, a long text always last). | [FB-0177](feedback.md#fb-0177), [FB-0225](feedback.md#fb-0225) |
 | 2026-11-18 | `ViewHost.setLocation(segments, {from: "root"})` (the segments are the whole location bar) and `LocationSegment` `target.filters` (a link to a filtered list). Additive (M90). | A project needs a location path entirely of its own, with links (owner instruction). | [FB-0226](feedback.md#fb-0226) |
+| 2026-11-19 | `PageLayout.busy(id, on)`, `Tabs.busy` and `Accordion.busy`: a region whose content is about to change shows the loading indicator over it until the page clears it (M93). Additive. | A read-only view of a record a long-running job will change had no way to say so; `placeholder(id, {busy})` covers only an empty region (a consumer request). | [FB-0232](feedback.md#fb-0232) |
 | 2026-11-18 | `PageRegion.header` and `count` on a region of an `inner` layout and `PageLayout.header(id, {label?, count?})` (M92). | A titled, counted area of a split tab drawn in a project's own CSS; the framework now owns that look. | [FB-0227](feedback.md#fb-0227) |
 
 <a id="resolved-decisions"></a>

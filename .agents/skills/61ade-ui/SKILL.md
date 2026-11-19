@@ -396,7 +396,8 @@ tree as decoration for a flat list.
   explicit. No list, region, tab, or section is a bare blank area: a list
   shows a delayed loading indicator and tells "no records" from "no match for
   the filters or search", and a region without content shows a placeholder
-  (its waiting hint, or busy while content is known to be coming). Nothing
+  (its waiting hint, or busy while content is known to be coming); a region
+  whose content is about to change is marked with `busy(id, on)`. Nothing
   there is a blank surface with a centred picture above the text; data still
   on its way is loading, never an empty message. All of it comes from
   the framework's one status element; a page builds no overlay or hint
