@@ -1,16 +1,15 @@
 import type { Row } from "../../api/types";
 
 export type Branch={rows:Row[];cut:boolean};
-export type TreeSnapshot={branches:[string,Branch][];opened:string[];preferences:string;until?:number};
+export type TreeSnapshot={branches:[string,Branch][];opened:string[];preferences:string};
 type AccessChange="denied"|"changed"|"ended";
 
 const ENTRIES=4;
 const CHARACTERS=262144;
-const LIFETIME=30000;
 
 /** Last completed Tree mounts, owned by one application shell. Serialized rows cannot be mutated by a consumer. */
 export class TreeCache{
-  private entries=new Map<string,{resource:string;json:string;until:number}>();
+  private entries=new Map<string,{resource:string;json:string}>();
   private access=new EventTarget();
 
   watch(resource:string,invalidate:(reason:AccessChange)=>void,signal:AbortSignal):void{
@@ -23,18 +22,17 @@ export class TreeCache{
   take(key:string,preferences:string):TreeSnapshot|undefined{
     const entry=this.entries.get(key);
     this.entries.delete(key);
-    if(!entry||entry.until<=performance.now())return;
+    if(!entry)return;
     const snapshot=JSON.parse(entry.json) as TreeSnapshot;
-    if(snapshot.preferences===preferences)return {...snapshot,until:entry.until};
+    if(snapshot.preferences===preferences)return snapshot;
   }
 
   store(key:string,resource:string,snapshot:TreeSnapshot):void{
     const json=JSON.stringify(snapshot);
     this.entries.delete(key);
-    const until=snapshot.until??(performance.now()+LIFETIME);
-    if(json.length>CHARACTERS||until<=performance.now())return;
+    if(json.length>CHARACTERS)return;
     if(this.entries.size>=ENTRIES)this.entries.delete(this.entries.keys().next().value!);
-    this.entries.set(key,{resource,json,until});
+    this.entries.set(key,{resource,json});
   }
 
   invalidate(resource?:string,reason:AccessChange="denied"):void{

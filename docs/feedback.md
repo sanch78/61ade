@@ -11115,3 +11115,20 @@ that exactly equals an option label lists every option. The managed
   localization contracts,
   and the toolkit kernel and live protocol checks passed.
 - **Status.** Implemented and verified.
+
+<a id="fb-0235"></a>
+
+## FB-0235 — Keep an unchanged Tree across longer visits to another view
+
+The 30-second reuse limit in [FB-0234](#fb-0234) made an ordinary visit to
+another view long enough to lose the loaded branches. The shell now retains
+its four bounded snapshots for the lifetime of the loaded page. Returning
+shows the saved state immediately and rechecks the authorized parent lists.
+When their rows, order and truncation state match the displayed branches,
+the widget keeps its rows and selection in place. Reloading the page starts
+cold. Access invalidation follows the [Tree contract](toolkit.md#tree).
+
+On the managed demo all 11 existing Tree cases and one temporary long-return
+case passed. After 31 seconds away the selected root appeared with its network
+response held. Releasing the unchanged response preserved the selected row
+object. Typecheck, build and demo asset preparation passed.
