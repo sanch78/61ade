@@ -10786,7 +10786,8 @@ that exactly equals an option label lists every option. The managed
   shows a place, the marker the menu entry); the document title follows the
   last segment as for every path; the first segment gets the view's icon so the
   bar keeps its leading icon; an empty array with `from: "root"` returns to the
-  automatic path, as `setLocation([])` does (kept and documented after review).
+  automatic path, as `setLocation([])` does (kept and documented after review;
+  superseded by [FB-0236](#fb-0236): it now leaves the bar empty).
 - **Implemented:** `AdminShell.ts` (`Mounted.whole`, `locate()`,
   `places()` filters, `setLocation` option), `api/types.ts`; feature demo
   D12 `Médiaböngésző` sets `Médialapok › ‹channel› › ‹sheet›` with the
@@ -11132,3 +11133,53 @@ On the managed demo all 11 existing Tree cases and one temporary long-return
 case passed. After 31 seconds away the selected root appeared with its network
 response held. Releasing the unchanged response preserved the selected row
 object. Typecheck, build and demo asset preparation passed.
+
+<a id="fb-0236"></a>
+
+## FB-0236 — A page that owns its path may leave the location bar empty
+
+- **Date.** 2026-11-19.
+- **Report.** Consumer request (StoryBloX D-107). A page that draws its own
+  path with `setLocation(segments, {from: "root"})` cannot say "no place yet".
+  While nothing is selected it calls `setLocation([], {from: "root"})`, and
+  under [FB-0226](#fb-0226) the bar fell back to the automatic path. For a
+  plain page view that is the menu entry alone, which the menu row already
+  marks directly above. The owner did not want a bar that only repeats the
+  menu entry.
+- **Decision.** The empty array with `from: "root"` now means an empty bar.
+  This follows the option's meaning ("the segments are the whole bar") and
+  replaces the FB-0226 decision that it returns to the automatic path. That
+  return stays available as `setLocation([])` without `from`. No new option
+  was added. The only consumer making the call wants the new behaviour.
+  Migration M94 records the behaviour change.
+- **Contract.** While empty, the 32 px line and its chrome stay, so the
+  workspace does not move when levels arrive or go. No segment is shown, the
+  `<nav>` (`Hely`) is `aria-hidden` so no empty landmark is announced, and the
+  document title is the application title. The menu marker still follows the
+  menu source. The next call draws its segments. The automatic path stays the
+  default for every page that does not ask
+  ([empty own path](shell.md#location-bar-empty)).
+- **Not decided.** The request also proposed leaving the automatic path empty
+  wherever it would show only the menu entry the menu row marks (a plain list
+  page). That changes the default for every consumer and stays open for a
+  separate owner decision.
+- **Implemented.** `AdminShell.ts` `locate()` draws no level for an empty
+  `whole` path and keeps the line. `LocationBar.ts` `show([])` clears the
+  list and sets `aria-hidden`. `api/types.ts` documents `setLocation`. The
+  feature demo D12 `Médiaböngésző` (`media-browser.ts`) shows the empty bar
+  while no sheet is selected. A sheet that cannot be read returns the bar to
+  the menu path (`setLocation([])`).
+- **Verification.** `npm run typecheck`, `npm run build` and `npm run
+  demo:assets` passed. The retained `tests/shell/location-bar.spec.cjs`
+  gained a case in Blade at 1366 px and Dark at 390 px. With no selection the
+  line is present, 32 px high, joined to the menu row and without levels, the
+  `<nav>` is `aria-hidden`, and the title is the application title. Selecting
+  a sheet draws its segments with the line and the workspace boxes unchanged.
+  A failed sheet read restores `Feature demó › Médiaböngésző`, and there are
+  no page errors. The FB-0226 case now expects the empty bar before a
+  selection. All 14 cases of the spec passed, as did the 17 cases of
+  `task-page`, `window-title` and `page-layout-inner`. The PHP contract
+  checks were not run because no PHP or catalogue changed. No full-smoke
+  claim.
+- **Status.** Implemented and verified as above.
+

@@ -1823,6 +1823,8 @@ function browser2(app, host, view) {
   root.style.cssText = "width:100%;height:100%";
   host.attach(root);
   let build, selected;
+  const unplaced = () => host.setLocation([], { from: "root" });
+  unplaced();
   const render = () => {
     if (host.signal.aborted) return;
     build?.abort();
@@ -1846,7 +1848,7 @@ function browser2(app, host, view) {
       selected = id;
       if (!id) {
         empty();
-        host.setLocation([]);
+        unplaced();
         return;
       }
       for (const region of ["data", "image", "brief"]) page2.placeholder(region, { busy: true });

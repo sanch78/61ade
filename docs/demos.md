@@ -887,7 +887,11 @@ and the three inner regions stack, with their own kept sizes. The view needs
 - **Own location path** ([FB-0226](feedback.md#fb-0226)): with a sheet
   selected the page sets the whole location bar itself
   (`setLocation(…, {from: "root"})`): `Médialapok › ‹channel› › ‹sheet›`, the
-  channel a link to the `Médialapok` list filtered by it. Check:
+  channel a link to the `Médialapok` list filtered by it. With no sheet
+  selected the bar is empty (`setLocation([], {from: "root"})`,
+  [FB-0236](feedback.md#fb-0236)): the line stays, without levels, and the
+  browser title is the application title. A sheet that cannot be read returns
+  the bar to the menu path (`setLocation([])`). Check:
   `tests/shell/location-bar.spec.cjs`.
 
 <a id="approvals-attention"></a>

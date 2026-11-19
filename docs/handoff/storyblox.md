@@ -115,6 +115,18 @@ Read on 2026-11-18 from `stories.php`; recheck them. `story_episodes.season_id`
 A spec that expects *Epizódok* to be missing from an episode's bar, or that
 expects a season segment of the page's own, needs updating.
 
+## Empty location bar (D-107)
+
+Delivered in 61ade ([FB-0236](../feedback.md#fb-0236),
+[empty own path](../shell.md#location-bar-empty), M94):
+`setLocation([], {from: "root"})` now leaves the bar empty instead of
+returning to the automatic path. The 32 px line stays, without levels, and
+the document title is the application title. No code change: read on
+2026-11-19, `catalogue.js` (lines 302–306) already makes that call while no
+node is selected, so the Assetek page shows an empty bar there instead of
+*Assetek*. A spec that expected the menu entry in that state needs
+updating. `asset-location.js` always passes segments and is unaffected.
+
 ## Asset viewer on the public API (D-019 to D-021)
 
 The requests of `dev/docs/61ade/custom-view-request.md` (untracked in the

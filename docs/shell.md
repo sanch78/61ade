@@ -1238,8 +1238,16 @@ below the menu row, across the full width, before the workspace
   records, no record title, only the page's levels, with the same segment
   rules. The first segment takes the view's icon unless it brings one. The
   automatic path stays the default; the menu marker keeps following the menu
-  source. An empty array returns to the automatic path, as `setLocation([])`
-  does (the menu path and the parent records, without the record's title).
+  source. <a id="location-bar-empty"></a>An empty array leaves the bar
+  **empty** ([FB-0236](feedback.md#fb-0236)): a page that owns its path and has
+  no place yet (nothing selected, or the first selection still loading) calls
+  `setLocation([], {from: "root"})` instead of repeating the menu entry the menu
+  row already marks. The 32 px line and its chrome stay, so the workspace
+  does not move when levels arrive or go; it shows no segment, the `<nav>` is
+  hidden from assistive technology (`aria-hidden`) while empty, and the
+  document title is the application title. The page's next call draws its
+  segments; `setLocation([])` without `from: "root"` returns to the automatic
+  path (the menu path and the parent records, without the record's title).
   A `target` may also carry `filters` (field → text value, at most 20) to
   link to a list view filtered like `filter.<field>=<value>` in the address
   (ignored for a record view). Example (D12 `Médiaböngésző`):
@@ -1274,13 +1282,15 @@ below the menu row, across the full width, before the workspace
   (`setTitle`); the bar shows the page underneath, unchanged.
 - **Accessibility:** `<nav>` named `Hely` (en `Location`, de `Position`)
   with an ordered list; the separators are not spoken; the current segment
-  has `aria-current="page"`; the links and buttons follow the menu row in
+  has `aria-current="page"` (an [empty own path](#location-bar-empty) has no
+  level and hides the `<nav>` from assistive technology, so no empty landmark
+  is announced); the links and buttons follow the menu row in
   the tab order; a collapsed segment is reachable through the `…` menu
   (`További szintek`, en `More levels`, de `Weitere Ebenen`), which keeps the
   popup menu's keyboard behaviour.
 - **Browser title:** while a page is open, the document title is
-  `‹current segment› · ‹application title›`; the empty workspace restores the
-  application title.
+  `‹current segment› · ‹application title›`; the empty workspace and an
+  [empty own path](#location-bar-empty) show the application title.
 
 Limits: one bar per page (a window has none); the menu path comes from the
 menu, so a custom `Menu` item has none; a parent is one reference field
